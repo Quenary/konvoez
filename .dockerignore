@@ -1,0 +1,38 @@
+# Common
+.git
+.gitignore
+README.md
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+/node_modules
+/package-lock.json
+/yarn.lock
+/pnpm-lock.yaml
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+
+
+# Node
+**/node_modules
+**/npm-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Angular
+frontend/dist
+frontend/.angular
+frontend/.cache
+frontend/.vscode
+frontend/.idea
+frontend/src/environments/*.local.ts
+
+# Nest
+backend/dist
+backend/.vscode
+backend/.idea
+backend/test
+backend/coverage

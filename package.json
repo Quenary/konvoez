@@ -1,0 +1,38 @@
+{
+  "name": "konvoez",
+  "version": "1.0.0",
+  "description": "Self-hosted voice and text chat app",
+  "main": "start.sh",
+  "scripts": {
+    "test": "test.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Quenary/konvoez.git"
+  },
+  "engines": {
+    "node": "^22.0.0"
+  },
+  "keywords": [
+    "chat",
+    "voice",
+    "text",
+    "discord",
+    "teamspeak",
+    "mumble",
+    "self-hosted"
+  ],
+  "author": "Eugene Savin",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Quenary/konvoez/issues"
+  },
+  "homepage": "https://github.com/Quenary/konvoez#readme",
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.5",
+    "prettier": "^3.8.1",
+    "semantic-release": "^25.0.3"
+  }
+}
