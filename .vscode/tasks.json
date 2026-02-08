@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend",
+      "command": "cd backend && npm run start:dev",
+      "type": "shell",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$tsc-watch",
+        "fileLocation": "relative",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Starting Nest application",
+          "endsPattern": "Nest application successfully started"
+        }
+      }
+    },
+    {
+      "label": "frontend",
+      "dependsOn": ["backend"],
+      "command": "cd frontend && npm start",
+      "type": "shell"
+    },
+    {
+      "label": "Dev Runner",
+      "dependsOn": ["backend", "frontend"],
+      "runOptions": { "runOn": "default" },
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
