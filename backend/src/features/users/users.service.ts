@@ -1,15 +1,12 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { UserEntity } from './users.entity';
-import {
-  EntityManager,
-  EntityRepository,
-  getWhereCondition,
-} from '@mikro-orm/core';
+import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 import { EUserRole } from './users.enum';
 
@@ -56,7 +53,17 @@ export class UsersService {
     return user;
   }
 
-  async update(id: number, dto: UpdateUserDto): Promise<UserEntity> {
+  async update(
+    id: number,
+    dto: UpdateUserDto,
+    author: UserEntity,
+  ): Promise<UserEntity> {
+    if (
+      id !== author.id &&
+      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
+    ) {
+      throw new ForbiddenException('Forbidden');
+    }
     if (dto.role == EUserRole.OWNER) {
       throw new BadRequestException('Owner role cannot be assigned');
     }
@@ -67,7 +74,13 @@ export class UsersService {
     return user;
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, author: UserEntity): Promise<void> {
+    if (
+      id !== author.id &&
+      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
+    ) {
+      throw new ForbiddenException('Forbidden');
+    }
     const user = await this.findOne(id);
     this.em.remove(user);
     await this.em.flush();

@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, UpdateRoomDto } from './rooms.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { UserEntity } from '../users/users.entity';
+import { EUserRole } from '../users/users.enum';
 
 @Injectable()
 export class RoomsService {
@@ -26,23 +32,48 @@ export class RoomsService {
     return this.repo.findAll();
   }
 
-  async create(dto: CreateRoomDto): Promise<RoomEntity> {
-    const room = this.repo.create(dto);
+  async create(dto: CreateRoomDto, author: UserEntity): Promise<RoomEntity> {
+    const room = this.repo.create({
+      ...dto,
+      author,
+    });
     this.em.persist(room);
     await this.em.flush();
     return room;
   }
 
-  async update(id: number, dto: UpdateRoomDto): Promise<RoomEntity> {
+  async update(
+    id: number,
+    dto: UpdateRoomDto,
+    author: UserEntity,
+  ): Promise<RoomEntity> {
     const room = await this.findOne(id);
+
+    if (
+      room.author.id !== author.id ||
+      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
+    ) {
+      throw new ForbiddenException(
+        'Room can be deleted by the author or an admin',
+      );
+    }
+
     this.repo.assign(room, dto);
     this.em.persist(room);
     await this.em.flush();
     return room;
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, author: UserEntity): Promise<void> {
     const room = await this.findOne(id);
+    if (
+      room.author.id !== author.id ||
+      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
+    ) {
+      throw new ForbiddenException(
+        'Room can be deleted by the author or an admin',
+      );
+    }
     this.em.remove(room);
     await this.em.flush();
   }

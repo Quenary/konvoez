@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Req,
   Res,
@@ -11,12 +12,14 @@ import { AuthLoginDto } from './auth.dto';
 import type { Request, Response } from 'express';
 import { ConfigService } from 'src/shared/services/config.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
+import { ApiOkResponse } from '@nestjs/swagger';
+import { GetUserDto } from '../users/users.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private configService: ConfigService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -50,6 +53,9 @@ export class AuthController {
   }
 
   @Post('login')
+  @ApiOkResponse({
+    type: GetUserDto,
+  })
   async login(
     @Body() dto: AuthLoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -59,15 +65,16 @@ export class AuthController {
       dto.password,
     );
     this.setCookies(user.username, res);
-    return { ok: true };
+    return user;
   }
 
   @Post('refresh')
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_KEY];
     if (!refreshToken) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('No refresh token');
     }
+    this.authService.verifyToken(refreshToken);
     this.setCookies(refreshToken.username, res);
     return { ok: true };
   }
@@ -79,8 +86,12 @@ export class AuthController {
     return { ok: true };
   }
 
-  @Post('me')
-  me(@Req() req: Request) {
-    return this.authService.getMe(req);
+  @Get('me')
+  @ApiOkResponse({
+    type: GetUserDto,
+    description: 'Get current user',
+  })
+  async me(@Req() req: Request) {
+    return await this.authService.getMe(req);
   }
 }

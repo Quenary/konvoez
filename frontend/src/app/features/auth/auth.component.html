@@ -1,0 +1,42 @@
+<form [formGroup]="form" (submit)="onSubmit()">
+  <p-ifta-label>
+    <input
+      pInputText
+      id="username"
+      autocomplete="username"
+      formControlName="username"
+      type="text"
+      [placeholder]="'AUTH.USERNAME' | translate"
+    />
+    <label for="username">
+      {{ 'AUTH.USERNAME' | translate }}
+    </label>
+  </p-ifta-label>
+
+  <p-iftaLabel>
+    <p-password
+      inputId="password"
+      autocomplete="current-password"
+      formControlName="password"
+      [toggleMask]="true"
+      [feedback]="false"
+      [fluid]="true"
+    >
+    </p-password>
+    <label for="password">
+      {{ 'AUTH.PASSWORD' | translate }}
+    </label>
+  </p-iftaLabel>
+
+  <p-button
+    type="submit"
+    [disabled]="!form.valid"
+    [loading]="loading()"
+    [label]="'AUTH.SIGN_IN' | translate"
+  ></p-button>
+  <p-button
+    type="button"
+    [label]="'AUTH.SIGN_UP' | translate"
+    routerLink="/auth/register"
+  ></p-button>
+</form>
