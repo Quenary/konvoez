@@ -8,8 +8,8 @@ import { RoomsComponent } from './features/rooms/rooms.component';
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, TranslatePipe, ButtonModule, RoomsComponent],
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.scss',
 })
 export class App {
   protected readonly title = signal('konvoez-frontend');

@@ -28,7 +28,12 @@ export class AuthService {
    * @throws UnauthorizedException
    */
   async validateUser(username: string, password: string): Promise<UserEntity> {
-    const user = await this.userService.findOneByUsername(username);
+    let user: UserEntity | null = null;
+    try {
+      user = await this.userService.findOneByUsername(username);
+    } catch {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }

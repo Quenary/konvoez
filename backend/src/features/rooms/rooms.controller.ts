@@ -8,12 +8,14 @@ import {
   Post,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, UpdateRoomDto } from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { AuthGuardRoles } from '../auth/auth.decorator';
-import { EUserRole } from '../users/users.enum';
+import type { Request } from 'express';
+import { Author } from '../auth/auth.decorator';
+import { UserEntity } from '../users/users.entity';
 
 @Controller('rooms')
 @UseGuards(AuthGuard)
@@ -21,8 +23,8 @@ export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @Post()
-  create(@Body() dto: CreateRoomDto) {
-    return this.roomsService.create(dto);
+  async create(@Body() dto: CreateRoomDto, @Author() author: UserEntity) {
+    return this.roomsService.create(dto, author);
   }
 
   @Get()
@@ -36,14 +38,20 @@ export class RoomsController {
   }
 
   @Patch(':id')
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoomDto) {
-    return this.roomsService.update(id, dto);
+  async update(
+    @Req() req: Request,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateRoomDto,
+    @Author() author: UserEntity,
+  ) {
+    return this.roomsService.update(id, dto, author);
   }
 
   @Delete(':id')
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.roomsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Author() author: UserEntity,
+  ) {
+    return this.roomsService.remove(id, author);
   }
 }

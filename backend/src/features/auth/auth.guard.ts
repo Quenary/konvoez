@@ -24,6 +24,7 @@ export class AuthGuard implements CanActivate {
     );
     const user = await this.authService.getMe(request);
     if (!roles || roles.includes(user.role)) {
+      request['author'] = user; // for GetActor decorator
       return true;
     }
     throw new ForbiddenException('Method forbidden for the user');

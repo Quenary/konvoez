@@ -1,4 +1,10 @@
-import { Entity, Enum, OneToMany, Property } from '@mikro-orm/core';
+import {
+  Entity,
+  Enum,
+  OneToMany,
+  OptionalProps,
+  Property,
+} from '@mikro-orm/core';
 import { EUserRole } from './users.enum';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
@@ -15,5 +21,5 @@ export class UserEntity extends KonvoezBaseEntity {
   role!: EUserRole;
 
   @OneToMany(() => RoomEntity, 'author')
-  rooms!: RoomEntity[];
+  rooms?: RoomEntity[];
 }
