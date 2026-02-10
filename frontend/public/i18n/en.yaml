@@ -1,8 +1,21 @@
 GENERAL:
   YES: Yes
   NO: No
+  SAVE: Save
+  GO_BACK: Go back
 AUTH:
   USERNAME: Username
   PASSWORD: Password
+  CONFIRM_PASSWORD: Confirm password
   SIGN_IN: Sign-in
   SIGN_UP: Sign-up
+  PASSWORD_STRENGTH:
+    PROMPT: Choose a password
+    WEAK: Too simple
+    MEDIUM: Average complexity
+    STRONG: Complex password
+    HINT: |
+      - At least one lowercase
+      - At least one uppercase
+      - At least one numeric
+      - At least 12 characters

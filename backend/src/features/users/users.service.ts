@@ -1,6 +1,7 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,7 @@ import { UserEntity } from './users.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 import { EUserRole } from './users.enum';
+import { PasswordService } from '../../shared/services/password.service';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +19,7 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
+    private readonly passwordService: PasswordService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -42,13 +45,22 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto): Promise<UserEntity> {
-    const anyUser = await this.repo.findOne({});
+    const existing = await this.repo.findOne({ username: dto.username });
+    if (existing) {
+      throw new ConflictException('Username already exists');
+    }
+    const anyUser = (await this.em.count(UserEntity)) > 0;
+    // Owner role is only for the first user
     const role: EUserRole = !!anyUser ? EUserRole.MEMBER : EUserRole.OWNER;
-    const user = this.repo.create({
-      ...dto,
-      role,
-    });
-    this.em.persist(user);
+    const password = await this.passwordService.hashPassword(dto.password);
+    const user = this.repo.create(
+      {
+        ...dto,
+        password,
+        role,
+      },
+      { persist: true },
+    );
     await this.em.flush();
     return user;
   }
@@ -66,6 +78,14 @@ export class UsersService {
     }
     if (dto.role == EUserRole.OWNER) {
       throw new BadRequestException('Owner role cannot be assigned');
+    }
+    let { password, ...data } = dto;
+    if (password) {
+      password = await this.passwordService.hashPassword(password);
+      dto = {
+        ...data,
+        password,
+      };
     }
     const user = await this.findOne(id);
     this.repo.assign(user, dto);

@@ -16,7 +16,11 @@ export class AuthApiService {
   }
 
   logout() {
-    return this.httpClient.post<any>(`${environment.apiPath}/auth/logout`, {});
+    return this.httpClient.post<any>(
+      `${environment.apiPath}/auth/logout`,
+      {},
+      { withCredentials: true },
+    );
   }
 
   refresh() {

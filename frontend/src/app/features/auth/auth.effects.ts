@@ -39,6 +39,17 @@ export class AuthEffects {
     ),
   );
 
+  readonly requestLoginSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.requestLoginSuccess),
+        tap(() => {
+          this.router.navigate(['/']);
+        }),
+      ),
+    { dispatch: false },
+  );
+
   readonly requestRegister$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.requestRegister),

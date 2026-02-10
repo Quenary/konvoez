@@ -13,7 +13,10 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "preserve",
+    "paths": {
+      "@common/*": ["../common/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
@@ -28,6 +31,7 @@
     },
     {
       "path": "./tsconfig.spec.json"
-    }
+    },
+    { "path": "../common/tsconfig.json" }
   ]
 }

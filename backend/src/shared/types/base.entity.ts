@@ -10,6 +10,6 @@ export abstract class KonvoezBaseEntity {
   @Property({ onCreate: () => new Date() })
   createdAt!: Date;
 
-  @Property({ onUpdate: () => new Date() })
-  updatedAt!: Date;
+  @Property({ onUpdate: () => new Date(), nullable: true })
+  updatedAt: Date | null = null;
 }

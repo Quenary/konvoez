@@ -16,7 +16,6 @@ export class RoomsComponent implements OnInit {
   protected readonly rooms = this.store.selectSignal(selectRoomsAll);
 
   ngOnInit(): void {
-    console.log('dispatch');
     this.store.dispatch(RoomsActions.requestRooms());
   }
 }

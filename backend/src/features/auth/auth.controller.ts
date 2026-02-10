@@ -41,14 +41,14 @@ export class AuthController {
       sameSite: this.configService.COOKIE_SAME_SITE,
       secure: this.configService.COOKIE_SECURE,
       domain: this.configService.COOKIE_DOMAIN,
-      maxAge: this.configService.ACCESS_TTL * 60,
+      maxAge: this.configService.ACCESS_TTL * 60 * 1000,
     });
     res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
       httpOnly: true,
       sameSite: this.configService.COOKIE_SAME_SITE,
       secure: this.configService.COOKIE_SECURE,
       domain: this.configService.COOKIE_DOMAIN,
-      maxAge: this.configService.REFRESH_TTL * 60,
+      maxAge: this.configService.REFRESH_TTL * 60 * 1000,
     });
   }
 
