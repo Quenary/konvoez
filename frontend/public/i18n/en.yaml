@@ -2,7 +2,9 @@ GENERAL:
   YES: Yes
   NO: No
   SAVE: Save
+  CANCEL: Cancel
   GO_BACK: Go back
+  REQ_ERR: Request error
 AUTH:
   USERNAME: Username
   PASSWORD: Password
@@ -19,3 +21,12 @@ AUTH:
       - At least one uppercase
       - At least one numeric
       - At least 12 characters
+ROOMS:
+  ADD: Add
+  TEXT: Text
+  VOICE: Voice
+  ADD_DIALOG:
+    NAME: Name
+    TYPE: Type
+    TEXT: Text
+    VOICE: Voice

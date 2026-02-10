@@ -6,7 +6,7 @@ export class SignalingService {
   socket!: Socket;
 
   connect() {
-    this.socket = io('https://localhost:3000');
+    this.socket = io();
   }
 
   joinRoom(roomId: string) {

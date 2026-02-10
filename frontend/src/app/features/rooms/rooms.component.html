@@ -1,4 +1,14 @@
-<p>rooms works!</p>
-@for (room of rooms(); track room) {
-  {{ room.name }}
-}
+<p-list-box
+  style="height: 100%"
+  [group]="true"
+  [options]="groupedRooms()"
+  optionLabel="name"
+  filter
+>
+  <ng-template let-group #group>
+    <span style="display: inline-flex; align-items: center">
+      {{ group.label }}
+      <p-button text icon="pi pi-plus" (onClick)="addRoom(group.value)"></p-button>
+    </span>
+  </ng-template>
+</p-list-box>
