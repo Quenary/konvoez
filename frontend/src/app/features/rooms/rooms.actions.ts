@@ -15,11 +15,11 @@ export const RoomsActions = createActionGroup({
     requestCreateRoom: props<{ room: IRoomCreate }>(),
     requestCreateRoomSuccess: props<{ room: IRoom }>(),
     requestCreateRoomError: props<{ error: HttpErrorResponse }>(),
-    requestUpdateRoom: props<{ room: IRoomUpdate }>(),
+    requestUpdateRoom: props<{ id: number; room: IRoomUpdate }>(),
     requestUpdateRoomSuccess: props<{ room: IRoom }>(),
     requestUpdateRoomError: props<{ error: HttpErrorResponse }>(),
     requestDeleteRoom: props<{ id: number }>(),
-    requestDeleteRoomSuccess: emptyProps(),
+    requestDeleteRoomSuccess: props<{ id: number }>(),
     requestDeleteRoomError: props<{ error: HttpErrorResponse }>(),
   },
 });

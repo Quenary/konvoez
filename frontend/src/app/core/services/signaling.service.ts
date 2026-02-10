@@ -6,7 +6,7 @@ export class SignalingService {
   socket!: Socket;
 
   connect() {
-    this.socket = io('https://3000.code.quenary.mywire.org');
+    this.socket = io();
   }
 
   joinRoom(roomId: string) {
