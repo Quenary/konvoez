@@ -11,13 +11,13 @@ import { SharedModule } from './shared/shared.module';
 
 @Module({
   imports: [
-    SignalingGateway,
     MikroOrmModule.forRoot({
       entities: ['./**/*.entity.js'],
       entitiesTs: ['./**/*.entity.ts'],
       dbName: 'sqlite.db',
       driver: SqliteDriver,
     }),
+    SignalingGateway,
     AuthModule,
     RoomsModule,
     UsersModule,

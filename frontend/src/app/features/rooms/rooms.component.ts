@@ -7,12 +7,27 @@ import { ButtonModule } from 'primeng/button';
 import { TranslateService } from '@ngx-translate/core';
 import { DialogService } from 'primeng/dynamicdialog';
 import { AddRoomDialogComponent } from './add-room-dialog/add-room-dialog.component';
-import { IRoomCreate } from './rooms.interface';
+import { IRoom, IRoomCreate } from './rooms.interface';
 import { ERoomType } from '@common/enums';
+import { MenuItem } from 'primeng/api';
+import { MenuModule } from 'primeng/menu';
+import { AvatarModule } from 'primeng/avatar';
+import { ContextMenuModule } from 'primeng/contextmenu';
+import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { RouterLink } from '@angular/router';
+import { AuthActions } from '../auth/auth.actions';
 
 @Component({
   selector: 'app-rooms',
-  imports: [ListboxModule, ButtonModule],
+  imports: [
+    ListboxModule,
+    ButtonModule,
+    MenuModule,
+    AvatarModule,
+    ContextMenuModule,
+    LogoComponent,
+    RouterLink,
+  ],
   providers: [DialogService],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',
@@ -25,20 +40,31 @@ export class RoomsComponent implements OnInit {
 
   private readonly textRooms = this.store.selectSignal(selectTextRoomsList);
   private readonly voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
-  protected readonly groupedRooms = computed(() => {
+
+  protected readonly menu = computed<MenuItem[]>(() => {
     const textRooms = this.textRooms();
     const voiceRooms = this.voiceRooms();
     return [
+      { separator: true },
       {
         label: this.translateService.instant('ROOMS.TEXT'),
-        value: ERoomType.TEXT,
-        items: textRooms,
+        command: () => this.addRoom(ERoomType.TEXT),
+        items: textRooms.map((item) => ({
+          label: item.name,
+          value: item,
+          command: () => this.selectRoom(item),
+        })),
       },
       {
         label: this.translateService.instant('ROOMS.VOICE'),
-        value: ERoomType.VOICE,
-        items: voiceRooms,
+        command: () => this.addRoom(ERoomType.VOICE),
+        items: voiceRooms.map((item) => ({
+          label: item.name,
+          value: item,
+          command: () => this.selectRoom(item),
+        })),
       },
+      { separator: true },
     ];
   });
 
@@ -54,5 +80,11 @@ export class RoomsComponent implements OnInit {
         this.store.dispatch(RoomsActions.requestCreateRoom({ room }));
       }
     });
+  }
+
+  protected selectRoom($event: IRoom): void {}
+
+  protected logout(): void {
+    this.store.dispatch(AuthActions.requestLogout());
   }
 }

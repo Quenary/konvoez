@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
+import { VoiceSocket } from '@common/voice-socket';
+import VSev = VoiceSocket.EEvent;
 
 @Injectable({ providedIn: 'root' })
 export class SignalingService {
@@ -10,10 +12,10 @@ export class SignalingService {
   }
 
   joinRoom(roomId: string) {
-    this.socket.emit('join-room', { roomId });
+    this.socket.emit(VSev.JOIN_ROOM, { roomId });
   }
 
   signal(target: string, payload: any) {
-    this.socket.emit('signal', { target, payload });
+    this.socket.emit(VSev.SIGNAL, { target, payload });
   }
 }

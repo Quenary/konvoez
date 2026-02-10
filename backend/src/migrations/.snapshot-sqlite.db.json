@@ -157,8 +157,8 @@
           "nullable": false,
           "length": null,
           "enumItems": [
-            "text",
-            "voice"
+            "TEXT",
+            "VOICE"
           ],
           "mappedType": "enum"
         },

@@ -1,14 +1,25 @@
-<p-list-box
-  style="height: 100%"
-  [group]="true"
-  [options]="groupedRooms()"
-  optionLabel="name"
-  filter
->
-  <ng-template let-group #group>
-    <span style="display: inline-flex; align-items: center">
-      {{ group.label }}
-      <p-button text icon="pi pi-plus" (onClick)="addRoom(group.value)"></p-button>
-    </span>
+<p-menu [model]="menu()" [style]="{ height: '100%' }">
+  <ng-template #start>
+    <app-logo></app-logo>
   </ng-template>
-</p-list-box>
+
+  <ng-template #submenuheader let-item>
+    <span>{{ item.label }}</span>
+    <p-button text icon="pi pi-plus" (onClick)="item.command()"></p-button>
+  </ng-template>
+
+  <ng-template #item let-item>
+    <span>{{ item.label }}</span>
+  </ng-template>
+
+  <ng-template #end>
+    <p-button
+      [style]="{ marginLeft: 'auto' }"
+      text
+      rounded
+      icon="pi pi-cog"
+      routerLink="/settings"
+    ></p-button>
+    <p-button text rounded icon="pi pi-sign-out" severity="danger" (onBlur)="logout()"> </p-button>
+  </ng-template>
+</p-menu>

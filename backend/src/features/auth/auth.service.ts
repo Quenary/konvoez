@@ -68,6 +68,10 @@ export class AuthService {
       throw new UnauthorizedException('Unauthorized');
     }
 
+    return await this.getUserFromAccessToken(accessToken);
+  }
+
+  async getUserFromAccessToken(accessToken: string) {
     const accessTokenData = this.verifyToken(accessToken);
     return await this.userService.findOneByUsername(accessTokenData.username);
   }

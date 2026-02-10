@@ -1,0 +1,14 @@
+:host {
+  font-size: 2rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  span {
+    span:first-child {
+      color: var(--p-content-color);
+    }
+    span:last-child {
+      color: var(--p-primary-500);
+    }
+  }
+}
