@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDate, IsEnum, IsString, Length } from 'class-validator';
-import { ERoomType } from './rooms.enum';
+import { ERoomType } from '@common/enums';
 
 export class CreateRoomDto {
   @ApiProperty({

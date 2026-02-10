@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsEnum, IsString, Length } from 'class-validator';
-import { EUserRole } from './users.enum';
+import { IsEnum, IsString, Length } from 'class-validator';
+import { EUserRole } from '@common/enums';
 import {
   usernameMinLength,
   usernameMaxLength,

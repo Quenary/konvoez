@@ -4,12 +4,11 @@ import { RoomsActions } from './rooms.actions';
 import { selectTextRoomsList, selectVoiceRoomsList } from './rooms.selectors';
 import { ListboxModule } from 'primeng/listbox';
 import { ButtonModule } from 'primeng/button';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { ERoomType } from './rooms.enum';
 import { DialogService } from 'primeng/dynamicdialog';
 import { AddRoomDialogComponent } from './add-room-dialog/add-room-dialog.component';
 import { IRoomCreate } from './rooms.interface';
+import { ERoomType } from '@common/enums';
 
 @Component({
   selector: 'app-rooms',
