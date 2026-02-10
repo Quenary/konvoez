@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDate, IsEnum, IsString, Length } from 'class-validator';
 import { EUserRole } from './users.enum';
+import {
+  usernameMinLength,
+  usernameMaxLength,
+  passwordMaxLength,
+  passwordMinLength,
+  passwordRegexp,
+} from '@common/const';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -8,14 +15,15 @@ export class CreateUserDto {
     required: true,
   })
   @IsString()
-  @Length(1, 32)
+  @Length(usernameMinLength, usernameMaxLength)
   username!: string;
 
   @ApiProperty({
     type: String,
     required: true,
   })
-  @Length(12, 32)
+  @IsString()
+  @Length(passwordMinLength, passwordMaxLength)
   password!: string;
 }
 
@@ -25,14 +33,15 @@ export class UpdateUserDto {
     required: false,
   })
   @IsString()
-  @Length(1, 32)
+  @Length(usernameMinLength, usernameMaxLength)
   username?: string;
 
   @ApiProperty({
     type: String,
     required: false,
   })
-  @Length(12, 32)
+  @IsString()
+  @Length(passwordMinLength, passwordMaxLength)
   password?: string;
 
   @ApiProperty({
@@ -66,13 +75,11 @@ export class GetUserDto {
     type: Date,
     required: true,
   })
-  @IsDate()
   createdAt!: Date;
 
   @ApiProperty({
     type: Date,
     required: false,
   })
-  @IsDate()
   updatedAt?: Date;
 }

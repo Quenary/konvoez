@@ -1,13 +1,11 @@
 // auth.service.ts
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { EntityRepository } from '@mikro-orm/core';
-import { InjectRepository } from '@mikro-orm/nestjs';
 import { UserEntity } from '../users/users.entity';
 import { PasswordService } from 'src/shared/services/password.service';
 import { ConfigService } from 'src/shared/services/config.service';
-import { Response, Request } from 'express';
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
+import { Request } from 'express';
+import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { UsersService } from '../users/users.service';
 
@@ -69,6 +67,7 @@ export class AuthService {
     if (!accessToken) {
       throw new UnauthorizedException('Unauthorized');
     }
+
     const accessTokenData = this.verifyToken(accessToken);
     return await this.userService.findOneByUsername(accessTokenData.username);
   }

@@ -1,1 +1,94 @@
-<p>auth-register works!</p>
+<form class="form" [formGroup]="form" (submit)="onSubmit()">
+  <p-ifta-label class="form-field">
+    <input
+      fluid
+      pInputText
+      type="text"
+      id="register-username"
+      name="register-username"
+      autocomplete="username"
+      formControlName="username"
+      [minLength]="usernameMinLength"
+      [maxLength]="usernameMaxLength"
+    />
+    <label for="register-username">
+      {{ 'AUTH.USERNAME' | translate }}
+    </label>
+  </p-ifta-label>
+
+  <p-ifta-label class="form-field">
+    <p-password
+      fluid
+      inputId="register-password"
+      name="register-password"
+      autocomplete="new-password"
+      formControlName="password"
+      [toggleMask]="true"
+      [feedback]="true"
+      [minlength]="passwordMinLength"
+      [maxlength]="passwordMaxLength"
+      [promptLabel]="'AUTH.PASSWORD_STRENGTH.PROMPT' | translate"
+      [weakLabel]="'AUTH.PASSWORD_STRENGTH.WEAK' | translate"
+      [mediumLabel]="'AUTH.PASSWORD_STRENGTH.MEDIUM' | translate"
+      [strongLabel]="'AUTH.PASSWORD_STRENGTH.STRONG' | translate"
+    >
+      <ng-template #footer>
+        <p-divider />
+        <pre style="white-space: pre-line">
+            {{ 'AUTH.PASSWORD_STRENGTH.HINT' | translate }}
+        </pre>
+      </ng-template>
+    </p-password>
+    <label for="register-password">
+      {{ 'AUTH.PASSWORD' | translate }}
+    </label>
+  </p-ifta-label>
+
+  <p-ifta-label>
+    <p-password
+      fluid
+      [class.ng-invalid]="confirmPasswordError()"
+      inputId="confirm-register-password"
+      name="confirm-register-password"
+      autocomplete="new-password"
+      formControlName="confirm_password"
+      [toggleMask]="true"
+      [feedback]="true"
+      [promptLabel]="'AUTH.PASSWORD_STRENGTH.PROMPT' | translate"
+      [weakLabel]="'AUTH.PASSWORD_STRENGTH.WEAK' | translate"
+      [mediumLabel]="'AUTH.PASSWORD_STRENGTH.MEDIUM' | translate"
+      [strongLabel]="'AUTH.PASSWORD_STRENGTH.STRONG' | translate"
+    >
+      <ng-template #footer>
+        <p-divider />
+        <pre style="white-space: pre-line">
+            {{ 'AUTH.PASSWORD_STRENGTH.HINT' | translate }}
+        </pre>
+      </ng-template>
+    </p-password>
+    <label for="confirm-register-password">
+      {{ 'AUTH.CONFIRM_PASSWORD' | translate }}
+    </label>
+  </p-ifta-label>
+
+  <p-button
+    [fluid]="true"
+    class="form-button"
+    type="submit"
+    [loading]="loading()"
+    [disabled]="!form.dirty"
+    icon="pi pi-save"
+    [label]="'GENERAL.SAVE' | translate"
+  >
+  </p-button>
+  <p-button
+    [fluid]="true"
+    class="form-button"
+    type="button"
+    [disabled]="loading()"
+    icon="pi pi-arrow-left"
+    [label]="'GENERAL.GO_BACK' | translate"
+    routerLink="/auth"
+  >
+  </p-button>
+</form>

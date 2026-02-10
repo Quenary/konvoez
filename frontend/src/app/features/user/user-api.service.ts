@@ -11,29 +11,29 @@ export class UserApiService {
   private readonly httpClient = inject(HttpClient);
 
   list(): Observable<IGetUser[]> {
-    return this.httpClient.get<IGetUser[]>(`${environment.apiPath}/user`, {
+    return this.httpClient.get<IGetUser[]>(`${environment.apiPath}/users`, {
       withCredentials: true,
     });
   }
 
   create(body: ICreateUser): Observable<IGetUser> {
-    return this.httpClient.post<IGetUser>(`${environment.apiPath}/user`, body);
+    return this.httpClient.post<IGetUser>(`${environment.apiPath}/users`, body);
   }
 
   read(id: number): Observable<IGetUser> {
-    return this.httpClient.get<IGetUser>(`${environment.apiPath}/user/${id}`, {
+    return this.httpClient.get<IGetUser>(`${environment.apiPath}/users/${id}`, {
       withCredentials: true,
     });
   }
 
   update(id: number, body: IUpdateUser): Observable<IGetUser> {
-    return this.httpClient.put<IGetUser>(`${environment.apiPath}/user/${id}`, body, {
+    return this.httpClient.put<IGetUser>(`${environment.apiPath}/users/${id}`, body, {
       withCredentials: true,
     });
   }
 
   delete(id: number): Observable<void> {
-    return this.httpClient.delete<void>(`${environment.apiPath}/user/${id}`, {
+    return this.httpClient.delete<void>(`${environment.apiPath}/users/${id}`, {
       withCredentials: true,
     });
   }
