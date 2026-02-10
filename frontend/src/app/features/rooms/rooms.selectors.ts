@@ -1,7 +1,7 @@
 import { createSelector } from '@ngrx/store';
 import { IAppState } from '../../app.state';
 import { roomsAdapter } from './rooms.reducer';
-import { ERoomType } from './rooms.enum';
+import { ERoomType } from '@common/enums';
 
 const _selectRooms = (state: IAppState) => state.rooms;
 

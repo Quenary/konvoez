@@ -9,7 +9,7 @@ import {
 import { UserEntity } from './users.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
-import { EUserRole } from './users.enum';
+import { EUserRole } from '@common/enums';
 import { PasswordService } from '../../shared/services/password.service';
 
 @Injectable()

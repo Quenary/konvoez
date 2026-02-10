@@ -1,5 +1,5 @@
 import { Entity, Enum, OneToMany, Property } from '@mikro-orm/core';
-import { EUserRole } from './users.enum';
+import { EUserRole } from '@common/enums';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 

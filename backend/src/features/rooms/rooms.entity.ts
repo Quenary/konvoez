@@ -1,5 +1,5 @@
 import { Cascade, Entity, Enum, ManyToOne, Property } from '@mikro-orm/core';
-import { ERoomType } from './rooms.enum';
+import { ERoomType } from '@common/enums';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { UserEntity } from '../users/users.entity';
 

@@ -1,4 +1,4 @@
-import { ERoomType } from './rooms.enum';
+import { ERoomType } from '@common/enums';
 
 export interface IRoom {
   id: number;

@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core';
-import { EUserRole } from '../users/users.enum';
+import { EUserRole } from '@common/enums';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { UserEntity } from '../users/users.entity';
 

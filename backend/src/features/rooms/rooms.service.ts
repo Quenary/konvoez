@@ -8,7 +8,7 @@ import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, UpdateRoomDto } from './rooms.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { UserEntity } from '../users/users.entity';
-import { EUserRole } from '../users/users.enum';
+import { EUserRole } from '@common/enums';
 
 @Injectable()
 export class RoomsService {
