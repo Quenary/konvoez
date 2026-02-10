@@ -1,5 +1,8 @@
 import { Injectable } from '@angular/core';
 import { SignalingService } from './signaling.service';
+import { VoiceSocket } from '@common/voice-socket';
+import VSev = VoiceSocket.EEvent;
+import VSd = VoiceSocket.TEventData;
 
 @Injectable({ providedIn: 'root' })
 export class WebrtcService {
@@ -15,15 +18,15 @@ export class WebrtcService {
 
     const s = this.signaling.socket;
 
-    s.on('existing-peers', (peers: string[]) => {
-      peers.forEach(peerId => this.createPeer(peerId, true));
+    s.on(VSev.EXISTING_PEERS, (peers: string[]) => {
+      peers.forEach((peerId) => this.createPeer(peerId, true));
     });
 
-    s.on('new-peer', ({ peerId }) => {
+    s.on(VSev.PEER_JOINED, ({ peerId }) => {
       this.createPeer(peerId, false);
     });
 
-    s.on('signal', async ({ from, payload }) => {
+    s.on(VSev.SIGNAL, async ({ from, payload }: VSd[VSev.SIGNAL]) => {
       const pc = this.peers.get(from);
       if (!pc) return;
 
@@ -46,20 +49,18 @@ export class WebrtcService {
 
   private createPeer(peerId: string, initiator: boolean) {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
 
-    this.localStream.getTracks().forEach(t =>
-      pc.addTrack(t, this.localStream)
-    );
+    this.localStream.getTracks().forEach((t) => pc.addTrack(t, this.localStream));
 
-    pc.onicecandidate = e => {
+    pc.onicecandidate = (e) => {
       if (e.candidate) {
         this.signaling.signal(peerId, { candidate: e.candidate });
       }
     };
 
-    pc.ontrack = e => {
+    pc.ontrack = (e) => {
       const audio = document.createElement('audio');
       audio.srcObject = e.streams[0];
       audio.autoplay = true;
@@ -69,7 +70,7 @@ export class WebrtcService {
     this.peers.set(peerId, pc);
 
     if (initiator) {
-      pc.createOffer().then(offer => {
+      pc.createOffer().then((offer) => {
         pc.setLocalDescription(offer);
         this.signaling.signal(peerId, { sdp: offer });
       });

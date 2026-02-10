@@ -50,6 +50,29 @@ export class AuthEffects {
     { dispatch: false },
   );
 
+  readonly requestLogout$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.requestLogout),
+      switchMap(() =>
+        this.authApiService.logout().pipe(
+          map(() => AuthActions.requestLogoutSuccess()),
+          catchError((error) => of(AuthActions.requestLogoutError({ error }))),
+        ),
+      ),
+    ),
+  );
+
+  readonly logoutEnd$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.requestLogoutSuccess, AuthActions.requestLogoutError),
+        tap(() => {
+          this.router.navigate(['/auth']);
+        }),
+      ),
+    { dispatch: false },
+  );
+
   readonly requestRegister$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.requestRegister),
