@@ -16,6 +16,8 @@ import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
 import { AuthActions } from '../auth/auth.actions';
+import { selectVoiceChatDict } from '../voice-chat/voice-chat.selectors';
+import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
 
 @Component({
   selector: 'app-rooms',
@@ -27,6 +29,7 @@ import { AuthActions } from '../auth/auth.actions';
     ContextMenuModule,
     LogoComponent,
     RouterLink,
+    VoiceRoomPanelComponent,
   ],
   providers: [DialogService],
   templateUrl: './rooms.component.html',
@@ -40,10 +43,13 @@ export class RoomsComponent implements OnInit {
 
   private readonly textRooms = this.store.selectSignal(selectTextRoomsList);
   private readonly voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
+  private readonly voiceRoomsState = this.store.selectSignal(selectVoiceChatDict);
 
+  protected readonly ERoomType = ERoomType;
   protected readonly menu = computed<MenuItem[]>(() => {
     const textRooms = this.textRooms();
     const voiceRooms = this.voiceRooms();
+    const voiceRoomsState = this.voiceRoomsState();
     return [
       { separator: true },
       {
@@ -62,6 +68,7 @@ export class RoomsComponent implements OnInit {
           label: item.name,
           value: item,
           command: () => this.selectRoom(item),
+          items: voiceRoomsState[item.id]?.peers ?? [],
         })),
       },
       { separator: true },
@@ -82,7 +89,9 @@ export class RoomsComponent implements OnInit {
     });
   }
 
-  protected selectRoom($event: IRoom): void {}
+  protected selectRoom(room: IRoom): void {
+    this.store.dispatch(RoomsActions.selectRoom({ room }));
+  }
 
   protected logout(): void {
     this.store.dispatch(AuthActions.requestLogout());

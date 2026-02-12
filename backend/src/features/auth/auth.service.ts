@@ -1,4 +1,3 @@
-// auth.service.ts
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserEntity } from '../users/users.entity';
@@ -28,7 +27,7 @@ export class AuthService {
   async validateUser(username: string, password: string): Promise<UserEntity> {
     let user: UserEntity | null = null;
     try {
-      user = await this.userService.findOneByUsername(username);
+      user = await this.userService.forkOneBy({ username });
     } catch {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -73,6 +72,8 @@ export class AuthService {
 
   async getUserFromAccessToken(accessToken: string) {
     const accessTokenData = this.verifyToken(accessToken);
-    return await this.userService.findOneByUsername(accessTokenData.username);
+    return await this.userService.forkOneBy({
+      username: accessTokenData.username,
+    });
   }
 }

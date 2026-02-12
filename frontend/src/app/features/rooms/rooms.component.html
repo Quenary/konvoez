@@ -9,10 +9,23 @@
   </ng-template>
 
   <ng-template #item let-item>
-    <span>{{ item.label }}</span>
+    <div class="room">
+      <span class="room-item" (click)="selectRoom(item)">
+        @if (item.value.type == ERoomType.TEXT) {
+          <i class="pi pi-comment"></i>
+        } @else {
+          <i class="pi pi-volume-up"></i>
+        }
+        {{ item.label }}
+      </span>
+      @for (user of item.items; track user) {
+        <span class="room-user">{{ user.username }}</span>
+      }
+    </div>
   </ng-template>
 
   <ng-template #end>
+    <app-voice-room-panel></app-voice-room-panel>
     <p-button
       [style]="{ marginLeft: 'auto' }"
       text

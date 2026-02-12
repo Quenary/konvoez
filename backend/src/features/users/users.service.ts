@@ -32,8 +32,9 @@ export class UsersService {
     return user;
   }
 
-  async findOneByUsername(username: string): Promise<UserEntity> {
-    const user = await this.repo.findOne({ username });
+  async forkOneBy(where: Partial<UserEntity>): Promise<UserEntity> {
+    const em = this.em.fork();
+    const user = await em.findOne(UserEntity, where);
     if (!user) {
       throw new NotFoundException('User not found');
     }

@@ -12,12 +12,16 @@ export const roomsAdapter = createEntityAdapter<IRoom>({
   sortComparer: (a, b) => a.name.localeCompare(b.name),
 });
 
-export const roomsInitialState = roomsAdapter.getInitialState({
+export const roomsInitialState = roomsAdapter.getInitialState<IRoomsState>({
   selectedRoomId: null,
 });
 
-export const roomsReducer = createReducer(
+export const roomsReducer = createReducer<IRoomsState>(
   roomsInitialState,
+  on(RoomsActions.selectRoom, (state, payload) => ({
+    ...state,
+    selectedRoomId: payload.room?.id ?? null,
+  })),
   on(RoomsActions.requestRoomSuccess, (state, payload) =>
     roomsAdapter.upsertOne(payload.room, state),
   ),

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SignalingGateway } from './gateways/signaling.gateway';
+// import { SignalingGateway } from './gateways/signaling.gateway';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { SqliteDriver } from '@mikro-orm/sqlite';
 import { RoomsModule } from './features/rooms/rooms.module';
@@ -8,6 +8,7 @@ import { AuthModule } from './features/auth/auth.module';
 import { ConfigService } from './shared/services/config.service';
 import { PasswordService } from './shared/services/password.service';
 import { SharedModule } from './shared/shared.module';
+import { VoiceRoomsModule } from './features/voice-rooms/voice-rooms.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { SharedModule } from './shared/shared.module';
       dbName: 'sqlite.db',
       driver: SqliteDriver,
     }),
-    SignalingGateway,
+    // SignalingGateway,
+    VoiceRoomsModule,
     AuthModule,
     RoomsModule,
     UsersModule,

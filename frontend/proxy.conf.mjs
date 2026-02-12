@@ -8,5 +8,6 @@ export default [
         "stats": "info",
         "logLevel": "info",
         "cookieDomainRewrite": "localhost",
+        ws: true,
     }
 ]
