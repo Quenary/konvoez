@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 export const RoomsActions = createActionGroup({
   source: '[ROOMS]',
   events: {
-    selectRoom: props<{ id: number }>(),
+    selectRoom: props<{ room: IRoom | null }>(),
     requestRooms: emptyProps(),
     requestRoomsSuccess: props<{ rooms: IRoom[] }>(),
     requestRoomsError: props<{ error: HttpErrorResponse }>(),

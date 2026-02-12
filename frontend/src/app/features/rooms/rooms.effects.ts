@@ -2,11 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { RoomsActions } from './rooms.actions';
-import { catchError, map, of, switchMap, tap } from 'rxjs';
+import { catchError, map, of, switchMap, tap, withLatestFrom } from 'rxjs';
 import { RoomsApiService } from './rooms-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '../../shared/functions/parse-error.function';
+import { selectActiveVoiceChatId } from '../voice-chat/voice-chat.selectors';
+import { VoiceChatActions } from '../voice-chat/voice-chat.actions';
+import { ERoomType } from '@common/enums';
 
 @Injectable()
 export class RoomsEffects {
@@ -16,10 +19,25 @@ export class RoomsEffects {
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
 
+  readonly selectRoom$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(RoomsActions.selectRoom),
+        withLatestFrom(this.store.select(selectActiveVoiceChatId)),
+        tap(([action, activeVoiceChat]) => {
+          if (action?.room?.type == ERoomType.VOICE && action.room.id !== activeVoiceChat) {
+            this.store.dispatch(VoiceChatActions.join({ id: action.room.id }));
+          }
+        }),
+      ),
+    { dispatch: false },
+  );
+
   readonly requestRooms$ = createEffect(() =>
     this.actions$.pipe(
       ofType(RoomsActions.requestRooms),
-      switchMap(() =>
+
+      switchMap((action) =>
         this.roomsApiService.list().pipe(
           map((rooms) => RoomsActions.requestRoomsSuccess({ rooms })),
           catchError((error) => of(RoomsActions.requestRoomsError({ error }))),
