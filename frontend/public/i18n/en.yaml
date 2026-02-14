@@ -12,6 +12,7 @@ AUTH:
   CONFIRM_PASSWORD: Confirm password
   SIGN_IN: Sign-in
   SIGN_UP: Sign-up
+  LOG_OUT: Log out
   PASSWORD_STRENGTH:
     PROMPT: Choose a password
     WEAK: Too simple

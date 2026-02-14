@@ -11,10 +11,12 @@ import { SettingsActions } from './settings.actions';
 import { FormsModule } from '@angular/forms';
 import { IftaLabelModule } from 'primeng/iftalabel';
 import { TooltipModule } from 'primeng/tooltip';
+import { AuthActions } from '../auth/auth.actions';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-settings',
-  imports: [SelectModule, FormsModule, IftaLabelModule, TranslatePipe, TooltipModule],
+  imports: [SelectModule, FormsModule, IftaLabelModule, TranslatePipe, TooltipModule, ButtonModule],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -63,5 +65,9 @@ export class SettingsComponent {
   protected onSelectAudioOutput(deviceId: string) {
     const audioOutput = this.getDeviceById(deviceId);
     this.store.dispatch(SettingsActions.setAudioOutput({ audioOutput }));
+  }
+
+  protected logout(): void {
+    this.store.dispatch(AuthActions.requestLogout());
   }
 }
