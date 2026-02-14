@@ -1,11 +1,11 @@
 import { EUserRole } from './enums';
 
 /**
- * Common namespace for voice chats
+ * Common namespace for voice rooms
  */
-export namespace VoiceChatNS {
+export namespace VoiceRoomCommon {
   /**
-   * Voice chat WS events
+   * Voice room WS events
    */
   export enum EEvent {
     /**

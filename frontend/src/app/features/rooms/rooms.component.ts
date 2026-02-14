@@ -16,7 +16,7 @@ import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
 import { AuthActions } from '../auth/auth.actions';
-import { selectVoiceChatDict } from '../voice-chat/voice-chat.selectors';
+import { selectVoiceRoomDict } from '../voice-room/voice-room.selectors';
 import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
 
 @Component({
@@ -43,7 +43,7 @@ export class RoomsComponent implements OnInit {
 
   private readonly textRooms = this.store.selectSignal(selectTextRoomsList);
   private readonly voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
-  private readonly voiceRoomsState = this.store.selectSignal(selectVoiceChatDict);
+  private readonly voiceRoomsState = this.store.selectSignal(selectVoiceRoomDict);
 
   protected readonly ERoomType = ERoomType;
   protected readonly menu = computed<MenuItem[]>(() => {

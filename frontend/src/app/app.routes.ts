@@ -30,12 +30,12 @@ export const routes: Routes = [
       {
         path: 'text-room/:id',
         loadComponent: () =>
-          import('./features/text-chat/text-chat.component').then((m) => m.TextChatComponent),
+          import('./features/text-room/text-room.component').then((m) => m.TextRoomComponent),
       },
       {
         path: 'voice-room/:id',
         loadComponent: () =>
-          import('./features/voice-chat/voice-chat.component').then((m) => m.VoiceChatComponent),
+          import('./features/voice-room/voice-room.component').then((m) => m.VoiceRoomComponent),
       },
       {
         path: 'settings',
