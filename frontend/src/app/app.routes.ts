@@ -28,14 +28,19 @@ export const routes: Routes = [
         loadComponent: () => import('./features/main/main.component').then((m) => m.MainComponent),
       },
       {
-        path: 'text-chat/:id',
+        path: 'text-room/:id',
         loadComponent: () =>
           import('./features/text-chat/text-chat.component').then((m) => m.TextChatComponent),
       },
       {
-        path: 'voice-chat/:id',
+        path: 'voice-room/:id',
         loadComponent: () =>
           import('./features/voice-chat/voice-chat.component').then((m) => m.VoiceChatComponent),
+      },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./features/settings/settings.component').then((m) => m.SettingsComponent),
       },
     ],
   },

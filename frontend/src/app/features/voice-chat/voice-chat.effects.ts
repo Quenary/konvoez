@@ -9,6 +9,8 @@ import { VoiceChatNS } from '@common/voice-chat';
 import { VoiceChatActions } from './voice-chat.actions';
 import { selectActiveVoiceChatPeers } from './voice-chat.selectors';
 import { IPeerWithRTC } from './voice-chat.reducer';
+import { selectAudioInput } from '../settings/settings.selectors';
+import { getStream } from '../../shared/functions/get-stream.function';
 
 @Injectable()
 export class VoiceChatEffects {
@@ -19,8 +21,6 @@ export class VoiceChatEffects {
     autoConnect: false,
     path: '/api/voice',
   }) as Socket<VoiceChatNS.TEventMap>;
-
-  localStream!: MediaStream;
 
   constructor() {
     this.store
@@ -42,16 +42,6 @@ export class VoiceChatEffects {
     this.socket.on(VoiceChatNS.EEvent.EXISTING_PEERS_ALL, (data) => {
       this.store.dispatch(VoiceChatActions.existingPeersAll({ data }));
     });
-
-    setTimeout(() => {
-      navigator.mediaDevices
-        .getUserMedia({
-          audio: true,
-        })
-        .then((s) => {
-          this.localStream = s;
-        });
-    }, 1000);
   }
 
   readonly join$ = createEffect(
@@ -81,9 +71,12 @@ export class VoiceChatEffects {
     () =>
       this.actions$.pipe(
         ofType(VoiceChatActions.peerJoined),
-        withLatestFrom(this.store.select(selectActiveVoiceChatPeers)),
-        tap(([action, peers]) => {
-          const peer = this.createPeer(action.data.peer, false);
+        withLatestFrom(
+          this.store.select(selectActiveVoiceChatPeers),
+          this.store.select(selectAudioInput),
+        ),
+        tap(async ([action, peers, audioInput]) => {
+          const peer = await this.createPeer(action.data.peer, false, audioInput);
           peers = [...peers, peer];
           this.store.dispatch(VoiceChatActions.setActivePeers({ peers }));
         }),
@@ -147,8 +140,11 @@ export class VoiceChatEffects {
     () =>
       this.actions$.pipe(
         ofType(VoiceChatActions.existingPeersOnJoin),
-        tap((action) => {
-          const peers = action.data.peers.map((p) => this.createPeer(p, true));
+        withLatestFrom(this.store.select(selectAudioInput)),
+        tap(async ([action, audioInput]) => {
+          const peers = await Promise.all(
+            action.data.peers.map(async (p) => await this.createPeer(p, true, audioInput)),
+          );
           this.store.dispatch(VoiceChatActions.setActivePeers({ peers }));
         }),
       ),
@@ -183,7 +179,11 @@ export class VoiceChatEffects {
     this.socket.removeListener(VoiceChatNS.EEvent.EXISTING_PEERS_ON_JOIN);
   }
 
-  private createPeer(peer: VoiceChatNS.IPeer, initiator: boolean): IPeerWithRTC {
+  private async createPeer(
+    peer: VoiceChatNS.IPeer,
+    initiator: boolean,
+    device: MediaDeviceInfo | null,
+  ): Promise<IPeerWithRTC> {
     const rtc = new RTCPeerConnection();
     // const rtc = new RTCPeerConnection({
     //   iceServers: [
@@ -193,9 +193,9 @@ export class VoiceChatEffects {
     //   ],
     // });
 
-    // TODO choose track
-    this.localStream.getTracks().forEach((t) => {
-      rtc.addTrack(t, this.localStream);
+    const stream = await getStream(device);
+    stream.getTracks().forEach((t) => {
+      rtc.addTrack(t, stream);
     });
 
     rtc.onicecandidate = (e) => {

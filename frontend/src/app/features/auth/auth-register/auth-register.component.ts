@@ -86,8 +86,6 @@ export class AuthRegisterComponent {
   );
 
   public onSubmit(): void {
-    console.log('onsubmit');
-    console.log(this.form.value);
     if (this.form.valid) {
       this.store.dispatch(
         AuthActions.requestRegister({

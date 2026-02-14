@@ -83,7 +83,6 @@ export class RoomsComponent implements OnInit {
     const ref = this.dialogService.open(AddRoomDialogComponent, { data: { type: $event } });
     ref?.onClose.subscribe((room: IRoomCreate) => {
       if (room) {
-        console.log(room);
         this.store.dispatch(RoomsActions.requestCreateRoom({ room }));
       }
     });

@@ -13,5 +13,7 @@ export const VoiceChatActions = createActionGroup({
     peerJoined: props<{ data: VoiceChatNS.IPeerJoined }>(),
     peerLeft: props<{ data: VoiceChatNS.IPeerLeft }>(),
     setActivePeers: props<{ peers: IPeerWithRTC[] }>(),
+    setAudioInput: props<{ device: MediaDeviceInfo }>(),
+    setAudioOutput: props<{ device: MediaDeviceInfo }>(),
   },
 });

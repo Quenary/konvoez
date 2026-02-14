@@ -24,6 +24,10 @@ import { MessageService } from 'primeng/api';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { voiceChatReducer } from './features/voice-chat/voice-chat.reducer';
 import { VoiceChatEffects } from './features/voice-chat/voice-chat.effects';
+import { settingsReducer } from './features/settings/settings.reducer';
+import { SettingsEffects } from './features/settings/settings.effects';
+import { EStorageKey } from './app.enums';
+import { SettingsActions } from './features/settings/settings.actions';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -42,11 +46,12 @@ export const appConfig: ApplicationConfig = {
         preset: Aura,
       },
     }),
-    provideEffects(AuthEffects, RoomsEffects, VoiceChatEffects),
+    provideEffects(AuthEffects, RoomsEffects, VoiceChatEffects, SettingsEffects),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
       voiceChat: voiceChatReducer,
+      settings: settingsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
     // Initializers
@@ -57,6 +62,17 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       const store = inject(Store);
       return store.dispatch(AuthActions.initStart());
+    }),
+    provideAppInitializer(() => {
+      const store = inject(Store);
+      const audioInput = localStorage.getItemJson<MediaDeviceInfo>(EStorageKey.AUDIO_INPUT);
+      const audioOutput = localStorage.getItemJson<MediaDeviceInfo>(EStorageKey.AUDIO_OUTPUT);
+      store.dispatch(
+        SettingsActions.init({
+          audioInput,
+          audioOutput,
+        }),
+      );
     }),
     MessageService,
   ],
