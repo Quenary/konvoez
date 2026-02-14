@@ -43,24 +43,31 @@ export class VoiceRoomsGateway
   async handleConnection(client: Socket) {
     const rawCookies = client.handshake.headers.cookie;
     if (!rawCookies) {
-      throw new UnauthorizedException('Unauthorized');
+      client.emit('error', { message: 'Unauthorized' });
+      client.disconnect(true);
     }
 
     const parsedCookies = cookie.parse(rawCookies);
     const accessToken = parsedCookies[ACCESS_TOKEN_KEY];
     if (!accessToken) {
-      throw new UnauthorizedException('Unauthorized');
+      client.emit('error', { message: 'Unauthorized' });
+      client.disconnect(true);
     }
 
-    const user = await this.authService.getUserFromAccessToken(accessToken);
-    client.data.peer = {
-      clientId: client.id,
-      id: user.id,
-      username: user.username,
-      role: user.role,
-    } satisfies VoiceRoomCommon.IPeer;
+    try {
+      const user = await this.authService.getUserFromAccessToken(accessToken);
+      client.data.peer = {
+        clientId: client.id,
+        id: user.id,
+        username: user.username,
+        role: user.role,
+      } satisfies VoiceRoomCommon.IPeer;
 
-    this.emitExistingPeers();
+      this.emitExistingPeers();
+    } catch {
+      client.emit('error', { message: 'Unauthorized' });
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket): void {
