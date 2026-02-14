@@ -1,26 +1,26 @@
-import { inject, Injectable, provideCheckNoChangesConfig } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { io, Socket } from 'socket.io-client';
 import { selectIsAuthorized } from '../auth/auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, fromEvent, Subscription, tap, withLatestFrom } from 'rxjs';
-import { VoiceChatNS } from '@common/voice-chat';
-import { VoiceChatActions } from './voice-chat.actions';
-import { selectActiveVoiceChatPeers } from './voice-chat.selectors';
-import { IPeerWithRTC } from './voice-chat.reducer';
+import { finalize, tap, withLatestFrom } from 'rxjs';
+import { VoiceRoomCommon } from '@common/voice-room';
+import { VoiceRoomActions } from './voice-room.actions';
+import { selectActiveVoiceRoomPeers } from './voice-room.selectors';
+import { IPeerWithRTC } from './voice-room.reducer';
 import { selectAudioInput } from '../settings/settings.selectors';
 import { getStream } from '../../shared/functions/get-stream.function';
 
 @Injectable()
-export class VoiceChatEffects {
+export class VoiceRoomEffects {
   private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
 
   private readonly socket = io(`${window.location.origin}`, {
     autoConnect: false,
     path: '/api/voice',
-  }) as Socket<VoiceChatNS.TEventMap>;
+  }) as Socket<VoiceRoomCommon.TEventMap>;
 
   constructor() {
     this.store
@@ -39,15 +39,15 @@ export class VoiceChatEffects {
         }
       });
 
-    this.socket.on(VoiceChatNS.EEvent.EXISTING_PEERS_ALL, (data) => {
-      this.store.dispatch(VoiceChatActions.existingPeersAll({ data }));
+    this.socket.on(VoiceRoomCommon.EEvent.EXISTING_PEERS_ALL, (data) => {
+      this.store.dispatch(VoiceRoomActions.existingPeersAll({ data }));
     });
   }
 
   readonly join$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceChatActions.join),
+        ofType(VoiceRoomActions.join),
         tap((action) => {
           this.onLeave();
           this.onJoin(action.id);
@@ -59,7 +59,7 @@ export class VoiceChatEffects {
   readonly leave$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceChatActions.leave),
+        ofType(VoiceRoomActions.leave),
         tap(() => {
           this.onLeave();
         }),
@@ -70,15 +70,15 @@ export class VoiceChatEffects {
   readonly peerJoined = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceChatActions.peerJoined),
+        ofType(VoiceRoomActions.peerJoined),
         withLatestFrom(
-          this.store.select(selectActiveVoiceChatPeers),
+          this.store.select(selectActiveVoiceRoomPeers),
           this.store.select(selectAudioInput),
         ),
         tap(async ([action, peers, audioInput]) => {
           const peer = await this.createPeer(action.data.peer, false, audioInput);
           peers = [...peers, peer];
-          this.store.dispatch(VoiceChatActions.setActivePeers({ peers }));
+          this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
         }),
       ),
     { dispatch: false },
@@ -87,14 +87,14 @@ export class VoiceChatEffects {
   readonly peerLeft$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceChatActions.peerLeft),
-        withLatestFrom(this.store.select(selectActiveVoiceChatPeers)),
+        ofType(VoiceRoomActions.peerLeft),
+        withLatestFrom(this.store.select(selectActiveVoiceRoomPeers)),
         tap(([action, peers]) => {
           const peer = peers.find((p) => p.clientId === action.data.peer.clientId);
           if (peer) {
             peer.rtc.close();
             peers = peers.filter((p) => p !== peer);
-            this.store.dispatch(VoiceChatActions.setActivePeers({ peers }));
+            this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
           }
         }),
       ),
@@ -104,11 +104,11 @@ export class VoiceChatEffects {
   readonly signal$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceChatActions.signal),
-        withLatestFrom(this.store.select(selectActiveVoiceChatPeers)),
-        tap(async ([action, activeVoiceChatPeers]) => {
+        ofType(VoiceRoomActions.signal),
+        withLatestFrom(this.store.select(selectActiveVoiceRoomPeers)),
+        tap(async ([action, activePeers]) => {
           const { from, payload } = action.data;
-          const peer = from && activeVoiceChatPeers.find((p) => p.clientId === from);
+          const peer = from && activePeers.find((p) => p.clientId === from);
           if (!peer) {
             return;
           }
@@ -119,7 +119,7 @@ export class VoiceChatEffects {
             if (payload.sdi.type === 'offer') {
               const answer = await peer.rtc.createAnswer();
               await peer.rtc.setLocalDescription(answer);
-              this.socket.emit(VoiceChatNS.EEvent.SIGNAL, {
+              this.socket.emit(VoiceRoomCommon.EEvent.SIGNAL, {
                 to: from,
                 payload: {
                   sdi: answer,
@@ -139,48 +139,50 @@ export class VoiceChatEffects {
   readonly existingPeersOnJoin$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceChatActions.existingPeersOnJoin),
+        ofType(VoiceRoomActions.existingPeersOnJoin),
         withLatestFrom(this.store.select(selectAudioInput)),
         tap(async ([action, audioInput]) => {
           const peers = await Promise.all(
             action.data.peers.map(async (p) => await this.createPeer(p, true, audioInput)),
           );
-          this.store.dispatch(VoiceChatActions.setActivePeers({ peers }));
+          this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
         }),
       ),
     { dispatch: false },
   );
 
   private onJoin(roomId: number): void {
-    this.socket.emit(VoiceChatNS.EEvent.JOIN_ROOM, { roomId } satisfies VoiceChatNS.IJoinRoom);
+    this.socket.emit(VoiceRoomCommon.EEvent.JOIN_ROOM, {
+      roomId,
+    } satisfies VoiceRoomCommon.IJoinRoom);
 
-    this.socket.on(VoiceChatNS.EEvent.PEER_JOINED, (data: VoiceChatNS.IPeerJoined) => {
-      this.store.dispatch(VoiceChatActions.peerJoined({ data }));
+    this.socket.on(VoiceRoomCommon.EEvent.PEER_JOINED, (data: VoiceRoomCommon.IPeerJoined) => {
+      this.store.dispatch(VoiceRoomActions.peerJoined({ data }));
     });
 
-    this.socket.on(VoiceChatNS.EEvent.PEER_LEFT, (data: VoiceChatNS.IPeerLeft) => {
-      this.store.dispatch(VoiceChatActions.peerLeft({ data }));
+    this.socket.on(VoiceRoomCommon.EEvent.PEER_LEFT, (data: VoiceRoomCommon.IPeerLeft) => {
+      this.store.dispatch(VoiceRoomActions.peerLeft({ data }));
     });
 
-    this.socket.on(VoiceChatNS.EEvent.SIGNAL, (data) => {
-      this.store.dispatch(VoiceChatActions.signal({ data }));
+    this.socket.on(VoiceRoomCommon.EEvent.SIGNAL, (data) => {
+      this.store.dispatch(VoiceRoomActions.signal({ data }));
     });
 
-    this.socket.on(VoiceChatNS.EEvent.EXISTING_PEERS_ON_JOIN, (data) => {
-      this.store.dispatch(VoiceChatActions.existingPeersOnJoin({ data }));
+    this.socket.on(VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN, (data) => {
+      this.store.dispatch(VoiceRoomActions.existingPeersOnJoin({ data }));
     });
   }
 
   private onLeave(): void {
-    this.socket.emit(VoiceChatNS.EEvent.LEAVE_ROOM, {});
-    this.socket.removeListener(VoiceChatNS.EEvent.PEER_JOINED);
-    this.socket.removeListener(VoiceChatNS.EEvent.PEER_LEFT);
-    this.socket.removeListener(VoiceChatNS.EEvent.SIGNAL);
-    this.socket.removeListener(VoiceChatNS.EEvent.EXISTING_PEERS_ON_JOIN);
+    this.socket.emit(VoiceRoomCommon.EEvent.LEAVE_ROOM, {});
+    this.socket.removeListener(VoiceRoomCommon.EEvent.PEER_JOINED);
+    this.socket.removeListener(VoiceRoomCommon.EEvent.PEER_LEFT);
+    this.socket.removeListener(VoiceRoomCommon.EEvent.SIGNAL);
+    this.socket.removeListener(VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN);
   }
 
   private async createPeer(
-    peer: VoiceChatNS.IPeer,
+    peer: VoiceRoomCommon.IPeer,
     initiator: boolean,
     device: MediaDeviceInfo | null,
   ): Promise<IPeerWithRTC> {
@@ -200,7 +202,7 @@ export class VoiceChatEffects {
 
     rtc.onicecandidate = (e) => {
       if (e.candidate) {
-        this.socket.emit(VoiceChatNS.EEvent.SIGNAL, {
+        this.socket.emit(VoiceRoomCommon.EEvent.SIGNAL, {
           to: peer.clientId,
           payload: {
             candidate: e.candidate,
@@ -212,7 +214,7 @@ export class VoiceChatEffects {
     if (initiator) {
       rtc.createOffer().then((offer) => {
         rtc.setLocalDescription(offer).then(() => {
-          this.socket.emit(VoiceChatNS.EEvent.SIGNAL, {
+          this.socket.emit(VoiceRoomCommon.EEvent.SIGNAL, {
             to: peer.clientId,
             payload: {
               sdi: offer,

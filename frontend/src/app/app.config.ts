@@ -22,8 +22,8 @@ import { AuthEffects } from './features/auth/auth.effects';
 import { AuthActions } from './features/auth/auth.actions';
 import { MessageService } from 'primeng/api';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
-import { voiceChatReducer } from './features/voice-chat/voice-chat.reducer';
-import { VoiceChatEffects } from './features/voice-chat/voice-chat.effects';
+import { voiceRoomReducer } from './features/voice-room/voice-room.reducer';
+import { VoiceRoomEffects } from './features/voice-room/voice-room.effects';
 import { settingsReducer } from './features/settings/settings.reducer';
 import { SettingsEffects } from './features/settings/settings.effects';
 import { EStorageKey } from './app.enums';
@@ -46,11 +46,11 @@ export const appConfig: ApplicationConfig = {
         preset: Aura,
       },
     }),
-    provideEffects(AuthEffects, RoomsEffects, VoiceChatEffects, SettingsEffects),
+    provideEffects(AuthEffects, RoomsEffects, VoiceRoomEffects, SettingsEffects),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
-      voiceChat: voiceChatReducer,
+      voiceRoom: voiceRoomReducer,
       settings: settingsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),

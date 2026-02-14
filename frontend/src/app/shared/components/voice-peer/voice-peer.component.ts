@@ -8,7 +8,7 @@ import {
   input,
   OnInit,
 } from '@angular/core';
-import { IPeerWithRTC } from '../../../features/voice-chat/voice-chat.reducer';
+import { IPeerWithRTC } from '../../../features/voice-room/voice-room.reducer';
 import { Store } from '@ngrx/store';
 import { selectAudioOutput } from '../../../features/settings/settings.selectors';
 

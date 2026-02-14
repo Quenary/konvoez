@@ -7,8 +7,8 @@ import { RoomsApiService } from './rooms-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '../../shared/functions/parse-error.function';
-import { selectActiveVoiceChatId } from '../voice-chat/voice-chat.selectors';
-import { VoiceChatActions } from '../voice-chat/voice-chat.actions';
+import { selectActiveVoiceRoomId } from '../voice-room/voice-room.selectors';
+import { VoiceRoomActions } from '../voice-room/voice-room.actions';
 import { ERoomType } from '@common/enums';
 
 @Injectable()
@@ -23,10 +23,10 @@ export class RoomsEffects {
     () =>
       this.actions$.pipe(
         ofType(RoomsActions.selectRoom),
-        withLatestFrom(this.store.select(selectActiveVoiceChatId)),
-        tap(([action, activeVoiceChat]) => {
-          if (action?.room?.type == ERoomType.VOICE && action.room.id !== activeVoiceChat) {
-            this.store.dispatch(VoiceChatActions.join({ id: action.room.id }));
+        withLatestFrom(this.store.select(selectActiveVoiceRoomId)),
+        tap(([action, activeVoiceRoom]) => {
+          if (action?.room?.type == ERoomType.VOICE && action.room.id !== activeVoiceRoom) {
+            this.store.dispatch(VoiceRoomActions.join({ id: action.room.id }));
           }
         }),
       ),

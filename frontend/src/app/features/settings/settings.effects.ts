@@ -4,7 +4,7 @@ import { SettingsActions } from './settings.actions';
 import { tap, withLatestFrom } from 'rxjs';
 import { EStorageKey } from '../../app.enums';
 import { Store } from '@ngrx/store';
-import { selectActiveVoiceChatPeers } from '../voice-chat/voice-chat.selectors';
+import { selectActiveVoiceRoomPeers } from '../voice-room/voice-room.selectors';
 import { getStream } from '../../shared/functions/get-stream.function';
 import { replaceStream } from '../../shared/functions/replace-stream.function';
 
@@ -17,7 +17,7 @@ export class SettingsEffects {
     () =>
       this.actions$.pipe(
         ofType(SettingsActions.setAudioInput),
-        withLatestFrom(this.store.select(selectActiveVoiceChatPeers)),
+        withLatestFrom(this.store.select(selectActiveVoiceRoomPeers)),
         tap(async ([action, peers]) => {
           localStorage.setItemJson(EStorageKey.AUDIO_INPUT, action.audioInput);
 

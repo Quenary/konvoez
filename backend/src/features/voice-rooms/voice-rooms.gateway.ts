@@ -10,7 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { VoiceRoomsCacheService } from './voice-rooms-cache.service';
 import { Socket, Server } from 'socket.io';
-import { VoiceChatNS } from '@common/voice-chat';
+import { VoiceRoomCommon } from '@common/voice-room';
 import { AuthService } from '../auth/auth.service';
 import * as cookie from 'cookie';
 import { ACCESS_TOKEN_KEY } from '../auth/auth.const';
@@ -23,7 +23,7 @@ export class VoiceRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  private readonly server!: Server<VoiceChatNS.TEventMap>;
+  private readonly server!: Server<VoiceRoomCommon.TEventMap>;
 
   @Inject(AuthService)
   private readonly authService!: AuthService;
@@ -33,7 +33,7 @@ export class VoiceRoomsGateway
 
   private emitExistingPeers(): void {
     this.server.emit(
-      VoiceChatNS.EEvent.EXISTING_PEERS_ALL,
+      VoiceRoomCommon.EEvent.EXISTING_PEERS_ALL,
       Object.entries(this.voiceRoomsCacheService.getAllRooms()).map(
         ([roomId, peers]) => ({ roomId: Number(roomId), peers }),
       ),
@@ -58,19 +58,19 @@ export class VoiceRoomsGateway
       id: user.id,
       username: user.username,
       role: user.role,
-    } satisfies VoiceChatNS.IPeer;
+    } satisfies VoiceRoomCommon.IPeer;
 
     this.emitExistingPeers();
   }
 
   handleDisconnect(client: Socket): void {
-    const peer = client.data.peer as VoiceChatNS.IPeer;
+    const peer = client.data.peer as VoiceRoomCommon.IPeer;
     const roomId = client.data.roomId;
     client.data.roomId = null;
     this.voiceRoomsCacheService.removeUserFromAllRooms(peer);
 
     if (roomId) {
-      this.server.to(roomId.toString()).emit(VoiceChatNS.EEvent.PEER_LEFT, {
+      this.server.to(roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_LEFT, {
         peer,
         roomId,
       });
@@ -79,18 +79,18 @@ export class VoiceRoomsGateway
     }
   }
 
-  @SubscribeMessage(VoiceChatNS.EEvent.JOIN_ROOM)
+  @SubscribeMessage(VoiceRoomCommon.EEvent.JOIN_ROOM)
   handleJoin(
-    @MessageBody() body: VoiceChatNS.IJoinRoom,
+    @MessageBody() body: VoiceRoomCommon.IJoinRoom,
     @ConnectedSocket() client: Socket,
   ): void {
     client.data.roomId = body.roomId;
-    const peer = client.data.peer as VoiceChatNS.IPeer;
+    const peer = client.data.peer as VoiceRoomCommon.IPeer;
 
     client.join(body.roomId.toString());
     this.voiceRoomsCacheService.addUserToRoom(body.roomId, peer);
 
-    client.to(body.roomId.toString()).emit(VoiceChatNS.EEvent.PEER_JOINED, {
+    client.to(body.roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_JOINED, {
       peer,
       roomId: body.roomId,
     });
@@ -100,14 +100,14 @@ export class VoiceRoomsGateway
       ...inRoom,
       peers: inRoom.peers.filter((p) => p.id !== peer.id),
     };
-    client.emit(VoiceChatNS.EEvent.EXISTING_PEERS_ON_JOIN, inRoom);
+    client.emit(VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN, inRoom);
 
     this.emitExistingPeers();
   }
 
-  @SubscribeMessage(VoiceChatNS.EEvent.LEAVE_ROOM)
+  @SubscribeMessage(VoiceRoomCommon.EEvent.LEAVE_ROOM)
   handleLeave(@ConnectedSocket() client: Socket): void {
-    const peer = client.data.peer as VoiceChatNS.IPeer;
+    const peer = client.data.peer as VoiceRoomCommon.IPeer;
     const roomId = client.data.roomId as number;
 
     if (roomId) {
@@ -116,7 +116,7 @@ export class VoiceRoomsGateway
 
       client.leave(roomId.toString());
 
-      client.to(roomId.toString()).emit(VoiceChatNS.EEvent.PEER_LEFT, {
+      client.to(roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_LEFT, {
         peer,
         roomId,
       });
@@ -125,13 +125,13 @@ export class VoiceRoomsGateway
     }
   }
 
-  @SubscribeMessage(VoiceChatNS.EEvent.SIGNAL)
+  @SubscribeMessage(VoiceRoomCommon.EEvent.SIGNAL)
   handleSignal(
-    @MessageBody() data: VoiceChatNS.ISignal,
+    @MessageBody() data: VoiceRoomCommon.ISignal,
     @ConnectedSocket() client: Socket,
   ) {
     if (data.to) {
-      this.server.to(data.to).emit(VoiceChatNS.EEvent.SIGNAL, {
+      this.server.to(data.to).emit(VoiceRoomCommon.EEvent.SIGNAL, {
         from: client.id,
         payload: data.payload,
       });

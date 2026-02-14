@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import {
-  selectActiveVoiceChatId,
-  selectActiveVoiceChatPeers,
-} from '../../voice-chat/voice-chat.selectors';
+  selectActiveVoiceRoomId,
+  selectActiveVoiceRoomPeers,
+} from '../../voice-room/voice-room.selectors';
 import { selectRoomsDict } from '../rooms.selectors';
 import { ButtonModule } from 'primeng/button';
-import { VoiceChatActions } from '../../voice-chat/voice-chat.actions';
+import { VoiceRoomActions } from '../../voice-room/voice-room.actions';
 import { VoicePeerComponent } from '../../../shared/components/voice-peer/voice-peer.component';
 import { MediaDevicesService } from '../../../core/services/media-devices.service';
 import { SelectModule } from 'primeng/select';
@@ -28,7 +28,7 @@ export class VoiceRoomPanelComponent {
   private readonly translateService = inject(TranslateService);
 
   private readonly rooms = this.store.selectSignal(selectRoomsDict);
-  private readonly activeRoomId = this.store.selectSignal(selectActiveVoiceChatId);
+  private readonly activeRoomId = this.store.selectSignal(selectActiveVoiceRoomId);
 
   protected readonly room = computed(() => {
     const rooms = this.rooms();
@@ -38,11 +38,11 @@ export class VoiceRoomPanelComponent {
     }
     return rooms[activeRoomId];
   });
-  protected readonly activePeers = this.store.selectSignal(selectActiveVoiceChatPeers);
+  protected readonly activePeers = this.store.selectSignal(selectActiveVoiceRoomPeers);
 
   protected leaveRoom(id: number): void {
     this.store.dispatch(
-      VoiceChatActions.leave({
+      VoiceRoomActions.leave({
         id,
       }),
     );
