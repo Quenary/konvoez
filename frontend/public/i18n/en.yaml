@@ -5,6 +5,7 @@ GENERAL:
   CANCEL: Cancel
   GO_BACK: Go back
   REQ_ERR: Request error
+  PERMISSION_ERROR: No permission to devices
 AUTH:
   USERNAME: Username
   PASSWORD: Password
@@ -30,3 +31,7 @@ ROOMS:
     TYPE: Type
     TEXT: Text
     VOICE: Voice
+SETTINGS:
+  AUDIO_INPUT: Audio input
+  AUDIO_OUTPUT: Audio output
+  API_NOT_AVAILABLE: Following API may be not available in modern browsers

@@ -1,0 +1,28 @@
+<p-ifta-label>
+  <p-select
+    inputId="settings-audio-input"
+    [options]="audioInputList()"
+    optionLabel="label"
+    optionValue="deviceId"
+    [ngModel]="audioInput()?.deviceId"
+    (onChange)="onSelectAudioInput($event.value)"
+  ></p-select>
+  <label for="settings-audio-input">
+    {{ 'SETTINGS.AUDIO_INPUT' | translate }}
+  </label>
+</p-ifta-label>
+
+<p-ifta-label [pTooltip]="'SETTINGS.API_NOT_AVAILABLE' | translate">
+  <p-select
+    inputId="settings-audio-output"
+    [options]="audioOutputList()"
+    optionLabel="label"
+    optionValue="deviceId"
+    [ngModel]="audioOutput()?.deviceId"
+    (onChange)="onSelectAudioOutput($event.value)"
+  ></p-select>
+  <label for="settings-audio-output">
+    {{ 'SETTINGS.AUDIO_OUTPUT' | translate }}
+    <span class="pi pi-question-circle"></span>
+  </label>
+</p-ifta-label>

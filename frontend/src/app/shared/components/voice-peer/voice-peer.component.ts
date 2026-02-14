@@ -2,12 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   input,
   OnInit,
 } from '@angular/core';
 import { IPeerWithRTC } from '../../../features/voice-chat/voice-chat.reducer';
+import { Store } from '@ngrx/store';
+import { selectAudioOutput } from '../../../features/settings/settings.selectors';
 
 @Component({
   selector: 'app-voice-peer',
@@ -18,14 +21,23 @@ import { IPeerWithRTC } from '../../../features/voice-chat/voice-chat.reducer';
 })
 export class VoicePeerComponent implements OnInit {
   private readonly hostRef = inject(ElementRef<HTMLElement>, { host: true });
+  private readonly store = inject(Store);
 
   public readonly peer = input.required<IPeerWithRTC>();
 
+  private readonly audioOutput = this.store.selectSignal(selectAudioOutput);
   private readonly rtc = computed(() => {
     return this.peer().rtc;
   });
   private audioEl: HTMLAudioElement | null = null;
   private currentStream: MediaStream | null = null;
+
+  constructor() {
+    effect(() => {
+      const audioOutput = this.audioOutput();
+      this.setOutput(audioOutput);
+    });
+  }
 
   ngOnInit() {
     const rtc = this.rtc();
@@ -45,6 +57,7 @@ export class VoicePeerComponent implements OnInit {
     audio.srcObject = stream;
     this.hostRef.nativeElement.appendChild(audio);
     this.audioEl = audio;
+    this.setOutput(this.audioOutput());
 
     e.track.addEventListener('ended', this.cleanup);
   };
@@ -67,6 +80,12 @@ export class VoicePeerComponent implements OnInit {
     this.audioEl.remove();
     this.audioEl = null;
   };
+
+  private async setOutput(d: MediaDeviceInfo | null) {
+    if (d && this.audioEl && this.audioEl.setSinkId) {
+      const res = await this.audioEl.setSinkId(d.deviceId);
+    }
+  }
 
   ngOnDestroy() {
     const rtc = this.rtc();

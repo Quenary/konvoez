@@ -2,6 +2,7 @@
   {{ _r.name }}
   <p-button text icon="pi pi-times" severity="warn" (onClick)="leaveRoom(_r.id)"> </p-button>
 }
+
 @for (peer of activePeers(); track peer) {
   <app-voice-peer [peer]="peer"></app-voice-peer>
 }

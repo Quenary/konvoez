@@ -5,6 +5,7 @@ GENERAL:
   CANCEL: Отмена
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
+  PERMISSION_ERROR: Нет доступа к устройствам
 AUTH:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
@@ -30,3 +31,7 @@ ROOMS:
     TYPE: Тип
     TEXT: Текстовый
     VOICE: Голосовой
+SETTINGS:
+  AUDIO_INPUT: Входное устройство
+  AUDIO_OUTPUT: Выходное устройство
+  API_NOT_AVAILABLE: Данное API может быть недоступно в современных браузерах
