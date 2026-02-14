@@ -12,6 +12,7 @@ AUTH:
   CONFIRM_PASSWORD: Подтвердить пароль
   SIGN_IN: Войти
   SIGN_UP: Создать аккаунт
+  LOG_OUT: Выйти
   PASSWORD_STRENGTH:
     PROMPT: Введите пароль
     WEAK: Слишком простой

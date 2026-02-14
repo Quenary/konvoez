@@ -26,3 +26,13 @@
     <span class="pi pi-question-circle"></span>
   </label>
 </p-ifta-label>
+
+<p-button
+  text
+  rounded
+  icon="pi pi-sign-out"
+  severity="danger"
+  (onClick)="logout()"
+  [label]="'AUTH.LOG_OUT' | translate"
+>
+</p-button>

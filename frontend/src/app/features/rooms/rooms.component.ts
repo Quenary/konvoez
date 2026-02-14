@@ -15,7 +15,6 @@ import { AvatarModule } from 'primeng/avatar';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
-import { AuthActions } from '../auth/auth.actions';
 import { selectVoiceRoomDict } from '../voice-room/voice-room.selectors';
 import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
 
@@ -90,9 +89,5 @@ export class RoomsComponent implements OnInit {
 
   protected selectRoom(room: IRoom): void {
     this.store.dispatch(RoomsActions.selectRoom({ room }));
-  }
-
-  protected logout(): void {
-    this.store.dispatch(AuthActions.requestLogout());
   }
 }
