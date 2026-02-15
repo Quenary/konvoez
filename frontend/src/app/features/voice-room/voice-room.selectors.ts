@@ -3,10 +3,14 @@ import { IAppState } from '../../app.state';
 import { voiceRoomAdapter } from './voice-room.reducer';
 
 const _selectVoiceRoom = (state: IAppState) => state.voiceRoom;
-const { selectIds, selectEntities, selectAll, selectTotal } = voiceRoomAdapter.getSelectors();
+const { selectIds, selectEntities, selectAll, selectTotal } =
+  voiceRoomAdapter.getSelectors();
 
 export const selectVoiceRoomList = createSelector(_selectVoiceRoom, selectAll);
-export const selectVoiceRoomDict = createSelector(_selectVoiceRoom, selectEntities);
+export const selectVoiceRoomDict = createSelector(
+  _selectVoiceRoom,
+  selectEntities,
+);
 export const selectActiveVoiceRoomId = createSelector(
   _selectVoiceRoom,
   (state) => state.activeRoomId,
@@ -19,4 +23,12 @@ export const selectActiveVoiceRoom = createSelector(
 export const selectActiveVoiceRoomPeers = createSelector(
   _selectVoiceRoom,
   (state) => state.activeRoomPeers,
+);
+export const selectMicMuted = createSelector(
+  _selectVoiceRoom,
+  (state) => state.micMuted,
+);
+export const selectSoundMuted = createSelector(
+  _selectVoiceRoom,
+  (state) => state.soundMuted,
 );

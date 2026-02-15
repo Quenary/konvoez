@@ -10,6 +10,7 @@ import { parseError } from '../../shared/functions/parse-error.function';
 import { selectActiveVoiceRoomId } from '../voice-room/voice-room.selectors';
 import { VoiceRoomActions } from '../voice-room/voice-room.actions';
 import { ERoomType } from '@common/enums';
+import { Router } from '@angular/router';
 
 @Injectable()
 export class RoomsEffects {
@@ -18,6 +19,7 @@ export class RoomsEffects {
   private readonly roomsApiService = inject(RoomsApiService);
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
+  private readonly router = inject(Router);
 
   readonly selectRoom$ = createEffect(
     () =>
@@ -25,8 +27,22 @@ export class RoomsEffects {
         ofType(RoomsActions.selectRoom),
         withLatestFrom(this.store.select(selectActiveVoiceRoomId)),
         tap(([action, activeVoiceRoom]) => {
-          if (action?.room?.type == ERoomType.VOICE && action.room.id !== activeVoiceRoom) {
-            this.store.dispatch(VoiceRoomActions.join({ id: action.room.id }));
+          switch (action?.room?.type) {
+            case ERoomType.VOICE: {
+              if (action.room.id !== activeVoiceRoom) {
+                this.store.dispatch(
+                  VoiceRoomActions.join({ id: action.room.id }),
+                );
+              }
+              this.router.navigate([`/voice-room/${action.room.id}`]);
+              break;
+            }
+            case ERoomType.TEXT: {
+              this.router.navigate([`/text-room/${action.room.id}`]);
+              break;
+            }
+            default:
+              this.router.navigate(['/main']);
           }
         }),
       ),
@@ -36,7 +52,6 @@ export class RoomsEffects {
   readonly requestRooms$ = createEffect(() =>
     this.actions$.pipe(
       ofType(RoomsActions.requestRooms),
-
       switchMap((action) =>
         this.roomsApiService.list().pipe(
           map((rooms) => RoomsActions.requestRoomsSuccess({ rooms })),
@@ -52,7 +67,9 @@ export class RoomsEffects {
       switchMap((action) =>
         this.roomsApiService.create(action.room).pipe(
           map((room) => RoomsActions.requestCreateRoomSuccess({ room })),
-          catchError((error) => of(RoomsActions.requestCreateRoomError({ error }))),
+          catchError((error) =>
+            of(RoomsActions.requestCreateRoomError({ error })),
+          ),
         ),
       ),
     ),
@@ -64,7 +81,9 @@ export class RoomsEffects {
       switchMap((action) =>
         this.roomsApiService.update(action.id, action.room).pipe(
           map((room) => RoomsActions.requestUpdateRoomSuccess({ room })),
-          catchError((error) => of(RoomsActions.requestUpdateRoomError({ error }))),
+          catchError((error) =>
+            of(RoomsActions.requestUpdateRoomError({ error })),
+          ),
         ),
       ),
     ),
@@ -76,7 +95,9 @@ export class RoomsEffects {
       switchMap((action) =>
         this.roomsApiService.remove(action.id).pipe(
           map(() => RoomsActions.requestDeleteRoomSuccess({ id: action.id })),
-          catchError((error) => of(RoomsActions.requestDeleteRoomError({ error }))),
+          catchError((error) =>
+            of(RoomsActions.requestDeleteRoomError({ error })),
+          ),
         ),
       ),
     ),

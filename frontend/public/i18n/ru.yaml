@@ -6,6 +6,7 @@ GENERAL:
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
   PERMISSION_ERROR: Нет доступа к устройствам
+  MUTE: Заглушить
 AUTH:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
@@ -24,7 +25,6 @@ AUTH:
       - Как минимум один цифра
       - Как минимум 12 символов
 ROOMS:
-  ADD: Добавить
   TEXT: Текстовые
   VOICE: Голосовые
   ADD_DIALOG:
@@ -33,6 +33,7 @@ ROOMS:
     TEXT: Текстовый
     VOICE: Голосовой
 SETTINGS:
+  TITLE: Настройки
   AUDIO_INPUT: Входное устройство
   AUDIO_OUTPUT: Выходное устройство
   API_NOT_AVAILABLE: Данное API может быть недоступно в современных браузерах

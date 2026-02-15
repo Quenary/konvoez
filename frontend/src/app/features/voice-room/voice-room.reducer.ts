@@ -13,16 +13,22 @@ export interface IPeerWithRTC extends VoiceRoomCommon.IPeer {
 export interface IVoiceRoomState extends EntityState<VoiceRoomCommon.IRoomWithPeers> {
   activeRoomId: number | null;
   activeRoomPeers: IPeerWithRTC[];
+  micMuted: boolean;
+  soundMuted: boolean;
 }
 
-export const voiceRoomAdapter = createEntityAdapter<VoiceRoomCommon.IRoomWithPeers>({
-  selectId: (room: VoiceRoomCommon.IRoomWithPeers) => room.roomId,
-});
+export const voiceRoomAdapter =
+  createEntityAdapter<VoiceRoomCommon.IRoomWithPeers>({
+    selectId: (room: VoiceRoomCommon.IRoomWithPeers) => room.roomId,
+  });
 
-export const voiceRoomInitialState = voiceRoomAdapter.getInitialState<IVoiceRoomState>({
-  activeRoomId: null,
-  activeRoomPeers: [],
-});
+export const voiceRoomInitialState =
+  voiceRoomAdapter.getInitialState<IVoiceRoomState>({
+    activeRoomId: null,
+    activeRoomPeers: [],
+    micMuted: false,
+    soundMuted: false,
+  });
 
 export const voiceRoomReducer = createReducer<IVoiceRoomState>(
   voiceRoomInitialState,
@@ -40,5 +46,15 @@ export const voiceRoomReducer = createReducer<IVoiceRoomState>(
   on(VoiceRoomActions.setActivePeers, (state, payload) => ({
     ...state,
     activeRoomPeers: payload.peers,
+  })),
+  on(VoiceRoomActions.setMicMuted, (state, payload) => ({
+    ...state,
+    micMuted: payload.micMuted,
+    soundMuted: false,
+  })),
+  on(VoiceRoomActions.setSoundMuted, (state, payload) => ({
+    ...state,
+    soundMuted: payload.soundMuted,
+    micMuted: payload.soundMuted ? true : state.micMuted,
   })),
 );

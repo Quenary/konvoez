@@ -1,0 +1,13 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .room-name {
+    color: var(--p-primary-500);
+    font-weight: bold;
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+}

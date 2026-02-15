@@ -15,5 +15,7 @@ export const VoiceRoomActions = createActionGroup({
     setActivePeers: props<{ peers: IPeerWithRTC[] }>(),
     setAudioInput: props<{ device: MediaDeviceInfo }>(),
     setAudioOutput: props<{ device: MediaDeviceInfo }>(),
+    setMicMuted: props<{ micMuted: boolean }>(),
+    setSoundMuted: props<{ soundMuted: boolean }>(),
   },
 });

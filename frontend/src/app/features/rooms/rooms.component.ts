@@ -1,34 +1,50 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+} from '@angular/core';
 import { Store } from '@ngrx/store';
 import { RoomsActions } from './rooms.actions';
-import { selectTextRoomsList, selectVoiceRoomsList } from './rooms.selectors';
-import { ListboxModule } from 'primeng/listbox';
+import {
+  selectSelectedRoomId,
+  selectTextRoomsList,
+  selectVoiceRoomsList,
+} from './rooms.selectors';
 import { ButtonModule } from 'primeng/button';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { DialogService } from 'primeng/dynamicdialog';
 import { AddRoomDialogComponent } from './add-room-dialog/add-room-dialog.component';
 import { IRoom, IRoomCreate } from './rooms.interface';
 import { ERoomType } from '@common/enums';
-import { MenuItem } from 'primeng/api';
-import { MenuModule } from 'primeng/menu';
-import { AvatarModule } from 'primeng/avatar';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
-import { selectVoiceRoomDict } from '../voice-room/voice-room.selectors';
+import {
+  selectActiveVoiceRoomId,
+  selectVoiceRoomDict,
+} from '../voice-room/voice-room.selectors';
 import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
+import { VoiceRoomCommon } from '@common/voice-room';
+import { RoomPeerComponent } from './room-peer/room-peer.component';
+import { DividerModule } from 'primeng/divider';
+
+interface IRoomWithPeers extends IRoom {
+  peers: VoiceRoomCommon.IPeer[];
+}
 
 @Component({
   selector: 'app-rooms',
   imports: [
-    ListboxModule,
     ButtonModule,
-    MenuModule,
-    AvatarModule,
     ContextMenuModule,
     LogoComponent,
     RouterLink,
     VoiceRoomPanelComponent,
+    TranslatePipe,
+    RoomPeerComponent,
+    DividerModule,
   ],
   providers: [DialogService],
   templateUrl: './rooms.component.html',
@@ -37,49 +53,38 @@ import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.com
 })
 export class RoomsComponent implements OnInit {
   private readonly store = inject(Store);
-  private readonly translateService = inject(TranslateService);
   private readonly dialogService = inject(DialogService);
 
-  private readonly textRooms = this.store.selectSignal(selectTextRoomsList);
-  private readonly voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
-  private readonly voiceRoomsState = this.store.selectSignal(selectVoiceRoomDict);
+  protected readonly selectedRoomId =
+    this.store.selectSignal(selectSelectedRoomId);
+  protected readonly activeVoiceRoomId = this.store.selectSignal(
+    selectActiveVoiceRoomId,
+  );
+
+  protected readonly textRooms = this.store.selectSignal(selectTextRoomsList);
+
+  private readonly _voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
+  private readonly voiceRoomsState =
+    this.store.selectSignal(selectVoiceRoomDict);
+  protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
+    const voiceRooms = this._voiceRooms();
+    const voiceRoomsState = this.voiceRoomsState();
+    return voiceRooms.map((item) => ({
+      ...item,
+      peers: voiceRoomsState[item.id]?.peers ?? [],
+    }));
+  });
 
   protected readonly ERoomType = ERoomType;
-  protected readonly menu = computed<MenuItem[]>(() => {
-    const textRooms = this.textRooms();
-    const voiceRooms = this.voiceRooms();
-    const voiceRoomsState = this.voiceRoomsState();
-    return [
-      { separator: true },
-      {
-        label: this.translateService.instant('ROOMS.TEXT'),
-        command: () => this.addRoom(ERoomType.TEXT),
-        items: textRooms.map((item) => ({
-          label: item.name,
-          value: item,
-          command: () => this.selectRoom(item),
-        })),
-      },
-      {
-        label: this.translateService.instant('ROOMS.VOICE'),
-        command: () => this.addRoom(ERoomType.VOICE),
-        items: voiceRooms.map((item) => ({
-          label: item.name,
-          value: item,
-          command: () => this.selectRoom(item),
-          items: voiceRoomsState[item.id]?.peers ?? [],
-        })),
-      },
-      { separator: true },
-    ];
-  });
 
   ngOnInit(): void {
     this.store.dispatch(RoomsActions.requestRooms());
   }
 
   protected addRoom($event: ERoomType): void {
-    const ref = this.dialogService.open(AddRoomDialogComponent, { data: { type: $event } });
+    const ref = this.dialogService.open(AddRoomDialogComponent, {
+      data: { type: $event },
+    });
     ref?.onClose.subscribe((room: IRoomCreate) => {
       if (room) {
         this.store.dispatch(RoomsActions.requestCreateRoom({ room }));

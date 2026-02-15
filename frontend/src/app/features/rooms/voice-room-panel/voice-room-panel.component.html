@@ -1,7 +1,32 @@
 @if (room(); as _r) {
-  {{ _r.name }}
-  <p-button text icon="pi pi-times" severity="warn" (onClick)="leaveRoom(_r.id)"> </p-button>
+  <span class="room-name">
+    <i class="pi pi-wifi"></i>
+    {{ _r.name }}
+    <p-button
+      text
+      icon="pi pi-sign-out"
+      severity="danger"
+      (onClick)="leaveRoom(_r.id)">
+    </p-button>
+  </span>
 }
+
+<p-button-group>
+  <p-button
+    icon="pi pi-microphone"
+    iconPos="right"
+    [outlined]="!micMuted()"
+    [severity]="micMuted() ? 'danger' : 'primary'"
+    [label]="'GENERAL.MUTE' | translate"
+    (onClick)="toggleMicMuted()">
+  </p-button>
+  <p-button
+    icon="pi pi-headphones"
+    [outlined]="!soundMuted()"
+    [severity]="soundMuted() ? 'danger' : 'primary'"
+    (onClick)="toggleSoundMuted()">
+  </p-button>
+</p-button-group>
 
 @for (peer of activePeers(); track peer) {
   <app-voice-peer [peer]="peer"></app-voice-peer>

@@ -1,7 +1,7 @@
 
 
 ## TODO
-- Refactor file and symbol naming
+- ~~Refactor file and symbol naming~~
 - Add sound on connect/disconnect
 - ~~Add device selection~~
 - Add avatars
