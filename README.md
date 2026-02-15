@@ -3,7 +3,7 @@
 ## TODO
 - ~~Refactor file and symbol naming~~
 - Add mute functionality
-- Add sound on connect/disconnect
+- ~~Add sound effects~~
 - Add speaker indication
 - ~~Add device selection~~
 - Add avatars
@@ -13,5 +13,6 @@
 - Add unit tests
 - ~~Fix exit not navigating to auth~~
 - Add text rooms
+- Add notifications
 - Refactor backand room cache (assign by clientId)
 - Add customizable roles
