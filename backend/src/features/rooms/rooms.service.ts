@@ -33,11 +33,13 @@ export class RoomsService {
   }
 
   async create(dto: CreateRoomDto, author: UserEntity): Promise<RoomEntity> {
-    const room = this.repo.create({
-      ...dto,
-      author,
-    });
-    this.em.persist(room);
+    const room = this.repo.create(
+      {
+        ...dto,
+        author,
+      },
+      { persist: true },
+    );
     await this.em.flush();
     return room;
   }

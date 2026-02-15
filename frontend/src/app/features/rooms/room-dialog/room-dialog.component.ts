@@ -1,5 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { DynamicDialogRef, DynamicDialogConfig } from 'primeng/dynamicdialog';
 import { ERoomType } from '@common/enums';
 import { IftaLabelModule } from 'primeng/iftalabel';
@@ -8,8 +13,11 @@ import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 
+/**
+ * Create/update room dialog component
+ */
 @Component({
-  selector: 'app-add-room-dialog',
+  selector: 'app-room-dialog',
   imports: [
     IftaLabelModule,
     InputTextModule,
@@ -18,18 +26,25 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
     ReactiveFormsModule,
     TranslatePipe,
   ],
-  templateUrl: './add-room-dialog.component.html',
-  styleUrl: './add-room-dialog.component.scss',
+  templateUrl: './room-dialog.component.html',
+  styleUrl: './room-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AddRoomDialogComponent {
+export class RoomDialogComponent {
   private readonly dynamicDialogRef = inject(DynamicDialogRef);
   private readonly dynamicDialogConfig = inject(DynamicDialogConfig);
   private readonly translateService = inject(TranslateService);
 
+  protected id: number | null = null;
   protected readonly typeOptions = [
-    { name: this.translateService.instant('ROOMS.ADD_DIALOG.TEXT'), value: ERoomType.TEXT },
-    { name: this.translateService.instant('ROOMS.ADD_DIALOG.VOICE'), value: ERoomType.VOICE },
+    {
+      name: this.translateService.instant('ROOMS.DIALOG.TEXT'),
+      value: ERoomType.TEXT,
+    },
+    {
+      name: this.translateService.instant('ROOMS.DIALOG.VOICE'),
+      value: ERoomType.VOICE,
+    },
   ];
   protected readonly form = new FormGroup({
     name: new FormControl<string | null>(null, [Validators.required]),
@@ -37,12 +52,18 @@ export class AddRoomDialogComponent {
   });
 
   constructor() {
-    this.form.controls.type.setValue(this.dynamicDialogConfig.data.type);
+    this.id = this.dynamicDialogConfig.data?.id;
+    this.form.patchValue({
+      ...this.dynamicDialogConfig.data,
+    });
   }
 
   submit(): void {
     if (this.form.valid) {
-      this.dynamicDialogRef.close(this.form.value);
+      this.dynamicDialogRef.close({
+        id: this.id,
+        room: this.form.value,
+      });
     }
   }
 

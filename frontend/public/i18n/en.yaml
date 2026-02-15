@@ -7,6 +7,8 @@ GENERAL:
   REQ_ERR: Request error
   PERMISSION_ERROR: No permission to devices
   MUTE: Mute
+  EDIT: Edit
+  DELETE: Delete
 AUTH:
   USERNAME: Username
   PASSWORD: Password
@@ -27,7 +29,10 @@ AUTH:
 ROOMS:
   TEXT: Text
   VOICE: Voice
-  ADD_DIALOG:
+  DELETE_CONFIRM: Are you sure you want to delete this room?
+  DIALOG:
+    ADD_ROOM: Add room
+    EDIT_ROOM: Edit room
     NAME: Name
     TYPE: Type
     TEXT: Text

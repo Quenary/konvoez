@@ -22,11 +22,11 @@ export class CreateRoomDto {
 export class UpdateRoomDto {
   @ApiProperty({
     type: String,
-    required: false,
+    required: true,
   })
   @IsString()
   @Length(1, 64)
-  name?: string;
+  name!: string;
 }
 
 export class GetRoomDto {

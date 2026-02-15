@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Req,
+  Put,
 } from '@nestjs/common';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, UpdateRoomDto } from './rooms.dto';
@@ -37,7 +38,7 @@ export class RoomsController {
     return this.roomsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   async update(
     @Req() req: Request,
     @Param('id', ParseIntPipe) id: number,

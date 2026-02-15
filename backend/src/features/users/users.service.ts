@@ -48,7 +48,7 @@ export class UsersService {
   async create(dto: CreateUserDto): Promise<UserEntity> {
     const existing = await this.repo.findOne({ username: dto.username });
     if (existing) {
-      throw new ConflictException('Username already exists');
+      throw new ConflictException('Username already taken');
     }
     const anyUser = (await this.em.count(UserEntity)) > 0;
     // Owner role is only for the first user

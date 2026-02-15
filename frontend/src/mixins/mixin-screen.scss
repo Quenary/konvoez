@@ -1,0 +1,30 @@
+// Телефон (портретная ориентация)
+@mixin for-mobile {
+  @media screen and (width < 768px) and (orientation: portrait) {
+    @content;
+  }
+}
+// Планшет (пейзажная и портретная)
+@mixin for-tablet {
+  @media screen and (768px <= width < 1200px) {
+    @content;
+  }
+}
+// Обычный монитор
+@mixin for-desktop {
+  @media screen and (1200px <= width < 2560px) {
+    @content;
+  }
+}
+// 4K монитор
+@mixin for-ultra-hd {
+  @media screen and (width >= 2560px) {
+    @content;
+  }
+}
+// Отдельный миксин для тач устройств на всякий случай
+@mixin for-touch {
+  @media (hover: none) and (pointer: coarse) {
+    @content;
+  }
+}

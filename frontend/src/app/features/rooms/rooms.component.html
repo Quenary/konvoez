@@ -1,5 +1,7 @@
 <app-logo></app-logo>
 
+@let roomButtonStyle = { justifyContent: 'flex-start', textAlign: 'left' };
+
 <section class="groups">
   <div class="group text">
     <span class="group-item">
@@ -11,16 +13,24 @@
       </p-button>
     </span>
     <section class="group-children">
-      @for (item of textRooms(); track item) {
-        <div class="group-children-item">
+      @for (item of textRooms(); track item.id) {
+        <div
+          class="group-children-item"
+          #itemRef>
           <p-button
+            fluid
             text
+            [style]="roomButtonStyle"
             icon="pi pi-comment"
             [label]="item.name"
             [severity]="item.id == selectedRoomId() ? 'primary' : 'secondary'"
             (onClick)="selectRoom(item)">
           </p-button>
         </div>
+        <p-contextmenu
+          [target]="itemRef"
+          [model]="item.menu">
+        </p-contextmenu>
       }
     </section>
   </div>
@@ -35,10 +45,14 @@
       </p-button>
     </span>
     <section class="group-children">
-      @for (item of voiceRooms(); track item) {
-        <div class="group-children-item">
+      @for (item of voiceRooms(); track item.id) {
+        <div
+          class="group-children-item"
+          #itemRef>
           <p-button
+            fluid
             text
+            [style]="roomButtonStyle"
             icon="pi pi-volume-up"
             [label]="item.name"
             [severity]="
@@ -48,11 +62,15 @@
           </p-button>
 
           <section class="group-children-item-peers">
-            @for (peer of item.peers; track peer) {
+            @for (peer of item.peers; track peer.id) {
               <app-room-peer [peer]="peer"></app-room-peer>
             }
           </section>
         </div>
+        <p-contextmenu
+          [target]="itemRef"
+          [model]="item.menu">
+        </p-contextmenu>
       }
     </section>
   </div>
@@ -67,3 +85,5 @@
   severity="contrast"
   [label]="'SETTINGS.TITLE' | translate">
 </p-button>
+
+<p-confirmdialog />
