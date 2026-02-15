@@ -7,7 +7,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, tap, withLatestFrom } from 'rxjs';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { VoiceRoomActions } from './voice-room.actions';
-import { selectActiveVoiceRoomPeers } from './voice-room.selectors';
+import {
+  selectActiveVoiceRoomId,
+  selectActiveVoiceRoomPeers,
+} from './voice-room.selectors';
 import { IPeerWithRTC } from './voice-room.reducer';
 import { selectAudioInput } from '../settings/settings.selectors';
 import { getStream } from '../../shared/functions/get-stream.function';
@@ -48,7 +51,8 @@ export class VoiceRoomEffects {
     () =>
       this.actions$.pipe(
         ofType(VoiceRoomActions.join),
-        tap((action) => {
+        withLatestFrom(this.store.select(selectActiveVoiceRoomId)),
+        tap(([action, activeVoiceRoomId]) => {
           this.onLeave();
           this.onJoin(action.id);
         }),
@@ -76,7 +80,11 @@ export class VoiceRoomEffects {
           this.store.select(selectAudioInput),
         ),
         tap(async ([action, peers, audioInput]) => {
-          const peer = await this.createPeer(action.data.peer, false, audioInput);
+          const peer = await this.createPeer(
+            action.data.peer,
+            false,
+            audioInput,
+          );
           peers = [...peers, peer];
           this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
         }),
@@ -90,7 +98,9 @@ export class VoiceRoomEffects {
         ofType(VoiceRoomActions.peerLeft),
         withLatestFrom(this.store.select(selectActiveVoiceRoomPeers)),
         tap(([action, peers]) => {
-          const peer = peers.find((p) => p.clientId === action.data.peer.clientId);
+          const peer = peers.find(
+            (p) => p.clientId === action.data.peer.clientId,
+          );
           if (peer) {
             peer.rtc.close();
             peers = peers.filter((p) => p !== peer);
@@ -143,7 +153,9 @@ export class VoiceRoomEffects {
         withLatestFrom(this.store.select(selectAudioInput)),
         tap(async ([action, audioInput]) => {
           const peers = await Promise.all(
-            action.data.peers.map(async (p) => await this.createPeer(p, true, audioInput)),
+            action.data.peers.map(
+              async (p) => await this.createPeer(p, true, audioInput),
+            ),
           );
           this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
         }),
@@ -156,13 +168,19 @@ export class VoiceRoomEffects {
       roomId,
     } satisfies VoiceRoomCommon.IJoinRoom);
 
-    this.socket.on(VoiceRoomCommon.EEvent.PEER_JOINED, (data: VoiceRoomCommon.IPeerJoined) => {
-      this.store.dispatch(VoiceRoomActions.peerJoined({ data }));
-    });
+    this.socket.on(
+      VoiceRoomCommon.EEvent.PEER_JOINED,
+      (data: VoiceRoomCommon.IPeerJoined) => {
+        this.store.dispatch(VoiceRoomActions.peerJoined({ data }));
+      },
+    );
 
-    this.socket.on(VoiceRoomCommon.EEvent.PEER_LEFT, (data: VoiceRoomCommon.IPeerLeft) => {
-      this.store.dispatch(VoiceRoomActions.peerLeft({ data }));
-    });
+    this.socket.on(
+      VoiceRoomCommon.EEvent.PEER_LEFT,
+      (data: VoiceRoomCommon.IPeerLeft) => {
+        this.store.dispatch(VoiceRoomActions.peerLeft({ data }));
+      },
+    );
 
     this.socket.on(VoiceRoomCommon.EEvent.SIGNAL, (data) => {
       this.store.dispatch(VoiceRoomActions.signal({ data }));

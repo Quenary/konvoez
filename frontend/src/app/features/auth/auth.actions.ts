@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ICreateUser, IGetUser } from '../user/user.interface';
 
 export const AuthActions = createActionGroup({
-  source: '[AUTH]',
+  source: 'AUTH',
   events: {
     initStart: emptyProps(),
     initEnd: props<{ user: IGetUser | null }>(),

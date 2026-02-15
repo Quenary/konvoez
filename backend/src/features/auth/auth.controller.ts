@@ -74,8 +74,8 @@ export class AuthController {
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token');
     }
-    this.authService.verifyToken(refreshToken);
-    this.setCookies(refreshToken.username, res);
+    const data = this.authService.verifyToken(refreshToken);
+    this.setCookies(data.username, res);
     return { ok: true };
   }
 

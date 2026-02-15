@@ -3,7 +3,7 @@ import { createActionGroup, props } from '@ngrx/store';
 import { IPeerWithRTC } from './voice-room.reducer';
 
 export const VoiceRoomActions = createActionGroup({
-  source: '[VOICE_ROOM]',
+  source: 'VOICE_ROOM',
   events: {
     signal: props<{ data: VoiceRoomCommon.ISignal }>(),
     join: props<{ id: number }>(),

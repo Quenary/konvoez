@@ -3,7 +3,7 @@ import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { HttpErrorResponse } from '@angular/common/http';
 
 export const RoomsActions = createActionGroup({
-  source: '[ROOMS]',
+  source: 'ROOMS',
   events: {
     selectRoom: props<{ room: IRoom | null }>(),
     requestRooms: emptyProps(),
