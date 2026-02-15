@@ -14,11 +14,13 @@ import {
 import { IPeerWithRTC } from './voice-room.reducer';
 import { selectAudioInput } from '../settings/settings.selectors';
 import { getStream } from '../../shared/functions/get-stream.function';
+import { AudioService } from '../../core/services/audio.service';
 
 @Injectable()
 export class VoiceRoomEffects {
   private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
+  private readonly audioService = inject(AudioService);
 
   private readonly socket = io(`${window.location.origin}`, {
     autoConnect: false,
@@ -47,6 +49,17 @@ export class VoiceRoomEffects {
     });
   }
 
+  readonly mute$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(VoiceRoomActions.setMicMuted, VoiceRoomActions.setSoundMuted),
+        tap(() => {
+          this.audioService.playMuteAudio();
+        }),
+      ),
+    { dispatch: false },
+  );
+
   readonly join$ = createEffect(
     () =>
       this.actions$.pipe(
@@ -55,6 +68,7 @@ export class VoiceRoomEffects {
         tap(([action, activeVoiceRoomId]) => {
           this.onLeave();
           this.onJoin(action.id);
+          this.audioService.playPeerJoinAudio();
         }),
       ),
     { dispatch: false },
@@ -66,6 +80,7 @@ export class VoiceRoomEffects {
         ofType(VoiceRoomActions.leave),
         tap(() => {
           this.onLeave();
+          this.audioService.playPeerLeaveAudio();
         }),
       ),
     { dispatch: false },
@@ -87,6 +102,7 @@ export class VoiceRoomEffects {
           );
           peers = [...peers, peer];
           this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
+          this.audioService.playPeerJoinAudio();
         }),
       ),
     { dispatch: false },
@@ -106,6 +122,7 @@ export class VoiceRoomEffects {
             peers = peers.filter((p) => p !== peer);
             this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
           }
+          this.audioService.playPeerLeaveAudio();
         }),
       ),
     { dispatch: false },
