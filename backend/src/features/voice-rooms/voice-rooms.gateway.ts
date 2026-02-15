@@ -1,4 +1,4 @@
-import { Inject, UnauthorizedException } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -34,9 +34,7 @@ export class VoiceRoomsGateway
   private emitExistingPeers(): void {
     this.server.emit(
       VoiceRoomCommon.EEvent.EXISTING_PEERS_ALL,
-      Object.entries(this.voiceRoomsCacheService.getAllRooms()).map(
-        ([roomId, peers]) => ({ roomId: Number(roomId), peers }),
-      ),
+      this.voiceRoomsCacheService.getAllRoomsWithPeers(),
     );
   }
 
@@ -74,7 +72,7 @@ export class VoiceRoomsGateway
     const peer = client.data.peer as VoiceRoomCommon.IPeer;
     const roomId = client.data.roomId;
     client.data.roomId = null;
-    this.voiceRoomsCacheService.removeUserFromAllRooms(peer);
+    this.voiceRoomsCacheService.removePeer(peer);
 
     if (roomId) {
       this.server.to(roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_LEFT, {
@@ -95,7 +93,7 @@ export class VoiceRoomsGateway
     const peer = client.data.peer as VoiceRoomCommon.IPeer;
 
     client.join(body.roomId.toString());
-    this.voiceRoomsCacheService.addUserToRoom(body.roomId, peer);
+    this.voiceRoomsCacheService.addPeer(body.roomId, peer);
 
     client.to(body.roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_JOINED, {
       peer,
@@ -119,7 +117,7 @@ export class VoiceRoomsGateway
 
     if (roomId) {
       client.data.roomId = null;
-      this.voiceRoomsCacheService.removeUserFromAllRooms(peer);
+      this.voiceRoomsCacheService.removePeer(peer);
 
       client.leave(roomId.toString());
 

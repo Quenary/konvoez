@@ -5,23 +5,18 @@ import { VoiceRoomCommon } from '@common/voice-room';
 export class VoiceRoomsCacheService {
   private readonly rooms: Record<number, VoiceRoomCommon.IPeer[]> = {};
 
-  public addUserToRoom(roomId: number, user: VoiceRoomCommon.IPeer) {
+  public addPeer(roomId: number, peer: VoiceRoomCommon.IPeer): void {
     if (!this.rooms[roomId]) {
       this.rooms[roomId] = [];
     }
-    this.rooms[roomId].push(user);
+    this.rooms[roomId].push(peer);
   }
 
-  public removeUserFromRoom(roomId: number, user: VoiceRoomCommon.IPeer): void {
-    if (!this.rooms[roomId]) {
-      return;
-    }
-    this.rooms[roomId] = this.rooms[roomId].filter((u) => u.id !== user.id);
-  }
-
-  public removeUserFromAllRooms(user: VoiceRoomCommon.IPeer): void {
+  public removePeer(peer: VoiceRoomCommon.IPeer): void {
     Object.keys(this.rooms).forEach((roomId) => {
-      this.removeUserFromRoom(Number(roomId), user);
+      this.rooms[roomId] = this.rooms[roomId as any].filter(
+        (p) => p.id !== peer.id,
+      );
     });
   }
 
@@ -32,28 +27,9 @@ export class VoiceRoomsCacheService {
     return { roomId, peers: this.rooms[roomId] };
   }
 
-  public getRoomUserIds(roomId: number): number[] {
-    if (!this.rooms[roomId]) {
-      return [];
-    }
-    return this.rooms[roomId].map((user) => user.id);
-  }
-
-  public getUserRoomId(user: VoiceRoomCommon.IPeer): number {
-    if (!this.rooms) {
-      return -1;
-    }
-    for (const roomId in this.rooms) {
-      if (this.rooms[roomId].includes(user)) {
-        return Number(roomId);
-      }
-    }
-    return -1;
-  }
-
-  public getAllRooms(): Readonly<
-    Record<number, Readonly<VoiceRoomCommon.IPeer>[]>
-  > {
-    return this.rooms;
+  public getAllRoomsWithPeers(): VoiceRoomCommon.IRoomWithPeers[] {
+    return Object.keys(this.rooms).map((roomId) => {
+      return { roomId: +roomId, peers: this.rooms[roomId] };
+    });
   }
 }
