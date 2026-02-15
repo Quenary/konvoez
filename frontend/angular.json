@@ -38,6 +38,9 @@
                 "input": "public"
               }
             ],
+            "stylePreprocessorOptions": {
+              "includePaths": ["src/mixins"]
+            },
             "styles": ["src/styles.scss"]
           },
           "configurations": {

@@ -13,10 +13,10 @@ import {
   selectVoiceRoomsList,
 } from './rooms.selectors';
 import { ButtonModule } from 'primeng/button';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from 'primeng/dynamicdialog';
-import { AddRoomDialogComponent } from './add-room-dialog/add-room-dialog.component';
-import { IRoom, IRoomCreate } from './rooms.interface';
+import { RoomDialogComponent } from './room-dialog/room-dialog.component';
+import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { ERoomType } from '@common/enums';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -29,8 +29,14 @@ import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.com
 import { VoiceRoomCommon } from '@common/voice-room';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { DividerModule } from 'primeng/divider';
+import { ConfirmationService, MenuItem } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
-interface IRoomWithPeers extends IRoom {
+interface IRoomWithMenu extends IRoom {
+  menu: MenuItem[];
+}
+
+interface IRoomWithPeers extends IRoomWithMenu {
   peers: VoiceRoomCommon.IPeer[];
 }
 
@@ -45,8 +51,9 @@ interface IRoomWithPeers extends IRoom {
     TranslatePipe,
     RoomPeerComponent,
     DividerModule,
+    ConfirmDialogModule,
   ],
-  providers: [DialogService],
+  providers: [DialogService, ConfirmationService],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,6 +61,8 @@ interface IRoomWithPeers extends IRoom {
 export class RoomsComponent implements OnInit {
   private readonly store = inject(Store);
   private readonly dialogService = inject(DialogService);
+  private readonly translateService = inject(TranslateService);
+  private readonly confirmationService = inject(ConfirmationService);
 
   protected readonly selectedRoomId =
     this.store.selectSignal(selectSelectedRoomId);
@@ -61,7 +70,23 @@ export class RoomsComponent implements OnInit {
     selectActiveVoiceRoomId,
   );
 
-  protected readonly textRooms = this.store.selectSignal(selectTextRoomsList);
+  private readonly _textRooms = this.store.selectSignal(selectTextRoomsList);
+  protected readonly textRooms = computed<IRoomWithMenu[]>(() => {
+    const textRooms = this._textRooms();
+    return textRooms.map((item) => ({
+      ...item,
+      menu: [
+        {
+          label: this.translateService.instant('GENERAL.EDIT'),
+          command: () => this.editRoom(item),
+        },
+        {
+          label: this.translateService.instant('GENERAL.DELETE'),
+          command: () => this.deleteRoom(item),
+        },
+      ],
+    }));
+  });
 
   private readonly _voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
   private readonly voiceRoomsState =
@@ -72,6 +97,16 @@ export class RoomsComponent implements OnInit {
     return voiceRooms.map((item) => ({
       ...item,
       peers: voiceRoomsState[item.id]?.peers ?? [],
+      menu: [
+        {
+          label: this.translateService.instant('GENERAL.EDIT'),
+          command: () => this.editRoom(item),
+        },
+        {
+          label: this.translateService.instant('GENERAL.DELETE'),
+          command: () => this.deleteRoom(item),
+        },
+      ],
     }));
   });
 
@@ -81,14 +116,49 @@ export class RoomsComponent implements OnInit {
     this.store.dispatch(RoomsActions.requestRooms());
   }
 
-  protected addRoom($event: ERoomType): void {
-    const ref = this.dialogService.open(AddRoomDialogComponent, {
-      data: { type: $event },
+  protected addRoom(type: ERoomType): void {
+    const ref = this.dialogService.open(RoomDialogComponent, {
+      closeOnEscape: true,
+      closable: true,
+      header: this.translateService.instant('ROOMS.DIALOG.ADD_HEADER'),
+      data: { type: type },
     });
-    ref?.onClose.subscribe((room: IRoomCreate) => {
+    ref?.onClose.subscribe(({ room }) => {
       if (room) {
         this.store.dispatch(RoomsActions.requestCreateRoom({ room }));
       }
+    });
+  }
+
+  protected editRoom(room: IRoom): void {
+    const ref = this.dialogService.open(RoomDialogComponent, {
+      closeOnEscape: true,
+      closable: true,
+      header: this.translateService.instant('ROOMS.DIALOG.EDIT_HEADER'),
+      data: room,
+    });
+    ref?.onClose.subscribe(({ id, room }) => {
+      if (id && room) {
+        this.store.dispatch(RoomsActions.requestUpdateRoom({ id, room }));
+      }
+    });
+  }
+
+  protected deleteRoom(room: IRoom): void {
+    this.confirmationService.confirm({
+      message: this.translateService.instant('ROOMS.DELETE_CONFIRM'),
+      closable: false,
+      rejectButtonProps: {
+        label: this.translateService.instant('GENERAL.CANCEL'),
+        severity: 'contrast',
+      },
+      acceptButtonProps: {
+        label: this.translateService.instant('GENERAL.DELETE'),
+        severity: 'danger',
+      },
+      accept: () => {
+        this.store.dispatch(RoomsActions.requestDeleteRoom({ id: room.id }));
+      },
     });
   }
 

@@ -61,6 +61,7 @@
           "primary": false,
           "nullable": false,
           "length": null,
+          "default": "'MEMBER'",
           "enumItems": [
             "OWNER",
             "ADMIN",
@@ -168,7 +169,7 @@
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
-          "nullable": true,
+          "nullable": false,
           "length": null,
           "mappedType": "integer"
         }
@@ -228,7 +229,7 @@
             "id"
           ],
           "referencedTableName": "users",
-          "deleteRule": "cascade"
+          "updateRule": "cascade"
         }
       },
       "nativeEnums": {}

@@ -1,4 +1,4 @@
-import { Entity, Enum, OneToMany, Property } from '@mikro-orm/core';
+import { Cascade, Entity, Enum, OneToMany, Property } from '@mikro-orm/core';
 import { EUserRole } from '@common/enums';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
@@ -12,8 +12,10 @@ export class UserEntity extends KonvoezBaseEntity {
   password!: string;
 
   @Enum(() => EUserRole)
-  role!: EUserRole;
+  role: EUserRole = EUserRole.MEMBER;
 
-  @OneToMany(() => RoomEntity, 'author')
+  @OneToMany(() => RoomEntity, 'author', {
+    cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],
+  })
   rooms?: RoomEntity[];
 }

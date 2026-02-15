@@ -7,6 +7,8 @@ GENERAL:
   REQ_ERR: Ошибка запроса
   PERMISSION_ERROR: Нет доступа к устройствам
   MUTE: Заглушить
+  EDIT: Редактировать
+  DELETE: Удалить
 AUTH:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
@@ -27,11 +29,14 @@ AUTH:
 ROOMS:
   TEXT: Текстовые
   VOICE: Голосовые
-  ADD_DIALOG:
+  DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
+  DIALOG:
+    ADD_HEADER: Добавить комнату
+    EDIT_HEADER: Редактировать комнату
     NAME: Название
     TYPE: Тип
-    TEXT: Текстовый
-    VOICE: Голосовой
+    TEXT: Тестовая
+    VOICE: Голосовая
 SETTINGS:
   TITLE: Настройки
   AUDIO_INPUT: Входное устройство

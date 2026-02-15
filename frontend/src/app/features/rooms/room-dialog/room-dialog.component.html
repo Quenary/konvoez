@@ -1,0 +1,35 @@
+<ng-template #header> 123 </ng-template>
+
+<form
+  [formGroup]="form"
+  (submit)="submit()">
+  <p-ifta-label>
+    <input
+      fluid
+      pInputText
+      id="add-room-name"
+      formControlName="name"
+      type="text" />
+    <label for="add-room-name">
+      {{ 'ROOMS.DIALOG.NAME' | translate }}
+    </label>
+  </p-ifta-label>
+  <p-select
+    fluid
+    inputId="add-room-type"
+    [options]="typeOptions"
+    optionValue="value"
+    optionLabel="name"
+    formControlName="type"
+    appendTo="body"
+    readonly
+    [placeholder]="'ROOMS.DIALOG.TYPE' | translate">
+  </p-select>
+
+  <p-button
+    fluid
+    icon="pi pi-save"
+    [label]="'GENERAL.SAVE' | translate"
+    type="submit">
+  </p-button>
+</form>

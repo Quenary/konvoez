@@ -1,4 +1,4 @@
-import { Cascade, Entity, Enum, ManyToOne, Property } from '@mikro-orm/core';
+import { Entity, Enum, ManyToOne, Property } from '@mikro-orm/core';
 import { ERoomType } from '@common/enums';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { UserEntity } from '../users/users.entity';
@@ -11,8 +11,6 @@ export class RoomEntity extends KonvoezBaseEntity {
   @Enum(() => ERoomType)
   type!: ERoomType;
 
-  @ManyToOne(() => UserEntity, {
-    cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],
-  })
+  @ManyToOne(() => UserEntity)
   author!: UserEntity;
 }
