@@ -1,47 +1,69 @@
-<p-menu
-  [model]="menu()"
-  [style]="{ height: '100%' }">
-  <ng-template #start>
-    <app-logo></app-logo>
-  </ng-template>
+<app-logo></app-logo>
 
-  <ng-template
-    #submenuheader
-    let-item>
-    <span>{{ item.label }}</span>
-    <p-button
-      text
-      icon="pi pi-plus"
-      (onClick)="item.command()"></p-button>
-  </ng-template>
-
-  <ng-template
-    #item
-    let-item>
-    <div class="room">
-      <span
-        class="room-item"
-        (click)="selectRoom(item)">
-        @if (item.value.type == ERoomType.TEXT) {
-          <i class="pi pi-comment"></i>
-        } @else {
-          <i class="pi pi-volume-up"></i>
-        }
-        {{ item.label }}
-      </span>
-      @for (user of item.items; track user) {
-        <span class="room-user">{{ user.username }}</span>
+<section class="groups">
+  <div class="group text">
+    <span class="group-item">
+      {{ 'ROOMS.TEXT' | translate }}
+      <p-button
+        text
+        icon="pi pi-plus"
+        (onClick)="addRoom(ERoomType.TEXT)">
+      </p-button>
+    </span>
+    <section class="group-children">
+      @for (item of textRooms(); track item) {
+        <div class="group-children-item">
+          <p-button
+            text
+            icon="pi pi-comment"
+            [label]="item.name"
+            [severity]="item.id == selectedRoomId() ? 'primary' : 'secondary'"
+            (onClick)="selectRoom(item)">
+          </p-button>
+        </div>
       }
-    </div>
-  </ng-template>
+    </section>
+  </div>
 
-  <ng-template #end>
-    <app-voice-room-panel></app-voice-room-panel>
-    <p-button
-      [style]="{ marginLeft: 'auto' }"
-      text
-      rounded
-      icon="pi pi-cog"
-      routerLink="/settings"></p-button>
-  </ng-template>
-</p-menu>
+  <div class="group voice">
+    <span class="group-item">
+      {{ 'ROOMS.VOICE' | translate }}
+      <p-button
+        text
+        icon="pi pi-plus"
+        (onClick)="addRoom(ERoomType.VOICE)">
+      </p-button>
+    </span>
+    <section class="group-children">
+      @for (item of voiceRooms(); track item) {
+        <div class="group-children-item">
+          <p-button
+            text
+            icon="pi pi-volume-up"
+            [label]="item.name"
+            [severity]="
+              item.id == activeVoiceRoomId() ? 'primary' : 'secondary'
+            "
+            (onClick)="selectRoom(item)">
+          </p-button>
+
+          <section class="group-children-item-peers">
+            @for (peer of item.peers; track peer) {
+              <app-room-peer [peer]="peer"></app-room-peer>
+            }
+          </section>
+        </div>
+      }
+    </section>
+  </div>
+</section>
+
+<app-voice-room-panel></app-voice-room-panel>
+
+<p-button
+  outlined
+  icon="pi pi-cog"
+  routerLink="/settings"
+  severity="contrast"
+  [label]="'SETTINGS.TITLE' | translate">
+</p-button>

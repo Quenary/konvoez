@@ -1,7 +1,8 @@
 <p-toast></p-toast>
-@if (isAuthenticated()) {
-  <app-rooms class="rooms"></app-rooms>
-}
-<section class="route">
+<main>
+  @if (isAuthenticated()) {
+    <app-rooms class="rooms"></app-rooms>
+  }
+  <p-divider layout="vertical"></p-divider>
   <router-outlet></router-outlet>
-</section>
+</main>

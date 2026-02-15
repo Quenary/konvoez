@@ -6,6 +6,7 @@ GENERAL:
   GO_BACK: Go back
   REQ_ERR: Request error
   PERMISSION_ERROR: No permission to devices
+  MUTE: Mute
 AUTH:
   USERNAME: Username
   PASSWORD: Password
@@ -24,7 +25,6 @@ AUTH:
       - At least one numeric
       - At least 12 characters
 ROOMS:
-  ADD: Add
   TEXT: Text
   VOICE: Voice
   ADD_DIALOG:
@@ -33,6 +33,7 @@ ROOMS:
     TEXT: Text
     VOICE: Voice
 SETTINGS:
+  TITLE: Settings
   AUDIO_INPUT: Audio input
   AUDIO_OUTPUT: Audio output
   API_NOT_AVAILABLE: Following API may be not available in modern browsers
