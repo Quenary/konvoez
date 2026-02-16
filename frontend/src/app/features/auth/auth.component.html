@@ -1,4 +1,6 @@
-<form [formGroup]="form" (submit)="onSubmit()">
+<form
+  [formGroup]="form"
+  (submit)="onSubmit()">
   <p-ifta-label>
     <input
       fluid
@@ -7,8 +9,7 @@
       autocomplete="username"
       formControlName="username"
       type="text"
-      [placeholder]="'AUTH.USERNAME' | translate"
-    />
+      [placeholder]="'AUTH.USERNAME' | translate" />
     <label for="username">
       {{ 'AUTH.USERNAME' | translate }}
     </label>
@@ -16,13 +17,13 @@
 
   <p-ifta-label>
     <p-password
+      fluid
       inputId="password"
       autocomplete="current-password"
       formControlName="password"
       [toggleMask]="true"
       [feedback]="false"
-      [fluid]="true"
-    >
+      [fluid]="true">
     </p-password>
     <label for="password">
       {{ 'AUTH.PASSWORD' | translate }}
@@ -30,16 +31,17 @@
   </p-ifta-label>
 
   <p-button
+    fluid
     type="submit"
     [disabled]="!form.valid"
     [loading]="loading()"
     [label]="'AUTH.SIGN_IN' | translate"
-    icon="pi pi-sign-in"
-  ></p-button>
+    icon="pi pi-sign-in"></p-button>
   <p-button
+    fluid
+    text
     type="button"
     [label]="'AUTH.SIGN_UP' | translate"
     routerLink="/auth/register"
-    icon="pi pi-user-plus"
-  ></p-button>
+    icon="pi pi-user-plus"></p-button>
 </form>
