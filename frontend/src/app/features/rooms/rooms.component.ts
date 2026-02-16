@@ -16,7 +16,7 @@ import { ButtonModule } from 'primeng/button';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from 'primeng/dynamicdialog';
 import { RoomDialogComponent } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
+import { IRoom } from './rooms.interface';
 import { ERoomType } from '@common/enums';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '../../shared/components/logo/logo.component';

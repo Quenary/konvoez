@@ -1,5 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { TInterfaceToForm } from '../../shared/types/interface-to-form.type';
 import { ILoginBody } from './auth.interface';
 import { ButtonModule } from 'primeng/button';

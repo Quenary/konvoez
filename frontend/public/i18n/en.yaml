@@ -41,4 +41,6 @@ SETTINGS:
   TITLE: Settings
   AUDIO_INPUT: Audio input
   AUDIO_OUTPUT: Audio output
-  API_NOT_AVAILABLE: Following API may be not available in modern browsers
+  API_NOT_AVAILABLE: |
+    This feature may not be available.
+    In this case, the default device will be used.
