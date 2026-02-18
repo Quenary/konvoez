@@ -26,10 +26,13 @@ export class RoomsEffects {
       this.actions$.pipe(
         ofType(RoomsActions.selectRoom),
         withLatestFrom(this.store.select(selectActiveVoiceRoomId)),
-        tap(([action, activeVoiceRoom]) => {
+        tap(([action, activeVoiceRoomId]) => {
           switch (action?.room?.type) {
             case ERoomType.VOICE: {
-              if (action.room.id !== activeVoiceRoom) {
+              if (!!activeVoiceRoomId) {
+                this.store.dispatch(VoiceRoomActions.leave());
+              }
+              if (action.room.id !== activeVoiceRoomId) {
                 this.store.dispatch(
                   VoiceRoomActions.join({ id: action.room.id }),
                 );

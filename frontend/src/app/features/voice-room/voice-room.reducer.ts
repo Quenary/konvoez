@@ -3,16 +3,9 @@ import { createEntityAdapter, EntityState } from '@ngrx/entity';
 import { createReducer, on } from '@ngrx/store';
 import { VoiceRoomActions } from './voice-room.actions';
 
-export interface IPeerWithRTC extends VoiceRoomCommon.IPeer {
-  /**
-   * WebRTC Connection
-   */
-  rtc: RTCPeerConnection;
-}
-
 export interface IVoiceRoomState extends EntityState<VoiceRoomCommon.IRoomWithPeers> {
   activeRoomId: number | null;
-  activeRoomPeers: IPeerWithRTC[];
+  activeRoomPeers: VoiceRoomCommon.IPeer[];
   micMuted: boolean;
   soundMuted: boolean;
 }
