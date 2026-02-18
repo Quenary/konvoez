@@ -7,25 +7,18 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, tap, withLatestFrom } from 'rxjs';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { VoiceRoomActions } from './voice-room.actions';
-import {
-  selectActiveVoiceRoomId,
-  selectActiveVoiceRoomPeers,
-} from './voice-room.selectors';
-import { IPeerWithRTC } from './voice-room.reducer';
-import { selectAudioInput } from '../settings/settings.selectors';
-import { getStream } from '../../shared/functions/get-stream.function';
+import { selectActiveVoiceRoomPeers } from './voice-room.selectors';
 import { AudioService } from '../../core/services/audio.service';
+import { VoiceRoomService } from '../../core/services/voice-room.service';
+import { SocketInjectionToken } from '../../core/services/socket-io.token';
 
 @Injectable()
 export class VoiceRoomEffects {
   private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
   private readonly audioService = inject(AudioService);
-
-  private readonly socket = io(`${window.location.origin}`, {
-    autoConnect: false,
-    path: '/api/voice',
-  }) as Socket<VoiceRoomCommon.TEventMap>;
+  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly socket = inject(SocketInjectionToken);
 
   constructor() {
     this.store
@@ -49,12 +42,47 @@ export class VoiceRoomEffects {
     });
   }
 
-  readonly mute$ = createEffect(
+  readonly setMicMuted$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(VoiceRoomActions.setMicMuted, VoiceRoomActions.setSoundMuted),
-        tap(() => {
+        ofType(VoiceRoomActions.setMicMuted),
+        tap((action) => {
+          this.voiceRoomService.setMicMuted(action.micMuted);
           this.audioService.playMuteAudio();
+        }),
+      ),
+    { dispatch: false },
+  );
+
+  readonly setSoundMuted$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(VoiceRoomActions.setSoundMuted),
+        tap((action) => {
+          this.voiceRoomService.setSoundMuted(action.soundMuted);
+          this.audioService.playMuteAudio();
+        }),
+      ),
+    { dispatch: false },
+  );
+
+  readonly setAudioInput$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(VoiceRoomActions.setAudioInput),
+        tap((action) => {
+          this.voiceRoomService.setAudioInput(action.device);
+        }),
+      ),
+    { dispatch: false },
+  );
+
+  readonly setAudioOutput$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(VoiceRoomActions.setAudioOutput),
+        tap((action) => {
+          this.voiceRoomService.setAudioOutput(action.device);
         }),
       ),
     { dispatch: false },
@@ -64,10 +92,30 @@ export class VoiceRoomEffects {
     () =>
       this.actions$.pipe(
         ofType(VoiceRoomActions.join),
-        withLatestFrom(this.store.select(selectActiveVoiceRoomId)),
-        tap(([action, activeVoiceRoomId]) => {
-          this.onLeave();
-          this.onJoin(action.id);
+        tap(async (action) => {
+          this.socket.emit(VoiceRoomCommon.EEvent.JOIN_ROOM, {
+            roomId: action.id,
+          });
+          this.socket.on(
+            VoiceRoomCommon.EEvent.PEER_JOINED,
+            (data: VoiceRoomCommon.IPeerJoined) => {
+              this.store.dispatch(VoiceRoomActions.peerJoined({ data }));
+            },
+          );
+          this.socket.on(
+            VoiceRoomCommon.EEvent.PEER_LEFT,
+            (data: VoiceRoomCommon.IPeerLeft) => {
+              this.store.dispatch(VoiceRoomActions.peerLeft({ data }));
+            },
+          );
+          this.socket.on(
+            VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN,
+            (data) => {
+              this.store.dispatch(
+                VoiceRoomActions.existingPeersOnJoin({ data }),
+              );
+            },
+          );
           this.audioService.playPeerJoinAudio();
         }),
       ),
@@ -79,7 +127,14 @@ export class VoiceRoomEffects {
       this.actions$.pipe(
         ofType(VoiceRoomActions.leave),
         tap(() => {
-          this.onLeave();
+          this.socket.emit(VoiceRoomCommon.EEvent.LEAVE_ROOM, {});
+          this.socket.removeListener(VoiceRoomCommon.EEvent.PEER_JOINED);
+          this.socket.removeListener(VoiceRoomCommon.EEvent.PEER_LEFT);
+          this.socket.removeListener(
+            VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN,
+          );
+          this.voiceRoomService.removeAllPeers();
+          this.store.dispatch(VoiceRoomActions.setActivePeers({ peers: [] }));
           this.audioService.playPeerLeaveAudio();
         }),
       ),
@@ -90,17 +145,10 @@ export class VoiceRoomEffects {
     () =>
       this.actions$.pipe(
         ofType(VoiceRoomActions.peerJoined),
-        withLatestFrom(
-          this.store.select(selectActiveVoiceRoomPeers),
-          this.store.select(selectAudioInput),
-        ),
-        tap(async ([action, peers, audioInput]) => {
-          const peer = await this.createPeer(
-            action.data.peer,
-            false,
-            audioInput,
-          );
-          peers = [...peers, peer];
+        withLatestFrom(this.store.select(selectActiveVoiceRoomPeers)),
+        tap(async ([action, peers]) => {
+          await this.voiceRoomService.addPeer(action.data.peer, false);
+          peers = [...peers, action.data.peer];
           this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
           this.audioService.playPeerJoinAudio();
         }),
@@ -118,7 +166,7 @@ export class VoiceRoomEffects {
             (p) => p.clientId === action.data.peer.clientId,
           );
           if (peer) {
-            peer.rtc.close();
+            this.voiceRoomService.removePeer(peer);
             peers = peers.filter((p) => p !== peer);
             this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
           }
@@ -128,140 +176,21 @@ export class VoiceRoomEffects {
     { dispatch: false },
   );
 
-  readonly signal$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(VoiceRoomActions.signal),
-        withLatestFrom(this.store.select(selectActiveVoiceRoomPeers)),
-        tap(async ([action, activePeers]) => {
-          const { from, payload } = action.data;
-          const peer = from && activePeers.find((p) => p.clientId === from);
-          if (!peer) {
-            return;
-          }
-
-          if (payload.sdi) {
-            await peer.rtc.setRemoteDescription(payload.sdi);
-
-            if (payload.sdi.type === 'offer') {
-              const answer = await peer.rtc.createAnswer();
-              await peer.rtc.setLocalDescription(answer);
-              this.socket.emit(VoiceRoomCommon.EEvent.SIGNAL, {
-                to: from,
-                payload: {
-                  sdi: answer,
-                },
-              });
-            }
-          }
-
-          if (payload.candidate) {
-            await peer.rtc.addIceCandidate(payload.candidate);
-          }
-        }),
-      ),
-    { dispatch: false },
-  );
-
   readonly existingPeersOnJoin$ = createEffect(
     () =>
       this.actions$.pipe(
         ofType(VoiceRoomActions.existingPeersOnJoin),
-        withLatestFrom(this.store.select(selectAudioInput)),
-        tap(async ([action, audioInput]) => {
-          const peers = await Promise.all(
-            action.data.peers.map(
-              async (p) => await this.createPeer(p, true, audioInput),
+        tap(async (action) => {
+          await Promise.all(
+            action.data.peers.map((p) =>
+              this.voiceRoomService.addPeer(p, true),
             ),
           );
-          this.store.dispatch(VoiceRoomActions.setActivePeers({ peers }));
+          this.store.dispatch(
+            VoiceRoomActions.setActivePeers({ peers: action.data.peers }),
+          );
         }),
       ),
     { dispatch: false },
   );
-
-  private onJoin(roomId: number): void {
-    this.socket.emit(VoiceRoomCommon.EEvent.JOIN_ROOM, {
-      roomId,
-    } satisfies VoiceRoomCommon.IJoinRoom);
-
-    this.socket.on(
-      VoiceRoomCommon.EEvent.PEER_JOINED,
-      (data: VoiceRoomCommon.IPeerJoined) => {
-        this.store.dispatch(VoiceRoomActions.peerJoined({ data }));
-      },
-    );
-
-    this.socket.on(
-      VoiceRoomCommon.EEvent.PEER_LEFT,
-      (data: VoiceRoomCommon.IPeerLeft) => {
-        this.store.dispatch(VoiceRoomActions.peerLeft({ data }));
-      },
-    );
-
-    this.socket.on(VoiceRoomCommon.EEvent.SIGNAL, (data) => {
-      this.store.dispatch(VoiceRoomActions.signal({ data }));
-    });
-
-    this.socket.on(VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN, (data) => {
-      this.store.dispatch(VoiceRoomActions.existingPeersOnJoin({ data }));
-    });
-  }
-
-  private onLeave(): void {
-    this.socket.emit(VoiceRoomCommon.EEvent.LEAVE_ROOM, {});
-    this.socket.removeListener(VoiceRoomCommon.EEvent.PEER_JOINED);
-    this.socket.removeListener(VoiceRoomCommon.EEvent.PEER_LEFT);
-    this.socket.removeListener(VoiceRoomCommon.EEvent.SIGNAL);
-    this.socket.removeListener(VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN);
-  }
-
-  private async createPeer(
-    peer: VoiceRoomCommon.IPeer,
-    initiator: boolean,
-    device: MediaDeviceInfo | null,
-  ): Promise<IPeerWithRTC> {
-    const rtc = new RTCPeerConnection();
-    // const rtc = new RTCPeerConnection({
-    //   iceServers: [
-    //     { urls: 'stun:stun.l.google.com:19302' },
-    //     { urls: 'stun:stun.chathelp.ru:3478' },
-    //     { urls: 'stun:stun2.l.google.com:19302' },
-    //   ],
-    // });
-
-    const stream = await getStream(device);
-    stream.getTracks().forEach((t) => {
-      rtc.addTrack(t, stream);
-    });
-
-    rtc.onicecandidate = (e) => {
-      if (e.candidate) {
-        this.socket.emit(VoiceRoomCommon.EEvent.SIGNAL, {
-          to: peer.clientId,
-          payload: {
-            candidate: e.candidate,
-          },
-        });
-      }
-    };
-
-    if (initiator) {
-      rtc.createOffer().then((offer) => {
-        rtc.setLocalDescription(offer).then(() => {
-          this.socket.emit(VoiceRoomCommon.EEvent.SIGNAL, {
-            to: peer.clientId,
-            payload: {
-              sdi: offer,
-            },
-          });
-        });
-      });
-    }
-
-    return {
-      ...peer,
-      rtc: rtc,
-    };
-  }
 }

@@ -6,7 +6,9 @@
  * @param device
  * @returns
  */
-export async function getStream(device: MediaDeviceInfo | null): Promise<MediaStream> {
+export async function getStream(
+  device: MediaDeviceInfo | null,
+): Promise<MediaStream> {
   const tryGetStream = async (
     constraints: MediaTrackConstraints | boolean,
   ): Promise<MediaStream | null> => {
@@ -16,6 +18,7 @@ export async function getStream(device: MediaDeviceInfo | null): Promise<MediaSt
       });
     } catch (err: any) {
       console.warn('getUserMedia failed:', err?.name);
+      console.warn(constraints);
       return null;
     }
   };

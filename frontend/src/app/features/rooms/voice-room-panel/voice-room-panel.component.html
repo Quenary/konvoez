@@ -27,7 +27,3 @@
     (onClick)="toggleSoundMuted()">
   </p-button>
 </p-button-group>
-
-@for (peer of activePeers(); track peer) {
-  <app-voice-peer [peer]="peer"></app-voice-peer>
-}

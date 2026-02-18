@@ -8,7 +8,11 @@ import {
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { provideTranslateService, TranslateLoader, TranslateService } from '@ngx-translate/core';
+import {
+  provideTranslateService,
+  TranslateLoader,
+  TranslateService,
+} from '@ngx-translate/core';
 import { TranslateYamlHttpLoader } from './core/services/translate-yaml-http-loader.service';
 import { providePrimeNG } from 'primeng/config';
 import Aura from '@primeuix/themes/aura';
@@ -28,6 +32,8 @@ import { settingsReducer } from './features/settings/settings.reducer';
 import { SettingsEffects } from './features/settings/settings.effects';
 import { EStorageKey } from './app.enums';
 import { SettingsActions } from './features/settings/settings.actions';
+import { SocketInjectionToken } from './core/services/socket-io.token';
+import { io } from 'socket.io-client';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -46,7 +52,12 @@ export const appConfig: ApplicationConfig = {
         preset: Aura,
       },
     }),
-    provideEffects(AuthEffects, RoomsEffects, VoiceRoomEffects, SettingsEffects),
+    provideEffects(
+      AuthEffects,
+      RoomsEffects,
+      VoiceRoomEffects,
+      SettingsEffects,
+    ),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
@@ -65,8 +76,12 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       const store = inject(Store);
-      const audioInput = localStorage.getItemJson<MediaDeviceInfo>(EStorageKey.AUDIO_INPUT);
-      const audioOutput = localStorage.getItemJson<MediaDeviceInfo>(EStorageKey.AUDIO_OUTPUT);
+      const audioInput = localStorage.getItemJson<MediaDeviceInfo>(
+        EStorageKey.AUDIO_INPUT,
+      );
+      const audioOutput = localStorage.getItemJson<MediaDeviceInfo>(
+        EStorageKey.AUDIO_OUTPUT,
+      );
       store.dispatch(
         SettingsActions.init({
           audioInput,
@@ -75,5 +90,12 @@ export const appConfig: ApplicationConfig = {
       );
     }),
     MessageService,
+    {
+      provide: SocketInjectionToken,
+      useValue: io(`${window.location.origin}`, {
+        autoConnect: false,
+        path: '/api/voice',
+      }),
+    },
   ],
 };

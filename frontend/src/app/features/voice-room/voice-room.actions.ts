@@ -1,20 +1,18 @@
 import { VoiceRoomCommon } from '@common/voice-room';
-import { createActionGroup, props } from '@ngrx/store';
-import { IPeerWithRTC } from './voice-room.reducer';
+import { createActionGroup, emptyProps, props } from '@ngrx/store';
 
 export const VoiceRoomActions = createActionGroup({
   source: 'VOICE_ROOM',
   events: {
-    signal: props<{ data: VoiceRoomCommon.ISignal }>(),
     join: props<{ id: number }>(),
-    leave: props<{ id: number }>(),
+    leave: emptyProps(),
     existingPeersAll: props<{ data: VoiceRoomCommon.IRoomWithPeers[] }>(),
     existingPeersOnJoin: props<{ data: VoiceRoomCommon.IRoomWithPeers }>(),
     peerJoined: props<{ data: VoiceRoomCommon.IPeerJoined }>(),
     peerLeft: props<{ data: VoiceRoomCommon.IPeerLeft }>(),
-    setActivePeers: props<{ peers: IPeerWithRTC[] }>(),
-    setAudioInput: props<{ device: MediaDeviceInfo }>(),
-    setAudioOutput: props<{ device: MediaDeviceInfo }>(),
+    setActivePeers: props<{ peers: VoiceRoomCommon.IPeer[] }>(),
+    setAudioInput: props<{ device: MediaDeviceInfo | null }>(),
+    setAudioOutput: props<{ device: MediaDeviceInfo | null }>(),
     setMicMuted: props<{ micMuted: boolean }>(),
     setSoundMuted: props<{ soundMuted: boolean }>(),
   },
