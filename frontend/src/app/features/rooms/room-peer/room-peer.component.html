@@ -1,1 +1,8 @@
-{{ peer().username }}
+@if (peer(); as p) {
+  <p-avatar
+    [label]="p.username[0]"
+    shape="circle"
+    [class.talking]="audioLevel() > 0">
+  </p-avatar>
+  {{ p.username }}
+}

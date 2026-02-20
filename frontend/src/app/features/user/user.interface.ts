@@ -12,7 +12,7 @@ export interface IUpdateUser {
 }
 
 export interface IGetUser {
-  id: string;
+  id: number;
   username: string;
   role: EUserRole;
   createdAt: Date;

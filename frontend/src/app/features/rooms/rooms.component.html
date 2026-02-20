@@ -14,10 +14,9 @@
     </span>
     <section class="group-children">
       @for (item of textRooms(); track item.id) {
-        <div
-          class="group-children-item"
-          #itemRef>
+        <div class="group-children-item">
           <p-button
+            #btnRef
             fluid
             text
             [style]="roomButtonStyle"
@@ -28,7 +27,7 @@
           </p-button>
         </div>
         <p-contextmenu
-          [target]="itemRef"
+          [target]="btnRef.el.nativeElement"
           [model]="item.menu">
         </p-contextmenu>
       }
@@ -46,10 +45,9 @@
     </span>
     <section class="group-children">
       @for (item of voiceRooms(); track item.id) {
-        <div
-          class="group-children-item"
-          #itemRef>
+        <div class="group-children-item">
           <p-button
+            #btnRef
             fluid
             text
             [style]="roomButtonStyle"
@@ -68,7 +66,7 @@
           </section>
         </div>
         <p-contextmenu
-          [target]="itemRef"
+          [target]="btnRef.el.nativeElement"
           [model]="item.menu">
         </p-contextmenu>
       }
