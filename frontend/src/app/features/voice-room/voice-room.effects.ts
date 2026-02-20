@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
-import { io, Socket } from 'socket.io-client';
 import { selectIsAuthorized } from '../auth/auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, tap, withLatestFrom } from 'rxjs';
@@ -61,28 +60,6 @@ export class VoiceRoomEffects {
         tap((action) => {
           this.voiceRoomService.setSoundMuted(action.soundMuted);
           this.audioService.playMuteAudio();
-        }),
-      ),
-    { dispatch: false },
-  );
-
-  readonly setAudioInput$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(VoiceRoomActions.setAudioInput),
-        tap((action) => {
-          this.voiceRoomService.setAudioInput(action.device);
-        }),
-      ),
-    { dispatch: false },
-  );
-
-  readonly setAudioOutput$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(VoiceRoomActions.setAudioOutput),
-        tap((action) => {
-          this.voiceRoomService.setAudioOutput(action.device);
         }),
       ),
     { dispatch: false },

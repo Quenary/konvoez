@@ -3,25 +3,20 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { SettingsActions } from './settings.actions';
 import { tap } from 'rxjs';
 import { EStorageKey } from '../../app.enums';
-import { VoiceRoomActions } from '../voice-room/voice-room.actions';
-import { Store } from '@ngrx/store';
+import { VoiceRoomService } from '../../core/services/voice-room.service';
 
 @Injectable()
 export class SettingsEffects {
-  private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
+  private readonly voiceRoomService = inject(VoiceRoomService);
 
   readonly init$ = createEffect(
     () =>
       this.actions$.pipe(
         ofType(SettingsActions.init),
         tap((action) => {
-          this.store.dispatch(
-            VoiceRoomActions.setAudioInput({ device: action.audioInput }),
-          );
-          this.store.dispatch(
-            VoiceRoomActions.setAudioOutput({ device: action.audioOutput }),
-          );
+          this.voiceRoomService.setAudioInput(action.audioInput);
+          this.voiceRoomService.setAudioOutput(action.audioOutput);
         }),
       ),
     { dispatch: false },
@@ -33,9 +28,7 @@ export class SettingsEffects {
         ofType(SettingsActions.setAudioInput),
         tap(async (action) => {
           localStorage.setItemJson(EStorageKey.AUDIO_INPUT, action.audioInput);
-          this.store.dispatch(
-            VoiceRoomActions.setAudioInput({ device: action.audioInput }),
-          );
+          this.voiceRoomService.setAudioInput(action.audioInput);
         }),
       ),
     { dispatch: false },
@@ -50,9 +43,7 @@ export class SettingsEffects {
             EStorageKey.AUDIO_OUTPUT,
             action.audioOutput,
           );
-          this.store.dispatch(
-            VoiceRoomActions.setAudioOutput({ device: action.audioOutput }),
-          );
+          this.voiceRoomService.setAudioOutput(action.audioOutput);
         }),
       ),
     { dispatch: false },

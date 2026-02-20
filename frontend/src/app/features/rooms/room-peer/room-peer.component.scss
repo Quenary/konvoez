@@ -1,0 +1,10 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+
+  .talking {
+    outline: 0.1rem solid var(--p-primary-500);
+  }
+}

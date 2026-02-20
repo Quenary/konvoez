@@ -11,8 +11,6 @@ export const VoiceRoomActions = createActionGroup({
     peerJoined: props<{ data: VoiceRoomCommon.IPeerJoined }>(),
     peerLeft: props<{ data: VoiceRoomCommon.IPeerLeft }>(),
     setActivePeers: props<{ peers: VoiceRoomCommon.IPeer[] }>(),
-    setAudioInput: props<{ device: MediaDeviceInfo | null }>(),
-    setAudioOutput: props<{ device: MediaDeviceInfo | null }>(),
     setMicMuted: props<{ micMuted: boolean }>(),
     setSoundMuted: props<{ soundMuted: boolean }>(),
   },
