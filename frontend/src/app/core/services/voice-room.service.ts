@@ -2,7 +2,7 @@ import { effect, inject, Injectable, signal } from '@angular/core';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { getStream } from '../../shared/functions/get-stream.function';
 import { replaceStream } from '../../shared/functions/replace-stream.function';
-import { SocketInjectionToken } from './socket-io.token';
+import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
 import { EStorageKey } from '../../app.enums';
@@ -23,7 +23,7 @@ interface IManagedPeer extends VoiceRoomCommon.IPeer {
   providedIn: 'root',
 })
 export class VoiceRoomService {
-  private readonly socket = inject(SocketInjectionToken);
+  private readonly socket = inject(VoiceRoomSocketToken);
   private readonly microphoneService = inject(MicrophoneService);
   private readonly speakerService = inject(SpeakerService);
 

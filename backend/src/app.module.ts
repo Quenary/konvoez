@@ -9,6 +9,7 @@ import { ConfigService } from './shared/services/config.service';
 import { PasswordService } from './shared/services/password.service';
 import { SharedModule } from './shared/shared.module';
 import { VoiceRoomsModule } from './features/voice-rooms/voice-rooms.module';
+import { TextRoomsModule } from './features/text-rooms/text-rooms.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { VoiceRoomsModule } from './features/voice-rooms/voice-rooms.module';
     RoomsModule,
     UsersModule,
     SharedModule,
+    TextRoomsModule,
   ],
 })
 export class AppModule {}

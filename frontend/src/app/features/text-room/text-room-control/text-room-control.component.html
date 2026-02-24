@@ -1,0 +1,13 @@
+<form
+  class="form"
+  [formGroup]="form"
+  (ngSubmit)="onSubmit()">
+  <textarea
+    class="form-textarea"
+    pTextarea
+    formControlName="content"></textarea>
+  <p-button
+    text
+    icon="pi pi-send"
+    type="submit"></p-button>
+</form>

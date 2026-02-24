@@ -9,7 +9,7 @@ import { VoiceRoomActions } from './voice-room.actions';
 import { selectActiveVoiceRoomPeers } from './voice-room.selectors';
 import { AudioService } from '../../core/services/audio.service';
 import { VoiceRoomService } from '../../core/services/voice-room.service';
-import { SocketInjectionToken } from '../../core/services/socket-io.token';
+import { VoiceRoomSocketToken } from '../../core/tokens/voice-room-socket.token';
 
 @Injectable()
 export class VoiceRoomEffects {
@@ -17,7 +17,7 @@ export class VoiceRoomEffects {
   private readonly actions$ = inject(Actions);
   private readonly audioService = inject(AudioService);
   private readonly voiceRoomService = inject(VoiceRoomService);
-  private readonly socket = inject(SocketInjectionToken);
+  private readonly socket = inject(VoiceRoomSocketToken);
 
   constructor() {
     this.store

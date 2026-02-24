@@ -9,7 +9,8 @@ export const routes: Routes = [
   },
   {
     path: 'auth',
-    loadComponent: () => import('./features/auth/auth.component').then((m) => m.AuthComponent),
+    loadComponent: () =>
+      import('./features/auth/auth.component').then((m) => m.AuthComponent),
   },
   {
     path: 'auth/register',
@@ -25,22 +26,29 @@ export const routes: Routes = [
     children: [
       {
         path: 'main',
-        loadComponent: () => import('./features/main/main.component').then((m) => m.MainComponent),
+        loadComponent: () =>
+          import('./features/main/main.component').then((m) => m.MainComponent),
       },
       {
         path: 'text-room/:id',
         loadComponent: () =>
-          import('./features/text-room/text-room.component').then((m) => m.TextRoomComponent),
+          import('./features/text-room/text-room.component').then(
+            (m) => m.TextRoomComponent,
+          ),
       },
       {
         path: 'voice-room/:id',
         loadComponent: () =>
-          import('./features/voice-room/voice-room.component').then((m) => m.VoiceRoomComponent),
+          import('./features/voice-room/voice-room.component').then(
+            (m) => m.VoiceRoomComponent,
+          ),
       },
       {
         path: 'settings',
         loadComponent: () =>
-          import('./features/settings/settings.component').then((m) => m.SettingsComponent),
+          import('./features/settings/settings.component').then(
+            (m) => m.SettingsComponent,
+          ),
       },
     ],
   },

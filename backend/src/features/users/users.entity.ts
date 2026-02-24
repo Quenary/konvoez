@@ -1,10 +1,21 @@
-import { Cascade, Entity, Enum, OneToMany, Property } from '@mikro-orm/core';
+import {
+  Cascade,
+  Entity,
+  Enum,
+  OneToMany,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/core';
 import { EUserRole } from '@common/enums';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
+import { MessageEntity } from '../text-rooms/text-rooms.entity';
 
 @Entity({ tableName: 'users' })
 export class UserEntity extends KonvoezBaseEntity {
+  @PrimaryKey({ type: 'int', autoincrement: true })
+  id!: number;
+
   @Property({ length: 32, index: true, unique: true })
   username!: string;
 
@@ -18,4 +29,9 @@ export class UserEntity extends KonvoezBaseEntity {
     cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],
   })
   rooms?: RoomEntity[];
+
+  @OneToMany(() => MessageEntity, 'sender', {
+    cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],
+  })
+  messages?: MessageEntity[];
 }
