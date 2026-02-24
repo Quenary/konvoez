@@ -1,0 +1,31 @@
+:host {
+  .message {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    width: 100%;
+    gap: 0.5rem;
+
+    &-body {
+      flex: 1;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      background: var(--p-content-background);
+      color: var(--p-content-color);
+      border-radius: 0.5rem;
+      gap: 1rem;
+
+      &-header {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+
+      &-content {
+        white-space: pre-line;
+      }
+    }
+  }
+}

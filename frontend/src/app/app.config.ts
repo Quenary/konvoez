@@ -4,6 +4,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   isDevMode,
+  LOCALE_ID,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
@@ -32,8 +33,12 @@ import { settingsReducer } from './features/settings/settings.reducer';
 import { SettingsEffects } from './features/settings/settings.effects';
 import { EStorageKey } from './app.enums';
 import { SettingsActions } from './features/settings/settings.actions';
-import { SocketInjectionToken } from './core/services/socket-io.token';
+import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
+import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
+import { TextRoomEffects } from './features/text-room/text-room.effects';
+import { textRoomReducer } from './features/text-room/text-room.reducer';
+import { localeInitializer } from './core/initializers/locale-initializer';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -55,16 +60,40 @@ export const appConfig: ApplicationConfig = {
     provideEffects(
       AuthEffects,
       RoomsEffects,
+      TextRoomEffects,
       VoiceRoomEffects,
       SettingsEffects,
     ),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
+      textRoom: textRoomReducer,
       voiceRoom: voiceRoomReducer,
       settings: settingsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
+    MessageService,
+    {
+      provide: VoiceRoomSocketToken,
+      useValue: io(window.location.origin, {
+        autoConnect: false,
+        path: '/api/voice',
+      }),
+    },
+    {
+      provide: TextRoomSocketToken,
+      useValue: io(window.location.origin, {
+        autoConnect: false,
+        path: '/api/text',
+      }),
+    },
+    {
+      provide: LOCALE_ID,
+      useFactory: () => {
+        const locale = navigator.language || 'en-US';
+        return locale;
+      },
+    },
     // Initializers
     provideAppInitializer(() => {
       const translateService = inject(TranslateService);
@@ -89,13 +118,6 @@ export const appConfig: ApplicationConfig = {
         }),
       );
     }),
-    MessageService,
-    {
-      provide: SocketInjectionToken,
-      useValue: io(`${window.location.origin}`, {
-        autoConnect: false,
-        path: '/api/voice',
-      }),
-    },
+    provideAppInitializer(() => localeInitializer()),
   ],
 };

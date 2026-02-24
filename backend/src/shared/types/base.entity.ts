@@ -4,9 +4,6 @@ import { Entity, OptionalProps, PrimaryKey, Property } from '@mikro-orm/core';
 export abstract class KonvoezBaseEntity {
   [OptionalProps]?: 'createdAt' | 'updatedAt';
 
-  @PrimaryKey({ type: 'int', autoincrement: true })
-  id!: number;
-
   @Property({ onCreate: () => new Date() })
   createdAt!: Date;
 

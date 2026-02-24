@@ -11,6 +11,7 @@ import { selectActiveVoiceRoomId } from '../voice-room/voice-room.selectors';
 import { VoiceRoomActions } from '../voice-room/voice-room.actions';
 import { ERoomType } from '@common/enums';
 import { Router } from '@angular/router';
+import { TextRoomActions } from '../text-room/text-room.actions';
 
 @Injectable()
 export class RoomsEffects {
