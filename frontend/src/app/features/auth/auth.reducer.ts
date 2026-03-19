@@ -26,6 +26,7 @@ export const authReducer = createReducer(
     loading: false,
     user: payload.user,
   })),
+
   on(AuthActions.requestMeSuccess, (state, payload) => ({
     ...state,
     loading: false,
@@ -36,19 +37,17 @@ export const authReducer = createReducer(
     loading: false,
     user: null,
   })),
-  on(AuthActions.requestLogoutSuccess, AuthActions.requestLogoutError, (state, payload) => ({
-    ...state,
-    loading: false,
-    user: null,
-  })),
-  on(AuthActions.requestRefreshError, (state, payload) => ({
-    ...state,
-    loading: false,
-    user: null,
-  })),
+  on(
+    AuthActions.requestLogoutSuccess,
+    AuthActions.requestLogoutError,
+    (state, payload) => ({
+      ...state,
+      loading: false,
+      user: null,
+    }),
+  ),
   on(
     AuthActions.requestLoginError,
-    AuthActions.requestRefreshSuccess,
     AuthActions.requestRegisterSuccess,
     AuthActions.requestRegisterError,
     (state, payload) => ({
@@ -56,4 +55,11 @@ export const authReducer = createReducer(
       loading: false,
     }),
   ),
+  on(AuthActions.uploadAvatarSuccess, (state, payload) => ({
+    ...state,
+    user: {
+      ...(state.user as IGetUser),
+      avatar: payload.avatar,
+    },
+  })),
 );

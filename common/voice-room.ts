@@ -90,6 +90,7 @@ export namespace VoiceRoomCommon {
     id: number;
     role: EUserRole;
     username: string;
+    avatar?: string;
   }
   export interface IRoomWithPeers {
     roomId: number;

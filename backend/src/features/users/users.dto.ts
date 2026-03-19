@@ -50,6 +50,13 @@ export class UpdateUserDto {
   })
   @IsEnum(EUserRole)
   role?: EUserRole;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+  })
+  @IsString()
+  avatar?: string;
 }
 
 export class GetUserDto {
@@ -70,6 +77,13 @@ export class GetUserDto {
     required: true,
   })
   role!: EUserRole;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+  })
+  @IsString()
+  avatar?: string;
 
   @ApiProperty({
     type: Date,

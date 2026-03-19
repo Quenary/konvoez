@@ -59,6 +59,7 @@ export class VoiceRoomsGateway
         id: user.id,
         username: user.username,
         role: user.role,
+        avatar: user.avatar,
       } satisfies VoiceRoomCommon.IPeer;
 
       this.emitExistingPeers();

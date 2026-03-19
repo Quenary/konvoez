@@ -15,6 +15,7 @@ export interface IGetUser {
   id: number;
   username: string;
   role: EUserRole;
+  avatar?: string;
   createdAt: Date;
   updatedAt?: Date;
 }

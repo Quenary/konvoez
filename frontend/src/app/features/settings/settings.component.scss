@@ -6,6 +6,12 @@
   gap: 1rem;
   padding: 1rem;
 
+  .avatar {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
   & > * {
     width: 100%;
   }

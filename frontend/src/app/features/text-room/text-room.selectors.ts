@@ -33,3 +33,7 @@ export const selectTextRoomLoadedPages = createSelector(
   _select,
   (state) => state.loadedPages,
 );
+export const selectTextRoomAvatars = createSelector(
+  _select,
+  (state) => state.avatars,
+);

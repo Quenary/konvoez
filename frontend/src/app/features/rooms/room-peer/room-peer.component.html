@@ -1,8 +1,17 @@
 @if (peer(); as p) {
-  <p-avatar
-    [label]="p.username[0]"
-    shape="circle"
-    [class.talking]="audioLevel() > 0">
-  </p-avatar>
+  @if (avatarUrl.value(); as image) {
+    <p-avatar
+      [image]="avatarUrl.value()"
+      shape="circle"
+      [class.talking]="audioLevel() > 0">
+    </p-avatar>
+  } @else {
+    <p-avatar
+      [label]="p.username[0]"
+      shape="circle"
+      [class.talking]="audioLevel() > 0">
+    </p-avatar>
+  }
+
   {{ p.username }}
 }

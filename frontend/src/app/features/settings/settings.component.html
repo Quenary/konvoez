@@ -1,3 +1,26 @@
+<section class="avatar">
+  <p-fileupload
+    [multiple]="false"
+    [chooseLabel]="'SETTINGS.UPLOAD_AVATAR' | translate"
+    accept="image/*"
+    [maxFileSize]="maxAvatarSize"
+    url="api/avatars/upload"
+    name="avatar"
+    mode="basic"
+    auto
+    customUpload
+    (uploadHandler)="onAvatarUpload($event)">
+  </p-fileupload>
+
+  @if (avatarUrl.value(); as image) {
+    <p-avatar
+      shape="circle"
+      [image]="image"
+      size="large">
+    </p-avatar>
+  }
+</section>
+
 <p-ifta-label>
   <p-select
     fluid

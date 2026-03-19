@@ -39,6 +39,7 @@ ROOMS:
     VOICE: Голосовая
 SETTINGS:
   TITLE: Настройки
+  UPLOAD_AVATAR: Загрузить аватар
   AUDIO_INPUT: Входное устройство
   AUDIO_OUTPUT: Выходное устройство
   API_NOT_AVAILABLE: | 
