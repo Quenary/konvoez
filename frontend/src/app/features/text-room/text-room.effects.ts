@@ -6,6 +6,7 @@ import {
   catchError,
   finalize,
   map,
+  mergeMap,
   of,
   switchMap,
   tap,
@@ -20,6 +21,7 @@ import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '../../shared/functions/parse-error.function';
 import {
+  selectTextRoomAvatars,
   selectTextRoomCurrentPage,
   selectTextRoomLoadedPages,
   selectTextRoomSelectedId,
@@ -27,6 +29,7 @@ import {
   selectTextRoomState,
   selectTextRoomTotalPages,
 } from './text-room.selectors';
+import { AvatarsApiService } from '../avatars/avatars-api.service';
 
 const defaultPageSize = 25;
 
@@ -38,6 +41,7 @@ export class TextRoomEffects {
   private readonly socket = inject(TextRoomSocketToken);
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
+  private readonly avatarsApiService = inject(AvatarsApiService);
 
   constructor() {
     this.store
@@ -155,6 +159,23 @@ export class TextRoomEffects {
     ),
   );
 
+  readonly requestListSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(TextRoomActions.requestListSuccess),
+        withLatestFrom(this.store.select(selectTextRoomAvatars)),
+        tap(([action, avatars]) => {
+          const userIds = [
+            ...new Set(action.data.items.map((item) => item.senderId)),
+          ].filter((senderId) => !avatars[senderId]);
+          userIds.forEach((userId) => {
+            this.store.dispatch(TextRoomActions.requestAvatar({ userId }));
+          });
+        }),
+      ),
+    { dispatch: false },
+  );
+
   readonly createMessage$ = createEffect(() =>
     this.actions$.pipe(
       ofType(TextRoomActions.createMessage),
@@ -219,6 +240,22 @@ export class TextRoomEffects {
                 error,
               }),
             ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  readonly requestAvatar$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(TextRoomActions.requestAvatar),
+      mergeMap(({ userId }) =>
+        this.avatarsApiService.getUrlByUserId(userId).pipe(
+          map((avatar) =>
+            TextRoomActions.requestAvatarSuccess({ userId, avatar }),
+          ),
+          catchError((error) =>
+            of(TextRoomActions.requestAvatarError({ error })),
           ),
         ),
       ),

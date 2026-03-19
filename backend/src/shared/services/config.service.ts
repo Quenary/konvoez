@@ -20,4 +20,12 @@ export class ConfigService {
     (process.env['COOKIE_SAME_SITE'] as any) || 'lax';
   public readonly COOKIE_DOMAIN: string | undefined =
     process.env['COOKIE_DOMAIN'] || undefined;
+  // S3
+  public readonly S3_REGION = process.env['S3_REGION'] || 'ru-east-1';
+  public readonly S3_ENDPOINT =
+    process.env['S3_ENDPOINT'] || 'http://localhost:9000';
+  public readonly S3_ACCESS_KEY_ID = process.env['S3_ACCESS_KEY_ID'] || '';
+  public readonly S3_ACCESS_KEY = process.env['S3_ACCESS_KEY'] || '';
+  public readonly S3_FORCE_PATH_STYLE =
+    process.env['S3_FORCE_PATH_STYLE']?.toLowerCase() === 'true';
 }

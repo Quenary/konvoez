@@ -1,10 +1,18 @@
 @if (message(); as m) {
   <div class="message">
-    <p-avatar
-      class="message-sender"
-      [label]="m.senderUsername[0]"
-      shape="circle">
-    </p-avatar>
+    @if (avatarUrl(); as image) {
+      <p-avatar
+        class="message-sender"
+        [image]="image"
+        shape="circle">
+      </p-avatar>
+    } @else {
+      <p-avatar
+        class="message-sender"
+        [label]="m.senderUsername[0]"
+        shape="circle">
+      </p-avatar>
+    }
     <span class="message-body">
       <span class="message-body-header">
         <span class="message-body-header-username">
@@ -20,3 +28,4 @@
     </span>
   </div>
 }
+<!-- TODO добавить редактирование, удаление, ответы в меню -->

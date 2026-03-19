@@ -1,19 +1,19 @@
 import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
-import { Store } from '@ngrx/store';
 import { AuthActions } from './auth.actions';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { UserApiService } from '../user/user-api.service';
 import { Router } from '@angular/router';
+import { AvatarsApiService } from '../avatars/avatars-api.service';
 
 @Injectable()
 export class AuthEffects {
   private readonly actions$ = inject(Actions);
-  private readonly store = inject(Store);
   private readonly authApiService = inject(AuthApiService);
   private readonly userApiService = inject(UserApiService);
   private readonly router = inject(Router);
+  private readonly avatarApiService = inject(AvatarsApiService);
 
   readonly init$ = createEffect(() =>
     this.actions$.pipe(
@@ -65,7 +65,10 @@ export class AuthEffects {
   readonly logoutEnd$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(AuthActions.requestLogoutSuccess, AuthActions.requestLogoutError),
+        ofType(
+          AuthActions.requestLogoutSuccess,
+          AuthActions.requestLogoutError,
+        ),
         tap(() => {
           this.router.navigate(['/auth']);
         }),
@@ -79,7 +82,9 @@ export class AuthEffects {
       switchMap((action) =>
         this.userApiService.create(action.body).pipe(
           map(() => AuthActions.requestRegisterSuccess()),
-          catchError((error) => of(AuthActions.requestRegisterError({ error }))),
+          catchError((error) =>
+            of(AuthActions.requestRegisterError({ error })),
+          ),
         ),
       ),
     ),
@@ -92,5 +97,17 @@ export class AuthEffects {
         tap(() => this.router.navigate(['/auth'])),
       ),
     { dispatch: false },
+  );
+
+  readonly uploadAvatar$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.uploadAvatar),
+      switchMap(({ file }) =>
+        this.avatarApiService.uploadAvatar(file).pipe(
+          map((avatar) => AuthActions.uploadAvatarSuccess({ avatar })),
+          catchError((error) => of(AuthActions.uploadAvatarError({ error }))),
+        ),
+      ),
+    ),
   );
 }

@@ -39,6 +39,7 @@ ROOMS:
     VOICE: Voice
 SETTINGS:
   TITLE: Settings
+  UPLOAD_AVATAR: Upload avatar
   AUDIO_INPUT: Audio input
   AUDIO_OUTPUT: Audio output
   API_NOT_AVAILABLE: |

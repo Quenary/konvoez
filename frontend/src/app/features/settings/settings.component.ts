@@ -1,6 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  resource,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { from, switchMap, map, catchError, of } from 'rxjs';
+import { from, switchMap, map, catchError, of, lastValueFrom } from 'rxjs';
 import { MediaDevicesService } from '../../core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
@@ -13,10 +19,30 @@ import { IftaLabelModule } from 'primeng/iftalabel';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthActions } from '../auth/auth.actions';
 import { ButtonModule } from 'primeng/button';
+import {
+  FileBeforeUploadEvent,
+  FileSelectEvent,
+  FileUploadEvent,
+  FileUploadHandlerEvent,
+  FileUploadModule,
+} from 'primeng/fileupload';
+import { AvatarModule } from 'primeng/avatar';
+import { AvatarsApiService } from '../avatars/avatars-api.service';
+import { maxAvatarSize } from '@common/const';
+import { selectMe } from '../auth/auth.selectors';
 
 @Component({
   selector: 'app-settings',
-  imports: [SelectModule, FormsModule, IftaLabelModule, TranslatePipe, TooltipModule, ButtonModule],
+  imports: [
+    SelectModule,
+    FormsModule,
+    IftaLabelModule,
+    TranslatePipe,
+    TooltipModule,
+    ButtonModule,
+    FileUploadModule,
+    AvatarModule,
+  ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,7 +52,18 @@ export class SettingsComponent {
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
+  private readonly avatarsApiService = inject(AvatarsApiService);
 
+  protected readonly me = this.store.selectSignal(selectMe);
+  protected readonly avatarUrl = resource({
+    params: () => ({ url: this.me()?.avatar }),
+    loader: (params) =>
+      params.params.url
+        ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
+        : Promise.resolve(null),
+  });
+
+  protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly audioInput = this.store.selectSignal(selectAudioInput);
   protected readonly audioOutput = this.store.selectSignal(selectAudioOutput);
 
@@ -36,7 +73,9 @@ export class SettingsComponent {
       catchError(() => {
         this.messageService.add({
           severity: 'error',
-          summary: this.translateService.instant('CARDS.CARD.SCAN.PERMISSION_ERROR'),
+          summary: this.translateService.instant(
+            'CARDS.CARD.SCAN.PERMISSION_ERROR',
+          ),
         });
         return of([]);
       }),
@@ -69,5 +108,13 @@ export class SettingsComponent {
 
   protected logout(): void {
     this.store.dispatch(AuthActions.requestLogout());
+  }
+
+  onAvatarUpload($event: FileUploadHandlerEvent) {
+    this.store.dispatch(
+      AuthActions.uploadAvatar({
+        file: $event.files[0],
+      }),
+    );
   }
 }

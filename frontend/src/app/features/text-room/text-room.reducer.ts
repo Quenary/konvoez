@@ -3,6 +3,8 @@ import { createEntityAdapter, EntityState } from '@ngrx/entity';
 import { createReducer, on } from '@ngrx/store';
 import { TextRoomActions } from './text-room.actions';
 
+// Отрефакторить на start/end вместо страниц
+
 export enum EMessageStatus {
   LOADING = 'LOADING',
   SUCCESS = 'SUCCESS',
@@ -16,6 +18,7 @@ export interface IMessageWithStatus extends TextRoomCommon.IMessage {
 export interface ITextRoomState extends EntityState<IMessageWithStatus> {
   selectedRoomId: number | null;
   selectedRecipientId: number | null;
+  avatars: Record<number, string>;
   totalElements: number | null;
   totalPages: number | null;
   loadedPages: number[];
@@ -33,6 +36,7 @@ export const textRoomInitialState =
   textRoomAdapter.getInitialState<ITextRoomState>({
     selectedRoomId: null,
     selectedRecipientId: null,
+    avatars: {},
     totalElements: null,
     totalPages: null,
     loadedPages: [],
@@ -192,4 +196,11 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       state,
     ),
   ),
+  on(TextRoomActions.requestAvatarSuccess, (state, payload) => ({
+    ...state,
+    avatars: {
+      ...state.avatars,
+      [payload.userId]: payload.avatar,
+    },
+  })),
 );

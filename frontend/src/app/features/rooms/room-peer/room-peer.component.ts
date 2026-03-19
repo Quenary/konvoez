@@ -16,6 +16,8 @@ import { Store } from '@ngrx/store';
 import { selectMe } from '../../auth/auth.selectors';
 import { MicrophoneService } from '../../../core/services/microphone.service';
 import { selectMicMuted } from '../../voice-room/voice-room.selectors';
+import { AvatarsApiService } from '../../avatars/avatars-api.service';
+import { lastValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-room-peer',
@@ -28,11 +30,18 @@ export class RoomPeerComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomService = inject(VoiceRoomService);
   private readonly microphoneService = inject(MicrophoneService);
+  private readonly avatarsApiService = inject(AvatarsApiService);
 
   public readonly peer = input.required<VoiceRoomCommon.IPeer>();
 
   protected readonly audioLevel = signal<number>(0);
-
+  protected readonly avatarUrl = resource({
+    params: () => ({ url: this.peer()?.avatar }),
+    loader: (params) =>
+      params.params.url
+        ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
+        : Promise.resolve(undefined),
+  });
   private readonly me = this.store.selectSignal(selectMe);
   private readonly micMuted = this.store.selectSignal(selectMicMuted);
   private readonly isMe = computed(() => {

@@ -5,13 +5,19 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "TEXT",
           "unsigned": false,
-          "autoincrement": true,
+          "autoincrement": false,
           "primary": true,
           "nullable": false,
+          "unique": false,
           "length": null,
-          "mappedType": "integer"
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
         },
         "created_at": {
           "name": "created_at",
@@ -20,7 +26,13 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "datetime"
         },
         "updated_at": {
@@ -30,93 +42,218 @@
           "autoincrement": false,
           "primary": false,
           "nullable": true,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "datetime"
         },
-        "username": {
-          "name": "username",
-          "type": "text",
+        "content": {
+          "name": "content",
+          "type": "TEXT",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "length": 32,
-          "mappedType": "text"
-        },
-        "password": {
-          "name": "password",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "length": 128,
-          "mappedType": "text"
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
+          "unique": false,
           "length": null,
-          "default": "'MEMBER'",
-          "enumItems": [
-            "OWNER",
-            "ADMIN",
-            "MEMBER"
-          ],
-          "mappedType": "enum"
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
+        },
+        "sender_id": {
+          "name": "sender_id",
+          "type": "INTEGER",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "recipient_id": {
+          "name": "recipient_id",
+          "type": "INTEGER",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
+        "room_id": {
+          "name": "room_id",
+          "type": "INTEGER",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
         }
       },
-      "name": "users",
+      "name": "messages",
       "indexes": [
         {
           "columnNames": [
-            "username"
-          ],
-          "composite": false,
-          "keyName": "users_username_index",
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "username"
-          ],
-          "composite": false,
-          "keyName": "users_username_unique",
-          "constraint": true,
-          "primary": false,
-          "unique": true
-        },
-        {
-          "keyName": "primary",
-          "columnNames": [
             "id"
           ],
-          "composite": false,
+          "keyName": "primary",
           "constraint": true,
-          "primary": true,
-          "unique": true
+          "unique": true,
+          "primary": true
+        },
+        {
+          "columnNames": [
+            "sender_id",
+            "created_at"
+          ],
+          "keyName": "messages_sender_id_created_at_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false,
+          "composite": true
+        },
+        {
+          "columnNames": [
+            "recipient_id",
+            "created_at"
+          ],
+          "keyName": "messages_recipient_id_created_at_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false,
+          "composite": true
+        },
+        {
+          "columnNames": [
+            "room_id",
+            "created_at"
+          ],
+          "keyName": "messages_room_id_created_at_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false,
+          "composite": true
+        },
+        {
+          "columnNames": [
+            "room_id"
+          ],
+          "keyName": "messages_room_id_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false
+        },
+        {
+          "columnNames": [
+            "recipient_id"
+          ],
+          "keyName": "messages_recipient_id_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false
+        },
+        {
+          "columnNames": [
+            "sender_id"
+          ],
+          "keyName": "messages_sender_id_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false
         }
       ],
       "checks": [],
-      "foreignKeys": {},
+      "foreignKeys": {
+        "room_id": {
+          "constraintName": "messages_room_id_foreign",
+          "columnName": "room_id",
+          "columnNames": [
+            "room_id"
+          ],
+          "localTableName": "messages",
+          "referencedTableName": "rooms",
+          "referencedColumnName": "id",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "updateRule": "cascade",
+          "deleteRule": "set null"
+        },
+        "recipient_id": {
+          "constraintName": "messages_recipient_id_foreign",
+          "columnName": "recipient_id",
+          "columnNames": [
+            "recipient_id"
+          ],
+          "localTableName": "messages",
+          "referencedTableName": "users",
+          "referencedColumnName": "id",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "updateRule": "cascade",
+          "deleteRule": "set null"
+        },
+        "sender_id": {
+          "constraintName": "messages_sender_id_foreign",
+          "columnName": "sender_id",
+          "columnNames": [
+            "sender_id"
+          ],
+          "localTableName": "messages",
+          "referencedTableName": "users",
+          "referencedColumnName": "id",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "updateRule": "cascade",
+          "deleteRule": "no action"
+        }
+      },
       "nativeEnums": {}
     },
     {
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "INTEGER",
           "unsigned": false,
           "autoincrement": true,
           "primary": true,
           "nullable": false,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "integer"
         },
         "created_at": {
@@ -126,7 +263,13 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "datetime"
         },
         "updated_at": {
@@ -136,27 +279,44 @@
           "autoincrement": false,
           "primary": false,
           "nullable": true,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "datetime"
         },
         "name": {
           "name": "name",
-          "type": "text",
+          "type": "TEXT",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "length": 64,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "text"
         },
         "type": {
           "name": "type",
-          "type": "text",
+          "type": "TEXT",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
           "enumItems": [
             "TEXT",
             "VOICE"
@@ -165,12 +325,18 @@
         },
         "author_id": {
           "name": "author_id",
-          "type": "integer",
+          "type": "INTEGER",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "integer"
         }
       },
@@ -178,58 +344,57 @@
       "indexes": [
         {
           "columnNames": [
-            "name"
+            "id"
           ],
-          "composite": false,
-          "keyName": "rooms_name_index",
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "name"
-          ],
-          "composite": false,
-          "keyName": "rooms_name_unique",
+          "keyName": "primary",
           "constraint": true,
-          "primary": false,
-          "unique": true
+          "unique": true,
+          "primary": true
         },
         {
           "columnNames": [
             "author_id"
           ],
-          "composite": false,
           "keyName": "rooms_author_id_index",
+          "unique": false,
           "constraint": false,
-          "primary": false,
-          "unique": false
+          "primary": false
         },
         {
-          "keyName": "primary",
           "columnNames": [
-            "id"
+            "name"
           ],
-          "composite": false,
+          "keyName": "rooms_name_unique",
+          "unique": true,
           "constraint": true,
-          "primary": true,
-          "unique": true
+          "primary": false
+        },
+        {
+          "columnNames": [
+            "name"
+          ],
+          "keyName": "rooms_name_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false
         }
       ],
       "checks": [],
       "foreignKeys": {
-        "rooms_author_id_foreign": {
+        "author_id": {
           "constraintName": "rooms_author_id_foreign",
+          "columnName": "author_id",
           "columnNames": [
             "author_id"
           ],
           "localTableName": "rooms",
+          "referencedTableName": "users",
+          "referencedColumnName": "id",
           "referencedColumnNames": [
             "id"
           ],
-          "referencedTableName": "users",
-          "updateRule": "cascade"
+          "updateRule": "cascade",
+          "deleteRule": "no action"
         }
       },
       "nativeEnums": {}
@@ -238,13 +403,19 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "text",
+          "type": "INTEGER",
           "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
+          "autoincrement": true,
+          "primary": true,
           "nullable": false,
-          "length": 36,
-          "mappedType": "text"
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "integer"
         },
         "created_at": {
           "name": "created_at",
@@ -253,7 +424,13 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "datetime"
         },
         "updated_at": {
@@ -263,167 +440,125 @@
           "autoincrement": false,
           "primary": false,
           "nullable": true,
+          "unique": false,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "datetime"
         },
-        "content": {
-          "name": "content",
-          "type": "text",
+        "username": {
+          "name": "username",
+          "type": "TEXT",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": true,
           "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
           "mappedType": "text"
         },
-        "sender_id": {
-          "name": "sender_id",
-          "type": "integer",
+        "password": {
+          "name": "password",
+          "type": "TEXT",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
+          "unique": false,
           "length": null,
-          "mappedType": "integer"
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
         },
-        "recipient_id": {
-          "name": "recipient_id",
-          "type": "integer",
+        "role": {
+          "name": "role",
+          "type": "TEXT",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "'MEMBER'",
+          "comment": null,
+          "enumItems": [
+            "OWNER",
+            "ADMIN",
+            "MEMBER"
+          ],
+          "mappedType": "enum"
+        },
+        "avatar": {
+          "name": "avatar",
+          "type": "TEXT",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": true,
+          "unique": false,
           "length": null,
-          "mappedType": "integer"
-        },
-        "room_id": {
-          "name": "room_id",
-          "type": "integer",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": true,
-          "length": null,
-          "mappedType": "integer"
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "text"
         }
       },
-      "name": "messages",
+      "name": "users",
       "indexes": [
         {
           "columnNames": [
-            "sender_id"
-          ],
-          "composite": false,
-          "keyName": "messages_sender_id_index",
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "recipient_id"
-          ],
-          "composite": false,
-          "keyName": "messages_recipient_id_index",
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "room_id"
-          ],
-          "composite": false,
-          "keyName": "messages_room_id_index",
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "messages_room_id_created_at_index",
-          "columnNames": [
-            "room_id",
-            "created_at"
-          ],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "messages_recipient_id_created_at_index",
-          "columnNames": [
-            "recipient_id",
-            "created_at"
-          ],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "messages_sender_id_created_at_index",
-          "columnNames": [
-            "sender_id",
-            "created_at"
-          ],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "primary",
-          "columnNames": [
             "id"
           ],
-          "composite": false,
+          "keyName": "primary",
           "constraint": true,
-          "primary": true,
-          "unique": true
+          "unique": true,
+          "primary": true
+        },
+        {
+          "columnNames": [
+            "avatar"
+          ],
+          "keyName": "users_avatar_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false
+        },
+        {
+          "columnNames": [
+            "username"
+          ],
+          "keyName": "users_username_unique",
+          "unique": true,
+          "constraint": true,
+          "primary": false
+        },
+        {
+          "columnNames": [
+            "username"
+          ],
+          "keyName": "users_username_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false
         }
       ],
       "checks": [],
-      "foreignKeys": {
-        "messages_sender_id_foreign": {
-          "constraintName": "messages_sender_id_foreign",
-          "columnNames": [
-            "sender_id"
-          ],
-          "localTableName": "messages",
-          "referencedColumnNames": [
-            "id"
-          ],
-          "referencedTableName": "users",
-          "updateRule": "cascade"
-        },
-        "messages_recipient_id_foreign": {
-          "constraintName": "messages_recipient_id_foreign",
-          "columnNames": [
-            "recipient_id"
-          ],
-          "localTableName": "messages",
-          "referencedColumnNames": [
-            "id"
-          ],
-          "referencedTableName": "users",
-          "deleteRule": "set null",
-          "updateRule": "cascade"
-        },
-        "messages_room_id_foreign": {
-          "constraintName": "messages_room_id_foreign",
-          "columnNames": [
-            "room_id"
-          ],
-          "localTableName": "messages",
-          "referencedColumnNames": [
-            "id"
-          ],
-          "referencedTableName": "rooms",
-          "deleteRule": "set null",
-          "updateRule": "cascade"
-        }
-      },
+      "foreignKeys": {},
       "nativeEnums": {}
     }
   ],
