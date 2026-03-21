@@ -10,15 +10,22 @@ import {
 import { KonvoezBaseEntity } from 'src/shared/types/base.entity';
 import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
-import { v4 } from 'uuid';
+import { v7, parse } from 'uuid';
 
 @Entity({ tableName: 'messages' })
+@Index({ properties: ['room', 'id'] })
+@Index({ properties: ['recipient', 'id'] })
+@Index({ properties: ['sender', 'id'] })
 @Index({ properties: ['sender', 'createdAt'] })
 @Index({ properties: ['recipient', 'createdAt'] })
 @Index({ properties: ['room', 'createdAt'] })
 export class MessageEntity extends KonvoezBaseEntity {
-  @PrimaryKey({ type: 'uuid' })
-  id: string = v4();
+  @PrimaryKey({
+    type: 'uint8array',
+    length: 16,
+    onCreate: () => parse(v7()),
+  })
+  id!: Uint8Array;
 
   @Property({ type: 'text' })
   content!: string;

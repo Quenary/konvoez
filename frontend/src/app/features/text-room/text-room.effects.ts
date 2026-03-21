@@ -22,16 +22,16 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '../../shared/functions/parse-error.function';
 import {
   selectTextRoomAvatars,
-  selectTextRoomCurrentPage,
-  selectTextRoomLoadedPages,
   selectTextRoomSelectedId,
   selectTextRoomSelectedRecipientId,
-  selectTextRoomState,
-  selectTextRoomTotalPages,
+  selectTextRoomHasMoreAfter,
+  selectTextRoomNewestId,
+  selectTextRoomHasMoreBefore,
+  selectTextRoomOldestId,
 } from './text-room.selectors';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
 
-const defaultPageSize = 25;
+const defaultChunkSize = 25;
 
 @Injectable()
 export class TextRoomEffects {
@@ -65,11 +65,22 @@ export class TextRoomEffects {
     () =>
       this.actions$.pipe(
         ofType(TextRoomActions.join),
-        tap((action) => {
+        tap(({ roomId, recipientId }) => {
           this.socket.emit(TextRoomCommon.EEvent.JOIN, {
-            roomId: action.roomId,
-            recipientId: action.recipientId,
+            roomId,
+            recipientId,
           });
+          this.store.dispatch(
+            TextRoomActions.requestList({
+              data: {
+                afterId: null,
+                beforeId: null,
+                limit: defaultChunkSize,
+                roomId,
+                recipientId,
+              },
+            }),
+          );
         }),
       ),
     { dispatch: false },
@@ -93,23 +104,24 @@ export class TextRoomEffects {
         withLatestFrom(
           this.store.select(selectTextRoomSelectedId),
           this.store.select(selectTextRoomSelectedRecipientId),
-          this.store.select(selectTextRoomCurrentPage),
-          this.store.select(selectTextRoomTotalPages),
+          this.store.select(selectTextRoomHasMoreAfter),
+          this.store.select(selectTextRoomNewestId),
         ),
-        tap(([_, roomId, recipientId, currentPage, totalPages]) => {
-          const pageNumber = (currentPage ?? 0) + 1;
-          if (totalPages && pageNumber > totalPages) {
+        tap(([_, roomId, recipientId, hasMoreAfter, newestId]) => {
+          if (!hasMoreAfter || !newestId) {
             return;
           }
-
-          const pageSize = defaultPageSize;
-          const data: TextRoomCommon.IListRequest = {
-            pageNumber,
-            pageSize,
-            roomId,
-            recipientId,
-          };
-          this.store.dispatch(TextRoomActions.requestList({ data }));
+          this.store.dispatch(
+            TextRoomActions.requestList({
+              data: {
+                afterId: newestId,
+                beforeId: null,
+                limit: defaultChunkSize,
+                roomId,
+                recipientId,
+              },
+            }),
+          );
         }),
       ),
     { dispatch: false },
@@ -122,22 +134,24 @@ export class TextRoomEffects {
         withLatestFrom(
           this.store.select(selectTextRoomSelectedId),
           this.store.select(selectTextRoomSelectedRecipientId),
-          this.store.select(selectTextRoomCurrentPage),
-          this.store.select(selectTextRoomLoadedPages),
+          this.store.select(selectTextRoomHasMoreBefore),
+          this.store.select(selectTextRoomOldestId),
         ),
-        tap(([_, roomId, recipientId, currentPage, loadedPages]) => {
-          const pageNumber = Math.max(1, (currentPage ?? 0) - 1);
-          if (loadedPages.includes(pageNumber)) {
+        tap(([_, roomId, recipientId, hasMoreBefore, oldestId]) => {
+          if (!hasMoreBefore || !oldestId) {
             return;
           }
-          const pageSize = defaultPageSize;
-          const data: TextRoomCommon.IListRequest = {
-            pageNumber,
-            pageSize,
-            roomId,
-            recipientId,
-          };
-          this.store.dispatch(TextRoomActions.requestList({ data }));
+          this.store.dispatch(
+            TextRoomActions.requestList({
+              data: {
+                afterId: null,
+                beforeId: oldestId,
+                limit: defaultChunkSize,
+                roomId,
+                recipientId,
+              },
+            }),
+          );
         }),
       ),
     { dispatch: false },

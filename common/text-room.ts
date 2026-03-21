@@ -1,5 +1,4 @@
 import { EUserRole } from './enums';
-import { Paged } from './paged';
 
 export namespace TextRoomCommon {
   export enum EEvent {
@@ -54,8 +53,16 @@ export namespace TextRoomCommon {
     role: EUserRole;
     username: string;
   }
-  export interface IListRequest extends Paged.IRequest {
+  export interface IListRequest {
+    beforeId: string | null;
+    afterId: string | null;
+    limit: number;
     recipientId: number | null;
     roomId: number | null;
+  }
+  export interface IListResponse {
+    items: IMessage[];
+    hasMoreBefore: boolean;
+    hasMoreAfter: boolean;
   }
 }

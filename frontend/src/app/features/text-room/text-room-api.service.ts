@@ -1,8 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Paged } from '@common/paged';
 import { TextRoomCommon } from '@common/text-room';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment.development';
 
 @Injectable({
@@ -13,11 +12,22 @@ export class TextRoomApiService {
 
   list(
     body: TextRoomCommon.IListRequest,
-  ): Observable<Paged.IResponse<TextRoomCommon.IMessage>> {
-    return this.httpClient.post<Paged.IResponse<TextRoomCommon.IMessage>>(
-      `${environment.apiPath}/text-rooms/list`,
-      body,
-    );
+  ): Observable<TextRoomCommon.IListResponse> {
+    return this.httpClient
+      .post<TextRoomCommon.IListResponse>(
+        `${environment.apiPath}/text-rooms/list`,
+        body,
+      )
+      .pipe(
+        map((res) => ({
+          ...res,
+          items: res.items.map((item) => ({
+            ...item,
+            createdAt: new Date(item.createdAt),
+            updatedAt: item.updatedAt ? new Date(item.updatedAt) : null,
+          })),
+        })),
+      );
   }
 
   create(

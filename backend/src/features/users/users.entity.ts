@@ -26,7 +26,7 @@ export class UserEntity extends KonvoezBaseEntity {
   role: EUserRole = EUserRole.MEMBER;
 
   @Property({ length: 512, index: true, type: 'string' })
-  avatar?: string;
+  avatar: string | null = null;
 
   @OneToMany(() => RoomEntity, 'author', {
     cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],

@@ -1,5 +1,4 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Paged } from '@common/paged';
 import { TextRoomCommon } from '@common/text-room';
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
 
@@ -13,7 +12,7 @@ export const TextRoomActions = createActionGroup({
     requestPrevPage: emptyProps(),
     requestList: props<{ data: TextRoomCommon.IListRequest }>(),
     requestListSuccess: props<{
-      data: Paged.IResponse<TextRoomCommon.IMessage>;
+      data: TextRoomCommon.IListResponse;
       req: TextRoomCommon.IListRequest;
     }>(),
     requestListError: props<{ error: HttpErrorResponse }>(),
