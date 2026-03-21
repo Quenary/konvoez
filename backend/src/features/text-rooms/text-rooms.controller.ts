@@ -34,7 +34,7 @@ export class TextRoomsController {
   @Post('list')
   @ApiOkResponse({
     type: MessageListResponseDto,
-    description: 'Get messages list (paged)',
+    description: 'Get messages list (chunked)',
   })
   async list(
     @Author() author: UserEntity,

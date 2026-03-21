@@ -5,7 +5,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "TEXT",
+          "type": "BLOB",
           "unsigned": false,
           "autoincrement": false,
           "primary": true,
@@ -17,7 +17,7 @@
           "default": null,
           "comment": null,
           "enumItems": [],
-          "mappedType": "text"
+          "mappedType": "blob"
         },
         "created_at": {
           "name": "created_at",
@@ -126,6 +126,39 @@
           "constraint": true,
           "unique": true,
           "primary": true
+        },
+        {
+          "columnNames": [
+            "room_id",
+            "id"
+          ],
+          "keyName": "messages_room_id_id_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false,
+          "composite": true
+        },
+        {
+          "columnNames": [
+            "recipient_id",
+            "id"
+          ],
+          "keyName": "messages_recipient_id_id_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false,
+          "composite": true
+        },
+        {
+          "columnNames": [
+            "sender_id",
+            "id"
+          ],
+          "keyName": "messages_sender_id_id_index",
+          "unique": false,
+          "constraint": false,
+          "primary": false,
+          "composite": true
         },
         {
           "columnNames": [

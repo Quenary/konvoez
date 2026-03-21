@@ -1,15 +1,9 @@
-// services/message.service.ts
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import {
-  EntityManager,
-  EntityRepository,
-  FilterQuery,
-  Loaded,
-} from '@mikro-orm/core';
+import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { MessageEntity } from './text-rooms.entity';
 import { UserEntity } from '../users/users.entity';
@@ -23,6 +17,7 @@ import {
 } from './text-rooms.dto';
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
+import { parse } from 'uuid';
 
 @Injectable()
 export class TextRoomsService {
@@ -66,10 +61,8 @@ export class TextRoomsService {
     user: UserEntity,
     dto: MessageListRequestDto,
   ): Promise<MessageListResponseDto> {
-    const { pageNumber, pageSize, recipientId, roomId } = dto;
-    const offset = (pageNumber - 1) * pageSize;
+    const { beforeId, afterId, limit, recipientId, roomId } = dto;
 
-    // Строим условие для запроса
     const where: FilterQuery<MessageEntity> = {};
 
     if (recipientId) {
@@ -83,20 +76,28 @@ export class TextRoomsService {
       throw new Error('Either recipientId or chatRoomId must be provided');
     }
 
-    // Получаем сообщения с пагинацией
-    const [messages, total] = await this.messageRepository.findAndCount(where, {
-      limit: pageSize,
-      offset,
-      orderBy: { createdAt: 'DESC' },
+    if (beforeId) {
+      where.id = { $lt: parse(beforeId) };
+    }
+
+    if (afterId) {
+      where.id = { $gt: parse(afterId) };
+    }
+
+    const orderBy = afterId ? { createdAt: 'ASC' } : { createdAt: 'DESC' };
+
+    const messages = await this.messageRepository.find(where, {
+      limit,
+      orderBy,
       populate: ['sender', 'recipient', 'room'],
     });
 
-    const totalPages = Math.ceil(total / pageSize);
+    const items = afterId ? messages.reverse() : messages;
 
     return {
-      items: messages.map((m) => MessageDto.fromEntity(m)),
-      totalElements: total,
-      totalPages: totalPages,
+      items: items.map((m) => MessageDto.fromEntity(m)),
+      hasMoreBefore: items.length === limit,
+      hasMoreAfter: items.length === limit,
     };
   }
 
@@ -106,7 +107,7 @@ export class TextRoomsService {
     dto: EditMessageDto,
   ): Promise<MessageDto> {
     let message = await this.messageRepository.findOne(
-      { id: messageId },
+      { id: parse(messageId) },
       { populate: ['sender'] },
     );
 
@@ -127,7 +128,7 @@ export class TextRoomsService {
 
   async delete(user: UserEntity, messageId: string): Promise<void> {
     const message = await this.messageRepository.findOne(
-      { id: messageId },
+      { id: parse(messageId) },
       { populate: ['sender'] },
     );
 

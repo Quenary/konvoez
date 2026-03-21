@@ -16,22 +16,22 @@ export const selectTextRoomSelectedRecipientId = createSelector(
   _select,
   (state) => state.selectedRecipientId,
 );
-export const selectMessagesList = createSelector(_select, selectAll);
-// export const selectTextRoomCenterPage = createSelector(
-//   _select,
-//   (state) => state.centerPage,
-// );
-export const selectTextRoomCurrentPage = createSelector(
-  _select,
-  (state) => state.currentPage,
+export const selectTextRoomMessages = createSelector(_select, selectAll);
+export const selectTextRoomNewestId = createSelector(
+  selectTextRoomMessages,
+  (messages) => (messages.length ? messages[messages.length - 1].id : null),
 );
-export const selectTextRoomTotalPages = createSelector(
-  _select,
-  (state) => state.totalPages,
+export const selectTextRoomOldestId = createSelector(
+  selectTextRoomMessages,
+  (messages) => (messages.length ? messages[0].id : null),
 );
-export const selectTextRoomLoadedPages = createSelector(
+export const selectTextRoomHasMoreAfter = createSelector(
   _select,
-  (state) => state.loadedPages,
+  (state) => state.hasMoreAfter,
+);
+export const selectTextRoomHasMoreBefore = createSelector(
+  _select,
+  (state) => state.hasMoreBefore,
 );
 export const selectTextRoomAvatars = createSelector(
   _select,

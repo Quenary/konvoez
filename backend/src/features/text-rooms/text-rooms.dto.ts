@@ -1,17 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsArray,
+  IsBoolean,
   IsDate,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
-import { PagedRequestDto, PagedResponseDto } from 'src/shared/dto/paged.dto';
 import { MessageEntity } from './text-rooms.entity';
 import { TextRoomCommon } from '@common/text-room';
 import { messageMaxLength, messageMinLength } from '@common/const';
+import { stringify, v7 } from 'uuid';
 
 export class CreateMessageDto implements TextRoomCommon.ICreateMessage {
   @ApiProperty({
@@ -85,7 +89,7 @@ export class MessageDto implements TextRoomCommon.IMessage {
 
   static fromEntity(data: MessageEntity): MessageDto {
     return {
-      id: data.id,
+      id: stringify(data.id),
       senderId: data.sender.id,
       senderUsername: data.sender.username,
       recipientId: data.recipient?.id ?? null,
@@ -97,19 +101,44 @@ export class MessageDto implements TextRoomCommon.IMessage {
   }
 }
 
-export class MessageListRequestDto
-  extends PagedRequestDto
-  implements TextRoomCommon.IListRequest
-{
+export class MessageListRequestDto implements TextRoomCommon.IListRequest {
+  @ApiProperty({ type: 'string', required: false })
+  @IsOptional()
+  @IsString()
+  afterId!: string | null;
+
+  @ApiProperty({ type: 'string', required: false })
+  @IsOptional()
+  @IsString()
+  beforeId!: string | null;
+
   @ApiProperty({ type: 'integer', required: true })
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  limit!: number;
+
+  @ApiProperty({ type: 'integer', required: false })
   @IsOptional()
   @IsInt()
   recipientId!: number | null;
 
-  @ApiProperty({ type: 'integer', required: true })
+  @ApiProperty({ type: 'integer', required: false })
   @IsOptional()
   @IsInt()
   roomId!: number | null;
 }
 
-export class MessageListResponseDto extends PagedResponseDto<MessageDto> {}
+export class MessageListResponseDto implements TextRoomCommon.IListResponse {
+  @ApiProperty({ type: 'array' })
+  @IsArray()
+  items!: MessageDto[];
+
+  @ApiProperty({ type: 'boolean' })
+  @IsBoolean()
+  hasMoreBefore: boolean;
+
+  @ApiProperty({ type: 'boolean' })
+  @IsBoolean()
+  hasMoreAfter: boolean;
+}

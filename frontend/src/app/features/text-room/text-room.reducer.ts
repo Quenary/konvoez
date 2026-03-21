@@ -19,17 +19,14 @@ export interface ITextRoomState extends EntityState<IMessageWithStatus> {
   selectedRoomId: number | null;
   selectedRecipientId: number | null;
   avatars: Record<number, string>;
-  totalElements: number | null;
-  totalPages: number | null;
-  loadedPages: number[];
-  // centerPage: number | null;
-  currentPage: number | null;
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
 }
 
 export const textRoomAdapter = createEntityAdapter<IMessageWithStatus>({
   selectId: (m) => m.id,
-  sortComparer: (a, b) =>
-    new Date(a.createdAt) > new Date(b.createdAt) ? 1 : -1,
+  // Sorted ASC (from oldest to newest)
+  sortComparer: (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
 });
 
 export const textRoomInitialState =
@@ -37,11 +34,8 @@ export const textRoomInitialState =
     selectedRoomId: null,
     selectedRecipientId: null,
     avatars: {},
-    totalElements: null,
-    totalPages: null,
-    loadedPages: [],
-    // centerPage: null,
-    currentPage: null,
+    hasMoreAfter: true,
+    hasMoreBefore: true,
   });
 
 export const textRoomReducer = createReducer<ITextRoomState>(
@@ -59,9 +53,7 @@ export const textRoomReducer = createReducer<ITextRoomState>(
     }),
   ),
   on(TextRoomActions.requestListSuccess, (state, payload) => {
-    const { pageNumber, pageSize } = payload.req;
-    const { totalElements, totalPages, items } = payload.data;
-
+    const { items, hasMoreAfter, hasMoreBefore } = payload.data;
     return (state = textRoomAdapter.upsertMany(
       items.map((item) => ({
         ...item,
@@ -69,36 +61,10 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       })),
       {
         ...state,
-        totalElements,
-        totalPages,
-        currentPage: pageNumber,
-        loadedPages: [...new Set([...state.loadedPages, pageNumber])],
+        hasMoreAfter,
+        hasMoreBefore,
       },
     ));
-    // state = {
-    //   ...state,
-    //   totalElements,
-    //   totalPages,
-    //   currentPage: pageNumber,
-    //   loadedPages: [...new Set([...state.loadedPages, pageNumber])],
-    //   centerPage: pageNumber,
-    // };
-
-    // const cacheRadius = 2;
-    // const min = pageNumber - cacheRadius;
-    // const max = pageNumber + cacheRadius;
-    // const pagesToKeep = state.loadedPages.filter((p) => p >= min && p <= max);
-    // const pagesToRemove = state.loadedPages.filter((p) => p < min || p > max);
-    // for (const p of pagesToRemove) {
-    //   const start = p * pageSize;
-    //   const end = start + pageSize;
-    //   const idsToRemove = state.ids.slice(start, end) as string[];
-    //   state = textRoomAdapter.removeMany(idsToRemove, state);
-    // }
-    // return {
-    //   ...state,
-    //   loadedPages: pagesToKeep,
-    // };
   }),
   on(TextRoomActions.createMessage, (state, payload) =>
     textRoomAdapter.addOne(

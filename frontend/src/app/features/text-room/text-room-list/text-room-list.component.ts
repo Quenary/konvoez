@@ -5,14 +5,16 @@ import {
   ElementRef,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { selectMessagesList } from '../text-room.selectors';
+import { selectTextRoomMessages } from '../text-room.selectors';
 import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
 import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
 import { TextRoomActions } from '../text-room.actions';
 import { ButtonModule } from 'primeng/button';
+import { EMessageStatus } from '../text-room.reducer';
 
 @Component({
   selector: 'app-text-room-list',
@@ -24,7 +26,7 @@ import { ButtonModule } from 'primeng/button';
 export class TextRoomListComponent {
   private readonly store = inject(Store);
 
-  protected readonly messages = this.store.selectSignal(selectMessagesList);
+  protected readonly messages = this.store.selectSignal(selectTextRoomMessages);
   protected readonly showScrollToBottom = signal<boolean>(false);
 
   private readonly scrollContainerRef = viewChild.required<
@@ -46,6 +48,27 @@ export class TextRoomListComponent {
       },
       { manualCleanup: true },
     );
+    effect(() => {
+      const messages = this.messages();
+      const last = messages.at(-1);
+      const scrollContainerRef = this.scrollContainerRef();
+
+      untracked(() => {
+        // Scroll bottom on new message
+        if (
+          last &&
+          last.status == EMessageStatus.LOADING &&
+          scrollContainerRef
+        ) {
+          requestAnimationFrame(() => {
+            scrollContainerRef.nativeElement.scrollTo({
+              top: scrollContainerRef.nativeElement.scrollHeight,
+              behavior: 'smooth',
+            });
+          });
+        }
+      });
+    });
   }
 
   onScrollUp() {

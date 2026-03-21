@@ -6,6 +6,9 @@ import { AuthApiService } from './auth-api.service';
 import { UserApiService } from '../user/user-api.service';
 import { Router } from '@angular/router';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
+import { MessageService } from 'primeng/api';
+import { TranslateService } from '@ngx-translate/core';
+import { parseError } from '../../shared/functions/parse-error.function';
 
 @Injectable()
 export class AuthEffects {
@@ -14,6 +17,8 @@ export class AuthEffects {
   private readonly userApiService = inject(UserApiService);
   private readonly router = inject(Router);
   private readonly avatarApiService = inject(AvatarsApiService);
+  private readonly messageService = inject(MessageService);
+  private readonly translateService = inject(TranslateService);
 
   readonly init$ = createEffect(() =>
     this.actions$.pipe(
@@ -109,5 +114,26 @@ export class AuthEffects {
         ),
       ),
     ),
+  );
+
+  readonly showError$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(
+          AuthActions.requestLoginError,
+          AuthActions.requestMeError,
+          AuthActions.requestLogoutError,
+          AuthActions.requestLoginError,
+          AuthActions.uploadAvatarError,
+        ),
+        tap((action) => {
+          this.messageService.add({
+            severity: 'error',
+            summary: this.translateService.instant('GENERAL.REQ_ERR'),
+            detail: parseError(action.error.message),
+          });
+        }),
+      ),
+    { dispatch: false },
   );
 }
