@@ -1,5 +1,7 @@
 @if (message(); as m) {
-  <div class="message">
+  <div
+    class="message"
+    #messageRef>
     @if (avatarUrl(); as image) {
       <p-avatar
         class="message-sender"
@@ -27,5 +29,12 @@
       </span>
     </span>
   </div>
+
+  <p-contextmenu
+    [target]="messageRef"
+    appendTo="body"
+    global
+    [model]="contextMenu()">
+  </p-contextmenu>
 }
 <!-- TODO добавить редактирование, удаление, ответы в меню -->

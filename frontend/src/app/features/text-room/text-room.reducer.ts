@@ -3,25 +3,27 @@ import { createEntityAdapter, EntityState } from '@ngrx/entity';
 import { createReducer, on } from '@ngrx/store';
 import { TextRoomActions } from './text-room.actions';
 
-// Отрефакторить на start/end вместо страниц
-
 export enum EMessageStatus {
   LOADING = 'LOADING',
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
 }
 
-export interface IMessageWithStatus extends TextRoomCommon.IMessage {
+/**
+ * Frontend message entity
+ */
+export interface IMessageEntity extends TextRoomCommon.IMessage {
   status: EMessageStatus;
 }
 
-export interface ITextRoomState extends EntityState<IMessageWithStatus> {
+export interface ITextRoomState extends EntityState<IMessageEntity> {
   selectedRoomId: number | null;
   selectedRecipientId: number | null;
   avatars: Record<number, string>;
+  editableMessageId: string | null;
 }
 
-export const textRoomAdapter = createEntityAdapter<IMessageWithStatus>({
+export const textRoomAdapter = createEntityAdapter<IMessageEntity>({
   selectId: (m) => m.id,
   // Sorted ASC (from oldest to newest)
   sortComparer: (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
@@ -32,6 +34,7 @@ export const textRoomInitialState =
     selectedRoomId: null,
     selectedRecipientId: null,
     avatars: {},
+    editableMessageId: null,
   });
 
 export const textRoomReducer = createReducer<ITextRoomState>(
@@ -58,6 +61,7 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       state,
     );
   }),
+  // Create
   on(TextRoomActions.createMessage, (state, payload) =>
     textRoomAdapter.addOne(
       {
@@ -95,7 +99,12 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       state,
     ),
   ),
-  on(TextRoomActions.editMessage, (state, payload) =>
+  // Update
+  on(TextRoomActions.setEditableMessageId, (state, payload) => ({
+    ...state,
+    editableMessageId: payload.id,
+  })),
+  on(TextRoomActions.updateMessage, (state, payload) =>
     textRoomAdapter.updateOne(
       {
         id: payload.messageId,
@@ -106,7 +115,7 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       state,
     ),
   ),
-  on(TextRoomActions.editMessageSuccess, (state, payload) =>
+  on(TextRoomActions.updateMessageSuccess, (state, payload) =>
     textRoomAdapter.updateOne(
       {
         id: payload.data.id,
@@ -115,10 +124,13 @@ export const textRoomReducer = createReducer<ITextRoomState>(
           status: EMessageStatus.SUCCESS,
         },
       },
-      state,
+      {
+        ...state,
+        editableMessageId: null,
+      },
     ),
   ),
-  on(TextRoomActions.editMessageError, (state, payload) =>
+  on(TextRoomActions.updateMessageError, (state, payload) =>
     textRoomAdapter.updateOne(
       {
         id: payload.messageId,
@@ -129,6 +141,7 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       state,
     ),
   ),
+  // Delete
   on(TextRoomActions.deleteMessage, (state, payload) =>
     textRoomAdapter.updateOne(
       {

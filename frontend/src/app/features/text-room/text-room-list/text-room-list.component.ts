@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import {
-  selectTextRoomMessages,
+  selectTextRoomMessagesList,
   selectTextRoomSelectedId,
   selectTextRoomSelectedRecipientId,
 } from '../text-room.selectors';
@@ -42,7 +42,9 @@ export class TextRoomListComponent implements OnInit {
   private readonly store = inject(Store);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly messages = this.store.selectSignal(selectTextRoomMessages);
+  protected readonly messages = this.store.selectSignal(
+    selectTextRoomMessagesList,
+  );
 
   private readonly scrollContainerRef = viewChild.required<
     unknown,
@@ -86,7 +88,7 @@ export class TextRoomListComponent implements OnInit {
     ])
       .pipe(
         switchMap(() =>
-          this.store.select(selectTextRoomMessages).pipe(
+          this.store.select(selectTextRoomMessagesList).pipe(
             filter((messages) => messages.length > 0),
             take(1),
           ),

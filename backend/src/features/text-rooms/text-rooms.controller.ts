@@ -50,22 +50,22 @@ export class TextRoomsController {
   })
   async create(@Author() author: UserEntity, @Body() body: CreateMessageDto) {
     const message = await this.textRoomsService.create(author, body);
-    this.textRoomsGateway.onMessageSent(message);
+    this.textRoomsGateway.onMessageCreated(message);
     return message;
   }
 
   @Put(':id')
   @ApiOkResponse({
     type: MessageDto,
-    description: 'Edit message',
+    description: 'Update message',
   })
-  async editMessage(
+  async updateMessage(
     @Author() author: UserEntity,
     @Param('id') id: string,
     @Body() body: EditMessageDto,
   ) {
-    const message = await this.textRoomsService.editMessage(author, id, body);
-    this.textRoomsGateway.onMessageEdited(message);
+    const message = await this.textRoomsService.updateMessage(author, id, body);
+    this.textRoomsGateway.onMessageUpdated(message);
     return message;
   }
 

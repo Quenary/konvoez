@@ -7,6 +7,7 @@ import { Request } from 'express';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { UsersService } from '../users/users.service';
+import * as cookie from 'cookie';
 
 @Injectable()
 export class AuthService {
@@ -71,9 +72,23 @@ export class AuthService {
   }
 
   async getUserFromAccessToken(accessToken: string) {
-    const accessTokenData = this.verifyToken(accessToken);
+    const res = this.verifyToken(accessToken);
     return await this.userService.forkOneBy({
-      username: accessTokenData.username,
+      id: res.userId,
     });
+  }
+
+  async getUserFromRawCookies(
+    cookies: string | null | undefined,
+  ): Promise<UserEntity | null> {
+    if (!cookies) {
+      return null;
+    }
+    const parsedCookies = cookie.parse(cookies);
+    const accessToken = parsedCookies[ACCESS_TOKEN_KEY];
+    if (!accessToken) {
+      return null;
+    }
+    return await this.getUserFromAccessToken(accessToken);
   }
 }

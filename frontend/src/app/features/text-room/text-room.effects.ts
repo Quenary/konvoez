@@ -155,9 +155,7 @@ export class TextRoomEffects {
       ofType(TextRoomActions.requestList),
       switchMap((action) =>
         this.textRoomApiService.list(action.data).pipe(
-          map((data) =>
-            TextRoomActions.requestListSuccess({ data, req: action.data }),
-          ),
+          map((data) => TextRoomActions.requestListSuccess({ data })),
           catchError((error) =>
             of(TextRoomActions.requestListError({ error })),
           ),
@@ -207,19 +205,19 @@ export class TextRoomEffects {
     ),
   );
 
-  readonly editMessage$ = createEffect(() =>
+  readonly updateMessage$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(TextRoomActions.editMessage),
+      ofType(TextRoomActions.updateMessage),
       switchMap((action) =>
-        this.textRoomApiService.edit(action.messageId, action.data).pipe(
+        this.textRoomApiService.update(action.messageId, action.data).pipe(
           map((data) =>
-            TextRoomActions.editMessageSuccess({
+            TextRoomActions.updateMessageSuccess({
               data,
             }),
           ),
           catchError((error) =>
             of(
-              TextRoomActions.editMessageError({
+              TextRoomActions.updateMessageError({
                 messageId: action.messageId,
                 error,
               }),
@@ -275,8 +273,9 @@ export class TextRoomEffects {
         ofType(
           TextRoomActions.requestListError,
           TextRoomActions.createMessageError,
-          TextRoomActions.editMessageError,
+          TextRoomActions.updateMessageError,
           TextRoomActions.deleteMessageError,
+          // TextRoomActions.requestAvatarError,
         ),
         tap((action) => {
           this.messageService.add({

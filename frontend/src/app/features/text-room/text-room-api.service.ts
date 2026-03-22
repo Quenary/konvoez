@@ -39,7 +39,7 @@ export class TextRoomApiService {
     );
   }
 
-  edit(
+  update(
     messageId: string,
     body: TextRoomCommon.IEditMessage,
   ): Observable<TextRoomCommon.IMessage> {

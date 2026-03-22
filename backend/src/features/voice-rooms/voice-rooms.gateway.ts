@@ -9,11 +9,19 @@ import {
   OnGatewayConnection,
 } from '@nestjs/websockets';
 import { VoiceRoomsCacheService } from './voice-rooms-cache.service';
-import { Socket, Server } from 'socket.io';
+import { Socket, Server, DefaultEventsMap } from 'socket.io';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { AuthService } from '../auth/auth.service';
-import * as cookie from 'cookie';
-import { ACCESS_TOKEN_KEY } from '../auth/auth.const';
+
+type TSocket = Socket<
+  VoiceRoomCommon.TEventMap,
+  VoiceRoomCommon.TEventMap,
+  DefaultEventsMap,
+  {
+    roomId?: number;
+    peer: VoiceRoomCommon.IPeer;
+  }
+>;
 
 @WebSocketGateway({
   path: '/api/voice',
@@ -38,22 +46,18 @@ export class VoiceRoomsGateway
     );
   }
 
-  async handleConnection(client: Socket) {
-    const rawCookies = client.handshake.headers.cookie;
-    if (!rawCookies) {
-      client.emit('error', { message: 'Unauthorized' });
-      client.disconnect(true);
-    }
-
-    const parsedCookies = cookie.parse(rawCookies);
-    const accessToken = parsedCookies[ACCESS_TOKEN_KEY];
-    if (!accessToken) {
-      client.emit('error', { message: 'Unauthorized' });
-      client.disconnect(true);
-    }
-
+  async handleConnection(client: TSocket) {
     try {
-      const user = await this.authService.getUserFromAccessToken(accessToken);
+      const user = await this.authService.getUserFromRawCookies(
+        client.handshake.headers.cookie,
+      );
+
+      if (!user) {
+        client.emit(VoiceRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
+        client.disconnect(true);
+        return;
+      }
+
       client.data.peer = {
         clientId: client.id,
         id: user.id,
@@ -64,15 +68,14 @@ export class VoiceRoomsGateway
 
       this.emitExistingPeers();
     } catch {
-      client.emit('error', { message: 'Unauthorized' });
+      client.emit(VoiceRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
     }
   }
 
-  handleDisconnect(client: Socket): void {
-    const peer = client.data.peer as VoiceRoomCommon.IPeer;
+  handleDisconnect(client: TSocket): void {
+    const peer = client.data.peer;
     const roomId = client.data.roomId;
-    client.data.roomId = null;
     this.voiceRoomsCacheService.removePeer(peer);
 
     if (roomId) {
@@ -88,10 +91,10 @@ export class VoiceRoomsGateway
   @SubscribeMessage(VoiceRoomCommon.EEvent.JOIN_ROOM)
   handleJoin(
     @MessageBody() body: VoiceRoomCommon.IJoinRoom,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: TSocket,
   ): void {
     client.data.roomId = body.roomId;
-    const peer = client.data.peer as VoiceRoomCommon.IPeer;
+    const peer = client.data.peer;
 
     client.join(body.roomId.toString());
     this.voiceRoomsCacheService.addPeer(body.roomId, peer);
@@ -112,12 +115,12 @@ export class VoiceRoomsGateway
   }
 
   @SubscribeMessage(VoiceRoomCommon.EEvent.LEAVE_ROOM)
-  handleLeave(@ConnectedSocket() client: Socket): void {
-    const peer = client.data.peer as VoiceRoomCommon.IPeer;
-    const roomId = client.data.roomId as number;
+  handleLeave(@ConnectedSocket() client: TSocket): void {
+    const peer = client.data.peer;
+    const { roomId, ...rest } = client.data;
+    client.data = rest;
 
     if (roomId) {
-      client.data.roomId = null;
       this.voiceRoomsCacheService.removePeer(peer);
 
       client.leave(roomId.toString());
@@ -134,7 +137,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(VoiceRoomCommon.EEvent.SIGNAL)
   handleSignal(
     @MessageBody() data: VoiceRoomCommon.ISignal,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: TSocket,
   ) {
     if (data.to) {
       this.server.to(data.to).emit(VoiceRoomCommon.EEvent.SIGNAL, {

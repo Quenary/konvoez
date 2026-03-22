@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { ContextMenuModule } from 'primeng/contextmenu';
-import { IMessageWithStatus } from '../text-room.reducer';
+import { IMessageEntity } from '../text-room.reducer';
 import { MenuItem } from 'primeng/api';
 import { Store } from '@ngrx/store';
 import { selectMe } from '../../auth/auth.selectors';
@@ -15,10 +15,12 @@ import { IGetUser } from '../../user/user.interface';
 import { AvatarModule } from 'primeng/avatar';
 import { DatePipe } from '@angular/common';
 import { selectTextRoomAvatars } from '../text-room.selectors';
+import { TextRoomActions } from '../text-room.actions';
+import { EUserRole } from '@common/enums';
 
 @Component({
   selector: 'app-text-room-message',
-  imports: [ContextMenuModule, AvatarModule, DatePipe],
+  imports: [ContextMenuModule, AvatarModule, DatePipe, ContextMenuModule],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,11 +29,22 @@ export class TextRoomMessageComponent {
   private readonly translateService = inject(TranslateService);
   private readonly store = inject(Store);
 
-  public readonly message = input.required<IMessageWithStatus>();
+  /**
+   * Message
+   */
+  public readonly message = input.required<IMessageEntity>();
 
+  /**
+   * Current user
+   */
   private readonly me = this.store.selectSignal(selectMe);
-
+  /**
+   * Avatars dict
+   */
   private readonly avatars = this.store.selectSignal(selectTextRoomAvatars);
+  /**
+   * Signed avatar url
+   */
   protected readonly avatarUrl = computed(() => {
     const message = this.message();
     const avatars = this.avatars();
@@ -41,9 +54,8 @@ export class TextRoomMessageComponent {
   protected readonly contextMenu = computed<MenuItem[]>(() => {
     const message = this.message();
     const me = this.me() as IGetUser;
-    const menu: MenuItem[] = [];
     if (message.senderId === me.id) {
-      menu.push(
+      return [
         {
           label: this.translateService.instant('GENERAL.EDIT'),
           command: () => this.editMessage(),
@@ -52,12 +64,32 @@ export class TextRoomMessageComponent {
           label: this.translateService.instant('GENERAL.DELETE'),
           command: () => this.deleteMessage(),
         },
-      );
+      ];
     }
-    return menu;
+    if ([EUserRole.OWNER, EUserRole.ADMIN].includes(me.role)) {
+      return [
+        {
+          label: this.translateService.instant('GENERAL.DELETE'),
+          command: () => this.deleteMessage(),
+        },
+      ];
+    }
+    return [];
   });
 
-  private editMessage() {}
+  private editMessage(): void {
+    this.store.dispatch(
+      TextRoomActions.setEditableMessageId({
+        id: this.message().id,
+      }),
+    );
+  }
 
-  private deleteMessage() {}
+  private deleteMessage() {
+    this.store.dispatch(
+      TextRoomActions.deleteMessage({
+        messageId: this.message().id,
+      }),
+    );
+  }
 }
