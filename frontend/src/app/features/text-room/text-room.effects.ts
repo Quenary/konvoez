@@ -4,6 +4,7 @@ import { Store } from '@ngrx/store';
 import { TextRoomActions } from './text-room.actions';
 import {
   catchError,
+  EMPTY,
   finalize,
   map,
   mergeMap,
@@ -24,9 +25,7 @@ import {
   selectTextRoomAvatars,
   selectTextRoomSelectedId,
   selectTextRoomSelectedRecipientId,
-  selectTextRoomHasMoreAfter,
   selectTextRoomNewestId,
-  selectTextRoomHasMoreBefore,
   selectTextRoomOldestId,
 } from './text-room.selectors';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
@@ -97,64 +96,58 @@ export class TextRoomEffects {
     { dispatch: false },
   );
 
-  readonly requestNextPage$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(TextRoomActions.requestNextPage),
-        withLatestFrom(
-          this.store.select(selectTextRoomSelectedId),
-          this.store.select(selectTextRoomSelectedRecipientId),
-          this.store.select(selectTextRoomHasMoreAfter),
-          this.store.select(selectTextRoomNewestId),
-        ),
-        tap(([_, roomId, recipientId, hasMoreAfter, newestId]) => {
-          if (!hasMoreAfter || !newestId) {
-            return;
-          }
-          this.store.dispatch(
-            TextRoomActions.requestList({
-              data: {
-                afterId: newestId,
-                beforeId: null,
-                limit: defaultChunkSize,
-                roomId,
-                recipientId,
-              },
-            }),
-          );
-        }),
+  readonly requestNextPage$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(TextRoomActions.requestNextPage),
+      withLatestFrom(
+        this.store.select(selectTextRoomSelectedId),
+        this.store.select(selectTextRoomSelectedRecipientId),
+        this.store.select(selectTextRoomNewestId),
       ),
-    { dispatch: false },
+      switchMap(([_, roomId, recipientId, newestId]) => {
+        if (!newestId) {
+          return EMPTY;
+        }
+        return of(
+          TextRoomActions.requestList({
+            data: {
+              afterId: newestId,
+              beforeId: null,
+              limit: defaultChunkSize,
+              roomId,
+              recipientId,
+            },
+          }),
+        );
+      }),
+    ),
   );
 
-  readonly requestPrevPage$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(TextRoomActions.requestPrevPage),
-        withLatestFrom(
-          this.store.select(selectTextRoomSelectedId),
-          this.store.select(selectTextRoomSelectedRecipientId),
-          this.store.select(selectTextRoomHasMoreBefore),
-          this.store.select(selectTextRoomOldestId),
-        ),
-        tap(([_, roomId, recipientId, hasMoreBefore, oldestId]) => {
-          if (!hasMoreBefore || !oldestId) {
-            return;
-          }
-          this.store.dispatch(
-            TextRoomActions.requestList({
-              data: {
-                afterId: null,
-                beforeId: oldestId,
-                limit: defaultChunkSize,
-                roomId,
-                recipientId,
-              },
-            }),
-          );
-        }),
+  readonly requestPrevPage$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(TextRoomActions.requestPrevPage),
+      withLatestFrom(
+        this.store.select(selectTextRoomSelectedId),
+        this.store.select(selectTextRoomSelectedRecipientId),
+        this.store.select(selectTextRoomOldestId),
       ),
-    { dispatch: false },
+      switchMap(([_, roomId, recipientId, oldestId]) => {
+        if (!oldestId) {
+          return EMPTY;
+        }
+        return of(
+          TextRoomActions.requestList({
+            data: {
+              afterId: null,
+              beforeId: oldestId,
+              limit: defaultChunkSize,
+              roomId,
+              recipientId,
+            },
+          }),
+        );
+      }),
+    ),
   );
 
   readonly requestList$ = createEffect(() =>

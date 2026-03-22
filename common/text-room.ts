@@ -62,7 +62,5 @@ export namespace TextRoomCommon {
   }
   export interface IListResponse {
     items: IMessage[];
-    hasMoreBefore: boolean;
-    hasMoreAfter: boolean;
   }
 }

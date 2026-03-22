@@ -2,10 +2,11 @@
   #scrollContainer
   class="scroll-container"
   infiniteScroll
-  [infiniteScrollDistance]="2"
-  [infiniteScrollUpDistance]="1.5"
+  [infiniteScrollDistance]="1"
+  [infiniteScrollUpDistance]="1"
   [infiniteScrollThrottle]="150"
   [scrollWindow]="false"
+  [infiniteScrollDisabled]="infiniteScrollDisabled()"
   (scrolledUp)="onScrollUp()"
   (scrolled)="onScrolled()">
   @for (m of messages(); track m.id) {
@@ -16,7 +17,7 @@
 @if (showScrollToBottom()) {
   <p-button
     class="scroll-to-bottom"
-    text
-    icon="pi pi-arrow-bottom"
-    (onClick)="scrollToBottom()"></p-button>
+    rounded
+    icon="pi pi-chevron-down"
+    (onClick)="scrollToBottom('smooth')"></p-button>
 }

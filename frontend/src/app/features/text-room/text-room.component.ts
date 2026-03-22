@@ -20,7 +20,6 @@ export class TextRoomComponent {
     this.activatedRoute.params.subscribe((params) => {
       const roomId = Number(params['id']);
       this.store.dispatch(TextRoomActions.join({ roomId, recipientId: null }));
-      this.store.dispatch(TextRoomActions.requestNextPage());
     });
   }
 }

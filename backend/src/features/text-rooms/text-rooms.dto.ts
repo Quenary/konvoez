@@ -15,7 +15,7 @@ import {
 import { MessageEntity } from './text-rooms.entity';
 import { TextRoomCommon } from '@common/text-room';
 import { messageMaxLength, messageMinLength } from '@common/const';
-import { stringify, v7 } from 'uuid';
+import { stringify } from 'uuid';
 
 export class CreateMessageDto implements TextRoomCommon.ICreateMessage {
   @ApiProperty({
@@ -133,12 +133,4 @@ export class MessageListResponseDto implements TextRoomCommon.IListResponse {
   @ApiProperty({ type: 'array' })
   @IsArray()
   items!: MessageDto[];
-
-  @ApiProperty({ type: 'boolean' })
-  @IsBoolean()
-  hasMoreBefore: boolean;
-
-  @ApiProperty({ type: 'boolean' })
-  @IsBoolean()
-  hasMoreAfter: boolean;
 }
