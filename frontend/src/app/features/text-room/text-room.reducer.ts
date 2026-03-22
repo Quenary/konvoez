@@ -19,8 +19,6 @@ export interface ITextRoomState extends EntityState<IMessageWithStatus> {
   selectedRoomId: number | null;
   selectedRecipientId: number | null;
   avatars: Record<number, string>;
-  hasMoreBefore: boolean;
-  hasMoreAfter: boolean;
 }
 
 export const textRoomAdapter = createEntityAdapter<IMessageWithStatus>({
@@ -34,8 +32,6 @@ export const textRoomInitialState =
     selectedRoomId: null,
     selectedRecipientId: null,
     avatars: {},
-    hasMoreAfter: true,
-    hasMoreBefore: true,
   });
 
 export const textRoomReducer = createReducer<ITextRoomState>(
@@ -53,18 +49,14 @@ export const textRoomReducer = createReducer<ITextRoomState>(
     }),
   ),
   on(TextRoomActions.requestListSuccess, (state, payload) => {
-    const { items, hasMoreAfter, hasMoreBefore } = payload.data;
-    return (state = textRoomAdapter.upsertMany(
+    const { items } = payload.data;
+    return textRoomAdapter.upsertMany(
       items.map((item) => ({
         ...item,
         status: EMessageStatus.SUCCESS,
       })),
-      {
-        ...state,
-        hasMoreAfter,
-        hasMoreBefore,
-      },
-    ));
+      state,
+    );
   }),
   on(TextRoomActions.createMessage, (state, payload) =>
     textRoomAdapter.addOne(

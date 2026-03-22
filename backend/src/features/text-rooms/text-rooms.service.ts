@@ -92,12 +92,8 @@ export class TextRoomsService {
       populate: ['sender', 'recipient', 'room'],
     });
 
-    const items = afterId ? messages.reverse() : messages;
-
     return {
-      items: items.map((m) => MessageDto.fromEntity(m)),
-      hasMoreBefore: items.length === limit,
-      hasMoreAfter: items.length === limit,
+      items: messages.map((m) => MessageDto.fromEntity(m)),
     };
   }
 

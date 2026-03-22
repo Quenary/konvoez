@@ -25,14 +25,6 @@ export const selectTextRoomOldestId = createSelector(
   selectTextRoomMessages,
   (messages) => (messages.length ? messages[0].id : null),
 );
-export const selectTextRoomHasMoreAfter = createSelector(
-  _select,
-  (state) => state.hasMoreAfter,
-);
-export const selectTextRoomHasMoreBefore = createSelector(
-  _select,
-  (state) => state.hasMoreBefore,
-);
 export const selectTextRoomAvatars = createSelector(
   _select,
   (state) => state.avatars,
