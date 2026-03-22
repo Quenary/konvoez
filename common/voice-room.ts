@@ -45,6 +45,7 @@ export namespace VoiceRoomCommon {
      * This event triggers initial signaling
      */
     EXISTING_PEERS_ON_JOIN = 'existing-peers-on-join',
+    ERROR = 'error',
   }
   export type TEventMap = {
     [EEvent.SIGNAL]: (data: ISignal) => any;
@@ -54,6 +55,7 @@ export namespace VoiceRoomCommon {
     [EEvent.PEER_LEFT]: (data: IPeerLeft) => any;
     [EEvent.EXISTING_PEERS_ALL]: (data: IRoomWithPeers[]) => any;
     [EEvent.EXISTING_PEERS_ON_JOIN]: (data: IRoomWithPeers) => any;
+    [EEvent.ERROR]: (data: any) => any;
   };
 
   export interface ISignal {
@@ -82,6 +84,7 @@ export namespace VoiceRoomCommon {
     roomId: number;
   }
 
+  // TODO move to separate file
   export interface IPeer {
     /**
      * ID of the socket session

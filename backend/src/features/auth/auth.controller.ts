@@ -27,14 +27,14 @@ export class AuthController {
    * @param username
    * @param res
    */
-  private setCookies(username: string, res: Response): void {
+  private setCookies(userId: number, res: Response): void {
     const accessToken = this.authService.generateToken({
       type: 'access',
-      username: username,
+      userId,
     });
     const refreshToken = this.authService.generateToken({
       type: 'refresh',
-      username: username,
+      userId,
     });
     res.cookie(ACCESS_TOKEN_KEY, accessToken, {
       httpOnly: true,
@@ -64,7 +64,7 @@ export class AuthController {
       dto.username,
       dto.password,
     );
-    this.setCookies(user.username, res);
+    this.setCookies(user.id, res);
     return user;
   }
 
@@ -75,7 +75,7 @@ export class AuthController {
       throw new UnauthorizedException('No refresh token');
     }
     const data = this.authService.verifyToken(refreshToken);
-    this.setCookies(data.username, res);
+    this.setCookies(data.userId, res);
     return { ok: true };
   }
 

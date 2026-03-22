@@ -1,14 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   inject,
-  input,
-  model,
-  output,
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
-import { TextareaClasses, TextareaModule } from 'primeng/textarea';
-import { IMessageWithStatus } from '../text-room.reducer';
+import { TextareaModule } from 'primeng/textarea';
 import {
   FormControl,
   FormGroup,
@@ -16,26 +13,25 @@ import {
   Validators,
 } from '@angular/forms';
 import { messageMaxLength, messageMinLength } from '@common/const';
-import { TextRoomCommon } from '@common/text-room';
 import { Store } from '@ngrx/store';
 import { TextRoomActions } from '../text-room.actions';
 import { v4 } from 'uuid';
-import { selectTextRoomSelectedId } from '../text-room.selectors';
+import {
+  selectTextRoomEditableMessage,
+  selectTextRoomSelectedId,
+  selectTextRoomSelectedRecipientId,
+} from '../text-room.selectors';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-text-room-control',
-  imports: [TextareaModule, ButtonModule, ReactiveFormsModule],
+  imports: [TextareaModule, ButtonModule, ReactiveFormsModule, TranslatePipe],
   templateUrl: './text-room-control.component.html',
   styleUrl: './text-room-control.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TextRoomControlComponent {
   private readonly store = inject(Store);
-
-  /**
-   * Editable message
-   */
-  public readonly message = model<IMessageWithStatus | null>();
 
   protected readonly form = new FormGroup({
     content: new FormControl<string | null>(null, [
@@ -44,40 +40,59 @@ export class TextRoomControlComponent {
       Validators.maxLength(messageMaxLength),
     ]),
   });
+  protected readonly editableMessage = this.store.selectSignal(
+    selectTextRoomEditableMessage,
+  );
 
   private readonly roomId = this.store.selectSignal(selectTextRoomSelectedId);
+  private readonly recipientId = this.store.selectSignal(
+    selectTextRoomSelectedRecipientId,
+  );
+
+  constructor() {
+    effect(() => {
+      const editableMessage = this.editableMessage();
+      this.form.patchValue({
+        content: editableMessage?.content ?? null,
+      });
+    });
+  }
 
   protected onSubmit(): void {
     if (this.form.invalid) {
       return;
     }
     const content = this.form.value.content as string;
-    const message = this.message();
+    const editableMessage = this.editableMessage();
     this.form.patchValue({
       content: null,
     });
-    if (message) {
+    if (editableMessage) {
       this.store.dispatch(
-        TextRoomActions.editMessage({
-          messageId: message.id,
+        TextRoomActions.updateMessage({
+          messageId: editableMessage.id,
           data: {
             content,
           },
         }),
       );
-      this.message.set(null);
     } else {
       const roomId = this.roomId();
+      const recipientId = this.recipientId();
       this.store.dispatch(
         TextRoomActions.createMessage({
           tempId: v4(),
           data: {
             content,
             roomId,
-            recipientId: null,
+            recipientId,
           },
         }),
       );
     }
+  }
+
+  protected cancelEdit(): void {
+    this.store.dispatch(TextRoomActions.setEditableMessageId({ id: null }));
   }
 }

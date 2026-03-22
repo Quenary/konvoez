@@ -3,6 +3,31 @@
   flex-direction: column;
   width: 100%;
   gap: 0.5rem;
+  padding: 0.5rem;
+  overflow: hidden;
+
+  .edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 0.5rem 0.5rem 0;
+
+      &-title {
+        color: var(--p-primary-500);
+      }
+    }
+    &-close {
+      margin-left: auto;
+    }
+  }
 
   .form {
     display: inline-flex;

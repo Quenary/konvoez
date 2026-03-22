@@ -1,3 +1,21 @@
+@if (editableMessage(); as m) {
+  <section class="edit">
+    <div class="edit-content">
+      <span class="edit-content-title">
+        {{ 'GENERAL.EDIT' | translate }}
+      </span>
+      <span class="edit-content-text">
+        {{ m.content }}
+      </span>
+    </div>
+    <p-button
+      class="edit-close"
+      icon="pi pi-times"
+      text
+      (onClick)="cancelEdit()">
+    </p-button>
+  </section>
+}
 <form
   class="form"
   [formGroup]="form"

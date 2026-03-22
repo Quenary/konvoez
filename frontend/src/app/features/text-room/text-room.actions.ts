@@ -13,7 +13,6 @@ export const TextRoomActions = createActionGroup({
     requestList: props<{ data: TextRoomCommon.IListRequest }>(),
     requestListSuccess: props<{
       data: TextRoomCommon.IListResponse;
-      req: TextRoomCommon.IListRequest;
     }>(),
     requestListError: props<{ error: HttpErrorResponse }>(),
     // Create
@@ -26,13 +25,17 @@ export const TextRoomActions = createActionGroup({
       data: TextRoomCommon.IMessage;
     }>(),
     createMessageError: props<{ tempId: string; error: HttpErrorResponse }>(),
-    // Edit
-    editMessage: props<{
+    // Update
+    setEditableMessageId: props<{ id: string | null }>(),
+    updateMessage: props<{
       messageId: string;
       data: TextRoomCommon.IEditMessage;
     }>(),
-    editMessageSuccess: props<{ data: TextRoomCommon.IMessage }>(),
-    editMessageError: props<{ messageId: string; error: HttpErrorResponse }>(),
+    updateMessageSuccess: props<{ data: TextRoomCommon.IMessage }>(),
+    updateMessageError: props<{
+      messageId: string;
+      error: HttpErrorResponse;
+    }>(),
     // Delete
     deleteMessage: props<{ messageId: string }>(),
     deleteMessageSuccess: props<{ messageId: string }>(),

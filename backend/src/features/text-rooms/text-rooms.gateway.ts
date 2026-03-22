@@ -3,93 +3,136 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
-import { TextRoomsService } from './text-rooms.service';
 import { TextRoomCommon } from '@common/text-room';
-import * as cookie from 'cookie';
-import { ACCESS_TOKEN_KEY } from '../auth/auth.const';
 import { MessageDto } from './text-rooms.dto';
+
+type TSocket = Socket<
+  TextRoomCommon.TEventMap,
+  TextRoomCommon.TEventMap,
+  DefaultEventsMap,
+  {
+    roomId?: number;
+    recipientId?: number;
+    peer?: TextRoomCommon.IPeer;
+  }
+>;
+
+// TODO переделать
+// Сообщения должны отправляться всем (кроме создателя), у кого есть доступ
 
 @WebSocketGateway({
   path: '/api/text',
   cors: { origin: '*' },
 })
-export class TextRoomsGateway implements OnGatewayConnection {
+export class TextRoomsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   private readonly server!: Server<TextRoomCommon.TEventMap>;
 
   @Inject(AuthService)
   private readonly authService!: AuthService;
 
-  async handleConnection(client: Socket) {
-    const rawCookies = client.handshake.headers.cookie;
-    if (!rawCookies) {
-      client.emit('error', { message: 'Unauthorized' });
-      client.disconnect(true);
-    }
+  private readonly userIdToSocketId: Map<number, string> = new Map();
 
-    const parsedCookies = cookie.parse(rawCookies);
-    const accessToken = parsedCookies[ACCESS_TOKEN_KEY];
-    if (!accessToken) {
-      client.emit('error', { message: 'Unauthorized' });
-      client.disconnect(true);
-    }
-
+  async handleConnection(client: TSocket) {
     try {
-      const user = await this.authService.getUserFromAccessToken(accessToken);
+      const user = await this.authService.getUserFromRawCookies(
+        client.handshake.headers.cookie,
+      );
+
+      if (!user) {
+        client.emit(TextRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
+        client.disconnect(true);
+        return;
+      }
+
       client.data.peer = {
         clientId: client.id,
         id: user.id,
         username: user.username,
         role: user.role,
+        avatar: user.avatar,
       } satisfies TextRoomCommon.IPeer;
+
+      this.userIdToSocketId.set(user.id, client.id);
     } catch {
-      client.emit('error', { message: 'Unauthorized' });
+      client.emit(TextRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
+    }
+  }
+
+  async handleDisconnect(client: TSocket) {
+    const peer = client.data.peer;
+    if (peer) {
+      this.userIdToSocketId.delete(peer.id);
     }
   }
 
   @SubscribeMessage(TextRoomCommon.EEvent.JOIN)
   handleJoin(
     @MessageBody() body: TextRoomCommon.IJoin,
-    @ConnectedSocket() client: Socket<TextRoomCommon.TEventMap>,
+    @ConnectedSocket() client: TSocket,
   ) {
-    const currentRoomId = client.data.roomId as number;
-    if (currentRoomId) {
-      client.leave(currentRoomId.toString());
+    this.handleLeave(client);
+
+    const { roomId, recipientId } = body;
+    if (roomId) {
+      client.data.roomId = roomId;
+      client.join(roomId.toString());
     }
-    if (body.roomId) {
-      client.data.roomId = body.roomId;
-      client.join(body.roomId.toString());
+    if (recipientId) {
+      client.data.recipientId = recipientId;
+      client.join(recipientId.toString());
+    }
+    const peer = client.data.peer;
+    if (peer) {
+      client.join(peer.id.toString());
     }
   }
 
   @SubscribeMessage(TextRoomCommon.EEvent.LEAVE)
-  handleLeave(@ConnectedSocket() client: Socket<TextRoomCommon.TEventMap>) {
-    const roomId = client.data.roomId as number;
-    client.data.roomId = null;
+  handleLeave(@ConnectedSocket() client: TSocket) {
+    const { roomId, recipientId, ...rest } = client.data;
+    client.data = rest;
     if (roomId) {
       client.leave(roomId.toString());
     }
+    if (recipientId) {
+      client.leave(recipientId.toString());
+    }
+    const peer = client.data.peer;
+    if (peer) {
+      client.leave(peer.id.toString());
+    }
   }
 
-  public onMessageSent(body: MessageDto) {
-    const roomId = String(body.roomId ?? body.recipientId);
-    return this.server
-      .to(roomId)
-      .emit(TextRoomCommon.EEvent.MESSAGE_CREATED, body);
+  public onMessageCreated(body: MessageDto) {
+    const to = body.roomId || body.recipientId;
+    if (to) {
+      let res = this.server.to(to.toString());
+      const senderClientId = this.userIdToSocketId.get(body.senderId);
+      if (senderClientId) {
+        res = res.except(senderClientId);
+      }
+      return res.emit(TextRoomCommon.EEvent.MESSAGE_CREATED, body);
+    }
   }
 
-  public onMessageEdited(body: MessageDto) {
-    const roomId = String(body.roomId ?? body.recipientId);
-    return this.server
-      .to(roomId)
-      .emit(TextRoomCommon.EEvent.MESSAGE_EDITED, body);
+  public onMessageUpdated(body: MessageDto) {
+    const to = body.roomId || body.recipientId;
+    if (to) {
+      return this.server
+        .to(to.toString())
+        .emit(TextRoomCommon.EEvent.MESSAGE_EDITED, body);
+    }
   }
 
   public onMessageDeleted(id: string) {

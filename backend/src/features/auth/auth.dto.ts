@@ -20,5 +20,5 @@ export class AuthLoginDto {
 
 export class AuthJWTData {
   type: 'access' | 'refresh';
-  username: string;
+  userId: number;
 }

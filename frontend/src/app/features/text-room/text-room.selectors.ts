@@ -16,16 +16,29 @@ export const selectTextRoomSelectedRecipientId = createSelector(
   _select,
   (state) => state.selectedRecipientId,
 );
-export const selectTextRoomMessages = createSelector(_select, selectAll);
+export const selectTextRoomMessagesList = createSelector(_select, selectAll);
+export const selectTextRoomMessagesDict = createSelector(
+  _select,
+  selectEntities,
+);
 export const selectTextRoomNewestId = createSelector(
-  selectTextRoomMessages,
+  selectTextRoomMessagesList,
   (messages) => (messages.length ? messages[messages.length - 1].id : null),
 );
 export const selectTextRoomOldestId = createSelector(
-  selectTextRoomMessages,
+  selectTextRoomMessagesList,
   (messages) => (messages.length ? messages[0].id : null),
 );
 export const selectTextRoomAvatars = createSelector(
   _select,
   (state) => state.avatars,
+);
+export const selectTextRoomEditableMessageId = createSelector(
+  _select,
+  (state) => state.editableMessageId,
+);
+export const selectTextRoomEditableMessage = createSelector(
+  selectTextRoomMessagesDict,
+  selectTextRoomEditableMessageId,
+  (messages, id) => (id && messages[id] ? messages[id] : null),
 );

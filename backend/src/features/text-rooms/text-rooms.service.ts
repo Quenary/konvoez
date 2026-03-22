@@ -32,31 +32,6 @@ export class TextRoomsService {
     this.em = this.messageRepository.getEntityManager();
   }
 
-  async create(user: UserEntity, dto: CreateMessageDto): Promise<MessageDto> {
-    let recipient: UserEntity | null = null;
-    let room: RoomEntity | null = null;
-
-    if (dto.recipientId) {
-      recipient = await this.usersService.findOne(dto.recipientId);
-    }
-
-    if (dto.roomId) {
-      room = await this.roomsService.findOne(dto.roomId);
-    }
-
-    const message = this.messageRepository.create(
-      {
-        sender: user,
-        recipient,
-        room,
-        content: dto.content,
-      },
-      { persist: true },
-    );
-    await this.em.flush();
-    return MessageDto.fromEntity(message);
-  }
-
   async list(
     user: UserEntity,
     dto: MessageListRequestDto,
@@ -97,7 +72,32 @@ export class TextRoomsService {
     };
   }
 
-  async editMessage(
+  async create(user: UserEntity, dto: CreateMessageDto): Promise<MessageDto> {
+    let recipient: UserEntity | null = null;
+    let room: RoomEntity | null = null;
+
+    if (dto.recipientId) {
+      recipient = await this.usersService.findOne(dto.recipientId);
+    }
+
+    if (dto.roomId) {
+      room = await this.roomsService.findOne(dto.roomId);
+    }
+
+    const message = this.messageRepository.create(
+      {
+        sender: user,
+        recipient,
+        room,
+        content: dto.content,
+      },
+      { persist: true },
+    );
+    await this.em.flush();
+    return MessageDto.fromEntity(message);
+  }
+
+  async updateMessage(
     user: UserEntity,
     messageId: string,
     dto: EditMessageDto,
@@ -119,6 +119,8 @@ export class TextRoomsService {
       content: dto.content,
     });
 
+    this.em.persist(message);
+    await this.em.flush();
     return MessageDto.fromEntity(message);
   }
 
