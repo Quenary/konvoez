@@ -2,12 +2,15 @@
 
 ## TODO
 - ~~Refactor file and symbol naming~~
-- Add mute functionality
+- ~~Add mute functionality~~
 - ~~Add sound effects~~
-- Add speaker indication
+- ~~Add speaker indication~~
 - ~~Add device selection~~
-- Add avatars
+- ~~Add avatars~~
 - ~~Add sidemenu to edit/remove rooms~~
+- Add messages encryption
+- Add messages search
+- Add message assets (files)
 - Add configurable stun servers
 - Add connection state indication
 - Add unit tests
