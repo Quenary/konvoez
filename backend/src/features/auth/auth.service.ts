@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserEntity } from '../users/users.entity';
 import { PasswordService } from 'src/shared/services/password.service';
-import { ConfigService } from 'src/shared/services/config.service';
+import { AppService } from 'src/shared/services/app.service';
 import { Request } from 'express';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
@@ -13,7 +13,7 @@ import * as cookie from 'cookie';
 export class AuthService {
   constructor(
     private readonly jwt: JwtService,
-    private readonly configService: ConfigService,
+    private readonly appService: AppService,
     private readonly passwordService: PasswordService,
     private readonly userService: UsersService,
   ) {}
@@ -47,13 +47,13 @@ export class AuthService {
 
   generateToken(payload: AuthJWTData): string {
     return this.jwt.sign(payload, {
-      secret: this.configService.JWT_SECRET,
+      secret: this.appService.JWT_SECRET,
     });
   }
 
   verifyToken(token: string): AuthJWTData {
     return this.jwt.verify<AuthJWTData>(token, {
-      secret: this.configService.JWT_SECRET,
+      secret: this.appService.JWT_SECRET,
     });
   }
 

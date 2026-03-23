@@ -10,7 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import { AuthLoginDto } from './auth.dto';
 import type { Request, Response } from 'express';
-import { ConfigService } from 'src/shared/services/config.service';
+import { AppService } from 'src/shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserDto } from '../users/users.dto';
@@ -19,7 +19,7 @@ import { GetUserDto } from '../users/users.dto';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
+    private readonly appService: AppService,
   ) {}
 
   /**
@@ -38,17 +38,17 @@ export class AuthController {
     });
     res.cookie(ACCESS_TOKEN_KEY, accessToken, {
       httpOnly: true,
-      sameSite: this.configService.COOKIE_SAME_SITE,
-      secure: this.configService.COOKIE_SECURE,
-      domain: this.configService.COOKIE_DOMAIN,
-      maxAge: this.configService.ACCESS_TTL * 60 * 1000,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      maxAge: this.appService.ACCESS_TTL * 60 * 1000,
     });
     res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
       httpOnly: true,
-      sameSite: this.configService.COOKIE_SAME_SITE,
-      secure: this.configService.COOKIE_SECURE,
-      domain: this.configService.COOKIE_DOMAIN,
-      maxAge: this.configService.REFRESH_TTL * 60 * 1000,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      maxAge: this.appService.REFRESH_TTL * 60 * 1000,
     });
   }
 
