@@ -1,7 +1,8 @@
 @if (message(); as m) {
   <div
     class="message"
-    #messageRef>
+    #messageRef
+    aria-haspopup="true">
     @if (avatarUrl(); as image) {
       <p-avatar
         class="message-sender"
@@ -21,20 +22,21 @@
           {{ m.senderUsername }}
         </span>
         <span class="message-body-header-date">
-          {{ m.createdAt | date: 'medium' }}
+          {{ m.createdAt | dayjs }}
         </span>
       </span>
-      <span class="message-body-content">
-        {{ m.content }}
-      </span>
+      <angular-tiptap-editor
+        class="message-body-content"
+        [content]="m.content"
+        [editable]="false"
+        [seamless]="true">
+      </angular-tiptap-editor>
     </span>
   </div>
 
   <p-contextmenu
     [target]="messageRef"
     appendTo="body"
-    global
     [model]="contextMenu()">
   </p-contextmenu>
 }
-<!-- TODO добавить редактирование, удаление, ответы в меню -->

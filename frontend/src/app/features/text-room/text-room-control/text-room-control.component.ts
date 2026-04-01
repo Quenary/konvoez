@@ -3,6 +3,7 @@ import {
   Component,
   effect,
   inject,
+  signal,
 } from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { TextareaModule } from 'primeng/textarea';
@@ -22,10 +23,22 @@ import {
   selectTextRoomSelectedRecipientId,
 } from '../text-room.selectors';
 import { TranslatePipe } from '@ngx-translate/core';
+import {
+  AngularTiptapEditorComponent,
+  AteEditorConfig,
+  AteNodeViewRenderer,
+  AteI18nService,
+} from '@flogeez/angular-tiptap-editor';
 
 @Component({
   selector: 'app-text-room-control',
-  imports: [TextareaModule, ButtonModule, ReactiveFormsModule, TranslatePipe],
+  imports: [
+    TextareaModule,
+    ButtonModule,
+    ReactiveFormsModule,
+    TranslatePipe,
+    AngularTiptapEditorComponent,
+  ],
   templateUrl: './text-room-control.component.html',
   styleUrl: './text-room-control.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,13 +46,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 export class TextRoomControlComponent {
   private readonly store = inject(Store);
 
-  protected readonly form = new FormGroup({
-    content: new FormControl<string | null>(null, [
-      Validators.required,
-      Validators.minLength(messageMinLength),
-      Validators.maxLength(messageMaxLength),
-    ]),
-  });
+  protected readonly content = signal<string>('');
   protected readonly editableMessage = this.store.selectSignal(
     selectTextRoomEditableMessage,
   );
@@ -52,21 +59,18 @@ export class TextRoomControlComponent {
   constructor() {
     effect(() => {
       const editableMessage = this.editableMessage();
-      this.form.patchValue({
-        content: editableMessage?.content ?? null,
-      });
+      this.content.set(editableMessage?.content ?? '');
     });
   }
 
   protected onSubmit(): void {
-    if (this.form.invalid) {
+    const content = this.content();
+    if (!this.content) {
       return;
     }
-    const content = this.form.value.content as string;
+
+    this.content.set('');
     const editableMessage = this.editableMessage();
-    this.form.patchValue({
-      content: null,
-    });
     if (editableMessage) {
       this.store.dispatch(
         TextRoomActions.updateMessage({

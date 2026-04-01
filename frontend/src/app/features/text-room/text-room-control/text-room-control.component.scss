@@ -1,3 +1,5 @@
+@use 'mixins' as m;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -5,6 +7,7 @@
   gap: 0.5rem;
   padding: 0.5rem;
   overflow: hidden;
+  max-height: 50%;
 
   .edit {
     display: inline-flex;
@@ -29,14 +32,16 @@
     }
   }
 
-  .form {
+  .field {
     display: inline-flex;
     align-items: center;
+    width: 100%;
     gap: 0.5rem;
+    overflow: hidden;
 
-    &-textarea {
+    &-editor {
       flex: 1;
-      resize: vertical;
+      @include m.prime-x-tiptap;
     }
   }
 }

@@ -39,6 +39,12 @@ import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
 import { TextRoomEffects } from './features/text-room/text-room.effects';
 import { textRoomReducer } from './features/text-room/text-room.reducer';
 import { localeInitializer } from './core/initializers/locale-initializer';
+import {
+  provideAteEditor,
+  SupportedLocale,
+} from '@flogeez/angular-tiptap-editor';
+import { supportedLocales } from './app.constants';
+import { messageMaxLength } from '@common/const';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -90,10 +96,20 @@ export const appConfig: ApplicationConfig = {
     {
       provide: LOCALE_ID,
       useFactory: () => {
-        const locale = navigator.language || 'en-US';
-        return locale;
+        const locale = navigator.language
+          ? navigator.language.split('-')[0]
+          : 'en';
+        return supportedLocales.find((l) => l === locale) || 'en';
       },
     },
+    provideAteEditor({
+      showToolbar: false,
+      floatingToolbar: true,
+      // theme: 'dark',
+      fillContainer: true,
+      showFooter: false,
+      maxCharacters: messageMaxLength,
+    }),
     // Initializers
     provideAppInitializer(() => {
       const translateService = inject(TranslateService);
