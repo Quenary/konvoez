@@ -1,0 +1,19 @@
+@mixin prime-x-tiptap {
+  --ate-primary: var(--p-primary-color);
+  --ate-primary-hover: var(--p-primary-hover-color);
+  --ate-primary-contrast: var(--p-primary-contrast-color);
+
+  --ate-surface: var(--p-content-background);
+  --ate-surface-secondary: var(--p-content-hover-background);
+  --ate-surface-tertiary: var(--p-content-border-color);
+
+  --ate-text: var(--p-text-color);
+  --ate-text-secondary: var(--p-text-hover-color);
+  --ate-text-muted: var(--p-text-muted-color);
+
+  --ate-border: var(--p-content-border-color);
+
+  --ate-menu-br: var(--p-contextmenu-background);
+  --ate-menu-border: var(--p-contextmenu-border-color);
+  --ate-menu-shadow: var(--p-contextmenu-shadow);
+}

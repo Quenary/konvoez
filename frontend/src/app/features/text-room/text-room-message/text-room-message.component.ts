@@ -13,14 +13,21 @@ import { Store } from '@ngrx/store';
 import { selectMe } from '../../auth/auth.selectors';
 import { IGetUser } from '../../user/user.interface';
 import { AvatarModule } from 'primeng/avatar';
-import { DatePipe } from '@angular/common';
 import { selectTextRoomAvatars } from '../text-room.selectors';
 import { TextRoomActions } from '../text-room.actions';
 import { EUserRole } from '@common/enums';
+import { AngularTiptapEditorComponent } from '@flogeez/angular-tiptap-editor';
+import { DayjsPipe } from '../../../shared/pipes/dayjs.pipe';
 
 @Component({
   selector: 'app-text-room-message',
-  imports: [ContextMenuModule, AvatarModule, DatePipe, ContextMenuModule],
+  imports: [
+    ContextMenuModule,
+    AvatarModule,
+    DayjsPipe,
+    ContextMenuModule,
+    AngularTiptapEditorComponent,
+  ],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
