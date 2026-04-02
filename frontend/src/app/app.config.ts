@@ -105,7 +105,6 @@ export const appConfig: ApplicationConfig = {
     provideAteEditor({
       showToolbar: false,
       floatingToolbar: true,
-      // theme: 'dark',
       fillContainer: true,
       showFooter: false,
       maxCharacters: messageMaxLength,
