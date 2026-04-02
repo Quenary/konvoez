@@ -18,6 +18,8 @@ import {
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { parse } from 'uuid';
+import { EncryptionService } from 'src/shared/services/encryption.service';
+import { stringify as uuidStringify } from 'uuid';
 
 @Injectable()
 export class TextRoomsService {
@@ -28,8 +30,27 @@ export class TextRoomsService {
     private readonly messageRepository: EntityRepository<MessageEntity>,
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly encryptionService: EncryptionService,
   ) {
     this.em = this.messageRepository.getEntityManager();
+  }
+
+  private entityToDto(data: MessageEntity): MessageDto {
+    const content = this.encryptionService.decrypt(
+      data.contentEncrypted,
+      data.iv,
+      data.authTag,
+    );
+    return {
+      id: uuidStringify(data.id),
+      senderId: data.sender.id,
+      senderUsername: data.sender.username,
+      recipientId: data.recipient?.id ?? null,
+      roomId: data.room?.id ?? null,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+      content,
+    };
   }
 
   async list(
@@ -68,7 +89,7 @@ export class TextRoomsService {
     });
 
     return {
-      items: messages.map((m) => MessageDto.fromEntity(m)),
+      items: messages.map((m) => this.entityToDto(m)),
     };
   }
 
@@ -84,17 +105,23 @@ export class TextRoomsService {
       room = await this.roomsService.findOne(dto.roomId);
     }
 
+    const { encrypted, iv, authTag } = this.encryptionService.encrypt(
+      dto.content,
+    );
+
     const message = this.messageRepository.create(
       {
         sender: user,
         recipient,
         room,
-        content: dto.content,
+        contentEncrypted: encrypted,
+        iv,
+        authTag,
       },
       { persist: true },
     );
     await this.em.flush();
-    return MessageDto.fromEntity(message);
+    return this.entityToDto(message);
   }
 
   async updateMessage(
@@ -115,13 +142,19 @@ export class TextRoomsService {
       throw new ForbiddenException('You can only edit your own messages');
     }
 
+    const { encrypted, iv, authTag } = this.encryptionService.encrypt(
+      dto.content,
+    );
+
     message = this.messageRepository.assign(message, {
-      content: dto.content,
+      contentEncrypted: encrypted,
+      iv,
+      authTag,
     });
 
     this.em.persist(message);
     await this.em.flush();
-    return MessageDto.fromEntity(message);
+    return this.entityToDto(message);
   }
 
   async delete(user: UserEntity, messageId: string): Promise<void> {

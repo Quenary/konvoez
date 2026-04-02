@@ -51,9 +51,9 @@
           "enumItems": [],
           "mappedType": "datetime"
         },
-        "content": {
-          "name": "content",
-          "type": "TEXT",
+        "content_encrypted": {
+          "name": "content_encrypted",
+          "type": "BLOB",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
@@ -65,7 +65,39 @@
           "default": null,
           "comment": null,
           "enumItems": [],
-          "mappedType": "text"
+          "mappedType": "blob"
+        },
+        "iv": {
+          "name": "iv",
+          "type": "BLOB",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "blob"
+        },
+        "auth_tag": {
+          "name": "auth_tag",
+          "type": "BLOB",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "enumItems": [],
+          "mappedType": "blob"
         },
         "sender_id": {
           "name": "sender_id",

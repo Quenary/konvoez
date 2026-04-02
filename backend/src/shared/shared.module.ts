@@ -3,12 +3,14 @@ import { AppService } from './services/app.service';
 import { PasswordService } from './services/password.service';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { s3ClientInjectionToken } from './tokens/s3-client.token';
+import { EncryptionService } from './services/encryption.service';
 
 @Global()
 @Module({
   providers: [
     AppService,
     PasswordService,
+    EncryptionService,
     {
       provide: s3ClientInjectionToken,
       inject: [AppService],
@@ -28,6 +30,11 @@ import { s3ClientInjectionToken } from './tokens/s3-client.token';
       },
     },
   ],
-  exports: [AppService, PasswordService, s3ClientInjectionToken],
+  exports: [
+    AppService,
+    PasswordService,
+    s3ClientInjectionToken,
+    EncryptionService,
+  ],
 })
 export class SharedModule {}

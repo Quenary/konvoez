@@ -86,19 +86,6 @@ export class MessageDto implements TextRoomCommon.IMessage {
   @MinLength(messageMinLength)
   @MaxLength(messageMaxLength)
   content!: string;
-
-  static fromEntity(data: MessageEntity): MessageDto {
-    return {
-      id: stringify(data.id),
-      senderId: data.sender.id,
-      senderUsername: data.sender.username,
-      recipientId: data.recipient?.id ?? null,
-      roomId: data.room?.id ?? null,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-      content: data.content,
-    };
-  }
 }
 
 export class MessageListRequestDto implements TextRoomCommon.IListRequest {
