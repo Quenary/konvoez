@@ -27,8 +27,20 @@ export class MessageEntity extends KonvoezBaseEntity {
   })
   id!: Uint8Array;
 
-  @Property({ type: 'text' })
-  content!: string;
+  /**
+   * Encrypted content
+   */
+  @Property({ type: 'uint8array' })
+  contentEncrypted!: Uint8Array;
+
+  /**
+   * initialization vector
+   */
+  @Property({ type: 'uint8array' })
+  iv!: Uint8Array;
+
+  @Property({ type: 'uint8array' })
+  authTag!: Uint8Array;
 
   @ManyToOne(() => UserEntity, { index: true })
   sender!: UserEntity;

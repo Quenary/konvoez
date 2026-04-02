@@ -7,6 +7,10 @@ import crypto from 'crypto';
 @Injectable()
 export class AppService {
   /**
+   * Master key
+   */
+  public readonly MASTER_KEY: string | null = process.env['MASTER_KEY'] || null;
+  /**
    * Secret for tokens
    */
   public readonly JWT_SECRET: string | Buffer =
