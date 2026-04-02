@@ -26,6 +26,7 @@
       }
 
       &-content {
+        flex: 1;
         @include m.prime-x-tiptap;
       }
     }

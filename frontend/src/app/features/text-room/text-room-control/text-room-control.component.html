@@ -1,12 +1,7 @@
 @if (editableMessage(); as m) {
   <section class="edit">
-    <div class="edit-content">
-      <span class="edit-content-title">
-        {{ 'GENERAL.EDIT' | translate }}
-      </span>
-      <span class="edit-content-text">
-        {{ m.content }}
-      </span>
+    <div class="edit-title">
+      {{ 'GENERAL.EDIT' | translate }}
     </div>
     <p-button
       class="edit-close"
