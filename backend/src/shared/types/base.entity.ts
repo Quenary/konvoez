@@ -1,4 +1,4 @@
-import { Entity, OptionalProps, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, OptionalProps, Property } from '@mikro-orm/core';
 
 @Entity({ abstract: true })
 export abstract class KonvoezBaseEntity {

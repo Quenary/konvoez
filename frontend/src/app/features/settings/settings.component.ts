@@ -6,7 +6,14 @@ import {
   resource,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { from, switchMap, map, catchError, of, lastValueFrom } from 'rxjs';
+import {
+  from,
+  switchMap,
+  catchError,
+  of,
+  lastValueFrom,
+  firstValueFrom,
+} from 'rxjs';
 import { MediaDevicesService } from '../../core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
@@ -19,17 +26,12 @@ import { IftaLabelModule } from 'primeng/iftalabel';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthActions } from '../auth/auth.actions';
 import { ButtonModule } from 'primeng/button';
-import {
-  FileBeforeUploadEvent,
-  FileSelectEvent,
-  FileUploadEvent,
-  FileUploadHandlerEvent,
-  FileUploadModule,
-} from 'primeng/fileupload';
+import { FileUploadHandlerEvent, FileUploadModule } from 'primeng/fileupload';
 import { AvatarModule } from 'primeng/avatar';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
 import { maxAvatarSize } from '@common/const';
 import { selectMe } from '../auth/auth.selectors';
+import { SettingsApiService } from './settings-api.service';
 
 @Component({
   selector: 'app-settings',
@@ -53,6 +55,11 @@ export class SettingsComponent {
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
   private readonly avatarsApiService = inject(AvatarsApiService);
+  private readonly settingsApiService = inject(SettingsApiService);
+
+  protected readonly settings = resource({
+    loader: () => firstValueFrom(this.settingsApiService.list()),
+  });
 
   protected readonly me = this.store.selectSignal(selectMe);
   protected readonly avatarUrl = resource({

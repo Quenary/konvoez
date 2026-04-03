@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { Observable } from 'rxjs';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
@@ -29,9 +29,13 @@ export class RoomsApiService {
   }
 
   update(id: number, body: IRoomUpdate): Observable<IRoom> {
-    return this.httpClient.put<IRoom>(`${environment.apiPath}/rooms/${id}`, body, {
-      withCredentials: true,
-    });
+    return this.httpClient.put<IRoom>(
+      `${environment.apiPath}/rooms/${id}`,
+      body,
+      {
+        withCredentials: true,
+      },
+    );
   }
 
   remove(id: number): Observable<any> {
