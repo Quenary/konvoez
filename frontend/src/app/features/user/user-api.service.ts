@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ICreateUser, IGetUser, IUpdateUser } from './user.interface';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
@@ -27,9 +27,13 @@ export class UserApiService {
   }
 
   update(id: number, body: IUpdateUser): Observable<IGetUser> {
-    return this.httpClient.put<IGetUser>(`${environment.apiPath}/users/${id}`, body, {
-      withCredentials: true,
-    });
+    return this.httpClient.put<IGetUser>(
+      `${environment.apiPath}/users/${id}`,
+      body,
+      {
+        withCredentials: true,
+      },
+    );
   }
 
   delete(id: number): Observable<void> {

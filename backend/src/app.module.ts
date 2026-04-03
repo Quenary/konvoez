@@ -8,6 +8,7 @@ import { SharedModule } from './shared/shared.module';
 import { VoiceRoomsModule } from './features/voice-rooms/voice-rooms.module';
 import { TextRoomsModule } from './features/text-rooms/text-rooms.module';
 import { AvatarsModule } from './features/avatars/avatars.module';
+import { SettingsModule } from './features/settings/settings.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AvatarsModule } from './features/avatars/avatars.module';
     SharedModule,
     TextRoomsModule,
     AvatarsModule,
+    SettingsModule,
   ],
 })
 export class AppModule {}

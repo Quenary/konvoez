@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { environment } from '../../../environments/environment.development';
+import { environment } from '../../../environments/environment';
 import { IGetUser } from '../user/user.interface';
 import { Observable } from 'rxjs';
 import { ILoginBody } from './auth.interface';
@@ -12,7 +12,10 @@ export class AuthApiService {
   private readonly httpClient = inject(HttpClient);
 
   login(body: ILoginBody): Observable<IGetUser> {
-    return this.httpClient.post<IGetUser>(`${environment.apiPath}/auth/login`, body);
+    return this.httpClient.post<IGetUser>(
+      `${environment.apiPath}/auth/login`,
+      body,
+    );
   }
 
   logout() {
