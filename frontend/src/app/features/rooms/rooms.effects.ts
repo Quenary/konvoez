@@ -6,7 +6,7 @@ import { catchError, map, of, switchMap, tap, withLatestFrom } from 'rxjs';
 import { RoomsApiService } from './rooms-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '../../shared/functions/parse-error.function';
+import { parseError } from '@shared/functions/parse-error.function';
 import { selectActiveVoiceRoomId } from '../voice-room/voice-room.selectors';
 import { VoiceRoomActions } from '../voice-room/voice-room.actions';
 import { ERoomType } from '@common/enums';

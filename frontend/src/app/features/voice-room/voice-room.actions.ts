@@ -6,11 +6,7 @@ export const VoiceRoomActions = createActionGroup({
   events: {
     join: props<{ id: number }>(),
     leave: emptyProps(),
-    existingPeersAll: props<{ data: VoiceRoomCommon.IRoomWithPeers[] }>(),
-    existingPeersOnJoin: props<{ data: VoiceRoomCommon.IRoomWithPeers }>(),
-    peerJoined: props<{ data: VoiceRoomCommon.IPeerJoined }>(),
-    peerLeft: props<{ data: VoiceRoomCommon.IPeerLeft }>(),
-    setActivePeers: props<{ peers: VoiceRoomCommon.IPeer[] }>(),
+    existingPeersAll: props<{ data: VoiceRoomCommon.IRoomWithUsers[] }>(),
     setMicMuted: props<{ micMuted: boolean }>(),
     setSoundMuted: props<{ soundMuted: boolean }>(),
   },

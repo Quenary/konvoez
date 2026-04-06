@@ -8,7 +8,7 @@ import { Router } from '@angular/router';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '../../shared/functions/parse-error.function';
+import { parseError } from '@shared/functions/parse-error.function';
 
 @Injectable()
 export class AuthEffects {

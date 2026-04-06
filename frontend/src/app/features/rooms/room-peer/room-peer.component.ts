@@ -9,14 +9,13 @@ import {
   signal,
 } from '@angular/core';
 import { VoiceRoomCommon } from '@common/voice-room';
-import { VoiceRoomService } from '../../../core/services/voice-room.service';
+import { VoiceRoomService } from '@core/services/voice-room.service';
 import { AvatarModule } from 'primeng/avatar';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { Store } from '@ngrx/store';
-import { selectMe } from '../../auth/auth.selectors';
-import { MicrophoneService } from '../../../core/services/microphone.service';
-import { selectMicMuted } from '../../voice-room/voice-room.selectors';
-import { AvatarsApiService } from '../../avatars/avatars-api.service';
+import { selectMe } from '@features/auth/auth.selectors';
+import { MicrophoneService } from '@core/services/microphone.service';
+import { AvatarsApiService } from '@features/avatars/avatars-api.service';
 import { lastValueFrom } from 'rxjs';
 
 @Component({
@@ -32,7 +31,7 @@ export class RoomPeerComponent {
   private readonly microphoneService = inject(MicrophoneService);
   private readonly avatarsApiService = inject(AvatarsApiService);
 
-  public readonly peer = input.required<VoiceRoomCommon.IPeer>();
+  public readonly peer = input.required<VoiceRoomCommon.IUserWithProducers>();
 
   protected readonly audioLevel = signal<number>(0);
   protected readonly avatarUrl = resource({
@@ -43,7 +42,7 @@ export class RoomPeerComponent {
         : Promise.resolve(undefined),
   });
   private readonly me = this.store.selectSignal(selectMe);
-  private readonly micMuted = this.store.selectSignal(selectMicMuted);
+  private readonly micMuted = this.voiceRoomService.microphoneMuted;
   private readonly isMe = computed(() => {
     const me = this.me();
     const peer = this.peer();
@@ -59,7 +58,7 @@ export class RoomPeerComponent {
   private readonly peerAnalyserNode = computed(() => {
     const peer = this.peer();
     const peers = this.voiceRoomService.peers();
-    return peers.find((p) => p.id === peer.id)?.analyserNode || null;
+    return peers[peer.id].analyserNode || null;
   });
   private analyserNode = computed(() => {
     const myAnalyserNode = this.myAnalyserNode.value();

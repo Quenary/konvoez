@@ -1,5 +1,5 @@
 import { createReducer, on } from '@ngrx/store';
-import { EStorageKey } from '../../app.enums';
+import { EStorageKey } from '@app/app.enums';
 import { SettingsActions } from './settings.actions';
 
 export interface ISettingsState {

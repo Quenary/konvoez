@@ -14,7 +14,7 @@ import {
   lastValueFrom,
   firstValueFrom,
 } from 'rxjs';
-import { MediaDevicesService } from '../../core/services/media-devices.service';
+import { MediaDevicesService } from '@core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MessageService } from 'primeng/api';
 import { Store } from '@ngrx/store';
