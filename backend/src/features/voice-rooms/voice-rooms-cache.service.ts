@@ -20,14 +20,14 @@ export class VoiceRoomsCacheService {
     });
   }
 
-  public getRoomWithPeers(roomId: number): VoiceRoomCommon.IRoomWithPeers {
+  public getRoomWithPeers(roomId: number): VoiceRoomCommon.IRoomWithUsers {
     if (!this.rooms[roomId]) {
       return { roomId, peers: [] };
     }
     return { roomId, peers: this.rooms[roomId] };
   }
 
-  public getAllRoomsWithPeers(): VoiceRoomCommon.IRoomWithPeers[] {
+  public getAllRoomsWithPeers(): VoiceRoomCommon.IRoomWithUsers[] {
     return Object.keys(this.rooms).map((roomId) => {
       return { roomId: +roomId, peers: this.rooms[roomId] };
     });

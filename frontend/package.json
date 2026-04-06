@@ -25,6 +25,7 @@
     "@ngx-translate/http-loader": "^17.0.0",
     "@primeuix/themes": "^2.0.3",
     "dayjs": "^1.11.20",
+    "mediasoup-client": "^3.18.7",
     "ngx-infinite-scroll": "^21.0.0",
     "primeicons": "^7.0.0",
     "primeng": "^21.1.1",

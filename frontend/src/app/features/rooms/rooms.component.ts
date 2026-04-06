@@ -19,7 +19,7 @@ import { RoomDialogComponent } from './room-dialog/room-dialog.component';
 import { IRoom } from './rooms.interface';
 import { ERoomType } from '@common/enums';
 import { ContextMenuModule } from 'primeng/contextmenu';
-import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { LogoComponent } from '@shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
 import {
   selectActiveVoiceRoomId,

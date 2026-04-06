@@ -5,7 +5,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { TInterfaceToForm } from '../../shared/types/interface-to-form.type';
+import { TInterfaceToForm } from '@shared/types/interface-to-form.type';
 import { ILoginBody } from './auth.interface';
 import { ButtonModule } from 'primeng/button';
 import { Store } from '@ngrx/store';

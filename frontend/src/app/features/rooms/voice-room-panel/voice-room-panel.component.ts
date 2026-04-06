@@ -5,19 +5,15 @@ import {
   inject,
 } from '@angular/core';
 import { Store } from '@ngrx/store';
-import {
-  selectActiveVoiceRoomId,
-  selectActiveVoiceRoomPeers,
-  selectMicMuted,
-  selectSoundMuted,
-} from '../../voice-room/voice-room.selectors';
+import { selectActiveVoiceRoomId } from '@features/voice-room/voice-room.selectors';
 import { selectRoomsDict } from '../rooms.selectors';
 import { ButtonModule } from 'primeng/button';
-import { VoiceRoomActions } from '../../voice-room/voice-room.actions';
+import { VoiceRoomActions } from '@features/voice-room/voice-room.actions';
 import { SelectModule } from 'primeng/select';
 import { TranslatePipe } from '@ngx-translate/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonGroupModule } from 'primeng/buttongroup';
+import { VoiceRoomService } from '@core/services/voice-room.service';
 
 @Component({
   selector: 'app-voice-room-panel',
@@ -34,14 +30,15 @@ import { ButtonGroupModule } from 'primeng/buttongroup';
 })
 export class VoiceRoomPanelComponent {
   private readonly store = inject(Store);
+  private readonly voiceRoomService = inject(VoiceRoomService);
 
   private readonly rooms = this.store.selectSignal(selectRoomsDict);
   private readonly activeRoomId = this.store.selectSignal(
     selectActiveVoiceRoomId,
   );
 
-  protected readonly micMuted = this.store.selectSignal(selectMicMuted);
-  protected readonly soundMuted = this.store.selectSignal(selectSoundMuted);
+  protected readonly micMuted = this.voiceRoomService.microphoneMuted;
+  protected readonly soundMuted = this.voiceRoomService.soundMuted;
   protected readonly room = computed(() => {
     const rooms = this.rooms();
     const activeRoomId = this.activeRoomId();
@@ -50,9 +47,6 @@ export class VoiceRoomPanelComponent {
     }
     return rooms[activeRoomId];
   });
-  protected readonly activePeers = this.store.selectSignal(
-    selectActiveVoiceRoomPeers,
-  );
 
   protected leaveRoom(id: number): void {
     this.store.dispatch(VoiceRoomActions.leave());

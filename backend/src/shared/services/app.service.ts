@@ -55,4 +55,9 @@ export class AppService {
   public readonly S3_FORCE_PATH_STYLE: boolean =
     process.env['S3_FORCE_PATH_STYLE']?.toLowerCase() === 'true';
   //#endregion
+
+  //#region MediaSoup
+  public readonly MEDIASOUP_ANNOUNCED_IP: string | undefined =
+    process.env['MEDIASOUP_ANNOUNCED_IP'];
+  //#endregion
 }

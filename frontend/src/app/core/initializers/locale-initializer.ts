@@ -1,6 +1,6 @@
 import { LOCATION_INITIALIZED, registerLocaleData } from '@angular/common';
 import { inject, EnvironmentInjector } from '@angular/core';
-import { supportedLocales } from '../../app.constants';
+import { supportedLocales } from '@app/app.constants';
 import { AteI18nService } from '@flogeez/angular-tiptap-editor';
 
 const importDayjsLocale = async (locale: string) => {

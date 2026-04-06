@@ -2,7 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { SpeexWorkletNode, loadSpeex } from '@sapphi-red/web-noise-suppressor';
 import speexWorkletUrl from '@sapphi-red/web-noise-suppressor/speexWorklet.js?url';
 import speexWasmUrl from '@sapphi-red/web-noise-suppressor/speex.wasm?url';
-import { getStream } from '../../shared/functions/get-stream.function';
+import { getStream } from '@shared/functions/get-stream.function';
 
 @Injectable({ providedIn: 'root' })
 export class MicrophoneService implements OnDestroy {

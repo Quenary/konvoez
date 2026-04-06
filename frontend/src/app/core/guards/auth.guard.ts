@@ -6,7 +6,7 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { selectAuth } from '../../features/auth/auth.selectors';
+import { selectAuth } from '@features/auth/auth.selectors';
 import { first, map, tap } from 'rxjs';
 
 export const authGuard: CanActivateFn = (

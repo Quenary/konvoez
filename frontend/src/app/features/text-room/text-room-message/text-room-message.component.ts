@@ -10,14 +10,14 @@ import { ContextMenuModule } from 'primeng/contextmenu';
 import { IMessageEntity } from '../text-room.reducer';
 import { MenuItem } from 'primeng/api';
 import { Store } from '@ngrx/store';
-import { selectMe } from '../../auth/auth.selectors';
-import { IGetUser } from '../../user/user.interface';
+import { selectMe } from '@features/auth/auth.selectors';
+import { IGetUser } from '@features/user/user.interface';
 import { AvatarModule } from 'primeng/avatar';
 import { selectTextRoomAvatars } from '../text-room.selectors';
 import { TextRoomActions } from '../text-room.actions';
 import { EUserRole } from '@common/enums';
 import { AngularTiptapEditorComponent } from '@flogeez/angular-tiptap-editor';
-import { DayjsPipe } from '../../../shared/pipes/dayjs.pipe';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 
 @Component({
   selector: 'app-text-room-message',

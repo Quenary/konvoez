@@ -1,5 +1,5 @@
 import { createSelector } from '@ngrx/store';
-import { IAppState } from '../../app.state';
+import { IAppState } from '@app/app.state';
 import { voiceRoomAdapter } from './voice-room.reducer';
 
 const _selectVoiceRoom = (state: IAppState) => state.voiceRoom;
@@ -19,16 +19,4 @@ export const selectActiveVoiceRoom = createSelector(
   selectVoiceRoomDict,
   selectActiveVoiceRoomId,
   (rooms, activeRoomId) => (activeRoomId ? rooms[activeRoomId] : null),
-);
-export const selectActiveVoiceRoomPeers = createSelector(
-  _selectVoiceRoom,
-  (state) => state.activeRoomPeers,
-);
-export const selectMicMuted = createSelector(
-  _selectVoiceRoom,
-  (state) => state.micMuted,
-);
-export const selectSoundMuted = createSelector(
-  _selectVoiceRoom,
-  (state) => state.soundMuted,
 );

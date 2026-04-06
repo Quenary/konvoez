@@ -14,13 +14,13 @@ import {
   withLatestFrom,
 } from 'rxjs';
 import { TextRoomApiService } from './text-room-api.service';
-import { TextRoomSocketToken } from '../../core/tokens/text-room-socket.token';
+import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { selectIsAuthorized } from '../auth/auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomCommon } from '@common/text-room';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '../../shared/functions/parse-error.function';
+import { parseError } from '@shared/functions/parse-error.function';
 import {
   selectTextRoomAvatars,
   selectTextRoomSelectedId,
