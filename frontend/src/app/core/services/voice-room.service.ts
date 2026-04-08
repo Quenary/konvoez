@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
@@ -76,7 +76,9 @@ export class VoiceRoomService {
   /**
    * Microphone muted
    */
-  private readonly _microphoneMuted = signal<boolean>(false);
+  private readonly _microphoneMuted = signal<boolean>(
+    !!localStorage.getItemJson(EStorageKey.MICROPHONE_MUTED),
+  );
   /**
    * Microphone muted
    */
@@ -84,7 +86,9 @@ export class VoiceRoomService {
   /**
    * Sound output muted
    */
-  private readonly _speakerMuted = signal<boolean>(false);
+  private readonly _speakerMuted = signal<boolean>(
+    !!localStorage.getItemJson(EStorageKey.SPEAKER_MUTED),
+  );
   /**
    * Sound output muted
    */
@@ -121,6 +125,16 @@ export class VoiceRoomService {
   protected pendingConsumes: VoiceRoomCommon.IProduceResult[] = [];
 
   constructor() {
+    effect(() => {
+      const value = this.microphoneMuted();
+      localStorage.setItemJson(EStorageKey.MICROPHONE_MUTED, value);
+    });
+
+    effect(() => {
+      const value = this.speakerMuted();
+      localStorage.setItemJson(EStorageKey.SPEAKER_MUTED, value);
+    });
+
     // Reconnect to room
     this.socket.on('connect', () => {
       this.cleanupMediasoup();
