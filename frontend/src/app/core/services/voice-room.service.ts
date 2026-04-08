@@ -476,11 +476,7 @@ export class VoiceRoomService {
   private async produceMicrophone() {
     try {
       const stream = await this.microphoneService.getStream();
-      stream.getTracks().forEach((t) => {
-        console.log(t);
-        console.log(JSON.stringify(t, null, 2));
-      });
-      const track = stream.getTracks()[0];
+      const track = stream.getAudioTracks()[0];
       track.enabled = !this.microphoneMuted();
       this.microphoneProducer = await this.sendTransport!.produce({
         track,
@@ -601,7 +597,7 @@ export class VoiceRoomService {
       analyserNode.fftSize = 128;
 
       sourceNode.connect(gainNode);
-      sourceNode.connect(analyserNode);
+      gainNode.connect(analyserNode);
       gainNode.connect(context.destination);
 
       patchState(

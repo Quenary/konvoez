@@ -47,14 +47,15 @@ export class RoomPeerComponent {
         ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
         : Promise.resolve(undefined),
   });
+
+  /**
+   * Microphone muted flag
+   */
+  private readonly microphoneMuted = this.voiceRoomService.microphoneMuted;
   /**
    * Current user info
    */
   private readonly me = this.store.selectSignal(selectMe);
-  /**
-   * Microphone muted flag
-   */
-  protected readonly microphoneMuted = this.voiceRoomService.microphoneMuted;
   /**
    * Peer is current user flag
    */
@@ -83,9 +84,19 @@ export class RoomPeerComponent {
    */
   private readonly analyserNode = computed(() => {
     const isMe = this.isMe();
+    const microphoneMuted = this.voiceRoomService.microphoneMuted();
     const myAnalyserNode = this.microphoneService.analyserNode();
     const peerAnalyserNode = this.peerAnalyserNode();
-    return isMe ? myAnalyserNode : peerAnalyserNode;
+
+    // myAnalyserNode всегда активна, даже если микрофон выключен
+    // Чтобы в настройках можно было видеть уровень звука
+    if (isMe && !microphoneMuted) {
+      return myAnalyserNode;
+    }
+    if (!isMe) {
+      return peerAnalyserNode;
+    }
+    return null;
   });
 
   constructor() {
@@ -93,6 +104,7 @@ export class RoomPeerComponent {
     let intervalRef: any = null;
     effect(() => {
       const an = this.analyserNode();
+      this.audioLevel.set(0);
       clearInterval(intervalRef);
       if (an) {
         an.smoothingTimeConstant = 0.1;
