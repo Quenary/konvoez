@@ -5,10 +5,8 @@ import {
   inject,
 } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { selectActiveVoiceRoomId } from '@features/voice-room/voice-room.selectors';
 import { selectRoomsDict } from '../rooms.selectors';
 import { ButtonModule } from 'primeng/button';
-import { VoiceRoomActions } from '@features/voice-room/voice-room.actions';
 import { SelectModule } from 'primeng/select';
 import { TranslatePipe } from '@ngx-translate/core';
 import { FormsModule } from '@angular/forms';
@@ -33,9 +31,7 @@ export class VoiceRoomPanelComponent {
   private readonly voiceRoomService = inject(VoiceRoomService);
 
   private readonly rooms = this.store.selectSignal(selectRoomsDict);
-  private readonly activeRoomId = this.store.selectSignal(
-    selectActiveVoiceRoomId,
-  );
+  private readonly activeRoomId = this.voiceRoomService.selectedRoomId;
 
   protected readonly micMuted = this.voiceRoomService.microphoneMuted;
   protected readonly soundMuted = this.voiceRoomService.soundMuted;
@@ -48,25 +44,17 @@ export class VoiceRoomPanelComponent {
     return rooms[activeRoomId];
   });
 
-  protected leaveRoom(id: number): void {
-    this.store.dispatch(VoiceRoomActions.leave());
+  protected leaveRoom(): void {
+    this.voiceRoomService.leaveRoom();
   }
 
   protected toggleMicMuted(): void {
     const micMuted = !this.micMuted();
-    this.store.dispatch(
-      VoiceRoomActions.setMicMuted({
-        micMuted,
-      }),
-    );
+    this.voiceRoomService.setMicrophoneMuted(micMuted);
   }
 
   protected toggleSoundMuted(): void {
     const soundMuted = !this.soundMuted();
-    this.store.dispatch(
-      VoiceRoomActions.setSoundMuted({
-        soundMuted,
-      }),
-    );
+    this.voiceRoomService.setSoundMuted(soundMuted);
   }
 }

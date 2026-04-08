@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { VoiceRoomsGateway } from './voice-rooms.gateway';
-import { VoiceRoomsCacheService } from './voice-rooms-cache.service';
+import { VoiceRoomsStateService } from './voice-rooms.state';
 
 @Module({
-  providers: [VoiceRoomsGateway, VoiceRoomsCacheService],
+  providers: [VoiceRoomsGateway, VoiceRoomsStateService],
 })
 export class VoiceRoomsModule {}

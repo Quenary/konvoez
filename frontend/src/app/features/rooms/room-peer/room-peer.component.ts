@@ -8,7 +8,6 @@ import {
   resource,
   signal,
 } from '@angular/core';
-import { VoiceRoomCommon } from '@common/voice-room';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import { AvatarModule } from 'primeng/avatar';
 import { ContextMenuModule } from 'primeng/contextmenu';
@@ -17,6 +16,7 @@ import { selectMe } from '@features/auth/auth.selectors';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { AvatarsApiService } from '@features/avatars/avatars-api.service';
 import { lastValueFrom } from 'rxjs';
+import { UserCommon } from '@common/user';
 
 @Component({
   selector: 'app-room-peer',
@@ -31,9 +31,15 @@ export class RoomPeerComponent {
   private readonly microphoneService = inject(MicrophoneService);
   private readonly avatarsApiService = inject(AvatarsApiService);
 
-  public readonly peer = input.required<VoiceRoomCommon.IUserWithProducers>();
+  public readonly peer = input.required<UserCommon.IUser>();
 
+  /**
+   * Current audio level
+   */
   protected readonly audioLevel = signal<number>(0);
+  /**
+   * Peer avatar url
+   */
   protected readonly avatarUrl = resource({
     params: () => ({ url: this.peer()?.avatar }),
     loader: (params) =>
@@ -41,32 +47,49 @@ export class RoomPeerComponent {
         ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
         : Promise.resolve(undefined),
   });
+  /**
+   * Current user info
+   */
   private readonly me = this.store.selectSignal(selectMe);
-  private readonly micMuted = this.voiceRoomService.microphoneMuted;
+  /**
+   * Microphone muted flag
+   */
+  protected readonly microphoneMuted = this.voiceRoomService.microphoneMuted;
+  /**
+   * Peer is current user flag
+   */
   private readonly isMe = computed(() => {
     const me = this.me();
     const peer = this.peer();
     return me && peer && me.id == peer.id;
   });
-  private readonly myAnalyserNode = resource({
-    params: () => ({ isMe: this.isMe(), micMuted: this.micMuted() }),
-    loader: (params) =>
-      params.params.isMe && !params.params.micMuted
-        ? this.microphoneService.getAnalyser()
-        : Promise.resolve(null),
-  });
-  private readonly peerAnalyserNode = computed(() => {
+  /**
+   * Managed peer from service
+   */
+  private readonly managedPeer = computed(() => {
     const peer = this.peer();
-    const peers = this.voiceRoomService.peers();
-    return peers[peer.id].analyserNode || null;
+    const peers = this.voiceRoomService.peersDict();
+    return peers[peer.id] ?? null;
   });
-  private analyserNode = computed(() => {
-    const myAnalyserNode = this.myAnalyserNode.value();
+  /**
+   * Other peer analyzer node
+   */
+  private readonly peerAnalyserNode = computed(() => {
+    const managedPeer = this.managedPeer();
+    return managedPeer?.analyserNode ?? null;
+  });
+  /**
+   * Defined analyzer node (self or others)
+   */
+  private readonly analyserNode = computed(() => {
+    const isMe = this.isMe();
+    const myAnalyserNode = this.microphoneService.analyserNode();
     const peerAnalyserNode = this.peerAnalyserNode();
-    return myAnalyserNode || peerAnalyserNode;
+    return isMe ? myAnalyserNode : peerAnalyserNode;
   });
 
   constructor() {
+    // Update audio level interval
     let intervalRef: any = null;
     effect(() => {
       const an = this.analyserNode();
