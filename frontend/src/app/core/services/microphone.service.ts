@@ -1,44 +1,52 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { SpeexWorkletNode, loadSpeex } from '@sapphi-red/web-noise-suppressor';
 import speexWorkletUrl from '@sapphi-red/web-noise-suppressor/speexWorklet.js?url';
 import speexWasmUrl from '@sapphi-red/web-noise-suppressor/speex.wasm?url';
 import { getStream } from '@shared/functions/get-stream.function';
+import { Mutex } from 'async-mutex';
+import { Mutexed } from '@app/shared/decorators/mutex.decorator';
+
+const publicMethodsMutex = new Mutex();
 
 @Injectable({ providedIn: 'root' })
-export class MicrophoneService implements OnDestroy {
+export class MicrophoneService {
   private context: AudioContext | null = null;
 
   private inputStream: MediaStream | null = null;
-  private processedStream: MediaStream | null = null;
 
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private gainNode: GainNode | null = null;
   private biquadNode: BiquadFilterNode | null = null;
   private speexNode: SpeexWorkletNode | null = null;
-  private analyserNode: AnalyserNode | null = null;
+  private readonly _analyserNode = signal<AnalyserNode | null>(null);
+  /**
+   * Microphone analyser node
+   */
+  public readonly analyserNode = this._analyserNode.asReadonly();
   private destinationNode: MediaStreamAudioDestinationNode | null = null;
 
   private speexWasmBinary: ArrayBuffer | null = null;
-  private workletLoaded = false;
+  private workletLoaded: Promise<void> | null = null;
 
   private device: MediaDeviceInfo | null = null;
   private gain: number = 1;
 
-  private readonly onTrackEnded = async () => {
-    await this.ensureStream(this.device);
-  };
-
-  private readonly onDeviceChange = async () => {
-    await this.ensureStream(this.device);
-  };
+  private readonly _processedStream = signal<MediaStream | null>(null);
+  public readonly processedStream = this._processedStream.asReadonly();
 
   constructor() {
-    navigator.mediaDevices.addEventListener(
-      'devicechange',
-      this.onDeviceChange,
+    navigator.mediaDevices.addEventListener('devicechange', () =>
+      this.setDevice(this.device),
     );
+
+    window.addEventListener('click', async () => {
+      if (this.context?.state === 'suspended') {
+        await this.context.resume();
+      }
+    });
   }
 
+  @Mutexed()
   private async ensureContext() {
     if (!this.context || this.context.state === 'closed') {
       this.context = new AudioContext({ sampleRate: 48000 });
@@ -49,6 +57,7 @@ export class MicrophoneService implements OnDestroy {
     }
   }
 
+  @Mutexed()
   private async ensureWasm() {
     if (!this.speexWasmBinary) {
       this.speexWasmBinary = await loadSpeex({ url: speexWasmUrl });
@@ -57,32 +66,46 @@ export class MicrophoneService implements OnDestroy {
 
   private async ensureWorklet() {
     if (!this.context) {
+      console.warn('ensureWorklet(): missing context');
       return;
     }
     if (!this.workletLoaded) {
-      await this.context.audioWorklet.addModule(speexWorkletUrl);
-      this.workletLoaded = true;
+      this.workletLoaded = this.context.audioWorklet.addModule(speexWorkletUrl);
     }
+    await this.workletLoaded;
   }
 
-  private async ensureStream(device: MediaDeviceInfo | null) {
-    this.stopInputStream();
-
-    this.inputStream = await getStream(device);
-
-    const track = this.inputStream.getAudioTracks()[0];
-
-    track.onended = () => {
-      this.onTrackEnded();
-    };
-  }
-
-  private async ensureNodes() {
-    if (!this.context || !this.inputStream) {
+  /**
+   * Ensure input stream ready
+   * @param device
+   * @returns
+   */
+  @Mutexed()
+  private async ensureInputStream(device: MediaDeviceInfo | null) {
+    let track = this.inputStream?.getAudioTracks()?.[0];
+    if (track && track.readyState === 'live') {
       return;
     }
 
-    this.cleanupNodes();
+    this.inputStream = await getStream(device);
+  }
+
+  /**
+   * Ensure audio context nodes ready
+   * @returns
+   */
+  @Mutexed()
+  private async ensurePipeline() {
+    this.cleanupPipeline();
+
+    if (!this.context) {
+      console.warn('ensureNodes(): context is not ready');
+      return;
+    }
+    if (!this.inputStream) {
+      console.warn('ensureNodes(): inputStream is not ready');
+      return;
+    }
 
     this.sourceNode = this.context.createMediaStreamSource(this.inputStream);
 
@@ -99,52 +122,67 @@ export class MicrophoneService implements OnDestroy {
       maxChannels: 1,
     });
 
-    this.analyserNode = this.context.createAnalyser();
-    this.analyserNode.fftSize = 512;
-    this.analyserNode.smoothingTimeConstant = 0.1;
+    const analyserNode = this.context.createAnalyser();
+    analyserNode.fftSize = 512;
+    analyserNode.smoothingTimeConstant = 0.1;
 
     this.destinationNode = this.context.createMediaStreamDestination();
 
     this.sourceNode.connect(this.gainNode);
     this.gainNode.connect(this.biquadNode);
     this.biquadNode.connect(this.speexNode);
-    this.speexNode.connect(this.analyserNode);
+    this.speexNode.connect(analyserNode);
     this.speexNode.connect(this.destinationNode);
 
-    this.processedStream = this.destinationNode.stream;
+    this._analyserNode.set(analyserNode);
+    this._processedStream.set(this.destinationNode.stream);
   }
 
-  private cleanupNodes() {
+  private cleanupInputStream() {
+    this.inputStream?.getTracks().forEach((t) => t.stop());
+    this.inputStream = null;
+  }
+
+  private cleanupPipeline() {
     try {
       this.sourceNode?.disconnect();
       this.gainNode?.disconnect();
       this.biquadNode?.disconnect();
       this.speexNode?.disconnect();
       this.destinationNode?.disconnect();
-    } catch {}
-
-    this.sourceNode = null;
-    this.gainNode = null;
-    this.biquadNode = null;
-    this.speexNode = null;
-    this.destinationNode = null;
-    this.processedStream = null;
-  }
-
-  private stopInputStream() {
-    this.inputStream?.getTracks().forEach((t) => t.stop());
-    this.inputStream = null;
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.sourceNode = null;
+      this.gainNode = null;
+      this.biquadNode = null;
+      this.speexNode = null;
+      this.destinationNode = null;
+      this.processedStream()
+        ?.getTracks()
+        .forEach((t) => t.stop());
+      this._processedStream.set(null);
+    }
   }
 
   /**
    * Set input device (microphone)
+   *
+   * If pipeline active, recreate it
    * @param device
    */
+  @Mutexed(publicMethodsMutex)
   public async setDevice(device: MediaDeviceInfo | null) {
     this.device = device;
-    if (this.context) {
-      await this.ensureStream(device);
-      await this.ensureNodes();
+
+    const recreate = !!this.processedStream();
+
+    this.cleanupPipeline();
+    this.cleanupInputStream();
+
+    if (recreate) {
+      await this.ensureInputStream(device);
+      await this.ensurePipeline();
     }
   }
 
@@ -163,37 +201,25 @@ export class MicrophoneService implements OnDestroy {
    * Get stream processed with the audio context
    * @returns
    */
+  @Mutexed(publicMethodsMutex)
   public async getStream(): Promise<MediaStream> {
-    if (this.processedStream) {
-      return this.processedStream;
+    const processedStream = this.processedStream();
+    if (processedStream) {
+      const track = processedStream.getAudioTracks()[0];
+      if (track && track.readyState === 'live') {
+        return processedStream;
+      }
+
+      console.warn('Processed stream dead, recreating...');
+      this.cleanupPipeline();
+      this.cleanupInputStream();
     }
+
     await this.ensureContext();
     await this.ensureWasm();
     await this.ensureWorklet();
-    await this.ensureStream(this.device);
-    await this.ensureNodes();
-    return this.processedStream as any;
-  }
-
-  public async getAnalyser(): Promise<AnalyserNode> {
-    await this.ensureContext();
-    await this.ensureWasm();
-    await this.ensureWorklet();
-    await this.ensureStream(this.device);
-    await this.ensureNodes();
-    return this.analyserNode as AnalyserNode;
-  }
-
-  ngOnDestroy() {
-    navigator.mediaDevices.removeEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
-    this.cleanupNodes();
-    this.stopInputStream();
-    if (this.context && this.context.state !== 'closed') {
-      this.context.close();
-    }
-    this.context = null;
+    await this.ensureInputStream(this.device);
+    await this.ensurePipeline();
+    return this.processedStream() as MediaStream;
   }
 }

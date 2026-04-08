@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { MediasoupService } from './mediasoup.service';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { UserCommon } from '@common/user';
 import { VoiceRoomCommon } from '@common/voice-room';
 import {
@@ -7,7 +6,9 @@ import {
   Producer,
   Router as MediasoupRouter,
   WebRtcTransport,
+  Worker as MediasoupWorker,
 } from 'mediasoup/types';
+import { createWorker } from 'mediasoup';
 
 type VoiceRoomState = {
   /**
@@ -46,22 +47,38 @@ export type VoiceRoomStateMediasoupAppData = {
 };
 
 @Injectable()
-export class VoiceRoomsStateService {
+export class VoiceRoomsStateService implements OnModuleInit {
+  private worker: MediasoupWorker;
   private readonly rooms = new Map<number, VoiceRoomState>();
 
-  constructor(private readonly mediasoupService: MediasoupService) {}
+  async onModuleInit() {
+    this.worker = await createWorker({
+      rtcMinPort: 40000,
+      rtcMaxPort: 49999,
+    });
+    console.info('Mediasoup worker started');
+  }
 
   public async ensureRoom(roomId: number): Promise<VoiceRoomState> {
-    if (this.rooms.has(roomId)) {
-      return this.rooms.get(roomId)!;
+    let room = this.rooms.get(roomId);
+    if (!room || room.router.closed) {
+      room = {
+        id: roomId,
+        router: await this.worker.createRouter({
+          mediaCodecs: [
+            {
+              kind: 'audio',
+              mimeType: 'audio/opus',
+              clockRate: 48000,
+              channels: 2,
+            },
+          ],
+        }),
+        peers: new Map(),
+        producers: new Map(),
+      };
+      this.rooms.set(roomId, room);
     }
-    const room = {
-      id: roomId,
-      router: await this.mediasoupService.ensureRouter(roomId),
-      peers: new Map(),
-      producers: new Map(),
-    };
-    this.rooms.set(roomId, room);
     return room;
   }
 
@@ -77,25 +94,42 @@ export class VoiceRoomsStateService {
     }
   }
 
-  public getRoomWithPeers(roomId: number): VoiceRoomCommon.IRoomWithUsers {
-    const room = this.rooms.get(roomId)!;
-    return {
-      roomId,
-      users: Array.from(room.peers.values()).map((p) => ({
-        ...p.user,
-        producers: Array.from(p.producers.values()).map((p) => ({
-          producerId: p.id,
-          peerId: p.id,
-          kind: p.kind,
-          mediaTag: p.appData.mediaTag,
-        })),
-      })),
-    };
+  public getPeersOnJoin(roomId: number): VoiceRoomCommon.IPeersOnJoin {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      return {};
+    }
+    return Array.from(room.peers.values()).reduce(
+      (prev, curr) => ({
+        ...prev,
+        [curr.user.id]: {
+          ...curr.user,
+          producers: Array.from(curr.producers.values()).map((p) => ({
+            userId: curr.user.id,
+            producerId: p.id,
+            peerId: p.id,
+            kind: p.kind,
+            mediaTag: p.appData.mediaTag,
+          })),
+        } satisfies VoiceRoomCommon.IUserWithProducers,
+      }),
+      {},
+    );
   }
 
-  public getRoomsWithUsers(): VoiceRoomCommon.IRoomWithUsers[] {
-    return Array.from(this.rooms.keys()).map((roomId) =>
-      this.getRoomWithPeers(roomId),
-    );
+  public getAllPeers(): VoiceRoomCommon.IGetAllPeersResult {
+    const result: VoiceRoomCommon.IGetAllPeersResult = {};
+    for (const [roomId, room] of this.rooms) {
+      result[roomId] = Array.from(room.peers.values()).reduce(
+        (prev, curr) => ({
+          ...prev,
+          [curr.user.id]: {
+            ...curr.user,
+          },
+        }),
+        {},
+      );
+    }
+    return result;
   }
 }

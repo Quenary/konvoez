@@ -60,7 +60,7 @@
           </p-button>
 
           <section class="group-children-item-peers">
-            @for (peer of item.peers; track peer.id) {
+            @for (peer of item.users; track peer.id) {
               <app-room-peer [peer]="peer"></app-room-peer>
             }
           </section>

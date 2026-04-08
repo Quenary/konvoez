@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
@@ -7,20 +7,30 @@ import { EStorageKey } from '@app/app.enums';
 import { Device } from 'mediasoup-client';
 import { Consumer, Producer, Transport } from 'mediasoup-client/types';
 import { UserCommon } from '@common/user';
+import { Mutexed } from '@app/shared/decorators/mutex.decorator';
+import { createEntityAdapter } from '@ngrx/entity';
+import { patchState, signalState } from '@ngrx/signals';
+import { interval } from 'rxjs';
 
 interface IManagedPeer extends UserCommon.IUser {
-  consumers: {
-    producerId: string;
-    consumer: Consumer;
-  }[];
+  consumers: Consumer[];
   sourceNode: MediaStreamAudioSourceNode | null;
   gainNode: GainNode | null;
   analyserNode: AnalyserNode | null;
   _audioEl: HTMLAudioElement | null;
 }
 
+const peersStateAdapter = createEntityAdapter<IManagedPeer>({
+  selectId: (item) => item.id,
+});
+const peersStateSelectors = peersStateAdapter.getSelectors();
+const peersInitialState = peersStateAdapter.getInitialState();
+
 /**
- * Helper service for active voice room
+ * Active voice room service
+ * - preserves state
+ * - listen events
+ * - manages input/output streams
  */
 @Injectable({
   providedIn: 'root',
@@ -30,26 +40,73 @@ export class VoiceRoomService {
   private readonly microphoneService = inject(MicrophoneService);
   private readonly speakerService = inject(SpeakerService);
 
+  //#region Mediasoup
   private readonly device = new Device();
+
   private sendTransport: Transport | null = null;
+
   private recvTransport: Transport | null = null;
+
   private microphoneProducer: Producer | null = null;
 
-  private readonly _microphoneMuted = signal<boolean>(false);
-  public readonly microphoneMuted = this._microphoneMuted.asReadonly();
-  private readonly _soundMuted = signal<boolean>(false);
-  public readonly soundMuted = this._soundMuted.asReadonly();
+  /**
+   * Set of producer ids being consumed at the moment.
+   */
+  private readonly consuming = new Set<string>();
+  //#endregion
 
   /**
-   * Map user id to data
+   * Selected voice room id
    */
-  private readonly _peers = signal<
-    Readonly<Record<number, Readonly<IManagedPeer>>>
+  private readonly _selectedRoomId = signal<number | null>(null);
+  /**
+   * Selected voice room id
+   */
+  public readonly selectedRoomId = this._selectedRoomId.asReadonly();
+  /**
+   * All voice rooms state
+   */
+  private readonly _roomsState = signal<
+    Readonly<VoiceRoomCommon.IGetAllPeersResult>
   >({});
-  /***
-   * Map user id to data
+  /**
+   * All voice rooms state
    */
-  public readonly peers = this._peers.asReadonly();
+  public readonly roomsState = this._roomsState.asReadonly();
+  /**
+   * Microphone muted
+   */
+  private readonly _microphoneMuted = signal<boolean>(false);
+  /**
+   * Microphone muted
+   */
+  public readonly microphoneMuted = this._microphoneMuted.asReadonly();
+  /**
+   * Sound output muted
+   */
+  private readonly _soundMuted = signal<boolean>(false);
+  /**
+   * Sound output muted
+   */
+  public readonly soundMuted = this._soundMuted.asReadonly();
+  /***
+   * Active peers state
+   */
+  private readonly peersState = signalState(peersInitialState);
+  /**
+   * Active peers state (dict, userId: info)
+   */
+  public readonly peersDict = computed(() => {
+    const peersState = this.peersState();
+    return peersStateSelectors.selectEntities(peersState);
+  });
+  /**
+   * Active peers state (list)
+   */
+  public readonly peersList = computed(() => {
+    const peersState = this.peersState();
+    return peersStateSelectors.selectAll(peersState);
+  });
   /**
    * Map user id to gain level
    */
@@ -61,68 +118,185 @@ export class VoiceRoomService {
    */
   public readonly peerGainLevels = this._peerGainLevels.asReadonly();
 
-  /**
-   * Initialize active room service
-   *
-   * Call it after authorization
-   */
-  async init() {
-    await this.updateRtpCapabilities();
+  protected pendingConsumes: VoiceRoomCommon.IProduceResult[] = [];
 
-    console.log('Can produce video', this.device.canProduce('video'));
-    console.log('Can produce audio', this.device.canProduce('audio'));
+  constructor() {
+    // Reconnect to room
+    this.socket.on('connect', () => {
+      this.cleanupMediasoup();
+      const roomId = this.selectedRoomId();
+      if (roomId) {
+        this.joinRoom(roomId);
+      }
+    });
+
+    interval(5000).subscribe(async () => {
+      if (this.socket.connected) {
+        await this.updateRoomsState();
+      }
+    });
+  }
+
+  public async joinRoom(roomId: number) {
+    if (this.selectedRoomId()) {
+      await this.leaveRoom();
+    }
+
+    this._selectedRoomId.set(roomId);
+
+    this.addSocketListeners();
+
+    await this.socket.emitWithAck(VoiceRoomCommon.EEvent.JOIN_ROOM, {
+      roomId,
+    } satisfies VoiceRoomCommon.IJoinRoom);
+
+    await this.updateRoomsState();
+
+    await this.ensureDeviceLoaded();
+    await this.ensureSendTransport();
+    await this.ensureRecvTransport();
+  }
+
+  public async leaveRoom() {
+    this._selectedRoomId.set(null);
+    this.removeSocketListeners();
+    await this.socket.emitWithAck(VoiceRoomCommon.EEvent.LEAVE_ROOM);
+    this.cleanupAllPeers();
+    this.cleanupMediasoup();
+    await this.updateRoomsState();
+  }
+
+  @Mutexed()
+  public async setAudioInput(device: MediaDeviceInfo | null) {
+    await this.microphoneService.setDevice(device);
+
+    if (this.sendTransport) {
+      await this.produceMicrophone();
+    }
+  }
+
+  @Mutexed()
+  public async setAudioOutput(device: MediaDeviceInfo | null) {
+    await this.speakerService.setDevice(device);
+  }
+
+  @Mutexed()
+  public async setMicrophoneMuted(value: boolean) {
+    this._microphoneMuted.set(value);
+    const track = this.microphoneProducer?.track;
+    if (track) {
+      track.enabled = !value;
+    }
+  }
+
+  public setSoundMuted(value: boolean): void {
+    this._soundMuted.set(value);
+    for (const p of this.peersList()) {
+      if (p.gainNode) {
+        const gain = value ? 0 : (this.peerGainLevels()[p.id] ?? 1);
+        p.gainNode.gain.value = gain;
+      }
+    }
+  }
+
+  public setPeerGain(userId: number, gain: number): void {
+    this._peerGainLevels.update((levels) => ({
+      ...levels,
+      [userId]: gain,
+    }));
+    const peer = this.peersDict()[userId];
+    if (peer && peer.gainNode && !this.soundMuted) {
+      peer.gainNode.gain.value = gain;
+    }
+  }
+
+  private async updateRoomsState() {
+    try {
+      const roomsState: VoiceRoomCommon.IGetAllPeersResult =
+        await this.socket.emitWithAck(VoiceRoomCommon.EEvent.GET_ALL_PEERS);
+      this._roomsState.set(roomsState);
+    } catch (error) {
+      console.error('Failed to update all rooms state', error);
+    }
+  }
+
+  private addSocketListeners(): void {
+    this.removeSocketListeners();
 
     // Существующие пиры при подключении
-    this.socket.on(
-      VoiceRoomCommon.EEvent.EXISTING_PEERS_ON_JOIN,
-      async (data) => {
-        this._peers.set(
-          Object.fromEntries(
-            data.users.map((u) => [
-              u.id,
-              {
-                ...u,
-                sourceNode: null,
-                gainNode: null,
-                analyserNode: null,
-                _audioEl: null,
-                consumers: [],
-              },
-            ]),
-          ),
-        );
+    this.socket.on(VoiceRoomCommon.EEvent.PEERS_ON_JOIN, async (data) => {
+      patchState(
+        this.peersState,
+        peersStateAdapter.setAll(
+          Object.values(data).map((u) => ({
+            ...u,
+            sourceNode: null,
+            gainNode: null,
+            analyserNode: null,
+            _audioEl: null,
+            consumers: [],
+          })),
+          this.peersState(),
+        ),
+      );
 
-        for (const u of data.users) {
-          for (const p of u.producers) {
-            await this.consume(p);
-          }
-        }
-      },
-    );
+      const consumes = Object.values(data)
+        .flatMap((u) => u.producers)
+        .map((p) => this.consume(p));
+      await Promise.all(consumes);
+
+      await this.consumePending();
+    });
 
     // Подключение нового пира
-    this.socket.on(VoiceRoomCommon.EEvent.PEER_JOINED, (data) => {
-      this._peers.update((peers) => ({
-        ...peers,
-        [data.user.id]: {
-          ...data.user,
-          sourceNode: null,
-          gainNode: null,
-          analyserNode: null,
-          _audioEl: null,
-          consumers: [],
+    this.socket.on(VoiceRoomCommon.EEvent.PEER_JOINED, async (data) => {
+      patchState(
+        this.peersState,
+        peersStateAdapter.upsertOne(
+          {
+            ...data.user,
+            sourceNode: null,
+            gainNode: null,
+            analyserNode: null,
+            _audioEl: null,
+            consumers: [],
+          },
+          this.peersState(),
+        ),
+      );
+
+      this._roomsState.update((rooms) => ({
+        ...rooms,
+        [data.roomId]: {
+          ...rooms[data.roomId],
+          [data.user.id]: data.user,
         },
       }));
+
+      await this.consumePending();
     });
 
     // Отключение пира
     this.socket.on(VoiceRoomCommon.EEvent.PEER_LEFT, (data) => {
-      const peer = this.peers()[data.user.id];
+      const peer = this.peersDict()[data.user.id];
       if (peer) {
         this.cleanupPeer(peer);
-        this._peers.update((peers) => {
-          const { [peer.id]: _, ...rest } = peers;
-          return rest;
+      }
+
+      patchState(
+        this.peersState,
+        peersStateAdapter.removeOne(data.user.id, this.peersState()),
+      );
+
+      const statePeer = this.roomsState()[data.roomId]?.[data.user.id];
+      if (statePeer) {
+        this._roomsState.update((rooms) => {
+          const room = rooms[data.roomId] || {};
+          const { [data.user.id]: _, ...rest } = room;
+          return {
+            ...rooms,
+            [data.roomId]: rest,
+          };
         });
       }
     });
@@ -132,8 +306,9 @@ export class VoiceRoomService {
       await this.consume(data);
     });
 
+    // Удаление продюсера
     this.socket.on(VoiceRoomCommon.EEvent.PRODUCER_CLOSED, (data) => {
-      const peer = this._peers()[data.userId];
+      const peer = this.peersDict()[data.userId];
       if (!peer) return;
 
       const consumer = peer.consumers.find(
@@ -141,134 +316,90 @@ export class VoiceRoomService {
       );
       if (!consumer) return;
 
-      consumer.consumer.close();
+      consumer.close();
 
-      this._peers.update((peers) => ({
-        ...peers,
-        [peer.id]: {
-          ...peer,
-          consumers: peer.consumers.filter(
-            (c) => c.producerId !== data.producerId,
-          ),
-        },
-      }));
+      patchState(
+        this.peersState,
+        peersStateAdapter.mapOne(
+          {
+            id: peer.id,
+            map: (item) => ({
+              ...item,
+              consumers: item.consumers.filter(
+                (c) => c.producerId !== data.producerId,
+              ),
+            }),
+          },
+          this.peersState(),
+        ),
+      );
     });
   }
 
-  public async joinRoom(roomId: number) {
-    this.cleanupAllPeers();
-    await this.socket.emitWithAck(VoiceRoomCommon.EEvent.JOIN_ROOM, {
-      roomId,
-    } satisfies VoiceRoomCommon.IJoinRoom);
+  private removeSocketListeners(): void {
+    this.socket.off(VoiceRoomCommon.EEvent.PEERS_ON_JOIN);
+    this.socket.off(VoiceRoomCommon.EEvent.PEER_JOINED);
+    this.socket.off(VoiceRoomCommon.EEvent.PEER_LEFT);
+    this.socket.off(VoiceRoomCommon.EEvent.PRODUCER_CREATED);
+    this.socket.off(VoiceRoomCommon.EEvent.PRODUCER_CLOSED);
   }
 
-  public async leaveRoom() {
-    await this.socket.emitWithAck(VoiceRoomCommon.EEvent.LEAVE_ROOM);
-    this.cleanupAllPeers();
+  private cleanupMediasoup(): void {
+    this.sendTransport?.close();
+    this.recvTransport?.close();
+    this.microphoneProducer?.close();
+
+    this.sendTransport = null;
+    this.recvTransport = null;
+    this.microphoneProducer = null;
   }
 
-  protected cleanupAllPeers(): void {
-    const peers = this.peers();
-    for (const p of Object.values(peers)) {
+  private cleanupAllPeers(): void {
+    for (const p of this.peersList()) {
       this.cleanupPeer(p);
     }
-    this._peers.set({});
+    patchState(this.peersState, peersInitialState);
   }
 
-  protected cleanupPeer(peer: IManagedPeer): void {
-    peer.sourceNode?.disconnect?.();
-    peer.gainNode?.disconnect?.();
-    peer.analyserNode?.disconnect?.();
-    peer._audioEl?.remove();
-    peer.consumers.forEach((c) => {
-      c.consumer.close();
-    });
+  private cleanupPeer(peer: IManagedPeer): void {
+    try {
+      peer.sourceNode?.disconnect?.();
+      peer.gainNode?.disconnect?.();
+      peer.analyserNode?.disconnect?.();
+      peer._audioEl?.remove();
+      peer.consumers.forEach((c) => {
+        c.close();
+      });
+    } catch (error) {
+      console.error('Error cleaning up peer', peer, error);
+    }
   }
 
-  async updateRtpCapabilities() {
-    const routerRtpCapabilities = await this.socket.emitWithAck(
-      VoiceRoomCommon.EEvent.GET_RTP_CAPABILITIES,
-    );
-    this.device.load({ routerRtpCapabilities });
-  }
-
-  async consume(data: VoiceRoomCommon.IProduceResult) {
-    await this.ensureRecvTransport();
-
-    const peer = this.peers()[data.userId];
-
-    if (!peer) {
-      console.warn('Peer not found for consume', data);
+  @Mutexed()
+  private async ensureDeviceLoaded() {
+    if (this.device.loaded) {
       return;
     }
-
-    if (peer.consumers.some((c) => c.producerId === data.producerId)) {
-      return;
+    try {
+      const routerRtpCapabilities = await this.socket.emitWithAck(
+        VoiceRoomCommon.EEvent.GET_RTP_CAPABILITIES,
+      );
+      await this.device.load({ routerRtpCapabilities });
+      console.log('Can produce video', this.device.canProduce('video'));
+      console.log('Can produce audio', this.device.canProduce('audio'));
+    } catch (error) {
+      console.error('Error loading device', error);
     }
-
-    const result: VoiceRoomCommon.IConsumeResult =
-      await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CONSUME, {
-        producerId: data.producerId,
-        rtpCapabilities: this.device.recvRtpCapabilities,
-        transportId: this.recvTransport!.id,
-      } satisfies VoiceRoomCommon.IConsume);
-
-    const consumer = await this.recvTransport!.consume(result);
-
-    const stream = new MediaStream([consumer.track]);
-
-    const peerGainLevels = this._peerGainLevels();
-    const gain = peerGainLevels[peer.id] ?? 1;
-
-    // Chrome workaround
-    // https://issues.chromium.org/issues/40094084
-    const _audioEl = new Audio();
-    _audioEl.srcObject = stream;
-    _audioEl.autoplay = false;
-    _audioEl.muted = true;
-
-    consumer.on('trackended', () => {
-      _audioEl.srcObject = null;
-      _audioEl.remove();
-    });
-
-    const context = await this.speakerService.getContext();
-
-    const sourceNode = context.createMediaStreamSource(stream);
-    const gainNode = context.createGain();
-    gainNode.gain.value = this.soundMuted() ? 0 : gain;
-    const analyserNode = context.createAnalyser();
-    analyserNode.fftSize = 128;
-
-    sourceNode.connect(gainNode);
-    sourceNode.connect(analyserNode);
-    gainNode.connect(context.destination);
-
-    this._peers.update((peers) => ({
-      ...peers,
-      [peer.id]: {
-        ...peer,
-        sourceNode,
-        gainNode,
-        analyserNode,
-        _audioEl,
-        consumers: [
-          ...peer.consumers,
-          {
-            producerId: data.producerId,
-            consumer,
-          },
-        ],
-      },
-    }));
-
-    consumer.resume();
   }
 
-  protected async ensureSendTransport() {
+  @Mutexed()
+  private async ensureSendTransport() {
     if (this.sendTransport) {
       return;
     }
+
+    await this.ensureDeviceLoaded();
+
     const result: VoiceRoomCommon.ICreateTransportResult =
       await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CREATE_TRANSPORT, {
         direction: 'send',
@@ -281,13 +412,14 @@ export class VoiceRoomService {
       'connect',
       async ({ dtlsParameters }, callback, errback) => {
         try {
-          await this.socket.emitWithAck(
+          const res = await this.socket.emitWithAck(
             VoiceRoomCommon.EEvent.CONNECT_TRANSPORT,
             {
               transportId: this.sendTransport!.id,
               dtlsParameters,
             } satisfies VoiceRoomCommon.IConnectTransport,
           );
+          console.log('connect success', res);
           callback();
         } catch (err) {
           errback(err as Error);
@@ -298,6 +430,7 @@ export class VoiceRoomService {
     this.sendTransport.on(
       'produce',
       async ({ kind, rtpParameters, appData }, callback, errback) => {
+        console.log('pruduce', kind, rtpParameters, appData);
         try {
           const res: VoiceRoomCommon.IProduceResult =
             await this.socket.emitWithAck(VoiceRoomCommon.EEvent.PRODUCE, {
@@ -312,12 +445,43 @@ export class VoiceRoomService {
         }
       },
     );
+
+    this.sendTransport.on('connectionstatechange', (state) => {
+      console.log('Send transport state change', state);
+      if (state === 'failed') {
+        this.sendTransport = null;
+      }
+    });
+
+    await this.produceMicrophone();
   }
 
-  protected async ensureRecvTransport() {
+  private async produceMicrophone() {
+    try {
+      const stream = await this.microphoneService.getStream();
+      stream.getTracks().forEach((t) => {
+        console.log(t);
+        console.log(JSON.stringify(t, null, 2));
+      });
+      const track = stream.getTracks()[0];
+      track.enabled = !this.microphoneMuted();
+      this.microphoneProducer = await this.sendTransport!.produce({
+        track,
+        appData: { mediaTag: 'mic' },
+      });
+    } catch (error) {
+      console.error('Failed to produce microphone\n', error);
+    }
+  }
+
+  @Mutexed()
+  private async ensureRecvTransport() {
     if (this.recvTransport) {
       return;
     }
+
+    await this.ensureDeviceLoaded();
+
     const result: VoiceRoomCommon.ICreateTransportResult =
       await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CREATE_TRANSPORT, {
         direction: 'recv',
@@ -343,73 +507,109 @@ export class VoiceRoomService {
         }
       },
     );
-  }
 
-  public async setAudioInput(device: MediaDeviceInfo | null) {
-    if (this.microphoneProducer) {
-      this.microphoneProducer.close();
-    }
-    await this.microphoneService.setDevice(device);
-    const stream = await this.microphoneService.getStream();
-    this.microphoneProducer = await this.sendTransport!.produce({
-      track: stream.getTracks()[0],
-      appData: { mediaTag: 'mic' },
+    this.recvTransport.on('connectionstatechange', (state) => {
+      console.log('Recv transport state change', state);
+      if (state === 'failed') {
+        this.recvTransport = null;
+      }
     });
   }
 
-  public async setAudioOutput(device: MediaDeviceInfo | null) {
-    await this.speakerService.setDevice(device);
+  @Mutexed()
+  private async consumePending() {
+    const pendingConsumes = [...this.pendingConsumes];
+    this.pendingConsumes = [];
+    const consumes = this.pendingConsumes.map((p) => this.consume(p));
+    await Promise.all(consumes);
   }
 
-  public async setMicrophoneMuted(value: boolean) {
-    this._microphoneMuted.set(value);
-    const track = this.microphoneProducer?.track;
-    if (track) {
-      track.enabled = !value;
+  private async consume(data: VoiceRoomCommon.IProduceResult) {
+    if (this.consuming.has(data.producerId)) {
+      console.warn('Producer already consuming\n', data);
+      return;
     }
-  }
+    this.consuming.add(data.producerId);
 
-  public setSoundMuted(value: boolean): void {
-    this._soundMuted.set(value);
-    for (const p of Object.values(this.peers())) {
-      if (p.gainNode) {
-        const gain = value ? 0 : (this.peerGainLevels()[p.id] ?? 1);
-        p.gainNode.gain.value = gain;
+    console.log('consume', data);
+
+    try {
+      await this.ensureRecvTransport();
+
+      const peer = this.peersDict()[data.userId];
+
+      if (!peer) {
+        console.warn(
+          'Peer not found while consuming\n',
+          data,
+          '\nAdded to pending consumes',
+        );
+        this.pendingConsumes.push(data);
+        return;
       }
+
+      const result: VoiceRoomCommon.IConsumeResult =
+        await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CONSUME, {
+          producerId: data.producerId,
+          rtpCapabilities: this.device.recvRtpCapabilities,
+          transportId: this.recvTransport!.id,
+        } satisfies VoiceRoomCommon.IConsume);
+
+      const consumer = await this.recvTransport!.consume(result);
+
+      const stream = new MediaStream([consumer.track]);
+
+      const peerGainLevels = this._peerGainLevels();
+      const gain = peerGainLevels[peer.id] ?? 1;
+
+      // Chrome workaround
+      // https://issues.chromium.org/issues/40094084
+      const _audioEl = new Audio();
+      _audioEl.srcObject = stream;
+      _audioEl.autoplay = false;
+      _audioEl.muted = true;
+
+      consumer.on('trackended', () => {
+        _audioEl.srcObject = null;
+        _audioEl.remove();
+        console.log('trackended');
+      });
+
+      const context = await this.speakerService.getContext();
+
+      const sourceNode = context.createMediaStreamSource(stream);
+      const gainNode = context.createGain();
+      gainNode.gain.value = this.soundMuted() ? 0 : gain;
+      const analyserNode = context.createAnalyser();
+      analyserNode.fftSize = 128;
+
+      sourceNode.connect(gainNode);
+      sourceNode.connect(analyserNode);
+      gainNode.connect(context.destination);
+
+      patchState(
+        this.peersState,
+        peersStateAdapter.mapOne(
+          {
+            id: peer.id,
+            map: (item) => ({
+              ...item,
+              sourceNode,
+              gainNode,
+              analyserNode,
+              _audioEl,
+              consumers: [...item.consumers, consumer],
+            }),
+          },
+          this.peersState(),
+        ),
+      );
+
+      consumer.resume();
+    } catch (error) {
+      console.error('Error while consuming', data, error);
+    } finally {
+      this.consuming.delete(data.producerId);
     }
   }
-
-  public setPeerGain(userId: number, gain: number): void {
-    this._peerGainLevels.update((levels) => ({
-      ...levels,
-      [userId]: gain,
-    }));
-    const peer = this.peers()[userId];
-    if (peer && peer.gainNode && !this.soundMuted) {
-      peer.gainNode.gain.value = gain;
-    }
-  }
-
-  // Проверяем, есть ли звук в потоке (создаем анализатор)
-  // const analyser = context.createAnalyser();
-  // analyser.fftSize = 128;
-  // sourceNode.connect(analyser); // Подключаем также к анализатору
-
-  // const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-  // // Функция для проверки уровня звука
-  // const checkAudioLevel = () => {
-  //   analyser.getByteFrequencyData(dataArray);
-  //   const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-  //   console.log('Audio level:', average);
-  //   if (average > 0) {
-  //     console.log('✅ Audio detected! Level:', average);
-  //   }
-  //   // Проверяем каждые 500мс пока есть звук
-  //   if (peer.sourceNode) {
-  //     setTimeout(checkAudioLevel, 500);
-  //   }
-  // };
-  // // Начинаем проверку через небольшую задержку
-  // setTimeout(checkAudioLevel, 1000);
 }

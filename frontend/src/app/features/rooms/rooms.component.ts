@@ -21,23 +21,20 @@ import { ERoomType } from '@common/enums';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
-import {
-  selectActiveVoiceRoomId,
-  selectVoiceRoomDict,
-} from '../voice-room/voice-room.selectors';
 import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
 import { VoiceRoomCommon } from '@common/voice-room';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { DividerModule } from 'primeng/divider';
 import { ConfirmationService, MenuItem } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { UserCommon } from '@common/user';
+import { VoiceRoomService } from '@app/core/services/voice-room.service';
 
 interface IRoomWithMenu extends IRoom {
   menu: MenuItem[];
 }
-
-interface IRoomWithPeers extends IRoomWithMenu {
-  peers: VoiceRoomCommon.IPeer[];
+interface IRoomWithUsers extends IRoomWithMenu {
+  users: UserCommon.IUser[];
 }
 
 @Component({
@@ -63,12 +60,11 @@ export class RoomsComponent implements OnInit {
   private readonly dialogService = inject(DialogService);
   private readonly translateService = inject(TranslateService);
   private readonly confirmationService = inject(ConfirmationService);
+  private readonly voiceRoomService = inject(VoiceRoomService);
 
   protected readonly selectedRoomId =
     this.store.selectSignal(selectSelectedRoomId);
-  protected readonly activeVoiceRoomId = this.store.selectSignal(
-    selectActiveVoiceRoomId,
-  );
+  protected readonly activeVoiceRoomId = this.voiceRoomService.selectedRoomId;
 
   private readonly _textRooms = this.store.selectSignal(selectTextRoomsList);
   protected readonly textRooms = computed<IRoomWithMenu[]>(() => {
@@ -89,14 +85,12 @@ export class RoomsComponent implements OnInit {
   });
 
   private readonly _voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
-  private readonly voiceRoomsState =
-    this.store.selectSignal(selectVoiceRoomDict);
-  protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
+  protected readonly voiceRooms = computed<IRoomWithUsers[]>(() => {
     const voiceRooms = this._voiceRooms();
-    const voiceRoomsState = this.voiceRoomsState();
+    const voiceRoomsState = this.voiceRoomService.roomsState();
     return voiceRooms.map((item) => ({
       ...item,
-      peers: voiceRoomsState[item.id]?.peers ?? [],
+      users: Object.values(voiceRoomsState[item.id] ?? {}) ?? [],
       menu: [
         {
           label: this.translateService.instant('GENERAL.EDIT'),

@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { AuthActions } from './auth.actions';
-import { catchError, map, of, switchMap, tap } from 'rxjs';
+import { catchError, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { UserApiService } from '../user/user-api.service';
 import { Router } from '@angular/router';
@@ -9,9 +9,14 @@ import { AvatarsApiService } from '../avatars/avatars-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
+import { VoiceRoomSocketToken } from '@app/core/tokens/voice-room-socket.token';
+import { Store } from '@ngrx/store';
+import { selectIsAuthorized } from './auth.selectors';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Injectable()
 export class AuthEffects {
+  private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
   private readonly authApiService = inject(AuthApiService);
   private readonly userApiService = inject(UserApiService);
@@ -19,6 +24,25 @@ export class AuthEffects {
   private readonly avatarApiService = inject(AvatarsApiService);
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
+  private readonly socket = inject(VoiceRoomSocketToken);
+
+  constructor() {
+    this.store
+      .select(selectIsAuthorized)
+      .pipe(
+        takeUntilDestroyed(),
+        finalize(() => {
+          this.socket.disconnect();
+        }),
+      )
+      .subscribe((auth) => {
+        if (auth) {
+          this.socket.connect();
+        } else {
+          this.socket.disconnect();
+        }
+      });
+  }
 
   readonly init$ = createEffect(() =>
     this.actions$.pipe(

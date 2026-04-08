@@ -1,4 +1,8 @@
 import { Injectable, OnDestroy } from '@angular/core';
+import { Mutexed } from '@app/shared/decorators/mutex.decorator';
+import { Mutex } from 'async-mutex';
+
+const publlicMethodsMutex = new Mutex();
 
 @Injectable({
   providedIn: 'root',
@@ -13,6 +17,30 @@ export class SpeakerService implements OnDestroy {
 
   constructor() {
     navigator.mediaDevices.addEventListener(
+      'devicechange',
+      this.onDeviceChange,
+    );
+    window.addEventListener('click', async () => {
+      console.log(this.context, this.context?.state);
+      if (this.context?.state === 'suspended') {
+        await this.context.resume();
+      }
+    });
+  }
+
+  @Mutexed(publlicMethodsMutex)
+  public async setDevice(device: MediaDeviceInfo | null) {
+    this.device = device;
+    await this.setSinkId(this.device);
+  }
+
+  @Mutexed(publlicMethodsMutex)
+  public async getContext(): Promise<AudioContext> {
+    return await this.ensureContext();
+  }
+
+  ngOnDestroy(): void {
+    navigator.mediaDevices.removeEventListener(
       'devicechange',
       this.onDeviceChange,
     );
@@ -43,21 +71,5 @@ export class SpeakerService implements OnDestroy {
         await this.context.setSinkId('default');
       }
     }
-  }
-
-  public async setDevice(device: MediaDeviceInfo | null) {
-    this.device = device;
-    await this.setSinkId(this.device);
-  }
-
-  public async getContext(): Promise<AudioContext> {
-    return this.ensureContext();
-  }
-
-  ngOnDestroy(): void {
-    navigator.mediaDevices.removeEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
   }
 }

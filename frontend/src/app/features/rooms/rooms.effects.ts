@@ -7,11 +7,9 @@ import { RoomsApiService } from './rooms-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
-import { selectActiveVoiceRoomId } from '../voice-room/voice-room.selectors';
-import { VoiceRoomActions } from '../voice-room/voice-room.actions';
 import { ERoomType } from '@common/enums';
 import { Router } from '@angular/router';
-import { TextRoomActions } from '../text-room/text-room.actions';
+import { VoiceRoomService } from '@app/core/services/voice-room.service';
 
 @Injectable()
 export class RoomsEffects {
@@ -21,22 +19,21 @@ export class RoomsEffects {
   private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
   private readonly router = inject(Router);
+  private readonly voiceRoomService = inject(VoiceRoomService);
 
   readonly selectRoom$ = createEffect(
     () =>
       this.actions$.pipe(
         ofType(RoomsActions.selectRoom),
-        withLatestFrom(this.store.select(selectActiveVoiceRoomId)),
-        tap(([action, activeVoiceRoomId]) => {
+        tap((action) => {
+          const selectedVoiceRoomId = this.voiceRoomService.selectedRoomId();
           switch (action?.room?.type) {
             case ERoomType.VOICE: {
-              if (!!activeVoiceRoomId) {
-                this.store.dispatch(VoiceRoomActions.leave());
+              if (!!selectedVoiceRoomId) {
+                this.voiceRoomService.leaveRoom();
               }
-              if (action.room.id !== activeVoiceRoomId) {
-                this.store.dispatch(
-                  VoiceRoomActions.join({ id: action.room.id }),
-                );
+              if (action.room.id !== selectedVoiceRoomId) {
+                this.voiceRoomService.joinRoom(action.room.id);
               }
               this.router.navigate([`/voice-room/${action.room.id}`]);
               break;

@@ -29,17 +29,16 @@ export namespace VoiceRoomCommon {
      */
     PEER_LEFT = 'peer-left',
     /**
-     * Existing peers in all rooms changed event
-     * Emits all users in all rooms
-     * @data {@link IExistingPeers}
+     * Get existing peers of all rooms
+     * to sync frontend state
      */
-    EXISTING_PEERS_ALL = 'existing-peers-all',
+    GET_ALL_PEERS = 'get-all-peers',
     /**
      * Existing peers in current room event
      * Emits room's users to joined user
      * This event triggers initial signaling
      */
-    EXISTING_PEERS_ON_JOIN = 'existing-peers-on-join',
+    PEERS_ON_JOIN = 'peers-on-join',
     //#region MediaSoup
     GET_RTP_CAPABILITIES = 'get-rtp-capabilities',
     CREATE_TRANSPORT = 'create-transport',
@@ -57,8 +56,8 @@ export namespace VoiceRoomCommon {
     [EEvent.LEAVE_ROOM]: (data: {}) => any;
     [EEvent.PEER_JOINED]: (data: IPeerJoined) => any;
     [EEvent.PEER_LEFT]: (data: IPeerLeft) => any;
-    [EEvent.EXISTING_PEERS_ALL]: (data: IRoomWithUsers[]) => any;
-    [EEvent.EXISTING_PEERS_ON_JOIN]: (data: IRoomWithUsers) => any;
+    [EEvent.GET_ALL_PEERS]: () => IGetAllPeersResult;
+    [EEvent.PEERS_ON_JOIN]: (data: IPeersOnJoin) => any;
     [EEvent.GET_RTP_CAPABILITIES]: () => any;
     [EEvent.CREATE_TRANSPORT]: (
       data: ICreateTransport,
@@ -87,10 +86,17 @@ export namespace VoiceRoomCommon {
     user: UserCommon.IUser;
     roomId: number;
   }
-  export interface IRoomWithUsers {
-    roomId: number;
-    users: IUserWithProducers[];
-  }
+  /**
+   * Map room id to map of users
+   */
+  export type IGetAllPeersResult = Record<
+    number,
+    Record<number, UserCommon.IUser>
+  >;
+  /**
+   * Map user id to  info with producers
+   */
+  export type IPeersOnJoin = Record<number, IUserWithProducers>;
   export interface IUserWithProducers extends UserCommon.IUser {
     producers: IProduceResult[];
   }
