@@ -15,15 +15,15 @@
   <p-button
     icon="pi pi-microphone"
     iconPos="right"
-    [outlined]="!micMuted()"
-    [severity]="micMuted() ? 'danger' : 'primary'"
+    [outlined]="!microphoneMuted()"
+    [severity]="microphoneMuted() ? 'danger' : 'primary'"
     [label]="'GENERAL.MUTE' | translate"
-    (onClick)="toggleMicMuted()">
+    (onClick)="toggleMicrophoneMuted()">
   </p-button>
   <p-button
     icon="pi pi-headphones"
-    [outlined]="!soundMuted()"
-    [severity]="soundMuted() ? 'danger' : 'primary'"
-    (onClick)="toggleSoundMuted()">
+    [outlined]="!speakerMuted()"
+    [severity]="speakerMuted() ? 'danger' : 'primary'"
+    (onClick)="toggleSpeakerMuted()">
   </p-button>
 </p-button-group>

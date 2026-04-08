@@ -84,11 +84,11 @@ export class VoiceRoomService {
   /**
    * Sound output muted
    */
-  private readonly _soundMuted = signal<boolean>(false);
+  private readonly _speakerMuted = signal<boolean>(false);
   /**
    * Sound output muted
    */
-  public readonly soundMuted = this._soundMuted.asReadonly();
+  public readonly speakerMuted = this._speakerMuted.asReadonly();
   /***
    * Active peers state
    */
@@ -130,7 +130,7 @@ export class VoiceRoomService {
       }
     });
 
-    interval(5000).subscribe(async () => {
+    interval(10000).subscribe(async () => {
       if (this.socket.connected) {
         await this.updateRoomsState();
       }
@@ -189,8 +189,8 @@ export class VoiceRoomService {
     }
   }
 
-  public setSoundMuted(value: boolean): void {
-    this._soundMuted.set(value);
+  public setSpeakerMuted(value: boolean): void {
+    this._speakerMuted.set(value);
     for (const p of this.peersList()) {
       if (p.gainNode) {
         const gain = value ? 0 : (this.peerGainLevels()[p.id] ?? 1);
@@ -205,11 +205,14 @@ export class VoiceRoomService {
       [userId]: gain,
     }));
     const peer = this.peersDict()[userId];
-    if (peer && peer.gainNode && !this.soundMuted) {
+    if (peer && peer.gainNode && !this.speakerMuted) {
       peer.gainNode.gain.value = gain;
     }
   }
 
+  /**
+   * Update all rooms state from backend
+   */
   private async updateRoomsState() {
     try {
       const roomsState: VoiceRoomCommon.IGetAllPeersResult =
@@ -579,7 +582,7 @@ export class VoiceRoomService {
 
       const sourceNode = context.createMediaStreamSource(stream);
       const gainNode = context.createGain();
-      gainNode.gain.value = this.soundMuted() ? 0 : gain;
+      gainNode.gain.value = this.speakerMuted() ? 0 : gain;
       const analyserNode = context.createAnalyser();
       analyserNode.fftSize = 128;
 

@@ -33,8 +33,8 @@ export class VoiceRoomPanelComponent {
   private readonly rooms = this.store.selectSignal(selectRoomsDict);
   private readonly activeRoomId = this.voiceRoomService.selectedRoomId;
 
-  protected readonly micMuted = this.voiceRoomService.microphoneMuted;
-  protected readonly soundMuted = this.voiceRoomService.soundMuted;
+  protected readonly microphoneMuted = this.voiceRoomService.microphoneMuted;
+  protected readonly speakerMuted = this.voiceRoomService.speakerMuted;
   protected readonly room = computed(() => {
     const rooms = this.rooms();
     const activeRoomId = this.activeRoomId();
@@ -48,13 +48,13 @@ export class VoiceRoomPanelComponent {
     this.voiceRoomService.leaveRoom();
   }
 
-  protected toggleMicMuted(): void {
-    const micMuted = !this.micMuted();
+  protected toggleMicrophoneMuted(): void {
+    const micMuted = !this.microphoneMuted();
     this.voiceRoomService.setMicrophoneMuted(micMuted);
   }
 
-  protected toggleSoundMuted(): void {
-    const soundMuted = !this.soundMuted();
-    this.voiceRoomService.setSoundMuted(soundMuted);
+  protected toggleSpeakerMuted(): void {
+    const speakerMuted = !this.speakerMuted();
+    this.voiceRoomService.setSpeakerMuted(speakerMuted);
   }
 }
