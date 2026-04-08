@@ -139,7 +139,7 @@ export class MicrophoneService {
   }
 
   private cleanupInputStream() {
-    this.inputStream?.getTracks().forEach((t) => t.stop());
+    this.inputStream?.getAudioTracks().forEach((t) => t.stop());
     this.inputStream = null;
   }
 
@@ -159,7 +159,7 @@ export class MicrophoneService {
       this.speexNode = null;
       this.destinationNode = null;
       this.processedStream()
-        ?.getTracks()
+        ?.getAudioTracks()
         .forEach((t) => t.stop());
       this._processedStream.set(null);
     }
