@@ -1,7 +1,7 @@
 @if (peer(); as p) {
-  @if (avatarUrl.value(); as image) {
+  @if (avatarSignedUrl.hasValue()) {
     <p-avatar
-      [image]="avatarUrl.value()"
+      [image]="avatarSignedUrl.value()"
       shape="circle"
       [class.talking]="audioLevel() > 0">
     </p-avatar>
