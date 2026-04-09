@@ -2,7 +2,23 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "s3-dev",
+      "command": "npm run s3-dev",
+      "type": "shell",
+      "isBackground": true,
+      "problemMatcher": {
+        "base": "$tsc-watch",
+        "fileLocation": "relative",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": " ",
+          "endsPattern": "S3rver listening"
+        }
+      }
+    },
+    {
       "label": "backend",
+      "dependsOn": ["s3-dev"],
       "command": "cd backend && npm run start:dev",
       "type": "shell",
       "isBackground": true,
@@ -24,7 +40,7 @@
     },
     {
       "label": "Dev Runner",
-      "dependsOn": ["backend", "frontend"],
+      "dependsOn": ["s3-dev", "backend", "frontend"],
       "runOptions": { "runOn": "default" },
       "dependsOrder": "sequence",
       "group": {

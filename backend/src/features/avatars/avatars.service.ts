@@ -54,31 +54,29 @@ export class AvatarsService {
 
   private async ensureBucketExists() {
     try {
-      // Проверяем, существует ли бакет
       await this.s3Client.send(
         new HeadBucketCommand({
           Bucket: this.bucketName,
         }),
       );
-      console.log(`Bucket ${this.bucketName} exists`);
+      console.info(`Bucket ${this.bucketName} exists`);
     } catch (error) {
       if (
         error.name === 'NotFound' ||
         error.$metadata?.httpStatusCode === 404
       ) {
-        // Бакет не существует - создаем его
         try {
           await this.s3Client.send(
             new CreateBucketCommand({
               Bucket: this.bucketName,
             }),
           );
-          console.log(`Bucket ${this.bucketName} created successfully`);
+          console.info(`Bucket ${this.bucketName} created successfully`);
         } catch (createError) {
-          console.error(`Failed to create bucket: ${createError.message}`);
+          console.error(`Failed to create bucket: ${createError}`);
         }
       } else {
-        console.error(`Error checking bucket: ${error.message}`);
+        console.error(`Error checking bucket: ${error}`);
       }
     }
   }
