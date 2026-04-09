@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { RoomsActions } from './rooms.actions';
-import { catchError, map, of, switchMap, tap, withLatestFrom } from 'rxjs';
+import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { RoomsApiService } from './rooms-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
@@ -13,7 +13,6 @@ import { VoiceRoomService } from '@app/core/services/voice-room.service';
 
 @Injectable()
 export class RoomsEffects {
-  private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
   private readonly roomsApiService = inject(RoomsApiService);
   private readonly messageService = inject(MessageService);
@@ -26,13 +25,11 @@ export class RoomsEffects {
       this.actions$.pipe(
         ofType(RoomsActions.selectRoom),
         tap((action) => {
-          const selectedVoiceRoomId = this.voiceRoomService.selectedRoomId();
           switch (action?.room?.type) {
             case ERoomType.VOICE: {
-              if (!!selectedVoiceRoomId) {
-                this.voiceRoomService.leaveRoom();
-              }
-              if (action.room.id !== selectedVoiceRoomId) {
+              const selectedVoiceRoomId =
+                this.voiceRoomService.selectedRoomId();
+              if (selectedVoiceRoomId !== action.room.id) {
                 this.voiceRoomService.joinRoom(action.room.id);
               }
               this.router.navigate([`/voice-room/${action.room.id}`]);
