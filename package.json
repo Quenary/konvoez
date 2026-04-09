@@ -4,7 +4,8 @@
   "description": "Self-hosted voice and text chat app",
   "main": "start.sh",
   "scripts": {
-    "test": "test.sh"
+    "test": "test.sh",
+    "s3-dev": "s3rver -a 192.168.0.8 -p 4568 -d ./s3-dev"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,7 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.5",
     "prettier": "^3.8.1",
+    "s3rver": "^3.7.1",
     "semantic-release": "^25.0.3"
   },
   "dependencies": {
