@@ -12,6 +12,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonGroupModule } from 'primeng/buttongroup';
 import { VoiceRoomService } from '@core/services/voice-room.service';
+import { AudioService } from '@app/core/services/audio.service';
 
 @Component({
   selector: 'app-voice-room-panel',
@@ -29,6 +30,7 @@ import { VoiceRoomService } from '@core/services/voice-room.service';
 export class VoiceRoomPanelComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly audioService = inject(AudioService);
 
   private readonly rooms = this.store.selectSignal(selectRoomsDict);
   private readonly activeRoomId = this.voiceRoomService.selectedRoomId;
@@ -49,12 +51,20 @@ export class VoiceRoomPanelComponent {
   }
 
   protected toggleMicrophoneMuted(): void {
-    const micMuted = !this.microphoneMuted();
-    this.voiceRoomService.setMicrophoneMuted(micMuted);
+    const microphoneMuted = !this.microphoneMuted();
+    this.voiceRoomService.setMicrophoneMuted(microphoneMuted);
+    if (!microphoneMuted) {
+      this.voiceRoomService.setSpeakerMuted(false);
+    }
+    this.audioService.playMuteAudio();
   }
 
   protected toggleSpeakerMuted(): void {
     const speakerMuted = !this.speakerMuted();
     this.voiceRoomService.setSpeakerMuted(speakerMuted);
+    if (speakerMuted) {
+      this.voiceRoomService.setMicrophoneMuted(true);
+    }
+    this.audioService.playMuteAudio();
   }
 }
