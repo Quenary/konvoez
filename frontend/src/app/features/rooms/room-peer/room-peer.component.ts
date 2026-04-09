@@ -38,16 +38,22 @@ export class RoomPeerComponent {
    */
   protected readonly audioLevel = signal<number>(0);
   /**
-   * Peer avatar url
+   * Avatar signed url
    */
-  protected readonly avatarUrl = resource({
-    params: () => ({ url: this.peer()?.avatar }),
+  protected readonly avatarSignedUrl = resource({
+    params: () => ({ url: this.avatarUrl() }),
     loader: (params) =>
       params.params.url
         ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
         : Promise.resolve(undefined),
   });
 
+  /**
+   * Avatar plain url
+   */
+  private readonly avatarUrl = computed<string | null>(() => {
+    return this.peer()?.avatar ?? null;
+  });
   /**
    * Microphone muted flag
    */
