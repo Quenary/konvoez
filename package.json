@@ -5,7 +5,7 @@
   "scripts": {
     "turbo": "turbo",
     "build": "turbo build",
-    "start": "turbo run //#s3 start:dev",
+    "start:dev": "turbo run //#s3 start:dev",
     "s3": "s3rver -a 192.168.0.8 -p 4568 -d ./s3-dev"
   },
   "repository": {
