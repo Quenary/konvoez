@@ -19,7 +19,7 @@
     {
       "label": "backend",
       "dependsOn": ["s3-dev"],
-      "command": "cd backend && npm run start:dev",
+      "command": "cd apps/backend && npm run start:dev",
       "type": "shell",
       "isBackground": true,
       "problemMatcher": {
@@ -35,7 +35,7 @@
     {
       "label": "frontend",
       "dependsOn": ["backend"],
-      "command": "cd frontend && npm start",
+      "command": "cd apps/frontend && npm start",
       "type": "shell"
     },
     {
