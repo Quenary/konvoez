@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { TextRoomCommon } from '@konvoez/common';
+import { TextRoomCommon } from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 

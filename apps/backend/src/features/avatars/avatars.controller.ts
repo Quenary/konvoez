@@ -17,15 +17,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Author } from '../auth/auth.decorator';
 import { UserEntity } from '../users/users.entity';
 import { ApiOkResponse } from '@nestjs/swagger';
-import { get } from 'http';
 
 @Controller('avatars')
 @UseGuards(AuthGuard)
 export class AvatarsController {
   @Inject(AvatarsService)
-  private readonly avatarsService: AvatarsService;
+  private readonly avatarsService!: AvatarsService;
   @Inject(UsersService)
-  private readonly usersService: UsersService;
+  private readonly usersService!: UsersService;
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('avatar'))

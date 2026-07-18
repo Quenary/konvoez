@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { Mutexed } from '@app/shared/decorators/mutex.decorator';
+import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 
 const publlicMethodsMutex = new Mutex();

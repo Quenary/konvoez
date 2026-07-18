@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { UserCommon } from '@konvoez/common';
-import { VoiceRoomCommon } from '@konvoez/common';
+import { UserCommon } from '@konvoez/shared';
+import { VoiceRoomCommon } from '@konvoez/shared';
 import {
   Consumer,
   Producer,
@@ -48,7 +48,7 @@ export type VoiceRoomStateMediasoupAppData = {
 
 @Injectable()
 export class VoiceRoomsStateService implements OnModuleInit {
-  private worker: MediasoupWorker;
+  private worker!: MediasoupWorker;
   private readonly rooms = new Map<number, VoiceRoomState>();
 
   async onModuleInit() {

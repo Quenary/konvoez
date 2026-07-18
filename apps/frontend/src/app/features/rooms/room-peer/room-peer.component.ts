@@ -16,7 +16,7 @@ import { selectMe } from '@features/auth/auth.selectors';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { AvatarsApiService } from '@features/avatars/avatars-api.service';
 import { lastValueFrom } from 'rxjs';
-import { UserCommon } from '@konvoez/common';
+import { UserCommon } from '@konvoez/shared';
 
 @Component({
   selector: 'app-room-peer',

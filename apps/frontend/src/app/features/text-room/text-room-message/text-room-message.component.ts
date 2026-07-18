@@ -15,7 +15,7 @@ import { IGetUser } from '@features/user/user.interface';
 import { AvatarModule } from 'primeng/avatar';
 import { selectTextRoomAvatars } from '../text-room.selectors';
 import { TextRoomActions } from '../text-room.actions';
-import { EUserRole } from '@konvoez/common';
+import { EUserRole } from '@konvoez/shared';
 import { AngularTiptapEditorComponent } from '@flogeez/angular-tiptap-editor';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 

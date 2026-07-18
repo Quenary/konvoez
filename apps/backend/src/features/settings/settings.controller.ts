@@ -13,10 +13,10 @@ import { AuthGuard } from '../auth/auth.guard';
 import { SettingsService } from './settings.service';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { SettingsDto, SettingsUpdateDto } from './settings.dto';
-import { SettingsCommon } from '@konvoez/common';
+import { SettingsCommon } from '@konvoez/shared';
 import { AuthGuardRoles, Author } from '../auth/auth.decorator';
 import { UserEntity } from '../users/users.entity';
-import { EUserRole } from '@konvoez/common';
+import { EUserRole } from '@konvoez/shared';
 
 @Controller('settings')
 @UseGuards(AuthGuard)

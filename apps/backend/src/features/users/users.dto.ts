@@ -1,13 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsString, Length } from 'class-validator';
-import { EUserRole } from '@konvoez/common';
+import { EUserRole } from '@konvoez/shared';
 import {
   usernameMinLength,
   usernameMaxLength,
   passwordMaxLength,
   passwordMinLength,
   passwordRegexp,
-} from '@konvoez/common';
+} from '@konvoez/shared';
 
 export class CreateUserDto {
   @ApiProperty({

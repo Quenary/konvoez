@@ -12,7 +12,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonGroupModule } from 'primeng/buttongroup';
 import { VoiceRoomService } from '@core/services/voice-room.service';
-import { AudioService } from '@app/core/services/audio.service';
+import { AudioService } from '@core/services/audio.service';
 
 @Component({
   selector: 'app-voice-room-panel',

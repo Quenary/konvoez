@@ -141,3 +141,12 @@ vite.config.ts.timestamp-*
 # Project specific
 s3-dev
 .turbo
+sqlite.db
+
+
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
+.angular
+
+__screenshots__/

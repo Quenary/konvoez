@@ -3,7 +3,6 @@
   "tasks": [
     {
       "label": "start:dev",
-      "dependsOn": ["backend"],
       "command": "npm run start:dev",
       "type": "shell",
       "problemMatcher": [],

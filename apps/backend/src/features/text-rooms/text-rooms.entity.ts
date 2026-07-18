@@ -6,8 +6,8 @@ import {
   ManyToOne,
   PrimaryKey,
   Property,
-} from '@mikro-orm/core';
-import { KonvoezBaseEntity } from 'src/shared/types/base.entity';
+} from '@mikro-orm/decorators/legacy';
+import { KonvoezBaseEntity } from '@shared/types/base.entity';
 import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { v7, parse } from 'uuid';

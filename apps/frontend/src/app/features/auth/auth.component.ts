@@ -16,6 +16,22 @@ import { PasswordModule } from 'primeng/password';
 import { TranslatePipe } from '@ngx-translate/core';
 import { InputTextModule } from 'primeng/inputtext';
 import { RouterLink } from '@angular/router';
+import { TuiAnimated } from '@taiga-ui/cdk';
+import {
+  TuiButton,
+  TuiError,
+  TuiIcon,
+  TuiInput,
+  TuiNotification,
+  TuiTitle,
+} from '@taiga-ui/core';
+import { TuiSegmented, TuiSwitch, TuiTooltip } from '@taiga-ui/kit';
+import {
+  TuiCardLarge,
+  TuiElasticContainer,
+  TuiForm,
+  TuiHeader,
+} from '@taiga-ui/layout';
 
 @Component({
   selector: 'app-auth',
@@ -27,6 +43,22 @@ import { RouterLink } from '@angular/router';
     TranslatePipe,
     InputTextModule,
     RouterLink,
+
+    //
+    TuiAnimated,
+    TuiButton,
+    TuiCardLarge,
+    TuiElasticContainer,
+    TuiError,
+    TuiForm,
+    TuiHeader,
+    TuiIcon,
+    TuiInput,
+    TuiNotification,
+    TuiSegmented,
+    TuiSwitch,
+    TuiTitle,
+    TuiTooltip,
   ],
   templateUrl: './auth.component.html',
   styleUrl: './auth.component.scss',

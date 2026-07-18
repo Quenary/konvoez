@@ -1,15 +1,8 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager, EntityRepository } from '@mikro-orm/sqlite';
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { SettingsEntity } from './settings.entity';
-import { SettingsCommon } from '@konvoez/common';
 import { SettingsUpdateDto } from './settings.dto';
-import { UserEntity } from '../users/users.entity';
-import { EUserRole } from '@konvoez/common';
 
 @Injectable()
 export class SettingsService {
@@ -19,7 +12,9 @@ export class SettingsService {
     @InjectRepository(SettingsEntity)
     private readonly repo: EntityRepository<SettingsEntity>,
   ) {
-    this.em = this.repo.getEntityManager();
+    Object.assign(this, {
+      em: this.repo.getEntityManager(),
+    });
   }
 
   async findOne(

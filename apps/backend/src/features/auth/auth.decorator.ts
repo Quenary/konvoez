@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core';
-import { EUserRole } from '@konvoez/common';
+import { EUserRole } from '@konvoez/shared';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { UserEntity } from '../users/users.entity';
 
@@ -16,7 +16,7 @@ export const AuthGuardRoles = Reflector.createDecorator<EUserRole[]>();
  */
 export const Author = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest<Request>();
+    const request = ctx.switchToHttp().getRequest();
     return request['author'] as UserEntity;
   },
 );

@@ -1,6 +1,6 @@
 import { createSelector } from '@ngrx/store';
 import { textRoomAdapter } from './text-room.reducer';
-import { IAppState } from '@app/app.state';
+import { IAppState } from '../../app.state';
 
 const { selectAll, selectEntities, selectIds, selectTotal } =
   textRoomAdapter.getSelectors();

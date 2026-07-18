@@ -5,6 +5,9 @@ export namespace SettingsCommon {
   export type Type = {
     [EKey.ICE_SERVERS]: RTCIceServer[];
   };
+  export type TypeUnion = {
+    [K in EKey]: Type[K];
+  }[EKey];
   export interface ISetting<K extends EKey> {
     id: number;
     key: K;

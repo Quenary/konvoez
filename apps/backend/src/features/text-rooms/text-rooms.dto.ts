@@ -13,8 +13,8 @@ import {
   MinLength,
 } from 'class-validator';
 import { MessageEntity } from './text-rooms.entity';
-import { TextRoomCommon } from '@konvoez/common';
-import { messageMaxLength, messageMinLength } from '@konvoez/common';
+import { TextRoomCommon } from '@konvoez/shared';
+import { messageMaxLength, messageMinLength } from '@konvoez/shared';
 import { stringify } from 'uuid';
 
 export class CreateMessageDto implements TextRoomCommon.ICreateMessage {

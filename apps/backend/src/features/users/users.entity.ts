@@ -1,25 +1,25 @@
 import {
-  Cascade,
   Entity,
   Enum,
   OneToMany,
   PrimaryKey,
   Property,
-} from '@mikro-orm/core';
-import { EUserRole } from '@konvoez/common';
+} from '@mikro-orm/decorators/legacy';
+import { EUserRole } from '@konvoez/shared';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
+import { Cascade } from '@mikro-orm/core';
 
 @Entity({ tableName: 'users' })
 export class UserEntity extends KonvoezBaseEntity {
   @PrimaryKey({ type: 'int', autoincrement: true })
   id!: number;
 
-  @Property({ length: 32, index: true, unique: true })
+  @Property({ type: 'string', length: 32, index: true, unique: true })
   username!: string;
 
-  @Property({ length: 128, hidden: true })
+  @Property({ type: 'string', length: 128, hidden: true })
   password!: string;
 
   @Enum(() => EUserRole)

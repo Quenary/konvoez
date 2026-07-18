@@ -1,7 +1,7 @@
 import { createSelector } from '@ngrx/store';
-import { IAppState } from '@app/app.state';
+import { IAppState } from '../../app.state';
 import { roomsAdapter } from './rooms.reducer';
-import { ERoomType } from '@konvoez/common';
+import { ERoomType } from '@konvoez/shared';
 
 const _selectRooms = (state: IAppState) => state.rooms;
 

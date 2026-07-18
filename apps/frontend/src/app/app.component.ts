@@ -1,3 +1,4 @@
+import { TuiRoot } from '@taiga-ui/core';
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -8,7 +9,7 @@ import { ToastModule } from 'primeng/toast';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ButtonModule, RoomsComponent, ToastModule],
+  imports: [RouterOutlet, ButtonModule, RoomsComponent, ToastModule, TuiRoot],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

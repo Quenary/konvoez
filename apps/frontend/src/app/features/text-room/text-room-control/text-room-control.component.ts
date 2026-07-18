@@ -13,7 +13,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { messageMaxLength, messageMinLength } from '@konvoez/common';
+import { messageMaxLength, messageMinLength } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TextRoomActions } from '../text-room.actions';
 import { v4 } from 'uuid';

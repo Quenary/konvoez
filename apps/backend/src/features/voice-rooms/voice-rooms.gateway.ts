@@ -8,14 +8,14 @@ import {
   OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
-import { VoiceRoomCommon } from '@konvoez/common';
+import { VoiceRoomCommon } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
-import { AppService } from 'src/shared/services/app.service';
+import { AppService } from '@shared/services/app.service';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
 } from './voice-rooms.state';
-import { UserCommon } from '@konvoez/common';
+import { UserCommon } from '@konvoez/shared';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 
 type TSocket = Socket<

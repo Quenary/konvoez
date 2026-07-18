@@ -1,11 +1,16 @@
-import { Entity, Enum, PrimaryKey, Property } from '@mikro-orm/core';
-import { KonvoezBaseEntity } from 'src/shared/types/base.entity';
-import { SettingsCommon } from '@konvoez/common';
+import {
+  Entity,
+  Enum,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/decorators/legacy';
+import { KonvoezBaseEntity } from '@shared/types/base.entity';
+import { SettingsCommon } from '@konvoez/shared';
 
 @Entity({ tableName: 'settings' })
 export class SettingsEntity
   extends KonvoezBaseEntity
-  implements SettingsCommon.ISetting<any>
+  implements SettingsCommon.ISetting<SettingsCommon.EKey>
 {
   @PrimaryKey({ type: 'int', autoincrement: true })
   readonly id!: number;
@@ -14,5 +19,5 @@ export class SettingsEntity
   readonly key!: SettingsCommon.EKey;
 
   @Property({ type: 'json' })
-  value!: unknown;
+  value!: SettingsCommon.TypeUnion;
 }
