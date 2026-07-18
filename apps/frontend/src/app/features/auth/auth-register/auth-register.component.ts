@@ -16,7 +16,7 @@ import {
   passwordMaxLength,
   passwordMinLength,
   passwordRegexp,
-} from '@konvoez/common';
+} from '@konvoez/shared';
 import { AuthActions } from '../auth.actions';
 import { selectAuthLoading } from '../auth.selectors';
 import { TranslatePipe } from '@ngx-translate/core';

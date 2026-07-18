@@ -4,10 +4,11 @@ import {
   HeadBucketCommand,
   PutObjectCommand,
   S3Client,
+  S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { Inject, Injectable } from '@nestjs/common';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { s3ClientInjectionToken } from 'src/shared/tokens/s3-client.token';
+import { s3ClientInjectionToken } from '@shared/tokens/s3-client.token';
 
 @Injectable()
 export class AvatarsService {
@@ -44,7 +45,7 @@ export class AvatarsService {
     return key;
   }
 
-  async getAvatarUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  async getAvatarUrl(key: string, expiresIn = 3600): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -62,8 +63,9 @@ export class AvatarsService {
       console.info(`Bucket ${this.bucketName} exists`);
     } catch (error) {
       if (
-        error.name === 'NotFound' ||
-        error.$metadata?.httpStatusCode === 404
+        error instanceof S3ServiceException &&
+        (error['name'] === 'NotFound' ||
+          error['$metadata']?.httpStatusCode === 404)
       ) {
         try {
           await this.s3Client.send(

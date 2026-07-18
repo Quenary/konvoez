@@ -1,4 +1,4 @@
-import { TextRoomCommon } from '@konvoez/common';
+import { TextRoomCommon } from '@konvoez/shared';
 import { createEntityAdapter, EntityState } from '@ngrx/entity';
 import { createReducer, on } from '@ngrx/store';
 import { TextRoomActions } from './text-room.actions';

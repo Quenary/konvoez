@@ -4,7 +4,7 @@ import * as speexWorkletUrl from '@sapphi-red/web-noise-suppressor/speexWorklet.
 import speexWasmUrl from '@sapphi-red/web-noise-suppressor/speex.wasm?url';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
-import { Mutexed } from '@app/shared/decorators/mutex.decorator';
+import { Mutexed } from '@shared/decorators/mutex.decorator';
 
 const publicMethodsMutex = new Mutex();
 

@@ -2,7 +2,7 @@
   "files": [],
   "references": [
     {
-      "path": "./libs/common"
+      "path": "./libs/shared"
     },
     {
       "path": "./apps/frontend"
@@ -10,5 +10,10 @@
     {
       "path": "./apps/backend"
     }
-  ]
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@konvoez/shared": ["./libs/shared/src/index.ts"]
+    }
+  }
 }

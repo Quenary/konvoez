@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Reflector } from '@nestjs/core';
-import { EUserRole } from '@konvoez/common';
+import { EUserRole } from '@konvoez/shared';
 import { AuthGuardRoles } from './auth.decorator';
 
 @Injectable()

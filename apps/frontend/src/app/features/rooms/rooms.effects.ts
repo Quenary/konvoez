@@ -7,9 +7,9 @@ import { RoomsApiService } from './rooms-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
-import { ERoomType } from '@konvoez/common';
+import { ERoomType } from '@konvoez/shared';
 import { Router } from '@angular/router';
-import { VoiceRoomService } from '@app/core/services/voice-room.service';
+import { VoiceRoomService } from '@core/services/voice-room.service';
 
 @Injectable()
 export class RoomsEffects {

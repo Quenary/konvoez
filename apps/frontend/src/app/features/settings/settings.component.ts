@@ -29,7 +29,7 @@ import { ButtonModule } from 'primeng/button';
 import { FileUploadHandlerEvent, FileUploadModule } from 'primeng/fileupload';
 import { AvatarModule } from 'primeng/avatar';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
-import { maxAvatarSize } from '@konvoez/common';
+import { maxAvatarSize } from '@konvoez/shared';
 import { selectMe } from '../auth/auth.selectors';
 import { SettingsApiService } from './settings-api.service';
 

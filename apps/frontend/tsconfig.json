@@ -1,7 +1,5 @@
-/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
-/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
-  "compileOnSave": false,
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "strict": true,
     "noImplicitOverride": true,
@@ -9,13 +7,14 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
-    "isolatedModules": true,
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "ES2022",
+    "isolatedModules": true,
+    "target": "es2022",
+    "moduleResolution": "bundler",
     "module": "preserve",
     "paths": {
-      "@app/*": ["./src/app/*"],
+      "@konvoez/shared": ["../../libs/shared/src/index.ts"],
       "@environments/*": ["./src/environments/*"],
       "@core/*": ["./src/app/core/*"],
       "@shared/*": ["./src/app/shared/*"],
@@ -29,13 +28,13 @@
     "strictTemplates": true
   },
   "files": [],
+  "include": [],
   "references": [
     {
       "path": "./tsconfig.app.json"
     },
     {
       "path": "./tsconfig.spec.json"
-    },
-    { "path": "../../libs/common" }
+    }
   ]
 }

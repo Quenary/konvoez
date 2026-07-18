@@ -1,13 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserEntity } from '../users/users.entity';
-import { PasswordService } from 'src/shared/services/password.service';
-import { AppService } from 'src/shared/services/app.service';
+import { PasswordService } from '@shared/services/password.service';
+import { AppService } from '@shared/services/app.service';
 import { Request } from 'express';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
+import { UserEntity } from '../users/users.entity';
 
 @Injectable()
 export class AuthService {

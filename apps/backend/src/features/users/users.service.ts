@@ -9,7 +9,7 @@ import {
 import { UserEntity } from './users.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
-import { EUserRole } from '@konvoez/common';
+import { EUserRole } from '@konvoez/shared';
 import { PasswordService } from '../../shared/services/password.service';
 
 @Injectable()
@@ -52,7 +52,7 @@ export class UsersService {
     }
     const anyUser = (await this.em.count(UserEntity)) > 0;
     // Owner role is only for the first user
-    const role: EUserRole = !!anyUser ? EUserRole.MEMBER : EUserRole.OWNER;
+    const role: EUserRole = anyUser ? EUserRole.MEMBER : EUserRole.OWNER;
     const password = await this.passwordService.hashPassword(dto.password);
     const user = this.repo.create(
       {
@@ -80,6 +80,7 @@ export class UsersService {
     if (dto.role == EUserRole.OWNER) {
       throw new BadRequestException('Owner role cannot be assigned');
     }
+    // eslint-disable-next-line prefer-const
     let { password, ...data } = dto;
     if (password) {
       password = await this.passwordService.hashPassword(password);

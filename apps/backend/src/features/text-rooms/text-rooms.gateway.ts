@@ -10,7 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
-import { TextRoomCommon } from '@konvoez/common';
+import { TextRoomCommon } from '@konvoez/shared';
 import { MessageDto } from './text-rooms.dto';
 
 type TSocket = Socket<

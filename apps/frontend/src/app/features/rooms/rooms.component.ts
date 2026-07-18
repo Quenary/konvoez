@@ -17,18 +17,18 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from 'primeng/dynamicdialog';
 import { RoomDialogComponent } from './room-dialog/room-dialog.component';
 import { IRoom } from './rooms.interface';
-import { ERoomType } from '@konvoez/common';
+import { ERoomType } from '@konvoez/shared';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { RouterLink } from '@angular/router';
 import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
-import { VoiceRoomCommon } from '@konvoez/common';
+import { VoiceRoomCommon } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { DividerModule } from 'primeng/divider';
 import { ConfirmationService, MenuItem } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { UserCommon } from '@konvoez/common';
-import { VoiceRoomService } from '@app/core/services/voice-room.service';
+import { UserCommon } from '@konvoez/shared';
+import { VoiceRoomService } from '@core/services/voice-room.service';
 
 interface IRoomWithMenu extends IRoom {
   menu: MenuItem[];

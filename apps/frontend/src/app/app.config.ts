@@ -1,3 +1,4 @@
+import { provideTaiga } from '@taiga-ui/core';
 import {
   ApplicationConfig,
   inject,
@@ -42,7 +43,7 @@ import {
   SupportedLocale,
 } from '@flogeez/angular-tiptap-editor';
 import { supportedLocales } from './app.constants';
-import { messageMaxLength } from '@konvoez/common';
+import { messageMaxLength } from '@konvoez/shared';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -125,5 +126,6 @@ export const appConfig: ApplicationConfig = {
       );
     }),
     provideAppInitializer(() => localeInitializer()),
+    provideTaiga(),
   ],
 };

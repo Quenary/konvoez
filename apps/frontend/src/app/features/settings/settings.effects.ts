@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { SettingsActions } from './settings.actions';
 import { tap } from 'rxjs';
-import { EStorageKey } from '@app/app.enums';
+import { EStorageKey } from '../../app.enums';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 
 @Injectable()

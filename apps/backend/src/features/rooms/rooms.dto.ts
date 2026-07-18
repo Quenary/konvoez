@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDate, IsEnum, IsString, Length } from 'class-validator';
-import { ERoomType } from '@konvoez/common';
+import { ERoomType } from '@konvoez/shared';
 
 export class CreateRoomDto {
   @ApiProperty({

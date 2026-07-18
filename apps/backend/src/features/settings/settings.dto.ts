@@ -1,4 +1,4 @@
-import { SettingsCommon } from '@konvoez/common';
+import { SettingsCommon } from '@konvoez/shared';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDate, IsEnum, IsInt, IsJSON, IsOptional } from 'class-validator';
 
@@ -10,14 +10,14 @@ export class SettingsDto<
     required: true,
   })
   @IsInt()
-  id: number;
+  id!: number;
 
   @ApiProperty({
     enum: SettingsCommon.EKey,
     required: true,
   })
   @IsEnum(SettingsCommon.EKey)
-  key: T;
+  key!: T;
 
   @ApiProperty({
     type: String,
@@ -25,14 +25,14 @@ export class SettingsDto<
     required: true,
   })
   @IsJSON()
-  value: SettingsCommon.Type[T];
+  value!: SettingsCommon.Type[T];
 
   @ApiProperty({
     type: Date,
     required: true,
   })
   @IsDate()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({
     type: Date,
@@ -40,7 +40,7 @@ export class SettingsDto<
   })
   @IsDate()
   @IsOptional()
-  updatedAt: Date | null;
+  updatedAt: Date | null = null;
 }
 
 export class SettingsUpdateDto<
@@ -49,5 +49,5 @@ export class SettingsUpdateDto<
   @ApiProperty({
     required: true,
   })
-  value: SettingsCommon.Type[T];
+  value!: SettingsCommon.Type[T];
 }

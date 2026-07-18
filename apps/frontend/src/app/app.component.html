@@ -1,7 +1,9 @@
-<p-toast></p-toast>
-<main>
-  @if (isAuthenticated()) {
-    <app-rooms class="rooms"></app-rooms>
-  }
-  <router-outlet></router-outlet>
-</main>
+<tui-root>
+  <p-toast></p-toast>
+  <main>
+    @if (isAuthenticated()) {
+      <app-rooms class="rooms"></app-rooms>
+    }
+    <router-outlet></router-outlet>
+  </main>
+</tui-root>

@@ -6,7 +6,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { DynamicDialogRef, DynamicDialogConfig } from 'primeng/dynamicdialog';
-import { ERoomType } from '@konvoez/common';
+import { ERoomType } from '@konvoez/shared';
 import { IftaLabelModule } from 'primeng/iftalabel';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';

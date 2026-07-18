@@ -1,23 +1,23 @@
 import {
-  Cascade,
   Entity,
   Enum,
   ManyToOne,
   OneToMany,
   PrimaryKey,
   Property,
-} from '@mikro-orm/core';
-import { ERoomType } from '@konvoez/common';
+} from '@mikro-orm/decorators/legacy';
+import { ERoomType } from '@konvoez/shared';
 import { KonvoezBaseEntity } from '../../shared/types/base.entity';
 import { UserEntity } from '../users/users.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
+import { Cascade } from '@mikro-orm/core';
 
 @Entity({ tableName: 'rooms' })
 export class RoomEntity extends KonvoezBaseEntity {
   @PrimaryKey({ type: 'int', autoincrement: true })
   id!: number;
 
-  @Property({ length: 64, index: true, unique: true })
+  @Property({ type: 'string', length: 64, index: true, unique: true })
   name!: string;
 
   @Enum(() => ERoomType)

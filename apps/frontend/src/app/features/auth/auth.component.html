@@ -1,47 +1,64 @@
 <form
+  appearance="floating"
+  tuiCardLarge
+  tuiForm="m"
   [formGroup]="form"
   (submit)="onSubmit()">
-  <p-ifta-label>
+  <header tuiHeader>
+    <h2 tuiTitle>
+      {{ 'GENERAL.HELLO' | translate }}
+    </h2>
+  </header>
+
+  <tui-textfield iconStart="@tui.user">
+    <label
+      tuiLabel
+      for="username">
+      {{ 'AUTH.USERNAME' | translate }}
+    </label>
     <input
-      fluid
-      pInputText
+      tuiInput
       id="username"
       autocomplete="username"
       formControlName="username"
       type="text"
       [placeholder]="'AUTH.USERNAME' | translate" />
-    <label for="username">
-      {{ 'AUTH.USERNAME' | translate }}
-    </label>
-  </p-ifta-label>
+  </tui-textfield>
 
-  <p-ifta-label>
-    <p-password
-      fluid
-      inputId="password"
-      autocomplete="current-password"
-      formControlName="password"
-      [toggleMask]="true"
-      [feedback]="false"
-      [fluid]="true">
-    </p-password>
-    <label for="password">
+  <tui-textfield iconStart="@tui.lock">
+    <label
+      tuiLabel
+      for="password">
       {{ 'AUTH.PASSWORD' | translate }}
     </label>
-  </p-ifta-label>
+    <input
+      tuiInput
+      id="password"
+      autocomplete="current-password"
+      formControlName="password"
+      type="password"
+      [placeholder]="'AUTH.PASSWORD' | translate" />
 
-  <p-button
-    fluid
-    type="submit"
-    [disabled]="!form.valid"
-    [loading]="loading()"
-    [label]="'AUTH.SIGN_IN' | translate"
-    icon="pi pi-sign-in"></p-button>
-  <p-button
-    fluid
-    text
-    type="button"
-    [label]="'AUTH.SIGN_UP' | translate"
-    routerLink="/auth/register"
-    icon="pi pi-user-plus"></p-button>
+    <tui-icon
+      icon="@tui.message-circle-question-mark"
+      [tuiTooltip]="'AUTH.PASSWORD_STRENGTH.HINT' | translate"></tui-icon>
+  </tui-textfield>
+
+  <footer>
+    <button
+      tuiButton
+      type="submit">
+      <tui-icon icon="@tui.log-in" />
+      {{ 'AUTH.SIGN_IN' | translate }}
+    </button>
+
+    <button
+      appearance="outline"
+      tuiButton
+      type="button"
+      routerLink="/auth/register">
+      <tui-icon icon="@tui.user-plus" />
+      {{ 'AUTH.SIGN_UP' | translate }}
+    </button>
+  </footer>
 </form>

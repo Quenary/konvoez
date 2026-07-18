@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { TextRoomCommon } from '@konvoez/common';
+import { TextRoomCommon } from '@konvoez/shared';
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
 
 export const TextRoomActions = createActionGroup({

@@ -10,7 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import { AuthLoginDto } from './auth.dto';
 import type { Request, Response } from 'express';
-import { AppService } from 'src/shared/services/app.service';
+import { AppService } from '@shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserDto } from '../users/users.dto';

@@ -19,6 +19,6 @@ export class AuthLoginDto {
 }
 
 export class AuthJWTData {
-  type: 'access' | 'refresh';
-  userId: number;
+  type!: 'access' | 'refresh';
+  userId!: number;
 }

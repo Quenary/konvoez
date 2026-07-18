@@ -1,4 +1,4 @@
-import { ERoomType } from '@konvoez/common';
+import { ERoomType } from '@konvoez/shared';
 
 export interface IRoom {
   id: number;

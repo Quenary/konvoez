@@ -6,8 +6,6 @@ import {
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { MessageEntity } from './text-rooms.entity';
-import { UserEntity } from '../users/users.entity';
-import { RoomEntity } from '../rooms/rooms.entity';
 import {
   EditMessageDto,
   MessageDto,
@@ -18,8 +16,10 @@ import {
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { parse } from 'uuid';
-import { EncryptionService } from 'src/shared/services/encryption.service';
+import { EncryptionService } from '@shared/services/encryption.service';
 import { stringify as uuidStringify } from 'uuid';
+import { UserEntity } from '../users/users.entity';
+import { RoomEntity } from '../rooms/rooms.entity';
 
 @Injectable()
 export class TextRoomsService {

@@ -1,16 +1,18 @@
-import { defineConfig, SqliteDriver } from '@mikro-orm/sqlite';
-import { TsMorphMetadataProvider } from '@mikro-orm/reflection';
+// import { defineConfig, SqliteDriver } from '@mikro-orm/sqlite';
+// import { UserEntity } from './features/users/users.entity';
+// import { RoomEntity } from './features/rooms/rooms.entity';
+// import { SettingsEntity } from './features/settings/settings.entity';
+// import { MessageEntity } from './features/text-rooms/text-rooms.entity';
+// import { KonvoezBaseEntity } from '@shared/types/base.entity';
 
-// no need to specify the `driver` now, it will be inferred automatically
-export default defineConfig({
-  dbName: 'sqlite.db',
-  // folder-based discovery setup, using common filename suffix
-  entities: ['dist/**/*.entity.js'],
-  entitiesTs: ['src/**/*.entity.ts'],
-  // we will use the ts-morph reflection, an alternative to the default reflect-metadata provider
-  // check the documentation for their differences: https://mikro-orm.io/docs/metadata-providers
-  metadataProvider: TsMorphMetadataProvider,
-  // enable debug mode to log SQL queries and discovery information
-  debug: true,
-  driver: SqliteDriver,
-});
+// export default defineConfig({
+//   dbName: 'sqlite.db',
+//   entities: [
+//     KonvoezBaseEntity,
+//     UserEntity,
+//     RoomEntity,
+//     SettingsEntity,
+//     MessageEntity,
+//   ],
+//   driver: SqliteDriver,
+// });

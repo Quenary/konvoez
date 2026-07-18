@@ -9,7 +9,7 @@ import { AvatarsApiService } from '../avatars/avatars-api.service';
 import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
-import { VoiceRoomSocketToken } from '@app/core/tokens/voice-room-socket.token';
+import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { Store } from '@ngrx/store';
 import { selectIsAuthorized } from './auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';

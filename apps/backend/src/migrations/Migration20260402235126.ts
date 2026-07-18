@@ -1,4 +1,4 @@
-import { SettingsCommon } from '@konvoez/common';
+import { SettingsCommon } from '@konvoez/shared';
 import { Migration } from '@mikro-orm/migrations';
 import initialIceServers from './data/initial-ice-servers';
 
@@ -66,17 +66,13 @@ export class Migration20260402235126 extends Migration {
       `create index \`messages_room_id_id_index\` on \`messages\` (\`room_id\`, \`id\`);`,
     );
 
-    const knex = this.getKnex();
-    this.addSql(
-      knex
-        .queryBuilder()
-        .table('settings')
-        .insert({
-          key: SettingsCommon.EKey.ICE_SERVERS,
-          value: JSON.stringify(initialIceServers),
-          created_at: new Date(),
-        })
-        .toQuery(),
+    await this.execute(
+      'insert into "settings" ("key", "value", "created_at") values (?, ?, ?)',
+      [
+        SettingsCommon.EKey.ICE_SERVERS,
+        JSON.stringify(initialIceServers),
+        new Date(),
+      ],
     );
   }
 }
