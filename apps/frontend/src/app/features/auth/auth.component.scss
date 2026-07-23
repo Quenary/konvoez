@@ -1,35 +1,7 @@
-@use 'mixins' as m;
-
 :host {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  form {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    width: 40%;
-    transition: width 0.3s ease;
-
-    @include m.for-mobile {
-      width: 90%;
-    }
-
-    @include m.for-tablet {
-      width: 60%;
-    }
-
-    @include m.for-ultra-hd {
-      width: 25%;
-    }
-
-    & > * {
-      width: 100%;
-    }
-  }
 }

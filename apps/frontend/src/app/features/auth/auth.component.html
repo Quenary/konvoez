@@ -16,13 +16,13 @@
       for="username">
       {{ 'AUTH.USERNAME' | translate }}
     </label>
+
     <input
       tuiInput
       id="username"
       autocomplete="username"
       formControlName="username"
-      type="text"
-      [placeholder]="'AUTH.USERNAME' | translate" />
+      type="text" />
   </tui-textfield>
 
   <tui-textfield iconStart="@tui.lock">
@@ -31,29 +31,29 @@
       for="password">
       {{ 'AUTH.PASSWORD' | translate }}
     </label>
+
     <input
       tuiInput
       id="password"
       autocomplete="current-password"
       formControlName="password"
-      type="password"
-      [placeholder]="'AUTH.PASSWORD' | translate" />
+      type="password" />
 
-    <tui-icon
-      icon="@tui.message-circle-question-mark"
-      [tuiTooltip]="'AUTH.PASSWORD_STRENGTH.HINT' | translate"></tui-icon>
+    <tui-icon tuiPassword />
   </tui-textfield>
 
   <footer>
     <button
       tuiButton
-      type="submit">
+      type="submit"
+      [disabled]="!form.dirty"
+      [loading]="loading()">
       <tui-icon icon="@tui.log-in" />
       {{ 'AUTH.SIGN_IN' | translate }}
     </button>
 
     <button
-      appearance="outline"
+      appearance="flat"
       tuiButton
       type="button"
       routerLink="/auth/register">

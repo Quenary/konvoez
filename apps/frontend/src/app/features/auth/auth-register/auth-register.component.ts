@@ -20,11 +20,15 @@ import {
 import { AuthActions } from '../auth.actions';
 import { selectAuthLoading } from '../auth.selectors';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ButtonModule } from 'primeng/button';
-import { IftaLabelModule } from 'primeng/iftalabel';
-import { PasswordModule } from 'primeng/password';
-import { Divider } from 'primeng/divider';
-import { InputTextModule } from 'primeng/inputtext';
+import {
+  TuiButton,
+  TuiError,
+  TuiIcon,
+  TuiInput,
+  TuiNotification,
+} from '@taiga-ui/core';
+import { TuiButtonLoading, TuiPassword, TuiTooltip } from '@taiga-ui/kit';
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { RouterLink } from '@angular/router';
 
 @Component({
@@ -32,12 +36,18 @@ import { RouterLink } from '@angular/router';
   imports: [
     TranslatePipe,
     ReactiveFormsModule,
-    ButtonModule,
-    InputTextModule,
-    PasswordModule,
-    IftaLabelModule,
-    Divider,
+    TuiButton,
+    TuiCardLarge,
+    TuiError,
+    TuiForm,
+    TuiHeader,
+    TuiIcon,
+    TuiInput,
+    TuiNotification,
+    TuiTooltip,
+    TuiPassword,
     RouterLink,
+    TuiButtonLoading,
   ],
   templateUrl: './auth-register.component.html',
   styleUrl: './auth-register.component.scss',
