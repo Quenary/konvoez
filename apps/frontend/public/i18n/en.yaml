@@ -17,16 +17,11 @@ AUTH:
   SIGN_IN: Sign-in
   SIGN_UP: Sign-up
   LOG_OUT: Log out
-  PASSWORD_STRENGTH:
-    PROMPT: Choose a password
-    WEAK: Too simple
-    MEDIUM: Average complexity
-    STRONG: Complex password
-    HINT: |
-      - At least one lowercase
-      - At least one uppercase
-      - At least one numeric
-      - At least 12 characters
+  PASSWORD_HINT: |
+    - At least one lowercase
+    - At least one uppercase
+    - At least one numeric
+    - At least 12 characters
 ROOMS:
   TEXT: Text
   VOICE: Voice
