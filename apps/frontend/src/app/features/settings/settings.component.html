@@ -1,58 +1,119 @@
-<section class="avatar">
-  <p-fileupload
-    [multiple]="false"
-    [chooseLabel]="'SETTINGS.UPLOAD_AVATAR' | translate"
+<div
+  appearance="floating"
+  tuiCardLarge
+  tuiForm="m">
+  <header tuiHeader>
+    {{ 'SETTINGS.TITLE' | translate }}
+  </header>
+
+  <!-- <div tuiFile>
+    <input #input accept="image/*" type="file" (change)="uploadAvatar(input.files)">
+  </div> -->
+
+  <input
+    hidden
+    class="avatar-input"
+    #avatarInput
+    type="file"
     accept="image/*"
-    [maxFileSize]="maxAvatarSize"
-    url="api/avatars/upload"
-    name="avatar"
-    mode="basic"
-    auto
-    customUpload
-    (uploadHandler)="onAvatarUpload($event)">
-  </p-fileupload>
+    (change)="uploadAvatar(avatarInput)" />
 
-  @if (avatarUrl.value(); as image) {
-    <p-avatar
-      shape="circle"
-      [image]="image"
-      size="large">
-    </p-avatar>
-  }
-</section>
+  <div
+    tuiAvatar
+    size="xxl"
+    class="avatar"
+    tabindex="0"
+    (click)="avatarInput.click()"
+    (keypress.space)="avatarInput.click()"
+    (keypress.enter)="avatarInput.click()">
+    @if (avatarUrl.hasValue()) {
+      <img
+        [alt]="me()?.username"
+        [src]="avatarUrl.value()" />
+    } @else {
+      {{ username() | tuiInitials }}
+    }
 
-<p-ifta-label>
-  <p-select
-    fluid
-    inputId="settings-audio-input"
-    [options]="audioInputList()"
-    optionLabel="label"
-    optionValue="deviceId"
-    [ngModel]="audioInput()?.deviceId"
-    (onChange)="onSelectAudioInput($event.value)"></p-select>
-  <label for="settings-audio-input">
+    <tui-icon
+      class="avatar-edit"
+      icon="@tui.edit"></tui-icon>
+  </div>
+
+  <ng-template
+    #deviceStatusIcon
+    let-value>
+    @if (value) {
+      <tui-icon
+        icon="@tui.badge-check"
+        style="color: var(--tui-status-positive); pointer-events: none" />
+    } @else {
+      <tui-icon
+        icon="@tui.triangle-alert"
+        style="color: var(--tui-status-negative); pointer-events: none" />
+    }
+  </ng-template>
+
+  <label tuiLabel>
     {{ 'SETTINGS.AUDIO_INPUT' | translate }}
-  </label>
-</p-ifta-label>
+    <tui-textfield
+      iconStart="@tui.mic"
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        [ngModel]="audioInput()"
+        (ngModelChange)="onSelectAudioInput($event)" />
 
-<p-ifta-label [pTooltip]="'SETTINGS.API_NOT_AVAILABLE' | translate">
-  <p-select
-    fluid
-    inputId="settings-audio-output"
-    [options]="audioOutputList()"
-    optionLabel="label"
-    optionValue="deviceId"
-    [ngModel]="audioOutput()?.deviceId"
-    (onChange)="onSelectAudioOutput($event.value)"></p-select>
-  <label for="settings-audio-output">
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="audioInputList()" />
+
+      <ng-container
+        [ngTemplateOutlet]="deviceStatusIcon"
+        [ngTemplateOutletContext]="{
+          $implicit: audioInputAvailable(),
+        }">
+      </ng-container>
+    </tui-textfield>
+  </label>
+
+  <label tuiLabel>
     {{ 'SETTINGS.AUDIO_OUTPUT' | translate }}
-    <span class="pi pi-question-circle"></span>
-  </label>
-</p-ifta-label>
+    <tui-textfield
+      iconStart="@tui.headphones"
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        [ngModel]="audioOutput()"
+        (ngModelChange)="onSelectAudioOutput($event)" />
 
-<p-button
-  icon="pi pi-sign-out"
-  severity="danger"
-  (onClick)="logout()"
-  [label]="'AUTH.LOG_OUT' | translate">
-</p-button>
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="audioOutputList()" />
+
+      <ng-container
+        [ngTemplateOutlet]="deviceStatusIcon"
+        [ngTemplateOutletContext]="{
+          $implicit: audioOutputAvailable(),
+        }">
+      </ng-container>
+
+      <tui-icon
+        icon="@tui.message-circle-question-mark"
+        [tuiTooltip]="'SETTINGS.API_NOT_AVAILABLE' | translate">
+      </tui-icon>
+    </tui-textfield>
+  </label>
+
+  <button
+    tuiButton
+    appearance="primary-destructive"
+    iconStart="@tui.log-out"
+    type="button"
+    (click)="logout()">
+    {{ 'AUTH.LOG_OUT' | translate }}
+  </button>
+</div>

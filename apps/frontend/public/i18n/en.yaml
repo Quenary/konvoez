@@ -38,6 +38,10 @@ SETTINGS:
   UPLOAD_AVATAR: Upload avatar
   AUDIO_INPUT: Audio input
   AUDIO_OUTPUT: Audio output
+  DEVICE_UNAVAILABLE: Device unavailable
+  PERMISSION_ERROR: |
+    Error retrieving audio devices,
+    check your browser permissions.
   API_NOT_AVAILABLE: |
     This feature may not be available.
     In this case, the default device will be used.

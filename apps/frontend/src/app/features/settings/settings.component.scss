@@ -7,12 +7,22 @@
   padding: 1rem;
 
   .avatar {
+    cursor: pointer;
+
+    .avatar-edit {
+      opacity: 0;
+    }
+    &:hover,
+    &:focus {
+      .avatar-edit {
+        opacity: 1;
+      }
+    }
+  }
+
+  .avatar {
     display: inline-flex;
     align-items: center;
     gap: 1rem;
-  }
-
-  & > * {
-    width: 100%;
   }
 }
