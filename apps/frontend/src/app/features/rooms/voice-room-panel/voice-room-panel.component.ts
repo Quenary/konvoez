@@ -3,26 +3,20 @@ import {
   Component,
   computed,
   inject,
+  input,
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { selectRoomsDict } from '../rooms.selectors';
-import { ButtonModule } from 'primeng/button';
-import { SelectModule } from 'primeng/select';
 import { TranslatePipe } from '@ngx-translate/core';
-import { FormsModule } from '@angular/forms';
-import { ButtonGroupModule } from 'primeng/buttongroup';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import { AudioService } from '@core/services/audio.service';
+import { TuiButton, TuiGroup } from '@taiga-ui/core';
+import { IRoom } from '../rooms.interface';
+import { RoomsActions } from '../rooms.actions';
 
 @Component({
   selector: 'app-voice-room-panel',
-  imports: [
-    ButtonModule,
-    SelectModule,
-    FormsModule,
-    ButtonGroupModule,
-    TranslatePipe,
-  ],
+  imports: [TranslatePipe, TuiGroup, TuiButton],
   templateUrl: './voice-room-panel.component.html',
   styleUrl: './voice-room-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,8 +26,7 @@ export class VoiceRoomPanelComponent {
   private readonly voiceRoomService = inject(VoiceRoomService);
   private readonly audioService = inject(AudioService);
 
-  private readonly rooms = this.store.selectSignal(selectRoomsDict);
-  private readonly activeRoomId = this.voiceRoomService.selectedRoomId;
+  public readonly collapsed = input.required<boolean>();
 
   protected readonly microphoneMuted = this.voiceRoomService.microphoneMuted;
   protected readonly speakerMuted = this.voiceRoomService.speakerMuted;
@@ -45,6 +38,15 @@ export class VoiceRoomPanelComponent {
     }
     return rooms[activeRoomId];
   });
+
+  private readonly rooms = this.store.selectSignal(selectRoomsDict);
+  private readonly activeRoomId = this.voiceRoomService.selectedRoomId;
+
+  protected clickRoom(): void {
+    this.store.dispatch(
+      RoomsActions.selectRoom({ room: this.room() as IRoom }),
+    );
+  }
 
   protected leaveRoom(): void {
     this.voiceRoomService.leaveRoom();

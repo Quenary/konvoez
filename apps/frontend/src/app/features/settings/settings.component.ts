@@ -16,7 +16,7 @@ import { SettingsActions } from './settings.actions';
 import { FormsModule } from '@angular/forms';
 import { AuthActions } from '../auth/auth.actions';
 import { AvatarsApiService } from '../avatars/avatars-api.service';
-import { selectMe } from '../auth/auth.selectors';
+import { selectCurrentUser } from '../auth/auth.selectors';
 import {
   TuiButton,
   TuiDataList,
@@ -86,7 +86,7 @@ export class SettingsComponent {
   /**
    * Current user info
    */
-  protected readonly me = this.store.selectSignal(selectMe);
+  protected readonly me = this.store.selectSignal(selectCurrentUser);
   /**
    * Current user name
    */

@@ -12,7 +12,7 @@ import { VoiceRoomService } from '@core/services/voice-room.service';
 import { AvatarModule } from 'primeng/avatar';
 import { ContextMenuModule } from 'primeng/contextmenu';
 import { Store } from '@ngrx/store';
-import { selectMe } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { AvatarsApiService } from '@features/avatars/avatars-api.service';
 import { lastValueFrom } from 'rxjs';
@@ -61,7 +61,7 @@ export class RoomPeerComponent {
   /**
    * Current user info
    */
-  private readonly me = this.store.selectSignal(selectMe);
+  private readonly me = this.store.selectSignal(selectCurrentUser);
   /**
    * Peer is current user flag
    */

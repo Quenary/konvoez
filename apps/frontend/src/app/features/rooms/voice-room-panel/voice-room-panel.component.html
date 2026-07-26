@@ -1,29 +1,46 @@
 @if (room(); as _r) {
-  <span class="room-name">
-    <i class="pi pi-wifi"></i>
-    {{ _r.name }}
-    <p-button
-      text
-      icon="pi pi-sign-out"
-      severity="danger"
-      (onClick)="leaveRoom()">
-    </p-button>
-  </span>
+  <div
+    tuiGroup
+    [orientation]="collapsed() ? 'vertical' : 'horizontal'">
+    <button
+      tuiButton
+      iconStart="@tui.audio-lines"
+      appearance="positive"
+      [style.justify-content]="'space-between'"
+      (click)="clickRoom()">
+      @if (!collapsed()) {
+        {{ _r.name }}
+      }
+    </button>
+    <button
+      tuiIconButton
+      iconStart="@tui.log-out"
+      appearance="negative"
+      [style.flex]="'0 0 auto'"
+      (click)="leaveRoom()">
+      ></button
+    >
+  </div>
 }
 
-<p-button-group>
-  <p-button
-    icon="pi pi-microphone"
-    iconPos="right"
-    [outlined]="!microphoneMuted()"
-    [severity]="microphoneMuted() ? 'danger' : 'primary'"
-    [label]="'GENERAL.MUTE' | translate"
-    (onClick)="toggleMicrophoneMuted()">
-  </p-button>
-  <p-button
-    icon="pi pi-headphones"
-    [outlined]="!speakerMuted()"
-    [severity]="speakerMuted() ? 'danger' : 'primary'"
-    (onClick)="toggleSpeakerMuted()">
-  </p-button>
-</p-button-group>
+<div
+  tuiGroup
+  [orientation]="collapsed() ? 'vertical' : 'horizontal'">
+  <button
+    tuiButton
+    [iconStart]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
+    [style.justify-content]="'space-between'"
+    [appearance]="microphoneMuted() ? 'negative' : 'positive'"
+    (click)="toggleMicrophoneMuted()">
+    @if (!collapsed()) {
+      {{ 'GENERAL.MUTE' | translate }}
+    }
+  </button>
+  <button
+    tuiIconButton
+    [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
+    [style.flex]="'0 0 auto'"
+    [appearance]="speakerMuted() ? 'negative' : 'positive'"
+    (click)="toggleSpeakerMuted()">
+  </button>
+</div>

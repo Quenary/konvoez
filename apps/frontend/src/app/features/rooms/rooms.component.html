@@ -1,87 +1,111 @@
-<app-logo></app-logo>
+<button
+  tuiAsideItem
+  iconStart="@tui.message-circle-more">
+  {{ 'MENU.TEXT' | translate }}
+  <button
+    [style.margin-left]="'auto'"
+    tuiIconButton
+    appearance="positive"
+    iconStart="@tui.plus"
+    (click)="addRoom(ERoomType.TEXT); $event.stopPropagation()">
+  </button>
+</button>
 
-@let roomButtonStyle = { justifyContent: 'flex-start', textAlign: 'left' };
+@for (room of textRooms(); track room.id) {
+  <button
+    class="room-item"
+    tuiAsideItem
+    [tuiDropdown]="roomContextMenu"
+    tuiDropdownHover
+    (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
+    (click)="selectRoom(room)">
+    <div
+      tuiAvatar
+      size="s">
+      {{ room.name | tuiInitials }}
+    </div>
+    {{ room.name }}
+  </button>
+}
 
-<section class="groups">
-  <div class="group text">
-    <span class="group-item">
-      {{ 'ROOMS.TEXT' | translate }}
-      <p-button
-        text
-        icon="pi pi-plus"
-        (onClick)="addRoom(ERoomType.TEXT)">
-      </p-button>
-    </span>
-    <section class="group-children">
-      @for (item of textRooms(); track item.id) {
-        <div class="group-children-item">
-          <p-button
-            #btnRef
-            fluid
-            text
-            [style]="roomButtonStyle"
-            icon="pi pi-comment"
-            [label]="item.name"
-            [severity]="item.id == selectedRoomId() ? 'primary' : 'secondary'"
-            (onClick)="selectRoom(item)">
-          </p-button>
-        </div>
-        <p-contextmenu
-          [target]="btnRef.el.nativeElement"
-          [model]="item.menu">
-        </p-contextmenu>
+<button
+  [style.margin-top.rem]="1"
+  tuiAsideItem
+  iconStart="@tui.audio-lines">
+  {{ 'ROOMS.VOICE' | translate }}
+  <button
+    [style.margin-left]="'auto'"
+    tuiIconButton
+    appearance="positive"
+    iconStart="@tui.plus"
+    (click)="addRoom(ERoomType.VOICE); $event.stopPropagation()">
+  </button>
+</button>
+
+@for (room of voiceRooms(); track room.id) {
+  <button
+    class="room-item"
+    tuiAsideItem
+    appearance="active"
+    [tuiDropdown]="roomContextMenu"
+    tuiDropdownHover
+    (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
+    (click)="selectRoom(room)">
+    <div
+      tuiAvatar
+      size="s">
+      {{ room.name | tuiInitials }}
+    </div>
+    {{ room.name }}
+  </button>
+
+  @if (!collapsed()) {
+    @if (room.isUserInRoom) {
+      @for (peer of room.peers; track peer.id) {
+        <app-room-peer
+          class="room-peer-item"
+          [peer]="peer"></app-room-peer>
       }
-    </section>
-  </div>
+    } @else {
+      <tui-avatar-stack direction="start">
+        @let sliceNum = 5;
+        @for (peer of room.peers | slice: sliceNum; track peer.id) {
+          <div
+            [tuiAvatar]="peer.username | tuiInitials"
+            [round]="true"
+            size="s"
+            [style.background]="peer.username | tuiAutoColor">
+          </div>
+        }
+        @let extra = room.peers.length - sliceNum;
+        @if (extra > 0) {
+          <div
+            tuiAvatar
+            [round]="true"
+            size="s">
+            {{ extra }}
+          </div>
+        }
+      </tui-avatar-stack>
+    }
+  }
+}
 
-  <div class="group voice">
-    <span class="group-item">
-      {{ 'ROOMS.VOICE' | translate }}
-      <p-button
-        text
-        icon="pi pi-plus"
-        (onClick)="addRoom(ERoomType.VOICE)">
-      </p-button>
-    </span>
-    <section class="group-children">
-      @for (item of voiceRooms(); track item.id) {
-        <div class="group-children-item">
-          <p-button
-            #btnRef
-            fluid
-            text
-            [style]="roomButtonStyle"
-            icon="pi pi-volume-up"
-            [label]="item.name"
-            [severity]="
-              item.id == activeVoiceRoomId() ? 'primary' : 'secondary'
-            "
-            (onClick)="selectRoom(item)">
-          </p-button>
-
-          <section class="group-children-item-peers">
-            @for (peer of item.users; track peer.id) {
-              <app-room-peer [peer]="peer"></app-room-peer>
-            }
-          </section>
-        </div>
-        <p-contextmenu
-          [target]="btnRef.el.nativeElement"
-          [model]="item.menu">
-        </p-contextmenu>
-      }
-    </section>
-  </div>
-</section>
-
-<app-voice-room-panel></app-voice-room-panel>
-
-<p-button
-  outlined
-  icon="pi pi-cog"
-  routerLink="/settings"
-  severity="contrast"
-  [label]="'SETTINGS.TITLE' | translate">
-</p-button>
-
-<p-confirmdialog />
+<ng-template
+  #roomContextMenu
+  let-close>
+  <tui-data-list>
+    <button
+      tuiOption
+      iconEnd="@tui.edit"
+      (click)="editRoom(contextMenuOpenedFor()!); close()">
+      {{ 'GENERAL.EDIT' | translate }}
+    </button>
+    <button
+      tuiOption
+      iconEnd="@tui.delete"
+      (click)="deleteRoom(contextMenuOpenedFor()!); close()">
+      {{ 'GENERAL.DELETE' | translate }}
+    </button>
+  </tui-data-list>
+</ng-template>

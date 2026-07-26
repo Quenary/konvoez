@@ -1,37 +1,41 @@
 :host {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: var(--p-content-background);
-
-  .groups {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    overflow-x: hidden;
-    overflow-y: auto;
-    flex: 1;
-
-    .group {
-      &-item {
-        display: inline-flex;
-        align-items: center;
-      }
-
-      &-children {
-        &-item {
-          display: flex;
-          flex-direction: column;
-
-          &-peers {
-            padding-left: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-          }
-        }
-      }
-    }
+  .room-item {
+    padding-left: 0.125rem;
   }
+
+  // display: flex;
+  // flex-direction: column;
+  // gap: 1rem;
+  // padding: 1rem;
+  // background-color: var(--p-content-background);
+
+  // .groups {
+  //   display: flex;
+  //   flex-direction: column;
+  //   gap: 1rem;
+  //   overflow-x: hidden;
+  //   overflow-y: auto;
+  //   flex: 1;
+
+  //   .group {
+  //     &-item {
+  //       display: inline-flex;
+  //       align-items: center;
+  //     }
+
+  //     &-children {
+  //       &-item {
+  //         display: flex;
+  //         flex-direction: column;
+
+  //         &-peers {
+  //           padding-left: 2rem;
+  //           display: flex;
+  //           flex-direction: column;
+  //           gap: 0.5rem;
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 }

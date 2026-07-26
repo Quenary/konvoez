@@ -1,17 +1,35 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   FormControl,
   FormGroup,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { DynamicDialogRef, DynamicDialogConfig } from 'primeng/dynamicdialog';
 import { ERoomType } from '@konvoez/shared';
-import { IftaLabelModule } from 'primeng/iftalabel';
-import { InputTextModule } from 'primeng/inputtext';
-import { ButtonModule } from 'primeng/button';
-import { SelectModule } from 'primeng/select';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { IRoom, IRoomCreate } from '../rooms.interface';
+import { injectContext } from '@taiga-ui/polymorpheus';
+import {
+  TuiButton,
+  TuiDialogContext,
+  TuiInput,
+  tuiItemsHandlersProvider,
+  TuiLabel,
+  TuiTextfield,
+} from '@taiga-ui/core';
+import { TuiForm } from '@taiga-ui/layout';
+import { TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit';
+
+export type RoomDialogData = Partial<IRoom>;
+type TypeOption = {
+  name: string;
+  value: ERoomType;
+};
 
 /**
  * Create/update room dialog component
@@ -19,24 +37,34 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 @Component({
   selector: 'app-room-dialog',
   imports: [
-    IftaLabelModule,
-    InputTextModule,
-    ButtonModule,
-    SelectModule,
     ReactiveFormsModule,
     TranslatePipe,
+    TuiButton,
+    TuiForm,
+    TuiInput,
+    TuiTextfield,
+    TuiLabel,
+    TuiSelect,
+    TuiDataListWrapper,
+  ],
+  providers: [
+    tuiItemsHandlersProvider({
+      stringify: signal((a: TypeOption) => a.name),
+      identityMatcher: signal(
+        (a: TypeOption, b: TypeOption) => a.value === b.value,
+      ),
+    }),
   ],
   templateUrl: './room-dialog.component.html',
   styleUrl: './room-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomDialogComponent {
-  private readonly dynamicDialogRef = inject(DynamicDialogRef);
-  private readonly dynamicDialogConfig = inject(DynamicDialogConfig);
+  private readonly context =
+    injectContext<TuiDialogContext<RoomDialogData | null, RoomDialogData>>();
   private readonly translateService = inject(TranslateService);
 
-  protected id: number | null = null;
-  protected readonly typeOptions = [
+  protected readonly typeOptions: TypeOption[] = [
     {
       name: this.translateService.instant('ROOMS.DIALOG.TEXT'),
       value: ERoomType.TEXT,
@@ -48,26 +76,35 @@ export class RoomDialogComponent {
   ];
   protected readonly form = new FormGroup({
     name: new FormControl<string | null>(null, [Validators.required]),
-    type: new FormControl<ERoomType | null>(null, [Validators.required]),
+    type: new FormControl<TypeOption | null>(null, [Validators.required]),
   });
 
   constructor() {
-    this.id = this.dynamicDialogConfig.data?.id;
     this.form.patchValue({
-      ...this.dynamicDialogConfig.data,
+      name: this.context.data.name,
+      type:
+        this.typeOptions.find(
+          (item) => item.value === this.context.data.type,
+        ) || null,
     });
   }
 
   submit(): void {
     if (this.form.valid) {
-      this.dynamicDialogRef.close({
-        id: this.id,
-        room: this.form.value,
+      const { name, type } = this.form.value as {
+        name: string;
+        type: TypeOption;
+      };
+
+      this.context.completeWith({
+        ...this.context.data,
+        name: name,
+        type: type.value,
       });
     }
   }
 
   close(): void {
-    this.dynamicDialogRef.close();
+    this.context.completeWith(null);
   }
 }
