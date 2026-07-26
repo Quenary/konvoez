@@ -1,4 +1,4 @@
-<ng-template #header> 123 </ng-template>
+<!-- <ng-template #header> 123 </ng-template>
 
 <form
   [formGroup]="form"
@@ -32,4 +32,46 @@
     [label]="'GENERAL.SAVE' | translate"
     type="submit">
   </p-button>
+</form> -->
+
+<form
+  tuiForm
+  [formGroup]="form"
+  (submit)="submit()">
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="add-room-name">
+      {{ 'ROOMS.DIALOG.NAME' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="add-room-name"
+      formControlName="name"
+      type="text" />
+  </tui-textfield>
+
+  <label tuiLabel>
+    {{ 'ROOMS.DIALOG.TYPE' | translate }}
+    <tui-textfield
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        formControlName="type" />
+
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="typeOptions" />
+    </tui-textfield>
+  </label>
+
+  <footer>
+    <button
+      tuiButton
+      type="submit">
+      {{ 'GENERAL.SAVE' | translate }}
+    </button>
+  </footer>
 </form>

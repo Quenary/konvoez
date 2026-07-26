@@ -94,6 +94,7 @@
     "webpack-dev-server": "^5.2.1"
   },
   "dependencies": {
+    "@angular/cdk": "^21.2.14",
     "@angular/common": "~21.2.0",
     "@angular/compiler": "~21.2.0",
     "@angular/core": "~21.2.0",
@@ -128,6 +129,7 @@
     "@ngx-translate/http-loader": "^18.0.0",
     "@primeuix/themes": "^2.0.3",
     "@sapphi-red/web-noise-suppressor": "^0.3.5",
+    "@taiga-ui/addon-mobile": "^5.16.0",
     "@taiga-ui/cdk": "^5.14.0",
     "@taiga-ui/core": "^5.14.0",
     "@taiga-ui/icons": "^5.14.0",

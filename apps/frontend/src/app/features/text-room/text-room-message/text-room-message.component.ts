@@ -10,7 +10,7 @@ import { ContextMenuModule } from 'primeng/contextmenu';
 import { IMessageEntity } from '../text-room.reducer';
 import { MenuItem } from 'primeng/api';
 import { Store } from '@ngrx/store';
-import { selectMe } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { IGetUser } from '@features/user/user.interface';
 import { AvatarModule } from 'primeng/avatar';
 import { selectTextRoomAvatars } from '../text-room.selectors';
@@ -44,7 +44,7 @@ export class TextRoomMessageComponent {
   /**
    * Current user
    */
-  private readonly me = this.store.selectSignal(selectMe);
+  private readonly me = this.store.selectSignal(selectCurrentUser);
   /**
    * Avatars dict
    */

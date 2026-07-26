@@ -12,4 +12,7 @@ export const selectAuthLoading = createSelector(
   _selectAuth,
   (auth) => auth.loading,
 );
-export const selectMe = createSelector(_selectAuth, (state) => state.user);
+export const selectCurrentUser = createSelector(
+  _selectAuth,
+  (state) => state.user,
+);

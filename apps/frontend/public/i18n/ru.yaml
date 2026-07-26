@@ -1,5 +1,6 @@
 GENERAL:
   HELLO: Привет!
+  TITLE: KonvoEZ
   YES: Да
   NO: Нет
   SAVE: Сохранить
@@ -22,9 +23,12 @@ AUTH:
     - Как минимум одна заглавная буква
     - Как минимум один цифра
     - Как минимум 12 символов
-ROOMS:
+MENU:
+  COLLAPSE: Свернуть
+  EXPAND: Развернуть
   TEXT: Текстовые
   VOICE: Голосовые
+ROOMS:
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
   DIALOG:
     ADD_HEADER: Добавить комнату

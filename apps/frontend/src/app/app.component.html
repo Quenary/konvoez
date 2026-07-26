@@ -1,9 +1,52 @@
 <tui-root>
-  <p-toast></p-toast>
-  <main>
-    @if (isAuthenticated()) {
-      <app-rooms class="rooms"></app-rooms>
-    }
+  @if (isAuthenticated()) {
+    <div
+      [style.display]="'flex'"
+      [style.height.%]="100">
+      <aside [tuiNavigationAside]="!collapsed()">
+        <header>
+          <button
+            tuiButton
+            iconStart="@tui.home"
+            type="button"
+            [routerLink]="'/'">
+            @if (!collapsed()) {
+              {{ 'GENERAL.TITLE' | translate }}
+            }
+          </button>
+        </header>
+
+        <app-rooms [collapsed]="collapsed()"></app-rooms>
+
+        <footer>
+          <app-voice-room-panel
+            [collapsed]="collapsed()"></app-voice-room-panel>
+
+          <button
+            tuiAsideItem
+            type="button"
+            iconStart="@tui.settings"
+            routerLink="/settings">
+            {{ 'SETTINGS.TITLE' | translate }}
+          </button>
+
+          <button
+            tuiAsideItem
+            type="button"
+            [iconStart]="
+              collapsed() ? '@tui.chevron-right' : '@tui.chevron-left'
+            "
+            (click)="collapsed.update((v) => !v)">
+            {{ (collapsed() ? 'MENU.EXPAND' : 'MENU.COLLAPSE') | translate }}
+          </button>
+        </footer>
+      </aside>
+
+      <main tuiNavigationMain>
+        <router-outlet></router-outlet>
+      </main>
+    </div>
+  } @else {
     <router-outlet></router-outlet>
-  </main>
+  }
 </tui-root>
