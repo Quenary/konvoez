@@ -1,13 +1,11 @@
 import { defineConfig, Options } from '@mikro-orm/core';
-// import { SqliteDriver } from '@mikro-orm/sqlite';
-// import { PostgreSqlDriver } from '@mikro-orm/postgresql';
-// import { MySqlDriver } from '@mikro-orm/mysql';
 import { Migrator } from '@mikro-orm/migrations';
 import { UserEntitySchema } from './features/users/users.entity';
 import { RoomEntitySchema } from './features/rooms/rooms.entity';
 import { SettingsEntitySchema } from './features/settings/settings.entity';
 import { MessageEntitySchema } from './features/text-rooms/text-rooms.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
+import { Migration20260730002217 } from './migrations/Migration20260730002217';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -22,7 +20,10 @@ export async function createMikroOrmConfig() {
     ],
     extensions: [Migrator],
     migrations: {
+      // Used by the CLI (`migration:create`) which runs with cwd=apps/backend.
       pathTs: './src/migrations',
+      // Explicit list is required for the webpack-bundled app (no FS discovery).
+      migrationsList: [Migration20260730002217],
     },
   } satisfies Partial<Options>;
 
@@ -64,15 +65,3 @@ export async function createMikroOrmConfig() {
 }
 
 export default createMikroOrmConfig;
-
-// export default defineConfig({
-//   dbName: `${process.cwd()}/db.sqlite`,
-//   entities: [
-//     KonvoezBaseEntitySchema,
-//     UserEntitySchema,
-//     RoomEntitySchema,
-//     SettingsEntitySchema,
-//     MessageEntitySchema,
-//   ],
-//   driver: SqliteDriver,
-// });
