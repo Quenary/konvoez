@@ -45,10 +45,27 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
-        loadComponent: () =>
-          import('./features/settings/settings.component').then(
-            (m) => m.SettingsComponent,
-          ),
+        children: [
+          {
+            path: '',
+            redirectTo: 'profile',
+            pathMatch: 'full',
+          },
+          {
+            path: 'profile',
+            loadComponent: () =>
+              import('./features/settings/settings-profile/settings-profile.component').then(
+                (m) => m.SettingsProfileComponent,
+              ),
+          },
+          {
+            path: 'devices',
+            loadComponent: () =>
+              import('./features/settings/settings-devices/settings-devices.component').then(
+                (m) => m.SettingsDevicesComponent,
+              ),
+          },
+        ],
       },
     ],
   },

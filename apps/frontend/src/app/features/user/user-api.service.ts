@@ -2,7 +2,12 @@ import { HttpClient, HttpEvent } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import { IUser, IUserCreate, IUserUpdate } from '@konvoez/shared';
+import {
+  IUploadFileResult,
+  IUser,
+  IUserCreate,
+  IUserUpdate,
+} from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -42,13 +47,16 @@ export class UserApiService {
     });
   }
 
-  avatarUpload(avatar: File): Observable<string> {
+  avatarUpload(avatar: File): Observable<IUploadFileResult> {
     const formData = new FormData();
     formData.append('avatar', avatar);
-    return this.httpClient.post('/api/users/avatar/upload', formData, {
-      responseType: 'text',
-      withCredentials: true,
-    });
+    return this.httpClient.post<IUploadFileResult>(
+      `${environment.apiPath}/users/avatar/upload`,
+      formData,
+      {
+        withCredentials: true,
+      },
+    );
   }
 
   avatarStream(url: string): Observable<HttpEvent<Blob>> {

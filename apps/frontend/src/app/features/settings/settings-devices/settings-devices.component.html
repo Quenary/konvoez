@@ -3,41 +3,8 @@
   tuiCardLarge
   tuiForm="m">
   <header tuiHeader>
-    {{ 'SETTINGS.TITLE' | translate }}
+    {{ 'SETTINGS.DEVICES.TITLE' | translate }}
   </header>
-
-  <!-- <div tuiFile>
-    <input #input accept="image/*" type="file" (change)="uploadAvatar(input.files)">
-  </div> -->
-
-  <input
-    hidden
-    class="avatar-input"
-    #avatarInput
-    type="file"
-    accept="image/*"
-    (change)="uploadAvatar(avatarInput)" />
-
-  <div
-    tuiAvatar
-    size="xxl"
-    class="avatar"
-    tabindex="0"
-    (click)="avatarInput.click()"
-    (keypress.space)="avatarInput.click()"
-    (keypress.enter)="avatarInput.click()">
-    @if (avatarUrl(); as url) {
-      <img
-        [alt]="username()"
-        [ngSrc]="url" />
-    } @else {
-      {{ username() | tuiInitials }}
-    }
-
-    <tui-icon
-      class="avatar-edit"
-      icon="@tui.edit"></tui-icon>
-  </div>
 
   <ng-template
     #deviceStatusIcon
@@ -54,7 +21,7 @@
   </ng-template>
 
   <label tuiLabel>
-    {{ 'SETTINGS.AUDIO_INPUT' | translate }}
+    {{ 'SETTINGS.DEVICES.AUDIO_INPUT' | translate }}
     <tui-textfield
       iconStart="@tui.mic"
       tuiChevron
@@ -79,7 +46,7 @@
   </label>
 
   <label tuiLabel>
-    {{ 'SETTINGS.AUDIO_OUTPUT' | translate }}
+    {{ 'SETTINGS.DEVICES.AUDIO_OUTPUT' | translate }}
     <tui-textfield
       iconStart="@tui.headphones"
       tuiChevron
@@ -103,17 +70,8 @@
 
       <tui-icon
         icon="@tui.message-circle-question-mark"
-        [tuiTooltip]="'SETTINGS.API_NOT_AVAILABLE' | translate">
+        [tuiTooltip]="'SETTINGS.DEVICES.API_NOT_AVAILABLE' | translate">
       </tui-icon>
     </tui-textfield>
   </label>
-
-  <button
-    tuiButton
-    appearance="primary-destructive"
-    iconStart="@tui.log-out"
-    type="button"
-    (click)="logout()">
-    {{ 'GENERAL.LOG_OUT' | translate }}
-  </button>
 </div>

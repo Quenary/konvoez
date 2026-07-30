@@ -11,6 +11,17 @@ This is a NX monorepo with:
 - frontend written on Angular in 'apps/frontend'
 - shared library written on TS in 'libs/shared'
 
+This repository uses conventional commits, e.g.
+```md
+feat(backend): file storage
+
++ added base file service
++ added user avatar service
+
+Closes #123
+Related to #444
+```
+
 ## Key Documentation
 
 - [Backend](apps/backend/AGENTS.md)

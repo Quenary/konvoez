@@ -8,7 +8,8 @@
       @if (p.avatarUrl) {
         <img
           [alt]="p.username"
-          [ngSrc]="p.avatarUrl" />
+          [ngSrc]="p.avatarUrl"
+          fill />
       } @else {
         {{ p.username | tuiInitials }}
       }

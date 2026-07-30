@@ -1,0 +1,158 @@
+<form
+  appearance="floating"
+  tuiCardLarge
+  tuiForm="m"
+  [formGroup]="form"
+  (submit)="onSubmit()">
+  <header tuiHeader>
+    {{ 'SETTINGS.PROFILE.TITLE' | translate }}
+  </header>
+
+  <label tuiInputFiles>
+    <input
+      tuiInputFiles
+      id="profile-avatar"
+      accept="image/*"
+      [formControl]="form.controls.avatarFile"
+      type="file" />
+
+    <ng-template let-dragged>
+      @if (dragged) {
+        <div
+          appearance="secondary"
+          size="xxl"
+          tuiAvatar="@tui.droplet">
+        </div>
+        <div>
+          {{ 'PROFILE.DROP_IT' | translate }}
+        </div>
+      } @else {
+        @if (avatarUrl(); as au) {
+          <div
+            appearance="secondary"
+            size="xxl"
+            tuiAvatar>
+            <img
+              [ngSrc]="au"
+              fill
+              [alt]="au" />
+          </div>
+        } @else {
+          <div
+            appearance="secondary"
+            size="xxl"
+            tuiAvatar="@tui.cloud-upload">
+          </div>
+        }
+
+        <div>
+          {{ 'PROFILE.DRAG_FILE' | translate }}
+          {{ 'GENERAL.OR' | translate | lowercase }}
+          <span tuiLink>
+            {{ 'PROFILE.CLICK_TO_SELECT' | translate | lowercase }}
+          </span>
+        </div>
+      }
+    </ng-template>
+  </label>
+
+  <tui-textfield iconStart="@tui.user">
+    <label
+      tuiLabel
+      for="profile-username">
+      {{ 'PROFILE.USERNAME' | translate }}
+    </label>
+
+    <input
+      tuiInput
+      id="profile-username"
+      autocomplete="username"
+      [formControl]="form.controls.username"
+      type="text" />
+  </tui-textfield>
+
+  <label tuiLabel>
+    <input
+      tuiSwitch
+      [formControl]="form.controls.isChangingPassword"
+      type="checkbox" />
+
+    {{ 'PROFILE.IS_CHANGING_PASSWORD' | translate }}
+  </label>
+
+  <tui-textfield iconStart="@tui.lock">
+    <label
+      tuiLabel
+      for="profile-password">
+      {{ 'PROFILE.PASSWORD' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="profile-password"
+      autocomplete="new-password"
+      [formControl]="form.controls.password"
+      type="password" />
+  </tui-textfield>
+
+  <tui-textfield iconStart="@tui.lock">
+    <label
+      tuiLabel
+      for="profile-confirm-password">
+      {{ 'PROFILE.CONFIRM_PASSWORD' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="profile-confirm-password"
+      autocomplete="new-password"
+      [formControl]="form.controls.confirmPassword"
+      type="password" />
+  </tui-textfield>
+
+  <tui-textfield iconStart="@tui.file-user">
+    <label
+      tuiLabel
+      for="profile-fullname">
+      {{ 'PROFILE.FULLNAME' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="profile-fullname"
+      autocomplete="name"
+      [formControl]="form.controls.fullname"
+      type="text" />
+  </tui-textfield>
+
+  <tui-textfield iconStart="@tui.mail">
+    <label
+      tuiLabel
+      for="profile-email">
+      {{ 'PROFILE.EMAIL' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="profile-email"
+      autocomplete="email"
+      [formControl]="form.controls.email"
+      type="text" />
+  </tui-textfield>
+
+  <footer>
+    <button
+      tuiButton
+      appearance="primary"
+      iconStart="@tui.save"
+      type="submit"
+      [disabled]="form.untouched">
+      {{ 'GENERAL.SAVE' | translate }}
+    </button>
+
+    <button
+      tuiButton
+      appearance="primary-destructive"
+      iconStart="@tui.log-out"
+      type="button"
+      (click)="logout()">
+      {{ 'GENERAL.LOG_OUT' | translate }}
+    </button>
+  </footer>
+</form>

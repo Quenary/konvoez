@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsString, Length } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, Length } from 'class-validator';
 import {
   EUserRole,
   fullnameMaxLength,
@@ -55,6 +55,7 @@ export class UpdateUserDto implements IUserUpdate {
   })
   @IsString()
   @Length(usernameMinLength, usernameMaxLength)
+  @IsOptional()
   username?: string;
 
   @ApiProperty({
@@ -63,6 +64,7 @@ export class UpdateUserDto implements IUserUpdate {
   })
   @IsString()
   @Length(passwordMinLength, passwordMaxLength)
+  @IsOptional()
   password?: string;
 
   @ApiProperty({
@@ -71,20 +73,23 @@ export class UpdateUserDto implements IUserUpdate {
   })
   @IsString()
   @Length(fullnameMinLength, fullnameMaxLength)
-  fullname!: string;
+  @IsOptional()
+  fullname?: string;
 
   @ApiProperty({
     type: String,
     required: true,
   })
   @IsEmail()
-  email!: string;
+  @IsOptional()
+  email?: string;
 
   @ApiProperty({
     enum: EUserRole,
     required: false,
   })
   @IsEnum(EUserRole)
+  @IsOptional()
   role?: EUserRole;
 
   @ApiProperty({
@@ -93,6 +98,7 @@ export class UpdateUserDto implements IUserUpdate {
     description: 'Avatar key in s3',
   })
   @IsString()
+  @IsOptional()
   avatar?: string;
 }
 
