@@ -132,9 +132,11 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       avatar: user.avatar,
-      avatarUrl: user.avatar
-        ? `/api/users/avatar/stream?key=${user.avatar}`
-        : null,
+      avatarUrl: this.getAvatarUrl(user.avatar),
     };
+  }
+
+  getAvatarUrl(key: string | null | undefined): string | null {
+    return key ? `/api/users/avatar/stream?key=${key}` : null;
   }
 }

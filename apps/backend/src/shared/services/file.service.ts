@@ -9,12 +9,16 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NotFoundException } from '@nestjs/common';
+import { Subject } from 'rxjs';
 import { Readable } from 'stream';
 
 export abstract class FileService {
   protected abstract readonly bucketName: string;
+  protected readonly destroy$ = new Subject<void>();
 
-  constructor(protected readonly s3Client: S3Client) {}
+  constructor(protected readonly s3Client: S3Client) {
+    this.ensureBucketExists();
+  }
 
   /**
    * Загрузка файла
@@ -22,6 +26,8 @@ export abstract class FileService {
    * @returns ключ файла
    */
   async upload(file: Express.Multer.File): Promise<string> {
+    await this.ensureBucketExists();
+
     const key = `${this.bucketName}/${Date.now()}-${file.originalname}`;
 
     const command = new PutObjectCommand({

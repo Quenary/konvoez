@@ -22,13 +22,34 @@
           <app-voice-room-panel
             [collapsed]="collapsed()"></app-voice-room-panel>
 
-          <button
-            tuiAsideItem
-            type="button"
-            iconStart="@tui.settings"
-            routerLink="/settings">
-            {{ 'SETTINGS.TITLE' | translate }}
-          </button>
+          <tui-aside-group>
+            <button
+              tuiAsideItem
+              automation-id="setting"
+              type="button"
+              iconStart="@tui.settings"
+              tuiChevron>
+              {{ 'SETTINGS.TITLE' | translate }}
+
+              <ng-template>
+                <button
+                  tuiAsideItem
+                  type="button"
+                  iconStart="@tui.user-pen"
+                  [routerLink]="'/settings/profile'">
+                  {{ 'MENU.SETTINGS.PROFILE' | translate }}
+                </button>
+
+                <button
+                  tuiAsideItem
+                  type="button"
+                  iconStart="@tui.file-headphone"
+                  [routerLink]="'/settings/devices'">
+                  {{ 'MENU.SETTINGS.DEVICES' | translate }}
+                </button>
+              </ng-template>
+            </button>
+          </tui-aside-group>
 
           <button
             tuiAsideItem

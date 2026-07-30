@@ -23,6 +23,7 @@ import { Author } from '../auth/auth.decorator';
 import { UserEntity } from './users.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersAvatarsService } from './users-avatars.service';
+import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 
 @Controller('users')
 export class UsersController {
@@ -93,12 +94,17 @@ export class UsersController {
   @Post('avatar/upload')
   @UseInterceptors(FileInterceptor('avatar'))
   @ApiOkResponse({
-    type: String,
+    type: UploadFileResultDto,
     description: 'Upload avatar and get its key (no user data mutation)',
   })
-  async avatarUpload(@UploadedFile() file: Express.Multer.File) {
-    const avatar = await this.usersAvatarsService.upload(file);
-    return avatar;
+  async avatarUpload(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UploadFileResultDto> {
+    const key = await this.usersAvatarsService.upload(file);
+    return {
+      key,
+      url: this.usersService.getAvatarUrl(key) as string,
+    };
   }
 
   @UseGuards(AuthGuard)

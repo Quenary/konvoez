@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import {
   IGetAllPeersResult,
   IPeersOnJoin,
@@ -52,7 +52,7 @@ export type VoiceRoomStateMediasoupAppData = {
 };
 
 @Injectable()
-export class VoiceRoomsStateService implements OnModuleInit {
+export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   private worker!: MediasoupWorker;
   private readonly rooms = new Map<number, VoiceRoomState>();
 
@@ -62,6 +62,11 @@ export class VoiceRoomsStateService implements OnModuleInit {
       rtcMaxPort: 49999,
     });
     console.info('Mediasoup worker started');
+  }
+
+  async onModuleDestroy() {
+    this.worker.close();
+    console.info('Mediasoup worker destroyed');
   }
 
   public async ensureRoom(roomId: number): Promise<VoiceRoomState> {
@@ -93,7 +98,7 @@ export class VoiceRoomsStateService implements OnModuleInit {
 
   public async removeRoom(roomId: number) {
     if (this.rooms.has(roomId)) {
-      const room = this.rooms.get(roomId)!;
+      const room = this.rooms.get(roomId) as VoiceRoomState;
       room.router.close();
       this.rooms.delete(roomId);
     }

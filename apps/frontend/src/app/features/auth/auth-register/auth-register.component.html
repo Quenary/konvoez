@@ -19,7 +19,7 @@
     <label
       tuiLabel
       for="register-username">
-      {{ 'AUTH.USERNAME' | translate }}
+      {{ 'PROFILE.USERNAME' | translate }}
     </label>
 
     <input
@@ -34,7 +34,7 @@
     <label
       tuiLabel
       for="register-password">
-      {{ 'AUTH.PASSWORD' | translate }}
+      {{ 'PROFILE.PASSWORD' | translate }}
     </label>
 
     <input
@@ -46,7 +46,7 @@
 
     <tui-icon
       icon="@tui.message-circle-question-mark"
-      [tuiTooltip]="'AUTH.PASSWORD_HINT' | translate"></tui-icon>
+      [tuiTooltip]="'PROFILE.PASSWORD_HINT' | translate"></tui-icon>
 
     <tui-icon tuiPassword />
   </tui-textfield>
@@ -55,7 +55,7 @@
     <label
       tuiLabel
       for="confirm-register-password">
-      {{ 'AUTH.CONFIRM_PASSWORD' | translate }}
+      {{ 'PROFILE.CONFIRM_PASSWORD' | translate }}
     </label>
     <input
       tuiInput
@@ -66,7 +66,7 @@
 
     <tui-icon
       icon="@tui.message-circle-question-mark"
-      [tuiTooltip]="'AUTH.PASSWORD_HINT' | translate"></tui-icon>
+      [tuiTooltip]="'PROFILE.PASSWORD_HINT' | translate"></tui-icon>
 
     <tui-icon tuiPassword />
   </tui-textfield>
@@ -75,7 +75,7 @@
     <label
       tuiLabel
       for="register-fullname">
-      {{ 'AUTH.FULLNAME' | translate }}
+      {{ 'PROFILE.FULLNAME' | translate }}
     </label>
 
     <input
@@ -90,7 +90,7 @@
     <label
       tuiLabel
       for="register-email">
-      {{ 'AUTH.EMAIL' | translate }}
+      {{ 'PROFILE.EMAIL' | translate }}
     </label>
 
     <input
@@ -108,7 +108,7 @@
       [disabled]="!form.dirty"
       [loading]="loading()">
       <tui-icon icon="@tui.user-plus" />
-      {{ 'GENERAL.SAVE' | translate }}
+      {{ 'GENERAL.SIGN_UP' | translate }}
     </button>
   </footer>
 </form>

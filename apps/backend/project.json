@@ -76,7 +76,9 @@
       "dependsOn": ["build"],
       "options": {
         "buildTarget": "backend:build",
-        "runBuildTargetDependencies": false
+        "runBuildTargetDependencies": false,
+        "inspect": false,
+        "debounce": 1000
       },
       "configurations": {
         "development": {

@@ -1,9 +1,9 @@
-import { TuiButton, TuiIcon, TuiRoot } from '@taiga-ui/core';
+import { TuiButton, TuiRoot } from '@taiga-ui/core';
 import { Component, inject, linkedSignal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { selectIsAuthorized } from './features/auth/auth.selectors';
-import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -21,11 +21,9 @@ import { RoomsComponent } from '@features/rooms/rooms.component';
     VoiceRoomPanelComponent,
     RouterLink,
     TuiRoot,
-    TuiAvatar,
     TuiButton,
-    TuiIcon,
     TuiNavigation,
-    TuiInitialsPipe,
+    TuiChevron,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',

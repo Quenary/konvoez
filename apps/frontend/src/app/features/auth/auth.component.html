@@ -14,7 +14,7 @@
     <label
       tuiLabel
       for="username">
-      {{ 'AUTH.USERNAME' | translate }}
+      {{ 'PROFILE.USERNAME' | translate }}
     </label>
 
     <input
@@ -29,7 +29,7 @@
     <label
       tuiLabel
       for="password">
-      {{ 'AUTH.PASSWORD' | translate }}
+      {{ 'PROFILE.PASSWORD' | translate }}
     </label>
 
     <input
@@ -49,7 +49,7 @@
       [disabled]="!form.dirty"
       [loading]="loading()">
       <tui-icon icon="@tui.log-in" />
-      {{ 'AUTH.SIGN_IN' | translate }}
+      {{ 'GENERAL.SIGN_IN' | translate }}
     </button>
 
     <button
@@ -58,7 +58,7 @@
       type="button"
       routerLink="/auth/register">
       <tui-icon icon="@tui.user-plus" />
-      {{ 'AUTH.SIGN_UP' | translate }}
+      {{ 'GENERAL.SIGN_UP' | translate }}
     </button>
   </footer>
 </form>

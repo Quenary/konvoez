@@ -12,15 +12,21 @@ GENERAL:
   EDIT: Редактировать
   DELETE: Удалить
   FILE_TOO_BIG: Файл слишком большой
-AUTH:
+  SIGN_IN: Войти
+  SIGN_UP: Создать аккаунт
+  LOG_OUT: Выйти
+  OR: Или
+PROFILE:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
   CONFIRM_PASSWORD: Подтвердить пароль
   FULLNAME: Полное имя
   EMAIL: Электронная почта
-  SIGN_IN: Войти
-  SIGN_UP: Создать аккаунт
-  LOG_OUT: Выйти
+  AVATAR: Аватар
+  DRAG_FILE: Перетащите файл
+  CLICK_TO_SELECT: Нажмите для выбора
+  DROP_IT: Бросай его сюда!
+  IS_CHANGING_PASSWORD: Изменить пароль
   PASSWORD_HINT: |
     - Как минимум одна строчная буква
     - Как минимум одна заглавная буква
@@ -31,6 +37,10 @@ MENU:
   EXPAND: Развернуть
   TEXT: Текстовые
   VOICE: Голосовые
+  SETTINGS:
+    TITLE: Настройки
+    PROFILE: Профиль
+    DEVICES: Устройства
 ROOMS:
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
   DIALOG:
@@ -41,14 +51,16 @@ ROOMS:
     TEXT: Тестовая
     VOICE: Голосовая
 SETTINGS:
-  TITLE: Настройки
-  UPLOAD_AVATAR: Загрузить аватар
-  AUDIO_INPUT: Входное устройство
-  AUDIO_OUTPUT: Выходное устройство
-  DEVICE_UNAVAILABLE: Устройство недоступно
-  PERMISSION_ERROR: |
-    Ошибка получения аудио-устройств,
-    проверьте разрешения браузера.
-  API_NOT_AVAILABLE: | 
-    Данная функция может быть недоступна.
-    В таком случае будет использовано устройство по умолчанию.
+  PROFILE:
+    TITLE: Настройки профиля
+  DEVICES:
+    TITLE: Настройки устройств
+    AUDIO_INPUT: Входное устройство
+    AUDIO_OUTPUT: Выходное устройство
+    DEVICE_UNAVAILABLE: Устройство недоступно
+    PERMISSION_ERROR: |
+      Ошибка получения аудио-устройств,
+      проверьте разрешения браузера.
+    API_NOT_AVAILABLE: | 
+      Данная функция может быть недоступна.
+      В таком случае будет использовано устройство по умолчанию.
