@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { UserEntity } from './users.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { CreateUserDto, UpdateUserDto } from './users.dto';
+import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
 import { EUserRole } from '@konvoez/shared';
 import { PasswordService } from '../../shared/services/password.service';
 
@@ -32,7 +32,12 @@ export class UsersService {
     return user;
   }
 
-  async forkOneBy(where: Partial<UserEntity>): Promise<UserEntity> {
+  async findOneAsDto(id: number): Promise<GetUserDto> {
+    const user = await this.findOne(id);
+    return this.toDto(user);
+  }
+
+  async findOneBy(where: Partial<UserEntity>): Promise<UserEntity> {
     const em = this.em.fork();
     const user = await em.findOne(UserEntity, where);
     if (!user) {
@@ -41,8 +46,18 @@ export class UsersService {
     return user;
   }
 
+  async findOneByAsDto(where: Partial<UserEntity>): Promise<GetUserDto> {
+    const user = await this.findOneBy(where);
+    return this.toDto(user);
+  }
+
   async findAll(): Promise<UserEntity[]> {
     return this.repo.findAll();
+  }
+
+  async findAllAsDto(): Promise<GetUserDto[]> {
+    const users = await this.findAll();
+    return users.map(this.toDto);
   }
 
   async create(dto: CreateUserDto): Promise<UserEntity> {
@@ -80,13 +95,12 @@ export class UsersService {
     if (dto.role == EUserRole.OWNER) {
       throw new BadRequestException('Owner role cannot be assigned');
     }
-    // eslint-disable-next-line prefer-const
-    let { password, ...data } = dto;
+    const { password, ...data } = dto;
     if (password) {
-      password = await this.passwordService.hashPassword(password);
+      const passwordHash = await this.passwordService.hashPassword(password);
       dto = {
         ...data,
-        password,
+        password: passwordHash,
       };
     }
     const user = await this.findOne(id);
@@ -106,5 +120,21 @@ export class UsersService {
     const user = await this.findOne(id);
     this.em.remove(user);
     await this.em.flush();
+  }
+
+  toDto(user: UserEntity): GetUserDto {
+    return {
+      id: user.id,
+      username: user.username,
+      fullname: user.fullname,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      avatar: user.avatar,
+      avatarUrl: user.avatar
+        ? `/api/users/avatar/stream?key=${user.avatar}`
+        : null,
+    };
   }
 }

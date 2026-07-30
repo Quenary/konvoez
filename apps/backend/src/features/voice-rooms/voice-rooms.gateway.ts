@@ -79,17 +79,7 @@ export class VoiceRoomsGateway
         return;
       }
 
-      client.data.user = {
-        id: user.id,
-        username: user.username,
-        fullname: user.fullname,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-        avatarUrl: 'TODO',
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      } satisfies IUser;
+      client.data.user = user;
     } catch {
       client.emit(VoiceRoomEvent.ERROR, {
         message: 'Unauthorized',

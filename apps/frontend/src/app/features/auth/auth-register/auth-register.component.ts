@@ -1,23 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import {
-  ValidatorFn,
-  FormGroup,
-  FormControl,
-  Validators,
-  ReactiveFormsModule,
-} from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { map } from 'rxjs';
-import {
-  usernameMinLength,
-  usernameMaxLength,
-  passwordMaxLength,
-  passwordMinLength,
-  passwordRegexp,
-  fullnameMaxLength,
-  fullnameMinLength,
-} from '@konvoez/shared';
 import { AuthActions } from '../auth.actions';
 import { selectAuthLoading } from '../auth.selectors';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -32,6 +17,10 @@ import { TuiButtonLoading, TuiPassword, TuiTooltip } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { RouterLink } from '@angular/router';
 import { IUserCreate } from '@konvoez/shared';
+import {
+  getRegisterFormControls,
+  passwordMatchValidator,
+} from '@shared/functions/user-forms.function';
 
 @Component({
   selector: 'app-auth-register',
@@ -58,47 +47,10 @@ import { IUserCreate } from '@konvoez/shared';
 export class AuthRegisterComponent {
   private readonly store = inject(Store);
 
-  private readonly passwordMatchValidator: ValidatorFn = (control) => {
-    const form = control as FormGroup;
-    const value1 = form.controls['password'].value;
-    const value2 = form.controls['confirmPassword'].value;
-    if (value1 != value2) {
-      return { passwordMatchValidator: true };
-    }
-    return null;
-  };
-
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(
-    {
-      username: new FormControl<string>('', [
-        Validators.required,
-        Validators.minLength(usernameMinLength),
-        Validators.maxLength(usernameMaxLength),
-      ]),
-      password: new FormControl<string>('', [
-        Validators.required,
-        Validators.minLength(passwordMinLength),
-        Validators.maxLength(passwordMaxLength),
-        Validators.pattern(passwordRegexp),
-      ]),
-      confirmPassword: new FormControl<string>('', [
-        Validators.required,
-        Validators.minLength(passwordMinLength),
-        Validators.maxLength(passwordMaxLength),
-        Validators.pattern(passwordRegexp),
-      ]),
-      fullname: new FormControl<string>('', [
-        Validators.required,
-        Validators.minLength(fullnameMinLength),
-        Validators.maxLength(fullnameMaxLength),
-      ]),
-      email: new FormControl<string>('', [
-        Validators.required,
-        Validators.email,
-      ]),
-    },
-    this.passwordMatchValidator,
+    getRegisterFormControls(),
+    passwordMatchValidator,
   );
 
   protected readonly confirmPasswordError = toSignal(

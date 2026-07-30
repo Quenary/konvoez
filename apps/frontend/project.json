@@ -5,6 +5,12 @@
   "prefix": "app",
   "sourceRoot": "apps/frontend/src",
   "tags": [],
+  "generators": {
+    "@nx/angular:component": {
+      "style": "scss",
+      "type": "component"
+    }
+  },
   "targets": {
     "build": {
       "executor": "@angular/build:application",

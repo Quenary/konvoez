@@ -1,11 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
-import { TInterfaceToForm } from '@shared/types/interface-to-form.type';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ILoginBody } from './auth.interface';
 import { Store } from '@ngrx/store';
 import { selectAuthLoading } from './auth.selectors';
@@ -22,6 +16,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { getAuthFormControls } from '@shared/functions/user-forms.function';
 
 @Component({
   selector: 'app-auth',
@@ -49,10 +44,7 @@ export class AuthComponent {
   private readonly store = inject(Store);
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
-  protected readonly form = new FormGroup<TInterfaceToForm<ILoginBody>>({
-    username: new FormControl(null, [Validators.required]),
-    password: new FormControl(null, [Validators.required]),
-  });
+  protected readonly form = new FormGroup(getAuthFormControls());
 
   onSubmit(): void {
     if (this.form.invalid) return;
