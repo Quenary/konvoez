@@ -5,8 +5,7 @@
   "scripts": {
     "nx": "nx",
     "build": "nx run-many -t build",
-    "start:dev": "nx run-many -t serve",
-    "s3": "s3rver -a 192.168.0.8 -p 4568 -d ./s3-dev"
+    "start:dev": "nx run-many -t serve"
   },
   "repository": {
     "type": "git",
