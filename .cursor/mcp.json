@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "angular-cli": {
+      "command": "zsh",
+      "args": ["-i", "-c", "npx -y @angular/cli mcp"]
+    },
+    "taiga-ui": {
+      "command": "zsh",
+      "args": [
+        "-i",
+        "-c",
+        "npx -y @taiga-ui/mcp@latest --source-url=https://taiga-ui.dev/llms-full.txt"
+      ]
+    }
+  }
+}

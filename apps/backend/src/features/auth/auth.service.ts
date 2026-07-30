@@ -8,6 +8,7 @@ import { AuthJWTData } from './auth.dto';
 import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
 import { UserEntity } from '../users/users.entity';
+import { GetUserDto } from '../users/users.dto';
 
 @Injectable()
 export class AuthService {
@@ -25,10 +26,10 @@ export class AuthService {
    * @returns UserEntity
    * @throws UnauthorizedException
    */
-  async validateUser(username: string, password: string): Promise<UserEntity> {
+  async validateUser(username: string, password: string): Promise<GetUserDto> {
     let user: UserEntity | null = null;
     try {
-      user = await this.userService.forkOneBy({ username });
+      user = await this.userService.findOneBy({ username });
     } catch {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -42,7 +43,7 @@ export class AuthService {
     if (!result) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return user;
+    return this.userService.toDto(user);
   }
 
   generateToken(payload: AuthJWTData): string {
@@ -62,7 +63,7 @@ export class AuthService {
    * @param req request
    * @returns
    */
-  async getMe(req: Request) {
+  async getMe(req: Request): Promise<GetUserDto> {
     const accessToken = req.cookies?.[ACCESS_TOKEN_KEY];
     if (!accessToken) {
       throw new UnauthorizedException('Unauthorized');
@@ -71,16 +72,16 @@ export class AuthService {
     return await this.getUserFromAccessToken(accessToken);
   }
 
-  async getUserFromAccessToken(accessToken: string) {
+  async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
     const res = this.verifyToken(accessToken);
-    return await this.userService.forkOneBy({
+    return await this.userService.findOneByAsDto({
       id: res.userId,
     });
   }
 
   async getUserFromRawCookies(
     cookies: string | null | undefined,
-  ): Promise<UserEntity | null> {
+  ): Promise<GetUserDto | null> {
     if (!cookies) {
       return null;
     }

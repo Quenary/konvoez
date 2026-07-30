@@ -131,13 +131,13 @@ export class GetUserDto implements IUser {
     type: String,
     required: false,
   })
-  avatar!: string | null;
+  avatar!: string | null | undefined;
 
   @ApiProperty({
     type: String,
     required: false,
   })
-  avatarUrl: string | null = null;
+  avatarUrl: string | null | undefined;
 
   @ApiProperty({
     type: Date,
@@ -149,5 +149,5 @@ export class GetUserDto implements IUser {
     type: Date,
     required: false,
   })
-  updatedAt!: Date | null;
+  updatedAt: Date | null | undefined;
 }

@@ -7,43 +7,22 @@ import {
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
-import {
-  Global,
-  HttpException,
-  HttpStatus,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { s3ClientInjectionToken } from '@shared/tokens/s3-client.token';
+import { NotFoundException } from '@nestjs/common';
 import { Readable } from 'stream';
-import { maxAvatarSize } from '@konvoez/shared';
 
-@Global()
-@Injectable()
-export class AvatarsService {
-  private readonly bucketName = 'avatars2';
+export abstract class FileService {
+  protected abstract readonly bucketName: string;
 
-  constructor(
-    @Inject(s3ClientInjectionToken)
-    private readonly s3Client: S3Client,
-  ) {
-    this.ensureBucketExists();
-  }
+  constructor(protected readonly s3Client: S3Client) {}
 
   /**
-   * Загрузка аватарки
+   * Загрузка файла
    * @param file файл
-   * @param userId ид пользователя
-   * @returns ключ аватарки
+   * @returns ключ файла
    */
-  async uploadAvatar(file: Express.Multer.File): Promise<string> {
-    if (file.size > maxAvatarSize) {
-      throw new HttpException('Avatar size is too big', HttpStatus.BAD_REQUEST);
-    }
-
-    const key = `avatars/${Date.now()}-${file.originalname}`;
+  async upload(file: Express.Multer.File): Promise<string> {
+    const key = `${this.bucketName}/${Date.now()}-${file.originalname}`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
@@ -57,7 +36,13 @@ export class AvatarsService {
     return key;
   }
 
-  async getAvatarUrl(key: string, expiresIn = 3600): Promise<string> {
+  /**
+   * Получение signed url для файла
+   * @param key ключ файла
+   * @param expiresIn время жизни ссылки в секундах
+   * @returns
+   */
+  async getSignedUrl(key: string, expiresIn = 60): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -65,7 +50,12 @@ export class AvatarsService {
     return await getSignedUrl(this.s3Client, command, { expiresIn });
   }
 
-  async getAvatarStream(key: string) {
+  /**
+   * Получение потока файла
+   * @param key ключ файла
+   * @returns
+   */
+  async getStream(key: string) {
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
@@ -75,7 +65,7 @@ export class AvatarsService {
       const response = await this.s3Client.send(command);
 
       if (!response.Body) {
-        throw new NotFoundException('Avatar file is empty or missing');
+        throw new NotFoundException('File is empty or missing');
       }
 
       return {
@@ -86,13 +76,13 @@ export class AvatarsService {
       };
     } catch (error) {
       if (error instanceof NoSuchKey) {
-        throw new NotFoundException('Avatar file not found in S3');
+        throw new NotFoundException('File not found in S3');
       }
       throw error;
     }
   }
 
-  private async ensureBucketExists() {
+  protected async ensureBucketExists() {
     try {
       await this.s3Client.send(
         new HeadBucketCommand({
@@ -106,6 +96,7 @@ export class AvatarsService {
         (error['name'] === 'NotFound' ||
           error['$metadata']?.httpStatusCode === 404)
       ) {
+        console.info(`Bucket ${this.bucketName} not found, creating...`);
         try {
           await this.s3Client.send(
             new CreateBucketCommand({

@@ -22,13 +22,13 @@ import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
 import { UserEntity } from './users.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { AvatarsService } from '../avatars/avatars.service';
+import { UsersAvatarsService } from './users-avatars.service';
 
 @Controller('users')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
-    private readonly avatarsService: AvatarsService,
+    private readonly usersAvatarsService: UsersAvatarsService,
   ) {}
 
   @UseGuards(AuthGuard)
@@ -38,8 +38,8 @@ export class UsersController {
     isArray: true,
     description: 'Get all users',
   })
-  async findAll() {
-    return await this.usersService.findAll();
+  async findAll(): Promise<GetUserDto[]> {
+    return await this.usersService.findAllAsDto();
   }
 
   @Post()
@@ -47,9 +47,9 @@ export class UsersController {
     type: GetUserDto,
     description: 'Create user',
   })
-  async create(@Body() dto: CreateUserDto) {
-    console.log(dto);
-    return await this.usersService.create(dto);
+  async create(@Body() dto: CreateUserDto): Promise<GetUserDto> {
+    const user = await this.usersService.create(dto);
+    return this.usersService.toDto(user);
   }
 
   @UseGuards(AuthGuard)
@@ -58,8 +58,8 @@ export class UsersController {
     type: GetUserDto,
     description: 'Get user by id',
   })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return await this.usersService.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<GetUserDto> {
+    return await this.usersService.findOneAsDto(id);
   }
 
   @UseGuards(AuthGuard)
@@ -72,8 +72,9 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
     @Author() author: UserEntity,
-  ) {
-    return await this.usersService.update(id, dto, author);
+  ): Promise<GetUserDto> {
+    const user = await this.usersService.update(id, dto, author);
+    return this.usersService.toDto(user);
   }
 
   @UseGuards(AuthGuard)
@@ -84,7 +85,7 @@ export class UsersController {
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @Author() author: UserEntity,
-  ) {
+  ): Promise<void> {
     return await this.usersService.remove(id, author);
   }
 
@@ -96,7 +97,7 @@ export class UsersController {
     description: 'Upload avatar and get its key (no user data mutation)',
   })
   async avatarUpload(@UploadedFile() file: Express.Multer.File) {
-    const avatar = await this.avatarsService.uploadAvatar(file);
+    const avatar = await this.usersAvatarsService.upload(file);
     return avatar;
   }
 
@@ -111,7 +112,7 @@ export class UsersController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const { stream, contentType, contentLength } =
-      await this.avatarsService.getAvatarStream(key);
+      await this.usersAvatarsService.getStream(key);
     res.set({
       'Content-Type': contentType,
       ...(contentLength && { 'Content-Length': contentLength.toString() }),
