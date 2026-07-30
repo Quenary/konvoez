@@ -8,23 +8,35 @@ import {
   OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
-import { VoiceRoomCommon } from '@konvoez/shared';
+import {
+  type IConnectTransport,
+  type IConsume,
+  type IConsumeResult,
+  type ICreateTransport,
+  type ICreateTransportResult,
+  type IGetAllPeersResult,
+  type IJoinRoom,
+  type IProduce,
+  type IProduceResult,
+  type IUser,
+  VoiceRoomEvent,
+  type VoiceRoomEventMap,
+} from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
 } from './voice-rooms.state';
-import { UserCommon } from '@konvoez/shared';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 
 type TSocket = Socket<
-  VoiceRoomCommon.TEventMap,
-  VoiceRoomCommon.TEventMap,
+  VoiceRoomEventMap,
+  VoiceRoomEventMap,
   DefaultEventsMap,
   {
     roomId?: number;
-    user: UserCommon.IUser;
+    user: IUser;
   }
 >;
 
@@ -36,7 +48,7 @@ export class VoiceRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  private readonly server!: Server<VoiceRoomCommon.TEventMap>;
+  private readonly server!: Server<VoiceRoomEventMap>;
 
   constructor(
     private readonly authService: AuthService,
@@ -60,7 +72,9 @@ export class VoiceRoomsGateway
       );
 
       if (!user) {
-        client.emit(VoiceRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
+        client.emit(VoiceRoomEvent.ERROR, {
+          message: 'Unauthorized',
+        });
         client.disconnect(true);
         return;
       }
@@ -68,13 +82,18 @@ export class VoiceRoomsGateway
       client.data.user = {
         id: user.id,
         username: user.username,
+        fullname: user.fullname,
+        email: user.email,
         role: user.role,
         avatar: user.avatar,
+        avatarUrl: 'TODO',
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-      } satisfies UserCommon.IUser;
+      } satisfies IUser;
     } catch {
-      client.emit(VoiceRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
+      client.emit(VoiceRoomEvent.ERROR, {
+        message: 'Unauthorized',
+      });
       client.disconnect(true);
     }
   }
@@ -83,10 +102,10 @@ export class VoiceRoomsGateway
     this.handleLeaveRoom(socket);
   }
 
-  @SubscribeMessage(VoiceRoomCommon.EEvent.JOIN_ROOM)
+  @SubscribeMessage(VoiceRoomEvent.JOIN_ROOM)
   async handleJoinRoom(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: VoiceRoomCommon.IJoinRoom,
+    @MessageBody() body: IJoinRoom,
   ) {
     console.info('handleJoinRoom', body);
     const roomId = body.roomId;
@@ -101,7 +120,7 @@ export class VoiceRoomsGateway
       consumers: new Map(),
     });
 
-    socket.to(roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_JOINED, {
+    socket.to(roomId.toString()).emit(VoiceRoomEvent.PEER_JOINED, {
       user,
       roomId,
     });
@@ -109,12 +128,12 @@ export class VoiceRoomsGateway
     socket.join(roomId.toString());
 
     const peersOnJoin = this.voiceRoomsStateService.getPeersOnJoin(roomId);
-    socket.emit(VoiceRoomCommon.EEvent.PEERS_ON_JOIN, peersOnJoin);
+    socket.emit(VoiceRoomEvent.PEERS_ON_JOIN, peersOnJoin);
 
     return {};
   }
 
-  @SubscribeMessage(VoiceRoomCommon.EEvent.LEAVE_ROOM)
+  @SubscribeMessage(VoiceRoomEvent.LEAVE_ROOM)
   handleLeaveRoom(@ConnectedSocket() socket: TSocket) {
     console.info('handleLeaveRoom', socket.data);
     const { roomId, ...rest } = socket.data;
@@ -133,12 +152,10 @@ export class VoiceRoomsGateway
       peer.producers.forEach((p) => {
         p.close();
         room.producers.delete(p.id);
-        socket
-          .to(roomId.toString())
-          .emit(VoiceRoomCommon.EEvent.PRODUCER_CLOSED, {
-            producerId: p.id,
-            userId: peer.user.id,
-          });
+        socket.to(roomId.toString()).emit(VoiceRoomEvent.PRODUCER_CLOSED, {
+          producerId: p.id,
+          userId: peer.user.id,
+        });
       });
       peer.sendTransport?.close?.();
       peer.recvTransport?.close?.();
@@ -150,7 +167,7 @@ export class VoiceRoomsGateway
 
       socket.leave(roomId.toString());
 
-      socket.to(roomId.toString()).emit(VoiceRoomCommon.EEvent.PEER_LEFT, {
+      socket.to(roomId.toString()).emit(VoiceRoomEvent.PEER_LEFT, {
         user: socket.data.user,
         roomId,
       });
@@ -159,12 +176,12 @@ export class VoiceRoomsGateway
     return {};
   }
 
-  @SubscribeMessage(VoiceRoomCommon.EEvent.GET_ALL_PEERS)
-  handleGetAllPeers(): VoiceRoomCommon.IGetAllPeersResult {
+  @SubscribeMessage(VoiceRoomEvent.GET_ALL_PEERS)
+  handleGetAllPeers(): IGetAllPeersResult {
     return this.voiceRoomsStateService.getAllPeers();
   }
 
-  @SubscribeMessage(VoiceRoomCommon.EEvent.GET_RTP_CAPABILITIES)
+  @SubscribeMessage(VoiceRoomEvent.GET_RTP_CAPABILITIES)
   async handleGetRtpCapabilities(@ConnectedSocket() socket: TSocket) {
     this.throwSocketWithoutRoom(socket);
     const room = this.voiceRoomsStateService.getRoom(socket.data.roomId!)!;
@@ -177,10 +194,10 @@ export class VoiceRoomsGateway
    * @param body
    * @returns
    */
-  @SubscribeMessage(VoiceRoomCommon.EEvent.CREATE_TRANSPORT)
+  @SubscribeMessage(VoiceRoomEvent.CREATE_TRANSPORT)
   async handleCreateTransport(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: VoiceRoomCommon.ICreateTransport,
+    @MessageBody() body: ICreateTransport,
   ) {
     console.info('handleCreateTransport', body);
     this.throwSocketWithoutRoom(socket);
@@ -207,7 +224,7 @@ export class VoiceRoomsGateway
       iceCandidates: transport.iceCandidates,
       dtlsParameters: transport.dtlsParameters,
       sctpParameters: transport.sctpParameters,
-    } satisfies VoiceRoomCommon.ICreateTransportResult;
+    } satisfies ICreateTransportResult;
   }
 
   /**
@@ -215,10 +232,10 @@ export class VoiceRoomsGateway
    * @param socket
    * @param body
    */
-  @SubscribeMessage(VoiceRoomCommon.EEvent.CONNECT_TRANSPORT)
+  @SubscribeMessage(VoiceRoomEvent.CONNECT_TRANSPORT)
   async connectTransport(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: VoiceRoomCommon.IConnectTransport,
+    @MessageBody() body: IConnectTransport,
   ) {
     console.info('connectTransport', body);
     this.throwSocketWithoutRoom(socket);
@@ -248,10 +265,10 @@ export class VoiceRoomsGateway
    * @param body
    * @returns
    */
-  @SubscribeMessage(VoiceRoomCommon.EEvent.PRODUCE)
+  @SubscribeMessage(VoiceRoomEvent.PRODUCE)
   async produce(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: VoiceRoomCommon.IProduce,
+    @MessageBody() body: IProduce,
   ) {
     console.info('produce', body);
     this.throwSocketWithoutRoom(socket);
@@ -276,24 +293,20 @@ export class VoiceRoomsGateway
     producer.on('transportclose', () => {
       room.producers.delete(producer.id);
 
-      this.server
-        .to(room.id.toString())
-        .emit(VoiceRoomCommon.EEvent.PRODUCER_CLOSED, {
-          producerId: producer.id,
-          userId: peer.user.id,
-        });
+      this.server.to(room.id.toString()).emit(VoiceRoomEvent.PRODUCER_CLOSED, {
+        producerId: producer.id,
+        userId: peer.user.id,
+      });
     });
 
-    const result: VoiceRoomCommon.IProduceResult = {
+    const result: IProduceResult = {
       producerId: producer.id,
       userId: peer.user.id,
       kind: body.kind,
       mediaTag: body.mediaTag,
     };
 
-    socket
-      .to(room.id.toString())
-      .emit(VoiceRoomCommon.EEvent.PRODUCER_CREATED, result);
+    socket.to(room.id.toString()).emit(VoiceRoomEvent.PRODUCER_CREATED, result);
 
     return result;
   }
@@ -304,10 +317,10 @@ export class VoiceRoomsGateway
    * @param body
    * @returns
    */
-  @SubscribeMessage(VoiceRoomCommon.EEvent.CONSUME)
+  @SubscribeMessage(VoiceRoomEvent.CONSUME)
   async consume(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: VoiceRoomCommon.IConsume,
+    @MessageBody() body: IConsume,
   ) {
     console.info('consume', body);
     this.throwSocketWithoutRoom(socket);
@@ -346,7 +359,7 @@ export class VoiceRoomsGateway
       console.info('Producer closed, remove consumer');
       peer.consumers.delete(consumer.id);
 
-      socket.emit(VoiceRoomCommon.EEvent.CONSUMER_CLOSED, {
+      socket.emit(VoiceRoomEvent.CONSUMER_CLOSED, {
         consumerId: consumer.id,
       });
     });
@@ -357,6 +370,6 @@ export class VoiceRoomsGateway
       kind: consumer.kind,
       mediaTag: consumer.appData.mediaTag,
       rtpParameters: consumer.rtpParameters,
-    } satisfies VoiceRoomCommon.IConsumeResult;
+    } satisfies IConsumeResult;
   }
 }

@@ -61,7 +61,7 @@
       tuiInput
       id="confirm-register-password"
       autocomplete="new-password"
-      formControlName="confirm_password"
+      formControlName="confirmPassword"
       type="password" />
 
     <tui-icon
@@ -69,6 +69,36 @@
       [tuiTooltip]="'AUTH.PASSWORD_HINT' | translate"></tui-icon>
 
     <tui-icon tuiPassword />
+  </tui-textfield>
+
+  <tui-textfield iconStart="@tui.file-user">
+    <label
+      tuiLabel
+      for="register-fullname">
+      {{ 'AUTH.FULLNAME' | translate }}
+    </label>
+
+    <input
+      tuiInput
+      id="register-fullname"
+      autocomplete="name"
+      formControlName="fullname"
+      type="text" />
+  </tui-textfield>
+
+  <tui-textfield iconStart="@tui.mail">
+    <label
+      tuiLabel
+      for="register-email">
+      {{ 'AUTH.EMAIL' | translate }}
+    </label>
+
+    <input
+      tuiInput
+      id="register-email"
+      autocomplete="email"
+      formControlName="email"
+      type="text" />
   </tui-textfield>
 
   <footer>

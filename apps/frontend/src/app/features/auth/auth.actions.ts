@@ -1,27 +1,27 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
 import { ILoginBody } from './auth.interface';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ICreateUser, IGetUser } from '../user/user.interface';
+import { IUser, IUserCreate, IUserUpdate } from '@konvoez/shared';
 
 export const AuthActions = createActionGroup({
   source: 'AUTH',
   events: {
     initStart: emptyProps(),
-    initEnd: props<{ user: IGetUser | null }>(),
+    initEnd: props<{ user: IUser | null }>(),
     requestLogin: props<{ body: ILoginBody }>(),
-    requestLoginSuccess: props<{ user: IGetUser }>(),
+    requestLoginSuccess: props<{ user: IUser }>(),
     requestLoginError: props<{ error: HttpErrorResponse }>(),
     requestLogout: emptyProps(),
     requestLogoutSuccess: emptyProps(),
     requestLogoutError: props<{ error: HttpErrorResponse }>(),
-    requestRegister: props<{ body: ICreateUser }>(),
+    requestRegister: props<{ body: IUserCreate }>(),
     requestRegisterSuccess: emptyProps(),
     requestRegisterError: props<{ error: HttpErrorResponse }>(),
+    requestPatchUser: props<{ id: number; body: IUserUpdate }>(),
+    requestPatchUserSuccess: props<{ user: IUser }>(),
+    requestPatchUserError: props<{ error: HttpErrorResponse }>(),
     requestMe: emptyProps(),
-    requestMeSuccess: props<{ user: IGetUser }>(),
+    requestMeSuccess: props<{ user: IUser }>(),
     requestMeError: props<{ error: HttpErrorResponse }>(),
-    uploadAvatar: props<{ file: File }>(),
-    uploadAvatarSuccess: props<{ avatar: string }>(),
-    uploadAvatarError: props<{ error: HttpErrorResponse }>(),
   },
 });

@@ -1,40 +1,40 @@
-import {
-  Entity,
-  Enum,
-  OneToMany,
-  PrimaryKey,
-  Property,
-} from '@mikro-orm/decorators/legacy';
-import { EUserRole } from '@konvoez/shared';
-import { KonvoezBaseEntity } from '../../shared/types/base.entity';
-import { RoomEntity } from '../rooms/rooms.entity';
-import { MessageEntity } from '../text-rooms/text-rooms.entity';
-import { Cascade } from '@mikro-orm/core';
+import { defineEntity, p, Cascade } from '@mikro-orm/core';
+import { EUserRole, IUser } from '@konvoez/shared';
+import { KonvoezBaseEntitySchema } from '../../shared/types/base.entity';
+import { RoomEntitySchema } from '../rooms/rooms.entity';
+import { MessageEntitySchema } from '../text-rooms/text-rooms.entity';
 
-@Entity({ tableName: 'users' })
-export class UserEntity extends KonvoezBaseEntity {
-  @PrimaryKey({ type: 'int', autoincrement: true })
-  id!: number;
+export const UserEntitySchema = defineEntity({
+  name: 'UserEntity',
+  tableName: 'users',
+  extends: KonvoezBaseEntitySchema,
+  properties: {
+    id: p.integer().primary().autoincrement(),
+    username: p.string().length(32).index().unique(),
+    password: p.string().length(128).hidden(),
+    fullname: p.string().length(128).index(),
+    email: p.string().length(128).index().unique(),
+    role: p.enum(() => EUserRole).default(EUserRole.MEMBER),
+    avatar: p.string().length(512).nullable(),
 
-  @Property({ type: 'string', length: 32, index: true, unique: true })
-  username!: string;
+    rooms: () =>
+      p
+        .oneToMany(RoomEntitySchema)
+        .mappedBy('author')
+        .cascade(Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL)
+        .nullable(),
 
-  @Property({ type: 'string', length: 128, hidden: true })
-  password!: string;
+    messages: () =>
+      p
+        .oneToMany(MessageEntitySchema)
+        .mappedBy('sender')
+        .cascade(Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL)
+        .nullable(),
+  },
+});
 
-  @Enum(() => EUserRole)
-  role: EUserRole = EUserRole.MEMBER;
+export class UserEntity
+  extends UserEntitySchema.class
+  implements Omit<IUser, 'avatarUrl'> {}
 
-  @Property({ length: 512, index: true, type: 'string' })
-  avatar: string | null = null;
-
-  @OneToMany(() => RoomEntity, 'author', {
-    cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],
-  })
-  rooms?: RoomEntity[];
-
-  @OneToMany(() => MessageEntity, 'sender', {
-    cascade: [Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL],
-  })
-  messages?: MessageEntity[];
-}
+UserEntitySchema.setClass(UserEntity);

@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
-  IsBoolean,
   IsDate,
   IsInt,
   IsOptional,
@@ -12,10 +11,8 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { MessageEntity } from './text-rooms.entity';
 import { TextRoomCommon } from '@konvoez/shared';
 import { messageMaxLength, messageMinLength } from '@konvoez/shared';
-import { stringify } from 'uuid';
 
 export class CreateMessageDto implements TextRoomCommon.ICreateMessage {
   @ApiProperty({
@@ -77,9 +74,10 @@ export class MessageDto implements TextRoomCommon.IMessage {
   @IsDate()
   createdAt!: Date;
 
-  @ApiProperty({ type: 'string', required: true })
+  @ApiProperty({ type: 'string' })
   @IsDate()
-  updatedAt!: Date | null;
+  @IsOptional()
+  updatedAt: Date | null | undefined;
 
   @ApiProperty({ type: 'string', required: true })
   @IsString()

@@ -1,7 +1,4 @@
-import { AteTranslations } from '@flogeez/angular-tiptap-editor';
-
-export const RU_TRANSLATIONS: AteTranslations = {
-  export: {} as any,
+export const RU_TRANSLATIONS = {
   toolbar: {
     bold: 'Жирный',
     italic: 'Курсив',

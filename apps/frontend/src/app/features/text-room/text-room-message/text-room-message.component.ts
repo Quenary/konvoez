@@ -11,11 +11,9 @@ import { IMessageEntity } from '../text-room.reducer';
 import { MenuItem } from 'primeng/api';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { IGetUser } from '@features/user/user.interface';
 import { AvatarModule } from 'primeng/avatar';
-import { selectTextRoomAvatars } from '../text-room.selectors';
 import { TextRoomActions } from '../text-room.actions';
-import { EUserRole } from '@konvoez/shared';
+import { EUserRole, IUser } from '@konvoez/shared';
 import { AngularTiptapEditorComponent } from '@flogeez/angular-tiptap-editor';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 
@@ -41,26 +39,9 @@ export class TextRoomMessageComponent {
    */
   public readonly message = input.required<IMessageEntity>();
 
-  /**
-   * Current user
-   */
-  private readonly me = this.store.selectSignal(selectCurrentUser);
-  /**
-   * Avatars dict
-   */
-  private readonly avatars = this.store.selectSignal(selectTextRoomAvatars);
-  /**
-   * Signed avatar url
-   */
-  protected readonly avatarUrl = computed(() => {
-    const message = this.message();
-    const avatars = this.avatars();
-    return avatars[message.senderId];
-  });
-
   protected readonly contextMenu = computed<MenuItem[]>(() => {
     const message = this.message();
-    const me = this.me() as IGetUser;
+    const me = this.currentUser() as IUser;
     if (message.senderId === me.id) {
       return [
         {
@@ -83,6 +64,11 @@ export class TextRoomMessageComponent {
     }
     return [];
   });
+
+  /**
+   * Current user
+   */
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   private editMessage(): void {
     this.store.dispatch(

@@ -1,17 +1,19 @@
 @if (peer(); as p) {
-  @if (avatarSignedUrl.hasValue()) {
-    <p-avatar
-      [image]="avatarSignedUrl.value()"
-      shape="circle"
+  <div tuiAsideItem>
+    <div
+      tuiAvatar
+      size="s"
+      class="avatar"
       [class.talking]="audioLevel() > 0">
-    </p-avatar>
-  } @else {
-    <p-avatar
-      [label]="p.username[0]"
-      shape="circle"
-      [class.talking]="audioLevel() > 0">
-    </p-avatar>
-  }
+      @if (p.avatarUrl) {
+        <img
+          [alt]="p.username"
+          [ngSrc]="p.avatarUrl" />
+      } @else {
+        {{ p.username | tuiInitials }}
+      }
+    </div>
 
-  {{ p.username }}
+    {{ p.username }}
+  </div>
 }

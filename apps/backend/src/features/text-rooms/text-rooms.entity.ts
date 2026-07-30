@@ -1,64 +1,53 @@
-import {
-  BeforeCreate,
-  BeforeUpdate,
-  Entity,
-  Index,
-  ManyToOne,
-  PrimaryKey,
-  Property,
-} from '@mikro-orm/decorators/legacy';
-import { KonvoezBaseEntity } from '@shared/types/base.entity';
-import { UserEntity } from '../users/users.entity';
-import { RoomEntity } from '../rooms/rooms.entity';
+import { defineEntity, p } from '@mikro-orm/core';
+import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
+import { UserEntitySchema } from '../users/users.entity';
+import { RoomEntitySchema } from '../rooms/rooms.entity';
 import { v7, parse } from 'uuid';
 
-@Entity({ tableName: 'messages' })
-@Index({ properties: ['room', 'id'] })
-@Index({ properties: ['recipient', 'id'] })
-@Index({ properties: ['sender', 'id'] })
-@Index({ properties: ['sender', 'createdAt'] })
-@Index({ properties: ['recipient', 'createdAt'] })
-@Index({ properties: ['room', 'createdAt'] })
-export class MessageEntity extends KonvoezBaseEntity {
-  @PrimaryKey({
-    type: 'uint8array',
-    length: 16,
-    onCreate: () => parse(v7()),
-  })
-  id!: Uint8Array;
+export const MessageEntitySchema = defineEntity({
+  name: 'MessageEntity',
+  tableName: 'messages',
+  extends: KonvoezBaseEntitySchema,
+  indexes: [
+    { properties: ['room', 'id'] },
+    { properties: ['recipient', 'id'] },
+    { properties: ['sender', 'id'] },
+    { properties: ['sender', 'createdAt'] },
+    { properties: ['recipient', 'createdAt'] },
+    { properties: ['room', 'createdAt'] },
+  ],
+  properties: {
+    id: p
+      .uint8array()
+      .length(16)
+      .primary()
+      .onCreate(() => parse(v7())),
 
-  /**
-   * Encrypted content
-   */
-  @Property({ type: 'uint8array' })
-  contentEncrypted!: Uint8Array;
+    /** Encrypted content */
+    contentEncrypted: p.uint8array(),
 
-  /**
-   * initialization vector
-   */
-  @Property({ type: 'uint8array' })
-  iv!: Uint8Array;
+    /** initialization vector */
+    iv: p.uint8array(),
 
-  @Property({ type: 'uint8array' })
-  authTag!: Uint8Array;
+    authTag: p.uint8array(),
 
-  @ManyToOne(() => UserEntity, { index: true })
-  sender!: UserEntity;
+    sender: () => p.manyToOne(UserEntitySchema).index(),
 
-  @ManyToOne(() => UserEntity, { nullable: true, index: true })
-  recipient?: UserEntity;
+    recipient: () => p.manyToOne(UserEntitySchema).index().nullable(),
 
-  @ManyToOne(() => RoomEntity, { nullable: true, index: true })
-  room?: RoomEntity;
+    room: () => p.manyToOne(RoomEntitySchema).index().nullable(),
+  },
+});
 
-  @BeforeCreate()
-  @BeforeUpdate()
-  validateTarget() {
-    if (!this.recipient && !this.room) {
-      throw new Error('Message must have either a recipient or a chat room');
-    }
-    if (this.recipient && this.room) {
-      throw new Error('Message cannot have both a recipient and a chat room');
-    }
+MessageEntitySchema.addHook('beforeUpsert', (ev) => {
+  if (!ev.entity.recipient && !ev.entity.room) {
+    throw new Error('Message must have either a recipient or a chat room');
   }
-}
+  if (ev.entity.recipient && ev.entity.room) {
+    throw new Error('Message cannot have both a recipient and a chat room');
+  }
+});
+
+export class MessageEntity extends MessageEntitySchema.class {}
+
+MessageEntitySchema.setClass(MessageEntity);

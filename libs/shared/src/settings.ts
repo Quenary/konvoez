@@ -13,7 +13,7 @@ export namespace SettingsCommon {
     key: K;
     value: Type[K];
     createdAt: Date;
-    updatedAt: Date | null;
+    updatedAt: Date | null | undefined;
   }
   export interface ISettingUpdate<K extends EKey> {
     value: Type[K];

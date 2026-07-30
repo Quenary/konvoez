@@ -1,6 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { UserCommon } from '@konvoez/shared';
-import { VoiceRoomCommon } from '@konvoez/shared';
+import {
+  IGetAllPeersResult,
+  IPeersOnJoin,
+  IUser,
+  IUserWithProducers,
+  VoiceRoomMediaTag,
+} from '@konvoez/shared';
 import {
   Consumer,
   Producer,
@@ -34,7 +39,7 @@ type VoiceRoomStatePeer = {
   /**
    * User info
    */
-  user: UserCommon.IUser;
+  user: IUser;
   sendTransport?: WebRtcTransport;
   recvTransport?: WebRtcTransport;
   producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
@@ -43,7 +48,7 @@ type VoiceRoomStatePeer = {
 
 export type VoiceRoomStateMediasoupAppData = {
   peerId: string;
-  mediaTag: VoiceRoomCommon.MediaTag;
+  mediaTag: VoiceRoomMediaTag;
 };
 
 @Injectable()
@@ -94,7 +99,7 @@ export class VoiceRoomsStateService implements OnModuleInit {
     }
   }
 
-  public getPeersOnJoin(roomId: number): VoiceRoomCommon.IPeersOnJoin {
+  public getPeersOnJoin(roomId: number): IPeersOnJoin {
     const room = this.rooms.get(roomId);
     if (!room) {
       return {};
@@ -111,14 +116,14 @@ export class VoiceRoomsStateService implements OnModuleInit {
             kind: p.kind,
             mediaTag: p.appData.mediaTag,
           })),
-        } satisfies VoiceRoomCommon.IUserWithProducers,
+        } satisfies IUserWithProducers,
       }),
       {},
     );
   }
 
-  public getAllPeers(): VoiceRoomCommon.IGetAllPeersResult {
-    const result: VoiceRoomCommon.IGetAllPeersResult = {};
+  public getAllPeers(): IGetAllPeersResult {
+    const result: IGetAllPeersResult = {};
     for (const [roomId, room] of this.rooms) {
       result[roomId] = Array.from(room.peers.values()).reduce(
         (prev, curr) => ({

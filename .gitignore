@@ -141,7 +141,7 @@ vite.config.ts.timestamp-*
 # Project specific
 s3-dev
 .turbo
-sqlite.db
+*.sqlite
 
 
 .nx/cache

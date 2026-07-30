@@ -7,14 +7,10 @@ import {
 } from '@angular/forms';
 import { TInterfaceToForm } from '@shared/types/interface-to-form.type';
 import { ILoginBody } from './auth.interface';
-import { ButtonModule } from 'primeng/button';
 import { Store } from '@ngrx/store';
 import { selectAuthLoading } from './auth.selectors';
 import { AuthActions } from './auth.actions';
-import { IftaLabelModule } from 'primeng/iftalabel';
-import { PasswordModule } from 'primeng/password';
 import { TranslatePipe } from '@ngx-translate/core';
-import { InputTextModule } from 'primeng/inputtext';
 import { RouterLink } from '@angular/router';
 import {
   TuiButton,
@@ -31,11 +27,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
   selector: 'app-auth',
   imports: [
     ReactiveFormsModule,
-    ButtonModule,
-    IftaLabelModule,
-    PasswordModule,
     TranslatePipe,
-    InputTextModule,
     RouterLink,
     TuiButton,
     TuiCardLarge,
@@ -63,12 +55,12 @@ export class AuthComponent {
   });
 
   onSubmit(): void {
-    if (this.form.valid) {
-      this.store.dispatch(
-        AuthActions.requestLogin({
-          body: this.form.value as ILoginBody,
-        }),
-      );
-    }
+    if (this.form.invalid) return;
+
+    this.store.dispatch(
+      AuthActions.requestLogin({
+        body: this.form.value as ILoginBody,
+      }),
+    );
   }
 }

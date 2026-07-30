@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Post,
   Put,
   Query,
   UseGuards,
@@ -14,8 +13,7 @@ import { SettingsService } from './settings.service';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { SettingsDto, SettingsUpdateDto } from './settings.dto';
 import { SettingsCommon } from '@konvoez/shared';
-import { AuthGuardRoles, Author } from '../auth/auth.decorator';
-import { UserEntity } from '../users/users.entity';
+import { AuthGuardRoles } from '../auth/auth.decorator';
 import { EUserRole } from '@konvoez/shared';
 
 @Controller('settings')

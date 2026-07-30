@@ -3,12 +3,13 @@
     <div class="edit-title">
       {{ 'GENERAL.EDIT' | translate }}
     </div>
-    <p-button
+
+    <button
+      tuiButtonX
       class="edit-close"
-      icon="pi pi-times"
-      text
-      (onClick)="cancelEdit()">
-    </p-button>
+      (click)="cancelEdit()">
+      Close
+    </button>
   </section>
 }
 
@@ -19,8 +20,11 @@
     [content]="content()"
     (contentChange)="content.set($event)">
   </angular-tiptap-editor>
-  <p-button
-    text
-    icon="pi pi-send"
-    (onClick)="onSubmit()"></p-button>
+
+  <button
+    tuiIconButton
+    iconStart="@tui.send"
+    size="xs"
+    (click)="onSubmit()">
+  </button>
 </section>

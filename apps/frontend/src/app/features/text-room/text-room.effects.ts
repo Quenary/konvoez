@@ -7,7 +7,6 @@ import {
   EMPTY,
   finalize,
   map,
-  mergeMap,
   of,
   switchMap,
   tap,
@@ -18,17 +17,15 @@ import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { selectIsAuthorized } from '../auth/auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomCommon } from '@konvoez/shared';
-import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
-  selectTextRoomAvatars,
   selectTextRoomSelectedId,
   selectTextRoomSelectedRecipientId,
   selectTextRoomNewestId,
   selectTextRoomOldestId,
 } from './text-room.selectors';
-import { AvatarsApiService } from '../avatars/avatars-api.service';
+import { TuiNotificationService } from '@taiga-ui/core';
 
 const defaultChunkSize = 25;
 
@@ -38,9 +35,8 @@ export class TextRoomEffects {
   private readonly actions$ = inject(Actions);
   private readonly textRoomApiService = inject(TextRoomApiService);
   private readonly socket = inject(TextRoomSocketToken);
-  private readonly messageService = inject(MessageService);
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
-  private readonly avatarsApiService = inject(AvatarsApiService);
 
   constructor() {
     this.store
@@ -89,7 +85,7 @@ export class TextRoomEffects {
     () =>
       this.actions$.pipe(
         ofType(TextRoomActions.leave),
-        tap((action) => {
+        tap(() => {
           this.socket.emit(TextRoomCommon.EEvent.LEAVE, {});
         }),
       ),
@@ -164,23 +160,6 @@ export class TextRoomEffects {
     ),
   );
 
-  readonly requestListSuccess$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(TextRoomActions.requestListSuccess),
-        withLatestFrom(this.store.select(selectTextRoomAvatars)),
-        tap(([action, avatars]) => {
-          const userIds = [
-            ...new Set(action.data.items.map((item) => item.senderId)),
-          ].filter((senderId) => !avatars[senderId]);
-          userIds.forEach((userId) => {
-            this.store.dispatch(TextRoomActions.requestAvatar({ userId }));
-          });
-        }),
-      ),
-    { dispatch: false },
-  );
-
   readonly createMessage$ = createEffect(() =>
     this.actions$.pipe(
       ofType(TextRoomActions.createMessage),
@@ -233,7 +212,7 @@ export class TextRoomEffects {
       ofType(TextRoomActions.deleteMessage),
       switchMap((action) =>
         this.textRoomApiService.delete(action.messageId).pipe(
-          map((data) =>
+          map(() =>
             TextRoomActions.deleteMessageSuccess({
               messageId: action.messageId,
             }),
@@ -251,22 +230,6 @@ export class TextRoomEffects {
     ),
   );
 
-  readonly requestAvatar$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(TextRoomActions.requestAvatar),
-      mergeMap(({ userId }) =>
-        this.avatarsApiService.getUrlByUserId(userId).pipe(
-          map((avatar) =>
-            TextRoomActions.requestAvatarSuccess({ userId, avatar }),
-          ),
-          catchError((error) =>
-            of(TextRoomActions.requestAvatarError({ error })),
-          ),
-        ),
-      ),
-    ),
-  );
-
   readonly showError$ = createEffect(
     () =>
       this.actions$.pipe(
@@ -275,14 +238,16 @@ export class TextRoomEffects {
           TextRoomActions.createMessageError,
           TextRoomActions.updateMessageError,
           TextRoomActions.deleteMessageError,
-          // TextRoomActions.requestAvatarError,
         ),
-        tap((action) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translateService.instant('GENERAL.REQ_ERR'),
-            detail: parseError(action.error.message),
-          });
+        tap(({ error }) => {
+          this.tuiNotificationsService
+            .open(parseError(error.message), {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
         }),
       ),
     { dispatch: false },
