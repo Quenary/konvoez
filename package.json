@@ -13,12 +13,12 @@
     "url": "git+https://github.com/Quenary/konvoez.git"
   },
   "engines": {
-    "node": "^22.22.3 || ^24.15.0 || ^26.0.0"
+    "node": "^22.22.3"
   },
   "devEngines": {
     "packageManager": {
       "name": "npm",
-      "version": "^11"
+      "version": ">=10.9"
     }
   },
   "keywords": [
@@ -36,11 +36,6 @@
     "url": "https://github.com/Quenary/konvoez/issues"
   },
   "homepage": "https://github.com/Quenary/konvoez#readme",
-  "workspaces": [
-    "apps/backend",
-    "apps/frontend",
-    "libs/common"
-  ],
   "private": true,
   "devDependencies": {
     "@angular-devkit/core": "~21.2.0",
@@ -86,6 +81,7 @@
     "semantic-release": "^25.0.3",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.40.0",
     "vitest": "^4.0.8",
@@ -108,7 +104,9 @@
     "@mikro-orm/core": "^7.1.5",
     "@mikro-orm/decorators": "^7.1.5",
     "@mikro-orm/migrations": "^7.1.5",
+    "@mikro-orm/mysql": "^7.1.8",
     "@mikro-orm/nestjs": "^7.0.2",
+    "@mikro-orm/postgresql": "^7.1.8",
     "@mikro-orm/reflection": "^7.1.5",
     "@mikro-orm/seeder": "^7.1.5",
     "@mikro-orm/sqlite": "^7.1.5",

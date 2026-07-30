@@ -5,15 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ButtonModule } from 'primeng/button';
-import { TextareaModule } from 'primeng/textarea';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
-import { messageMaxLength, messageMinLength } from '@konvoez/shared';
+import { ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { TextRoomActions } from '../text-room.actions';
 import { v4 } from 'uuid';
@@ -23,18 +15,14 @@ import {
   selectTextRoomSelectedRecipientId,
 } from '../text-room.selectors';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-  AngularTiptapEditorComponent,
-  AteEditorConfig,
-  AteNodeViewRenderer,
-  AteI18nService,
-} from '@flogeez/angular-tiptap-editor';
+import { AngularTiptapEditorComponent } from '@flogeez/angular-tiptap-editor';
+import { TuiButton, TuiButtonX } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-text-room-control',
   imports: [
-    TextareaModule,
-    ButtonModule,
+    TuiButton,
+    TuiButtonX,
     ReactiveFormsModule,
     TranslatePipe,
     AngularTiptapEditorComponent,

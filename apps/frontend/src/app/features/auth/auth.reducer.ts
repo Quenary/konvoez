@@ -1,11 +1,11 @@
 import { createReducer, on } from '@ngrx/store';
-import { IGetUser } from '../user/user.interface';
 import { AuthActions } from './auth.actions';
+import { IUser } from '@konvoez/shared';
 
 export interface IAuthState {
   init: boolean;
   loading: boolean;
-  user: IGetUser | null;
+  user: IUser | null;
 }
 
 export const initialState: IAuthState = {
@@ -22,7 +22,7 @@ export const authReducer = createReducer(
     user: payload.user,
   })),
   // Login
-  on(AuthActions.requestLogin, (state, payload) => ({
+  on(AuthActions.requestLogin, (state) => ({
     ...state,
     loading: true,
   })),
@@ -31,64 +31,49 @@ export const authReducer = createReducer(
     loading: false,
     user: payload.user,
   })),
-  on(AuthActions.requestLoginError, (state, payload) => ({
-    ...state,
-    loading: false,
-    user: null,
-  })),
-  // Request current user
-  on(AuthActions.requestMe, (state, payload) => ({ ...state, loading: true })),
-  on(AuthActions.requestMeSuccess, (state, payload) => ({
-    ...state,
-    loading: false,
-    user: payload.user,
-  })),
-  on(AuthActions.requestMeError, (state, payload) => ({
+  on(AuthActions.requestLoginError, (state) => ({
     ...state,
     loading: false,
     user: null,
   })),
   // Logout
-  on(AuthActions.requestLogout, (state, payload) => ({
+  on(AuthActions.requestLogout, (state) => ({
     ...state,
     loading: true,
   })),
   on(
     AuthActions.requestLogoutSuccess,
     AuthActions.requestLogoutError,
-    (state, payload) => ({
+    (state) => ({
       ...state,
       loading: false,
       user: null,
     }),
   ),
   // Register
-  on(AuthActions.requestRegister, (state, payload) => ({
+  on(AuthActions.requestRegister, (state) => ({
     ...state,
     loading: true,
   })),
   on(
     AuthActions.requestRegisterSuccess,
     AuthActions.requestRegisterError,
-    (state, payload) => ({
+    (state) => ({
       ...state,
       loading: false,
     }),
   ),
-  // Avatar
-  on(AuthActions.uploadAvatar, (state, payload) => ({
+  // Patch
+  on(AuthActions.requestPatchUser, (state) => ({
     ...state,
     loading: true,
   })),
-  on(AuthActions.uploadAvatarSuccess, (state, payload) => ({
+  on(AuthActions.requestPatchUserSuccess, (state, { user }) => ({
     ...state,
+    user,
     loading: false,
-    user: {
-      ...(state.user as IGetUser),
-      avatar: payload.avatar,
-    },
   })),
-  on(AuthActions.uploadAvatarError, (state, payload) => ({
+  on(AuthActions.requestPatchUserError, (state) => ({
     ...state,
     loading: false,
   })),

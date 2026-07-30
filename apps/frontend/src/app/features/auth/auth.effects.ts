@@ -5,14 +5,13 @@ import { catchError, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { UserApiService } from '../user/user-api.service';
 import { Router } from '@angular/router';
-import { AvatarsApiService } from '../avatars/avatars-api.service';
-import { MessageService } from 'primeng/api';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { Store } from '@ngrx/store';
 import { selectIsAuthorized } from './auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TuiNotificationService } from '@taiga-ui/core';
 
 @Injectable()
 export class AuthEffects {
@@ -21,10 +20,9 @@ export class AuthEffects {
   private readonly authApiService = inject(AuthApiService);
   private readonly userApiService = inject(UserApiService);
   private readonly router = inject(Router);
-  private readonly avatarApiService = inject(AvatarsApiService);
-  private readonly messageService = inject(MessageService);
   private readonly translateService = inject(TranslateService);
   private readonly socket = inject(VoiceRoomSocketToken);
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
 
   constructor() {
     this.store
@@ -50,7 +48,7 @@ export class AuthEffects {
       switchMap(() =>
         this.authApiService.me().pipe(
           map((user) => AuthActions.initEnd({ user })),
-          catchError((error) => of(AuthActions.initEnd({ user: null }))),
+          catchError(() => of(AuthActions.initEnd({ user: null }))),
         ),
       ),
     ),
@@ -128,13 +126,15 @@ export class AuthEffects {
     { dispatch: false },
   );
 
-  readonly uploadAvatar$ = createEffect(() =>
+  readonly requestPatchUser$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(AuthActions.uploadAvatar),
-      switchMap(({ file }) =>
-        this.avatarApiService.uploadAvatar(file).pipe(
-          map((avatar) => AuthActions.uploadAvatarSuccess({ avatar })),
-          catchError((error) => of(AuthActions.uploadAvatarError({ error }))),
+      ofType(AuthActions.requestPatchUser),
+      switchMap(({ id, body }) =>
+        this.userApiService.patch(id, body).pipe(
+          map((user) => AuthActions.requestPatchUserSuccess({ user })),
+          catchError((error) =>
+            of(AuthActions.requestPatchUserError({ error })),
+          ),
         ),
       ),
     ),
@@ -145,17 +145,19 @@ export class AuthEffects {
       this.actions$.pipe(
         ofType(
           AuthActions.requestLoginError,
-          AuthActions.requestMeError,
           AuthActions.requestLogoutError,
-          AuthActions.requestLoginError,
-          AuthActions.uploadAvatarError,
+          AuthActions.requestRegisterError,
+          AuthActions.requestPatchUserError,
         ),
-        tap((action) => {
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translateService.instant('GENERAL.REQ_ERR'),
-            detail: parseError(action.error.message),
-          });
+        tap(({ error }) => {
+          this.tuiNotificationsService
+            .open(parseError(error), {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
         }),
       ),
     { dispatch: false },

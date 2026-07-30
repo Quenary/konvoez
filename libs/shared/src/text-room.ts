@@ -1,4 +1,5 @@
 import { EUserRole } from './enums';
+import { IUser } from './user';
 
 export namespace TextRoomCommon {
   export enum EEvent {
@@ -34,7 +35,7 @@ export namespace TextRoomCommon {
     recipientId: number | null;
     roomId: number | null;
     createdAt: Date;
-    updatedAt: Date | null;
+    updatedAt: Date | null | undefined;
     content: string;
   }
   export interface IJoin {
@@ -46,15 +47,11 @@ export namespace TextRoomCommon {
     username: string;
   }
   // TODO move to separate file
-  export interface IPeer {
+  export interface IPeer extends IUser {
     /**
      * ID of the socket session
      */
     clientId: string;
-    id: number;
-    role: EUserRole;
-    username: string;
-    avatar: string | null;
   }
   export interface IListRequest {
     beforeId: string | null;

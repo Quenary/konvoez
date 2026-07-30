@@ -69,7 +69,7 @@ export const localeInitializer = async () => {
   registerLocaleData(al.default);
   const ttl = await importTiptapLocale(locale);
   if (ttl) {
-    ateI18nService.addTranslations(locale, ttl.default);
+    ateI18nService.addTranslations(locale, ttl.default as any);
   }
   ateI18nService.setLocale(locale);
 };

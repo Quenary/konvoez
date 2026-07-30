@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ValidatorFn,
-  AbstractControl,
   FormGroup,
   FormControl,
   Validators,
@@ -16,6 +15,8 @@ import {
   passwordMaxLength,
   passwordMinLength,
   passwordRegexp,
+  fullnameMaxLength,
+  fullnameMinLength,
 } from '@konvoez/shared';
 import { AuthActions } from '../auth.actions';
 import { selectAuthLoading } from '../auth.selectors';
@@ -30,6 +31,7 @@ import {
 import { TuiButtonLoading, TuiPassword, TuiTooltip } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { RouterLink } from '@angular/router';
+import { IUserCreate } from '@konvoez/shared';
 
 @Component({
   selector: 'app-auth-register',
@@ -56,39 +58,47 @@ import { RouterLink } from '@angular/router';
 export class AuthRegisterComponent {
   private readonly store = inject(Store);
 
-  private readonly passwordMatchValidator = (
-    field1 = 'password',
-    field2 = 'confirm_password',
-  ): ValidatorFn => {
-    return (control: AbstractControl) => {
-      const form = control as FormGroup;
-      const value1 = form.controls[field1].value;
-      const value2 = form.controls[field2].value;
-      if (value1 != value2) {
-        return { passwordMatchValidator: true };
-      }
-      return null;
-    };
+  private readonly passwordMatchValidator: ValidatorFn = (control) => {
+    const form = control as FormGroup;
+    const value1 = form.controls['password'].value;
+    const value2 = form.controls['confirmPassword'].value;
+    if (value1 != value2) {
+      return { passwordMatchValidator: true };
+    }
+    return null;
   };
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
-  protected readonly usernameMinLength = usernameMinLength;
-  protected readonly usernameMaxLength = usernameMaxLength;
-  protected readonly passwordMinLength = passwordMinLength;
-  protected readonly passwordMaxLength = passwordMaxLength;
   protected readonly form = new FormGroup(
     {
-      username: new FormControl<string | null>(null, [Validators.required]),
-      password: new FormControl<string | null>(null, [
+      username: new FormControl<string>('', [
         Validators.required,
+        Validators.minLength(usernameMinLength),
+        Validators.maxLength(usernameMaxLength),
+      ]),
+      password: new FormControl<string>('', [
+        Validators.required,
+        Validators.minLength(passwordMinLength),
+        Validators.maxLength(passwordMaxLength),
         Validators.pattern(passwordRegexp),
       ]),
-      confirm_password: new FormControl<string | null>(null, [
+      confirmPassword: new FormControl<string>('', [
         Validators.required,
+        Validators.minLength(passwordMinLength),
+        Validators.maxLength(passwordMaxLength),
         Validators.pattern(passwordRegexp),
+      ]),
+      fullname: new FormControl<string>('', [
+        Validators.required,
+        Validators.minLength(fullnameMinLength),
+        Validators.maxLength(fullnameMaxLength),
+      ]),
+      email: new FormControl<string>('', [
+        Validators.required,
+        Validators.email,
       ]),
     },
-    this.passwordMatchValidator(),
+    this.passwordMatchValidator,
   );
 
   protected readonly confirmPasswordError = toSignal(
@@ -98,15 +108,13 @@ export class AuthRegisterComponent {
   );
 
   public onSubmit(): void {
-    if (this.form.valid) {
-      this.store.dispatch(
-        AuthActions.requestRegister({
-          body: {
-            username: this.form.value.username as string,
-            password: this.form.value.password as string,
-          },
-        }),
-      );
-    }
+    if (this.form.invalid) return;
+
+    const { confirmPassword: _, ...body } = this.form.value;
+    this.store.dispatch(
+      AuthActions.requestRegister({
+        body: body as IUserCreate,
+      }),
+    );
   }
 }

@@ -7,18 +7,29 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
+  Res,
+  StreamableFile,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { UsersService } from './users.service';
 import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
 import { UserEntity } from './users.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AvatarsService } from '../avatars/avatars.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly avatarsService: AvatarsService,
+  ) {}
 
   @UseGuards(AuthGuard)
   @Get()
@@ -37,6 +48,7 @@ export class UsersController {
     description: 'Create user',
   })
   async create(@Body() dto: CreateUserDto) {
+    console.log(dto);
     return await this.usersService.create(dto);
   }
 
@@ -74,5 +86,38 @@ export class UsersController {
     @Author() author: UserEntity,
   ) {
     return await this.usersService.remove(id, author);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('avatar/upload')
+  @UseInterceptors(FileInterceptor('avatar'))
+  @ApiOkResponse({
+    type: String,
+    description: 'Upload avatar and get its key (no user data mutation)',
+  })
+  async avatarUpload(@UploadedFile() file: Express.Multer.File) {
+    const avatar = await this.avatarsService.uploadAvatar(file);
+    return avatar;
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('avatar/stream')
+  @ApiOkResponse({
+    type: StreamableFile,
+    description: 'Returns avatar binary stream directly',
+  })
+  async getAvatar(
+    @Query('key') key: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { stream, contentType, contentLength } =
+      await this.avatarsService.getAvatarStream(key);
+    res.set({
+      'Content-Type': contentType,
+      ...(contentLength && { 'Content-Length': contentLength.toString() }),
+      'Cache-Control': 'public, max-age=86400',
+    });
+
+    return new StreamableFile(stream);
   }
 }

@@ -1,15 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString, Length } from 'class-validator';
-import { EUserRole } from '@konvoez/shared';
+import { IsEmail, IsEnum, IsString, Length } from 'class-validator';
+import {
+  EUserRole,
+  fullnameMaxLength,
+  fullnameMinLength,
+  IUser,
+  IUserCreate,
+  IUserUpdate,
+} from '@konvoez/shared';
 import {
   usernameMinLength,
   usernameMaxLength,
   passwordMaxLength,
   passwordMinLength,
-  passwordRegexp,
 } from '@konvoez/shared';
 
-export class CreateUserDto {
+export class CreateUserDto implements IUserCreate {
   @ApiProperty({
     type: String,
     required: true,
@@ -25,9 +31,24 @@ export class CreateUserDto {
   @IsString()
   @Length(passwordMinLength, passwordMaxLength)
   password!: string;
+
+  @ApiProperty({
+    type: String,
+    required: true,
+  })
+  @IsString()
+  @Length(fullnameMinLength, fullnameMaxLength)
+  fullname!: string;
+
+  @ApiProperty({
+    type: String,
+    required: true,
+  })
+  @IsEmail()
+  email!: string;
 }
 
-export class UpdateUserDto {
+export class UpdateUserDto implements IUserUpdate {
   @ApiProperty({
     type: String,
     required: false,
@@ -45,6 +66,21 @@ export class UpdateUserDto {
   password?: string;
 
   @ApiProperty({
+    type: String,
+    required: true,
+  })
+  @IsString()
+  @Length(fullnameMinLength, fullnameMaxLength)
+  fullname!: string;
+
+  @ApiProperty({
+    type: String,
+    required: true,
+  })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({
     enum: EUserRole,
     required: false,
   })
@@ -54,12 +90,13 @@ export class UpdateUserDto {
   @ApiProperty({
     type: String,
     required: false,
+    description: 'Avatar key in s3',
   })
   @IsString()
   avatar?: string;
 }
 
-export class GetUserDto {
+export class GetUserDto implements IUser {
   @ApiProperty({
     type: Number,
     required: true,
@@ -73,6 +110,18 @@ export class GetUserDto {
   username!: string;
 
   @ApiProperty({
+    type: String,
+    required: true,
+  })
+  fullname!: string;
+
+  @ApiProperty({
+    type: String,
+    required: true,
+  })
+  email!: string;
+
+  @ApiProperty({
     enum: EUserRole,
     required: true,
   })
@@ -82,8 +131,13 @@ export class GetUserDto {
     type: String,
     required: false,
   })
-  @IsString()
-  avatar?: string;
+  avatar!: string | null;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+  })
+  avatarUrl: string | null = null;
 
   @ApiProperty({
     type: Date,
@@ -95,5 +149,5 @@ export class GetUserDto {
     type: Date,
     required: false,
   })
-  updatedAt?: Date;
+  updatedAt!: Date | null;
 }

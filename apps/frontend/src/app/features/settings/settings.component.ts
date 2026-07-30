@@ -3,11 +3,10 @@ import {
   Component,
   computed,
   inject,
-  resource,
   signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { from, switchMap, catchError, of, lastValueFrom } from 'rxjs';
+import { from, switchMap, catchError, of } from 'rxjs';
 import { MediaDevicesService } from '@core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
@@ -15,7 +14,6 @@ import { selectAudioInput, selectAudioOutput } from './settings.selectors';
 import { SettingsActions } from './settings.actions';
 import { FormsModule } from '@angular/forms';
 import { AuthActions } from '../auth/auth.actions';
-import { AvatarsApiService } from '../avatars/avatars-api.service';
 import { selectCurrentUser } from '../auth/auth.selectors';
 import {
   TuiButton,
@@ -38,7 +36,9 @@ import {
   TuiTooltip,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { NgTemplateOutlet } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { maxAvatarSize } from '@konvoez/shared';
+import { UserApiService } from '@features/user/user-api.service';
 
 @Component({
   selector: 'app-settings',
@@ -63,6 +63,7 @@ import { NgTemplateOutlet } from '@angular/common';
     TuiInitialsPipe,
     NgTemplateOutlet,
     TuiTooltip,
+    NgOptimizedImage,
   ],
   providers: [
     tuiItemsHandlersProvider({
@@ -81,26 +82,24 @@ export class SettingsComponent {
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
-  private readonly avatarsApiService = inject(AvatarsApiService);
+  private readonly userApiService = inject(UserApiService);
 
   /**
    * Current user info
    */
-  protected readonly me = this.store.selectSignal(selectCurrentUser);
+  protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
   /**
    * Current user name
    */
-  protected readonly username = computed(() => this.me()?.username ?? '');
+  protected readonly username = computed(
+    () => this.currentUser()?.username ?? '',
+  );
   /**
-   * Current avatar signed url
+   * Current user avatar url
    */
-  protected readonly avatarUrl = resource({
-    params: () => ({ url: this.me()?.avatar }),
-    loader: (params) =>
-      params.params.url
-        ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
-        : Promise.resolve(null),
-  });
+  protected readonly avatarUrl = computed(
+    () => this.currentUser()?.avatarUrl ?? null,
+  );
   /**
    * Selected audio input
    */
@@ -188,12 +187,24 @@ export class SettingsComponent {
     const file = input.files ? Array.from(input.files)[0] : null;
     input.files = null;
     input.blur();
+
     if (file) {
-      this.store.dispatch(
-        AuthActions.uploadAvatar({
-          file,
-        }),
-      );
+      if (file.size > maxAvatarSize) {
+        this.tuiNotificationsService
+          .open(this.translateService.instant('GENERAL.FILE_TOO_BIG'), {
+            appearance: 'negative',
+            autoClose: 5000,
+            closable: true,
+          })
+          .subscribe();
+        return;
+      }
+
+      this.userApiService.avatarUpload(file).subscribe({
+        next: (key) => {
+          console.log(key);
+        },
+      });
     }
   }
 }

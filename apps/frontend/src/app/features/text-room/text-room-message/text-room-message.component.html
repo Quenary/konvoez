@@ -3,19 +3,19 @@
     class="message"
     #messageRef
     aria-haspopup="true">
-    @if (avatarUrl(); as image) {
+    <!-- @if (avatarUrl(); as image) {
       <p-avatar
         class="message-sender"
         [image]="image"
         shape="circle">
       </p-avatar>
-    } @else {
-      <p-avatar
-        class="message-sender"
-        [label]="m.senderUsername[0]"
-        shape="circle">
-      </p-avatar>
-    }
+    } @else { -->
+    <p-avatar
+      class="message-sender"
+      [label]="m.senderUsername[0]"
+      shape="circle">
+    </p-avatar>
+    <!-- } -->
     <span class="message-body">
       <span class="message-body-header">
         <span class="message-body-header-username">

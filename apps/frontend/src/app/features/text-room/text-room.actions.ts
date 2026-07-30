@@ -46,8 +46,5 @@ export const TextRoomActions = createActionGroup({
     // Typing
     userTyping: props<{ data: TextRoomCommon.IUserTyping }>(),
     sendUserTyping: emptyProps(),
-    requestAvatar: props<{ userId: number }>(),
-    requestAvatarSuccess: props<{ userId: number; avatar: string }>(),
-    requestAvatarError: props<{ error: HttpErrorResponse }>(),
   },
 });

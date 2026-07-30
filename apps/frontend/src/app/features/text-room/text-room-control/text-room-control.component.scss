@@ -16,6 +16,7 @@
     color: var(--p-primary-500);
     &-close {
       margin-left: auto;
+      flex-shrink: 0;
     }
   }
 

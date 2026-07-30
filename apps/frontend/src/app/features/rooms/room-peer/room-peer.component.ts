@@ -5,22 +5,25 @@ import {
   effect,
   inject,
   input,
-  resource,
   signal,
 } from '@angular/core';
 import { VoiceRoomService } from '@core/services/voice-room.service';
-import { AvatarModule } from 'primeng/avatar';
-import { ContextMenuModule } from 'primeng/contextmenu';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { MicrophoneService } from '@core/services/microphone.service';
-import { AvatarsApiService } from '@features/avatars/avatars-api.service';
-import { lastValueFrom } from 'rxjs';
-import { UserCommon } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
+import { NgOptimizedImage } from '@angular/common';
+import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiAsideItemDirective } from '@taiga-ui/layout';
 
 @Component({
   selector: 'app-room-peer',
-  imports: [AvatarModule, ContextMenuModule],
+  imports: [
+    NgOptimizedImage,
+    TuiAvatar,
+    TuiInitialsPipe,
+    TuiAsideItemDirective,
+  ],
   templateUrl: './room-peer.component.html',
   styleUrl: './room-peer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,44 +32,22 @@ export class RoomPeerComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomService = inject(VoiceRoomService);
   private readonly microphoneService = inject(MicrophoneService);
-  private readonly avatarsApiService = inject(AvatarsApiService);
 
-  public readonly peer = input.required<UserCommon.IUser>();
+  public readonly peer = input.required<IUser>();
 
   /**
    * Current audio level
    */
   protected readonly audioLevel = signal<number>(0);
   /**
-   * Avatar signed url
-   */
-  protected readonly avatarSignedUrl = resource({
-    params: () => ({ url: this.avatarUrl() }),
-    loader: (params) =>
-      params.params.url
-        ? lastValueFrom(this.avatarsApiService.getUrl(params.params.url))
-        : Promise.resolve(undefined),
-  });
-
-  /**
-   * Avatar plain url
-   */
-  private readonly avatarUrl = computed<string | null>(() => {
-    return this.peer()?.avatar ?? null;
-  });
-  /**
-   * Microphone muted flag
-   */
-  private readonly microphoneMuted = this.voiceRoomService.microphoneMuted;
-  /**
    * Current user info
    */
-  private readonly me = this.store.selectSignal(selectCurrentUser);
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   /**
    * Peer is current user flag
    */
-  private readonly isMe = computed(() => {
-    const me = this.me();
+  private readonly isCurrentUser = computed(() => {
+    const me = this.currentUser();
     const peer = this.peer();
     return me && peer && me.id == peer.id;
   });
@@ -86,10 +67,10 @@ export class RoomPeerComponent {
     return managedPeer?.analyserNode ?? null;
   });
   /**
-   * Defined analyzer node (self or others)
+   * Analyzer node (self or others)
    */
   private readonly analyserNode = computed(() => {
-    const isMe = this.isMe();
+    const isMe = this.isCurrentUser();
     const microphoneMuted = this.voiceRoomService.microphoneMuted();
     const myAnalyserNode = this.microphoneService.analyserNode();
     const peerAnalyserNode = this.peerAnalyserNode();
@@ -107,11 +88,16 @@ export class RoomPeerComponent {
 
   constructor() {
     // Update audio level interval
-    let intervalRef: any = null;
+    let intervalRef: ReturnType<typeof setInterval> | null = null;
     effect(() => {
       const an = this.analyserNode();
       this.audioLevel.set(0);
-      clearInterval(intervalRef);
+
+      if (intervalRef) {
+        clearInterval(intervalRef);
+        intervalRef = null;
+      }
+
       if (an) {
         an.smoothingTimeConstant = 0.1;
         const dataArray = new Uint8Array(an.frequencyBinCount);

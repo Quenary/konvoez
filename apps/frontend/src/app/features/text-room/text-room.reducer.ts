@@ -19,7 +19,6 @@ export interface IMessageEntity extends TextRoomCommon.IMessage {
 export interface ITextRoomState extends EntityState<IMessageEntity> {
   selectedRoomId: number | null;
   selectedRecipientId: number | null;
-  avatars: Record<number, string>;
   editableMessageId: string | null;
 }
 
@@ -33,18 +32,17 @@ export const textRoomInitialState =
   textRoomAdapter.getInitialState<ITextRoomState>({
     selectedRoomId: null,
     selectedRecipientId: null,
-    avatars: {},
     editableMessageId: null,
   });
 
 export const textRoomReducer = createReducer<ITextRoomState>(
   textRoomInitialState,
-  on(TextRoomActions.join, (state, payload) => ({
+  on(TextRoomActions.join, (_, payload) => ({
     ...textRoomInitialState,
     selectedRoomId: payload.roomId,
     selectedRecipientId: payload.recipientId,
   })),
-  on(TextRoomActions.leave, (state, payload) =>
+  on(TextRoomActions.leave, () =>
     textRoomAdapter.removeAll({
       ...textRoomInitialState,
       selectedRoomId: null,
@@ -167,11 +165,4 @@ export const textRoomReducer = createReducer<ITextRoomState>(
       state,
     ),
   ),
-  on(TextRoomActions.requestAvatarSuccess, (state, payload) => ({
-    ...state,
-    avatars: {
-      ...state.avatars,
-      [payload.userId]: payload.avatar,
-    },
-  })),
 );

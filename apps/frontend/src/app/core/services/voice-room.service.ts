@@ -1,5 +1,18 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { VoiceRoomCommon, UserCommon } from '@konvoez/shared';
+import {
+  IConnectTransport,
+  IConsume,
+  IConsumeResult,
+  ICreateTransport,
+  ICreateTransportResult,
+  IGetAllPeersResult,
+  IJoinRoom,
+  IProduce,
+  IProduceResult,
+  IUser,
+  VoiceRoomEvent,
+  VoiceRoomMediaTag,
+} from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
@@ -11,7 +24,7 @@ import { createEntityAdapter } from '@ngrx/entity';
 import { patchState, signalState } from '@ngrx/signals';
 import { interval } from 'rxjs';
 
-interface IManagedPeer extends UserCommon.IUser {
+interface IManagedPeer extends IUser {
   consumers: Consumer[];
   sourceNode: MediaStreamAudioSourceNode | null;
   gainNode: GainNode | null;
@@ -65,9 +78,7 @@ export class VoiceRoomService {
   /**
    * All voice rooms state
    */
-  private readonly _roomsState = signal<
-    Readonly<VoiceRoomCommon.IGetAllPeersResult>
-  >({});
+  private readonly _roomsState = signal<Readonly<IGetAllPeersResult>>({});
   /**
    * All voice rooms state
    */
@@ -121,7 +132,7 @@ export class VoiceRoomService {
    */
   public readonly peerGainLevels = this._peerGainLevels.asReadonly();
 
-  protected pendingConsumes: VoiceRoomCommon.IProduceResult[] = [];
+  protected pendingConsumes: IProduceResult[] = [];
 
   constructor() {
     effect(() => {
@@ -159,9 +170,9 @@ export class VoiceRoomService {
 
     this.addSocketListeners();
 
-    await this.socket.emitWithAck(VoiceRoomCommon.EEvent.JOIN_ROOM, {
+    await this.socket.emitWithAck(VoiceRoomEvent.JOIN_ROOM, {
       roomId,
-    } satisfies VoiceRoomCommon.IJoinRoom);
+    } satisfies IJoinRoom);
 
     await this.updateRoomsState();
 
@@ -173,7 +184,7 @@ export class VoiceRoomService {
   public async leaveRoom() {
     this._selectedRoomId.set(null);
     this.removeSocketListeners();
-    await this.socket.emitWithAck(VoiceRoomCommon.EEvent.LEAVE_ROOM);
+    await this.socket.emitWithAck(VoiceRoomEvent.LEAVE_ROOM);
     this.cleanupAllPeers();
     this.cleanupMediasoup();
     await this.updateRoomsState();
@@ -228,8 +239,9 @@ export class VoiceRoomService {
    */
   private async updateRoomsState() {
     try {
-      const roomsState: VoiceRoomCommon.IGetAllPeersResult =
-        await this.socket.emitWithAck(VoiceRoomCommon.EEvent.GET_ALL_PEERS);
+      const roomsState: IGetAllPeersResult = await this.socket.emitWithAck(
+        VoiceRoomEvent.GET_ALL_PEERS,
+      );
       this._roomsState.set(roomsState);
     } catch (error) {
       console.error('Failed to update all rooms state', error);
@@ -240,7 +252,7 @@ export class VoiceRoomService {
     this.removeSocketListeners();
 
     // Существующие пиры при подключении
-    this.socket.on(VoiceRoomCommon.EEvent.PEERS_ON_JOIN, async (data) => {
+    this.socket.on(VoiceRoomEvent.PEERS_ON_JOIN, async (data) => {
       patchState(
         this.peersState,
         peersStateAdapter.setAll(
@@ -265,7 +277,7 @@ export class VoiceRoomService {
     });
 
     // Подключение нового пира
-    this.socket.on(VoiceRoomCommon.EEvent.PEER_JOINED, async (data) => {
+    this.socket.on(VoiceRoomEvent.PEER_JOINED, async (data) => {
       patchState(
         this.peersState,
         peersStateAdapter.upsertOne(
@@ -293,7 +305,7 @@ export class VoiceRoomService {
     });
 
     // Отключение пира
-    this.socket.on(VoiceRoomCommon.EEvent.PEER_LEFT, (data) => {
+    this.socket.on(VoiceRoomEvent.PEER_LEFT, (data) => {
       const peer = this.peersDict()[data.user.id];
       if (peer) {
         this.cleanupPeer(peer);
@@ -318,12 +330,12 @@ export class VoiceRoomService {
     });
 
     // Событие при создании нового продюсера
-    this.socket.on(VoiceRoomCommon.EEvent.PRODUCER_CREATED, async (data) => {
+    this.socket.on(VoiceRoomEvent.PRODUCER_CREATED, async (data) => {
       await this.consume(data);
     });
 
     // Удаление продюсера
-    this.socket.on(VoiceRoomCommon.EEvent.PRODUCER_CLOSED, (data) => {
+    this.socket.on(VoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       const peer = this.peersDict()[data.userId];
       if (!peer) return;
 
@@ -353,11 +365,11 @@ export class VoiceRoomService {
   }
 
   private removeSocketListeners(): void {
-    this.socket.off(VoiceRoomCommon.EEvent.PEERS_ON_JOIN);
-    this.socket.off(VoiceRoomCommon.EEvent.PEER_JOINED);
-    this.socket.off(VoiceRoomCommon.EEvent.PEER_LEFT);
-    this.socket.off(VoiceRoomCommon.EEvent.PRODUCER_CREATED);
-    this.socket.off(VoiceRoomCommon.EEvent.PRODUCER_CLOSED);
+    this.socket.off(VoiceRoomEvent.PEERS_ON_JOIN);
+    this.socket.off(VoiceRoomEvent.PEER_JOINED);
+    this.socket.off(VoiceRoomEvent.PEER_LEFT);
+    this.socket.off(VoiceRoomEvent.PRODUCER_CREATED);
+    this.socket.off(VoiceRoomEvent.PRODUCER_CLOSED);
   }
 
   private cleanupMediasoup(): void {
@@ -398,7 +410,7 @@ export class VoiceRoomService {
     }
     try {
       const routerRtpCapabilities = await this.socket.emitWithAck(
-        VoiceRoomCommon.EEvent.GET_RTP_CAPABILITIES,
+        VoiceRoomEvent.GET_RTP_CAPABILITIES,
       );
       await this.device.load({ routerRtpCapabilities });
       console.log('Can produce video', this.device.canProduce('video'));
@@ -416,10 +428,12 @@ export class VoiceRoomService {
 
     await this.ensureDeviceLoaded();
 
-    const result: VoiceRoomCommon.ICreateTransportResult =
-      await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CREATE_TRANSPORT, {
+    const result: ICreateTransportResult = await this.socket.emitWithAck(
+      VoiceRoomEvent.CREATE_TRANSPORT,
+      {
         direction: 'send',
-      } satisfies VoiceRoomCommon.ICreateTransport);
+      } satisfies ICreateTransport,
+    );
 
     this.sendTransport = this.device.createSendTransport(result);
 
@@ -428,11 +442,11 @@ export class VoiceRoomService {
       async ({ dtlsParameters }, callback, errback) => {
         try {
           const res = await this.socket.emitWithAck(
-            VoiceRoomCommon.EEvent.CONNECT_TRANSPORT,
+            VoiceRoomEvent.CONNECT_TRANSPORT,
             {
               transportId: this.sendTransport!.id,
               dtlsParameters,
-            } satisfies VoiceRoomCommon.IConnectTransport,
+            } satisfies IConnectTransport,
           );
           console.log('connect success', res);
           callback();
@@ -447,13 +461,15 @@ export class VoiceRoomService {
       async ({ kind, rtpParameters, appData }, callback, errback) => {
         console.log('pruduce', kind, rtpParameters, appData);
         try {
-          const res: VoiceRoomCommon.IProduceResult =
-            await this.socket.emitWithAck(VoiceRoomCommon.EEvent.PRODUCE, {
+          const res: IProduceResult = await this.socket.emitWithAck(
+            VoiceRoomEvent.PRODUCE,
+            {
               kind,
               rtpParameters,
               transportId: this.sendTransport!.id,
-              mediaTag: appData['mediaTag'] as VoiceRoomCommon.MediaTag,
-            } satisfies VoiceRoomCommon.IProduce);
+              mediaTag: appData['mediaTag'] as VoiceRoomMediaTag,
+            } satisfies IProduce,
+          );
           callback({ id: res.producerId });
         } catch (error) {
           errback(error as Error);
@@ -493,10 +509,12 @@ export class VoiceRoomService {
 
     await this.ensureDeviceLoaded();
 
-    const result: VoiceRoomCommon.ICreateTransportResult =
-      await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CREATE_TRANSPORT, {
+    const result: ICreateTransportResult = await this.socket.emitWithAck(
+      VoiceRoomEvent.CREATE_TRANSPORT,
+      {
         direction: 'recv',
-      } satisfies VoiceRoomCommon.ICreateTransport);
+      } satisfies ICreateTransport,
+    );
 
     this.recvTransport = this.device.createRecvTransport(result);
 
@@ -504,13 +522,10 @@ export class VoiceRoomService {
       'connect',
       async ({ dtlsParameters }, callback, errback) => {
         try {
-          await this.socket.emitWithAck(
-            VoiceRoomCommon.EEvent.CONNECT_TRANSPORT,
-            {
-              transportId: this.recvTransport!.id,
-              dtlsParameters,
-            } satisfies VoiceRoomCommon.IConnectTransport,
-          );
+          await this.socket.emitWithAck(VoiceRoomEvent.CONNECT_TRANSPORT, {
+            transportId: this.recvTransport!.id,
+            dtlsParameters,
+          } satisfies IConnectTransport);
           callback();
         } catch (err) {
           errback(err as Error);
@@ -530,11 +545,11 @@ export class VoiceRoomService {
   private async consumePending() {
     const pendingConsumes = [...this.pendingConsumes];
     this.pendingConsumes = [];
-    const consumes = this.pendingConsumes.map((p) => this.consume(p));
+    const consumes = pendingConsumes.map((p) => this.consume(p));
     await Promise.all(consumes);
   }
 
-  private async consume(data: VoiceRoomCommon.IProduceResult) {
+  private async consume(data: IProduceResult) {
     if (this.consuming.has(data.producerId)) {
       console.warn('Producer already consuming\n', data);
       return;
@@ -558,12 +573,14 @@ export class VoiceRoomService {
         return;
       }
 
-      const result: VoiceRoomCommon.IConsumeResult =
-        await this.socket.emitWithAck(VoiceRoomCommon.EEvent.CONSUME, {
+      const result: IConsumeResult = await this.socket.emitWithAck(
+        VoiceRoomEvent.CONSUME,
+        {
           producerId: data.producerId,
           rtpCapabilities: this.device.recvRtpCapabilities,
           transportId: this.recvTransport!.id,
-        } satisfies VoiceRoomCommon.IConsume);
+        } satisfies IConsume,
+      );
 
       const consumer = await this.recvTransport!.consume(result);
 

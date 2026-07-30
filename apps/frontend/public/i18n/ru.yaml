@@ -11,10 +11,13 @@ GENERAL:
   MUTE: Заглушить
   EDIT: Редактировать
   DELETE: Удалить
+  FILE_TOO_BIG: Файл слишком большой
 AUTH:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
   CONFIRM_PASSWORD: Подтвердить пароль
+  FULLNAME: Полное имя
+  EMAIL: Электронная почта
   SIGN_IN: Войти
   SIGN_UP: Создать аккаунт
   LOG_OUT: Выйти

@@ -5,13 +5,13 @@
     "types": ["node", "multer"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2024",
     "strict": true,
     "removeComments": true,
     "allowSyntheticDefaultImports": true,
-    //123
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
@@ -21,10 +21,6 @@
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true
-    // "forceConsistentCasingInFileNames": true,
-    // "noImplicitAny": false,
-    // "strictBindCallApply": false,
-    // "noFallthroughCasesInSwitch": false
   },
   "include": ["src/**/*.ts"],
   "exclude": [

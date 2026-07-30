@@ -1,5 +1,5 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityManager, EntityRepository } from '@mikro-orm/sqlite';
+import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SettingsEntity } from './settings.entity';
 import { SettingsUpdateDto } from './settings.dto';

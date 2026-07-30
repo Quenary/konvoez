@@ -40,7 +40,7 @@ export class SettingsDto<
   })
   @IsDate()
   @IsOptional()
-  updatedAt: Date | null = null;
+  updatedAt: Date | null | undefined;
 }
 
 export class SettingsUpdateDto<

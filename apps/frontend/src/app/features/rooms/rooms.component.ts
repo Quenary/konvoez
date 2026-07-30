@@ -20,22 +20,14 @@ import {
   RoomDialogData,
 } from './room-dialog/room-dialog.component';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
-import { ERoomType } from '@konvoez/shared';
-import { LogoComponent } from '@shared/components/logo/logo.component';
-import { RouterLink } from '@angular/router';
-import { VoiceRoomPanelComponent } from './voice-room-panel/voice-room-panel.component';
+import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
-import { UserCommon } from '@konvoez/shared';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import {
   TuiButton,
-  TuiIcon,
   TuiDialogService,
-  tuiDropdown,
   TuiDropdown,
-  TuiDropdownContext,
   TuiOption,
-  TuiAppearance,
   TuiDataList,
 } from '@taiga-ui/core';
 import {
@@ -43,7 +35,6 @@ import {
   TuiAutoColorPipe,
   TuiAvatar,
   TuiAvatarStack,
-  TuiChevron,
   TuiConfirmData,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
@@ -54,14 +45,13 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { SlicePipe } from '@angular/common';
 
 interface IRoomWithPeers extends IRoom {
-  peers: UserCommon.IUser[];
+  peers: IUser[];
   isUserInRoom: boolean;
 }
 
 @Component({
   selector: 'app-rooms',
   imports: [
-    RouterLink,
     TranslatePipe,
     RoomPeerComponent,
     //

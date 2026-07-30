@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ICreateUser, IGetUser, IUpdateUser } from './user.interface';
 import { environment } from '@environments/environment';
+import { IUser, IUserCreate, IUserUpdate } from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -10,24 +10,24 @@ import { environment } from '@environments/environment';
 export class UserApiService {
   private readonly httpClient = inject(HttpClient);
 
-  list(): Observable<IGetUser[]> {
-    return this.httpClient.get<IGetUser[]>(`${environment.apiPath}/users`, {
+  list(): Observable<IUser[]> {
+    return this.httpClient.get<IUser[]>(`${environment.apiPath}/users`, {
       withCredentials: true,
     });
   }
 
-  create(body: ICreateUser): Observable<IGetUser> {
-    return this.httpClient.post<IGetUser>(`${environment.apiPath}/users`, body);
+  create(body: IUserCreate): Observable<IUser> {
+    return this.httpClient.post<IUser>(`${environment.apiPath}/users`, body);
   }
 
-  read(id: number): Observable<IGetUser> {
-    return this.httpClient.get<IGetUser>(`${environment.apiPath}/users/${id}`, {
+  read(id: number): Observable<IUser> {
+    return this.httpClient.get<IUser>(`${environment.apiPath}/users/${id}`, {
       withCredentials: true,
     });
   }
 
-  update(id: number, body: IUpdateUser): Observable<IGetUser> {
-    return this.httpClient.put<IGetUser>(
+  patch(id: number, body: IUserUpdate): Observable<IUser> {
+    return this.httpClient.patch<IUser>(
       `${environment.apiPath}/users/${id}`,
       body,
       {
@@ -38,6 +38,23 @@ export class UserApiService {
 
   delete(id: number): Observable<void> {
     return this.httpClient.delete<void>(`${environment.apiPath}/users/${id}`, {
+      withCredentials: true,
+    });
+  }
+
+  avatarUpload(avatar: File): Observable<string> {
+    const formData = new FormData();
+    formData.append('avatar', avatar);
+    return this.httpClient.post('/api/users/avatar/upload', formData, {
+      responseType: 'text',
+      withCredentials: true,
+    });
+  }
+
+  avatarStream(url: string): Observable<HttpEvent<Blob>> {
+    return this.httpClient.get(url, {
+      responseType: 'blob',
+      observe: 'events',
       withCredentials: true,
     });
   }

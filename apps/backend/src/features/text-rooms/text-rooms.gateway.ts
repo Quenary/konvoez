@@ -56,10 +56,8 @@ export class TextRoomsGateway
 
       client.data.peer = {
         clientId: client.id,
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        avatar: user.avatar,
+        ...user,
+        avatarUrl: 'TODO',
       } satisfies TextRoomCommon.IPeer;
 
       this.userIdToSocketId.set(user.id, client.id);

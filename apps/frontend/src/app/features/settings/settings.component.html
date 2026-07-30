@@ -26,10 +26,10 @@
     (click)="avatarInput.click()"
     (keypress.space)="avatarInput.click()"
     (keypress.enter)="avatarInput.click()">
-    @if (avatarUrl.hasValue()) {
+    @if (avatarUrl(); as url) {
       <img
-        [alt]="me()?.username"
-        [src]="avatarUrl.value()" />
+        [alt]="username()"
+        [ngSrc]="url" />
     } @else {
       {{ username() | tuiInitials }}
     }

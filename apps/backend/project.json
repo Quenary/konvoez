@@ -30,6 +30,20 @@
         }
       }
     },
+    "migration-create": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node -r tsconfig-paths/register ../../node_modules/.bin/mikro-orm migration:create",
+        "cwd": "apps/backend"
+      }
+    },
+    "migration-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node -r tsconfig-paths/register ../../node_modules/.bin/mikro-orm migration:up",
+        "cwd": "apps/backend"
+      }
+    },
     "prune-lockfile": {
       "dependsOn": ["build"],
       "cache": true,

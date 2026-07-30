@@ -1,9 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '@environments/environment';
-import { IGetUser } from '../user/user.interface';
 import { Observable } from 'rxjs';
 import { ILoginBody } from './auth.interface';
+import { IUser } from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -11,15 +11,15 @@ import { ILoginBody } from './auth.interface';
 export class AuthApiService {
   private readonly httpClient = inject(HttpClient);
 
-  login(body: ILoginBody): Observable<IGetUser> {
-    return this.httpClient.post<IGetUser>(
+  login(body: ILoginBody): Observable<IUser> {
+    return this.httpClient.post<IUser>(
       `${environment.apiPath}/auth/login`,
       body,
     );
   }
 
   logout() {
-    return this.httpClient.post<any>(
+    return this.httpClient.post(
       `${environment.apiPath}/auth/logout`,
       {},
       { withCredentials: true },
@@ -27,7 +27,7 @@ export class AuthApiService {
   }
 
   refresh() {
-    return this.httpClient.post<any>(
+    return this.httpClient.post(
       `${environment.apiPath}/auth/refresh`,
       {},
       { withCredentials: true },
@@ -38,8 +38,8 @@ export class AuthApiService {
    * Get current user
    * @returns
    */
-  me(): Observable<IGetUser> {
-    return this.httpClient.get<IGetUser>(`${environment.apiPath}/auth/me`, {
+  me(): Observable<IUser> {
+    return this.httpClient.get<IUser>(`${environment.apiPath}/auth/me`, {
       withCredentials: true,
     });
   }
