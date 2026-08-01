@@ -43,7 +43,9 @@
         "styles": [
           "apps/frontend/src/styles.scss",
           "@taiga-ui/styles/taiga-ui-theme.less",
-          "@taiga-ui/styles/taiga-ui-fonts.less"
+          "@taiga-ui/styles/taiga-ui-fonts.less",
+          "@taiga-ui/editor/styles/editor.css",
+          "@taiga-ui/editor/styles/editor-toolbar.css"
         ],
         "loader": {
           ".wasm": "file"

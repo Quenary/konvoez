@@ -1,21 +1,23 @@
 @if (message(); as m) {
   <div
     class="message"
-    #messageRef
-    aria-haspopup="true">
-    <!-- @if (avatarUrl(); as image) {
-      <p-avatar
-        class="message-sender"
-        [image]="image"
-        shape="circle">
-      </p-avatar>
-    } @else { -->
-    <p-avatar
+    [tuiDropdown]="hasMenu() ? contextMenu : null"
+    tuiDropdownContext>
+    <div
+      tuiAvatar
+      size="s"
       class="message-sender"
-      [label]="m.senderUsername[0]"
-      shape="circle">
-    </p-avatar>
-    <!-- } -->
+      [round]="true">
+      @if (avatarUrl(); as url) {
+        <img
+          [alt]="m.senderUsername"
+          [ngSrc]="url"
+          fill />
+      } @else {
+        {{ m.senderUsername | tuiInitials }}
+      }
+    </div>
+
     <span class="message-body">
       <span class="message-body-header">
         <span class="message-body-header-username">
@@ -25,19 +27,34 @@
           {{ m.createdAt | dayjs }}
         </span>
       </span>
-      <angular-tiptap-editor
+
+      <tui-editor-socket
         class="message-body-content"
-        [content]="m.content"
-        [editable]="false"
-        [seamless]="true"
-        [config]="{ theme: 'dark' }">
-      </angular-tiptap-editor>
+        [content]="sanitizedContent()">
+      </tui-editor-socket>
     </span>
   </div>
 
-  <p-contextmenu
-    [target]="messageRef"
-    appendTo="body"
-    [model]="contextMenu()">
-  </p-contextmenu>
+  <ng-template
+    #contextMenu
+    let-close>
+    <tui-data-list>
+      @if (canEdit()) {
+        <button
+          tuiOption
+          iconEnd="@tui.edit"
+          (click)="editMessage(); close()">
+          {{ 'GENERAL.EDIT' | translate }}
+        </button>
+      }
+      @if (canDelete()) {
+        <button
+          tuiOption
+          iconEnd="@tui.delete"
+          (click)="deleteMessage(); close()">
+          {{ 'GENERAL.DELETE' | translate }}
+        </button>
+      }
+    </tui-data-list>
+  </ng-template>
 }

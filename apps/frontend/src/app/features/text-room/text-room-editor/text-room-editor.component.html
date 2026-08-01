@@ -1,0 +1,32 @@
+@if (editableMessage(); as m) {
+  <section class="edit">
+    <div class="edit-title">
+      {{ 'GENERAL.EDIT' | translate }}
+    </div>
+
+    <button
+      tuiButtonX
+      class="edit-close"
+      (click)="cancelEdit()">
+      Close
+    </button>
+  </section>
+}
+
+<section class="field">
+  <tui-editor
+    class="field-editor"
+    [formControl]="control"
+    [tools]="tools"
+    [floatingToolbar]="true"
+    [style.min-height.rem]="4"
+    [style.max-height.rem]="12">
+  </tui-editor>
+
+  <button
+    tuiIconButton
+    iconStart="@tui.send"
+    size="s"
+    (click)="onSubmit()">
+  </button>
+</section>

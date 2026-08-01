@@ -4,73 +4,80 @@ import {
   computed,
   inject,
   input,
+  Sanitizer,
+  SecurityContext,
 } from '@angular/core';
-import { TranslateService } from '@ngx-translate/core';
-import { ContextMenuModule } from 'primeng/contextmenu';
-import { IMessageEntity } from '../text-room.reducer';
-import { MenuItem } from 'primeng/api';
+import { NgOptimizedImage } from '@angular/common';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { AvatarModule } from 'primeng/avatar';
-import { TextRoomActions } from '../text-room.actions';
+import { TranslatePipe } from '@ngx-translate/core';
+import { TuiDataList, TuiDropdown, TuiOption } from '@taiga-ui/core';
+import { TuiEditorSocket } from '@taiga-ui/editor';
+import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { EUserRole, IUser } from '@konvoez/shared';
-import { AngularTiptapEditorComponent } from '@flogeez/angular-tiptap-editor';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
+import { TextRoomActions } from '../text-room.actions';
+import { IMessageEntity } from '../text-room.reducer';
 
 @Component({
   selector: 'app-text-room-message',
   imports: [
-    ContextMenuModule,
-    AvatarModule,
     DayjsPipe,
-    ContextMenuModule,
-    AngularTiptapEditorComponent,
+    NgOptimizedImage,
+    TranslatePipe,
+    TuiAvatar,
+    TuiDataList,
+    TuiDropdown,
+    TuiEditorSocket,
+    TuiInitialsPipe,
+    TuiOption,
   ],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TextRoomMessageComponent {
-  private readonly translateService = inject(TranslateService);
   private readonly store = inject(Store);
+  private readonly sanitizer = inject(Sanitizer);
 
-  /**
-   * Message
-   */
   public readonly message = input.required<IMessageEntity>();
 
-  protected readonly contextMenu = computed<MenuItem[]>(() => {
-    const message = this.message();
-    const me = this.currentUser() as IUser;
-    if (message.senderId === me.id) {
-      return [
-        {
-          label: this.translateService.instant('GENERAL.EDIT'),
-          command: () => this.editMessage(),
-        },
-        {
-          label: this.translateService.instant('GENERAL.DELETE'),
-          command: () => this.deleteMessage(),
-        },
-      ];
-    }
-    if ([EUserRole.OWNER, EUserRole.ADMIN].includes(me.role)) {
-      return [
-        {
-          label: this.translateService.instant('GENERAL.DELETE'),
-          command: () => this.deleteMessage(),
-        },
-      ];
-    }
-    return [];
-  });
+  protected readonly sanitizedContent = computed(() =>
+    this.sanitizer.sanitize(SecurityContext.HTML, this.message().content),
+  );
 
-  /**
-   * Current user
-   */
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  private editMessage(): void {
+  protected readonly avatarUrl = computed(() => {
+    const message = this.message();
+    const currentUser = this.currentUser();
+    if (currentUser && message.senderId === currentUser.id) {
+      return currentUser.avatarUrl ?? null;
+    }
+    return null;
+  });
+
+  protected readonly canEdit = computed(() => {
+    const me = this.currentUser() as IUser | null;
+    return !!me && this.message().senderId === me.id;
+  });
+
+  protected readonly canDelete = computed(() => {
+    const me = this.currentUser() as IUser | null;
+    if (!me) {
+      return false;
+    }
+    if (this.message().senderId === me.id) {
+      return true;
+    }
+    return [EUserRole.OWNER, EUserRole.ADMIN].includes(me.role);
+  });
+
+  protected readonly hasMenu = computed(
+    () => this.canEdit() || this.canDelete(),
+  );
+
+  protected editMessage(): void {
     this.store.dispatch(
       TextRoomActions.setEditableMessageId({
         id: this.message().id,
@@ -78,7 +85,7 @@ export class TextRoomMessageComponent {
     );
   }
 
-  private deleteMessage() {
+  protected deleteMessage(): void {
     this.store.dispatch(
       TextRoomActions.deleteMessage({
         messageId: this.message().id,

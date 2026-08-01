@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { TextRoomControlComponent } from './text-room-control/text-room-control.component';
+import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.component';
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -7,7 +7,7 @@ import { TextRoomActions } from './text-room.actions';
 
 @Component({
   selector: 'app-text-room',
-  imports: [TextRoomControlComponent, TextRoomListComponent],
+  imports: [TextRoomEditorComponent, TextRoomListComponent],
   templateUrl: './text-room.component.html',
   styleUrl: './text-room.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

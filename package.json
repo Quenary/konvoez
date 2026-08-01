@@ -130,6 +130,8 @@
     "@taiga-ui/addon-mobile": "^5.16.0",
     "@taiga-ui/cdk": "^5.14.0",
     "@taiga-ui/core": "^5.14.0",
+    "@taiga-ui/dompurify": "^5.0.1",
+    "@taiga-ui/editor": "^5.5.0",
     "@taiga-ui/icons": "^5.14.0",
     "@taiga-ui/kit": "^5.14.0",
     "@taiga-ui/layout": "^5.14.0",
