@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { RoomEntity } from './rooms.entity';
-import { CreateRoomDto, UpdateRoomDto } from './rooms.dto';
+import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { UserEntity } from '../users/users.entity';
 import { EUserRole } from '@konvoez/shared';
+import { GetUserDto } from '../users/users.dto';
 
 @Injectable()
 export class RoomsService {
@@ -28,15 +29,26 @@ export class RoomsService {
     }
     return room;
   }
+
+  async findOneAsDto(id: number): Promise<GetRoomDto> {
+    return this.toDto(await this.findOne(id));
+  }
+
   async findAll(): Promise<RoomEntity[]> {
     return this.repo.findAll();
   }
 
-  async create(dto: CreateRoomDto, author: UserEntity): Promise<RoomEntity> {
+  async findAllAsDto(): Promise<GetRoomDto[]> {
+    const rooms = await this.findAll();
+    return rooms.map((room) => this.toDto(room));
+  }
+
+  async create(dto: CreateRoomDto, author: GetUserDto): Promise<RoomEntity> {
     const room = this.repo.create(
       {
         ...dto,
-        author,
+        // @Author() is a DTO; reference avoids cascading a User insert without password
+        author: this.em.getReference(UserEntity, author.id),
       },
       { persist: true },
     );
@@ -78,5 +90,21 @@ export class RoomsService {
     }
     this.em.remove(room);
     await this.em.flush();
+  }
+
+  toDto(room: RoomEntity): GetRoomDto {
+    return {
+      id: room.id,
+      name: room.name,
+      type: room.type,
+      avatar: room.avatar,
+      avatarUrl: this.getAvatarUrl(room.avatar),
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+    };
+  }
+
+  getAvatarUrl(key: string | null | undefined): string | null {
+    return key ? `/api/rooms/avatar/stream?key=${key}` : null;
   }
 }

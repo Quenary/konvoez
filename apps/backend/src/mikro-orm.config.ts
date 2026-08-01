@@ -5,7 +5,7 @@ import { RoomEntitySchema } from './features/rooms/rooms.entity';
 import { SettingsEntitySchema } from './features/settings/settings.entity';
 import { MessageEntitySchema } from './features/text-rooms/text-rooms.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
-import { Migration20260730002217 } from './migrations/Migration20260730002217';
+import { Migration20260801010402 } from './migrations/Migration20260801010402';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -23,7 +23,7 @@ export async function createMikroOrmConfig() {
       // Used by the CLI (`migration:create`) which runs with cwd=apps/backend.
       pathTs: './src/migrations',
       // Explicit list is required for the webpack-bundled app (no FS discovery).
-      migrationsList: [Migration20260730002217],
+      migrationsList: [Migration20260801010402],
     },
   } satisfies Partial<Options>;
 

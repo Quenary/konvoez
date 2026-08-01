@@ -12,6 +12,7 @@ export const RoomEntitySchema = defineEntity({
     id: p.integer().primary().autoincrement(),
     name: p.string().length(64).index().unique(),
     type: p.enum(() => ERoomType),
+    avatar: p.string().length(512).nullable(),
     author: () => p.manyToOne(UserEntitySchema),
     messages: () =>
       p

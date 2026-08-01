@@ -9,8 +9,9 @@
 - ~~Add avatars~~
 - ~~Add sidemenu to edit/remove rooms~~
 - ~~Add messages encryption~~
-- Add messages search
+- ~~Add rooms avatars~~
 - Add message assets (files)
+- Add messages search
 - Add message reply
 - ~~Add configurable stun servers~~
 - Add connection state indication

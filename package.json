@@ -5,7 +5,7 @@
   "scripts": {
     "nx": "nx",
     "build": "nx run-many -t build",
-    "start:dev": "nx run-many -t serve",
+    "start:dev": "nx run-many -t serve --outputStyle=stream",
     "migration:create": "nx run backend:migration-create"
   },
   "repository": {

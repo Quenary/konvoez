@@ -42,7 +42,7 @@ import { TuiNavigation } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { SlicePipe } from '@angular/common';
+import { NgOptimizedImage, SlicePipe } from '@angular/common';
 
 interface IRoomWithPeers extends IRoom {
   peers: IUser[];
@@ -64,6 +64,7 @@ interface IRoomWithPeers extends IRoom {
     TuiDataList,
     TuiAvatarStack,
     SlicePipe,
+    NgOptimizedImage,
     TuiInitialsPipe,
     TuiAutoColorPipe,
   ],
@@ -124,11 +125,15 @@ export class RoomsComponent implements OnInit {
       })
       .subscribe({
         next: (room) => {
-          if (!room) return;
+          if (!room?.name || !room.type) return;
 
-          this.store.dispatch(
-            RoomsActions.requestCreateRoom({ room: room as IRoomCreate }),
-          );
+          const body: IRoomCreate = {
+            name: room.name,
+            type: room.type,
+            ...(room.avatar ? { avatar: room.avatar } : {}),
+          };
+
+          this.store.dispatch(RoomsActions.requestCreateRoom({ room: body }));
         },
       });
   }
@@ -142,13 +147,17 @@ export class RoomsComponent implements OnInit {
       })
       .subscribe({
         next: (data) => {
-          if (!data) return;
+          if (!data?.id || !data.name) return;
 
-          const { id, ...room } = data;
+          const body: IRoomUpdate = {
+            name: data.name,
+            ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
+          };
+
           this.store.dispatch(
             RoomsActions.requestUpdateRoom({
-              id: id as number,
-              room: room as IRoomUpdate,
+              id: data.id,
+              room: body,
             }),
           );
         },
