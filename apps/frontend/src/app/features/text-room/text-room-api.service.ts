@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { TextRoomCommon } from '@konvoez/shared';
+import {
+  ITextRoomCreateMessage,
+  ITextRoomEditMessage,
+  ITextRoomListRequest,
+  ITextRoomListResponse,
+  ITextRoomMessage,
+} from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 
@@ -10,11 +16,9 @@ import { environment } from '@environments/environment';
 export class TextRoomApiService {
   private readonly httpClient = inject(HttpClient);
 
-  list(
-    body: TextRoomCommon.IListRequest,
-  ): Observable<TextRoomCommon.IListResponse> {
+  list(body: ITextRoomListRequest): Observable<ITextRoomListResponse> {
     return this.httpClient
-      .post<TextRoomCommon.IListResponse>(
+      .post<ITextRoomListResponse>(
         `${environment.apiPath}/text-rooms/list`,
         body,
       )
@@ -30,10 +34,8 @@ export class TextRoomApiService {
       );
   }
 
-  create(
-    body: TextRoomCommon.ICreateMessage,
-  ): Observable<TextRoomCommon.IMessage> {
-    return this.httpClient.post<TextRoomCommon.IMessage>(
+  create(body: ITextRoomCreateMessage): Observable<ITextRoomMessage> {
+    return this.httpClient.post<ITextRoomMessage>(
       `${environment.apiPath}/text-rooms`,
       body,
     );
@@ -41,15 +43,15 @@ export class TextRoomApiService {
 
   update(
     messageId: string,
-    body: TextRoomCommon.IEditMessage,
-  ): Observable<TextRoomCommon.IMessage> {
-    return this.httpClient.put<TextRoomCommon.IMessage>(
+    body: ITextRoomEditMessage,
+  ): Observable<ITextRoomMessage> {
+    return this.httpClient.put<ITextRoomMessage>(
       `${environment.apiPath}/text-rooms/${messageId}`,
       body,
     );
   }
 
-  delete(messageId: string): Observable<any> {
+  delete(messageId: string): Observable<unknown> {
     return this.httpClient.delete(
       `${environment.apiPath}/text-rooms/${messageId}`,
     );

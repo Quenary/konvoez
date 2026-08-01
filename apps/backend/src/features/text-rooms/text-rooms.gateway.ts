@@ -10,17 +10,22 @@ import {
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
-import { TextRoomCommon } from '@konvoez/shared';
+import {
+  ETextRoomEvent,
+  type ITextRoomJoin,
+  ITextRoomPeer,
+  TTextRoomEventMap,
+} from '@konvoez/shared';
 import { MessageDto } from './text-rooms.dto';
 
 type TSocket = Socket<
-  TextRoomCommon.TEventMap,
-  TextRoomCommon.TEventMap,
+  TTextRoomEventMap,
+  TTextRoomEventMap,
   DefaultEventsMap,
   {
     roomId?: number;
     recipientId?: number;
-    peer?: TextRoomCommon.IPeer;
+    peer?: ITextRoomPeer;
   }
 >;
 
@@ -35,7 +40,7 @@ export class TextRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  private readonly server!: Server<TextRoomCommon.TEventMap>;
+  private readonly server!: Server<TTextRoomEventMap>;
 
   @Inject(AuthService)
   private readonly authService!: AuthService;
@@ -49,7 +54,7 @@ export class TextRoomsGateway
       );
 
       if (!user) {
-        client.emit(TextRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
+        client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
         client.disconnect(true);
         return;
       }
@@ -57,11 +62,11 @@ export class TextRoomsGateway
       client.data.peer = {
         ...user,
         clientId: client.id,
-      } satisfies TextRoomCommon.IPeer;
+      } satisfies ITextRoomPeer;
 
       this.userIdToSocketId.set(user.id, client.id);
     } catch {
-      client.emit(TextRoomCommon.EEvent.ERROR, { message: 'Unauthorized' });
+      client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
     }
   }
@@ -73,9 +78,9 @@ export class TextRoomsGateway
     }
   }
 
-  @SubscribeMessage(TextRoomCommon.EEvent.JOIN)
+  @SubscribeMessage(ETextRoomEvent.JOIN)
   handleJoin(
-    @MessageBody() body: TextRoomCommon.IJoin,
+    @MessageBody() body: ITextRoomJoin,
     @ConnectedSocket() client: TSocket,
   ) {
     this.handleLeave(client);
@@ -95,7 +100,7 @@ export class TextRoomsGateway
     }
   }
 
-  @SubscribeMessage(TextRoomCommon.EEvent.LEAVE)
+  @SubscribeMessage(ETextRoomEvent.LEAVE)
   handleLeave(@ConnectedSocket() client: TSocket) {
     const { roomId, recipientId, ...rest } = client.data;
     client.data = rest;
@@ -119,7 +124,7 @@ export class TextRoomsGateway
       if (senderClientId) {
         res = res.except(senderClientId);
       }
-      return res.emit(TextRoomCommon.EEvent.MESSAGE_CREATED, body);
+      return res.emit(ETextRoomEvent.MESSAGE_CREATED, body);
     }
   }
 
@@ -128,12 +133,12 @@ export class TextRoomsGateway
     if (to) {
       return this.server
         .to(to.toString())
-        .emit(TextRoomCommon.EEvent.MESSAGE_EDITED, body);
+        .emit(ETextRoomEvent.MESSAGE_EDITED, body);
     }
   }
 
   public onMessageDeleted(id: string) {
-    return this.server.emit(TextRoomCommon.EEvent.MESSAGE_DELETED, {
+    return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, {
       id,
     });
   }

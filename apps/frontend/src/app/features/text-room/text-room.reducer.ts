@@ -1,4 +1,4 @@
-import { TextRoomCommon } from '@konvoez/shared';
+import { ITextRoomMessage } from '@konvoez/shared';
 import { createEntityAdapter, EntityState } from '@ngrx/entity';
 import { createReducer, on } from '@ngrx/store';
 import { TextRoomActions } from './text-room.actions';
@@ -12,7 +12,7 @@ export enum EMessageStatus {
 /**
  * Frontend message entity
  */
-export interface IMessageEntity extends TextRoomCommon.IMessage {
+export interface IMessageEntity extends ITextRoomMessage {
   status: EMessageStatus;
 }
 

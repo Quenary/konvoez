@@ -11,10 +11,17 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { TextRoomCommon } from '@konvoez/shared';
-import { messageMaxLength, messageMinLength } from '@konvoez/shared';
+import {
+  ITextRoomCreateMessage,
+  ITextRoomEditMessage,
+  ITextRoomListRequest,
+  ITextRoomListResponse,
+  ITextRoomMessage,
+  messageMaxLength,
+  messageMinLength,
+} from '@konvoez/shared';
 
-export class CreateMessageDto implements TextRoomCommon.ICreateMessage {
+export class CreateMessageDto implements ITextRoomCreateMessage {
   @ApiProperty({
     type: 'integer',
     required: true,
@@ -38,7 +45,7 @@ export class CreateMessageDto implements TextRoomCommon.ICreateMessage {
   content!: string;
 }
 
-export class EditMessageDto implements TextRoomCommon.IEditMessage {
+export class EditMessageDto implements ITextRoomEditMessage {
   @ApiProperty({
     type: 'string',
     required: true,
@@ -49,7 +56,7 @@ export class EditMessageDto implements TextRoomCommon.IEditMessage {
   content!: string;
 }
 
-export class MessageDto implements TextRoomCommon.IMessage {
+export class MessageDto implements ITextRoomMessage {
   @ApiProperty({ type: 'string', required: true })
   @IsUUID()
   id!: string;
@@ -86,7 +93,7 @@ export class MessageDto implements TextRoomCommon.IMessage {
   content!: string;
 }
 
-export class MessageListRequestDto implements TextRoomCommon.IListRequest {
+export class MessageListRequestDto implements ITextRoomListRequest {
   @ApiProperty({ type: 'string', required: false })
   @IsOptional()
   @IsString()
@@ -114,7 +121,7 @@ export class MessageListRequestDto implements TextRoomCommon.IListRequest {
   roomId!: number | null;
 }
 
-export class MessageListResponseDto implements TextRoomCommon.IListResponse {
+export class MessageListResponseDto implements ITextRoomListResponse {
   @ApiProperty({ type: 'array' })
   @IsArray()
   items!: MessageDto[];
