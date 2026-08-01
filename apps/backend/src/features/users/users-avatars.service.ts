@@ -1,14 +1,14 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { Inject, Injectable } from '@nestjs/common';
 import { FileService } from '@shared/services/file.service';
-import { s3ClientInjectionToken } from '@shared/tokens/s3-client.token';
+import { S3ClientInjectionToken } from '@shared/tokens/s3-client.token';
 
 @Injectable()
 export class UsersAvatarsService extends FileService {
   protected readonly bucketName = 'users-avatars';
 
   constructor(
-    @Inject(s3ClientInjectionToken)
+    @Inject(S3ClientInjectionToken)
     protected readonly s3Client: S3Client,
   ) {
     super(s3Client);

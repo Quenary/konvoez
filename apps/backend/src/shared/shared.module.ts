@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { AppService } from './services/app.service';
 import { PasswordService } from './services/password.service';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
-import { s3ClientInjectionToken } from './tokens/s3-client.token';
+import { S3ClientInjectionToken } from './tokens/s3-client.token';
 import { EncryptionService } from './services/encryption.service';
 
 @Global()
@@ -12,7 +12,7 @@ import { EncryptionService } from './services/encryption.service';
     PasswordService,
     EncryptionService,
     {
-      provide: s3ClientInjectionToken,
+      provide: S3ClientInjectionToken,
       inject: [AppService],
       useFactory: (configService: AppService) => {
         const config: S3ClientConfig = {
@@ -33,7 +33,7 @@ import { EncryptionService } from './services/encryption.service';
   exports: [
     AppService,
     PasswordService,
-    s3ClientInjectionToken,
+    S3ClientInjectionToken,
     EncryptionService,
   ],
 })
