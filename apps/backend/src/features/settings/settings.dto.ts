@@ -1,10 +1,13 @@
-import { SettingsCommon } from '@konvoez/shared';
+import {
+  ESettingKey,
+  ISetting,
+  ISettingUpdate,
+  TSettingValueMap,
+} from '@konvoez/shared';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDate, IsEnum, IsInt, IsJSON, IsOptional } from 'class-validator';
 
-export class SettingsDto<
-  T extends SettingsCommon.EKey,
-> implements SettingsCommon.ISetting<T> {
+export class SettingsDto<T extends ESettingKey> implements ISetting<T> {
   @ApiProperty({
     type: Number,
     required: true,
@@ -13,10 +16,10 @@ export class SettingsDto<
   id!: number;
 
   @ApiProperty({
-    enum: SettingsCommon.EKey,
+    enum: ESettingKey,
     required: true,
   })
-  @IsEnum(SettingsCommon.EKey)
+  @IsEnum(ESettingKey)
   key!: T;
 
   @ApiProperty({
@@ -25,7 +28,7 @@ export class SettingsDto<
     required: true,
   })
   @IsJSON()
-  value!: SettingsCommon.Type[T];
+  value!: TSettingValueMap[T];
 
   @ApiProperty({
     type: Date,
@@ -43,11 +46,11 @@ export class SettingsDto<
   updatedAt: Date | null | undefined;
 }
 
-export class SettingsUpdateDto<
-  T extends SettingsCommon.EKey,
-> implements SettingsCommon.ISettingUpdate<T> {
+export class SettingsUpdateDto<T extends ESettingKey>
+  implements ISettingUpdate<T>
+{
   @ApiProperty({
     required: true,
   })
-  value!: SettingsCommon.Type[T];
+  value!: TSettingValueMap[T];
 }

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { SettingsCommon } from '@konvoez/shared';
+import { TSetting } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 
 @Injectable({
@@ -10,8 +10,8 @@ import { environment } from '@environments/environment';
 export class SettingsApiService {
   private readonly httpClient = inject(HttpClient);
 
-  list(): Observable<SettingsCommon.ISetting<any>[]> {
-    return this.httpClient.get<SettingsCommon.ISetting<any>[]>(
+  list(): Observable<TSetting[]> {
+    return this.httpClient.get<TSetting[]>(
       `${environment.apiPath}/settings/list`,
       {
         withCredentials: true,

@@ -1,6 +1,6 @@
 import { defineEntity, p } from '@mikro-orm/core';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
-import { SettingsCommon } from '@konvoez/shared';
+import { ESettingKey } from '@konvoez/shared';
 
 export const SettingsEntitySchema = defineEntity({
   name: 'SettingsEntity',
@@ -8,7 +8,7 @@ export const SettingsEntitySchema = defineEntity({
   extends: KonvoezBaseEntitySchema,
   properties: {
     id: p.integer().primary().autoincrement(),
-    key: p.enum(() => SettingsCommon.EKey).unique(),
+    key: p.enum(() => ESettingKey).unique(),
     value: p.json(),
   },
 });
