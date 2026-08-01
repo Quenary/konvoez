@@ -1,11 +1,16 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+} from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ILoginBody } from './auth.interface';
 import { Store } from '@ngrx/store';
-import { selectAuthLoading } from './auth.selectors';
+import { selectAuthLoading, selectIsAuthorized } from './auth.selectors';
 import { AuthActions } from './auth.actions';
 import { TranslatePipe } from '@ngx-translate/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   TuiButton,
   TuiError,
@@ -42,9 +47,20 @@ import { getAuthFormControls } from '@shared/functions/user-forms.function';
 })
 export class AuthComponent {
   private readonly store = inject(Store);
+  private readonly router = inject(Router);
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(getAuthFormControls());
+
+  private readonly isAuthorized = this.store.selectSignal(selectIsAuthorized);
+
+  constructor() {
+    effect(() => {
+      if (this.isAuthorized()) {
+        this.router.navigate(['/']);
+      }
+    });
+  }
 
   onSubmit(): void {
     if (this.form.invalid) return;
