@@ -6,6 +6,7 @@ import {
   provideBrowserGlobalErrorListeners,
   isDevMode,
   LOCALE_ID,
+  Sanitizer,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
@@ -38,12 +39,10 @@ import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
 import { TextRoomEffects } from './features/text-room/text-room.effects';
 import { textRoomReducer } from './features/text-room/text-room.reducer';
 import { localeInitializer } from './core/initializers/locale-initializer';
-import {
-  provideAteEditor,
-  SupportedLocale,
-} from '@flogeez/angular-tiptap-editor';
+import { provideAteEditor } from '@flogeez/angular-tiptap-editor';
 import { supportedLocales } from './app.constants';
 import { messageMaxLength } from '@konvoez/shared';
+import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -127,5 +126,9 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => localeInitializer()),
     provideTaiga(),
+    {
+      provide: Sanitizer,
+      useClass: NgDompurifySanitizer,
+    },
   ],
 };

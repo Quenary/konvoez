@@ -19,7 +19,6 @@ import {
 import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
 import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
 import { TextRoomActions } from '../text-room.actions';
-import { ButtonModule } from 'primeng/button';
 import { EMessageStatus } from '../text-room.reducer';
 import {
   auditTime,
@@ -30,10 +29,11 @@ import {
   take,
 } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TuiButton } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-text-room-list',
-  imports: [TextRoomMessageComponent, InfiniteScrollDirective, ButtonModule],
+  imports: [TextRoomMessageComponent, InfiniteScrollDirective, TuiButton],
   templateUrl: './text-room-list.component.html',
   styleUrl: './text-room-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

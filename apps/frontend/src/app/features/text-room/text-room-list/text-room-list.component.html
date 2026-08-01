@@ -15,10 +15,11 @@
 </div>
 
 @if (showScrollToBottom()) {
-  <p-button
+  <button
     class="scroll-to-bottom"
-    rounded
-    icon="pi pi-chevron-down"
-    (onClick)="scrollToBottom('smooth')">
-  </p-button>
+    tuiButton
+    iconStart="@tui.arrow-down"
+    size="s"
+    appearance="secondary"
+    (click)="scrollToBottom('smooth')"></button>
 }
