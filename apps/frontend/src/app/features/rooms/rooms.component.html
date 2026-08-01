@@ -22,7 +22,14 @@
     <div
       tuiAvatar
       size="s">
-      {{ room.name | tuiInitials }}
+      @if (room.avatarUrl) {
+        <img
+          [alt]="room.name"
+          [ngSrc]="room.avatarUrl"
+          fill />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
     </div>
     {{ room.name }}
   </button>
@@ -54,7 +61,14 @@
     <div
       tuiAvatar
       size="s">
-      {{ room.name | tuiInitials }}
+      @if (room.avatarUrl) {
+        <img
+          [alt]="room.name"
+          [ngSrc]="room.avatarUrl"
+          fill />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
     </div>
     {{ room.name }}
   </button>

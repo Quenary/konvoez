@@ -33,14 +33,14 @@
     "migration-create": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node -r tsconfig-paths/register ../../node_modules/.bin/mikro-orm migration:create",
+        "command": "node -r tsconfig-paths/register ../../node_modules/@mikro-orm/cli/cli.js migration:create",
         "cwd": "apps/backend"
       }
     },
     "migration-up": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node -r tsconfig-paths/register ../../node_modules/.bin/mikro-orm migration:up",
+        "command": "node -r tsconfig-paths/register ../../node_modules/@mikro-orm/cli/cli.js migration:up",
         "cwd": "apps/backend"
       }
     },

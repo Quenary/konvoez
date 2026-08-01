@@ -24,7 +24,7 @@
           tuiAvatar="@tui.droplet">
         </div>
         <div>
-          {{ 'PROFILE.DROP_IT' | translate }}
+          {{ 'GENERAL.DROP_IT' | translate }}
         </div>
       } @else {
         @if (avatarUrl(); as au) {
@@ -46,10 +46,10 @@
         }
 
         <div>
-          {{ 'PROFILE.DRAG_FILE' | translate }}
+          {{ 'GENERAL.DRAG_FILE' | translate }}
           {{ 'GENERAL.OR' | translate | lowercase }}
           <span tuiLink>
-            {{ 'PROFILE.CLICK_TO_SELECT' | translate | lowercase }}
+            {{ 'GENERAL.CLICK_TO_SELECT' | translate | lowercase }}
           </span>
         </div>
       }

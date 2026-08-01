@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
+import { IUploadFileResult } from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -42,5 +43,17 @@ export class RoomsApiService {
     return this.httpClient.delete(`${environment.apiPath}/rooms/${id}`, {
       withCredentials: true,
     });
+  }
+
+  avatarUpload(avatar: File): Observable<IUploadFileResult> {
+    const formData = new FormData();
+    formData.append('avatar', avatar);
+    return this.httpClient.post<IUploadFileResult>(
+      `${environment.apiPath}/rooms/avatar/upload`,
+      formData,
+      {
+        withCredentials: true,
+      },
+    );
   }
 }

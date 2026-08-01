@@ -16,6 +16,9 @@ GENERAL:
   SIGN_UP: Создать аккаунт
   LOG_OUT: Выйти
   OR: Или
+  DRAG_FILE: Перетащите файл
+  CLICK_TO_SELECT: Нажмите для выбора
+  DROP_IT: Бросай его сюда!
 PROFILE:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
@@ -23,9 +26,6 @@ PROFILE:
   FULLNAME: Полное имя
   EMAIL: Электронная почта
   AVATAR: Аватар
-  DRAG_FILE: Перетащите файл
-  CLICK_TO_SELECT: Нажмите для выбора
-  DROP_IT: Бросай его сюда!
   IS_CHANGING_PASSWORD: Изменить пароль
   PASSWORD_HINT: |
     - Как минимум одна строчная буква

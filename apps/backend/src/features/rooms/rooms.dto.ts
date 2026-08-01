@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsEnum, IsString, Length } from 'class-validator';
+import { IsDate, IsEnum, IsOptional, IsString, Length } from 'class-validator';
 import { ERoomType } from '@konvoez/shared';
 
 export class CreateRoomDto {
@@ -17,6 +17,15 @@ export class CreateRoomDto {
   })
   @IsEnum(ERoomType)
   type!: ERoomType;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Avatar key in s3',
+  })
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 }
 
 export class UpdateRoomDto {
@@ -27,9 +36,24 @@ export class UpdateRoomDto {
   @IsString()
   @Length(1, 64)
   name!: string;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Avatar key in s3',
+  })
+  @IsString()
+  @IsOptional()
+  avatar?: string;
 }
 
 export class GetRoomDto {
+  @ApiProperty({
+    type: Number,
+    required: true,
+  })
+  id!: number;
+
   @ApiProperty({
     type: String,
     required: true,
@@ -46,6 +70,18 @@ export class GetRoomDto {
   type!: ERoomType;
 
   @ApiProperty({
+    type: String,
+    required: false,
+  })
+  avatar!: string | null | undefined;
+
+  @ApiProperty({
+    type: String,
+    required: false,
+  })
+  avatarUrl!: string | null | undefined;
+
+  @ApiProperty({
     type: Date,
     required: true,
   })
@@ -57,5 +93,6 @@ export class GetRoomDto {
     required: false,
   })
   @IsDate()
-  updatedAt?: Date;
+  @IsOptional()
+  updatedAt: Date | null | undefined;
 }

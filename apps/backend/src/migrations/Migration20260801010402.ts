@@ -1,6 +1,6 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260730002217 extends Migration {
+export class Migration20260801010402 extends Migration {
 
   override up(): void | Promise<void> {
     this.addSql(`create table \`settings\` (\`id\` integer not null primary key autoincrement, \`created_at\` datetime not null, \`updated_at\` datetime null, \`key\` text check (\`key\` in ('ICE_SERVERS')) not null, \`value\` json not null);`);
@@ -13,7 +13,7 @@ export class Migration20260730002217 extends Migration {
     this.addSql(`create index \`users_email_index\` on \`users\` (\`email\`);`);
     this.addSql(`create unique index \`users_email_unique\` on \`users\` (\`email\`);`);
 
-    this.addSql(`create table \`rooms\` (\`id\` integer not null primary key autoincrement, \`created_at\` datetime not null, \`updated_at\` datetime null, \`name\` text not null, \`type\` text check (\`type\` in ('TEXT', 'VOICE')) not null, \`author_id\` integer not null, constraint \`rooms_author_id_foreign\` foreign key (\`author_id\`) references \`users\` (\`id\`));`);
+    this.addSql(`create table \`rooms\` (\`id\` integer not null primary key autoincrement, \`created_at\` datetime not null, \`updated_at\` datetime null, \`name\` text not null, \`type\` text check (\`type\` in ('TEXT', 'VOICE')) not null, \`avatar\` text null, \`author_id\` integer not null, constraint \`rooms_author_id_foreign\` foreign key (\`author_id\`) references \`users\` (\`id\`));`);
     this.addSql(`create index \`rooms_name_index\` on \`rooms\` (\`name\`);`);
     this.addSql(`create unique index \`rooms_name_unique\` on \`rooms\` (\`name\`);`);
     this.addSql(`create index \`rooms_author_id_index\` on \`rooms\` (\`author_id\`);`);
