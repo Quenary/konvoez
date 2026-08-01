@@ -17,8 +17,6 @@ import {
   TranslateService,
 } from '@ngx-translate/core';
 import { TranslateYamlHttpLoader } from './core/services/translate-yaml-http-loader.service';
-import { providePrimeNG } from 'primeng/config';
-import Aura from '@primeuix/themes/aura';
 import { provideEffects } from '@ngrx/effects';
 import { provideStore, Store } from '@ngrx/store';
 import { RoomsEffects } from './features/rooms/rooms.effects';
@@ -27,7 +25,6 @@ import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { authReducer } from './features/auth/auth.reducer';
 import { AuthEffects } from './features/auth/auth.effects';
 import { AuthActions } from './features/auth/auth.actions';
-import { MessageService } from 'primeng/api';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { settingsReducer } from './features/settings/settings.reducer';
 import { SettingsEffects } from './features/settings/settings.effects';
@@ -56,11 +53,6 @@ export const appConfig: ApplicationConfig = {
       },
       fallbackLang: 'en',
     }),
-    providePrimeNG({
-      theme: {
-        preset: Aura,
-      },
-    }),
     provideEffects(AuthEffects, RoomsEffects, TextRoomEffects, SettingsEffects),
     provideStore({
       auth: authReducer,
@@ -69,7 +61,6 @@ export const appConfig: ApplicationConfig = {
       settings: settingsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
-    MessageService,
     {
       provide: VoiceRoomSocketToken,
       useValue: io(window.location.origin, {
