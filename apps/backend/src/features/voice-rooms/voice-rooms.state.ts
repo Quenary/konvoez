@@ -1,10 +1,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import {
-  IGetAllPeersResult,
-  IPeersOnJoin,
+  TVoiceRoomGetAllPeersResult,
+  TVoiceRoomPeersOnJoin,
   IUser,
-  IUserWithProducers,
-  VoiceRoomMediaTag,
+  IVoiceRoomUserWithProducers,
+  TVoiceRoomMediaTag,
 } from '@konvoez/shared';
 import {
   Consumer,
@@ -48,7 +48,7 @@ type VoiceRoomStatePeer = {
 
 export type VoiceRoomStateMediasoupAppData = {
   peerId: string;
-  mediaTag: VoiceRoomMediaTag;
+  mediaTag: TVoiceRoomMediaTag;
 };
 
 @Injectable()
@@ -104,7 +104,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  public getPeersOnJoin(roomId: number): IPeersOnJoin {
+  public getPeersOnJoin(roomId: number): TVoiceRoomPeersOnJoin {
     const room = this.rooms.get(roomId);
     if (!room) {
       return {};
@@ -121,14 +121,14 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
             kind: p.kind,
             mediaTag: p.appData.mediaTag,
           })),
-        } satisfies IUserWithProducers,
+        } satisfies IVoiceRoomUserWithProducers,
       }),
       {},
     );
   }
 
-  public getAllPeers(): IGetAllPeersResult {
-    const result: IGetAllPeersResult = {};
+  public getAllPeers(): TVoiceRoomGetAllPeersResult {
+    const result: TVoiceRoomGetAllPeersResult = {};
     for (const [roomId, room] of this.rooms) {
       result[roomId] = Array.from(room.peers.values()).reduce(
         (prev, curr) => ({

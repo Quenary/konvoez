@@ -9,18 +9,18 @@ import {
 } from '@nestjs/websockets';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
 import {
-  type IConnectTransport,
-  type IConsume,
-  type IConsumeResult,
-  type ICreateTransport,
-  type ICreateTransportResult,
-  type IGetAllPeersResult,
-  type IJoinRoom,
-  type IProduce,
-  type IProduceResult,
+  type IVoiceRoomConnectTransport,
+  type IVoiceRoomConsume,
+  type IVoiceRoomConsumeResult,
+  type IVoiceRoomCreateTransport,
+  type IVoiceRoomCreateTransportResult,
+  type TVoiceRoomGetAllPeersResult,
+  type IVoiceRoomJoin,
+  type IVoiceRoomProduce,
+  type IVoiceRoomProduceResult,
   type IUser,
-  VoiceRoomEvent,
-  type VoiceRoomEventMap,
+  EVoiceRoomEvent,
+  type TVoiceRoomEventMap,
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
@@ -31,8 +31,8 @@ import {
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 
 type TSocket = Socket<
-  VoiceRoomEventMap,
-  VoiceRoomEventMap,
+  TVoiceRoomEventMap,
+  TVoiceRoomEventMap,
   DefaultEventsMap,
   {
     roomId?: number;
@@ -48,7 +48,7 @@ export class VoiceRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  private readonly server!: Server<VoiceRoomEventMap>;
+  private readonly server!: Server<TVoiceRoomEventMap>;
 
   constructor(
     private readonly authService: AuthService,
@@ -72,7 +72,7 @@ export class VoiceRoomsGateway
       );
 
       if (!user) {
-        client.emit(VoiceRoomEvent.ERROR, {
+        client.emit(EVoiceRoomEvent.ERROR, {
           message: 'Unauthorized',
         });
         client.disconnect(true);
@@ -81,7 +81,7 @@ export class VoiceRoomsGateway
 
       client.data.user = user;
     } catch {
-      client.emit(VoiceRoomEvent.ERROR, {
+      client.emit(EVoiceRoomEvent.ERROR, {
         message: 'Unauthorized',
       });
       client.disconnect(true);
@@ -92,10 +92,10 @@ export class VoiceRoomsGateway
     this.handleLeaveRoom(socket);
   }
 
-  @SubscribeMessage(VoiceRoomEvent.JOIN_ROOM)
+  @SubscribeMessage(EVoiceRoomEvent.JOIN_ROOM)
   async handleJoinRoom(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IJoinRoom,
+    @MessageBody() body: IVoiceRoomJoin,
   ) {
     console.info('handleJoinRoom', body);
     const roomId = body.roomId;
@@ -110,7 +110,7 @@ export class VoiceRoomsGateway
       consumers: new Map(),
     });
 
-    socket.to(roomId.toString()).emit(VoiceRoomEvent.PEER_JOINED, {
+    socket.to(roomId.toString()).emit(EVoiceRoomEvent.PEER_JOINED, {
       user,
       roomId,
     });
@@ -118,12 +118,12 @@ export class VoiceRoomsGateway
     socket.join(roomId.toString());
 
     const peersOnJoin = this.voiceRoomsStateService.getPeersOnJoin(roomId);
-    socket.emit(VoiceRoomEvent.PEERS_ON_JOIN, peersOnJoin);
+    socket.emit(EVoiceRoomEvent.PEERS_ON_JOIN, peersOnJoin);
 
     return {};
   }
 
-  @SubscribeMessage(VoiceRoomEvent.LEAVE_ROOM)
+  @SubscribeMessage(EVoiceRoomEvent.LEAVE_ROOM)
   handleLeaveRoom(@ConnectedSocket() socket: TSocket) {
     console.info('handleLeaveRoom', socket.data);
     const { roomId, ...rest } = socket.data;
@@ -142,7 +142,7 @@ export class VoiceRoomsGateway
       peer.producers.forEach((p) => {
         p.close();
         room.producers.delete(p.id);
-        socket.to(roomId.toString()).emit(VoiceRoomEvent.PRODUCER_CLOSED, {
+        socket.to(roomId.toString()).emit(EVoiceRoomEvent.PRODUCER_CLOSED, {
           producerId: p.id,
           userId: peer.user.id,
         });
@@ -157,7 +157,7 @@ export class VoiceRoomsGateway
 
       socket.leave(roomId.toString());
 
-      socket.to(roomId.toString()).emit(VoiceRoomEvent.PEER_LEFT, {
+      socket.to(roomId.toString()).emit(EVoiceRoomEvent.PEER_LEFT, {
         user: socket.data.user,
         roomId,
       });
@@ -166,12 +166,12 @@ export class VoiceRoomsGateway
     return {};
   }
 
-  @SubscribeMessage(VoiceRoomEvent.GET_ALL_PEERS)
-  handleGetAllPeers(): IGetAllPeersResult {
+  @SubscribeMessage(EVoiceRoomEvent.GET_ALL_PEERS)
+  handleGetAllPeers(): TVoiceRoomGetAllPeersResult {
     return this.voiceRoomsStateService.getAllPeers();
   }
 
-  @SubscribeMessage(VoiceRoomEvent.GET_RTP_CAPABILITIES)
+  @SubscribeMessage(EVoiceRoomEvent.GET_RTP_CAPABILITIES)
   async handleGetRtpCapabilities(@ConnectedSocket() socket: TSocket) {
     this.throwSocketWithoutRoom(socket);
     const room = this.voiceRoomsStateService.getRoom(socket.data.roomId!)!;
@@ -179,15 +179,15 @@ export class VoiceRoomsGateway
   }
 
   /**
-   * Создание транспорта
+   * РЎРѕР·РґР°РЅРёРµ С‚СЂР°РЅСЃРїРѕСЂС‚Р°
    * @param socket
    * @param body
    * @returns
    */
-  @SubscribeMessage(VoiceRoomEvent.CREATE_TRANSPORT)
+  @SubscribeMessage(EVoiceRoomEvent.CREATE_TRANSPORT)
   async handleCreateTransport(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: ICreateTransport,
+    @MessageBody() body: IVoiceRoomCreateTransport,
   ) {
     console.info('handleCreateTransport', body);
     this.throwSocketWithoutRoom(socket);
@@ -214,18 +214,18 @@ export class VoiceRoomsGateway
       iceCandidates: transport.iceCandidates,
       dtlsParameters: transport.dtlsParameters,
       sctpParameters: transport.sctpParameters,
-    } satisfies ICreateTransportResult;
+    } satisfies IVoiceRoomCreateTransportResult;
   }
 
   /**
-   * Подключение к транспорту
+   * РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє С‚СЂР°РЅСЃРїРѕСЂС‚Сѓ
    * @param socket
    * @param body
    */
-  @SubscribeMessage(VoiceRoomEvent.CONNECT_TRANSPORT)
+  @SubscribeMessage(EVoiceRoomEvent.CONNECT_TRANSPORT)
   async connectTransport(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IConnectTransport,
+    @MessageBody() body: IVoiceRoomConnectTransport,
   ) {
     console.info('connectTransport', body);
     this.throwSocketWithoutRoom(socket);
@@ -250,15 +250,15 @@ export class VoiceRoomsGateway
   }
 
   /**
-   * Создание потока отправки
+   * РЎРѕР·РґР°РЅРёРµ РїРѕС‚РѕРєР° РѕС‚РїСЂР°РІРєРё
    * @param socket
    * @param body
    * @returns
    */
-  @SubscribeMessage(VoiceRoomEvent.PRODUCE)
+  @SubscribeMessage(EVoiceRoomEvent.PRODUCE)
   async produce(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IProduce,
+    @MessageBody() body: IVoiceRoomProduce,
   ) {
     console.info('produce', body);
     this.throwSocketWithoutRoom(socket);
@@ -283,34 +283,34 @@ export class VoiceRoomsGateway
     producer.on('transportclose', () => {
       room.producers.delete(producer.id);
 
-      this.server.to(room.id.toString()).emit(VoiceRoomEvent.PRODUCER_CLOSED, {
+      this.server.to(room.id.toString()).emit(EVoiceRoomEvent.PRODUCER_CLOSED, {
         producerId: producer.id,
         userId: peer.user.id,
       });
     });
 
-    const result: IProduceResult = {
+    const result: IVoiceRoomProduceResult = {
       producerId: producer.id,
       userId: peer.user.id,
       kind: body.kind,
       mediaTag: body.mediaTag,
     };
 
-    socket.to(room.id.toString()).emit(VoiceRoomEvent.PRODUCER_CREATED, result);
+    socket.to(room.id.toString()).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
 
     return result;
   }
 
   /**
-   * Создание потока получения
+   * РЎРѕР·РґР°РЅРёРµ РїРѕС‚РѕРєР° РїРѕР»СѓС‡РµРЅРёСЏ
    * @param socket
    * @param body
    * @returns
    */
-  @SubscribeMessage(VoiceRoomEvent.CONSUME)
+  @SubscribeMessage(EVoiceRoomEvent.CONSUME)
   async consume(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IConsume,
+    @MessageBody() body: IVoiceRoomConsume,
   ) {
     console.info('consume', body);
     this.throwSocketWithoutRoom(socket);
@@ -349,7 +349,7 @@ export class VoiceRoomsGateway
       console.info('Producer closed, remove consumer');
       peer.consumers.delete(consumer.id);
 
-      socket.emit(VoiceRoomEvent.CONSUMER_CLOSED, {
+      socket.emit(EVoiceRoomEvent.CONSUMER_CLOSED, {
         consumerId: consumer.id,
       });
     });
@@ -360,6 +360,6 @@ export class VoiceRoomsGateway
       kind: consumer.kind,
       mediaTag: consumer.appData.mediaTag,
       rtpParameters: consumer.rtpParameters,
-    } satisfies IConsumeResult;
+    } satisfies IVoiceRoomConsumeResult;
   }
 }
