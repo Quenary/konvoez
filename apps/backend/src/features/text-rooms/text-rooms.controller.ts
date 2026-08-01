@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  Inject,
   Param,
   Post,
   Put,
@@ -20,16 +19,11 @@ import {
   MessageListRequestDto,
   EditMessageDto,
 } from './text-rooms.dto';
-import { TextRoomsGateway } from './text-rooms.gateway';
 
 @Controller('text-rooms')
 @UseGuards(AuthGuard)
 export class TextRoomsController {
-  @Inject(TextRoomsService)
-  private readonly textRoomsService!: TextRoomsService;
-
-  @Inject(TextRoomsGateway)
-  private readonly textRoomsGateway!: TextRoomsGateway;
+  constructor(private readonly textRoomsService: TextRoomsService) {}
 
   @Post('list')
   @ApiOkResponse({
@@ -50,7 +44,6 @@ export class TextRoomsController {
   })
   async create(@Author() author: UserEntity, @Body() body: CreateMessageDto) {
     const message = await this.textRoomsService.create(author, body);
-    this.textRoomsGateway.onMessageCreated(message);
     return message;
   }
 
@@ -65,7 +58,6 @@ export class TextRoomsController {
     @Body() body: EditMessageDto,
   ) {
     const message = await this.textRoomsService.updateMessage(author, id, body);
-    this.textRoomsGateway.onMessageUpdated(message);
     return message;
   }
 
@@ -75,6 +67,5 @@ export class TextRoomsController {
   })
   async delete(@Author() author: UserEntity, @Param('id') id: string) {
     await this.textRoomsService.delete(author, id);
-    this.textRoomsGateway.onMessageDeleted(id);
   }
 }

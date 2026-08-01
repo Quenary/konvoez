@@ -20,10 +20,13 @@ import { EncryptionService } from '@shared/services/encryption.service';
 import { stringify as uuidStringify } from 'uuid';
 import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
+import { TextRoomsGateway } from './text-rooms.gateway';
 
 @Injectable()
 export class TextRoomsService {
-  private readonly em!: EntityManager;
+  private get em(): EntityManager {
+    return this.messageRepository.getEntityManager();
+  }
 
   constructor(
     @InjectRepository(MessageEntity)
@@ -31,9 +34,8 @@ export class TextRoomsService {
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
-  ) {
-    this.em = this.messageRepository.getEntityManager();
-  }
+    private readonly textRoomsGateway: TextRoomsGateway,
+  ) {}
 
   private entityToDto(data: MessageEntity): MessageDto {
     const content = this.encryptionService.decrypt(
@@ -121,7 +123,10 @@ export class TextRoomsService {
       { persist: true },
     );
     await this.em.flush();
-    return this.entityToDto(message);
+
+    const messageDto = this.entityToDto(message);
+    this.textRoomsGateway.onMessageCreated(messageDto);
+    return messageDto;
   }
 
   async updateMessage(
@@ -154,7 +159,10 @@ export class TextRoomsService {
 
     this.em.persist(message);
     await this.em.flush();
-    return this.entityToDto(message);
+
+    const messageDto = this.entityToDto(message);
+    this.textRoomsGateway.onMessageUpdated(messageDto);
+    return messageDto;
   }
 
   async delete(user: UserEntity, messageId: string): Promise<void> {
@@ -174,5 +182,7 @@ export class TextRoomsService {
 
     this.em.remove(message);
     await this.em.flush();
+
+    this.textRoomsGateway.onMessageDeleted(messageId);
   }
 }
