@@ -1,141 +1,163 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { IUser } from './user';
 
-/**
- * Voice room WS events
- */
-export const VoiceRoomEvent = {
+export enum EVoiceRoomEvent {
+  JOIN_ROOM = 'join-room',
+  LEAVE_ROOM = 'leave-room',
+  PEER_JOINED = 'peer-joined',
+  PEER_LEFT = 'peer-left',
   /**
-   * Join room event
-   * @data {@link IJoinRoom}
+   * Get existing peers of all rooms to sync frontend state
    */
-  JOIN_ROOM: 'join-room',
+  GET_ALL_PEERS = 'get-all-peers',
   /**
-   * Leave room event
-   * @data {@link ILeaveRoom}
+   * Existing peers in current room.
+   * Emits room's users to joined user and triggers initial signaling.
    */
-  LEAVE_ROOM: 'leave-room',
-  /**
-   * Peer joined event
-   * @data {@link IPeerLeft}
-   */
-  PEER_JOINED: 'peer-joined',
-  /**
-   * Peer left event
-   * @data {@link IPeerLeft}
-   */
-  PEER_LEFT: 'peer-left',
-  /**
-   * Get existing peers of all rooms
-   * to sync frontend state
-   */
-  GET_ALL_PEERS: 'get-all-peers',
-  /**
-   * Existing peers in current room event
-   * Emits room's users to joined user
-   * This event triggers initial signaling
-   */
-  PEERS_ON_JOIN: 'peers-on-join',
-  //#region MediaSoup
-  GET_RTP_CAPABILITIES: 'get-rtp-capabilities',
-  CREATE_TRANSPORT: 'create-transport',
-  CONNECT_TRANSPORT: 'connect-transport',
-  PRODUCE: 'produce',
-  PRODUCER_CREATED: 'producer-created',
-  PRODUCER_CLOSED: 'producer-closed',
-  CONSUME: 'consume',
-  CONSUMER_CLOSED: 'consumer-closed',
-  //#endregion
-  ERROR: 'error',
-} as const;
-export type VoiceRoomEventMap = {
-  [VoiceRoomEvent.JOIN_ROOM]: (data: IJoinRoom, ...args: any[]) => any;
-  [VoiceRoomEvent.LEAVE_ROOM]: (data: object) => any;
-  [VoiceRoomEvent.PEER_JOINED]: (data: IPeerJoined) => any;
-  [VoiceRoomEvent.PEER_LEFT]: (data: IPeerLeft) => any;
-  [VoiceRoomEvent.GET_ALL_PEERS]: () => IGetAllPeersResult;
-  [VoiceRoomEvent.PEERS_ON_JOIN]: (data: IPeersOnJoin) => any;
-  [VoiceRoomEvent.GET_RTP_CAPABILITIES]: () => any;
-  [VoiceRoomEvent.CREATE_TRANSPORT]: (
-    data: ICreateTransport,
-    ...args: any[]
-  ) => ICreateTransportResult;
-  [VoiceRoomEvent.CONNECT_TRANSPORT]: (
-    data: IConnectTransport,
-    ...args: any[]
-  ) => any;
-  [VoiceRoomEvent.PRODUCE]: (data: IProduce, ...args: any[]) => IProduceResult;
-  [VoiceRoomEvent.PRODUCER_CREATED]: (data: IProduceResult) => any;
-  [VoiceRoomEvent.PRODUCER_CLOSED]: (data: IProducerClosed) => any;
-  [VoiceRoomEvent.CONSUME]: (data: IConsume, ...args: any[]) => IConsumeResult;
-  [VoiceRoomEvent.CONSUMER_CLOSED]: (data: IConsumerClosed) => any;
-  [VoiceRoomEvent.ERROR]: (data: any) => any;
+  PEERS_ON_JOIN = 'peers-on-join',
+  GET_RTP_CAPABILITIES = 'get-rtp-capabilities',
+  CREATE_TRANSPORT = 'create-transport',
+  CONNECT_TRANSPORT = 'connect-transport',
+  PRODUCE = 'produce',
+  PRODUCER_CREATED = 'producer-created',
+  PRODUCER_CLOSED = 'producer-closed',
+  CONSUME = 'consume',
+  CONSUMER_CLOSED = 'consumer-closed',
+  ERROR = 'error',
+}
+
+export type TVoiceRoomMediaTag = 'mic' | 'cam' | 'screen';
+
+export type TVoiceRoomEventPayloadMap = {
+  [EVoiceRoomEvent.JOIN_ROOM]: IVoiceRoomJoin;
+  [EVoiceRoomEvent.LEAVE_ROOM]: void;
+  [EVoiceRoomEvent.PEER_JOINED]: IVoiceRoomPeerJoined;
+  [EVoiceRoomEvent.PEER_LEFT]: IVoiceRoomPeerLeft;
+  [EVoiceRoomEvent.GET_ALL_PEERS]: void;
+  [EVoiceRoomEvent.PEERS_ON_JOIN]: TVoiceRoomPeersOnJoin;
+  [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: void;
+  [EVoiceRoomEvent.CREATE_TRANSPORT]: IVoiceRoomCreateTransport;
+  [EVoiceRoomEvent.CONNECT_TRANSPORT]: IVoiceRoomConnectTransport;
+  [EVoiceRoomEvent.PRODUCE]: IVoiceRoomProduce;
+  [EVoiceRoomEvent.PRODUCER_CREATED]: IVoiceRoomProduceResult;
+  [EVoiceRoomEvent.PRODUCER_CLOSED]: IVoiceRoomProducerClosed;
+  [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsume;
+  [EVoiceRoomEvent.CONSUMER_CLOSED]: IVoiceRoomConsumerClosed;
+  [EVoiceRoomEvent.ERROR]: { message: string };
 };
-export type VoiceRoomMediaTag = 'mic' | 'cam' | 'screen';
-export interface IJoinRoom {
+
+export type TVoiceRoomEventResultMap = {
+  [EVoiceRoomEvent.JOIN_ROOM]: any;
+  [EVoiceRoomEvent.LEAVE_ROOM]: any;
+  [EVoiceRoomEvent.PEER_JOINED]: any;
+  [EVoiceRoomEvent.PEER_LEFT]: any;
+  [EVoiceRoomEvent.GET_ALL_PEERS]: TVoiceRoomGetAllPeersResult;
+  [EVoiceRoomEvent.PEERS_ON_JOIN]: any;
+  [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: any;
+  [EVoiceRoomEvent.CREATE_TRANSPORT]: IVoiceRoomCreateTransportResult;
+  [EVoiceRoomEvent.CONNECT_TRANSPORT]: any;
+  [EVoiceRoomEvent.PRODUCE]: IVoiceRoomProduceResult;
+  [EVoiceRoomEvent.PRODUCER_CREATED]: any;
+  [EVoiceRoomEvent.PRODUCER_CLOSED]: any;
+  [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsumeResult;
+  [EVoiceRoomEvent.CONSUMER_CLOSED]: any;
+  [EVoiceRoomEvent.ERROR]: any;
+};
+
+export type TVoiceRoomEventMap = {
+  [K in EVoiceRoomEvent]: TVoiceRoomEventPayloadMap[K] extends void
+    ? (...args: any[]) => TVoiceRoomEventResultMap[K]
+    : (
+        data: TVoiceRoomEventPayloadMap[K],
+        ...args: any[]
+      ) => TVoiceRoomEventResultMap[K];
+};
+
+export type TVoiceRoomEvent = {
+  [K in EVoiceRoomEvent]: {
+    event: K;
+    data: TVoiceRoomEventPayloadMap[K];
+  };
+}[EVoiceRoomEvent];
+
+export interface IVoiceRoomJoin {
   roomId: number;
 }
-export interface IPeerJoined {
+
+export interface IVoiceRoomPeerJoined {
   user: IUser;
   roomId: number;
 }
-export interface IPeerLeft {
+
+export interface IVoiceRoomPeerLeft {
   user: IUser;
   roomId: number;
 }
+
 /**
  * Map room id to map of users
  */
-export type IGetAllPeersResult = Record<number, Record<number, IUser>>;
+export type TVoiceRoomGetAllPeersResult = Record<number, Record<number, IUser>>;
+
 /**
- * Map user id to  info with producers
+ * Map user id to info with producers
  */
-export type IPeersOnJoin = Record<number, IUserWithProducers>;
-export interface IUserWithProducers extends IUser {
-  producers: IProduceResult[];
+export type TVoiceRoomPeersOnJoin = Record<number, IVoiceRoomUserWithProducers>;
+
+export interface IVoiceRoomUserWithProducers extends IUser {
+  producers: IVoiceRoomProduceResult[];
 }
-export interface ICreateTransport {
+
+export interface IVoiceRoomCreateTransport {
   direction: 'send' | 'recv';
 }
-export interface ICreateTransportResult {
+
+export interface IVoiceRoomCreateTransportResult {
   id: string;
   iceParameters: any;
   iceCandidates: any;
   dtlsParameters: any;
   sctpParameters: any;
 }
-export interface IConnectTransport {
+
+export interface IVoiceRoomConnectTransport {
   transportId: string;
   dtlsParameters: any;
 }
-export interface IProduce {
+
+export interface IVoiceRoomProduce {
   transportId: string;
   kind: 'audio' | 'video';
-  mediaTag: VoiceRoomMediaTag;
+  mediaTag: TVoiceRoomMediaTag;
   rtpParameters: any;
 }
-export interface IProduceResult {
+
+export interface IVoiceRoomProduceResult {
   producerId: string;
   userId: number;
   kind: 'audio' | 'video';
-  mediaTag: VoiceRoomMediaTag;
+  mediaTag: TVoiceRoomMediaTag;
 }
-export interface IProducerClosed {
+
+export interface IVoiceRoomProducerClosed {
   producerId: string;
   userId: number;
 }
-export interface IConsume {
+
+export interface IVoiceRoomConsume {
   producerId: string;
   transportId: string;
   rtpCapabilities: any;
 }
-export interface IConsumeResult {
+
+export interface IVoiceRoomConsumeResult {
   id: string;
   producerId: string;
   kind: any;
-  mediaTag: VoiceRoomMediaTag;
+  mediaTag: TVoiceRoomMediaTag;
   rtpParameters: any;
 }
-export interface IConsumerClosed {
+
+export interface IVoiceRoomConsumerClosed {
   consumerId: string;
 }
