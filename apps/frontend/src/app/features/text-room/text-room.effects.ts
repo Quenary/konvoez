@@ -16,7 +16,7 @@ import { TextRoomApiService } from './text-room-api.service';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { selectIsAuthorized } from '../auth/auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { TextRoomCommon } from '@konvoez/shared';
+import { ETextRoomEvent } from '@konvoez/shared';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
@@ -61,7 +61,7 @@ export class TextRoomEffects {
       this.actions$.pipe(
         ofType(TextRoomActions.join),
         tap(({ roomId, recipientId }) => {
-          this.socket.emit(TextRoomCommon.EEvent.JOIN, {
+          this.socket.emit(ETextRoomEvent.JOIN, {
             roomId,
             recipientId,
           });
@@ -86,7 +86,7 @@ export class TextRoomEffects {
       this.actions$.pipe(
         ofType(TextRoomActions.leave),
         tap(() => {
-          this.socket.emit(TextRoomCommon.EEvent.LEAVE, {});
+          this.socket.emit(ETextRoomEvent.LEAVE, {});
         }),
       ),
     { dispatch: false },

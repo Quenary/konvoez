@@ -1,5 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { TextRoomCommon } from '@konvoez/shared';
+import {
+  ITextRoomCreateMessage,
+  ITextRoomEditMessage,
+  ITextRoomListRequest,
+  ITextRoomListResponse,
+  ITextRoomMessage,
+  ITextRoomUserTyping,
+} from '@konvoez/shared';
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
 
 export const TextRoomActions = createActionGroup({
@@ -10,28 +17,28 @@ export const TextRoomActions = createActionGroup({
     // list
     requestNextPage: emptyProps(),
     requestPrevPage: emptyProps(),
-    requestList: props<{ data: TextRoomCommon.IListRequest }>(),
+    requestList: props<{ data: ITextRoomListRequest }>(),
     requestListSuccess: props<{
-      data: TextRoomCommon.IListResponse;
+      data: ITextRoomListResponse;
     }>(),
     requestListError: props<{ error: HttpErrorResponse }>(),
     // Create
     createMessage: props<{
       tempId: string;
-      data: TextRoomCommon.ICreateMessage;
+      data: ITextRoomCreateMessage;
     }>(),
     createMessageSuccess: props<{
       tempId: string;
-      data: TextRoomCommon.IMessage;
+      data: ITextRoomMessage;
     }>(),
     createMessageError: props<{ tempId: string; error: HttpErrorResponse }>(),
     // Update
     setEditableMessageId: props<{ id: string | null }>(),
     updateMessage: props<{
       messageId: string;
-      data: TextRoomCommon.IEditMessage;
+      data: ITextRoomEditMessage;
     }>(),
-    updateMessageSuccess: props<{ data: TextRoomCommon.IMessage }>(),
+    updateMessageSuccess: props<{ data: ITextRoomMessage }>(),
     updateMessageError: props<{
       messageId: string;
       error: HttpErrorResponse;
@@ -44,7 +51,7 @@ export const TextRoomActions = createActionGroup({
       error: HttpErrorResponse;
     }>(),
     // Typing
-    userTyping: props<{ data: TextRoomCommon.IUserTyping }>(),
+    userTyping: props<{ data: ITextRoomUserTyping }>(),
     sendUserTyping: emptyProps(),
   },
 });
