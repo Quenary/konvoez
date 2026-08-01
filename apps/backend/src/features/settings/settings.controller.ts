@@ -12,9 +12,8 @@ import { AuthGuard } from '../auth/auth.guard';
 import { SettingsService } from './settings.service';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { SettingsDto, SettingsUpdateDto } from './settings.dto';
-import { SettingsCommon } from '@konvoez/shared';
 import { AuthGuardRoles } from '../auth/auth.decorator';
-import { EUserRole } from '@konvoez/shared';
+import { ESettingKey, EUserRole } from '@konvoez/shared';
 
 @Controller('settings')
 @UseGuards(AuthGuard)
@@ -38,7 +37,7 @@ export class SettingsController {
   })
   async getOne(
     @Query('id', new ParseIntPipe({ optional: true })) id?: number,
-    @Query('key') key?: SettingsCommon.EKey,
+    @Query('key') key?: ESettingKey,
   ): Promise<SettingsDto<any>> {
     return await this.settingsService.findOne({ id, key });
   }
