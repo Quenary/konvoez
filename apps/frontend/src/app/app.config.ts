@@ -33,8 +33,6 @@ import { SettingsActions } from './features/settings/settings.actions';
 import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
-import { TextRoomEffects } from './features/text-room/text-room.effects';
-import { textRoomReducer } from './features/text-room/text-room.reducer';
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { provideAteEditor } from '@flogeez/angular-tiptap-editor';
 import { supportedLocales } from './app.constants';
@@ -53,11 +51,10 @@ export const appConfig: ApplicationConfig = {
       },
       fallbackLang: 'en',
     }),
-    provideEffects(AuthEffects, RoomsEffects, TextRoomEffects, SettingsEffects),
+    provideEffects(AuthEffects, RoomsEffects, SettingsEffects),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
-      textRoom: textRoomReducer,
       settings: settingsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),

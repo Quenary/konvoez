@@ -5,7 +5,6 @@ import {
   inject,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiButtonX } from '@taiga-ui/core';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
@@ -17,12 +16,7 @@ import {
   type TuiEditorToolType,
 } from '@taiga-ui/editor';
 import { v4 } from 'uuid';
-import { TextRoomActions } from '../text-room.actions';
-import {
-  selectTextRoomEditableMessage,
-  selectTextRoomSelectedId,
-  selectTextRoomSelectedRecipientId,
-} from '../text-room.selectors';
+import { TextRoomStore } from '../text-room.store';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 
@@ -76,7 +70,7 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TextRoomEditorComponent {
-  private readonly store = inject(Store);
+  private readonly textRoomStore = inject(TextRoomStore);
 
   protected readonly control = new FormControl<string>('', {
     nonNullable: true,
@@ -94,14 +88,7 @@ export class TextRoomEditorComponent {
     TuiEditorTool.Clear,
   ];
 
-  protected readonly editableMessage = this.store.selectSignal(
-    selectTextRoomEditableMessage,
-  );
-
-  private readonly roomId = this.store.selectSignal(selectTextRoomSelectedId);
-  private readonly recipientId = this.store.selectSignal(
-    selectTextRoomSelectedRecipientId,
-  );
+  protected readonly editableMessage = this.textRoomStore.editableMessage;
 
   constructor() {
     effect(() => {
@@ -121,29 +108,23 @@ export class TextRoomEditorComponent {
     this.control.setValue('');
     const editableMessage = this.editableMessage();
     if (editableMessage) {
-      this.store.dispatch(
-        TextRoomActions.updateMessage({
-          messageId: editableMessage.id,
-          data: {
-            content,
-          },
-        }),
-      );
+      this.textRoomStore.updateMessage({
+        messageId: editableMessage.id,
+        data: { content },
+      });
     } else {
-      this.store.dispatch(
-        TextRoomActions.createMessage({
-          tempId: v4(),
-          data: {
-            content,
-            roomId: this.roomId(),
-            recipientId: this.recipientId(),
-          },
-        }),
-      );
+      this.textRoomStore.createMessage({
+        tempId: v4(),
+        data: {
+          content,
+          roomId: this.textRoomStore.selectedRoomId(),
+          recipientId: this.textRoomStore.selectedRecipientId(),
+        },
+      });
     }
   }
 
   protected cancelEdit(): void {
-    this.store.dispatch(TextRoomActions.setEditableMessageId({ id: null }));
+    this.textRoomStore.setEditableMessageId(null);
   }
 }
