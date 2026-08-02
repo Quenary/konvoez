@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { SpeexWorkletNode, loadSpeex } from '@sapphi-red/web-noise-suppressor';
-import * as speexWorkletUrl from '@sapphi-red/web-noise-suppressor/speexWorklet.js?url';
+import speexWorkletUrl from '@sapphi-red/web-noise-suppressor/speexWorklet.js?url';
 import speexWasmUrl from '@sapphi-red/web-noise-suppressor/speex.wasm?url';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
@@ -29,7 +29,7 @@ export class MicrophoneService {
   private workletLoaded: Promise<void> | null = null;
 
   private device: MediaDeviceInfo | null = null;
-  private gain: number = 1;
+  private gain = 1;
 
   private readonly _processedStream = signal<MediaStream | null>(null);
   public readonly processedStream = this._processedStream.asReadonly();
@@ -50,6 +50,7 @@ export class MicrophoneService {
   private async ensureContext() {
     if (!this.context || this.context.state === 'closed') {
       this.context = new AudioContext({ sampleRate: 48000 });
+      this.workletLoaded = null;
     }
 
     if (this.context.state === 'suspended') {
@@ -70,9 +71,7 @@ export class MicrophoneService {
       return;
     }
     if (!this.workletLoaded) {
-      this.workletLoaded = this.context.audioWorklet.addModule(
-        speexWorkletUrl as any,
-      );
+      this.workletLoaded = this.context.audioWorklet.addModule(speexWorkletUrl);
     }
     await this.workletLoaded;
   }
@@ -84,7 +83,7 @@ export class MicrophoneService {
    */
   @Mutexed()
   private async ensureInputStream(device: MediaDeviceInfo | null) {
-    let track = this.inputStream?.getAudioTracks()?.[0];
+    const track = this.inputStream?.getAudioTracks()?.[0];
     if (track && track.readyState === 'live') {
       return;
     }
@@ -120,7 +119,7 @@ export class MicrophoneService {
     this.biquadNode.Q.value = 0.7;
 
     this.speexNode = new SpeexWorkletNode(this.context, {
-      wasmBinary: this.speexWasmBinary!,
+      wasmBinary: this.speexWasmBinary as ArrayBuffer,
       maxChannels: 1,
     });
 
