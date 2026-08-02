@@ -5,21 +5,15 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   OnInit,
   signal,
   untracked,
   viewChild,
 } from '@angular/core';
-import { Store } from '@ngrx/store';
-import {
-  selectTextRoomMessagesList,
-  selectTextRoomSelectedId,
-  selectTextRoomSelectedRecipientId,
-} from '../text-room.selectors';
-import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
-import { TextRoomActions } from '../text-room.actions';
-import { EMessageStatus } from '../text-room.reducer';
+import { TuiButton } from '@taiga-ui/core';
 import {
   auditTime,
   combineLatest,
@@ -27,9 +21,10 @@ import {
   fromEvent,
   switchMap,
   take,
+  tap,
 } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { TuiButton } from '@taiga-ui/core';
+import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
+import { EMessageStatus, TextRoomStore } from '../text-room.store';
 
 @Component({
   selector: 'app-text-room-list',
@@ -39,12 +34,11 @@ import { TuiButton } from '@taiga-ui/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TextRoomListComponent implements OnInit {
-  private readonly store = inject(Store);
+  private readonly textRoomStore = inject(TextRoomStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
 
-  protected readonly messages = this.store.selectSignal(
-    selectTextRoomMessagesList,
-  );
+  protected readonly messages = this.textRoomStore.messages;
 
   private readonly scrollContainerRef = viewChild.required<
     unknown,
@@ -57,13 +51,12 @@ export class TextRoomListComponent implements OnInit {
   protected readonly infiniteScrollDisabled = signal<boolean>(true);
 
   constructor() {
-    // Scroll bottom on new message
     effect(() => {
       const messages = this.messages();
       const last = messages.at(-1);
 
       untracked(() => {
-        if (last && last.status == EMessageStatus.LOADING) {
+        if (last && last.status === EMessageStatus.LOADING) {
           this.scrollToBottom('smooth');
         }
       });
@@ -81,14 +74,22 @@ export class TextRoomListComponent implements OnInit {
         );
       });
 
-    // initial scroll to bottom
     combineLatest([
-      this.store.select(selectTextRoomSelectedId),
-      this.store.select(selectTextRoomSelectedRecipientId),
+      toObservable(this.textRoomStore.selectedRoomId, {
+        injector: this.injector,
+      }),
+      toObservable(this.textRoomStore.selectedRecipientId, {
+        injector: this.injector,
+      }),
     ])
       .pipe(
+        tap(() => {
+          this.infiniteScrollDisabled.set(true);
+        }),
         switchMap(() =>
-          this.store.select(selectTextRoomMessagesList).pipe(
+          toObservable(this.textRoomStore.messages, {
+            injector: this.injector,
+          }).pipe(
             filter((messages) => messages.length > 0),
             take(1),
           ),
@@ -96,33 +97,22 @@ export class TextRoomListComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
-        console.log('scroll to bottom');
         this.scrollToBottom();
         setTimeout(() => {
           this.infiniteScrollDisabled.set(false);
         }, 300);
       });
-
-    // Disable initial scroll
-    combineLatest([
-      this.store.select(selectTextRoomSelectedId),
-      this.store.select(selectTextRoomSelectedRecipientId),
-    ])
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.infiniteScrollDisabled.set(true);
-      });
   }
 
-  onScrollUp() {
-    this.store.dispatch(TextRoomActions.requestPrevPage());
+  onScrollUp(): void {
+    this.textRoomStore.requestPrevPage();
   }
 
-  onScrolled() {
-    this.store.dispatch(TextRoomActions.requestNextPage());
+  onScrolled(): void {
+    this.textRoomStore.requestNextPage();
   }
 
-  scrollToBottom(behavior: ScrollBehavior = 'instant') {
+  scrollToBottom(behavior: ScrollBehavior = 'instant'): void {
     requestAnimationFrame(() => {
       const el = this.scrollContainerRef().nativeElement;
       el.scrollTo({

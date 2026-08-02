@@ -17,8 +17,7 @@ import { EUserRole, IUser } from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UsersStore } from '@features/users/users.store';
-import { TextRoomActions } from '../text-room.actions';
-import { IMessageEntity } from '../text-room.reducer';
+import { IMessageEntity, TextRoomStore } from '../text-room.store';
 
 @Component({
   selector: 'app-text-room-message',
@@ -40,6 +39,7 @@ import { IMessageEntity } from '../text-room.reducer';
 })
 export class TextRoomMessageComponent {
   private readonly store = inject(Store);
+  private readonly textRoomStore = inject(TextRoomStore);
   private readonly usersStore = inject(UsersStore);
   private readonly sanitizer = inject(Sanitizer);
 
@@ -85,18 +85,10 @@ export class TextRoomMessageComponent {
   );
 
   protected editMessage(): void {
-    this.store.dispatch(
-      TextRoomActions.setEditableMessageId({
-        id: this.message().id,
-      }),
-    );
+    this.textRoomStore.setEditableMessageId(this.message().id);
   }
 
   protected deleteMessage(): void {
-    this.store.dispatch(
-      TextRoomActions.deleteMessage({
-        messageId: this.message().id,
-      }),
-    );
+    this.textRoomStore.deleteMessage(this.message().id);
   }
 }
