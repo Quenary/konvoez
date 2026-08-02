@@ -20,7 +20,9 @@
 
     <span class="message-body">
       <span class="message-body-header">
-        <span class="message-body-header-username">
+        <span
+          class="message-body-header-username"
+          [style.color]="m.senderUsername | tuiAutoColor">
           {{ m.senderUsername }}
         </span>
         <span class="message-body-header-date">

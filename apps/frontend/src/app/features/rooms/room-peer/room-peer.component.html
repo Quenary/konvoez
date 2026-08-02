@@ -11,10 +11,14 @@
           [ngSrc]="p.avatarUrl"
           fill />
       } @else {
-        {{ p.username | tuiInitials }}
+        {{ p.fullname | tuiInitials }}
       }
     </div>
 
-    {{ p.username }}
+    <span
+      class="username"
+      [style.color]="p.username | tuiAutoColor">
+      {{ p.username }}
+    </span>
   </div>
 }

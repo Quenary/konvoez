@@ -85,7 +85,7 @@
         @let sliceNum = 5;
         @for (peer of room.peers | slice: sliceNum; track peer.id) {
           <div
-            [tuiAvatar]="peer.username | tuiInitials"
+            [tuiAvatar]="peer.fullname | tuiInitials"
             [round]="true"
             size="s"
             [style.background]="peer.username | tuiAutoColor">
