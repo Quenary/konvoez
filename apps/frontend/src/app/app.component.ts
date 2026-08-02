@@ -11,6 +11,7 @@ import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
+import { LogoComponent } from '@shared/components/logo/logo.component';
 
 @Component({
   selector: 'app-root',
@@ -24,6 +25,7 @@ import { RoomsComponent } from '@features/rooms/rooms.component';
     TuiButton,
     TuiNavigation,
     TuiChevron,
+    LogoComponent,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
