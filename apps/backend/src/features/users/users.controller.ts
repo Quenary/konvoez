@@ -20,7 +20,6 @@ import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
-import { UserEntity } from './users.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersAvatarsService } from './users-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
@@ -72,7 +71,7 @@ export class UsersController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
-    @Author() author: UserEntity,
+    @Author() author: GetUserDto,
   ): Promise<GetUserDto> {
     const user = await this.usersService.update(id, dto, author);
     return this.usersService.toDto(user);
@@ -85,7 +84,7 @@ export class UsersController {
   })
   async remove(
     @Param('id', ParseIntPipe) id: number,
-    @Author() author: UserEntity,
+    @Author() author: GetUserDto,
   ): Promise<void> {
     return await this.usersService.remove(id, author);
   }

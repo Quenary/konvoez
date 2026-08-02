@@ -11,7 +11,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { TextRoomsService } from './text-rooms.service';
 import { Author } from '../auth/auth.decorator';
-import { UserEntity } from '../users/users.entity';
+import { GetUserDto } from '../users/users.dto';
 import {
   MessageDto,
   CreateMessageDto,
@@ -31,7 +31,7 @@ export class TextRoomsController {
     description: 'Get messages list (chunked)',
   })
   async list(
-    @Author() author: UserEntity,
+    @Author() author: GetUserDto,
     @Body() body: MessageListRequestDto,
   ) {
     return await this.textRoomsService.list(author, body);
@@ -42,7 +42,7 @@ export class TextRoomsController {
     type: MessageDto,
     description: 'Create message',
   })
-  async create(@Author() author: UserEntity, @Body() body: CreateMessageDto) {
+  async create(@Author() author: GetUserDto, @Body() body: CreateMessageDto) {
     const message = await this.textRoomsService.create(author, body);
     return message;
   }
@@ -53,7 +53,7 @@ export class TextRoomsController {
     description: 'Update message',
   })
   async updateMessage(
-    @Author() author: UserEntity,
+    @Author() author: GetUserDto,
     @Param('id') id: string,
     @Body() body: EditMessageDto,
   ) {
@@ -65,7 +65,7 @@ export class TextRoomsController {
   @ApiOkResponse({
     description: 'Delete message',
   })
-  async delete(@Author() author: UserEntity, @Param('id') id: string) {
+  async delete(@Author() author: GetUserDto, @Param('id') id: string) {
     await this.textRoomsService.delete(author, id);
   }
 }

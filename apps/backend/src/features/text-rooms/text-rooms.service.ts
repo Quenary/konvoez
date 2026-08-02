@@ -19,6 +19,7 @@ import { parse } from 'uuid';
 import { EncryptionService } from '@shared/services/encryption.service';
 import { stringify as uuidStringify } from 'uuid';
 import { UserEntity } from '../users/users.entity';
+import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { TextRoomsGateway } from './text-rooms.gateway';
 
@@ -56,7 +57,7 @@ export class TextRoomsService {
   }
 
   async list(
-    user: UserEntity,
+    user: GetUserDto,
     dto: MessageListRequestDto,
   ): Promise<MessageListResponseDto> {
     const { beforeId, afterId, limit, recipientId, roomId } = dto;
@@ -95,7 +96,7 @@ export class TextRoomsService {
     };
   }
 
-  async create(user: UserEntity, dto: CreateMessageDto): Promise<MessageDto> {
+  async create(user: GetUserDto, dto: CreateMessageDto): Promise<MessageDto> {
     let recipient: UserEntity | null = null;
     let room: RoomEntity | null = null;
 
@@ -113,7 +114,8 @@ export class TextRoomsService {
 
     const message = this.messageRepository.create(
       {
-        sender: user,
+        // @Author() is a DTO; reference avoids cascading a User insert without password
+        sender: this.em.getReference(UserEntity, user.id),
         recipient,
         room,
         contentEncrypted: encrypted,
@@ -124,13 +126,14 @@ export class TextRoomsService {
     );
     await this.em.flush();
 
+    await this.em.populate(message, ['sender']);
     const messageDto = this.entityToDto(message);
     this.textRoomsGateway.onMessageCreated(messageDto);
     return messageDto;
   }
 
   async updateMessage(
-    user: UserEntity,
+    user: GetUserDto,
     messageId: string,
     dto: EditMessageDto,
   ): Promise<MessageDto> {
@@ -165,7 +168,7 @@ export class TextRoomsService {
     return messageDto;
   }
 
-  async delete(user: UserEntity, messageId: string): Promise<void> {
+  async delete(user: GetUserDto, messageId: string): Promise<void> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
       { populate: ['sender'] },
