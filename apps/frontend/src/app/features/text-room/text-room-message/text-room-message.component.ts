@@ -12,7 +12,7 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiDataList, TuiDropdown, TuiOption } from '@taiga-ui/core';
 import { TuiEditorSocket } from '@taiga-ui/editor';
-import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiAutoColorPipe, TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
@@ -31,6 +31,7 @@ import { IMessageEntity } from '../text-room.reducer';
     TuiEditorSocket,
     TuiInitialsPipe,
     TuiOption,
+    TuiAutoColorPipe,
   ],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',

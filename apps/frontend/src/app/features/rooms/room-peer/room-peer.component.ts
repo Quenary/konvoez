@@ -13,7 +13,7 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { IUser } from '@konvoez/shared';
 import { NgOptimizedImage } from '@angular/common';
-import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiAutoColorPipe, TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { TuiAsideItemDirective } from '@taiga-ui/layout';
 
 @Component({
@@ -23,6 +23,7 @@ import { TuiAsideItemDirective } from '@taiga-ui/layout';
     TuiAvatar,
     TuiInitialsPipe,
     TuiAsideItemDirective,
+    TuiAutoColorPipe,
   ],
   templateUrl: './room-peer.component.html',
   styleUrl: './room-peer.component.scss',
