@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-logo',
-  imports: [RouterLink],
+  imports: [],
   templateUrl: './logo.component.html',
   styleUrl: './logo.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
