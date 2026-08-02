@@ -84,7 +84,7 @@ export class UsersService {
   async update(
     id: number,
     dto: UpdateUserDto,
-    author: UserEntity,
+    author: GetUserDto,
   ): Promise<UserEntity> {
     if (
       id !== author.id &&
@@ -110,7 +110,7 @@ export class UsersService {
     return user;
   }
 
-  async remove(id: number, author: UserEntity): Promise<void> {
+  async remove(id: number, author: GetUserDto): Promise<void> {
     if (
       id !== author.id &&
       ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)

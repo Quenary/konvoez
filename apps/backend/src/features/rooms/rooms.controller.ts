@@ -19,7 +19,6 @@ import { RoomsService } from './rooms.service';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
-import { UserEntity } from '../users/users.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RoomsAvatarsService } from './rooms-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
@@ -97,7 +96,7 @@ export class RoomsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRoomDto,
-    @Author() author: UserEntity,
+    @Author() author: GetUserDto,
   ): Promise<GetRoomDto> {
     const room = await this.roomsService.update(id, dto, author);
     return this.roomsService.toDto(room);
@@ -106,7 +105,7 @@ export class RoomsController {
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,
-    @Author() author: UserEntity,
+    @Author() author: GetUserDto,
   ) {
     return this.roomsService.remove(id, author);
   }

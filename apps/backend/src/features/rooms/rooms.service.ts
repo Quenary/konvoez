@@ -59,7 +59,7 @@ export class RoomsService {
   async update(
     id: number,
     dto: UpdateRoomDto,
-    author: UserEntity,
+    author: GetUserDto,
   ): Promise<RoomEntity> {
     const room = await this.findOne(id);
 
@@ -78,7 +78,7 @@ export class RoomsService {
     return room;
   }
 
-  async remove(id: number, author: UserEntity): Promise<void> {
+  async remove(id: number, author: GetUserDto): Promise<void> {
     const room = await this.findOne(id);
     if (
       room.author.id !== author.id ||
