@@ -34,7 +34,7 @@ import {
 } from '@shared/functions/user-forms.function';
 import { IUserUpdate } from '@konvoez/shared';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { UserApiService } from '@features/user/user-api.service';
+import { UsersApiService } from '@features/users/users-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
 
@@ -69,7 +69,7 @@ import { parseError } from '@shared/functions/parse-error.function';
 })
 export class SettingsProfileComponent {
   private readonly store = inject(Store);
-  private readonly userApiService = inject(UserApiService);
+  private readonly usersApiService = inject(UsersApiService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
@@ -124,7 +124,7 @@ export class SettingsProfileComponent {
       .pipe(takeUntilDestroyed())
       .subscribe((avatarFile) => {
         if (avatarFile) {
-          this.userApiService.avatarUpload(avatarFile as File).subscribe({
+          this.usersApiService.avatarUpload(avatarFile as File).subscribe({
             next: (result) => {
               this.form.patchValue({
                 avatar: result.key,

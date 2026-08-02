@@ -42,6 +42,7 @@ import { TuiNavigation } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { UsersStore } from '@features/users/users.store';
 import { NgOptimizedImage, SlicePipe } from '@angular/common';
 
 interface IRoomWithPeers extends IRoom {
@@ -74,6 +75,7 @@ interface IRoomWithPeers extends IRoom {
 })
 export class RoomsComponent implements OnInit {
   private readonly store = inject(Store);
+  private readonly usersStore = inject(UsersStore);
   private readonly translateService = inject(TranslateService);
   private readonly voiceRoomService = inject(VoiceRoomService);
   private readonly tuiDialogService = inject(TuiDialogService);
@@ -114,6 +116,7 @@ export class RoomsComponent implements OnInit {
 
   ngOnInit(): void {
     this.store.dispatch(RoomsActions.requestRooms());
+    this.usersStore.loadAll();
   }
 
   protected addRoom(type: ERoomType): void {

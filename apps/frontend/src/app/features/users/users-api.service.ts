@@ -12,7 +12,7 @@ import {
 @Injectable({
   providedIn: 'root',
 })
-export class UserApiService {
+export class UsersApiService {
   private readonly httpClient = inject(HttpClient);
 
   list(): Observable<IUser[]> {

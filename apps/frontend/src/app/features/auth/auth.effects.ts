@@ -3,7 +3,8 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { AuthActions } from './auth.actions';
 import { catchError, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
-import { UserApiService } from '../user/user-api.service';
+import { UsersApiService } from '../users/users-api.service';
+import { UsersStore } from '../users/users.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
@@ -18,7 +19,8 @@ export class AuthEffects {
   private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
   private readonly authApiService = inject(AuthApiService);
-  private readonly userApiService = inject(UserApiService);
+  private readonly usersApiService = inject(UsersApiService);
+  private readonly usersStore = inject(UsersStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
   private readonly socket = inject(VoiceRoomSocketToken);
@@ -97,6 +99,7 @@ export class AuthEffects {
           AuthActions.requestLogoutError,
         ),
         tap(() => {
+          this.usersStore.clear();
           this.router.navigate(['/auth']);
         }),
       ),
@@ -107,7 +110,7 @@ export class AuthEffects {
     this.actions$.pipe(
       ofType(AuthActions.requestRegister),
       switchMap((action) =>
-        this.userApiService.create(action.body).pipe(
+        this.usersApiService.create(action.body).pipe(
           map(() => AuthActions.requestRegisterSuccess()),
           catchError((error) =>
             of(AuthActions.requestRegisterError({ error })),
@@ -130,7 +133,7 @@ export class AuthEffects {
     this.actions$.pipe(
       ofType(AuthActions.requestPatchUser),
       switchMap(({ id, body }) =>
-        this.userApiService.patch(id, body).pipe(
+        this.usersApiService.patch(id, body).pipe(
           map((user) => AuthActions.requestPatchUserSuccess({ user })),
           catchError((error) =>
             of(AuthActions.requestPatchUserError({ error })),
