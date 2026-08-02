@@ -16,6 +16,7 @@ import { TuiAutoColorPipe, TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
+import { UsersStore } from '@features/users/users.store';
 import { TextRoomActions } from '../text-room.actions';
 import { IMessageEntity } from '../text-room.reducer';
 
@@ -39,6 +40,7 @@ import { IMessageEntity } from '../text-room.reducer';
 })
 export class TextRoomMessageComponent {
   private readonly store = inject(Store);
+  private readonly usersStore = inject(UsersStore);
   private readonly sanitizer = inject(Sanitizer);
 
   public readonly message = input.required<IMessageEntity>();
@@ -51,6 +53,10 @@ export class TextRoomMessageComponent {
 
   protected readonly avatarUrl = computed(() => {
     const message = this.message();
+    const fromStore = this.usersStore.entityMap()[message.senderId]?.avatarUrl;
+    if (fromStore) {
+      return fromStore;
+    }
     const currentUser = this.currentUser();
     if (currentUser && message.senderId === currentUser.id) {
       return currentUser.avatarUrl ?? null;

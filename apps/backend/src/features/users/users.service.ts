@@ -57,7 +57,7 @@ export class UsersService {
 
   async findAllAsDto(): Promise<GetUserDto[]> {
     const users = await this.findAll();
-    return users.map(this.toDto);
+    return users.map((user) => this.toDto(user));
   }
 
   async create(dto: CreateUserDto): Promise<UserEntity> {
