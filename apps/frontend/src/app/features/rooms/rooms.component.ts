@@ -32,9 +32,7 @@ import {
 } from '@taiga-ui/core';
 import {
   TUI_CONFIRM,
-  TuiAutoColorPipe,
   TuiAvatar,
-  TuiAvatarStack,
   TuiConfirmData,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
@@ -43,7 +41,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
-import { NgOptimizedImage, SlicePipe } from '@angular/common';
+import { NgOptimizedImage } from '@angular/common';
 
 interface IRoomWithPeers extends IRoom {
   peers: IUser[];
@@ -63,11 +61,8 @@ interface IRoomWithPeers extends IRoom {
     TuiDropdown,
     TuiOption,
     TuiDataList,
-    TuiAvatarStack,
-    SlicePipe,
     NgOptimizedImage,
     TuiInitialsPipe,
-    TuiAutoColorPipe,
   ],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',

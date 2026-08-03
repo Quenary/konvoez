@@ -1,24 +1,19 @@
-@if (peer(); as p) {
-  <div tuiAsideItem>
-    <div
-      tuiAvatar
-      size="s"
-      class="avatar"
-      [class.talking]="audioLevel() > 0">
-      @if (p.avatarUrl) {
-        <img
-          [alt]="p.username"
-          [ngSrc]="p.avatarUrl"
-          fill />
-      } @else {
-        {{ p.fullname | tuiInitials }}
-      }
-    </div>
+@let p = peer();
 
-    <span
-      class="username"
-      [style.color]="p.username | tuiAutoColor">
-      {{ p.username }}
-    </span>
-  </div>
-}
+<div
+  tuiAvatar
+  size="s"
+  [class.talking]="audioLevel() > 0">
+  @if (p.avatarUrl) {
+    <img
+      [alt]="p.username"
+      [ngSrc]="p.avatarUrl"
+      fill />
+  } @else {
+    {{ p.fullname | tuiInitials }}
+  }
+</div>
+
+<span [style.color]="p.username | tuiAutoColor">
+  {{ p.username }}
+</span>

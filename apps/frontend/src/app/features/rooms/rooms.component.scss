@@ -2,4 +2,8 @@
   .room-item {
     padding-left: 0.125rem;
   }
+
+  .room-peer-item {
+    padding-left: var(--tui-height-s);
+  }
 }
