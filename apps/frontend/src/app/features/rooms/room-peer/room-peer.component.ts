@@ -18,16 +18,11 @@ import { TuiAsideItemDirective } from '@taiga-ui/layout';
 
 @Component({
   selector: 'app-room-peer',
-  imports: [
-    NgOptimizedImage,
-    TuiAvatar,
-    TuiInitialsPipe,
-    TuiAsideItemDirective,
-    TuiAutoColorPipe,
-  ],
+  imports: [NgOptimizedImage, TuiAvatar, TuiInitialsPipe, TuiAutoColorPipe],
   templateUrl: './room-peer.component.html',
   styleUrl: './room-peer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  hostDirectives: [TuiAsideItemDirective],
 })
 export class RoomPeerComponent {
   private readonly store = inject(Store);

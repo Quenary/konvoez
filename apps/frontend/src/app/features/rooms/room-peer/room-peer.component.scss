@@ -1,9 +1,4 @@
 :host {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-
   .talking {
     border: 0.125rem solid var(--tui-text-positive);
   }

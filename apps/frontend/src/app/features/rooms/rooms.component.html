@@ -76,33 +76,10 @@
   </button>
 
   @if (!collapsed()) {
-    @if (room.isUserInRoom) {
-      @for (peer of room.peers; track peer.id) {
-        <app-room-peer
-          class="room-peer-item"
-          [peer]="peer"></app-room-peer>
-      }
-    } @else {
-      <tui-avatar-stack direction="start">
-        @let sliceNum = 5;
-        @for (peer of room.peers | slice: sliceNum; track peer.id) {
-          <div
-            [tuiAvatar]="peer.fullname | tuiInitials"
-            [round]="true"
-            size="s"
-            [style.background]="peer.username | tuiAutoColor">
-          </div>
-        }
-        @let extra = room.peers.length - sliceNum;
-        @if (extra > 0) {
-          <div
-            tuiAvatar
-            [round]="true"
-            size="s">
-            {{ extra }}
-          </div>
-        }
-      </tui-avatar-stack>
+    @for (peer of room.peers; track peer.id) {
+      <app-room-peer
+        class="room-peer-item"
+        [peer]="peer"></app-room-peer>
     }
   }
 }
