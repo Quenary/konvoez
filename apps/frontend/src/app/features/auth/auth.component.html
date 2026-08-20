@@ -2,8 +2,9 @@
   appearance="floating"
   tuiCardLarge
   tuiForm="m"
+  novalidate
   [formGroup]="form"
-  (submit)="onSubmit()">
+  (ngSubmit)="onSubmit()">
   <header tuiHeader>
     <h2 tuiTitle>
       {{ 'GENERAL.HELLO' | translate }}
@@ -24,6 +25,9 @@
       formControlName="username"
       type="text" />
   </tui-textfield>
+  @if (errors().username; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.lock">
     <label
@@ -41,6 +45,9 @@
 
     <tui-icon tuiPassword />
   </tui-textfield>
+  @if (errors().password; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <footer>
     <button

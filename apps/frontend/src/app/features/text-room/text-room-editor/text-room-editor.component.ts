@@ -18,6 +18,8 @@ import {
 import { v4 } from 'uuid';
 import { createKeyBindingExtension } from '../../../core/tiptap/create-key-binding-extension';
 import { TextRoomStore } from '../text-room.store';
+import { messageContentSchema } from '@konvoez/shared';
+import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 
@@ -88,8 +90,9 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 export class TextRoomEditorComponent {
   private readonly textRoomStore = inject(TextRoomStore);
 
-  protected readonly control = new FormControl<string>('', {
+  protected readonly control = new FormControl('', {
     nonNullable: true,
+    validators: [createZodFieldValidator(messageContentSchema)],
   });
 
   protected readonly tools: readonly TuiEditorToolType[] = [
@@ -118,7 +121,7 @@ export class TextRoomEditorComponent {
 
   protected onSubmit(): void {
     const content = this.control.value.trim();
-    if (!content || EMPTY_HTML_PATTERN.test(content)) {
+    if (this.control.invalid || !content || EMPTY_HTML_PATTERN.test(content)) {
       return;
     }
 

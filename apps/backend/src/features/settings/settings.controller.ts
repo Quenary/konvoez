@@ -26,7 +26,7 @@ export class SettingsController {
     isArray: true,
     description: 'Get all settings',
   })
-  async getAll(): Promise<SettingsDto<any>[]> {
+  async getAll(): Promise<SettingsDto[]> {
     return await this.settingsService.findAll();
   }
 
@@ -38,7 +38,7 @@ export class SettingsController {
   async getOne(
     @Query('id', new ParseIntPipe({ optional: true })) id?: number,
     @Query('key') key?: ESettingKey,
-  ): Promise<SettingsDto<any>> {
+  ): Promise<SettingsDto> {
     return await this.settingsService.findOne({ id, key });
   }
 
@@ -50,8 +50,8 @@ export class SettingsController {
   @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: SettingsUpdateDto<any>,
-  ): Promise<SettingsDto<any>> {
+    @Body() dto: SettingsUpdateDto,
+  ): Promise<SettingsDto> {
     return await this.settingsService.update(id, dto);
   }
 }

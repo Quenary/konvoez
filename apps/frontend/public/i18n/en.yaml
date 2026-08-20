@@ -45,3 +45,13 @@ SETTINGS:
   API_NOT_AVAILABLE: |
     This feature may not be available.
     In this case, the default device will be used.
+VALIDATION:
+  USERNAME_LENGTH: Username must be 4–32 characters
+  PASSWORD_LENGTH: Password must be 12–32 characters
+  PASSWORD_PATTERN: Password must include uppercase, lowercase, and a digit
+  PASSWORD_MISMATCH: Passwords do not match
+  FULLNAME_LENGTH: Full name must be 4–128 characters
+  EMAIL: Enter a valid email
+  ROOM_NAME_LENGTH: Room name must be 1–64 characters
+  ROOM_TYPE: Select a room type
+  MESSAGE_LENGTH: Message must be 1–5000 characters

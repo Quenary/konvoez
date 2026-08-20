@@ -1,26 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
-import { map } from 'rxjs';
 import { AuthActions } from '../auth.actions';
 import { selectAuthLoading } from '../auth.selectors';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-  TuiButton,
-  TuiError,
-  TuiIcon,
-  TuiInput,
-  TuiNotification,
-} from '@taiga-ui/core';
+import { TuiButton, TuiError, TuiIcon, TuiInput } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiPassword, TuiTooltip } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { RouterLink } from '@angular/router';
-import { IUserCreate } from '@konvoez/shared';
 import {
-  getRegisterFormControls,
-  passwordMatchValidator,
-} from '@shared/functions/user-forms.function';
+  emailSchema,
+  fullnameSchema,
+  IUserCreate,
+  passwordSchema,
+  usernameSchema,
+} from '@konvoez/shared';
+import { registerFormSchema } from '@shared/schemas/forms.schema';
+import {
+  createZodError,
+  createZodFieldValidator,
+  createZodFormValidator,
+} from '@shared/functions/zod-validator.function';
 
 @Component({
   selector: 'app-auth-register',
@@ -34,7 +34,6 @@ import {
     TuiHeader,
     TuiIcon,
     TuiInput,
-    TuiNotification,
     TuiTooltip,
     TuiPassword,
     RouterLink,
@@ -49,23 +48,44 @@ export class AuthRegisterComponent {
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(
-    getRegisterFormControls(),
-    passwordMatchValidator,
+    {
+      username: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(usernameSchema)],
+      }),
+      password: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(passwordSchema)],
+      }),
+      confirmPassword: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(passwordSchema)],
+      }),
+      fullname: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(fullnameSchema)],
+      }),
+      email: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(emailSchema)],
+      }),
+    },
+    {
+      validators: [createZodFormValidator(registerFormSchema)],
+    },
   );
-
-  protected readonly confirmPasswordError = toSignal(
-    this.form.valueChanges.pipe(
-      map(() => !!this.form.errors?.['passwordMatchValidator']),
-    ),
-  );
+  protected readonly errors = createZodError(this.form, registerFormSchema);
 
   public onSubmit(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
-    const { confirmPassword: _, ...body } = this.form.value;
+    const { confirmPassword: _, ...body } = this.form.getRawValue();
     this.store.dispatch(
       AuthActions.requestRegister({
-        body: body as IUserCreate,
+        body: body satisfies IUserCreate,
       }),
     );
   }

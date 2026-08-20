@@ -2,8 +2,9 @@
   appearance="floating"
   tuiCardLarge
   tuiForm="m"
+  novalidate
   [formGroup]="form"
-  (submit)="onSubmit()">
+  (ngSubmit)="onSubmit()">
   <header tuiHeader>
     {{ 'SETTINGS.PROFILE.TITLE' | translate }}
   </header>
@@ -67,14 +68,17 @@
       tuiInput
       id="profile-username"
       autocomplete="username"
-      [formControl]="form.controls.username"
+      formControlName="username"
       type="text" />
   </tui-textfield>
+  @if (errors().username; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <label tuiLabel>
     <input
       tuiSwitch
-      [formControl]="form.controls.isChangingPassword"
+      formControlName="isChangingPassword"
       type="checkbox" />
 
     {{ 'PROFILE.IS_CHANGING_PASSWORD' | translate }}
@@ -90,9 +94,12 @@
       tuiInput
       id="profile-password"
       autocomplete="new-password"
-      [formControl]="form.controls.password"
+      formControlName="password"
       type="password" />
   </tui-textfield>
+  @if (errors().password; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.lock">
     <label
@@ -104,9 +111,12 @@
       tuiInput
       id="profile-confirm-password"
       autocomplete="new-password"
-      [formControl]="form.controls.confirmPassword"
+      formControlName="confirmPassword"
       type="password" />
   </tui-textfield>
+  @if (errors().confirmPassword; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.file-user">
     <label
@@ -118,9 +128,12 @@
       tuiInput
       id="profile-fullname"
       autocomplete="name"
-      [formControl]="form.controls.fullname"
+      formControlName="fullname"
       type="text" />
   </tui-textfield>
+  @if (errors().fullname; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.mail">
     <label
@@ -132,9 +145,12 @@
       tuiInput
       id="profile-email"
       autocomplete="email"
-      [formControl]="form.controls.email"
+      formControlName="email"
       type="text" />
   </tui-textfield>
+  @if (errors().email; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <footer>
     <button

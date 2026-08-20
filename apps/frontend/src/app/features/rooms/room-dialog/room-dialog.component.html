@@ -1,7 +1,8 @@
 <form
   tuiForm
+  novalidate
   [formGroup]="form"
-  (submit)="submit()">
+  (ngSubmit)="submit()">
   <label tuiInputFiles>
     <input
       tuiInputFiles
@@ -62,6 +63,9 @@
       formControlName="name"
       type="text" />
   </tui-textfield>
+  @if (errors().name; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <label tuiLabel>
     {{ 'ROOMS.DIALOG.TYPE' | translate }}
@@ -78,6 +82,9 @@
         [items]="typeOptions" />
     </tui-textfield>
   </label>
+  @if (errors().type; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <footer>
     <button

@@ -31,7 +31,7 @@ export class SettingsService {
     return this.repo.findAll();
   }
 
-  async update(id: number, dto: SettingsUpdateDto<any>) {
+  async update(id: number, dto: SettingsUpdateDto) {
     const setting = await this.findOne({ id });
     this.repo.assign(setting, dto);
     this.em.persist(setting);

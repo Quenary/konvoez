@@ -4,12 +4,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ERoomType } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IRoom } from '../rooms.interface';
@@ -17,12 +12,14 @@ import { injectContext } from '@taiga-ui/polymorpheus';
 import {
   TuiButton,
   TuiDialogContext,
+  TuiError,
   TuiInput,
   TuiLabel,
   TuiLink,
   TuiNotificationService,
   TuiTextfield,
-  tuiItemsHandlersProvider,
+  TUI_ITEMS_HANDLERS,
+  TUI_DEFAULT_ITEMS_HANDLERS,
 } from '@taiga-ui/core';
 import { TuiForm } from '@taiga-ui/layout';
 import {
@@ -36,12 +33,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RoomsApiService } from '../rooms-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
+import {
+  createZodError,
+  createZodFieldValidator,
+  createZodFormValidator,
+} from '@shared/functions/zod-validator.function';
+import { roomFormSchema } from '@shared/schemas/forms.schema';
 
 export type RoomDialogData = Partial<IRoom>;
-type TypeOption = {
-  name: string;
-  value: ERoomType;
-};
 
 /**
  * Create/update room dialog component
@@ -54,6 +53,7 @@ type TypeOption = {
     LowerCasePipe,
     NgOptimizedImage,
     TuiButton,
+    TuiError,
     TuiForm,
     TuiInput,
     TuiTextfield,
@@ -65,12 +65,23 @@ type TypeOption = {
     TuiLink,
   ],
   providers: [
-    tuiItemsHandlersProvider({
-      stringify: signal((a: TypeOption) => a.name),
-      identityMatcher: signal(
-        (a: TypeOption, b: TypeOption) => a.value === b.value,
-      ),
-    }),
+    {
+      provide: TUI_ITEMS_HANDLERS,
+      useFactory: () => {
+        const translateService = inject(TranslateService);
+        return {
+          stringify: signal((type: ERoomType) =>
+            translateService.instant(
+              type === ERoomType.TEXT
+                ? 'ROOMS.DIALOG.TEXT'
+                : 'ROOMS.DIALOG.VOICE',
+            ),
+          ),
+          identityMatcher: TUI_DEFAULT_ITEMS_HANDLERS.identityMatcher,
+          disabledItemHandler: TUI_DEFAULT_ITEMS_HANDLERS.disabledItemHandler,
+        };
+      },
+    },
   ],
   templateUrl: './room-dialog.component.html',
   styleUrl: './room-dialog.component.scss',
@@ -83,78 +94,71 @@ export class RoomDialogComponent {
   private readonly roomsApiService = inject(RoomsApiService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
-  protected readonly typeOptions: TypeOption[] = [
+  protected readonly typeOptions = [ERoomType.TEXT, ERoomType.VOICE];
+  protected readonly form = new FormGroup(
     {
-      name: this.translateService.instant('ROOMS.DIALOG.TEXT'),
-      value: ERoomType.TEXT,
+      name: new FormControl(this.context.data.name ?? '', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(roomFormSchema.shape.name)],
+      }),
+      type: new FormControl(this.context.data.type ?? ERoomType.TEXT, {
+        nonNullable: true,
+        validators: [createZodFieldValidator(roomFormSchema.shape.type)],
+      }),
+      avatar: new FormControl<string | null>(this.context.data.avatar ?? null),
+      avatarFile: new FormControl<TuiFileLike | null>(null),
     },
     {
-      name: this.translateService.instant('ROOMS.DIALOG.VOICE'),
-      value: ERoomType.VOICE,
+      validators: [createZodFormValidator(roomFormSchema)],
     },
-  ];
-  protected readonly form = new FormGroup({
-    name: new FormControl<string | null>(null, [Validators.required]),
-    type: new FormControl<TypeOption | null>(null, [Validators.required]),
-    avatar: new FormControl<string | null>(null),
-    avatarFile: new FormControl<TuiFileLike | null>(null),
-  });
+  );
+  protected readonly errors = createZodError(this.form, roomFormSchema);
   protected readonly avatarUrl = signal<string | null>(
     this.context.data.avatarUrl ?? null,
   );
 
   constructor() {
-    this.form.patchValue({
-      name: this.context.data.name,
-      type:
-        this.typeOptions.find(
-          (item) => item.value === this.context.data.type,
-        ) || null,
-      avatar: this.context.data.avatar ?? null,
-    });
-
     this.form.controls.avatarFile.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((avatarFile) => {
-        if (avatarFile) {
-          this.roomsApiService.avatarUpload(avatarFile as File).subscribe({
-            next: (result) => {
-              this.form.patchValue({
-                avatar: result.key,
-              });
-              this.avatarUrl.set(result.url);
-            },
-            error: (err) => {
-              this.tuiNotificationsService
-                .open(parseError(err), {
-                  appearance: 'negative',
-                  autoClose: 5000,
-                  closable: true,
-                  label: this.translateService.instant('GENERAL.REQ_ERR'),
-                })
-                .subscribe();
-            },
-          });
+        if (!avatarFile) {
+          return;
         }
+        this.roomsApiService.avatarUpload(avatarFile as File).subscribe({
+          next: (result) => {
+            this.form.patchValue({
+              avatar: result.key,
+            });
+            this.avatarUrl.set(result.url);
+          },
+          error: (err) => {
+            this.tuiNotificationsService
+              .open(parseError(err), {
+                appearance: 'negative',
+                autoClose: 5000,
+                closable: true,
+                label: this.translateService.instant('GENERAL.REQ_ERR'),
+              })
+              .subscribe();
+          },
+        });
       });
   }
 
   submit(): void {
-    if (this.form.valid) {
-      const { name, type, avatar } = this.form.value as {
-        name: string;
-        type: TypeOption;
-        avatar: string | null;
-      };
-
-      this.context.completeWith({
-        ...this.context.data,
-        name: name,
-        type: type.value,
-        avatar: avatar ?? undefined,
-        avatarUrl: this.avatarUrl(),
-      });
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
     }
+
+    const { name, type, avatar } = this.form.getRawValue();
+    this.context.completeWith({
+      ...this.context.data,
+      name,
+      type,
+      avatar: avatar ?? undefined,
+      avatarUrl: this.avatarUrl(),
+    });
   }
 
   close(): void {

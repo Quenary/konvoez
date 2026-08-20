@@ -4,8 +4,8 @@ import {
   effect,
   inject,
 } from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ILoginBody } from './auth.interface';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { authLoginSchema, IAuthLogin } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { selectAuthLoading, selectIsAuthorized } from './auth.selectors';
 import { AuthActions } from './auth.actions';
@@ -16,12 +16,15 @@ import {
   TuiError,
   TuiIcon,
   TuiInput,
-  TuiNotification,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { getAuthFormControls } from '@shared/functions/user-forms.function';
+import {
+  createZodError,
+  createZodFieldValidator,
+  createZodFormValidator,
+} from '@shared/functions/zod-validator.function';
 
 @Component({
   selector: 'app-auth',
@@ -36,7 +39,6 @@ import { getAuthFormControls } from '@shared/functions/user-forms.function';
     TuiHeader,
     TuiIcon,
     TuiInput,
-    TuiNotification,
     TuiTitle,
     TuiPassword,
     TuiButtonLoading,
@@ -50,7 +52,22 @@ export class AuthComponent {
   private readonly router = inject(Router);
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
-  protected readonly form = new FormGroup(getAuthFormControls());
+  protected readonly form = new FormGroup(
+    {
+      username: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(authLoginSchema.shape.username)],
+      }),
+      password: new FormControl('', {
+        nonNullable: true,
+        validators: [createZodFieldValidator(authLoginSchema.shape.password)],
+      }),
+    },
+    {
+      validators: [createZodFormValidator(authLoginSchema)],
+    },
+  );
+  protected readonly errors = createZodError(this.form, authLoginSchema);
 
   private readonly isAuthorized = this.store.selectSignal(selectIsAuthorized);
 
@@ -63,11 +80,14 @@ export class AuthComponent {
   }
 
   onSubmit(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
     this.store.dispatch(
       AuthActions.requestLogin({
-        body: this.form.value as ILoginBody,
+        body: this.form.getRawValue() satisfies IAuthLogin,
       }),
     );
   }

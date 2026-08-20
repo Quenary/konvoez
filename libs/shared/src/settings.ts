@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export enum ESettingKey {
   ICE_SERVERS = 'ICE_SERVERS',
 }
@@ -21,3 +23,15 @@ export type TSetting = {
 export interface ISettingUpdate<K extends ESettingKey> {
   value: TSettingValueMap[K];
 }
+
+export const settingsUpdateSchema = z.object({
+  value: z.unknown(),
+});
+
+export const settingSchema = z.object({
+  id: z.number().int(),
+  key: z.enum(ESettingKey),
+  value: z.unknown(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date().nullish(),
+});
