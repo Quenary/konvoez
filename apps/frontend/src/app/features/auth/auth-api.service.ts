@@ -2,8 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
-import { ILoginBody } from './auth.interface';
-import { IUser } from '@konvoez/shared';
+import { IAuthLogin, IUser } from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -11,7 +10,7 @@ import { IUser } from '@konvoez/shared';
 export class AuthApiService {
   private readonly httpClient = inject(HttpClient);
 
-  login(body: ILoginBody): Observable<IUser> {
+  login(body: IAuthLogin): Observable<IUser> {
     return this.httpClient.post<IUser>(
       `${environment.apiPath}/auth/login`,
       body,

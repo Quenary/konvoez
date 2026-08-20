@@ -62,7 +62,7 @@ the HTML template in the `.html` file (unless the component is trivial and alrea
 - Do NOT use `@HostBinding` and `@HostListener` decorators; instead use the `host` object inside the `@Component` (or
   `@Directive`) decorator.
 - Keep components small and focused on a single responsibility.
-- Prefer reactive forms (`FormControl`, `FormGroup`, `FormArray`) over template‑driven forms.
+- Prefer reactive forms (`FormControl`, `FormGroup`) with Zod schemas from `@konvoez/shared` via `createZodFieldValidator` / `createZodFormValidator`. Show schema messages with `createZodError` (a `computed`, not a template function). Do not write Angular `Validators.*` by hand when a schema already exists.
 - Do NOT use `ngClass`; use `[class.foo]="…"`.
 - Do NOT use `ngStyle`; use `[style.prop]="…"`.
 - Avoid heavy logic in templates: keep templates simple, delegate to component class or service.
@@ -74,7 +74,7 @@ the HTML template in the `.html` file (unless the component is trivial and alrea
   explicitly agreed otherwise.
 - Define inputs with the new `input()` API when practical:
   ```ts
-  import {input} from '@angular/core';
+  import { input } from '@angular/core';
   export class MyComponent {
     readonly items = input.required<Item[]>();
   }
@@ -152,7 +152,8 @@ the HTML template in the `.html` file (unless the component is trivial and alrea
   export const routes: Routes = [
     {
       path: 'feature',
-      loadComponent: async () => (await import('./feature/feature.component')).FeatureComponent,
+      loadComponent: async () =>
+        (await import('./feature/feature.component')).FeatureComponent,
     },
   ];
   ```

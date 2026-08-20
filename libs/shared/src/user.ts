@@ -1,32 +1,36 @@
+import { z } from 'zod';
 import { EUserRole } from './enums';
+import {
+  emailSchema,
+  fullnameSchema,
+  passwordSchema,
+  usernameSchema,
+} from './schemas/fields';
 
-/**
- * User post request body
- */
-export interface IUserCreate {
-  username: string;
-  password: string;
-  fullname: string;
-  email: string;
-}
-/**
- * User patch request body
- */
-export interface IUserUpdate extends Partial<IUserCreate> {
-  role?: EUserRole;
-  avatar?: string;
-}
-/**
- * User get response body
- */
-export interface IUser {
-  id: number;
-  username: string;
-  fullname: string;
-  email: string;
-  role: EUserRole;
-  avatar: string | null | undefined;
-  avatarUrl: string | null | undefined;
-  createdAt: Date;
-  updatedAt: Date | null | undefined;
-}
+export const userCreateSchema = z.object({
+  username: usernameSchema,
+  password: passwordSchema,
+  fullname: fullnameSchema,
+  email: emailSchema,
+});
+
+export const userUpdateSchema = userCreateSchema.partial().extend({
+  role: z.enum(EUserRole).optional(),
+  avatar: z.string().optional(),
+});
+
+export const userSchema = z.object({
+  id: z.number().int(),
+  username: usernameSchema,
+  fullname: fullnameSchema,
+  email: emailSchema,
+  role: z.enum(EUserRole),
+  avatar: z.string().nullish(),
+  avatarUrl: z.string().nullish(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date().nullish(),
+});
+
+export type IUserCreate = z.infer<typeof userCreateSchema>;
+export type IUserUpdate = z.infer<typeof userUpdateSchema>;
+export type IUser = z.infer<typeof userSchema>;

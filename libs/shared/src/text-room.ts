@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { z } from 'zod';
+import {
+  messageListMaxLimit,
+  messageListMinLimit,
+} from './const';
+import { messageContentSchema } from './schemas/fields';
 import { IUser } from './user';
+
+const nullableInt = z.number().int().nullable();
+const nullableString = z.string().nullable();
 
 export enum ETextRoomEvent {
   JOIN = 'join',
@@ -32,26 +41,48 @@ export type TTextRoomEvent = {
   };
 }[ETextRoomEvent];
 
-export interface ITextRoomCreateMessage {
-  recipientId: number | null;
-  roomId: number | null;
-  content: string;
-}
+export const messageCreateSchema = z.object({
+  recipientId: nullableInt,
+  roomId: nullableInt,
+  content: messageContentSchema,
+});
 
-export interface ITextRoomEditMessage {
-  content: string;
-}
+export const messageEditSchema = z.object({
+  content: messageContentSchema,
+});
 
-export interface ITextRoomMessage {
-  id: string;
-  senderId: number;
-  senderUsername: string;
-  recipientId: number | null;
-  roomId: number | null;
-  createdAt: Date;
-  updatedAt: Date | null | undefined;
-  content: string;
-}
+export const messageSchema = z.object({
+  id: z.uuid(),
+  senderId: z.number().int(),
+  senderUsername: z.string(),
+  recipientId: nullableInt,
+  roomId: nullableInt,
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date().nullish(),
+  content: messageContentSchema,
+});
+
+export const messageListRequestSchema = z.object({
+  beforeId: nullableString,
+  afterId: nullableString,
+  limit: z
+    .number()
+    .int()
+    .min(messageListMinLimit)
+    .max(messageListMaxLimit),
+  recipientId: nullableInt,
+  roomId: nullableInt,
+});
+
+export const messageListResponseSchema = z.object({
+  items: z.array(messageSchema),
+});
+
+export type ITextRoomCreateMessage = z.infer<typeof messageCreateSchema>;
+export type ITextRoomEditMessage = z.infer<typeof messageEditSchema>;
+export type ITextRoomMessage = z.infer<typeof messageSchema>;
+export type ITextRoomListRequest = z.infer<typeof messageListRequestSchema>;
+export type ITextRoomListResponse = z.infer<typeof messageListResponseSchema>;
 
 export interface ITextRoomJoin {
   roomId: number | null;
@@ -70,14 +101,4 @@ export interface ITextRoomPeer extends IUser {
   clientId: string;
 }
 
-export interface ITextRoomListRequest {
-  beforeId: string | null;
-  afterId: string | null;
-  limit: number;
-  recipientId: number | null;
-  roomId: number | null;
-}
 
-export interface ITextRoomListResponse {
-  items: ITextRoomMessage[];
-}

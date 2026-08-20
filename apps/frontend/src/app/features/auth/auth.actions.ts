@@ -1,14 +1,18 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
-import { ILoginBody } from './auth.interface';
 import { HttpErrorResponse } from '@angular/common/http';
-import { IUser, IUserCreate, IUserUpdate } from '@konvoez/shared';
+import {
+  IAuthLogin,
+  IUser,
+  IUserCreate,
+  IUserUpdate,
+} from '@konvoez/shared';
 
 export const AuthActions = createActionGroup({
   source: 'AUTH',
   events: {
     initStart: emptyProps(),
     initEnd: props<{ user: IUser | null }>(),
-    requestLogin: props<{ body: ILoginBody }>(),
+    requestLogin: props<{ body: IAuthLogin }>(),
     requestLoginSuccess: props<{ user: IUser }>(),
     requestLoginError: props<{ error: HttpErrorResponse }>(),
     requestLogout: emptyProps(),

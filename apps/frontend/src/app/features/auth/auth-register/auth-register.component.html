@@ -2,8 +2,9 @@
   appearance="floating"
   tuiCardLarge
   tuiForm="m"
+  novalidate
   [formGroup]="form"
-  (submit)="onSubmit()">
+  (ngSubmit)="onSubmit()">
   <header tuiHeader>
     <button
       appearance="flat"
@@ -29,6 +30,9 @@
       formControlName="username"
       type="text" />
   </tui-textfield>
+  @if (errors().username; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.lock">
     <label
@@ -50,6 +54,9 @@
 
     <tui-icon tuiPassword />
   </tui-textfield>
+  @if (errors().password; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.lock">
     <label
@@ -70,6 +77,9 @@
 
     <tui-icon tuiPassword />
   </tui-textfield>
+  @if (errors().confirmPassword; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.file-user">
     <label
@@ -85,6 +95,9 @@
       formControlName="fullname"
       type="text" />
   </tui-textfield>
+  @if (errors().fullname; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield iconStart="@tui.mail">
     <label
@@ -100,6 +113,9 @@
       formControlName="email"
       type="text" />
   </tui-textfield>
+  @if (errors().email; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <footer>
     <button

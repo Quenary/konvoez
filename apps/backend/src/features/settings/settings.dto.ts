@@ -1,56 +1,6 @@
-import {
-  ESettingKey,
-  ISetting,
-  ISettingUpdate,
-  TSettingValueMap,
-} from '@konvoez/shared';
-import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsEnum, IsInt, IsJSON, IsOptional } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { settingSchema, settingsUpdateSchema } from '@konvoez/shared';
 
-export class SettingsDto<T extends ESettingKey> implements ISetting<T> {
-  @ApiProperty({
-    type: Number,
-    required: true,
-  })
-  @IsInt()
-  id!: number;
+export class SettingsDto extends createZodDto(settingSchema) {}
 
-  @ApiProperty({
-    enum: ESettingKey,
-    required: true,
-  })
-  @IsEnum(ESettingKey)
-  key!: T;
-
-  @ApiProperty({
-    type: String,
-    description: 'Valid JSON',
-    required: true,
-  })
-  @IsJSON()
-  value!: TSettingValueMap[T];
-
-  @ApiProperty({
-    type: Date,
-    required: true,
-  })
-  @IsDate()
-  createdAt!: Date;
-
-  @ApiProperty({
-    type: Date,
-    required: true,
-  })
-  @IsDate()
-  @IsOptional()
-  updatedAt: Date | null | undefined;
-}
-
-export class SettingsUpdateDto<T extends ESettingKey>
-  implements ISettingUpdate<T>
-{
-  @ApiProperty({
-    required: true,
-  })
-  value!: TSettingValueMap[T];
-}
+export class SettingsUpdateDto extends createZodDto(settingsUpdateSchema) {}

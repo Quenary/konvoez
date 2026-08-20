@@ -5,3 +5,6 @@ export * from './text-room';
 export * from './user';
 export * from './voice-room';
 export * from './file';
+export * from './schemas/fields';
+export * from './schemas/auth';
+export * from './schemas/room';

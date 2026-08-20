@@ -1,16 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IUploadFileResult } from '@konvoez/shared';
+import { createZodDto } from 'nestjs-zod';
+import { uploadFileResultSchema } from '@konvoez/shared';
 
-export class UploadFileResultDto implements IUploadFileResult {
-  @ApiProperty({
-    type: String,
-    required: true,
-  })
-  key!: string;
-
-  @ApiProperty({
-    type: String,
-    required: true,
-  })
-  url!: string;
-}
+export class UploadFileResultDto extends createZodDto(uploadFileResultSchema) {}
