@@ -1,7 +1,7 @@
 export async function replaceStream(
   stream: MediaStream,
   rtc: RTCPeerConnection,
-  trackKind: string = 'audio',
+  trackKind = 'audio',
 ): Promise<void> {
   const newTrack = stream.getAudioTracks()[0];
 

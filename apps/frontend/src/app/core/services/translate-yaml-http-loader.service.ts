@@ -11,9 +11,11 @@ export class TranslateYamlHttpLoader implements TranslateLoader {
   private readonly httpClient = inject(HttpClient);
 
   public getTranslation(lang: string): Observable<TranslationObject> {
-    return this.httpClient.get(`i18n/${lang}.yaml`, { responseType: 'text' }).pipe(
-      map((data) => parse(data)),
-      catchError(() => of({})),
-    );
+    return this.httpClient
+      .get(`i18n/${lang}.yaml`, { responseType: 'text' })
+      .pipe(
+        map((data) => parse(data)),
+        catchError(() => of({})),
+      );
   }
 }

@@ -7,6 +7,4 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   styleUrl: './settings-admin.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SettingsAdminComponent {
-
-}
+export class SettingsAdminComponent {}

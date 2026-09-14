@@ -1,11 +1,6 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
 import { HttpErrorResponse } from '@angular/common/http';
-import {
-  IAuthLogin,
-  IUser,
-  IUserCreate,
-  IUserUpdate,
-} from '@konvoez/shared';
+import { IAuthLogin, IUser, IUserCreate, IUserUpdate } from '@konvoez/shared';
 
 export const AuthActions = createActionGroup({
   source: 'AUTH',

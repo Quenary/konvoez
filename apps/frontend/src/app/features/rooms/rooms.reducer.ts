@@ -25,12 +25,17 @@ export const roomsReducer = createReducer<IRoomsState>(
   on(RoomsActions.requestRoomSuccess, (state, payload) =>
     roomsAdapter.upsertOne(payload.room, state),
   ),
-  on(RoomsActions.requestRoomsSuccess, (state, { rooms }) => roomsAdapter.setAll(rooms, state)),
+  on(RoomsActions.requestRoomsSuccess, (state, { rooms }) =>
+    roomsAdapter.setAll(rooms, state),
+  ),
   on(RoomsActions.requestCreateRoomSuccess, (state, payload) =>
     roomsAdapter.addOne(payload.room, state),
   ),
   on(RoomsActions.requestUpdateRoomSuccess, (state, payload) =>
-    roomsAdapter.updateOne({ changes: payload.room, id: payload.room.id }, state),
+    roomsAdapter.updateOne(
+      { changes: payload.room, id: payload.room.id },
+      state,
+    ),
   ),
   on(RoomsActions.requestDeleteRoomSuccess, (state, payload) =>
     roomsAdapter.removeOne(payload.id, state),

@@ -43,9 +43,7 @@ import { FileServiceInjectionToken } from './tokens/file-service.token';
         s3Service: S3Service,
         localService: LocalObjectStorageService,
       ): FileService => {
-        return configService.OBJECT_STORAGE === 's3'
-          ? s3Service
-          : localService;
+        return configService.OBJECT_STORAGE === 's3' ? s3Service : localService;
       },
     },
   ],
