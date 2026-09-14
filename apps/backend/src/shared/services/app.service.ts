@@ -1,11 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import crypto from 'crypto';
 
+export type FileServiceType = 'local' | 's3';
+
 /**
  * App configuration service
  */
 @Injectable()
 export class AppService {
+  //#region Storage
+  /**
+   * Object storage type ('local' or 's3')
+   * @default 'local'
+   */
+  public readonly OBJECT_STORAGE: FileServiceType =
+    process.env['OBJECT_STORAGE']?.toLowerCase() === 's3' ? 's3' : 'local';
+  /**
+   * Local directory path for object storage
+   * @default '/konvoez/files'
+   */
+  public readonly LOCAL_OBJECT_STORAGE_PATH: string =
+    process.env['LOCAL_OBJECT_STORAGE_PATH'] || '/konvoez/files';
+  //#endregion
+
   /**
    * Master key
    */

@@ -1,16 +1,24 @@
-import { S3Client } from '@aws-sdk/client-s3';
 import { Inject, Injectable } from '@nestjs/common';
-import { FileService } from '@shared/services/file.service';
-import { S3ClientInjectionToken } from '@shared/tokens/s3-client.token';
+import {
+  FileServiceInjectionToken,
+  type FileService,
+  type FileStreamResult,
+} from '@shared/services/file.service';
 
 @Injectable()
-export class UsersAvatarsService extends FileService {
-  protected readonly bucketName = 'users-avatars';
+export class UsersAvatarsService {
+  private readonly bucketName = 'users-avatars';
 
   constructor(
-    @Inject(S3ClientInjectionToken)
-    protected readonly s3Client: S3Client,
-  ) {
-    super(s3Client);
+    @Inject(FileServiceInjectionToken)
+    private readonly fileService: FileService,
+  ) {}
+
+  public async upload(file: Express.Multer.File): Promise<string> {
+    return this.fileService.upload(file, this.bucketName);
+  }
+
+  public async getStream(key: string): Promise<FileStreamResult> {
+    return this.fileService.getStream(key, this.bucketName);
   }
 }
