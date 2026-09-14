@@ -23,6 +23,8 @@ import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { TextRoomsGateway } from './text-rooms.gateway';
 
+import { ITextRoomMessageReply } from '@konvoez/shared';
+
 @Injectable()
 export class TextRoomsService {
   private get em(): EntityManager {
@@ -44,6 +46,30 @@ export class TextRoomsService {
       data.iv,
       data.authTag,
     );
+    let replyTo: ITextRoomMessageReply | null = null;
+    if (data.replyTo) {
+      const replyContent = this.encryptionService.decrypt(
+        data.replyTo.contentEncrypted,
+        data.replyTo.iv,
+        data.replyTo.authTag,
+      );
+      replyTo = {
+        id: uuidStringify(data.replyTo.id),
+        senderId: data.replyTo.sender.id,
+        senderUsername: data.replyTo.sender.username,
+        content: replyContent,
+        isDeleted: false,
+      };
+    } else if (data.replyToId) {
+      replyTo = {
+        id: uuidStringify(data.replyToId),
+        senderId: null,
+        senderUsername: null,
+        content: null,
+        isDeleted: true,
+      };
+    }
+
     return {
       id: uuidStringify(data.id),
       senderId: data.sender.id,
@@ -53,6 +79,7 @@ export class TextRoomsService {
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       content,
+      replyTo,
     };
   }
 
@@ -60,20 +87,72 @@ export class TextRoomsService {
     user: GetUserDto,
     dto: MessageListRequestDto,
   ): Promise<MessageListResponseDto> {
-    const { beforeId, afterId, limit, recipientId, roomId } = dto;
+    const { beforeId, afterId, aroundId, limit, recipientId, roomId } = dto;
 
-    const where: FilterQuery<MessageEntity> = {};
+    const baseWhere: FilterQuery<MessageEntity> = {};
 
     if (recipientId) {
-      where.$or = [
+      baseWhere.$or = [
         { sender: user.id, recipient: recipientId },
         { sender: recipientId, recipient: user.id },
       ];
     } else if (roomId) {
-      where.room = roomId;
+      baseWhere.room = roomId;
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
     }
+
+    const populate = [
+      'sender',
+      'recipient',
+      'room',
+      'replyTo',
+      'replyTo.sender',
+    ] as const;
+
+    if (aroundId) {
+      const target = await this.messageRepository.findOne(
+        { ...baseWhere, id: parse(aroundId) },
+        { populate },
+      );
+
+      if (!target) {
+        return { items: [] };
+      }
+
+      const beforeLimit = Math.floor((limit - 1) / 2);
+      const afterLimit = limit - 1 - beforeLimit;
+
+      const [beforeItems, afterItems] = await Promise.all([
+        beforeLimit > 0
+          ? this.messageRepository.find(
+              { ...baseWhere, id: { $lt: parse(aroundId) } },
+              {
+                limit: beforeLimit,
+                orderBy: { createdAt: 'DESC' },
+                populate,
+              },
+            )
+          : Promise.resolve([]),
+        afterLimit > 0
+          ? this.messageRepository.find(
+              { ...baseWhere, id: { $gt: parse(aroundId) } },
+              {
+                limit: afterLimit,
+                orderBy: { createdAt: 'ASC' },
+                populate,
+              },
+            )
+          : Promise.resolve([]),
+      ]);
+
+      const combined = [...beforeItems.reverse(), target, ...afterItems];
+      return {
+        items: combined.map((m) => this.entityToDto(m)),
+      };
+    }
+
+    const where: FilterQuery<MessageEntity> = { ...baseWhere };
 
     if (beforeId) {
       where.id = { $lt: parse(beforeId) };
@@ -88,7 +167,7 @@ export class TextRoomsService {
     const messages = await this.messageRepository.find(where, {
       limit,
       orderBy,
-      populate: ['sender', 'recipient', 'room'],
+      populate,
     });
 
     return {
@@ -108,6 +187,36 @@ export class TextRoomsService {
       room = await this.roomsService.findOne(dto.roomId);
     }
 
+    let replyToId: Uint8Array | null = null;
+    let replyTarget: MessageEntity | null = null;
+    if (dto.replyToId) {
+      replyToId = parse(dto.replyToId);
+      replyTarget = await this.messageRepository.findOne(
+        { id: replyToId },
+        { populate: ['sender', 'recipient', 'room'] },
+      );
+      if (!replyTarget) {
+        throw new NotFoundException('Reply target message not found');
+      }
+      if (dto.roomId && replyTarget.room?.id !== dto.roomId) {
+        throw new ForbiddenException(
+          'Cannot reply to a message from another room',
+        );
+      }
+      if (dto.recipientId) {
+        const isDirectPair =
+          (replyTarget.sender.id === user.id &&
+            replyTarget.recipient?.id === dto.recipientId) ||
+          (replyTarget.sender.id === dto.recipientId &&
+            replyTarget.recipient?.id === user.id);
+        if (!isDirectPair) {
+          throw new ForbiddenException(
+            'Cannot reply to a message from another chat',
+          );
+        }
+      }
+    }
+
     const { encrypted, iv, authTag } = this.encryptionService.encrypt(
       dto.content,
     );
@@ -118,15 +227,26 @@ export class TextRoomsService {
         sender: this.em.getReference(UserEntity, user.id),
         recipient,
         room,
+        replyToId,
         contentEncrypted: encrypted,
         iv,
         authTag,
       },
       { persist: true },
     );
+    if (replyTarget) {
+      message.replyTo = replyTarget;
+    }
     await this.em.flush();
 
-    await this.em.populate(message, ['sender']);
+    await this.em.populate(message, [
+      'sender',
+      'replyTo',
+      'replyTo.sender',
+    ]);
+    if (replyTarget) {
+      message.replyTo = replyTarget;
+    }
     const messageDto = this.entityToDto(message);
     this.textRoomsGateway.onMessageCreated(messageDto);
     return messageDto;
@@ -139,7 +259,7 @@ export class TextRoomsService {
   ): Promise<MessageDto> {
     let message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender'] },
+      { populate: ['sender', 'replyTo', 'replyTo.sender'] },
     );
 
     if (!message) {

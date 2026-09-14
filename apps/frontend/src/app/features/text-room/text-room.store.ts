@@ -23,6 +23,7 @@ import {
   removeEntity,
   setEntities,
   setEntity,
+  updateEntities,
   updateEntity,
   withEntities,
 } from '@ngrx/signals/entities';
@@ -58,6 +59,8 @@ type TextRoomState = {
   selectedRoomId: number | null;
   selectedRecipientId: number | null;
   editableMessageId: string | null;
+  replyToMessageId: string | null;
+  targetScrollMessageId: string | null;
 };
 
 function toMessageEntity(
@@ -78,31 +81,39 @@ export const TextRoomStore = signalStore(
     selectedRoomId: null,
     selectedRecipientId: null,
     editableMessageId: null,
+    replyToMessageId: null,
+    targetScrollMessageId: null,
   }),
   withEntities<IMessageEntity>(),
-  withComputed(({ entities, editableMessageId, entityMap }) => {
-    const messages = computed(() =>
-      [...entities()].sort(
-        (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
-      ),
-    );
+  withComputed(
+    ({ entities, editableMessageId, replyToMessageId, entityMap }) => {
+      const messages = computed(() =>
+        [...entities()].sort(
+          (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
+        ),
+      );
 
-    return {
-      messages,
-      editableMessage: computed(() => {
-        const id = editableMessageId();
-        return id ? (entityMap()[id] ?? null) : null;
-      }),
-      newestId: computed(() => {
-        const list = messages();
-        return list.at(-1)?.id ?? null;
-      }),
-      oldestId: computed(() => {
-        const list = messages();
-        return list.at(0)?.id ?? null;
-      }),
-    };
-  }),
+      return {
+        messages,
+        editableMessage: computed(() => {
+          const id = editableMessageId();
+          return id ? (entityMap()[id] ?? null) : null;
+        }),
+        replyToMessage: computed(() => {
+          const id = replyToMessageId();
+          return id ? (entityMap()[id] ?? null) : null;
+        }),
+        newestId: computed(() => {
+          const list = messages();
+          return list.at(-1)?.id ?? null;
+        }),
+        oldestId: computed(() => {
+          const list = messages();
+          return list.at(0)?.id ?? null;
+        }),
+      };
+    },
+  ),
   withMethods(
     (
       store,
@@ -153,6 +164,8 @@ export const TextRoomStore = signalStore(
             selectedRoomId: roomId,
             selectedRecipientId: recipientId,
             editableMessageId: null,
+            replyToMessageId: null,
+            targetScrollMessageId: null,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
           requestList({
@@ -170,6 +183,8 @@ export const TextRoomStore = signalStore(
             selectedRoomId: null,
             selectedRecipientId: null,
             editableMessageId: null,
+            replyToMessageId: null,
+            targetScrollMessageId: null,
           });
         },
 
@@ -202,8 +217,68 @@ export const TextRoomStore = signalStore(
         },
 
         setEditableMessageId(id: string | null): void {
-          patchState(store, { editableMessageId: id });
+          patchState(store, {
+            editableMessageId: id,
+            ...(id ? { replyToMessageId: null } : {}),
+          });
         },
+
+        setReplyToMessageId(id: string | null): void {
+          patchState(store, {
+            replyToMessageId: id,
+            ...(id ? { editableMessageId: null } : {}),
+          });
+        },
+
+        setTargetScrollMessageId(id: string | null): void {
+          patchState(store, { targetScrollMessageId: id });
+        },
+
+        jumpToMessage: rxMethod<string>(
+          pipe(
+            switchMap((messageId) => {
+              const existing = store.entityMap()[messageId];
+              if (existing) {
+                patchState(store, { targetScrollMessageId: messageId });
+                return EMPTY;
+              }
+
+              return textRoomApiService
+                .list({
+                  roomId: store.selectedRoomId(),
+                  recipientId: store.selectedRecipientId(),
+                  aroundId: messageId,
+                  beforeId: null,
+                  afterId: null,
+                  limit: defaultChunkSize,
+                })
+                .pipe(
+                  tap(({ items }) => {
+                    if (items.length === 0) {
+                      tuiNotificationsService
+                        .open(
+                          translateService.instant(
+                            'ROOMS.ORIGINAL_MESSAGE_DELETED',
+                          ),
+                          { appearance: 'info', autoClose: 3000 },
+                        )
+                        .subscribe();
+                      return;
+                    }
+                    patchState(
+                      store,
+                      setEntities(items.map((item) => toMessageEntity(item))),
+                      { targetScrollMessageId: messageId },
+                    );
+                  }),
+                  catchError((error) => {
+                    showError(error);
+                    return EMPTY;
+                  }),
+                );
+            }),
+          ),
+        ),
 
         createMessage: rxMethod<{
           tempId: string;
@@ -211,6 +286,9 @@ export const TextRoomStore = signalStore(
         }>(
           pipe(
             tap(({ tempId, data }) => {
+              const replyTarget = data.replyToId
+                ? store.entityMap()[data.replyToId]
+                : null;
               const optimistic: IMessageEntity = {
                 ...data,
                 id: tempId,
@@ -219,8 +297,19 @@ export const TextRoomStore = signalStore(
                 createdAt: new Date(),
                 updatedAt: null,
                 status: EMessageStatus.LOADING,
+                replyTo: replyTarget
+                  ? {
+                      id: replyTarget.id,
+                      senderId: replyTarget.senderId,
+                      senderUsername: replyTarget.senderUsername,
+                      content: replyTarget.content,
+                      isDeleted: false,
+                    }
+                  : null,
               };
-              patchState(store, addEntity(optimistic));
+              patchState(store, addEntity(optimistic), {
+                replyToMessageId: null,
+              });
             }),
             switchMap(({ tempId, data }) =>
               textRoomApiService.create(data).pipe(
@@ -354,7 +443,24 @@ export const TextRoomStore = signalStore(
       fromEvent<{ id: string }>(emitter, ETextRoomEvent.MESSAGE_DELETED)
         .pipe(takeUntilDestroyed())
         .subscribe(({ id }) => {
-          patchState(store, removeEntity(id));
+          patchState(
+            store,
+            removeEntity(id),
+            updateEntities({
+              predicate: (m) => m.replyTo?.id === id,
+              changes: (m) => ({
+                replyTo: m.replyTo
+                  ? {
+                      ...m.replyTo,
+                      isDeleted: true,
+                      content: null,
+                      senderId: null,
+                      senderUsername: null,
+                    }
+                  : null,
+              }),
+            }),
+          );
         });
     },
   }),

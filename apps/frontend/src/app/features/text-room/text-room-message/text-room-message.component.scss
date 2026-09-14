@@ -1,13 +1,78 @@
 :host {
+  display: contents;
+
   .message {
     display: flex;
     flex-direction: row;
     align-items: flex-end;
     width: 100%;
     gap: 0.5rem;
+    transition: background-color 0.3s ease;
+    border-radius: 0.5rem;
+
+    &.message-highlight {
+      animation: message-flash 1.5s ease-out;
+
+      .message-body {
+        animation: message-body-flash 1.5s ease-out;
+      }
+    }
 
     &-sender {
       flex-shrink: 0;
+    }
+
+    &-reply {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+      padding: 0.25rem 0.5rem;
+      border-left: 3px solid;
+      border-radius: 0 0.375rem 0.375rem 0;
+      background: var(--tui-background-neutral-2);
+      cursor: pointer;
+      user-select: none;
+      min-width: 0;
+      transition: background-color 0.15s ease;
+
+      &:hover {
+        background: var(
+          --tui-background-neutral-2-hover,
+          rgba(255, 255, 255, 0.08)
+        );
+      }
+
+      &-deleted {
+        border-left-color: var(--tui-text-tertiary, #708499);
+      }
+
+      &-sender {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &-content {
+        font-size: 0.8125rem;
+        color: var(--tui-text-secondary);
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &-deleted {
+        font-size: 0.8125rem;
+        color: var(--tui-text-tertiary, #708499);
+        font-style: italic;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     &-body {
@@ -41,5 +106,31 @@
         flex: 1;
       }
     }
+  }
+}
+
+@keyframes message-flash {
+  0% {
+    background-color: color-mix(
+      in srgb,
+      var(--author-color, #5aa0fa) 25%,
+      transparent
+    );
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes message-body-flash {
+  0% {
+    background-color: color-mix(
+      in srgb,
+      var(--author-color, #5aa0fa) 30%,
+      var(--tui-background-neutral-1)
+    );
+  }
+  100% {
+    background-color: var(--tui-background-neutral-1);
   }
 }

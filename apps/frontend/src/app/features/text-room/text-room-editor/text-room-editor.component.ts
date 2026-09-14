@@ -15,11 +15,13 @@ import {
   TuiEditorTool,
   type TuiEditorToolType,
 } from '@taiga-ui/editor';
+import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { v4 } from 'uuid';
 import { createKeyBindingExtension } from '../../../core/tiptap/create-key-binding-extension';
 import { TextRoomStore } from '../text-room.store';
 import { messageContentSchema } from '@konvoez/shared';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
+import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 
@@ -31,6 +33,8 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
     TuiButton,
     TuiButtonX,
     TuiEditor,
+    TuiAutoColorPipe,
+    TextContentPipe,
   ],
   providers: [
     {
@@ -81,6 +85,23 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
           }),
         );
       },
+      (injector) => {
+        const component = injector.get(TextRoomEditorComponent);
+
+        return Promise.resolve(
+          createKeyBindingExtension('Escape', () => {
+            if (component.replyToMessage()) {
+              component.cancelReply();
+              return true;
+            }
+            if (component.editableMessage()) {
+              component.cancelEdit();
+              return true;
+            }
+            return false;
+          }),
+        );
+      },
     ),
   ],
   templateUrl: './text-room-editor.component.html',
@@ -109,6 +130,7 @@ export class TextRoomEditorComponent {
   ];
 
   protected readonly editableMessage = this.textRoomStore.editableMessage;
+  public readonly replyToMessage = this.textRoomStore.replyToMessage;
 
   constructor() {
     effect(() => {
@@ -127,6 +149,8 @@ export class TextRoomEditorComponent {
 
     this.control.setValue('');
     const editableMessage = this.editableMessage();
+    const replyTo = this.replyToMessage();
+
     if (editableMessage) {
       this.textRoomStore.updateMessage({
         messageId: editableMessage.id,
@@ -139,6 +163,7 @@ export class TextRoomEditorComponent {
           content,
           roomId: this.textRoomStore.selectedRoomId(),
           recipientId: this.textRoomStore.selectedRecipientId(),
+          replyToId: replyTo?.id ?? null,
         },
       });
     }
@@ -146,5 +171,9 @@ export class TextRoomEditorComponent {
 
   protected cancelEdit(): void {
     this.textRoomStore.setEditableMessageId(null);
+  }
+
+  protected cancelReply(): void {
+    this.textRoomStore.setReplyToMessageId(null);
   }
 }
