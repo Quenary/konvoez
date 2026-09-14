@@ -1,28 +1,35 @@
+# Konvoez
 
+Konvoez is a self-hosted, single-server voice and text communication platform (Discord-like alternative where the deployed application instance acts as the server itself). It enables private communities and teams to create and manage custom text and voice rooms on self-hosted infrastructure.
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Documentation](#documentation)
+- [TODO](#todo)
+
+## Key Features
+
+- **Single-Server Model**: An application instance is a complete standalone server with custom text and voice rooms.
+- **Encrypted Messages**: Text messages are encrypted server-side at rest using AES-256-GCM.
+- **Real-Time Voice Channels**: Low-latency voice communication powered by WebRTC and Mediasoup SFU.
+- **Three-Tier User Roles**: Built-in permission hierarchy with `OWNER`, `ADMIN`, and `USER` (`MEMBER`) roles.
+- **Modern Monorepo**: Built with Angular (v19+, Signals) on the frontend, NestJS on the backend, and shared TypeScript schemas.
+
+## Documentation
+
+- [Contributing Guidelines](docs/CONTRIBUTING.md)
+- [Security Policy](docs/SECURITY.md)
+- [Backend Architecture & Guidelines](apps/backend/AGENTS.md)
+- [Frontend Architecture & Guidelines](apps/frontend/AGENTS.md)
 
 ## TODO
-- ~~Refactor file and symbol naming~~
-- ~~Add mute functionality~~
-- ~~Add sound effects~~
-- ~~Add speaker indication~~
-- ~~Add device selection~~
-- ~~Add avatars~~
-- ~~Add sidemenu to edit/remove rooms~~
-- ~~Add messages encryption~~
-- ~~Add rooms avatars~~
+
 - Add message assets (files)
 - Add messages search
-- Add message reply
-- ~~Add configurable stun servers~~
 - Add connection state indication
-- Add unit tests
-- ~~Fix exit not navigating to auth~~
-- ~~Add text rooms~~
 - Add notifications
-- ~~Refactor backand room cache (assign by clientId)~~
-- Add customizable roles
-- Add voice room component
+- Add customizable roles (functions access) and groups (rooms access)
+- Add voice room component (visualization of peers on big screens like in discord)
 - Add mute indication for other peers
 - Add camera/screen sharing
-
->! 123123
