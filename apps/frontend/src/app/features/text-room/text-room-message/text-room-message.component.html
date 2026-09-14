@@ -1,7 +1,9 @@
 @if (message(); as m) {
   <div
+    [attr.id]="'message-' + m.id"
     class="message"
-    [tuiDropdown]="hasMenu() ? contextMenu : null"
+    [style.--author-color]="m.senderUsername | tuiAutoColor"
+    [tuiDropdown]="contextMenu"
     tuiDropdownContext>
     <div
       tuiAvatar
@@ -30,6 +32,31 @@
         </span>
       </span>
 
+      @if (m.replyTo; as reply) {
+        <div
+          class="message-reply"
+          [class.message-reply-deleted]="reply.isDeleted"
+          [style.border-left-color]="
+            reply.isDeleted ? null : (reply.senderUsername ?? '' | tuiAutoColor)
+          "
+          (click)="onReplyQuoteClick(reply)">
+          @if (reply.isDeleted) {
+            <span class="message-reply-deleted">
+              {{ 'ROOMS.DELETED_MESSAGE' | translate }}
+            </span>
+          } @else {
+            <span
+              class="message-reply-sender"
+              [style.color]="reply.senderUsername ?? '' | tuiAutoColor">
+              {{ reply.senderUsername }}
+            </span>
+            <span class="message-reply-content">
+              {{ reply.content | textContent }}
+            </span>
+          }
+        </div>
+      }
+
       <tui-editor-socket
         class="message-body-content"
         [content]="sanitizedContent()">
@@ -41,6 +68,12 @@
     #contextMenu
     let-close>
     <tui-data-list>
+      <button
+        tuiOption
+        iconEnd="@tui.reply"
+        (click)="replyMessage(); close()">
+        {{ 'GENERAL.REPLY' | translate }}
+      </button>
       @if (canEdit()) {
         <button
           tuiOption

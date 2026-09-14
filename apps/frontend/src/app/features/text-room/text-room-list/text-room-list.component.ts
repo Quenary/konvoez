@@ -61,6 +61,30 @@ export class TextRoomListComponent implements OnInit {
         }
       });
     });
+
+    effect(() => {
+      const targetScrollMessageId = this.textRoomStore.targetScrollMessageId();
+      if (!targetScrollMessageId) {
+        return;
+      }
+
+      untracked(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const el = document.getElementById(
+              `message-${targetScrollMessageId}`,
+            );
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.remove('message-highlight');
+              void el.offsetWidth;
+              el.classList.add('message-highlight');
+            }
+            this.textRoomStore.setTargetScrollMessageId(null);
+          }, 50);
+        });
+      });
+    });
   }
 
   ngOnInit(): void {

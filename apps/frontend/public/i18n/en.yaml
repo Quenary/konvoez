@@ -10,6 +10,7 @@ GENERAL:
   MUTE: Mute
   EDIT: Edit
   DELETE: Delete
+  REPLY: Reply
 AUTH:
   USERNAME: Username
   PASSWORD: Password
@@ -23,6 +24,8 @@ AUTH:
     - At least one numeric
     - At least 12 characters
 ROOMS:
+  DELETED_MESSAGE: Deleted message
+  ORIGINAL_MESSAGE_DELETED: Original message was deleted
   TEXT: Text
   VOICE: Voice
   DELETE_CONFIRM: Are you sure you want to delete this room?

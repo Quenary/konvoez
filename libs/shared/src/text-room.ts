@@ -41,10 +41,19 @@ export type TTextRoomEvent = {
   };
 }[ETextRoomEvent];
 
+export const messageReplyToSchema = z.object({
+  id: z.uuid(),
+  senderId: z.number().int().nullable().optional(),
+  senderUsername: z.string().nullable().optional(),
+  content: z.string().nullable().optional(),
+  isDeleted: z.boolean().default(false),
+});
+
 export const messageCreateSchema = z.object({
   recipientId: nullableInt,
   roomId: nullableInt,
   content: messageContentSchema,
+  replyToId: z.uuid().nullable().optional(),
 });
 
 export const messageEditSchema = z.object({
@@ -60,11 +69,13 @@ export const messageSchema = z.object({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date().nullish(),
   content: messageContentSchema,
+  replyTo: messageReplyToSchema.nullable().optional(),
 });
 
 export const messageListRequestSchema = z.object({
   beforeId: nullableString,
   afterId: nullableString,
+  aroundId: nullableString.nullish(),
   limit: z
     .number()
     .int()
@@ -78,6 +89,7 @@ export const messageListResponseSchema = z.object({
   items: z.array(messageSchema),
 });
 
+export type ITextRoomMessageReply = z.infer<typeof messageReplyToSchema>;
 export type ITextRoomCreateMessage = z.infer<typeof messageCreateSchema>;
 export type ITextRoomEditMessage = z.infer<typeof messageEditSchema>;
 export type ITextRoomMessage = z.infer<typeof messageSchema>;

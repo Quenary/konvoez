@@ -13,6 +13,30 @@
   </section>
 }
 
+@if (replyToMessage(); as reply) {
+  <section class="reply">
+    <div
+      class="reply-quote"
+      [style.border-left-color]="reply.senderUsername | tuiAutoColor">
+      <div
+        class="reply-sender"
+        [style.color]="reply.senderUsername | tuiAutoColor">
+        {{ reply.senderUsername }}
+      </div>
+      <div class="reply-text">
+        {{ reply.content | textContent }}
+      </div>
+    </div>
+
+    <button
+      tuiButtonX
+      class="reply-close"
+      (click)="cancelReply()">
+      Close
+    </button>
+  </section>
+}
+
 <section class="field">
   <tui-editor
     class="field-editor"

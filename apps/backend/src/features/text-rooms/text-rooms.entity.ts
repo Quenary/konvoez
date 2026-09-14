@@ -36,6 +36,19 @@ export const MessageEntitySchema = defineEntity({
     recipient: () => p.manyToOne(UserEntitySchema).index().nullable(),
 
     room: () => p.manyToOne(RoomEntitySchema).index().nullable(),
+
+    replyToId: p
+      .uint8array()
+      .length(16)
+      .nullable()
+      .index(),
+
+    replyTo: () =>
+      p
+        .manyToOne(MessageEntitySchema)
+        .nullable()
+        .fieldName('reply_to_id')
+        .persist(false),
   },
 });
 
@@ -48,6 +61,8 @@ MessageEntitySchema.addHook('beforeUpsert', (ev) => {
   }
 });
 
-export class MessageEntity extends MessageEntitySchema.class {}
+export class MessageEntity extends MessageEntitySchema.class {
+  declare replyTo: MessageEntity | null;
+}
 
 MessageEntitySchema.setClass(MessageEntity);

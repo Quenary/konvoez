@@ -11,6 +11,7 @@ GENERAL:
   MUTE: Заглушить
   EDIT: Редактировать
   DELETE: Удалить
+  REPLY: Ответить
   FILE_TOO_BIG: Файл слишком большой
   SIGN_IN: Войти
   SIGN_UP: Создать аккаунт
@@ -42,6 +43,8 @@ MENU:
     PROFILE: Профиль
     DEVICES: Устройства
 ROOMS:
+  DELETED_MESSAGE: Удаленное сообщение
+  ORIGINAL_MESSAGE_DELETED: Оригинальное сообщение было удалено
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
   DIALOG:
     ADD_HEADER: Добавить комнату
