@@ -51,7 +51,7 @@ Konvoez is an Nx monorepo:
 - Prefer clear, readable, and idiomatic solutions over unnecessary cleverness.
 - Maintain strict typing: use shared types and Zod schemas from `@konvoez/shared`.
 - Avoid introducing heavy or unnecessary dependencies.
-- Ensure code is formatted with Prettier and complies with ESLint rules.
+- Ensure code is formatted with Prettier (`npm run fmt`) and complies with ESLint rules (`npm run lint`).
 
 ## Tests
 
@@ -59,11 +59,11 @@ Konvoez is an Nx monorepo:
 - If you modify existing functionality, update or extend the related tests.
 - Ensure all tests pass before submitting changes:
   ```bash
-  npx nx run-many -t test
+  npm run test
   ```
 - Ensure lint checks pass:
   ```bash
-  npx nx run-many -t lint
+  npm run lint
   ```
 
 ## Pull Requests

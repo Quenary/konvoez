@@ -6,6 +6,9 @@
     "nx": "nx",
     "build": "nx run-many -t build",
     "start:dev": "nx run-many -t serve --outputStyle=stream",
+    "lint": "nx run-many -t lint",
+    "fmt": "nx format:write --all",
+    "test": "nx run-many -t test",
     "migration:create": "nx run backend:migration-create",
     "prepare": "husky"
   },
