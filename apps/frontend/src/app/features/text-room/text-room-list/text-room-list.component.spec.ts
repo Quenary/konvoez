@@ -2,7 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TextRoomListComponent } from './text-room-list.component';
 import { provideStore } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TextRoomStore, EMessageStatus, IMessageEntity } from '../text-room.store';
+import {
+  TextRoomStore,
+  EMessageStatus,
+  IMessageEntity,
+} from '../text-room.store';
 import { UsersStore } from '@features/users/users.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { Sanitizer, signal } from '@angular/core';

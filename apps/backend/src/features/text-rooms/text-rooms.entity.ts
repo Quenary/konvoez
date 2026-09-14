@@ -37,11 +37,7 @@ export const MessageEntitySchema = defineEntity({
 
     room: () => p.manyToOne(RoomEntitySchema).index().nullable(),
 
-    replyToId: p
-      .uint8array()
-      .length(16)
-      .nullable()
-      .index(),
+    replyToId: p.uint8array().length(16).nullable().index(),
 
     replyTo: () =>
       p

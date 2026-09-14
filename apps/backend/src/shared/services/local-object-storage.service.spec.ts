@@ -11,7 +11,9 @@ describe('LocalObjectStorageService', () => {
   let appService: AppService;
 
   beforeEach(async () => {
-    tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'konvoez-test-'));
+    tempDir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'konvoez-test-'),
+    );
     appService = {
       LOCAL_OBJECT_STORAGE_PATH: tempDir,
     } as unknown as AppService;
@@ -67,9 +69,9 @@ describe('LocalObjectStorageService', () => {
   });
 
   it('should throw NotFoundException when file does not exist', async () => {
-    await expect(service.getStream('rooms-avatars/non-existent.png')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      service.getStream('rooms-avatars/non-existent.png'),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw BadRequestException on path traversal attempt', async () => {

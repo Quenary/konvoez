@@ -17,8 +17,7 @@ export class TextContentPipe implements PipeTransform {
       return '';
     }
 
-    const sanitized =
-      this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+    const sanitized = this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
     if (!sanitized) {
       return '';
     }
@@ -28,6 +27,9 @@ export class TextContentPipe implements PipeTransform {
       return (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim();
     }
 
-    return sanitized.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    return sanitized
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

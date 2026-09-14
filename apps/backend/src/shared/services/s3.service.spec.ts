@@ -1,5 +1,4 @@
 import {
-  CreateBucketCommand,
   HeadBucketCommand,
   NoSuchKey,
   PutObjectCommand,
@@ -33,8 +32,12 @@ describe('S3Service', () => {
     const key = await service.upload(mockFile, 'rooms-avatars');
 
     expect(key).toMatch(/^rooms-avatars\/\d+-room\.png$/);
-    expect(mockS3Client.send).toHaveBeenCalledWith(expect.any(HeadBucketCommand));
-    expect(mockS3Client.send).toHaveBeenCalledWith(expect.any(PutObjectCommand));
+    expect(mockS3Client.send).toHaveBeenCalledWith(
+      expect.any(HeadBucketCommand),
+    );
+    expect(mockS3Client.send).toHaveBeenCalledWith(
+      expect.any(PutObjectCommand),
+    );
   });
 
   it('should get a stream from S3', async () => {
@@ -54,11 +57,14 @@ describe('S3Service', () => {
 
   it('should throw NotFoundException when key does not exist', async () => {
     (mockS3Client.send as jest.Mock).mockRejectedValueOnce(
-      new NoSuchKey({ message: 'The specified key does not exist.', $metadata: {} }),
+      new NoSuchKey({
+        message: 'The specified key does not exist.',
+        $metadata: {},
+      }),
     );
 
-    await expect(service.getStream('rooms-avatars/missing.png')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      service.getStream('rooms-avatars/missing.png'),
+    ).rejects.toThrow(NotFoundException);
   });
 });

@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
-import {
-  messageListMaxLimit,
-  messageListMinLimit,
-} from './const';
+import { messageListMaxLimit, messageListMinLimit } from './const';
 import { messageContentSchema } from './schemas/fields';
 import { IUser } from './user';
 
@@ -31,7 +28,10 @@ export type TTextRoomEventPayloadMap = {
 };
 
 export type TTextRoomEventMap = {
-  [K in ETextRoomEvent]: (data: TTextRoomEventPayloadMap[K], ...args: any[]) => any;
+  [K in ETextRoomEvent]: (
+    data: TTextRoomEventPayloadMap[K],
+    ...args: any[]
+  ) => any;
 };
 
 export type TTextRoomEvent = {
@@ -76,11 +76,7 @@ export const messageListRequestSchema = z.object({
   beforeId: nullableString,
   afterId: nullableString,
   aroundId: nullableString.nullish(),
-  limit: z
-    .number()
-    .int()
-    .min(messageListMinLimit)
-    .max(messageListMaxLimit),
+  limit: z.number().int().min(messageListMinLimit).max(messageListMaxLimit),
   recipientId: nullableInt,
   roomId: nullableInt,
 });
@@ -112,5 +108,3 @@ export interface ITextRoomPeer extends IUser {
    */
   clientId: string;
 }
-
-

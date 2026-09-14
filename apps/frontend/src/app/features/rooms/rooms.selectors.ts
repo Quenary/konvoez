@@ -5,8 +5,7 @@ import { ERoomType } from '@konvoez/shared';
 
 const _selectRooms = (state: IAppState) => state.rooms;
 
-const { selectIds, selectEntities, selectAll, selectTotal } =
-  roomsAdapter.getSelectors();
+const { selectEntities, selectAll } = roomsAdapter.getSelectors();
 
 export const selectRoomsList = createSelector(_selectRooms, selectAll);
 export const selectTextRoomsList = createSelector(selectRoomsList, (list) =>

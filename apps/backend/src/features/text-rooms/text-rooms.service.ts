@@ -239,11 +239,7 @@ export class TextRoomsService {
     }
     await this.em.flush();
 
-    await this.em.populate(message, [
-      'sender',
-      'replyTo',
-      'replyTo.sender',
-    ]);
+    await this.em.populate(message, ['sender', 'replyTo', 'replyTo.sender']);
     if (replyTarget) {
       message.replyTo = replyTarget;
     }

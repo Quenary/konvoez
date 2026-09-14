@@ -2,7 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TextRoomMessageComponent } from './text-room-message.component';
 import { provideStore } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TextRoomStore, EMessageStatus, IMessageEntity } from '../text-room.store';
+import {
+  TextRoomStore,
+  EMessageStatus,
+  IMessageEntity,
+} from '../text-room.store';
 import { UsersStore } from '@features/users/users.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { signal, Sanitizer } from '@angular/core';
@@ -95,7 +99,11 @@ describe('TextRoomMessageComponent', () => {
     });
     fixture.detectChanges();
     // sanitizedContent is a computed signal
-    expect((component as unknown as { sanitizedContent: () => string }).sanitizedContent()).toBeTruthy();
+    expect(
+      (
+        component as unknown as { sanitizedContent: () => string }
+      ).sanitizedContent(),
+    ).toBeTruthy();
   });
 
   it('should set reply target when replyMessage is called', () => {
@@ -105,7 +113,9 @@ describe('TextRoomMessageComponent', () => {
 
   it('should set editable message when editMessage is called', () => {
     (component as unknown as { editMessage: () => void }).editMessage();
-    expect(mockTextRoomStore.setEditableMessageId).toHaveBeenCalledWith('msg-1');
+    expect(mockTextRoomStore.setEditableMessageId).toHaveBeenCalledWith(
+      'msg-1',
+    );
   });
 
   it('should delete message when deleteMessage is called', () => {
@@ -121,7 +131,9 @@ describe('TextRoomMessageComponent', () => {
       content: 'hi',
       isDeleted: false,
     };
-    (component as unknown as { onReplyQuoteClick: (r: typeof reply) => void }).onReplyQuoteClick(reply);
+    (
+      component as unknown as { onReplyQuoteClick: (r: typeof reply) => void }
+    ).onReplyQuoteClick(reply);
     expect(mockTextRoomStore.jumpToMessage).toHaveBeenCalledWith('target-1');
   });
 
@@ -133,7 +145,9 @@ describe('TextRoomMessageComponent', () => {
       content: null,
       isDeleted: true,
     };
-    (component as unknown as { onReplyQuoteClick: (r: typeof reply) => void }).onReplyQuoteClick(reply);
+    (
+      component as unknown as { onReplyQuoteClick: (r: typeof reply) => void }
+    ).onReplyQuoteClick(reply);
     expect(mockNotificationService.open).toHaveBeenCalled();
     expect(mockTextRoomStore.jumpToMessage).not.toHaveBeenCalled();
   });

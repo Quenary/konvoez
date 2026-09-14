@@ -1,11 +1,6 @@
 import { inject } from '@angular/core';
 import { IUser } from '@konvoez/shared';
-import {
-  patchState,
-  signalStore,
-  withMethods,
-  withState,
-} from '@ngrx/signals';
+import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import {
   removeAllEntities,
   setAllEntities,

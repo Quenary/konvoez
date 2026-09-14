@@ -296,7 +296,9 @@ export class VoiceRoomsGateway
       mediaTag: body.mediaTag,
     };
 
-    socket.to(room.id.toString()).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
+    socket
+      .to(room.id.toString())
+      .emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
 
     return result;
   }

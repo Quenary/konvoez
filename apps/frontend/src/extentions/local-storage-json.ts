@@ -4,13 +4,13 @@ declare global {
      * Получить значение из хранилища с десериализацией
      * @param key ключ
      */
-    getItemJson<T extends unknown = unknown>(key: string): T | null;
+    getItemJson<T = unknown>(key: string): T | null;
     /**
      * Сохранить значение в хранилище с сериализацией
      * @param key ключ
      * @param value значение
      */
-    setItemJson<T extends unknown = unknown>(key: string, value: T): void;
+    setItemJson<T = unknown>(key: string, value: T): void;
   }
 }
 
@@ -20,7 +20,8 @@ declare global {
  */
 export const storageJson = () => {
   Storage.prototype.getItemJson = (key) => storageGetItemJson(key, this);
-  Storage.prototype.setItemJson = (key, value) => storageSetItemJson(key, value, this);
+  Storage.prototype.setItemJson = (key, value) =>
+    storageSetItemJson(key, value, this);
 };
 
 /**
@@ -30,7 +31,7 @@ export const storageJson = () => {
  * @default localStorage
  * @returns
  */
-export const storageGetItemJson = <T extends unknown = unknown>(
+export const storageGetItemJson = <T = unknown>(
   key: string,
   storage: Storage = localStorage,
 ): T | null => {
@@ -55,7 +56,7 @@ export const storageGetItemJson = <T extends unknown = unknown>(
  * @param storage хранилище
  * @default localStorage
  */
-export const storageSetItemJson = <T extends unknown = unknown>(
+export const storageSetItemJson = <T = unknown>(
   key: string,
   value: T,
   storage: Storage = localStorage,

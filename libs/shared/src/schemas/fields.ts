@@ -14,10 +14,7 @@ import {
 } from '../const';
 
 const lengthString = (min: number, max: number, error: string) =>
-  z
-    .string({ error })
-    .min(min, { error })
-    .max(max, { error });
+  z.string({ error }).min(min, { error }).max(max, { error });
 
 export const usernameSchema = lengthString(
   usernameMinLength,

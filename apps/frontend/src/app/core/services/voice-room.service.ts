@@ -78,7 +78,9 @@ export class VoiceRoomService {
   /**
    * All voice rooms state
    */
-  private readonly _roomsState = signal<Readonly<TVoiceRoomGetAllPeersResult>>({});
+  private readonly _roomsState = signal<Readonly<TVoiceRoomGetAllPeersResult>>(
+    {},
+  );
   /**
    * All voice rooms state
    */
@@ -239,9 +241,8 @@ export class VoiceRoomService {
    */
   private async updateRoomsState() {
     try {
-      const roomsState: TVoiceRoomGetAllPeersResult = await this.socket.emitWithAck(
-        EVoiceRoomEvent.GET_ALL_PEERS,
-      );
+      const roomsState: TVoiceRoomGetAllPeersResult =
+        await this.socket.emitWithAck(EVoiceRoomEvent.GET_ALL_PEERS);
       this._roomsState.set(roomsState);
     } catch (error) {
       console.error('Failed to update all rooms state', error);
@@ -428,12 +429,10 @@ export class VoiceRoomService {
 
     await this.ensureDeviceLoaded();
 
-    const result: IVoiceRoomCreateTransportResult = await this.socket.emitWithAck(
-      EVoiceRoomEvent.CREATE_TRANSPORT,
-      {
+    const result: IVoiceRoomCreateTransportResult =
+      await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
         direction: 'send',
-      } satisfies IVoiceRoomCreateTransport,
-    );
+      } satisfies IVoiceRoomCreateTransport);
 
     this.sendTransport = this.device.createSendTransport(result);
 
@@ -509,12 +508,10 @@ export class VoiceRoomService {
 
     await this.ensureDeviceLoaded();
 
-    const result: IVoiceRoomCreateTransportResult = await this.socket.emitWithAck(
-      EVoiceRoomEvent.CREATE_TRANSPORT,
-      {
+    const result: IVoiceRoomCreateTransportResult =
+      await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
         direction: 'recv',
-      } satisfies IVoiceRoomCreateTransport,
-    );
+      } satisfies IVoiceRoomCreateTransport);
 
     this.recvTransport = this.device.createRecvTransport(result);
 

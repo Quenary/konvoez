@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TextRoomEditorComponent } from './text-room-editor.component';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TextRoomStore, EMessageStatus, IMessageEntity } from '../text-room.store';
+import {
+  TextRoomStore,
+  EMessageStatus,
+  IMessageEntity,
+} from '../text-room.store';
 import { signal } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { describe, it, expect, beforeEach, vi } from 'vitest';

@@ -11,21 +11,9 @@
     "eslint --config libs/shared/eslint.config.mjs --fix",
     "prettier --write"
   ],
-  "tools/**/*.{ts,js}": [
-    "eslint --fix",
-    "prettier --write"
-  ],
-  "*.{ts,js,mjs,cjs}": [
-    "eslint --fix",
-    "prettier --write"
-  ],
-  "{apps,libs,tools}/**/*.{scss,css,md,yaml,yml}": [
-    "prettier --write"
-  ],
-  "apps/{backend,frontend}/**/*.json": [
-    "prettier --write"
-  ],
-  "*.{json,yaml,yml,md}": [
-    "prettier --write"
-  ]
+  "tools/**/*.{ts,js}": ["eslint --fix", "prettier --write"],
+  "*.{ts,js,mjs,cjs}": ["eslint --fix", "prettier --write"],
+  "{apps,libs,tools}/**/*.{scss,css,md,yaml,yml}": ["prettier --write"],
+  "apps/{backend,frontend}/**/*.json": ["prettier --write"],
+  "*.{json,yaml,yml,md}": ["prettier --write"]
 }
