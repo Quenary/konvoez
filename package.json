@@ -6,7 +6,8 @@
     "nx": "nx",
     "build": "nx run-many -t build",
     "start:dev": "nx run-many -t serve --outputStyle=stream",
-    "migration:create": "nx run backend:migration-create"
+    "migration:create": "nx run backend:migration-create",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -70,11 +71,13 @@
     "angular-eslint": "^21.2.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "husky": "^9.1.7",
     "jest": "~30.3.0",
     "jest-environment-node": "~30.3.0",
     "jest-util": "~30.3.0",
     "jsdom": "^27.1.0",
     "jsonc-eslint-parser": "^2.1.0",
+    "lint-staged": "^17.5.1",
     "nx": "^23.0.1",
     "prettier": "^3.8.1",
     "s3rver": "^3.7.1",
