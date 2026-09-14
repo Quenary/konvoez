@@ -4,6 +4,10 @@ import { PasswordService } from './services/password.service';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { S3ClientInjectionToken } from './tokens/s3-client.token';
 import { EncryptionService } from './services/encryption.service';
+import { LocalObjectStorageService } from './services/local-object-storage.service';
+import { S3Service } from './services/s3.service';
+import type { FileService } from './services/file.service';
+import { FileServiceInjectionToken } from './tokens/file-service.token';
 
 @Global()
 @Module({
@@ -11,6 +15,8 @@ import { EncryptionService } from './services/encryption.service';
     AppService,
     PasswordService,
     EncryptionService,
+    LocalObjectStorageService,
+    S3Service,
     {
       provide: S3ClientInjectionToken,
       inject: [AppService],
@@ -29,11 +35,24 @@ import { EncryptionService } from './services/encryption.service';
         return new S3Client(config);
       },
     },
+    {
+      provide: FileServiceInjectionToken,
+      inject: [AppService, S3Service, LocalObjectStorageService],
+      useFactory: (
+        configService: AppService,
+        s3Service: S3Service,
+        localService: LocalObjectStorageService,
+      ): FileService => {
+        return configService.OBJECT_STORAGE === 's3'
+          ? s3Service
+          : localService;
+      },
+    },
   ],
   exports: [
     AppService,
     PasswordService,
-    S3ClientInjectionToken,
+    FileServiceInjectionToken,
     EncryptionService,
   ],
 })
