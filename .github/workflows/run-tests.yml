@@ -1,0 +1,76 @@
+name: Run Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  frontend-tests:
+    name: Run Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          MEDIASOUP_WORKER_BIN: /bin/true
+        run: npm ci
+
+      - name: Run tests
+        run: npx nx run frontend:test
+
+      - name: Run lint
+        if: always()
+        run: npx nx run frontend:eslint:lint
+
+      - name: Run Prettier Check
+        if: always()
+        run: npx nx format:check
+
+      - name: Run build
+        if: always()
+        run: npx nx run frontend:build:production
+
+  backend-tests:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          MEDIASOUP_WORKER_BIN: /bin/true
+        run: npm ci
+
+      - name: Run tests
+        run: npx nx run backend:test
+
+      - name: Run lint
+        if: always()
+        run: npx nx run backend:eslint:lint
+
+      - name: Run shared library lint
+        if: always()
+        run: npx nx run shared:eslint:lint
+
+      - name: Run build
+        if: always()
+        run: npx nx run backend:build:production
