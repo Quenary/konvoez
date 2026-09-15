@@ -72,8 +72,11 @@ describe('AuthController', () => {
             generateToken: jest.fn(),
             verifyToken: jest.fn(),
             getMe: jest.fn(),
+            isOwnerSetupRequired: jest.fn(),
+            register: jest.fn(),
           },
         },
+
         {
           provide: AppService,
           useValue: mockAppService,
@@ -205,6 +208,34 @@ describe('AuthController', () => {
       const result = await controller.me(req);
 
       expect(authService.getMe).toHaveBeenCalledWith(req);
+      expect(result).toEqual(mockUser);
+    });
+  });
+
+  describe('setup-status', () => {
+    it('should return isOwnerSetupRequired boolean from authService', async () => {
+      authService.isOwnerSetupRequired.mockResolvedValueOnce(true);
+
+      const result = await controller.getSetupStatus();
+
+      expect(authService.isOwnerSetupRequired).toHaveBeenCalled();
+      expect(result).toEqual({ isOwnerSetupRequired: true });
+    });
+  });
+
+  describe('register', () => {
+    it('should delegate registration to authService.register and return user', async () => {
+      const registerDto = {
+        username: 'newuser',
+        password: 'Password123!',
+        fullname: 'New User',
+        email: 'newuser@example.com',
+      };
+      authService.register.mockResolvedValueOnce(mockUser);
+
+      const result = await controller.register(registerDto);
+
+      expect(authService.register).toHaveBeenCalledWith(registerDto);
       expect(result).toEqual(mockUser);
     });
   });

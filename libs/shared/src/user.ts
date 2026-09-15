@@ -12,12 +12,16 @@ export const userCreateSchema = z.object({
   password: passwordSchema,
   fullname: fullnameSchema,
   email: emailSchema,
+  setupToken: z.string().trim().optional(),
 });
 
-export const userUpdateSchema = userCreateSchema.partial().extend({
-  role: z.enum(EUserRole).optional(),
-  avatar: z.string().optional(),
-});
+export const userUpdateSchema = userCreateSchema
+  .omit({ setupToken: true })
+  .partial()
+  .extend({
+    role: z.enum(EUserRole).optional(),
+    avatar: z.string().optional(),
+  });
 
 export const userSchema = z.object({
   id: z.number().int(),
@@ -31,6 +35,11 @@ export const userSchema = z.object({
   updatedAt: z.coerce.date().nullish(),
 });
 
+export const authSetupStatusSchema = z.object({
+  isOwnerSetupRequired: z.boolean(),
+});
+
 export type IUserCreate = z.infer<typeof userCreateSchema>;
 export type IUserUpdate = z.infer<typeof userUpdateSchema>;
 export type IUser = z.infer<typeof userSchema>;
+export type IAuthSetupStatus = z.infer<typeof authSetupStatusSchema>;

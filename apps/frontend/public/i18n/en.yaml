@@ -58,3 +58,9 @@ VALIDATION:
   ROOM_NAME_LENGTH: Room name must be 1–64 characters
   ROOM_TYPE: Select a room type
   MESSAGE_LENGTH: Message must be 1–5000 characters
+  SETUP_TOKEN_REQUIRED: Setup token is required for initial registration
+AUTH:
+  OWNER_SETUP_TITLE: Initial Server Setup
+  OWNER_SETUP_SUBTITLE: Register the first account with owner privileges (OWNER)
+  SETUP_TOKEN: Setup Token
+  SETUP_TOKEN_HINT: The one-time token was printed in the server logs on first startup

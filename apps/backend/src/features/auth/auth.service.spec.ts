@@ -19,9 +19,10 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+
 import { AppService } from '@shared/services/app.service';
 import { PasswordService } from '@shared/services/password.service';
 import { UsersService } from '../users/users.service';
@@ -31,6 +32,7 @@ import { EUserRole } from '@konvoez/shared';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { Request } from 'express';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -38,6 +40,11 @@ describe('AuthService', () => {
   let appService: jest.Mocked<AppService>;
   let passwordService: jest.Mocked<PasswordService>;
   let usersService: jest.Mocked<UsersService>;
+  let cacheManager: {
+    get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
+  };
 
   const mockUserDto: GetUserDto = {
     id: 1,
@@ -92,6 +99,16 @@ describe('AuthService', () => {
             findOneBy: jest.fn(),
             findOneByAsDto: jest.fn(),
             toDto: jest.fn(),
+            count: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
           },
         },
       ],
@@ -102,6 +119,7 @@ describe('AuthService', () => {
     appService = module.get(AppService);
     passwordService = module.get(PasswordService);
     usersService = module.get(UsersService);
+    cacheManager = module.get(CACHE_MANAGER);
   });
 
   describe('validateUser', () => {
@@ -252,6 +270,136 @@ describe('AuthService', () => {
       });
       expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
       expect(result).toEqual(mockUserDto);
+    });
+  });
+
+  describe('owner setup token and registration', () => {
+    const createDto = {
+      username: 'newowner',
+      password: 'StrongPassword123!',
+      fullname: 'New Owner',
+      email: 'owner@example.com',
+      setupToken: undefined as string | undefined,
+    };
+
+    it('should generate owner token and save to cache with 5 min TTL on bootstrap when user count is 0', async () => {
+      usersService.count.mockResolvedValueOnce(0);
+
+      await service.onApplicationBootstrap();
+
+      expect(cacheManager.set).toHaveBeenCalledTimes(1);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        service['ownerSetupTokenCacheKey'],
+        expect.stringMatching(/^[a-f0-9]{32}$/),
+        service['ownerSetupTokenTtl'],
+      );
+    });
+
+    it('should not generate owner token when user count is greater than 0 on bootstrap', async () => {
+      usersService.count.mockResolvedValueOnce(2);
+
+      await service.onApplicationBootstrap();
+
+      expect(cacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('should report isOwnerSetupRequired as true when count is 0 without regenerating token', async () => {
+      usersService.count.mockResolvedValueOnce(0);
+
+      const required = await service.isOwnerSetupRequired();
+
+      expect(required).toBe(true);
+      expect(cacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('should report isOwnerSetupRequired as false when count is greater than 0 without regenerating token', async () => {
+      usersService.count.mockResolvedValueOnce(1);
+
+      const required = await service.isOwnerSetupRequired();
+
+      expect(required).toBe(false);
+      expect(cacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when owner setup token has expired from cache', async () => {
+      usersService.count.mockResolvedValue(0);
+      cacheManager.get.mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.register({ ...createDto, setupToken: 'any-token' }),
+      ).rejects.toThrow(
+        new ForbiddenException(
+          'Owner setup token has expired. Please restart the instance.',
+        ),
+      );
+    });
+
+    it('should throw ForbiddenException when registering owner with wrong or missing token', async () => {
+      usersService.count.mockResolvedValue(0);
+      cacheManager.get.mockResolvedValue('valid-token-in-cache');
+
+      await expect(
+        service.register({ ...createDto, setupToken: 'wrong-token' }),
+      ).rejects.toThrow(
+        new ForbiddenException('Invalid or missing owner setup token'),
+      );
+
+      await expect(
+        service.register({ ...createDto, setupToken: undefined }),
+      ).rejects.toThrow(
+        new ForbiddenException('Invalid or missing owner setup token'),
+      );
+    });
+
+    it('should create OWNER user and delete token from cache when registering with valid token on empty DB', async () => {
+      const validToken = 'valid-token-in-cache';
+      usersService.count.mockResolvedValue(0);
+      cacheManager.get.mockResolvedValue(validToken);
+
+      const createdOwner = {
+        ...mockUserEntity,
+        role: EUserRole.OWNER,
+        username: createDto.username,
+      } as unknown as UserEntity;
+      const ownerDto = { ...mockUserDto, role: EUserRole.OWNER };
+
+      usersService.create.mockResolvedValueOnce(createdOwner);
+      usersService.toDto.mockReturnValueOnce(ownerDto);
+
+      const result = await service.register({
+        ...createDto,
+        setupToken: validToken,
+      });
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        { ...createDto, setupToken: validToken },
+        EUserRole.OWNER,
+      );
+      expect(cacheManager.del).toHaveBeenCalledWith(
+        service['ownerSetupTokenCacheKey'],
+      );
+      expect(result.role).toBe(EUserRole.OWNER);
+    });
+
+    it('should create MEMBER user and not require setup token when users already exist', async () => {
+      usersService.count.mockResolvedValue(1);
+      const createdMember = {
+        ...mockUserEntity,
+        role: EUserRole.MEMBER,
+      } as unknown as UserEntity;
+      const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
+
+      usersService.create.mockResolvedValueOnce(createdMember);
+      usersService.toDto.mockReturnValueOnce(memberDto);
+
+      const result = await service.register(createDto);
+
+      expect(usersService.create).toHaveBeenCalledWith(
+        createDto,
+        EUserRole.MEMBER,
+      );
+      expect(cacheManager.get).not.toHaveBeenCalled();
+      expect(result.role).toBe(EUserRole.MEMBER);
     });
   });
 });

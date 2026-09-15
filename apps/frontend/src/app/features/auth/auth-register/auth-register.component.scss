@@ -8,4 +8,24 @@
   form {
     min-width: 50%;
   }
+
+  .owner-setup-info {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--tui-background-accent-1, rgba(255, 193, 7, 0.12));
+    border: 1px solid var(--tui-border-accent-1, rgba(255, 193, 7, 0.3));
+
+    .owner-setup-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+    }
+
+    .owner-setup-desc {
+      margin: 4px 0 0 0;
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+  }
 }

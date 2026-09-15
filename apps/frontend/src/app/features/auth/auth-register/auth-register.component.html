@@ -16,6 +16,42 @@
     </button>
   </header>
 
+  @if (isOwnerSetupRequired.value()) {
+    <div class="owner-setup-info">
+      <div class="owner-setup-title">
+        <tui-icon icon="@tui.shield-alert" />
+        <strong>{{ 'AUTH.OWNER_SETUP_TITLE' | translate }}</strong>
+      </div>
+      <p class="owner-setup-desc">
+        {{ 'AUTH.OWNER_SETUP_SUBTITLE' | translate }}
+      </p>
+    </div>
+
+    <tui-textfield iconStart="@tui.key">
+      <label
+        tuiLabel
+        for="register-setup-token">
+        {{ 'AUTH.SETUP_TOKEN' | translate }}
+      </label>
+
+      <input
+        tuiInput
+        id="register-setup-token"
+        autocomplete="off"
+        formControlName="setupToken"
+        type="password" />
+
+      <tui-icon
+        icon="@tui.message-circle-question-mark"
+        [tuiTooltip]="'AUTH.SETUP_TOKEN_HINT' | translate" />
+
+      <tui-icon tuiPassword />
+    </tui-textfield>
+    @if (errors().setupToken; as err) {
+      <tui-error [error]="err | translate" />
+    }
+  }
+
   <tui-textfield iconStart="@tui.user">
     <label
       tuiLabel
@@ -121,8 +157,8 @@
     <button
       tuiButton
       type="submit"
-      [disabled]="!form.dirty"
-      [loading]="loading()">
+      [disabled]="!form.dirty || isOwnerSetupRequired.isLoading()"
+      [loading]="loading() || isOwnerSetupRequired.isLoading()">
       <tui-icon icon="@tui.user-plus" />
       {{ 'GENERAL.SIGN_UP' | translate }}
     </button>

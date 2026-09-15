@@ -9,14 +9,24 @@ import {
   usernameSchema,
 } from '@konvoez/shared';
 
-export const registerFormSchema = userCreateSchema
-  .extend({
+export function getRegisterFormSchema(isOwnerSetupRequired: boolean) {
+  const base = userCreateSchema.extend({
     confirmPassword: passwordSchema,
-  })
-  .refine((data) => data.password === data.confirmPassword, {
+    setupToken: isOwnerSetupRequired
+      ? z
+          .string({ error: 'VALIDATION.SETUP_TOKEN_REQUIRED' })
+          .trim()
+          .min(1, { error: 'VALIDATION.SETUP_TOKEN_REQUIRED' })
+      : z.string().trim().optional(),
+  });
+
+  return base.refine((data) => data.password === data.confirmPassword, {
     path: ['confirmPassword'],
     error: 'VALIDATION.PASSWORD_MISMATCH',
   });
+}
+
+export const registerFormSchema = getRegisterFormSchema(false);
 
 export type RegisterFormValue = z.infer<typeof registerFormSchema>;
 

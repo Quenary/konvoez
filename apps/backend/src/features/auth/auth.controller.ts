@@ -8,12 +8,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthLoginDto } from './auth.dto';
+import { AuthLoginDto, AuthSetupStatusDto } from './auth.dto';
 import type { Request, Response } from 'express';
 import { AppService } from '@shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
-import { GetUserDto } from '../users/users.dto';
+import { CreateUserDto, GetUserDto } from '../users/users.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -84,6 +84,25 @@ export class AuthController {
     res.clearCookie(ACCESS_TOKEN_KEY);
     res.clearCookie(REFRESH_TOKEN_KEY);
     return { ok: true };
+  }
+
+  @Get('setup-status')
+  @ApiOkResponse({
+    type: AuthSetupStatusDto,
+    description: 'Check whether initial OWNER setup is required',
+  })
+  async getSetupStatus(): Promise<AuthSetupStatusDto> {
+    const isOwnerSetupRequired = await this.authService.isOwnerSetupRequired();
+    return { isOwnerSetupRequired };
+  }
+
+  @Post('register')
+  @ApiOkResponse({
+    type: GetUserDto,
+    description: 'Register a new user (or initial OWNER if setup is required)',
+  })
+  async register(@Body() dto: CreateUserDto): Promise<GetUserDto> {
+    return await this.authService.register(dto);
   }
 
   @Get('me')
