@@ -137,6 +137,6 @@ export class UsersService {
   }
 
   getAvatarUrl(key: string | null | undefined): string | null {
-    return key ? `/api/users/avatar/stream?key=${key}` : null;
+    return key ? `/api/v1/users/avatar/stream?key=${key}` : null;
   }
 }

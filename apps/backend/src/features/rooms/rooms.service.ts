@@ -105,6 +105,6 @@ export class RoomsService {
   }
 
   getAvatarUrl(key: string | null | undefined): string | null {
-    return key ? `/api/rooms/avatar/stream?key=${key}` : null;
+    return key ? `/api/v1/rooms/avatar/stream?key=${key}` : null;
   }
 }

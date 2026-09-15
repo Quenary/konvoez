@@ -9,7 +9,7 @@
       "continuous": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "s3rver -a 0.0.0.0 -p 4568 -d ./s3-dev"
+        "command": "s3rver -a 0.0.0.0 -p 4568 -d ./.konvoez_data/s3"
       }
     }
   }
