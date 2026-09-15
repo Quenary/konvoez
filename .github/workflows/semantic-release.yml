@@ -1,0 +1,58 @@
+name: Semantic Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  semantic-release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-release-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - name: Setup | Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: ${{ github.ref_name }}
+
+      - name: Setup | Force release branch to be at workflow sha
+        run: |
+          git reset --hard ${{ github.sha }}
+
+      - name: Setup | Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup | Install dependencies
+        env:
+          MEDIASOUP_WORKER_BIN: /bin/true
+        run: npm ci
+
+      - name: Action | Semantic Release
+        id: semantic-release
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Action | Trigger Prod Build Workflow
+        if: steps.semantic-release.outputs.new_release_published == 'true'
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.RELEASE_TRIGGER_TOKEN || secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          event-type: release-event
+          client-payload: '{"version": "${{ steps.semantic-release.outputs.new_release_version }}"}'
