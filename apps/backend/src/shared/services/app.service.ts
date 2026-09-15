@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import crypto from 'crypto';
+import { getDefaultLocalStoragePath } from '../storage.utils';
 
 export type FileServiceType = 'local' | 's3';
 
@@ -17,10 +18,9 @@ export class AppService {
     process.env['OBJECT_STORAGE']?.toLowerCase() === 's3' ? 's3' : 'local';
   /**
    * Local directory path for object storage
-   * @default '/konvoez/files'
    */
   public readonly LOCAL_OBJECT_STORAGE_PATH: string =
-    process.env['LOCAL_OBJECT_STORAGE_PATH'] || '/konvoez/files';
+    process.env['LOCAL_OBJECT_STORAGE_PATH'] || getDefaultLocalStoragePath();
   //#endregion
 
   /**
@@ -76,5 +76,17 @@ export class AppService {
   //#region MediaSoup
   public readonly MEDIASOUP_ANNOUNCED_IP: string | undefined =
     process.env['MEDIASOUP_ANNOUNCED_IP'];
+  /**
+   * Lowest WebRTC UDP/TCP port for Mediasoup
+   * @default 40000
+   */
+  public readonly MEDIASOUP_MIN_PORT: number =
+    Number(process.env['MEDIASOUP_MIN_PORT']) || 40000;
+  /**
+   * Highest WebRTC UDP/TCP port for Mediasoup
+   * @default 40100
+   */
+  public readonly MEDIASOUP_MAX_PORT: number =
+    Number(process.env['MEDIASOUP_MAX_PORT']) || 40100;
   //#endregion
 }

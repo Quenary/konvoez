@@ -1,0 +1,22 @@
+services:
+  app:
+    image: ghcr.io/quenary/konvoez:1
+    container_name: konvoez
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '40000-40100:40000-40100/udp'
+      - '40000-40100:40000-40100/tcp'
+    # For high-load Linux production hosts, you can uncomment network_mode: host
+    # and comment out the ports section above for maximum WebRTC performance:
+    # network_mode: host
+    volumes:
+      - konvoez_data:/konvoez_data
+    environment:
+      # Public IP or domain of your server for WebRTC ICE candidates:
+      - MEDIASOUP_ANNOUNCED_IP=${MEDIASOUP_ANNOUNCED_IP:-127.0.0.1}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - MASTER_KEY=${MASTER_KEY:-}
+
+volumes:
+  konvoez_data:

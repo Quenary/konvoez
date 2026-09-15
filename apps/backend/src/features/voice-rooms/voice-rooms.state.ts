@@ -14,6 +14,7 @@ import {
   Worker as MediasoupWorker,
 } from 'mediasoup/types';
 import { createWorker } from 'mediasoup';
+import { AppService } from '@shared/services/app.service';
 
 type VoiceRoomState = {
   /**
@@ -56,12 +57,16 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   private worker!: MediasoupWorker;
   private readonly rooms = new Map<number, VoiceRoomState>();
 
+  constructor(private readonly appService: AppService) {}
+
   async onModuleInit() {
     this.worker = await createWorker({
-      rtcMinPort: 40000,
-      rtcMaxPort: 49999,
+      rtcMinPort: this.appService.MEDIASOUP_MIN_PORT,
+      rtcMaxPort: this.appService.MEDIASOUP_MAX_PORT,
     });
-    console.info('Mediasoup worker started');
+    console.info(
+      `Mediasoup worker started (ports ${this.appService.MEDIASOUP_MIN_PORT}-${this.appService.MEDIASOUP_MAX_PORT})`,
+    );
   }
 
   async onModuleDestroy() {

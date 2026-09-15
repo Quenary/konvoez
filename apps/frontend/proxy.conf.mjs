@@ -1,6 +1,6 @@
 export default [
   {
-    context: ['/api/**'],
+    context: ['/api/**', '/ws/**'],
     target: 'http://localhost:3000',
     secure: false,
     changeOrigin: true,

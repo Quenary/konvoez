@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { SpeexWorkletNode, loadSpeex } from '@sapphi-red/web-noise-suppressor';
-import speexWorkletUrl from '@sapphi-red/web-noise-suppressor/speexWorklet.js?url';
-import speexWasmUrl from '@sapphi-red/web-noise-suppressor/speex.wasm?url';
+const speexWorkletUrl = 'assets/web-noise-suppressor/speex/workletProcessor.js';
+const speexWasmUrl = 'assets/web-noise-suppressor/speex.wasm';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';

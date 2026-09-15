@@ -33,7 +33,7 @@ type TSocket = Socket<
 // Сообщения должны отправляться всем (кроме создателя), у кого есть доступ
 
 @WebSocketGateway({
-  path: '/api/text',
+  path: '/ws/v1/text',
   cors: { origin: '*' },
 })
 export class TextRoomsGateway

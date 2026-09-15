@@ -38,6 +38,7 @@ import { provideAteEditor } from '@flogeez/angular-tiptap-editor';
 import { supportedLocales } from './app.constants';
 import { messageMaxLength } from '@konvoez/shared';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
+import { environment } from '../environments/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -62,14 +63,14 @@ export const appConfig: ApplicationConfig = {
       provide: VoiceRoomSocketToken,
       useValue: io(window.location.origin, {
         autoConnect: false,
-        path: '/api/voice',
+        path: `${environment.wsPath}/voice`,
       }),
     },
     {
       provide: TextRoomSocketToken,
       useValue: io(window.location.origin, {
         autoConnect: false,
-        path: '/api/text',
+        path: `${environment.wsPath}/text`,
       }),
     },
     {

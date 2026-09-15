@@ -41,7 +41,7 @@ type TSocket = Socket<
 >;
 
 @WebSocketGateway({
-  path: '/api/voice',
+  path: '/ws/v1/voice',
   cors: { origin: '*' },
 })
 export class VoiceRoomsGateway

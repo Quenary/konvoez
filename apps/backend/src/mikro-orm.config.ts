@@ -7,6 +7,7 @@ import { MessageEntitySchema } from './features/text-rooms/text-rooms.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { Migration20260801010402 } from './migrations/Migration20260801010402';
 import { Migration20260915000000 } from './migrations/Migration20260915000000';
+import { getDefaultSqliteDbPath } from './shared/storage.utils';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -59,7 +60,7 @@ export async function createMikroOrmConfig() {
       return defineConfig({
         ...baseOptions,
         driver: await import('@mikro-orm/sqlite').then((m) => m.SqliteDriver),
-        dbName: process.env.DB_NAME || 'konvoez.sqlite',
+        dbName: process.env.DB_NAME || getDefaultSqliteDbPath(),
       });
     }
   }
