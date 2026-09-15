@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
-import { messageListMaxLimit, messageListMinLimit } from './const';
-import { messageContentSchema } from './schemas/fields';
-import { IUser } from './user';
+import { messageListMaxLimit, messageListMinLimit } from '../const';
+import { messageContentSchema } from './fields.schemas';
+import { IUser } from './user.schemas';
 
 const nullableInt = z.number().int().nullable();
 const nullableString = z.string().nullable();

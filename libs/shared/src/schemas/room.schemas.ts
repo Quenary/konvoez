@@ -1,6 +1,10 @@
 import { z } from 'zod';
-import { ERoomType } from '../enums';
-import { roomNameSchema } from './fields';
+import { roomNameSchema } from './fields.schemas';
+
+export enum ERoomType {
+  TEXT = 'TEXT',
+  VOICE = 'VOICE',
+}
 
 export const roomCreateSchema = z.object({
   name: roomNameSchema,

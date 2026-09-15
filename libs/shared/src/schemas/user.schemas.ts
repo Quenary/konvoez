@@ -1,11 +1,16 @@
 import { z } from 'zod';
-import { EUserRole } from './enums';
 import {
   emailSchema,
   fullnameSchema,
   passwordSchema,
   usernameSchema,
-} from './schemas/fields';
+} from './fields.schemas';
+
+export enum EUserRole {
+  OWNER = 'OWNER',
+  ADMIN = 'ADMIN',
+  MEMBER = 'MEMBER',
+}
 
 export const userCreateSchema = z.object({
   username: usernameSchema,

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { IUser } from './user';
+import { IUser } from './user.schemas';
 
 export enum EVoiceRoomEvent {
   JOIN_ROOM = 'join-room',
