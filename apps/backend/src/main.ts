@@ -11,6 +11,14 @@ async function bootstrap() {
   const orm = app.get(MikroORM);
   await orm.migrator.up();
 
+  if ((process.env.DB_ENGINE || 'sqlite') === 'sqlite') {
+    await orm.em.getConnection().executeDump(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA busy_timeout = 5000;
+    `);
+  }
+
   app.setGlobalPrefix('/api/v1');
   app.use(cookieParser());
 
