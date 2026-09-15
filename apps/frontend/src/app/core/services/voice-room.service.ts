@@ -1,4 +1,11 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injectable,
+  Injector,
+  signal,
+} from '@angular/core';
 import {
   IVoiceRoomConnectTransport,
   IVoiceRoomConsume,
@@ -14,6 +21,7 @@ import {
   TVoiceRoomMediaTag,
 } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
+import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
 import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
 import { EStorageKey } from '../../app.enums';
@@ -23,6 +31,7 @@ import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { createEntityAdapter } from '@ngrx/entity';
 import { patchState, signalState } from '@ngrx/signals';
 import { interval } from 'rxjs';
+import { SettingsStore } from '@features/settings/settings.store';
 
 interface IManagedPeer extends IUser {
   consumers: Consumer[];
@@ -47,10 +56,15 @@ const peersInitialState = peersStateAdapter.getInitialState();
 @Injectable({
   providedIn: 'root',
 })
-export class VoiceRoomService {
+export class VoiceRoomService implements IAudioDeviceHandler {
+  private readonly injector = inject(Injector);
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly microphoneService = inject(MicrophoneService);
   private readonly speakerService = inject(SpeakerService);
+
+  private get settingsStore(): InstanceType<typeof SettingsStore> {
+    return this.injector.get(SettingsStore);
+  }
 
   //#region Mediasoup
   private readonly device = new Device();
@@ -434,7 +448,13 @@ export class VoiceRoomService {
         direction: 'send',
       } satisfies IVoiceRoomCreateTransport);
 
-    this.sendTransport = this.device.createSendTransport(result);
+    const iceServers = this.settingsStore.iceServers();
+
+    this.sendTransport = this.device.createSendTransport({
+      ...result,
+      iceServers:
+        iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
+    });
 
     this.sendTransport.on(
       'connect',
@@ -513,7 +533,13 @@ export class VoiceRoomService {
         direction: 'recv',
       } satisfies IVoiceRoomCreateTransport);
 
-    this.recvTransport = this.device.createRecvTransport(result);
+    const iceServers = this.settingsStore.iceServers();
+
+    this.recvTransport = this.device.createRecvTransport({
+      ...result,
+      iceServers:
+        iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
+    });
 
     this.recvTransport.on(
       'connect',

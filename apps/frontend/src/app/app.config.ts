@@ -26,10 +26,6 @@ import { authReducer } from './features/auth/auth.reducer';
 import { AuthEffects } from './features/auth/auth.effects';
 import { AuthActions } from './features/auth/auth.actions';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
-import { settingsReducer } from './features/settings/settings.reducer';
-import { SettingsEffects } from './features/settings/settings.effects';
-import { EStorageKey } from './app.enums';
-import { SettingsActions } from './features/settings/settings.actions';
 import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
@@ -39,12 +35,18 @@ import { supportedLocales } from './app.constants';
 import { messageMaxLength } from '@konvoez/shared';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
+import { AUDIO_DEVICE_HANDLER } from './core/tokens/audio-device-handler.token';
+import { VoiceRoomService } from './core/services/voice-room.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
+    {
+      provide: AUDIO_DEVICE_HANDLER,
+      useExisting: VoiceRoomService,
+    },
     provideTranslateService({
       loader: {
         provide: TranslateLoader,
@@ -52,11 +54,10 @@ export const appConfig: ApplicationConfig = {
       },
       fallbackLang: 'en',
     }),
-    provideEffects(AuthEffects, RoomsEffects, SettingsEffects),
+    provideEffects(AuthEffects, RoomsEffects),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
-      settings: settingsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
     {
@@ -97,21 +98,6 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       const store = inject(Store);
       return store.dispatch(AuthActions.initStart());
-    }),
-    provideAppInitializer(() => {
-      const store = inject(Store);
-      const audioInput = localStorage.getItemJson<MediaDeviceInfo>(
-        EStorageKey.AUDIO_INPUT,
-      );
-      const audioOutput = localStorage.getItemJson<MediaDeviceInfo>(
-        EStorageKey.AUDIO_OUTPUT,
-      );
-      store.dispatch(
-        SettingsActions.init({
-          audioInput,
-          audioOutput,
-        }),
-      );
     }),
     provideAppInitializer(() => localeInitializer()),
     provideTaiga(),

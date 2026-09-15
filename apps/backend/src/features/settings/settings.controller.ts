@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { SettingsService } from './settings.service';
 import { ApiOkResponse } from '@nestjs/swagger';
@@ -27,31 +18,28 @@ export class SettingsController {
     description: 'Get all settings',
   })
   async getAll(): Promise<SettingsDto[]> {
-    return await this.settingsService.findAll();
+    return await this.settingsService.findAllAsDto();
   }
 
-  @Get()
+  @Get(':key')
   @ApiOkResponse({
     type: SettingsDto,
-    description: 'Get setting by id or key',
+    description: 'Get setting by key',
   })
-  async getOne(
-    @Query('id', new ParseIntPipe({ optional: true })) id?: number,
-    @Query('key') key?: ESettingKey,
-  ): Promise<SettingsDto> {
-    return await this.settingsService.findOne({ id, key });
+  async getOne(@Param('key') key: ESettingKey): Promise<SettingsDto> {
+    return await this.settingsService.findOneAsDto(key);
   }
 
-  @Put(':id')
+  @Put(':key')
   @ApiOkResponse({
     type: SettingsDto,
     description: 'Update setting',
   })
   @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
   async update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('key') key: ESettingKey,
     @Body() dto: SettingsUpdateDto,
   ): Promise<SettingsDto> {
-    return await this.settingsService.update(id, dto);
+    return await this.settingsService.updateAsDto(key, dto);
   }
 }

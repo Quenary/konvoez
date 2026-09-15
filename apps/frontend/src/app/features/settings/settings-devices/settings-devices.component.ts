@@ -3,7 +3,6 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MediaDevicesService } from '@core/services/media-devices.service';
-import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiError,
@@ -24,8 +23,7 @@ import {
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { from, switchMap, catchError, of } from 'rxjs';
-import { SettingsActions } from '../settings.actions';
-import { selectAudioInput, selectAudioOutput } from '../settings.selectors';
+import { SettingsStore } from '../settings.store';
 
 @Component({
   selector: 'app-settings-devices',
@@ -60,7 +58,7 @@ import { selectAudioInput, selectAudioOutput } from '../settings.selectors';
   styleUrl: './settings-devices.component.scss',
 })
 export class SettingsDevicesComponent {
-  private readonly store = inject(Store);
+  private readonly settingsStore = inject(SettingsStore);
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
@@ -68,7 +66,7 @@ export class SettingsDevicesComponent {
   /**
    * Selected audio input
    */
-  protected readonly audioInput = this.store.selectSignal(selectAudioInput);
+  protected readonly audioInput = this.settingsStore.audioInput;
   /**
    * Is selected audio input available
    */
@@ -83,7 +81,7 @@ export class SettingsDevicesComponent {
   /**
    * Selected audio output
    */
-  protected readonly audioOutput = this.store.selectSignal(selectAudioOutput);
+  protected readonly audioOutput = this.settingsStore.audioOutput;
   /**
    * Is selected audio output available
    */
@@ -137,13 +135,13 @@ export class SettingsDevicesComponent {
    * Select audio input
    */
   protected onSelectAudioInput(audioInput: MediaDeviceInfo) {
-    this.store.dispatch(SettingsActions.setAudioInput({ audioInput }));
+    this.settingsStore.setAudioInput(audioInput);
   }
 
   /**
    * Select audio output
    */
   protected onSelectAudioOutput(audioOutput: MediaDeviceInfo) {
-    this.store.dispatch(SettingsActions.setAudioOutput({ audioOutput }));
+    this.settingsStore.setAudioOutput(audioOutput);
   }
 }
