@@ -149,3 +149,26 @@ vite.config.ts.timestamp-*
 .angular
 
 __screenshots__/
+
+# SQLite / DB files
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-journal
+
+# SSL Certificates & Keys
+*.pem
+*.key
+*.crt
+*.cert
+*.pfx
+*.p12
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+

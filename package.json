@@ -6,9 +6,10 @@
     "nx": "nx",
     "build": "nx run-many -t build",
     "start:dev": "nx run-many -t serve --outputStyle=stream",
-    "lint": "nx run-many -t lint",
+    "lint": "nx run-many -t eslint:lint",
     "fmt": "nx format:write --all",
     "test": "nx run-many -t test",
+    "semantic-release": "semantic-release",
     "migration:create": "nx run backend:migration-create",
     "prepare": "husky"
   },
