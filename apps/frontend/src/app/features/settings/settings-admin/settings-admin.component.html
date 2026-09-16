@@ -38,8 +38,9 @@
         tuiTextarea
         id="ice-servers-json"
         formControlName="iceServersJson"
-        [min]="3"
-        [max]="12">
+        [min]="8"
+        [max]="16"
+        [placeholder]="defaultIceServers">
       </textarea>
     </tui-textfield>
     <p class="setting-description">

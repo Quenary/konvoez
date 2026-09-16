@@ -13,6 +13,7 @@ import {
 } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+  DEFAULT_ICE_SERVERS,
   ESettingKey,
   iceServersSettingValueSchema,
   SCHEMA_ERROR,
@@ -79,6 +80,8 @@ export class SettingsAdminComponent {
     }),
   });
 
+  protected readonly defaultIceServers = this.stringify(DEFAULT_ICE_SERVERS);
+
   constructor() {
     effect(() => {
       const inviteOnly = this.settingsStore.inviteOnlySignUp();
@@ -87,10 +90,9 @@ export class SettingsAdminComponent {
       this.form.controls.inviteOnlySignUp.setValue(inviteOnly, {
         emitEvent: false,
       });
-      this.form.controls.iceServersJson.setValue(
-        JSON.stringify(iceServers, null, 2),
-        { emitEvent: false },
-      );
+      this.form.controls.iceServersJson.setValue(this.stringify(iceServers), {
+        emitEvent: false,
+      });
     });
   }
 
@@ -116,5 +118,9 @@ export class SettingsAdminComponent {
       key: ESettingKey.ICE_SERVERS,
       value: parsedIceServers,
     });
+  }
+
+  private stringify(value: unknown): string {
+    return JSON.stringify(value, null, 2);
   }
 }
