@@ -147,7 +147,7 @@ export class TextRoomEditorComponent {
       return;
     }
 
-    this.control.setValue('');
+    this.control.reset();
     const editableMessage = this.editableMessage();
     const replyTo = this.replyToMessage();
 
