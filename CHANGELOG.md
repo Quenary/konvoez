@@ -1,3 +1,18 @@
+# [1.1.0](https://github.com/Quenary/konvoez/compare/v1.0.0...v1.1.0) (2026-09-16)
+
+### Bug Fixes
+
+- **i18n:** en translation, typos ([faeb36b](https://github.com/Quenary/konvoez/commit/faeb36be95df83692d1f2ea1595f4590233b6e83))
+- **profile:** ngSrc priority error ([c477860](https://github.com/Quenary/konvoez/commit/c477860559e7fd603391654ffc399abbeefe8016))
+
+### Features
+
+- apply ice servers from settings, refactor settings ([ce2fccb](https://github.com/Quenary/konvoez/commit/ce2fccbb3809625dcb21f3ff95d978246895c282))
+- **frontend:** settings-admin ice servers placeholder ([3c99c6a](https://github.com/Quenary/konvoez/commit/3c99c6a34468c5cba32fe2d2e5e04391ba4af25a))
+- initial reg of `owner` requires token ([fe71eec](https://github.com/Quenary/konvoez/commit/fe71eec7a51d9dd055317a841d007d50eb4c9b66))
+- invite only sign-up ([157bb13](https://github.com/Quenary/konvoez/commit/157bb13e73a773493fe1df5856d7e14421c6dde0))
+- sqlite with wal ([e29d079](https://github.com/Quenary/konvoez/commit/e29d0790c32560d96bca3ab3086c7bb3cdc72aaa))
+
 # 1.0.0 (2026-09-15)
 
 ### Bug Fixes
