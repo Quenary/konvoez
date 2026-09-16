@@ -5,6 +5,10 @@
 # Documentation & Markdown
 README.md
 docs/
+*.md
+
+# CI & GitHub
+.github/
 
 # Logs & Temp
 *.log

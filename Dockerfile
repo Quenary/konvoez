@@ -1,17 +1,21 @@
-# Stage 1: Build frontend and backend
-FROM node:22-bookworm AS builder
+# Stage 1: Build frontend and backend (always run natively on host platform, e.g. amd64)
+FROM --platform=$BUILDPLATFORM node:22-bookworm AS builder
 WORKDIR /app
 
 # Skip mediasoup worker compilation in builder stage since we only compile TS/JS bundles
 ENV MEDIASOUP_WORKER_BIN=/bin/true
+ENV CI=true
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 COPY . .
 
-RUN npx nx run frontend:build:production
-RUN npx nx run backend:build:production
+RUN --mount=type=cache,target=/app/.nx/cache \
+    npx nx run frontend:build:production
+RUN --mount=type=cache,target=/app/.nx/cache \
+    npx nx run backend:build:production
 
 # Stage 2: Install production dependencies for backend (and compile native worker & addons)
 FROM node:22-bookworm-slim AS runner-deps
@@ -20,19 +24,24 @@ WORKDIR /app
 # Enable pip to install build tools (invoke, meson, ninja) in Debian Bookworm environment
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/dist/apps/backend/package.json ./
 
-RUN npm install --omit=dev
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --omit=dev
 
 # Stage 3: Runtime container
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     nginx supervisor curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
