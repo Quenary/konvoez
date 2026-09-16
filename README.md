@@ -48,6 +48,9 @@ docker compose -f docker-compose.build.yml up -d --build
 
 Forward UDP port range `40000-40100` on your router to the host machine running Docker, and set `MEDIASOUP_ANNOUNCED_IP` in `.env` to your public IP.
 
+> [!IMPORTANT]
+> **HTTPS Required for Voice/Microphone**: Modern browsers strictly require a **Secure Context** (`HTTPS` or `http://localhost`) to access microphone and audio devices via the MediaDevices API (`navigator.mediaDevices`). When accessing Konvoez over plain `HTTP` on a remote IP address (e.g., `http://192.168.x.x`), browsers will block microphone and media device access. For remote use, serve the application over HTTPS.
+
 For a detailed explanation of network flows, external reverse proxy configurations (Nginx/Caddy), and host networking mode, see the [Networking & Deployment Guide](docs/NETWORKING.md).
 
 ## Documentation
@@ -58,6 +61,7 @@ For a detailed explanation of network flows, external reverse proxy configuratio
 
 ## TODO
 
+- Add active voice room indication on narrow menu
 - Add message assets (files)
 - Add messages search
 - Add connection state indication

@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, OnDestroy, signal } from '@angular/core';
 import { SpeexWorkletNode, loadSpeex } from '@sapphi-red/web-noise-suppressor';
 const speexWorkletUrl = 'assets/web-noise-suppressor/speex/workletProcessor.js';
 const speexWasmUrl = 'assets/web-noise-suppressor/speex.wasm';
@@ -9,7 +9,7 @@ import { Mutexed } from '@shared/decorators/mutex.decorator';
 const publicMethodsMutex = new Mutex();
 
 @Injectable({ providedIn: 'root' })
-export class MicrophoneService {
+export class MicrophoneService implements OnDestroy {
   private context: AudioContext | null = null;
 
   private inputStream: MediaStream | null = null;
@@ -34,9 +34,12 @@ export class MicrophoneService {
   private readonly _processedStream = signal<MediaStream | null>(null);
   public readonly processedStream = this._processedStream.asReadonly();
 
+  private readonly onDeviceChange = () => this.setDevice(this.device);
+
   constructor() {
-    navigator.mediaDevices.addEventListener('devicechange', () =>
-      this.setDevice(this.device),
+    navigator.mediaDevices?.addEventListener(
+      'devicechange',
+      this.onDeviceChange,
     );
 
     window.addEventListener('click', async () => {
@@ -44,6 +47,13 @@ export class MicrophoneService {
         await this.context.resume();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    navigator.mediaDevices?.removeEventListener(
+      'devicechange',
+      this.onDeviceChange,
+    );
   }
 
   @Mutexed()

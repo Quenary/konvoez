@@ -9,6 +9,12 @@
 export async function getStream(
   device: MediaDeviceInfo | null,
 ): Promise<MediaStream> {
+  if (!navigator?.mediaDevices?.getUserMedia) {
+    throw new Error(
+      'MediaDevices API is not available (requires HTTPS or localhost)',
+    );
+  }
+
   const tryGetStream = async (
     constraints: MediaTrackConstraints | boolean,
   ): Promise<MediaStream | null> => {
@@ -38,7 +44,7 @@ export async function getStream(
   if (exactStream) return exactStream;
 
   // примерное
-  const devices = await navigator.mediaDevices.enumerateDevices();
+  const devices = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
   const audioInputs = devices.filter((d) => d.kind === 'audioinput');
   const normalize = (s: string) => s.toLowerCase().replace(/[^\w]+/g, '');
   const targetName = normalize(device.label);
