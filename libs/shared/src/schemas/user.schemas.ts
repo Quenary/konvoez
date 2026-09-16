@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseEntitySchema } from './base.schemas';
+import { baseEntitySchema, stringSchema } from './base.schemas';
 import {
   emailSchema,
   fullnameSchema,
@@ -13,21 +13,23 @@ export enum EUserRole {
   MEMBER = 'MEMBER',
 }
 
+export const userRoleSchema = z.enum(EUserRole);
+
 export const userCreateSchema = z.object({
   username: usernameSchema,
   password: passwordSchema,
   fullname: fullnameSchema,
   email: emailSchema,
-  setupToken: z.string().trim().optional(),
-  inviteCode: z.string().trim().optional(),
+  setupToken: stringSchema.trim().optional(),
+  inviteCode: stringSchema.trim().optional(),
 });
 
 export const userUpdateSchema = userCreateSchema
   .omit({ setupToken: true, inviteCode: true })
   .partial()
   .extend({
-    role: z.enum(EUserRole).optional(),
-    avatar: z.string().optional(),
+    role: userRoleSchema.optional(),
+    avatar: stringSchema.optional(),
   });
 
 export const userSchema = baseEntitySchema.extend({
@@ -35,9 +37,9 @@ export const userSchema = baseEntitySchema.extend({
   username: usernameSchema,
   fullname: fullnameSchema,
   email: emailSchema,
-  role: z.enum(EUserRole),
-  avatar: z.string().nullish(),
-  avatarUrl: z.string().nullish(),
+  role: userRoleSchema,
+  avatar: stringSchema.nullish(),
+  avatarUrl: stringSchema.nullish(),
 });
 
 export type IUserCreate = z.infer<typeof userCreateSchema>;

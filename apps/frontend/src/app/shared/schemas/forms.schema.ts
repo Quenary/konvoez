@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  ERoomType,
   emailSchema,
   fullnameSchema,
   inviteDefaultTtl,
@@ -8,9 +7,25 @@ import {
   inviteMinTtl,
   passwordSchema,
   roomNameSchema,
+  roomTypeSchema,
+  SCHEMA_ERROR,
+  stringSchema,
   userCreateSchema,
   usernameSchema,
 } from '@konvoez/shared';
+
+const refinePasswordMatch = <
+  T extends z.ZodType<{ password?: string; confirmPassword?: string }>,
+>(
+  schema: T,
+) =>
+  schema.refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    error: SCHEMA_ERROR.PASSWORD_MISMATCH,
+  });
+
+const requiredTrimmedString = (error: string) =>
+  z.string({ error }).trim().min(1, { error });
 
 export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;
@@ -19,24 +34,15 @@ export function getRegisterFormSchema(options: {
   const base = userCreateSchema.extend({
     confirmPassword: passwordSchema,
     setupToken: options.isOwnerSetupRequired
-      ? z
-          .string({ error: 'VALIDATION.SETUP_TOKEN_REQUIRED' })
-          .trim()
-          .min(1, { error: 'VALIDATION.SETUP_TOKEN_REQUIRED' })
-      : z.string().trim().optional(),
+      ? requiredTrimmedString(SCHEMA_ERROR.SETUP_TOKEN_REQUIRED)
+      : stringSchema.trim().optional(),
     inviteCode:
       options.inviteOnlySignUp && !options.isOwnerSetupRequired
-        ? z
-            .string({ error: 'VALIDATION.INVITE_CODE_REQUIRED' })
-            .trim()
-            .min(1, { error: 'VALIDATION.INVITE_CODE_REQUIRED' })
-        : z.string().trim().optional(),
+        ? requiredTrimmedString(SCHEMA_ERROR.INVITE_CODE_REQUIRED)
+        : stringSchema.trim().optional(),
   });
 
-  return base.refine((data) => data.password === data.confirmPassword, {
-    path: ['confirmPassword'],
-    error: 'VALIDATION.PASSWORD_MISMATCH',
-  });
+  return refinePasswordMatch(base);
 }
 
 export const registerFormSchema = getRegisterFormSchema({
@@ -50,10 +56,10 @@ const profileFormBaseSchema = z.object({
   username: usernameSchema,
   fullname: fullnameSchema,
   email: emailSchema,
-  avatar: z.string().nullable(),
+  avatar: stringSchema.nullable(),
   isChangingPassword: z.boolean(),
-  password: z.string(),
-  confirmPassword: z.string(),
+  password: stringSchema,
+  confirmPassword: stringSchema,
   avatarFile: z.unknown().nullable(),
 });
 
@@ -62,21 +68,18 @@ export function getProfileFormSchema(isChangingPassword: boolean) {
     return profileFormBaseSchema;
   }
 
-  return profileFormBaseSchema
-    .extend({
+  return refinePasswordMatch(
+    profileFormBaseSchema.extend({
       password: passwordSchema,
       confirmPassword: passwordSchema,
-    })
-    .refine((data) => data.password === data.confirmPassword, {
-      path: ['confirmPassword'],
-      error: 'VALIDATION.PASSWORD_MISMATCH',
-    });
+    }),
+  );
 }
 
 export const roomFormSchema = z.object({
   name: roomNameSchema,
-  type: z.enum(ERoomType, { error: 'VALIDATION.ROOM_TYPE' }),
-  avatar: z.string().nullable(),
+  type: roomTypeSchema,
+  avatar: stringSchema.nullable(),
   avatarFile: z.unknown().nullable(),
 });
 
@@ -84,18 +87,17 @@ export const inviteMinTtlMinutes = inviteMinTtl / 60_000;
 export const inviteMaxTtlMinutes = inviteMaxTtl / 60_000;
 export const inviteDefaultTtlMinutes = inviteDefaultTtl / 60_000;
 
-export const inviteFormEmailSchema = z
-  .string()
+export const inviteFormEmailSchema = stringSchema
   .trim()
   .refine((val) => val === '' || emailSchema.safeParse(val).success, {
-    error: 'VALIDATION.EMAIL',
+    error: SCHEMA_ERROR.EMAIL,
   });
 
 export const inviteFormTtlSchema = z.coerce
-  .number({ error: 'VALIDATION.REQUIRED' })
-  .int({ error: 'VALIDATION.TTL_RANGE' })
-  .min(inviteMinTtlMinutes, { error: 'VALIDATION.TTL_RANGE' })
-  .max(inviteMaxTtlMinutes, { error: 'VALIDATION.TTL_RANGE' });
+  .number({ error: SCHEMA_ERROR.REQUIRED })
+  .int({ error: SCHEMA_ERROR.TTL_RANGE })
+  .min(inviteMinTtlMinutes, { error: SCHEMA_ERROR.TTL_RANGE })
+  .max(inviteMaxTtlMinutes, { error: SCHEMA_ERROR.TTL_RANGE });
 
 export const inviteCreateFormSchema = z.object({
   email: inviteFormEmailSchema,

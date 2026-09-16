@@ -12,38 +12,39 @@ import {
   usernameMaxLength,
   usernameMinLength,
 } from '../const';
+import { SCHEMA_ERROR, stringSchema } from './base.schemas';
 
 const lengthString = (min: number, max: number, error: string) =>
-  z.string({ error }).min(min, { error }).max(max, { error });
+  stringSchema.min(min, { error }).max(max, { error });
 
 export const usernameSchema = lengthString(
   usernameMinLength,
   usernameMaxLength,
-  'VALIDATION.USERNAME_LENGTH',
+  SCHEMA_ERROR.USERNAME_LENGTH,
 );
 
 export const passwordSchema = lengthString(
   passwordMinLength,
   passwordMaxLength,
-  'VALIDATION.PASSWORD_LENGTH',
-).regex(passwordRegexp, { error: 'VALIDATION.PASSWORD_PATTERN' });
+  SCHEMA_ERROR.PASSWORD_LENGTH,
+).regex(passwordRegexp, { error: SCHEMA_ERROR.PASSWORD_PATTERN });
 
 export const fullnameSchema = lengthString(
   fullnameMinLength,
   fullnameMaxLength,
-  'VALIDATION.FULLNAME_LENGTH',
+  SCHEMA_ERROR.FULLNAME_LENGTH,
 );
 
-export const emailSchema = z.email({ error: 'VALIDATION.EMAIL' });
+export const emailSchema = z.email({ error: SCHEMA_ERROR.EMAIL });
 
 export const messageContentSchema = lengthString(
   messageMinLength,
   messageMaxLength,
-  'VALIDATION.MESSAGE_LENGTH',
+  SCHEMA_ERROR.MESSAGE_LENGTH,
 );
 
 export const roomNameSchema = lengthString(
   roomNameMinLength,
   roomNameMaxLength,
-  'VALIDATION.ROOM_NAME_LENGTH',
+  SCHEMA_ERROR.ROOM_NAME_LENGTH,
 );

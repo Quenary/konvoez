@@ -103,6 +103,7 @@ SETTINGS:
     ICE_SERVERS_DESC: Список STUN/TURN серверов для WebRTC соединений в формате JSON
 VALIDATION:
   REQUIRED: Обязательное поле
+  STRING: Значение должно быть строкой
   TTL_RANGE: Срок действия должен быть от 1 до 1440 минут
   USERNAME_LENGTH: Имя пользователя должно содержать 4–32 символа
   PASSWORD_LENGTH: Пароль должен содержать 12–32 символа

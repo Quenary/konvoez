@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseEntitySchema } from './base.schemas';
+import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { roomNameSchema } from './fields.schemas';
 
 export enum ERoomType {
@@ -7,23 +7,27 @@ export enum ERoomType {
   VOICE = 'VOICE',
 }
 
+export const roomTypeSchema = z.enum(ERoomType, {
+  error: SCHEMA_ERROR.ROOM_TYPE,
+});
+
 export const roomCreateSchema = z.object({
   name: roomNameSchema,
-  type: z.enum(ERoomType, { error: 'VALIDATION.ROOM_TYPE' }),
-  avatar: z.string().optional(),
+  type: roomTypeSchema,
+  avatar: stringSchema.optional(),
 });
 
 export const roomUpdateSchema = z.object({
   name: roomNameSchema,
-  avatar: z.string().nullish(),
+  avatar: stringSchema.nullish(),
 });
 
 export const roomSchema = baseEntitySchema.extend({
   id: z.number().int(),
   name: roomNameSchema,
-  type: z.enum(ERoomType),
-  avatar: z.string().nullish(),
-  avatarUrl: z.string().nullish(),
+  type: roomTypeSchema,
+  avatar: stringSchema.nullish(),
+  avatarUrl: stringSchema.nullish(),
 });
 
 export type IRoomCreate = z.infer<typeof roomCreateSchema>;

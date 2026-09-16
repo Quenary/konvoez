@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseEntitySchema } from './base.schemas';
+import { baseEntitySchema, stringSchema } from './base.schemas';
 import { emailSchema, fullnameSchema, usernameSchema } from './fields.schemas';
 import { inviteDefaultTtl, inviteMaxTtl, inviteMinTtl } from '../const';
 
@@ -34,12 +34,12 @@ export type TInviteStatus = z.infer<typeof inviteStatusSchema>;
 
 export const inviteSchema = baseEntitySchema.extend({
   id: z.number().int(),
-  code: z.string(),
-  email: emailSchema.nullable().optional(),
+  code: stringSchema,
+  email: emailSchema.nullish(),
   author: inviteAuthorSchema,
   expiresAt: z.coerce.date(),
   usedAt: z.coerce.date().nullish(),
-  usedBy: inviteAuthorSchema.nullable().optional(),
+  usedBy: inviteAuthorSchema.nullish(),
   revokedAt: z.coerce.date().nullish(),
   status: inviteStatusSchema,
 });

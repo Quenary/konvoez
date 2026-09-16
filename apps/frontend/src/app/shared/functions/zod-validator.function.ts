@@ -9,6 +9,7 @@ import { assertInInjectionContext, computed, type Signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { merge, startWith } from 'rxjs';
 import { z } from 'zod';
+import { SCHEMA_ERROR } from '@konvoez/shared';
 
 const ZOD_ERROR_KEY = 'zod';
 const ZOD_FORM_ERROR_KEY = 'zodForm';
@@ -20,7 +21,7 @@ type ZodFieldErrors<T extends { [K in keyof T]: AbstractControl }> = {
 };
 
 const firstIssueMessage = (error: z.ZodError): string =>
-  error.issues[0]?.message ?? 'VALIDATION.REQUIRED';
+  error.issues[0]?.message ?? SCHEMA_ERROR.REQUIRED;
 
 const resolveSchema = (
   schema: ZodSchemaInput,

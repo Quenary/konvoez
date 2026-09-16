@@ -13,9 +13,9 @@ import {
 } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  DEFAULT_SCHEMA_ERROR,
   ESettingKey,
   iceServersSettingValueSchema,
+  SCHEMA_ERROR,
 } from '@konvoez/shared';
 import {
   TuiButton,
@@ -38,12 +38,13 @@ function iceServersJsonValidator(
     const result = iceServersSettingValueSchema.safeParse(parsed);
     if (!result.success) {
       return {
-        invalidSchema: result.error.issues[0]?.message ?? DEFAULT_SCHEMA_ERROR,
+        invalidSchema:
+          result.error.issues[0]?.message ?? SCHEMA_ERROR.INVALID_SCHEMA,
       };
     }
     return null;
   } catch {
-    return { invalidSchema: DEFAULT_SCHEMA_ERROR };
+    return { invalidSchema: SCHEMA_ERROR.INVALID_SCHEMA };
   }
 }
 

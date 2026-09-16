@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { baseEntitySchema, DEFAULT_SCHEMA_ERROR } from './base.schemas';
+import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 
 export enum ESettingKey {
   ICE_SERVERS = 'ICE_SERVERS',
@@ -10,27 +10,27 @@ export const iceServerSchema = z.object(
   {
     urls: z.union(
       [
-        z.string({ error: DEFAULT_SCHEMA_ERROR }),
-        z.array(z.string({ error: DEFAULT_SCHEMA_ERROR }), {
-          error: DEFAULT_SCHEMA_ERROR,
+        stringSchema,
+        z.array(stringSchema, {
+          error: SCHEMA_ERROR.INVALID_SCHEMA,
         }),
       ],
-      { error: DEFAULT_SCHEMA_ERROR },
+      { error: SCHEMA_ERROR.INVALID_SCHEMA },
     ),
-    username: z.string().optional(),
-    credential: z.string().optional(),
+    username: stringSchema.optional(),
+    credential: stringSchema.optional(),
     credentialType: z
       .enum(['password', 'oauth'], {
-        error: DEFAULT_SCHEMA_ERROR,
+        error: SCHEMA_ERROR.INVALID_SCHEMA,
       })
       .optional(),
   },
-  { error: DEFAULT_SCHEMA_ERROR },
+  { error: SCHEMA_ERROR.INVALID_SCHEMA },
 );
 export type TIceServer = z.infer<typeof iceServerSchema>;
 
 export const iceServersSettingValueSchema = z.array(iceServerSchema, {
-  error: DEFAULT_SCHEMA_ERROR,
+  error: SCHEMA_ERROR.INVALID_SCHEMA,
 });
 export type TIceServersSettingValue = z.infer<
   typeof iceServersSettingValueSchema
