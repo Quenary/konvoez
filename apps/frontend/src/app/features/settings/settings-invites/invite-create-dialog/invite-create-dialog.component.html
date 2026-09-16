@@ -1,0 +1,82 @@
+@if (createdInvite(); as invite) {
+  <div class="result-container">
+    <p class="success-message">
+      {{ 'SETTINGS.INVITES.CREATED_SUCCESS' | translate }}
+    </p>
+
+    <div class="copy-wrapper">
+      <tui-copy>{{ inviteUrl() }}</tui-copy>
+    </div>
+
+    <div class="dialog-actions">
+      <button
+        tuiButton
+        type="button"
+        (click)="close()">
+        {{ 'GENERAL.CLOSE' | translate }}
+      </button>
+    </div>
+  </div>
+} @else {
+  <form
+    tuiForm="m"
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()">
+    <tui-textfield iconStart="@tui.mail">
+      <label
+        tuiLabel
+        for="invite-email">
+        {{ 'SETTINGS.INVITES.BOUND_EMAIL' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="invite-email"
+        autocomplete="off"
+        formControlName="email"
+        type="email"
+        placeholder="user@example.com" />
+    </tui-textfield>
+    @if (errors().email; as err) {
+      <tui-error [error]="err | translate" />
+    }
+
+    <tui-textfield iconStart="@tui.clock">
+      <label
+        tuiLabel
+        for="invite-ttl">
+        {{ 'SETTINGS.INVITES.TTL_LABEL' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="invite-ttl"
+        formControlName="ttlMinutes"
+        type="number"
+        min="1"
+        max="1440" />
+    </tui-textfield>
+    @if (errors().ttlMinutes; as err) {
+      <tui-error [error]="err | translate" />
+    }
+
+    @if (error(); as err) {
+      <tui-error [error]="err" />
+    }
+
+    <div class="dialog-actions">
+      <button
+        tuiButton
+        appearance="flat"
+        type="button"
+        (click)="close()">
+        {{ 'GENERAL.CANCEL' | translate }}
+      </button>
+
+      <button
+        tuiButton
+        type="submit"
+        [loading]="loading()">
+        {{ 'GENERAL.CREATE' | translate }}
+      </button>
+    </div>
+  </form>
+}

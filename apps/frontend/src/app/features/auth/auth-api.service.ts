@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
-import { IAuthLogin, IUser } from '@konvoez/shared';
+import { IAuthLogin, IUser, IUserCreate } from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -30,6 +30,13 @@ export class AuthApiService {
       `${environment.apiPath}/auth/refresh`,
       {},
       { withCredentials: true },
+    );
+  }
+
+  register(body: IUserCreate): Observable<IUser> {
+    return this.httpClient.post<IUser>(
+      `${environment.apiPath}/auth/register`,
+      body,
     );
   }
 

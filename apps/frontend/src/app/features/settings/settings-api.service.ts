@@ -18,4 +18,14 @@ export class SettingsApiService {
       },
     );
   }
+
+  update(key: string, value: unknown): Observable<TSetting> {
+    return this.httpClient.put<TSetting>(
+      `${environment.apiPath}/settings/${key}`,
+      { value },
+      {
+        withCredentials: true,
+      },
+    );
+  }
 }

@@ -1,15 +1,14 @@
 import { defineEntity, p } from '@mikro-orm/core';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
-import { ESettingKey } from '@konvoez/shared';
+import { ESettingKey, TSetting } from '@konvoez/shared';
 
 export const SettingsEntitySchema = defineEntity({
   name: 'SettingsEntity',
   tableName: 'settings',
   extends: KonvoezBaseEntitySchema,
   properties: {
-    id: p.integer().primary().autoincrement(),
-    key: p.enum(() => ESettingKey).unique(),
-    value: p.json(),
+    key: p.enum(() => ESettingKey).primary(),
+    value: p.json<TSetting['value']>(),
   },
 });
 

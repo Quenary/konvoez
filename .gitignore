@@ -94,6 +94,7 @@ dist
 # vuepress v2.x temp and cache directory
 .temp
 .cache
+tmp
 
 # Sveltekit cache directory
 .svelte-kit/
@@ -125,21 +126,11 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
-# yarn v3
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Project specific
-.turbo
 .konvoez_data/
 
 

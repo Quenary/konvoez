@@ -1,4 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
@@ -7,17 +14,104 @@ import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
+import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { CreateUserDto, GetUserDto } from '../users/users.dto';
+import { ESettingKey, EUserRole } from '@konvoez/shared';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
+import { SettingsService } from '../settings/settings.service';
+import { InvitesService } from '../invites/invites.service';
+import { InviteEntity } from '../invites/invites.entity';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly ownerSetupTokenCacheKey = 'auth:owner_setup_token';
+  private readonly ownerSetupTokenTtl = 5 * 60 * 1000; // 5 minutes
+
   constructor(
     private readonly jwt: JwtService,
     private readonly appService: AppService,
     private readonly passwordService: PasswordService,
     private readonly userService: UsersService,
+    private readonly settingsService: SettingsService,
+    private readonly invitesService: InvitesService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.checkAndGenerateOwnerToken();
+  }
+
+  private async checkAndGenerateOwnerToken(): Promise<void> {
+    const count = await this.userService.count();
+    if (count === 0) {
+      const token = crypto.randomBytes(16).toString('hex');
+      await this.cacheManager.set(
+        this.ownerSetupTokenCacheKey,
+        token,
+        this.ownerSetupTokenTtl,
+      );
+      this.logger.warn(`
+================================================================================
+[OWNER SETUP] Fresh installation detected! No users exist in the database.
+[OWNER SETUP] One-time registration token for OWNER account (valid for 5 minutes):
+${token}
+[OWNER SETUP] If the token expires, restart the instance to generate a new one.
+================================================================================
+`);
+    }
+  }
+
+  async isOwnerSetupRequired(): Promise<boolean> {
+    const count = await this.userService.count();
+    return count === 0;
+  }
+
+  async register(dto: CreateUserDto): Promise<GetUserDto> {
+    const isOwnerSetup = await this.isOwnerSetupRequired();
+    if (isOwnerSetup) {
+      const cachedToken = await this.cacheManager.get<string>(
+        this.ownerSetupTokenCacheKey,
+      );
+      if (!cachedToken) {
+        throw new ForbiddenException(
+          'Owner setup token has expired. Please restart the instance.',
+        );
+      }
+      if (!dto.setupToken || dto.setupToken !== cachedToken) {
+        throw new ForbiddenException('Invalid or missing owner setup token');
+      }
+      const user = await this.userService.create(dto, EUserRole.OWNER);
+      await this.cacheManager.del(this.ownerSetupTokenCacheKey);
+      this.logger.log(`Owner account created. Setup token consumed.`);
+      return this.userService.toDto(user);
+    }
+
+    const inviteOnlySignUp = await this.settingsService.getValue(
+      ESettingKey.INVITE_ONLY_SIGN_UP,
+    );
+
+    if (inviteOnlySignUp && !dto.inviteCode) {
+      throw new ForbiddenException(
+        'Registration is only allowed with a valid invite code',
+      );
+    }
+
+    let invite: InviteEntity | undefined;
+    if (dto.inviteCode) {
+      invite = await this.invitesService.validate(dto.inviteCode, dto.email);
+    }
+
+    const user = await this.userService.create(dto, EUserRole.MEMBER);
+
+    if (invite) {
+      await this.invitesService.consume(invite, user);
+    }
+
+    return this.userService.toDto(user);
+  }
 
   /**
    * Verify user credentials

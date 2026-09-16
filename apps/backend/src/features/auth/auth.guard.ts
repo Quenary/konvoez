@@ -18,9 +18,9 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const roles = this.reflector.get<EUserRole[]>(
+    const roles = this.reflector.getAllAndOverride<EUserRole[]>(
       AuthGuardRoles,
-      context.getHandler(),
+      [context.getHandler(), context.getClass()],
     );
     const user = await this.authService.getMe(request);
     if (!roles || roles.includes(user.role)) {

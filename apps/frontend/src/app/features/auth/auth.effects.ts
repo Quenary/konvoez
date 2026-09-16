@@ -110,7 +110,7 @@ export class AuthEffects {
     this.actions$.pipe(
       ofType(AuthActions.requestRegister),
       switchMap((action) =>
-        this.usersApiService.create(action.body).pipe(
+        this.authApiService.register(action.body).pipe(
           map(() => AuthActions.requestRegisterSuccess()),
           catchError((error) =>
             of(AuthActions.requestRegisterError({ error })),

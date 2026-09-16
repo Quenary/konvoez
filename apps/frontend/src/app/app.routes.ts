@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
   {
@@ -63,6 +64,22 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/settings-devices/settings-devices.component').then(
                 (m) => m.SettingsDevicesComponent,
+              ),
+          },
+          {
+            path: 'invites',
+            canActivate: [adminGuard],
+            loadComponent: () =>
+              import('./features/settings/settings-invites/settings-invites.component').then(
+                (m) => m.SettingsInvitesComponent,
+              ),
+          },
+          {
+            path: 'admin',
+            canActivate: [adminGuard],
+            loadComponent: () =>
+              import('./features/settings/settings-admin/settings-admin.component').then(
+                (m) => m.SettingsAdminComponent,
               ),
           },
         ],

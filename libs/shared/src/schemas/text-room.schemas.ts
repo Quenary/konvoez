@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
-import { messageListMaxLimit, messageListMinLimit } from './const';
-import { messageContentSchema } from './schemas/fields';
-import { IUser } from './user';
+import { baseEntitySchema, stringSchema } from './base.schemas';
+import { messageListMaxLimit, messageListMinLimit } from '../const';
+import { messageContentSchema } from './fields.schemas';
+import { IUser } from './user.schemas';
 
 const nullableInt = z.number().int().nullable();
-const nullableString = z.string().nullable();
+const nullableString = stringSchema.nullable();
 
 export enum ETextRoomEvent {
   JOIN = 'join',
@@ -43,9 +44,9 @@ export type TTextRoomEvent = {
 
 export const messageReplyToSchema = z.object({
   id: z.uuid(),
-  senderId: z.number().int().nullable().optional(),
-  senderUsername: z.string().nullable().optional(),
-  content: z.string().nullable().optional(),
+  senderId: z.number().int().nullish(),
+  senderUsername: stringSchema.nullish(),
+  content: stringSchema.nullish(),
   isDeleted: z.boolean().default(false),
 });
 
@@ -53,23 +54,21 @@ export const messageCreateSchema = z.object({
   recipientId: nullableInt,
   roomId: nullableInt,
   content: messageContentSchema,
-  replyToId: z.uuid().nullable().optional(),
+  replyToId: z.uuid().nullish(),
 });
 
 export const messageEditSchema = z.object({
   content: messageContentSchema,
 });
 
-export const messageSchema = z.object({
+export const messageSchema = baseEntitySchema.extend({
   id: z.uuid(),
   senderId: z.number().int(),
-  senderUsername: z.string(),
+  senderUsername: stringSchema,
   recipientId: nullableInt,
   roomId: nullableInt,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date().nullish(),
   content: messageContentSchema,
-  replyTo: messageReplyToSchema.nullable().optional(),
+  replyTo: messageReplyToSchema.nullish(),
 });
 
 export const messageListRequestSchema = z.object({

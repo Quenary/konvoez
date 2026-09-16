@@ -1,0 +1,157 @@
+<div
+  appearance="floating"
+  tuiCardLarge>
+  <header tuiHeader>
+    <h2 tuiTitle>
+      {{ 'SETTINGS.INVITES.TITLE' | translate }}
+      <span tuiSubtitle>
+        {{ 'SETTINGS.INVITES.SUBTITLE' | translate }}
+      </span>
+    </h2>
+
+    <aside tuiAccessories>
+      <button
+        tuiButton
+        size="m"
+        type="button"
+        iconStart="@tui.plus"
+        (click)="openCreateDialog()">
+        {{ 'SETTINGS.INVITES.CREATE_BUTTON' | translate }}
+      </button>
+    </aside>
+  </header>
+
+  <div class="table-wrapper">
+    <table
+      tuiTable
+      class="invites-table">
+      <thead>
+        <tr>
+          <th
+            tuiTh
+            class="col-status">
+            {{ 'SETTINGS.INVITES.TABLE.STATUS' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-email">
+            {{ 'SETTINGS.INVITES.TABLE.EMAIL' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-user">
+            {{ 'SETTINGS.INVITES.TABLE.AUTHOR' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-user">
+            {{ 'SETTINGS.INVITES.TABLE.USED_BY' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-progress">
+            {{ 'SETTINGS.INVITES.TABLE.PROGRESS' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-actions">
+            {{ 'SETTINGS.INVITES.TABLE.ACTIONS' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody tuiTbody>
+        @for (invite of invites(); track invite.id) {
+          <tr>
+            <td
+              tuiTd
+              class="col-status">
+              <tui-icon
+                class="status-icon"
+                [appearance]="invite.statusData.appearance"
+                [icon]="invite.statusData.icon"
+                [tuiTooltip]="invite.statusData.tooltip | translate" />
+            </td>
+
+            <td
+              tuiTd
+              class="col-email">
+              {{ invite.email }}
+            </td>
+
+            <td
+              tuiTd
+              class="col-user">
+              <span [style.color]="invite.authorUsername | tuiAutoColor">
+                {{ invite.authorUsername }}
+              </span>
+            </td>
+
+            <td
+              tuiTd
+              class="col-user">
+              @if (invite.usedByUsername) {
+                <span [style.color]="invite.usedByUsername | tuiAutoColor">
+                  {{ invite.usedByUsername }}
+                </span>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+
+            <td
+              tuiTd
+              class="col-progress">
+              @if (invite.isActive) {
+                <div class="progress-cell">
+                  <tui-progress-circle
+                    size="xs"
+                    [max]="100"
+                    [style.--tui-progress-color]="invite.progressColor"
+                    [value]="invite.progress" />
+                  <span class="remaining-text">{{ invite.remainingText }}</span>
+                </div>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+
+            <td
+              tuiTd
+              class="col-actions">
+              @if (invite.isActive) {
+                <button
+                  appearance="action"
+                  size="xs"
+                  tuiButton
+                  iconStart="@tui.ban"
+                  type="button"
+                  (click)="revoke(invite.id)">
+                  {{ 'SETTINGS.INVITES.REVOKE' | translate }}
+                </button>
+              } @else {
+                <button
+                  appearance="action"
+                  size="xs"
+                  tuiButton
+                  iconStart="@tui.trash"
+                  type="button"
+                  (click)="delete(invite.id)">
+                  {{ 'SETTINGS.INVITES.DELETE' | translate }}
+                </button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td
+              tuiTd
+              colspan="6"
+              class="empty-cell">
+              {{ 'SETTINGS.INVITES.NO_INVITES' | translate }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

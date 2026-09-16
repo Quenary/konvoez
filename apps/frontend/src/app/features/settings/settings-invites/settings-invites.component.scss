@@ -1,0 +1,66 @@
+:host {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  margin: 0 auto;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-block-start: 1.5rem;
+}
+
+.invites-table {
+  inline-size: 100%;
+
+  th,
+  td {
+    border-inline: none;
+  }
+}
+
+.col-status {
+  inline-size: 4rem;
+  width: 4rem;
+}
+
+.col-email {
+  inline-size: auto;
+}
+
+.col-user {
+  inline-size: 8rem;
+  white-space: nowrap;
+}
+
+.col-progress {
+  inline-size: 11rem;
+  width: 11rem;
+}
+
+.col-actions {
+  inline-size: 8rem;
+  width: 8rem;
+}
+
+.progress-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+
+  .remaining-text {
+    font-size: 0.8125rem;
+    color: var(--tui-text-secondary);
+  }
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--tui-text-secondary);
+}
+
+.muted {
+  color: var(--tui-text-tertiary);
+}

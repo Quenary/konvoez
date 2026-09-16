@@ -60,18 +60,32 @@ export class UsersService {
     return users.map((user) => this.toDto(user));
   }
 
-  async create(dto: CreateUserDto): Promise<UserEntity> {
+  async count(): Promise<number> {
+    const em = this.em.fork();
+    return em.count(UserEntity);
+  }
+
+  async create(
+    dto: CreateUserDto,
+    explicitRole?: EUserRole,
+  ): Promise<UserEntity> {
     const existing = await this.repo.findOne({ username: dto.username });
     if (existing) {
       throw new ConflictException('Username already taken');
     }
-    const anyUser = (await this.em.count(UserEntity)) > 0;
-    // Owner role is only for the first user
-    const role: EUserRole = anyUser ? EUserRole.MEMBER : EUserRole.OWNER;
+    const anyUser = (await this.count()) > 0;
+    if (!anyUser && explicitRole !== EUserRole.OWNER) {
+      throw new ForbiddenException(
+        'Initial setup required: first user must be registered as OWNER with a valid setup token',
+      );
+    }
+
+    const role: EUserRole = explicitRole ?? EUserRole.MEMBER;
     const password = await this.passwordService.hashPassword(dto.password);
+    const { setupToken: _, inviteCode: __, ...userData } = dto;
     const user = this.repo.create(
       {
-        ...dto,
+        ...userData,
         password,
         role,
       },

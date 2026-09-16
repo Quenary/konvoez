@@ -1,0 +1,25 @@
+.result-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.success-message {
+  margin: 0;
+  color: var(--tui-text-primary);
+  font-weight: 500;
+}
+
+.copy-wrapper {
+  padding: 0.75rem 1rem;
+  background: var(--tui-background-neutral-1);
+  border-radius: var(--tui-radius-m);
+  word-break: break-all;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-block-start: 1rem;
+}

@@ -15,7 +15,10 @@ export class TranslateYamlHttpLoader implements TranslateLoader {
       .get(`i18n/${lang}.yaml`, { responseType: 'text' })
       .pipe(
         map((data) => parse(data)),
-        catchError(() => of({})),
+        catchError((err) => {
+          console.error(err);
+          return of({});
+        }),
       );
   }
 }

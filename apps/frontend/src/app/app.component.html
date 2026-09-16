@@ -29,7 +29,7 @@
               type="button"
               iconStart="@tui.settings"
               tuiChevron>
-              {{ 'SETTINGS.TITLE' | translate }}
+              {{ 'MENU.SETTINGS.TITLE' | translate }}
 
               <ng-template>
                 <button
@@ -47,6 +47,24 @@
                   [routerLink]="'/settings/devices'">
                   {{ 'MENU.SETTINGS.DEVICES' | translate }}
                 </button>
+
+                @if (isAdminOrOwner()) {
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    iconStart="@tui.mail"
+                    [routerLink]="'/settings/invites'">
+                    {{ 'MENU.SETTINGS.INVITES' | translate }}
+                  </button>
+
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    iconStart="@tui.shield"
+                    [routerLink]="'/settings/admin'">
+                    {{ 'MENU.SETTINGS.ADMIN' | translate }}
+                  </button>
+                }
               </ng-template>
             </button>
           </tui-aside-group>

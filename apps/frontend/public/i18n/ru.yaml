@@ -5,6 +5,7 @@ GENERAL:
   NO: Нет
   SAVE: Сохранить
   CANCEL: Отмена
+  CREATE: Создать
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
   PERMISSION_ERROR: Нет доступа к устройствам
@@ -20,6 +21,7 @@ GENERAL:
   DRAG_FILE: Перетащите файл
   CLICK_TO_SELECT: Нажмите для выбора
   DROP_IT: Бросай его сюда!
+  CLOSE: Закрыть
 PROFILE:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
@@ -42,6 +44,8 @@ MENU:
     TITLE: Настройки
     PROFILE: Профиль
     DEVICES: Устройства
+    INVITES: Приглашения
+    ADMIN: Администрирование
 ROOMS:
   DELETED_MESSAGE: Удаленное сообщение
   ORIGINAL_MESSAGE_DELETED: Оригинальное сообщение было удалено
@@ -51,7 +55,7 @@ ROOMS:
     EDIT_HEADER: Редактировать комнату
     NAME: Название
     TYPE: Тип
-    TEXT: Тестовая
+    TEXT: Текстовая
     VOICE: Голосовая
 SETTINGS:
   PROFILE:
@@ -67,7 +71,40 @@ SETTINGS:
     API_NOT_AVAILABLE: |
       Данная функция может быть недоступна.
       В таком случае будет использовано устройство по умолчанию.
+  INVITES:
+    TITLE: Приглашения
+    SUBTITLE: Управление одноразовыми приглашениями для регистрации
+    CREATE_BUTTON: Создать приглашение
+    CREATE_TITLE: Создание приглашения
+    NO_INVITES: Нет активных приглашений
+    BOUND_EMAIL: Привязка к email (опционально)
+    TTL_LABEL: Срок действия (в минутах)
+    CREATED_SUCCESS: 'Приглашение успешно создано! Скопируйте ссылку ниже:'
+    REVOKE: Отозвать
+    DELETE: Удалить
+    TABLE:
+      STATUS: Статус
+      EMAIL: Email
+      AUTHOR: Автор
+      USED_BY: Принял
+      PROGRESS: Истекает через
+      ACTIONS: Действия
+    STATUS:
+      ACTIVE: Активно
+      USED: Использовано
+      REVOKED: Отозвано
+      EXPIRED: Истекло
+  ADMIN:
+    TITLE: Администрирование
+    SUBTITLE: Глобальные настройки сервера
+    INVITE_ONLY_SIGN_UP: Регистрация только по приглашению
+    INVITE_ONLY_SIGN_UP_DESC: Разрешать регистрацию новых пользователей только при наличии действующего кода приглашения
+    ICE_SERVERS: Конфигурация ICE серверов (JSON)
+    ICE_SERVERS_DESC: Список STUN/TURN серверов для WebRTC соединений в формате JSON
 VALIDATION:
+  REQUIRED: Обязательное поле
+  STRING: Значение должно быть строкой
+  TTL_RANGE: Срок действия должен быть от 1 до 1440 минут
   USERNAME_LENGTH: Имя пользователя должно содержать 4–32 символа
   PASSWORD_LENGTH: Пароль должен содержать 12–32 символа
   PASSWORD_PATTERN: Пароль должен содержать заглавную, строчную букву и цифру
@@ -77,3 +114,12 @@ VALIDATION:
   ROOM_NAME_LENGTH: Название комнаты должно содержать 1–64 символа
   ROOM_TYPE: Выберите тип комнаты
   MESSAGE_LENGTH: Сообщение должно содержать 1–5000 символов
+  SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации
+  INVITE_CODE_REQUIRED: Код приглашения обязателен для регистрации
+  INVALID_SCHEMA: Неверный формат схемы
+AUTH:
+  OWNER_SETUP_TITLE: Первичная настройка сервера
+  OWNER_SETUP_SUBTITLE: Регистрация первого аккаунта с правами владельца (OWNER)
+  SETUP_TOKEN: Токен настройки
+  SETUP_TOKEN_HINT: Одноразовый токен был выведен в логи сервера при первом запуске
+  INVITE_CODE: Код приглашения
