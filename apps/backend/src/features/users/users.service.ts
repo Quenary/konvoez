@@ -69,10 +69,18 @@ export class UsersService {
     dto: CreateUserDto,
     explicitRole?: EUserRole,
   ): Promise<UserEntity> {
-    const existing = await this.repo.findOne({ username: dto.username });
-    if (existing) {
+    const existingUsername = await this.repo.findOne({
+      username: dto.username,
+    });
+    if (existingUsername) {
       throw new ConflictException('Username already taken');
     }
+
+    const existingEmail = await this.repo.findOne({ email: dto.email });
+    if (existingEmail) {
+      throw new ConflictException('Email already taken');
+    }
+
     const anyUser = (await this.count()) > 0;
     if (!anyUser && explicitRole !== EUserRole.OWNER) {
       throw new ForbiddenException(
@@ -108,6 +116,24 @@ export class UsersService {
     }
     if (dto.role == EUserRole.OWNER) {
       throw new BadRequestException('Owner role cannot be assigned');
+    }
+    if (dto.username) {
+      const existingUsername = await this.repo.findOne({
+        username: dto.username,
+        id: { $ne: id },
+      });
+      if (existingUsername) {
+        throw new ConflictException('Username already taken');
+      }
+    }
+    if (dto.email) {
+      const existingEmail = await this.repo.findOne({
+        email: dto.email,
+        id: { $ne: id },
+      });
+      if (existingEmail) {
+        throw new ConflictException('Email already taken');
+      }
     }
     const { password, ...data } = dto;
     if (password) {
