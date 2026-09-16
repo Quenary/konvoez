@@ -5,6 +5,7 @@ GENERAL:
   NO: No
   SAVE: Save
   CANCEL: Cancel
+  CREATE: Create
   GO_BACK: Go back
   REQ_ERR: Request error
   PERMISSION_ERROR: No access to devices
@@ -20,6 +21,7 @@ GENERAL:
   DRAG_FILE: Drag file here
   CLICK_TO_SELECT: Click to select
   DROP_IT: Drop it here!
+  CLOSE: Close
 PROFILE:
   USERNAME: Username
   PASSWORD: Password
@@ -42,6 +44,8 @@ MENU:
     TITLE: Settings
     PROFILE: Profile
     DEVICES: Devices
+    INVITES: Invites
+    ADMIN: Administration
 ROOMS:
   DELETED_MESSAGE: Deleted message
   ORIGINAL_MESSAGE_DELETED: Original message was deleted
@@ -67,8 +71,39 @@ SETTINGS:
     API_NOT_AVAILABLE: |
       This feature may not be available.
       In this case, the default device will be used.
+  INVITES:
+    TITLE: Invites
+    SUBTITLE: Manage single-use invites for registration
+    CREATE_BUTTON: Create invite
+    CREATE_TITLE: Create invite
+    NO_INVITES: No invites found
+    BOUND_EMAIL: Bind to email (optional)
+    TTL_LABEL: Lifetime (in minutes)
+    CREATED_SUCCESS: 'Invite created successfully! Copy the link below:'
+    REVOKE: Revoke
+    DELETE: Delete
+    TABLE:
+      STATUS: Status
+      EMAIL: Email
+      AUTHOR: Author
+      USED_BY: Accepted by
+      PROGRESS: Expires in
+      ACTIONS: Actions
+    STATUS:
+      ACTIVE: Active
+      USED: Used
+      REVOKED: Revoked
+      EXPIRED: Expired
+  ADMIN:
+    TITLE: Administration
+    SUBTITLE: Global server settings
+    INVITE_ONLY_SIGN_UP: Invite-only registration
+    INVITE_ONLY_SIGN_UP_DESC: Restrict new user registration to valid invite codes only
+    ICE_SERVERS: ICE servers configuration (JSON)
+    ICE_SERVERS_DESC: List of STUN/TURN servers for WebRTC connections in JSON format
 VALIDATION:
   REQUIRED: Field is required
+  TTL_RANGE: Lifetime must be between 1 and 1440 minutes
   USERNAME_LENGTH: Username must be 4–32 characters
   PASSWORD_LENGTH: Password must be 12–32 characters
   PASSWORD_PATTERN: Password must include uppercase, lowercase, and a digit
@@ -79,8 +114,11 @@ VALIDATION:
   ROOM_TYPE: Select a room type
   MESSAGE_LENGTH: Message must be 1–5000 characters
   SETUP_TOKEN_REQUIRED: Setup token is required for initial registration
+  INVITE_CODE_REQUIRED: Invite code is required for registration
+  INVALID_SCHEMA: Invalid schema format
 AUTH:
   OWNER_SETUP_TITLE: Initial Server Setup
   OWNER_SETUP_SUBTITLE: Register the first account with owner privileges (OWNER)
   SETUP_TOKEN: Setup token
   SETUP_TOKEN_HINT: The one-time token was printed in the server logs on first startup
+  INVITE_CODE: Invite code

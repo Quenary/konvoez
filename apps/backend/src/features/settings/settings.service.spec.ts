@@ -74,20 +74,35 @@ describe('SettingsService', () => {
         key: ESettingKey.ICE_SERVERS,
         value: DEFAULT_ICE_SERVERS,
       });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+      });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
     });
 
     it('should keep existing valid setting from database if no env is set', async () => {
       const customIceServers = [{ urls: 'stun:custom.stun.com:3478' }];
-      const existingSetting = {
+      const existingIceSetting = {
         key: ESettingKey.ICE_SERVERS,
         value: customIceServers,
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const existingInviteSetting = {
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockResolvedValue(existingSetting);
+      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+        if (key === ESettingKey.ICE_SERVERS) return existingIceSetting;
+        if (key === ESettingKey.INVITE_ONLY_SIGN_UP)
+          return existingInviteSetting;
+        return null;
+      });
 
       await service.onApplicationBootstrap();
 
@@ -103,8 +118,18 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const validInviteSetting = {
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockResolvedValue(invalidSetting);
+      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+        if (key === ESettingKey.ICE_SERVERS) return invalidSetting;
+        if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return validInviteSetting;
+        return null;
+      });
 
       await service.onApplicationBootstrap();
 
@@ -124,8 +149,18 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const validInviteSetting = {
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockResolvedValue(existingSetting);
+      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+        if (key === ESettingKey.ICE_SERVERS) return existingSetting;
+        if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return validInviteSetting;
+        return null;
+      });
 
       await service.onApplicationBootstrap();
 
@@ -147,6 +182,10 @@ describe('SettingsService', () => {
         key: ESettingKey.ICE_SERVERS,
         value: envIceServers,
       });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+      });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
     });
@@ -160,8 +199,18 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const validInviteSetting = {
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockResolvedValue(existingSetting);
+      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+        if (key === ESettingKey.ICE_SERVERS) return existingSetting;
+        if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return validInviteSetting;
+        return null;
+      });
 
       await service.onApplicationBootstrap();
 

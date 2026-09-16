@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
   resource,
@@ -20,7 +21,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiPassword, TuiTooltip } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   emailSchema,
   fullnameSchema,
@@ -34,8 +35,8 @@ import {
   createZodFieldValidator,
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
-import { AuthApiService } from '../auth-api.service';
-import { catchError, firstValueFrom, map, of } from 'rxjs';
+import { PublicApiService } from '@core/services/public-api.service';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { parseError } from '@shared/functions/parse-error.function';
 
 @Component({
@@ -61,15 +62,15 @@ import { parseError } from '@shared/functions/parse-error.function';
 })
 export class AuthRegisterComponent {
   private readonly store = inject(Store);
-  private readonly authApiService = inject(AuthApiService);
+  private readonly publicApiService = inject(PublicApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
 
-  protected readonly isOwnerSetupRequired = resource({
+  protected readonly publicSettings = resource({
     loader: () =>
       firstValueFrom(
-        this.authApiService.getSetupStatus().pipe(
-          map((res) => res.isOwnerSetupRequired),
+        this.publicApiService.getSettings().pipe(
           catchError((err) => {
             this.tuiNotificationsService
               .open(parseError(err), {
@@ -79,17 +80,33 @@ export class AuthRegisterComponent {
                 label: this.translateService.instant('GENERAL.REQ_ERR'),
               })
               .subscribe();
-            return of(false);
+            return of({
+              isOwnerSetupRequired: false,
+              inviteOnlySignUp: false,
+            });
           }),
         ),
       ),
-    defaultValue: false,
+    defaultValue: {
+      isOwnerSetupRequired: false,
+      inviteOnlySignUp: false,
+    },
   });
+
+  protected readonly isOwnerSetupRequired = computed(
+    () => this.publicSettings.value().isOwnerSetupRequired,
+  );
+  protected readonly inviteOnlySignUp = computed(
+    () => this.publicSettings.value().inviteOnlySignUp,
+  );
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(
     {
       setupToken: new FormControl('', {
+        nonNullable: true,
+      }),
+      inviteCode: new FormControl('', {
         nonNullable: true,
       }),
       username: new FormControl('', {
@@ -116,24 +133,38 @@ export class AuthRegisterComponent {
     {
       validators: [
         createZodFormValidator(() =>
-          getRegisterFormSchema(this.isOwnerSetupRequired.value()),
+          getRegisterFormSchema({
+            isOwnerSetupRequired: this.isOwnerSetupRequired(),
+            inviteOnlySignUp: this.inviteOnlySignUp(),
+          }),
         ),
       ],
     },
   );
   protected readonly errors = createZodError(this.form, () =>
-    getRegisterFormSchema(this.isOwnerSetupRequired.value()),
+    getRegisterFormSchema({
+      isOwnerSetupRequired: this.isOwnerSetupRequired(),
+      inviteOnlySignUp: this.inviteOnlySignUp(),
+    }),
   );
 
   constructor() {
+    const queryParams = this.route.snapshot.queryParams;
+    if (queryParams['code']) {
+      this.form.controls.inviteCode.setValue(queryParams['code']);
+    }
+    if (queryParams['email']) {
+      this.form.controls.email.setValue(queryParams['email']);
+    }
+
     effect(() => {
-      this.isOwnerSetupRequired.value();
+      this.publicSettings.value();
       this.form.updateValueAndValidity();
     });
   }
 
   public onSubmit(): void {
-    if (this.isOwnerSetupRequired.isLoading()) {
+    if (this.publicSettings.isLoading()) {
       return;
     }
 
@@ -142,12 +173,16 @@ export class AuthRegisterComponent {
       return;
     }
 
-    const { confirmPassword: _, setupToken, ...body } = this.form.getRawValue();
+    const {
+      confirmPassword: _,
+      setupToken,
+      inviteCode,
+      ...body
+    } = this.form.getRawValue();
     const payload: IUserCreate = {
       ...body,
-      ...(this.isOwnerSetupRequired.value() && setupToken
-        ? { setupToken }
-        : {}),
+      ...(this.isOwnerSetupRequired() && setupToken ? { setupToken } : {}),
+      ...(!this.isOwnerSetupRequired() && inviteCode ? { inviteCode } : {}),
     };
 
     this.store.dispatch(

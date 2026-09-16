@@ -16,7 +16,7 @@
     </button>
   </header>
 
-  @if (isOwnerSetupRequired.value()) {
+  @if (isOwnerSetupRequired()) {
     <div class="owner-setup-info">
       <div class="owner-setup-title">
         <tui-icon icon="@tui.shield-alert" />
@@ -48,6 +48,29 @@
       <tui-icon tuiPassword />
     </tui-textfield>
     @if (errors().setupToken; as err) {
+      <tui-error [error]="err | translate" />
+    }
+  }
+
+  @if (
+    !isOwnerSetupRequired() &&
+    (inviteOnlySignUp() || form.controls.inviteCode.value)
+  ) {
+    <tui-textfield iconStart="@tui.ticket">
+      <label
+        tuiLabel
+        for="register-invite-code">
+        {{ 'AUTH.INVITE_CODE' | translate }}
+      </label>
+
+      <input
+        tuiInput
+        id="register-invite-code"
+        autocomplete="off"
+        formControlName="inviteCode"
+        type="text" />
+    </tui-textfield>
+    @if (errors().inviteCode; as err) {
       <tui-error [error]="err | translate" />
     }
   }
@@ -157,8 +180,8 @@
     <button
       tuiButton
       type="submit"
-      [disabled]="!form.dirty || isOwnerSetupRequired.isLoading()"
-      [loading]="loading() || isOwnerSetupRequired.isLoading()">
+      [disabled]="!form.dirty || publicSettings.isLoading()"
+      [loading]="loading() || publicSettings.isLoading()">
       <tui-icon icon="@tui.user-plus" />
       {{ 'GENERAL.SIGN_UP' | translate }}
     </button>

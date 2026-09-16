@@ -1,8 +1,11 @@
 import { TuiButton, TuiRoot } from '@taiga-ui/core';
-import { Component, inject, linkedSignal } from '@angular/core';
+import { Component, computed, inject, linkedSignal } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { selectIsAuthorized } from './features/auth/auth.selectors';
+import {
+  selectCurrentUser,
+  selectIsAuthorized,
+} from './features/auth/auth.selectors';
 import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
@@ -12,6 +15,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
+import { EUserRole } from '@konvoez/shared';
 
 @Component({
   selector: 'app-root',
@@ -36,6 +40,12 @@ export class App {
 
   protected readonly isAuthenticated =
     this.store.selectSignal(selectIsAuthorized);
+  protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
+
+  protected readonly isAdminOrOwner = computed(() => {
+    const role = this.currentUser()?.role;
+    return role === EUserRole.ADMIN || role === EUserRole.OWNER;
+  });
 
   protected readonly collapsed = linkedSignal(() => this.isNarrow());
 

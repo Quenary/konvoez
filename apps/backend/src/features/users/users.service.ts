@@ -82,7 +82,7 @@ export class UsersService {
 
     const role: EUserRole = explicitRole ?? EUserRole.MEMBER;
     const password = await this.passwordService.hashPassword(dto.password);
-    const { setupToken: _, ...userData } = dto;
+    const { setupToken: _, inviteCode: __, ...userData } = dto;
     const user = this.repo.create(
       {
         ...userData,

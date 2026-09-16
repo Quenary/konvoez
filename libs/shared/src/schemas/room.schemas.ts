@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { baseEntitySchema } from './base.schemas';
 import { roomNameSchema } from './fields.schemas';
 
 export enum ERoomType {
@@ -17,14 +18,12 @@ export const roomUpdateSchema = z.object({
   avatar: z.string().nullish(),
 });
 
-export const roomSchema = z.object({
+export const roomSchema = baseEntitySchema.extend({
   id: z.number().int(),
   name: roomNameSchema,
   type: z.enum(ERoomType),
   avatar: z.string().nullish(),
   avatarUrl: z.string().nullish(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date().nullish(),
 });
 
 export type IRoomCreate = z.infer<typeof roomCreateSchema>;

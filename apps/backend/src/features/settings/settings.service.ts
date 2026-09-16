@@ -12,10 +12,11 @@ import {
   ESettingKey,
   settingValueSchemas,
   TSetting,
+  TSettingByKey,
   TSettingValueMap,
 } from '@konvoez/shared';
 import { SettingsEntity } from './settings.entity';
-import { SettingsDto, SettingsUpdateDto } from './settings.dto';
+import { SettingsUpdateDto } from './settings.dto';
 
 @Injectable()
 export class SettingsService implements OnApplicationBootstrap {
@@ -104,13 +105,15 @@ export class SettingsService implements OnApplicationBootstrap {
     await em.flush();
   }
 
-  toDto(setting: SettingsEntity): SettingsDto {
+  toDto<K extends ESettingKey = ESettingKey>(
+    setting: SettingsEntity,
+  ): TSettingByKey<K> {
     return {
       key: setting.key,
       value: setting.value,
       createdAt: setting.createdAt,
       updatedAt: setting.updatedAt,
-    } as SettingsDto;
+    } as unknown as TSettingByKey<K>;
   }
 
   async findOne(key: ESettingKey): Promise<SettingsEntity> {
@@ -121,9 +124,9 @@ export class SettingsService implements OnApplicationBootstrap {
     return setting;
   }
 
-  async findOneAsDto(key: ESettingKey): Promise<SettingsDto> {
+  async findOneAsDto<K extends ESettingKey>(key: K): Promise<TSettingByKey<K>> {
     const setting = await this.findOne(key);
-    return this.toDto(setting);
+    return this.toDto<K>(setting);
   }
 
   async getValue<K extends ESettingKey>(key: K): Promise<TSettingValueMap[K]> {
@@ -135,7 +138,7 @@ export class SettingsService implements OnApplicationBootstrap {
     return this.repo.findAll();
   }
 
-  async findAllAsDto(): Promise<SettingsDto[]> {
+  async findAllAsDto(): Promise<TSetting[]> {
     const settings = await this.findAll();
     return settings.map((setting) => this.toDto(setting));
   }
@@ -161,11 +164,11 @@ export class SettingsService implements OnApplicationBootstrap {
     return setting;
   }
 
-  async updateAsDto(
-    key: ESettingKey,
+  async updateAsDto<K extends ESettingKey>(
+    key: K,
     dto: SettingsUpdateDto,
-  ): Promise<SettingsDto> {
+  ): Promise<TSettingByKey<K>> {
     const setting = await this.update(key, dto);
-    return this.toDto(setting);
+    return this.toDto<K>(setting);
   }
 }

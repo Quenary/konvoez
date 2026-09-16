@@ -1,4 +1,5 @@
 export * from './const';
+export * from './schemas/base.schemas';
 export * from './schemas/settings.schemas';
 export * from './schemas/text-room.schemas';
 export * from './schemas/user.schemas';
@@ -7,3 +8,5 @@ export * from './schemas/file.schemas';
 export * from './schemas/fields.schemas';
 export * from './schemas/auth.schemas';
 export * from './schemas/room.schemas';
+export * from './schemas/invite.schemas';
+export * from './schemas/public.schemas';

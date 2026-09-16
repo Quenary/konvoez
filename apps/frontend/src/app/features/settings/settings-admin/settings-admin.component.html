@@ -1,1 +1,61 @@
-<p>settings-admin works!</p>
+<form
+  appearance="floating"
+  tuiCardLarge
+  tuiForm="m"
+  novalidate
+  [formGroup]="form"
+  (ngSubmit)="onSubmit()">
+  <header tuiHeader>
+    <h2 tuiTitle>
+      {{ 'SETTINGS.ADMIN.TITLE' | translate }}
+      <span tuiSubtitle>
+        {{ 'SETTINGS.ADMIN.SUBTITLE' | translate }}
+      </span>
+    </h2>
+  </header>
+
+  <div class="setting-item">
+    <label tuiLabel>
+      <input
+        tuiSwitch
+        formControlName="inviteOnlySignUp"
+        type="checkbox" />
+      {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP' | translate }}
+    </label>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP_DESC' | translate }}
+    </p>
+  </div>
+
+  <div class="setting-item">
+    <tui-textfield class="json-field">
+      <label
+        tuiLabel
+        for="ice-servers-json">
+        {{ 'SETTINGS.ADMIN.ICE_SERVERS' | translate }}
+      </label>
+      <textarea
+        tuiTextarea
+        id="ice-servers-json"
+        formControlName="iceServersJson"
+        [min]="3"
+        [max]="12">
+      </textarea>
+    </tui-textfield>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.ICE_SERVERS_DESC' | translate }}
+    </p>
+    @if (iceServersError; as err) {
+      <tui-error [error]="err | translate" />
+    }
+  </div>
+
+  <footer>
+    <button
+      tuiButton
+      type="submit"
+      [disabled]="form.invalid">
+      {{ 'GENERAL.SAVE' | translate }}
+    </button>
+  </footer>
+</form>

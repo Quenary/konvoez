@@ -15,6 +15,7 @@ jest.mock('@mikro-orm/core', () => {
     }),
     p: createProxy(),
     Cascade: {},
+    EntityManager: class EntityManager {},
   };
 });
 
@@ -33,6 +34,11 @@ import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { Request } from 'express';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { SettingsService } from '../settings/settings.service';
+import { InvitesService } from '../invites/invites.service';
+import { InviteEntity } from '../invites/invites.entity';
+
+import type { Cache } from 'cache-manager';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -40,11 +46,9 @@ describe('AuthService', () => {
   let appService: jest.Mocked<AppService>;
   let passwordService: jest.Mocked<PasswordService>;
   let usersService: jest.Mocked<UsersService>;
-  let cacheManager: {
-    get: jest.Mock;
-    set: jest.Mock;
-    del: jest.Mock;
-  };
+  let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
+  let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
+  let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
 
   const mockUserDto: GetUserDto = {
     id: 1,
@@ -71,6 +75,14 @@ describe('AuthService', () => {
   } as unknown as UserEntity;
 
   beforeEach(async () => {
+    settingsService = {
+      getValue: jest.fn().mockResolvedValue(false),
+    };
+    invitesService = {
+      validate: jest.fn().mockResolvedValue({} as unknown as InviteEntity),
+      consume: jest.fn().mockResolvedValue({} as unknown as InviteEntity),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -102,6 +114,14 @@ describe('AuthService', () => {
             count: jest.fn(),
             create: jest.fn(),
           },
+        },
+        {
+          provide: SettingsService,
+          useValue: settingsService,
+        },
+        {
+          provide: InvitesService,
+          useValue: invitesService,
         },
         {
           provide: CACHE_MANAGER,
@@ -400,6 +420,69 @@ describe('AuthService', () => {
       );
       expect(cacheManager.get).not.toHaveBeenCalled();
       expect(result.role).toBe(EUserRole.MEMBER);
+    });
+
+    it('should throw ForbiddenException when INVITE_ONLY_SIGN_UP is true and no invite code provided', async () => {
+      usersService.count.mockResolvedValue(1);
+      settingsService.getValue.mockResolvedValue(true);
+
+      await expect(service.register(createDto)).rejects.toThrow(
+        new ForbiddenException(
+          'Registration is only allowed with a valid invite code',
+        ),
+      );
+    });
+
+    it('should validate and consume invite when INVITE_ONLY_SIGN_UP is true and invite code is provided', async () => {
+      usersService.count.mockResolvedValue(1);
+      settingsService.getValue.mockResolvedValue(true);
+
+      const mockInvite = {
+        code: 'valid-code-123',
+      } as unknown as InviteEntity;
+      invitesService.validate.mockResolvedValueOnce(mockInvite);
+
+      const createdMember = {
+        ...mockUserEntity,
+        role: EUserRole.MEMBER,
+      } as unknown as UserEntity;
+      const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
+
+      usersService.create.mockResolvedValueOnce(createdMember);
+      usersService.toDto.mockReturnValueOnce(memberDto);
+
+      const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
+      const result = await service.register(dtoWithCode);
+
+      expect(invitesService.validate).toHaveBeenCalledWith(
+        'valid-code-123',
+        createDto.email,
+      );
+      expect(usersService.create).toHaveBeenCalledWith(
+        dtoWithCode,
+        EUserRole.MEMBER,
+      );
+      expect(invitesService.consume).toHaveBeenCalledWith(
+        mockInvite,
+        createdMember,
+      );
+      expect(result.role).toBe(EUserRole.MEMBER);
+    });
+
+    it('should not create user if invite validation fails', async () => {
+      usersService.count.mockResolvedValue(1);
+      settingsService.getValue.mockResolvedValue(true);
+      invitesService.validate.mockRejectedValueOnce(
+        new ForbiddenException('Invalid invite code'),
+      );
+
+      const dtoWithCode = { ...createDto, inviteCode: 'invalid-code' };
+
+      await expect(service.register(dtoWithCode)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(usersService.create).not.toHaveBeenCalled();
+      expect(invitesService.consume).not.toHaveBeenCalled();
     });
   });
 });

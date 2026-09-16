@@ -2,12 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
-import {
-  IAuthLogin,
-  IAuthSetupStatus,
-  IUser,
-  IUserCreate,
-} from '@konvoez/shared';
+import { IAuthLogin, IUser, IUserCreate } from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -35,12 +30,6 @@ export class AuthApiService {
       `${environment.apiPath}/auth/refresh`,
       {},
       { withCredentials: true },
-    );
-  }
-
-  getSetupStatus(): Observable<IAuthSetupStatus> {
-    return this.httpClient.get<IAuthSetupStatus>(
-      `${environment.apiPath}/auth/setup-status`,
     );
   }
 

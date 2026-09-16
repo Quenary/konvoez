@@ -50,11 +50,13 @@ describe('AuthGuard', () => {
 
   const createMockContext = (requestObj: Record<string, unknown> = {}) => {
     const handlerFn = () => undefined;
+    const classType = class MockClass {};
     return {
       switchToHttp: () => ({
         getRequest: () => requestObj,
       }),
       getHandler: () => handlerFn,
+      getClass: () => classType,
     } as unknown as ExecutionContext;
   };
 
@@ -72,6 +74,7 @@ describe('AuthGuard', () => {
           provide: Reflector,
           useValue: {
             get: jest.fn(),
+            getAllAndOverride: jest.fn(),
           },
         },
       ],
@@ -87,15 +90,15 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.get.mockReturnValueOnce(undefined);
+      reflector.getAllAndOverride.mockReturnValueOnce(undefined);
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       const result = await guard.canActivate(context);
 
-      expect(reflector.get).toHaveBeenCalledWith(
-        AuthGuardRoles,
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(AuthGuardRoles, [
         context.getHandler(),
-      );
+        context.getClass(),
+      ]);
       expect(authService.getMe).toHaveBeenCalledWith(request);
       expect(request['author']).toEqual(mockUser);
       expect(result).toBe(true);
@@ -105,7 +108,10 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.get.mockReturnValueOnce([EUserRole.MEMBER, EUserRole.ADMIN]);
+      reflector.getAllAndOverride.mockReturnValueOnce([
+        EUserRole.MEMBER,
+        EUserRole.ADMIN,
+      ]);
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       const result = await guard.canActivate(context);
@@ -118,7 +124,7 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.get.mockReturnValueOnce([EUserRole.ADMIN]);
+      reflector.getAllAndOverride.mockReturnValueOnce([EUserRole.ADMIN]);
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       await expect(guard.canActivate(context)).rejects.toThrow(
@@ -131,7 +137,7 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.get.mockReturnValueOnce([EUserRole.MEMBER]);
+      reflector.getAllAndOverride.mockReturnValueOnce([EUserRole.MEMBER]);
       authService.getMe.mockRejectedValueOnce(
         new UnauthorizedException('Unauthorized'),
       );

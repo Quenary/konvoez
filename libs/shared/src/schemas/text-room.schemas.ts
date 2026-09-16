@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
+import { baseEntitySchema } from './base.schemas';
 import { messageListMaxLimit, messageListMinLimit } from '../const';
 import { messageContentSchema } from './fields.schemas';
 import { IUser } from './user.schemas';
@@ -60,14 +61,12 @@ export const messageEditSchema = z.object({
   content: messageContentSchema,
 });
 
-export const messageSchema = z.object({
+export const messageSchema = baseEntitySchema.extend({
   id: z.uuid(),
   senderId: z.number().int(),
   senderUsername: z.string(),
   recipientId: nullableInt,
   roomId: nullableInt,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date().nullish(),
   content: messageContentSchema,
   replyTo: messageReplyToSchema.nullable().optional(),
 });

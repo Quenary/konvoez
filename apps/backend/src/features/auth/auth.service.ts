@@ -17,9 +17,12 @@ import * as cookie from 'cookie';
 import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
 import { CreateUserDto, GetUserDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
+import { ESettingKey, EUserRole } from '@konvoez/shared';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import { SettingsService } from '../settings/settings.service';
+import { InvitesService } from '../invites/invites.service';
+import { InviteEntity } from '../invites/invites.entity';
 
 @Injectable()
 export class AuthService implements OnApplicationBootstrap {
@@ -32,6 +35,8 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly appService: AppService,
     private readonly passwordService: PasswordService,
     private readonly userService: UsersService,
+    private readonly settingsService: SettingsService,
+    private readonly invitesService: InvitesService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
@@ -84,7 +89,27 @@ ${token}
       return this.userService.toDto(user);
     }
 
+    const inviteOnlySignUp = await this.settingsService.getValue(
+      ESettingKey.INVITE_ONLY_SIGN_UP,
+    );
+
+    if (inviteOnlySignUp && !dto.inviteCode) {
+      throw new ForbiddenException(
+        'Registration is only allowed with a valid invite code',
+      );
+    }
+
+    let invite: InviteEntity | undefined;
+    if (dto.inviteCode) {
+      invite = await this.invitesService.validate(dto.inviteCode, dto.email);
+    }
+
     const user = await this.userService.create(dto, EUserRole.MEMBER);
+
+    if (invite) {
+      await this.invitesService.consume(invite, user);
+    }
+
     return this.userService.toDto(user);
   }
 

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AuthRegisterComponent } from './auth-register.component';
-import { AuthApiService } from '../auth-api.service';
+import { PublicApiService } from '@core/services/public-api.service';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
@@ -13,21 +13,25 @@ describe('AuthRegisterComponent', () => {
   let component: AuthRegisterComponent;
   let fixture: ComponentFixture<AuthRegisterComponent>;
   let store: MockStore;
-  const mockAuthApiService = {
-    getSetupStatus: vi.fn(),
+  const mockPublicApiService = {
+    getSettings: vi.fn(),
   };
 
-  const setupTestBed = async (isOwnerSetupRequired: boolean) => {
-    mockAuthApiService.getSetupStatus.mockReturnValue(
-      of({ isOwnerSetupRequired }),
+  const setupTestBed = async (
+    isOwnerSetupRequired: boolean,
+    inviteOnlySignUp = false,
+    queryParams: Record<string, string> = {},
+  ) => {
+    mockPublicApiService.getSettings.mockReturnValue(
+      of({ isOwnerSetupRequired, inviteOnlySignUp }),
     );
 
     await TestBed.configureTestingModule({
       imports: [AuthRegisterComponent],
       providers: [
         provideTranslateService(),
-        { provide: AuthApiService, useValue: mockAuthApiService },
-        { provide: ActivatedRoute, useValue: {} },
+        { provide: PublicApiService, useValue: mockPublicApiService },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParams } } },
         provideMockStore({
           selectors: [{ selector: selectAuthLoading, value: false }],
         }),
@@ -50,7 +54,7 @@ describe('AuthRegisterComponent', () => {
     });
 
     it('should identify that owner setup is required', () => {
-      expect(component['isOwnerSetupRequired'].value()).toBe(true);
+      expect(component['isOwnerSetupRequired']()).toBe(true);
     });
 
     it('should be invalid when setupToken is empty', () => {
@@ -101,7 +105,7 @@ describe('AuthRegisterComponent', () => {
     });
 
     it('should identify that owner setup is not required', () => {
-      expect(component['isOwnerSetupRequired'].value()).toBe(false);
+      expect(component['isOwnerSetupRequired']()).toBe(false);
     });
 
     it('should be valid without setupToken', () => {
@@ -125,6 +129,53 @@ describe('AuthRegisterComponent', () => {
             password: 'Password123!',
             fullname: 'Regular Member',
             email: 'member@example.com',
+          },
+        }),
+      );
+    });
+  });
+
+  describe('when invite-only mode is enabled', () => {
+    beforeEach(async () => {
+      vi.clearAllMocks();
+      await setupTestBed(false, true);
+    });
+
+    it('should be invalid when inviteCode is missing', () => {
+      component['form'].patchValue({
+        username: 'regularmember',
+        password: 'Password123!',
+        confirmPassword: 'Password123!',
+        fullname: 'Regular Member',
+        email: 'member@example.com',
+        inviteCode: '',
+      });
+
+      expect(component['form'].invalid).toBe(true);
+    });
+
+    it('should be valid and send inviteCode when provided', () => {
+      component['form'].patchValue({
+        username: 'regularmember',
+        password: 'Password123!',
+        confirmPassword: 'Password123!',
+        fullname: 'Regular Member',
+        email: 'member@example.com',
+        inviteCode: 'valid-invite-code',
+      });
+
+      expect(component['form'].valid).toBe(true);
+
+      component.onSubmit();
+
+      expect(store.dispatch).toHaveBeenCalledWith(
+        AuthActions.requestRegister({
+          body: {
+            username: 'regularmember',
+            password: 'Password123!',
+            fullname: 'Regular Member',
+            email: 'member@example.com',
+            inviteCode: 'valid-invite-code',
           },
         }),
       );

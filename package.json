@@ -135,6 +135,7 @@
     "@ngx-translate/http-loader": "^18.0.0",
     "@sapphi-red/web-noise-suppressor": "^0.3.5",
     "@taiga-ui/addon-mobile": "^5.16.0",
+    "@taiga-ui/addon-table": "^5.17.0",
     "@taiga-ui/cdk": "^5.14.0",
     "@taiga-ui/core": "^5.14.0",
     "@taiga-ui/dompurify": "^5.0.1",

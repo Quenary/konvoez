@@ -19,6 +19,7 @@ import {
 import {
   entityConfig,
   setAllEntities,
+  setEntity,
   withEntities,
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
@@ -65,6 +66,10 @@ export const SettingsStore = signalStore(
     iceServers: computed(() => {
       const item = entityMap()[ESettingKey.ICE_SERVERS];
       return (item?.value as TIceServersSettingValue | undefined) ?? [];
+    }),
+    inviteOnlySignUp: computed(() => {
+      const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
+      return (item?.value as boolean | undefined) ?? true;
     }),
   })),
   withMethods(
@@ -120,6 +125,31 @@ export const SettingsStore = signalStore(
                 }),
                 catchError((error) => {
                   patchState(store, { loading: false });
+                  showError(error);
+                  return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
+
+        updateSetting: rxMethod<{ key: ESettingKey; value: unknown }>(
+          pipe(
+            exhaustMap(({ key, value }) =>
+              settingsApiService.update(key, value).pipe(
+                tap((updated) => {
+                  patchState(store, setEntity(updated, settingsConfig));
+                  tuiNotificationsService
+                    .open(
+                      translateService.instant('SETTINGS.ADMIN.SAVED_SUCCESS'),
+                      {
+                        appearance: 'positive',
+                        autoClose: 3000,
+                      },
+                    )
+                    .subscribe();
+                }),
+                catchError((error) => {
                   showError(error);
                   return EMPTY;
                 }),

@@ -1,0 +1,30 @@
+:host {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 40rem;
+  margin: 0 auto;
+}
+
+form[tuiForm] {
+  gap: 2rem;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setting-description {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--tui-text-secondary);
+}
+
+.json-field {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  [tuiLabel] {
+    font-family: var(--tui-typography-family-text);
+  }
+}

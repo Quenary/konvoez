@@ -212,17 +212,6 @@ describe('AuthController', () => {
     });
   });
 
-  describe('setup-status', () => {
-    it('should return isOwnerSetupRequired boolean from authService', async () => {
-      authService.isOwnerSetupRequired.mockResolvedValueOnce(true);
-
-      const result = await controller.getSetupStatus();
-
-      expect(authService.isOwnerSetupRequired).toHaveBeenCalled();
-      expect(result).toEqual({ isOwnerSetupRequired: true });
-    });
-  });
-
   describe('register', () => {
     it('should delegate registration to authService.register and return user', async () => {
       const registerDto = {

@@ -17,7 +17,7 @@ import {
 } from 'rxjs';
 import { AuthApiService } from '@features/auth/auth-api.service';
 
-const ignoreList = ['/login', '/refresh'];
+const ignoreList = ['/auth', '/refresh'];
 
 const ignore = (req: HttpRequest<unknown>): boolean => {
   return ignoreList.some((item) => req.url.includes(item));
