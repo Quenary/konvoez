@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   inject,
+  Injector,
   resource,
 } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -18,9 +19,8 @@ import {
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { InvitesApiService } from './invites-api.service';
-import { InviteCreateDialogComponent } from './invite-create-dialog/invite-create-dialog.component';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { parseError } from '@shared/functions/parse-error.function';
 
 export interface IInviteStatusData {
@@ -88,6 +88,7 @@ export class SettingsInvitesComponent {
   private readonly dialogService = inject(TuiDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
+  private readonly injector = inject(Injector);
 
   protected readonly statusData = INVITE_STATUS_DATA;
 
@@ -147,10 +148,13 @@ export class SettingsInvitesComponent {
     });
   });
 
-  protected openCreateDialog(): void {
+  protected async openCreateDialog(): Promise<void> {
+    const { InviteCreateDialogComponent } =
+      await import('./invite-create-dialog/invite-create-dialog.component');
+
     this.dialogService
       .open<IInvite | null>(
-        new PolymorpheusComponent(InviteCreateDialogComponent),
+        new PolymorpheusComponent(InviteCreateDialogComponent, this.injector),
         {
           label: this.translateService.instant('SETTINGS.INVITES.CREATE_TITLE'),
           size: 'm',

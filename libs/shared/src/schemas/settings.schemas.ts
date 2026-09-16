@@ -1,10 +1,6 @@
 import { z } from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
-
-export enum ESettingKey {
-  ICE_SERVERS = 'ICE_SERVERS',
-  INVITE_ONLY_SIGN_UP = 'INVITE_ONLY_SIGN_UP',
-}
+import { ESettingKey } from '../enums';
 
 export const iceServerSchema = z.object(
   {

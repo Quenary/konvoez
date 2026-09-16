@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   inject,
+  Injector,
   input,
   OnInit,
   signal,
@@ -15,10 +16,8 @@ import {
   selectVoiceRoomsList,
 } from './rooms.selectors';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import {
-  RoomDialogComponent,
-  RoomDialogData,
-} from './room-dialog/room-dialog.component';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
+import type { RoomDialogData } from './room-dialog/room-dialog.component';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
@@ -37,7 +36,6 @@ import {
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
@@ -77,6 +75,7 @@ export class RoomsComponent implements OnInit {
   private readonly tuiResponsiveDialogService = inject(
     TuiResponsiveDialogService,
   );
+  private readonly injector = inject(Injector);
 
   public readonly collapsed = input.required<boolean>();
 
@@ -114,13 +113,19 @@ export class RoomsComponent implements OnInit {
     this.usersStore.loadAll();
   }
 
-  protected addRoom(type: ERoomType): void {
+  protected async addRoom(type: ERoomType): Promise<void> {
+    const { RoomDialogComponent } =
+      await import('./room-dialog/room-dialog.component');
+
     this.tuiDialogService
-      .open<RoomDialogData>(new PolymorpheusComponent(RoomDialogComponent), {
-        closable: true,
-        data: { type },
-        label: this.translateService.instant('ROOMS.DIALOG.ADD_HEADER'),
-      })
+      .open<RoomDialogData>(
+        new PolymorpheusComponent(RoomDialogComponent, this.injector),
+        {
+          closable: true,
+          data: { type },
+          label: this.translateService.instant('ROOMS.DIALOG.ADD_HEADER'),
+        },
+      )
       .subscribe({
         next: (room) => {
           if (!room?.name || !room.type) return;
@@ -136,13 +141,19 @@ export class RoomsComponent implements OnInit {
       });
   }
 
-  protected editRoom(room: IRoom): void {
+  protected async editRoom(room: IRoom): Promise<void> {
+    const { RoomDialogComponent } =
+      await import('./room-dialog/room-dialog.component');
+
     this.tuiDialogService
-      .open<RoomDialogData>(new PolymorpheusComponent(RoomDialogComponent), {
-        closable: true,
-        data: room,
-        label: this.translateService.instant('ROOMS.DIALOG.EDIT_HEADER'),
-      })
+      .open<RoomDialogData>(
+        new PolymorpheusComponent(RoomDialogComponent, this.injector),
+        {
+          closable: true,
+          data: room,
+          label: this.translateService.instant('ROOMS.DIALOG.EDIT_HEADER'),
+        },
+      )
       .subscribe({
         next: (data) => {
           if (!data?.id || !data.name) return;

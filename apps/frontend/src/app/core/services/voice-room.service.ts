@@ -25,7 +25,7 @@ import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
 import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
 import { EStorageKey } from '../../app.enums';
-import { Device } from 'mediasoup-client';
+import type { Device } from 'mediasoup-client';
 import { Consumer, Producer, Transport } from 'mediasoup-client/types';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { createEntityAdapter } from '@ngrx/entity';
@@ -67,7 +67,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   }
 
   //#region Mediasoup
-  private readonly device = new Device();
+  private device: Device | null = null;
 
   private sendTransport: Transport | null = null;
 
@@ -420,6 +420,10 @@ export class VoiceRoomService implements IAudioDeviceHandler {
 
   @Mutexed()
   private async ensureDeviceLoaded() {
+    if (!this.device) {
+      const { Device } = await import('mediasoup-client');
+      this.device = new Device();
+    }
     if (this.device.loaded) {
       return;
     }
@@ -450,7 +454,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
 
     const iceServers = this.settingsStore.iceServers();
 
-    this.sendTransport = this.device.createSendTransport({
+    this.sendTransport = this.device!.createSendTransport({
       ...result,
       iceServers:
         iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
@@ -535,7 +539,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
 
     const iceServers = this.settingsStore.iceServers();
 
-    this.recvTransport = this.device.createRecvTransport({
+    this.recvTransport = this.device!.createRecvTransport({
       ...result,
       iceServers:
         iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
@@ -600,7 +604,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
         EVoiceRoomEvent.CONSUME,
         {
           producerId: data.producerId,
-          rtpCapabilities: this.device.recvRtpCapabilities,
+          rtpCapabilities: this.device!.recvRtpCapabilities,
           transportId: this.recvTransport!.id,
         } satisfies IVoiceRoomConsume,
       );

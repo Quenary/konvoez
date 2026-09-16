@@ -1,11 +1,7 @@
 import { z } from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { roomNameSchema } from './fields.schemas';
-
-export enum ERoomType {
-  TEXT = 'TEXT',
-  VOICE = 'VOICE',
-}
+import { ERoomType } from '../enums';
 
 export const roomTypeSchema = z.enum(ERoomType, {
   error: SCHEMA_ERROR.ROOM_TYPE,

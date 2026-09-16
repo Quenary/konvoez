@@ -30,9 +30,7 @@ import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
 import { localeInitializer } from './core/initializers/locale-initializer';
-import { provideAteEditor } from '@flogeez/angular-tiptap-editor';
 import { supportedLocales } from './app.constants';
-import { messageMaxLength } from '@konvoez/shared';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
 import { AUDIO_DEVICE_HANDLER } from './core/tokens/audio-device-handler.token';
@@ -83,13 +81,7 @@ export const appConfig: ApplicationConfig = {
         return supportedLocales.find((l) => l === locale) || 'en';
       },
     },
-    provideAteEditor({
-      showToolbar: false,
-      floatingToolbar: true,
-      fillContainer: true,
-      showFooter: false,
-      maxCharacters: messageMaxLength,
-    }),
+
     // Initializers
     provideAppInitializer(() => {
       const translateService = inject(TranslateService);

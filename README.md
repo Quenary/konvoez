@@ -61,6 +61,7 @@ For a detailed explanation of network flows, external reverse proxy configuratio
 
 ## TODO
 
+- Load active room's peers on initial frontend loads
 - Add active voice room indication on narrow menu
 - Add message assets (files)
 - Add messages search
