@@ -13,10 +13,11 @@ import {
   settingValueSchemas,
   TSetting,
   TSettingByKey,
+  TSettingItemUpdate,
+  TSettingsUpdate,
   TSettingValueMap,
 } from '@konvoez/shared';
 import { SettingsEntity } from './settings.entity';
-import { SettingsUpdateDto } from './settings.dto';
 
 @Injectable()
 export class SettingsService implements OnApplicationBootstrap {
@@ -143,30 +144,49 @@ export class SettingsService implements OnApplicationBootstrap {
     return settings.map((setting) => this.toDto(setting));
   }
 
+  async updateMany(dtos: TSettingsUpdate): Promise<SettingsEntity[]> {
+    const updatedEntitiesMap = new Map<ESettingKey, SettingsEntity>();
+
+    for (const item of dtos) {
+      const { key, value } = item;
+      const schema = settingValueSchemas[key];
+      if (!schema) {
+        throw new NotFoundException(`Setting with key "${key}" not supported`);
+      }
+
+      const result = schema.safeParse(value);
+      if (!result.success) {
+        throw new BadRequestException(result.error.format());
+      }
+
+      const setting = await this.findOne(key);
+      this.repo.assign(setting, { value: result.data });
+      this.em.persist(setting);
+      updatedEntitiesMap.set(key, setting);
+    }
+
+    await this.em.flush();
+    return Array.from(updatedEntitiesMap.values());
+  }
+
+  async updateManyAsDto(dtos: TSettingsUpdate): Promise<TSetting[]> {
+    const settings = await this.updateMany(dtos);
+    return settings.map((setting) => this.toDto(setting));
+  }
+
   async update(
     key: ESettingKey,
-    dto: SettingsUpdateDto,
+    dto: { value: unknown },
   ): Promise<SettingsEntity> {
-    const schema = settingValueSchemas[key];
-    if (!schema) {
-      throw new NotFoundException(`Setting with key "${key}" not supported`);
-    }
-
-    const result = schema.safeParse(dto.value);
-    if (!result.success) {
-      throw new BadRequestException(result.error.format());
-    }
-
-    const setting = await this.findOne(key);
-    this.repo.assign(setting, { value: result.data });
-    this.em.persist(setting);
-    await this.em.flush();
-    return setting;
+    const [updated] = await this.updateMany([
+      { key, value: dto.value } as TSettingItemUpdate,
+    ]);
+    return updated;
   }
 
   async updateAsDto<K extends ESettingKey>(
     key: K,
-    dto: SettingsUpdateDto,
+    dto: { value: unknown },
   ): Promise<TSettingByKey<K>> {
     const setting = await this.update(key, dto);
     return this.toDto<K>(setting);

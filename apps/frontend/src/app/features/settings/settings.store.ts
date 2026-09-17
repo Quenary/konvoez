@@ -6,6 +6,7 @@ import {
   ESettingKey,
   TIceServersSettingValue,
   TSetting,
+  TSettingsUpdate,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -19,7 +20,7 @@ import {
 import {
   entityConfig,
   setAllEntities,
-  setEntity,
+  setEntities,
   withEntities,
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
@@ -133,12 +134,15 @@ export const SettingsStore = signalStore(
           ),
         ),
 
-        updateSetting: rxMethod<{ key: ESettingKey; value: unknown }>(
+        updateSettings: rxMethod<TSettingsUpdate>(
           pipe(
-            exhaustMap(({ key, value }) =>
-              settingsApiService.update(key, value).pipe(
-                tap((updated) => {
-                  patchState(store, setEntity(updated, settingsConfig));
+            exhaustMap((settings) =>
+              settingsApiService.update(settings).pipe(
+                tap((updatedSettings) => {
+                  patchState(
+                    store,
+                    setEntities(updatedSettings, settingsConfig),
+                  );
                   tuiNotificationsService
                     .open(
                       translateService.instant('SETTINGS.ADMIN.SAVED_SUCCESS'),

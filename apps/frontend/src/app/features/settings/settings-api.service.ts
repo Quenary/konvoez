@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { TSetting } from '@konvoez/shared';
+import { TSetting, TSettingsUpdate } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 
 @Injectable({
@@ -19,10 +19,10 @@ export class SettingsApiService {
     );
   }
 
-  update(key: string, value: unknown): Observable<TSetting> {
-    return this.httpClient.put<TSetting>(
-      `${environment.apiPath}/settings/${key}`,
-      { value },
+  update(settings: TSettingsUpdate): Observable<TSetting[]> {
+    return this.httpClient.put<TSetting[]>(
+      `${environment.apiPath}/settings`,
+      settings,
       {
         withCredentials: true,
       },

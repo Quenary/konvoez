@@ -17,6 +17,7 @@ import {
   ESettingKey,
   iceServersSettingValueSchema,
   SCHEMA_ERROR,
+  TSettingsUpdate,
 } from '@konvoez/shared';
 import {
   TuiButton,
@@ -106,18 +107,32 @@ export class SettingsAdminComponent {
       return;
     }
 
-    const { inviteOnlySignUp, iceServersJson } = this.form.getRawValue();
-    const parsedIceServers = JSON.parse(iceServersJson);
+    const updates: TSettingsUpdate = [];
 
-    this.settingsStore.updateSetting({
-      key: ESettingKey.INVITE_ONLY_SIGN_UP,
-      value: inviteOnlySignUp,
-    });
+    if (this.form.controls.inviteOnlySignUp.dirty) {
+      updates.push({
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: this.form.controls.inviteOnlySignUp.getRawValue(),
+      });
+    }
 
-    this.settingsStore.updateSetting({
-      key: ESettingKey.ICE_SERVERS,
-      value: parsedIceServers,
-    });
+    if (this.form.controls.iceServersJson.dirty) {
+      const parsedIceServers = JSON.parse(
+        this.form.controls.iceServersJson.getRawValue(),
+      );
+      updates.push({
+        key: ESettingKey.ICE_SERVERS,
+        value: parsedIceServers,
+      });
+    }
+
+    if (updates.length === 0) {
+      return;
+    }
+
+    this.settingsStore.updateSettings(updates);
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
   }
 
   private stringify(value: unknown): string {

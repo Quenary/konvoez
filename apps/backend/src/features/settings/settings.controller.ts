@@ -54,21 +54,21 @@ export class SettingsController {
     return await this.settingsService.findOneAsDto(key);
   }
 
-  @Put(':key')
+  @Put()
   @ApiOkResponse({
     schema: {
-      oneOf: [
-        { $ref: getSchemaPath(IceServersSettingDto) },
-        { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
-      ],
+      type: 'array',
+      items: {
+        oneOf: [
+          { $ref: getSchemaPath(IceServersSettingDto) },
+          { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
+        ],
+      },
     },
-    description: 'Update setting',
+    description: 'Update settings',
   })
   @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
-  async update<K extends ESettingKey>(
-    @Param('key') key: K,
-    @Body() dto: SettingsUpdateDto,
-  ): Promise<TSettingByKey<K>> {
-    return await this.settingsService.updateAsDto(key, dto);
+  async update(@Body() dtos: SettingsUpdateDto): Promise<TSetting[]> {
+    return await this.settingsService.updateManyAsDto(dtos);
   }
 }

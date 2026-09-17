@@ -19,6 +19,7 @@ describe('SettingsStore', () => {
   let store: InstanceType<typeof SettingsStore>;
   let apiService: {
     list: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   let audioDeviceHandler: IAudioDeviceHandler;
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
@@ -38,6 +39,7 @@ describe('SettingsStore', () => {
 
     apiService = {
       list: vi.fn().mockReturnValue(of(mockSettings)),
+      update: vi.fn().mockReturnValue(of(mockSettings)),
     };
 
     audioDeviceHandler = {
@@ -149,5 +151,29 @@ describe('SettingsStore', () => {
 
     expect(apiService.list).toHaveBeenCalled();
     expect(store.settings()).toEqual(mockSettings);
+  });
+
+  it('should call update and patch store entities on updateSettings', () => {
+    const updatedSettings: TSetting[] = [
+      {
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: false,
+        createdAt: new Date(),
+        updatedAt: null,
+      },
+    ];
+    apiService.update.mockReturnValue(of(updatedSettings));
+
+    store.updateSettings([
+      { key: ESettingKey.INVITE_ONLY_SIGN_UP, value: false },
+    ]);
+
+    expect(apiService.update).toHaveBeenCalledWith([
+      { key: ESettingKey.INVITE_ONLY_SIGN_UP, value: false },
+    ]);
+    expect(store.entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP]).toEqual(
+      updatedSettings[0],
+    );
+    expect(mockNotifications.open).toHaveBeenCalled();
   });
 });
