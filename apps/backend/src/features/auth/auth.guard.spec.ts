@@ -15,6 +15,7 @@ jest.mock('@mikro-orm/core', () => {
     }),
     p: createProxy(),
     Cascade: {},
+    UniqueConstraintViolationException: class UniqueConstraintViolationException extends Error {},
   };
 });
 

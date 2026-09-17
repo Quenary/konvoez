@@ -16,7 +16,7 @@ export class SpeakerService implements OnDestroy {
   };
 
   constructor() {
-    navigator.mediaDevices.addEventListener(
+    navigator.mediaDevices?.addEventListener(
       'devicechange',
       this.onDeviceChange,
     );
@@ -40,7 +40,7 @@ export class SpeakerService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    navigator.mediaDevices.removeEventListener(
+    navigator.mediaDevices?.removeEventListener(
       'devicechange',
       this.onDeviceChange,
     );

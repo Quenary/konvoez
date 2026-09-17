@@ -55,7 +55,7 @@
     <button
       tuiButton
       type="submit"
-      [disabled]="form.invalid">
+      [disabled]="form.invalid || !form.dirty">
       {{ 'GENERAL.SAVE' | translate }}
     </button>
   </footer>

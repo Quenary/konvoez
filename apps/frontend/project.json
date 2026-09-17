@@ -24,7 +24,13 @@
         "allowedCommonJsDependencies": [
           "dayjs",
           "dayjs/**/*",
-          "mediasoup-client"
+          "mediasoup-client",
+          "debug",
+          "h264-profile-level-id",
+          "events-alias",
+          "fake-mediastreamtrack",
+          "awaitqueue",
+          "sdp-transform"
         ],
         "assets": [
           {
@@ -61,8 +67,8 @@
           "budgets": [
             {
               "type": "initial",
-              "maximumWarning": "500kb",
-              "maximumError": "5mb"
+              "maximumWarning": "1mb",
+              "maximumError": "2mb"
             },
             {
               "type": "anyComponentStyle",

@@ -6,12 +6,7 @@ import {
   passwordSchema,
   usernameSchema,
 } from './fields.schemas';
-
-export enum EUserRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
-}
+import { EUserRole } from '../enums';
 
 export const userRoleSchema = z.enum(EUserRole);
 

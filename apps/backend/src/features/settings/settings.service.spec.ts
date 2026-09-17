@@ -298,4 +298,40 @@ describe('SettingsService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('updateMany', () => {
+    it('should update multiple settings in a single transaction', async () => {
+      const existingIce = {
+        key: ESettingKey.ICE_SERVERS,
+        value: DEFAULT_ICE_SERVERS,
+      } as SettingsEntity;
+      const existingInvite = {
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: true,
+      } as SettingsEntity;
+
+      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+        if (key === ESettingKey.ICE_SERVERS) return existingIce;
+        if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return existingInvite;
+        return null;
+      });
+
+      const newIceServers = [{ urls: 'stun:new.example.com:3478' }];
+      const result = await service.updateMany([
+        { key: ESettingKey.INVITE_ONLY_SIGN_UP, value: false },
+        { key: ESettingKey.ICE_SERVERS, value: newIceServers },
+      ]);
+
+      expect(repo.assign).toHaveBeenCalledWith(existingInvite, {
+        value: false,
+      });
+      expect(repo.assign).toHaveBeenCalledWith(existingIce, {
+        value: newIceServers,
+      });
+      expect(em.persist).toHaveBeenCalledWith(existingInvite);
+      expect(em.persist).toHaveBeenCalledWith(existingIce);
+      expect(em.flush).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([existingInvite, existingIce]);
+    });
+  });
 });

@@ -1,6 +1,6 @@
 # Konvoez
 
-Konvoez is a self-hosted, single-server voice and text communication platform (Discord-like alternative where the deployed application instance acts as the server itself). It enables private communities and teams to create and manage custom text and voice rooms on self-hosted infrastructure.
+Konvoez is a self-hosted, single-server voice and text communication platform (Discord-like alternative where the deployed application instance acts as the server itself). Designed for friends to hang out, not for production use.
 
 ## Table of Contents
 
@@ -19,36 +19,40 @@ Konvoez is a self-hosted, single-server voice and text communication platform (D
 
 ## Deployment
 
-### Option 1: Using Prebuilt Image (Recommended)
-
-Run the prebuilt container image from GitHub Container Registry (`ghcr.io/quenary/konvoez:1`):
-
-1. Copy `.env.example` to `.env` and configure your secrets and settings:
+1. Copy `.env.example` to `.env` and set required variables:
 
    ```bash
    cp .env.example .env
+   nano .env
    ```
 
-   > **Note**: `JWT_SECRET` and `MASTER_KEY` must be configured in `.env` for secure operation.
+2. Start the server:
 
-2. Start the application using `docker-compose.yml`:
-   ```bash
-   docker compose up -d
-   ```
+### Option 1: Prebuilt Image (Recommended)
+
+Run via [docker-compose.yml](docker-compose.yml):
+
+```bash
+docker compose up -d
+```
 
 ### Option 2: Building from Source
 
-If you want to build the container directly from local source code:
+Build and run via [docker-compose.build.yml](docker-compose.build.yml):
 
 ```bash
 docker compose -f docker-compose.build.yml up -d --build
 ```
 
-### Important: Voice Calls Configuration
+> [!IMPORTANT]
+> **Initial OWNER Setup**: On a fresh install, a one-time token (valid for 5 minutes) is printed to the container logs (`docker compose logs`). It is required to register the initial `OWNER` account.
 
-Forward UDP port range `40000-40100` on your router to the host machine running Docker, and set `MEDIASOUP_ANNOUNCED_IP` in `.env` to your public IP.
-
-For a detailed explanation of network flows, external reverse proxy configurations (Nginx/Caddy), and host networking mode, see the [Networking & Deployment Guide](docs/NETWORKING.md).
+> [!IMPORTANT]
+> **Voice Calls & HTTPS**:
+>
+> - **Ports & IP**: Forward UDP `40000-40100` and set `MEDIASOUP_ANNOUNCED_IP` in `.env` to your public IP/hostname.
+> - **HTTPS Required**: Browsers strictly require HTTPS for audio devices to work.
+> - See the [Networking & Deployment Guide](docs/NETWORKING.md) for reverse proxy (Caddy/Nginx) configurations.
 
 ## Documentation
 
@@ -58,6 +62,8 @@ For a detailed explanation of network flows, external reverse proxy configuratio
 
 ## TODO
 
+- Load active room's peers on initial frontend loads
+- Add active voice room indication on narrow menu
 - Add message assets (files)
 - Add messages search
 - Add connection state indication

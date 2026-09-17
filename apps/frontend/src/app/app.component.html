@@ -16,11 +16,15 @@
           </button>
         </header>
 
-        <app-rooms [collapsed]="collapsed()"></app-rooms>
+        @defer {
+          <app-rooms [collapsed]="collapsed()"></app-rooms>
+        }
 
         <footer>
-          <app-voice-room-panel
-            [collapsed]="collapsed()"></app-voice-room-panel>
+          @defer {
+            <app-voice-room-panel
+              [collapsed]="collapsed()"></app-voice-room-panel>
+          }
 
           <tui-aside-group>
             <button

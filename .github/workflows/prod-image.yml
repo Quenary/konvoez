@@ -81,7 +81,7 @@ jobs:
           tags: ${{ steps.app-meta.outputs.tags }}
           build-args: |
             VERSION=${{ steps.get-tags.outputs.prefixed }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=prod-image
+          cache-to: type=gha,mode=max,scope=prod-image
           labels: |
             ${{ steps.app-meta.outputs.labels }}

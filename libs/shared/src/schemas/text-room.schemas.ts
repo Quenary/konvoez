@@ -4,19 +4,10 @@ import { baseEntitySchema, stringSchema } from './base.schemas';
 import { messageListMaxLimit, messageListMinLimit } from '../const';
 import { messageContentSchema } from './fields.schemas';
 import { IUser } from './user.schemas';
+import { ETextRoomEvent } from '../enums';
 
 const nullableInt = z.number().int().nullable();
 const nullableString = stringSchema.nullable();
-
-export enum ETextRoomEvent {
-  JOIN = 'join',
-  LEAVE = 'leave',
-  MESSAGE_CREATED = 'message-created',
-  MESSAGE_EDITED = 'message-edited',
-  MESSAGE_DELETED = 'message-deleted',
-  USER_TYPING = 'user-typing',
-  ERROR = 'error',
-}
 
 export type TTextRoomEventPayloadMap = {
   [ETextRoomEvent.JOIN]: ITextRoomJoin;

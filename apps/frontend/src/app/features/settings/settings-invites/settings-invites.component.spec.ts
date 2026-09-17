@@ -147,7 +147,7 @@ describe('SettingsInvitesComponent', () => {
   it('should open create dialog when openCreateDialog is called', async () => {
     await setupTestBed([]);
 
-    component['openCreateDialog']();
+    await component['openCreateDialog']();
 
     expect(mockDialogService.open).toHaveBeenCalled();
   });

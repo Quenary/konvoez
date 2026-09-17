@@ -2,6 +2,7 @@
   "name": "shared",
   "version": "0.0.1",
   "private": true,
+  "sideEffects": false,
   "type": "commonjs",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",

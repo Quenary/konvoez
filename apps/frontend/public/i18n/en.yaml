@@ -101,6 +101,7 @@ SETTINGS:
     INVITE_ONLY_SIGN_UP_DESC: Restrict new user registration to valid invite codes only
     ICE_SERVERS: ICE servers configuration (JSON)
     ICE_SERVERS_DESC: List of STUN/TURN servers for WebRTC connections in JSON format
+    SAVED_SUCCESS: Settings saved successfully
 VALIDATION:
   REQUIRED: Field is required
   STRING: Value must be a string

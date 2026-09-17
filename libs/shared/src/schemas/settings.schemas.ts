@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
+import { ESettingKey } from '../enums';
 
-export enum ESettingKey {
-  ICE_SERVERS = 'ICE_SERVERS',
-  INVITE_ONLY_SIGN_UP = 'INVITE_ONLY_SIGN_UP',
-}
+/* ==========================================================================
+   ICE Servers Setting
+   ========================================================================== */
 
 export const iceServerSchema = z.object(
   {
@@ -40,20 +40,30 @@ export const DEFAULT_ICE_SERVERS: TIceServersSettingValue = [
   {
     urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'],
   },
+  {
+    urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.nextcloud.com:443'],
+  },
+  {
+    urls: ['stun:stun.sipnet.ru:3478', 'stun:stun.demos.ru:3478'],
+  },
+  {
+    urls: ['stun:stun.qq.com:3478', 'stun:stun.miwifi.com:3478'],
+  },
 ];
 
-export const iceServersSettingSchema = baseEntitySchema.extend({
+export const iceServersSettingBaseSchema = z.object({
   key: z.literal(ESettingKey.ICE_SERVERS),
   value: iceServersSettingValueSchema,
 });
+
+export const iceServersSettingSchema = iceServersSettingBaseSchema.extend(
+  baseEntitySchema.shape,
+);
 export type TIceServersSetting = z.infer<typeof iceServersSettingSchema>;
 
-export const iceServersSettingUpdateSchema = z.object({
-  value: iceServersSettingValueSchema,
-});
-export type TIceServersSettingUpdate = z.infer<
-  typeof iceServersSettingUpdateSchema
->;
+/* ==========================================================================
+   Invite-Only Sign Up Setting
+   ========================================================================== */
 
 export const inviteOnlySignUpSettingValueSchema = z.boolean();
 export type TInviteOnlySignUpSettingValue = z.infer<
@@ -62,20 +72,20 @@ export type TInviteOnlySignUpSettingValue = z.infer<
 
 export const DEFAULT_INVITE_ONLY_SIGN_UP: TInviteOnlySignUpSettingValue = true;
 
-export const inviteOnlySignUpSettingSchema = baseEntitySchema.extend({
+export const inviteOnlySignUpSettingBaseSchema = z.object({
   key: z.literal(ESettingKey.INVITE_ONLY_SIGN_UP),
   value: inviteOnlySignUpSettingValueSchema,
 });
+
+export const inviteOnlySignUpSettingSchema =
+  inviteOnlySignUpSettingBaseSchema.extend(baseEntitySchema.shape);
 export type TInviteOnlySignUpSetting = z.infer<
   typeof inviteOnlySignUpSettingSchema
 >;
 
-export const inviteOnlySignUpSettingUpdateSchema = z.object({
-  value: inviteOnlySignUpSettingValueSchema,
-});
-export type TInviteOnlySignUpSettingUpdate = z.infer<
-  typeof inviteOnlySignUpSettingUpdateSchema
->;
+/* ==========================================================================
+   Maps, Unions & Bulk Update Schemas
+   ========================================================================== */
 
 export const settingValueSchemas = {
   [ESettingKey.ICE_SERVERS]: iceServersSettingValueSchema,
@@ -85,11 +95,6 @@ export const settingValueSchemas = {
 export const defaultSettingValues = {
   [ESettingKey.ICE_SERVERS]: DEFAULT_ICE_SERVERS,
   [ESettingKey.INVITE_ONLY_SIGN_UP]: DEFAULT_INVITE_ONLY_SIGN_UP,
-} as const;
-
-export const settingUpdateSchemas = {
-  [ESettingKey.ICE_SERVERS]: iceServersSettingUpdateSchema,
-  [ESettingKey.INVITE_ONLY_SIGN_UP]: inviteOnlySignUpSettingUpdateSchema,
 } as const;
 
 export type TSettingValueMap = {
@@ -106,7 +111,11 @@ export type TSettingByKey<K extends ESettingKey> = Extract<
   { key: K }
 >;
 
-export const settingsUpdateSchema = z.object({
-  value: z.unknown(),
-});
+export const settingItemUpdateSchema = z.discriminatedUnion('key', [
+  iceServersSettingBaseSchema,
+  inviteOnlySignUpSettingBaseSchema,
+]);
+export type TSettingItemUpdate = z.infer<typeof settingItemUpdateSchema>;
+
+export const settingsUpdateSchema = z.array(settingItemUpdateSchema);
 export type TSettingsUpdate = z.infer<typeof settingsUpdateSchema>;
