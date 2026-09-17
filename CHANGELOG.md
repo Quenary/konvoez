@@ -1,3 +1,18 @@
+# [1.2.0](https://github.com/Quenary/konvoez/compare/v1.1.0...v1.2.0) (2026-09-17)
+
+### Bug Fixes
+
+- **backend:** validate unique email (409) ([2b50d7b](https://github.com/Quenary/konvoez/commit/2b50d7bae869d4baf8e10cca48af4b3aecd59abb))
+- frontend initial load in insecure context ([b71db09](https://github.com/Quenary/konvoez/commit/b71db0933e360d9b9a2130d0f4c1a4f649321820))
+- **frontend:** optimize bundle size ([4ef0b8c](https://github.com/Quenary/konvoez/commit/4ef0b8cce05caa3324f3f25a2b6764ec7f33a8f7))
+- **frontend:** reset message input on send ([425d1dd](https://github.com/Quenary/konvoez/commit/425d1dd51834c5bbadf93b8e0f82b488f8cfc9a4))
+- **frontend:** SETTINGS.ADMIN.SAVED_SUCCESS translation ([e542a74](https://github.com/Quenary/konvoez/commit/e542a747e45aee10d85691a09dc5ec6269578e05))
+- settings update ([ac78596](https://github.com/Quenary/konvoez/commit/ac7859638a96669600fa32ccba03532c216479e0))
+
+### Features
+
+- favicon ([822e01e](https://github.com/Quenary/konvoez/commit/822e01efa80cf7f19fc9c9d9562fbb5ba5616ebb))
+
 # [1.1.0](https://github.com/Quenary/konvoez/compare/v1.0.0...v1.1.0) (2026-09-16)
 
 ### Bug Fixes
