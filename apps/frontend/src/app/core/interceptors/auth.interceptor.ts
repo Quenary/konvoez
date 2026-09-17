@@ -17,7 +17,7 @@ import {
 } from 'rxjs';
 import { AuthApiService } from '@features/auth/auth-api.service';
 
-const ignoreList = ['/auth', '/refresh'];
+const ignoreList = ['/login', '/refresh', '/register'];
 
 const ignore = (req: HttpRequest<unknown>): boolean => {
   return ignoreList.some((item) => req.url.includes(item));
@@ -60,7 +60,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             return next(req.clone()).pipe(
               catchError((error) => {
                 if (isRefreshable(req, error)) {
-                  router.navigate(['/auth']);
+                  const isAuthMe = req.url.includes('/auth/me');
+                  const isOnAuthPage =
+                    router.url.startsWith('/auth') ||
+                    window.location.pathname.startsWith('/auth');
+
+                  if (!isAuthMe && !isOnAuthPage) {
+                    router.navigate(['/auth']);
+                  }
                 }
                 return throwError(() => error);
               }),
