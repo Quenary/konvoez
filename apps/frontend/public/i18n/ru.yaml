@@ -1,6 +1,7 @@
 GENERAL:
   HELLO: Привет!
   TITLE: KonvoEZ
+  SEARCH: Поиск
   YES: Да
   NO: Нет
   SAVE: Сохранить
@@ -47,6 +48,7 @@ MENU:
     INVITES: Приглашения
     ADMIN: Администрирование
 ROOMS:
+  SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
   ORIGINAL_MESSAGE_DELETED: Оригинальное сообщение было удалено
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?

@@ -61,6 +61,8 @@ type TextRoomState = {
   editableMessageId: string | null;
   replyToMessageId: string | null;
   targetScrollMessageId: string | null;
+  searchQuery: string | null;
+  isSearchOpen: boolean;
 };
 
 function toMessageEntity(
@@ -83,10 +85,18 @@ export const TextRoomStore = signalStore(
     editableMessageId: null,
     replyToMessageId: null,
     targetScrollMessageId: null,
+    searchQuery: null,
+    isSearchOpen: false,
   }),
   withEntities<IMessageEntity>(),
   withComputed(
-    ({ entities, editableMessageId, replyToMessageId, entityMap }) => {
+    ({
+      entities,
+      editableMessageId,
+      replyToMessageId,
+      entityMap,
+      searchQuery,
+    }) => {
       const messages = computed(() =>
         [...entities()].sort(
           (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
@@ -95,6 +105,7 @@ export const TextRoomStore = signalStore(
 
       return {
         messages,
+        isSearchActive: computed(() => Boolean(searchQuery()?.trim())),
         editableMessage: computed(() => {
           const id = editableMessageId();
           return id ? (entityMap()[id] ?? null) : null;
@@ -166,6 +177,8 @@ export const TextRoomStore = signalStore(
             editableMessageId: null,
             replyToMessageId: null,
             targetScrollMessageId: null,
+            searchQuery: null,
+            isSearchOpen: false,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
           requestList({
@@ -185,7 +198,52 @@ export const TextRoomStore = signalStore(
             editableMessageId: null,
             replyToMessageId: null,
             targetScrollMessageId: null,
+            searchQuery: null,
+            isSearchOpen: false,
           });
+        },
+
+        setSearchQuery(query: string | null): void {
+          const trimmed = query?.trim() || null;
+          if (store.searchQuery() === trimmed) {
+            return;
+          }
+          patchState(store, removeAllEntities(), { searchQuery: trimmed });
+          requestList({
+            afterId: null,
+            beforeId: null,
+            limit: defaultChunkSize,
+            roomId: store.selectedRoomId(),
+            recipientId: store.selectedRecipientId(),
+            search: trimmed || undefined,
+          });
+        },
+
+        setSearchOpen(open: boolean): void {
+          if (store.isSearchOpen() === open) {
+            return;
+          }
+          if (!open) {
+            patchState(store, { isSearchOpen: false });
+            this.clearSearch();
+          } else {
+            patchState(store, { isSearchOpen: true });
+          }
+        },
+
+        clearSearch(): void {
+          const wasSearching = Boolean(store.searchQuery()?.trim());
+          patchState(store, { searchQuery: null });
+          if (wasSearching) {
+            patchState(store, removeAllEntities());
+            requestList({
+              afterId: null,
+              beforeId: null,
+              limit: defaultChunkSize,
+              roomId: store.selectedRoomId(),
+              recipientId: store.selectedRecipientId(),
+            });
+          }
         },
 
         requestNextPage(): void {
@@ -199,6 +257,7 @@ export const TextRoomStore = signalStore(
             limit: defaultChunkSize,
             roomId: store.selectedRoomId(),
             recipientId: store.selectedRecipientId(),
+            search: store.searchQuery() || undefined,
           });
         },
 
@@ -213,6 +272,7 @@ export const TextRoomStore = signalStore(
             limit: defaultChunkSize,
             roomId: store.selectedRoomId(),
             recipientId: store.selectedRecipientId(),
+            search: store.searchQuery() || undefined,
           });
         },
 
@@ -431,6 +491,10 @@ export const TextRoomStore = signalStore(
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_CREATED)
         .pipe(takeUntilDestroyed())
         .subscribe((message) => {
+          // Ignore incoming new messages when search is active to keep search results consistent
+          if (store.searchQuery()?.trim()) {
+            return;
+          }
           patchState(store, setEntity(toMessageEntity(message)));
         });
 

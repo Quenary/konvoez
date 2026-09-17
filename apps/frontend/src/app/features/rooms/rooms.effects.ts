@@ -58,6 +58,18 @@ export class RoomsEffects {
     ),
   );
 
+  readonly requestRoom$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(RoomsActions.requestRoom),
+      switchMap((action) =>
+        this.roomsApiService.read(action.id).pipe(
+          map((room) => RoomsActions.requestRoomSuccess({ room })),
+          catchError((error) => of(RoomsActions.requestRoomError({ error }))),
+        ),
+      ),
+    ),
+  );
+
   readonly requestCreateRoom$ = createEffect(() =>
     this.actions$.pipe(
       ofType(RoomsActions.requestCreateRoom),

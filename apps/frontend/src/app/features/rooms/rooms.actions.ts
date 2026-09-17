@@ -6,6 +6,7 @@ export const RoomsActions = createActionGroup({
   source: 'ROOMS',
   events: {
     selectRoom: props<{ room: IRoom | null }>(),
+    setSelectedRoomId: props<{ id: number | null }>(),
     requestRooms: emptyProps(),
     requestRoomsSuccess: props<{ rooms: IRoom[] }>(),
     requestRoomsError: props<{ error: HttpErrorResponse }>(),

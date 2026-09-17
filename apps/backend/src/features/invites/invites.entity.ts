@@ -8,12 +8,19 @@ export const InviteEntitySchema = defineEntity({
   extends: KonvoezBaseEntitySchema,
   properties: {
     id: p.integer().primary().autoincrement(),
-    code: p.string().length(64).unique().index(),
+    code: p.string().length(64).unique(),
     email: p.string().length(128).nullable().index(),
-    author: () => p.manyToOne(UserEntitySchema),
+    author: () =>
+      p.manyToOne(UserEntitySchema).updateRule('cascade').deleteRule('cascade'),
     expiresAt: p.datetime(),
     usedAt: p.datetime().nullable().default(null),
-    usedBy: () => p.manyToOne(UserEntitySchema).nullable().default(null),
+    usedBy: () =>
+      p
+        .manyToOne(UserEntitySchema)
+        .nullable()
+        .default(null)
+        .updateRule('cascade')
+        .deleteRule('set null'),
     revokedAt: p.datetime().nullable().default(null),
   },
 });

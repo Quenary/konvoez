@@ -69,6 +69,7 @@ export const messageListRequestSchema = z.object({
   limit: z.number().int().min(messageListMinLimit).max(messageListMaxLimit),
   recipientId: nullableInt,
   roomId: nullableInt,
+  search: z.string().optional(),
 });
 
 export const messageListResponseSchema = z.object({

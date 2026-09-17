@@ -22,6 +22,10 @@ export const roomsReducer = createReducer<IRoomsState>(
     ...state,
     selectedRoomId: payload.room?.id ?? null,
   })),
+  on(RoomsActions.setSelectedRoomId, (state, { id }) => ({
+    ...state,
+    selectedRoomId: id,
+  })),
   on(RoomsActions.requestRoomSuccess, (state, payload) =>
     roomsAdapter.upsertOne(payload.room, state),
   ),

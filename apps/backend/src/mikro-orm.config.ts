@@ -3,13 +3,17 @@ import { Migrator } from '@mikro-orm/migrations';
 import { UserEntitySchema } from './features/users/users.entity';
 import { RoomEntitySchema } from './features/rooms/rooms.entity';
 import { SettingsEntitySchema } from './features/settings/settings.entity';
-import { MessageEntitySchema } from './features/text-rooms/text-rooms.entity';
+import {
+  MessageEntitySchema,
+  MessageSearchTokenEntitySchema,
+} from './features/text-rooms/text-rooms.entity';
 import { InviteEntitySchema } from './features/invites/invites.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { Migration20260801010402 } from './migrations/Migration20260801010402';
 import { Migration20260915000000 } from './migrations/Migration20260915000000';
 import { Migration20260916000000 } from './migrations/Migration20260916000000';
 import { Migration20260916010000 } from './migrations/Migration20260916010000';
+import { Migration20260917123217 } from './migrations/Migration20260917123217';
 import { getDefaultSqliteDbPath } from './shared/storage.utils';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
@@ -22,6 +26,7 @@ export async function createMikroOrmConfig() {
       RoomEntitySchema,
       SettingsEntitySchema,
       MessageEntitySchema,
+      MessageSearchTokenEntitySchema,
       InviteEntitySchema,
     ],
     extensions: [Migrator],
@@ -34,6 +39,7 @@ export async function createMikroOrmConfig() {
         Migration20260915000000,
         Migration20260916000000,
         Migration20260916010000,
+        Migration20260917123217,
       ],
     },
   } satisfies Partial<Options>;

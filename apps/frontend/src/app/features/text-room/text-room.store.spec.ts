@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideStore } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -322,5 +322,251 @@ describe('TextRoomStore', () => {
     store.deleteMessage('msg-1');
     expect(apiService.delete).toHaveBeenCalledWith('msg-1');
     expect(store.entityMap()['msg-1']).toBeUndefined();
+  });
+
+  describe('Search features', () => {
+    it('should set search query, clear entities and reload list with search param', () => {
+      store.join({ roomId: 10, recipientId: null });
+      apiService.list.mockClear();
+
+      store.setSearchQuery('hello');
+
+      expect(store.searchQuery()).toBe('hello');
+      expect(store.isSearchActive()).toBe(true);
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          search: 'hello',
+          afterId: null,
+          beforeId: null,
+        }),
+      );
+    });
+
+    it('should ignore setSearchQuery if query has not changed', () => {
+      store.join({ roomId: 10, recipientId: null });
+      store.setSearchQuery('test');
+      apiService.list.mockClear();
+
+      store.setSearchQuery('test');
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('should handle setSearchOpen and reload when closed with active query', () => {
+      store.join({ roomId: 10, recipientId: null });
+      store.setSearchOpen(true);
+      expect(store.isSearchOpen()).toBe(true);
+
+      store.setSearchQuery('active query');
+      apiService.list.mockClear();
+
+      // Close search dialog
+      store.setSearchOpen(false);
+      expect(store.isSearchOpen()).toBe(false);
+      expect(store.searchQuery()).toBeNull();
+      expect(store.isSearchActive()).toBe(false);
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+        }),
+      );
+      expect(apiService.list.mock.calls[0][0].search).toBeUndefined();
+    });
+
+    it('should clear search and reload regular list', () => {
+      store.join({ roomId: 10, recipientId: null });
+      store.setSearchQuery('findme');
+      apiService.list.mockClear();
+
+      store.clearSearch();
+      expect(store.searchQuery()).toBeNull();
+      expect(store.isSearchActive()).toBe(false);
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+        }),
+      );
+      expect(apiService.list.mock.calls[0][0].search).toBeUndefined();
+    });
+  });
+
+  describe('Socket message creation & search isolation', () => {
+    it('should append new message from socket when search is inactive', () => {
+      store.join({ roomId: 10, recipientId: null });
+
+      const newSocketMessage: ITextRoomMessage = {
+        id: 'msg-socket-new',
+        senderId: 4,
+        senderUsername: 'david',
+        roomId: 10,
+        recipientId: null,
+        content: 'Brand new chat message',
+        createdAt: new Date('2026-09-15T00:15:00.000Z'),
+        updatedAt: null,
+        replyTo: null,
+      };
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, newSocketMessage);
+      expect(store.entityMap()['msg-socket-new']).toBeTruthy();
+    });
+
+    it('should ignore new message from socket when search is active', () => {
+      store.join({ roomId: 10, recipientId: null });
+      store.setSearchQuery('specific search');
+
+      const incomingIrrelevantMessage: ITextRoomMessage = {
+        id: 'msg-socket-irrelevant',
+        senderId: 4,
+        senderUsername: 'david',
+        roomId: 10,
+        recipientId: null,
+        content: 'Unrelated message arriving right now',
+        createdAt: new Date('2026-09-15T00:16:00.000Z'),
+        updatedAt: null,
+        replyTo: null,
+      };
+
+      mockSocket.emit(
+        ETextRoomEvent.MESSAGE_CREATED,
+        incomingIrrelevantMessage,
+      );
+      expect(store.entityMap()['msg-socket-irrelevant']).toBeUndefined();
+    });
+
+    it('should update message from socket on MESSAGE_EDITED', () => {
+      store.join({ roomId: 10, recipientId: null });
+
+      const editedMessage: ITextRoomMessage = {
+        ...message1,
+        content: 'Edited via socket event',
+        updatedAt: new Date('2026-09-15T00:20:00.000Z'),
+      };
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_EDITED, editedMessage);
+      expect(store.entityMap()['msg-1'].content).toBe(
+        'Edited via socket event',
+      );
+    });
+  });
+
+  describe('Pagination', () => {
+    it('should request next page using newestId', () => {
+      store.join({ roomId: 10, recipientId: null });
+      apiService.list.mockClear();
+
+      store.requestNextPage();
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          afterId: 'msg-2',
+        }),
+      );
+    });
+
+    it('should not request next page if store is empty', () => {
+      apiService.list.mockClear();
+      store.requestNextPage();
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('should request prev page using oldestId', () => {
+      store.join({ roomId: 10, recipientId: null });
+      apiService.list.mockClear();
+
+      store.requestPrevPage();
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          beforeId: 'msg-1',
+        }),
+      );
+    });
+
+    it('should not request prev page if store is empty', () => {
+      apiService.list.mockClear();
+      store.requestPrevPage();
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error handling', () => {
+    it('should mark optimistic message with ERROR status and show notification on create failure', () => {
+      store.join({ roomId: 10, recipientId: null });
+      apiService.create.mockReturnValue(
+        throwError(() => new Error('Server create error')),
+      );
+
+      store.createMessage({
+        tempId: 'temp-err',
+        data: {
+          content: 'Failing message',
+          roomId: 10,
+          recipientId: null,
+          replyToId: null,
+        },
+      });
+
+      expect(store.entityMap()['temp-err'].status).toBe(EMessageStatus.ERROR);
+      expect(mockNotifications.open).toHaveBeenCalled();
+    });
+
+    it('should mark message with ERROR status and show notification on update failure', () => {
+      store.join({ roomId: 10, recipientId: null });
+      apiService.update.mockReturnValue(
+        throwError(() => new Error('Server update error')),
+      );
+
+      store.updateMessage({
+        messageId: 'msg-1',
+        data: { content: 'Failing update' },
+      });
+
+      expect(store.entityMap()['msg-1'].status).toBe(EMessageStatus.ERROR);
+      expect(mockNotifications.open).toHaveBeenCalled();
+    });
+
+    it('should mark message with ERROR status and show notification on delete failure', () => {
+      store.join({ roomId: 10, recipientId: null });
+      apiService.delete.mockReturnValue(
+        throwError(() => new Error('Server delete error')),
+      );
+
+      store.deleteMessage('msg-1');
+
+      expect(store.entityMap()['msg-1'].status).toBe(EMessageStatus.ERROR);
+      expect(mockNotifications.open).toHaveBeenCalled();
+    });
+
+    it('should show notification on list load failure', () => {
+      apiService.list.mockReturnValue(
+        throwError(() => new Error('List failed')),
+      );
+
+      store.join({ roomId: 10, recipientId: null });
+      expect(mockNotifications.open).toHaveBeenCalled();
+    });
+  });
+
+  describe('Scroll and direct chat', () => {
+    it('should set target scroll message id', () => {
+      store.setTargetScrollMessageId('msg-test-scroll');
+      expect(store.targetScrollMessageId()).toBe('msg-test-scroll');
+    });
+
+    it('should join direct message chat with recipientId', () => {
+      store.join({ roomId: null, recipientId: 99 });
+      expect(store.selectedRecipientId()).toBe(99);
+      expect(store.selectedRoomId()).toBeNull();
+      expect(mockSocket.emit).toHaveBeenCalledWith(ETextRoomEvent.JOIN, {
+        roomId: null,
+        recipientId: 99,
+      });
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 99,
+          roomId: null,
+        }),
+      );
+    });
   });
 });

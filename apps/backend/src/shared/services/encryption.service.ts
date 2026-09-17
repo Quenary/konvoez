@@ -60,4 +60,11 @@ export class EncryptionService {
     ]);
     return this.decoder.decode(decrypted);
   }
+
+  /**
+   * Hash search token (trigram)
+   */
+  hashSearchToken(token: string): string {
+    return crypto.createHmac('sha256', this.key).update(token).digest('hex');
+  }
 }
