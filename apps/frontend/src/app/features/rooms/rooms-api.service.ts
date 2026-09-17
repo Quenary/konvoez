@@ -39,8 +39,8 @@ export class RoomsApiService {
     );
   }
 
-  remove(id: number): Observable<any> {
-    return this.httpClient.delete(`${environment.apiPath}/rooms/${id}`, {
+  remove(id: number): Observable<void> {
+    return this.httpClient.delete<void>(`${environment.apiPath}/rooms/${id}`, {
       withCredentials: true,
     });
   }

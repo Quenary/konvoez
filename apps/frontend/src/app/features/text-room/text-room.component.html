@@ -1,2 +1,61 @@
-<app-text-room-list></app-text-room-list>
-<app-text-room-editor></app-text-room-editor>
+<header
+  tuiHeader
+  class="room-header">
+  @if (room(); as currentRoom) {
+    <h2 tuiTitle>
+      <span>
+        <tui-icon
+          icon="@tui.message-circle-more"
+          class="hashtag-icon" />
+        {{ currentRoom.name }}
+      </span>
+    </h2>
+  }
+
+  <aside tuiAccessories>
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      iconStart="@tui.search"
+      type="button"
+      [title]="'GENERAL.SEARCH' | translate"
+      (click)="toggleSearch()">
+      {{ 'GENERAL.SEARCH' | translate }}
+    </button>
+  </aside>
+
+  @if (textRoomStore.isSearchOpen()) {
+    <tui-textfield
+      iconStart="@tui.search"
+      [tuiTextfieldCleaner]="false"
+      class="search-textfield">
+      <input
+        tuiInput
+        [formControl]="searchControl"
+        [placeholder]="'ROOMS.SEARCH_MESSAGES' | translate"
+        tuiAutoFocus />
+      @if (searchControl.value) {
+        <button
+          tuiIconButton
+          appearance="flat"
+          size="xs"
+          iconStart="@tui.x"
+          type="button"
+          [title]="'GENERAL.CANCEL' | translate"
+          (click)="clearSearch()"></button>
+      }
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="xs"
+        iconStart="@tui.chevron-up"
+        type="button"
+        [title]="'GENERAL.CLOSE' | translate"
+        (click)="toggleSearch()"></button>
+    </tui-textfield>
+  }
+</header>
+
+<app-text-room-list />
+<app-text-room-editor />

@@ -3,10 +3,12 @@ import { TextRoomsGateway } from './text-rooms.gateway';
 import { TextRoomsService } from './text-rooms.service';
 import { TextRoomsController } from './text-rooms.controller';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { MessageEntity } from './text-rooms.entity';
+import { MessageEntity, MessageSearchTokenEntity } from './text-rooms.entity';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([MessageEntity])],
+  imports: [
+    MikroOrmModule.forFeature([MessageEntity, MessageSearchTokenEntity]),
+  ],
   controllers: [TextRoomsController],
   providers: [TextRoomsGateway, TextRoomsService],
 })

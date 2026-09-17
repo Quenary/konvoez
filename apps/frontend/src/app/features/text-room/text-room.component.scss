@@ -6,3 +6,19 @@
   overflow: hidden;
   gap: 1rem;
 }
+
+.room-header {
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 1rem 0 0 0;
+
+  h2[tuiTitle] {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .search-textfield {
+    width: 100%;
+  }
+}

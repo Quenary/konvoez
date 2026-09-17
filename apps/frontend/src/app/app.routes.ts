@@ -10,6 +10,7 @@ export const routes: Routes = [
   },
   {
     path: 'auth',
+    pathMatch: 'full',
     loadComponent: () =>
       import('./features/auth/auth.component').then((m) => m.AuthComponent),
   },

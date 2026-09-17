@@ -8,6 +8,7 @@ import { LocalObjectStorageService } from './services/local-object-storage.servi
 import { S3Service } from './services/s3.service';
 import type { FileService } from './services/file.service';
 import { FileServiceInjectionToken } from './tokens/file-service.token';
+import { ImageProcessingService } from './services/image-processing.service';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { FileServiceInjectionToken } from './tokens/file-service.token';
     EncryptionService,
     LocalObjectStorageService,
     S3Service,
+    ImageProcessingService,
     {
       provide: S3ClientInjectionToken,
       inject: [AppService],
@@ -52,6 +54,7 @@ import { FileServiceInjectionToken } from './tokens/file-service.token';
     PasswordService,
     FileServiceInjectionToken,
     EncryptionService,
+    ImageProcessingService,
   ],
 })
 export class SharedModule {}

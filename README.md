@@ -62,10 +62,12 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ## TODO
 
+- Add presonal chats on frontend
+- Add SMTP support for password recovery and invites
+- Add unreaded message count and badges for rooms
 - Load active room's peers on initial frontend loads
 - Add active voice room indication on narrow menu
 - Add message assets (files)
-- Add messages search
 - Add connection state indication
 - Add notifications
 - Add customizable roles (functions access) and groups (rooms access)

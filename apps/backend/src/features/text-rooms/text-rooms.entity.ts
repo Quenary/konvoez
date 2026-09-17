@@ -1,4 +1,4 @@
-import { defineEntity, p } from '@mikro-orm/core';
+import { defineEntity, p, Cascade } from '@mikro-orm/core';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { UserEntitySchema } from '../users/users.entity';
 import { RoomEntitySchema } from '../rooms/rooms.entity';
@@ -45,6 +45,13 @@ export const MessageEntitySchema = defineEntity({
         .nullable()
         .fieldName('reply_to_id')
         .persist(false),
+
+    searchTokens: () =>
+      p
+        .oneToMany(MessageSearchTokenEntitySchema)
+        .mappedBy('message')
+        .cascade(Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL)
+        .orphanRemoval(),
   },
 });
 
@@ -57,8 +64,26 @@ MessageEntitySchema.addHook('beforeUpsert', (ev) => {
   }
 });
 
+export const MessageSearchTokenEntitySchema = defineEntity({
+  name: 'MessageSearchTokenEntity',
+  tableName: 'message_search_tokens',
+  properties: {
+    id: p.integer().primary().autoincrement(),
+    message: () =>
+      p
+        .manyToOne(MessageEntitySchema)
+        .updateRule('cascade')
+        .deleteRule('cascade'),
+    tokenHash: p.string().index(),
+  },
+});
+
 export class MessageEntity extends MessageEntitySchema.class {
   declare replyTo: MessageEntity | null;
 }
 
+export class MessageSearchTokenEntity
+  extends MessageSearchTokenEntitySchema.class {}
+
 MessageEntitySchema.setClass(MessageEntity);
+MessageSearchTokenEntitySchema.setClass(MessageSearchTokenEntity);

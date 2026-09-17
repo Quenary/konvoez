@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { MessageEntity } from './text-rooms.entity';
+import { MessageEntity, MessageSearchTokenEntity } from './text-rooms.entity';
 import {
   EditMessageDto,
   MessageDto,
@@ -13,6 +13,7 @@ import {
   MessageListResponseDto,
   CreateMessageDto,
 } from './text-rooms.dto';
+import { extractTrigrams } from '@shared/utils/trigrams.util';
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { parse } from 'uuid';
@@ -87,7 +88,8 @@ export class TextRoomsService {
     user: GetUserDto,
     dto: MessageListRequestDto,
   ): Promise<MessageListResponseDto> {
-    const { beforeId, afterId, aroundId, limit, recipientId, roomId } = dto;
+    const { beforeId, afterId, aroundId, limit, recipientId, roomId, search } =
+      dto;
 
     const baseWhere: FilterQuery<MessageEntity> = {};
 
@@ -100,6 +102,22 @@ export class TextRoomsService {
       baseWhere.room = roomId;
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
+    }
+
+    if (search) {
+      const trigrams = extractTrigrams(search);
+      if (trigrams.length > 0) {
+        const searchConditions: FilterQuery<MessageEntity>[] = trigrams.map(
+          (t) =>
+            ({
+              searchTokens: {
+                tokenHash: this.encryptionService.hashSearchToken(t),
+              },
+            }) as FilterQuery<MessageEntity>,
+        );
+
+        baseWhere.$and = [...(baseWhere.$and ?? []), ...searchConditions];
+      }
     }
 
     const populate = [
@@ -126,7 +144,10 @@ export class TextRoomsService {
       const [beforeItems, afterItems] = await Promise.all([
         beforeLimit > 0
           ? this.messageRepository.find(
-              { ...baseWhere, id: { $lt: parse(aroundId) } },
+              {
+                ...baseWhere,
+                id: { $lt: parse(aroundId) },
+              } as FilterQuery<MessageEntity>,
               {
                 limit: beforeLimit,
                 orderBy: { createdAt: 'DESC' },
@@ -136,7 +157,10 @@ export class TextRoomsService {
           : Promise.resolve([]),
         afterLimit > 0
           ? this.messageRepository.find(
-              { ...baseWhere, id: { $gt: parse(aroundId) } },
+              {
+                ...baseWhere,
+                id: { $gt: parse(aroundId) },
+              } as FilterQuery<MessageEntity>,
               {
                 limit: afterLimit,
                 orderBy: { createdAt: 'ASC' },
@@ -237,6 +261,9 @@ export class TextRoomsService {
     if (replyTarget) {
       message.replyTo = replyTarget;
     }
+
+    this.indexSearchTokens(message, dto.content);
+
     await this.em.flush();
 
     await this.em.populate(message, ['sender', 'replyTo', 'replyTo.sender']);
@@ -276,6 +303,11 @@ export class TextRoomsService {
       authTag,
     });
 
+    await this.em.nativeDelete(MessageSearchTokenEntity, {
+      message: message.id,
+    });
+    this.indexSearchTokens(message, dto.content);
+
     this.em.persist(message);
     await this.em.flush();
 
@@ -294,7 +326,6 @@ export class TextRoomsService {
       throw new NotFoundException('Message not found');
     }
 
-    // Только автор может удалить сообщение
     if (message.sender.id !== user.id) {
       throw new ForbiddenException('You can only delete your own messages');
     }
@@ -303,5 +334,17 @@ export class TextRoomsService {
     await this.em.flush();
 
     this.textRoomsGateway.onMessageDeleted(messageId);
+  }
+
+  private indexSearchTokens(message: MessageEntity, content: string): void {
+    const trigrams = extractTrigrams(content);
+    trigrams.forEach((t) => {
+      const tokenHash = this.encryptionService.hashSearchToken(t);
+      const tokenEntity = this.em.create(MessageSearchTokenEntity, {
+        tokenHash,
+        message,
+      });
+      message.searchTokens.add(tokenEntity);
+    });
   }
 }

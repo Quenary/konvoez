@@ -1,6 +1,7 @@
 GENERAL:
   HELLO: Hello!
   TITLE: KonvoEZ
+  SEARCH: Search
   YES: Yes
   NO: No
   SAVE: Save
@@ -47,6 +48,7 @@ MENU:
     INVITES: Invites
     ADMIN: Administration
 ROOMS:
+  SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
   ORIGINAL_MESSAGE_DELETED: Original message was deleted
   DELETE_CONFIRM: Are you sure you want to delete this room?

@@ -18,7 +18,7 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { TextRoomsService } from './text-rooms.service';
-import { MessageEntity } from './text-rooms.entity';
+import { MessageEntity, MessageSearchTokenEntity } from './text-rooms.entity';
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { EncryptionService } from '@shared/services/encryption.service';
@@ -56,7 +56,9 @@ describe('TextRoomsService', () => {
       populate: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
       remove: jest.fn(),
-      getReference: jest.fn().mockReturnValue({ id: 1 }),
+      getReference: jest.fn().mockImplementation((entityName, id) => ({ id })),
+      create: jest.fn().mockImplementation((entityName, data) => data),
+      nativeDelete: jest.fn().mockResolvedValue(1),
     } as unknown as jest.Mocked<EntityManager>;
 
     messageRepository = {
@@ -83,6 +85,7 @@ describe('TextRoomsService', () => {
         authTag: new Uint8Array([7, 8, 9]),
       }),
       decrypt: jest.fn().mockReturnValue('Decrypted content'),
+      hashSearchToken: jest.fn().mockReturnValue('hashedToken'),
     } as unknown as jest.Mocked<EncryptionService>;
 
     textRoomsGateway = {
@@ -118,6 +121,7 @@ describe('TextRoomsService', () => {
         contentEncrypted: new Uint8Array([1]),
         iv: new Uint8Array([2]),
         authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
       messageRepository.create.mockReturnValue(mockCreated);
@@ -161,6 +165,7 @@ describe('TextRoomsService', () => {
         contentEncrypted: new Uint8Array([1]),
         iv: new Uint8Array([2]),
         authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
       messageRepository.create.mockReturnValue(mockCreated);
@@ -211,6 +216,46 @@ describe('TextRoomsService', () => {
           replyToId: v7(),
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should generate and associate search token entities when creating message', async () => {
+      const roomId = 10;
+      roomsService.findOne.mockResolvedValue({
+        id: roomId,
+      } as unknown as RoomEntity);
+
+      const searchTokensAdd = jest.fn();
+      const mockCreated = {
+        id: parse(v7()),
+        sender: { id: 1, username: 'test_user' },
+        room: { id: roomId },
+        recipient: null,
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+        searchTokens: { add: searchTokensAdd },
+      } as unknown as MessageEntity;
+
+      messageRepository.create.mockReturnValue(mockCreated);
+
+      await service.create(mockUser, {
+        content: '<p>Searchable message</p>',
+        roomId,
+        recipientId: null,
+      });
+
+      expect(encryptionService.hashSearchToken).toHaveBeenCalled();
+      expect(em.create).toHaveBeenCalledWith(
+        MessageSearchTokenEntity,
+        expect.objectContaining({
+          tokenHash: 'hashedToken',
+          message: mockCreated,
+        }),
+      );
+      expect(searchTokensAdd).toHaveBeenCalled();
+      expect(em.flush).toHaveBeenCalled();
     });
   });
 
@@ -273,6 +318,88 @@ describe('TextRoomsService', () => {
       expect(result.items.length).toBe(1);
       expect(result.items[0].id).toBe(targetUuid);
     });
+
+    it('should filter messages by search tokens when search parameter is provided', async () => {
+      messageRepository.find.mockResolvedValue([]);
+
+      await service.list(mockUser, {
+        roomId: 10,
+        recipientId: null,
+        search: 'keyword',
+        limit: 20,
+        beforeId: null,
+        afterId: null,
+      });
+
+      expect(encryptionService.hashSearchToken).toHaveBeenCalled();
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          room: 10,
+          $and: expect.arrayContaining([
+            expect.objectContaining({
+              searchTokens: {
+                tokenHash: 'hashedToken',
+              },
+            }),
+          ]),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('should not add search filter if query produces no trigrams', async () => {
+      messageRepository.find.mockResolvedValue([]);
+
+      await service.list(mockUser, {
+        roomId: 10,
+        recipientId: null,
+        search: 'hi',
+        limit: 20,
+        beforeId: null,
+        afterId: null,
+      });
+
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          $and: expect.anything(),
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('should list messages by recipientId for direct messages', async () => {
+      messageRepository.find.mockResolvedValue([]);
+
+      await service.list(mockUser, {
+        roomId: null,
+        recipientId: 2,
+        limit: 20,
+        beforeId: null,
+        afterId: null,
+      });
+
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          $or: [
+            { sender: mockUser.id, recipient: 2 },
+            { sender: 2, recipient: mockUser.id },
+          ],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('should throw an Error if neither roomId nor recipientId is provided', async () => {
+      await expect(
+        service.list(mockUser, {
+          roomId: null,
+          recipientId: null,
+          limit: 20,
+          beforeId: null,
+          afterId: null,
+        }),
+      ).rejects.toThrow('Either recipientId or chatRoomId must be provided');
+    });
   });
 
   describe('updateMessage', () => {
@@ -284,6 +411,7 @@ describe('TextRoomsService', () => {
         contentEncrypted: new Uint8Array(),
         iv: new Uint8Array(),
         authTag: new Uint8Array(),
+        searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
@@ -295,6 +423,42 @@ describe('TextRoomsService', () => {
 
       expect(result).toBeDefined();
       expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalled();
+    });
+
+    it('should delete existing search tokens and index new tokens on update', async () => {
+      const msgId = v7();
+      const searchTokensAdd = jest.fn();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+        searchTokens: { add: searchTokensAdd },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockReturnValue(existing);
+
+      await service.updateMessage(mockUser, msgId, {
+        content: 'Updated searchable content',
+      });
+
+      expect(em.nativeDelete).toHaveBeenCalledWith(MessageSearchTokenEntity, {
+        message: existing.id,
+      });
+      expect(encryptionService.hashSearchToken).toHaveBeenCalled();
+      expect(searchTokensAdd).toHaveBeenCalled();
+      expect(em.persist).toHaveBeenCalledWith(existing);
+      expect(em.flush).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when updating non-existent message', async () => {
+      messageRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateMessage(mockUser, v7(), { content: 'Update' }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ForbiddenException if user is not the sender', async () => {
@@ -327,6 +491,28 @@ describe('TextRoomsService', () => {
       expect(em.remove).toHaveBeenCalledWith(existing);
       expect(em.flush).toHaveBeenCalled();
       expect(textRoomsGateway.onMessageDeleted).toHaveBeenCalledWith(msgId);
+    });
+
+    it('should throw NotFoundException when deleting non-existent message', async () => {
+      messageRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.delete(mockUser, v7())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw ForbiddenException when deleting another user message', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: 999, username: 'another_user' },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+
+      await expect(service.delete(mockUser, msgId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });
