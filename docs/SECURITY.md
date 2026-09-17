@@ -47,6 +47,7 @@ Reports are judged against this model rather than against a multi-tenant cloud S
 - Cryptographic flaws in message encryption or key derivation (e.g., IV reuse, ciphertext manipulation bypassing GCM authentication tags).
 - Path traversal, arbitrary file read/write in file/avatar upload and streaming endpoints (local or S3 storage).
 - Remote Code Execution (RCE) or SQL injection vulnerabilities in database queries.
+- Application-level Denial of Service (DoS) through resource exhaustion or asymmetric workloads (e.g., image bombs/pixel flooding, memory leaks triggered by malformed payloads).
 
 ## Out of scope
 

@@ -4,6 +4,7 @@ import {
   type FileService,
   type FileStreamResult,
 } from '@shared/services/file.service';
+import { ImageProcessingService } from '@shared/services/image-processing.service';
 
 @Injectable()
 export class UsersAvatarsService {
@@ -12,10 +13,12 @@ export class UsersAvatarsService {
   constructor(
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
+    private readonly imageProcessingService: ImageProcessingService,
   ) {}
 
   public async upload(file: Express.Multer.File): Promise<string> {
-    return this.fileService.upload(file, this.bucketName);
+    const processedFile = await this.imageProcessingService.convertToWebp(file);
+    return this.fileService.upload(processedFile, this.bucketName);
   }
 
   public async getStream(key: string): Promise<FileStreamResult> {
