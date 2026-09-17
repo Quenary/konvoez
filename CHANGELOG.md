@@ -1,3 +1,14 @@
+# [1.3.0](https://github.com/Quenary/konvoez/compare/v1.2.0...v1.3.0) (2026-09-17)
+
+### Bug Fixes
+
+- **frontend:** preserve auth ([2e64c3a](https://github.com/Quenary/konvoez/commit/2e64c3a8af0e8d480b36b9e9ba2f7c3498af0aac))
+
+### Features
+
+- message search ([bba3459](https://github.com/Quenary/konvoez/commit/bba3459927a8f85c590b1875be46b246d92cc416))
+- process avatars before save, use sharp, save compressed webp ([c96a56b](https://github.com/Quenary/konvoez/commit/c96a56b9d5957c72e62a9698f000e85af9644ed5))
+
 # [1.2.0](https://github.com/Quenary/konvoez/compare/v1.1.0...v1.2.0) (2026-09-17)
 
 ### Bug Fixes
