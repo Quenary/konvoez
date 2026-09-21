@@ -84,6 +84,37 @@ export class TextRoomsService {
     };
   }
 
+  async getDirectChats(user: GetUserDto): Promise<GetUserDto[]> {
+    const messages = await this.messageRepository.find(
+      {
+        room: null,
+        $or: [
+          { sender: user.id, recipient: { $ne: null } },
+          { recipient: user.id },
+        ],
+      },
+      {
+        fields: ['sender', 'recipient', 'createdAt'],
+        orderBy: { createdAt: 'DESC' },
+        populate: ['sender', 'recipient'],
+      },
+    );
+
+    const seenUserIds = new Set<number>();
+    const users: UserEntity[] = [];
+
+    for (const message of messages) {
+      const interlocutor =
+        message.sender.id === user.id ? message.recipient : message.sender;
+      if (interlocutor && !seenUserIds.has(interlocutor.id)) {
+        seenUserIds.add(interlocutor.id);
+        users.push(interlocutor);
+      }
+    }
+
+    return users.map((u) => this.usersService.toDto(u));
+  }
+
   async list(
     user: GetUserDto,
     dto: MessageListRequestDto,

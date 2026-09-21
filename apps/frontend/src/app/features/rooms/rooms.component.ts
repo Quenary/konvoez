@@ -39,6 +39,7 @@ import { TuiNavigation } from '@taiga-ui/layout';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
+import { RouterLink } from '@angular/router';
 import { NgOptimizedImage } from '@angular/common';
 
 interface IRoomWithPeers extends IRoom {
@@ -49,6 +50,7 @@ interface IRoomWithPeers extends IRoom {
 @Component({
   selector: 'app-rooms',
   imports: [
+    RouterLink,
     TranslatePipe,
     RoomPeerComponent,
     //
@@ -60,7 +62,6 @@ interface IRoomWithPeers extends IRoom {
     TuiOption,
     TuiDataList,
     NgOptimizedImage,
-    TuiInitialsPipe,
   ],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',

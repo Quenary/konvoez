@@ -41,12 +41,22 @@ MENU:
   EXPAND: Expand
   TEXT: Text
   VOICE: Voice
+  DIRECT: Direct
   SETTINGS:
     TITLE: Settings
     PROFILE: Profile
     DEVICES: Devices
     INVITES: Invites
     ADMIN: Administration
+DIRECT:
+  TITLE: Direct messages
+  NEW_CHAT: New chat
+  SEARCH_PLACEHOLDER: Search user...
+  EMPTY_TITLE: No direct messages yet
+  EMPTY_DESC: Click the button to start a conversation with a user
+  START_CHAT: Start conversation
+  USER_LIST: User list
+  NO_USERS_FOUND: No users found
 ROOMS:
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message

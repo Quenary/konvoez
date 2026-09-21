@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   Post,
   Put,
@@ -24,6 +25,17 @@ import {
 @UseGuards(AuthGuard)
 export class TextRoomsController {
   constructor(private readonly textRoomsService: TextRoomsService) {}
+
+  @Get('direct')
+  @ApiOkResponse({
+    type: GetUserDto,
+    isArray: true,
+    description:
+      'Get list of users with whom the current user has direct messages',
+  })
+  async getDirectChats(@Author() author: GetUserDto): Promise<GetUserDto[]> {
+    return await this.textRoomsService.getDirectChats(author);
+  }
 
   @Post('list')
   @ApiOkResponse({

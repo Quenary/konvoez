@@ -41,12 +41,22 @@ MENU:
   EXPAND: Развернуть
   TEXT: Текстовые
   VOICE: Голосовые
+  DIRECT: Личные
   SETTINGS:
     TITLE: Настройки
     PROFILE: Профиль
     DEVICES: Устройства
     INVITES: Приглашения
     ADMIN: Администрирование
+DIRECT:
+  TITLE: Личные сообщения
+  NEW_CHAT: Новый чат
+  SEARCH_PLACEHOLDER: Поиск собеседника...
+  EMPTY_TITLE: У вас пока нет личных сообщений
+  EMPTY_DESC: Нажмите кнопку, чтобы начать диалог с пользователем
+  START_CHAT: Начать диалог
+  USER_LIST: Список пользователей
+  NO_USERS_FOUND: Пользователи не найдены
 ROOMS:
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение

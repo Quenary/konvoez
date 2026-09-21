@@ -1,5 +1,14 @@
 <button
   tuiAsideItem
+  iconStart="@tui.messages-square"
+  routerLink="/direct"
+  routerLinkActive="active">
+  {{ 'MENU.DIRECT' | translate }}
+</button>
+
+<button
+  [style.margin-top.rem]="1"
+  tuiAsideItem
   iconStart="@tui.message-circle-more">
   {{ 'MENU.TEXT' | translate }}
   <button

@@ -27,6 +27,7 @@ import { EntityRepository, EntityManager } from '@mikro-orm/core';
 import { parse, v7, stringify as uuidStringify } from 'uuid';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { GetUserDto } from '../users/users.dto';
+import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { EUserRole } from '@konvoez/shared';
 
@@ -72,6 +73,7 @@ describe('TextRoomsService', () => {
 
     usersService = {
       findOne: jest.fn(),
+      toDto: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
     roomsService = {
@@ -513,6 +515,59 @@ describe('TextRoomsService', () => {
       await expect(service.delete(mockUser, msgId)).rejects.toThrow(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('getDirectChats', () => {
+    it('should return unique interlocutors sorted by latest message', async () => {
+      const user2 = { id: 2, username: 'user2' } as unknown as UserEntity;
+      const user3 = { id: 3, username: 'user3' } as unknown as UserEntity;
+      const messages = [
+        {
+          sender: mockUser,
+          recipient: user2,
+          createdAt: new Date('2026-01-02'),
+        },
+        {
+          sender: user3,
+          recipient: mockUser,
+          createdAt: new Date('2026-01-01'),
+        },
+        {
+          sender: user2,
+          recipient: mockUser,
+          createdAt: new Date('2025-12-31'),
+        },
+      ] as unknown as MessageEntity[];
+
+      messageRepository.find.mockResolvedValue(messages);
+      usersService.toDto.mockImplementation(
+        (u) =>
+          ({
+            id: u.id,
+            username: u.username,
+          }) as unknown as GetUserDto,
+      );
+
+      const result = await service.getDirectChats(mockUser);
+
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        {
+          room: null,
+          $or: [
+            { sender: mockUser.id, recipient: { $ne: null } },
+            { recipient: mockUser.id },
+          ],
+        },
+        {
+          fields: ['sender', 'recipient', 'createdAt'],
+          orderBy: { createdAt: 'DESC' },
+          populate: ['sender', 'recipient'],
+        },
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(2);
+      expect(result[1].id).toBe(3);
     });
   });
 });

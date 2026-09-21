@@ -44,7 +44,7 @@ describe('TextRoomsGateway', () => {
     expect(clientMock.join).toHaveBeenCalledWith('100');
   });
 
-  it('should leave rooms in handleLeave', () => {
+  it('should leave room in handleLeave', () => {
     const clientMock = {
       data: { roomId: 42, recipientId: 2, peer: { id: 100 } },
       join: jest.fn(),
@@ -54,8 +54,6 @@ describe('TextRoomsGateway', () => {
     gateway.handleLeave(clientMock);
 
     expect(clientMock.leave).toHaveBeenCalledWith('42');
-    expect(clientMock.leave).toHaveBeenCalledWith('2');
-    expect(clientMock.leave).toHaveBeenCalledWith('100');
   });
 
   it('should emit MESSAGE_CREATED to room in onMessageCreated', () => {
@@ -80,6 +78,29 @@ describe('TextRoomsGateway', () => {
     );
   });
 
+  it('should emit MESSAGE_CREATED to recipient and sender in onMessageCreated for direct message', () => {
+    const body: MessageDto = {
+      id: v7(),
+      senderId: 1,
+      senderUsername: 'alice',
+      roomId: null,
+      recipientId: 2,
+      content: 'direct hello',
+      createdAt: new Date(),
+      updatedAt: null,
+      replyTo: null,
+    };
+
+    gateway.onMessageCreated(body);
+
+    expect(serverMock.to).toHaveBeenCalledWith('2');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGE_CREATED,
+      body,
+    );
+  });
+
   it('should emit MESSAGE_EDITED in onMessageUpdated', () => {
     const body: MessageDto = {
       id: v7(),
@@ -96,6 +117,29 @@ describe('TextRoomsGateway', () => {
     gateway.onMessageUpdated(body);
 
     expect(serverMock.to).toHaveBeenCalledWith('42');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGE_EDITED,
+      body,
+    );
+  });
+
+  it('should emit MESSAGE_EDITED to recipient and sender for direct message', () => {
+    const body: MessageDto = {
+      id: v7(),
+      senderId: 1,
+      senderUsername: 'alice',
+      roomId: null,
+      recipientId: 2,
+      content: 'direct edited',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      replyTo: null,
+    };
+
+    gateway.onMessageUpdated(body);
+
+    expect(serverMock.to).toHaveBeenCalledWith('2');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
     expect(serverMock.emit).toHaveBeenCalledWith(
       ETextRoomEvent.MESSAGE_EDITED,
       body,

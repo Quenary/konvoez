@@ -6,6 +6,7 @@ import {
   ITextRoomListRequest,
   ITextRoomListResponse,
   ITextRoomMessage,
+  IUser,
 } from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
 import { environment } from '@environments/environment';
@@ -15,6 +16,15 @@ import { environment } from '@environments/environment';
 })
 export class TextRoomApiService {
   private readonly httpClient = inject(HttpClient);
+
+  direct(): Observable<IUser[]> {
+    return this.httpClient.get<IUser[]>(
+      `${environment.apiPath}/text-rooms/direct`,
+      {
+        withCredentials: true,
+      },
+    );
+  }
 
   list(body: ITextRoomListRequest): Observable<ITextRoomListResponse> {
     return this.httpClient

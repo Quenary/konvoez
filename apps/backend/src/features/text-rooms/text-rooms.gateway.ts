@@ -65,6 +65,7 @@ export class TextRoomsGateway
       } satisfies ITextRoomPeer;
 
       this.userIdToSocketId.set(user.id, client.id);
+      client.join(user.id.toString());
     } catch {
       client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
@@ -92,7 +93,6 @@ export class TextRoomsGateway
     }
     if (recipientId) {
       client.data.recipientId = recipientId;
-      client.join(recipientId.toString());
     }
     const peer = client.data.peer;
     if (peer) {
@@ -102,24 +102,27 @@ export class TextRoomsGateway
 
   @SubscribeMessage(ETextRoomEvent.LEAVE)
   handleLeave(@ConnectedSocket() client: TSocket) {
-    const { roomId, recipientId, ...rest } = client.data;
-    client.data = rest;
+    const roomId = client.data.roomId;
+    delete client.data.roomId;
+    delete client.data.recipientId;
     if (roomId) {
       client.leave(roomId.toString());
-    }
-    if (recipientId) {
-      client.leave(recipientId.toString());
-    }
-    const peer = client.data.peer;
-    if (peer) {
-      client.leave(peer.id.toString());
     }
   }
 
   public onMessageCreated(body: MessageDto) {
-    const to = body.roomId || body.recipientId;
-    if (to) {
-      let res = this.server.to(to.toString());
+    if (body.roomId) {
+      let res = this.server.to(body.roomId.toString());
+      const senderClientId = this.userIdToSocketId.get(body.senderId);
+      if (senderClientId) {
+        res = res.except(senderClientId);
+      }
+      return res.emit(ETextRoomEvent.MESSAGE_CREATED, body);
+    }
+    if (body.recipientId) {
+      let res = this.server
+        .to(body.recipientId.toString())
+        .to(body.senderId.toString());
       const senderClientId = this.userIdToSocketId.get(body.senderId);
       if (senderClientId) {
         res = res.except(senderClientId);
@@ -129,10 +132,15 @@ export class TextRoomsGateway
   }
 
   public onMessageUpdated(body: MessageDto) {
-    const to = body.roomId || body.recipientId;
-    if (to) {
+    if (body.roomId) {
       return this.server
-        .to(to.toString())
+        .to(body.roomId.toString())
+        .emit(ETextRoomEvent.MESSAGE_EDITED, body);
+    }
+    if (body.recipientId) {
+      return this.server
+        .to(body.recipientId.toString())
+        .to(body.senderId.toString())
         .emit(ETextRoomEvent.MESSAGE_EDITED, body);
     }
   }

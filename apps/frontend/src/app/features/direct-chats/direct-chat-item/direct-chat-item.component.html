@@ -1,0 +1,30 @@
+<button
+  style="width: 100%; box-sizing: border-box"
+  tuiCell
+  appearance="whiteblock"
+  type="button"
+  (click)="selected.emit(user())">
+  <div
+    tuiAvatar
+    size="m">
+    @if (user().avatarUrl) {
+      <img
+        [alt]="user().username"
+        [ngSrc]="user().avatarUrl!"
+        fill />
+    } @else {
+      {{ user().fullname | tuiInitials }}
+    }
+  </div>
+
+  <div tuiTitle>
+    <span [style.color]="user().username | tuiAutoColor">
+      {{ user().username }}
+    </span>
+    <div tuiSubtitle>{{ user().fullname }}</div>
+  </div>
+
+  <tui-icon
+    icon="@tui.chevron-right"
+    tuiAccessories />
+</button>

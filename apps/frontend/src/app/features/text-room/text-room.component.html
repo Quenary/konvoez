@@ -1,14 +1,24 @@
 <header
   tuiHeader
   class="room-header">
-  @if (room(); as currentRoom) {
+  @if (title(); as currentTitle) {
     <h2 tuiTitle>
-      <span>
-        <tui-icon
-          icon="@tui.message-circle-more"
-          class="hashtag-icon" />
-        {{ currentRoom.name }}
-      </span>
+      <div
+        tuiAvatar
+        size="s"
+        class="header-avatar">
+        @if (avatarUrl()) {
+          <img
+            [alt]="currentTitle"
+            [ngSrc]="avatarUrl()!"
+            fill
+            priority />
+        } @else {
+          {{ currentTitle | tuiInitials }}
+        }
+      </div>
+
+      {{ currentTitle }}
     </h2>
   }
 
