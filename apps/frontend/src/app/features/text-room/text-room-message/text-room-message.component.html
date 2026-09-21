@@ -2,69 +2,76 @@
   <div
     [attr.id]="'message-' + m.id"
     class="message"
+    [class.message-own]="isOwnMessage()"
     [style.--author-color]="m.senderUsername | tuiAutoColor"
     [tuiDropdown]="contextMenu"
     tuiDropdownContext>
-    <div
-      tuiAvatar
-      size="s"
-      class="message-sender"
-      [round]="true">
-      @if (avatarUrl(); as url) {
-        <img
-          [alt]="m.senderUsername"
-          [ngSrc]="url"
-          fill />
-      } @else {
-        {{ m.senderUsername | tuiInitials }}
-      }
-    </div>
-
-    <span class="message-body">
-      <span class="message-body-header">
-        <span
-          class="message-body-header-username"
-          [style.color]="m.senderUsername | tuiAutoColor">
-          {{ m.senderUsername }}
-        </span>
-        <span class="message-body-header-date">
-          {{ m.createdAt | dayjs }}
-        </span>
-      </span>
-
-      @if (m.replyTo; as reply) {
+    <div class="message-row">
+      @if (shouldShowAvatar()) {
         <div
-          class="message-reply"
-          role="button"
-          tabindex="0"
-          [class.message-reply-deleted]="reply.isDeleted"
-          [style.border-left-color]="
-            reply.isDeleted ? null : (reply.senderUsername ?? '' | tuiAutoColor)
-          "
-          (click)="onReplyQuoteClick(reply)"
-          (keydown.enter)="onReplyQuoteClick(reply)">
-          @if (reply.isDeleted) {
-            <span class="message-reply-deleted">
-              {{ 'ROOMS.DELETED_MESSAGE' | translate }}
-            </span>
+          tuiAvatar
+          size="s"
+          class="message-sender"
+          [round]="true">
+          @if (avatarUrl(); as url) {
+            <img
+              [alt]="m.senderUsername"
+              [ngSrc]="url"
+              fill />
           } @else {
-            <span
-              class="message-reply-sender"
-              [style.color]="reply.senderUsername ?? '' | tuiAutoColor">
-              {{ reply.senderUsername }}
-            </span>
-            <span class="message-reply-content">
-              {{ reply.content | textContent }}
-            </span>
+            {{ m.senderUsername | tuiInitials }}
           }
         </div>
       }
 
-      <tui-editor-socket
-        class="message-body-content"
-        [content]="sanitizedContent()">
-      </tui-editor-socket>
-    </span>
+      <span class="message-body">
+        <span class="message-body-header">
+          <span
+            class="message-body-header-username"
+            [style.color]="m.senderUsername | tuiAutoColor">
+            {{ m.senderUsername }}
+          </span>
+          <span class="message-body-header-date">
+            {{ m.createdAt | dayjs }}
+          </span>
+        </span>
+
+        @if (m.replyTo; as reply) {
+          <div
+            class="message-reply"
+            role="button"
+            tabindex="0"
+            [class.message-reply-deleted]="reply.isDeleted"
+            [style.border-left-color]="
+              reply.isDeleted
+                ? null
+                : (reply.senderUsername ?? '' | tuiAutoColor)
+            "
+            (click)="onReplyQuoteClick(reply)"
+            (keydown.enter)="onReplyQuoteClick(reply)">
+            @if (reply.isDeleted) {
+              <span class="message-reply-deleted">
+                {{ 'ROOMS.DELETED_MESSAGE' | translate }}
+              </span>
+            } @else {
+              <span
+                class="message-reply-sender"
+                [style.color]="reply.senderUsername ?? '' | tuiAutoColor">
+                {{ reply.senderUsername }}
+              </span>
+              <span class="message-reply-content">
+                {{ reply.content | textContent }}
+              </span>
+            }
+          </div>
+        }
+
+        <tui-editor-socket
+          class="message-body-content"
+          [content]="sanitizedContent()">
+        </tui-editor-socket>
+      </span>
+    </div>
   </div>
 
   <ng-template

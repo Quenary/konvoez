@@ -89,6 +89,24 @@ export class TextRoomMessageComponent {
     return [EUserRole.OWNER, EUserRole.ADMIN].includes(me.role);
   });
 
+  protected readonly isOwnMessage = computed(() => {
+    const me = this.currentUser() as IUser | null;
+    return !!me && this.message().senderId === me.id;
+  });
+
+  protected readonly isDirectChat = computed(() => {
+    return this.message().recipientId !== null;
+  });
+
+  protected readonly shouldShowAvatar = computed(() => {
+    // In private chats, don't show avatar for anyone
+    if (this.isDirectChat()) {
+      return false;
+    }
+    // For group chats, show avatar only for other's messages
+    return !this.isOwnMessage();
+  });
+
   protected replyMessage(): void {
     this.textRoomStore.setReplyToMessageId(this.message().id);
   }
