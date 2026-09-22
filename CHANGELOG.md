@@ -1,3 +1,11 @@
+# [1.4.0](https://github.com/Quenary/konvoez/compare/v1.3.0...v1.4.0) (2026-09-22)
+
+### Features
+
+- direct chats ([6af1668](https://github.com/Quenary/konvoez/commit/6af1668a9fd4f55732751cec2bee87ee02d3ceef))
+- message read stats, badges ([0b74445](https://github.com/Quenary/konvoez/commit/0b744454229f5183eccaf5cdb1bae22cc7ee809a))
+- message styles (direct, self, others) ([9e8a80c](https://github.com/Quenary/konvoez/commit/9e8a80c499259f5810b5abd4fcd0a87d6bc0a62a))
+
 # [1.3.0](https://github.com/Quenary/konvoez/compare/v1.2.0...v1.3.0) (2026-09-17)
 
 ### Bug Fixes
