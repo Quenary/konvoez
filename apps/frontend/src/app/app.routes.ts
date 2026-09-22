@@ -6,7 +6,7 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'main',
+    redirectTo: 'direct',
   },
   {
     path: 'auth',
@@ -27,9 +27,19 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       {
-        path: 'main',
+        path: 'direct',
         loadComponent: () =>
-          import('./features/main/main.component').then((m) => m.MainComponent),
+          import('./features/direct-chats/direct-chats.component').then(
+            (m) => m.DirectChatsComponent,
+          ),
+      },
+      {
+        path: 'direct/:id',
+        data: { isDirect: true },
+        loadComponent: () =>
+          import('./features/text-room/text-room.component').then(
+            (m) => m.TextRoomComponent,
+          ),
       },
       {
         path: 'text-room/:id',

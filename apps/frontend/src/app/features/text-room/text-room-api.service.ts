@@ -6,6 +6,8 @@ import {
   ITextRoomListRequest,
   ITextRoomListResponse,
   ITextRoomMessage,
+  ITextRoomUnreadCounts,
+  IUser,
 } from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
 import { environment } from '@environments/environment';
@@ -15,6 +17,15 @@ import { environment } from '@environments/environment';
 })
 export class TextRoomApiService {
   private readonly httpClient = inject(HttpClient);
+
+  direct(): Observable<IUser[]> {
+    return this.httpClient.get<IUser[]>(
+      `${environment.apiPath}/text-rooms/direct`,
+      {
+        withCredentials: true,
+      },
+    );
+  }
 
   list(body: ITextRoomListRequest): Observable<ITextRoomListResponse> {
     return this.httpClient
@@ -54,6 +65,28 @@ export class TextRoomApiService {
   delete(messageId: string): Observable<unknown> {
     return this.httpClient.delete(
       `${environment.apiPath}/text-rooms/${messageId}`,
+    );
+  }
+
+  markRead(messageIds: string[]): Observable<void> {
+    return this.httpClient.post<void>(
+      `${environment.apiPath}/text-rooms/read`,
+      { messageIds },
+    );
+  }
+
+  getReaders(messageId: string): Observable<IUser[]> {
+    return this.httpClient.get<IUser[]>(
+      `${environment.apiPath}/text-rooms/${messageId}/readers`,
+    );
+  }
+
+  getUnreadCounts(): Observable<ITextRoomUnreadCounts> {
+    return this.httpClient.get<ITextRoomUnreadCounts>(
+      `${environment.apiPath}/text-rooms/unread-counts`,
+      {
+        withCredentials: true,
+      },
     );
   }
 }

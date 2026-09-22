@@ -14,11 +14,16 @@ jest.mock('@mikro-orm/core', () => {
       addHook: () => undefined,
     }),
     p: createProxy(),
+    raw: (sql: string) => sql,
   };
 });
 
 import { TextRoomsService } from './text-rooms.service';
-import { MessageEntity, MessageSearchTokenEntity } from './text-rooms.entity';
+import {
+  MessageEntity,
+  MessageReadEntity,
+  MessageSearchTokenEntity,
+} from './text-rooms.entity';
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { EncryptionService } from '@shared/services/encryption.service';
@@ -27,12 +32,14 @@ import { EntityRepository, EntityManager } from '@mikro-orm/core';
 import { parse, v7, stringify as uuidStringify } from 'uuid';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { GetUserDto } from '../users/users.dto';
+import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { EUserRole } from '@konvoez/shared';
 
 describe('TextRoomsService', () => {
   let service: TextRoomsService;
   let messageRepository: jest.Mocked<EntityRepository<MessageEntity>>;
+  let messageReadRepository: jest.Mocked<EntityRepository<MessageReadEntity>>;
   let usersService: jest.Mocked<UsersService>;
   let roomsService: jest.Mocked<RoomsService>;
   let encryptionService: jest.Mocked<EncryptionService>;
@@ -68,10 +75,23 @@ describe('TextRoomsService', () => {
       create: jest.fn(),
       assign: jest.fn(),
       remove: jest.fn(),
+      createQueryBuilder: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<MessageEntity>>;
+
+    messageReadRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((data) => data),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        toRaw: jest.fn().mockReturnValue('raw-read-subquery'),
+      }),
+    } as unknown as jest.Mocked<EntityRepository<MessageReadEntity>>;
 
     usersService = {
       findOne: jest.fn(),
+      toDto: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
     roomsService = {
@@ -96,6 +116,7 @@ describe('TextRoomsService', () => {
 
     service = new TextRoomsService(
       messageRepository,
+      messageReadRepository,
       usersService,
       roomsService,
       encryptionService,
@@ -285,6 +306,41 @@ describe('TextRoomsService', () => {
 
       expect(result.items.length).toBe(1);
       expect(result.items[0].senderUsername).toBe('user1');
+      expect(result.items[0].isRead).toBe(false);
+      expect(messageReadRepository.find).toHaveBeenCalled();
+    });
+
+    it('should mark own message as read when another user has a read record', async () => {
+      const msgId = parse(v7());
+      const mockItem = {
+        id: msgId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10 },
+        recipient: null,
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([mockItem]);
+      messageReadRepository.find.mockResolvedValue([
+        {
+          message: { id: msgId },
+          reader: { id: 2 },
+        } as unknown as MessageReadEntity,
+      ]);
+
+      const result = await service.list(mockUser, {
+        roomId: 10,
+        recipientId: null,
+        limit: 20,
+        beforeId: null,
+        afterId: null,
+      });
+
+      expect(result.items[0].isRead).toBe(true);
     });
 
     it('should list messages around a target id', async () => {
@@ -513,6 +569,220 @@ describe('TextRoomsService', () => {
       await expect(service.delete(mockUser, msgId)).rejects.toThrow(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('getDirectChats', () => {
+    it('should return unique interlocutors sorted by latest message', async () => {
+      const user2 = { id: 2, username: 'user2' } as unknown as UserEntity;
+      const user3 = { id: 3, username: 'user3' } as unknown as UserEntity;
+      const messages = [
+        {
+          sender: mockUser,
+          recipient: user2,
+          createdAt: new Date('2026-01-02'),
+        },
+        {
+          sender: user3,
+          recipient: mockUser,
+          createdAt: new Date('2026-01-01'),
+        },
+        {
+          sender: user2,
+          recipient: mockUser,
+          createdAt: new Date('2025-12-31'),
+        },
+      ] as unknown as MessageEntity[];
+
+      messageRepository.find.mockResolvedValue(messages);
+      usersService.toDto.mockImplementation(
+        (u) =>
+          ({
+            id: u.id,
+            username: u.username,
+          }) as unknown as GetUserDto,
+      );
+
+      const result = await service.getDirectChats(mockUser);
+
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        {
+          room: null,
+          $or: [
+            { sender: mockUser.id, recipient: { $ne: null } },
+            { recipient: mockUser.id },
+          ],
+        },
+        {
+          fields: ['sender', 'recipient', 'createdAt'],
+          orderBy: { createdAt: 'DESC' },
+          populate: ['sender', 'recipient'],
+        },
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(2);
+      expect(result[1].id).toBe(3);
+    });
+  });
+
+  describe('getUnreadCounts', () => {
+    const mockQueryBuilder = (rows: unknown[]) => ({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(rows),
+    });
+
+    it('should aggregate unread room and direct counts', async () => {
+      const roomQb = mockQueryBuilder([{ roomId: 10, count: '2' }]);
+      const directQb = mockQueryBuilder([{ senderId: 5, count: '3' }]);
+      (
+        messageRepository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder
+        .mockReturnValueOnce(roomQb)
+        .mockReturnValueOnce(directQb);
+
+      const result = await service.getUnreadCounts(mockUser);
+
+      expect(result).toEqual({
+        rooms: { '10': 2 },
+        direct: { '5': 3 },
+        directTotal: 3,
+      });
+      expect(roomQb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: { $nin: 'raw-read-subquery' },
+        }),
+      );
+    });
+  });
+
+  describe('markRead', () => {
+    it('should ignore an empty message set', async () => {
+      messageRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, { messageIds: [v7()] });
+
+      expect(messageReadRepository.find).not.toHaveBeenCalled();
+      expect(em.flush).not.toHaveBeenCalled();
+      expect(textRoomsGateway.onMessageUpdated).not.toHaveBeenCalled();
+    });
+
+    it('should skip the sender own messages and persist reads for others', async () => {
+      const ownId = parse(v7());
+      const otherId = parse(v7());
+      const ownMessage = {
+        id: ownId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10 },
+        recipient: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+      } as unknown as MessageEntity;
+      const otherMessage = {
+        id: otherId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([ownMessage, otherMessage]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(ownId), uuidStringify(otherId)],
+      });
+
+      expect(messageReadRepository.create).toHaveBeenCalledTimes(1);
+      expect(messageReadRepository.create).toHaveBeenCalledWith({
+        message: otherMessage,
+        reader: { id: mockUser.id },
+      });
+      expect(em.flush).toHaveBeenCalled();
+      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalledTimes(1);
+      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: uuidStringify(otherId),
+          isRead: true,
+        }),
+      );
+    });
+
+    it('should not insert a read that already exists', async () => {
+      const otherId = parse(v7());
+      const otherMessage = {
+        id: otherId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([otherMessage]);
+      messageReadRepository.find.mockResolvedValue([
+        {
+          message: { id: otherId },
+          reader: { id: mockUser.id },
+        } as unknown as MessageReadEntity,
+      ]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(otherId)],
+      });
+
+      expect(messageReadRepository.create).not.toHaveBeenCalled();
+      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getReaders', () => {
+    it('should throw NotFoundException when message does not exist', async () => {
+      messageRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getReaders(mockUser, v7())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw ForbiddenException when user is not a participant', async () => {
+      messageRepository.findOne.mockResolvedValue({
+        id: parse(v7()),
+        sender: { id: 9, username: 'other' },
+        recipient: null,
+        room: null,
+      } as unknown as MessageEntity);
+
+      await expect(service.getReaders(mockUser, v7())).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should return readers for a participant', async () => {
+      const msgId = v7();
+      const reader = { id: 2, username: 'bob' } as unknown as UserEntity;
+      messageRepository.findOne.mockResolvedValue({
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        room: { id: 10 },
+      } as unknown as MessageEntity);
+      messageReadRepository.find.mockResolvedValue([
+        { reader } as unknown as MessageReadEntity,
+      ]);
+      usersService.toDto.mockReturnValue({
+        id: 2,
+        username: 'bob',
+      } as unknown as GetUserDto);
+
+      const result = await service.getReaders(mockUser, msgId);
+
+      expect(result).toEqual([{ id: 2, username: 'bob' }]);
     });
   });
 });

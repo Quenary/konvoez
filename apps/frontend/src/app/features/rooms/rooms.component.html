@@ -1,5 +1,27 @@
 <button
   tuiAsideItem
+  routerLink="/direct"
+  routerLinkActive="active">
+  <tui-badged-content class="aside-badge aside-badge--icon">
+    @if (unreadCountsStore.directTotal(); as count) {
+      <tui-badge-notification
+        size="s"
+        tuiSlot="top">
+        <ng-container
+          [ngTemplateOutlet]="countTmpl"
+          [ngTemplateOutletContext]="{ $implicit: count }"></ng-container>
+      </tui-badge-notification>
+    }
+    <tui-icon icon="@tui.messages-square" />
+  </tui-badged-content>
+  @if (!collapsed()) {
+    {{ 'MENU.DIRECT' | translate }}
+  }
+</button>
+
+<button
+  [style.margin-top.rem]="1"
+  tuiAsideItem
   iconStart="@tui.message-circle-more">
   {{ 'MENU.TEXT' | translate }}
   <button
@@ -19,20 +41,33 @@
     tuiDropdownHover
     (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
     (click)="selectRoom(room)">
-    <div
-      tuiAvatar
-      size="s">
-      @if (room.avatarUrl) {
-        <img
-          [alt]="room.name"
-          [ngSrc]="room.avatarUrl"
-          fill
-          priority />
-      } @else {
-        {{ room.name | tuiInitials }}
+    <tui-badged-content class="aside-badge">
+      @if (unreadCountsStore.roomUnreadCount(room.id); as count) {
+        <tui-badge-notification
+          size="s"
+          tuiSlot="top">
+          <ng-container
+            [ngTemplateOutlet]="countTmpl"
+            [ngTemplateOutletContext]="{ $implicit: count }"></ng-container>
+        </tui-badge-notification>
       }
-    </div>
-    {{ room.name }}
+      <div
+        tuiAvatar
+        size="s">
+        @if (room.avatarUrl) {
+          <img
+            [alt]="room.name"
+            [ngSrc]="room.avatarUrl"
+            fill
+            priority />
+        } @else {
+          {{ room.name | tuiInitials }}
+        }
+      </div>
+    </tui-badged-content>
+    @if (!collapsed()) {
+      {{ room.name }}
+    }
   </button>
 }
 
@@ -101,4 +136,10 @@
       {{ 'GENERAL.DELETE' | translate }}
     </button>
   </tui-data-list>
+</ng-template>
+
+<ng-template
+  #countTmpl
+  let-count>
+  {{ count > 99 ? '99+' : count }}
 </ng-template>

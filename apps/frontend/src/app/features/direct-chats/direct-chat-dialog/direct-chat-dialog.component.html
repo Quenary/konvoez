@@ -1,0 +1,36 @@
+<div class="dialog-content">
+  <tui-textfield
+    iconStart="@tui.search"
+    class="search-textfield">
+    <input
+      tuiInput
+      [formControl]="searchControl"
+      [placeholder]="'DIRECT.SEARCH_PLACEHOLDER' | translate"
+      tuiAutoFocus />
+  </tui-textfield>
+
+  <tui-scrollbar class="users-scroll">
+    <div class="users-list">
+      @for (user of filteredUsers(); track user.id) {
+        <app-direct-chat-item
+          [user]="user"
+          (selected)="selectUser($event)" />
+      } @empty {
+        <div class="empty-results">
+          {{ 'DIRECT.NO_USERS_FOUND' | translate }}
+        </div>
+      }
+    </div>
+  </tui-scrollbar>
+
+  <div class="dialog-actions">
+    <button
+      tuiButton
+      appearance="secondary"
+      size="m"
+      type="button"
+      (click)="close()">
+      {{ 'GENERAL.CANCEL' | translate }}
+    </button>
+  </div>
+</div>

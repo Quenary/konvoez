@@ -6,6 +6,8 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { TextRoomApiService } from './text-room-api.service';
+import { MessageReadQueueService } from './message-read-queue.service';
+import { UnreadCountsStore } from './unread-counts.store';
 import { TextRoomStore, EMessageStatus } from './text-room.store';
 import {
   ETextRoomEvent,
@@ -55,6 +57,15 @@ describe('TextRoomStore', () => {
   };
   let mockSocket: MockSocket;
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
+  let unreadCountsStore: {
+    setActiveChat: ReturnType<typeof vi.fn>;
+    clearActiveChat: ReturnType<typeof vi.fn>;
+    load: ReturnType<typeof vi.fn>;
+  };
+  let messageReadQueueService: {
+    reset: ReturnType<typeof vi.fn>;
+    enqueue: ReturnType<typeof vi.fn>;
+  };
 
   const message1: ITextRoomMessage = {
     id: 'msg-1',
@@ -65,6 +76,7 @@ describe('TextRoomStore', () => {
     content: 'First message',
     createdAt: new Date('2026-09-15T00:00:00.000Z'),
     updatedAt: null,
+    isRead: false,
     replyTo: null,
   };
 
@@ -77,6 +89,7 @@ describe('TextRoomStore', () => {
     content: 'Second replying message',
     createdAt: new Date('2026-09-15T00:01:00.000Z'),
     updatedAt: null,
+    isRead: false,
     replyTo: {
       id: 'msg-1',
       senderId: 1,
@@ -103,6 +116,15 @@ describe('TextRoomStore', () => {
       update: vi.fn(),
       delete: vi.fn(() => of(null)),
     };
+    unreadCountsStore = {
+      setActiveChat: vi.fn(),
+      clearActiveChat: vi.fn(),
+      load: vi.fn(),
+    };
+    messageReadQueueService = {
+      reset: vi.fn(),
+      enqueue: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -111,6 +133,8 @@ describe('TextRoomStore', () => {
         { provide: TextRoomApiService, useValue: apiService },
         { provide: TextRoomSocketToken, useValue: mockSocket },
         { provide: TuiNotificationService, useValue: mockNotifications },
+        { provide: UnreadCountsStore, useValue: unreadCountsStore },
+        { provide: MessageReadQueueService, useValue: messageReadQueueService },
       ],
     });
 
@@ -144,6 +168,11 @@ describe('TextRoomStore', () => {
     expect(store.messages().length).toBe(2);
     expect(store.newestId()).toBe('msg-2');
     expect(store.oldestId()).toBe('msg-1');
+    expect(unreadCountsStore.setActiveChat).toHaveBeenCalledWith({
+      roomId: 10,
+      recipientId: null,
+    });
+    expect(messageReadQueueService.reset).toHaveBeenCalled();
   });
 
   it('should handle leave and clear entities and state', () => {
@@ -155,6 +184,9 @@ describe('TextRoomStore', () => {
     expect(mockSocket.emit).toHaveBeenCalledWith(ETextRoomEvent.LEAVE, {});
     expect(store.selectedRoomId()).toBeNull();
     expect(store.messages()).toEqual([]);
+    expect(unreadCountsStore.clearActiveChat).toHaveBeenCalled();
+    expect(unreadCountsStore.load).toHaveBeenCalled();
+    expect(messageReadQueueService.reset).toHaveBeenCalled();
   });
 
   it('should manage replyToMessageId and replyToMessage computed', () => {
@@ -198,6 +230,7 @@ describe('TextRoomStore', () => {
       content: 'Old remote message',
       createdAt: new Date('2026-09-14T10:00:00.000Z'),
       updatedAt: null,
+      isRead: false,
       replyTo: null,
     };
 
@@ -246,6 +279,7 @@ describe('TextRoomStore', () => {
       content: 'New message replying to 1',
       createdAt: new Date('2026-09-15T00:05:00.000Z'),
       updatedAt: null,
+      isRead: false,
       replyTo: {
         id: 'msg-1',
         senderId: 1,
@@ -305,6 +339,7 @@ describe('TextRoomStore', () => {
       ...message1,
       content: 'Updated content',
       updatedAt: new Date('2026-09-15T00:10:00.000Z'),
+      isRead: false,
     };
     apiService.update.mockReturnValue(of(updatedMessage));
 
@@ -403,6 +438,7 @@ describe('TextRoomStore', () => {
         content: 'Brand new chat message',
         createdAt: new Date('2026-09-15T00:15:00.000Z'),
         updatedAt: null,
+        isRead: false,
         replyTo: null,
       };
 
@@ -423,6 +459,7 @@ describe('TextRoomStore', () => {
         content: 'Unrelated message arriving right now',
         createdAt: new Date('2026-09-15T00:16:00.000Z'),
         updatedAt: null,
+        isRead: false,
         replyTo: null,
       };
 
@@ -440,6 +477,7 @@ describe('TextRoomStore', () => {
         ...message1,
         content: 'Edited via socket event',
         updatedAt: new Date('2026-09-15T00:20:00.000Z'),
+        isRead: false,
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_EDITED, editedMessage);

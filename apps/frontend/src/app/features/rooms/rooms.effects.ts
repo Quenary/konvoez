@@ -39,7 +39,7 @@ export class RoomsEffects {
               break;
             }
             default:
-              this.router.navigate(['/main']);
+              this.router.navigate(['/']);
           }
         }),
       ),

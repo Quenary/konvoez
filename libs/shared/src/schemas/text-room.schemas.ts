@@ -60,6 +60,17 @@ export const messageSchema = baseEntitySchema.extend({
   roomId: nullableInt,
   content: messageContentSchema,
   replyTo: messageReplyToSchema.nullish(),
+  isRead: z.boolean(),
+});
+
+export const markReadSchema = z.object({
+  messageIds: z.array(z.uuid()).min(1),
+});
+
+export const unreadCountsSchema = z.object({
+  rooms: z.record(z.string(), z.number().int().nonnegative()),
+  direct: z.record(z.string(), z.number().int().nonnegative()),
+  directTotal: z.number().int().nonnegative(),
 });
 
 export const messageListRequestSchema = z.object({
@@ -82,6 +93,8 @@ export type ITextRoomEditMessage = z.infer<typeof messageEditSchema>;
 export type ITextRoomMessage = z.infer<typeof messageSchema>;
 export type ITextRoomListRequest = z.infer<typeof messageListRequestSchema>;
 export type ITextRoomListResponse = z.infer<typeof messageListResponseSchema>;
+export type ITextRoomMarkRead = z.infer<typeof markReadSchema>;
+export type ITextRoomUnreadCounts = z.infer<typeof unreadCountsSchema>;
 
 export interface ITextRoomJoin {
   roomId: number | null;

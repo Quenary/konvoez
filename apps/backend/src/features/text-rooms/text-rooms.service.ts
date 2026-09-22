@@ -3,11 +3,22 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
+import {
+  EntityManager,
+  EntityRepository,
+  FilterQuery,
+  raw,
+} from '@mikro-orm/core';
+import { SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { MessageEntity, MessageSearchTokenEntity } from './text-rooms.entity';
+import {
+  MessageEntity,
+  MessageReadEntity,
+  MessageSearchTokenEntity,
+} from './text-rooms.entity';
 import {
   EditMessageDto,
+  MarkReadDto,
   MessageDto,
   MessageListRequestDto,
   MessageListResponseDto,
@@ -24,7 +35,7 @@ import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { TextRoomsGateway } from './text-rooms.gateway';
 
-import { ITextRoomMessageReply } from '@konvoez/shared';
+import { ITextRoomMessageReply, ITextRoomUnreadCounts } from '@konvoez/shared';
 
 @Injectable()
 export class TextRoomsService {
@@ -35,13 +46,15 @@ export class TextRoomsService {
   constructor(
     @InjectRepository(MessageEntity)
     private readonly messageRepository: EntityRepository<MessageEntity>,
+    @InjectRepository(MessageReadEntity)
+    private readonly messageReadRepository: EntityRepository<MessageReadEntity>,
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
     private readonly textRoomsGateway: TextRoomsGateway,
   ) {}
 
-  private entityToDto(data: MessageEntity): MessageDto {
+  private entityToDto(data: MessageEntity, isRead: boolean): MessageDto {
     const content = this.encryptionService.decrypt(
       data.contentEncrypted,
       data.iv,
@@ -81,7 +94,140 @@ export class TextRoomsService {
       updatedAt: data.updatedAt,
       content,
       replyTo,
+      isRead,
     };
+  }
+
+  /**
+   * Batch-load read status for a list of messages for a given user.
+   * For own messages: isRead = true if at least one other user has a read record.
+   * For others' messages: isRead = true if the current user has a read record.
+   */
+  private async buildIsReadMap(
+    messages: MessageEntity[],
+    currentUserId: number,
+  ): Promise<Map<string, boolean>> {
+    const map = new Map<string, boolean>();
+    if (messages.length === 0) return map;
+
+    const rawIds = messages.map((m) => m.id);
+
+    const reads = await this.messageReadRepository.find(
+      { message: { $in: rawIds } },
+      { fields: ['message', 'reader'] },
+    );
+
+    // Group readers by message id (hex string key)
+    const readersByMsg = new Map<string, Set<number>>();
+    for (const r of reads) {
+      const key = uuidStringify(r.message.id);
+      const readers = readersByMsg.get(key) ?? new Set<number>();
+      readers.add(r.reader.id);
+      readersByMsg.set(key, readers);
+    }
+
+    for (const msg of messages) {
+      const key = uuidStringify(msg.id);
+      const readers = readersByMsg.get(key) ?? new Set<number>();
+      const isOwnMessage = msg.sender.id === currentUserId;
+      if (isOwnMessage) {
+        // isRead = at least one OTHER user has read it
+        const othersRead = [...readers].some((id) => id !== currentUserId);
+        map.set(key, othersRead);
+      } else {
+        // isRead = current user has read it
+        map.set(key, readers.has(currentUserId));
+      }
+    }
+
+    return map;
+  }
+
+  private get messageQueryBuilder(): SqlEntityRepository<MessageEntity> {
+    return this.messageRepository as SqlEntityRepository<MessageEntity>;
+  }
+
+  private createUnreadMessageIdsSubquery(userId: number) {
+    // toRaw() is required: MessageEntity.id is Uint8Array, and FilterQuery
+    // processWhere would otherwise convert the QueryBuilder via Uint8ArrayType.
+    return (
+      this.messageReadRepository as SqlEntityRepository<MessageReadEntity>
+    )
+      .createQueryBuilder('mr')
+      .select('mr.message')
+      .where({ reader: userId })
+      .toRaw();
+  }
+
+  async getUnreadCounts(user: GetUserDto): Promise<ITextRoomUnreadCounts> {
+    const userId = user.id;
+
+    const [roomRows, directRows] = await Promise.all([
+      this.messageQueryBuilder
+        .createQueryBuilder('m')
+        .select(['m.room as roomId', raw('count(*) as count')])
+        .where({
+          id: { $nin: this.createUnreadMessageIdsSubquery(userId) },
+          sender: { $ne: userId },
+          room: { $ne: null },
+        })
+        .groupBy('m.room')
+        .execute<Array<{ roomId: number; count: number }>>('all'),
+      this.messageQueryBuilder
+        .createQueryBuilder('m')
+        .select(['m.sender as senderId', raw('count(*) as count')])
+        .where({
+          id: { $nin: this.createUnreadMessageIdsSubquery(userId) },
+          recipient: userId,
+          room: null,
+        })
+        .groupBy('m.sender')
+        .execute<Array<{ senderId: number; count: number }>>('all'),
+    ]);
+
+    const rooms = Object.fromEntries(
+      roomRows.map((row) => [String(row.roomId), Number(row.count)]),
+    );
+    const direct = Object.fromEntries(
+      directRows.map((row) => [String(row.senderId), Number(row.count)]),
+    );
+    const directTotal = directRows.reduce(
+      (sum, row) => sum + Number(row.count),
+      0,
+    );
+
+    return { rooms, direct, directTotal };
+  }
+
+  async getDirectChats(user: GetUserDto): Promise<GetUserDto[]> {
+    const messages = await this.messageRepository.find(
+      {
+        room: null,
+        $or: [
+          { sender: user.id, recipient: { $ne: null } },
+          { recipient: user.id },
+        ],
+      },
+      {
+        fields: ['sender', 'recipient', 'createdAt'],
+        orderBy: { createdAt: 'DESC' },
+        populate: ['sender', 'recipient'],
+      },
+    );
+
+    const seenUserIds = new Set<number>();
+    const users: UserEntity[] = [];
+
+    for (const message of messages) {
+      const interlocutor =
+        message.sender.id === user.id ? message.recipient : message.sender;
+      if (interlocutor && !seenUserIds.has(interlocutor.id)) {
+        seenUserIds.add(interlocutor.id);
+        users.push(interlocutor);
+      }
+    }
+
+    return users.map((u) => this.usersService.toDto(u));
   }
 
   async list(
@@ -171,8 +317,11 @@ export class TextRoomsService {
       ]);
 
       const combined = [...beforeItems.reverse(), target, ...afterItems];
+      const isReadMap = await this.buildIsReadMap(combined, user.id);
       return {
-        items: combined.map((m) => this.entityToDto(m)),
+        items: combined.map((m) =>
+          this.entityToDto(m, isReadMap.get(uuidStringify(m.id)) ?? false),
+        ),
       };
     }
 
@@ -194,8 +343,11 @@ export class TextRoomsService {
       populate,
     });
 
+    const isReadMap = await this.buildIsReadMap(messages, user.id);
     return {
-      items: messages.map((m) => this.entityToDto(m)),
+      items: messages.map((m) =>
+        this.entityToDto(m, isReadMap.get(uuidStringify(m.id)) ?? false),
+      ),
     };
   }
 
@@ -270,7 +422,7 @@ export class TextRoomsService {
     if (replyTarget) {
       message.replyTo = replyTarget;
     }
-    const messageDto = this.entityToDto(message);
+    const messageDto = this.entityToDto(message, false);
     this.textRoomsGateway.onMessageCreated(messageDto);
     return messageDto;
   }
@@ -311,7 +463,11 @@ export class TextRoomsService {
     this.em.persist(message);
     await this.em.flush();
 
-    const messageDto = this.entityToDto(message);
+    const isReadMap = await this.buildIsReadMap([message], user.id);
+    const messageDto = this.entityToDto(
+      message,
+      isReadMap.get(uuidStringify(message.id)) ?? false,
+    );
     this.textRoomsGateway.onMessageUpdated(messageDto);
     return messageDto;
   }
@@ -346,5 +502,74 @@ export class TextRoomsService {
       });
       message.searchTokens.add(tokenEntity);
     });
+  }
+
+  async markRead(user: GetUserDto, dto: MarkReadDto): Promise<void> {
+    const rawIds = dto.messageIds.map((id) => parse(id));
+
+    const messages = await this.messageRepository.find(
+      { id: { $in: rawIds } },
+      {
+        populate: ['sender', 'recipient', 'room', 'replyTo', 'replyTo.sender'],
+      },
+    );
+
+    const othersMessages = messages.filter((msg) => msg.sender.id !== user.id);
+    if (othersMessages.length === 0) return;
+
+    const existingReads = await this.messageReadRepository.find({
+      message: { $in: othersMessages.map((msg) => msg.id) },
+      reader: user.id,
+    });
+    const alreadyRead = new Set(
+      existingReads.map((read) => uuidStringify(read.message.id)),
+    );
+
+    for (const msg of othersMessages) {
+      if (alreadyRead.has(uuidStringify(msg.id))) {
+        continue;
+      }
+
+      this.em.persist(
+        this.messageReadRepository.create({
+          message: msg,
+          reader: this.em.getReference(UserEntity, user.id),
+        }),
+      );
+    }
+
+    await this.em.flush();
+
+    for (const msg of othersMessages) {
+      this.textRoomsGateway.onMessageUpdated(this.entityToDto(msg, true));
+    }
+  }
+
+  async getReaders(user: GetUserDto, messageId: string): Promise<GetUserDto[]> {
+    const message = await this.messageRepository.findOne(
+      { id: parse(messageId) },
+      { populate: ['sender', 'recipient', 'room'] },
+    );
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    // Access check: user must be sender, recipient, or a room member
+    const isParticipant =
+      message.sender.id === user.id ||
+      message.recipient?.id === user.id ||
+      message.room != null; // room membership check is implicit via list access
+
+    if (!isParticipant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const reads = await this.messageReadRepository.find(
+      { message: parse(messageId) },
+      { populate: ['reader'] },
+    );
+
+    return reads.map((r) => this.usersService.toDto(r.reader));
   }
 }

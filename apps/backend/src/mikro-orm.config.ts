@@ -5,6 +5,7 @@ import { RoomEntitySchema } from './features/rooms/rooms.entity';
 import { SettingsEntitySchema } from './features/settings/settings.entity';
 import {
   MessageEntitySchema,
+  MessageReadEntitySchema,
   MessageSearchTokenEntitySchema,
 } from './features/text-rooms/text-rooms.entity';
 import { InviteEntitySchema } from './features/invites/invites.entity';
@@ -15,6 +16,7 @@ import { Migration20260916000000 } from './migrations/Migration20260916000000';
 import { Migration20260916010000 } from './migrations/Migration20260916010000';
 import { Migration20260917123217 } from './migrations/Migration20260917123217';
 import { getDefaultSqliteDbPath } from './shared/storage.utils';
+import { Migration20260922000000 } from './migrations/Migration20260922000000';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -28,6 +30,7 @@ export async function createMikroOrmConfig() {
       MessageEntitySchema,
       MessageSearchTokenEntitySchema,
       InviteEntitySchema,
+      MessageReadEntitySchema,
     ],
     extensions: [Migrator],
     migrations: {
@@ -40,6 +43,7 @@ export async function createMikroOrmConfig() {
         Migration20260916000000,
         Migration20260916010000,
         Migration20260917123217,
+        Migration20260922000000,
       ],
     },
   } satisfies Partial<Options>;

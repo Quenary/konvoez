@@ -1,0 +1,76 @@
+:host {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  margin: 0 auto;
+}
+
+.direct-header {
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 1rem 1.5rem 0 1.5rem;
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .title-icon {
+    font-size: 1.5rem;
+  }
+}
+
+.direct-scroll {
+  flex: 1;
+}
+
+.direct-container {
+  padding: 1rem 1.5rem 2rem 1.5rem;
+}
+
+.chats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.empty-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--tui-background-neutral-1);
+  margin-bottom: 1.5rem;
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  color: var(--tui-text-secondary);
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--tui-text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-desc {
+  font-size: 0.9375rem;
+  color: var(--tui-text-secondary);
+  max-width: 24rem;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}

@@ -7,6 +7,7 @@ import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideMockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
+import { UsersStore } from '@features/users/users.store';
 import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.component';
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
 
@@ -29,6 +30,12 @@ describe('TextRoomComponent', () => {
     clearSearch: vi.fn(),
   };
 
+  const mockUsersStore = {
+    loadAll: vi.fn(),
+    entityMap: vi.fn().mockReturnValue({}),
+    entities: vi.fn().mockReturnValue([]),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
 
@@ -48,10 +55,12 @@ describe('TextRoomComponent', () => {
         }),
         provideTranslateService(),
         { provide: TextRoomStore, useValue: mockTextRoomStore },
+        { provide: UsersStore, useValue: mockUsersStore },
         {
           provide: ActivatedRoute,
           useValue: {
             params: of({ id: '42' }),
+            data: of({ isDirect: false }),
           },
         },
       ],
@@ -132,5 +141,44 @@ describe('TextRoomComponent', () => {
   it('should leave room on destroy', () => {
     fixture.destroy();
     expect(mockTextRoomStore.leave).toHaveBeenCalled();
+  });
+
+  describe('direct chat mode', () => {
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [TextRoomComponent],
+        providers: [
+          provideMockStore({
+            initialState: { rooms: { entities: {}, ids: [] } },
+          }),
+          provideTranslateService(),
+          { provide: TextRoomStore, useValue: mockTextRoomStore },
+          { provide: UsersStore, useValue: mockUsersStore },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              params: of({ id: '99' }),
+              data: of({ isDirect: true }),
+            },
+          },
+        ],
+      })
+        .overrideComponent(TextRoomComponent, {
+          remove: { imports: [TextRoomEditorComponent, TextRoomListComponent] },
+          add: { imports: [MockEditorComponent, MockListComponent] },
+        })
+        .compileComponents();
+    });
+
+    it('should join direct chat with recipientId when isDirect is true', async () => {
+      const directFixture = TestBed.createComponent(TextRoomComponent);
+      await directFixture.whenStable();
+
+      expect(mockTextRoomStore.join).toHaveBeenCalledWith({
+        roomId: null,
+        recipientId: 99,
+      });
+    });
   });
 });

@@ -3,10 +3,8 @@
 
   .message {
     display: flex;
-    flex-direction: row;
-    align-items: flex-end;
+    flex-direction: column;
     width: 100%;
-    gap: 0.5rem;
     transition: background-color 0.3s ease;
     border-radius: 0.5rem;
 
@@ -18,8 +16,38 @@
       }
     }
 
+    // Row that contains avatar + bubble
+    .message-row {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-end;
+      gap: 0.5rem;
+      max-width: 90%;
+      min-width: 25%;
+    }
+
+    // Own messages: align row to the right
+    &.message-own {
+      .message-row {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+      }
+    }
+
+    // Others: align row to the left
+    &:not(.message-own) .message-row {
+      align-self: flex-start;
+    }
+
     &-sender {
       flex-shrink: 0;
+    }
+
+    &-sender-placeholder {
+      flex-shrink: 0;
+      // Same size as tui-avatar size="s" to keep text aligned
+      width: 1.75rem;
+      height: 1.75rem;
     }
 
     &-reply {
@@ -86,25 +114,60 @@
       border-radius: 0.5rem;
       gap: 0.5rem;
 
+      // Own message bubble: distinct color (Telegram-like green/blue)
+      .message-own & {
+        background: var(--tui-status-positive-pale, #2e5e3e);
+        border-radius: 0.5rem 0.5rem 0 0.5rem;
+      }
+
+      // Other's bubble: round the bottom-left corner away from avatar
+      .message:not(.message-own) & {
+        border-radius: 0.5rem 0.5rem 0.5rem 0;
+      }
+
       &-header {
         display: inline-flex;
         align-items: center;
         justify-content: space-between;
         gap: 0.5rem;
 
-        &-username {
-          font-weight: 600;
+        // When only date is shown, align to the end
+        &--date-only {
+          justify-content: flex-end;
         }
 
-        &-date {
-          color: var(--tui-text-secondary);
-          font-size: 0.75rem;
+        &-username {
+          font-weight: 600;
         }
       }
 
       &-content {
         flex: 1;
       }
+    }
+  }
+
+  .message-bubble-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: -0.125rem;
+    justify-content: flex-end;
+  }
+
+  .message-date {
+    color: var(--tui-text-secondary);
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .message-status-icon {
+    font-size: 0.875rem;
+    color: var(--tui-text-tertiary);
+    line-height: 1;
+
+    &--read {
+      color: var(--tui-status-positive, #44a77b);
     }
   }
 }

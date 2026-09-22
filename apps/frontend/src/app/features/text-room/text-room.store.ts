@@ -42,6 +42,8 @@ import {
   tap,
 } from 'rxjs';
 import { TextRoomApiService } from './text-room-api.service';
+import { MessageReadQueueService } from './message-read-queue.service';
+import { UnreadCountsStore } from './unread-counts.store';
 
 const defaultChunkSize = 25;
 
@@ -132,6 +134,8 @@ export const TextRoomStore = signalStore(
       socket = inject(TextRoomSocketToken),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
+      messageReadQueueService = inject(MessageReadQueueService),
+      unreadCountsStore = inject(UnreadCountsStore),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
@@ -171,6 +175,8 @@ export const TextRoomStore = signalStore(
           roomId: number | null;
           recipientId: number | null;
         }): void {
+          messageReadQueueService.reset();
+          unreadCountsStore.setActiveChat({ roomId, recipientId });
           patchState(store, removeAllEntities(), {
             selectedRoomId: roomId,
             selectedRecipientId: recipientId,
@@ -191,6 +197,9 @@ export const TextRoomStore = signalStore(
         },
 
         leave(): void {
+          messageReadQueueService.reset();
+          unreadCountsStore.clearActiveChat();
+          unreadCountsStore.load();
           socket.emit(ETextRoomEvent.LEAVE, {});
           patchState(store, removeAllEntities(), {
             selectedRoomId: null,
@@ -356,6 +365,7 @@ export const TextRoomStore = signalStore(
                 senderUsername: '',
                 createdAt: new Date(),
                 updatedAt: null,
+                isRead: false,
                 status: EMessageStatus.LOADING,
                 replyTo: replyTarget
                   ? {

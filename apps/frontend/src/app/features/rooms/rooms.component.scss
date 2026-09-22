@@ -1,9 +1,29 @@
 :host {
+  button[tuiAsideItem] {
+    overflow: visible;
+  }
+
   .room-item {
     padding-left: 0.125rem;
+    overflow: visible;
   }
 
   .room-peer-item {
     padding-left: var(--tui-height-s);
+  }
+
+  .aside-badge {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  // tui-badged-content sets color to --tui-background-base for badge cutout;
+  // aside item does not pass its color to a nested tui-icon
+  .aside-badge--icon {
+    color: inherit;
+
+    tui-icon {
+      color: currentColor;
+    }
   }
 }

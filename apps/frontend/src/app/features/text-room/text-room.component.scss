@@ -14,8 +14,13 @@
 
   h2[tuiTitle] {
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .header-avatar {
+    flex-shrink: 0;
   }
 
   .search-textfield {
