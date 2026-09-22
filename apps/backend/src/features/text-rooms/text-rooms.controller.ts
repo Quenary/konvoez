@@ -119,4 +119,3 @@ export class TextRoomsController {
     await this.textRoomsService.delete(author, id);
   }
 }
-

@@ -81,10 +81,7 @@ export const MessageSearchTokenEntitySchema = defineEntity({
 export const MessageReadEntitySchema = defineEntity({
   name: 'MessageReadEntity',
   tableName: 'message_reads',
-  indexes: [
-    { properties: ['message'] },
-    { properties: ['reader'] },
-  ],
+  indexes: [{ properties: ['message'] }, { properties: ['reader'] }],
   uniques: [{ properties: ['message', 'reader'] }],
   properties: {
     id: p.integer().primary().autoincrement(),

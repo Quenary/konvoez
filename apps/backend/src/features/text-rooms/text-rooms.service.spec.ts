@@ -636,8 +636,10 @@ describe('TextRoomsService', () => {
     it('should aggregate unread room and direct counts', async () => {
       const roomQb = mockQueryBuilder([{ roomId: 10, count: '2' }]);
       const directQb = mockQueryBuilder([{ senderId: 5, count: '3' }]);
-      (messageRepository as unknown as { createQueryBuilder: jest.Mock })
-        .createQueryBuilder.mockReturnValueOnce(roomQb)
+      (
+        messageRepository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder
+        .mockReturnValueOnce(roomQb)
         .mockReturnValueOnce(directQb);
 
       const result = await service.getUnreadCounts(mockUser);

@@ -26,9 +26,7 @@ type UnreadCountsState = {
   activeRecipientId: number | null;
 };
 
-function parseCountMap(
-  source: Record<string, number>,
-): Record<number, number> {
+function parseCountMap(source: Record<string, number>): Record<number, number> {
   return Object.fromEntries(
     Object.entries(source).map(([key, value]) => [Number(key), value]),
   );
@@ -54,92 +52,90 @@ export const UnreadCountsStore = signalStore(
       Object.values(direct()).reduce((sum, count) => sum + count, 0),
     ),
   })),
-  withMethods(
-    (store, textRoomApiService = inject(TextRoomApiService)) => ({
-      roomUnreadCount(roomId: number): number {
-        return store.rooms()[roomId] ?? 0;
-      },
+  withMethods((store, textRoomApiService = inject(TextRoomApiService)) => ({
+    roomUnreadCount(roomId: number): number {
+      return store.rooms()[roomId] ?? 0;
+    },
 
-      directUnreadCount(userId: number): number {
-        return store.direct()[userId] ?? 0;
-      },
+    directUnreadCount(userId: number): number {
+      return store.direct()[userId] ?? 0;
+    },
 
-      setActiveChat({
-        roomId,
-        recipientId,
-      }: {
-        roomId: number | null;
-        recipientId: number | null;
-      }): void {
-        const rooms = { ...store.rooms() };
-        const direct = { ...store.direct() };
+    setActiveChat({
+      roomId,
+      recipientId,
+    }: {
+      roomId: number | null;
+      recipientId: number | null;
+    }): void {
+      const rooms = { ...store.rooms() };
+      const direct = { ...store.direct() };
 
-        if (roomId != null) {
-          delete rooms[roomId];
-        }
+      if (roomId != null) {
+        delete rooms[roomId];
+      }
 
-        if (recipientId != null) {
-          delete direct[recipientId];
-        }
+      if (recipientId != null) {
+        delete direct[recipientId];
+      }
 
-        patchState(store, {
-          activeRoomId: roomId,
-          activeRecipientId: recipientId,
-          rooms,
-          direct,
-        });
-      },
+      patchState(store, {
+        activeRoomId: roomId,
+        activeRecipientId: recipientId,
+        rooms,
+        direct,
+      });
+    },
 
-      clearActiveChat(): void {
-        patchState(store, {
-          activeRoomId: null,
-          activeRecipientId: null,
-        });
-      },
+    clearActiveChat(): void {
+      patchState(store, {
+        activeRoomId: null,
+        activeRecipientId: null,
+      });
+    },
 
-      handleNewMessage(message: ITextRoomMessage, currentUserId: number): void {
-        if (message.senderId === currentUserId) {
+    handleNewMessage(message: ITextRoomMessage, currentUserId: number): void {
+      if (message.senderId === currentUserId) {
+        return;
+      }
+
+      if (message.roomId) {
+        if (store.activeRoomId() === message.roomId) {
           return;
         }
 
-        if (message.roomId) {
-          if (store.activeRoomId() === message.roomId) {
-            return;
-          }
+        patchState(store, {
+          rooms: incrementCount(store.rooms(), message.roomId),
+        });
+        return;
+      }
 
-          patchState(store, {
-            rooms: incrementCount(store.rooms(), message.roomId),
-          });
-          return;
-        }
+      if (
+        message.recipientId === currentUserId &&
+        store.activeRecipientId() !== message.senderId
+      ) {
+        patchState(store, {
+          direct: incrementCount(store.direct(), message.senderId),
+        });
+      }
+    },
 
-        if (
-          message.recipientId === currentUserId &&
-          store.activeRecipientId() !== message.senderId
-        ) {
-          patchState(store, {
-            direct: incrementCount(store.direct(), message.senderId),
-          });
-        }
-      },
-
-      load: rxMethod<void>(
-        pipe(
-          switchMap(() =>
-            textRoomApiService.getUnreadCounts().pipe(
-              tap(({ rooms, direct }) => {
-                patchState(store, {
-                  rooms: parseCountMap(rooms),
-                  direct: parseCountMap(direct),
-                });
-              }),
-              catchError(() => EMPTY),
-            ),
+    load: rxMethod<void>(
+      pipe(
+        switchMap(() =>
+          textRoomApiService.getUnreadCounts().pipe(
+            tap(({ rooms, direct }) => {
+              patchState(store, {
+                rooms: parseCountMap(rooms),
+                direct: parseCountMap(direct),
+              });
+            }),
+            catchError(() => EMPTY),
           ),
         ),
       ),
-    }),
-  ),
+    ),
+  })),
   withHooks({
     onInit(store) {
       const ngrxStore = inject(Store);

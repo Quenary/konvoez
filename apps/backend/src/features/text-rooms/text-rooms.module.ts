@@ -21,4 +21,3 @@ import {
   providers: [TextRoomsGateway, TextRoomsService],
 })
 export class TextRoomsModule {}
-

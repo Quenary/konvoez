@@ -3,7 +3,12 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { EntityManager, EntityRepository, FilterQuery, raw } from '@mikro-orm/core';
+import {
+  EntityManager,
+  EntityRepository,
+  FilterQuery,
+  raw,
+} from '@mikro-orm/core';
 import { SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
@@ -49,10 +54,7 @@ export class TextRoomsService {
     private readonly textRoomsGateway: TextRoomsGateway,
   ) {}
 
-  private entityToDto(
-    data: MessageEntity,
-    isRead: boolean,
-  ): MessageDto {
+  private entityToDto(data: MessageEntity, isRead: boolean): MessageDto {
     const content = this.encryptionService.decrypt(
       data.contentEncrypted,
       data.iv,
@@ -508,13 +510,7 @@ export class TextRoomsService {
     const messages = await this.messageRepository.find(
       { id: { $in: rawIds } },
       {
-        populate: [
-          'sender',
-          'recipient',
-          'room',
-          'replyTo',
-          'replyTo.sender',
-        ],
+        populate: ['sender', 'recipient', 'room', 'replyTo', 'replyTo.sender'],
       },
     );
 
@@ -549,10 +545,7 @@ export class TextRoomsService {
     }
   }
 
-  async getReaders(
-    user: GetUserDto,
-    messageId: string,
-  ): Promise<GetUserDto[]> {
+  async getReaders(user: GetUserDto, messageId: string): Promise<GetUserDto[]> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
       { populate: ['sender', 'recipient', 'room'] },

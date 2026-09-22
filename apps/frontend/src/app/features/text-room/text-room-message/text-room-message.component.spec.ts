@@ -234,7 +234,9 @@ describe('TextRoomMessageComponent', () => {
     ).showReadersDialog('tmpl');
 
     expect(
-      (component as unknown as { readersLoading: () => boolean }).readersLoading(),
+      (
+        component as unknown as { readersLoading: () => boolean }
+      ).readersLoading(),
     ).toBe(false);
   });
 });

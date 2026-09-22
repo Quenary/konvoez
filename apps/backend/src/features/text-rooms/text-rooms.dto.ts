@@ -26,4 +26,3 @@ export class MessageListResponseDto extends createZodDto(
 export class MarkReadDto extends createZodDto(markReadSchema) {}
 
 export class UnreadCountsResponseDto extends createZodDto(unreadCountsSchema) {}
-
