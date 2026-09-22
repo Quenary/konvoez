@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  signal,
   Sanitizer,
   SecurityContext,
 } from '@angular/core';
@@ -12,7 +13,9 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiDataList,
+  TuiDialogService,
   TuiDropdown,
+  TuiIcon,
   TuiNotificationService,
   TuiOption,
 } from '@taiga-ui/core';
@@ -24,6 +27,10 @@ import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UsersStore } from '@features/users/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { IMessageEntity, TextRoomStore } from '../text-room.store';
+import { MessageVisibilityDirective } from '@shared/directives/message-visibility.directive';
+import { TextRoomApiService } from '../text-room-api.service';
+import { TuiList } from '@taiga-ui/layout';
+import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 
 @Component({
   selector: 'app-text-room-message',
@@ -35,10 +42,13 @@ import { IMessageEntity, TextRoomStore } from '../text-room.store';
     TuiDataList,
     TuiDropdown,
     TuiEditorSocket,
+    TuiIcon,
     TuiInitialsPipe,
     TuiOption,
     TuiAutoColorPipe,
     TextContentPipe,
+    MessageVisibilityDirective,
+    TuiList,
   ],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',
@@ -51,14 +61,14 @@ export class TextRoomMessageComponent {
   private readonly sanitizer = inject(Sanitizer);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
+  private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly textRoomApiService = inject(TextRoomApiService);
 
   public readonly message = input.required<IMessageEntity>();
 
   protected readonly sanitizedContent = computed(() =>
     this.sanitizer.sanitize(SecurityContext.HTML, this.message().content),
   );
-
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected readonly avatarUrl = computed(() => {
     const message = this.message();
@@ -73,25 +83,9 @@ export class TextRoomMessageComponent {
     return null;
   });
 
-  protected readonly canEdit = computed(() => {
-    const me = this.currentUser() as IUser | null;
-    return !!me && this.message().senderId === me.id;
-  });
-
-  protected readonly canDelete = computed(() => {
-    const me = this.currentUser() as IUser | null;
-    if (!me) {
-      return false;
-    }
-    if (this.message().senderId === me.id) {
-      return true;
-    }
-    return [EUserRole.OWNER, EUserRole.ADMIN].includes(me.role);
-  });
-
   protected readonly isOwnMessage = computed(() => {
-    const me = this.currentUser() as IUser | null;
-    return !!me && this.message().senderId === me.id;
+    const currentUser = this.currentUser() as IUser | null;
+    return !!currentUser && this.message().senderId === currentUser.id;
   });
 
   protected readonly isDirectChat = computed(() => {
@@ -106,6 +100,36 @@ export class TextRoomMessageComponent {
     // For group chats, show avatar only for other's messages
     return !this.isOwnMessage();
   });
+
+  /**
+   * 'sent'  — own message, not yet read by anyone
+   * 'read'  — own message, read by at least one other user
+   * null    — someone else's message (no status shown)
+   */
+  protected readonly readStatus = computed<'sent' | 'read' | null>(() => {
+    if (!this.isOwnMessage()) return null;
+    return this.message().isRead ? 'read' : 'sent';
+  });
+
+  protected readonly canEdit = computed(() => this.isOwnMessage());
+  protected readonly canViewReaders = computed(() => {
+    const isOwnMessage = this.isOwnMessage();
+    const isDirectChat = this.isDirectChat();
+    return isOwnMessage && !isDirectChat;
+  });
+  protected readonly canDelete = computed(() => {
+    const currentUser = this.currentUser() as IUser | null;
+    const message = this.message();
+
+    if (!currentUser) return false;
+    if (message.senderId === currentUser.id) return true;
+    return [EUserRole.OWNER, EUserRole.ADMIN].includes(currentUser.role);
+  });
+
+  protected readonly readers = signal<IUser[]>([]);
+  protected readonly readersLoading = signal(false);
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected replyMessage(): void {
     this.textRoomStore.setReplyToMessageId(this.message().id);
@@ -130,5 +154,28 @@ export class TextRoomMessageComponent {
       return;
     }
     this.textRoomStore.jumpToMessage(reply.id);
+  }
+
+  protected showReadersDialog(template: PolymorpheusContent): void {
+    this.readers.set([]);
+    this.readersLoading.set(true);
+
+    this.textRoomApiService.getReaders(this.message().id).subscribe({
+      next: (users) => {
+        this.readers.set(users);
+        this.readersLoading.set(false);
+      },
+      error: () => {
+        this.readersLoading.set(false);
+      },
+    });
+
+    this.tuiDialogService
+      .open(template, {
+        label: this.translateService.instant('ROOMS.READ_BY'),
+        closable: true,
+        size: 's',
+      })
+      .subscribe();
   }
 }

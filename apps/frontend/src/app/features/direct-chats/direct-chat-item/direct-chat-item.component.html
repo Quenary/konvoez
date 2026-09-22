@@ -4,18 +4,27 @@
   appearance="whiteblock"
   type="button"
   (click)="selected.emit(user())">
-  <div
-    tuiAvatar
-    size="m">
-    @if (user().avatarUrl) {
-      <img
-        [alt]="user().username"
-        [ngSrc]="user().avatarUrl!"
-        fill />
-    } @else {
-      {{ user().fullname | tuiInitials }}
+  <tui-badged-content class="chat-badge">
+    @if (unreadCountsStore.directUnreadCount(user().id); as count) {
+      <tui-badge-notification
+        size="s"
+        tuiSlot="top">
+        {{ count > 99 ? '99+' : count }}
+      </tui-badge-notification>
     }
-  </div>
+    <div
+      tuiAvatar
+      size="m">
+      @if (user().avatarUrl) {
+        <img
+          [alt]="user().username"
+          [ngSrc]="user().avatarUrl!"
+          fill />
+      } @else {
+        {{ user().fullname | tuiInitials }}
+      }
+    </div>
+  </tui-badged-content>
 
   <div tuiTitle>
     <span [style.color]="user().username | tuiAutoColor">

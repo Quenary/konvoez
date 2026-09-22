@@ -6,6 +6,7 @@ import {
   ITextRoomListRequest,
   ITextRoomListResponse,
   ITextRoomMessage,
+  ITextRoomUnreadCounts,
   IUser,
 } from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
@@ -66,4 +67,27 @@ export class TextRoomApiService {
       `${environment.apiPath}/text-rooms/${messageId}`,
     );
   }
+
+  markRead(messageIds: string[]): Observable<void> {
+    return this.httpClient.post<void>(
+      `${environment.apiPath}/text-rooms/read`,
+      { messageIds },
+    );
+  }
+
+  getReaders(messageId: string): Observable<IUser[]> {
+    return this.httpClient.get<IUser[]>(
+      `${environment.apiPath}/text-rooms/${messageId}/readers`,
+    );
+  }
+
+  getUnreadCounts(): Observable<ITextRoomUnreadCounts> {
+    return this.httpClient.get<ITextRoomUnreadCounts>(
+      `${environment.apiPath}/text-rooms/unread-counts`,
+      {
+        withCredentials: true,
+      },
+    );
+  }
 }
+

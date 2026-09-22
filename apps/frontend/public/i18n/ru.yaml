@@ -62,6 +62,8 @@ ROOMS:
   DELETED_MESSAGE: Удаленное сообщение
   ORIGINAL_MESSAGE_DELETED: Оригинальное сообщение было удалено
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
+  READ_BY: Прочитано
+  NO_READERS: Сообщение еще не прочитано
   DIALOG:
     ADD_HEADER: Добавить комнату
     EDIT_HEADER: Редактировать комнату

@@ -5,7 +5,8 @@
     [class.message-own]="isOwnMessage()"
     [style.--author-color]="m.senderUsername | tuiAutoColor"
     [tuiDropdown]="contextMenu"
-    tuiDropdownContext>
+    tuiDropdownContext
+    [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     <div class="message-row">
       @if (shouldShowAvatar()) {
         <div
@@ -30,9 +31,6 @@
             class="message-body-header-username"
             [style.color]="m.senderUsername | tuiAutoColor">
             {{ m.senderUsername }}
-          </span>
-          <span class="message-body-header-date">
-            {{ m.createdAt | dayjs }}
           </span>
         </span>
 
@@ -70,6 +68,16 @@
           class="message-body-content"
           [content]="sanitizedContent()">
         </tui-editor-socket>
+
+        <span class="message-bubble-footer">
+          <span class="message-date">{{ m.createdAt | dayjs }}</span>
+          @if (readStatus(); as status) {
+            <tui-icon
+              class="message-status-icon"
+              [class.message-status-icon--read]="status === 'read'"
+              [icon]="status === 'read' ? '@tui.check-check' : '@tui.check'" />
+          }
+        </span>
       </span>
     </div>
   </div>
@@ -100,6 +108,46 @@
           {{ 'GENERAL.DELETE' | translate }}
         </button>
       }
+      @if (canViewReaders()) {
+        <button
+          tuiOption
+          iconEnd="@tui.users"
+          (click)="showReadersDialog(readersDialog); close()">
+          {{ 'ROOMS.READ_BY' | translate }}
+        </button>
+      }
     </tui-data-list>
+  </ng-template>
+
+  <ng-template #readersDialog>
+    @if (readersLoading()) {
+      <p>{{ 'GENERAL.LOADING' | translate }}</p>
+    } @else if (readers().length === 0) {
+      <p>{{ 'ROOMS.NO_READERS' | translate }}</p>
+    } @else {
+      <ul tuiList="m">
+        @for (user of readers(); track user.id) {
+          <li style="display: inline-flex">
+            <div class="readers-item">
+              <div
+                tuiAvatar
+                size="s"
+                [round]="true"
+                [style.margin-right.rem]="0.5">
+                @if (user.avatarUrl; as url) {
+                  <img
+                    [alt]="user.username"
+                    [ngSrc]="url"
+                    fill />
+                } @else {
+                  {{ user.username | tuiInitials }}
+                }
+              </div>
+              <span>{{ user.username }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+    }
   </ng-template>
 }

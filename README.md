@@ -63,7 +63,6 @@ docker compose -f docker-compose.build.yml up -d --build
 ## TODO
 
 - Add SMTP support for password recovery and invites
-- Add unreaded message count and badges for rooms
 - Load active room's peers on initial frontend loads
 - Add active voice room indication on narrow menu
 - Add message assets (files)

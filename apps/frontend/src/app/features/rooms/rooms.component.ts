@@ -26,21 +26,25 @@ import {
   TuiButton,
   TuiDialogService,
   TuiDropdown,
+  TuiIcon,
   TuiOption,
   TuiDataList,
 } from '@taiga-ui/core';
 import {
   TUI_CONFIRM,
   TuiAvatar,
+  TuiBadgedContent,
+  TuiBadgeNotification,
   TuiConfirmData,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
+import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
 import { RouterLink } from '@angular/router';
-import { NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 
 interface IRoomWithPeers extends IRoom {
   peers: IUser[];
@@ -55,13 +59,17 @@ interface IRoomWithPeers extends IRoom {
     RoomPeerComponent,
     //
     TuiAvatar,
+    TuiBadgedContent,
+    TuiBadgeNotification,
     TuiButton,
+    TuiIcon,
     TuiNavigation,
     TuiInitialsPipe,
     TuiDropdown,
     TuiOption,
     TuiDataList,
     NgOptimizedImage,
+    NgTemplateOutlet,
   ],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',
@@ -77,6 +85,7 @@ export class RoomsComponent implements OnInit {
     TuiResponsiveDialogService,
   );
   private readonly injector = inject(Injector);
+  protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   public readonly collapsed = input.required<boolean>();
 

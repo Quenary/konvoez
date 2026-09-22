@@ -1,0 +1,10 @@
+:host {
+  button[tuiCell] {
+    overflow: visible;
+  }
+
+  .chat-badge {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+}

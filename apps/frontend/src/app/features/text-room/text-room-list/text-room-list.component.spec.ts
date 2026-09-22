@@ -13,6 +13,8 @@ import { Sanitizer, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@features/auth/auth.reducer';
+import { TextRoomApiService } from '../text-room-api.service';
+import { MessageReadQueueService } from '../message-read-queue.service';
 
 describe('TextRoomListComponent', () => {
   let component: TextRoomListComponent;
@@ -28,6 +30,7 @@ describe('TextRoomListComponent', () => {
       recipientId: null,
       createdAt: new Date('2026-09-15T00:00:00.000Z'),
       updatedAt: null,
+      isRead: false,
       status: EMessageStatus.SUCCESS,
       replyTo: null,
     },
@@ -40,6 +43,7 @@ describe('TextRoomListComponent', () => {
       recipientId: null,
       createdAt: new Date('2026-09-15T00:01:00.000Z'),
       updatedAt: null,
+      isRead: false,
       status: EMessageStatus.SUCCESS,
       replyTo: {
         id: 'msg-1',
@@ -75,6 +79,13 @@ describe('TextRoomListComponent', () => {
     mockTextRoomStore.targetScrollMessageId.set(null);
     Element.prototype.scrollTo = vi.fn();
 
+    class MockIntersectionObserver {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+
     if (!window.matchMedia) {
       Object.defineProperty(window, 'matchMedia', {
         writable: true,
@@ -107,6 +118,14 @@ describe('TextRoomListComponent', () => {
         {
           provide: TuiNotificationService,
           useValue: { open: vi.fn(() => of(undefined)) },
+        },
+        {
+          provide: TextRoomApiService,
+          useValue: { getReaders: vi.fn(), markRead: vi.fn() },
+        },
+        {
+          provide: MessageReadQueueService,
+          useValue: { enqueue: vi.fn(), reset: vi.fn() },
         },
       ],
     }).compileComponents();

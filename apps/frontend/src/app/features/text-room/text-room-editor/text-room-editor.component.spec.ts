@@ -23,6 +23,7 @@ describe('TextRoomEditorComponent', () => {
     recipientId: null,
     createdAt: new Date('2026-09-15T00:00:00.000Z'),
     updatedAt: null,
+    isRead: false,
     status: EMessageStatus.SUCCESS,
     replyTo: null,
   };

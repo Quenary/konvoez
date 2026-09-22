@@ -5,6 +5,7 @@ import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { provideStore } from '@ngrx/store';
 import { DirectChatDialogComponent } from './direct-chat-dialog.component';
 import { UsersStore } from '@features/users/users.store';
+import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
 import { EUserRole, IUser } from '@konvoez/shared';
 
 describe('DirectChatDialogComponent', () => {
@@ -69,6 +70,13 @@ describe('DirectChatDialogComponent', () => {
         }),
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: POLYMORPHEUS_CONTEXT, useValue: mockContext },
+        {
+          provide: UnreadCountsStore,
+          useValue: {
+            directUnreadCount: vi.fn().mockReturnValue(0),
+            directTotal: vi.fn().mockReturnValue(0),
+          },
+        },
       ],
     }).compileComponents();
 

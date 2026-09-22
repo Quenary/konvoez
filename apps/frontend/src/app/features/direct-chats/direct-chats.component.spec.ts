@@ -7,6 +7,7 @@ import { TuiDialogService } from '@taiga-ui/core';
 import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
 import { UsersStore } from '@features/users/users.store';
+import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
 import { EUserRole, IUser } from '@konvoez/shared';
 
 describe('DirectChatsComponent', () => {
@@ -52,6 +53,13 @@ describe('DirectChatsComponent', () => {
         { provide: DirectChatsStore, useValue: mockDirectChatsStore },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: TuiDialogService, useValue: mockDialogService },
+        {
+          provide: UnreadCountsStore,
+          useValue: {
+            directUnreadCount: vi.fn().mockReturnValue(0),
+            directTotal: vi.fn().mockReturnValue(0),
+          },
+        },
       ],
     }).compileComponents();
 

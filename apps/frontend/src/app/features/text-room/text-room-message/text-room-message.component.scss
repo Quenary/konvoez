@@ -139,16 +139,35 @@
         &-username {
           font-weight: 600;
         }
-
-        &-date {
-          color: var(--tui-text-secondary);
-          font-size: 0.75rem;
-        }
       }
 
       &-content {
         flex: 1;
       }
+    }
+  }
+
+  .message-bubble-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: -0.125rem;
+    justify-content: flex-end;
+  }
+
+  .message-date {
+    color: var(--tui-text-secondary);
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .message-status-icon {
+    font-size: 0.875rem;
+    color: var(--tui-text-tertiary);
+    line-height: 1;
+
+    &--read {
+      color: var(--tui-status-positive, #44a77b);
     }
   }
 }

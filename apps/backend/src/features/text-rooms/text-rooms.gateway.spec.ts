@@ -66,6 +66,7 @@ describe('TextRoomsGateway', () => {
       content: 'hello',
       createdAt: new Date(),
       updatedAt: null,
+      isRead: false,
       replyTo: null,
     };
 
@@ -88,6 +89,7 @@ describe('TextRoomsGateway', () => {
       content: 'direct hello',
       createdAt: new Date(),
       updatedAt: null,
+      isRead: false,
       replyTo: null,
     };
 
@@ -111,6 +113,7 @@ describe('TextRoomsGateway', () => {
       content: 'hello edited',
       createdAt: new Date(),
       updatedAt: new Date(),
+      isRead: false,
       replyTo: null,
     };
 
@@ -133,6 +136,7 @@ describe('TextRoomsGateway', () => {
       content: 'direct edited',
       createdAt: new Date(),
       updatedAt: new Date(),
+      isRead: false,
       replyTo: null,
     };
 
