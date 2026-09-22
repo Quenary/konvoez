@@ -79,6 +79,26 @@ function toMessageEntity(
   };
 }
 
+function messageBelongsToActiveChat(
+  message: ITextRoomMessage,
+  selectedRoomId: number | null,
+  selectedRecipientId: number | null,
+): boolean {
+  if (selectedRoomId != null) {
+    return message.roomId === selectedRoomId;
+  }
+
+  if (selectedRecipientId != null) {
+    return (
+      message.roomId === null &&
+      (message.senderId === selectedRecipientId ||
+        message.recipientId === selectedRecipientId)
+    );
+  }
+
+  return false;
+}
+
 export const TextRoomStore = signalStore(
   { providedIn: 'root' },
   withState<TextRoomState>({
@@ -498,11 +518,21 @@ export const TextRoomStore = signalStore(
           }
         });
 
+      const belongsToActiveChat = (message: ITextRoomMessage): boolean =>
+        messageBelongsToActiveChat(
+          message,
+          store.selectedRoomId(),
+          store.selectedRecipientId(),
+        );
+
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_CREATED)
         .pipe(takeUntilDestroyed())
         .subscribe((message) => {
           // Ignore incoming new messages when search is active to keep search results consistent
           if (store.searchQuery()?.trim()) {
+            return;
+          }
+          if (!belongsToActiveChat(message)) {
             return;
           }
           patchState(store, setEntity(toMessageEntity(message)));
@@ -511,12 +541,18 @@ export const TextRoomStore = signalStore(
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_EDITED)
         .pipe(takeUntilDestroyed())
         .subscribe((message) => {
+          if (!belongsToActiveChat(message)) {
+            return;
+          }
           patchState(store, setEntity(toMessageEntity(message)));
         });
 
       fromEvent<{ id: string }>(emitter, ETextRoomEvent.MESSAGE_DELETED)
         .pipe(takeUntilDestroyed())
         .subscribe(({ id }) => {
+          if (!store.entityMap()[id]) {
+            return;
+          }
           patchState(
             store,
             removeEntity(id),
