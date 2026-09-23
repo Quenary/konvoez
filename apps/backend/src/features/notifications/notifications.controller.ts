@@ -16,7 +16,10 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get('vapid-public-key')
-  @ApiOkResponse({ type: VapidPublicKeyDto, description: 'Get VAPID public key' })
+  @ApiOkResponse({
+    type: VapidPublicKeyDto,
+    description: 'Get VAPID public key',
+  })
   async getVapidPublicKey(): Promise<VapidPublicKeyDto> {
     return {
       publicKey: this.notificationsService.getPublicKey(),

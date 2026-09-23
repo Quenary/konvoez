@@ -81,10 +81,7 @@ export class VapidKeyStorageService {
       return value;
     }
 
-    const key = deriveAes256KeyFromMasterKey(
-      masterKey,
-      VAPID_KEY_STORAGE_INFO,
-    );
+    const key = deriveAes256KeyFromMasterKey(masterKey, VAPID_KEY_STORAGE_INFO);
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
 

@@ -23,9 +23,13 @@ export class NotificationsApiService {
   }
 
   createSubscription(payload: TPushSubscription): Observable<void> {
-    return this.httpClient.post<void>(`${this.basePath}/subscription`, payload, {
-      withCredentials: true,
-    });
+    return this.httpClient.post<void>(
+      `${this.basePath}/subscription`,
+      payload,
+      {
+        withCredentials: true,
+      },
+    );
   }
 
   unsubscribe(payload: TPushSubscriptionEndpoint): Observable<void> {

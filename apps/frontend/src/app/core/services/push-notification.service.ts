@@ -16,11 +16,7 @@ import {
 import { NotificationsApiService } from './notifications-api.service';
 
 export type PushToggleResult =
-  | 'enabled'
-  | 'disabled'
-  | 'unsupported'
-  | 'permission-denied'
-  | 'failed';
+  'enabled' | 'disabled' | 'unsupported' | 'permission-denied' | 'failed';
 
 @Injectable({ providedIn: 'root' })
 export class PushNotificationService {

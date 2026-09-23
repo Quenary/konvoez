@@ -40,9 +40,14 @@ import { AppService } from '../../shared/services/app.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
-  let subscriptionRepository: jest.Mocked<EntityRepository<PushSubscriptionEntity>>;
+  let subscriptionRepository: jest.Mocked<
+    EntityRepository<PushSubscriptionEntity>
+  >;
   let vapidKeyStorageService: jest.Mocked<
-    Pick<VapidKeyStorageService, 'readVapidKeysFromDisk' | 'saveVapidKeysToDisk'>
+    Pick<
+      VapidKeyStorageService,
+      'readVapidKeysFromDisk' | 'saveVapidKeysToDisk'
+    >
   >;
   let em: jest.Mocked<EntityManager>;
 
@@ -208,7 +213,6 @@ describe('NotificationsService', () => {
       expect(gone.isActive).toBe(false);
       expect(em.flush).toHaveBeenCalledTimes(1);
     });
-
   });
 
   describe('sendDirectMessageNotification', () => {

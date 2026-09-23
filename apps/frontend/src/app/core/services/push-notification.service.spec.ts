@@ -63,9 +63,9 @@ describe('PushNotificationService', () => {
     swPush.isEnabled = true;
     swPush.requestSubscription.mockResolvedValue(mockSubscription);
     swPush.unsubscribe.mockResolvedValue(undefined);
-    (mockSubscription.unsubscribe as ReturnType<typeof vi.fn>).mockResolvedValue(
-      true,
-    );
+    (
+      mockSubscription.unsubscribe as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(true);
     Object.defineProperty(navigator, 'serviceWorker', {
       configurable: true,
       value: {},
