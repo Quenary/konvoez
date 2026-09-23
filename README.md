@@ -67,7 +67,6 @@ docker compose -f docker-compose.build.yml up -d --build
 - Add active voice room indication on narrow menu
 - Add message assets (files)
 - Add connection state indication
-- Add notifications
 - Add customizable roles (functions access) and groups (rooms access)
 - Add voice room component (visualization of peers on big screens like in discord)
 - Add mute indication for other peers
