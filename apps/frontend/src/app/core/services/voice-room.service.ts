@@ -422,7 +422,24 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   @Mutexed()
   private async ensureDeviceLoaded() {
     if (!this.device) {
-      const { Device } = await import('mediasoup-client');
+      // mediasoup-client is a CommonJS module. In production builds (esbuild),
+      // dynamic import of a CJS module may wrap it so that named exports
+      // are unavailable. We fall back to the module default export in that case.
+      const mediasoupClient = await import('mediasoup-client');
+      const Device =
+        mediasoupClient.Device ??
+        (
+          mediasoupClient as unknown as {
+            default: { Device: typeof import('mediasoup-client').Device };
+          }
+        ).default?.Device;
+      if (typeof Device !== 'function') {
+        console.error(
+          'mediasoup-client Device is not a constructor',
+          mediasoupClient,
+        );
+        throw new Error('Failed to load mediasoup-client Device');
+      }
       this.device = new Device();
     }
     if (this.device.loaded) {
