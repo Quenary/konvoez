@@ -35,6 +35,7 @@ import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
 import { AUDIO_DEVICE_HANDLER } from './core/tokens/audio-device-handler.token';
 import { VoiceRoomService } from './core/services/voice-room.service';
+import { provideServiceWorker } from '@angular/service-worker';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -97,5 +98,9 @@ export const appConfig: ApplicationConfig = {
       provide: Sanitizer,
       useClass: NgDompurifySanitizer,
     },
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
   ],
 };

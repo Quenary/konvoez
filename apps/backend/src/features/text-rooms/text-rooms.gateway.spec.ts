@@ -6,8 +6,7 @@ jest.mock('../auth/auth.service', () => ({
 }));
 
 import { TextRoomsGateway } from './text-rooms.gateway';
-import { ETextRoomEvent } from '@konvoez/shared';
-import { MessageDto } from './text-rooms.dto';
+import { ETextRoomEvent, type ITextRoomMessage } from '@konvoez/shared';
 import { v7 } from 'uuid';
 import { Server, Socket } from 'socket.io';
 
@@ -57,7 +56,7 @@ describe('TextRoomsGateway', () => {
   });
 
   it('should emit MESSAGE_CREATED to room in onMessageCreated', () => {
-    const body: MessageDto = {
+    const body: ITextRoomMessage = {
       id: v7(),
       senderId: 1,
       senderUsername: 'alice',
@@ -80,7 +79,7 @@ describe('TextRoomsGateway', () => {
   });
 
   it('should emit MESSAGE_CREATED to recipient and sender in onMessageCreated for direct message', () => {
-    const body: MessageDto = {
+    const body: ITextRoomMessage = {
       id: v7(),
       senderId: 1,
       senderUsername: 'alice',
@@ -104,7 +103,7 @@ describe('TextRoomsGateway', () => {
   });
 
   it('should emit MESSAGE_EDITED in onMessageUpdated', () => {
-    const body: MessageDto = {
+    const body: ITextRoomMessage = {
       id: v7(),
       senderId: 1,
       senderUsername: 'alice',
@@ -127,7 +126,7 @@ describe('TextRoomsGateway', () => {
   });
 
   it('should emit MESSAGE_EDITED to recipient and sender for direct message', () => {
-    const body: MessageDto = {
+    const body: ITextRoomMessage = {
       id: v7(),
       senderId: 1,
       senderUsername: 'alice',

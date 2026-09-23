@@ -13,10 +13,10 @@ import { AuthService } from '../auth/auth.service';
 import {
   ETextRoomEvent,
   type ITextRoomJoin,
+  type ITextRoomMessage,
   ITextRoomPeer,
   TTextRoomEventMap,
 } from '@konvoez/shared';
-import { MessageDto } from './text-rooms.dto';
 
 type TSocket = Socket<
   TTextRoomEventMap,
@@ -62,7 +62,7 @@ export class TextRoomsGateway
       client.data.peer = {
         ...user,
         clientId: client.id,
-      } satisfies ITextRoomPeer;
+      } as ITextRoomPeer;
 
       this.userIdToSocketId.set(user.id, client.id);
       client.join(user.id.toString());
@@ -110,7 +110,7 @@ export class TextRoomsGateway
     }
   }
 
-  public onMessageCreated(body: MessageDto) {
+  public onMessageCreated(body: ITextRoomMessage) {
     if (body.roomId) {
       let res = this.server.to(body.roomId.toString());
       const senderClientId = this.userIdToSocketId.get(body.senderId);
@@ -131,7 +131,7 @@ export class TextRoomsGateway
     }
   }
 
-  public onMessageUpdated(body: MessageDto) {
+  public onMessageUpdated(body: ITextRoomMessage) {
     if (body.roomId) {
       return this.server
         .to(body.roomId.toString())

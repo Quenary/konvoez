@@ -19,7 +19,6 @@ import {
 import {
   EditMessageDto,
   MarkReadDto,
-  MessageDto,
   MessageListRequestDto,
   MessageListResponseDto,
   CreateMessageDto,
@@ -35,7 +34,11 @@ import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { TextRoomsGateway } from './text-rooms.gateway';
 
-import { ITextRoomMessageReply, ITextRoomUnreadCounts } from '@konvoez/shared';
+import {
+  ITextRoomMessage,
+  ITextRoomMessageReply,
+  ITextRoomUnreadCounts,
+} from '@konvoez/shared';
 
 @Injectable()
 export class TextRoomsService {
@@ -54,7 +57,7 @@ export class TextRoomsService {
     private readonly textRoomsGateway: TextRoomsGateway,
   ) {}
 
-  private entityToDto(data: MessageEntity, isRead: boolean): MessageDto {
+  private entityToDto(data: MessageEntity, isRead: boolean): ITextRoomMessage {
     const content = this.encryptionService.decrypt(
       data.contentEncrypted,
       data.iv,
@@ -351,7 +354,10 @@ export class TextRoomsService {
     };
   }
 
-  async create(user: GetUserDto, dto: CreateMessageDto): Promise<MessageDto> {
+  async create(
+    user: GetUserDto,
+    dto: CreateMessageDto,
+  ): Promise<ITextRoomMessage> {
     let recipient: UserEntity | null = null;
     let room: RoomEntity | null = null;
 
@@ -431,7 +437,7 @@ export class TextRoomsService {
     user: GetUserDto,
     messageId: string,
     dto: EditMessageDto,
-  ): Promise<MessageDto> {
+  ): Promise<ITextRoomMessage> {
     let message = await this.messageRepository.findOne(
       { id: parse(messageId) },
       { populate: ['sender', 'replyTo', 'replyTo.sender'] },
