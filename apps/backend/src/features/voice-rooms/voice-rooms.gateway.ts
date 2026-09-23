@@ -7,6 +7,7 @@ import {
   OnGatewayDisconnect,
   OnGatewayConnection,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
 import {
   type IVoiceRoomConnectTransport,
@@ -47,6 +48,8 @@ type TSocket = Socket<
 export class VoiceRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  private readonly logger = new Logger(VoiceRoomsGateway.name);
+
   @WebSocketServer()
   private readonly server!: Server<TVoiceRoomEventMap>;
 
@@ -58,9 +61,15 @@ export class VoiceRoomsGateway
 
   private throwSocketWithoutRoom(socket: TSocket): void {
     if (!socket.data.roomId) {
+      this.logger.warn(
+        `Voice socket without room id: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
+      );
       throw new Error('Socket missing room id');
     }
     if (!socket.rooms.has(socket.data.roomId.toString())) {
+      this.logger.warn(
+        `Voice socket not in room: socketId=${socket.id}, roomId=${socket.data.roomId}`,
+      );
       throw new Error('Socket not in room');
     }
   }
@@ -72,6 +81,9 @@ export class VoiceRoomsGateway
       );
 
       if (!user) {
+        this.logger.warn(
+          `Unauthorized voice socket connection attempt: socketId=${client.id}`,
+        );
         client.emit(EVoiceRoomEvent.ERROR, {
           message: 'Unauthorized',
         });
@@ -80,7 +92,11 @@ export class VoiceRoomsGateway
       }
 
       client.data.user = user;
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `Voice socket auth failed: socketId=${client.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       client.emit(EVoiceRoomEvent.ERROR, {
         message: 'Unauthorized',
       });
@@ -97,7 +113,9 @@ export class VoiceRoomsGateway
     @ConnectedSocket() socket: TSocket,
     @MessageBody() body: IVoiceRoomJoin,
   ) {
-    console.info('handleJoinRoom', body);
+    this.logger.debug(
+      `handleJoinRoom: socketId=${socket.id}, roomId=${body.roomId}, userId=${socket.data.user?.id}`,
+    );
     const roomId = body.roomId;
     socket.data.roomId = roomId;
     const user = socket.data.user;
@@ -125,7 +143,9 @@ export class VoiceRoomsGateway
 
   @SubscribeMessage(EVoiceRoomEvent.LEAVE_ROOM)
   handleLeaveRoom(@ConnectedSocket() socket: TSocket) {
-    console.info('handleLeaveRoom', socket.data);
+    this.logger.debug(
+      `handleLeaveRoom: socketId=${socket.id}, roomId=${socket.data.roomId}`,
+    );
     const { roomId, ...rest } = socket.data;
     socket.data = rest;
 
@@ -189,7 +209,9 @@ export class VoiceRoomsGateway
     @ConnectedSocket() socket: TSocket,
     @MessageBody() body: IVoiceRoomCreateTransport,
   ) {
-    console.info('handleCreateTransport', body);
+    this.logger.debug(
+      `handleCreateTransport: socketId=${socket.id}, roomId=${socket.data.roomId}, direction=${body.direction}`,
+    );
     this.throwSocketWithoutRoom(socket);
     const room = this.voiceRoomsStateService.getRoom(socket.data.roomId!)!;
     const peer = room.peers.get(socket.id)!;
@@ -227,7 +249,9 @@ export class VoiceRoomsGateway
     @ConnectedSocket() socket: TSocket,
     @MessageBody() body: IVoiceRoomConnectTransport,
   ) {
-    console.info('connectTransport', body);
+    this.logger.debug(
+      `connectTransport: socketId=${socket.id}, roomId=${socket.data.roomId}, transportId=${body.transportId}`,
+    );
     this.throwSocketWithoutRoom(socket);
     const room = this.voiceRoomsStateService.getRoom(socket.data.roomId!)!;
     const peer = room.peers.get(socket.id)!;
@@ -260,7 +284,9 @@ export class VoiceRoomsGateway
     @ConnectedSocket() socket: TSocket,
     @MessageBody() body: IVoiceRoomProduce,
   ) {
-    console.info('produce', body);
+    this.logger.debug(
+      `produce: socketId=${socket.id}, roomId=${socket.data.roomId}, kind=${body.kind}, mediaTag=${body.mediaTag}`,
+    );
     this.throwSocketWithoutRoom(socket);
     const room = this.voiceRoomsStateService.getRoom(socket.data.roomId!)!;
     const peer = room.peers.get(socket.id)!;
@@ -282,6 +308,9 @@ export class VoiceRoomsGateway
     // Cleanup
     producer.on('transportclose', () => {
       room.producers.delete(producer.id);
+      this.logger.debug(
+        `Producer transport closed: producerId=${producer.id}, userId=${peer.user.id}, roomId=${room.id}`,
+      );
 
       this.server.to(room.id.toString()).emit(EVoiceRoomEvent.PRODUCER_CLOSED, {
         producerId: producer.id,
@@ -314,7 +343,9 @@ export class VoiceRoomsGateway
     @ConnectedSocket() socket: TSocket,
     @MessageBody() body: IVoiceRoomConsume,
   ) {
-    console.info('consume', body);
+    this.logger.debug(
+      `consume: socketId=${socket.id}, roomId=${socket.data.roomId}, producerId=${body.producerId}`,
+    );
     this.throwSocketWithoutRoom(socket);
     const room = this.voiceRoomsStateService.getRoom(socket.data.roomId!)!;
     const peer = room.peers.get(socket.id)!;
@@ -348,7 +379,9 @@ export class VoiceRoomsGateway
     peer.consumers.set(consumer.id, consumer);
 
     consumer.on('producerclose', () => {
-      console.info('Producer closed, remove consumer');
+      this.logger.debug(
+        `Producer closed, removing consumer: consumerId=${consumer.id}, peerId=${peer.id}`,
+      );
       peer.consumers.delete(consumer.id);
 
       socket.emit(EVoiceRoomEvent.CONSUMER_CLOSED, {
