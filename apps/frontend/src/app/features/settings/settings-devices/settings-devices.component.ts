@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MediaDevicesService } from '@core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -14,15 +14,18 @@ import {
   TuiDropdown,
   tuiItemsHandlersProvider,
   TuiNotificationService,
+  TuiTitle,
+  TuiButton,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
   TuiDataListWrapper,
   TuiChevron,
   TuiTooltip,
+  TuiButtonLoading,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { from, switchMap, catchError, of } from 'rxjs';
+import { catchError, finalize, from, of, switchMap } from 'rxjs';
 import { SettingsStore } from '../settings.store';
 
 @Component({
@@ -35,6 +38,7 @@ import { SettingsStore } from '../settings.store';
     TuiForm,
     TuiHeader,
     TuiIcon,
+    TuiTitle,
     TuiInput,
     TuiNotification,
     TuiSelect,
@@ -45,6 +49,8 @@ import { SettingsStore } from '../settings.store';
     TuiChevron,
     NgTemplateOutlet,
     TuiTooltip,
+    TuiButton,
+    TuiButtonLoading,
   ],
   providers: [
     tuiItemsHandlersProvider({
@@ -97,39 +103,48 @@ export class SettingsDevicesComponent {
    * List of available inputs
    */
   protected readonly audioInputList = computed(() => {
-    const devices = this.devices() ?? [];
+    const devices = this.devices.value();
     return devices.filter((d) => d.kind == 'audioinput');
   });
   /**
    * List of available outputs
    */
   protected readonly audioOutputList = computed(() => {
-    const devices = this.devices() ?? [];
+    const devices = this.devices.value() ?? [];
     return devices.filter((d) => d.kind == 'audiooutput');
   });
 
   /**
    * All audio devices
    */
-  private readonly devices = toSignal(
-    from(this.mediaDevicesService.getUserMedia({ audio: true })).pipe(
-      switchMap(() => from(this.mediaDevicesService.enumerateDevices())),
-      catchError(() => {
-        this.tuiNotificationsService
-          .open(
-            this.translateService.instant('SETTINGS.DEVICES.PERMISSION_ERROR'),
-            {
-              appearance: 'negative',
-              autoClose: 5000,
-              closable: true,
-            },
-          )
-          .subscribe();
-        return of([]);
-      }),
-    ),
-    { initialValue: [] },
-  );
+  protected readonly devices = rxResource({
+    stream: () =>
+      from(this.mediaDevicesService.getUserMedia({ audio: true })).pipe(
+        switchMap((stream) =>
+          from(this.mediaDevicesService.enumerateDevices()).pipe(
+            finalize(() => {
+              stream.getTracks().forEach((track) => track.stop());
+            }),
+          ),
+        ),
+        catchError(() => {
+          this.tuiNotificationsService
+            .open(
+              this.translateService.instant(
+                'SETTINGS.DEVICES.PERMISSION_ERROR',
+              ),
+              {
+                appearance: 'negative',
+                autoClose: 5000,
+                closable: true,
+              },
+            )
+            .subscribe();
+          return of([]);
+        }),
+      ),
+    defaultValue: [],
+  });
 
   /**
    * Select audio input

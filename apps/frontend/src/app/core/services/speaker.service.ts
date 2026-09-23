@@ -39,6 +39,25 @@ export class SpeakerService implements OnDestroy {
     return await this.ensureContext();
   }
 
+  @Mutexed(publlicMethodsMutex)
+  public async release(): Promise<void> {
+    if (this.context && this.context.state !== 'closed') {
+      try {
+        if (
+          'setSinkId' in this.context &&
+          typeof this.context.setSinkId === 'function'
+        ) {
+          await this.context.setSinkId('default');
+        }
+        await this.context.close();
+      } catch (error) {
+        console.warn('Failed to close speaker context', error);
+      }
+    }
+
+    this.context = null;
+  }
+
   ngOnDestroy(): void {
     navigator.mediaDevices?.removeEventListener(
       'devicechange',

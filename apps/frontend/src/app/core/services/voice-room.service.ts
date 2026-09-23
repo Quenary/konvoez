@@ -203,6 +203,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     await this.socket.emitWithAck(EVoiceRoomEvent.LEAVE_ROOM);
     this.cleanupAllPeers();
     this.cleanupMediasoup();
+    await this.microphoneService.release();
     await this.updateRoomsState();
   }
 
