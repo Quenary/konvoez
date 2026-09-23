@@ -7,6 +7,8 @@ export const fullnameMinLength = 4;
 export const fullnameMaxLength = 128;
 export const messageMinLength = 1;
 export const messageMaxLength = 5000;
+/** Preview length for OS notifications. Web Push ciphertext is capped at ~4KB. */
+export const pushNotificationBodyMaxLength = 200;
 export const messageListMinLimit = 1;
 export const messageListMaxLimit = 1000;
 export const roomNameMinLength = 1;

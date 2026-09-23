@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -33,6 +34,7 @@ import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { TextRoomsGateway } from './text-rooms.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import {
   ITextRoomMessage,
@@ -42,6 +44,8 @@ import {
 
 @Injectable()
 export class TextRoomsService {
+  private readonly logger = new Logger(TextRoomsService.name);
+
   private get em(): EntityManager {
     return this.messageRepository.getEntityManager();
   }
@@ -55,6 +59,7 @@ export class TextRoomsService {
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
     private readonly textRoomsGateway: TextRoomsGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private entityToDto(data: MessageEntity, isRead: boolean): ITextRoomMessage {
@@ -430,6 +435,27 @@ export class TextRoomsService {
     }
     const messageDto = this.entityToDto(message, false);
     this.textRoomsGateway.onMessageCreated(messageDto);
+
+    if (
+      messageDto.recipientId &&
+      messageDto.senderId !== messageDto.recipientId
+    ) {
+      void this.notificationsService
+        .sendDirectMessageNotification(
+          messageDto.recipientId,
+          messageDto.senderId,
+          messageDto.senderUsername,
+          messageDto.content,
+          messageDto.id,
+        )
+        .catch((error: unknown) => {
+          this.logger.error(
+            'Failed to send direct message push notification',
+            error instanceof Error ? error.stack : String(error),
+          );
+        });
+    }
+
     return messageDto;
   }
 

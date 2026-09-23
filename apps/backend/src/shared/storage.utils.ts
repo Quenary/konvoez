@@ -12,7 +12,7 @@ export function hasKonvoezDataVolume(): boolean {
   }
 }
 
-function getDefaultDataDir(): string {
+export function getDefaultDataDir(): string {
   if (
     !fs.existsSync('.konvoez_data') &&
     fs.existsSync(path.join('..', '..', '.konvoez_data'))

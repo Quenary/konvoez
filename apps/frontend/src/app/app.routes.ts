@@ -78,6 +78,13 @@ export const routes: Routes = [
               ),
           },
           {
+            path: 'notifications',
+            loadComponent: () =>
+              import('./features/settings/settings-notifications/settings-notifications.component').then(
+                (m) => m.SettingsNotificationsComponent,
+              ),
+          },
+          {
             path: 'invites',
             canActivate: [adminGuard],
             loadComponent: () =>

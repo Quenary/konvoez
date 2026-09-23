@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { AuthActions } from './auth.actions';
-import { catchError, finalize, map, of, switchMap, tap } from 'rxjs';
+import { catchError, filter, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { UsersApiService } from '../users/users-api.service';
 import { UsersStore } from '../users/users.store';
@@ -9,10 +9,12 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
+import { PushNotificationService } from '@core/services/push-notification.service';
 import { Store } from '@ngrx/store';
 import { selectIsAuthorized } from './auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TuiNotificationService } from '@taiga-ui/core';
+import { IUser } from '@konvoez/shared';
 
 @Injectable()
 export class AuthEffects {
@@ -25,6 +27,7 @@ export class AuthEffects {
   private readonly translateService = inject(TranslateService);
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly pushNotificationService = inject(PushNotificationService);
 
   constructor() {
     this.store
@@ -66,6 +69,19 @@ export class AuthEffects {
         ),
       ),
     ),
+  );
+
+  readonly syncPushSubscription$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.initEnd, AuthActions.requestLoginSuccess),
+        map((action) => action.user),
+        filter((user): user is IUser => user != null),
+        switchMap(() =>
+          this.pushNotificationService.syncExistingSubscription(),
+        ),
+      ),
+    { dispatch: false },
   );
 
   readonly requestLoginSuccess$ = createEffect(

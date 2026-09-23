@@ -11,3 +11,4 @@ export * from './schemas/auth.schemas';
 export * from './schemas/room.schemas';
 export * from './schemas/invite.schemas';
 export * from './schemas/public.schemas';
+export * from './schemas/notification.schemas';

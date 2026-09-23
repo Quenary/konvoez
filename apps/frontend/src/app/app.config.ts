@@ -99,8 +99,10 @@ export const appConfig: ApplicationConfig = {
       useClass: NgDompurifySanitizer,
     },
     provideServiceWorker('ngsw-worker.js', {
-      enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000',
+      enabled: environment.enableServiceWorker,
+      registrationStrategy: environment.enableServiceWorker
+        ? 'registerImmediately'
+        : 'registerWhenStable:30000',
     }),
   ],
 };

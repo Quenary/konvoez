@@ -1,0 +1,58 @@
+<form
+  appearance="floating"
+  tuiCardLarge
+  tuiForm="m"
+  novalidate>
+  <header tuiHeader>
+    <h2 tuiTitle>
+      {{ 'SETTINGS.NOTIFICATIONS.TITLE' | translate }}
+      <span tuiSubtitle>
+        {{ 'SETTINGS.NOTIFICATIONS.SUBTITLE' | translate }}
+      </span>
+    </h2>
+  </header>
+
+  <div class="setting-item">
+    <div class="status-row">
+      <span class="status-label">{{
+        'SETTINGS.NOTIFICATIONS.STATUS' | translate
+      }}</span>
+      <span
+        class="status-badge"
+        [class.enabled]="isEnabled()"
+        [class.disabled]="!isEnabled()">
+        {{
+          (isEnabled()
+            ? 'SETTINGS.NOTIFICATIONS.ENABLED'
+            : 'SETTINGS.NOTIFICATIONS.DISABLED'
+          ) | translate
+        }}
+      </span>
+    </div>
+
+    <p class="setting-description">
+      {{
+        (isEnabled()
+          ? 'SETTINGS.NOTIFICATIONS.ENABLED_DESC'
+          : 'SETTINGS.NOTIFICATIONS.DISABLED_DESC'
+        ) | translate
+      }}
+    </p>
+  </div>
+
+  <footer>
+    <button
+      tuiButton
+      type="button"
+      [appearance]="isEnabled() ? 'accent' : 'primary'"
+      [disabled]="isLoading() || !isSupported()"
+      (click)="onToggle()">
+      {{
+        (isEnabled()
+          ? 'SETTINGS.NOTIFICATIONS.DISABLE'
+          : 'SETTINGS.NOTIFICATIONS.ENABLE'
+        ) | translate
+      }}
+    </button>
+  </footer>
+</form>

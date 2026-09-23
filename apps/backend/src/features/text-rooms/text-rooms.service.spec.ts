@@ -44,6 +44,9 @@ describe('TextRoomsService', () => {
   let roomsService: jest.Mocked<RoomsService>;
   let encryptionService: jest.Mocked<EncryptionService>;
   let textRoomsGateway: jest.Mocked<TextRoomsGateway>;
+  let notificationsService: {
+    sendDirectMessageNotification: jest.Mock;
+  };
   let em: jest.Mocked<EntityManager>;
 
   const mockUser: GetUserDto = {
@@ -114,6 +117,10 @@ describe('TextRoomsService', () => {
       onMessageDeleted: jest.fn(),
     } as unknown as jest.Mocked<TextRoomsGateway>;
 
+    notificationsService = {
+      sendDirectMessageNotification: jest.fn(),
+    };
+
     service = new TextRoomsService(
       messageRepository,
       messageReadRepository,
@@ -121,6 +128,7 @@ describe('TextRoomsService', () => {
       roomsService,
       encryptionService,
       textRoomsGateway,
+      notificationsService as any,
     );
   });
 
@@ -157,6 +165,57 @@ describe('TextRoomsService', () => {
       expect(result.senderUsername).toBe('test_user');
       expect(result.roomId).toBe(roomId);
       expect(textRoomsGateway.onMessageCreated).toHaveBeenCalledWith(result);
+      expect(
+        notificationsService.sendDirectMessageNotification,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should fire-and-forget a push notification for a direct message', async () => {
+      usersService.findOne.mockResolvedValue({
+        id: 2,
+        username: 'other_user',
+      } as unknown as UserEntity);
+
+      let resolvePush: (() => void) | undefined;
+      notificationsService.sendDirectMessageNotification.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolvePush = resolve;
+        }),
+      );
+
+      const msgId = parse(v7());
+      const mockCreated = {
+        id: msgId,
+        sender: { id: 1, username: 'test_user' },
+        room: null,
+        recipient: { id: 2 },
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.create.mockReturnValue(mockCreated);
+
+      const result = await service.create(mockUser, {
+        content: 'Hello',
+        roomId: null,
+        recipientId: 2,
+      });
+
+      expect(result.recipientId).toBe(2);
+      expect(
+        notificationsService.sendDirectMessageNotification,
+      ).toHaveBeenCalledWith(
+        2,
+        1,
+        'test_user',
+        'Decrypted content',
+        uuidStringify(msgId),
+      );
+      resolvePush?.();
     });
 
     it('should create a reply message and attach replyTarget', async () => {

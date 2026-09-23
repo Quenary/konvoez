@@ -32,6 +32,11 @@ Konvoez is an Nx monorepo:
    npx nx serve backend
    npx nx serve frontend
    ```
+   The default frontend serve does not register a service worker. To test browser push locally:
+   ```bash
+   npm run start:dev:sw
+   ```
+   Use `localhost` or HTTPS — browsers require a secure context for the Push API.
 5. **Build**:
    ```bash
    npm run build
