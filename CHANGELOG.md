@@ -1,3 +1,17 @@
+# [1.5.0](https://github.com/Quenary/konvoez/compare/v1.4.0...v1.5.0) (2026-09-23)
+
+### Bug Fixes
+
+- **backend:** throw 409 on room constraint error ([1af9a4d](https://github.com/Quenary/konvoez/commit/1af9a4d471db4f1a3df032a786443d1d5a6f1330))
+- **frontend:** direct messages handling while in common room ([012d8e1](https://github.com/Quenary/konvoez/commit/012d8e184650fc6bd3c995371b9ff88e877244ee))
+- **frontend:** release audio streams ([640512a](https://github.com/Quenary/konvoez/commit/640512a60f2482429f7d0fa1bc02bf8d8d860abb))
+- **frontend:** text input validation ([d5d74f0](https://github.com/Quenary/konvoez/commit/d5d74f0b6d41e0792957fed1f1d168ca9ade2c55))
+
+### Features
+
+- notifications ([526b95a](https://github.com/Quenary/konvoez/commit/526b95aa0a181bd5cfea8b6e3b054f090db8bc7b))
+- **pwa:** update deps, add sw, icons, fix types ([8dfec47](https://github.com/Quenary/konvoez/commit/8dfec4770ef505b1099f567b586771a13c6ef518))
+
 # [1.4.0](https://github.com/Quenary/konvoez/compare/v1.3.0...v1.4.0) (2026-09-22)
 
 ### Features
