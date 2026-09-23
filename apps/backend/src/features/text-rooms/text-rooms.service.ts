@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -19,7 +20,6 @@ import {
 import {
   EditMessageDto,
   MarkReadDto,
-  MessageDto,
   MessageListRequestDto,
   MessageListResponseDto,
   CreateMessageDto,
@@ -34,11 +34,18 @@ import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { TextRoomsGateway } from './text-rooms.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
-import { ITextRoomMessageReply, ITextRoomUnreadCounts } from '@konvoez/shared';
+import {
+  ITextRoomMessage,
+  ITextRoomMessageReply,
+  ITextRoomUnreadCounts,
+} from '@konvoez/shared';
 
 @Injectable()
 export class TextRoomsService {
+  private readonly logger = new Logger(TextRoomsService.name);
+
   private get em(): EntityManager {
     return this.messageRepository.getEntityManager();
   }
@@ -52,9 +59,10 @@ export class TextRoomsService {
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
     private readonly textRoomsGateway: TextRoomsGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
-  private entityToDto(data: MessageEntity, isRead: boolean): MessageDto {
+  private entityToDto(data: MessageEntity, isRead: boolean): ITextRoomMessage {
     const content = this.encryptionService.decrypt(
       data.contentEncrypted,
       data.iv,
@@ -351,7 +359,10 @@ export class TextRoomsService {
     };
   }
 
-  async create(user: GetUserDto, dto: CreateMessageDto): Promise<MessageDto> {
+  async create(
+    user: GetUserDto,
+    dto: CreateMessageDto,
+  ): Promise<ITextRoomMessage> {
     let recipient: UserEntity | null = null;
     let room: RoomEntity | null = null;
 
@@ -424,6 +435,27 @@ export class TextRoomsService {
     }
     const messageDto = this.entityToDto(message, false);
     this.textRoomsGateway.onMessageCreated(messageDto);
+
+    if (
+      messageDto.recipientId &&
+      messageDto.senderId !== messageDto.recipientId
+    ) {
+      void this.notificationsService
+        .sendDirectMessageNotification(
+          messageDto.recipientId,
+          messageDto.senderId,
+          messageDto.senderUsername,
+          messageDto.content,
+          messageDto.id,
+        )
+        .catch((error: unknown) => {
+          this.logger.error(
+            'Failed to send direct message push notification',
+            error instanceof Error ? error.stack : String(error),
+          );
+        });
+    }
+
     return messageDto;
   }
 
@@ -431,7 +463,7 @@ export class TextRoomsService {
     user: GetUserDto,
     messageId: string,
     dto: EditMessageDto,
-  ): Promise<MessageDto> {
+  ): Promise<ITextRoomMessage> {
     let message = await this.messageRepository.findOne(
       { id: parse(messageId) },
       { populate: ['sender', 'replyTo', 'replyTo.sender'] },

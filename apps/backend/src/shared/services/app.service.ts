@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import crypto from 'crypto';
-import { getDefaultLocalStoragePath } from '../storage.utils';
+import {
+  getDefaultDataDir,
+  getDefaultLocalStoragePath,
+} from '../storage.utils';
 
 export type FileServiceType = 'local' | 's3';
 
@@ -61,6 +64,19 @@ export class AppService {
    */
   public readonly COOKIE_DOMAIN: string | undefined =
     process.env['COOKIE_DOMAIN'];
+
+  /**
+   * Contact email included in VAPID details.
+   */
+  public readonly VAPID_EMAIL: string =
+    process.env['VAPID_EMAIL'] || 'konvoez@invalid.email';
+
+  /**
+   * Directory for persisting VAPID keys on disk.
+   * Default is the shared app data directory next to sqlite and files.
+   */
+  public readonly VAPID_FILE_DIR: string =
+    process.env['VAPID_FILE_DIR'] || getDefaultDataDir();
 
   //#region S3
   public readonly S3_REGION: string | undefined = process.env['S3_REGION'];

@@ -1,4 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import {
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
@@ -54,6 +59,7 @@ export type VoiceRoomStateMediasoupAppData = {
 
 @Injectable()
 export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(VoiceRoomsStateService.name);
   private worker!: MediasoupWorker;
   private readonly rooms = new Map<number, VoiceRoomState>();
 
@@ -64,14 +70,14 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       rtcMinPort: this.appService.MEDIASOUP_MIN_PORT,
       rtcMaxPort: this.appService.MEDIASOUP_MAX_PORT,
     });
-    console.info(
+    this.logger.log(
       `Mediasoup worker started (ports ${this.appService.MEDIASOUP_MIN_PORT}-${this.appService.MEDIASOUP_MAX_PORT})`,
     );
   }
 
   async onModuleDestroy() {
     this.worker.close();
-    console.info('Mediasoup worker destroyed');
+    this.logger.log('Mediasoup worker destroyed');
   }
 
   public async ensureRoom(roomId: number): Promise<VoiceRoomState> {
@@ -104,6 +110,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   public async removeRoom(roomId: number) {
     if (this.rooms.has(roomId)) {
       const room = this.rooms.get(roomId) as VoiceRoomState;
+      this.logger.debug(`Removing voice room: roomId=${roomId}`);
       room.router.close();
       this.rooms.delete(roomId);
     }

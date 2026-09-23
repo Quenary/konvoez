@@ -5,8 +5,8 @@ import {
   inject,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { TranslatePipe } from '@ngx-translate/core';
-import { TuiButton, TuiButtonX } from '@taiga-ui/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TuiButton, TuiButtonX, TuiNotificationService } from '@taiga-ui/core';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import {
   provideTuiEditor,
@@ -19,8 +19,7 @@ import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { v4 } from 'uuid';
 import { createKeyBindingExtension } from '../../../core/tiptap/create-key-binding-extension';
 import { TextRoomStore } from '../text-room.store';
-import { messageContentSchema } from '@konvoez/shared';
-import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
+import { SCHEMA_ERROR, messageContentSchema } from '@konvoez/shared';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
@@ -110,10 +109,11 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 })
 export class TextRoomEditorComponent {
   private readonly textRoomStore = inject(TextRoomStore);
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly translateService = inject(TranslateService);
 
   protected readonly control = new FormControl('', {
     nonNullable: true,
-    validators: [createZodFieldValidator(messageContentSchema)],
   });
 
   protected readonly tools: readonly TuiEditorToolType[] = [
@@ -143,7 +143,29 @@ export class TextRoomEditorComponent {
 
   protected onSubmit(): void {
     const content = this.control.value.trim();
-    if (this.control.invalid || !content || EMPTY_HTML_PATTERN.test(content)) {
+
+    const notifyInvalidMessage = (message: string): void => {
+      this.tuiNotificationsService
+        .open(this.translateService.instant(message), {
+          appearance: 'negative',
+          autoClose: 5000,
+          closable: true,
+        })
+        .subscribe();
+    };
+
+    if (!content || EMPTY_HTML_PATTERN.test(content)) {
+      this.control.markAsTouched();
+      notifyInvalidMessage(SCHEMA_ERROR.MESSAGE_LENGTH);
+      return;
+    }
+
+    const result = messageContentSchema.safeParse(content);
+    if (!result.success) {
+      this.control.markAsTouched();
+      notifyInvalidMessage(
+        result.error.issues[0]?.message ?? SCHEMA_ERROR.MESSAGE_LENGTH,
+      );
       return;
     }
 

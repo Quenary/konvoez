@@ -485,6 +485,65 @@ describe('TextRoomStore', () => {
         'Edited via socket event',
       );
     });
+
+    it('should ignore socket messages that do not belong to the active chat', () => {
+      store.join({ roomId: 10, recipientId: null });
+      const initialMessageCount = store.messages().length;
+
+      const directMessage: ITextRoomMessage = {
+        id: 'msg-direct-incoming',
+        senderId: 99,
+        senderUsername: 'eve',
+        roomId: null,
+        recipientId: 1,
+        content: 'Private message',
+        createdAt: new Date('2026-09-15T00:17:00.000Z'),
+        updatedAt: null,
+        isRead: false,
+        replyTo: null,
+      };
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);
+      expect(store.messages().length).toBe(initialMessageCount);
+      expect(store.entityMap()['msg-direct-incoming']).toBeUndefined();
+
+      const otherRoomMessage: ITextRoomMessage = {
+        id: 'msg-other-room',
+        senderId: 2,
+        senderUsername: 'bob',
+        roomId: 11,
+        recipientId: null,
+        content: 'Message from another room',
+        createdAt: new Date('2026-09-15T00:18:00.000Z'),
+        updatedAt: null,
+        isRead: false,
+        replyTo: null,
+      };
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, otherRoomMessage);
+      expect(store.messages().length).toBe(initialMessageCount);
+      expect(store.entityMap()['msg-other-room']).toBeUndefined();
+    });
+
+    it('should append direct message from socket when direct chat is active', () => {
+      store.join({ roomId: null, recipientId: 99 });
+
+      const directMessage: ITextRoomMessage = {
+        id: 'msg-direct-active',
+        senderId: 99,
+        senderUsername: 'eve',
+        roomId: null,
+        recipientId: 1,
+        content: 'Private message in active chat',
+        createdAt: new Date('2026-09-15T00:19:00.000Z'),
+        updatedAt: null,
+        isRead: false,
+        replyTo: null,
+      };
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);
+      expect(store.entityMap()['msg-direct-active']).toBeTruthy();
+    });
   });
 
   describe('Pagination', () => {

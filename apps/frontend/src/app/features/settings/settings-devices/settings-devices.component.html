@@ -3,7 +3,21 @@
   tuiCardLarge
   tuiForm="m">
   <header tuiHeader>
-    {{ 'SETTINGS.DEVICES.TITLE' | translate }}
+    <div tuiTitle>
+      {{ 'SETTINGS.DEVICES.TITLE' | translate }}
+    </div>
+
+    <aside tuiAccessories>
+      <button
+        tuiButton
+        size="m"
+        type="button"
+        appearance="flat"
+        iconStart="@tui.refresh-cw"
+        [loading]="devices.isLoading()"
+        (click)="devices.reload()">
+      </button>
+    </aside>
   </header>
 
   <ng-template

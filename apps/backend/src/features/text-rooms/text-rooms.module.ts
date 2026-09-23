@@ -8,6 +8,7 @@ import {
   MessageReadEntity,
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import {
       MessageReadEntity,
       MessageSearchTokenEntity,
     ]),
+    NotificationsModule,
   ],
   controllers: [TextRoomsController],
   providers: [TextRoomsGateway, TextRoomsService],

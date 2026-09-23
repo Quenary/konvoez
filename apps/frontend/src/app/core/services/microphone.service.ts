@@ -150,7 +150,13 @@ export class MicrophoneService implements OnDestroy {
   }
 
   private cleanupInputStream() {
-    this.inputStream?.getAudioTracks().forEach((t) => t.stop());
+    const tracks = new Set<MediaStreamTrack>();
+    this.inputStream?.getAudioTracks().forEach((track) => tracks.add(track));
+    this.processedStream()
+      ?.getAudioTracks()
+      .forEach((track) => tracks.add(track));
+
+    tracks.forEach((track) => track.stop());
     this.inputStream = null;
   }
 
@@ -169,9 +175,6 @@ export class MicrophoneService implements OnDestroy {
       this.biquadNode = null;
       this.speexNode = null;
       this.destinationNode = null;
-      this.processedStream()
-        ?.getAudioTracks()
-        .forEach((t) => t.stop());
       this._processedStream.set(null);
     }
   }
@@ -232,5 +235,24 @@ export class MicrophoneService implements OnDestroy {
     await this.ensureInputStream(this.device);
     await this.ensurePipeline();
     return this.processedStream() as MediaStream;
+  }
+
+  @Mutexed(publicMethodsMutex)
+  public async release(): Promise<void> {
+    this.cleanupPipeline();
+    this.cleanupInputStream();
+
+    if (this.context && this.context.state !== 'closed') {
+      try {
+        await this.context.close();
+      } catch (error) {
+        console.warn('Failed to close microphone context', error);
+      }
+    }
+
+    this.context = null;
+    this._analyserNode.set(null);
+    this.workletLoaded = null;
+    this.speexWasmBinary = null;
   }
 }

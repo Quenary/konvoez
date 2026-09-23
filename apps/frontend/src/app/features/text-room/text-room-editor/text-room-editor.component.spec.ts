@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TextRoomEditorComponent } from './text-room-editor.component';
 import { provideTranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import {
   TextRoomStore,
   EMessageStatus,
@@ -39,6 +40,10 @@ describe('TextRoomEditorComponent', () => {
     setReplyToMessageId: vi.fn(),
   };
 
+  const mockNotificationService = {
+    open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     mockTextRoomStore.editableMessage.set(null);
@@ -49,6 +54,7 @@ describe('TextRoomEditorComponent', () => {
       providers: [
         provideTranslateService(),
         { provide: TextRoomStore, useValue: mockTextRoomStore },
+        { provide: TuiNotificationService, useValue: mockNotificationService },
       ],
     })
       .overrideComponent(TextRoomEditorComponent, {
@@ -78,14 +84,32 @@ describe('TextRoomEditorComponent', () => {
     expect(mockTextRoomStore.setEditableMessageId).toHaveBeenCalledWith(null);
   });
 
-  it('should not submit empty message', () => {
+  it('should not attach a validator to the control and should notify on submit validation failure', () => {
     const control = (component as unknown as { control: FormControl }).control;
+
+    expect(control.validator).toBeNull();
+
     control.setValue('');
     (component as unknown as { onSubmit: () => void }).onSubmit();
+
+    expect(control.touched).toBe(true);
+    expect(mockNotificationService.open).toHaveBeenCalledWith(
+      'VALIDATION.MESSAGE_LENGTH',
+      expect.objectContaining({
+        appearance: 'negative',
+      }),
+    );
     expect(mockTextRoomStore.createMessage).not.toHaveBeenCalled();
 
+    mockNotificationService.open.mockClear();
     control.setValue('<p></p>');
     (component as unknown as { onSubmit: () => void }).onSubmit();
+    expect(mockNotificationService.open).toHaveBeenCalledWith(
+      'VALIDATION.MESSAGE_LENGTH',
+      expect.objectContaining({
+        appearance: 'negative',
+      }),
+    );
     expect(mockTextRoomStore.createMessage).not.toHaveBeenCalled();
   });
 

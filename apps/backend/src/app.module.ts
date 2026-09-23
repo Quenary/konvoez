@@ -11,6 +11,7 @@ import { TextRoomsModule } from './features/text-rooms/text-rooms.module';
 import { SettingsModule } from './features/settings/settings.module';
 import { PublicModule } from './features/public/public.module';
 import { InvitesModule } from './features/invites/invites.module';
+import { NotificationsModule } from './features/notifications/notifications.module';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
 @Module({
@@ -27,6 +28,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     SettingsModule,
     PublicModule,
     InvitesModule,
+    NotificationsModule,
   ],
   providers: [
     {

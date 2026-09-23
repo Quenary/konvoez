@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { AppService } from './app.service';
 import * as crypto from 'crypto';
+import {
+  CHAT_ENCRYPTION_KEY_INFO,
+  deriveAes256KeyFromMasterKey,
+} from '../utils/master-key.util';
 
 @Injectable()
 export class EncryptionService {
@@ -16,17 +20,9 @@ export class EncryptionService {
       throw new Error('MASTER_KEY is not set');
     }
 
-    const rawKey = Buffer.from(this.appService.MASTER_KEY, 'base64');
-
-    // Нормализация
-    this.key = Buffer.from(
-      crypto.hkdfSync(
-        'sha256',
-        rawKey,
-        Buffer.alloc(16, 0),
-        Buffer.from('chat-encryption-key'),
-        32, // AES-256
-      ),
+    this.key = deriveAes256KeyFromMasterKey(
+      this.appService.MASTER_KEY,
+      CHAT_ENCRYPTION_KEY_INFO,
     );
   }
 

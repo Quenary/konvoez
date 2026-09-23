@@ -4,12 +4,16 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { MikroORM } from '@mikro-orm/core';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { NotificationsService } from './features/notifications/notifications.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const orm = app.get(MikroORM);
   await orm.migrator.up();
+
+  const notificationsService = app.get(NotificationsService);
+  await notificationsService.ensureVapidKeys();
 
   if ((process.env.DB_ENGINE || 'sqlite') === 'sqlite') {
     await orm.em.getConnection().executeDump(`

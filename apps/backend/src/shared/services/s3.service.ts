@@ -7,13 +7,14 @@ import {
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Readable } from 'stream';
 import { S3ClientInjectionToken } from '../tokens/s3-client.token';
 import { FileService, FileStreamResult } from './file.service';
 
 @Injectable()
 export class S3Service implements FileService {
+  private readonly logger = new Logger(S3Service.name);
   private readonly checkedBuckets = new Set<string>();
 
   constructor(
@@ -104,10 +105,18 @@ export class S3Service implements FileService {
           );
           this.checkedBuckets.add(bucket);
         } catch (createError) {
-          console.error(`Failed to create bucket ${bucket}:`, createError);
+          this.logger.error(
+            `Failed to create bucket ${bucket}`,
+            createError instanceof Error
+              ? createError.stack
+              : String(createError),
+          );
         }
       } else {
-        console.error(`Error checking bucket ${bucket}:`, error);
+        this.logger.error(
+          `Error checking bucket ${bucket}`,
+          error instanceof Error ? error.stack : String(error),
+        );
       }
     }
   }

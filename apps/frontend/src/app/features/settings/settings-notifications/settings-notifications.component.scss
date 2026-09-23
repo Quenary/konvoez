@@ -1,0 +1,58 @@
+:host {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 40rem;
+  margin: 0 auto;
+}
+
+form[tuiForm] {
+  gap: 1.5rem;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.status-label {
+  font-weight: 600;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.status-badge.enabled {
+  background: rgb(56 189 248 / 0.12);
+  color: var(--tui-status-positive);
+}
+
+.status-badge.disabled {
+  background: rgb(148 163 184 / 0.12);
+  color: var(--tui-text-secondary);
+}
+
+.setting-description {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--tui-text-secondary);
+}
+
+footer {
+  display: flex;
+  justify-content: flex-start;
+}

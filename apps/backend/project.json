@@ -86,6 +86,9 @@
         },
         "production": {
           "buildTarget": "backend:build:production"
+        },
+        "development-sw": {
+          "buildTarget": "backend:build:development"
         }
       }
     },

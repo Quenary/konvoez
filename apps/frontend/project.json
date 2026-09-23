@@ -76,7 +76,8 @@
               "maximumError": "8kb"
             }
           ],
-          "outputHashing": "all"
+          "outputHashing": "all",
+          "serviceWorker": "apps/frontend/ngsw-config.json"
         },
         "development": {
           "optimization": false,
@@ -86,6 +87,18 @@
             {
               "replace": "apps/frontend/src/environments/environment.ts",
               "with": "apps/frontend/src/environments/environment.development.ts"
+            }
+          ]
+        },
+        "development-sw": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "serviceWorker": "apps/frontend/ngsw-config.json",
+          "fileReplacements": [
+            {
+              "replace": "apps/frontend/src/environments/environment.ts",
+              "with": "apps/frontend/src/environments/environment.sw.ts"
             }
           ]
         }
@@ -104,6 +117,11 @@
         },
         "development": {
           "buildTarget": "frontend:build:development",
+          "host": "0.0.0.0",
+          "port": 6200
+        },
+        "development-sw": {
+          "buildTarget": "frontend:build:development-sw",
           "host": "0.0.0.0",
           "port": 6200
         }

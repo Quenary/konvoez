@@ -52,6 +52,14 @@
                   {{ 'MENU.SETTINGS.DEVICES' | translate }}
                 </button>
 
+                <button
+                  tuiAsideItem
+                  type="button"
+                  iconStart="@tui.bell-ring"
+                  [routerLink]="'/settings/notifications'">
+                  {{ 'MENU.SETTINGS.NOTIFICATIONS' | translate }}
+                </button>
+
                 @if (isAdminOrOwner()) {
                   <button
                     tuiAsideItem
