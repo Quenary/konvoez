@@ -1,11 +1,13 @@
 :host {
   button[tuiAsideItem] {
-    overflow: visible;
+    // overflow-x: clip prevents badge from expanding the item width,
+    // but allows badge to overflow vertically without clipping
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .room-item {
     padding-left: 0.125rem;
-    overflow: visible;
   }
 
   .room-peer-item {
@@ -14,7 +16,16 @@
 
   .aside-badge {
     flex: 0 0 auto;
+    // Badge must overflow the avatar container to stay visible
     overflow: visible;
+  }
+
+  // Center xs avatar only when sidebar is collapsed
+  &.collapsed {
+    .aside-badge,
+    .room-item > div[tuiAvatar] {
+      margin-inline: auto;
+    }
   }
 
   // tui-badged-content sets color to --tui-background-base for badge cutout;

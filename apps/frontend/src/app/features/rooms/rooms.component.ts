@@ -27,6 +27,7 @@ import {
   TuiDialogService,
   TuiDropdown,
   TuiIcon,
+  TuiOptGroup,
   TuiOption,
   TuiDataList,
 } from '@taiga-ui/core';
@@ -53,6 +54,9 @@ interface IRoomWithPeers extends IRoom {
 
 @Component({
   selector: 'app-rooms',
+  host: {
+    '[class.collapsed]': 'collapsed()',
+  },
   imports: [
     RouterLink,
     TranslatePipe,
@@ -66,6 +70,7 @@ interface IRoomWithPeers extends IRoom {
     TuiNavigation,
     TuiInitialsPipe,
     TuiDropdown,
+    TuiOptGroup,
     TuiOption,
     TuiDataList,
     NgOptimizedImage,
