@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,7 +7,11 @@ import {
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import {
+  EntityManager,
+  EntityRepository,
+  UniqueConstraintViolationException,
+} from '@mikro-orm/core';
 import { UserEntity } from '../users/users.entity';
 import { EUserRole } from '@konvoez/shared';
 import { GetUserDto } from '../users/users.dto';
@@ -44,6 +49,11 @@ export class RoomsService {
   }
 
   async create(dto: CreateRoomDto, author: GetUserDto): Promise<RoomEntity> {
+    const existingRoom = await this.repo.findOne({ name: dto.name });
+    if (existingRoom) {
+      throw new ConflictException('Room name already taken');
+    }
+
     const room = this.repo.create(
       {
         ...dto,
@@ -52,7 +62,16 @@ export class RoomsService {
       },
       { persist: true },
     );
-    await this.em.flush();
+
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        throw new ConflictException('Room name already taken');
+      }
+      throw error;
+    }
+
     return room;
   }
 
@@ -72,9 +91,28 @@ export class RoomsService {
       );
     }
 
+    if (dto.name) {
+      const duplicateRoom = await this.repo.findOne({
+        name: dto.name,
+        id: { $ne: id },
+      });
+      if (duplicateRoom) {
+        throw new ConflictException('Room name already taken');
+      }
+    }
+
     this.repo.assign(room, dto);
     this.em.persist(room);
-    await this.em.flush();
+
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        throw new ConflictException('Room name already taken');
+      }
+      throw error;
+    }
+
     return room;
   }
 
