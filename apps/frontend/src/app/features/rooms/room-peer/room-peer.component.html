@@ -1,18 +1,11 @@
 @let p = peer();
 
-<div
-  tuiAvatar
-  size="s"
-  [class.talking]="audioLevel() > 0">
-  @if (p.avatarUrl) {
-    <img
-      [alt]="p.username"
-      [ngSrc]="p.avatarUrl"
-      fill />
-  } @else {
-    {{ p.fullname | tuiInitials }}
-  }
-</div>
+<app-user-avatar
+  size="xs"
+  [username]="p.username"
+  [fullname]="p.fullname"
+  [avatarUrl]="p.avatarUrl"
+  [talking]="audioLevel() > 0" />
 
 <span [style.color]="p.username | tuiAutoColor">
   {{ p.username }}

@@ -14,13 +14,12 @@
     }
     <tui-icon icon="@tui.messages-square" />
   </tui-badged-content>
-  @if (!collapsed()) {
-    {{ 'MENU.DIRECT' | translate }}
-  }
+  {{ 'MENU.DIRECT' | translate }}
 </button>
 
 <button
   [style.margin-top.rem]="1"
+  [style.color]="'var(--tui-text-secondary)'"
   tuiAsideItem
   iconStart="@tui.message-circle-more">
   {{ 'MENU.TEXT' | translate }}
@@ -53,7 +52,7 @@
       }
       <div
         tuiAvatar
-        size="s">
+        size="xs">
         @if (room.avatarUrl) {
           <img
             [alt]="room.name"
@@ -65,14 +64,13 @@
         }
       </div>
     </tui-badged-content>
-    @if (!collapsed()) {
-      {{ room.name }}
-    }
+    {{ room.name }}
   </button>
 }
 
 <button
   [style.margin-top.rem]="1"
+  [style.color]="'var(--tui-text-secondary)'"
   tuiAsideItem
   iconStart="@tui.audio-lines">
   {{ 'MENU.VOICE' | translate }}
@@ -96,7 +94,7 @@
     (click)="selectRoom(room)">
     <div
       tuiAvatar
-      size="s">
+      size="xs">
       @if (room.avatarUrl) {
         <img
           [alt]="room.name"
@@ -123,18 +121,20 @@
   #roomContextMenu
   let-close>
   <tui-data-list>
-    <button
-      tuiOption
-      iconEnd="@tui.edit"
-      (click)="editRoom(contextMenuOpenedFor()!); close()">
-      {{ 'GENERAL.EDIT' | translate }}
-    </button>
-    <button
-      tuiOption
-      iconEnd="@tui.delete"
-      (click)="deleteRoom(contextMenuOpenedFor()!); close()">
-      {{ 'GENERAL.DELETE' | translate }}
-    </button>
+    <tui-opt-group [label]="contextMenuOpenedFor()?.name ?? ''">
+      <button
+        tuiOption
+        iconEnd="@tui.edit"
+        (click)="editRoom(contextMenuOpenedFor()!); close()">
+        {{ 'GENERAL.EDIT' | translate }}
+      </button>
+      <button
+        tuiOption
+        iconEnd="@tui.delete"
+        (click)="deleteRoom(contextMenuOpenedFor()!); close()">
+        {{ 'GENERAL.DELETE' | translate }}
+      </button>
+    </tui-opt-group>
   </tui-data-list>
 </ng-template>
 
