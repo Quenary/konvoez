@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/Quenary/konvoez/compare/v1.5.0...v1.5.1) (2026-09-24)
+
+### Bug Fixes
+
+- **frontend:** load of mediasoup library ([f7eb0b2](https://github.com/Quenary/konvoez/commit/f7eb0b243405ccfcb01323c63d10acf15a7ca873))
+- **frontend:** side menu styles ([7a3b237](https://github.com/Quenary/konvoez/commit/7a3b237b97f8ee5f8a60934f6cd71758b691e40b))
+
 # [1.5.0](https://github.com/Quenary/konvoez/compare/v1.4.0...v1.5.0) (2026-09-23)
 
 ### Bug Fixes
