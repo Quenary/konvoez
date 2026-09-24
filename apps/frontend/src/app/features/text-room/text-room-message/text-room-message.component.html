@@ -9,20 +9,12 @@
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     <div class="message-row">
       @if (shouldShowAvatar()) {
-        <div
-          tuiAvatar
+        <app-user-avatar
           size="s"
           class="message-sender"
-          [round]="true">
-          @if (avatarUrl(); as url) {
-            <img
-              [alt]="m.senderUsername"
-              [ngSrc]="url"
-              fill />
-          } @else {
-            {{ m.senderUsername | tuiInitials }}
-          }
-        </div>
+          [username]="m.senderUsername"
+          [fullname]="m.senderUsername"
+          [avatarUrl]="avatarUrl()" />
       }
 
       <span class="message-body">
@@ -129,21 +121,15 @@
         @for (user of readers(); track user.id) {
           <li style="display: inline-flex">
             <div class="readers-item">
-              <div
-                tuiAvatar
-                size="s"
-                [round]="true"
-                [style.margin-right.rem]="0.5">
-                @if (user.avatarUrl; as url) {
-                  <img
-                    [alt]="user.username"
-                    [ngSrc]="url"
-                    fill />
-                } @else {
-                  {{ user.username | tuiInitials }}
-                }
-              </div>
-              <span>{{ user.username }}</span>
+              <app-user-avatar
+                size="xs"
+                [style.margin-right.rem]="0.5"
+                [username]="user.username"
+                [fullname]="user.username"
+                [avatarUrl]="user.avatarUrl" />
+              <span [style.color]="user.username | tuiAutoColor">{{
+                user.username
+              }}</span>
             </div>
           </li>
         }

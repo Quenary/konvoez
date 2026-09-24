@@ -12,18 +12,11 @@
         {{ count > 99 ? '99+' : count }}
       </tui-badge-notification>
     }
-    <div
-      tuiAvatar
-      size="m">
-      @if (user().avatarUrl) {
-        <img
-          [alt]="user().username"
-          [ngSrc]="user().avatarUrl!"
-          fill />
-      } @else {
-        {{ user().fullname | tuiInitials }}
-      }
-    </div>
+    <app-user-avatar
+      size="m"
+      [username]="user().username"
+      [fullname]="user().fullname"
+      [avatarUrl]="user().avatarUrl" />
   </tui-badged-content>
 
   <div tuiTitle>

@@ -12,13 +12,13 @@ import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { IUser } from '@konvoez/shared';
-import { NgOptimizedImage } from '@angular/common';
-import { TuiAutoColorPipe, TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { TuiAsideItemDirective } from '@taiga-ui/layout';
+import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
 @Component({
   selector: 'app-room-peer',
-  imports: [NgOptimizedImage, TuiAvatar, TuiInitialsPipe, TuiAutoColorPipe],
+  imports: [UserAvatarComponent, TuiAutoColorPipe],
   templateUrl: './room-peer.component.html',
   styleUrl: './room-peer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -8,7 +8,6 @@ import {
   Sanitizer,
   SecurityContext,
 } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -20,7 +19,7 @@ import {
   TuiOption,
 } from '@taiga-ui/core';
 import { TuiEditorSocket } from '@taiga-ui/editor';
-import { TuiAutoColorPipe, TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { EUserRole, ITextRoomMessageReply, IUser } from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
@@ -31,19 +30,18 @@ import { MessageVisibilityDirective } from '@shared/directives/message-visibilit
 import { TextRoomApiService } from '../text-room-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
+import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
 @Component({
   selector: 'app-text-room-message',
   imports: [
     DayjsPipe,
-    NgOptimizedImage,
     TranslatePipe,
-    TuiAvatar,
+    UserAvatarComponent,
     TuiDataList,
     TuiDropdown,
     TuiEditorSocket,
     TuiIcon,
-    TuiInitialsPipe,
     TuiOption,
     TuiAutoColorPipe,
     TextContentPipe,

@@ -1,0 +1,10 @@
+@if (avatarUrl(); as url) {
+  <img
+    [alt]="username()"
+    [ngSrc]="url"
+    fill />
+} @else {
+  <span [style.color]="username() | tuiAutoColor">
+    {{ fullname() | tuiInitials }}
+  </span>
+}
