@@ -29,6 +29,7 @@ import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
+import { initialSetupInitializer } from './core/initializers/initial-setup-initializer';
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
@@ -93,6 +94,7 @@ export const appConfig: ApplicationConfig = {
       return store.dispatch(AuthActions.initStart());
     }),
     provideAppInitializer(() => localeInitializer()),
+    provideAppInitializer(() => initialSetupInitializer()),
     provideTaiga(),
     {
       provide: Sanitizer,

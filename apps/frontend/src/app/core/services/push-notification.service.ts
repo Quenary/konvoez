@@ -2,6 +2,8 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SwPush } from '@angular/service-worker';
 import { TPushSubscription } from '@konvoez/shared';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import {
   Observable,
   catchError,
@@ -22,6 +24,8 @@ export type PushToggleResult =
 export class PushNotificationService {
   private readonly swPush = inject(SwPush);
   private readonly notificationsApiService = inject(NotificationsApiService);
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly translateService = inject(TranslateService);
   private readonly subscriptionState = signal<PushSubscription | null>(null);
   private readonly permissionState = signal<NotificationPermission>(
     this.readPermission(),
@@ -95,6 +99,27 @@ export class PushNotificationService {
     );
   }
 
+  /**
+   * Show a toast for a failed toggle result; no-op on success.
+   */
+  public notifyToggleError(
+    result: PushToggleResult,
+    action: 'enable' | 'disable',
+  ): void {
+    const key = this.toggleErrorKey(result, action);
+    if (!key) {
+      return;
+    }
+
+    this.tuiNotificationsService
+      .open(this.translateService.instant(key), {
+        appearance: 'negative',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
+  }
+
   public syncExistingSubscription(): Observable<boolean> {
     if (!this.isSupported()) {
       return of(false);
@@ -116,6 +141,25 @@ export class PushNotificationService {
           );
       }),
     );
+  }
+
+  private toggleErrorKey(
+    result: PushToggleResult,
+    action: 'enable' | 'disable',
+  ): string | null {
+    switch (result) {
+      case 'enabled':
+      case 'disabled':
+        return null;
+      case 'permission-denied':
+        return 'SETTINGS.NOTIFICATIONS.PERMISSION_DENIED';
+      case 'unsupported':
+        return 'SETTINGS.NOTIFICATIONS.UNSUPPORTED';
+      case 'failed':
+        return action === 'enable'
+          ? 'SETTINGS.NOTIFICATIONS.ENABLE_ERROR'
+          : 'SETTINGS.NOTIFICATIONS.DISABLE_ERROR';
+    }
   }
 
   private subscribe(): Observable<PushToggleResult> {

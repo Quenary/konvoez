@@ -97,14 +97,15 @@ ROOMS:
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля
+  INITIAL_SETUP:
+    TITLE: Первоначальная настройка
+    CONTINUE: Продолжить
   NOTIFICATIONS:
     TITLE: Уведомления
     SUBTITLE: Управление push-уведомлениями браузера
     STATUS: Статус
     ENABLED: Включены
     DISABLED: Выключены
-    ENABLED_DESC: Уведомления браузера сейчас включены.
-    DISABLED_DESC: Включите уведомления, чтобы получать обновления из приложения.
     ENABLE: Включить уведомления
     DISABLE: Отключить уведомления
     UNSUPPORTED: Этот браузер не поддерживает уведомления.

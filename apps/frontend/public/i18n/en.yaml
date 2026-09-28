@@ -97,14 +97,15 @@ ROOMS:
 SETTINGS:
   PROFILE:
     TITLE: Profile settings
+  INITIAL_SETUP:
+    TITLE: Initial setup
+    CONTINUE: Continue
   NOTIFICATIONS:
     TITLE: Notifications
     SUBTITLE: Manage browser push notifications
     STATUS: Status
     ENABLED: Enabled
     DISABLED: Disabled
-    ENABLED_DESC: Browser notifications are currently enabled.
-    DISABLED_DESC: Enable notifications to receive updates from the app.
     ENABLE: Enable notifications
     DISABLE: Disable notifications
     UNSUPPORTED: This browser does not support notifications.

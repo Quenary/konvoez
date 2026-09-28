@@ -29,15 +29,6 @@
         }}
       </span>
     </div>
-
-    <p class="setting-description">
-      {{
-        (isEnabled()
-          ? 'SETTINGS.NOTIFICATIONS.ENABLED_DESC'
-          : 'SETTINGS.NOTIFICATIONS.DISABLED_DESC'
-        ) | translate
-      }}
-    </p>
   </div>
 
   <footer>
@@ -45,7 +36,8 @@
       tuiButton
       type="button"
       [appearance]="isEnabled() ? 'accent' : 'primary'"
-      [disabled]="isLoading() || !isSupported()"
+      [disabled]="!isSupported()"
+      [loading]="isLoading()"
       (click)="onToggle()">
       {{
         (isEnabled()

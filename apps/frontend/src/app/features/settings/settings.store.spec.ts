@@ -14,6 +14,7 @@ import { authReducer } from '@features/auth/auth.reducer';
 import { AuthActions } from '@features/auth/auth.actions';
 import { ESettingKey, EUserRole, TSetting } from '@konvoez/shared';
 import { EStorageKey } from '../../app.enums';
+import { LOCAL_SETTINGS_VERSION } from '@shared/schemas/local-settings.schema';
 
 describe('SettingsStore', () => {
   let store: InstanceType<typeof SettingsStore>;
@@ -24,6 +25,18 @@ describe('SettingsStore', () => {
   let audioDeviceHandler: IAudioDeviceHandler;
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
   let ngrxStore: Store;
+
+  const mockDevice = (overrides: Partial<MediaDeviceInfo>): MediaDeviceInfo =>
+    ({
+      deviceId: 'id',
+      kind: 'audioinput',
+      label: 'Device',
+      groupId: 'group',
+      toJSON() {
+        return this;
+      },
+      ...overrides,
+    }) as MediaDeviceInfo;
 
   const mockSettings: TSetting[] = [
     {
@@ -70,43 +83,174 @@ describe('SettingsStore', () => {
     localStorage.clear();
   });
 
-  it('should initialize with empty settings and null devices', () => {
+  it('should initialize with empty settings and need initial setup', () => {
     expect(store.settings()).toEqual([]);
     expect(store.entities()).toEqual([]);
     expect(store.loading()).toBe(false);
     expect(store.audioInput()).toBeNull();
     expect(store.audioOutput()).toBeNull();
     expect(store.iceServers()).toEqual([]);
+    expect(store.needsInitialSetup()).toBe(true);
   });
 
-  it('should update audioInput, save to localStorage and call audioDeviceHandler', () => {
-    const mockDevice = {
+  it('should hydrate known fields from LOCAL_SETTINGS', () => {
+    localStorage.clear();
+    const audioInput = {
+      deviceId: 'mic-1',
+      kind: 'audioinput',
+      label: 'Mic',
+      groupId: 'g1',
+    };
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ version: LOCAL_SETTINGS_VERSION, audioInput }),
+    );
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideStore({ auth: authReducer }),
+        provideTranslateService(),
+        { provide: SettingsApiService, useValue: apiService },
+        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
+        { provide: TuiNotificationService, useValue: mockNotifications },
+        SettingsStore,
+      ],
+    });
+
+    const hydrated = TestBed.inject(SettingsStore);
+    expect(hydrated.audioInput()).toEqual(audioInput);
+    expect(hydrated.audioOutput()).toBeNull();
+    expect(hydrated.needsInitialSetup()).toBe(false);
+    expect(audioDeviceHandler.setAudioInput).toHaveBeenCalledWith(audioInput);
+  });
+
+  it('should need setup when schema version mismatches', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ version: 0 }),
+    );
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideStore({ auth: authReducer }),
+        provideTranslateService(),
+        { provide: SettingsApiService, useValue: apiService },
+        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
+        { provide: TuiNotificationService, useValue: mockNotifications },
+        SettingsStore,
+      ],
+    });
+
+    expect(TestBed.inject(SettingsStore).needsInitialSetup()).toBe(true);
+  });
+
+  it('should not read legacy AUDIO_INPUT / AUDIO_OUTPUT keys', () => {
+    localStorage.setItem(
+      'konvoez-audio-input',
+      JSON.stringify({
+        deviceId: 'legacy-mic',
+        kind: 'audioinput',
+        label: 'Legacy',
+        groupId: 'g',
+      }),
+    );
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideStore({ auth: authReducer }),
+        provideTranslateService(),
+        { provide: SettingsApiService, useValue: apiService },
+        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
+        { provide: TuiNotificationService, useValue: mockNotifications },
+        SettingsStore,
+      ],
+    });
+
+    const hydrated = TestBed.inject(SettingsStore);
+    expect(hydrated.audioInput()).toBeNull();
+  });
+
+  it('should update audioInput without stamping schema version', () => {
+    const device = mockDevice({
       deviceId: 'mic-1',
       label: 'Microphone 1',
-    } as MediaDeviceInfo;
+      kind: 'audioinput',
+    });
 
-    store.setAudioInput(mockDevice);
+    store.setAudioInput(device);
 
-    expect(store.audioInput()).toEqual(mockDevice);
-    expect(audioDeviceHandler.setAudioInput).toHaveBeenCalledWith(mockDevice);
+    expect(store.audioInput()).toEqual(device);
+    expect(audioDeviceHandler.setAudioInput).toHaveBeenCalledWith(device);
     expect(
-      JSON.parse(localStorage.getItem(EStorageKey.AUDIO_INPUT) ?? '{}'),
-    ).toEqual(mockDevice);
+      JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
+    ).toEqual({
+      audioInput: {
+        deviceId: 'mic-1',
+        kind: 'audioinput',
+        label: 'Microphone 1',
+        groupId: 'group',
+      },
+    });
+    expect(store.needsInitialSetup()).toBe(true);
   });
 
-  it('should update audioOutput, save to localStorage and call audioDeviceHandler', () => {
-    const mockDevice = {
+  it('should stamp schema version on persistLocalSettings', () => {
+    store.persistLocalSettings();
+
+    expect(store.needsInitialSetup()).toBe(false);
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
+    ).toEqual({ version: LOCAL_SETTINGS_VERSION });
+  });
+
+  it('should keep version when updating devices after setup', () => {
+    store.persistLocalSettings();
+    const device = mockDevice({
+      deviceId: 'mic-1',
+      kind: 'audioinput',
+      label: 'Mic',
+    });
+
+    store.setAudioInput(device);
+
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
+    ).toEqual({
+      version: LOCAL_SETTINGS_VERSION,
+      audioInput: {
+        deviceId: 'mic-1',
+        kind: 'audioinput',
+        label: 'Mic',
+        groupId: 'group',
+      },
+    });
+    expect(store.needsInitialSetup()).toBe(false);
+  });
+
+  it('should update audioOutput, save LOCAL_SETTINGS and call audioDeviceHandler', () => {
+    const device = mockDevice({
       deviceId: 'speaker-1',
       label: 'Speaker 1',
-    } as MediaDeviceInfo;
+      kind: 'audiooutput',
+    });
 
-    store.setAudioOutput(mockDevice);
+    store.setAudioOutput(device);
 
-    expect(store.audioOutput()).toEqual(mockDevice);
-    expect(audioDeviceHandler.setAudioOutput).toHaveBeenCalledWith(mockDevice);
+    expect(store.audioOutput()).toEqual(device);
+    expect(audioDeviceHandler.setAudioOutput).toHaveBeenCalledWith(device);
     expect(
-      JSON.parse(localStorage.getItem(EStorageKey.AUDIO_OUTPUT) ?? '{}'),
-    ).toEqual(mockDevice);
+      JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
+    ).toEqual({
+      audioOutput: {
+        deviceId: 'speaker-1',
+        kind: 'audiooutput',
+        label: 'Speaker 1',
+        groupId: 'group',
+      },
+    });
   });
 
   it('should fetch settings, populate entities and compute iceServers on loadAll', () => {

@@ -1,9 +1,20 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MediaDevicesService } from '@core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import {
+  pickDefaultAudioInput,
+  pickDefaultAudioOutput,
+} from '@shared/functions/default-audio-devices.function';
 import {
   TuiError,
   TuiIcon,
@@ -25,8 +36,18 @@ import {
   TuiButtonLoading,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { catchError, finalize, from, of, switchMap } from 'rxjs';
+import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '../settings.store';
+
+type DevicesLoadResult = {
+  devices: MediaDeviceInfo[];
+  streamInputDeviceId: string | null;
+};
+
+const EMPTY_DEVICES: DevicesLoadResult = {
+  devices: [],
+  streamInputDeviceId: null,
+};
 
 @Component({
   selector: 'app-settings-devices',
@@ -62,6 +83,7 @@ import { SettingsStore } from '../settings.store';
   ],
   templateUrl: './settings-devices.component.html',
   styleUrl: './settings-devices.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsDevicesComponent {
   private readonly settingsStore = inject(SettingsStore);
@@ -103,30 +125,37 @@ export class SettingsDevicesComponent {
    * List of available inputs
    */
   protected readonly audioInputList = computed(() => {
-    const devices = this.devices.value();
+    const devices = this.devicesLoad.value().devices;
     return devices.filter((d) => d.kind == 'audioinput');
   });
   /**
    * List of available outputs
    */
   protected readonly audioOutputList = computed(() => {
-    const devices = this.devices.value() ?? [];
+    const devices = this.devicesLoad.value().devices;
     return devices.filter((d) => d.kind == 'audiooutput');
   });
 
   /**
-   * All audio devices
+   * Enumerated audio devices (+ preferred input id from the permission stream).
    */
-  protected readonly devices = rxResource({
+  protected readonly devicesLoad = rxResource({
     stream: () =>
       from(this.mediaDevicesService.getUserMedia({ audio: true })).pipe(
-        switchMap((stream) =>
-          from(this.mediaDevicesService.enumerateDevices()).pipe(
+        switchMap((stream) => {
+          const streamInputDeviceId =
+            stream.getAudioTracks()[0]?.getSettings()?.deviceId ?? null;
+
+          return from(this.mediaDevicesService.enumerateDevices()).pipe(
+            map((devices): DevicesLoadResult => ({
+              devices,
+              streamInputDeviceId,
+            })),
             finalize(() => {
               stream.getTracks().forEach((track) => track.stop());
             }),
-          ),
-        ),
+          );
+        }),
         catchError(() => {
           this.tuiNotificationsService
             .open(
@@ -140,11 +169,37 @@ export class SettingsDevicesComponent {
               },
             )
             .subscribe();
-          return of([]);
+          return of(EMPTY_DEVICES);
         }),
       ),
-    defaultValue: [],
+    defaultValue: EMPTY_DEVICES,
   });
+
+  constructor() {
+    effect(() => {
+      const { devices, streamInputDeviceId } = this.devicesLoad.value();
+      const audioInput = this.settingsStore.audioInput();
+      const audioOutput = this.settingsStore.audioOutput();
+
+      if (!devices.length) {
+        return;
+      }
+
+      if (!audioInput) {
+        const input = pickDefaultAudioInput(devices, streamInputDeviceId);
+        if (input) {
+          this.settingsStore.setAudioInput(input);
+        }
+      }
+
+      if (!audioOutput) {
+        const output = pickDefaultAudioOutput(devices);
+        if (output) {
+          this.settingsStore.setAudioOutput(output);
+        }
+      }
+    });
+  }
 
   /**
    * Select audio input
