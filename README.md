@@ -68,6 +68,5 @@ docker compose -f docker-compose.build.yml up -d --build
 - Add message assets (files)
 - Add connection state indication
 - Add customizable roles (functions access) and groups (rooms access)
-- Add voice room component (visualization of peers on big screens like in discord)
 - Add mute indication for other peers
 - Add camera/screen sharing
