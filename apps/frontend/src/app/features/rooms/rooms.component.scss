@@ -6,10 +6,6 @@
     overflow-y: visible;
   }
 
-  .room-item {
-    padding-left: 0.125rem;
-  }
-
   .room-peer-item {
     padding-left: var(--tui-height-s);
   }
@@ -24,16 +20,23 @@
     overflow: visible;
   }
 
-  // Center xs avatar only when sidebar is collapsed
-  &.collapsed {
-    .aside-badge,
-    .room-item > div[tuiAvatar],
-    .hanging-call app-pulse-indicator {
-      margin-inline: auto;
+  // xs avatar is 1.5rem, size-s icon is 1rem. Shift half the difference
+  // so the avatar is centered on the icon, not aligned by the left edge.
+  .room-item {
+    > .aside-badge,
+    > [tuiAvatar] {
+      margin-inline-start: calc(var(--t-margin) - 0.25rem);
     }
+  }
 
+  &.collapsed {
     .hanging-call {
-      padding-left: 0;
+      // Drop the section indent, keep the size-s inline padding (0.625rem).
+      padding-left: 0.625rem;
+
+      app-pulse-indicator {
+        margin-inline-start: calc(var(--t-margin) - 0.25rem);
+      }
     }
   }
 
