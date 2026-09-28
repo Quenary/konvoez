@@ -15,7 +15,20 @@ import { SpeakerService } from './speaker.service';
 import { DirectCallService } from './direct-call.service';
 import { AudioActivityService } from './audio-activity.service';
 import { AudioService } from './audio.service';
-import { EVoiceSessionType } from '@konvoez/shared';
+import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
+import { createEntityAdapter } from '@ngrx/entity';
+import { patchState } from '@ngrx/signals';
+
+const bob = {
+  id: 42,
+  username: 'bob',
+  fullname: 'Bob',
+  email: 'bob@example.com',
+  avatarUrl: null,
+  role: EUserRole.MEMBER,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+} as IUser;
 
 describe('VoiceRoomService', () => {
   let service: VoiceRoomService;
@@ -31,6 +44,7 @@ describe('VoiceRoomService', () => {
     leaveCall: ReturnType<typeof vi.fn>;
     detachFromCallWithoutHangup: ReturnType<typeof vi.fn>;
   };
+  let handlers: Record<string, (...args: unknown[]) => unknown>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -54,8 +68,11 @@ describe('VoiceRoomService', () => {
     });
     storageJson();
 
+    handlers = {};
     socket = {
-      on: vi.fn(),
+      on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
+        handlers[event] = handler;
+      }),
       off: vi.fn(),
       emitWithAck: vi.fn().mockResolvedValue(undefined),
       connected: true,
@@ -183,5 +200,73 @@ describe('VoiceRoomService', () => {
     expect(directCallService.leaveCall).not.toHaveBeenCalled();
     expect(socket.emitWithAck).toHaveBeenCalledWith('leave-room');
     expect(service.activeSession()).toBeNull();
+  });
+
+  it('PEER_LEFT removes the peer and cleans up consumers for that userId', () => {
+    service['addSocketListeners']();
+
+    const close = vi.fn();
+    const adapter = createEntityAdapter<{ id: number }>({
+      selectId: (item) => item.id,
+    });
+    patchState(
+      service['peersState'],
+      adapter.setAll(
+        [
+          {
+            ...bob,
+            consumers: [{ close, producerId: 'p-new' }],
+            sourceNode: null,
+            gainNode: null,
+            analyserNode: null,
+            _audioEl: null,
+          },
+        ] as never[],
+        service['peersState'](),
+      ),
+    );
+
+    handlers['peer-left']({
+      user: { id: bob.id },
+      roomId: 1,
+      sessionKey: 'room:1',
+    });
+
+    expect(close).toHaveBeenCalled();
+    expect(service.peersDict()[bob.id]).toBeUndefined();
+  });
+
+  it('drains pending consumes after PEER_JOINED when producer arrived first', async () => {
+    service['addSocketListeners']();
+
+    const consumeSpy = vi
+      .spyOn(
+        service as unknown as {
+          consume: (...args: unknown[]) => Promise<void>;
+        },
+        'consume',
+      )
+      .mockResolvedValue(undefined);
+
+    service['pendingConsumes'] = [
+      {
+        producerId: 'p1',
+        userId: bob.id,
+        kind: 'audio',
+        mediaTag: 'mic',
+      },
+    ];
+
+    await handlers['peer-joined']({
+      user: bob,
+      roomId: 1,
+      sessionKey: 'room:1',
+    });
+
+    expect(service.peersDict()[bob.id]).toBeTruthy();
+    expect(consumeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ producerId: 'p1', userId: bob.id }),
+    );
+    expect(service['pendingConsumes']).toEqual([]);
   });
 });

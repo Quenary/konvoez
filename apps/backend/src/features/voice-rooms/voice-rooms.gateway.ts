@@ -165,6 +165,12 @@ export class VoiceRoomsGateway
     // Otherwise concurrent GET_RTP_CAPABILITIES can see sessionKey without a peer
     // (e.g. while createRouter is still awaiting).
     const room = await this.voiceRoomsStateService.ensureRoom(identity);
+
+    // Reconnect can race: new socket joins before the old socket's disconnect
+    // is processed. Clients key peers by userId, so a late PEER_LEFT from the
+    // old socket would wipe consumers already attached to the new peer.
+    this.evictExistingUserPeers(room, socket, sessionKey, roomId, user.id);
+
     room.peers.set(socket.id, {
       id: socket.id,
       user,
@@ -218,19 +224,8 @@ export class VoiceRoomsGateway
       if (!peer) {
         return {};
       }
-      peer.consumers.forEach((c) => c.close());
-      peer.producers.forEach((p) => {
-        p.close();
-        room.producers.delete(p.id);
-        const payload = {
-          producerId: p.id,
-          userId: peer.user.id,
-        };
-        const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
-        socket.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
-      });
-      peer.sendTransport?.close?.();
-      peer.recvTransport?.close?.();
+
+      this.removePeerMedia(room, peer, sessionKey, roomId, socket);
       room.peers.delete(socket.id);
 
       if (!room.peers.size) {
@@ -661,6 +656,94 @@ export class VoiceRoomsGateway
       targets.push(roomId.toString());
     }
     return targets;
+  }
+
+  /**
+   * Drop any prior sockets for the same user in this session before registering
+   * a new peer. Ensures remote clients see PEER_LEFT before the replacement
+   * PEER_JOINED, avoiding wipe of the new consumer graph.
+   */
+  private evictExistingUserPeers(
+    room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
+    joiningSocket: TSocket,
+    sessionKey: string,
+    roomId: number | undefined,
+    userId: number,
+  ): void {
+    for (const [existingSocketId, existingPeer] of [...room.peers.entries()]) {
+      if (
+        existingPeer.user.id !== userId ||
+        existingSocketId === joiningSocket.id
+      ) {
+        continue;
+      }
+
+      this.logger.debug(
+        `Evicting stale voice peer on rejoin: sessionKey=${sessionKey}, userId=${userId}, oldSocketId=${existingSocketId}, newSocketId=${joiningSocket.id}`,
+      );
+
+      this.removePeerMedia(room, existingPeer, sessionKey, roomId);
+      room.peers.delete(existingSocketId);
+
+      const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
+      this.server.to(roomsToEmit).emit(EVoiceRoomEvent.PEER_LEFT, {
+        user: existingPeer.user,
+        roomId,
+        sessionKey,
+      });
+
+      const oldSocket = this.server.sockets.sockets.get(existingSocketId) as
+        TSocket | undefined;
+      if (oldSocket) {
+        delete oldSocket.data.sessionKey;
+        delete oldSocket.data.sessionTarget;
+        delete oldSocket.data.roomId;
+        void oldSocket.leave(sessionKey);
+        if (roomId !== undefined) {
+          void oldSocket.leave(roomId.toString());
+        }
+      }
+    }
+  }
+
+  private removePeerMedia(
+    room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
+    peer: {
+      user: IUser;
+      producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
+      consumers: Map<string, Consumer<VoiceRoomStateMediasoupAppData>>;
+      sendTransport?: WebRtcTransport;
+      recvTransport?: WebRtcTransport;
+    },
+    sessionKey: string,
+    roomId: number | undefined,
+    /**
+     * When provided, PRODUCER_CLOSED is emitted via socket.to (excludes self),
+     * matching the historical leave-room fan-out.
+     */
+    exceptSocket?: TSocket,
+  ): void {
+    peer.consumers.forEach((c) => c.close());
+    peer.producers.forEach((p) => {
+      p.close();
+      room.producers.delete(p.id);
+      const payload = {
+        producerId: p.id,
+        userId: peer.user.id,
+      };
+      const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
+      if (exceptSocket) {
+        exceptSocket
+          .to(roomsToEmit)
+          .emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
+      } else {
+        this.server
+          .to(roomsToEmit)
+          .emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
+      }
+    });
+    peer.sendTransport?.close?.();
+    peer.recvTransport?.close?.();
   }
 
   private emitCallEnded(callId: string, callerId: number, recipientId: number) {

@@ -689,6 +689,11 @@ export class VoiceRoomService implements IAudioDeviceHandler {
           '\nAdded to pending consumes',
         );
         this.pendingConsumes.push(data);
+        // Transport setup yields; PEER_JOINED may have already drained an empty
+        // pending queue before this push. Re-check and drain if the peer is here.
+        if (this.peersDict()[data.userId]) {
+          await this.consumePending();
+        }
         return;
       }
 
