@@ -164,14 +164,18 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       localStorage.setItemJson(EStorageKey.SPEAKER_MUTED, value);
     });
 
-    // Reconnect to room / session
+    // Reconnect to room / session and refresh the lobby peer list.
     this.socket.on('connect', () => {
       this.cleanupMediasoup();
       const session = this.activeSession();
       if (session) {
         this.joinSession(session);
       }
+      void this.updateRoomsState();
     });
+    if (this.socket.connected) {
+      void this.updateRoomsState();
+    }
 
     interval(10000).subscribe(async () => {
       if (this.socket.connected) {

@@ -15,7 +15,13 @@ import { SpeakerService } from './speaker.service';
 import { DirectCallService } from './direct-call.service';
 import { AudioActivityService } from './audio-activity.service';
 import { AudioService } from './audio.service';
-import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
+import {
+  EUserRole,
+  EVoiceRoomEvent,
+  EVoiceSessionType,
+  IUser,
+  TVoiceRoomGetAllPeersResult,
+} from '@konvoez/shared';
 import { createEntityAdapter } from '@ngrx/entity';
 import { patchState } from '@ngrx/signals';
 
@@ -45,6 +51,7 @@ describe('VoiceRoomService', () => {
     detachFromCallWithoutHangup: ReturnType<typeof vi.fn>;
   };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
+  let roomsSnapshot: TVoiceRoomGetAllPeersResult;
 
   beforeEach(() => {
     localStorage.clear();
@@ -69,12 +76,20 @@ describe('VoiceRoomService', () => {
     storageJson();
 
     handlers = {};
+    roomsSnapshot = {
+      1: { [bob.id]: bob },
+    };
     socket = {
       on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
         handlers[event] = handler;
       }),
       off: vi.fn(),
-      emitWithAck: vi.fn().mockResolvedValue(undefined),
+      emitWithAck: vi.fn((event: string) => {
+        if (event === EVoiceRoomEvent.GET_ALL_PEERS) {
+          return Promise.resolve(roomsSnapshot);
+        }
+        return Promise.resolve(undefined);
+      }),
       connected: true,
     };
 
@@ -146,6 +161,32 @@ describe('VoiceRoomService', () => {
     service = TestBed.inject(VoiceRoomService);
   });
 
+  it('loads rooms state immediately when the socket is already connected', async () => {
+    await Promise.resolve();
+
+    expect(socket.emitWithAck).toHaveBeenCalledWith(
+      EVoiceRoomEvent.GET_ALL_PEERS,
+    );
+    expect(service.roomsState()).toEqual(roomsSnapshot);
+  });
+
+  it('refreshes rooms state when the socket connects', async () => {
+    await Promise.resolve();
+    const nextSnapshot: TVoiceRoomGetAllPeersResult = {
+      3: { [bob.id]: bob },
+    };
+    roomsSnapshot = nextSnapshot;
+    socket.emitWithAck.mockClear();
+
+    handlers['connect']();
+    await Promise.resolve();
+
+    expect(socket.emitWithAck).toHaveBeenCalledWith(
+      EVoiceRoomEvent.GET_ALL_PEERS,
+    );
+    expect(service.roomsState()).toEqual(nextSnapshot);
+  });
+
   it('should release the microphone when leaving a session', async () => {
     const microphoneService = TestBed.inject(MicrophoneService) as any;
 
@@ -182,6 +223,7 @@ describe('VoiceRoomService', () => {
 
   it('leaveCurrent leaves a direct call when one is active', async () => {
     directCallService.isCallActive.mockReturnValue(true);
+    socket.emitWithAck.mockClear();
 
     await service.leaveCurrent();
 
