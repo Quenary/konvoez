@@ -13,12 +13,13 @@ import { MicrophoneService } from '@core/services/microphone.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { IUser } from '@konvoez/shared';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
+import { TuiHint } from '@taiga-ui/core';
 import { TuiAsideItemDirective } from '@taiga-ui/layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
 @Component({
   selector: 'app-room-peer',
-  imports: [UserAvatarComponent, TuiAutoColorPipe],
+  imports: [UserAvatarComponent, TuiAutoColorPipe, TuiHint],
   templateUrl: './room-peer.component.html',
   styleUrl: './room-peer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

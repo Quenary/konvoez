@@ -13,7 +13,13 @@ import { VoiceRoomService } from '@core/services/voice-room.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { TuiButton, TuiDropdown, TuiLabel, TuiSlider } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiDropdown,
+  TuiHint,
+  TuiLabel,
+  TuiSlider,
+} from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 
@@ -25,6 +31,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     TuiBadge,
     TuiButton,
     TuiDropdown,
+    TuiHint,
     TuiLabel,
     TuiSlider,
     TuiAutoColorPipe,

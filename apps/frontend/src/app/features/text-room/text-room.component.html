@@ -35,7 +35,8 @@
               size="s"
               iconStart="@tui.phone-call"
               type="button"
-              [title]="'CALL.JOIN_CALL' | translate"
+              tuiHintAppearance="floating"
+              [tuiHint]="'CALL.JOIN_CALL' | translate"
               (click)="rejoinDirectCall(directUser)">
               {{ 'CALL.JOIN_CALL' | translate }}
             </button>
@@ -47,7 +48,8 @@
             size="s"
             iconStart="@tui.phone"
             type="button"
-            [title]="'CALL.START_CALL' | translate"
+            tuiHintAppearance="floating"
+            [tuiHint]="'CALL.START_CALL' | translate"
             (click)="startDirectCall(directUser)">
             {{ 'CALL.START_CALL' | translate }}
           </button>
@@ -61,7 +63,8 @@
       size="s"
       iconStart="@tui.search"
       type="button"
-      [title]="'GENERAL.SEARCH' | translate"
+      tuiHintAppearance="floating"
+      [tuiHint]="'GENERAL.SEARCH' | translate"
       (click)="toggleSearch()">
       {{ 'GENERAL.SEARCH' | translate }}
     </button>
@@ -84,8 +87,10 @@
           size="xs"
           iconStart="@tui.x"
           type="button"
-          [title]="'GENERAL.CANCEL' | translate"
-          (click)="clearSearch()"></button>
+          tuiHintAppearance="floating"
+          [tuiHint]="'GENERAL.CANCEL' | translate"
+          (click)="clearSearch()">
+        </button>
       }
       <button
         tuiIconButton
@@ -93,8 +98,10 @@
         size="xs"
         iconStart="@tui.chevron-up"
         type="button"
-        [title]="'GENERAL.CLOSE' | translate"
-        (click)="toggleSearch()"></button>
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.CLOSE' | translate"
+        (click)="toggleSearch()">
+      </button>
     </tui-textfield>
   }
 </header>

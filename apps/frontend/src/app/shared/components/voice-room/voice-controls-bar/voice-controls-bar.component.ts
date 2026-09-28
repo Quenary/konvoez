@@ -6,12 +6,12 @@ import {
 } from '@angular/core';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import { AudioService } from '@core/services/audio.service';
-import { TuiButton } from '@taiga-ui/core';
+import { TuiButton, TuiHint } from '@taiga-ui/core';
 import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-voice-controls-bar',
-  imports: [TuiButton, TranslatePipe],
+  imports: [TuiButton, TuiHint, TranslatePipe],
   templateUrl: './voice-controls-bar.component.html',
   styleUrl: './voice-controls-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

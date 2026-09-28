@@ -31,7 +31,12 @@
         [fullname]="peer.fullname"
         [avatarUrl]="peer.avatarUrl" />
     </app-pulse-indicator>
-    <span [style.color]="peer.username | tuiAutoColor">
+    <span
+      tuiHintAppearance="floating"
+      [style.color]="peer.username | tuiAutoColor"
+      [tuiHint]="
+        peer.fullname && peer.fullname !== peer.username ? peer.fullname : null
+      ">
       {{ peer.username }}
     </span>
   </button>

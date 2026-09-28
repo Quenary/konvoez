@@ -1,4 +1,5 @@
 @let p = peer();
+@let hintValue = p.fullname && p.fullname !== p.username ? p.fullname : null;
 
 <div
   class="tile"
@@ -27,7 +28,8 @@
         size="l"
         tuiBadge
         class="badge-calling"
-        [title]="'CALL.CALLING' | translate" />
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.CALLING' | translate" />
     }
     @if (isMuted()) {
       <tui-icon
@@ -35,7 +37,8 @@
         iconStart="@tui.mic-off"
         size="l"
         tuiBadge
-        [title]="'GENERAL.MUTE' | translate" />
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.MUTE' | translate" />
     }
     @if (isDeafened()) {
       <tui-icon
@@ -43,7 +46,8 @@
         iconStart="@tui.headphone-off"
         size="l"
         tuiBadge
-        [title]="'CALL.SOUND_OFF' | translate" />
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.SOUND_OFF' | translate" />
     }
   </div>
 
@@ -53,8 +57,11 @@
       size="m"
       tuiBadge
       class="name">
-      <span [style.color]="p.username | tuiAutoColor">
-        {{ p.fullname || p.username }}
+      <span
+        tuiHintAppearance="floating"
+        [style.color]="p.username | tuiAutoColor"
+        [tuiHint]="hintValue">
+        {{ p.username }}
       </span>
       @if (isLocal()) {
         <span class="you">({{ 'CALL.YOU' | translate }})</span>
@@ -71,7 +78,9 @@
         tuiDropdownDirection="top"
         [iconStart]="volumeIcon()"
         [tuiDropdown]="volumeDropdown"
-        [title]="'CALL.VOLUME' | translate"></button>
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.VOLUME' | translate">
+      </button>
 
       <ng-template #volumeDropdown>
         <label

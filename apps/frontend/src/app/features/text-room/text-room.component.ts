@@ -15,7 +15,13 @@ import { UsersStore } from '../users/users.store';
 import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.component';
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
 import { TextRoomStore } from './text-room.store';
-import { TuiButton, TuiInput, TuiTextfield, TuiTitle } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiHint,
+  TuiInput,
+  TuiTextfield,
+  TuiTitle,
+} from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoFocus } from '@taiga-ui/cdk';
 import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
@@ -37,6 +43,7 @@ import { EVoiceSessionType, IUser } from '@konvoez/shared';
     TuiTitle,
     TuiHeader,
     TuiButton,
+    TuiHint,
     TuiTextfield,
     TuiInput,
     TuiAutoFocus,

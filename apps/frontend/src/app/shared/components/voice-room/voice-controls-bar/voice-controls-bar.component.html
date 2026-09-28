@@ -5,7 +5,8 @@
     size="m"
     [iconStart]="micMuted() ? '@tui.mic-off' : '@tui.mic'"
     type="button"
-    [title]="'GENERAL.MUTE' | translate"
+    tuiHintAppearance="floating"
+    [tuiHint]="'GENERAL.MUTE' | translate"
     (click)="toggleMicrophone()">
   </button>
 
@@ -15,7 +16,8 @@
     size="m"
     [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
     type="button"
-    [title]="'CALL.SOUND' | translate"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.SOUND' | translate"
     (click)="toggleSpeaker()">
   </button>
 
@@ -26,7 +28,8 @@
     iconStart="@tui.video-off"
     type="button"
     disabled
-    [title]="'CALL.CAMERA_SOON' | translate">
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.CAMERA_SOON' | translate">
   </button>
 
   <button
@@ -36,7 +39,8 @@
     iconStart="@tui.screen-share"
     type="button"
     disabled
-    [title]="'CALL.SCREEN_SOON' | translate">
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.SCREEN_SOON' | translate">
   </button>
 
   <div class="controls-divider"></div>
@@ -47,7 +51,8 @@
     size="m"
     iconStart="@tui.phone-off"
     type="button"
-    [title]="'CALL.HANGUP' | translate"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.HANGUP' | translate"
     (click)="onHangupClick()">
   </button>
 </div>
