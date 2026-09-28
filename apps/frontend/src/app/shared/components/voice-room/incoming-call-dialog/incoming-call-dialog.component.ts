@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
-import { TuiButton } from '@taiga-ui/core';
+import { TuiButton, TuiCell, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core';
+import { TuiAutoColorPipe, TuiPush } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
@@ -10,7 +11,13 @@ import { TranslatePipe } from '@ngx-translate/core';
   imports: [
     UserAvatarComponent,
     PulseIndicatorComponent,
+    TuiAutoColorPipe,
     TuiButton,
+    TuiCell,
+    TuiHint,
+    TuiIcon,
+    TuiPush,
+    TuiTitle,
     TranslatePipe,
   ],
   templateUrl: './incoming-call-dialog.component.html',
