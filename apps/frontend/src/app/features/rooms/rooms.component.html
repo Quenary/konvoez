@@ -117,19 +117,21 @@
     tuiDropdownHover
     (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
     (click)="selectRoom(room)">
-    <div
-      tuiAvatar
-      size="xs">
-      @if (room.avatarUrl) {
-        <img
-          [alt]="room.name"
-          [ngSrc]="room.avatarUrl"
-          fill
-          priority />
-      } @else {
-        {{ room.name | tuiInitials }}
-      }
-    </div>
+    <app-pulse-indicator [isActive]="room.isUserInRoom">
+      <div
+        tuiAvatar
+        size="xs">
+        @if (room.avatarUrl) {
+          <img
+            [alt]="room.name"
+            [ngSrc]="room.avatarUrl"
+            fill
+            priority />
+        } @else {
+          {{ room.name | tuiInitials }}
+        }
+      </div>
+    </app-pulse-indicator>
     {{ room.name }}
   </button>
 

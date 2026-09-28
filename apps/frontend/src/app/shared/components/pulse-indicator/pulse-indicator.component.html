@@ -1,7 +1,7 @@
 <div class="pulse-indicator__content">
   <ng-content />
 </div>
-@if (variant() === 'ring') {
+@if (isActive() && variant() === 'ring') {
   <span
     class="pulse-indicator__ring"
     aria-hidden="true"></span>

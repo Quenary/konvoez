@@ -22,7 +22,8 @@
   border-radius: var(--tui-radius-m);
 }
 
-:host(.pulse-indicator--glow) .pulse-indicator__content {
+:host(.pulse-indicator--glow.pulse-indicator--active)
+  .pulse-indicator__content {
   animation: pulse-indicator-glow 1.4s ease-in-out infinite;
 }
 

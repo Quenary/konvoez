@@ -24,7 +24,7 @@
   // so the avatar is centered on the icon, not aligned by the left edge.
   .room-item {
     > .aside-badge,
-    > [tuiAvatar] {
+    > app-pulse-indicator {
       margin-inline-start: calc(var(--t-margin) - 0.25rem);
     }
   }
