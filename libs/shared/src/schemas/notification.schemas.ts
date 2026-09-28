@@ -28,6 +28,8 @@ export const pushNotificationPayloadSchema = z.object({
       roomId: z.number().int().positive().optional(),
       recipientId: z.number().int().positive().optional(),
       messageId: z.string().optional(),
+      callId: z.string().optional(),
+      callerId: z.number().int().positive().optional(),
     })
     .optional(),
 });

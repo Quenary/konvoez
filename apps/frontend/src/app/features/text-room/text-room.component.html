@@ -23,6 +23,38 @@
   }
 
   <aside tuiAccessories>
+    @if (isDirectChat() && user(); as directUser) {
+      @if (!isCurrentDirectCallActive()) {
+        @if (canRejoinCall()) {
+          <app-pulse-indicator
+            variant="glow"
+            shape="rounded">
+            <button
+              tuiIconButton
+              appearance="positive"
+              size="s"
+              iconStart="@tui.phone-call"
+              type="button"
+              [title]="'CALL.JOIN_CALL' | translate"
+              (click)="rejoinDirectCall(directUser)">
+              {{ 'CALL.JOIN_CALL' | translate }}
+            </button>
+          </app-pulse-indicator>
+        } @else {
+          <button
+            tuiIconButton
+            appearance="flat"
+            size="s"
+            iconStart="@tui.phone"
+            type="button"
+            [title]="'CALL.START_CALL' | translate"
+            (click)="startDirectCall(directUser)">
+            {{ 'CALL.START_CALL' | translate }}
+          </button>
+        }
+      }
+    }
+
     <button
       tuiIconButton
       appearance="flat"
@@ -66,6 +98,12 @@
     </tui-textfield>
   }
 </header>
+
+@if (isCurrentDirectCallActive()) {
+  <div class="direct-voice-section">
+    <app-direct-call-panel />
+  </div>
+}
 
 <app-text-room-list />
 <app-text-room-editor />

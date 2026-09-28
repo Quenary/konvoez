@@ -1,0 +1,22 @@
+<tui-accordion>
+  <div class="header">
+    <button
+      appearance="icon"
+      [(tuiAccordion)]="expanded">
+      <span tuiTitle>
+        {{ 'CALL.DIRECT_CALL' | translate }}
+        <span tuiSubtitle>
+          {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
+        </span>
+      </span>
+    </button>
+
+    @if (!expanded()) {
+      <app-voice-controls-bar (hangup)="onHangup()" />
+    }
+  </div>
+
+  <tui-expand>
+    <app-voice-peers-grid [compact]="true" />
+  </tui-expand>
+</tui-accordion>

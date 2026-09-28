@@ -5,7 +5,7 @@
   [username]="p.username"
   [fullname]="p.fullname"
   [avatarUrl]="p.avatarUrl"
-  [talking]="audioLevel() > 0" />
+  [talking]="isSpeaking()" />
 
 <span [style.color]="p.username | tuiAutoColor">
   {{ p.username }}

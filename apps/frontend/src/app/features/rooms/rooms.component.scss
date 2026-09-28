@@ -14,6 +14,10 @@
     padding-left: var(--tui-height-s);
   }
 
+  .hanging-call {
+    padding-left: var(--tui-height-s);
+  }
+
   .aside-badge {
     flex: 0 0 auto;
     // Badge must overflow the avatar container to stay visible
@@ -23,8 +27,13 @@
   // Center xs avatar only when sidebar is collapsed
   &.collapsed {
     .aside-badge,
-    .room-item > div[tuiAvatar] {
+    .room-item > div[tuiAvatar],
+    .hanging-call app-pulse-indicator {
       margin-inline: auto;
+    }
+
+    .hanging-call {
+      padding-left: 0;
     }
   }
 

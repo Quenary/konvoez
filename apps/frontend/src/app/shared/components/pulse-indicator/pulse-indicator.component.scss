@@ -1,0 +1,61 @@
+:host {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pulse-indicator__content {
+  position: relative;
+  z-index: 1;
+  display: inherit;
+  align-items: inherit;
+  justify-content: inherit;
+}
+
+:host(.pulse-indicator--circle) .pulse-indicator__content {
+  border-radius: 50%;
+}
+
+:host(.pulse-indicator--rounded) .pulse-indicator__content {
+  border-radius: var(--tui-radius-m);
+}
+
+:host(.pulse-indicator--glow) .pulse-indicator__content {
+  animation: pulse-indicator-glow 1.4s ease-in-out infinite;
+}
+
+.pulse-indicator__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--tui-status-positive);
+  animation: pulse-indicator-ring 1.6s infinite ease-out;
+  pointer-events: none;
+}
+
+@keyframes pulse-indicator-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--tui-status-positive) 55%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 0 0.25rem
+      color-mix(in srgb, var(--tui-status-positive) 35%, transparent);
+  }
+}
+
+@keyframes pulse-indicator-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}

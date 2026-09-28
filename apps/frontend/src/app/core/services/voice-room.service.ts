@@ -19,11 +19,15 @@ import {
   IUser,
   EVoiceRoomEvent,
   TVoiceRoomMediaTag,
+  TVoiceSessionTarget,
+  EVoiceSessionType,
 } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
 import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
+import { AudioActivityService } from './audio-activity.service';
+import { DirectCallService } from './direct-call.service';
 import { EStorageKey } from '../../app.enums';
 import type { Device } from 'mediasoup-client';
 import { Consumer, Producer, Transport } from 'mediasoup-client/types';
@@ -31,7 +35,9 @@ import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { createEntityAdapter } from '@ngrx/entity';
 import { patchState, signalState } from '@ngrx/signals';
 import { interval } from 'rxjs';
+import { Mutex } from 'async-mutex';
 import { SettingsStore } from '@features/settings/settings.store';
+import { AudioService } from './audio.service';
 
 interface IManagedPeer extends IUser {
   consumers: Consumer[];
@@ -46,12 +52,16 @@ const peersStateAdapter = createEntityAdapter<IManagedPeer>({
 });
 const peersStateSelectors = peersStateAdapter.getSelectors();
 const peersInitialState = peersStateAdapter.getInitialState();
+/** Serializes join/leave so concurrent session switches cannot interleave. */
+const voiceSessionMutex = new Mutex();
+/** Serializes mediasoup device/transport setup (methods call each other). */
+const mediasoupMutex = new Mutex();
+/** Serializes mic device/mute changes that touch the local producer. */
+const micControlsMutex = new Mutex();
 
 /**
- * Active voice room service
- * - preserves state
- * - listen events
- * - manages input/output streams
+ * Active voice session service:
+ * preserves state, listens to socket events, manages input/output streams.
  */
 @Injectable({
   providedIn: 'root',
@@ -61,40 +71,44 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly microphoneService = inject(MicrophoneService);
   private readonly speakerService = inject(SpeakerService);
+  private readonly audioActivityService = inject(AudioActivityService);
+  private readonly audioService = inject(AudioService);
 
-  private get settingsStore(): InstanceType<typeof SettingsStore> {
-    return this.injector.get(SettingsStore);
-  }
-
-  //#region Mediasoup
-  private device: Device | null = null;
-
-  private sendTransport: Transport | null = null;
-
-  private recvTransport: Transport | null = null;
-
-  private microphoneProducer: Producer | null = null;
-
-  /**
-   * Set of producer ids being consumed at the moment.
-   */
-  private readonly consuming = new Set<string>();
-  //#endregion
-
-  /**
-   * Selected voice room id
-   */
-  private readonly _selectedRoomId = signal<number | null>(null);
-  /**
-   * Selected voice room id
-   */
-  public readonly selectedRoomId = this._selectedRoomId.asReadonly();
-  /**
-   * All voice rooms state
-   */
+  private readonly _activeSession = signal<TVoiceSessionTarget | null>(null);
   private readonly _roomsState = signal<Readonly<TVoiceRoomGetAllPeersResult>>(
     {},
   );
+  private readonly _microphoneMuted = signal<boolean>(
+    !!localStorage.getItemJson(EStorageKey.MICROPHONE_MUTED),
+  );
+  private readonly _speakerMuted = signal<boolean>(
+    !!localStorage.getItemJson(EStorageKey.SPEAKER_MUTED),
+  );
+  private readonly _peerGainLevels = signal<Readonly<Record<number, number>>>(
+    localStorage.getItemJson(EStorageKey.PEER_GAIN_LEVELS) ?? {},
+  );
+  private readonly peersState = signalState(peersInitialState);
+
+  /**
+   * Active voice session target (GROUP_ROOM or DIRECT_CALL)
+   */
+  public readonly activeSession = this._activeSession.asReadonly();
+  /**
+   * Selected voice room id (group rooms only)
+   */
+  public readonly selectedRoomId = computed(() => {
+    const session = this._activeSession();
+    return session?.type === EVoiceSessionType.GROUP_ROOM
+      ? session.roomId
+      : null;
+  });
+  /**
+   * Direct call target if currently in a direct-call media session
+   */
+  public readonly directCallTarget = computed(() => {
+    const session = this._activeSession();
+    return session?.type === EVoiceSessionType.DIRECT_CALL ? session : null;
+  });
   /**
    * All voice rooms state
    */
@@ -102,27 +116,11 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   /**
    * Microphone muted
    */
-  private readonly _microphoneMuted = signal<boolean>(
-    !!localStorage.getItemJson(EStorageKey.MICROPHONE_MUTED),
-  );
-  /**
-   * Microphone muted
-   */
   public readonly microphoneMuted = this._microphoneMuted.asReadonly();
   /**
    * Sound output muted
    */
-  private readonly _speakerMuted = signal<boolean>(
-    !!localStorage.getItemJson(EStorageKey.SPEAKER_MUTED),
-  );
-  /**
-   * Sound output muted
-   */
   public readonly speakerMuted = this._speakerMuted.asReadonly();
-  /***
-   * Active peers state
-   */
-  private readonly peersState = signalState(peersInitialState);
   /**
    * Active peers state (dict, userId: info)
    */
@@ -140,15 +138,20 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   /**
    * Map user id to gain level
    */
-  private readonly _peerGainLevels = signal<Readonly<Record<number, number>>>(
-    localStorage.getItemJson(EStorageKey.PEER_GAIN_LEVELS) ?? {},
-  );
-  /**
-   * Map user id to gain level
-   */
   public readonly peerGainLevels = this._peerGainLevels.asReadonly();
 
   protected pendingConsumes: IVoiceRoomProduceResult[] = [];
+
+  //#region Mediasoup
+  private device: Device | null = null;
+  private sendTransport: Transport | null = null;
+  private recvTransport: Transport | null = null;
+  private microphoneProducer: Producer | null = null;
+  /**
+   * Set of producer ids being consumed at the moment.
+   */
+  private readonly consuming = new Set<string>();
+  //#endregion
 
   constructor() {
     effect(() => {
@@ -161,12 +164,12 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       localStorage.setItemJson(EStorageKey.SPEAKER_MUTED, value);
     });
 
-    // Reconnect to room
+    // Reconnect to room / session
     this.socket.on('connect', () => {
       this.cleanupMediasoup();
-      const roomId = this.selectedRoomId();
-      if (roomId) {
-        this.joinRoom(roomId);
+      const session = this.activeSession();
+      if (session) {
+        this.joinSession(session);
       }
     });
 
@@ -177,37 +180,89 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     });
   }
 
-  public async joinRoom(roomId: number) {
-    if (this.selectedRoomId()) {
-      await this.leaveRoom();
+  @Mutexed(voiceSessionMutex)
+  public async joinSession(target: TVoiceSessionTarget): Promise<void> {
+    await this.joinSessionLocked(target);
+  }
+
+  /**
+   * User-facing leave: cancels/leaves a direct call when one is active,
+   * otherwise leaves the current group voice session.
+   */
+  public async leaveCurrent(): Promise<void> {
+    const directCallService = this.injector.get(DirectCallService);
+    if (directCallService.isCallActive()) {
+      await directCallService.leaveCall();
+      return;
+    }
+    await this.leaveSession();
+  }
+
+  /**
+   * Leave the current mediasoup session (group room or direct-call media).
+   * Prefer {@link leaveCurrent} from UI hangup/leave buttons.
+   */
+  @Mutexed(voiceSessionMutex)
+  public async leaveSession(): Promise<void> {
+    await this.leaveSessionLocked();
+  }
+
+  private async joinSessionLocked(target: TVoiceSessionTarget): Promise<void> {
+    this.audioService.playPeerJoinAudio();
+    const directCallService = this.injector.get(DirectCallService);
+    const previous = this._activeSession();
+    const leavingDirectCall =
+      previous?.type === EVoiceSessionType.DIRECT_CALL &&
+      (target.type !== EVoiceSessionType.DIRECT_CALL ||
+        target.callId !== previous.callId);
+    const joiningGroupWhileInCall =
+      target.type === EVoiceSessionType.GROUP_ROOM &&
+      directCallService.isConnected();
+
+    // Switching away from a live call must not hang up the remote party.
+    if (leavingDirectCall || joiningGroupWhileInCall) {
+      directCallService.detachFromCallWithoutHangup();
     }
 
-    this._selectedRoomId.set(roomId);
+    if (this._activeSession()) {
+      await this.leaveSessionLocked();
+    }
 
     this.addSocketListeners();
 
     await this.socket.emitWithAck(EVoiceRoomEvent.JOIN_ROOM, {
-      roomId,
+      sessionTarget: target,
+      roomId:
+        target.type === EVoiceSessionType.GROUP_ROOM
+          ? target.roomId
+          : undefined,
     } satisfies IVoiceRoomJoin);
 
+    this._activeSession.set(target);
     await this.updateRoomsState();
-
     await this.ensureDeviceLoaded();
     await this.ensureSendTransport();
     await this.ensureRecvTransport();
   }
 
-  public async leaveRoom() {
-    this._selectedRoomId.set(null);
+  private async leaveSessionLocked(): Promise<void> {
+    if (!this._activeSession()) {
+      return;
+    }
+
+    this._activeSession.set(null);
     this.removeSocketListeners();
+    this.pendingConsumes = [];
+    this.consuming.clear();
     await this.socket.emitWithAck(EVoiceRoomEvent.LEAVE_ROOM);
     this.cleanupAllPeers();
     this.cleanupMediasoup();
     await this.microphoneService.release();
     await this.updateRoomsState();
+    this.audioService.playPeerLeaveAudio();
   }
 
-  @Mutexed()
+  @Mutexed(micControlsMutex)
   public async setAudioInput(device: MediaDeviceInfo | null) {
     await this.microphoneService.setDevice(device);
 
@@ -221,7 +276,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     await this.speakerService.setDevice(device);
   }
 
-  @Mutexed()
+  @Mutexed(micControlsMutex)
   public async setMicrophoneMuted(value: boolean) {
     this._microphoneMuted.set(value);
     const track = this.microphoneProducer?.track;
@@ -241,12 +296,16 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   }
 
   public setPeerGain(userId: number, gain: number): void {
-    this._peerGainLevels.update((levels) => ({
-      ...levels,
-      [userId]: gain,
-    }));
+    this._peerGainLevels.update((levels) => {
+      const next = {
+        ...levels,
+        [userId]: gain,
+      };
+      localStorage.setItemJson(EStorageKey.PEER_GAIN_LEVELS, next);
+      return next;
+    });
     const peer = this.peersDict()[userId];
-    if (peer && peer.gainNode && !this.speakerMuted) {
+    if (peer?.gainNode && !this.speakerMuted()) {
       peer.gainNode.gain.value = gain;
     }
   }
@@ -254,6 +313,10 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   /**
    * Update all rooms state from backend
    */
+  private get settingsStore(): InstanceType<typeof SettingsStore> {
+    return this.injector.get(SettingsStore);
+  }
+
   private async updateRoomsState() {
     try {
       const roomsState: TVoiceRoomGetAllPeersResult =
@@ -267,7 +330,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   private addSocketListeners(): void {
     this.removeSocketListeners();
 
-    // РЎСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ РїРёСЂС‹ РїСЂРё РїРѕРґРєР»СЋС‡РµРЅРёРё
+    // Existing peers present when we join the session
     this.socket.on(EVoiceRoomEvent.PEERS_ON_JOIN, async (data) => {
       patchState(
         this.peersState,
@@ -292,7 +355,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       await this.consumePending();
     });
 
-    // РџРѕРґРєР»СЋС‡РµРЅРёРµ РЅРѕРІРѕРіРѕ РїРёСЂР°
+    // A new peer joined the session
     this.socket.on(EVoiceRoomEvent.PEER_JOINED, async (data) => {
       patchState(
         this.peersState,
@@ -309,18 +372,21 @@ export class VoiceRoomService implements IAudioDeviceHandler {
         ),
       );
 
-      this._roomsState.update((rooms) => ({
-        ...rooms,
-        [data.roomId]: {
-          ...rooms[data.roomId],
-          [data.user.id]: data.user,
-        },
-      }));
+      if (data.roomId !== undefined) {
+        const roomId = data.roomId;
+        this._roomsState.update((rooms) => ({
+          ...rooms,
+          [roomId]: {
+            ...rooms[roomId],
+            [data.user.id]: data.user,
+          },
+        }));
+      }
 
       await this.consumePending();
     });
 
-    // РћС‚РєР»СЋС‡РµРЅРёРµ РїРёСЂР°
+    // A peer left the session
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
       const peer = this.peersDict()[data.user.id];
       if (peer) {
@@ -332,25 +398,28 @@ export class VoiceRoomService implements IAudioDeviceHandler {
         peersStateAdapter.removeOne(data.user.id, this.peersState()),
       );
 
-      const statePeer = this.roomsState()[data.roomId]?.[data.user.id];
-      if (statePeer) {
-        this._roomsState.update((rooms) => {
-          const room = rooms[data.roomId] || {};
-          const { [data.user.id]: _, ...rest } = room;
-          return {
-            ...rooms,
-            [data.roomId]: rest,
-          };
-        });
+      if (data.roomId !== undefined) {
+        const roomId = data.roomId;
+        const statePeer = this.roomsState()[roomId]?.[data.user.id];
+        if (statePeer) {
+          this._roomsState.update((rooms) => {
+            const room = rooms[roomId] || {};
+            const { [data.user.id]: _, ...rest } = room;
+            return {
+              ...rooms,
+              [roomId]: rest,
+            };
+          });
+        }
       }
     });
 
-    // РЎРѕР±С‹С‚РёРµ РїСЂРё СЃРѕР·РґР°РЅРёРё РЅРѕРІРѕРіРѕ РїСЂРѕРґСЋСЃРµСЂР°
+    // A remote producer was created — start consuming it
     this.socket.on(EVoiceRoomEvent.PRODUCER_CREATED, async (data) => {
       await this.consume(data);
     });
 
-    // РЈРґР°Р»РµРЅРёРµ РїСЂРѕРґСЋСЃРµСЂР°
+    // A remote producer was closed — drop the matching consumer
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       const peer = this.peersDict()[data.userId];
       if (!peer) return;
@@ -407,6 +476,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
 
   private cleanupPeer(peer: IManagedPeer): void {
     try {
+      this.audioActivityService.unregister(peer.id);
       peer.sourceNode?.disconnect?.();
       peer.gainNode?.disconnect?.();
       peer.analyserNode?.disconnect?.();
@@ -419,8 +489,12 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     }
   }
 
-  @Mutexed()
+  @Mutexed(mediasoupMutex)
   private async ensureDeviceLoaded() {
+    await this.ensureDeviceLoadedLocked();
+  }
+
+  private async ensureDeviceLoadedLocked() {
     if (!this.device) {
       // mediasoup-client is a CommonJS module. In production builds (esbuild),
       // dynamic import of a CJS module may wrap it so that named exports
@@ -457,13 +531,13 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     }
   }
 
-  @Mutexed()
+  @Mutexed(mediasoupMutex)
   private async ensureSendTransport() {
     if (this.sendTransport) {
       return;
     }
 
-    await this.ensureDeviceLoaded();
+    await this.ensureDeviceLoadedLocked();
 
     const result: IVoiceRoomCreateTransportResult =
       await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
@@ -542,13 +616,13 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     }
   }
 
-  @Mutexed()
+  @Mutexed(mediasoupMutex)
   private async ensureRecvTransport() {
     if (this.recvTransport) {
       return;
     }
 
-    await this.ensureDeviceLoaded();
+    await this.ensureDeviceLoadedLocked();
 
     const result: IVoiceRoomCreateTransportResult =
       await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
@@ -658,6 +732,8 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       sourceNode.connect(gainNode);
       gainNode.connect(analyserNode);
       gainNode.connect(context.destination);
+
+      this.audioActivityService.register(peer.id, analyserNode);
 
       patchState(
         this.peersState,

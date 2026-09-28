@@ -5,7 +5,7 @@ import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { RoomsApiService } from './rooms-api.service';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
-import { ERoomType } from '@konvoez/shared';
+import { ERoomType, EVoiceSessionType } from '@konvoez/shared';
 import { Router } from '@angular/router';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -29,7 +29,10 @@ export class RoomsEffects {
               const selectedVoiceRoomId =
                 this.voiceRoomService.selectedRoomId();
               if (selectedVoiceRoomId !== action.room.id) {
-                this.voiceRoomService.joinRoom(action.room.id);
+                this.voiceRoomService.joinSession({
+                  type: EVoiceSessionType.GROUP_ROOM,
+                  roomId: action.room.id,
+                });
               }
               this.router.navigate([`/voice-room/${action.room.id}`]);
               break;

@@ -1,10 +1,118 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { map } from 'rxjs';
+import { selectRoomsDict } from '../rooms/rooms.selectors';
+import { VoicePeersGridComponent } from '@shared/components/voice-room/voice-peers-grid/voice-peers-grid.component';
+import { TuiTitle } from '@taiga-ui/core';
+import { TuiHeader } from '@taiga-ui/layout';
+import { TranslatePipe } from '@ngx-translate/core';
+import { VoiceRoomService } from '@core/services/voice-room.service';
+import { resolveVoiceSessionPeers } from '@shared/components/voice-room/voice-session-peers';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { NgOptimizedImage } from '@angular/common';
+import { EVoiceSessionType } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-room',
-  imports: [],
+  imports: [
+    VoicePeersGridComponent,
+    TuiTitle,
+    TuiHeader,
+    TranslatePipe,
+    TuiAvatar,
+    TuiInitialsPipe,
+    NgOptimizedImage,
+  ],
   templateUrl: './voice-room.component.html',
   styleUrl: './voice-room.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoiceRoomComponent {}
+export class VoiceRoomComponent {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly store = inject(Store);
+  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly directCallService = inject(DirectCallService);
+
+  /**
+   * Tracks which route room id we already attempted to join, so leaving
+   * while staying on the page does not immediately re-join.
+   */
+  private readonly joinedForRoomId = signal<number | null>(null);
+
+  protected readonly avatarUrl = computed(() => {
+    const id = this.roomId();
+    const roomsDict = this.roomsDict();
+    if (!id) {
+      return '';
+    }
+    return roomsDict[id]?.avatarUrl ?? '';
+  });
+
+  protected readonly roomName = computed(() => {
+    const id = this.roomId();
+    const roomsDict = this.roomsDict();
+    if (!id) {
+      return '';
+    }
+    return roomsDict[id]?.name ?? '';
+  });
+
+  protected readonly participantsCount = computed(() => {
+    const isCalling = this.directCallService.isCalling();
+    const isIncoming = this.directCallService.isIncoming();
+    return resolveVoiceSessionPeers({
+      me: this.currentUser(),
+      remotePeers: this.voiceRoomService.peersList(),
+      session: this.voiceRoomService.activeSession(),
+      isRinging: isCalling || isIncoming,
+      interlocutor: this.directCallService.interlocutor(),
+    }).length;
+  });
+
+  private readonly roomsDict = this.store.selectSignal(selectRoomsDict);
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  private readonly roomId = toSignal(
+    this.route.paramMap.pipe(map((params) => Number(params.get('id')))),
+  );
+
+  constructor() {
+    effect(() => {
+      const id = this.roomId();
+      const alreadyJoinedFor = this.joinedForRoomId();
+      const current = this.voiceRoomService.selectedRoomId();
+
+      if (!id || !Number.isFinite(id) || id <= 0) {
+        return;
+      }
+      if (alreadyJoinedFor === id) {
+        return;
+      }
+
+      this.joinedForRoomId.set(id);
+      if (current === id) {
+        return;
+      }
+
+      void this.voiceRoomService.joinSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: id,
+      });
+    });
+  }
+
+  protected onLeft(): void {
+    void this.router.navigate(['/']);
+  }
+}

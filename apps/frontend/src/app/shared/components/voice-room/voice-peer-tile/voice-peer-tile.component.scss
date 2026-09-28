@@ -1,0 +1,101 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  background: var(--tui-background-elevation-2);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &.speaking {
+    border-color: var(--tui-status-positive);
+    box-shadow:
+      0 0 0 2px var(--tui-status-positive),
+      0 0 1rem var(--tui-status-positive-pale);
+  }
+}
+
+.avatar {
+  transform: scale(1.2);
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badges {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.badge-calling {
+  animation: pulse-calling 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-calling {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+.footer {
+  position: absolute;
+  inset-inline: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.name {
+  max-width: 75%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.you {
+  color: var(--tui-text-secondary);
+}
+
+.volume {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-inline-size: 10rem;
+  padding: 0.75rem 1rem;
+}

@@ -60,6 +60,19 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 
 - Use `input()` / `output()` (and `input.required()` when needed), not `@Input` / `@Output`.
 - Use signals for local state (`signal`, `computed`); update with `set` / `update`, never mutate signal contents in place.
+- In `computed()` / `effect()` / `linkedSignal()`, **read every tracked signal first**, then branch or return. An early return (or short-circuit `||` / `&&`) before later signal reads means those deps are never registered on that run.
+
+```ts
+// GOOD EXAMPLE
+computed(() => {
+  const active = this.activeCall();
+  const rejoinable = this.rejoinableCall();
+  const users = this.users();
+  if (active) return active.interlocutor;
+  return users[rejoinable?.callerId ?? 0] ?? null;
+});
+```
+
 - Always set `changeDetection: ChangeDetectionStrategy.OnPush`.
 - Prefer `inject()` over constructor injection.
 - Put host bindings in the `host` object of `@Component` / `@Directive` — do not use `@HostBinding` / `@HostListener`.
@@ -124,4 +137,3 @@ Do not hand-write Angular `Validators.*` when a shared schema already exists.
 - [NgRx docs](https://ngrx.io/docs) — Store, Effects, SignalStore
 - [Taiga UI](https://taiga-ui.dev) — via MCP `taiga-ui` when implementing UI
 - Shared contracts: `libs/shared` (`@konvoez/shared`)
-  )

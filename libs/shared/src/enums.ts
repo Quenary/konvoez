@@ -48,3 +48,15 @@ export enum EVoiceRoomEvent {
   CONSUMER_CLOSED = 'consumer-closed',
   ERROR = 'error',
 }
+
+export enum EDirectCallEvent {
+  CALL_INITIATE = 'call:initiate',
+  CALL_INCOMING = 'call:incoming',
+  CALL_ACCEPT = 'call:accept',
+  CALL_ACCEPTED = 'call:accepted',
+  CALL_REJECT = 'call:reject',
+  CALL_REJECTED = 'call:rejected',
+  CALL_HANGUP = 'call:hangup',
+  CALL_ENDED = 'call:ended',
+  CALL_GET_ACTIVE = 'call:get-active',
+}

@@ -16,6 +16,7 @@ import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-
 import { RoomsComponent } from '@features/rooms/rooms.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EUserRole } from '@konvoez/shared';
+import { IncomingCallDialogComponent } from '@shared/components/voice-room/incoming-call-dialog/incoming-call-dialog.component';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +31,7 @@ import { EUserRole } from '@konvoez/shared';
     TuiNavigation,
     TuiChevron,
     LogoComponent,
+    IncomingCallDialogComponent,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',

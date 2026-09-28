@@ -1,0 +1,40 @@
+@if (isIncoming() && interlocutor(); as user) {
+  <div class="incoming-call-overlay">
+    <div class="incoming-call-card">
+      <app-pulse-indicator variant="ring">
+        <app-user-avatar
+          size="xxl"
+          [avatarUrl]="user.avatarUrl"
+          [fullname]="user.fullname"
+          [username]="user.username" />
+      </app-pulse-indicator>
+
+      <div class="call-info">
+        <h3 class="caller-name">{{ user.fullname || user.username }}</h3>
+        <p class="call-type">{{ 'CALL.INCOMING_CALL' | translate }}</p>
+      </div>
+
+      <div class="call-actions">
+        <button
+          tuiButton
+          type="button"
+          appearance="destructive"
+          size="m"
+          iconStart="@tui.phone-off"
+          (click)="reject()">
+          {{ 'CALL.DECLINE' | translate }}
+        </button>
+
+        <button
+          tuiButton
+          type="button"
+          class="accept-btn"
+          size="m"
+          iconStart="@tui.phone"
+          (click)="accept()">
+          {{ 'CALL.ACCEPT' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

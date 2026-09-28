@@ -58,6 +58,27 @@ DIRECT:
   START_CHAT: Начать диалог
   USER_LIST: Список пользователей
   NO_USERS_FOUND: Пользователи не найдены
+CALL:
+  START_CALL: Начать звонок
+  JOIN_CALL: Присоединиться
+  DIRECT_CALL: Личный звонок
+  INCOMING_CALL: Входящий голосовой звонок...
+  CALLING: Вызов...
+  ACCEPT: Ответить
+  DECLINE: Отклонить
+  HANGUP: Выйти из звонка
+  BUSY: Пользователь занят другим звонком
+  DECLINED: Звонок отклонен
+  NO_ANSWER: Пользователь не отвечает
+  PARTICIPANTS: 'Участников: {{count}}'
+  EXPAND: Развернуть
+  COLLAPSE: Свернуть
+  YOU: Вы
+  VOLUME: Громкость
+  SOUND: Звук
+  SOUND_OFF: Звук выключен
+  CAMERA_SOON: Камера (скоро)
+  SCREEN_SOON: Демонстрация экрана (скоро)
 ROOMS:
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение

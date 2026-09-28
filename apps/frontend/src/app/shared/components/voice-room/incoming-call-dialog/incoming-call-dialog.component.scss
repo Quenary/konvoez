@@ -1,0 +1,76 @@
+.incoming-call-overlay {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 10000;
+  pointer-events: auto;
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.incoming-call-card {
+  width: 320px;
+  background: rgba(30, 31, 34, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.call-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.caller-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #f2f3f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.call-type {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #949ba4;
+}
+
+.call-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.accept-btn {
+  background-color: #23a55a !important;
+  color: #ffffff !important;
+
+  &:hover {
+    background-color: #1a7f45 !important;
+  }
+}

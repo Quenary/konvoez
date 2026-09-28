@@ -1,11 +1,11 @@
 {
   "mcpServers": {
     "angular-cli": {
-      "command": "zsh",
+      "command": "/bin/bash",
       "args": ["-i", "-c", "npx -y @angular/cli mcp"]
     },
     "taiga-ui": {
-      "command": "zsh",
+      "command": "/bin/bash",
       "args": [
         "-i",
         "-c",

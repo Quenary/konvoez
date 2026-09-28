@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { IUser } from './user.schemas';
-import { EVoiceRoomEvent } from '../enums';
+import { EDirectCallEvent, EVoiceRoomEvent } from '../enums';
+import {
+  TDirectCallEventPayloadMap,
+  TDirectCallEventResultMap,
+  TVoiceSessionTarget,
+} from './voice-session.schemas';
 
 export type TVoiceRoomMediaTag = 'mic' | 'cam' | 'screen';
 
@@ -20,7 +25,7 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsume;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: IVoiceRoomConsumerClosed;
   [EVoiceRoomEvent.ERROR]: { message: string };
-};
+} & TDirectCallEventPayloadMap;
 
 export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.JOIN_ROOM]: any;
@@ -38,10 +43,12 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsumeResult;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: any;
   [EVoiceRoomEvent.ERROR]: any;
-};
+} & TDirectCallEventResultMap;
+
+export type TVoiceRoomEventKey = EVoiceRoomEvent | EDirectCallEvent;
 
 export type TVoiceRoomEventMap = {
-  [K in EVoiceRoomEvent]: TVoiceRoomEventPayloadMap[K] extends void
+  [K in TVoiceRoomEventKey]: TVoiceRoomEventPayloadMap[K] extends void
     ? (...args: any[]) => TVoiceRoomEventResultMap[K]
     : (
         data: TVoiceRoomEventPayloadMap[K],
@@ -57,21 +64,26 @@ export type TVoiceRoomEvent = {
 }[EVoiceRoomEvent];
 
 export interface IVoiceRoomJoin {
-  roomId: number;
+  roomId?: number;
+  sessionTarget?: TVoiceSessionTarget;
+  sessionKey?: string;
 }
 
 export interface IVoiceRoomPeerJoined {
   user: IUser;
-  roomId: number;
+  roomId?: number;
+  sessionKey: string;
 }
 
 export interface IVoiceRoomPeerLeft {
   user: IUser;
-  roomId: number;
+  roomId?: number;
+  sessionKey: string;
 }
 
 /**
- * Map room id to map of users
+ * Map group room id to map of users currently in that voice room.
+ * Direct-call sessions are intentionally excluded.
  */
 export type TVoiceRoomGetAllPeersResult = Record<number, Record<number, IUser>>;
 

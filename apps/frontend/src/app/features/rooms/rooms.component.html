@@ -17,6 +17,26 @@
   {{ 'MENU.DIRECT' | translate }}
 </button>
 
+@if (hangingCallPeer(); as peer) {
+  <button
+    class="hanging-call"
+    tuiAsideItem
+    type="button"
+    [ariaLabel]="'CALL.DIRECT_CALL' | translate"
+    (click)="openHangingCall(peer)">
+    <app-pulse-indicator variant="glow">
+      <app-user-avatar
+        size="xs"
+        [username]="peer.username"
+        [fullname]="peer.fullname"
+        [avatarUrl]="peer.avatarUrl" />
+    </app-pulse-indicator>
+    <span [style.color]="peer.username | tuiAutoColor">
+      {{ peer.username }}
+    </span>
+  </button>
+}
+
 <button
   [style.margin-top.rem]="1"
   [style.color]="'var(--tui-text-secondary)'"

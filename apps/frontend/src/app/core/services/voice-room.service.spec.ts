@@ -12,6 +12,10 @@ import { SettingsStore } from '@features/settings/settings.store';
 import { AUDIO_DEVICE_HANDLER } from '../tokens/audio-device-handler.token';
 import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
+import { DirectCallService } from './direct-call.service';
+import { AudioActivityService } from './audio-activity.service';
+import { AudioService } from './audio.service';
+import { EVoiceSessionType } from '@konvoez/shared';
 
 describe('VoiceRoomService', () => {
   let service: VoiceRoomService;
@@ -20,6 +24,12 @@ describe('VoiceRoomService', () => {
     off: ReturnType<typeof vi.fn>;
     emitWithAck: ReturnType<typeof vi.fn>;
     connected: boolean;
+  };
+  let directCallService: {
+    isConnected: ReturnType<typeof vi.fn>;
+    isCallActive: ReturnType<typeof vi.fn>;
+    leaveCall: ReturnType<typeof vi.fn>;
+    detachFromCallWithoutHangup: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -51,6 +61,13 @@ describe('VoiceRoomService', () => {
       connected: true,
     };
 
+    directCallService = {
+      isConnected: vi.fn().mockReturnValue(false),
+      isCallActive: vi.fn().mockReturnValue(false),
+      leaveCall: vi.fn().mockResolvedValue(undefined),
+      detachFromCallWithoutHangup: vi.fn(),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         VoiceRoomService,
@@ -75,6 +92,25 @@ describe('VoiceRoomService', () => {
           },
         },
         {
+          provide: AudioActivityService,
+          useValue: {
+            isSpeaking: vi.fn().mockReturnValue(() => false),
+            register: vi.fn(),
+            unregister: vi.fn(),
+          },
+        },
+        {
+          provide: AudioService,
+          useValue: {
+            playPeerJoinAudio: vi.fn(),
+            playPeerLeaveAudio: vi.fn(),
+          },
+        },
+        {
+          provide: DirectCallService,
+          useValue: directCallService,
+        },
+        {
           provide: AUDIO_DEVICE_HANDLER,
           useValue: {
             setAudioInput: vi.fn(),
@@ -93,13 +129,59 @@ describe('VoiceRoomService', () => {
     service = TestBed.inject(VoiceRoomService);
   });
 
-  it('should release the microphone when leaving a room', async () => {
+  it('should release the microphone when leaving a session', async () => {
     const microphoneService = TestBed.inject(MicrophoneService) as any;
 
-    service['_selectedRoomId'].set(42);
-    await service.leaveRoom();
+    service['_activeSession'].set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 42,
+    });
+    await service.leaveSession();
 
     expect(microphoneService.release).toHaveBeenCalledTimes(1);
     expect(socket.emitWithAck).toHaveBeenCalledWith('leave-room');
+  });
+
+  it('should clear pending consumes when leaving a session', async () => {
+    service['_activeSession'].set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+    service['pendingConsumes'] = [
+      {
+        producerId: 'p1',
+        userId: 1,
+        kind: 'audio',
+        mediaTag: 'mic',
+      },
+    ];
+    service['consuming'].add('p1');
+
+    await service.leaveSession();
+
+    expect(service['pendingConsumes']).toEqual([]);
+    expect(service['consuming'].size).toBe(0);
+  });
+
+  it('leaveCurrent leaves a direct call when one is active', async () => {
+    directCallService.isCallActive.mockReturnValue(true);
+
+    await service.leaveCurrent();
+
+    expect(directCallService.leaveCall).toHaveBeenCalledTimes(1);
+    expect(socket.emitWithAck).not.toHaveBeenCalled();
+  });
+
+  it('leaveCurrent leaves the media session when no call is active', async () => {
+    service['_activeSession'].set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 7,
+    });
+
+    await service.leaveCurrent();
+
+    expect(directCallService.leaveCall).not.toHaveBeenCalled();
+    expect(socket.emitWithAck).toHaveBeenCalledWith('leave-room');
+    expect(service.activeSession()).toBeNull();
   });
 });
