@@ -79,4 +79,33 @@ describe('LocalObjectStorageService', () => {
       service.getStream('../../etc/passwd', 'rooms-avatars'),
     ).rejects.toThrow(BadRequestException);
   });
+
+  it('should list and delete files in a bucket', async () => {
+    const mockFile = {
+      originalname: 'room.png',
+      buffer: Buffer.from('room-data'),
+      mimetype: 'image/png',
+    } as Express.Multer.File;
+
+    const key = await service.upload(mockFile, 'rooms-avatars');
+
+    const listed = await service.list('rooms-avatars');
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.key).toBe(key);
+    expect(listed[0]?.modifiedAt.getTime()).toEqual(expect.any(Number));
+
+    await service.delete(key);
+    await expect(service.list('rooms-avatars')).resolves.toEqual([]);
+    await expect(service.delete(key)).resolves.toBeUndefined();
+  });
+
+  it('should return an empty list when the bucket directory does not exist', async () => {
+    await expect(service.list('users-avatars')).resolves.toEqual([]);
+  });
+
+  it('should throw BadRequestException when deleting outside storage', async () => {
+    await expect(service.delete('../../etc/passwd')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
 });

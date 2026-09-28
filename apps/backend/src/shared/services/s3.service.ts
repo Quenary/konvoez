@@ -1,7 +1,9 @@
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
   NoSuchKey,
   PutObjectCommand,
   S3Client,
@@ -10,7 +12,7 @@ import {
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Readable } from 'stream';
 import { S3ClientInjectionToken } from '../tokens/s3-client.token';
-import { FileService, FileStreamResult } from './file.service';
+import { FileService, FileStreamResult, StoredFileInfo } from './file.service';
 
 @Injectable()
 export class S3Service implements FileService {
@@ -42,6 +44,56 @@ export class S3Service implements FileService {
     return key;
   }
 
+  public async delete(key: string, bucket?: string): Promise<void> {
+    const target = this.parseBucketAndKey(key, bucket);
+
+    try {
+      await this.s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: target.bucket,
+          Key: target.key,
+        }),
+      );
+    } catch (error) {
+      if (!this.isMissingObject(error)) {
+        throw error;
+      }
+    }
+  }
+
+  public async list(bucket: string): Promise<StoredFileInfo[]> {
+    const files: StoredFileInfo[] = [];
+    let continuationToken: string | undefined;
+
+    try {
+      do {
+        const response = await this.s3Client.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            ContinuationToken: continuationToken,
+          }),
+        );
+
+        for (const object of response.Contents ?? []) {
+          if (object.Key && object.LastModified) {
+            files.push({ key: object.Key, modifiedAt: object.LastModified });
+          }
+        }
+
+        continuationToken = response.IsTruncated
+          ? response.NextContinuationToken
+          : undefined;
+      } while (continuationToken);
+    } catch (error) {
+      if (this.isMissingBucket(error)) {
+        return [];
+      }
+      throw error;
+    }
+
+    return files;
+  }
+
   public async getStream(
     key: string,
     bucket?: string,
@@ -66,12 +118,7 @@ export class S3Service implements FileService {
         contentLength: response.ContentLength,
       };
     } catch (error) {
-      if (
-        error instanceof NoSuchKey ||
-        (error instanceof S3ServiceException &&
-          (error.name === 'NoSuchKey' ||
-            error['$metadata']?.httpStatusCode === 404))
-      ) {
+      if (this.isMissingObject(error)) {
         throw new NotFoundException('File not found in S3');
       }
       throw error;
@@ -91,12 +138,7 @@ export class S3Service implements FileService {
       );
       this.checkedBuckets.add(bucket);
     } catch (error) {
-      if (
-        error instanceof S3ServiceException &&
-        (error.name === 'NotFound' ||
-          error.name === 'NoSuchBucket' ||
-          error['$metadata']?.httpStatusCode === 404)
-      ) {
+      if (this.isMissingBucket(error)) {
         try {
           await this.s3Client.send(
             new CreateBucketCommand({
@@ -119,6 +161,24 @@ export class S3Service implements FileService {
         );
       }
     }
+  }
+
+  private isMissingObject(error: unknown): boolean {
+    return (
+      error instanceof NoSuchKey ||
+      (error instanceof S3ServiceException &&
+        (error.name === 'NoSuchKey' ||
+          error['$metadata']?.httpStatusCode === 404))
+    );
+  }
+
+  private isMissingBucket(error: unknown): boolean {
+    return (
+      error instanceof S3ServiceException &&
+      (error.name === 'NotFound' ||
+        error.name === 'NoSuchBucket' ||
+        error['$metadata']?.httpStatusCode === 404)
+    );
   }
 
   private parseBucketAndKey(
