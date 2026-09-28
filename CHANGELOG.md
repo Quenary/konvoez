@@ -1,3 +1,18 @@
+# [1.6.0](https://github.com/Quenary/konvoez/compare/v1.5.1...v1.6.0) (2026-09-28)
+
+### Bug Fixes
+
+- **frontend:** get active voice peers on initial load ([9404ba8](https://github.com/Quenary/konvoez/commit/9404ba8dc855ba27945b5415eb25d5e72e5b9784))
+- **frontend:** side menu align ([5cb88eb](https://github.com/Quenary/konvoez/commit/5cb88ebf53fbfb032a44faf442734b210adc8169))
+- **voice:** edge-case race conditions ([d3b6785](https://github.com/Quenary/konvoez/commit/d3b67854f0dcb3de659607ee6e0d0b35ff944c03))
+
+### Features
+
+- add versioning endpoint and GitHub release check ([4edf74d](https://github.com/Quenary/konvoez/commit/4edf74dcaa2099c8e5dbb79470f8679e38a9b157))
+- **backend:** implement orphan file cleanup ([8478cd5](https://github.com/Quenary/konvoez/commit/8478cd512e06ed1d053a5e409849a3ad81036bd3))
+- direct calls ([fba9b0b](https://github.com/Quenary/konvoez/commit/fba9b0b68e700ad137f9890df1ef16d5602212bd))
+- **frontend:** pulse indication on active voice room ([d59f2f2](https://github.com/Quenary/konvoez/commit/d59f2f2f04d0fff9abc6b90eabd9735b728fa4ad))
+
 ## [1.5.1](https://github.com/Quenary/konvoez/compare/v1.5.0...v1.5.1) (2026-09-24)
 
 ### Bug Fixes
