@@ -1,0 +1,29 @@
+<header
+  tuiHeader
+  class="room-header">
+  <h2 tuiTitle>
+    <div
+      tuiAvatar
+      size="s"
+      class="header-avatar">
+      @if (avatarUrl()) {
+        <img
+          [alt]="roomName()"
+          [ngSrc]="avatarUrl()!"
+          fill
+          priority />
+      } @else {
+        {{ roomName() | tuiInitials }}
+      }
+    </div>
+
+    {{ roomName() }}
+    <span tuiSubtitle>
+      {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
+    </span>
+  </h2>
+</header>
+
+<div class="voice-room-body">
+  <app-voice-peers-grid (left)="onLeft()" />
+</div>

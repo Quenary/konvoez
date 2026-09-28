@@ -27,3 +27,11 @@
     width: 100%;
   }
 }
+
+.direct-voice-section {
+  width: 100%;
+  max-height: 50dvh;
+  flex-shrink: 0;
+  display: flex;
+  overflow: hidden;
+}

@@ -105,4 +105,12 @@ export class AppService {
   public readonly MEDIASOUP_MAX_PORT: number =
     Number(process.env['MEDIASOUP_MAX_PORT']) || 40100;
   //#endregion
+
+  /**
+   * Optional GitHub token for authenticated Releases API calls
+   * (higher rate limit than unauthenticated 60 req/h).
+   * Classic PAT needs no scopes for public repos.
+   */
+  public readonly GITHUB_TOKEN: string | undefined =
+    process.env['GITHUB_TOKEN'] || undefined;
 }

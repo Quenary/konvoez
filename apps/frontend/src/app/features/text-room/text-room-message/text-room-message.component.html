@@ -13,7 +13,7 @@
           size="s"
           class="message-sender"
           [username]="m.senderUsername"
-          [fullname]="m.senderUsername"
+          [fullname]="senderUser()?.fullname ?? m.senderUsername"
           [avatarUrl]="avatarUrl()" />
       }
 
@@ -21,12 +21,22 @@
         <span class="message-body-header">
           <span
             class="message-body-header-username"
-            [style.color]="m.senderUsername | tuiAutoColor">
+            tuiHintAppearance="floating"
+            [style.color]="m.senderUsername | tuiAutoColor"
+            [tuiHint]="senderFullnameHint()">
             {{ m.senderUsername }}
           </span>
         </span>
 
         @if (m.replyTo; as reply) {
+          @let replyUser = reply.senderId ? usersById()[reply.senderId] : null;
+          @let replyFullname = replyUser?.fullname ?? null;
+          @let replyHint =
+            replyFullname &&
+            reply.senderUsername &&
+            replyFullname !== reply.senderUsername
+              ? replyFullname
+              : null;
           <div
             class="message-reply"
             role="button"
@@ -46,7 +56,9 @@
             } @else {
               <span
                 class="message-reply-sender"
-                [style.color]="reply.senderUsername ?? '' | tuiAutoColor">
+                tuiHintAppearance="floating"
+                [style.color]="reply.senderUsername ?? '' | tuiAutoColor"
+                [tuiHint]="replyHint">
                 {{ reply.senderUsername }}
               </span>
               <span class="message-reply-content">
@@ -119,17 +131,24 @@
     } @else {
       <ul tuiList="m">
         @for (user of readers(); track user.id) {
+          @let hintValue =
+            user.fullname && user.fullname !== user.username
+              ? user.fullname
+              : null;
           <li style="display: inline-flex">
             <div class="readers-item">
               <app-user-avatar
                 size="xs"
                 [style.margin-right.rem]="0.5"
                 [username]="user.username"
-                [fullname]="user.username"
+                [fullname]="user.fullname"
                 [avatarUrl]="user.avatarUrl" />
-              <span [style.color]="user.username | tuiAutoColor">{{
-                user.username
-              }}</span>
+              <span
+                tuiHintAppearance="floating"
+                [style.color]="user.username | tuiAutoColor"
+                [tuiHint]="hintValue">
+                {{ user.username }}
+              </span>
             </div>
           </li>
         }

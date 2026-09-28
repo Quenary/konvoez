@@ -22,12 +22,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PublicController } from './public.controller';
 import { AuthService } from '../auth/auth.service';
 import { SettingsService } from '../settings/settings.service';
+import { PublicService } from './public.service';
 import { ESettingKey } from '@konvoez/shared';
 
 describe('PublicController', () => {
   let controller: PublicController;
   let authService: jest.Mocked<Pick<AuthService, 'isOwnerSetupRequired'>>;
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
+  let publicService: jest.Mocked<Pick<PublicService, 'getVersion'>>;
 
   beforeEach(async () => {
     authService = {
@@ -36,12 +38,21 @@ describe('PublicController', () => {
     settingsService = {
       getValue: jest.fn().mockResolvedValue(true),
     };
+    publicService = {
+      getVersion: jest.fn().mockResolvedValue({
+        currentVersion: '1.5.1',
+        availableVersion: '1.5.1',
+        releaseUrl: null,
+        updateAvailable: false,
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PublicController],
       providers: [
         { provide: AuthService, useValue: authService },
         { provide: SettingsService, useValue: settingsService },
+        { provide: PublicService, useValue: publicService },
       ],
     }).compile();
 
@@ -61,5 +72,16 @@ describe('PublicController', () => {
     expect(settingsService.getValue).toHaveBeenCalledWith(
       ESettingKey.INVITE_ONLY_SIGN_UP,
     );
+  });
+
+  it('should return version info from PublicService', async () => {
+    const version = await controller.getVersion();
+    expect(version).toEqual({
+      currentVersion: '1.5.1',
+      availableVersion: '1.5.1',
+      releaseUrl: null,
+      updateAvailable: false,
+    });
+    expect(publicService.getVersion).toHaveBeenCalled();
   });
 });

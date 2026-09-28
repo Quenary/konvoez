@@ -35,20 +35,7 @@ export class NotificationsService {
     this.configureVapid();
   }
 
-  private configureVapid(): void {
-    const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
-    if (!storedKeys) {
-      return;
-    }
-
-    webPush.setVapidDetails(
-      `mailto:${this.appService.VAPID_EMAIL}`,
-      storedKeys.publicKey,
-      storedKeys.privateKey,
-    );
-  }
-
-  ensureVapidKeys(): { publicKey: string; privateKey: string } {
+  public ensureVapidKeys(): { publicKey: string; privateKey: string } {
     const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
     if (storedKeys) {
       this.configureVapid();
@@ -62,11 +49,11 @@ export class NotificationsService {
     return keys;
   }
 
-  getPublicKey(): string {
+  public getPublicKey(): string {
     return this.ensureVapidKeys().publicKey;
   }
 
-  async saveSubscription(
+  public async saveSubscription(
     user: GetUserDto,
     dto: PushSubscriptionDto,
   ): Promise<void> {
@@ -105,7 +92,10 @@ export class NotificationsService {
     await this.em.flush();
   }
 
-  async removeSubscription(user: GetUserDto, endpoint: string): Promise<void> {
+  public async removeSubscription(
+    user: GetUserDto,
+    endpoint: string,
+  ): Promise<void> {
     const subscription = await this.subscriptionRepository.findOne({
       user: user.id,
       endpoint,
@@ -119,7 +109,7 @@ export class NotificationsService {
     await this.em.flush();
   }
 
-  async getSubscriptionsForUser(
+  public async getSubscriptionsForUser(
     userId: number,
   ): Promise<PushSubscriptionEntity[]> {
     return this.subscriptionRepository.find({
@@ -128,7 +118,7 @@ export class NotificationsService {
     });
   }
 
-  async sendNotification(
+  public async sendNotification(
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
@@ -181,7 +171,7 @@ export class NotificationsService {
     await this.em.flush();
   }
 
-  async sendDirectMessageNotification(
+  public async sendDirectMessageNotification(
     recipientId: number,
     senderId: number,
     senderUsername: string,
@@ -203,5 +193,36 @@ export class NotificationsService {
         recipientId,
       },
     });
+  }
+
+  public async sendDirectCallNotification(
+    recipientId: number,
+    callerId: number,
+    callerUsername: string,
+    callId: string,
+  ): Promise<void> {
+    await this.sendNotification(recipientId, {
+      title: callerUsername,
+      body: 'Входящий голосовой звонок...',
+      tag: `call:${callId}`,
+      data: {
+        type: 'direct-call',
+        callId,
+        callerId,
+      },
+    });
+  }
+
+  private configureVapid(): void {
+    const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
+    if (!storedKeys) {
+      return;
+    }
+
+    webPush.setVapidDetails(
+      `mailto:${this.appService.VAPID_EMAIL}`,
+      storedKeys.publicKey,
+      storedKeys.privateKey,
+    );
   }
 }

@@ -81,6 +81,28 @@
             </button>
           </tui-aside-group>
 
+          @if (versionInfo.value(); as v) {
+            @if (v.currentVersion) {
+              <button
+                tuiAsideItem
+                type="button"
+                iconStart="@tui.info">
+                {{ v.currentVersion }}
+              </button>
+            }
+            @if (v.updateAvailable && v.releaseUrl && isAdminOrOwner()) {
+              <a
+                tuiAsideItem
+                [href]="v.releaseUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                iconStart="@tui.download"
+                [style.color]="'var(--tui-text-positive)'">
+                {{ 'MENU.UPDATE_AVAILABLE' | translate }}
+              </a>
+            }
+          }
+
           <button
             tuiAsideItem
             type="button"
@@ -99,5 +121,8 @@
     </div>
   } @else {
     <router-outlet></router-outlet>
+  }
+  @defer {
+    <app-incoming-call-dialog />
   }
 </tui-root>

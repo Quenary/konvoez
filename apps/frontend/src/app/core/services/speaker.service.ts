@@ -2,7 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 
-const publlicMethodsMutex = new Mutex();
+const publicMethodsMutex = new Mutex();
 
 @Injectable({
   providedIn: 'root',
@@ -28,18 +28,18 @@ export class SpeakerService implements OnDestroy {
     });
   }
 
-  @Mutexed(publlicMethodsMutex)
+  @Mutexed(publicMethodsMutex)
   public async setDevice(device: MediaDeviceInfo | null) {
     this.device = device;
     await this.setSinkId(this.device);
   }
 
-  @Mutexed(publlicMethodsMutex)
+  @Mutexed(publicMethodsMutex)
   public async getContext(): Promise<AudioContext> {
     return await this.ensureContext();
   }
 
-  @Mutexed(publlicMethodsMutex)
+  @Mutexed(publicMethodsMutex)
   public async release(): Promise<void> {
     if (this.context && this.context.state !== 'closed') {
       try {

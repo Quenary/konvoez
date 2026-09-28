@@ -6,7 +6,13 @@
     "moduleResolution": "node10",
     "types": ["jest", "node", "multer"],
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@konvoez/shared": ["../../libs/shared/src/index.ts"],
+      "@shared/*": ["./src/shared/*"],
+      "mediasoup": ["../../node_modules/mediasoup/node/lib/index.d.ts"],
+      "mediasoup/types": ["../../node_modules/mediasoup/node/lib/types.d.ts"]
+    }
   },
   "include": [
     "jest.config.ts",

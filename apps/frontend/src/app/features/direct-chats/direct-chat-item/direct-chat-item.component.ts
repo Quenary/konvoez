@@ -5,7 +5,7 @@ import {
   input,
   output,
 } from '@angular/core';
-import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core';
+import { TuiCell, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import {
   TuiAutoColorPipe,
   TuiBadgedContent,
@@ -19,6 +19,7 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
   selector: 'app-direct-chat-item',
   imports: [
     TuiCell,
+    TuiHint,
     TuiIcon,
     TuiTitle,
     UserAvatarComponent,

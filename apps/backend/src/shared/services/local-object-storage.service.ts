@@ -6,7 +6,7 @@ import {
 import fs from 'fs';
 import path from 'path';
 import { AppService } from './app.service';
-import { FileService, FileStreamResult } from './file.service';
+import { FileService, FileStreamResult, StoredFileInfo } from './file.service';
 
 @Injectable()
 export class LocalObjectStorageService implements FileService {
@@ -29,15 +29,59 @@ export class LocalObjectStorageService implements FileService {
     return key;
   }
 
+  public async delete(key: string, bucket?: string): Promise<void> {
+    const fullPath = this.resolveSafePath(this.normalizeKey(key, bucket));
+
+    try {
+      await fs.promises.unlink(fullPath);
+    } catch (error) {
+      if (!this.isEnoent(error)) {
+        throw error;
+      }
+    }
+  }
+
+  public async list(bucket: string): Promise<StoredFileInfo[]> {
+    const dir = this.resolveSafePath(bucket);
+
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (this.isEnoent(error)) {
+        return [];
+      }
+      throw error;
+    }
+
+    const files: StoredFileInfo[] = [];
+    for (const entry of entries) {
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const key = `${bucket}/${entry.name}`;
+      try {
+        const stat = await fs.promises.stat(this.resolveSafePath(key));
+        if (!stat.isFile()) {
+          continue;
+        }
+        files.push({ key, modifiedAt: stat.mtime });
+      } catch (error) {
+        if (!this.isEnoent(error)) {
+          throw error;
+        }
+      }
+    }
+
+    return files;
+  }
+
   public async getStream(
     key: string,
     bucket?: string,
   ): Promise<FileStreamResult> {
-    let normalizedKey = key;
-    if (bucket && !key.startsWith(bucket + '/') && key !== bucket) {
-      normalizedKey = `${bucket}/${key}`;
-    }
-    const fullPath = this.resolveSafePath(normalizedKey);
+    const fullPath = this.resolveSafePath(this.normalizeKey(key, bucket));
 
     let stat: fs.Stats;
     try {
@@ -59,6 +103,22 @@ export class LocalObjectStorageService implements FileService {
 
   private get basePath(): string {
     return path.resolve(this.appService.LOCAL_OBJECT_STORAGE_PATH);
+  }
+
+  private normalizeKey(key: string, bucket?: string): string {
+    if (bucket && !key.startsWith(`${bucket}/`) && key !== bucket) {
+      return `${bucket}/${key}`;
+    }
+    return key;
+  }
+
+  private isEnoent(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT'
+    );
   }
 
   private resolveSafePath(relativePath: string): string {

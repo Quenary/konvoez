@@ -63,11 +63,10 @@ docker compose -f docker-compose.build.yml up -d --build
 ## TODO
 
 - Add SMTP support for password recovery and invites
-- Load active room's peers on initial frontend loads
-- Add active voice room indication on narrow menu
+- Add user management for admin (table, role change, logical and physical deletion)
 - Add message assets (files)
-- Add connection state indication
-- Add customizable roles (functions access) and groups (rooms access)
-- Add voice room component (visualization of peers on big screens like in discord)
-- Add mute indication for other peers
 - Add camera/screen sharing
+- Add emojis or/and customizable smile/sticker packs
+- Add connection state indication
+- Add mute indication for other peers
+- Add customizable roles (functions access) and groups (rooms access)

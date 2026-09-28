@@ -1,8 +1,11 @@
 import {
+  DeleteObjectCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
   NoSuchKey,
   PutObjectCommand,
   S3Client,
+  S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { NotFoundException } from '@nestjs/common';
 import { Readable } from 'stream';
@@ -66,5 +69,56 @@ describe('S3Service', () => {
     await expect(
       service.getStream('rooms-avatars/missing.png'),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('should delete an object from S3', async () => {
+    (mockS3Client.send as jest.Mock).mockResolvedValueOnce({});
+
+    await service.delete('rooms-avatars/123-room.png');
+
+    expect(mockS3Client.send).toHaveBeenCalledWith(
+      expect.any(DeleteObjectCommand),
+    );
+  });
+
+  it('should list object keys across pages', async () => {
+    const firstModified = new Date('2026-01-01T00:00:00Z');
+    const secondModified = new Date('2026-01-02T00:00:00Z');
+    (mockS3Client.send as jest.Mock)
+      .mockResolvedValueOnce({
+        Contents: [
+          { Key: 'rooms-avatars/1-a.png', LastModified: firstModified },
+          { Key: 'rooms-avatars/missing-date.png' },
+        ],
+        IsTruncated: true,
+        NextContinuationToken: 'next',
+      })
+      .mockResolvedValueOnce({
+        Contents: [
+          { Key: 'rooms-avatars/2-b.png', LastModified: secondModified },
+        ],
+        IsTruncated: false,
+      });
+
+    await expect(service.list('rooms-avatars')).resolves.toEqual([
+      { key: 'rooms-avatars/1-a.png', modifiedAt: firstModified },
+      { key: 'rooms-avatars/2-b.png', modifiedAt: secondModified },
+    ]);
+    expect(mockS3Client.send).toHaveBeenCalledWith(
+      expect.any(ListObjectsV2Command),
+    );
+  });
+
+  it('should return an empty list when the bucket does not exist', async () => {
+    const error = new S3ServiceException({
+      name: 'NoSuchBucket',
+      $fault: 'client',
+      $metadata: { httpStatusCode: 404 },
+      message: 'The specified bucket does not exist',
+    });
+    error.name = 'NoSuchBucket';
+    (mockS3Client.send as jest.Mock).mockRejectedValueOnce(error);
+
+    await expect(service.list('rooms-avatars')).resolves.toEqual([]);
   });
 });

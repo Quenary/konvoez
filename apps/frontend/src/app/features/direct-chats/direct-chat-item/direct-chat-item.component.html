@@ -20,10 +20,16 @@
   </tui-badged-content>
 
   <div tuiTitle>
-    <span [style.color]="user().username | tuiAutoColor">
-      {{ user().username }}
+    @let u = user();
+    @let hintValue =
+      u.fullname && u.fullname !== u.username ? u.fullname : null;
+    <span
+      tuiHintAppearance="floating"
+      [style.color]="u.username | tuiAutoColor"
+      [tuiHint]="hintValue">
+      {{ u.username }}
     </span>
-    <div tuiSubtitle>{{ user().fullname }}</div>
+    <div tuiSubtitle>{{ u.fullname }}</div>
   </div>
 
   <tui-icon

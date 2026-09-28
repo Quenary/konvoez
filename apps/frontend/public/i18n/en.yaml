@@ -42,6 +42,7 @@ MENU:
   TEXT: Text
   VOICE: Voice
   DIRECT: Direct
+  UPDATE_AVAILABLE: Update available
   SETTINGS:
     TITLE: Settings
     PROFILE: Profile
@@ -58,6 +59,27 @@ DIRECT:
   START_CHAT: Start conversation
   USER_LIST: User list
   NO_USERS_FOUND: No users found
+CALL:
+  START_CALL: Start call
+  JOIN_CALL: Join call
+  DIRECT_CALL: Direct call
+  INCOMING_CALL: Incoming voice call...
+  CALLING: Calling...
+  ACCEPT: Accept
+  DECLINE: Decline
+  HANGUP: Leave call
+  BUSY: User is busy with another call
+  DECLINED: Call declined
+  NO_ANSWER: User is not answering
+  PARTICIPANTS: '{{count}} participants'
+  EXPAND: Expand
+  COLLAPSE: Collapse
+  YOU: You
+  VOLUME: Volume
+  SOUND: Sound
+  SOUND_OFF: Sound off
+  CAMERA_SOON: Camera (soon)
+  SCREEN_SOON: Screen share (soon)
 ROOMS:
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message

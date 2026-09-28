@@ -17,6 +17,31 @@
   {{ 'MENU.DIRECT' | translate }}
 </button>
 
+@if (hangingCallPeer(); as peer) {
+  <button
+    class="hanging-call"
+    tuiAsideItem
+    type="button"
+    [ariaLabel]="'CALL.DIRECT_CALL' | translate"
+    (click)="openHangingCall(peer)">
+    <app-pulse-indicator variant="glow">
+      <app-user-avatar
+        size="xs"
+        [username]="peer.username"
+        [fullname]="peer.fullname"
+        [avatarUrl]="peer.avatarUrl" />
+    </app-pulse-indicator>
+    <span
+      tuiHintAppearance="floating"
+      [style.color]="peer.username | tuiAutoColor"
+      [tuiHint]="
+        peer.fullname && peer.fullname !== peer.username ? peer.fullname : null
+      ">
+      {{ peer.username }}
+    </span>
+  </button>
+}
+
 <button
   [style.margin-top.rem]="1"
   [style.color]="'var(--tui-text-secondary)'"
@@ -92,19 +117,21 @@
     tuiDropdownHover
     (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
     (click)="selectRoom(room)">
-    <div
-      tuiAvatar
-      size="xs">
-      @if (room.avatarUrl) {
-        <img
-          [alt]="room.name"
-          [ngSrc]="room.avatarUrl"
-          fill
-          priority />
-      } @else {
-        {{ room.name | tuiInitials }}
-      }
-    </div>
+    <app-pulse-indicator [isActive]="room.isUserInRoom">
+      <div
+        tuiAvatar
+        size="xs">
+        @if (room.avatarUrl) {
+          <img
+            [alt]="room.name"
+            [ngSrc]="room.avatarUrl"
+            fill
+            priority />
+        } @else {
+          {{ room.name | tuiInitials }}
+        }
+      </div>
+    </app-pulse-indicator>
     {{ room.name }}
   </button>
 

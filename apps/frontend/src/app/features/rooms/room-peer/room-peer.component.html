@@ -1,12 +1,16 @@
 @let p = peer();
+@let hintValue = p.fullname && p.fullname !== p.username ? p.fullname : null;
 
 <app-user-avatar
   size="xs"
   [username]="p.username"
   [fullname]="p.fullname"
   [avatarUrl]="p.avatarUrl"
-  [talking]="audioLevel() > 0" />
+  [talking]="isSpeaking()" />
 
-<span [style.color]="p.username | tuiAutoColor">
+<span
+  tuiHintAppearance="floating"
+  [style.color]="p.username | tuiAutoColor"
+  [tuiHint]="hintValue">
   {{ p.username }}
 </span>

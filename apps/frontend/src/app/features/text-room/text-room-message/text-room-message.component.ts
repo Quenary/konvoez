@@ -14,6 +14,7 @@ import {
   TuiDataList,
   TuiDialogService,
   TuiDropdown,
+  TuiHint,
   TuiIcon,
   TuiNotificationService,
   TuiOption,
@@ -41,6 +42,7 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
     TuiDataList,
     TuiDropdown,
     TuiEditorSocket,
+    TuiHint,
     TuiIcon,
     TuiOption,
     TuiAutoColorPipe,
@@ -61,12 +63,34 @@ export class TextRoomMessageComponent {
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly textRoomApiService = inject(TextRoomApiService);
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly message = input.required<IMessageEntity>();
+
+  protected readonly usersById = computed(() => this.usersStore.entityMap());
 
   protected readonly sanitizedContent = computed(() =>
     this.sanitizer.sanitize(SecurityContext.HTML, this.message().content),
   );
+
+  protected readonly senderUser = computed(() => {
+    const message = this.message();
+    const fromStore = this.usersStore.entityMap()[message.senderId];
+    if (fromStore) {
+      return fromStore;
+    }
+    const currentUser = this.currentUser();
+    if (currentUser && message.senderId === currentUser.id) {
+      return currentUser;
+    }
+    return null;
+  });
+
+  protected readonly senderFullnameHint = computed(() => {
+    const username = this.message().senderUsername;
+    const fullname = this.senderUser()?.fullname;
+    return fullname && fullname !== username ? fullname : null;
+  });
 
   protected readonly avatarUrl = computed(() => {
     const message = this.message();
@@ -126,8 +150,6 @@ export class TextRoomMessageComponent {
 
   protected readonly readers = signal<IUser[]>([]);
   protected readonly readersLoading = signal(false);
-
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected replyMessage(): void {
     this.textRoomStore.setReplyToMessageId(this.message().id);

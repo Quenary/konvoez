@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   FileServiceInjectionToken,
+  USER_AVATARS_BUCKET,
   type FileService,
   type FileStreamResult,
 } from '@shared/services/file.service';
@@ -8,7 +9,7 @@ import { ImageProcessingService } from '@shared/services/image-processing.servic
 
 @Injectable()
 export class UsersAvatarsService {
-  private readonly bucketName = 'users-avatars';
+  private readonly bucketName = USER_AVATARS_BUCKET;
 
   constructor(
     @Inject(FileServiceInjectionToken)

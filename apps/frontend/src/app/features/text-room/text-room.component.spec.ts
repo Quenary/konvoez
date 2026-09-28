@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TextRoomComponent } from './text-room.component';
 import { TextRoomStore } from './text-room.store';
 import { ActivatedRoute } from '@angular/router';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideMockStore } from '@ngrx/store/testing';
@@ -10,12 +10,18 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { UsersStore } from '@features/users/users.store';
 import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.component';
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
+import { DirectCallPanelComponent } from '@shared/components/voice-room/direct-call-panel/direct-call-panel.component';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { VoiceRoomService } from '@core/services/voice-room.service';
 
 @Component({ selector: 'app-text-room-editor', template: '' })
 class MockEditorComponent {}
 
 @Component({ selector: 'app-text-room-list', template: '' })
 class MockListComponent {}
+
+@Component({ selector: 'app-direct-call-panel', template: '' })
+class MockDirectCallPanelComponent {}
 
 describe('TextRoomComponent', () => {
   let component: TextRoomComponent;
@@ -36,9 +42,22 @@ describe('TextRoomComponent', () => {
     entities: vi.fn().mockReturnValue([]),
   };
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
+  const mockDirectCallService = {
+    activeSession: signal(null),
+    interlocutor: signal(null),
+    isCallActive: signal(false),
+    rejoinableCall: signal(null),
+    initiateCall: vi.fn(),
+    rejoinCall: vi.fn(),
+    refreshActiveCall: vi.fn().mockResolvedValue(null),
+  };
 
+  const mockVoiceRoomService = {
+    activeSession: signal(null),
+    peersList: signal([]),
+  };
+
+  const configure = async (route: { params: unknown; data: unknown }) => {
     await TestBed.configureTestingModule({
       imports: [TextRoomComponent],
       providers: [
@@ -56,20 +75,37 @@ describe('TextRoomComponent', () => {
         provideTranslateService(),
         { provide: TextRoomStore, useValue: mockTextRoomStore },
         { provide: UsersStore, useValue: mockUsersStore },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            params: of({ id: '42' }),
-            data: of({ isDirect: false }),
-          },
-        },
+        { provide: DirectCallService, useValue: mockDirectCallService },
+        { provide: VoiceRoomService, useValue: mockVoiceRoomService },
+        { provide: ActivatedRoute, useValue: route },
       ],
     })
       .overrideComponent(TextRoomComponent, {
-        remove: { imports: [TextRoomEditorComponent, TextRoomListComponent] },
-        add: { imports: [MockEditorComponent, MockListComponent] },
+        remove: {
+          imports: [
+            TextRoomEditorComponent,
+            TextRoomListComponent,
+            DirectCallPanelComponent,
+          ],
+        },
+        add: {
+          imports: [
+            MockEditorComponent,
+            MockListComponent,
+            MockDirectCallPanelComponent,
+          ],
+        },
       })
       .compileComponents();
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    await configure({
+      params: of({ id: '42' }),
+      data: of({ isDirect: false }),
+    });
 
     fixture = TestBed.createComponent(TextRoomComponent);
     component = fixture.componentInstance;
@@ -146,29 +182,10 @@ describe('TextRoomComponent', () => {
   describe('direct chat mode', () => {
     beforeEach(async () => {
       TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        imports: [TextRoomComponent],
-        providers: [
-          provideMockStore({
-            initialState: { rooms: { entities: {}, ids: [] } },
-          }),
-          provideTranslateService(),
-          { provide: TextRoomStore, useValue: mockTextRoomStore },
-          { provide: UsersStore, useValue: mockUsersStore },
-          {
-            provide: ActivatedRoute,
-            useValue: {
-              params: of({ id: '99' }),
-              data: of({ isDirect: true }),
-            },
-          },
-        ],
-      })
-        .overrideComponent(TextRoomComponent, {
-          remove: { imports: [TextRoomEditorComponent, TextRoomListComponent] },
-          add: { imports: [MockEditorComponent, MockListComponent] },
-        })
-        .compileComponents();
+      await configure({
+        params: of({ id: '99' }),
+        data: of({ isDirect: true }),
+      });
     });
 
     it('should join direct chat with recipientId when isDirect is true', async () => {
@@ -179,6 +196,7 @@ describe('TextRoomComponent', () => {
         roomId: null,
         recipientId: 99,
       });
+      expect(mockDirectCallService.refreshActiveCall).toHaveBeenCalledWith(99);
     });
   });
 });

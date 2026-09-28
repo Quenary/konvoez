@@ -10,6 +10,11 @@ import {
   IUser,
   IVoiceRoomUserWithProducers,
   TVoiceRoomMediaTag,
+  TVoiceSessionIdentity,
+  getVoiceSessionKey,
+  isGroupVoiceSession,
+  parseVoiceSessionKey,
+  EVoiceSessionType,
 } from '@konvoez/shared';
 import {
   Consumer,
@@ -23,9 +28,13 @@ import { AppService } from '@shared/services/app.service';
 
 type VoiceRoomState = {
   /**
-   * ID of the room
+   * Typed session identity (group room or direct call).
    */
-  id: number;
+  target: TVoiceSessionIdentity;
+  /**
+   * Socket.io / map key derived from target.
+   */
+  id: string;
   router: MediasoupRouter;
   /**
    * Map peer (socket id) to peer state
@@ -61,11 +70,12 @@ export type VoiceRoomStateMediasoupAppData = {
 export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(VoiceRoomsStateService.name);
   private worker!: MediasoupWorker;
-  private readonly rooms = new Map<number, VoiceRoomState>();
+  private readonly rooms = new Map<string, VoiceRoomState>();
+  private readonly roomInitByKey = new Map<string, Promise<VoiceRoomState>>();
 
   constructor(private readonly appService: AppService) {}
 
-  async onModuleInit() {
+  public async onModuleInit(): Promise<void> {
     this.worker = await createWorker({
       rtcMinPort: this.appService.MEDIASOUP_MIN_PORT,
       rtcMaxPort: this.appService.MEDIASOUP_MAX_PORT,
@@ -75,49 +85,47 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  async onModuleDestroy() {
+  public async onModuleDestroy(): Promise<void> {
     this.worker.close();
     this.logger.log('Mediasoup worker destroyed');
   }
 
-  public async ensureRoom(roomId: number): Promise<VoiceRoomState> {
-    let room = this.rooms.get(roomId);
-    if (!room || room.router.closed) {
-      room = {
-        id: roomId,
-        router: await this.worker.createRouter({
-          mediaCodecs: [
-            {
-              kind: 'audio',
-              mimeType: 'audio/opus',
-              clockRate: 48000,
-              channels: 2,
-            },
-          ],
-        }),
-        peers: new Map(),
-        producers: new Map(),
-      };
-      this.rooms.set(roomId, room);
+  public async ensureRoom(
+    target: TVoiceSessionIdentity,
+  ): Promise<VoiceRoomState> {
+    const sessionKey = getVoiceSessionKey(target);
+    const existing = this.rooms.get(sessionKey);
+    if (existing && !existing.router.closed) {
+      return existing;
     }
-    return room;
+
+    // Serialize concurrent creates for the same session (caller + callee join).
+    let pending = this.roomInitByKey.get(sessionKey);
+    if (!pending) {
+      pending = this.createRoom(target, sessionKey).finally(() => {
+        this.roomInitByKey.delete(sessionKey);
+      });
+      this.roomInitByKey.set(sessionKey, pending);
+    }
+
+    return pending;
   }
 
-  public getRoom(roomId: number): VoiceRoomState | undefined {
-    return this.rooms.get(roomId);
+  public getRoom(key: string): VoiceRoomState | undefined {
+    return this.rooms.get(key);
   }
 
-  public async removeRoom(roomId: number) {
-    if (this.rooms.has(roomId)) {
-      const room = this.rooms.get(roomId) as VoiceRoomState;
-      this.logger.debug(`Removing voice room: roomId=${roomId}`);
+  public async removeRoom(key: string): Promise<void> {
+    if (this.rooms.has(key)) {
+      const room = this.rooms.get(key) as VoiceRoomState;
+      this.logger.debug(`Removing voice room: sessionKey=${key}`);
       room.router.close();
-      this.rooms.delete(roomId);
+      this.rooms.delete(key);
     }
   }
 
-  public getPeersOnJoin(roomId: number): TVoiceRoomPeersOnJoin {
-    const room = this.rooms.get(roomId);
+  public getPeersOnJoin(key: string): TVoiceRoomPeersOnJoin {
+    const room = this.rooms.get(key);
     if (!room) {
       return {};
     }
@@ -141,8 +149,11 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
 
   public getAllPeers(): TVoiceRoomGetAllPeersResult {
     const result: TVoiceRoomGetAllPeersResult = {};
-    for (const [roomId, room] of this.rooms) {
-      result[roomId] = Array.from(room.peers.values()).reduce(
+    for (const room of this.rooms.values()) {
+      if (!isGroupVoiceSession(room.target)) {
+        continue;
+      }
+      result[room.target.roomId] = Array.from(room.peers.values()).reduce(
         (prev, curr) => ({
           ...prev,
           [curr.user.id]: {
@@ -153,5 +164,50 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       );
     }
     return result;
+  }
+
+  public resolveIdentityFromKey(key: string): TVoiceSessionIdentity | null {
+    return parseVoiceSessionKey(key);
+  }
+
+  public createGroupIdentity(roomId: number): TVoiceSessionIdentity {
+    return { type: EVoiceSessionType.GROUP_ROOM, roomId };
+  }
+
+  public createDirectCallIdentity(callId: string): TVoiceSessionIdentity {
+    return { type: EVoiceSessionType.DIRECT_CALL, callId };
+  }
+
+  private async createRoom(
+    target: TVoiceSessionIdentity,
+    sessionKey: string,
+  ): Promise<VoiceRoomState> {
+    const existing = this.rooms.get(sessionKey);
+    if (existing && !existing.router.closed) {
+      return existing;
+    }
+
+    if (existing?.router.closed) {
+      this.rooms.delete(sessionKey);
+    }
+
+    const room: VoiceRoomState = {
+      target,
+      id: sessionKey,
+      router: await this.worker.createRouter({
+        mediaCodecs: [
+          {
+            kind: 'audio',
+            mimeType: 'audio/opus',
+            clockRate: 48000,
+            channels: 2,
+          },
+        ],
+      }),
+      peers: new Map(),
+      producers: new Map(),
+    };
+    this.rooms.set(sessionKey, room);
+    return room;
   }
 }

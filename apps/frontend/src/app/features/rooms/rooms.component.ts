@@ -23,9 +23,14 @@ import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import {
+  DirectCallService,
+  ECallStatus,
+} from '@core/services/direct-call.service';
+import {
   TuiButton,
   TuiDialogService,
   TuiDropdown,
+  TuiHint,
   TuiIcon,
   TuiOptGroup,
   TuiOption,
@@ -33,6 +38,7 @@ import {
 } from '@taiga-ui/core';
 import {
   TUI_CONFIRM,
+  TuiAutoColorPipe,
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
@@ -44,8 +50,10 @@ import { TuiNavigation } from '@taiga-ui/layout';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
+import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 
 interface IRoomWithPeers extends IRoom {
   peers: IUser[];
@@ -61,11 +69,14 @@ interface IRoomWithPeers extends IRoom {
     RouterLink,
     TranslatePipe,
     RoomPeerComponent,
-    //
+    UserAvatarComponent,
+    PulseIndicatorComponent,
     TuiAvatar,
+    TuiAutoColorPipe,
     TuiBadgedContent,
     TuiBadgeNotification,
     TuiButton,
+    TuiHint,
     TuiIcon,
     TuiNavigation,
     TuiInitialsPipe,
@@ -85,6 +96,8 @@ export class RoomsComponent implements OnInit {
   private readonly usersStore = inject(UsersStore);
   private readonly translateService = inject(TranslateService);
   private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly directCallService = inject(DirectCallService);
+  private readonly router = inject(Router);
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly tuiResponsiveDialogService = inject(
     TuiResponsiveDialogService,
@@ -116,6 +129,31 @@ export class RoomsComponent implements OnInit {
     });
   });
 
+  protected readonly hangingCallPeer = computed(() => {
+    const active = this.directCallService.activeCall();
+    const rejoinable = this.directCallService.rejoinableCall();
+    const me = this.currentUser();
+    const users = this.usersStore.entityMap();
+
+    if (
+      active &&
+      (active.status === ECallStatus.CONNECTED ||
+        active.status === ECallStatus.CALLING)
+    ) {
+      return active.interlocutor;
+    }
+
+    if (!rejoinable || !me) {
+      return null;
+    }
+
+    const otherId =
+      rejoinable.callerId === me.id
+        ? rejoinable.recipientId
+        : rejoinable.callerId;
+    return users[otherId] ?? null;
+  });
+
   protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);
 
   protected readonly ERoomType = ERoomType;
@@ -126,6 +164,10 @@ export class RoomsComponent implements OnInit {
   ngOnInit(): void {
     this.store.dispatch(RoomsActions.requestRooms());
     this.usersStore.loadAll();
+  }
+
+  protected openHangingCall(peer: IUser): void {
+    void this.router.navigate(['/direct', peer.id]);
   }
 
   protected async addRoom(type: ERoomType): Promise<void> {

@@ -1,4 +1,4 @@
-@if (room(); as _r) {
+@if (isSessionActive()) {
   <div
     tuiGroup
     [orientation]="collapsed() ? 'vertical' : 'horizontal'">
@@ -7,9 +7,9 @@
       iconStart="@tui.audio-lines"
       appearance="positive"
       [style.justify-content]="'space-between'"
-      (click)="clickRoom()">
+      (click)="clickSession()">
       @if (!collapsed()) {
-        {{ _r.name }}
+        {{ sessionTitle() }}
       }
     </button>
     <button
@@ -17,9 +17,8 @@
       iconStart="@tui.log-out"
       appearance="negative"
       [style.flex]="'0 0 auto'"
-      (click)="leaveRoom()">
-      ></button
-    >
+      (click)="leaveSession()">
+    </button>
   </div>
 }
 
@@ -28,7 +27,7 @@
   [orientation]="collapsed() ? 'vertical' : 'horizontal'">
   <button
     tuiButton
-    [iconStart]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
+    [iconEnd]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
     [style.justify-content]="'space-between'"
     [appearance]="microphoneMuted() ? 'negative' : 'positive'"
     (click)="toggleMicrophoneMuted()">

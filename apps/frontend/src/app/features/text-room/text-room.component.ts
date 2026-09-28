@@ -15,7 +15,13 @@ import { UsersStore } from '../users/users.store';
 import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.component';
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
 import { TextRoomStore } from './text-room.store';
-import { TuiButton, TuiInput, TuiTextfield, TuiTitle } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiHint,
+  TuiInput,
+  TuiTextfield,
+  TuiTitle,
+} from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoFocus } from '@taiga-ui/cdk';
 import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
@@ -23,6 +29,11 @@ import { NgOptimizedImage } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
+import { DirectCallPanelComponent } from '@shared/components/voice-room/direct-call-panel/direct-call-panel.component';
+import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { VoiceRoomService } from '@core/services/voice-room.service';
+import { EVoiceSessionType, IUser } from '@konvoez/shared';
 
 @Component({
   selector: 'app-text-room',
@@ -32,6 +43,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     TuiTitle,
     TuiHeader,
     TuiButton,
+    TuiHint,
     TuiTextfield,
     TuiInput,
     TuiAutoFocus,
@@ -40,52 +52,106 @@ import { TranslatePipe } from '@ngx-translate/core';
     NgOptimizedImage,
     ReactiveFormsModule,
     TranslatePipe,
+    DirectCallPanelComponent,
+    PulseIndicatorComponent,
   ],
   templateUrl: './text-room.component.html',
   styleUrl: './text-room.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TextRoomComponent {
+  protected readonly textRoomStore = inject(TextRoomStore);
+  protected readonly directCallService = inject(DirectCallService);
+
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly ngrxStore = inject(Store);
   private readonly usersStore = inject(UsersStore);
-  protected readonly textRoomStore = inject(TextRoomStore);
+  private readonly voiceRoomService = inject(VoiceRoomService);
 
   protected readonly isDirectChat = computed(() =>
     Boolean(this.routeData()?.['isDirect']),
   );
 
-  protected readonly targetId = signal<number | null>(null);
+  protected readonly isCurrentDirectCallActive = computed(() => {
+    const isDirectChat = this.isDirectChat();
+    const session = this.voiceRoomService.activeSession();
+    const directUser = this.user();
+    const interlocutor = this.directCallService.interlocutor();
+    const isCallActive = this.directCallService.isCallActive();
+
+    if (!isDirectChat) {
+      return false;
+    }
+    if (
+      session?.type === EVoiceSessionType.DIRECT_CALL &&
+      directUser &&
+      session.interlocutorId === directUser.id
+    ) {
+      return true;
+    }
+
+    return (
+      isCallActive &&
+      interlocutor !== null &&
+      directUser !== null &&
+      interlocutor.id === directUser.id
+    );
+  });
+
+  protected readonly canRejoinCall = computed(() => {
+    const isDirectChat = this.isDirectChat();
+    const isCurrentDirectCallActive = this.isCurrentDirectCallActive();
+    const rejoinable = this.directCallService.rejoinableCall();
+    const directUser = this.user();
+
+    if (
+      !isDirectChat ||
+      isCurrentDirectCallActive ||
+      !rejoinable ||
+      !directUser
+    ) {
+      return false;
+    }
+    return (
+      rejoinable.callerId === directUser.id ||
+      rejoinable.recipientId === directUser.id
+    );
+  });
 
   protected readonly room = computed(() => {
     const id = this.targetId();
-    if (this.isDirectChat() || !id) {
+    const isDirectChat = this.isDirectChat();
+    const roomsDict = this.roomsDict();
+
+    if (isDirectChat || !id) {
       return null;
     }
-    const roomsDict = this.roomsDict();
     return roomsDict[id] ?? null;
   });
 
   protected readonly user = computed(() => {
     const id = this.targetId();
-    if (!this.isDirectChat() || !id) {
+    const isDirectChat = this.isDirectChat();
+    const entityMap = this.usersStore.entityMap();
+
+    if (!isDirectChat || !id) {
       return null;
     }
-    return this.usersStore.entityMap()[id] ?? null;
+    return entityMap[id] ?? null;
   });
 
   protected readonly title = computed(() => {
-    if (this.isDirectChat()) {
-      return this.user()?.username ?? '';
-    }
-    return this.room()?.name ?? '';
+    const isDirectChat = this.isDirectChat();
+    const username = this.user()?.username ?? '';
+    const roomName = this.room()?.name ?? '';
+    return isDirectChat ? username : roomName;
   });
 
   protected readonly avatarUrl = computed(() => {
-    if (this.isDirectChat()) {
-      return this.user()?.avatarUrl ?? null;
-    }
-    return this.room()?.avatarUrl ?? null;
+    const isDirectChat = this.isDirectChat();
+    const userAvatar = this.user()?.avatarUrl ?? null;
+    const roomAvatar = this.room()?.avatarUrl ?? null;
+    return isDirectChat ? userAvatar : roomAvatar;
   });
 
   protected readonly searchControl = new FormControl<string>('', {
@@ -93,8 +159,8 @@ export class TextRoomComponent {
   });
 
   private readonly roomsDict = this.ngrxStore.selectSignal(selectRoomsDict);
-
   private readonly routeData = toSignal(this.activatedRoute.data);
+  private readonly targetId = signal<number | null>(null);
 
   constructor() {
     this.activatedRoute.params
@@ -113,6 +179,7 @@ export class TextRoomComponent {
           this.usersStore.loadAll();
           this.ngrxStore.dispatch(RoomsActions.setSelectedRoomId({ id: null }));
           this.textRoomStore.join({ roomId: null, recipientId: id });
+          void this.directCallService.refreshActiveCall(id);
         } else {
           this.ngrxStore.dispatch(RoomsActions.setSelectedRoomId({ id }));
           this.ngrxStore.dispatch(RoomsActions.requestRoom({ id }));
@@ -143,5 +210,17 @@ export class TextRoomComponent {
   protected clearSearch(): void {
     this.searchControl.setValue('');
     this.textRoomStore.clearSearch();
+  }
+
+  protected startDirectCall(recipient: IUser): void {
+    void this.directCallService.initiateCall(recipient);
+  }
+
+  protected rejoinDirectCall(recipient: IUser): void {
+    const call = this.directCallService.rejoinableCall();
+    if (!call) {
+      return;
+    }
+    void this.directCallService.rejoinCall(call, recipient);
   }
 }

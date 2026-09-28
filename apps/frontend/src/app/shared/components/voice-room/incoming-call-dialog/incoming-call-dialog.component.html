@@ -1,0 +1,48 @@
+@if (isIncoming() && interlocutor(); as user) {
+  <tui-push
+    *tuiPush="true"
+    [type]="'CALL.INCOMING_CALL' | translate"
+    [lines]="3">
+    <tui-icon icon="@tui.phone" />
+
+    <div
+      tuiCell="m"
+      [style.padding-left]="0">
+      <app-pulse-indicator variant="ring">
+        <app-user-avatar
+          size="m"
+          [avatarUrl]="user.avatarUrl"
+          [fullname]="user.fullname"
+          [username]="user.username" />
+      </app-pulse-indicator>
+
+      @let hintValue =
+        user.fullname && user.fullname !== user.username ? user.fullname : null;
+      <span
+        tuiTitle
+        tuiHintAppearance="floating"
+        [style.color]="user.username | tuiAutoColor"
+        [tuiHint]="hintValue">
+        {{ user.username }}
+      </span>
+    </div>
+
+    <button
+      tuiButton
+      type="button"
+      appearance="destructive"
+      iconStart="@tui.phone-off"
+      (click)="reject()">
+      {{ 'CALL.DECLINE' | translate }}
+    </button>
+
+    <button
+      tuiButton
+      type="button"
+      appearance="positive"
+      iconStart="@tui.phone"
+      (click)="accept()">
+      {{ 'CALL.ACCEPT' | translate }}
+    </button>
+  </tui-push>
+}

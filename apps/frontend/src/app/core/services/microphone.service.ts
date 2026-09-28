@@ -56,129 +56,6 @@ export class MicrophoneService implements OnDestroy {
     );
   }
 
-  @Mutexed()
-  private async ensureContext() {
-    if (!this.context || this.context.state === 'closed') {
-      this.context = new AudioContext({ sampleRate: 48000 });
-      this.workletLoaded = null;
-    }
-
-    if (this.context.state === 'suspended') {
-      await this.context.resume();
-    }
-  }
-
-  @Mutexed()
-  private async ensureWasm() {
-    if (!this.speexWasmBinary) {
-      this.speexWasmBinary = await loadSpeex({ url: speexWasmUrl });
-    }
-  }
-
-  private async ensureWorklet() {
-    if (!this.context) {
-      console.warn('ensureWorklet(): missing context');
-      return;
-    }
-    if (!this.workletLoaded) {
-      this.workletLoaded = this.context.audioWorklet.addModule(speexWorkletUrl);
-    }
-    await this.workletLoaded;
-  }
-
-  /**
-   * Ensure input stream ready
-   * @param device
-   * @returns
-   */
-  @Mutexed()
-  private async ensureInputStream(device: MediaDeviceInfo | null) {
-    const track = this.inputStream?.getAudioTracks()?.[0];
-    if (track && track.readyState === 'live') {
-      return;
-    }
-
-    this.inputStream = await getStream(device);
-  }
-
-  /**
-   * Ensure audio context nodes ready
-   * @returns
-   */
-  @Mutexed()
-  private async ensurePipeline() {
-    this.cleanupPipeline();
-
-    if (!this.context) {
-      console.warn('ensureNodes(): context is not ready');
-      return;
-    }
-    if (!this.inputStream) {
-      console.warn('ensureNodes(): inputStream is not ready');
-      return;
-    }
-
-    this.sourceNode = this.context.createMediaStreamSource(this.inputStream);
-
-    this.gainNode = this.context.createGain();
-    this.gainNode.gain.value = this.gain;
-
-    this.biquadNode = this.context.createBiquadFilter();
-    this.biquadNode.type = 'highpass';
-    this.biquadNode.frequency.value = 80;
-    this.biquadNode.Q.value = 0.7;
-
-    this.speexNode = new SpeexWorkletNode(this.context, {
-      wasmBinary: this.speexWasmBinary as ArrayBuffer,
-      maxChannels: 1,
-    });
-
-    const analyserNode = this.context.createAnalyser();
-    analyserNode.fftSize = 512;
-    analyserNode.smoothingTimeConstant = 0.1;
-
-    this.destinationNode = this.context.createMediaStreamDestination();
-
-    this.sourceNode.connect(this.gainNode);
-    this.gainNode.connect(this.biquadNode);
-    this.biquadNode.connect(this.speexNode);
-    this.speexNode.connect(analyserNode);
-    this.speexNode.connect(this.destinationNode);
-
-    this._analyserNode.set(analyserNode);
-    this._processedStream.set(this.destinationNode.stream);
-  }
-
-  private cleanupInputStream() {
-    const tracks = new Set<MediaStreamTrack>();
-    this.inputStream?.getAudioTracks().forEach((track) => tracks.add(track));
-    this.processedStream()
-      ?.getAudioTracks()
-      .forEach((track) => tracks.add(track));
-
-    tracks.forEach((track) => track.stop());
-    this.inputStream = null;
-  }
-
-  private cleanupPipeline() {
-    try {
-      this.sourceNode?.disconnect();
-      this.gainNode?.disconnect();
-      this.biquadNode?.disconnect();
-      this.speexNode?.disconnect();
-      this.destinationNode?.disconnect();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      this.sourceNode = null;
-      this.gainNode = null;
-      this.biquadNode = null;
-      this.speexNode = null;
-      this.destinationNode = null;
-      this._processedStream.set(null);
-    }
-  }
-
   /**
    * Set input device (microphone)
    *
@@ -254,5 +131,124 @@ export class MicrophoneService implements OnDestroy {
     this._analyserNode.set(null);
     this.workletLoaded = null;
     this.speexWasmBinary = null;
+  }
+
+  private async ensureContext() {
+    if (!this.context || this.context.state === 'closed') {
+      this.context = new AudioContext({ sampleRate: 48000 });
+      this.workletLoaded = null;
+    }
+
+    if (this.context.state === 'suspended') {
+      await this.context.resume();
+    }
+  }
+
+  private async ensureWasm() {
+    if (!this.speexWasmBinary) {
+      this.speexWasmBinary = await loadSpeex({ url: speexWasmUrl });
+    }
+  }
+
+  private async ensureWorklet() {
+    if (!this.context) {
+      console.warn('ensureWorklet(): missing context');
+      return;
+    }
+    if (!this.workletLoaded) {
+      this.workletLoaded = this.context.audioWorklet.addModule(speexWorkletUrl);
+    }
+    await this.workletLoaded;
+  }
+
+  /**
+   * Ensure input stream ready
+   * @param device
+   * @returns
+   */
+  private async ensureInputStream(device: MediaDeviceInfo | null) {
+    const track = this.inputStream?.getAudioTracks()?.[0];
+    if (track && track.readyState === 'live') {
+      return;
+    }
+
+    this.inputStream = await getStream(device);
+  }
+
+  /**
+   * Ensure audio context nodes ready
+   * @returns
+   */
+  private async ensurePipeline() {
+    this.cleanupPipeline();
+
+    if (!this.context) {
+      console.warn('ensureNodes(): context is not ready');
+      return;
+    }
+    if (!this.inputStream) {
+      console.warn('ensureNodes(): inputStream is not ready');
+      return;
+    }
+
+    this.sourceNode = this.context.createMediaStreamSource(this.inputStream);
+
+    this.gainNode = this.context.createGain();
+    this.gainNode.gain.value = this.gain;
+
+    this.biquadNode = this.context.createBiquadFilter();
+    this.biquadNode.type = 'highpass';
+    this.biquadNode.frequency.value = 80;
+    this.biquadNode.Q.value = 0.7;
+
+    this.speexNode = new SpeexWorkletNode(this.context, {
+      wasmBinary: this.speexWasmBinary as ArrayBuffer,
+      maxChannels: 1,
+    });
+
+    const analyserNode = this.context.createAnalyser();
+    analyserNode.fftSize = 512;
+    analyserNode.smoothingTimeConstant = 0.1;
+
+    this.destinationNode = this.context.createMediaStreamDestination();
+
+    this.sourceNode.connect(this.gainNode);
+    this.gainNode.connect(this.biquadNode);
+    this.biquadNode.connect(this.speexNode);
+    this.speexNode.connect(analyserNode);
+    this.speexNode.connect(this.destinationNode);
+
+    this._analyserNode.set(analyserNode);
+    this._processedStream.set(this.destinationNode.stream);
+  }
+
+  private cleanupInputStream() {
+    const tracks = new Set<MediaStreamTrack>();
+    this.inputStream?.getAudioTracks().forEach((track) => tracks.add(track));
+    this.processedStream()
+      ?.getAudioTracks()
+      .forEach((track) => tracks.add(track));
+
+    tracks.forEach((track) => track.stop());
+    this.inputStream = null;
+  }
+
+  private cleanupPipeline() {
+    try {
+      this.sourceNode?.disconnect();
+      this.gainNode?.disconnect();
+      this.biquadNode?.disconnect();
+      this.speexNode?.disconnect();
+      this.destinationNode?.disconnect();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.sourceNode = null;
+      this.gainNode = null;
+      this.biquadNode = null;
+      this.speexNode = null;
+      this.destinationNode = null;
+      this._processedStream.set(null);
+    }
   }
 }
