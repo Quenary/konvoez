@@ -3,7 +3,8 @@ import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from '../auth/auth.service';
 import { SettingsService } from '../settings/settings.service';
 import { ESettingKey } from '@konvoez/shared';
-import { PublicSettingsDto } from './public.dto';
+import { PublicSettingsDto, PublicVersionDto } from './public.dto';
+import { PublicService } from './public.service';
 
 @ApiTags('public')
 @Controller('public')
@@ -11,6 +12,7 @@ export class PublicController {
   constructor(
     private readonly authService: AuthService,
     private readonly settingsService: SettingsService,
+    private readonly publicService: PublicService,
   ) {}
 
   @Get('health')
@@ -37,5 +39,14 @@ export class PublicController {
       isOwnerSetupRequired,
       inviteOnlySignUp,
     };
+  }
+
+  @Get('version')
+  @ApiOkResponse({
+    type: PublicVersionDto,
+    description: 'Get current app version and available update info',
+  })
+  async getVersion(): Promise<PublicVersionDto> {
+    return this.publicService.getVersion();
   }
 }

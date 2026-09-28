@@ -42,6 +42,7 @@ MENU:
   TEXT: Text
   VOICE: Voice
   DIRECT: Direct
+  UPDATE_AVAILABLE: Update available
   SETTINGS:
     TITLE: Settings
     PROFILE: Profile

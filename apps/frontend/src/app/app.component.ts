@@ -9,14 +9,22 @@ import {
 import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
+import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, map, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EUserRole } from '@konvoez/shared';
 import { IncomingCallDialogComponent } from '@shared/components/voice-room/incoming-call-dialog/incoming-call-dialog.component';
+import { PublicApiService } from '@core/services/public-api.service';
+
+const DEFAULT_VERSION_INFO = {
+  currentVersion: '',
+  availableVersion: '',
+  releaseUrl: null,
+  updateAvailable: false,
+};
 
 @Component({
   selector: 'app-root',
@@ -39,6 +47,7 @@ import { IncomingCallDialogComponent } from '@shared/components/voice-room/incom
 export class App {
   private readonly store = inject(Store);
   private readonly breakpointObserver = inject(BreakpointObserver);
+  private readonly publicApiService = inject(PublicApiService);
 
   protected readonly isAuthenticated =
     this.store.selectSignal(selectIsAuthorized);
@@ -50,6 +59,14 @@ export class App {
   });
 
   protected readonly collapsed = linkedSignal(() => this.isNarrow());
+
+  protected readonly versionInfo = rxResource({
+    stream: () =>
+      this.publicApiService
+        .getVersion()
+        .pipe(catchError(() => of(DEFAULT_VERSION_INFO))),
+    defaultValue: DEFAULT_VERSION_INFO,
+  });
 
   private readonly isNarrow = toSignal<boolean, boolean>(
     this.breakpointObserver

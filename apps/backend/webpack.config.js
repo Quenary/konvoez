@@ -1,5 +1,8 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 const { join } = require('path');
+const webpack = require('webpack');
+// eslint-disable-next-line @nx/enforce-module-boundaries
+const { version } = require('../../package.json');
 
 module.exports = {
   output: {
@@ -19,6 +22,9 @@ module.exports = {
       outputHashing: 'none',
       generatePackageJson: true,
       sourceMap: true,
+    }),
+    new webpack.DefinePlugin({
+      __APP_VERSION__: JSON.stringify(version),
     }),
   ],
 };

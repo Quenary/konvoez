@@ -62,7 +62,6 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ## TODO
 
-- Add version and update hint on frontend
 - Add SMTP support for password recovery and invites
 - Add user management for admin (table, role change, logical and physical deletion)
 - Add message assets (files)

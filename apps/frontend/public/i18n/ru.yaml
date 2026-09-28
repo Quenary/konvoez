@@ -42,6 +42,7 @@ MENU:
   TEXT: Текстовые
   VOICE: Голосовые
   DIRECT: Личные
+  UPDATE_AVAILABLE: Доступно обновление
   SETTINGS:
     TITLE: Настройки
     PROFILE: Профиль
