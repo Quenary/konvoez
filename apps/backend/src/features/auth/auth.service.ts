@@ -136,16 +136,16 @@ ${token}
   }
 
   /**
-   * Verify user credentials
-   * @param username
+   * Verify user credentials by username or email
+   * @param login username or email
    * @param password
    * @returns UserEntity
    * @throws UnauthorizedException
    */
-  async validateUser(username: string, password: string): Promise<GetUserDto> {
+  async validateUser(login: string, password: string): Promise<GetUserDto> {
     let user: UserEntity | null = null;
     try {
-      user = await this.userService.findOneBy({ username });
+      user = await this.userService.findOneByUsernameOrEmail(login.trim());
     } catch {
       throw new UnauthorizedException('Invalid credentials');
     }

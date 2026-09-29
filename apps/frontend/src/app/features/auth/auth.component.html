@@ -14,18 +14,18 @@
   <tui-textfield iconStart="@tui.user">
     <label
       tuiLabel
-      for="username">
-      {{ 'PROFILE.USERNAME' | translate }}
+      for="login">
+      {{ 'AUTH.LOGIN' | translate }}
     </label>
 
     <input
       tuiInput
-      id="username"
+      id="login"
       autocomplete="username"
-      formControlName="username"
+      formControlName="login"
       type="text" />
   </tui-textfield>
-  @if (errors().username; as err) {
+  @if (errors().login; as err) {
     <tui-error [error]="err | translate" />
   }
 

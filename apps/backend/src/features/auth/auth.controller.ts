@@ -64,10 +64,7 @@ export class AuthController {
     @Body() dto: AuthLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = await this.authService.validateUser(
-      dto.username,
-      dto.password,
-    );
+    const user = await this.authService.validateUser(dto.login, dto.password);
     this.setCookies(user.id, res);
     return user;
   }

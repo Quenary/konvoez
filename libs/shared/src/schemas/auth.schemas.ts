@@ -4,7 +4,7 @@ import { passwordRecoveryCodeLength } from '../const';
 import { SCHEMA_ERROR, stringSchema } from './base.schemas';
 
 export const authLoginSchema = z.object({
-  username: usernameSchema,
+  login: z.union([usernameSchema, emailSchema]),
   password: passwordSchema,
 });
 

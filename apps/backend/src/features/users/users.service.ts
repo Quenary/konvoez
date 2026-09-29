@@ -46,6 +46,17 @@ export class UsersService {
     return user;
   }
 
+  async findOneByUsernameOrEmail(login: string): Promise<UserEntity> {
+    const em = this.em.fork();
+    const user = await em.findOne(UserEntity, {
+      $or: [{ username: login }, { email: login }],
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
   async findOneByAsDto(where: Partial<UserEntity>): Promise<GetUserDto> {
     const user = await this.findOneBy(where);
     return this.toDto(user);

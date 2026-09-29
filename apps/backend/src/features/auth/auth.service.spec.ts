@@ -154,6 +154,7 @@ describe('AuthService', () => {
           provide: UsersService,
           useValue: {
             findOneBy: jest.fn(),
+            findOneByUsernameOrEmail: jest.fn(),
             findOneByAsDto: jest.fn(),
             toDto: jest.fn(),
             count: jest.fn(),
@@ -193,16 +194,18 @@ describe('AuthService', () => {
   });
 
   describe('validateUser', () => {
-    it('should return user DTO when credentials are valid', async () => {
-      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+    it('should return user DTO when credentials are valid by username', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
       passwordService.comparePassword.mockResolvedValueOnce(true);
       usersService.toDto.mockReturnValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
 
-      expect(usersService.findOneBy).toHaveBeenCalledWith({
-        username: 'test_user',
-      });
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'test_user',
+      );
       expect(passwordService.comparePassword).toHaveBeenCalledWith(
         'password123',
         mockUserEntity.password,
@@ -211,8 +214,42 @@ describe('AuthService', () => {
       expect(result).toEqual(mockUserDto);
     });
 
-    it('should throw UnauthorizedException when findOneBy throws an error', async () => {
-      usersService.findOneBy.mockRejectedValueOnce(new Error('DB error'));
+    it('should return user DTO when credentials are valid by email', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.toDto.mockReturnValueOnce(mockUserDto);
+
+      const result = await service.validateUser(
+        'test@example.com',
+        'password123',
+      );
+
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'test@example.com',
+      );
+      expect(result).toEqual(mockUserDto);
+    });
+
+    it('should trim login before lookup', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.toDto.mockReturnValueOnce(mockUserDto);
+
+      await service.validateUser('  test_user  ', 'password123');
+
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'test_user',
+      );
+    });
+
+    it('should throw UnauthorizedException when findOneByUsernameOrEmail throws', async () => {
+      usersService.findOneByUsernameOrEmail.mockRejectedValueOnce(
+        new Error('DB error'),
+      );
 
       await expect(
         service.validateUser('test_user', 'password123'),
@@ -220,7 +257,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
-      usersService.findOneBy.mockResolvedValueOnce(null);
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(null);
 
       await expect(
         service.validateUser('not_found', 'password123'),
@@ -228,7 +265,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when password does not match', async () => {
-      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
       passwordService.comparePassword.mockResolvedValueOnce(false);
 
       await expect(

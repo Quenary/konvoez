@@ -92,7 +92,7 @@ describe('AuthController', () => {
   describe('login', () => {
     it('should validate user, set auth cookies and return user', async () => {
       const dto: AuthLoginDto = {
-        username: 'testuser',
+        login: 'testuser',
         password: 'password123',
       };
       authService.validateUser.mockResolvedValueOnce(mockUser);
