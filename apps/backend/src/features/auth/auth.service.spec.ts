@@ -1,6 +1,15 @@
-jest.mock('@mikro-orm/nestjs', () => ({
-  InjectRepository: () => () => undefined,
-}));
+jest.mock('@mikro-orm/nestjs', () => {
+  const { Inject } = require('@nestjs/common');
+  const getRepositoryToken = (entity: { name?: string } | string) =>
+    typeof entity === 'string'
+      ? entity
+      : `${entity?.name ?? 'Entity'}Repository`;
+  return {
+    InjectRepository: (entity: { name?: string } | string) =>
+      Inject(getRepositoryToken(entity)),
+    getRepositoryToken,
+  };
+});
 jest.mock('@mikro-orm/core', () => {
   const createProxy = (): unknown =>
     new Proxy(() => createProxy(), {
@@ -21,16 +30,22 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 
 import { AppService } from '@shared/services/app.service';
 import { PasswordService } from '@shared/services/password.service';
+import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
+import { ESettingKey, EUserRole } from '@konvoez/shared';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { Request } from 'express';
@@ -38,6 +53,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
+import { getRepositoryToken } from '@mikro-orm/nestjs';
+import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
 import type { Cache } from 'cache-manager';
 
@@ -46,10 +63,18 @@ describe('AuthService', () => {
   let jwtService: jest.Mocked<JwtService>;
   let appService: jest.Mocked<AppService>;
   let passwordService: jest.Mocked<PasswordService>;
+  let mailService: jest.Mocked<Pick<MailService, 'isConfigured' | 'sendMail'>>;
   let usersService: jest.Mocked<UsersService>;
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let recoveryCodeRepo: {
+    find: jest.Mock;
+    create: jest.Mock;
+    assign: jest.Mock;
+    getEntityManager: jest.Mock;
+  };
+  let em: { persist: jest.Mock; flush: jest.Mock };
 
   const mockUserDto: GetUserDto = {
     id: 1,
@@ -83,6 +108,20 @@ describe('AuthService', () => {
       validate: jest.fn().mockResolvedValue({} as unknown as InviteEntity),
       consume: jest.fn().mockResolvedValue({} as unknown as InviteEntity),
     };
+    mailService = {
+      isConfigured: true,
+      sendMail: jest.fn().mockResolvedValue(undefined),
+    };
+    em = {
+      persist: jest.fn(),
+      flush: jest.fn().mockResolvedValue(undefined),
+    };
+    recoveryCodeRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockImplementation((data) => data),
+      assign: jest.fn(),
+      getEntityManager: jest.fn().mockReturnValue(em),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -104,7 +143,12 @@ describe('AuthService', () => {
           provide: PasswordService,
           useValue: {
             comparePassword: jest.fn(),
+            hashPassword: jest.fn().mockResolvedValue('hashed_code'),
           },
+        },
+        {
+          provide: MailService,
+          useValue: mailService,
         },
         {
           provide: UsersService,
@@ -114,6 +158,7 @@ describe('AuthService', () => {
             toDto: jest.fn(),
             count: jest.fn(),
             create: jest.fn(),
+            setPassword: jest.fn(),
           },
         },
         {
@@ -123,6 +168,10 @@ describe('AuthService', () => {
         {
           provide: InvitesService,
           useValue: invitesService,
+        },
+        {
+          provide: getRepositoryToken(PasswordRecoveryCodeEntity),
+          useValue: recoveryCodeRepo,
         },
         {
           provide: CACHE_MANAGER,
@@ -484,6 +533,104 @@ describe('AuthService', () => {
       );
       expect(usersService.create).not.toHaveBeenCalled();
       expect(invitesService.consume).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requestPasswordRecovery', () => {
+    it('should throw when SMTP is not configured', async () => {
+      Object.defineProperty(mailService, 'isConfigured', { get: () => false });
+
+      await expect(
+        service.requestPasswordRecovery({ email: 'test@example.com' }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('should return ok for unknown email without sending mail', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockRejectedValueOnce(
+        Object.assign(new Error('not found'), {
+          constructor: { name: 'NotFoundException' },
+        }),
+      );
+      const { NotFoundException } = await import('@nestjs/common');
+      usersService.findOneBy.mockReset();
+      usersService.findOneBy.mockRejectedValueOnce(
+        new NotFoundException('User not found'),
+      );
+
+      const result = await service.requestPasswordRecovery({
+        email: 'missing@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+    });
+
+    it('should create hashed code and send email for known user', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      settingsService.getValue.mockResolvedValueOnce(600_000);
+
+      const result = await service.requestPasswordRecovery({
+        email: 'test@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(settingsService.getValue).toHaveBeenCalledWith(
+        ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+      );
+      expect(passwordService.hashPassword).toHaveBeenCalled();
+      expect(recoveryCodeRepo.create).toHaveBeenCalled();
+      expect(em.flush).toHaveBeenCalled();
+      expect(mailService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'test@example.com',
+          subject: 'Password recovery code',
+        }),
+      );
+    });
+  });
+
+  describe('confirmPasswordRecovery', () => {
+    it('should reject invalid code', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      recoveryCodeRepo.find.mockResolvedValueOnce([
+        {
+          codeHash: 'hash',
+          usedAt: null,
+        },
+      ]);
+      passwordService.comparePassword.mockResolvedValueOnce(false);
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'test@example.com',
+          code: '123456',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(usersService.setPassword).not.toHaveBeenCalled();
+    });
+
+    it('should set password when code matches', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      const matched = { codeHash: 'hash', usedAt: null };
+      recoveryCodeRepo.find.mockResolvedValueOnce([matched]);
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.setPassword.mockResolvedValueOnce(mockUserEntity);
+
+      const result = await service.confirmPasswordRecovery({
+        email: 'test@example.com',
+        code: '123456',
+        password: 'Password1234ab',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(matched.usedAt).toBeInstanceOf(Date);
+      expect(usersService.setPassword).toHaveBeenCalledWith(
+        1,
+        'Password1234ab',
+      );
     });
   });
 });

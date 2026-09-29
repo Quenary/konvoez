@@ -9,12 +9,14 @@ import { S3Service } from './services/s3.service';
 import type { FileService } from './services/file.service';
 import { FileServiceInjectionToken } from './tokens/file-service.token';
 import { ImageProcessingService } from './services/image-processing.service';
+import { MailService } from './services/mail.service';
 
 @Global()
 @Module({
   providers: [
     AppService,
     PasswordService,
+    MailService,
     EncryptionService,
     LocalObjectStorageService,
     S3Service,
@@ -52,6 +54,7 @@ import { ImageProcessingService } from './services/image-processing.service';
   exports: [
     AppService,
     PasswordService,
+    MailService,
     FileServiceInjectionToken,
     EncryptionService,
     ImageProcessingService,

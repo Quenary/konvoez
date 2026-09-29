@@ -7,6 +7,8 @@ import {
 
 export type FileServiceType = 'local' | 's3';
 
+export type SmtpEncryption = 'TLS' | 'STARTTLS' | null;
+
 /**
  * App configuration service
  */
@@ -113,4 +115,64 @@ export class AppService {
    */
   public readonly GITHUB_TOKEN: string | undefined =
     process.env['GITHUB_TOKEN'] || undefined;
+
+  //#region SMTP
+  /**
+   * SMTP host. Empty disables outbound email.
+   */
+  public readonly SMTP_HOST: string | undefined =
+    process.env['SMTP_HOST']?.trim() || undefined;
+
+  /**
+   * SMTP encryption mode.
+   * - TLS: implicit TLS (default port 465)
+   * - STARTTLS: explicit TLS upgrade (default port 587)
+   * - anything else / empty: no encryption (default port 25)
+   */
+  public readonly SMTP_ENCRYPTION: SmtpEncryption = this.parseSmtpEncryption(
+    process.env['SMTP_ENCRYPTION'],
+  );
+
+  /**
+   * SMTP port. Defaults depend on SMTP_ENCRYPTION.
+   */
+  public readonly SMTP_PORT: number =
+    Number(process.env['SMTP_PORT']) ||
+    this.defaultSmtpPort(this.SMTP_ENCRYPTION);
+
+  public readonly SMTP_USER: string | undefined =
+    process.env['SMTP_USER']?.trim() || undefined;
+
+  public readonly SMTP_PASS: string | undefined =
+    process.env['SMTP_PASS'] || undefined;
+
+  /**
+   * From address. Falls back to SMTP_USER or konvoez@localhost.
+   */
+  public readonly SMTP_FROM: string =
+    process.env['SMTP_FROM']?.trim() ||
+    process.env['SMTP_USER']?.trim() ||
+    'konvoez@localhost';
+
+  /**
+   * Whether to reject unauthorized TLS certificates.
+   * @default true
+   */
+  public readonly SMTP_TLS_REJECT_UNAUTHORIZED: boolean =
+    process.env['SMTP_TLS_REJECT_UNAUTHORIZED']?.toLowerCase() !== 'false';
+  //#endregion
+
+  private parseSmtpEncryption(raw: string | undefined): SmtpEncryption {
+    const value = (raw ?? '').trim().toUpperCase();
+    if (value === 'TLS' || value === 'STARTTLS') {
+      return value;
+    }
+    return null;
+  }
+
+  private defaultSmtpPort(encryption: SmtpEncryption): number {
+    if (encryption === 'TLS') return 465;
+    if (encryption === 'STARTTLS') return 587;
+    return 25;
+  }
 }

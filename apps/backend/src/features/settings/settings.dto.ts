@@ -3,6 +3,7 @@ import {
   settingsUpdateSchema,
   iceServersSettingSchema,
   inviteOnlySignUpSettingSchema,
+  passwordRecoveryCodeTtlSettingSchema,
   TSetting,
   TSettingByKey,
 } from '@konvoez/shared';
@@ -18,4 +19,8 @@ export class IceServersSettingDto extends createZodDto(
 
 export class InviteOnlySignUpSettingDto extends createZodDto(
   inviteOnlySignUpSettingSchema,
+) {}
+
+export class PasswordRecoveryCodeTtlSettingDto extends createZodDto(
+  passwordRecoveryCodeTtlSettingSchema,
 ) {}

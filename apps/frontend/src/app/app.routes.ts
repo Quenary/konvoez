@@ -22,6 +22,21 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'auth/password-recovery/confirm',
+    loadComponent: () =>
+      import('./features/auth/auth-password-recovery-confirm/auth-password-recovery-confirm.component').then(
+        (m) => m.AuthPasswordRecoveryConfirmComponent,
+      ),
+  },
+  {
+    path: 'auth/password-recovery',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./features/auth/auth-password-recovery/auth-password-recovery.component').then(
+        (m) => m.AuthPasswordRecoveryComponent,
+      ),
+  },
+  {
     // Auth zone
     path: '',
     canActivate: [authGuard],

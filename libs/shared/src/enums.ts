@@ -12,6 +12,7 @@ export enum ERoomType {
 export enum ESettingKey {
   ICE_SERVERS = 'ICE_SERVERS',
   INVITE_ONLY_SIGN_UP = 'INVITE_ONLY_SIGN_UP',
+  PASSWORD_RECOVERY_CODE_TTL = 'PASSWORD_RECOVERY_CODE_TTL',
 }
 
 export enum ETextRoomEvent {

@@ -1,14 +1,18 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
   OnApplicationBootstrap,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
+import { MailService } from '@shared/services/mail.service';
 import { Request } from 'express';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
@@ -17,28 +21,46 @@ import * as cookie from 'cookie';
 import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
 import { CreateUserDto, GetUserDto } from '../users/users.dto';
-import { ESettingKey, EUserRole } from '@konvoez/shared';
+import {
+  ESettingKey,
+  EUserRole,
+  IPasswordRecoveryConfirm,
+  IPasswordRecoveryRequest,
+  passwordRecoveryCodeLength,
+  passwordRecoveryRequestCooldownMs,
+} from '@konvoez/shared';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
+import { InjectRepository } from '@mikro-orm/nestjs';
+import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
 @Injectable()
 export class AuthService implements OnApplicationBootstrap {
   private readonly logger = new Logger(AuthService.name);
   private readonly ownerSetupTokenCacheKey = 'auth:owner_setup_token';
   private readonly ownerSetupTokenTtl = 5 * 60 * 1000; // 5 minutes
+  private readonly passwordRecoveryCooldownKeyPrefix =
+    'auth:password_recovery_cooldown:';
+  private readonly em: EntityManager;
 
   constructor(
     private readonly jwt: JwtService,
     private readonly appService: AppService,
     private readonly passwordService: PasswordService,
+    private readonly mailService: MailService,
     private readonly userService: UsersService,
     private readonly settingsService: SettingsService,
     private readonly invitesService: InvitesService,
+    @InjectRepository(PasswordRecoveryCodeEntity)
+    private readonly recoveryCodeRepo: EntityRepository<PasswordRecoveryCodeEntity>,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-  ) {}
+  ) {
+    this.em = this.recoveryCodeRepo.getEntityManager();
+  }
 
   async onApplicationBootstrap(): Promise<void> {
     await this.checkAndGenerateOwnerToken();
@@ -138,6 +160,138 @@ ${token}
       throw new UnauthorizedException('Invalid credentials');
     }
     return this.userService.toDto(user);
+  }
+
+  async requestPasswordRecovery(
+    dto: IPasswordRecoveryRequest,
+  ): Promise<{ ok: true }> {
+    if (!this.mailService.isConfigured) {
+      throw new ServiceUnavailableException('Email delivery is not configured');
+    }
+
+    const email = dto.email.trim();
+    const cooldownKey = `${this.passwordRecoveryCooldownKeyPrefix}${email.toLowerCase()}`;
+    const coolingDown = await this.cacheManager.get<boolean>(cooldownKey);
+    if (coolingDown) {
+      return { ok: true };
+    }
+
+    let user: UserEntity;
+    try {
+      user = await this.userService.findOneBy({ email });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        // Same response shape; still apply cooldown to limit probing.
+        await this.cacheManager.set(
+          cooldownKey,
+          true,
+          passwordRecoveryRequestCooldownMs,
+        );
+        return { ok: true };
+      }
+      throw error;
+    }
+
+    const ttlMs = await this.settingsService.getValue(
+      ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+    );
+    const code = this.generateRecoveryCode();
+    const codeHash = await this.passwordService.hashPassword(code);
+    const now = new Date();
+
+    const unusedCodes = await this.recoveryCodeRepo.find({
+      user: user.id,
+      usedAt: null,
+    });
+    for (const existing of unusedCodes) {
+      this.recoveryCodeRepo.assign(existing, { usedAt: now });
+      this.em.persist(existing);
+    }
+
+    const recoveryCode = this.recoveryCodeRepo.create({
+      user,
+      codeHash,
+      expiresAt: new Date(now.getTime() + ttlMs),
+      usedAt: null,
+    });
+    this.em.persist(recoveryCode);
+    await this.em.flush();
+
+    const ttlMinutes = Math.max(1, Math.round(ttlMs / 60_000));
+    try {
+      await this.mailService.sendMail({
+        to: user.email,
+        subject: 'Password recovery code',
+        text: `Your Konvoez password recovery code is ${code}. It expires in ${ttlMinutes} minute(s). If you did not request this, you can ignore this email.`,
+        html: `<p>Your Konvoez password recovery code is <strong>${code}</strong>.</p><p>It expires in ${ttlMinutes} minute(s).</p><p>If you did not request this, you can ignore this email.</p>`,
+      });
+    } catch (error) {
+      this.recoveryCodeRepo.assign(recoveryCode, { usedAt: new Date() });
+      this.em.persist(recoveryCode);
+      await this.em.flush();
+      throw error;
+    }
+
+    await this.cacheManager.set(
+      cooldownKey,
+      true,
+      passwordRecoveryRequestCooldownMs,
+    );
+
+    return { ok: true };
+  }
+
+  async confirmPasswordRecovery(
+    dto: IPasswordRecoveryConfirm,
+  ): Promise<{ ok: true }> {
+    const email = dto.email.trim();
+    let user: UserEntity;
+    try {
+      user = await this.userService.findOneBy({ email });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new BadRequestException('Invalid or expired recovery code');
+      }
+      throw error;
+    }
+
+    const candidates = await this.recoveryCodeRepo.find(
+      {
+        user: user.id,
+        usedAt: null,
+        expiresAt: { $gt: new Date() },
+      },
+      { orderBy: { createdAt: 'DESC' } },
+    );
+
+    let matched: PasswordRecoveryCodeEntity | null = null;
+    for (const candidate of candidates) {
+      const ok = await this.passwordService.comparePassword(
+        dto.code,
+        candidate.codeHash,
+      );
+      if (ok) {
+        matched = candidate;
+        break;
+      }
+    }
+
+    if (!matched) {
+      throw new BadRequestException('Invalid or expired recovery code');
+    }
+
+    matched.usedAt = new Date();
+    this.em.persist(matched);
+    await this.em.flush();
+
+    await this.userService.setPassword(user.id, dto.password);
+    return { ok: true };
+  }
+
+  private generateRecoveryCode(): string {
+    const max = 10 ** passwordRecoveryCodeLength;
+    const num = crypto.randomInt(0, max);
+    return num.toString().padStart(passwordRecoveryCodeLength, '0');
   }
 
   generateToken(payload: AuthJWTData): string {

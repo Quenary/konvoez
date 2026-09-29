@@ -6,10 +6,18 @@ import { AuthGuard } from './auth.guard';
 import { CacheModule } from '@nestjs/cache-manager';
 import { SettingsModule } from '../settings/settings.module';
 import { InvitesModule } from '../invites/invites.module';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
 @Global()
 @Module({
-  imports: [JwtModule, CacheModule.register(), SettingsModule, InvitesModule],
+  imports: [
+    JwtModule,
+    CacheModule.register(),
+    SettingsModule,
+    InvitesModule,
+    MikroOrmModule.forFeature([PasswordRecoveryCodeEntity]),
+  ],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard],
   exports: [AuthService, AuthGuard],

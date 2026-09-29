@@ -59,10 +59,10 @@ docker compose -f docker-compose.build.yml up -d --build
 - [Networking & Deployment Guide](docs/NETWORKING.md)
 - [Contributing Guidelines](docs/CONTRIBUTING.md)
 - [Security Policy](docs/SECURITY.md)
+- [Password Recovery](docs/PASSWORD_RECOVERY.md)
 
 ## TODO
 
-- Add SMTP support for password recovery and invites
 - Add user management for admin (table, role change, logical and physical deletion)
 - Add message assets (files)
 - Add camera/screen sharing
@@ -70,3 +70,4 @@ docker compose -f docker-compose.build.yml up -d --build
 - Add connection state indication
 - Add mute indication for other peers
 - Add customizable roles (functions access) and groups (rooms access)
+- Add invite emails (if email set), 2FA via email codes

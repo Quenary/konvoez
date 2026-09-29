@@ -20,7 +20,11 @@ jest.mock('@mikro-orm/core', () => {
 import { SettingsService } from './settings.service';
 import { SettingsEntity } from './settings.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { DEFAULT_ICE_SERVERS, ESettingKey } from '@konvoez/shared';
+import {
+  DEFAULT_ICE_SERVERS,
+  DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  ESettingKey,
+} from '@konvoez/shared';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('SettingsService', () => {
@@ -29,6 +33,13 @@ describe('SettingsService', () => {
   let em: jest.Mocked<EntityManager>;
 
   const originalEnv = process.env;
+
+  const settingKeyFromWhere = (where: unknown): ESettingKey | undefined => {
+    if (typeof where === 'object' && where !== null && 'key' in where) {
+      return (where as { key: ESettingKey }).key;
+    }
+    return undefined;
+  };
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -78,6 +89,10 @@ describe('SettingsService', () => {
         key: ESettingKey.INVITE_ONLY_SIGN_UP,
         value: true,
       });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+      });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
     });
@@ -96,11 +111,20 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const existingTtlSetting = {
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+      repo.findOne.mockImplementation(async (where) => {
+        const key = settingKeyFromWhere(where);
         if (key === ESettingKey.ICE_SERVERS) return existingIceSetting;
         if (key === ESettingKey.INVITE_ONLY_SIGN_UP)
           return existingInviteSetting;
+        if (key === ESettingKey.PASSWORD_RECOVERY_CODE_TTL)
+          return existingTtlSetting;
         return null;
       });
 
@@ -124,10 +148,19 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const existingTtlSetting = {
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+      repo.findOne.mockImplementation(async (where) => {
+        const key = settingKeyFromWhere(where);
         if (key === ESettingKey.ICE_SERVERS) return invalidSetting;
         if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return validInviteSetting;
+        if (key === ESettingKey.PASSWORD_RECOVERY_CODE_TTL)
+          return existingTtlSetting;
         return null;
       });
 
@@ -155,10 +188,19 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const existingTtlSetting = {
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+      repo.findOne.mockImplementation(async (where) => {
+        const key = settingKeyFromWhere(where);
         if (key === ESettingKey.ICE_SERVERS) return existingSetting;
         if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return validInviteSetting;
+        if (key === ESettingKey.PASSWORD_RECOVERY_CODE_TTL)
+          return existingTtlSetting;
         return null;
       });
 
@@ -186,6 +228,10 @@ describe('SettingsService', () => {
         key: ESettingKey.INVITE_ONLY_SIGN_UP,
         value: true,
       });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+      });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
     });
@@ -205,10 +251,19 @@ describe('SettingsService', () => {
         createdAt: new Date(),
         updatedAt: null,
       } as unknown as SettingsEntity;
+      const existingTtlSetting = {
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as SettingsEntity;
 
-      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+      repo.findOne.mockImplementation(async (where) => {
+        const key = settingKeyFromWhere(where);
         if (key === ESettingKey.ICE_SERVERS) return existingSetting;
         if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return validInviteSetting;
+        if (key === ESettingKey.PASSWORD_RECOVERY_CODE_TTL)
+          return existingTtlSetting;
         return null;
       });
 
@@ -310,7 +365,8 @@ describe('SettingsService', () => {
         value: true,
       } as SettingsEntity;
 
-      repo.findOne.mockImplementation(async ({ key }: { key: ESettingKey }) => {
+      repo.findOne.mockImplementation(async (where) => {
+        const key = settingKeyFromWhere(where);
         if (key === ESettingKey.ICE_SERVERS) return existingIce;
         if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return existingInvite;
         return null;

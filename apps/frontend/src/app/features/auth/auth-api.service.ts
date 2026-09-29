@@ -2,7 +2,13 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
-import { IAuthLogin, IUser, IUserCreate } from '@konvoez/shared';
+import {
+  IAuthLogin,
+  IPasswordRecoveryConfirm,
+  IPasswordRecoveryRequest,
+  IUser,
+  IUserCreate,
+} from '@konvoez/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -36,6 +42,24 @@ export class AuthApiService {
   register(body: IUserCreate): Observable<IUser> {
     return this.httpClient.post<IUser>(
       `${environment.apiPath}/auth/register`,
+      body,
+    );
+  }
+
+  requestPasswordRecovery(
+    body: IPasswordRecoveryRequest,
+  ): Observable<{ ok: true }> {
+    return this.httpClient.post<{ ok: true }>(
+      `${environment.apiPath}/auth/password-recovery/request`,
+      body,
+    );
+  }
+
+  confirmPasswordRecovery(
+    body: IPasswordRecoveryConfirm,
+  ): Observable<{ ok: true }> {
+    return this.httpClient.post<{ ok: true }>(
+      `${environment.apiPath}/auth/password-recovery/confirm`,
       body,
     );
   }

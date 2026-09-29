@@ -5,6 +5,7 @@ import { ApiExtraModels, ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
 import {
   IceServersSettingDto,
   InviteOnlySignUpSettingDto,
+  PasswordRecoveryCodeTtlSettingDto,
   SettingsUpdateDto,
 } from './settings.dto';
 import { AuthGuardRoles } from '../auth/auth.decorator';
@@ -17,7 +18,11 @@ import {
 
 @Controller('settings')
 @UseGuards(AuthGuard)
-@ApiExtraModels(IceServersSettingDto, InviteOnlySignUpSettingDto)
+@ApiExtraModels(
+  IceServersSettingDto,
+  InviteOnlySignUpSettingDto,
+  PasswordRecoveryCodeTtlSettingDto,
+)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
@@ -29,6 +34,7 @@ export class SettingsController {
         oneOf: [
           { $ref: getSchemaPath(IceServersSettingDto) },
           { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
+          { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
         ],
       },
     },
@@ -44,6 +50,7 @@ export class SettingsController {
       oneOf: [
         { $ref: getSchemaPath(IceServersSettingDto) },
         { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
+        { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
       ],
     },
     description: 'Get setting by key',
@@ -62,6 +69,7 @@ export class SettingsController {
         oneOf: [
           { $ref: getSchemaPath(IceServersSettingDto) },
           { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
+          { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
         ],
       },
     },

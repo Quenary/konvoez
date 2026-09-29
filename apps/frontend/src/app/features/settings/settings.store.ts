@@ -7,6 +7,7 @@ import {
   TIceServersSettingValue,
   TSetting,
   TSettingsUpdate,
+  DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -74,6 +75,13 @@ export const SettingsStore = signalStore(
     inviteOnlySignUp: computed(() => {
       const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
       return (item?.value as boolean | undefined) ?? true;
+    }),
+    passwordRecoveryCodeTtl: computed(() => {
+      const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
+      return (
+        (item?.value as number | undefined) ??
+        DEFAULT_PASSWORD_RECOVERY_CODE_TTL
+      );
     }),
     needsInitialSetup: computed(
       () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,

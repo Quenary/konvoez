@@ -150,6 +150,15 @@ export class UsersService {
     return user;
   }
 
+  async setPassword(userId: number, password: string): Promise<UserEntity> {
+    const user = await this.findOne(userId);
+    const passwordHash = await this.passwordService.hashPassword(password);
+    this.repo.assign(user, { password: passwordHash });
+    this.em.persist(user);
+    await this.em.flush();
+    return user;
+  }
+
   async remove(id: number, author: GetUserDto): Promise<void> {
     if (
       id !== author.id &&

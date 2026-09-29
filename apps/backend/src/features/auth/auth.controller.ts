@@ -8,7 +8,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthLoginDto } from './auth.dto';
+import {
+  AuthLoginDto,
+  PasswordRecoveryConfirmDto,
+  PasswordRecoveryRequestDto,
+} from './auth.dto';
 import type { Request, Response } from 'express';
 import { AppService } from '@shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
@@ -93,6 +97,26 @@ export class AuthController {
   })
   async register(@Body() dto: CreateUserDto): Promise<GetUserDto> {
     return await this.authService.register(dto);
+  }
+
+  @Post('password-recovery/request')
+  @ApiOkResponse({
+    description: 'Request a password recovery code by email',
+  })
+  async requestPasswordRecovery(
+    @Body() dto: PasswordRecoveryRequestDto,
+  ): Promise<{ ok: true }> {
+    return await this.authService.requestPasswordRecovery(dto);
+  }
+
+  @Post('password-recovery/confirm')
+  @ApiOkResponse({
+    description: 'Confirm password recovery with email, code, and new password',
+  })
+  async confirmPasswordRecovery(
+    @Body() dto: PasswordRecoveryConfirmDto,
+  ): Promise<{ ok: true }> {
+    return await this.authService.confirmPasswordRecovery(dto);
   }
 
   @Get('me')
