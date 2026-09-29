@@ -232,6 +232,20 @@ describe('AuthService', () => {
       expect(result).toEqual(mockUserDto);
     });
 
+    it('should pass mixed-case email login through to lookup', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.toDto.mockReturnValueOnce(mockUserDto);
+
+      await service.validateUser('User@Example.COM', 'password123');
+
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'User@Example.COM',
+      );
+    });
+
     it('should trim login before lookup', async () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
@@ -628,6 +642,20 @@ describe('AuthService', () => {
         }),
       );
     });
+
+    it('should look up user by lowercased email', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      settingsService.getValue.mockResolvedValueOnce(600_000);
+
+      await service.requestPasswordRecovery({
+        email: 'User@Example.COM',
+      });
+
+      expect(usersService.findOneBy).toHaveBeenCalledWith({
+        email: 'user@example.com',
+      });
+    });
   });
 
   describe('confirmPasswordRecovery', () => {
@@ -670,6 +698,25 @@ describe('AuthService', () => {
         1,
         'Password1234ab',
       );
+    });
+
+    it('should look up user by lowercased email', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      recoveryCodeRepo.find.mockResolvedValueOnce([
+        { codeHash: 'hash', usedAt: null },
+      ]);
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.setPassword.mockResolvedValueOnce(mockUserEntity);
+
+      await service.confirmPasswordRecovery({
+        email: 'User@Example.COM',
+        code: '123456',
+        password: 'Password1234ab',
+      });
+
+      expect(usersService.findOneBy).toHaveBeenCalledWith({
+        email: 'user@example.com',
+      });
     });
   });
 });

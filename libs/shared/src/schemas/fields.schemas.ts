@@ -35,7 +35,10 @@ export const fullnameSchema = lengthString(
   SCHEMA_ERROR.FULLNAME_LENGTH,
 );
 
-export const emailSchema = z.email({ error: SCHEMA_ERROR.EMAIL });
+export const emailSchema = stringSchema
+  .trim()
+  .toLowerCase()
+  .pipe(z.email({ error: SCHEMA_ERROR.EMAIL }));
 
 export const messageContentSchema = lengthString(
   messageMinLength,

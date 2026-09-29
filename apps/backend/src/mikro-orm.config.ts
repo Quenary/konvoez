@@ -21,6 +21,7 @@ import { getDefaultSqliteDbPath } from './shared/storage.utils';
 import { Migration20260922000000 } from './migrations/Migration20260922000000';
 import { Migration20260923111848_PushSubscriptionNotifications } from './migrations/Migration20260923111848_PushSubscriptionNotifications';
 import { Migration20260929152327 } from './migrations/Migration20260929152327';
+import { Migration20260930120000 } from './migrations/Migration20260930120000';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -52,6 +53,7 @@ export async function createMikroOrmConfig() {
         Migration20260922000000,
         Migration20260923111848_PushSubscriptionNotifications,
         Migration20260929152327,
+        Migration20260930120000,
       ],
     },
   } satisfies Partial<Options>;

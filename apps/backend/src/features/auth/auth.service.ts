@@ -169,8 +169,8 @@ ${token}
       throw new ServiceUnavailableException('Email delivery is not configured');
     }
 
-    const email = dto.email.trim();
-    const cooldownKey = `${this.passwordRecoveryCooldownKeyPrefix}${email.toLowerCase()}`;
+    const email = dto.email.trim().toLowerCase();
+    const cooldownKey = `${this.passwordRecoveryCooldownKeyPrefix}${email}`;
     const coolingDown = await this.cacheManager.get<boolean>(cooldownKey);
     if (coolingDown) {
       return { ok: true };
@@ -244,7 +244,7 @@ ${token}
   async confirmPasswordRecovery(
     dto: IPasswordRecoveryConfirm,
   ): Promise<{ ok: true }> {
-    const email = dto.email.trim();
+    const email = dto.email.trim().toLowerCase();
     let user: UserEntity;
     try {
       user = await this.userService.findOneBy({ email });

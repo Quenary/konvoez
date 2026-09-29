@@ -240,6 +240,37 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findOneByUsernameOrEmail', () => {
+    it('should look up by username and lowercased email', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(mockUser);
+
+      const result = await service.findOneByUsernameOrEmail('Test_User');
+
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
+        $or: [{ username: 'Test_User' }, { email: 'test_user' }],
+      });
+      expect(result).toBe(mockUser);
+    });
+
+    it('should lowercase mixed-case email login for email branch', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(mockUser);
+
+      await service.findOneByUsernameOrEmail('User@Example.COM');
+
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
+        $or: [{ username: 'User@Example.COM' }, { email: 'user@example.com' }],
+      });
+    });
+
+    it('should throw NotFoundException when no user matches', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.findOneByUsernameOrEmail('missing')).rejects.toThrow(
+        new NotFoundException('User not found'),
+      );
+    });
+  });
+
   describe('remove', () => {
     it('should throw ForbiddenException if user tries to delete another user without admin rights', async () => {
       const otherUserDto = { ...mockUserDto, id: 99 };

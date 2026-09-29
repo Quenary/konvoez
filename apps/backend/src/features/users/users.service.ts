@@ -49,7 +49,7 @@ export class UsersService {
   async findOneByUsernameOrEmail(login: string): Promise<UserEntity> {
     const em = this.em.fork();
     const user = await em.findOne(UserEntity, {
-      $or: [{ username: login }, { email: login }],
+      $or: [{ username: login }, { email: login.toLowerCase() }],
     });
     if (!user) {
       throw new NotFoundException('User not found');
