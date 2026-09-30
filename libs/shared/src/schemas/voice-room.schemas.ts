@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { IUser } from './user.schemas';
 import { EDirectCallEvent, EVoiceRoomEvent } from '../enums';
 import {
@@ -28,31 +27,32 @@ export type TVoiceRoomEventPayloadMap = {
 } & TDirectCallEventPayloadMap;
 
 export type TVoiceRoomEventResultMap = {
-  [EVoiceRoomEvent.JOIN_ROOM]: any;
-  [EVoiceRoomEvent.LEAVE_ROOM]: any;
-  [EVoiceRoomEvent.PEER_JOINED]: any;
-  [EVoiceRoomEvent.PEER_LEFT]: any;
+  [EVoiceRoomEvent.JOIN_ROOM]: object;
+  [EVoiceRoomEvent.LEAVE_ROOM]: object;
+  [EVoiceRoomEvent.PEER_JOINED]: void;
+  [EVoiceRoomEvent.PEER_LEFT]: void;
   [EVoiceRoomEvent.GET_ALL_PEERS]: TVoiceRoomGetAllPeersResult;
-  [EVoiceRoomEvent.PEERS_ON_JOIN]: any;
-  [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: any;
+  [EVoiceRoomEvent.PEERS_ON_JOIN]: void;
+  /** Opaque mediasoup RtpCapabilities JSON */
+  [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: unknown;
   [EVoiceRoomEvent.CREATE_TRANSPORT]: IVoiceRoomCreateTransportResult;
-  [EVoiceRoomEvent.CONNECT_TRANSPORT]: any;
+  [EVoiceRoomEvent.CONNECT_TRANSPORT]: object;
   [EVoiceRoomEvent.PRODUCE]: IVoiceRoomProduceResult;
-  [EVoiceRoomEvent.PRODUCER_CREATED]: any;
-  [EVoiceRoomEvent.PRODUCER_CLOSED]: any;
+  [EVoiceRoomEvent.PRODUCER_CREATED]: void;
+  [EVoiceRoomEvent.PRODUCER_CLOSED]: void;
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsumeResult;
-  [EVoiceRoomEvent.CONSUMER_CLOSED]: any;
-  [EVoiceRoomEvent.ERROR]: any;
+  [EVoiceRoomEvent.CONSUMER_CLOSED]: void;
+  [EVoiceRoomEvent.ERROR]: void;
 } & TDirectCallEventResultMap;
 
 export type TVoiceRoomEventKey = EVoiceRoomEvent | EDirectCallEvent;
 
 export type TVoiceRoomEventMap = {
   [K in TVoiceRoomEventKey]: TVoiceRoomEventPayloadMap[K] extends void
-    ? (...args: any[]) => TVoiceRoomEventResultMap[K]
+    ? (...args: unknown[]) => TVoiceRoomEventResultMap[K]
     : (
         data: TVoiceRoomEventPayloadMap[K],
-        ...args: any[]
+        ...args: unknown[]
       ) => TVoiceRoomEventResultMap[K];
 };
 
@@ -102,22 +102,28 @@ export interface IVoiceRoomCreateTransport {
 
 export interface IVoiceRoomCreateTransportResult {
   id: string;
-  iceParameters: any;
-  iceCandidates: any;
-  dtlsParameters: any;
-  sctpParameters: any;
+  /** Opaque mediasoup IceParameters JSON */
+  iceParameters: unknown;
+  /** Opaque mediasoup IceCandidate[] JSON */
+  iceCandidates: unknown;
+  /** Opaque mediasoup DtlsParameters JSON */
+  dtlsParameters: unknown;
+  /** Opaque mediasoup SctpParameters JSON */
+  sctpParameters: unknown;
 }
 
 export interface IVoiceRoomConnectTransport {
   transportId: string;
-  dtlsParameters: any;
+  /** Opaque mediasoup DtlsParameters JSON */
+  dtlsParameters: unknown;
 }
 
 export interface IVoiceRoomProduce {
   transportId: string;
   kind: 'audio' | 'video';
   mediaTag: TVoiceRoomMediaTag;
-  rtpParameters: any;
+  /** Opaque mediasoup RtpParameters JSON */
+  rtpParameters: unknown;
 }
 
 export interface IVoiceRoomProduceResult {
@@ -135,15 +141,17 @@ export interface IVoiceRoomProducerClosed {
 export interface IVoiceRoomConsume {
   producerId: string;
   transportId: string;
-  rtpCapabilities: any;
+  /** Opaque mediasoup RtpCapabilities JSON */
+  rtpCapabilities: unknown;
 }
 
 export interface IVoiceRoomConsumeResult {
   id: string;
   producerId: string;
-  kind: any;
+  kind: 'audio' | 'video';
   mediaTag: TVoiceRoomMediaTag;
-  rtpParameters: any;
+  /** Opaque mediasoup RtpParameters JSON */
+  rtpParameters: unknown;
 }
 
 export interface IVoiceRoomConsumerClosed {

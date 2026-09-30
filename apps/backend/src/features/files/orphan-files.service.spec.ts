@@ -64,9 +64,7 @@ describe('OrphanFilesService', () => {
       fileService as unknown as FileService,
     );
 
-    const gracePeriodMs = (service as unknown as { [key: string]: number })[
-      'orphanGracePeriodMs'
-    ];
+    const gracePeriodMs = service['orphanGracePeriodMs'];
     oldFile = { key: orphanKey, modifiedAt: new Date(now - gracePeriodMs) };
     freshFile = {
       key: freshKey,

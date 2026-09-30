@@ -81,16 +81,12 @@ describe('DirectChatsComponent', () => {
   });
 
   it('should navigate to /direct/:id when openChat is called', () => {
-    (component as unknown as { openChat: (u: IUser) => void }).openChat(
-      mockUser,
-    );
+    component['openChat'](mockUser);
     expect(router.navigate).toHaveBeenCalledWith(['/direct', 10]);
   });
 
   it('should open new chat dialog and navigate on user selection', async () => {
-    await (
-      component as unknown as { openNewChatDialog: () => Promise<void> }
-    ).openNewChatDialog();
+    await component['openNewChatDialog']();
 
     expect(mockDialogService.open).toHaveBeenCalled();
     expect(mockDirectChatsStore.addOrUpdateChat).toHaveBeenCalledWith(mockUser);

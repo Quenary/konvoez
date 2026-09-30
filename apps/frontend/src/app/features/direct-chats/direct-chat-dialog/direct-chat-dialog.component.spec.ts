@@ -91,36 +91,27 @@ describe('DirectChatDialogComponent', () => {
   });
 
   it('should filter out current user from filteredUsers', () => {
-    const users = (
-      component as unknown as { filteredUsers: () => IUser[] }
-    ).filteredUsers();
+    const users = component['filteredUsers']();
     expect(users).toHaveLength(2);
     expect(users.some((u) => u.id === mockCurrentUser.id)).toBe(false);
   });
 
   it('should filter users by search query', async () => {
-    const comp = component as unknown as {
-      searchControl: { setValue: (v: string) => void };
-      filteredUsers: () => IUser[];
-    };
-
-    comp.searchControl.setValue('alice');
+    component['searchControl'].setValue('alice');
     fixture.detectChanges();
 
-    const users = comp.filteredUsers();
+    const users = component['filteredUsers']();
     expect(users).toHaveLength(1);
     expect(users[0].username).toBe('alice');
   });
 
   it('should complete with selected user on selectUser', () => {
-    (component as unknown as { selectUser: (u: IUser) => void }).selectUser(
-      otherUser1,
-    );
+    component['selectUser'](otherUser1);
     expect(mockContext.completeWith).toHaveBeenCalledWith(otherUser1);
   });
 
   it('should complete with null on close', () => {
-    (component as unknown as { close: () => void }).close();
+    component['close']();
     expect(mockContext.completeWith).toHaveBeenCalledWith(null);
   });
 });

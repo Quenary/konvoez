@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
-  (globalThis as any).AudioWorkletNode = class AudioWorkletNode {};
+  (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
+    class AudioWorkletNode {};
 });
 
 vi.mock('@sapphi-red/web-noise-suppressor', () => ({
@@ -11,6 +12,7 @@ vi.mock('@sapphi-red/web-noise-suppressor', () => ({
 }));
 
 import { MicrophoneService } from './microphone.service';
+import type { SpeexWorkletNode } from '@sapphi-red/web-noise-suppressor';
 
 describe('MicrophoneService', () => {
   let service: MicrophoneService;
@@ -44,15 +46,16 @@ describe('MicrophoneService', () => {
       createAnalyser: vi.fn(),
       createMediaStreamDestination: vi.fn(() => destinationNode),
       audioWorklet: { addModule: vi.fn() },
-    } as any;
+    };
 
-    service['context'] = context;
+    service['context'] = context as unknown as AudioContext;
     service['inputStream'] = stream;
-    service['sourceNode'] = sourceNode as any;
-    service['gainNode'] = gainNode as any;
-    service['biquadNode'] = biquadNode as any;
-    service['speexNode'] = speexNode as any;
-    service['destinationNode'] = destinationNode as any;
+    service['sourceNode'] = sourceNode as unknown as MediaStreamAudioSourceNode;
+    service['gainNode'] = gainNode as unknown as GainNode;
+    service['biquadNode'] = biquadNode as unknown as BiquadFilterNode;
+    service['speexNode'] = speexNode as unknown as SpeexWorkletNode;
+    service['destinationNode'] =
+      destinationNode as unknown as MediaStreamAudioDestinationNode;
     service['_processedStream'].set(stream);
 
     await service.release();

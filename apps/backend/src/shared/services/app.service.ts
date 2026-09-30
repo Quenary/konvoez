@@ -58,8 +58,12 @@ export class AppService {
    * Cookie same site
    * @default 'lax'
    */
-  public readonly COOKIE_SAME_SITE: 'lax' | 'strict' | 'none' =
-    (process.env['COOKIE_SAME_SITE'] as any) || 'lax';
+  public readonly COOKIE_SAME_SITE: 'lax' | 'strict' | 'none' = (() => {
+    const value = process.env['COOKIE_SAME_SITE']?.toLowerCase();
+    return value === 'lax' || value === 'strict' || value === 'none'
+      ? value
+      : 'lax';
+  })();
   /**
    * Cookie domain
    * @default undefined

@@ -31,6 +31,11 @@ import { DirectCallService } from './direct-call.service';
 import { EStorageKey } from '../../app.enums';
 import type { Device } from 'mediasoup-client';
 import { Consumer, Producer, Transport } from 'mediasoup-client/types';
+import type {
+  ConsumerOptions,
+  RtpCapabilities,
+  TransportOptions,
+} from 'mediasoup-client/types';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { createEntityAdapter } from '@ngrx/entity';
 import { patchState, signalState } from '@ngrx/signals';
@@ -591,7 +596,10 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       const routerRtpCapabilities = await this.socket.emitWithAck(
         EVoiceRoomEvent.GET_RTP_CAPABILITIES,
       );
-      await this.device.load({ routerRtpCapabilities });
+      await this.device.load({
+        routerRtpCapabilities:
+          routerRtpCapabilities as unknown as RtpCapabilities,
+      });
       console.log('Can produce video', this.device.canProduce('video'));
       console.log('Can produce audio', this.device.canProduce('audio'));
     } catch (error) {
@@ -615,7 +623,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     const iceServers = this.settingsStore.iceServers();
 
     this.sendTransport = this.device!.createSendTransport({
-      ...result,
+      ...(result as unknown as TransportOptions),
       iceServers:
         iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
     });
@@ -700,7 +708,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     const iceServers = this.settingsStore.iceServers();
 
     this.recvTransport = this.device!.createRecvTransport({
-      ...result,
+      ...(result as unknown as TransportOptions),
       iceServers:
         iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
     });
@@ -774,7 +782,9 @@ export class VoiceRoomService implements IAudioDeviceHandler {
         } satisfies IVoiceRoomConsume,
       );
 
-      const consumer = await this.recvTransport!.consume(result);
+      const consumer = await this.recvTransport!.consume(
+        result as unknown as ConsumerOptions,
+      );
 
       const stream = new MediaStream([consumer.track]);
 

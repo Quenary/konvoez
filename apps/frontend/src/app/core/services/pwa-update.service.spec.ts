@@ -94,12 +94,8 @@ describe('PwaUpdateService', () => {
     dialogService.open.mockReturnValue(of(true));
 
     const service = TestBed.inject(PwaUpdateService);
-    const applyAvailableUpdate = vi
-      .spyOn(
-        service as unknown as { applyAvailableUpdate: () => void },
-        'applyAvailableUpdate',
-      )
-      .mockImplementation(() => undefined);
+    const applyAvailableUpdate = vi.fn(() => undefined);
+    service['applyAvailableUpdate'] = applyAvailableUpdate;
 
     versionUpdates$.next({
       type: 'VERSION_READY',
@@ -119,12 +115,8 @@ describe('PwaUpdateService', () => {
     dialogService.open.mockReturnValue(of(false));
 
     const service = TestBed.inject(PwaUpdateService);
-    const applyAvailableUpdate = vi
-      .spyOn(
-        service as unknown as { applyAvailableUpdate: () => void },
-        'applyAvailableUpdate',
-      )
-      .mockImplementation(() => undefined);
+    const applyAvailableUpdate = vi.fn(() => undefined);
+    service['applyAvailableUpdate'] = applyAvailableUpdate;
 
     versionUpdates$.next({
       type: 'VERSION_READY',

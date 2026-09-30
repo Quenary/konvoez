@@ -48,6 +48,11 @@ import {
 } from './voice-rooms.state';
 import { DirectCallsStateService } from './direct-calls.state';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
+import type {
+  DtlsParameters,
+  RtpCapabilities,
+  RtpParameters,
+} from 'mediasoup/types';
 
 type TSocket = Socket<
   TVoiceRoomEventMap,
@@ -327,7 +332,7 @@ export class VoiceRoomsGateway
     }
 
     await transport.connect({
-      dtlsParameters: body.dtlsParameters,
+      dtlsParameters: body.dtlsParameters as unknown as DtlsParameters,
     });
 
     return {};
@@ -351,7 +356,7 @@ export class VoiceRoomsGateway
     const producer: Producer<VoiceRoomStateMediasoupAppData> =
       await transport.produce({
         kind: body.kind,
-        rtpParameters: body.rtpParameters,
+        rtpParameters: body.rtpParameters as unknown as RtpParameters,
         appData: {
           peerId: peer.id,
           mediaTag: body.mediaTag,
@@ -411,7 +416,7 @@ export class VoiceRoomsGateway
     if (
       !room.router.canConsume({
         producerId: producer.id,
-        rtpCapabilities: body.rtpCapabilities,
+        rtpCapabilities: body.rtpCapabilities as unknown as RtpCapabilities,
       })
     ) {
       throw new Error('Cannot consume');
@@ -420,7 +425,7 @@ export class VoiceRoomsGateway
     const consumer: Consumer<VoiceRoomStateMediasoupAppData> =
       await transport.consume({
         producerId: producer.id,
-        rtpCapabilities: body.rtpCapabilities,
+        rtpCapabilities: body.rtpCapabilities as unknown as RtpCapabilities,
         appData: {
           peerId: peer.id,
           mediaTag: producer.appData.mediaTag,

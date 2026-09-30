@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
 import { baseEntitySchema, stringSchema } from './base.schemas';
 import { messageListMaxLimit, messageListMinLimit } from '../const';
@@ -22,8 +21,8 @@ export type TTextRoomEventPayloadMap = {
 export type TTextRoomEventMap = {
   [K in ETextRoomEvent]: (
     data: TTextRoomEventPayloadMap[K],
-    ...args: any[]
-  ) => any;
+    ...args: unknown[]
+  ) => void;
 };
 
 export type TTextRoomEvent = {

@@ -48,7 +48,8 @@ Path aliases (prefer these over deep relative imports):
 
 ## TypeScript
 
-- Keep `strict` checking; avoid `any` (use `unknown` and narrow).
+- Keep `strict` checking **everywhere**, including `*.spec.ts`. Do not use `any` or `as any`.
+- Prefer `unknown` + narrowing; when a cast is unavoidable, use `as unknown as Something` (or a typed guard), not `any`.
 - Prefer inference when obvious; annotate when it clarifies intent.
 - Prefer discriminated unions over boolean flag combinations.
 - Prefer `satisfies` over `as` when checking object shapes.
@@ -115,6 +116,8 @@ Path aliases (prefer these over deep relative imports):
 - Mock MikroORM at the module boundary when entity schema imports are noisy (see existing `*.spec.ts` patterns).
 - Mock external I/O (S3, push, mediasoup) — do not hit real services in unit tests.
 - Cover authz edge cases (roles, invites, owner bootstrap) when touching those paths.
+- Strict typing applies to specs too: no `any` / `as any`. Use `as unknown as Something` (or narrow) for incomplete mocks/entities.
+- Access private/protected members via **index signature** (keeps real types): `service['orphanGracePeriodMs']`, `service['cleanupBucket'](...)`. Do **not** cast the whole instance with `as unknown as { … }` or `as any` just to reach internals.
 
 ## Change discipline
 
