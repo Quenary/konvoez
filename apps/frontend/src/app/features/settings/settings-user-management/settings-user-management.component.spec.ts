@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { EUserRole, IUser } from '@konvoez/shared';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { SettingsUserManagementComponent } from './settings-user-management.component';
 import { UserManagementApiService } from './user-management-api.service';
 
@@ -67,10 +68,11 @@ describe('SettingsUserManagementComponent', () => {
   it('should render username, email, and created date', async () => {
     await setup([sampleUser]);
     const compiled = fixture.nativeElement as HTMLElement;
+    const expectedCreatedAt = new DayjsPipe().transform(sampleUser.createdAt);
 
     expect(compiled.querySelector('.empty-cell')).toBeNull();
     expect(compiled.textContent).toContain('alice');
     expect(compiled.textContent).toContain('alice@example.com');
-    expect(compiled.textContent).toContain('2026-01-02');
+    expect(compiled.textContent).toContain(expectedCreatedAt);
   });
 });

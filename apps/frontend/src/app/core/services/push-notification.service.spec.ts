@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { SwPush } from '@angular/service-worker';
+import { provideTranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BehaviorSubject, firstValueFrom, of, throwError } from 'rxjs';
 import { NotificationsApiService } from './notifications-api.service';
@@ -38,6 +40,10 @@ describe('PushNotificationService', () => {
     unsubscribe: vi.fn(() => of(undefined)),
   };
 
+  const tuiNotificationsService = {
+    open: vi.fn(() => of(undefined)),
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     subscriptionSubject.next(null);
@@ -74,8 +80,13 @@ describe('PushNotificationService', () => {
     TestBed.configureTestingModule({
       providers: [
         PushNotificationService,
+        provideTranslateService(),
         { provide: SwPush, useValue: swPush },
         { provide: NotificationsApiService, useValue: notificationsApiService },
+        {
+          provide: TuiNotificationService,
+          useValue: tuiNotificationsService,
+        },
       ],
     });
   });
