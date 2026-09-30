@@ -152,7 +152,7 @@ describe('TextRoomsGateway', () => {
   it('should emit MESSAGE_DELETED in onMessageDeleted', () => {
     const id = v7();
 
-    gateway.onMessageDeleted(id);
+    gateway.onMessageDeleted({ id });
 
     expect(serverMock.emit).toHaveBeenCalledWith(
       ETextRoomEvent.MESSAGE_DELETED,

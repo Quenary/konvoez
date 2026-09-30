@@ -37,7 +37,11 @@ import {
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  NotificationsDomainEvents,
+  emitNotificationsDomainEvent,
+} from '@shared/events/notifications.events';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
@@ -74,7 +78,7 @@ export class VoiceRoomsGateway
     private readonly appService: AppService,
     private readonly voiceRoomsStateService: VoiceRoomsStateService,
     private readonly directCallsStateService: DirectCallsStateService,
-    private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async handleConnection(client: TSocket) {
@@ -473,16 +477,16 @@ export class VoiceRoomsGateway
         caller,
       });
 
-    void this.notificationsService
-      .sendDirectCallNotification(
-        body.recipientId,
-        caller.id,
-        caller.username,
-        call.callId,
-      )
-      .catch(() => {
-        // Push notification failure should not block call
-      });
+    emitNotificationsDomainEvent(
+      this.eventEmitter,
+      NotificationsDomainEvents.DIRECT_CALL,
+      {
+        recipientId: body.recipientId,
+        callerId: caller.id,
+        callerUsername: caller.username,
+        callId: call.callId,
+      },
+    );
 
     return { callId: call.callId };
   }

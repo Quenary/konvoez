@@ -27,7 +27,6 @@ import {
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { EncryptionService } from '@shared/services/encryption.service';
-import { TextRoomsGateway } from './text-rooms.gateway';
 import { EntityRepository, EntityManager } from '@mikro-orm/core';
 import { parse, v7, stringify as uuidStringify } from 'uuid';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -35,6 +34,8 @@ import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { EUserRole } from '@konvoez/shared';
+import { TextRoomDomainEvents } from '@shared/events/text-room.events';
+import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 
 describe('TextRoomsService', () => {
   let service: TextRoomsService;
@@ -43,10 +44,7 @@ describe('TextRoomsService', () => {
   let usersService: jest.Mocked<UsersService>;
   let roomsService: jest.Mocked<RoomsService>;
   let encryptionService: jest.Mocked<EncryptionService>;
-  let textRoomsGateway: jest.Mocked<TextRoomsGateway>;
-  let notificationsService: {
-    sendDirectMessageNotification: jest.Mock;
-  };
+  let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
 
   const mockUser: GetUserDto = {
@@ -111,15 +109,7 @@ describe('TextRoomsService', () => {
       hashSearchToken: jest.fn().mockReturnValue('hashedToken'),
     } as unknown as jest.Mocked<EncryptionService>;
 
-    textRoomsGateway = {
-      onMessageCreated: jest.fn(),
-      onMessageUpdated: jest.fn(),
-      onMessageDeleted: jest.fn(),
-    } as unknown as jest.Mocked<TextRoomsGateway>;
-
-    notificationsService = {
-      sendDirectMessageNotification: jest.fn(),
-    };
+    eventEmitter = { emit: jest.fn() };
 
     service = new TextRoomsService(
       messageRepository,
@@ -127,8 +117,7 @@ describe('TextRoomsService', () => {
       usersService,
       roomsService,
       encryptionService,
-      textRoomsGateway,
-      notificationsService as any,
+      eventEmitter as never,
     );
   });
 
@@ -164,24 +153,21 @@ describe('TextRoomsService', () => {
       expect(result.content).toBe('Decrypted content');
       expect(result.senderUsername).toBe('test_user');
       expect(result.roomId).toBe(roomId);
-      expect(textRoomsGateway.onMessageCreated).toHaveBeenCalledWith(result);
-      expect(
-        notificationsService.sendDirectMessageNotification,
-      ).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_CREATED,
+        result,
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        NotificationsDomainEvents.DIRECT_MESSAGE,
+        expect.anything(),
+      );
     });
 
-    it('should fire-and-forget a push notification for a direct message', async () => {
+    it('should emit a push notification event for a direct message', async () => {
       usersService.findOne.mockResolvedValue({
         id: 2,
         username: 'other_user',
       } as unknown as UserEntity);
-
-      let resolvePush: (() => void) | undefined;
-      notificationsService.sendDirectMessageNotification.mockReturnValue(
-        new Promise<void>((resolve) => {
-          resolvePush = resolve;
-        }),
-      );
 
       const msgId = parse(v7());
       const mockCreated = {
@@ -206,16 +192,16 @@ describe('TextRoomsService', () => {
       });
 
       expect(result.recipientId).toBe(2);
-      expect(
-        notificationsService.sendDirectMessageNotification,
-      ).toHaveBeenCalledWith(
-        2,
-        1,
-        'test_user',
-        'Decrypted content',
-        uuidStringify(msgId),
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.DIRECT_MESSAGE,
+        {
+          recipientId: 2,
+          senderId: 1,
+          senderUsername: 'test_user',
+          messagePreview: 'Decrypted content',
+          messageId: uuidStringify(msgId),
+        },
       );
-      resolvePush?.();
     });
 
     it('should create a reply message and attach replyTarget', async () => {
@@ -537,7 +523,10 @@ describe('TextRoomsService', () => {
       });
 
       expect(result).toBeDefined();
-      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_UPDATED,
+        expect.anything(),
+      );
     });
 
     it('should delete existing search tokens and index new tokens on update', async () => {
@@ -605,7 +594,10 @@ describe('TextRoomsService', () => {
 
       expect(em.remove).toHaveBeenCalledWith(existing);
       expect(em.flush).toHaveBeenCalled();
-      expect(textRoomsGateway.onMessageDeleted).toHaveBeenCalledWith(msgId);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_DELETED,
+        { id: msgId },
+      );
     });
 
     it('should throw NotFoundException when deleting non-existent message', async () => {
@@ -724,7 +716,10 @@ describe('TextRoomsService', () => {
 
       expect(messageReadRepository.find).not.toHaveBeenCalled();
       expect(em.flush).not.toHaveBeenCalled();
-      expect(textRoomsGateway.onMessageUpdated).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_UPDATED,
+        expect.anything(),
+      );
     });
 
     it('should skip the sender own messages and persist reads for others', async () => {
@@ -762,8 +757,13 @@ describe('TextRoomsService', () => {
         reader: { id: mockUser.id },
       });
       expect(em.flush).toHaveBeenCalled();
-      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalledTimes(1);
-      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalledWith(
+      expect(
+        eventEmitter.emit.mock.calls.filter(
+          ([event]) => event === TextRoomDomainEvents.MESSAGE_UPDATED,
+        ),
+      ).toHaveLength(1);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_UPDATED,
         expect.objectContaining({
           id: uuidStringify(otherId),
           isRead: true,
@@ -796,7 +796,11 @@ describe('TextRoomsService', () => {
       });
 
       expect(messageReadRepository.create).not.toHaveBeenCalled();
-      expect(textRoomsGateway.onMessageUpdated).toHaveBeenCalledTimes(1);
+      expect(
+        eventEmitter.emit.mock.calls.filter(
+          ([event]) => event === TextRoomDomainEvents.MESSAGE_UPDATED,
+        ),
+      ).toHaveLength(1);
     });
   });
 

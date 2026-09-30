@@ -1,6 +1,5 @@
 import {
   Injectable,
-  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -33,8 +32,15 @@ import { stringify as uuidStringify } from 'uuid';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
-import { TextRoomsGateway } from './text-rooms.gateway';
-import { NotificationsService } from '../notifications/notifications.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  TextRoomDomainEvents,
+  emitTextRoomDomainEvent,
+} from '@shared/events/text-room.events';
+import {
+  NotificationsDomainEvents,
+  emitNotificationsDomainEvent,
+} from '@shared/events/notifications.events';
 
 import {
   ITextRoomMessage,
@@ -44,8 +50,6 @@ import {
 
 @Injectable()
 export class TextRoomsService {
-  private readonly logger = new Logger(TextRoomsService.name);
-
   private get em(): EntityManager {
     return this.messageRepository.getEntityManager();
   }
@@ -58,8 +62,7 @@ export class TextRoomsService {
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
-    private readonly textRoomsGateway: TextRoomsGateway,
-    private readonly notificationsService: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private entityToDto(data: MessageEntity, isRead: boolean): ITextRoomMessage {
@@ -434,26 +437,27 @@ export class TextRoomsService {
       message.replyTo = replyTarget;
     }
     const messageDto = this.entityToDto(message, false);
-    this.textRoomsGateway.onMessageCreated(messageDto);
+    emitTextRoomDomainEvent(
+      this.eventEmitter,
+      TextRoomDomainEvents.MESSAGE_CREATED,
+      messageDto,
+    );
 
     if (
       messageDto.recipientId &&
       messageDto.senderId !== messageDto.recipientId
     ) {
-      void this.notificationsService
-        .sendDirectMessageNotification(
-          messageDto.recipientId,
-          messageDto.senderId,
-          messageDto.senderUsername,
-          messageDto.content,
-          messageDto.id,
-        )
-        .catch((error: unknown) => {
-          this.logger.error(
-            'Failed to send direct message push notification',
-            error instanceof Error ? error.stack : String(error),
-          );
-        });
+      emitNotificationsDomainEvent(
+        this.eventEmitter,
+        NotificationsDomainEvents.DIRECT_MESSAGE,
+        {
+          recipientId: messageDto.recipientId,
+          senderId: messageDto.senderId,
+          senderUsername: messageDto.senderUsername,
+          messagePreview: messageDto.content,
+          messageId: messageDto.id,
+        },
+      );
     }
 
     return messageDto;
@@ -500,7 +504,11 @@ export class TextRoomsService {
       message,
       isReadMap.get(uuidStringify(message.id)) ?? false,
     );
-    this.textRoomsGateway.onMessageUpdated(messageDto);
+    emitTextRoomDomainEvent(
+      this.eventEmitter,
+      TextRoomDomainEvents.MESSAGE_UPDATED,
+      messageDto,
+    );
     return messageDto;
   }
 
@@ -521,7 +529,11 @@ export class TextRoomsService {
     this.em.remove(message);
     await this.em.flush();
 
-    this.textRoomsGateway.onMessageDeleted(messageId);
+    emitTextRoomDomainEvent(
+      this.eventEmitter,
+      TextRoomDomainEvents.MESSAGE_DELETED,
+      { id: messageId },
+    );
   }
 
   private indexSearchTokens(message: MessageEntity, content: string): void {
@@ -573,7 +585,11 @@ export class TextRoomsService {
     await this.em.flush();
 
     for (const msg of othersMessages) {
-      this.textRoomsGateway.onMessageUpdated(this.entityToDto(msg, true));
+      emitTextRoomDomainEvent(
+        this.eventEmitter,
+        TextRoomDomainEvents.MESSAGE_UPDATED,
+        this.entityToDto(msg, true),
+      );
     }
   }
 
