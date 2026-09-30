@@ -85,8 +85,8 @@ describe('RoomsService', () => {
       .mockResolvedValueOnce(room as any) // findOne(id)
       .mockResolvedValueOnce(room as any); // findOne({ name, id: { $ne: id } })
 
-    await expect(
-      service.update(1, { name: 'Meeting' }, author),
-    ).rejects.toThrow(new ConflictException('Room name already taken'));
+    await expect(service.update(1, { name: 'Meeting' })).rejects.toThrow(
+      new ConflictException('Room name already taken'),
+    );
   });
 });

@@ -61,6 +61,7 @@ docker compose -f docker-compose.build.yml up -d --build
 - [Security Policy](docs/SECURITY.md)
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
 - [User Management](docs/USER_MANAGEMENT.md)
+- [Rooms](docs/ROOMS.md)
 
 ## TODO
 

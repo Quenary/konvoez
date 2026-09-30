@@ -18,12 +18,13 @@ import type { Response } from 'express';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { Author } from '../auth/auth.decorator';
+import { AuthGuardRoles, Author } from '../auth/auth.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RoomsAvatarsService } from './rooms-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserDto } from '../users/users.dto';
+import { EUserRole } from '@konvoez/shared';
 
 @Controller('rooms')
 @UseGuards(AuthGuard)
@@ -34,6 +35,7 @@ export class RoomsController {
   ) {}
 
   @Post()
+  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
   @ApiOkResponse({ type: GetRoomDto })
   async create(
     @Body() dto: CreateRoomDto,
@@ -50,6 +52,7 @@ export class RoomsController {
   }
 
   @Post('avatar/upload')
+  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
   @UseInterceptors(FileInterceptor('avatar'))
   @ApiOkResponse({
     type: UploadFileResultDto,
@@ -92,21 +95,19 @@ export class RoomsController {
   }
 
   @Put(':id')
+  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
   @ApiOkResponse({ type: GetRoomDto })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRoomDto,
-    @Author() author: GetUserDto,
   ): Promise<GetRoomDto> {
-    const room = await this.roomsService.update(id, dto, author);
+    const room = await this.roomsService.update(id, dto);
     return this.roomsService.toDto(room);
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id', ParseIntPipe) id: number,
-    @Author() author: GetUserDto,
-  ) {
-    return this.roomsService.remove(id, author);
+  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.roomsService.remove(id);
   }
 }

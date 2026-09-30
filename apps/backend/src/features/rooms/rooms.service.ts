@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,7 +12,6 @@ import {
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
 import { UserEntity } from '../users/users.entity';
-import { EUserRole } from '@konvoez/shared';
 import { GetUserDto } from '../users/users.dto';
 
 @Injectable()
@@ -75,21 +73,8 @@ export class RoomsService {
     return room;
   }
 
-  async update(
-    id: number,
-    dto: UpdateRoomDto,
-    author: GetUserDto,
-  ): Promise<RoomEntity> {
+  async update(id: number, dto: UpdateRoomDto): Promise<RoomEntity> {
     const room = await this.findOne(id);
-
-    if (
-      room.author.id !== author.id ||
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException(
-        'Room can be deleted by the author or an admin',
-      );
-    }
 
     if (dto.name) {
       const duplicateRoom = await this.repo.findOne({
@@ -116,16 +101,8 @@ export class RoomsService {
     return room;
   }
 
-  async remove(id: number, author: GetUserDto): Promise<void> {
+  async remove(id: number): Promise<void> {
     const room = await this.findOne(id);
-    if (
-      room.author.id !== author.id ||
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException(
-        'Room can be deleted by the author or an admin',
-      );
-    }
     this.em.remove(room);
     await this.em.flush();
   }
