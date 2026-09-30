@@ -66,26 +66,6 @@ export class AuthService implements OnApplicationBootstrap {
     await this.checkAndGenerateOwnerToken();
   }
 
-  private async checkAndGenerateOwnerToken(): Promise<void> {
-    const count = await this.userService.count();
-    if (count === 0) {
-      const token = crypto.randomBytes(16).toString('hex');
-      await this.cacheManager.set(
-        this.ownerSetupTokenCacheKey,
-        token,
-        this.ownerSetupTokenTtl,
-      );
-      this.logger.warn(`
-================================================================================
-[OWNER SETUP] Fresh installation detected! No users exist in the database.
-[OWNER SETUP] One-time registration token for OWNER account (valid for 5 minutes):
-${token}
-[OWNER SETUP] If the token expires, restart the instance to generate a new one.
-================================================================================
-`);
-    }
-  }
-
   async isOwnerSetupRequired(): Promise<boolean> {
     const count = await this.userService.count();
     return count === 0;
@@ -156,7 +136,7 @@ ${token}
       password,
       user.password,
     );
-    if (!result) {
+    if (!result || user.deletedAt) {
       throw new UnauthorizedException('Invalid credentials');
     }
     return this.userService.toDto(user);
@@ -190,6 +170,15 @@ ${token}
         return { ok: true };
       }
       throw error;
+    }
+
+    if (user.deletedAt) {
+      await this.cacheManager.set(
+        cooldownKey,
+        true,
+        passwordRecoveryRequestCooldownMs,
+      );
+      return { ok: true };
     }
 
     const ttlMs = await this.settingsService.getValue(
@@ -255,6 +244,10 @@ ${token}
       throw error;
     }
 
+    if (user.deletedAt) {
+      throw new BadRequestException('Invalid or expired recovery code');
+    }
+
     const candidates = await this.recoveryCodeRepo.find(
       {
         user: user.id,
@@ -288,12 +281,6 @@ ${token}
     return { ok: true };
   }
 
-  private generateRecoveryCode(): string {
-    const max = 10 ** passwordRecoveryCodeLength;
-    const num = crypto.randomInt(0, max);
-    return num.toString().padStart(passwordRecoveryCodeLength, '0');
-  }
-
   generateToken(payload: AuthJWTData): string {
     return this.jwt.sign(payload, {
       secret: this.appService.JWT_SECRET,
@@ -322,9 +309,13 @@ ${token}
 
   async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
     const res = this.verifyToken(accessToken);
-    return await this.userService.findOneByAsDto({
-      id: res.userId,
-    });
+    return await this.requireActiveUser(res.userId);
+  }
+
+  async resolveRefreshToken(refreshToken: string): Promise<AuthJWTData> {
+    const data = this.verifyToken(refreshToken);
+    await this.requireActiveUser(data.userId);
+    return data;
   }
 
   async getUserFromRawCookies(
@@ -339,5 +330,39 @@ ${token}
       return null;
     }
     return await this.getUserFromAccessToken(accessToken);
+  }
+
+  private async checkAndGenerateOwnerToken(): Promise<void> {
+    const count = await this.userService.count();
+    if (count === 0) {
+      const token = crypto.randomBytes(16).toString('hex');
+      await this.cacheManager.set(
+        this.ownerSetupTokenCacheKey,
+        token,
+        this.ownerSetupTokenTtl,
+      );
+      this.logger.warn(`
+================================================================================
+[OWNER SETUP] Fresh installation detected! No users exist in the database.
+[OWNER SETUP] One-time registration token for OWNER account (valid for 5 minutes):
+${token}
+[OWNER SETUP] If the token expires, restart the instance to generate a new one.
+================================================================================
+`);
+    }
+  }
+
+  private generateRecoveryCode(): string {
+    const max = 10 ** passwordRecoveryCodeLength;
+    const num = crypto.randomInt(0, max);
+    return num.toString().padStart(passwordRecoveryCodeLength, '0');
+  }
+
+  private async requireActiveUser(userId: number): Promise<GetUserDto> {
+    const user = await this.userService.findOneByAsDto({ id: userId });
+    if (user.deletedAt) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+    return user;
   }
 }

@@ -71,6 +71,7 @@ describe('AuthController', () => {
             validateUser: jest.fn(),
             generateToken: jest.fn(),
             verifyToken: jest.fn(),
+            resolveRefreshToken: jest.fn(),
             getMe: jest.fn(),
             isOwnerSetupRequired: jest.fn(),
             register: jest.fn(),
@@ -148,31 +149,31 @@ describe('AuthController', () => {
   });
 
   describe('refresh', () => {
-    it('should throw UnauthorizedException when refresh token cookie is missing', () => {
+    it('should throw UnauthorizedException when refresh token cookie is missing', async () => {
       const req = { cookies: {} } as unknown as Request;
 
-      expect(() =>
+      await expect(
         controller.refresh(req, mockResponse as unknown as Response),
-      ).toThrow(new UnauthorizedException('No refresh token'));
+      ).rejects.toThrow(new UnauthorizedException('No refresh token'));
       expect(mockResponse.cookie).not.toHaveBeenCalled();
     });
 
-    it('should verify refresh token, set new cookies, and return ok: true', () => {
+    it('should verify refresh token, set new cookies, and return ok: true', async () => {
       const req = {
         cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
       } as unknown as Request;
       const tokenData: AuthJWTData = { type: 'refresh', userId: 10 };
-      authService.verifyToken.mockReturnValueOnce(tokenData);
+      authService.resolveRefreshToken.mockResolvedValueOnce(tokenData);
       authService.generateToken
         .mockReturnValueOnce('new_access_token')
         .mockReturnValueOnce('new_refresh_token');
 
-      const result = controller.refresh(
+      const result = await controller.refresh(
         req,
         mockResponse as unknown as Response,
       );
 
-      expect(authService.verifyToken).toHaveBeenCalledWith(
+      expect(authService.resolveRefreshToken).toHaveBeenCalledWith(
         'valid_refresh_token',
       );
       expect(authService.generateToken).toHaveBeenNthCalledWith(1, {

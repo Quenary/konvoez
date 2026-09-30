@@ -70,12 +70,15 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_KEY];
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token');
     }
-    const data = this.authService.verifyToken(refreshToken);
+    const data = await this.authService.resolveRefreshToken(refreshToken);
     this.setCookies(data.userId, res);
     return { ok: true };
   }

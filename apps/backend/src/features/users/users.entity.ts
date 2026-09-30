@@ -16,6 +16,7 @@ export const UserEntitySchema = defineEntity({
     email: p.string().length(128).index().unique(),
     role: p.enum(() => EUserRole).default(EUserRole.MEMBER),
     avatar: p.string().length(512).nullable(),
+    deletedAt: p.datetime().nullable(),
 
     rooms: () =>
       p

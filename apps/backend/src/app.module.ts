@@ -4,6 +4,7 @@ import { APP_PIPE } from '@nestjs/core';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { RoomsModule } from './features/rooms/rooms.module';
 import { UsersModule } from './features/users/users.module';
+import { UserManagementModule } from './features/user-management/user-management.module';
 import { AuthModule } from './features/auth/auth.module';
 import { SharedModule } from './shared/shared.module';
 import { VoiceRoomsModule } from './features/voice-rooms/voice-rooms.module';
@@ -24,6 +25,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     AuthModule,
     RoomsModule,
     UsersModule,
+    UserManagementModule,
     SharedModule,
     TextRoomsModule,
     SettingsModule,

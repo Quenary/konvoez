@@ -5,16 +5,13 @@ import { selectAuth } from '@features/auth/auth.selectors';
 import { EUserRole } from '@konvoez/shared';
 import { first, map } from 'rxjs';
 
-export const adminGuard: CanActivateFn = () => {
+export const ownerGuard: CanActivateFn = () => {
   const store = inject(Store);
   const router = inject(Router);
   return store.select(selectAuth).pipe(
     first((auth) => auth.init),
-    map((auth) => {
-      const isAdminOrOwner =
-        auth.user?.role === EUserRole.ADMIN ||
-        auth.user?.role === EUserRole.OWNER;
-      return isAdminOrOwner ? true : router.createUrlTree(['/']);
-    }),
+    map((auth) =>
+      auth.user?.role === EUserRole.OWNER ? true : router.createUrlTree(['/']),
+    ),
   );
 };

@@ -6,11 +6,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserEntity } from './users.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
 import { EUserRole } from '@konvoez/shared';
 import { PasswordService } from '../../shared/services/password.service';
+import { UserEntity } from './users.entity';
+import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -193,6 +193,7 @@ export class UsersService {
       updatedAt: user.updatedAt,
       avatar: user.avatar,
       avatarUrl: this.getAvatarUrl(user.avatar),
+      deletedAt: user.deletedAt ?? null,
     };
   }
 

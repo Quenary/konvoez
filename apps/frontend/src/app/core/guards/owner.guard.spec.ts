@@ -8,18 +8,18 @@ import {
 } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAuth } from '@features/auth/auth.selectors';
-import { adminGuard } from './admin.guard';
+import { ownerGuard } from './owner.guard';
 import { firstValueFrom, Observable } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EUserRole, IUser } from '@konvoez/shared';
 
-describe('adminGuard', () => {
+describe('ownerGuard', () => {
   let store: MockStore;
   let router: Router;
 
   const executeGuard = () => {
     return TestBed.runInInjectionContext(() =>
-      adminGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
+      ownerGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
     ) as Observable<boolean | UrlTree>;
   };
 
@@ -53,19 +53,7 @@ describe('adminGuard', () => {
     router = TestBed.inject(Router);
   });
 
-  it('should allow access (return true) when user is ADMIN', async () => {
-    store.overrideSelector(selectAuth, {
-      init: true,
-      user: createMockUser(EUserRole.ADMIN),
-      loading: false,
-    });
-    store.refreshState();
-
-    const result = await firstValueFrom(executeGuard());
-    expect(result).toBe(true);
-  });
-
-  it('should allow access (return true) when user is OWNER', async () => {
+  it('should allow access when user is OWNER', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
       user: createMockUser(EUserRole.OWNER),
@@ -75,6 +63,18 @@ describe('adminGuard', () => {
 
     const result = await firstValueFrom(executeGuard());
     expect(result).toBe(true);
+  });
+
+  it('should redirect to / when user is ADMIN', async () => {
+    store.overrideSelector(selectAuth, {
+      init: true,
+      user: createMockUser(EUserRole.ADMIN),
+      loading: false,
+    });
+    store.refreshState();
+
+    const result = await firstValueFrom(executeGuard());
+    expect(result).toEqual(router.createUrlTree(['/']));
   });
 
   it('should redirect to / when user is MEMBER', async () => {
@@ -87,36 +87,5 @@ describe('adminGuard', () => {
 
     const result = await firstValueFrom(executeGuard());
     expect(result).toEqual(router.createUrlTree(['/']));
-  });
-
-  it('should redirect to / when user is null', async () => {
-    store.overrideSelector(selectAuth, {
-      init: true,
-      user: null,
-      loading: false,
-    });
-    store.refreshState();
-
-    const result = await firstValueFrom(executeGuard());
-    expect(result).toEqual(router.createUrlTree(['/']));
-  });
-
-  it('should wait until init is true before emitting', () => {
-    let emitted = false;
-
-    executeGuard().subscribe(() => {
-      emitted = true;
-    });
-
-    expect(emitted).toBe(false);
-
-    store.overrideSelector(selectAuth, {
-      init: true,
-      user: createMockUser(EUserRole.ADMIN),
-      loading: false,
-    });
-    store.refreshState();
-
-    expect(emitted).toBe(true);
   });
 });

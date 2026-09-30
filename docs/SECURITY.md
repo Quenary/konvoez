@@ -38,6 +38,7 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
   - Session tokens are JWTs delivered via secure HTTP cookies.
   - User passwords are secure hashes stored using Argon2 / bcrypt.
   - Password recovery uses emailed one-time codes (hashed at rest, short TTL, anti-enumeration). See [Password recovery](PASSWORD_RECOVERY.md).
+  - An account with `deletedAt` set cannot log in, refresh a session, open a socket, or complete password recovery. See [User management](USER_MANAGEMENT.md).
 
 Reports are judged against this model rather than against a multi-tenant cloud SaaS.
 

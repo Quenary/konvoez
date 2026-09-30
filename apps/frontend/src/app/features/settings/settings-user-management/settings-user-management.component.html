@@ -1,0 +1,85 @@
+<div
+  appearance="floating"
+  tuiCardLarge>
+  <header tuiHeader>
+    <h2 tuiTitle>
+      {{ 'SETTINGS.USERS.TITLE' | translate }}
+      <span tuiSubtitle>
+        {{ 'SETTINGS.USERS.SUBTITLE' | translate }}
+      </span>
+    </h2>
+  </header>
+
+  <div class="table-wrapper">
+    <table
+      tuiTable
+      class="users-table">
+      <thead>
+        <tr>
+          <th
+            tuiTh
+            class="col-user">
+            {{ 'SETTINGS.USERS.TABLE.USER' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-email">
+            {{ 'SETTINGS.USERS.TABLE.EMAIL' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-date">
+            {{ 'SETTINGS.USERS.TABLE.CREATED' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody tuiTbody>
+        @for (user of usersResource.value(); track user.id) {
+          @let hint = user.fullname !== user.username ? user.fullname : null;
+          <tr
+            class="user-row"
+            tabindex="0"
+            (click)="openUser(user.id)"
+            (keydown.enter)="openUser(user.id)">
+            <td
+              tuiTd
+              class="col-user">
+              <span class="user-cell">
+                <app-user-avatar
+                  size="s"
+                  [avatarUrl]="user.avatarUrl"
+                  [fullname]="user.fullname"
+                  [username]="user.username" />
+                <span
+                  tuiHintAppearance="floating"
+                  [style.color]="user.username | tuiAutoColor"
+                  [tuiHint]="hint">
+                  {{ user.username }}
+                </span>
+              </span>
+            </td>
+            <td
+              tuiTd
+              class="col-email">
+              {{ user.email }}
+            </td>
+            <td
+              tuiTd
+              class="col-date">
+              {{ user.createdAt | date: 'yyyy-MM-dd HH:mm' }}
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td
+              tuiTd
+              colspan="3"
+              class="empty-cell">
+              {{ 'SETTINGS.USERS.NO_USERS' | translate }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

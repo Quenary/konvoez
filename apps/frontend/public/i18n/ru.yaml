@@ -49,6 +49,7 @@ MENU:
     DEVICES: Устройства
     NOTIFICATIONS: Уведомления
     INVITES: Приглашения
+    USERS: Пользователи
     ADMIN: Администрирование
 DIRECT:
   TITLE: Личные сообщения
@@ -146,6 +147,24 @@ SETTINGS:
       USED: Использовано
       REVOKED: Отозвано
       EXPIRED: Истекло
+  USERS:
+    TITLE: Пользователи
+    SUBTITLE: Управление учетными записями
+    NO_USERS: Нет пользователей
+    DIALOG_TITLE: Пользователь
+    TABLE:
+      USER: Пользователь
+      EMAIL: Email
+      CREATED: Создан
+    ID: ID
+    FULLNAME: Полное имя
+    EMAIL: Email
+    CREATED: Дата создания
+    UPDATED: Дата изменения
+    ROLE: Роль
+    ROLE_OWNER: Владелец
+    ROLE_ADMIN: Администратор
+    ROLE_MEMBER: Пользователь
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
@@ -156,6 +175,12 @@ SETTINGS:
     ICE_SERVERS: Конфигурация ICE серверов (JSON)
     ICE_SERVERS_DESC: Список STUN/TURN серверов для WebRTC соединений в формате JSON
     SAVED_SUCCESS: Настройки успешно сохранены
+USER_DELETE:
+  TITLE: Удаление учетной записи
+  FULL: Полное удаление
+  FULL_HINT: |-
+    - Без этого флажка учетная запись анонимизируется, комнаты и сообщения сохраняются.
+    - С флажком безвозвратно удаляются учетная запись, созданные пользователем комнаты и все его сообщения.
 VALIDATION:
   REQUIRED: Обязательное поле
   STRING: Значение должно быть строкой

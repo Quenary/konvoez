@@ -60,10 +60,10 @@ docker compose -f docker-compose.build.yml up -d --build
 - [Contributing Guidelines](docs/CONTRIBUTING.md)
 - [Security Policy](docs/SECURITY.md)
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
+- [User Management](docs/USER_MANAGEMENT.md)
 
 ## TODO
 
-- Add user management for admin (table, role change, logical and physical deletion)
 - Add message assets (files)
 - Add camera/screen sharing
 - Add emojis or/and customizable smile/sticker packs

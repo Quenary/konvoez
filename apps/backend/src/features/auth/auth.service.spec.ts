@@ -288,6 +288,19 @@ describe('AuthService', () => {
         service.validateUser('test_user', 'wrong_password'),
       ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
     });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce({
+        ...mockUserEntity,
+        deletedAt: new Date(),
+      });
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+
+      await expect(
+        service.validateUser('test_user', 'password123'),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      expect(usersService.toDto).not.toHaveBeenCalled();
+    });
   });
 
   describe('generateToken', () => {
@@ -331,6 +344,19 @@ describe('AuthService', () => {
       });
       expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
       expect(result).toEqual(mockUserDto);
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      const payload: AuthJWTData = { type: 'access', userId: 1 };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneByAsDto.mockResolvedValueOnce({
+        ...mockUserDto,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.getUserFromAccessToken('valid_token'),
+      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
     });
   });
 
@@ -656,6 +682,23 @@ describe('AuthService', () => {
         email: 'user@example.com',
       });
     });
+
+    it('should return ok without sending mail when the account is deleted', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        deletedAt: new Date(),
+      });
+
+      const result = await service.requestPasswordRecovery({
+        email: 'test@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+      expect(recoveryCodeRepo.create).not.toHaveBeenCalled();
+      expect(cacheManager.set).toHaveBeenCalled();
+    });
   });
 
   describe('confirmPasswordRecovery', () => {
@@ -717,6 +760,48 @@ describe('AuthService', () => {
       expect(usersService.findOneBy).toHaveBeenCalledWith({
         email: 'user@example.com',
       });
+    });
+
+    it('should reject a deleted account without changing the password', async () => {
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'test@example.com',
+          code: '123456',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(usersService.setPassword).not.toHaveBeenCalled();
+      expect(recoveryCodeRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveRefreshToken', () => {
+    it('should return token data when the account is active', async () => {
+      const payload: AuthJWTData = { type: 'refresh', userId: 1 };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).resolves.toEqual(payload);
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      const payload: AuthJWTData = { type: 'refresh', userId: 1 };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneByAsDto.mockResolvedValueOnce({
+        ...mockUserDto,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
     });
   });
 });

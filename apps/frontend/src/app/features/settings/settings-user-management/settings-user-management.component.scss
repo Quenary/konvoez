@@ -1,0 +1,49 @@
+:host {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 60rem;
+  margin: 0 auto;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-block-start: 1.5rem;
+}
+
+.users-table {
+  inline-size: 100%;
+
+  th,
+  td {
+    border-inline: none;
+  }
+}
+
+.col-user {
+  inline-size: auto;
+}
+
+.col-email {
+  inline-size: 16rem;
+}
+
+.col-date {
+  inline-size: 11rem;
+  white-space: nowrap;
+}
+
+.user-row {
+  cursor: pointer;
+}
+
+.user-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--tui-text-secondary);
+}

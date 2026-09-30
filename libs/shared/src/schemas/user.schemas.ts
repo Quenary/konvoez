@@ -27,6 +27,15 @@ export const userUpdateSchema = userCreateSchema
     avatar: stringSchema.optional(),
   });
 
+export const userManagementUpdateSchema = z
+  .object({
+    role: z.enum([EUserRole.ADMIN, EUserRole.MEMBER]),
+  })
+  .partial()
+  .refine((data) => data.role !== undefined, {
+    error: 'At least one field is required',
+  });
+
 export const userSchema = baseEntitySchema.extend({
   id: z.number().int(),
   username: usernameSchema,
@@ -35,8 +44,10 @@ export const userSchema = baseEntitySchema.extend({
   role: userRoleSchema,
   avatar: stringSchema.nullish(),
   avatarUrl: stringSchema.nullish(),
+  deletedAt: z.coerce.date().nullish(),
 });
 
 export type IUserCreate = z.infer<typeof userCreateSchema>;
 export type IUserUpdate = z.infer<typeof userUpdateSchema>;
+export type IUserManagementUpdate = z.infer<typeof userManagementUpdateSchema>;
 export type IUser = z.infer<typeof userSchema>;

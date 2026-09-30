@@ -49,6 +49,7 @@ MENU:
     DEVICES: Devices
     NOTIFICATIONS: Notifications
     INVITES: Invites
+    USERS: Users
     ADMIN: Administration
 DIRECT:
   TITLE: Direct messages
@@ -146,6 +147,24 @@ SETTINGS:
       USED: Used
       REVOKED: Revoked
       EXPIRED: Expired
+  USERS:
+    TITLE: Users
+    SUBTITLE: Manage user accounts
+    NO_USERS: No users
+    DIALOG_TITLE: User
+    TABLE:
+      USER: User
+      EMAIL: Email
+      CREATED: Created
+    ID: ID
+    FULLNAME: Full name
+    EMAIL: Email
+    CREATED: Created
+    UPDATED: Modified
+    ROLE: Role
+    ROLE_OWNER: Owner
+    ROLE_ADMIN: Admin
+    ROLE_MEMBER: User
   ADMIN:
     TITLE: Administration
     SUBTITLE: Global server settings
@@ -156,6 +175,12 @@ SETTINGS:
     ICE_SERVERS: ICE servers configuration (JSON)
     ICE_SERVERS_DESC: List of STUN/TURN servers for WebRTC connections in JSON format
     SAVED_SUCCESS: Settings saved successfully
+USER_DELETE:
+  TITLE: Account deletion
+  FULL: Full deletion
+  FULL_HINT: |-
+    - Without this option the account is anonymized and rooms and messages stay.
+    - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
   STRING: Value must be a string

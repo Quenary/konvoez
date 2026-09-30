@@ -58,6 +58,10 @@ export class App {
     return role === EUserRole.ADMIN || role === EUserRole.OWNER;
   });
 
+  protected readonly isOwner = computed(() => {
+    return this.currentUser()?.role === EUserRole.OWNER;
+  });
+
   protected readonly collapsed = linkedSignal(() => this.isNarrow());
 
   protected readonly versionInfo = rxResource({
