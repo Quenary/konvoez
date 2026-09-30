@@ -222,3 +222,8 @@ AUTH:
     BACK: Back
     CODE_SENT: If an account exists for this email, a recovery code has been sent
     SUCCESS: Password updated. You can sign in now
+PWA:
+  UPDATE:
+    TITLE: Update available
+    CONTENT: A new version of the app is ready. Reload to apply the update.
+    ACTION: Update
