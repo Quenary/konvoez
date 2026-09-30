@@ -23,6 +23,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiForm } from '@taiga-ui/layout';
 import {
+  TuiAutoColorPipe,
   TuiAvatar,
   TuiDataListWrapper,
   TuiFileLike,
@@ -31,7 +32,7 @@ import {
 } from '@taiga-ui/kit';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RoomsApiService } from '../rooms-api.service';
-import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
+import { DatePipe, LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
   createZodError,
@@ -48,6 +49,7 @@ export type RoomDialogData = Partial<IRoom>;
 @Component({
   selector: 'app-room-dialog',
   imports: [
+    DatePipe,
     ReactiveFormsModule,
     TranslatePipe,
     LowerCasePipe,
@@ -61,6 +63,7 @@ export type RoomDialogData = Partial<IRoom>;
     TuiSelect,
     TuiDataListWrapper,
     TuiFiles,
+    TuiAutoColorPipe,
     TuiAvatar,
     TuiLink,
   ],
@@ -116,6 +119,13 @@ export class RoomDialogComponent {
   protected readonly avatarUrl = signal<string | null>(
     this.context.data.avatarUrl ?? null,
   );
+  protected readonly meta = this.context.data.id
+    ? {
+        author: this.context.data.author,
+        createdAt: this.context.data.createdAt,
+        updatedAt: this.context.data.updatedAt,
+      }
+    : null;
 
   constructor() {
     this.form.controls.avatarFile.valueChanges

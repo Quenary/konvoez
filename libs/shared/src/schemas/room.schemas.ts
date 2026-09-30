@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { roomNameSchema } from './fields.schemas';
 import { ERoomType } from '../enums';
+import { userBriefSchema } from './user.schemas';
 
 export const roomTypeSchema = z.enum(ERoomType, {
   error: SCHEMA_ERROR.ROOM_TYPE,
@@ -18,12 +19,16 @@ export const roomUpdateSchema = z.object({
   avatar: stringSchema.nullish(),
 });
 
+export const roomAuthorSchema = userBriefSchema.clone();
+export type IRoomAuthor = z.infer<typeof roomAuthorSchema>;
+
 export const roomSchema = baseEntitySchema.extend({
   id: z.number().int(),
   name: roomNameSchema,
   type: roomTypeSchema,
   avatar: stringSchema.nullish(),
   avatarUrl: stringSchema.nullish(),
+  author: roomAuthorSchema,
 });
 
 export type IRoomCreate = z.infer<typeof roomCreateSchema>;

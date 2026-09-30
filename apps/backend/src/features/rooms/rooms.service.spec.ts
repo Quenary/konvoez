@@ -50,7 +50,7 @@ describe('RoomsService', () => {
     name: 'Meeting',
     type: ERoomType.TEXT,
     avatar: null,
-    author: { id: 1 },
+    author: { id: 1, username: 'alice', fullname: 'Alice Example' },
     createdAt: new Date(),
     updatedAt: null,
   } as unknown as RoomEntity;
@@ -60,6 +60,7 @@ describe('RoomsService', () => {
       getReference: jest.fn().mockReturnValue({ id: author.id }),
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
+      populate: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {

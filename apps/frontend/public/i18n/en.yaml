@@ -96,6 +96,9 @@ ROOMS:
     TYPE: Type
     TEXT: Text
     VOICE: Voice
+    AUTHOR: Author
+    CREATED: Created
+    UPDATED: Modified
 SETTINGS:
   PROFILE:
     TITLE: Profile settings

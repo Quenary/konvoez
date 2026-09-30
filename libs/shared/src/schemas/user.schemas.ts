@@ -17,3 +17,11 @@ export const userSchema = baseEntitySchema.extend({
 });
 
 export type IUser = z.infer<typeof userSchema>;
+
+export const userBriefSchema = userSchema.pick({
+  id: true,
+  username: true,
+  fullname: true,
+});
+
+export type IUserBrief = z.infer<typeof userBriefSchema>;

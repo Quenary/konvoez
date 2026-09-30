@@ -65,6 +65,7 @@ describe('RoomsComponent', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
   };
@@ -75,6 +76,7 @@ describe('RoomsComponent', () => {
     type: ERoomType.VOICE,
     avatar: null,
     avatarUrl: null,
+    author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
   };

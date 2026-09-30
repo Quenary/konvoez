@@ -26,7 +26,7 @@ export class RoomsService {
   }
 
   async findOne(id: number): Promise<RoomEntity> {
-    const room = await this.repo.findOne({ id });
+    const room = await this.repo.findOne({ id }, { populate: ['author'] });
     if (!room) {
       throw new NotFoundException('Room not found');
     }
@@ -38,7 +38,7 @@ export class RoomsService {
   }
 
   async findAll(): Promise<RoomEntity[]> {
-    return this.repo.findAll();
+    return this.repo.findAll({ populate: ['author'] });
   }
 
   async findAllAsDto(): Promise<GetRoomDto[]> {
@@ -70,6 +70,7 @@ export class RoomsService {
       throw error;
     }
 
+    await this.em.populate(room, ['author']);
     return room;
   }
 
@@ -114,6 +115,11 @@ export class RoomsService {
       type: room.type,
       avatar: room.avatar,
       avatarUrl: this.getAvatarUrl(room.avatar),
+      author: {
+        id: room.author.id,
+        username: room.author.username,
+        fullname: room.author.fullname,
+      },
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     };

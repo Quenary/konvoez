@@ -96,6 +96,9 @@ ROOMS:
     TYPE: Тип
     TEXT: Текстовая
     VOICE: Голосовая
+    AUTHOR: Автор
+    CREATED: Дата создания
+    UPDATED: Дата изменения
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля

@@ -242,6 +242,7 @@ export class RoomsComponent implements OnInit {
         data: {
           yes: this.translateService.instant('GENERAL.DELETE'),
           no: this.translateService.instant('GENERAL.CANCEL'),
+          appearance: 'negative',
         } satisfies TuiConfirmData,
       })
       .subscribe((res) => {
