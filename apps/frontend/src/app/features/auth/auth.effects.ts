@@ -1,7 +1,16 @@
 import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { AuthActions } from './auth.actions';
-import { catchError, filter, finalize, map, of, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  filter,
+  finalize,
+  map,
+  of,
+  switchMap,
+  tap,
+  type Observable,
+} from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
 import { UsersStore } from '../users/users.store';
@@ -159,6 +168,30 @@ export class AuthEffects {
     ),
   );
 
+  readonly requestDeleteSelf$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.requestDeleteSelf),
+      switchMap(({ fullDeletion }) => {
+        const request$: Observable<unknown> = fullDeletion
+          ? this.profileApiService.remove()
+          : this.profileApiService.anonymize();
+        return request$.pipe(
+          map(() => AuthActions.requestDeleteSelfSuccess()),
+          catchError((error) =>
+            of(AuthActions.requestDeleteSelfError({ error })),
+          ),
+        );
+      }),
+    ),
+  );
+
+  readonly requestDeleteSelfSuccess$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.requestDeleteSelfSuccess),
+      map(() => AuthActions.requestLogout()),
+    ),
+  );
+
   readonly showError$ = createEffect(
     () =>
       this.actions$.pipe(
@@ -167,6 +200,7 @@ export class AuthEffects {
           AuthActions.requestLogoutError,
           AuthActions.requestRegisterError,
           AuthActions.requestPatchUserError,
+          AuthActions.requestDeleteSelfError,
         ),
         tap(({ error }) => {
           this.tuiNotificationsService

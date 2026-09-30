@@ -1,13 +1,16 @@
 import {
   Body,
   Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
   Patch,
   Post,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
@@ -38,6 +41,24 @@ export class ProfileController {
     @Author() author: GetUserDto,
   ): Promise<GetUserDto> {
     return await this.profileService.updateSelf(author, dto);
+  }
+
+  @Post('anonymize')
+  @ApiOkResponse({
+    type: GetUserDto,
+    description: 'Anonymize the current user and keep their rooms and messages',
+  })
+  async anonymize(@Author() author: GetUserDto): Promise<GetUserDto> {
+    return await this.profileService.anonymizeSelf(author);
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({
+    description: 'Physically delete the current user and their traces',
+  })
+  async remove(@Author() author: GetUserDto): Promise<void> {
+    await this.profileService.removeSelf(author);
   }
 
   @Post('avatar/upload')

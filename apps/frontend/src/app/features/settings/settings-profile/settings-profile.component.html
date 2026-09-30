@@ -171,5 +171,16 @@
       (click)="logout()">
       {{ 'GENERAL.LOG_OUT' | translate }}
     </button>
+
+    @if (canDeleteAccount()) {
+      <button
+        tuiButton
+        appearance="negative"
+        iconStart="@tui.trash"
+        type="button"
+        (click)="openDelete()">
+        {{ 'SETTINGS.PROFILE.DELETE' | translate }}
+      </button>
+    }
   </footer>
 </form>

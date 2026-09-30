@@ -17,6 +17,22 @@ export class ProfileApiService {
     });
   }
 
+  anonymize(): Observable<IUser> {
+    return this.httpClient.post<IUser>(
+      `${this.baseUrl}/anonymize`,
+      {},
+      {
+        withCredentials: true,
+      },
+    );
+  }
+
+  remove(): Observable<void> {
+    return this.httpClient.delete<void>(this.baseUrl, {
+      withCredentials: true,
+    });
+  }
+
   avatarUpload(avatar: File): Observable<IUploadFileResult> {
     const formData = new FormData();
     formData.append('avatar', avatar);

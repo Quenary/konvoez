@@ -2,7 +2,7 @@
 
 Owner manage other accounts from **Settings → Users** (`/settings/users`). The API is `/api/v1/user-management` and accepts only an `OWNER` session. `ADMIN` and `MEMBER` get `403`. The owner cannot change or delete their own account, or any account with the `OWNER` role.
 
-Related user APIs: directory listing is authenticated `GET /api/v1/users` and `GET /api/v1/users/:id`; self-profile is `PATCH /api/v1/profile` and avatar upload `POST /api/v1/profile/avatar/upload`; avatar streaming is `GET /api/v1/users/avatar/stream`. Soft-delete (`deletedAt`) is set only via anonymize below. `deletedAt` is on the public user object (`null` means the account is active).
+Related user APIs: directory listing is authenticated `GET /api/v1/users` and `GET /api/v1/users/:id`; self-profile is `PATCH /api/v1/profile`, avatar upload `POST /api/v1/profile/avatar/upload`, self-anonymize `POST /api/v1/profile/anonymize`, and self physical delete `DELETE /api/v1/profile`; avatar streaming is `GET /api/v1/users/avatar/stream`. Soft-delete (`deletedAt`) is set only via anonymize below. `deletedAt` is on the public user object (`null` means the account is active).
 
 ## Role
 
@@ -39,3 +39,12 @@ Invites, recovery codes, push subscriptions, notifications, and read receipts fo
 ## UI
 
 The menu item is shown only to the owner. A row opens the account and shows all public fields except the password. Delete opens a confirmation. **Full deletion** is off by default (logical deletion); turning it on selects physical deletion. The dialog only returns that choice; the caller performs the request.
+
+## Self-deletion
+
+Non-owner authenticated users can delete their own account from **Settings → Profile**. The `OWNER` account cannot be anonymized or physically deleted (self or via user management) and gets `403`.
+
+- `POST /api/v1/profile/anonymize` — logical deletion (same outcome as owner anonymize of another user)
+- `DELETE /api/v1/profile` — physical deletion (same outcome as owner physical delete of another user)
+
+After a successful self-deletion the client logs out and clears the session.

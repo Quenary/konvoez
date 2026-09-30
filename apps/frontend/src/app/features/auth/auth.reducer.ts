@@ -77,4 +77,17 @@ export const authReducer = createReducer(
     ...state,
     loading: false,
   })),
+  // Delete self
+  on(AuthActions.requestDeleteSelf, (state) => ({
+    ...state,
+    loading: true,
+  })),
+  on(AuthActions.requestDeleteSelfSuccess, (state) => ({
+    ...state,
+    loading: false,
+  })),
+  on(AuthActions.requestDeleteSelfError, (state) => ({
+    ...state,
+    loading: false,
+  })),
 );

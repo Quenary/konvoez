@@ -1,6 +1,11 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { EUserRole } from '@konvoez/shared';
 import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
@@ -57,5 +62,22 @@ export class ProfileService {
     this.em.persist(user);
     await this.em.flush();
     return this.usersService.toDto(user);
+  }
+
+  async anonymizeSelf(author: GetUserDto): Promise<GetUserDto> {
+    this.assertNotOwner(author);
+    const user = await this.usersService.findOne(author.id);
+    return await this.usersService.anonymizeLoaded(user);
+  }
+
+  async removeSelf(author: GetUserDto): Promise<void> {
+    this.assertNotOwner(author);
+    await this.usersService.removeLoaded(author.id);
+  }
+
+  private assertNotOwner(author: GetUserDto): void {
+    if (author.role === EUserRole.OWNER) {
+      throw new ForbiddenException('Owner account cannot be deleted');
+    }
   }
 }

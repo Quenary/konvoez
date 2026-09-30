@@ -19,7 +19,11 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { EUserRole } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { PasswordService } from '../../shared/services/password.service';
@@ -33,7 +37,9 @@ describe('ProfileService', () => {
   let service: ProfileService;
   let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
-  let usersService: jest.Mocked<Pick<UsersService, 'findOne' | 'toDto'>>;
+  let usersService: jest.Mocked<
+    Pick<UsersService, 'findOne' | 'toDto' | 'anonymizeLoaded' | 'removeLoaded'>
+  >;
   let passwordService: jest.Mocked<PasswordService>;
 
   const mockUser = {
@@ -81,6 +87,8 @@ describe('ProfileService', () => {
     usersService = {
       findOne: jest.fn().mockResolvedValue(mockUser),
       toDto: jest.fn().mockReturnValue(author),
+      anonymizeLoaded: jest.fn().mockResolvedValue(author),
+      removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new ProfileService(
@@ -164,6 +172,42 @@ describe('ProfileService', () => {
           fullname: 'New Name',
         } as UpdateProfileDto),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('anonymizeSelf', () => {
+    it('should load the current user and anonymize through UsersService', async () => {
+      const result = await service.anonymizeSelf(author);
+
+      expect(usersService.findOne).toHaveBeenCalledWith(author.id);
+      expect(usersService.anonymizeLoaded).toHaveBeenCalledWith(mockUser);
+      expect(result).toBe(author);
+    });
+
+    it('should reject owner self-anonymize', async () => {
+      await expect(
+        service.anonymizeSelf({ ...author, role: EUserRole.OWNER }),
+      ).rejects.toThrow(
+        new ForbiddenException('Owner account cannot be deleted'),
+      );
+      expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeSelf', () => {
+    it('should remove the current user through UsersService', async () => {
+      await service.removeSelf(author);
+
+      expect(usersService.removeLoaded).toHaveBeenCalledWith(author.id);
+    });
+
+    it('should reject owner self-removal', async () => {
+      await expect(
+        service.removeSelf({ ...author, role: EUserRole.OWNER }),
+      ).rejects.toThrow(
+        new ForbiddenException('Owner account cannot be deleted'),
+      );
+      expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
   });
 });

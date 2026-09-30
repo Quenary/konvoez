@@ -98,6 +98,7 @@ ROOMS:
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля
+    DELETE: Удалить аккаунт
   INITIAL_SETUP:
     TITLE: Первоначальная настройка
     CONTINUE: Продолжить

@@ -1,9 +1,18 @@
-import { Component, effect, inject, linkedSignal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  Injector,
+  linkedSignal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,
+  TuiDialogService,
   TuiError,
   TuiInput,
   TuiLink,
@@ -12,10 +21,12 @@ import {
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TuiSwitch, TuiFiles, TuiAvatar, TuiFileLike } from '@taiga-ui/kit';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { AuthActions } from '@features/auth/auth.actions';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
   emailSchema,
+  EUserRole,
   fullnameSchema,
   IProfileUpdate,
   passwordSchema,
@@ -25,6 +36,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ProfileApiService } from './profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
+import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
 import {
   createZodError,
   createZodFieldValidator,
@@ -53,14 +65,21 @@ import { getProfileFormSchema } from '@shared/schemas/forms.schema';
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsProfileComponent {
   private readonly store = inject(Store);
   private readonly profileApiService = inject(ProfileApiService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly dialogService = inject(TuiDialogService);
+  private readonly injector = inject(Injector);
 
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  protected readonly canDeleteAccount = computed(() => {
+    const currentUser = this.currentUser();
+    return currentUser != null && currentUser.role !== EUserRole.OWNER;
+  });
   protected readonly form = new FormGroup(
     {
       username: new FormControl('', {
@@ -197,5 +216,34 @@ export class SettingsProfileComponent {
 
   protected logout(): void {
     this.store.dispatch(AuthActions.requestLogout());
+  }
+
+  protected openDelete(): void {
+    void this.openDeleteDialog();
+  }
+
+  private async openDeleteDialog(): Promise<void> {
+    const { UserDeleteDialogComponent } =
+      await import('@shared/components/user-delete-dialog/user-delete-dialog.component');
+
+    this.dialogService
+      .open<IUserDeleteDialogResult | null>(
+        new PolymorpheusComponent(UserDeleteDialogComponent, this.injector),
+        {
+          closable: true,
+          label: this.translateService.instant('USER_DELETE.TITLE'),
+          size: 's',
+        },
+      )
+      .subscribe((result) => {
+        if (!result) {
+          return;
+        }
+        this.store.dispatch(
+          AuthActions.requestDeleteSelf({
+            fullDeletion: result.fullDeletion,
+          }),
+        );
+      });
   }
 }
