@@ -64,9 +64,9 @@
     class="room-item"
     tuiAsideItem
     [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
-    tuiDropdownHover
-    (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
-    (click)="selectRoom(room)">
+    tuiDropdownContext
+    (longtap)="onRoomLongtap(room)"
+    (click)="onRoomClick(room)">
     <tui-badged-content class="aside-badge">
       @if (unreadCountsStore.roomUnreadCount(room.id); as count) {
         <tui-badge-notification
@@ -118,9 +118,9 @@
     tuiAsideItem
     appearance="active"
     [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
-    tuiDropdownHover
-    (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
-    (click)="selectRoom(room)">
+    tuiDropdownContext
+    (longtap)="onRoomLongtap(room)"
+    (click)="onRoomClick(room)">
     <app-pulse-indicator [isActive]="room.isUserInRoom">
       <div
         tuiAvatar
@@ -151,22 +151,12 @@
 <ng-template
   #roomContextMenu
   let-close>
-  <tui-data-list>
-    <tui-opt-group [label]="contextMenuOpenedFor()?.name ?? ''">
-      <button
-        tuiOption
-        iconEnd="@tui.edit"
-        (click)="editRoom(contextMenuOpenedFor()!); close()">
-        {{ 'GENERAL.EDIT' | translate }}
-      </button>
-      <button
-        tuiOption
-        iconEnd="@tui.delete"
-        (click)="deleteRoom(contextMenuOpenedFor()!); close()">
-        {{ 'GENERAL.DELETE' | translate }}
-      </button>
-    </tui-opt-group>
-  </tui-data-list>
+  @if (contextMenuOpenedFor(); as room) {
+    <app-room-context-menu
+      [roomName]="room.name"
+      (edit)="editRoom(room); close()"
+      (delete)="deleteRoom(room); close()" />
+  }
 </ng-template>
 
 <ng-template

@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
 import { RoomsActions } from './rooms.actions';
 import { IRoom } from './rooms.interface';
@@ -93,6 +94,7 @@ describe('RoomsComponent', () => {
     [me.id]: me,
     [bob.id]: bob,
   });
+  const isTouch = signal(false);
 
   const usersStore = {
     loadAll: vi.fn(),
@@ -118,8 +120,11 @@ describe('RoomsComponent', () => {
       hangingCallPeer: () => IUser | null;
       textRooms: () => IRoom[];
       canManageRooms: () => boolean;
+      contextMenuOpenedFor: () => IRoom | null;
       openHangingCall: (peer: IUser) => void;
       selectRoom: (room: IRoom) => void;
+      onRoomLongtap: (room: IRoom) => void;
+      onRoomClick: (room: IRoom) => void;
       addRoom: (type: ERoomType) => Promise<void>;
       editRoom: (room: IRoom) => Promise<void>;
       deleteRoom: (room: IRoom) => void;
@@ -132,6 +137,7 @@ describe('RoomsComponent', () => {
     activeCall.set(null);
     rejoinableCall.set(null);
     entityMap.set({ [me.id]: me, [bob.id]: bob });
+    isTouch.set(false);
 
     await TestBed.configureTestingModule({
       imports: [RoomsComponent],
@@ -186,6 +192,7 @@ describe('RoomsComponent', () => {
           provide: TuiResponsiveDialogService,
           useValue: responsiveDialogService,
         },
+        { provide: WA_IS_TOUCH, useValue: isTouch },
       ],
     })
       .overrideComponent(RoomsComponent, {
@@ -355,6 +362,41 @@ describe('RoomsComponent', () => {
     asProtected().selectRoom(voiceRoom);
     expect(store.dispatch).toHaveBeenCalledWith(
       RoomsActions.selectRoom({ room: voiceRoom }),
+    );
+  });
+
+  it('should remember room for context menu on longtap', () => {
+    asProtected().onRoomLongtap(textRoom);
+    expect(asProtected().contextMenuOpenedFor()).toEqual(textRoom);
+  });
+
+  it('should select room on click', () => {
+    asProtected().onRoomClick(voiceRoom);
+    expect(store.dispatch).toHaveBeenCalledWith(
+      RoomsActions.selectRoom({ room: voiceRoom }),
+    );
+  });
+
+  it('should not select room on the click that follows a touch longtap', () => {
+    isTouch.set(true);
+    asProtected().onRoomLongtap(textRoom);
+    vi.mocked(store.dispatch).mockClear();
+
+    asProtected().onRoomClick(textRoom);
+
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      RoomsActions.selectRoom({ room: textRoom }),
+    );
+  });
+
+  it('should select room on click after desktop right-click longtap', () => {
+    asProtected().onRoomLongtap(textRoom);
+    vi.mocked(store.dispatch).mockClear();
+
+    asProtected().onRoomClick(textRoom);
+
+    expect(store.dispatch).toHaveBeenCalledWith(
+      RoomsActions.selectRoom({ room: textRoom }),
     );
   });
 

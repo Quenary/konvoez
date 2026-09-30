@@ -1,0 +1,18 @@
+<tui-data-list>
+  <tui-opt-group [label]="roomName()">
+    <button
+      tuiOption
+      iconEnd="@tui.edit"
+      type="button"
+      (click)="edit.emit()">
+      {{ 'GENERAL.EDIT' | translate }}
+    </button>
+    <button
+      tuiOption
+      iconEnd="@tui.delete"
+      type="button"
+      (click)="delete.emit()">
+      {{ 'GENERAL.DELETE' | translate }}
+    </button>
+  </tui-opt-group>
+</tui-data-list>

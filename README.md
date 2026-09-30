@@ -65,7 +65,6 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ## TODO
 
-- Make room context menu on right-click / press gesture (not hover)
 - Add message assets (files)
 - Add camera/screen sharing
 - Add emojis or/and customizable smile/sticker packs
