@@ -1,16 +1,9 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { EUserRole } from '@konvoez/shared';
 import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from './users.entity';
-import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
+import { GetUserDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -76,91 +69,6 @@ export class UsersService {
     return em.count(UserEntity);
   }
 
-  async create(
-    dto: CreateUserDto,
-    explicitRole?: EUserRole,
-  ): Promise<UserEntity> {
-    const existingUsername = await this.repo.findOne({
-      username: dto.username,
-    });
-    if (existingUsername) {
-      throw new ConflictException('Username already taken');
-    }
-
-    const existingEmail = await this.repo.findOne({ email: dto.email });
-    if (existingEmail) {
-      throw new ConflictException('Email already taken');
-    }
-
-    const anyUser = (await this.count()) > 0;
-    if (!anyUser && explicitRole !== EUserRole.OWNER) {
-      throw new ForbiddenException(
-        'Initial setup required: first user must be registered as OWNER with a valid setup token',
-      );
-    }
-
-    const role: EUserRole = explicitRole ?? EUserRole.MEMBER;
-    const password = await this.passwordService.hashPassword(dto.password);
-    const { setupToken: _, inviteCode: __, ...userData } = dto;
-    const user = this.repo.create(
-      {
-        ...userData,
-        password,
-        role,
-      },
-      { persist: true },
-    );
-    await this.em.flush();
-    return user;
-  }
-
-  async update(
-    id: number,
-    dto: UpdateUserDto,
-    author: GetUserDto,
-  ): Promise<UserEntity> {
-    if (
-      id !== author.id &&
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException('Forbidden');
-    }
-    if (dto.role == EUserRole.OWNER) {
-      throw new BadRequestException('Owner role cannot be assigned');
-    }
-    if (dto.username) {
-      const existingUsername = await this.repo.findOne({
-        username: dto.username,
-        id: { $ne: id },
-      });
-      if (existingUsername) {
-        throw new ConflictException('Username already taken');
-      }
-    }
-    if (dto.email) {
-      const existingEmail = await this.repo.findOne({
-        email: dto.email,
-        id: { $ne: id },
-      });
-      if (existingEmail) {
-        throw new ConflictException('Email already taken');
-      }
-    }
-    const { password, ...data } = dto;
-    if (password) {
-      const passwordHash = await this.passwordService.hashPassword(password);
-      dto = {
-        ...data,
-        password: passwordHash,
-      };
-    }
-    const user = await this.findOne(id);
-    this.repo.assign(user, dto);
-    this.em.persist(user);
-    await this.em.flush();
-    return user;
-  }
-
   async setPassword(userId: number, password: string): Promise<UserEntity> {
     const user = await this.findOne(userId);
     const passwordHash = await this.passwordService.hashPassword(password);
@@ -168,18 +76,6 @@ export class UsersService {
     this.em.persist(user);
     await this.em.flush();
     return user;
-  }
-
-  async remove(id: number, author: GetUserDto): Promise<void> {
-    if (
-      id !== author.id &&
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException('Forbidden');
-    }
-    const user = await this.findOne(id);
-    this.em.remove(user);
-    await this.em.flush();
   }
 
   toDto(user: UserEntity): GetUserDto {

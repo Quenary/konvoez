@@ -55,6 +55,7 @@ Path aliases (prefer these over deep relative imports):
 - Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
 - Field order in classes: private → protected → public.
 - Naming: PascalCase for classes, camelCase for members/variables.
+- Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `UsersService` → `usersService`, `PasswordService` → `passwordService`). Do not shorten to `users`, `userService`, etc.
 
 ## NestJS
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  authRegisterSchema,
   emailSchema,
   fullnameSchema,
   inviteDefaultTtl,
@@ -10,7 +11,6 @@ import {
   roomTypeSchema,
   SCHEMA_ERROR,
   stringSchema,
-  userCreateSchema,
   usernameSchema,
 } from '@konvoez/shared';
 
@@ -31,7 +31,7 @@ export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;
   inviteOnlySignUp: boolean;
 }) {
-  const base = userCreateSchema.extend({
+  const base = authRegisterSchema.extend({
     confirmPassword: passwordSchema,
     setupToken: options.isOwnerSetupRequired
       ? requiredTrimmedString(SCHEMA_ERROR.SETUP_TOKEN_REQUIRED)

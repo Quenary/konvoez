@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -15,12 +16,12 @@ import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
 import { Request } from 'express';
 import { ACCESS_TOKEN_KEY } from './auth.const';
-import { AuthJWTData } from './auth.dto';
+import { AuthJWTData, AuthRegisterDto } from './auth.dto';
 import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
 import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
-import { CreateUserDto, GetUserDto } from '../users/users.dto';
+import { GetUserDto } from '../users/users.dto';
 import {
   ESettingKey,
   EUserRole,
@@ -52,9 +53,11 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly appService: AppService,
     private readonly passwordService: PasswordService,
     private readonly mailService: MailService,
-    private readonly userService: UsersService,
+    private readonly usersService: UsersService,
     private readonly settingsService: SettingsService,
     private readonly invitesService: InvitesService,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: EntityRepository<UserEntity>,
     @InjectRepository(PasswordRecoveryCodeEntity)
     private readonly recoveryCodeRepo: EntityRepository<PasswordRecoveryCodeEntity>,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
@@ -67,11 +70,11 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async isOwnerSetupRequired(): Promise<boolean> {
-    const count = await this.userService.count();
+    const count = await this.usersService.count();
     return count === 0;
   }
 
-  async register(dto: CreateUserDto): Promise<GetUserDto> {
+  async register(dto: AuthRegisterDto): Promise<GetUserDto> {
     const isOwnerSetup = await this.isOwnerSetupRequired();
     if (isOwnerSetup) {
       const cachedToken = await this.cacheManager.get<string>(
@@ -85,10 +88,10 @@ export class AuthService implements OnApplicationBootstrap {
       if (!dto.setupToken || dto.setupToken !== cachedToken) {
         throw new ForbiddenException('Invalid or missing owner setup token');
       }
-      const user = await this.userService.create(dto, EUserRole.OWNER);
+      const user = await this.createUser(dto, EUserRole.OWNER);
       await this.cacheManager.del(this.ownerSetupTokenCacheKey);
       this.logger.log(`Owner account created. Setup token consumed.`);
-      return this.userService.toDto(user);
+      return this.usersService.toDto(user);
     }
 
     const inviteOnlySignUp = await this.settingsService.getValue(
@@ -106,13 +109,50 @@ export class AuthService implements OnApplicationBootstrap {
       invite = await this.invitesService.validate(dto.inviteCode, dto.email);
     }
 
-    const user = await this.userService.create(dto, EUserRole.MEMBER);
+    const user = await this.createUser(dto, EUserRole.MEMBER);
 
     if (invite) {
       await this.invitesService.consume(invite, user);
     }
 
-    return this.userService.toDto(user);
+    return this.usersService.toDto(user);
+  }
+
+  private async createUser(
+    dto: AuthRegisterDto,
+    role: EUserRole,
+  ): Promise<UserEntity> {
+    const existingUsername = await this.userRepo.findOne({
+      username: dto.username,
+    });
+    if (existingUsername) {
+      throw new ConflictException('Username already taken');
+    }
+
+    const existingEmail = await this.userRepo.findOne({ email: dto.email });
+    if (existingEmail) {
+      throw new ConflictException('Email already taken');
+    }
+
+    const anyUser = (await this.usersService.count()) > 0;
+    if (!anyUser && role !== EUserRole.OWNER) {
+      throw new ForbiddenException(
+        'Initial setup required: first user must be registered as OWNER with a valid setup token',
+      );
+    }
+
+    const password = await this.passwordService.hashPassword(dto.password);
+    const { setupToken: _, inviteCode: __, ...userData } = dto;
+    const user = this.userRepo.create(
+      {
+        ...userData,
+        password,
+        role,
+      },
+      { persist: true },
+    );
+    await this.em.flush();
+    return user;
   }
 
   /**
@@ -125,7 +165,7 @@ export class AuthService implements OnApplicationBootstrap {
   async validateUser(login: string, password: string): Promise<GetUserDto> {
     let user: UserEntity | null = null;
     try {
-      user = await this.userService.findOneByUsernameOrEmail(login.trim());
+      user = await this.usersService.findOneByUsernameOrEmail(login.trim());
     } catch {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -139,7 +179,7 @@ export class AuthService implements OnApplicationBootstrap {
     if (!result || user.deletedAt) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return this.userService.toDto(user);
+    return this.usersService.toDto(user);
   }
 
   async requestPasswordRecovery(
@@ -158,7 +198,7 @@ export class AuthService implements OnApplicationBootstrap {
 
     let user: UserEntity;
     try {
-      user = await this.userService.findOneBy({ email });
+      user = await this.usersService.findOneBy({ email });
     } catch (error) {
       if (error instanceof NotFoundException) {
         // Same response shape; still apply cooldown to limit probing.
@@ -236,7 +276,7 @@ export class AuthService implements OnApplicationBootstrap {
     const email = dto.email.trim().toLowerCase();
     let user: UserEntity;
     try {
-      user = await this.userService.findOneBy({ email });
+      user = await this.usersService.findOneBy({ email });
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new BadRequestException('Invalid or expired recovery code');
@@ -277,7 +317,7 @@ export class AuthService implements OnApplicationBootstrap {
     this.em.persist(matched);
     await this.em.flush();
 
-    await this.userService.setPassword(user.id, dto.password);
+    await this.usersService.setPassword(user.id, dto.password);
     return { ok: true };
   }
 
@@ -333,7 +373,7 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   private async checkAndGenerateOwnerToken(): Promise<void> {
-    const count = await this.userService.count();
+    const count = await this.usersService.count();
     if (count === 0) {
       const token = crypto.randomBytes(16).toString('hex');
       await this.cacheManager.set(
@@ -359,7 +399,7 @@ ${token}
   }
 
   private async requireActiveUser(userId: number): Promise<GetUserDto> {
-    const user = await this.userService.findOneByAsDto({ id: userId });
+    const user = await this.usersService.findOneByAsDto({ id: userId });
     if (user.deletedAt) {
       throw new UnauthorizedException('Unauthorized');
     }

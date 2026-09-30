@@ -10,6 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import {
   AuthLoginDto,
+  AuthRegisterDto,
   PasswordRecoveryConfirmDto,
   PasswordRecoveryRequestDto,
 } from './auth.dto';
@@ -17,7 +18,7 @@ import type { Request, Response } from 'express';
 import { AppService } from '@shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
-import { CreateUserDto, GetUserDto } from '../users/users.dto';
+import { GetUserDto } from '../users/users.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -95,7 +96,7 @@ export class AuthController {
     type: GetUserDto,
     description: 'Register a new user (or initial OWNER if setup is required)',
   })
-  async register(@Body() dto: CreateUserDto): Promise<GetUserDto> {
+  async register(@Body() dto: AuthRegisterDto): Promise<GetUserDto> {
     return await this.authService.register(dto);
   }
 

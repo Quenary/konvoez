@@ -4,6 +4,8 @@ export * from './schemas/base.schemas';
 export * from './schemas/settings.schemas';
 export * from './schemas/text-room.schemas';
 export * from './schemas/user.schemas';
+export * from './schemas/profile.schemas';
+export * from './schemas/user-management.schemas';
 export * from './schemas/voice-room.schemas';
 export * from './schemas/file.schemas';
 export * from './schemas/fields.schemas';

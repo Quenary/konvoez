@@ -2,7 +2,7 @@
 
 Owner manage other accounts from **Settings → Users** (`/settings/users`). The API is `/api/v1/user-management` and accepts only an `OWNER` session. `ADMIN` and `MEMBER` get `403`. The owner cannot change or delete their own account, or any account with the `OWNER` role.
 
-Profile, directory, and the existing `/api/v1/users` routes are unchanged. `deletedAt` is on the public user object (`null` means the account is active).
+Related user APIs: directory listing is authenticated `GET /api/v1/users` and `GET /api/v1/users/:id`; self-profile is `PATCH /api/v1/profile` and avatar upload `POST /api/v1/profile/avatar/upload`; avatar streaming is `GET /api/v1/users/avatar/stream`. Soft-delete (`deletedAt`) is set only via anonymize below. `deletedAt` is on the public user object (`null` means the account is active).
 
 ## Role
 

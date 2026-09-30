@@ -17,12 +17,12 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
   emailSchema,
   fullnameSchema,
-  IUserUpdate,
+  IProfileUpdate,
   passwordSchema,
   usernameSchema,
 } from '@konvoez/shared';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { UsersApiService } from '@features/users/users-api.service';
+import { ProfileApiService } from './profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
@@ -56,7 +56,7 @@ import { getProfileFormSchema } from '@shared/schemas/forms.schema';
 })
 export class SettingsProfileComponent {
   private readonly store = inject(Store);
-  private readonly usersApiService = inject(UsersApiService);
+  private readonly profileApiService = inject(ProfileApiService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
@@ -151,7 +151,7 @@ export class SettingsProfileComponent {
         if (!avatarFile) {
           return;
         }
-        this.usersApiService.avatarUpload(avatarFile as File).subscribe({
+        this.profileApiService.avatarUpload(avatarFile as File).subscribe({
           next: (result) => {
             this.form.patchValue({
               avatar: result.key,
@@ -176,9 +176,8 @@ export class SettingsProfileComponent {
       return;
     }
 
-    const id = this.currentUser()?.id as number;
     const values = this.form.getRawValue();
-    const body: IUserUpdate = {
+    const body: IProfileUpdate = {
       username: values.username,
       fullname: values.fullname,
       email: values.email,
@@ -191,7 +190,6 @@ export class SettingsProfileComponent {
 
     this.store.dispatch(
       AuthActions.requestPatchUser({
-        id,
         body,
       }),
     );

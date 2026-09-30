@@ -25,7 +25,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   emailSchema,
   fullnameSchema,
-  IUserCreate,
+  IAuthRegister,
   passwordSchema,
   usernameSchema,
 } from '@konvoez/shared';
@@ -179,7 +179,7 @@ export class AuthRegisterComponent {
       inviteCode,
       ...body
     } = this.form.getRawValue();
-    const payload: IUserCreate = {
+    const payload: IAuthRegister = {
       ...body,
       ...(this.isOwnerSetupRequired() && setupToken ? { setupToken } : {}),
       ...(!this.isOwnerSetupRequired() && inviteCode ? { inviteCode } : {}),
@@ -187,7 +187,7 @@ export class AuthRegisterComponent {
 
     this.store.dispatch(
       AuthActions.requestRegister({
-        body: payload satisfies IUserCreate,
+        body: payload satisfies IAuthRegister,
       }),
     );
   }

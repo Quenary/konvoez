@@ -3,7 +3,7 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { AuthActions } from './auth.actions';
 import { catchError, filter, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
-import { UsersApiService } from '../users/users-api.service';
+import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
 import { UsersStore } from '../users/users.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -21,7 +21,7 @@ export class AuthEffects {
   private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
   private readonly authApiService = inject(AuthApiService);
-  private readonly usersApiService = inject(UsersApiService);
+  private readonly profileApiService = inject(ProfileApiService);
   private readonly usersStore = inject(UsersStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
@@ -148,8 +148,8 @@ export class AuthEffects {
   readonly requestPatchUser$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.requestPatchUser),
-      switchMap(({ id, body }) =>
-        this.usersApiService.patch(id, body).pipe(
+      switchMap(({ body }) =>
+        this.profileApiService.patch(body).pipe(
           map((user) => AuthActions.requestPatchUserSuccess({ user })),
           catchError((error) =>
             of(AuthActions.requestPatchUserError({ error })),

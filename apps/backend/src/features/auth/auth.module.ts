@@ -8,6 +8,7 @@ import { SettingsModule } from '../settings/settings.module';
 import { InvitesModule } from '../invites/invites.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
+import { UserEntity } from '../users/users.entity';
 
 @Global()
 @Module({
@@ -16,7 +17,7 @@ import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
     CacheModule.register(),
     SettingsModule,
     InvitesModule,
-    MikroOrmModule.forFeature([PasswordRecoveryCodeEntity]),
+    MikroOrmModule.forFeature([PasswordRecoveryCodeEntity, UserEntity]),
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard],

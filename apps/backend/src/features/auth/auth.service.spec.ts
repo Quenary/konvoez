@@ -32,6 +32,7 @@ jest.mock('@mikro-orm/core', () => {
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -68,6 +69,10 @@ describe('AuthService', () => {
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let userRepo: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+  };
   let recoveryCodeRepo: {
     find: jest.Mock;
     create: jest.Mock;
@@ -122,6 +127,13 @@ describe('AuthService', () => {
       assign: jest.fn(),
       getEntityManager: jest.fn().mockReturnValue(em),
     };
+    userRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((data) => ({
+        ...mockUserEntity,
+        ...data,
+      })),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -158,7 +170,6 @@ describe('AuthService', () => {
             findOneByAsDto: jest.fn(),
             toDto: jest.fn(),
             count: jest.fn(),
-            create: jest.fn(),
             setPassword: jest.fn(),
           },
         },
@@ -169,6 +180,10 @@ describe('AuthService', () => {
         {
           provide: InvitesService,
           useValue: invitesService,
+        },
+        {
+          provide: getRepositoryToken(UserEntity),
+          useValue: userRepo,
         },
         {
           provide: getRepositoryToken(PasswordRecoveryCodeEntity),
@@ -505,25 +520,25 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(0);
       cacheManager.get.mockResolvedValue(validToken);
 
-      const createdOwner = {
-        ...mockUserEntity,
-        role: EUserRole.OWNER,
-        username: createDto.username,
-      } as unknown as UserEntity;
       const ownerDto = { ...mockUserDto, role: EUserRole.OWNER };
-
-      usersService.create.mockResolvedValueOnce(createdOwner);
       usersService.toDto.mockReturnValueOnce(ownerDto);
+      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
         ...createDto,
         setupToken: validToken,
       });
 
-      expect(usersService.create).toHaveBeenCalledWith(
-        { ...createDto, setupToken: validToken },
-        EUserRole.OWNER,
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: createDto.username,
+          email: createDto.email,
+          role: EUserRole.OWNER,
+          password: 'hashed_password',
+        }),
+        { persist: true },
       );
+      expect(em.flush).toHaveBeenCalled();
       expect(cacheManager.del).toHaveBeenCalledWith(
         service['ownerSetupTokenCacheKey'],
       );
@@ -532,23 +547,43 @@ describe('AuthService', () => {
 
     it('should create MEMBER user and not require setup token when users already exist', async () => {
       usersService.count.mockResolvedValue(1);
-      const createdMember = {
-        ...mockUserEntity,
-        role: EUserRole.MEMBER,
-      } as unknown as UserEntity;
       const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
 
-      usersService.create.mockResolvedValueOnce(createdMember);
       usersService.toDto.mockReturnValueOnce(memberDto);
+      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
 
-      expect(usersService.create).toHaveBeenCalledWith(
-        createDto,
-        EUserRole.MEMBER,
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: EUserRole.MEMBER,
+        }),
+        { persist: true },
       );
       expect(cacheManager.get).not.toHaveBeenCalled();
       expect(result.role).toBe(EUserRole.MEMBER);
+    });
+
+    it('should throw ConflictException when username is already taken', async () => {
+      usersService.count.mockResolvedValue(1);
+      userRepo.findOne.mockResolvedValueOnce(mockUserEntity);
+
+      await expect(service.register(createDto)).rejects.toThrow(
+        new ConflictException('Username already taken'),
+      );
+      expect(userRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when email is already taken', async () => {
+      usersService.count.mockResolvedValue(1);
+      userRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockUserEntity);
+
+      await expect(service.register(createDto)).rejects.toThrow(
+        new ConflictException('Email already taken'),
+      );
+      expect(userRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException when INVITE_ONLY_SIGN_UP is true and no invite code provided', async () => {
@@ -577,8 +612,9 @@ describe('AuthService', () => {
       } as unknown as UserEntity;
       const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
 
-      usersService.create.mockResolvedValueOnce(createdMember);
+      userRepo.create.mockReturnValueOnce(createdMember);
       usersService.toDto.mockReturnValueOnce(memberDto);
+      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
       const result = await service.register(dtoWithCode);
@@ -587,9 +623,11 @@ describe('AuthService', () => {
         'valid-code-123',
         createDto.email,
       );
-      expect(usersService.create).toHaveBeenCalledWith(
-        dtoWithCode,
-        EUserRole.MEMBER,
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: EUserRole.MEMBER,
+        }),
+        { persist: true },
       );
       expect(invitesService.consume).toHaveBeenCalledWith(
         mockInvite,
@@ -610,7 +648,7 @@ describe('AuthService', () => {
       await expect(service.register(dtoWithCode)).rejects.toThrow(
         ForbiddenException,
       );
-      expect(usersService.create).not.toHaveBeenCalled();
+      expect(userRepo.create).not.toHaveBeenCalled();
       expect(invitesService.consume).not.toHaveBeenCalled();
     });
   });

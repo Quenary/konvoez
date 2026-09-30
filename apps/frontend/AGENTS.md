@@ -55,6 +55,7 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 - Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
 - Field order in classes: private → protected → public.
 - Naming: PascalCase for classes, camelCase for members/variables.
+- Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `HttpClient` → `httpClient`, `UsersService` → `usersService`). Do not shorten to `http`, `users`, etc.
 
 ## Angular
 

@@ -64,6 +64,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ## TODO
 
+- Add self-deletion in profile (shared dialog)
 - Add message assets (files)
 - Add camera/screen sharing
 - Add emojis or/and customizable smile/sticker packs

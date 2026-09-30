@@ -1,6 +1,11 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
 import { HttpErrorResponse } from '@angular/common/http';
-import { IAuthLogin, IUser, IUserCreate, IUserUpdate } from '@konvoez/shared';
+import {
+  IAuthLogin,
+  IUser,
+  IAuthRegister,
+  IProfileUpdate,
+} from '@konvoez/shared';
 
 export const AuthActions = createActionGroup({
   source: 'AUTH',
@@ -13,10 +18,10 @@ export const AuthActions = createActionGroup({
     requestLogout: emptyProps(),
     requestLogoutSuccess: emptyProps(),
     requestLogoutError: props<{ error: HttpErrorResponse }>(),
-    requestRegister: props<{ body: IUserCreate }>(),
+    requestRegister: props<{ body: IAuthRegister }>(),
     requestRegisterSuccess: emptyProps(),
     requestRegisterError: props<{ error: HttpErrorResponse }>(),
-    requestPatchUser: props<{ id: number; body: IUserUpdate }>(),
+    requestPatchUser: props<{ body: IProfileUpdate }>(),
     requestPatchUserSuccess: props<{ user: IUser }>(),
     requestPatchUserError: props<{ error: HttpErrorResponse }>(),
     requestMe: emptyProps(),

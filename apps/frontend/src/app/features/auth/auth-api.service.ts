@@ -7,7 +7,7 @@ import {
   IPasswordRecoveryConfirm,
   IPasswordRecoveryRequest,
   IUser,
-  IUserCreate,
+  IAuthRegister,
 } from '@konvoez/shared';
 
 @Injectable({
@@ -39,7 +39,7 @@ export class AuthApiService {
     );
   }
 
-  register(body: IUserCreate): Observable<IUser> {
+  register(body: IAuthRegister): Observable<IUser> {
     return this.httpClient.post<IUser>(
       `${environment.apiPath}/auth/register`,
       body,
