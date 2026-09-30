@@ -57,6 +57,8 @@ import { InviteEntity } from '../invites/invites.entity';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 import type { Cache } from 'cache-manager';
 
 describe('AuthService', () => {
@@ -69,6 +71,7 @@ describe('AuthService', () => {
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let eventEmitter: { emit: jest.Mock };
   let userRepo: {
     findOne: jest.Mock;
     create: jest.Mock;
@@ -134,6 +137,7 @@ describe('AuthService', () => {
         ...data,
       })),
     };
+    eventEmitter = { emit: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -180,6 +184,10 @@ describe('AuthService', () => {
         {
           provide: InvitesService,
           useValue: invitesService,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: eventEmitter,
         },
         {
           provide: getRepositoryToken(UserEntity),
@@ -542,6 +550,10 @@ describe('AuthService', () => {
       expect(cacheManager.del).toHaveBeenCalledWith(
         service['ownerSetupTokenCacheKey'],
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_CREATED,
+        ownerDto,
+      );
       expect(result.role).toBe(EUserRole.OWNER);
     });
 
@@ -561,6 +573,10 @@ describe('AuthService', () => {
         { persist: true },
       );
       expect(cacheManager.get).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_CREATED,
+        memberDto,
+      );
       expect(result.role).toBe(EUserRole.MEMBER);
     });
 

@@ -12,7 +12,7 @@ Guidelines for AI agents working in `apps/backend` — the NestJS API for Konvoe
 - **JWT** in HTTP-only cookies; passwords via Argon2
 - **AES-256-GCM** message encryption at rest (`EncryptionService` + `MASTER_KEY`)
 
-HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`.
+HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`.
 
 ## Layout
 
@@ -102,6 +102,8 @@ Path aliases (prefer these over deep relative imports):
 ## Realtime & voice
 
 - Text: `TextRoomsGateway` + `TextRoomsService`. Voice: `VoiceRoomsGateway` + mediasoup state services.
+- Entity metadata sync: `EntitySyncGateway` (`/ws/v1/sync`). Feature services publish domain events via `EventEmitter2` (`@nestjs/event-emitter`); the gateway listens with `@OnEvent` and fans out to Socket.IO. Do **not** inject the gateway into feature services.
+- Domain event names/payloads for entity-sync live under `src/shared/events/` (e.g. `entity-sync.events.ts`). Wire event enums/payloads for clients live in `@konvoez/shared` (`EEntitySyncEvent`).
 - Keep signaling contracts and event enums in `@konvoez/shared`; do not diverge payload shapes between client and server.
 - Gateways handle connection lifecycle and fan-out; heavy persistence/encryption stays in services.
 - Mediasoup / SFU state is process-local — treat it as sensitive runtime state, not something to casually serialize or share across instances.

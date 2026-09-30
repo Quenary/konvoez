@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { PasswordService } from '../../shared/services/password.service';
 import {
@@ -9,6 +10,10 @@ import {
   USER_AVATARS_BUCKET,
   type FileService,
 } from '@shared/services/file.service';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
@@ -24,6 +29,7 @@ export class UsersService {
     private readonly passwordService: PasswordService,
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -105,7 +111,13 @@ export class UsersService {
     this.em.persist(user);
     await this.em.flush();
     await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
-    return this.toDto(user);
+    const result = this.toDto(user);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_UPDATED,
+      result,
+    );
+    return result;
   }
 
   async removeLoaded(id: number): Promise<void> {
@@ -148,6 +160,7 @@ export class UsersService {
 
       return {
         avatar: user.avatar,
+        roomIds,
         roomAvatars: rooms.flatMap((room) =>
           room.avatar ? [room.avatar] : [],
         ),
@@ -158,6 +171,18 @@ export class UsersService {
     for (const key of files.roomAvatars) {
       await this.deleteStoredFile(key, ROOM_AVATARS_BUCKET);
     }
+    for (const roomId of files.roomIds) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id: roomId },
+      );
+    }
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_DELETED,
+      { id },
+    );
   }
 
   toDto(user: UserEntity): GetUserDto {

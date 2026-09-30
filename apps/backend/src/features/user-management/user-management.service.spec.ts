@@ -26,6 +26,7 @@ import type { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
@@ -41,6 +42,7 @@ describe('UserManagementService', () => {
       | 'removeLoaded'
     >
   >;
+  let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
     id: 1,
@@ -86,9 +88,12 @@ describe('UserManagementService', () => {
       removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
 
+    eventEmitter = { emit: jest.fn() };
+
     service = new UserManagementService(
       mockRepo,
       usersService as unknown as UsersService,
+      eventEmitter as never,
     );
   });
 
@@ -128,6 +133,10 @@ describe('UserManagementService', () => {
         role: EUserRole.ADMIN,
       });
       expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_UPDATED,
+        expect.objectContaining({ id: 5 }),
+      );
     });
 
     it('should demote an admin to member', async () => {

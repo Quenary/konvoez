@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { APP_PIPE } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { RoomsModule } from './features/rooms/rooms.module';
 import { UsersModule } from './features/users/users.module';
@@ -15,6 +16,7 @@ import { PublicModule } from './features/public/public.module';
 import { InvitesModule } from './features/invites/invites.module';
 import { NotificationsModule } from './features/notifications/notifications.module';
 import { FilesModule } from './features/files/files.module';
+import { EntitySyncModule } from './features/entity-sync/entity-sync.module';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
 @Module({
@@ -22,6 +24,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     MikroOrmModule.forRootAsync({
       useFactory: createMikroOrmConfig,
     }),
+    EventEmitterModule.forRoot(),
     VoiceRoomsModule,
     AuthModule,
     RoomsModule,
@@ -35,6 +38,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     InvitesModule,
     NotificationsModule,
     FilesModule,
+    EntitySyncModule,
   ],
   providers: [
     {

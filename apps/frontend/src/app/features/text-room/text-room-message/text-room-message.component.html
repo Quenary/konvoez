@@ -3,15 +3,15 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
-    [style.--author-color]="m.senderUsername | tuiAutoColor"
+    [style.--author-color]="senderUsername() | tuiAutoColor"
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     <div class="message-row">
       @if (shouldShowAvatar()) {
         <app-user-avatar
           size="s"
           class="message-sender"
-          [username]="m.senderUsername"
-          [fullname]="senderUser()?.fullname ?? m.senderUsername"
+          [username]="senderUsername()"
+          [fullname]="senderUser()?.fullname ?? senderUsername()"
           [avatarUrl]="avatarUrl()" />
       }
 
@@ -23,19 +23,19 @@
           <span
             class="message-body-header-username"
             tuiHintAppearance="floating"
-            [style.color]="m.senderUsername | tuiAutoColor"
+            [style.color]="senderUsername() | tuiAutoColor"
             [tuiHint]="senderFullnameHint()">
-            {{ m.senderUsername }}
+            {{ senderUsername() }}
           </span>
         </span>
 
         @if (m.replyTo; as reply) {
           @let replyUser = reply.senderId ? usersById()[reply.senderId] : null;
+          @let replyUsername =
+            replyUser?.username ?? reply.senderUsername ?? '';
           @let replyFullname = replyUser?.fullname ?? null;
           @let replyHint =
-            replyFullname &&
-            reply.senderUsername &&
-            replyFullname !== reply.senderUsername
+            replyFullname && replyUsername && replyFullname !== replyUsername
               ? replyFullname
               : null;
           <div
@@ -44,9 +44,7 @@
             tabindex="0"
             [class.message-reply-deleted]="reply.isDeleted"
             [style.border-left-color]="
-              reply.isDeleted
-                ? null
-                : (reply.senderUsername ?? '' | tuiAutoColor)
+              reply.isDeleted ? null : (replyUsername | tuiAutoColor)
             "
             (click)="onReplyQuoteClick(reply)"
             (keydown.enter)="onReplyQuoteClick(reply)">
@@ -58,9 +56,9 @@
               <span
                 class="message-reply-sender"
                 tuiHintAppearance="floating"
-                [style.color]="reply.senderUsername ?? '' | tuiAutoColor"
+                [style.color]="replyUsername | tuiAutoColor"
                 [tuiHint]="replyHint">
-                {{ reply.senderUsername }}
+                {{ replyUsername }}
               </span>
               <span class="message-reply-content">
                 {{ reply.content | textContent }}

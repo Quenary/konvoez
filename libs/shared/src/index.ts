@@ -15,3 +15,4 @@ export * from './schemas/invite.schemas';
 export * from './schemas/public.schemas';
 export * from './schemas/notification.schemas';
 export * from './schemas/voice-session.schemas';
+export * from './schemas/entity-sync.schemas';

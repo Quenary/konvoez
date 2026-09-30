@@ -32,6 +32,7 @@ import {
 } from '@shared/services/file.service';
 import { EUserRole } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -40,6 +41,7 @@ describe('UsersService', () => {
   let mockForkedEm: jest.Mocked<EntityManager>;
   let passwordService: jest.Mocked<PasswordService>;
   let fileService: jest.Mocked<FileService>;
+  let eventEmitter: { emit: jest.Mock };
 
   const mockUser: UserEntity = {
     id: 1,
@@ -92,7 +94,14 @@ describe('UsersService', () => {
       delete: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<FileService>;
 
-    service = new UsersService(mockRepo, passwordService, fileService);
+    eventEmitter = { emit: jest.fn() };
+
+    service = new UsersService(
+      mockRepo,
+      passwordService,
+      fileService,
+      eventEmitter as never,
+    );
   });
 
   describe('findOne', () => {
@@ -183,6 +192,10 @@ describe('UsersService', () => {
         USER_AVATARS_BUCKET,
       );
       expect(result.role).toBe(EUserRole.ADMIN);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_UPDATED,
+        expect.objectContaining({ id: 5, role: EUserRole.ADMIN }),
+      );
     });
   });
 
@@ -237,6 +250,14 @@ describe('UsersService', () => {
       expect(fileService.delete).toHaveBeenCalledWith(
         'room-key',
         ROOM_AVATARS_BUCKET,
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id: 10 },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_DELETED,
+        { id: 5 },
       );
     });
   });

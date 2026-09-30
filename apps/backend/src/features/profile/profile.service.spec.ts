@@ -32,6 +32,7 @@ import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
 import { ProfileService } from './profile.service';
 import type { UpdateProfileDto } from './profile.dto';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('ProfileService', () => {
   let service: ProfileService;
@@ -41,6 +42,7 @@ describe('ProfileService', () => {
     Pick<UsersService, 'findOne' | 'toDto' | 'anonymizeLoaded' | 'removeLoaded'>
   >;
   let passwordService: jest.Mocked<PasswordService>;
+  let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
     id: 1,
@@ -91,10 +93,13 @@ describe('ProfileService', () => {
       removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
 
+    eventEmitter = { emit: jest.fn() };
+
     service = new ProfileService(
       mockRepo,
       usersService as unknown as UsersService,
       passwordService,
+      eventEmitter as never,
     );
   });
 
@@ -142,6 +147,10 @@ describe('ProfileService', () => {
       expect(mockEm.persist).toHaveBeenCalledWith(mockUser);
       expect(mockEm.flush).toHaveBeenCalled();
       expect(usersService.toDto).toHaveBeenCalledWith(mockUser);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_UPDATED,
+        author,
+      );
       expect(result).toBe(author);
     });
 

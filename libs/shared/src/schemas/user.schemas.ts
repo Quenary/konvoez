@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { baseEntitySchema, stringSchema } from './base.schemas';
+import {
+  baseEntitySchema,
+  entityDeletedSchema,
+  stringSchema,
+} from './base.schemas';
 import { emailSchema, fullnameSchema, usernameSchema } from './fields.schemas';
 import { EUserRole } from '../enums';
 
@@ -25,3 +29,6 @@ export const userBriefSchema = userSchema.pick({
 });
 
 export type IUserBrief = z.infer<typeof userBriefSchema>;
+
+export const userDeletedSchema = entityDeletedSchema.clone();
+export type IUserDeleted = z.infer<typeof userDeletedSchema>;

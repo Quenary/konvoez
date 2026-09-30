@@ -84,18 +84,24 @@ export class TextRoomMessageComponent {
   protected readonly senderUser = computed(() => {
     const message = this.message();
     const fromStore = this.usersStore.entityMap()[message.senderId];
+    const currentUser = this.currentUser();
     if (fromStore) {
       return fromStore;
     }
-    const currentUser = this.currentUser();
     if (currentUser && message.senderId === currentUser.id) {
       return currentUser;
     }
     return null;
   });
 
+  protected readonly senderUsername = computed(() => {
+    const senderUser = this.senderUser();
+    const message = this.message();
+    return senderUser?.username ?? message.senderUsername;
+  });
+
   protected readonly senderFullnameHint = computed(() => {
-    const username = this.message().senderUsername;
+    const username = this.senderUsername();
     const fullname = this.senderUser()?.fullname;
     return fullname && fullname !== username ? fullname : null;
   });
@@ -103,10 +109,10 @@ export class TextRoomMessageComponent {
   protected readonly avatarUrl = computed(() => {
     const message = this.message();
     const fromStore = this.usersStore.entityMap()[message.senderId]?.avatarUrl;
+    const currentUser = this.currentUser();
     if (fromStore) {
       return fromStore;
     }
-    const currentUser = this.currentUser();
     if (currentUser && message.senderId === currentUser.id) {
       return currentUser.avatarUrl ?? null;
     }
@@ -115,7 +121,8 @@ export class TextRoomMessageComponent {
 
   protected readonly isOwnMessage = computed(() => {
     const currentUser = this.currentUser() as IUser | null;
-    return !!currentUser && this.message().senderId === currentUser.id;
+    const message = this.message();
+    return !!currentUser && message.senderId === currentUser.id;
   });
 
   protected readonly isDirectChat = computed(() => {

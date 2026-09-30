@@ -5,8 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EUserRole } from '@konvoez/shared';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
@@ -19,6 +24,7 @@ export class UserManagementService {
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
     private readonly usersService: UsersService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -47,7 +53,13 @@ export class UserManagementService {
     this.repo.assign(user, { role: dto.role });
     this.em.persist(user);
     await this.em.flush();
-    return this.usersService.toDto(user);
+    const result = this.usersService.toDto(user);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_UPDATED,
+      result,
+    );
+    return result;
   }
 
   async anonymize(id: number, author: GetUserDto): Promise<GetUserDto> {

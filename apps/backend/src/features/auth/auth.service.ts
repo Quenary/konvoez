@@ -11,9 +11,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { Request } from 'express';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData, AuthRegisterDto } from './auth.dto';
@@ -56,6 +61,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly usersService: UsersService,
     private readonly settingsService: SettingsService,
     private readonly invitesService: InvitesService,
+    private readonly eventEmitter: EventEmitter2,
     @InjectRepository(UserEntity)
     private readonly userRepo: EntityRepository<UserEntity>,
     @InjectRepository(PasswordRecoveryCodeEntity)
@@ -91,7 +97,7 @@ export class AuthService implements OnApplicationBootstrap {
       const user = await this.createUser(dto, EUserRole.OWNER);
       await this.cacheManager.del(this.ownerSetupTokenCacheKey);
       this.logger.log(`Owner account created. Setup token consumed.`);
-      return this.usersService.toDto(user);
+      return this.emitUserCreated(user);
     }
 
     const inviteOnlySignUp = await this.settingsService.getValue(
@@ -115,7 +121,17 @@ export class AuthService implements OnApplicationBootstrap {
       await this.invitesService.consume(invite, user);
     }
 
-    return this.usersService.toDto(user);
+    return this.emitUserCreated(user);
+  }
+
+  private emitUserCreated(user: UserEntity): GetUserDto {
+    const result = this.usersService.toDto(user);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_CREATED,
+      result,
+    );
+    return result;
   }
 
   private async createUser(

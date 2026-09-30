@@ -4,8 +4,13 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EUserRole } from '@konvoez/shared';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
@@ -21,6 +26,7 @@ export class ProfileService {
     private readonly repo: EntityRepository<UserEntity>,
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -61,7 +67,13 @@ export class ProfileService {
     this.repo.assign(user, assignData);
     this.em.persist(user);
     await this.em.flush();
-    return this.usersService.toDto(user);
+    const result = this.usersService.toDto(user);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_UPDATED,
+      result,
+    );
+    return result;
   }
 
   async anonymizeSelf(author: GetUserDto): Promise<GetUserDto> {

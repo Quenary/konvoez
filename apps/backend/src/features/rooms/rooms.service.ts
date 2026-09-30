@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
@@ -11,6 +12,10 @@ import {
   EntityRepository,
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 
@@ -21,6 +26,7 @@ export class RoomsService {
   constructor(
     @InjectRepository(RoomEntity)
     private readonly repo: EntityRepository<RoomEntity>,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -71,6 +77,11 @@ export class RoomsService {
     }
 
     await this.em.populate(room, ['author']);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.ROOM_CREATED,
+      this.toDto(room),
+    );
     return room;
   }
 
@@ -99,6 +110,11 @@ export class RoomsService {
       throw error;
     }
 
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.ROOM_UPDATED,
+      this.toDto(room),
+    );
     return room;
   }
 
@@ -106,6 +122,11 @@ export class RoomsService {
     const room = await this.findOne(id);
     this.em.remove(room);
     await this.em.flush();
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.ROOM_DELETED,
+      { id },
+    );
   }
 
   toDto(room: RoomEntity): GetRoomDto {
