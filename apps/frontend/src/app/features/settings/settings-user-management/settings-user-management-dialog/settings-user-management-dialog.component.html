@@ -30,13 +30,13 @@
     </div>
     <div class="field">
       <dt>{{ 'SETTINGS.USERS.CREATED' | translate }}</dt>
-      <dd>{{ user.createdAt | date: 'yyyy-MM-dd HH:mm' }}</dd>
+      <dd>{{ user.createdAt | dayjs }}</dd>
     </div>
     <div class="field">
       <dt>{{ 'SETTINGS.USERS.UPDATED' | translate }}</dt>
       <dd>
         @if (user.updatedAt) {
-          {{ user.updatedAt | date: 'yyyy-MM-dd HH:mm' }}
+          {{ user.updatedAt | dayjs }}
         } @else {
           —
         }
@@ -46,7 +46,7 @@
       <dt>{{ 'SETTINGS.USERS.DELETED' | translate }}</dt>
       <dd>
         @if (user.deletedAt) {
-          {{ user.deletedAt | date: 'yyyy-MM-dd HH:mm' }}
+          {{ user.deletedAt | dayjs }}
         } @else {
           —
         }

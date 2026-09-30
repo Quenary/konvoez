@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,6 +14,7 @@ import { EUserRole, IUser } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
 import {
@@ -52,7 +52,7 @@ const ROLE_LABEL: Record<EUserRole, string> = {
 @Component({
   selector: 'app-settings-user-management-dialog',
   imports: [
-    DatePipe,
+    DayjsPipe,
     ReactiveFormsModule,
     TranslatePipe,
     UserAvatarComponent,

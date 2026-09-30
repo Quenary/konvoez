@@ -32,8 +32,9 @@ import {
 } from '@taiga-ui/kit';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RoomsApiService } from '../rooms-api.service';
-import { DatePipe, LowerCasePipe, NgOptimizedImage } from '@angular/common';
+import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import {
   createZodError,
   createZodFieldValidator,
@@ -49,7 +50,7 @@ export type RoomDialogData = Partial<IRoom>;
 @Component({
   selector: 'app-room-dialog',
   imports: [
-    DatePipe,
+    DayjsPipe,
     ReactiveFormsModule,
     TranslatePipe,
     LowerCasePipe,

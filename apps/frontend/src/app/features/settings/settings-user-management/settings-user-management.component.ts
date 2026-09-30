@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,6 +8,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { IUser } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { TuiTable } from '@taiga-ui/addon-table';
 import {
@@ -26,7 +26,7 @@ import { UserManagementApiService } from './user-management-api.service';
 @Component({
   selector: 'app-settings-user-management',
   imports: [
-    DatePipe,
+    DayjsPipe,
     TranslatePipe,
     UserAvatarComponent,
     TuiAutoColorPipe,
