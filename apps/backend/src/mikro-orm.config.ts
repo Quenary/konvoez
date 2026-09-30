@@ -12,17 +12,17 @@ import { InviteEntitySchema } from './features/invites/invites.entity';
 import { PushSubscriptionEntitySchema } from './features/notifications/notifications.entity';
 import { PasswordRecoveryCodeEntitySchema } from './features/auth/password-recovery-code.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
-import { Migration20260801010402 } from './migrations/Migration20260801010402';
-import { Migration20260915000000 } from './migrations/Migration20260915000000';
-import { Migration20260916000000 } from './migrations/Migration20260916000000';
-import { Migration20260916010000 } from './migrations/Migration20260916010000';
-import { Migration20260917123217 } from './migrations/Migration20260917123217';
+import { Migration20260801010402_InitialSchema } from './migrations/Migration20260801010402_InitialSchema';
+import { Migration20260915000000_MessageReplyTo } from './migrations/Migration20260915000000_MessageReplyTo';
+import { Migration20260916000000_SettingsKeyPrimaryKey } from './migrations/Migration20260916000000_SettingsKeyPrimaryKey';
+import { Migration20260916010000_InvitesAndInviteOnlySignup } from './migrations/Migration20260916010000_InvitesAndInviteOnlySignup';
+import { Migration20260917123217_MessageSearchTokens } from './migrations/Migration20260917123217_MessageSearchTokens';
 import { getDefaultSqliteDbPath } from './shared/storage.utils';
-import { Migration20260922000000 } from './migrations/Migration20260922000000';
+import { Migration20260922000000_MessageReads } from './migrations/Migration20260922000000_MessageReads';
 import { Migration20260923111848_PushSubscriptionNotifications } from './migrations/Migration20260923111848_PushSubscriptionNotifications';
-import { Migration20260929152327 } from './migrations/Migration20260929152327';
-import { Migration20260930120000 } from './migrations/Migration20260930120000';
-import { Migration20260930092254 } from './migrations/Migration20260930092254';
+import { Migration20260929152327_PasswordRecoveryCodes } from './migrations/Migration20260929152327_PasswordRecoveryCodes';
+import { Migration20260930120000_NormalizeEmails } from './migrations/Migration20260930120000_NormalizeEmails';
+import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -45,17 +45,18 @@ export async function createMikroOrmConfig() {
       // Used by the CLI (`migration:create`) which runs with cwd=apps/backend.
       pathTs: './src/migrations',
       // Explicit list is required for the webpack-bundled app (no FS discovery).
+      // Keep override name = historical DB identity when renaming classes/files.
       migrationsList: [
-        Migration20260801010402,
-        Migration20260915000000,
-        Migration20260916000000,
-        Migration20260916010000,
-        Migration20260917123217,
-        Migration20260922000000,
+        Migration20260801010402_InitialSchema,
+        Migration20260915000000_MessageReplyTo,
+        Migration20260916000000_SettingsKeyPrimaryKey,
+        Migration20260916010000_InvitesAndInviteOnlySignup,
+        Migration20260917123217_MessageSearchTokens,
+        Migration20260922000000_MessageReads,
         Migration20260923111848_PushSubscriptionNotifications,
-        Migration20260929152327,
-        Migration20260930120000,
-        Migration20260930092254,
+        Migration20260929152327_PasswordRecoveryCodes,
+        Migration20260930120000_NormalizeEmails,
+        Migration20260930092254_UserSoftDelete,
       ],
     },
   } satisfies Partial<Options>;

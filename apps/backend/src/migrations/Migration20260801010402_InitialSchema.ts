@@ -1,6 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260801010402 extends Migration {
+export class Migration20260801010402_InitialSchema extends Migration {
+  override name = 'Migration20260801010402';
+
   override up(): void | Promise<void> {
     this.addSql(
       `create table \`settings\` (\`id\` integer not null primary key autoincrement, \`created_at\` datetime not null, \`updated_at\` datetime null, \`key\` text check (\`key\` in ('ICE_SERVERS')) not null, \`value\` json not null);`,

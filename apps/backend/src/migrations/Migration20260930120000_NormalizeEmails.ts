@@ -1,6 +1,6 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260930120000 extends Migration {
+export class Migration20260930120000_NormalizeEmails extends Migration {
   override name = 'Migration20260930120000';
 
   override up(): void | Promise<void> {
