@@ -93,7 +93,7 @@ Path aliases (prefer these over deep relative imports):
 - Entities use `defineEntity` + `p.*` property builders; extend `KonvoezBaseEntitySchema` for `createdAt` / `updatedAt`.
 - Inject `EntityRepository<T>` with `@InjectRepository`; obtain `EntityManager` from the repository when needed (`repo.getEntityManager()`, `em.fork()` for isolated work).
 - Do not introduce a separate repository-class layer unless complexity clearly demands it — services own persistence here.
-- Schema changes go through migrations under `src/migrations/`. After creating a migration, add it to `migrationsList` in `mikro-orm.config.ts` (required for the webpack bundle).
+- Schema changes go through migrations under `src/migrations/`. Create them via CLI only — never hand-write migration files: `npm run migration:create -- --name DescriptiveSuffix`. The `--name` suffix is required (e.g. `PushSubscriptionNotifications` → `Migration20260923111848_PushSubscriptionNotifications`). After creating a migration, add it to `migrationsList` in `mikro-orm.config.ts` (required for the webpack bundle).
 - Never enable ORM `synchronize` as a substitute for migrations in shared/prod paths.
 - Encrypt message content through `EncryptionService` before persist; decrypt on read. Do not store plaintext chat bodies.
 - Avoid N+1 queries: load needed relations deliberately; paginate large lists.
