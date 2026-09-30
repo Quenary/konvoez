@@ -4,8 +4,6 @@
     class="message"
     [class.message-own]="isOwnMessage()"
     [style.--author-color]="m.senderUsername | tuiAutoColor"
-    [tuiDropdown]="contextMenu"
-    tuiDropdownContext
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     <div class="message-row">
       @if (shouldShowAvatar()) {
@@ -17,7 +15,10 @@
           [avatarUrl]="avatarUrl()" />
       }
 
-      <span class="message-body">
+      <span
+        class="message-body"
+        [tuiDropdown]="contextMenu"
+        tuiDropdownContext>
         <span class="message-body-header">
           <span
             class="message-body-header-username"
@@ -75,15 +76,44 @@
 
         <span class="message-bubble-footer">
           <span class="message-date">{{ m.createdAt | dayjs }}</span>
-          @if (readStatus(); as status) {
-            <tui-icon
-              class="message-status-icon"
-              [class.message-status-icon--read]="status === 'read'"
-              [icon]="status === 'read' ? '@tui.check-check' : '@tui.check'" />
+          @switch (readStatus()) {
+            @case ('loading') {
+              <tui-loader
+                class="message-status-loader"
+                size="xs"
+                [inheritColor]="true" />
+            }
+            @case ('error') {
+              <tui-icon
+                class="message-status-icon message-status-icon--error"
+                icon="@tui.circle-x" />
+            }
+            @case ('read') {
+              <tui-icon
+                class="message-status-icon"
+                icon="@tui.check-check" />
+            }
+            @case ('sent') {
+              <tui-icon
+                class="message-status-icon"
+                icon="@tui.check" />
+            }
           }
         </span>
       </span>
     </div>
+
+    @if (canResend()) {
+      <button
+        class="message-resend"
+        tuiButton
+        type="button"
+        size="xs"
+        appearance="flat"
+        (click)="resendMessage()">
+        {{ 'ROOMS.RESEND' | translate }}
+      </button>
+    }
   </div>
 
   <ng-template

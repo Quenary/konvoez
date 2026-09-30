@@ -11,11 +11,13 @@ import {
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
+  TuiButton,
   TuiDataList,
   TuiDialogService,
   TuiDropdown,
   TuiHint,
   TuiIcon,
+  TuiLoader,
   TuiNotificationService,
   TuiOption,
 } from '@taiga-ui/core';
@@ -26,7 +28,11 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UsersStore } from '@features/users/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
-import { IMessageEntity, TextRoomStore } from '../text-room.store';
+import {
+  EMessageStatus,
+  IMessageEntity,
+  TextRoomStore,
+} from '../text-room.store';
 import { MessageVisibilityDirective } from '@shared/directives/message-visibility.directive';
 import { TextRoomApiService } from '../text-room-api.service';
 import { TuiList } from '@taiga-ui/layout';
@@ -39,11 +45,13 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
     DayjsPipe,
     TranslatePipe,
     UserAvatarComponent,
+    TuiButton,
     TuiDataList,
     TuiDropdown,
     TuiEditorSocket,
     TuiHint,
     TuiIcon,
+    TuiLoader,
     TuiOption,
     TuiAutoColorPipe,
     TextContentPipe,
@@ -124,14 +132,25 @@ export class TextRoomMessageComponent {
   });
 
   /**
-   * 'sent'  — own message, not yet read by anyone
-   * 'read'  — own message, read by at least one other user
-   * null    — someone else's message (no status shown)
+   * 'loading' — own message, create/update/delete in flight
+   * 'error'   — own pending create failed
+   * 'sent'    — own message, not yet read by anyone
+   * 'read'    — own message, read by at least one other user
+   * null      — someone else's message (no status shown)
    */
-  protected readonly readStatus = computed<'sent' | 'read' | null>(() => {
+  protected readonly readStatus = computed<
+    'loading' | 'error' | 'sent' | 'read' | null
+  >(() => {
     if (!this.isOwnMessage()) return null;
-    return this.message().isRead ? 'read' : 'sent';
+    const message = this.message();
+    if (message.status === EMessageStatus.LOADING) return 'loading';
+    if (message.status === EMessageStatus.ERROR && message.isPendingCreate) {
+      return 'error';
+    }
+    return message.isRead ? 'read' : 'sent';
   });
+
+  protected readonly canResend = computed(() => this.readStatus() === 'error');
 
   protected readonly canEdit = computed(() => this.isOwnMessage());
   protected readonly canViewReaders = computed(() => {
@@ -161,6 +180,10 @@ export class TextRoomMessageComponent {
 
   protected deleteMessage(): void {
     this.textRoomStore.deleteMessage(this.message().id);
+  }
+
+  protected resendMessage(): void {
+    this.textRoomStore.retryMessage(this.message().id);
   }
 
   protected onReplyQuoteClick(reply: ITextRoomMessageReply): void {

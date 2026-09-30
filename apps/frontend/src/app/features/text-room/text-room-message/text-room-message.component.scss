@@ -166,9 +166,20 @@
     color: var(--tui-text-tertiary);
     line-height: 1;
 
-    &--read {
-      color: var(--tui-status-positive, #44a77b);
+    &--error {
+      color: var(--tui-status-negative, #e34d4d);
     }
+  }
+
+  .message-status-loader {
+    color: var(--tui-text-tertiary);
+    font-size: 0.875rem;
+  }
+
+  .message-resend {
+    align-self: flex-end;
+    margin-top: 0.125rem;
+    color: var(--tui-status-negative, #e34d4d);
   }
 }
 

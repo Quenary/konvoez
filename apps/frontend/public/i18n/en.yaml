@@ -88,6 +88,7 @@ ROOMS:
   DELETE_CONFIRM: Are you sure you want to delete this room?
   READ_BY: Read by
   NO_READERS: The message has not yet been read
+  RESEND: Resend
   DIALOG:
     ADD_HEADER: Add room
     EDIT_HEADER: Edit room

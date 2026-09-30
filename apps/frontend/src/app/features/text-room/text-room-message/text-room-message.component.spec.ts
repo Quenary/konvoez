@@ -27,6 +27,7 @@ describe('TextRoomMessageComponent', () => {
     setEditableMessageId: vi.fn(),
     deleteMessage: vi.fn(),
     jumpToMessage: vi.fn(),
+    retryMessage: vi.fn(),
   };
 
   const mockUsersStore = {
@@ -190,7 +191,7 @@ describe('TextRoomMessageComponent', () => {
 
   it('should expose sent and read status only for own messages', () => {
     const componentWithStatus = component as unknown as {
-      readStatus: () => 'sent' | 'read' | null;
+      readStatus: () => 'loading' | 'error' | 'sent' | 'read' | null;
     };
     expect(componentWithStatus.readStatus()).toBeNull();
 
@@ -203,6 +204,39 @@ describe('TextRoomMessageComponent', () => {
     fixture.componentRef.setInput('message', { ...testMessage, isRead: true });
     fixture.detectChanges();
     expect(componentWithStatus.readStatus()).toBe('read');
+  });
+
+  it('should show loading status and allow resend for failed pending create', () => {
+    TestBed.inject(Store).dispatch(
+      AuthActions.requestLoginSuccess({ user: currentUser }),
+    );
+
+    const componentWithStatus = component as unknown as {
+      readStatus: () => 'loading' | 'error' | 'sent' | 'read' | null;
+      canResend: () => boolean;
+      resendMessage: () => void;
+    };
+
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      status: EMessageStatus.LOADING,
+      isPendingCreate: true,
+    });
+    fixture.detectChanges();
+    expect(componentWithStatus.readStatus()).toBe('loading');
+    expect(componentWithStatus.canResend()).toBe(false);
+
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      status: EMessageStatus.ERROR,
+      isPendingCreate: true,
+    });
+    fixture.detectChanges();
+    expect(componentWithStatus.readStatus()).toBe('error');
+    expect(componentWithStatus.canResend()).toBe(true);
+
+    componentWithStatus.resendMessage();
+    expect(mockTextRoomStore.retryMessage).toHaveBeenCalledWith('msg-1');
   });
 
   it('should load readers and open the dialog', () => {
