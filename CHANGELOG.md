@@ -1,3 +1,22 @@
+# [1.7.0](https://github.com/Quenary/konvoez/compare/v1.6.0...v1.7.0) (2026-09-30)
+
+### Bug Fixes
+
+- **frontend:** background color ([1d848f0](https://github.com/Quenary/konvoez/commit/1d848f078767b9892a0764acb1a9e439f26c711c))
+- **frontend:** message appearance, resend ([9732c33](https://github.com/Quenary/konvoez/commit/9732c33b2b0e3a2512499cc4738408506b42e011))
+- **frontend:** user-management display deletedAt ([00d93b2](https://github.com/Quenary/konvoez/commit/00d93b2050e84ab5a7c3bb1b6277bac927974e90))
+- **profile:** profile form button change detection ([42bfa86](https://github.com/Quenary/konvoez/commit/42bfa8600721c9247974dcda22e2fe52f6cdae14))
+- **rooms:** room management access control ([e06734f](https://github.com/Quenary/konvoez/commit/e06734f82bd57278a623c20cee991357110f47c0))
+
+### Features
+
+- **entity-sync:** implement real-time user and room synchronization with event emitters ([a9b8d80](https://github.com/Quenary/konvoez/commit/a9b8d805736d565961e2c942a2a0816f38c6f25c))
+- **frontend:** initial setup dialog ([7b1c64c](https://github.com/Quenary/konvoez/commit/7b1c64ca87c55a8de5290f8508a7f82d479e25b7))
+- **frontend:** room dialog display detailed info ([b39a640](https://github.com/Quenary/konvoez/commit/b39a64046e7d21dbf728f0151a261da0b473e714))
+- **profile:** add self-anonymize and delete functionality ([36db56e](https://github.com/Quenary/konvoez/commit/36db56e2f9f0e1c094124105032e72ac0d48dfeb))
+- smtp, password recovery ([216e039](https://github.com/Quenary/konvoez/commit/216e039d4df11fa6964c2951568b43bb8c3123dc))
+- user management ([1beee38](https://github.com/Quenary/konvoez/commit/1beee389567c2b7fb9ecd674994e6da688c7a58e))
+
 # [1.6.0](https://github.com/Quenary/konvoez/compare/v1.5.1...v1.6.0) (2026-09-28)
 
 ### Bug Fixes
