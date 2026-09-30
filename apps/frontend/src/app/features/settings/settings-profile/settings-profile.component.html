@@ -159,7 +159,8 @@
       appearance="primary"
       iconStart="@tui.save"
       type="submit"
-      [disabled]="form.untouched">
+      [disabled]="isSaveDisabled()"
+      [loading]="loading()">
       {{ 'GENERAL.SAVE' | translate }}
     </button>
 

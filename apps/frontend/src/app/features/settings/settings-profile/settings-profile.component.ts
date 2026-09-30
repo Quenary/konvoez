@@ -20,10 +20,19 @@ import {
   TuiTextfield,
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { TuiSwitch, TuiFiles, TuiAvatar, TuiFileLike } from '@taiga-ui/kit';
+import {
+  TuiSwitch,
+  TuiFiles,
+  TuiAvatar,
+  TuiFileLike,
+  TuiButtonLoading,
+} from '@taiga-ui/kit';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { AuthActions } from '@features/auth/auth.actions';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import {
+  selectAuthLoading,
+  selectCurrentUser,
+} from '@features/auth/auth.selectors';
 import {
   emailSchema,
   EUserRole,
@@ -32,7 +41,7 @@ import {
   passwordSchema,
   usernameSchema,
 } from '@konvoez/shared';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ProfileApiService } from './profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
@@ -43,6 +52,7 @@ import {
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { getProfileFormSchema } from '@shared/schemas/forms.schema';
+import { map, startWith } from 'rxjs';
 
 @Component({
   selector: 'app-settings-profile',
@@ -62,6 +72,7 @@ import { getProfileFormSchema } from '@shared/schemas/forms.schema';
     TuiSwitch,
     TuiAvatar,
     TuiLink,
+    TuiButtonLoading,
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',
@@ -128,6 +139,14 @@ export class SettingsProfileComponent {
   protected readonly avatarUrl = linkedSignal<string | null>(
     () => this.currentUser()?.avatarUrl ?? null,
   );
+  protected readonly isSaveDisabled = toSignal(
+    this.form.events.pipe(
+      map(() => this.form.pristine),
+      startWith(this.form.pristine),
+    ),
+    { initialValue: this.form.pristine },
+  );
+  protected readonly loading = this.store.selectSignal(selectAuthLoading);
 
   constructor() {
     this.form.controls.isChangingPassword.valueChanges
