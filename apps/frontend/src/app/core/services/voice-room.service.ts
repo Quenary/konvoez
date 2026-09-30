@@ -314,6 +314,70 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     }
   }
 
+  public applyUserEntityUpdate(user: IUser): void {
+    const existing = this.peersDict()[user.id];
+    if (existing) {
+      patchState(
+        this.peersState,
+        peersStateAdapter.mapOne(
+          {
+            id: user.id,
+            map: (peer) => ({
+              ...peer,
+              ...user,
+            }),
+          },
+          this.peersState(),
+        ),
+      );
+    }
+
+    this._roomsState.update((rooms) => {
+      let changed = false;
+      const next: Record<number, Record<number, IUser>> = {};
+      for (const [roomId, peers] of Object.entries(rooms)) {
+        const roomPeers = peers as Record<number, IUser>;
+        if (roomPeers[user.id]) {
+          changed = true;
+          next[Number(roomId)] = {
+            ...roomPeers,
+            [user.id]: user,
+          };
+        } else {
+          next[Number(roomId)] = roomPeers;
+        }
+      }
+      return changed ? next : rooms;
+    });
+  }
+
+  public applyUserEntityDeleted(userId: number): void {
+    const peer = this.peersDict()[userId];
+    if (peer) {
+      this.cleanupPeer(peer);
+      patchState(
+        this.peersState,
+        peersStateAdapter.removeOne(userId, this.peersState()),
+      );
+    }
+
+    this._roomsState.update((rooms) => {
+      let changed = false;
+      const next: Record<number, Record<number, IUser>> = {};
+      for (const [roomId, peers] of Object.entries(rooms)) {
+        const roomPeers = peers as Record<number, IUser>;
+        if (roomPeers[userId]) {
+          changed = true;
+          const { [userId]: _, ...rest } = roomPeers;
+          next[Number(roomId)] = rest;
+        } else {
+          next[Number(roomId)] = roomPeers;
+        }
+      }
+      return changed ? next : rooms;
+    });
+  }
+
   /**
    * Update all rooms state from backend
    */

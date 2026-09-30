@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { adminGuard } from './core/guards/admin.guard';
+import { ownerGuard } from './core/guards/owner.guard';
 
 export const routes: Routes = [
   {
@@ -19,6 +20,21 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/auth-register/auth-register.component').then(
         (m) => m.AuthRegisterComponent,
+      ),
+  },
+  {
+    path: 'auth/password-recovery/confirm',
+    loadComponent: () =>
+      import('./features/auth/auth-password-recovery-confirm/auth-password-recovery-confirm.component').then(
+        (m) => m.AuthPasswordRecoveryConfirmComponent,
+      ),
+  },
+  {
+    path: 'auth/password-recovery',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./features/auth/auth-password-recovery/auth-password-recovery.component').then(
+        (m) => m.AuthPasswordRecoveryComponent,
       ),
   },
   {
@@ -90,6 +106,14 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/settings/settings-invites/settings-invites.component').then(
                 (m) => m.SettingsInvitesComponent,
+              ),
+          },
+          {
+            path: 'users',
+            canActivate: [ownerGuard],
+            loadComponent: () =>
+              import('./features/settings/settings-user-management/settings-user-management.component').then(
+                (m) => m.SettingsUserManagementComponent,
               ),
           },
           {

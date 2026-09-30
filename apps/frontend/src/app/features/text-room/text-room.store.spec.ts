@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { provideStore } from '@ngrx/store';
+import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
@@ -11,10 +11,13 @@ import { UnreadCountsStore } from './unread-counts.store';
 import { TextRoomStore, EMessageStatus } from './text-room.store';
 import {
   ETextRoomEvent,
+  EUserRole,
   ITextRoomListResponse,
   ITextRoomMessage,
+  IUser,
 } from '@konvoez/shared';
 import { authReducer } from '@features/auth/auth.reducer';
+import { AuthActions } from '@features/auth/auth.actions';
 
 class MockSocket {
   private readonly listeners = new Map<
@@ -49,6 +52,7 @@ class MockSocket {
 
 describe('TextRoomStore', () => {
   let store: InstanceType<typeof TextRoomStore>;
+  let ngrxStore: Store;
   let apiService: {
     list: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -65,6 +69,18 @@ describe('TextRoomStore', () => {
   let messageReadQueueService: {
     reset: ReturnType<typeof vi.fn>;
     enqueue: ReturnType<typeof vi.fn>;
+  };
+
+  const currentUser: IUser = {
+    id: 1,
+    username: 'alice',
+    fullname: 'Alice',
+    email: 'alice@example.com',
+    role: EUserRole.MEMBER,
+    avatar: null,
+    avatarUrl: null,
+    createdAt: new Date('2026-01-01'),
+    updatedAt: null,
   };
 
   const message1: ITextRoomMessage = {
@@ -139,6 +155,8 @@ describe('TextRoomStore', () => {
     });
 
     store = TestBed.inject(TextRoomStore);
+    ngrxStore = TestBed.inject(Store);
+    ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
   });
 
   it('should initialize with default state', () => {
@@ -288,7 +306,8 @@ describe('TextRoomStore', () => {
         isDeleted: false,
       },
     };
-    apiService.create.mockReturnValue(of(createdServerMessage));
+    const create$ = new Subject<ITextRoomMessage>();
+    apiService.create.mockReturnValue(create$.asObservable());
 
     store.createMessage({
       tempId: 'temp-123',
@@ -307,11 +326,78 @@ describe('TextRoomStore', () => {
         replyToId: 'msg-1',
       }),
     );
+    expect(store.entityMap()['temp-123'].status).toBe(EMessageStatus.LOADING);
+    expect(store.entityMap()['temp-123'].isPendingCreate).toBe(true);
+    expect(store.entityMap()['temp-123'].senderId).toBe(currentUser.id);
+    expect(store.entityMap()['temp-123'].senderUsername).toBe(
+      currentUser.username,
+    );
+    expect(store.entityMap()['temp-123'].replyTo?.id).toBe('msg-1');
+
+    create$.next(createdServerMessage);
+    create$.complete();
+
+    expect(store.entityMap()['temp-123']).toBeUndefined();
     expect(store.entityMap()['msg-created-real']).toBeTruthy();
     expect(store.entityMap()['msg-created-real'].status).toBe(
       EMessageStatus.SUCCESS,
     );
+    expect(store.entityMap()['msg-created-real'].isPendingCreate).toBeFalsy();
     expect(store.entityMap()['msg-created-real'].replyTo?.id).toBe('msg-1');
+  });
+
+  it('should retry failed pending create message', () => {
+    store.join({ roomId: 10, recipientId: null });
+
+    const create$ = new Subject<ITextRoomMessage>();
+    apiService.create.mockReturnValue(create$.asObservable());
+
+    store.createMessage({
+      tempId: 'temp-retry',
+      data: {
+        content: 'Retry me',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+      },
+    });
+
+    create$.error(new Error('network'));
+    expect(store.entityMap()['temp-retry'].status).toBe(EMessageStatus.ERROR);
+    expect(store.entityMap()['temp-retry'].isPendingCreate).toBe(true);
+
+    const retry$ = new Subject<ITextRoomMessage>();
+    apiService.create.mockReturnValue(retry$.asObservable());
+    apiService.create.mockClear();
+
+    store.retryMessage('temp-retry');
+
+    expect(store.entityMap()['temp-retry'].status).toBe(EMessageStatus.LOADING);
+    expect(apiService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Retry me',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+      }),
+    );
+
+    retry$.next({
+      id: 'msg-retried',
+      senderId: 1,
+      senderUsername: 'alice',
+      roomId: 10,
+      recipientId: null,
+      content: 'Retry me',
+      createdAt: new Date('2026-09-15T00:06:00.000Z'),
+      updatedAt: null,
+      isRead: false,
+      replyTo: null,
+    });
+    retry$.complete();
+
+    expect(store.entityMap()['temp-retry']).toBeUndefined();
+    expect(store.entityMap()['msg-retried']).toBeTruthy();
   });
 
   it('should update replies to isDeleted: true when original message is deleted via socket', () => {
@@ -604,6 +690,7 @@ describe('TextRoomStore', () => {
       });
 
       expect(store.entityMap()['temp-err'].status).toBe(EMessageStatus.ERROR);
+      expect(store.entityMap()['temp-err'].senderId).toBe(currentUser.id);
       expect(mockNotifications.open).toHaveBeenCalled();
     });
 

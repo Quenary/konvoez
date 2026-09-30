@@ -5,3 +5,23 @@
     gap: 1rem;
   }
 }
+
+.fields {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+
+  dt {
+    color: var(--tui-text-secondary);
+    font-size: 0.8125rem;
+  }
+
+  dd {
+    margin: 0;
+  }
+}

@@ -1,37 +1,28 @@
 import {
-  Body,
   Controller,
-  Delete,
   Get,
   Param,
   ParseIntPipe,
-  Patch,
-  Post,
   Query,
   Res,
   StreamableFile,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { UsersService } from './users.service';
-import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
+import { GetUserDto } from './users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
-import { Author } from '../auth/auth.decorator';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersAvatarsService } from './users-avatars.service';
-import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 
 @Controller('users')
+@UseGuards(AuthGuard)
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly usersAvatarsService: UsersAvatarsService,
   ) {}
 
-  @UseGuards(AuthGuard)
   @Get()
   @ApiOkResponse({
     type: GetUserDto,
@@ -42,71 +33,6 @@ export class UsersController {
     return await this.usersService.findAllAsDto();
   }
 
-  @Post()
-  @ApiOkResponse({
-    type: GetUserDto,
-    description: 'Create user',
-  })
-  async create(@Body() dto: CreateUserDto): Promise<GetUserDto> {
-    const user = await this.usersService.create(dto);
-    return this.usersService.toDto(user);
-  }
-
-  @UseGuards(AuthGuard)
-  @Get(':id')
-  @ApiOkResponse({
-    type: GetUserDto,
-    description: 'Get user by id',
-  })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<GetUserDto> {
-    return await this.usersService.findOneAsDto(id);
-  }
-
-  @UseGuards(AuthGuard)
-  @Patch(':id')
-  @ApiOkResponse({
-    type: GetUserDto,
-    description: 'Update user by id',
-  })
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateUserDto,
-    @Author() author: GetUserDto,
-  ): Promise<GetUserDto> {
-    const user = await this.usersService.update(id, dto, author);
-    return this.usersService.toDto(user);
-  }
-
-  @UseGuards(AuthGuard)
-  @Delete(':id')
-  @ApiOkResponse({
-    description: 'Delete user by id',
-  })
-  async remove(
-    @Param('id', ParseIntPipe) id: number,
-    @Author() author: GetUserDto,
-  ): Promise<void> {
-    return await this.usersService.remove(id, author);
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('avatar/upload')
-  @UseInterceptors(FileInterceptor('avatar'))
-  @ApiOkResponse({
-    type: UploadFileResultDto,
-    description: 'Upload avatar and get its key (no user data mutation)',
-  })
-  async avatarUpload(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<UploadFileResultDto> {
-    const key = await this.usersAvatarsService.upload(file);
-    return {
-      key,
-      url: this.usersService.getAvatarUrl(key) as string,
-    };
-  }
-
-  @UseGuards(AuthGuard)
   @Get('avatar/stream')
   @ApiOkResponse({
     type: StreamableFile,
@@ -125,5 +51,14 @@ export class UsersController {
     });
 
     return new StreamableFile(stream);
+  }
+
+  @Get(':id')
+  @ApiOkResponse({
+    type: GetUserDto,
+    description: 'Get user by id',
+  })
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<GetUserDto> {
+    return await this.usersService.findOneAsDto(id);
   }
 }

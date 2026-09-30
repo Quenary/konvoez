@@ -27,11 +27,13 @@ import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { RoomsService } from './rooms.service';
 import { RoomEntity } from './rooms.entity';
 import { ERoomType } from '@konvoez/shared';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('RoomsService', () => {
   let service: RoomsService;
   let mockRepo: jest.Mocked<EntityRepository<RoomEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
+  let eventEmitter: { emit: jest.Mock };
 
   const author = {
     id: 1,
@@ -50,7 +52,7 @@ describe('RoomsService', () => {
     name: 'Meeting',
     type: ERoomType.TEXT,
     avatar: null,
-    author: { id: 1 },
+    author: { id: 1, username: 'alice', fullname: 'Alice Example' },
     createdAt: new Date(),
     updatedAt: null,
   } as unknown as RoomEntity;
@@ -60,6 +62,7 @@ describe('RoomsService', () => {
       getReference: jest.fn().mockReturnValue({ id: author.id }),
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
+      populate: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {
@@ -69,7 +72,8 @@ describe('RoomsService', () => {
       assign: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<RoomEntity>>;
 
-    service = new RoomsService(mockRepo);
+    eventEmitter = { emit: jest.fn() };
+    service = new RoomsService(mockRepo, eventEmitter as never);
   });
 
   it('should throw ConflictException if room name is already taken on create', async () => {
@@ -80,13 +84,49 @@ describe('RoomsService', () => {
     ).rejects.toThrow(new ConflictException('Room name already taken'));
   });
 
+  it('should emit ROOM_CREATED after successful create', async () => {
+    mockRepo.findOne.mockResolvedValueOnce(null);
+
+    await service.create({ name: 'Meeting', type: ERoomType.TEXT }, author);
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      EntitySyncDomainEvents.ROOM_CREATED,
+      expect.objectContaining({ id: room.id, name: room.name }),
+    );
+  });
+
   it('should throw ConflictException if room name is already taken on update', async () => {
     mockRepo.findOne
       .mockResolvedValueOnce(room as any) // findOne(id)
       .mockResolvedValueOnce(room as any); // findOne({ name, id: { $ne: id } })
 
-    await expect(
-      service.update(1, { name: 'Meeting' }, author),
-    ).rejects.toThrow(new ConflictException('Room name already taken'));
+    await expect(service.update(1, { name: 'Meeting' })).rejects.toThrow(
+      new ConflictException('Room name already taken'),
+    );
+  });
+
+  it('should emit ROOM_UPDATED after successful update', async () => {
+    mockRepo.findOne
+      .mockResolvedValueOnce(room as any)
+      .mockResolvedValueOnce(null);
+
+    await service.update(1, { name: 'Renamed' });
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      EntitySyncDomainEvents.ROOM_UPDATED,
+      expect.objectContaining({ id: room.id }),
+    );
+  });
+
+  it('should emit ROOM_DELETED after successful remove', async () => {
+    mockRepo.findOne.mockResolvedValueOnce(room as any);
+    mockEm.remove = jest.fn();
+
+    await service.remove(1);
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      EntitySyncDomainEvents.ROOM_DELETED,
+      { id: 1 },
+    );
   });
 });

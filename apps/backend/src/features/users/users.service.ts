@@ -1,16 +1,23 @@
+import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { UserEntity } from './users.entity';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
-import { EUserRole } from '@konvoez/shared';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { PasswordService } from '../../shared/services/password.service';
+import {
+  FileServiceInjectionToken,
+  ROOM_AVATARS_BUCKET,
+  USER_AVATARS_BUCKET,
+  type FileService,
+} from '@shared/services/file.service';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
+import { RoomEntity } from '../rooms/rooms.entity';
+import { MessageEntity } from '../text-rooms/text-rooms.entity';
+import { UserEntity } from './users.entity';
+import { GetUserDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +27,9 @@ export class UsersService {
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
     private readonly passwordService: PasswordService,
+    @Inject(FileServiceInjectionToken)
+    private readonly fileService: FileService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -46,6 +56,17 @@ export class UsersService {
     return user;
   }
 
+  async findOneByUsernameOrEmail(login: string): Promise<UserEntity> {
+    const em = this.em.fork();
+    const user = await em.findOne(UserEntity, {
+      $or: [{ username: login }, { email: login.toLowerCase() }],
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
   async findOneByAsDto(where: Partial<UserEntity>): Promise<GetUserDto> {
     const user = await this.findOneBy(where);
     return this.toDto(user);
@@ -65,101 +86,103 @@ export class UsersService {
     return em.count(UserEntity);
   }
 
-  async create(
-    dto: CreateUserDto,
-    explicitRole?: EUserRole,
-  ): Promise<UserEntity> {
-    const existingUsername = await this.repo.findOne({
-      username: dto.username,
-    });
-    if (existingUsername) {
-      throw new ConflictException('Username already taken');
-    }
-
-    const existingEmail = await this.repo.findOne({ email: dto.email });
-    if (existingEmail) {
-      throw new ConflictException('Email already taken');
-    }
-
-    const anyUser = (await this.count()) > 0;
-    if (!anyUser && explicitRole !== EUserRole.OWNER) {
-      throw new ForbiddenException(
-        'Initial setup required: first user must be registered as OWNER with a valid setup token',
-      );
-    }
-
-    const role: EUserRole = explicitRole ?? EUserRole.MEMBER;
-    const password = await this.passwordService.hashPassword(dto.password);
-    const { setupToken: _, inviteCode: __, ...userData } = dto;
-    const user = this.repo.create(
-      {
-        ...userData,
-        password,
-        role,
-      },
-      { persist: true },
-    );
-    await this.em.flush();
-    return user;
-  }
-
-  async update(
-    id: number,
-    dto: UpdateUserDto,
-    author: GetUserDto,
-  ): Promise<UserEntity> {
-    if (
-      id !== author.id &&
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException('Forbidden');
-    }
-    if (dto.role == EUserRole.OWNER) {
-      throw new BadRequestException('Owner role cannot be assigned');
-    }
-    if (dto.username) {
-      const existingUsername = await this.repo.findOne({
-        username: dto.username,
-        id: { $ne: id },
-      });
-      if (existingUsername) {
-        throw new ConflictException('Username already taken');
-      }
-    }
-    if (dto.email) {
-      const existingEmail = await this.repo.findOne({
-        email: dto.email,
-        id: { $ne: id },
-      });
-      if (existingEmail) {
-        throw new ConflictException('Email already taken');
-      }
-    }
-    const { password, ...data } = dto;
-    if (password) {
-      const passwordHash = await this.passwordService.hashPassword(password);
-      dto = {
-        ...data,
-        password: passwordHash,
-      };
-    }
-    const user = await this.findOne(id);
-    this.repo.assign(user, dto);
+  async setPassword(userId: number, password: string): Promise<UserEntity> {
+    const user = await this.findOne(userId);
+    const passwordHash = await this.passwordService.hashPassword(password);
+    this.repo.assign(user, { password: passwordHash });
     this.em.persist(user);
     await this.em.flush();
     return user;
   }
 
-  async remove(id: number, author: GetUserDto): Promise<void> {
-    if (
-      id !== author.id &&
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException('Forbidden');
-    }
-    const user = await this.findOne(id);
-    this.em.remove(user);
+  async anonymizeLoaded(user: UserEntity): Promise<GetUserDto> {
+    const previousAvatar = user.avatar;
+    const password = await this.passwordService.hashPassword(
+      randomBytes(24).toString('base64url'),
+    );
+    this.repo.assign(user, {
+      username: `deleted-${user.id}`,
+      fullname: 'Deleted user',
+      email: `deleted-${user.id}@users.invalid`,
+      avatar: null,
+      password,
+      deletedAt: user.deletedAt ?? new Date(),
+    });
+    this.em.persist(user);
     await this.em.flush();
+    await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
+    const result = this.toDto(user);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_UPDATED,
+      result,
+    );
+    return result;
+  }
+
+  async removeLoaded(id: number): Promise<void> {
+    const files = await this.em.transactional(async (em) => {
+      const user = await em.findOne(UserEntity, { id });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const rooms = await em.find(RoomEntity, { author: id });
+      const roomIds = rooms.map((room) => room.id);
+      const messageFilter: FilterQuery<MessageEntity>[] = [
+        { sender: id },
+        { recipient: id },
+      ];
+      if (roomIds.length > 0) {
+        messageFilter.push({ room: { $in: roomIds } });
+      }
+      const messages = await em.find(
+        MessageEntity,
+        { $or: messageFilter },
+        { fields: ['id'] },
+      );
+      const messageIds = messages.map((message) => message.id);
+
+      if (messageIds.length > 0) {
+        await em.nativeUpdate(
+          MessageEntity,
+          { replyToId: { $in: messageIds } },
+          { replyToId: null },
+        );
+        await em.nativeDelete(MessageEntity, { id: { $in: messageIds } });
+      }
+      if (roomIds.length > 0) {
+        await em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
+      }
+
+      em.remove(user);
+      await em.flush();
+
+      return {
+        avatar: user.avatar,
+        roomIds,
+        roomAvatars: rooms.flatMap((room) =>
+          room.avatar ? [room.avatar] : [],
+        ),
+      };
+    });
+
+    await this.deleteStoredFile(files.avatar, USER_AVATARS_BUCKET);
+    for (const key of files.roomAvatars) {
+      await this.deleteStoredFile(key, ROOM_AVATARS_BUCKET);
+    }
+    for (const roomId of files.roomIds) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id: roomId },
+      );
+    }
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_DELETED,
+      { id },
+    );
   }
 
   toDto(user: UserEntity): GetUserDto {
@@ -173,10 +196,21 @@ export class UsersService {
       updatedAt: user.updatedAt,
       avatar: user.avatar,
       avatarUrl: this.getAvatarUrl(user.avatar),
+      deletedAt: user.deletedAt ?? null,
     };
   }
 
   getAvatarUrl(key: string | null | undefined): string | null {
     return key ? `/api/v1/users/avatar/stream?key=${key}` : null;
+  }
+
+  private async deleteStoredFile(
+    key: string | null | undefined,
+    bucket: string,
+  ): Promise<void> {
+    if (!key) {
+      return;
+    }
+    await this.fileService.delete(key, bucket);
   }
 }

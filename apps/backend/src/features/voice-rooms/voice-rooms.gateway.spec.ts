@@ -7,9 +7,6 @@ jest.mock('../auth/auth.service', () => ({
 jest.mock('@shared/services/app.service', () => ({
   AppService: class {},
 }));
-jest.mock('../notifications/notifications.service', () => ({
-  NotificationsService: class {},
-}));
 // Keep mediasoup out of Jest resolution (node10 / package exports). Specs mock state.
 jest.mock('mediasoup', () => ({
   createWorker: jest.fn(),
@@ -20,7 +17,6 @@ import { VoiceRoomsGateway } from './voice-rooms.gateway';
 import { VoiceRoomsStateService } from './voice-rooms.state';
 import { DirectCallsStateService } from './direct-calls.state';
 import { AuthService } from '../auth/auth.service';
-import { NotificationsService } from '../notifications/notifications.service';
 import {
   EDirectCallEvent,
   EUserRole,
@@ -28,6 +24,7 @@ import {
   EVoiceSessionType,
   type IUser,
 } from '@konvoez/shared';
+import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { Server, Socket } from 'socket.io';
 
 const alice: IUser = {
@@ -79,7 +76,7 @@ function createSocket(
 describe('VoiceRoomsGateway', () => {
   let gateway: VoiceRoomsGateway;
   let authService: { getUserFromRawCookies: jest.Mock };
-  let notificationsService: { sendDirectCallNotification: jest.Mock };
+  let eventEmitter: { emit: jest.Mock };
   let voiceRoomsStateService: {
     ensureRoom: jest.Mock;
     getRoom: jest.Mock;
@@ -108,9 +105,7 @@ describe('VoiceRoomsGateway', () => {
     authService = {
       getUserFromRawCookies: jest.fn(),
     };
-    notificationsService = {
-      sendDirectCallNotification: jest.fn().mockResolvedValue(undefined),
-    };
+    eventEmitter = { emit: jest.fn() };
     voiceRoomsStateService = {
       ensureRoom: jest.fn(),
       getRoom: jest.fn(),
@@ -138,7 +133,7 @@ describe('VoiceRoomsGateway', () => {
       {} as never,
       voiceRoomsStateService as unknown as VoiceRoomsStateService,
       directCallsStateService as unknown as DirectCallsStateService,
-      notificationsService as unknown as NotificationsService,
+      eventEmitter as never,
     );
 
     serverMock = {
@@ -470,9 +465,15 @@ describe('VoiceRoomsGateway', () => {
         EDirectCallEvent.CALL_INCOMING,
         { callId: 'c1', caller: alice },
       );
-      expect(
-        notificationsService.sendDirectCallNotification,
-      ).toHaveBeenCalledWith(bob.id, alice.id, alice.username, 'c1');
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.DIRECT_CALL,
+        {
+          recipientId: bob.id,
+          callerId: alice.id,
+          callerUsername: alice.username,
+          callId: 'c1',
+        },
+      );
     });
 
     it('returns alreadyActive when reusing an active call', () => {

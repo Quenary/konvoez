@@ -14,14 +14,17 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   DEFAULT_ICE_SERVERS,
+  DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
   ESettingKey,
   iceServersSettingValueSchema,
+  passwordRecoveryCodeTtlSettingValueSchema,
   SCHEMA_ERROR,
   TSettingsUpdate,
 } from '@konvoez/shared';
 import {
   TuiButton,
   TuiError,
+  TuiInput,
   TuiLabel,
   TuiTextfield,
   TuiTitle,
@@ -29,6 +32,7 @@ import {
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
 import { SettingsStore } from '../settings.store';
+import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 
 function iceServersJsonValidator(
   control: AbstractControl,
@@ -60,6 +64,7 @@ function iceServersJsonValidator(
     TuiError,
     TuiForm,
     TuiHeader,
+    TuiInput,
     TuiLabel,
     TuiSwitch,
     TuiTextarea,
@@ -75,6 +80,15 @@ export class SettingsAdminComponent {
 
   protected readonly form = new FormGroup({
     inviteOnlySignUp: new FormControl(true, { nonNullable: true }),
+    passwordRecoveryCodeTtl: new FormControl(
+      DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+      {
+        nonNullable: true,
+        validators: [
+          createZodFieldValidator(passwordRecoveryCodeTtlSettingValueSchema),
+        ],
+      },
+    ),
     iceServersJson: new FormControl('', {
       nonNullable: true,
       validators: [iceServersJsonValidator],
@@ -86,9 +100,13 @@ export class SettingsAdminComponent {
   constructor() {
     effect(() => {
       const inviteOnly = this.settingsStore.inviteOnlySignUp();
+      const recoveryTtl = this.settingsStore.passwordRecoveryCodeTtl();
       const iceServers = this.settingsStore.iceServers();
 
       this.form.controls.inviteOnlySignUp.setValue(inviteOnly, {
+        emitEvent: false,
+      });
+      this.form.controls.passwordRecoveryCodeTtl.setValue(recoveryTtl, {
         emitEvent: false,
       });
       this.form.controls.iceServersJson.setValue(this.stringify(iceServers), {
@@ -113,6 +131,13 @@ export class SettingsAdminComponent {
       updates.push({
         key: ESettingKey.INVITE_ONLY_SIGN_UP,
         value: this.form.controls.inviteOnlySignUp.getRawValue(),
+      });
+    }
+
+    if (this.form.controls.passwordRecoveryCodeTtl.dirty) {
+      updates.push({
+        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+        value: Number(this.form.controls.passwordRecoveryCodeTtl.getRawValue()),
       });
     }
 

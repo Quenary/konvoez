@@ -27,6 +27,7 @@ describe('TextRoomMessageComponent', () => {
     setEditableMessageId: vi.fn(),
     deleteMessage: vi.fn(),
     jumpToMessage: vi.fn(),
+    retryMessage: vi.fn(),
   };
 
   const mockUsersStore = {
@@ -71,6 +72,7 @@ describe('TextRoomMessageComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockUsersStore.entityMap.set({});
 
     class MockIntersectionObserver {
       observe = vi.fn();
@@ -190,7 +192,7 @@ describe('TextRoomMessageComponent', () => {
 
   it('should expose sent and read status only for own messages', () => {
     const componentWithStatus = component as unknown as {
-      readStatus: () => 'sent' | 'read' | null;
+      readStatus: () => 'loading' | 'error' | 'sent' | 'read' | null;
     };
     expect(componentWithStatus.readStatus()).toBeNull();
 
@@ -203,6 +205,39 @@ describe('TextRoomMessageComponent', () => {
     fixture.componentRef.setInput('message', { ...testMessage, isRead: true });
     fixture.detectChanges();
     expect(componentWithStatus.readStatus()).toBe('read');
+  });
+
+  it('should show loading status and allow resend for failed pending create', () => {
+    TestBed.inject(Store).dispatch(
+      AuthActions.requestLoginSuccess({ user: currentUser }),
+    );
+
+    const componentWithStatus = component as unknown as {
+      readStatus: () => 'loading' | 'error' | 'sent' | 'read' | null;
+      canResend: () => boolean;
+      resendMessage: () => void;
+    };
+
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      status: EMessageStatus.LOADING,
+      isPendingCreate: true,
+    });
+    fixture.detectChanges();
+    expect(componentWithStatus.readStatus()).toBe('loading');
+    expect(componentWithStatus.canResend()).toBe(false);
+
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      status: EMessageStatus.ERROR,
+      isPendingCreate: true,
+    });
+    fixture.detectChanges();
+    expect(componentWithStatus.readStatus()).toBe('error');
+    expect(componentWithStatus.canResend()).toBe(true);
+
+    componentWithStatus.resendMessage();
+    expect(mockTextRoomStore.retryMessage).toHaveBeenCalledWith('msg-1');
   });
 
   it('should load readers and open the dialog', () => {
@@ -238,5 +273,112 @@ describe('TextRoomMessageComponent', () => {
         component as unknown as { readersLoading: () => boolean }
       ).readersLoading(),
     ).toBe(false);
+  });
+
+  describe('sender display from UsersStore', () => {
+    type SenderApi = {
+      senderUser: () => IUser | null;
+      senderUsername: () => string;
+      senderFullnameHint: () => string | null;
+      avatarUrl: () => string | null;
+    };
+
+    const senderApi = () => component as unknown as SenderApi;
+
+    const otherUser: IUser = {
+      id: 2,
+      username: 'bob-new',
+      fullname: 'Bob New',
+      email: 'bob@example.com',
+      role: EUserRole.MEMBER,
+      avatar: 'avatar-key',
+      avatarUrl: '/api/v1/users/avatar/stream?key=avatar-key',
+      createdAt: new Date('2026-01-02'),
+      updatedAt: null,
+    };
+
+    const otherMessage: IMessageEntity = {
+      ...testMessage,
+      id: 'msg-2',
+      senderId: 2,
+      senderUsername: 'bob-old',
+    };
+
+    it('should fall back to message.senderUsername when user is not in UsersStore', () => {
+      fixture.componentRef.setInput('message', otherMessage);
+      fixture.detectChanges();
+
+      expect(senderApi().senderUser()).toBeNull();
+      expect(senderApi().senderUsername()).toBe('bob-old');
+      expect(senderApi().senderFullnameHint()).toBeNull();
+      expect(senderApi().avatarUrl()).toBeNull();
+    });
+
+    it('should prefer UsersStore username and avatar over denormalized message fields', () => {
+      mockUsersStore.entityMap.set({ [otherUser.id]: otherUser });
+      fixture.componentRef.setInput('message', otherMessage);
+      fixture.detectChanges();
+
+      expect(senderApi().senderUser()).toEqual(otherUser);
+      expect(senderApi().senderUsername()).toBe('bob-new');
+      expect(senderApi().senderFullnameHint()).toBe('Bob New');
+      expect(senderApi().avatarUrl()).toBe(otherUser.avatarUrl);
+    });
+
+    it('should refresh senderUsername when UsersStore entity is updated', () => {
+      mockUsersStore.entityMap.set({ [otherUser.id]: otherUser });
+      fixture.componentRef.setInput('message', otherMessage);
+      fixture.detectChanges();
+      expect(senderApi().senderUsername()).toBe('bob-new');
+
+      mockUsersStore.entityMap.set({
+        [otherUser.id]: { ...otherUser, username: 'bob-renamed' },
+      });
+      fixture.detectChanges();
+
+      expect(senderApi().senderUsername()).toBe('bob-renamed');
+      expect(senderApi().senderUsername()).not.toBe(
+        otherMessage.senderUsername,
+      );
+    });
+
+    it('should resolve own sender from currentUser when missing in UsersStore', () => {
+      TestBed.inject(Store).dispatch(
+        AuthActions.requestLoginSuccess({
+          user: {
+            ...currentUser,
+            username: 'alice-live',
+            fullname: 'Alice Live',
+            avatarUrl: '/api/v1/users/avatar/stream?key=alice',
+          },
+        }),
+      );
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderUsername: 'alice-stale',
+      });
+      fixture.detectChanges();
+
+      expect(senderApi().senderUsername()).toBe('alice-live');
+      expect(senderApi().senderFullnameHint()).toBe('Alice Live');
+      expect(senderApi().avatarUrl()).toBe(
+        '/api/v1/users/avatar/stream?key=alice',
+      );
+    });
+
+    it('should omit fullname hint when it matches username', () => {
+      mockUsersStore.entityMap.set({
+        [otherUser.id]: {
+          ...otherUser,
+          username: 'bob',
+          fullname: 'bob',
+        },
+      });
+      fixture.componentRef.setInput('message', otherMessage);
+      fixture.detectChanges();
+
+      expect(senderApi().senderUsername()).toBe('bob');
+      expect(senderApi().senderFullnameHint()).toBeNull();
+    });
   });
 });

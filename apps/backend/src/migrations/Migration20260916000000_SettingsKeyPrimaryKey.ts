@@ -1,6 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260916000000 extends Migration {
+export class Migration20260916000000_SettingsKeyPrimaryKey extends Migration {
+  override name = 'Migration20260916000000';
+
   override up(): void | Promise<void> {
     this.addSql(
       "create table `settings_new` (`created_at` datetime not null, `updated_at` datetime null, `key` text check (`key` in ('ICE_SERVERS')) not null primary key, `value` json not null);",

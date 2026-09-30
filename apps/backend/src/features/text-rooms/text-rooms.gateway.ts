@@ -1,4 +1,5 @@
 import { Inject } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
   MessageBody,
@@ -13,10 +14,13 @@ import { AuthService } from '../auth/auth.service';
 import {
   ETextRoomEvent,
   type ITextRoomJoin,
-  type ITextRoomMessage,
   ITextRoomPeer,
   TTextRoomEventMap,
 } from '@konvoez/shared';
+import {
+  TextRoomDomainEvents,
+  type TTextRoomDomainPayloadMap,
+} from '@shared/events/text-room.events';
 
 type TSocket = Socket<
   TTextRoomEventMap,
@@ -28,9 +32,6 @@ type TSocket = Socket<
     peer?: ITextRoomPeer;
   }
 >;
-
-// TODO переделать
-// Сообщения должны отправляться всем (кроме создателя), у кого есть доступ
 
 @WebSocketGateway({
   path: '/ws/v1/text',
@@ -110,7 +111,10 @@ export class TextRoomsGateway
     }
   }
 
-  public onMessageCreated(body: ITextRoomMessage) {
+  @OnEvent(TextRoomDomainEvents.MESSAGE_CREATED)
+  onMessageCreated(
+    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_CREATED],
+  ) {
     if (body.roomId) {
       let res = this.server.to(body.roomId.toString());
       const senderClientId = this.userIdToSocketId.get(body.senderId);
@@ -131,7 +135,10 @@ export class TextRoomsGateway
     }
   }
 
-  public onMessageUpdated(body: ITextRoomMessage) {
+  @OnEvent(TextRoomDomainEvents.MESSAGE_UPDATED)
+  onMessageUpdated(
+    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_UPDATED],
+  ) {
     if (body.roomId) {
       return this.server
         .to(body.roomId.toString())
@@ -145,9 +152,10 @@ export class TextRoomsGateway
     }
   }
 
-  public onMessageDeleted(id: string) {
-    return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, {
-      id,
-    });
+  @OnEvent(TextRoomDomainEvents.MESSAGE_DELETED)
+  onMessageDeleted(
+    payload: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_DELETED],
+  ) {
+    return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, payload);
   }
 }

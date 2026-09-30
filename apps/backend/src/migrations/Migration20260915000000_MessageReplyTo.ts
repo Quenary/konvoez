@@ -1,6 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260915000000 extends Migration {
+export class Migration20260915000000_MessageReplyTo extends Migration {
+  override name = 'Migration20260915000000';
+
   override up(): void | Promise<void> {
     this.addSql('alter table `messages` add column `reply_to_id` blob null;');
     this.addSql(

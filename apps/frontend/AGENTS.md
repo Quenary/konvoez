@@ -55,6 +55,7 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 - Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
 - Field order in classes: private → protected → public.
 - Naming: PascalCase for classes, camelCase for members/variables.
+- Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `HttpClient` → `httpClient`, `UsersService` → `usersService`). Do not shorten to `http`, `users`, etc.
 
 ## Angular
 
@@ -86,6 +87,7 @@ computed(() => {
 - Keep templates simple — no heavy logic or method calls in loops.
 - Prefer signals in templates; use `async` pipe for Observables when signals are not available.
 - Two-way binding with writable signals is fine: `[(open)]="isOpen"`.
+- Format dates with `DayjsPipe` (`| dayjs`), not Angular `DatePipe`. Default format is locale-aware (`L LTS`); pass a dayjs format string only when a specific layout is required. Import from `@shared/pipes/dayjs.pipe`.
 
 ### Accessibility & performance
 

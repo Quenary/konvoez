@@ -69,6 +69,16 @@
                     {{ 'MENU.SETTINGS.INVITES' | translate }}
                   </button>
 
+                  @if (isOwner()) {
+                    <button
+                      tuiAsideItem
+                      type="button"
+                      iconStart="@tui.users"
+                      [routerLink]="'/settings/users'">
+                      {{ 'MENU.SETTINGS.USERS' | translate }}
+                    </button>
+                  }
+
                   <button
                     tuiAsideItem
                     type="button"

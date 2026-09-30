@@ -14,9 +14,7 @@ export const adminGuard: CanActivateFn = () => {
       const isAdminOrOwner =
         auth.user?.role === EUserRole.ADMIN ||
         auth.user?.role === EUserRole.OWNER;
-      return isAdminOrOwner
-        ? true
-        : router.createUrlTree(['/settings/profile']);
+      return isAdminOrOwner ? true : router.createUrlTree(['/']);
     }),
   );
 };

@@ -48,20 +48,22 @@
   tuiAsideItem
   iconStart="@tui.message-circle-more">
   {{ 'MENU.TEXT' | translate }}
-  <button
-    [style.margin-left]="'auto'"
-    tuiIconButton
-    appearance="positive"
-    iconStart="@tui.plus"
-    (click)="addRoom(ERoomType.TEXT); $event.stopPropagation()">
-  </button>
+  @if (canManageRooms()) {
+    <button
+      [style.margin-left]="'auto'"
+      tuiIconButton
+      appearance="positive"
+      iconStart="@tui.plus"
+      (click)="addRoom(ERoomType.TEXT); $event.stopPropagation()">
+    </button>
+  }
 </button>
 
 @for (room of textRooms(); track room.id) {
   <button
     class="room-item"
     tuiAsideItem
-    [tuiDropdown]="roomContextMenu"
+    [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
     tuiDropdownHover
     (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
     (click)="selectRoom(room)">
@@ -99,13 +101,15 @@
   tuiAsideItem
   iconStart="@tui.audio-lines">
   {{ 'MENU.VOICE' | translate }}
-  <button
-    [style.margin-left]="'auto'"
-    tuiIconButton
-    appearance="positive"
-    iconStart="@tui.plus"
-    (click)="addRoom(ERoomType.VOICE); $event.stopPropagation()">
-  </button>
+  @if (canManageRooms()) {
+    <button
+      [style.margin-left]="'auto'"
+      tuiIconButton
+      appearance="positive"
+      iconStart="@tui.plus"
+      (click)="addRoom(ERoomType.VOICE); $event.stopPropagation()">
+    </button>
+  }
 </button>
 
 @for (room of voiceRooms(); track room.id) {
@@ -113,7 +117,7 @@
     class="room-item"
     tuiAsideItem
     appearance="active"
-    [tuiDropdown]="roomContextMenu"
+    [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
     tuiDropdownHover
     (tuiDropdownOpenChange)="$event ? contextMenuOpenedFor.set(room) : null"
     (click)="selectRoom(room)">

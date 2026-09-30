@@ -16,6 +16,7 @@ export const SCHEMA_ERROR = {
   SETUP_TOKEN_REQUIRED: 'VALIDATION.SETUP_TOKEN_REQUIRED',
   INVITE_CODE_REQUIRED: 'VALIDATION.INVITE_CODE_REQUIRED',
   INVALID_SCHEMA: 'VALIDATION.INVALID_SCHEMA',
+  RECOVERY_CODE: 'VALIDATION.RECOVERY_CODE',
 } as const;
 
 export type TSchemaError = (typeof SCHEMA_ERROR)[keyof typeof SCHEMA_ERROR];
@@ -28,3 +29,9 @@ export const baseEntitySchema = z.object({
 });
 
 export type TBaseEntity = z.infer<typeof baseEntitySchema>;
+
+export const entityDeletedSchema = z.object({
+  id: z.number().int(),
+});
+
+export type IEntityDeleted = z.infer<typeof entityDeletedSchema>;

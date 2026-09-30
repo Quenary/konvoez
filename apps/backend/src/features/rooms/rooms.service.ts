@@ -1,9 +1,9 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
@@ -12,8 +12,11 @@ import {
   EntityRepository,
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { UserEntity } from '../users/users.entity';
-import { EUserRole } from '@konvoez/shared';
 import { GetUserDto } from '../users/users.dto';
 
 @Injectable()
@@ -23,12 +26,13 @@ export class RoomsService {
   constructor(
     @InjectRepository(RoomEntity)
     private readonly repo: EntityRepository<RoomEntity>,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
   }
 
   async findOne(id: number): Promise<RoomEntity> {
-    const room = await this.repo.findOne({ id });
+    const room = await this.repo.findOne({ id }, { populate: ['author'] });
     if (!room) {
       throw new NotFoundException('Room not found');
     }
@@ -40,7 +44,7 @@ export class RoomsService {
   }
 
   async findAll(): Promise<RoomEntity[]> {
-    return this.repo.findAll();
+    return this.repo.findAll({ populate: ['author'] });
   }
 
   async findAllAsDto(): Promise<GetRoomDto[]> {
@@ -72,24 +76,17 @@ export class RoomsService {
       throw error;
     }
 
+    await this.em.populate(room, ['author']);
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.ROOM_CREATED,
+      this.toDto(room),
+    );
     return room;
   }
 
-  async update(
-    id: number,
-    dto: UpdateRoomDto,
-    author: GetUserDto,
-  ): Promise<RoomEntity> {
+  async update(id: number, dto: UpdateRoomDto): Promise<RoomEntity> {
     const room = await this.findOne(id);
-
-    if (
-      room.author.id !== author.id ||
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException(
-        'Room can be deleted by the author or an admin',
-      );
-    }
 
     if (dto.name) {
       const duplicateRoom = await this.repo.findOne({
@@ -113,21 +110,23 @@ export class RoomsService {
       throw error;
     }
 
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.ROOM_UPDATED,
+      this.toDto(room),
+    );
     return room;
   }
 
-  async remove(id: number, author: GetUserDto): Promise<void> {
+  async remove(id: number): Promise<void> {
     const room = await this.findOne(id);
-    if (
-      room.author.id !== author.id ||
-      ![EUserRole.OWNER, EUserRole.ADMIN].includes(author.role)
-    ) {
-      throw new ForbiddenException(
-        'Room can be deleted by the author or an admin',
-      );
-    }
     this.em.remove(room);
     await this.em.flush();
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.ROOM_DELETED,
+      { id },
+    );
   }
 
   toDto(room: RoomEntity): GetRoomDto {
@@ -137,6 +136,11 @@ export class RoomsService {
       type: room.type,
       avatar: room.avatar,
       avatarUrl: this.getAvatarUrl(room.avatar),
+      author: {
+        id: room.author.id,
+        username: room.author.username,
+        fullname: room.author.fullname,
+      },
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     };

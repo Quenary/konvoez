@@ -1,0 +1,29 @@
+<label
+  tuiLabel
+  class="full-deletion">
+  <input
+    tuiCheckbox
+    type="checkbox"
+    [formControl]="fullDeletion" />
+  {{ 'USER_DELETE.FULL' | translate }}
+  <tui-icon
+    icon="@tui.info"
+    [tuiTooltip]="'USER_DELETE.FULL_HINT' | translate" />
+</label>
+
+<footer class="actions">
+  <button
+    appearance="flat"
+    tuiButton
+    type="button"
+    (click)="cancel()">
+    {{ 'GENERAL.CANCEL' | translate }}
+  </button>
+  <button
+    appearance="negative"
+    tuiButton
+    type="button"
+    (click)="confirm()">
+    {{ 'GENERAL.DELETE' | translate }}
+  </button>
+</footer>

@@ -7,6 +7,7 @@ import {
   TIceServersSettingValue,
   TSetting,
   TSettingsUpdate,
+  DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -27,13 +28,13 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
+import { LOCAL_SETTINGS_VERSION } from '@shared/schemas/local-settings.schema';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
-import { EStorageKey } from '../../app.enums';
 import {
-  storageGetItemJson,
-  storageSetItemJson,
-} from '../../../extentions/local-storage-json';
+  readLocalSettings,
+  writeLocalSettings,
+} from './local-settings.storage';
 import { SettingsApiService } from './settings-api.service';
 
 export const settingsConfig = entityConfig({
@@ -45,6 +46,8 @@ export type SettingsStoreState = {
   loading: boolean;
   audioInput: MediaDeviceInfo | null;
   audioOutput: MediaDeviceInfo | null;
+  /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
+  localSettingsVersion: number | null;
 };
 
 export const SettingsStore = signalStore(
@@ -53,9 +56,10 @@ export const SettingsStore = signalStore(
     loading: false,
     audioInput: null,
     audioOutput: null,
+    localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
-  withComputed(({ entities, entityMap }) => ({
+  withComputed(({ entities, entityMap, localSettingsVersion }) => ({
     settings: entities,
     settingsMap: computed(() => {
       const map = new Map<ESettingKey, TSetting['value']>();
@@ -72,6 +76,16 @@ export const SettingsStore = signalStore(
       const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
       return (item?.value as boolean | undefined) ?? true;
     }),
+    passwordRecoveryCodeTtl: computed(() => {
+      const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
+      return (
+        (item?.value as number | undefined) ??
+        DEFAULT_PASSWORD_RECOVERY_CODE_TTL
+      );
+    }),
+    needsInitialSetup: computed(
+      () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
+    ),
   })),
   withMethods(
     (
@@ -92,25 +106,38 @@ export const SettingsStore = signalStore(
           .subscribe();
       };
 
+      const persistDevices = (): void => {
+        writeLocalSettings({
+          audioInput: store.audioInput(),
+          audioOutput: store.audioOutput(),
+        });
+      };
+
       return {
+        /**
+         * Persist devices and stamp the current schema version (setup complete).
+         */
+        persistLocalSettings(): void {
+          writeLocalSettings(
+            {
+              audioInput: store.audioInput(),
+              audioOutput: store.audioOutput(),
+            },
+            { stampVersion: true },
+          );
+          patchState(store, { localSettingsVersion: LOCAL_SETTINGS_VERSION });
+        },
+
         setAudioInput(audioInput: MediaDeviceInfo | null): void {
-          if (audioInput) {
-            storageSetItemJson(EStorageKey.AUDIO_INPUT, audioInput);
-          } else {
-            localStorage.removeItem(EStorageKey.AUDIO_INPUT);
-          }
           audioDeviceHandler.setAudioInput(audioInput);
           patchState(store, { audioInput });
+          persistDevices();
         },
 
         setAudioOutput(audioOutput: MediaDeviceInfo | null): void {
-          if (audioOutput) {
-            storageSetItemJson(EStorageKey.AUDIO_OUTPUT, audioOutput);
-          } else {
-            localStorage.removeItem(EStorageKey.AUDIO_OUTPUT);
-          }
           audioDeviceHandler.setAudioOutput(audioOutput);
           patchState(store, { audioOutput });
+          persistDevices();
         },
 
         loadAll: rxMethod<void>(
@@ -169,14 +196,19 @@ export const SettingsStore = signalStore(
       const ngrxStore = inject(Store);
       const audioDeviceHandler = inject(AUDIO_DEVICE_HANDLER);
 
-      const audioInput = storageGetItemJson<MediaDeviceInfo>(
-        EStorageKey.AUDIO_INPUT,
-      );
-      const audioOutput = storageGetItemJson<MediaDeviceInfo>(
-        EStorageKey.AUDIO_OUTPUT,
-      );
+      const partial = readLocalSettings();
+      const audioInput =
+        (partial.audioInput as MediaDeviceInfo | undefined) ?? null;
+      const audioOutput =
+        (partial.audioOutput as MediaDeviceInfo | undefined) ?? null;
 
-      patchState(store, { audioInput, audioOutput });
+      patchState(store, {
+        audioInput,
+        audioOutput,
+        localSettingsVersion:
+          typeof partial.version === 'number' ? partial.version : null,
+      });
+
       if (audioInput) {
         audioDeviceHandler.setAudioInput(audioInput);
       }

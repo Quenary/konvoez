@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { baseEntitySchema, stringSchema } from './base.schemas';
-import { emailSchema, fullnameSchema, usernameSchema } from './fields.schemas';
+import { emailSchema } from './fields.schemas';
 import { inviteDefaultTtl, inviteMaxTtl, inviteMinTtl } from '../const';
+import { userBriefSchema } from './user.schemas';
 
 export const inviteCreateSchema = z.object({
   email: emailSchema.nullish(),
@@ -14,15 +15,8 @@ export const inviteCreateSchema = z.object({
 });
 export type IInviteCreate = z.infer<typeof inviteCreateSchema>;
 
-export const inviteUserSchema = z.object({
-  id: z.number().int(),
-  username: usernameSchema,
-  fullname: fullnameSchema,
-});
-export type IInviteUser = z.infer<typeof inviteUserSchema>;
-
-export const inviteAuthorSchema = inviteUserSchema;
-export type IInviteAuthor = IInviteUser;
+export const inviteAuthorSchema = userBriefSchema.clone();
+export type IInviteAuthor = z.infer<typeof inviteAuthorSchema>;
 
 export const inviteStatusSchema = z.enum([
   'active',

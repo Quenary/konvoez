@@ -1,6 +1,15 @@
-jest.mock('@mikro-orm/nestjs', () => ({
-  InjectRepository: () => () => undefined,
-}));
+jest.mock('@mikro-orm/nestjs', () => {
+  const { Inject } = require('@nestjs/common');
+  const getRepositoryToken = (entity: { name?: string } | string) =>
+    typeof entity === 'string'
+      ? entity
+      : `${entity?.name ?? 'Entity'}Repository`;
+  return {
+    InjectRepository: (entity: { name?: string } | string) =>
+      Inject(getRepositoryToken(entity)),
+    getRepositoryToken,
+  };
+});
 jest.mock('@mikro-orm/core', () => {
   const createProxy = (): unknown =>
     new Proxy(() => createProxy(), {
@@ -21,16 +30,23 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 
 import { AppService } from '@shared/services/app.service';
 import { PasswordService } from '@shared/services/password.service';
+import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
+import { ESettingKey, EUserRole } from '@konvoez/shared';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { Request } from 'express';
@@ -38,7 +54,11 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
+import { getRepositoryToken } from '@mikro-orm/nestjs';
+import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 import type { Cache } from 'cache-manager';
 
 describe('AuthService', () => {
@@ -46,10 +66,23 @@ describe('AuthService', () => {
   let jwtService: jest.Mocked<JwtService>;
   let appService: jest.Mocked<AppService>;
   let passwordService: jest.Mocked<PasswordService>;
+  let mailService: jest.Mocked<Pick<MailService, 'isConfigured' | 'sendMail'>>;
   let usersService: jest.Mocked<UsersService>;
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let eventEmitter: { emit: jest.Mock };
+  let userRepo: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+  };
+  let recoveryCodeRepo: {
+    find: jest.Mock;
+    create: jest.Mock;
+    assign: jest.Mock;
+    getEntityManager: jest.Mock;
+  };
+  let em: { persist: jest.Mock; flush: jest.Mock };
 
   const mockUserDto: GetUserDto = {
     id: 1,
@@ -83,6 +116,28 @@ describe('AuthService', () => {
       validate: jest.fn().mockResolvedValue({} as unknown as InviteEntity),
       consume: jest.fn().mockResolvedValue({} as unknown as InviteEntity),
     };
+    mailService = {
+      isConfigured: true,
+      sendMail: jest.fn().mockResolvedValue(undefined),
+    };
+    em = {
+      persist: jest.fn(),
+      flush: jest.fn().mockResolvedValue(undefined),
+    };
+    recoveryCodeRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockImplementation((data) => data),
+      assign: jest.fn(),
+      getEntityManager: jest.fn().mockReturnValue(em),
+    };
+    userRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((data) => ({
+        ...mockUserEntity,
+        ...data,
+      })),
+    };
+    eventEmitter = { emit: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -104,16 +159,22 @@ describe('AuthService', () => {
           provide: PasswordService,
           useValue: {
             comparePassword: jest.fn(),
+            hashPassword: jest.fn().mockResolvedValue('hashed_code'),
           },
+        },
+        {
+          provide: MailService,
+          useValue: mailService,
         },
         {
           provide: UsersService,
           useValue: {
             findOneBy: jest.fn(),
+            findOneByUsernameOrEmail: jest.fn(),
             findOneByAsDto: jest.fn(),
             toDto: jest.fn(),
             count: jest.fn(),
-            create: jest.fn(),
+            setPassword: jest.fn(),
           },
         },
         {
@@ -123,6 +184,18 @@ describe('AuthService', () => {
         {
           provide: InvitesService,
           useValue: invitesService,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: eventEmitter,
+        },
+        {
+          provide: getRepositoryToken(UserEntity),
+          useValue: userRepo,
+        },
+        {
+          provide: getRepositoryToken(PasswordRecoveryCodeEntity),
+          useValue: recoveryCodeRepo,
         },
         {
           provide: CACHE_MANAGER,
@@ -144,16 +217,18 @@ describe('AuthService', () => {
   });
 
   describe('validateUser', () => {
-    it('should return user DTO when credentials are valid', async () => {
-      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+    it('should return user DTO when credentials are valid by username', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
       passwordService.comparePassword.mockResolvedValueOnce(true);
       usersService.toDto.mockReturnValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
 
-      expect(usersService.findOneBy).toHaveBeenCalledWith({
-        username: 'test_user',
-      });
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'test_user',
+      );
       expect(passwordService.comparePassword).toHaveBeenCalledWith(
         'password123',
         mockUserEntity.password,
@@ -162,8 +237,56 @@ describe('AuthService', () => {
       expect(result).toEqual(mockUserDto);
     });
 
-    it('should throw UnauthorizedException when findOneBy throws an error', async () => {
-      usersService.findOneBy.mockRejectedValueOnce(new Error('DB error'));
+    it('should return user DTO when credentials are valid by email', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.toDto.mockReturnValueOnce(mockUserDto);
+
+      const result = await service.validateUser(
+        'test@example.com',
+        'password123',
+      );
+
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'test@example.com',
+      );
+      expect(result).toEqual(mockUserDto);
+    });
+
+    it('should pass mixed-case email login through to lookup', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.toDto.mockReturnValueOnce(mockUserDto);
+
+      await service.validateUser('User@Example.COM', 'password123');
+
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'User@Example.COM',
+      );
+    });
+
+    it('should trim login before lookup', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.toDto.mockReturnValueOnce(mockUserDto);
+
+      await service.validateUser('  test_user  ', 'password123');
+
+      expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
+        'test_user',
+      );
+    });
+
+    it('should throw UnauthorizedException when findOneByUsernameOrEmail throws', async () => {
+      usersService.findOneByUsernameOrEmail.mockRejectedValueOnce(
+        new Error('DB error'),
+      );
 
       await expect(
         service.validateUser('test_user', 'password123'),
@@ -171,7 +294,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
-      usersService.findOneBy.mockResolvedValueOnce(null);
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(null);
 
       await expect(
         service.validateUser('not_found', 'password123'),
@@ -179,12 +302,27 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when password does not match', async () => {
-      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        mockUserEntity,
+      );
       passwordService.comparePassword.mockResolvedValueOnce(false);
 
       await expect(
         service.validateUser('test_user', 'wrong_password'),
       ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce({
+        ...mockUserEntity,
+        deletedAt: new Date(),
+      });
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+
+      await expect(
+        service.validateUser('test_user', 'password123'),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      expect(usersService.toDto).not.toHaveBeenCalled();
     });
   });
 
@@ -229,6 +367,19 @@ describe('AuthService', () => {
       });
       expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
       expect(result).toEqual(mockUserDto);
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      const payload: AuthJWTData = { type: 'access', userId: 1 };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneByAsDto.mockResolvedValueOnce({
+        ...mockUserDto,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.getUserFromAccessToken('valid_token'),
+      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
     });
   });
 
@@ -377,50 +528,78 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(0);
       cacheManager.get.mockResolvedValue(validToken);
 
-      const createdOwner = {
-        ...mockUserEntity,
-        role: EUserRole.OWNER,
-        username: createDto.username,
-      } as unknown as UserEntity;
       const ownerDto = { ...mockUserDto, role: EUserRole.OWNER };
-
-      usersService.create.mockResolvedValueOnce(createdOwner);
       usersService.toDto.mockReturnValueOnce(ownerDto);
+      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
         ...createDto,
         setupToken: validToken,
       });
 
-      expect(usersService.create).toHaveBeenCalledWith(
-        { ...createDto, setupToken: validToken },
-        EUserRole.OWNER,
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: createDto.username,
+          email: createDto.email,
+          role: EUserRole.OWNER,
+          password: 'hashed_password',
+        }),
+        { persist: true },
       );
+      expect(em.flush).toHaveBeenCalled();
       expect(cacheManager.del).toHaveBeenCalledWith(
         service['ownerSetupTokenCacheKey'],
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_CREATED,
+        ownerDto,
       );
       expect(result.role).toBe(EUserRole.OWNER);
     });
 
     it('should create MEMBER user and not require setup token when users already exist', async () => {
       usersService.count.mockResolvedValue(1);
-      const createdMember = {
-        ...mockUserEntity,
-        role: EUserRole.MEMBER,
-      } as unknown as UserEntity;
       const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
 
-      usersService.create.mockResolvedValueOnce(createdMember);
       usersService.toDto.mockReturnValueOnce(memberDto);
+      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
 
-      expect(usersService.create).toHaveBeenCalledWith(
-        createDto,
-        EUserRole.MEMBER,
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: EUserRole.MEMBER,
+        }),
+        { persist: true },
       );
       expect(cacheManager.get).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_CREATED,
+        memberDto,
+      );
       expect(result.role).toBe(EUserRole.MEMBER);
+    });
+
+    it('should throw ConflictException when username is already taken', async () => {
+      usersService.count.mockResolvedValue(1);
+      userRepo.findOne.mockResolvedValueOnce(mockUserEntity);
+
+      await expect(service.register(createDto)).rejects.toThrow(
+        new ConflictException('Username already taken'),
+      );
+      expect(userRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when email is already taken', async () => {
+      usersService.count.mockResolvedValue(1);
+      userRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockUserEntity);
+
+      await expect(service.register(createDto)).rejects.toThrow(
+        new ConflictException('Email already taken'),
+      );
+      expect(userRepo.create).not.toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException when INVITE_ONLY_SIGN_UP is true and no invite code provided', async () => {
@@ -449,8 +628,9 @@ describe('AuthService', () => {
       } as unknown as UserEntity;
       const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
 
-      usersService.create.mockResolvedValueOnce(createdMember);
+      userRepo.create.mockReturnValueOnce(createdMember);
       usersService.toDto.mockReturnValueOnce(memberDto);
+      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
       const result = await service.register(dtoWithCode);
@@ -459,9 +639,11 @@ describe('AuthService', () => {
         'valid-code-123',
         createDto.email,
       );
-      expect(usersService.create).toHaveBeenCalledWith(
-        dtoWithCode,
-        EUserRole.MEMBER,
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: EUserRole.MEMBER,
+        }),
+        { persist: true },
       );
       expect(invitesService.consume).toHaveBeenCalledWith(
         mockInvite,
@@ -482,8 +664,198 @@ describe('AuthService', () => {
       await expect(service.register(dtoWithCode)).rejects.toThrow(
         ForbiddenException,
       );
-      expect(usersService.create).not.toHaveBeenCalled();
+      expect(userRepo.create).not.toHaveBeenCalled();
       expect(invitesService.consume).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requestPasswordRecovery', () => {
+    it('should throw when SMTP is not configured', async () => {
+      Object.defineProperty(mailService, 'isConfigured', { get: () => false });
+
+      await expect(
+        service.requestPasswordRecovery({ email: 'test@example.com' }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('should return ok for unknown email without sending mail', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockRejectedValueOnce(
+        Object.assign(new Error('not found'), {
+          constructor: { name: 'NotFoundException' },
+        }),
+      );
+      const { NotFoundException } = await import('@nestjs/common');
+      usersService.findOneBy.mockReset();
+      usersService.findOneBy.mockRejectedValueOnce(
+        new NotFoundException('User not found'),
+      );
+
+      const result = await service.requestPasswordRecovery({
+        email: 'missing@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+    });
+
+    it('should create hashed code and send email for known user', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      settingsService.getValue.mockResolvedValueOnce(600_000);
+
+      const result = await service.requestPasswordRecovery({
+        email: 'test@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(settingsService.getValue).toHaveBeenCalledWith(
+        ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+      );
+      expect(passwordService.hashPassword).toHaveBeenCalled();
+      expect(recoveryCodeRepo.create).toHaveBeenCalled();
+      expect(em.flush).toHaveBeenCalled();
+      expect(mailService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'test@example.com',
+          subject: 'Password recovery code',
+        }),
+      );
+    });
+
+    it('should look up user by lowercased email', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      settingsService.getValue.mockResolvedValueOnce(600_000);
+
+      await service.requestPasswordRecovery({
+        email: 'User@Example.COM',
+      });
+
+      expect(usersService.findOneBy).toHaveBeenCalledWith({
+        email: 'user@example.com',
+      });
+    });
+
+    it('should return ok without sending mail when the account is deleted', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        deletedAt: new Date(),
+      });
+
+      const result = await service.requestPasswordRecovery({
+        email: 'test@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+      expect(recoveryCodeRepo.create).not.toHaveBeenCalled();
+      expect(cacheManager.set).toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmPasswordRecovery', () => {
+    it('should reject invalid code', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      recoveryCodeRepo.find.mockResolvedValueOnce([
+        {
+          codeHash: 'hash',
+          usedAt: null,
+        },
+      ]);
+      passwordService.comparePassword.mockResolvedValueOnce(false);
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'test@example.com',
+          code: '123456',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(usersService.setPassword).not.toHaveBeenCalled();
+    });
+
+    it('should set password when code matches', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      const matched = { codeHash: 'hash', usedAt: null };
+      recoveryCodeRepo.find.mockResolvedValueOnce([matched]);
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.setPassword.mockResolvedValueOnce(mockUserEntity);
+
+      const result = await service.confirmPasswordRecovery({
+        email: 'test@example.com',
+        code: '123456',
+        password: 'Password1234ab',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(matched.usedAt).toBeInstanceOf(Date);
+      expect(usersService.setPassword).toHaveBeenCalledWith(
+        1,
+        'Password1234ab',
+      );
+    });
+
+    it('should look up user by lowercased email', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      recoveryCodeRepo.find.mockResolvedValueOnce([
+        { codeHash: 'hash', usedAt: null },
+      ]);
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+      usersService.setPassword.mockResolvedValueOnce(mockUserEntity);
+
+      await service.confirmPasswordRecovery({
+        email: 'User@Example.COM',
+        code: '123456',
+        password: 'Password1234ab',
+      });
+
+      expect(usersService.findOneBy).toHaveBeenCalledWith({
+        email: 'user@example.com',
+      });
+    });
+
+    it('should reject a deleted account without changing the password', async () => {
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'test@example.com',
+          code: '123456',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(usersService.setPassword).not.toHaveBeenCalled();
+      expect(recoveryCodeRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveRefreshToken', () => {
+    it('should return token data when the account is active', async () => {
+      const payload: AuthJWTData = { type: 'refresh', userId: 1 };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).resolves.toEqual(payload);
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      const payload: AuthJWTData = { type: 'refresh', userId: 1 };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneByAsDto.mockResolvedValueOnce({
+        ...mockUserDto,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
     });
   });
 });

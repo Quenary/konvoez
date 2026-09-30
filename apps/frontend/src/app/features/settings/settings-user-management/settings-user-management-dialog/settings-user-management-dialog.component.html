@@ -1,0 +1,97 @@
+@if (userResource.value(); as user) {
+  @let hint = user.fullname !== user.username ? user.fullname : null;
+
+  <div class="identity">
+    <app-user-avatar
+      size="m"
+      [avatarUrl]="user.avatarUrl"
+      [fullname]="user.fullname"
+      [username]="user.username" />
+    <span
+      tuiHintAppearance="floating"
+      [style.color]="user.username | tuiAutoColor"
+      [tuiHint]="hint">
+      {{ user.username }}
+    </span>
+  </div>
+
+  <dl class="fields">
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.EMAIL' | translate }}</dt>
+      <dd>{{ user.email }}</dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.FULLNAME' | translate }}</dt>
+      <dd>{{ user.fullname }}</dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.ID' | translate }}</dt>
+      <dd>{{ user.id }}</dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.CREATED' | translate }}</dt>
+      <dd>{{ user.createdAt | dayjs }}</dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.UPDATED' | translate }}</dt>
+      <dd>
+        @if (user.updatedAt) {
+          {{ user.updatedAt | dayjs }}
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.DELETED' | translate }}</dt>
+      <dd>
+        @if (user.deletedAt) {
+          {{ user.deletedAt | dayjs }}
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.ROLE' | translate }}</dt>
+      <dd>
+        @if (canManage()) {
+          <tui-textfield
+            tuiChevron
+            tuiTextfieldSize="m"
+            [tuiTextfieldCleaner]="false">
+            <input
+              tuiSelect
+              [formControl]="roleControl" />
+            <tui-data-list-wrapper
+              *tuiDropdown
+              [items]="roleOptions" />
+          </tui-textfield>
+        } @else {
+          {{ roleLabels[user.role] | translate }}
+        }
+      </dd>
+    </div>
+  </dl>
+
+  @if (canManage()) {
+    <footer class="actions">
+      <button
+        appearance="negative"
+        tuiButton
+        type="button"
+        [loading]="deleting()"
+        (click)="openDelete()">
+        {{ 'GENERAL.DELETE' | translate }}
+      </button>
+      <button
+        tuiButton
+        type="button"
+        [disabled]="!roleChanged()"
+        [loading]="saving()"
+        (click)="saveRole()">
+        {{ 'GENERAL.SAVE' | translate }}
+      </button>
+    </footer>
+  }
+}

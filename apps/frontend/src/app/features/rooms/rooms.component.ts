@@ -19,7 +19,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
-import { ERoomType, IUser } from '@konvoez/shared';
+import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import {
@@ -158,6 +158,11 @@ export class RoomsComponent implements OnInit {
 
   protected readonly ERoomType = ERoomType;
 
+  protected readonly canManageRooms = computed(() => {
+    const role = this.currentUser()?.role;
+    return role === EUserRole.ADMIN || role === EUserRole.OWNER;
+  });
+
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private readonly _voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
 
@@ -237,6 +242,7 @@ export class RoomsComponent implements OnInit {
         data: {
           yes: this.translateService.instant('GENERAL.DELETE'),
           no: this.translateService.instant('GENERAL.CANCEL'),
+          appearance: 'negative',
         } satisfies TuiConfirmData,
       })
       .subscribe((res) => {

@@ -1,7 +1,10 @@
 import { computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { selectIsAuthorized } from '@features/auth/auth.selectors';
+import {
+  selectCurrentUser,
+  selectIsAuthorized,
+} from '@features/auth/auth.selectors';
 import {
   ETextRoomEvent,
   ITextRoomCreateMessage,
@@ -55,6 +58,8 @@ export enum EMessageStatus {
 
 export interface IMessageEntity extends ITextRoomMessage {
   status: EMessageStatus;
+  /** Optimistic create not yet confirmed by the server */
+  isPendingCreate?: boolean;
 }
 
 type TextRoomState = {
@@ -156,7 +161,9 @@ export const TextRoomStore = signalStore(
       tuiNotificationsService = inject(TuiNotificationService),
       messageReadQueueService = inject(MessageReadQueueService),
       unreadCountsStore = inject(UnreadCountsStore),
+      ngrxStore = inject(Store),
     ) => {
+      const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const showError = (error: unknown): void => {
         tuiNotificationsService
           .open(parseError(error), {
@@ -167,6 +174,37 @@ export const TextRoomStore = signalStore(
           })
           .subscribe();
       };
+
+      const toCreatePayload = (
+        message: IMessageEntity,
+      ): ITextRoomCreateMessage => ({
+        content: message.content,
+        roomId: message.roomId,
+        recipientId: message.recipientId,
+        replyToId: message.replyTo?.id ?? null,
+      });
+
+      const applyCreateResult = (tempId: string) =>
+        pipe(
+          tap((message: ITextRoomMessage) => {
+            patchState(
+              store,
+              removeEntity(tempId),
+              setEntity(toMessageEntity(message)),
+            );
+          }),
+          catchError((error) => {
+            patchState(
+              store,
+              updateEntity({
+                id: tempId,
+                changes: { status: EMessageStatus.ERROR },
+              }),
+            );
+            showError(error);
+            return EMPTY;
+          }),
+        );
 
       const requestList = rxMethod<ITextRoomListRequest>(
         pipe(
@@ -378,15 +416,17 @@ export const TextRoomStore = signalStore(
               const replyTarget = data.replyToId
                 ? store.entityMap()[data.replyToId]
                 : null;
+              const me = currentUser();
               const optimistic: IMessageEntity = {
                 ...data,
                 id: tempId,
-                senderId: 0,
-                senderUsername: '',
+                senderId: me?.id ?? 0,
+                senderUsername: me?.username ?? '',
                 createdAt: new Date(),
                 updatedAt: null,
                 isRead: false,
                 status: EMessageStatus.LOADING,
+                isPendingCreate: true,
                 replyTo: replyTarget
                   ? {
                       id: replyTarget.id,
@@ -402,27 +442,35 @@ export const TextRoomStore = signalStore(
               });
             }),
             switchMap(({ tempId, data }) =>
-              textRoomApiService.create(data).pipe(
-                tap((message) => {
-                  patchState(
-                    store,
-                    removeEntity(tempId),
-                    setEntity(toMessageEntity(message)),
-                  );
-                }),
-                catchError((error) => {
-                  patchState(
-                    store,
-                    updateEntity({
-                      id: tempId,
-                      changes: { status: EMessageStatus.ERROR },
-                    }),
-                  );
-                  showError(error);
-                  return EMPTY;
-                }),
-              ),
+              textRoomApiService.create(data).pipe(applyCreateResult(tempId)),
             ),
+          ),
+        ),
+
+        retryMessage: rxMethod<string>(
+          pipe(
+            tap((tempId) => {
+              const message = store.entityMap()[tempId];
+              if (!message?.isPendingCreate) {
+                return;
+              }
+              patchState(
+                store,
+                updateEntity({
+                  id: tempId,
+                  changes: { status: EMessageStatus.LOADING },
+                }),
+              );
+            }),
+            switchMap((tempId) => {
+              const message = store.entityMap()[tempId];
+              if (!message?.isPendingCreate) {
+                return EMPTY;
+              }
+              return textRoomApiService
+                .create(toCreatePayload(message))
+                .pipe(applyCreateResult(tempId));
+            }),
           ),
         ),
 

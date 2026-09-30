@@ -86,10 +86,55 @@
     <tui-error [error]="err | translate" />
   }
 
+  @if (meta; as m) {
+    <dl class="fields">
+      <div class="field">
+        <dt>{{ 'ROOMS.DIALOG.AUTHOR' | translate }}</dt>
+        <dd>
+          @if (m.author; as author) {
+            <span [style.color]="author.username | tuiAutoColor">
+              {{ author.username }}
+            </span>
+          } @else {
+            —
+          }
+        </dd>
+      </div>
+      <div class="field">
+        <dt>{{ 'ROOMS.DIALOG.CREATED' | translate }}</dt>
+        <dd>
+          @if (m.createdAt) {
+            {{ m.createdAt | dayjs }}
+          } @else {
+            —
+          }
+        </dd>
+      </div>
+      <div class="field">
+        <dt>{{ 'ROOMS.DIALOG.UPDATED' | translate }}</dt>
+        <dd>
+          @if (m.updatedAt) {
+            {{ m.updatedAt | dayjs }}
+          } @else {
+            —
+          }
+        </dd>
+      </div>
+    </dl>
+  }
+
   <footer>
     <button
       tuiButton
-      type="submit">
+      type="button"
+      appearance="flat"
+      (click)="close()">
+      {{ 'GENERAL.CANCEL' | translate }}
+    </button>
+    <button
+      tuiButton
+      type="submit"
+      appearance="primary">
       {{ 'GENERAL.SAVE' | translate }}
     </button>
   </footer>

@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { ESettingKey } from '../enums';
+import {
+  passwordRecoveryCodeDefaultTtl,
+  passwordRecoveryCodeMaxTtl,
+  passwordRecoveryCodeMinTtl,
+} from '../const';
 
 /* ==========================================================================
    ICE Servers Setting
@@ -84,17 +89,47 @@ export type TInviteOnlySignUpSetting = z.infer<
 >;
 
 /* ==========================================================================
+   Password Recovery Code TTL Setting
+   ========================================================================== */
+
+export const passwordRecoveryCodeTtlSettingValueSchema = z
+  .number({ error: SCHEMA_ERROR.TTL_RANGE })
+  .int({ error: SCHEMA_ERROR.TTL_RANGE })
+  .min(passwordRecoveryCodeMinTtl, { error: SCHEMA_ERROR.TTL_RANGE })
+  .max(passwordRecoveryCodeMaxTtl, { error: SCHEMA_ERROR.TTL_RANGE });
+export type TPasswordRecoveryCodeTtlSettingValue = z.infer<
+  typeof passwordRecoveryCodeTtlSettingValueSchema
+>;
+
+export const DEFAULT_PASSWORD_RECOVERY_CODE_TTL: TPasswordRecoveryCodeTtlSettingValue =
+  passwordRecoveryCodeDefaultTtl;
+
+export const passwordRecoveryCodeTtlSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.PASSWORD_RECOVERY_CODE_TTL),
+  value: passwordRecoveryCodeTtlSettingValueSchema,
+});
+
+export const passwordRecoveryCodeTtlSettingSchema =
+  passwordRecoveryCodeTtlSettingBaseSchema.extend(baseEntitySchema.shape);
+export type TPasswordRecoveryCodeTtlSetting = z.infer<
+  typeof passwordRecoveryCodeTtlSettingSchema
+>;
+
+/* ==========================================================================
    Maps, Unions & Bulk Update Schemas
    ========================================================================== */
 
 export const settingValueSchemas = {
   [ESettingKey.ICE_SERVERS]: iceServersSettingValueSchema,
   [ESettingKey.INVITE_ONLY_SIGN_UP]: inviteOnlySignUpSettingValueSchema,
+  [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]:
+    passwordRecoveryCodeTtlSettingValueSchema,
 } as const;
 
 export const defaultSettingValues = {
   [ESettingKey.ICE_SERVERS]: DEFAULT_ICE_SERVERS,
   [ESettingKey.INVITE_ONLY_SIGN_UP]: DEFAULT_INVITE_ONLY_SIGN_UP,
+  [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
 } as const;
 
 export type TSettingValueMap = {
@@ -104,6 +139,7 @@ export type TSettingValueMap = {
 export const settingSchema = z.discriminatedUnion('key', [
   iceServersSettingSchema,
   inviteOnlySignUpSettingSchema,
+  passwordRecoveryCodeTtlSettingSchema,
 ]);
 export type TSetting = z.infer<typeof settingSchema>;
 export type TSettingByKey<K extends ESettingKey> = Extract<
@@ -114,6 +150,7 @@ export type TSettingByKey<K extends ESettingKey> = Extract<
 export const settingItemUpdateSchema = z.discriminatedUnion('key', [
   iceServersSettingBaseSchema,
   inviteOnlySignUpSettingBaseSchema,
+  passwordRecoveryCodeTtlSettingBaseSchema,
 ]);
 export type TSettingItemUpdate = z.infer<typeof settingItemUpdateSchema>;
 

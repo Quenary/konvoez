@@ -1,9 +1,18 @@
-import { Component, effect, inject, linkedSignal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  Injector,
+  linkedSignal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,
+  TuiDialogService,
   TuiError,
   TuiInput,
   TuiLink,
@@ -11,26 +20,39 @@ import {
   TuiTextfield,
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { TuiSwitch, TuiFiles, TuiAvatar, TuiFileLike } from '@taiga-ui/kit';
+import {
+  TuiSwitch,
+  TuiFiles,
+  TuiAvatar,
+  TuiFileLike,
+  TuiButtonLoading,
+} from '@taiga-ui/kit';
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { AuthActions } from '@features/auth/auth.actions';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import {
+  selectAuthLoading,
+  selectCurrentUser,
+} from '@features/auth/auth.selectors';
 import {
   emailSchema,
+  EUserRole,
   fullnameSchema,
-  IUserUpdate,
+  IProfileUpdate,
   passwordSchema,
   usernameSchema,
 } from '@konvoez/shared';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { UsersApiService } from '@features/users/users-api.service';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ProfileApiService } from './profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
+import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
 import {
   createZodError,
   createZodFieldValidator,
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { getProfileFormSchema } from '@shared/schemas/forms.schema';
+import { map, startWith } from 'rxjs';
 
 @Component({
   selector: 'app-settings-profile',
@@ -50,17 +72,25 @@ import { getProfileFormSchema } from '@shared/schemas/forms.schema';
     TuiSwitch,
     TuiAvatar,
     TuiLink,
+    TuiButtonLoading,
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsProfileComponent {
   private readonly store = inject(Store);
-  private readonly usersApiService = inject(UsersApiService);
+  private readonly profileApiService = inject(ProfileApiService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly dialogService = inject(TuiDialogService);
+  private readonly injector = inject(Injector);
 
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  protected readonly canDeleteAccount = computed(() => {
+    const currentUser = this.currentUser();
+    return currentUser != null && currentUser.role !== EUserRole.OWNER;
+  });
   protected readonly form = new FormGroup(
     {
       username: new FormControl('', {
@@ -109,6 +139,14 @@ export class SettingsProfileComponent {
   protected readonly avatarUrl = linkedSignal<string | null>(
     () => this.currentUser()?.avatarUrl ?? null,
   );
+  protected readonly isSaveDisabled = toSignal(
+    this.form.events.pipe(
+      map(() => this.form.pristine),
+      startWith(this.form.pristine),
+    ),
+    { initialValue: this.form.pristine },
+  );
+  protected readonly loading = this.store.selectSignal(selectAuthLoading);
 
   constructor() {
     this.form.controls.isChangingPassword.valueChanges
@@ -151,7 +189,7 @@ export class SettingsProfileComponent {
         if (!avatarFile) {
           return;
         }
-        this.usersApiService.avatarUpload(avatarFile as File).subscribe({
+        this.profileApiService.avatarUpload(avatarFile as File).subscribe({
           next: (result) => {
             this.form.patchValue({
               avatar: result.key,
@@ -176,9 +214,8 @@ export class SettingsProfileComponent {
       return;
     }
 
-    const id = this.currentUser()?.id as number;
     const values = this.form.getRawValue();
-    const body: IUserUpdate = {
+    const body: IProfileUpdate = {
       username: values.username,
       fullname: values.fullname,
       email: values.email,
@@ -191,7 +228,6 @@ export class SettingsProfileComponent {
 
     this.store.dispatch(
       AuthActions.requestPatchUser({
-        id,
         body,
       }),
     );
@@ -199,5 +235,34 @@ export class SettingsProfileComponent {
 
   protected logout(): void {
     this.store.dispatch(AuthActions.requestLogout());
+  }
+
+  protected openDelete(): void {
+    void this.openDeleteDialog();
+  }
+
+  private async openDeleteDialog(): Promise<void> {
+    const { UserDeleteDialogComponent } =
+      await import('@shared/components/user-delete-dialog/user-delete-dialog.component');
+
+    this.dialogService
+      .open<IUserDeleteDialogResult | null>(
+        new PolymorpheusComponent(UserDeleteDialogComponent, this.injector),
+        {
+          closable: true,
+          label: this.translateService.instant('USER_DELETE.TITLE'),
+          size: 's',
+        },
+      )
+      .subscribe((result) => {
+        if (!result) {
+          return;
+        }
+        this.store.dispatch(
+          AuthActions.requestDeleteSelf({
+            fullDeletion: result.fullDeletion,
+          }),
+        );
+      });
   }
 }

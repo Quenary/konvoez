@@ -12,7 +12,7 @@ Guidelines for AI agents working in `apps/backend` — the NestJS API for Konvoe
 - **JWT** in HTTP-only cookies; passwords via Argon2
 - **AES-256-GCM** message encryption at rest (`EncryptionService` + `MASTER_KEY`)
 
-HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`.
+HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`.
 
 ## Layout
 
@@ -55,6 +55,7 @@ Path aliases (prefer these over deep relative imports):
 - Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
 - Field order in classes: private → protected → public.
 - Naming: PascalCase for classes, camelCase for members/variables.
+- Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `UsersService` → `usersService`, `PasswordService` → `passwordService`). Do not shorten to `users`, `userService`, etc.
 
 ## NestJS
 
@@ -93,7 +94,7 @@ Path aliases (prefer these over deep relative imports):
 - Entities use `defineEntity` + `p.*` property builders; extend `KonvoezBaseEntitySchema` for `createdAt` / `updatedAt`.
 - Inject `EntityRepository<T>` with `@InjectRepository`; obtain `EntityManager` from the repository when needed (`repo.getEntityManager()`, `em.fork()` for isolated work).
 - Do not introduce a separate repository-class layer unless complexity clearly demands it — services own persistence here.
-- Schema changes go through migrations under `src/migrations/`. After creating a migration, add it to `migrationsList` in `mikro-orm.config.ts` (required for the webpack bundle).
+- Schema changes go through migrations under `src/migrations/`. Create them via CLI only — never hand-write migration files: `npm run migration:create -- --name DescriptiveSuffix`. The `--name` suffix is required (e.g. `PushSubscriptionNotifications` → `Migration20260923111848_PushSubscriptionNotifications`). After creating a migration, add it to `migrationsList` in `mikro-orm.config.ts` (required for the webpack bundle).
 - Never enable ORM `synchronize` as a substitute for migrations in shared/prod paths.
 - Encrypt message content through `EncryptionService` before persist; decrypt on read. Do not store plaintext chat bodies.
 - Avoid N+1 queries: load needed relations deliberately; paginate large lists.
@@ -101,6 +102,9 @@ Path aliases (prefer these over deep relative imports):
 ## Realtime & voice
 
 - Text: `TextRoomsGateway` + `TextRoomsService`. Voice: `VoiceRoomsGateway` + mediasoup state services.
+- Entity metadata sync: `EntitySyncGateway` (`/ws/v1/sync`). Feature services publish domain events via `EventEmitter2` (`@nestjs/event-emitter`); the gateway listens with `@OnEvent` and fans out to Socket.IO. Do **not** inject the gateway into feature services.
+- Text message fan-out and push side effects follow the same pattern: emit from services/gateways via `@shared/events` (`text-room.events.ts`, `notifications.events.ts`); `TextRoomsGateway` / `NotificationsService` subscribe with `@OnEvent`. Do **not** inject `TextRoomsGateway` or `NotificationsService` into other features for notify-only work.
+- Domain event names/payloads for entity-sync live under `src/shared/events/` (e.g. `entity-sync.events.ts`). Wire event enums/payloads for clients live in `@konvoez/shared` (`EEntitySyncEvent`).
 - Keep signaling contracts and event enums in `@konvoez/shared`; do not diverge payload shapes between client and server.
 - Gateways handle connection lifecycle and fan-out; heavy persistence/encryption stays in services.
 - Mediasoup / SFU state is process-local — treat it as sensitive runtime state, not something to casually serialize or share across instances.

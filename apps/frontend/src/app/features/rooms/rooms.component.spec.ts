@@ -65,6 +65,7 @@ describe('RoomsComponent', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
   };
@@ -75,6 +76,7 @@ describe('RoomsComponent', () => {
     type: ERoomType.VOICE,
     avatar: null,
     avatarUrl: null,
+    author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
   };
@@ -115,6 +117,7 @@ describe('RoomsComponent', () => {
       }>;
       hangingCallPeer: () => IUser | null;
       textRooms: () => IRoom[];
+      canManageRooms: () => boolean;
       openHangingCall: (peer: IUser) => void;
       selectRoom: (room: IRoom) => void;
       addRoom: (type: ERoomType) => Promise<void>;
@@ -218,6 +221,30 @@ describe('RoomsComponent', () => {
 
   it('should expose text rooms from the store', () => {
     expect(asProtected().textRooms()).toEqual([textRoom]);
+  });
+
+  it('should not allow room management for members', () => {
+    expect(asProtected().canManageRooms()).toBe(false);
+  });
+
+  it('should allow room management for admin or owner', () => {
+    store.overrideSelector(selectCurrentUser, {
+      ...me,
+      role: EUserRole.ADMIN,
+    });
+    store.refreshState();
+    fixture.detectChanges();
+
+    expect(asProtected().canManageRooms()).toBe(true);
+
+    store.overrideSelector(selectCurrentUser, {
+      ...me,
+      role: EUserRole.OWNER,
+    });
+    store.refreshState();
+    fixture.detectChanges();
+
+    expect(asProtected().canManageRooms()).toBe(true);
   });
 
   describe('voiceRooms', () => {

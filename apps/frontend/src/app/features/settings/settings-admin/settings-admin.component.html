@@ -28,6 +28,24 @@
   </div>
 
   <div class="setting-item">
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="password-recovery-code-ttl">
+        {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="password-recovery-code-ttl"
+        type="number"
+        formControlName="passwordRecoveryCodeTtl" />
+    </tui-textfield>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL_DESC' | translate }}
+    </p>
+  </div>
+
+  <div class="setting-item">
     <tui-textfield class="json-field">
       <label
         tuiLabel

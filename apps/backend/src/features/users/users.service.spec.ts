@@ -19,18 +19,20 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
 import { PasswordService } from '../../shared/services/password.service';
+import { RoomEntity } from '../rooms/rooms.entity';
+import { MessageEntity } from '../text-rooms/text-rooms.entity';
+import {
+  ROOM_AVATARS_BUCKET,
+  USER_AVATARS_BUCKET,
+  type FileService,
+} from '@shared/services/file.service';
 import { EUserRole } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
-import type { CreateUserDto, GetUserDto, UpdateUserDto } from './users.dto';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -38,6 +40,8 @@ describe('UsersService', () => {
   let mockEm: jest.Mocked<EntityManager>;
   let mockForkedEm: jest.Mocked<EntityManager>;
   let passwordService: jest.Mocked<PasswordService>;
+  let fileService: jest.Mocked<FileService>;
+  let eventEmitter: { emit: jest.Mock };
 
   const mockUser: UserEntity = {
     id: 1,
@@ -47,27 +51,10 @@ describe('UsersService', () => {
     email: 'test@example.com',
     role: EUserRole.MEMBER,
     avatar: null,
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: null,
   } as unknown as UserEntity;
-
-  const mockUserDto: GetUserDto = {
-    id: 1,
-    username: 'test_user',
-    fullname: 'Test User',
-    email: 'test@example.com',
-    role: EUserRole.MEMBER,
-    avatar: null,
-    avatarUrl: null,
-    createdAt: new Date(),
-    updatedAt: null,
-  };
-
-  const adminDto: GetUserDto = {
-    ...mockUserDto,
-    id: 2,
-    role: EUserRole.ADMIN,
-  };
 
   beforeEach(() => {
     mockForkedEm = {
@@ -80,6 +67,14 @@ describe('UsersService', () => {
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
       remove: jest.fn(),
+      findOne: jest.fn(),
+      find: jest.fn(),
+      nativeUpdate: jest.fn().mockResolvedValue(0),
+      nativeDelete: jest.fn().mockResolvedValue(0),
+      transactional: jest.fn(
+        async (callback: (em: EntityManager) => Promise<unknown>) =>
+          callback(mockEm),
+      ),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {
@@ -95,134 +90,18 @@ describe('UsersService', () => {
       comparePassword: jest.fn(),
     } as unknown as jest.Mocked<PasswordService>;
 
-    service = new UsersService(mockRepo, passwordService);
-  });
+    fileService = {
+      delete: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<FileService>;
 
-  describe('create', () => {
-    const createDto: CreateUserDto = {
-      username: 'newuser',
-      password: 'StrongPassword123!',
-      fullname: 'New User',
-      email: 'newuser@example.com',
-    };
+    eventEmitter = { emit: jest.fn() };
 
-    it('should throw ConflictException if username is already taken', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
-
-      await expect(service.create(createDto)).rejects.toThrow(
-        new ConflictException('Username already taken'),
-      );
-      expect(mockRepo.findOne).toHaveBeenCalledWith({
-        username: createDto.username,
-      });
-    });
-
-    it('should throw ConflictException if email is already taken', async () => {
-      mockRepo.findOne
-        .mockResolvedValueOnce(null) // username check
-        .mockResolvedValueOnce(mockUser); // email check
-
-      await expect(service.create(createDto)).rejects.toThrow(
-        new ConflictException('Email already taken'),
-      );
-      expect(mockRepo.findOne).toHaveBeenNthCalledWith(1, {
-        username: createDto.username,
-      });
-      expect(mockRepo.findOne).toHaveBeenNthCalledWith(2, {
-        email: createDto.email,
-      });
-    });
-
-    it('should throw ForbiddenException if no users exist and role is not OWNER', async () => {
-      mockRepo.findOne.mockResolvedValue(null);
-      mockForkedEm.count.mockResolvedValueOnce(0);
-
-      await expect(service.create(createDto)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-
-    it('should successfully create user when username and email are unique', async () => {
-      mockRepo.findOne.mockResolvedValue(null);
-      mockForkedEm.count.mockResolvedValueOnce(1);
-
-      const result = await service.create(createDto);
-
-      expect(passwordService.hashPassword).toHaveBeenCalledWith(
-        createDto.password,
-      );
-      expect(mockRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          username: createDto.username,
-          email: createDto.email,
-          role: EUserRole.MEMBER,
-        }),
-        { persist: true },
-      );
-      expect(mockEm.flush).toHaveBeenCalled();
-      expect(result).toBe(mockUser);
-    });
-  });
-
-  describe('update', () => {
-    const updateDto: UpdateUserDto = {
-      username: 'updated_username',
-      email: 'updated_email@example.com',
-    };
-
-    it('should throw ForbiddenException when caller is not owner/admin and updating another user', async () => {
-      const nonAuthorDto: GetUserDto = { ...mockUserDto, id: 99 };
-
-      await expect(service.update(1, updateDto, nonAuthorDto)).rejects.toThrow(
-        new ForbiddenException('Forbidden'),
-      );
-    });
-
-    it('should throw BadRequestException when trying to assign OWNER role', async () => {
-      await expect(
-        service.update(1, { role: EUserRole.OWNER }, mockUserDto),
-      ).rejects.toThrow(
-        new BadRequestException('Owner role cannot be assigned'),
-      );
-    });
-
-    it('should throw ConflictException if updated username is already taken by someone else', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
-
-      await expect(
-        service.update(1, { username: 'taken_user' }, mockUserDto),
-      ).rejects.toThrow(new ConflictException('Username already taken'));
-      expect(mockRepo.findOne).toHaveBeenCalledWith({
-        username: 'taken_user',
-        id: { $ne: 1 },
-      });
-    });
-
-    it('should throw ConflictException if updated email is already taken by someone else', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
-
-      await expect(
-        service.update(1, { email: 'taken@example.com' }, mockUserDto),
-      ).rejects.toThrow(new ConflictException('Email already taken'));
-      expect(mockRepo.findOne).toHaveBeenCalledWith({
-        email: 'taken@example.com',
-        id: { $ne: 1 },
-      });
-    });
-
-    it('should successfully update user when fields are valid', async () => {
-      mockRepo.findOne
-        .mockResolvedValueOnce(null) // username check
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(mockUser); // findOne(id)
-
-      const result = await service.update(1, updateDto, mockUserDto);
-
-      expect(mockRepo.assign).toHaveBeenCalledWith(mockUser, updateDto);
-      expect(mockEm.persist).toHaveBeenCalledWith(mockUser);
-      expect(mockEm.flush).toHaveBeenCalled();
-      expect(result).toBe(mockUser);
-    });
+    service = new UsersService(
+      mockRepo,
+      passwordService,
+      fileService,
+      eventEmitter as never,
+    );
   });
 
   describe('findOne', () => {
@@ -240,26 +119,146 @@ describe('UsersService', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should throw ForbiddenException if user tries to delete another user without admin rights', async () => {
-      const otherUserDto = { ...mockUserDto, id: 99 };
-      await expect(service.remove(1, otherUserDto)).rejects.toThrow(
-        new ForbiddenException('Forbidden'),
+  describe('findOneByUsernameOrEmail', () => {
+    it('should look up by username and lowercased email', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(mockUser);
+
+      const result = await service.findOneByUsernameOrEmail('Test_User');
+
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
+        $or: [{ username: 'Test_User' }, { email: 'test_user' }],
+      });
+      expect(result).toBe(mockUser);
+    });
+
+    it('should lowercase mixed-case email login for email branch', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(mockUser);
+
+      await service.findOneByUsernameOrEmail('User@Example.COM');
+
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
+        $or: [{ username: 'User@Example.COM' }, { email: 'user@example.com' }],
+      });
+    });
+
+    it('should throw NotFoundException when no user matches', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.findOneByUsernameOrEmail('missing')).rejects.toThrow(
+        new NotFoundException('User not found'),
       );
     });
+  });
 
-    it('should remove user when caller is the user themselves', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
-      await service.remove(1, mockUserDto);
-      expect(mockEm.remove).toHaveBeenCalledWith(mockUser);
-      expect(mockEm.flush).toHaveBeenCalled();
+  describe('toDto', () => {
+    it('should map deletedAt', () => {
+      const deletedAt = new Date('2026-09-30T12:00:00.000Z');
+      const dto = service.toDto({
+        ...mockUser,
+        deletedAt,
+      } as UserEntity);
+
+      expect(dto.deletedAt).toEqual(deletedAt);
+      expect(dto).not.toHaveProperty('password');
     });
+  });
 
-    it('should remove user when caller is admin', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
-      await service.remove(1, adminDto);
-      expect(mockEm.remove).toHaveBeenCalledWith(mockUser);
-      expect(mockEm.flush).toHaveBeenCalled();
+  describe('anonymizeLoaded', () => {
+    it('should replace identity fields, keep the role, and keep the user row', async () => {
+      const target = {
+        ...mockUser,
+        id: 5,
+        role: EUserRole.ADMIN,
+        avatar: 'avatar-key',
+      } as UserEntity;
+
+      const result = await service.anonymizeLoaded(target);
+
+      expect(mockRepo.assign).toHaveBeenCalledWith(target, {
+        username: 'deleted-5',
+        fullname: 'Deleted user',
+        email: 'deleted-5@users.invalid',
+        avatar: null,
+        password: 'hashed_new_password',
+        deletedAt: expect.any(Date),
+      });
+      expect(mockRepo.assign).not.toHaveBeenCalledWith(
+        target,
+        expect.objectContaining({ role: expect.anything() }),
+      );
+      expect(mockEm.remove).not.toHaveBeenCalled();
+      expect(fileService.delete).toHaveBeenCalledWith(
+        'avatar-key',
+        USER_AVATARS_BUCKET,
+      );
+      expect(result.role).toBe(EUserRole.ADMIN);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_UPDATED,
+        expect.objectContaining({ id: 5, role: EUserRole.ADMIN }),
+      );
+    });
+  });
+
+  describe('removeLoaded', () => {
+    it('should delete the user, their rooms and messages, and leave other rooms untouched', async () => {
+      const target = {
+        ...mockUser,
+        id: 5,
+        role: EUserRole.MEMBER,
+        avatar: 'avatar-key',
+      } as UserEntity;
+      const ownRoom = { id: 10, avatar: 'room-key' };
+      const messageId = new Uint8Array(16);
+      mockEm.findOne.mockResolvedValueOnce(target);
+      mockEm.find
+        .mockResolvedValueOnce([ownRoom] as never)
+        .mockResolvedValueOnce([{ id: messageId }] as never);
+
+      await service.removeLoaded(5);
+
+      expect(mockEm.find).toHaveBeenNthCalledWith(1, RoomEntity, {
+        author: 5,
+      });
+      expect(mockEm.find).toHaveBeenNthCalledWith(
+        2,
+        MessageEntity,
+        {
+          $or: [{ sender: 5 }, { recipient: 5 }, { room: { $in: [10] } }],
+        },
+        { fields: ['id'] },
+      );
+      expect(mockEm.nativeUpdate).toHaveBeenCalledWith(
+        MessageEntity,
+        { replyToId: { $in: [messageId] } },
+        { replyToId: null },
+      );
+      expect(mockEm.nativeDelete).toHaveBeenCalledWith(MessageEntity, {
+        id: { $in: [messageId] },
+      });
+      expect(mockEm.nativeDelete).toHaveBeenCalledWith(RoomEntity, {
+        id: { $in: [10] },
+      });
+      expect(mockEm.nativeDelete).not.toHaveBeenCalledWith(
+        RoomEntity,
+        expect.objectContaining({ id: { $in: expect.arrayContaining([11]) } }),
+      );
+      expect(mockEm.remove).toHaveBeenCalledWith(target);
+      expect(fileService.delete).toHaveBeenCalledWith(
+        'avatar-key',
+        USER_AVATARS_BUCKET,
+      );
+      expect(fileService.delete).toHaveBeenCalledWith(
+        'room-key',
+        ROOM_AVATARS_BUCKET,
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id: 10 },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_DELETED,
+        { id: 5 },
+      );
     });
   });
 });

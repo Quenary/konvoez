@@ -3,38 +3,39 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
-    [style.--author-color]="m.senderUsername | tuiAutoColor"
-    [tuiDropdown]="contextMenu"
-    tuiDropdownContext
+    [style.--author-color]="senderUsername() | tuiAutoColor"
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     <div class="message-row">
       @if (shouldShowAvatar()) {
         <app-user-avatar
           size="s"
           class="message-sender"
-          [username]="m.senderUsername"
-          [fullname]="senderUser()?.fullname ?? m.senderUsername"
+          [username]="senderUsername()"
+          [fullname]="senderUser()?.fullname ?? senderUsername()"
           [avatarUrl]="avatarUrl()" />
       }
 
-      <span class="message-body">
+      <span
+        class="message-body"
+        [tuiDropdown]="contextMenu"
+        tuiDropdownContext>
         <span class="message-body-header">
           <span
             class="message-body-header-username"
             tuiHintAppearance="floating"
-            [style.color]="m.senderUsername | tuiAutoColor"
+            [style.color]="senderUsername() | tuiAutoColor"
             [tuiHint]="senderFullnameHint()">
-            {{ m.senderUsername }}
+            {{ senderUsername() }}
           </span>
         </span>
 
         @if (m.replyTo; as reply) {
           @let replyUser = reply.senderId ? usersById()[reply.senderId] : null;
+          @let replyUsername =
+            replyUser?.username ?? reply.senderUsername ?? '';
           @let replyFullname = replyUser?.fullname ?? null;
           @let replyHint =
-            replyFullname &&
-            reply.senderUsername &&
-            replyFullname !== reply.senderUsername
+            replyFullname && replyUsername && replyFullname !== replyUsername
               ? replyFullname
               : null;
           <div
@@ -43,9 +44,7 @@
             tabindex="0"
             [class.message-reply-deleted]="reply.isDeleted"
             [style.border-left-color]="
-              reply.isDeleted
-                ? null
-                : (reply.senderUsername ?? '' | tuiAutoColor)
+              reply.isDeleted ? null : (replyUsername | tuiAutoColor)
             "
             (click)="onReplyQuoteClick(reply)"
             (keydown.enter)="onReplyQuoteClick(reply)">
@@ -57,9 +56,9 @@
               <span
                 class="message-reply-sender"
                 tuiHintAppearance="floating"
-                [style.color]="reply.senderUsername ?? '' | tuiAutoColor"
+                [style.color]="replyUsername | tuiAutoColor"
                 [tuiHint]="replyHint">
-                {{ reply.senderUsername }}
+                {{ replyUsername }}
               </span>
               <span class="message-reply-content">
                 {{ reply.content | textContent }}
@@ -75,15 +74,44 @@
 
         <span class="message-bubble-footer">
           <span class="message-date">{{ m.createdAt | dayjs }}</span>
-          @if (readStatus(); as status) {
-            <tui-icon
-              class="message-status-icon"
-              [class.message-status-icon--read]="status === 'read'"
-              [icon]="status === 'read' ? '@tui.check-check' : '@tui.check'" />
+          @switch (readStatus()) {
+            @case ('loading') {
+              <tui-loader
+                class="message-status-loader"
+                size="xs"
+                [inheritColor]="true" />
+            }
+            @case ('error') {
+              <tui-icon
+                class="message-status-icon message-status-icon--error"
+                icon="@tui.circle-x" />
+            }
+            @case ('read') {
+              <tui-icon
+                class="message-status-icon"
+                icon="@tui.check-check" />
+            }
+            @case ('sent') {
+              <tui-icon
+                class="message-status-icon"
+                icon="@tui.check" />
+            }
           }
         </span>
       </span>
     </div>
+
+    @if (canResend()) {
+      <button
+        class="message-resend"
+        tuiButton
+        type="button"
+        size="xs"
+        appearance="flat"
+        (click)="resendMessage()">
+        {{ 'ROOMS.RESEND' | translate }}
+      </button>
+    }
   </div>
 
   <ng-template

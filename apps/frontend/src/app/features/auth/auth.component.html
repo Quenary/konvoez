@@ -14,18 +14,18 @@
   <tui-textfield iconStart="@tui.user">
     <label
       tuiLabel
-      for="username">
-      {{ 'PROFILE.USERNAME' | translate }}
+      for="login">
+      {{ 'AUTH.LOGIN' | translate }}
     </label>
 
     <input
       tuiInput
-      id="username"
+      id="login"
       autocomplete="username"
-      formControlName="username"
+      formControlName="login"
       type="text" />
   </tui-textfield>
-  @if (errors().username; as err) {
+  @if (errors().login; as err) {
     <tui-error [error]="err | translate" />
   }
 
@@ -66,6 +66,14 @@
       routerLink="/auth/register">
       <tui-icon icon="@tui.user-plus" />
       {{ 'GENERAL.SIGN_UP' | translate }}
+    </button>
+
+    <button
+      appearance="flat"
+      tuiButton
+      type="button"
+      routerLink="/auth/password-recovery">
+      {{ 'AUTH.PASSWORD_RECOVERY.FORGOT' | translate }}
     </button>
   </footer>
 </form>

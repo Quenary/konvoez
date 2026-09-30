@@ -29,6 +29,9 @@ import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
+import { EntitySyncSocketToken } from './core/tokens/entity-sync-socket.token';
+import { EntitySyncEffects } from './features/entity-sync/entity-sync.effects';
+import { initialSetupInitializer } from './core/initializers/initial-setup-initializer';
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
@@ -53,7 +56,7 @@ export const appConfig: ApplicationConfig = {
       },
       fallbackLang: 'en',
     }),
-    provideEffects(AuthEffects, RoomsEffects),
+    provideEffects(AuthEffects, RoomsEffects, EntitySyncEffects),
     provideStore({
       auth: authReducer,
       rooms: roomsReducer,
@@ -71,6 +74,13 @@ export const appConfig: ApplicationConfig = {
       useValue: io(window.location.origin, {
         autoConnect: false,
         path: `${environment.wsPath}/text`,
+      }),
+    },
+    {
+      provide: EntitySyncSocketToken,
+      useValue: io(window.location.origin, {
+        autoConnect: false,
+        path: `${environment.wsPath}/sync`,
       }),
     },
     {
@@ -93,6 +103,7 @@ export const appConfig: ApplicationConfig = {
       return store.dispatch(AuthActions.initStart());
     }),
     provideAppInitializer(() => localeInitializer()),
+    provideAppInitializer(() => initialSetupInitializer()),
     provideTaiga(),
     {
       provide: Sanitizer,

@@ -54,9 +54,9 @@ export class AuthComponent {
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(
     {
-      username: new FormControl('', {
+      login: new FormControl('', {
         nonNullable: true,
-        validators: [createZodFieldValidator(authLoginSchema.shape.username)],
+        validators: [createZodFieldValidator(authLoginSchema.shape.login)],
       }),
       password: new FormControl('', {
         nonNullable: true,

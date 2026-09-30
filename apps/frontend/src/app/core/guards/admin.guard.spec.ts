@@ -77,7 +77,7 @@ describe('adminGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should redirect to /settings/profile when user is MEMBER', async () => {
+  it('should redirect to / when user is MEMBER', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
       user: createMockUser(EUserRole.MEMBER),
@@ -86,10 +86,10 @@ describe('adminGuard', () => {
     store.refreshState();
 
     const result = await firstValueFrom(executeGuard());
-    expect(result).toEqual(router.createUrlTree(['/settings/profile']));
+    expect(result).toEqual(router.createUrlTree(['/']));
   });
 
-  it('should redirect to /settings/profile when user is null', async () => {
+  it('should redirect to / when user is null', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
       user: null,
@@ -98,7 +98,7 @@ describe('adminGuard', () => {
     store.refreshState();
 
     const result = await firstValueFrom(executeGuard());
-    expect(result).toEqual(router.createUrlTree(['/settings/profile']));
+    expect(result).toEqual(router.createUrlTree(['/']));
   });
 
   it('should wait until init is true before emitting', () => {

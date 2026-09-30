@@ -7,11 +7,15 @@ export const SettingsEntitySchema = defineEntity({
   tableName: 'settings',
   extends: KonvoezBaseEntitySchema,
   properties: {
-    key: p.enum(() => ESettingKey).primary(),
+    // Plain string PK (not enum): avoids DB CHECK constraints that block new keys.
+    // Valid keys are enforced in app code via ESettingKey / Zod schemas.
+    key: p.string().primary(),
     value: p.json<TSetting['value']>(),
   },
 });
 
-export class SettingsEntity extends SettingsEntitySchema.class {}
+export class SettingsEntity extends SettingsEntitySchema.class {
+  declare key: ESettingKey;
+}
 
 SettingsEntitySchema.setClass(SettingsEntity);

@@ -1,6 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260916010000 extends Migration {
+export class Migration20260916010000_InvitesAndInviteOnlySignup extends Migration {
+  override name = 'Migration20260916010000';
+
   override up(): void | Promise<void> {
     this.addSql(
       'create table `invites` (`id` integer not null primary key autoincrement, `created_at` datetime not null, `updated_at` datetime null, `code` varchar(64) not null, `email` varchar(128) null, `author_id` integer not null, `expires_at` datetime not null, `used_at` datetime null, `used_by_id` integer null, `revoked_at` datetime null, constraint `invites_author_id_foreign` foreign key (`author_id`) references `users` (`id`) on update cascade on delete cascade, constraint `invites_used_by_id_foreign` foreign key (`used_by_id`) references `users` (`id`) on update cascade on delete set null);',

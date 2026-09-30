@@ -12,6 +12,7 @@ export enum ERoomType {
 export enum ESettingKey {
   ICE_SERVERS = 'ICE_SERVERS',
   INVITE_ONLY_SIGN_UP = 'INVITE_ONLY_SIGN_UP',
+  PASSWORD_RECOVERY_CODE_TTL = 'PASSWORD_RECOVERY_CODE_TTL',
 }
 
 export enum ETextRoomEvent {
@@ -59,4 +60,14 @@ export enum EDirectCallEvent {
   CALL_HANGUP = 'call:hangup',
   CALL_ENDED = 'call:ended',
   CALL_GET_ACTIVE = 'call:get-active',
+}
+
+export enum EEntitySyncEvent {
+  USER_CREATED = 'user-created',
+  USER_UPDATED = 'user-updated',
+  USER_DELETED = 'user-deleted',
+  ROOM_CREATED = 'room-created',
+  ROOM_UPDATED = 'room-updated',
+  ROOM_DELETED = 'room-deleted',
+  ERROR = 'error',
 }

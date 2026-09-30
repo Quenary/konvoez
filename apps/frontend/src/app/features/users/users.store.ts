@@ -3,7 +3,9 @@ import { IUser } from '@konvoez/shared';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import {
   removeAllEntities,
+  removeEntity,
   setAllEntities,
+  setEntity,
   withEntities,
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
@@ -37,6 +39,14 @@ export const UsersStore = signalStore(
           loading: false,
           loaded: false,
         });
+      },
+
+      upsertOne(user: IUser): void {
+        patchState(store, setEntity(user));
+      },
+
+      removeOne(id: number): void {
+        patchState(store, removeEntity(id));
       },
 
       loadAll: rxMethod<void>(

@@ -1,10 +1,16 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import webPush from 'web-push';
 import { pushNotificationBodyMaxLength } from '@konvoez/shared';
 import { htmlToPlainText } from '../../shared/utils/html-text.util';
 import { AppService } from '../../shared/services/app.service';
+import {
+  NotificationsDomainEvents,
+  type IDirectCallNotificationPayload,
+  type IDirectMessageNotificationPayload,
+} from '@shared/events/notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import {
@@ -211,6 +217,45 @@ export class NotificationsService {
         callerId,
       },
     });
+  }
+
+  @OnEvent(NotificationsDomainEvents.DIRECT_MESSAGE)
+  async onDirectMessageNotification(
+    payload: IDirectMessageNotificationPayload,
+  ): Promise<void> {
+    try {
+      await this.sendDirectMessageNotification(
+        payload.recipientId,
+        payload.senderId,
+        payload.senderUsername,
+        payload.messagePreview,
+        payload.messageId,
+      );
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send direct message push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  @OnEvent(NotificationsDomainEvents.DIRECT_CALL)
+  async onDirectCallNotification(
+    payload: IDirectCallNotificationPayload,
+  ): Promise<void> {
+    try {
+      await this.sendDirectCallNotification(
+        payload.recipientId,
+        payload.callerId,
+        payload.callerUsername,
+        payload.callId,
+      );
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send direct call push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   private configureVapid(): void {

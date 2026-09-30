@@ -8,7 +8,7 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
 - **User roles and authorization**:
   - `OWNER`: The instance creator / primary operator. Assigned exclusively to the first registered user via a one-time cryptographic bootstrap setup token printed to server logs. Possesses full administrative rights across the entire server (user management, room management, server settings, invite management). Cannot be transferred, escalated, or assigned via standard user management APIs.
   - `ADMIN`: Elevated administrator role. Can manage rooms, moderate chat messages, manage user accounts, manage server settings, and issue/revoke invite links.
-  - `USER` (referred to as `MEMBER` in the codebase): Standard authenticated user. Can join text and voice rooms, send messages, participate in voice channels, edit/delete their own messages, and update their own profile and avatar.
+  - `USER` (referred to as `MEMBER` in the codebase): Standard authenticated user. Can join text and voice rooms, send messages, participate in voice channels, edit/delete their own messages, and update their own profile and avatar via self-only `/api/v1/profile` (not via `/api/v1/user-management` or mutating `/api/v1/users`).
 - **Instance bootstrap & initial OWNER registration**:
   - On a fresh installation (when zero users exist in the database), the server generates a single-use 16-byte cryptographically secure random token (`owner_setup_token`) with a 5-minute TTL and prints it to the server console/stdout log.
   - The initial registration request must supply this valid `setupToken` to create the `OWNER` account.
@@ -37,6 +37,8 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
 - **Authentication**:
   - Session tokens are JWTs delivered via secure HTTP cookies.
   - User passwords are secure hashes stored using Argon2 / bcrypt.
+  - Password recovery uses emailed one-time codes (hashed at rest, short TTL, anti-enumeration). See [Password recovery](PASSWORD_RECOVERY.md).
+  - An account with `deletedAt` set cannot log in, refresh a session, open a socket, or complete password recovery. The profile API does not set or clear `deletedAt`. See [User management](USER_MANAGEMENT.md).
 
 Reports are judged against this model rather than against a multi-tenant cloud SaaS.
 
@@ -50,7 +52,7 @@ Reports are judged against this model rather than against a multi-tenant cloud S
 - Privilege escalation (e.g., a standard `USER` escalating to `ADMIN` or assigning `OWNER`).
 - Cross-user data manipulation (e.g., modifying or deleting messages belonging to other users without admin privileges).
 - Cryptographic flaws in message encryption or key derivation (e.g., IV reuse, ciphertext manipulation bypassing GCM authentication tags).
-- Path traversal, arbitrary file read/write in file/avatar upload and streaming endpoints (local or S3 storage).
+- Path traversal, arbitrary file read/write in file/avatar upload (`/api/v1/profile/avatar/upload`) and streaming (`/api/v1/users/avatar/stream`) endpoints (local or S3 storage).
 - Remote Code Execution (RCE) or SQL injection vulnerabilities in database queries.
 - Application-level Denial of Service (DoS) through resource exhaustion or asymmetric workloads (e.g., image bombs/pixel flooding, memory leaks triggered by malformed payloads).
 
