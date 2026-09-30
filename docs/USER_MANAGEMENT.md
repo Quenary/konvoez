@@ -38,4 +38,4 @@ Invites, recovery codes, push subscriptions, notifications, and read receipts fo
 
 ## UI
 
-The menu item is shown only to the owner. A row opens the account: identity, email, full name, id, created and modified dates, and role. Delete opens a confirmation. **Full deletion** is off by default (logical deletion); turning it on selects physical deletion. The dialog only returns that choice; the caller performs the request.
+The menu item is shown only to the owner. A row opens the account and shows all public fields except the password. Delete opens a confirmation. **Full deletion** is off by default (logical deletion); turning it on selects physical deletion. The dialog only returns that choice; the caller performs the request.

@@ -161,6 +161,7 @@ SETTINGS:
     EMAIL: Email
     CREATED: Дата создания
     UPDATED: Дата изменения
+    DELETED: Дата удаления
     ROLE: Роль
     ROLE_OWNER: Владелец
     ROLE_ADMIN: Администратор

@@ -43,6 +43,16 @@
       </dd>
     </div>
     <div class="field">
+      <dt>{{ 'SETTINGS.USERS.DELETED' | translate }}</dt>
+      <dd>
+        @if (user.deletedAt) {
+          {{ user.deletedAt | date: 'yyyy-MM-dd HH:mm' }}
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="field">
       <dt>{{ 'SETTINGS.USERS.ROLE' | translate }}</dt>
       <dd>
         @if (canManage()) {

@@ -161,6 +161,7 @@ SETTINGS:
     EMAIL: Email
     CREATED: Created
     UPDATED: Modified
+    DELETED: Deleted
     ROLE: Role
     ROLE_OWNER: Owner
     ROLE_ADMIN: Admin
