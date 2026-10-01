@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/Quenary/konvoez/compare/v1.7.0...v1.8.0) (2026-10-01)
+
+### Features
+
+- **frontend:** add PWA update dialog ([cd072ce](https://github.com/Quenary/konvoez/commit/cd072ceabe7b1fecfcf431e475bffec1b2cb2019))
+- **rooms:** rooms context menu as component, reuse in rooms headers, side menu opens menu on rightclick/longtap ([1251c80](https://github.com/Quenary/konvoez/commit/1251c8020c9c066c4e03daaddfa6d00d1ff343cb))
+
 # [1.7.0](https://github.com/Quenary/konvoez/compare/v1.6.0...v1.7.0) (2026-09-30)
 
 ### Bug Fixes
