@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
 import { RoomsActions } from './rooms.actions';
 import { IRoom } from './rooms.interface';
@@ -93,6 +94,7 @@ describe('RoomsComponent', () => {
     [me.id]: me,
     [bob.id]: bob,
   });
+  const isTouch = signal(false);
 
   const usersStore = {
     loadAll: vi.fn(),
@@ -108,23 +110,6 @@ describe('RoomsComponent', () => {
     open: vi.fn(),
   };
 
-  const asProtected = () =>
-    component as unknown as {
-      voiceRooms: () => Array<{
-        id: number;
-        peers: IUser[];
-        isUserInRoom: boolean;
-      }>;
-      hangingCallPeer: () => IUser | null;
-      textRooms: () => IRoom[];
-      canManageRooms: () => boolean;
-      openHangingCall: (peer: IUser) => void;
-      selectRoom: (room: IRoom) => void;
-      addRoom: (type: ERoomType) => Promise<void>;
-      editRoom: (room: IRoom) => Promise<void>;
-      deleteRoom: (room: IRoom) => void;
-    };
-
   beforeEach(async () => {
     vi.clearAllMocks();
     roomsState.set({});
@@ -132,6 +117,7 @@ describe('RoomsComponent', () => {
     activeCall.set(null);
     rejoinableCall.set(null);
     entityMap.set({ [me.id]: me, [bob.id]: bob });
+    isTouch.set(false);
 
     await TestBed.configureTestingModule({
       imports: [RoomsComponent],
@@ -186,6 +172,7 @@ describe('RoomsComponent', () => {
           provide: TuiResponsiveDialogService,
           useValue: responsiveDialogService,
         },
+        { provide: WA_IS_TOUCH, useValue: isTouch },
       ],
     })
       .overrideComponent(RoomsComponent, {
@@ -220,11 +207,11 @@ describe('RoomsComponent', () => {
   });
 
   it('should expose text rooms from the store', () => {
-    expect(asProtected().textRooms()).toEqual([textRoom]);
+    expect(component['textRooms']()).toEqual([textRoom]);
   });
 
   it('should not allow room management for members', () => {
-    expect(asProtected().canManageRooms()).toBe(false);
+    expect(component['canManageRooms']()).toBe(false);
   });
 
   it('should allow room management for admin or owner', () => {
@@ -235,7 +222,7 @@ describe('RoomsComponent', () => {
     store.refreshState();
     fixture.detectChanges();
 
-    expect(asProtected().canManageRooms()).toBe(true);
+    expect(component['canManageRooms']()).toBe(true);
 
     store.overrideSelector(selectCurrentUser, {
       ...me,
@@ -244,7 +231,7 @@ describe('RoomsComponent', () => {
     store.refreshState();
     fixture.detectChanges();
 
-    expect(asProtected().canManageRooms()).toBe(true);
+    expect(component['canManageRooms']()).toBe(true);
   });
 
   describe('voiceRooms', () => {
@@ -257,7 +244,7 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      const rooms = asProtected().voiceRooms();
+      const rooms = component['voiceRooms']();
       expect(rooms).toHaveLength(1);
       expect(rooms[0].id).toBe(voiceRoom.id);
       expect(rooms[0].peers).toEqual([me, bob]);
@@ -272,7 +259,7 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(asProtected().voiceRooms()[0].isUserInRoom).toBe(false);
+      expect(component['voiceRooms']()[0].isUserInRoom).toBe(false);
     });
   });
 
@@ -286,7 +273,7 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(asProtected().hangingCallPeer()).toEqual(bob);
+      expect(component['hangingCallPeer']()).toEqual(bob);
     });
 
     it('should return interlocutor while calling', () => {
@@ -298,7 +285,7 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(asProtected().hangingCallPeer()).toEqual(bob);
+      expect(component['hangingCallPeer']()).toEqual(bob);
     });
 
     it('should ignore incoming active call and fall back to rejoinable', () => {
@@ -315,7 +302,7 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(asProtected().hangingCallPeer()).toEqual(bob);
+      expect(component['hangingCallPeer']()).toEqual(bob);
     });
 
     it('should resolve rejoinable peer from users map', () => {
@@ -326,7 +313,7 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(asProtected().hangingCallPeer()).toEqual(bob);
+      expect(component['hangingCallPeer']()).toEqual(bob);
     });
 
     it('should return null when rejoinable peer is missing from users', () => {
@@ -338,23 +325,58 @@ describe('RoomsComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(asProtected().hangingCallPeer()).toBeNull();
+      expect(component['hangingCallPeer']()).toBeNull();
     });
 
     it('should return null when there is no active or rejoinable call', () => {
-      expect(asProtected().hangingCallPeer()).toBeNull();
+      expect(component['hangingCallPeer']()).toBeNull();
     });
   });
 
   it('should navigate to interlocutor chat from hanging call', () => {
-    asProtected().openHangingCall(bob);
+    component['openHangingCall'](bob);
     expect(router.navigate).toHaveBeenCalledWith(['/direct', bob.id]);
   });
 
   it('should dispatch selectRoom', () => {
-    asProtected().selectRoom(voiceRoom);
+    component['selectRoom'](voiceRoom);
     expect(store.dispatch).toHaveBeenCalledWith(
       RoomsActions.selectRoom({ room: voiceRoom }),
+    );
+  });
+
+  it('should remember room for context menu on longtap', () => {
+    component['onRoomLongtap'](textRoom);
+    expect(component['contextMenuOpenedFor']()).toEqual(textRoom);
+  });
+
+  it('should select room on click', () => {
+    component['onRoomClick'](voiceRoom);
+    expect(store.dispatch).toHaveBeenCalledWith(
+      RoomsActions.selectRoom({ room: voiceRoom }),
+    );
+  });
+
+  it('should not select room on the click that follows a touch longtap', () => {
+    isTouch.set(true);
+    component['onRoomLongtap'](textRoom);
+    vi.mocked(store.dispatch).mockClear();
+
+    component['onRoomClick'](textRoom);
+
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      RoomsActions.selectRoom({ room: textRoom }),
+    );
+  });
+
+  it('should select room on click after desktop right-click longtap', () => {
+    component['onRoomLongtap'](textRoom);
+    vi.mocked(store.dispatch).mockClear();
+
+    component['onRoomClick'](textRoom);
+
+    expect(store.dispatch).toHaveBeenCalledWith(
+      RoomsActions.selectRoom({ room: textRoom }),
     );
   });
 
@@ -367,7 +389,7 @@ describe('RoomsComponent', () => {
       }),
     );
 
-    await asProtected().addRoom(ERoomType.TEXT);
+    await component['addRoom'](ERoomType.TEXT);
 
     expect(dialogService.open).toHaveBeenCalled();
     expect(store.dispatch).toHaveBeenCalledWith(
@@ -383,7 +405,7 @@ describe('RoomsComponent', () => {
 
   it('should not dispatch create room when dialog is cancelled', async () => {
     dialogService.open.mockReturnValue(of(null));
-    await asProtected().addRoom(ERoomType.VOICE);
+    await component['addRoom'](ERoomType.VOICE);
 
     expect(store.dispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({
@@ -401,7 +423,7 @@ describe('RoomsComponent', () => {
       }),
     );
 
-    await asProtected().editRoom(voiceRoom);
+    await component['editRoom'](voiceRoom);
 
     expect(store.dispatch).toHaveBeenCalledWith(
       RoomsActions.requestUpdateRoom({
@@ -414,7 +436,7 @@ describe('RoomsComponent', () => {
   it('should dispatch delete room when confirmed', () => {
     responsiveDialogService.open.mockReturnValue(of(true));
 
-    asProtected().deleteRoom(textRoom);
+    component['deleteRoom'](textRoom);
 
     expect(responsiveDialogService.open).toHaveBeenCalled();
     expect(store.dispatch).toHaveBeenCalledWith(
@@ -425,7 +447,7 @@ describe('RoomsComponent', () => {
   it('should not dispatch delete room when confirmation is cancelled', () => {
     responsiveDialogService.open.mockReturnValue(of(false));
 
-    asProtected().deleteRoom(textRoom);
+    component['deleteRoom'](textRoom);
 
     expect(store.dispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({

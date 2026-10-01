@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { APP_PIPE } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -25,6 +26,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
       useFactory: createMikroOrmConfig,
     }),
     EventEmitterModule.forRoot(),
+    CacheModule.register({ isGlobal: true }),
     VoiceRoomsModule,
     AuthModule,
     RoomsModule,

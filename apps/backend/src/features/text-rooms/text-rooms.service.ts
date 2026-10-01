@@ -155,14 +155,16 @@ export class TextRoomsService {
   }
 
   private get messageQueryBuilder(): SqlEntityRepository<MessageEntity> {
-    return this.messageRepository as SqlEntityRepository<MessageEntity>;
+    return this
+      .messageRepository as unknown as SqlEntityRepository<MessageEntity>;
   }
 
   private createUnreadMessageIdsSubquery(userId: number) {
     // toRaw() is required: MessageEntity.id is Uint8Array, and FilterQuery
     // processWhere would otherwise convert the QueryBuilder via Uint8ArrayType.
     return (
-      this.messageReadRepository as SqlEntityRepository<MessageReadEntity>
+      this
+        .messageReadRepository as unknown as SqlEntityRepository<MessageReadEntity>
     )
       .createQueryBuilder('mr')
       .select('mr.message')

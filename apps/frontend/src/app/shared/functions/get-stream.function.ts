@@ -22,8 +22,11 @@ export async function getStream(
       return await navigator.mediaDevices.getUserMedia({
         audio: constraints,
       });
-    } catch (err: any) {
-      console.warn('getUserMedia failed:', err?.name);
+    } catch (err: unknown) {
+      console.warn(
+        'getUserMedia failed:',
+        err instanceof Error ? err.name : err,
+      );
       console.warn(constraints);
       return null;
     }

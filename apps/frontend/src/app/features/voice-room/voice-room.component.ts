@@ -11,8 +11,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { map } from 'rxjs';
 import { selectRoomsDict } from '../rooms/rooms.selectors';
+import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
+import { RoomManageService } from '../rooms/room-manage.service';
+import { IRoom } from '../rooms/rooms.interface';
 import { VoicePeersGridComponent } from '@shared/components/voice-room/voice-peers-grid/voice-peers-grid.component';
-import { TuiTitle } from '@taiga-ui/core';
+import { TuiButton, TuiDropdown, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomService } from '@core/services/voice-room.service';
@@ -27,8 +30,12 @@ import { EVoiceSessionType } from '@konvoez/shared';
   selector: 'app-voice-room',
   imports: [
     VoicePeersGridComponent,
+    RoomContextMenuComponent,
     TuiTitle,
     TuiHeader,
+    TuiButton,
+    TuiDropdown,
+    TuiHint,
     TranslatePipe,
     TuiAvatar,
     TuiInitialsPipe,
@@ -44,6 +51,7 @@ export class VoiceRoomComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomService = inject(VoiceRoomService);
   private readonly directCallService = inject(DirectCallService);
+  private readonly roomManageService = inject(RoomManageService);
 
   /**
    * Tracks which route room id we already attempted to join, so leaving
@@ -51,23 +59,20 @@ export class VoiceRoomComponent {
    */
   private readonly joinedForRoomId = signal<number | null>(null);
 
-  protected readonly avatarUrl = computed(() => {
+  protected readonly canManageRooms = this.roomManageService.canManageRooms;
+
+  protected readonly room = computed((): IRoom | null => {
     const id = this.roomId();
     const roomsDict = this.roomsDict();
     if (!id) {
-      return '';
+      return null;
     }
-    return roomsDict[id]?.avatarUrl ?? '';
+    return roomsDict[id] ?? null;
   });
 
-  protected readonly roomName = computed(() => {
-    const id = this.roomId();
-    const roomsDict = this.roomsDict();
-    if (!id) {
-      return '';
-    }
-    return roomsDict[id]?.name ?? '';
-  });
+  protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? '');
+
+  protected readonly roomName = computed(() => this.room()?.name ?? '');
 
   protected readonly participantsCount = computed(() => {
     const isCalling = this.directCallService.isCalling();
@@ -114,5 +119,13 @@ export class VoiceRoomComponent {
 
   protected onLeft(): void {
     void this.router.navigate(['/']);
+  }
+
+  protected editRoom(room: IRoom): Promise<void> {
+    return this.roomManageService.editRoom(room);
+  }
+
+  protected deleteRoom(room: IRoom): void {
+    this.roomManageService.deleteRoom(room);
   }
 }

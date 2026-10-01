@@ -8,7 +8,6 @@ import {
   IMessageEntity,
 } from '../text-room.store';
 import { signal } from '@angular/core';
-import { FormControl } from '@angular/forms';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('TextRoomEditorComponent', () => {
@@ -75,22 +74,22 @@ describe('TextRoomEditorComponent', () => {
   });
 
   it('should cancel reply', () => {
-    (component as unknown as { cancelReply: () => void }).cancelReply();
+    component['cancelReply']();
     expect(mockTextRoomStore.setReplyToMessageId).toHaveBeenCalledWith(null);
   });
 
   it('should cancel edit', () => {
-    (component as unknown as { cancelEdit: () => void }).cancelEdit();
+    component['cancelEdit']();
     expect(mockTextRoomStore.setEditableMessageId).toHaveBeenCalledWith(null);
   });
 
   it('should not attach a validator to the control and should notify on submit validation failure', () => {
-    const control = (component as unknown as { control: FormControl }).control;
+    const control = component['control'];
 
     expect(control.validator).toBeNull();
 
     control.setValue('');
-    (component as unknown as { onSubmit: () => void }).onSubmit();
+    component['onSubmit']();
 
     expect(control.touched).toBe(true);
     expect(mockNotificationService.open).toHaveBeenCalledWith(
@@ -103,7 +102,7 @@ describe('TextRoomEditorComponent', () => {
 
     mockNotificationService.open.mockClear();
     control.setValue('<p></p>');
-    (component as unknown as { onSubmit: () => void }).onSubmit();
+    component['onSubmit']();
     expect(mockNotificationService.open).toHaveBeenCalledWith(
       'VALIDATION.MESSAGE_LENGTH',
       expect.objectContaining({
@@ -115,10 +114,10 @@ describe('TextRoomEditorComponent', () => {
 
   it('should create message with replyToId when replyToMessage is active', () => {
     mockTextRoomStore.replyToMessage.set(mockReplyMessage);
-    const control = (component as unknown as { control: FormControl }).control;
+    const control = component['control'];
     control.setValue('<p>This is a reply</p>');
 
-    (component as unknown as { onSubmit: () => void }).onSubmit();
+    component['onSubmit']();
 
     expect(mockTextRoomStore.createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -135,10 +134,10 @@ describe('TextRoomEditorComponent', () => {
 
   it('should update message when editableMessage is active', () => {
     mockTextRoomStore.editableMessage.set(mockReplyMessage);
-    const control = (component as unknown as { control: FormControl }).control;
+    const control = component['control'];
     control.setValue('<p>Edited content</p>');
 
-    (component as unknown as { onSubmit: () => void }).onSubmit();
+    component['onSubmit']();
 
     expect(mockTextRoomStore.updateMessage).toHaveBeenCalledWith({
       messageId: 'reply-target-1',

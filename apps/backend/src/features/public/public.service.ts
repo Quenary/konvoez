@@ -1,6 +1,5 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cache } from '@nestjs/cache-manager';
 import { IPublicVersion } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
 
@@ -21,7 +20,7 @@ export class PublicService {
     typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
 
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly cacheManager: Cache,
     private readonly appService: AppService,
   ) {}
 

@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
-  (globalThis as any).AudioWorkletNode = class AudioWorkletNode {};
+  (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
+    class AudioWorkletNode {};
 });
 
 import { storageJson } from '../../../extentions/local-storage-json';
@@ -52,6 +53,11 @@ describe('VoiceRoomService', () => {
   };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
   let roomsSnapshot: TVoiceRoomGetAllPeersResult;
+  let microphoneService: {
+    getStream: ReturnType<typeof vi.fn>;
+    setDevice: ReturnType<typeof vi.fn>;
+    release: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     localStorage.clear();
@@ -100,6 +106,12 @@ describe('VoiceRoomService', () => {
       detachFromCallWithoutHangup: vi.fn(),
     };
 
+    microphoneService = {
+      getStream: vi.fn(),
+      setDevice: vi.fn(),
+      release: vi.fn(),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         VoiceRoomService,
@@ -109,11 +121,7 @@ describe('VoiceRoomService', () => {
         },
         {
           provide: MicrophoneService,
-          useValue: {
-            getStream: vi.fn(),
-            setDevice: vi.fn(),
-            release: vi.fn(),
-          },
+          useValue: microphoneService,
         },
         {
           provide: SpeakerService,
@@ -188,8 +196,6 @@ describe('VoiceRoomService', () => {
   });
 
   it('should release the microphone when leaving a session', async () => {
-    const microphoneService = TestBed.inject(MicrophoneService) as any;
-
     service['_activeSession'].set({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 42,
@@ -281,14 +287,8 @@ describe('VoiceRoomService', () => {
   it('drains pending consumes after PEER_JOINED when producer arrived first', async () => {
     service['addSocketListeners']();
 
-    const consumeSpy = vi
-      .spyOn(
-        service as unknown as {
-          consume: (...args: unknown[]) => Promise<void>;
-        },
-        'consume',
-      )
-      .mockResolvedValue(undefined);
+    const consumeSpy = vi.fn().mockResolvedValue(undefined);
+    service['consume'] = consumeSpy;
 
     service['pendingConsumes'] = [
       {

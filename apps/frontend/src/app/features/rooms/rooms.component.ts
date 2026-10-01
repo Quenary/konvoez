@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   Injector,
   input,
@@ -18,9 +19,11 @@ import {
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
-import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
+import { IRoom, IRoomCreate } from './rooms.interface';
+import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
+import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
+import { RoomManageService } from './room-manage.service';
 import { VoiceRoomService } from '@core/services/voice-room.service';
 import {
   DirectCallService,
@@ -32,28 +35,23 @@ import {
   TuiDropdown,
   TuiHint,
   TuiIcon,
-  TuiOptGroup,
-  TuiOption,
-  TuiDataList,
 } from '@taiga-ui/core';
 import {
-  TUI_CONFIRM,
   TuiAutoColorPipe,
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
-  TuiConfirmData,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
 import { Router, RouterLink } from '@angular/router';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
+import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 
 interface IRoomWithPeers extends IRoom {
   peers: IUser[];
@@ -69,6 +67,7 @@ interface IRoomWithPeers extends IRoom {
     RouterLink,
     TranslatePipe,
     RoomPeerComponent,
+    RoomContextMenuComponent,
     UserAvatarComponent,
     PulseIndicatorComponent,
     TuiAvatar,
@@ -81,9 +80,6 @@ interface IRoomWithPeers extends IRoom {
     TuiNavigation,
     TuiInitialsPipe,
     TuiDropdown,
-    TuiOptGroup,
-    TuiOption,
-    TuiDataList,
     NgOptimizedImage,
     NgTemplateOutlet,
   ],
@@ -99,10 +95,10 @@ export class RoomsComponent implements OnInit {
   private readonly directCallService = inject(DirectCallService);
   private readonly router = inject(Router);
   private readonly tuiDialogService = inject(TuiDialogService);
-  private readonly tuiResponsiveDialogService = inject(
-    TuiResponsiveDialogService,
-  );
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly isTouch = inject(WA_IS_TOUCH);
+  private readonly roomManageService = inject(RoomManageService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   public readonly collapsed = input.required<boolean>();
@@ -158,17 +154,19 @@ export class RoomsComponent implements OnInit {
 
   protected readonly ERoomType = ERoomType;
 
-  protected readonly canManageRooms = computed(() => {
-    const role = this.currentUser()?.role;
-    return role === EUserRole.ADMIN || role === EUserRole.OWNER;
-  });
+  protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private readonly _voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
 
+  /** Suppresses the synthetic click that can follow a long-press on touch devices. */
+  private suppressNextRoomClick = false;
+  private suppressRoomClickTimer: ReturnType<typeof setTimeout> | null = null;
+
   ngOnInit(): void {
     this.store.dispatch(RoomsActions.requestRooms());
     this.usersStore.loadAll();
+    this.destroyRef.onDestroy(() => this.clearRoomClickSuppression());
   }
 
   protected openHangingCall(peer: IUser): void {
@@ -203,56 +201,61 @@ export class RoomsComponent implements OnInit {
       });
   }
 
-  protected async editRoom(room: IRoom): Promise<void> {
-    const { RoomDialogComponent } =
-      await import('./room-dialog/room-dialog.component');
-
-    this.tuiDialogService
-      .open<RoomDialogData>(
-        new PolymorpheusComponent(RoomDialogComponent, this.injector),
-        {
-          closable: true,
-          data: room,
-          label: this.translateService.instant('ROOMS.DIALOG.EDIT_HEADER'),
-        },
-      )
-      .subscribe({
-        next: (data) => {
-          if (!data?.id || !data.name) return;
-
-          const body: IRoomUpdate = {
-            name: data.name,
-            ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
-          };
-
-          this.store.dispatch(
-            RoomsActions.requestUpdateRoom({
-              id: data.id,
-              room: body,
-            }),
-          );
-        },
-      });
+  protected editRoom(room: IRoom): Promise<void> {
+    return this.roomManageService.editRoom(room);
   }
 
   protected deleteRoom(room: IRoom): void {
-    this.tuiResponsiveDialogService
-      .open<boolean>(TUI_CONFIRM, {
-        label: this.translateService.instant('ROOMS.DELETE_CONFIRM'),
-        data: {
-          yes: this.translateService.instant('GENERAL.DELETE'),
-          no: this.translateService.instant('GENERAL.CANCEL'),
-          appearance: 'negative',
-        } satisfies TuiConfirmData,
-      })
-      .subscribe((res) => {
-        if (!res) return;
-
-        this.store.dispatch(RoomsActions.requestDeleteRoom({ id: room.id }));
-      });
+    this.roomManageService.deleteRoom(room);
   }
 
   protected selectRoom(room: IRoom): void {
     this.store.dispatch(RoomsActions.selectRoom({ room }));
+  }
+
+  /**
+   * Opens via `tuiDropdownContext` `longtap` (right-click / long-press).
+   * Do not bind `(tuiDropdownOpenChange)`: it activates `TuiDropdownOpen`,
+   * which toggles the menu on left-click and fights room selection.
+   */
+  protected onRoomLongtap(room: IRoom): void {
+    this.contextMenuOpenedFor.set(room);
+
+    // Desktop right-click does not emit a follow-up click.
+    if (!this.isTouch()) {
+      return;
+    }
+
+    this.suppressNextRoomClick = true;
+    this.clearRoomClickSuppressionTimer();
+
+    // Safety clear if no synthetic click arrives (e.g. some Android browsers).
+    this.suppressRoomClickTimer = setTimeout(() => {
+      this.suppressNextRoomClick = false;
+      this.suppressRoomClickTimer = null;
+    }, 1000);
+  }
+
+  protected onRoomClick(room: IRoom): void {
+    if (this.suppressNextRoomClick) {
+      this.clearRoomClickSuppression();
+      return;
+    }
+
+    this.selectRoom(room);
+  }
+
+  private clearRoomClickSuppression(): void {
+    this.suppressNextRoomClick = false;
+    this.clearRoomClickSuppressionTimer();
+  }
+
+  private clearRoomClickSuppressionTimer(): void {
+    if (!this.suppressRoomClickTimer) {
+      return;
+    }
+
+    clearTimeout(this.suppressRoomClickTimer);
+    this.suppressRoomClickTimer = null;
   }
 }

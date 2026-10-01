@@ -22,6 +22,32 @@
       {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
     </span>
   </h2>
+
+  @if (canManageRooms() && room(); as manageRoom) {
+    <aside tuiAccessories>
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="s"
+        iconStart="@tui.ellipsis-vertical"
+        type="button"
+        tuiDropdownAuto
+        [tuiDropdown]="roomContextMenu"
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.MORE' | translate">
+        {{ 'GENERAL.MORE' | translate }}
+      </button>
+
+      <ng-template
+        #roomContextMenu
+        let-close>
+        <app-room-context-menu
+          [roomName]="manageRoom.name"
+          (edit)="editRoom(manageRoom); close()"
+          (delete)="deleteRoom(manageRoom); close()" />
+      </ng-template>
+    </aside>
+  }
 </header>
 
 <div class="voice-room-body">

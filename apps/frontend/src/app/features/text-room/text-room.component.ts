@@ -11,12 +11,16 @@ import { finalize } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { RoomsActions } from '../rooms/rooms.actions';
 import { selectRoomsDict } from '../rooms/rooms.selectors';
+import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
+import { RoomManageService } from '../rooms/room-manage.service';
+import { IRoom } from '../rooms/rooms.interface';
 import { UsersStore } from '../users/users.store';
 import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.component';
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
 import { TextRoomStore } from './text-room.store';
 import {
   TuiButton,
+  TuiDropdown,
   TuiHint,
   TuiInput,
   TuiTextfield,
@@ -40,9 +44,11 @@ import { EVoiceSessionType, IUser } from '@konvoez/shared';
   imports: [
     TextRoomEditorComponent,
     TextRoomListComponent,
+    RoomContextMenuComponent,
     TuiTitle,
     TuiHeader,
     TuiButton,
+    TuiDropdown,
     TuiHint,
     TuiTextfield,
     TuiInput,
@@ -67,6 +73,9 @@ export class TextRoomComponent {
   private readonly ngrxStore = inject(Store);
   private readonly usersStore = inject(UsersStore);
   private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly roomManageService = inject(RoomManageService);
+
+  protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
   protected readonly isDirectChat = computed(() =>
     Boolean(this.routeData()?.['isDirect']),
@@ -222,5 +231,13 @@ export class TextRoomComponent {
       return;
     }
     void this.directCallService.rejoinCall(call, recipient);
+  }
+
+  protected editRoom(room: IRoom): Promise<void> {
+    return this.roomManageService.editRoom(room);
+  }
+
+  protected deleteRoom(room: IRoom): void {
+    this.roomManageService.deleteRoom(room);
   }
 }

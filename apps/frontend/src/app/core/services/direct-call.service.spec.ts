@@ -3,7 +3,8 @@ import { Router } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
-  (globalThis as any).AudioWorkletNode = class AudioWorkletNode {};
+  (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
+    class AudioWorkletNode {};
 });
 
 import {

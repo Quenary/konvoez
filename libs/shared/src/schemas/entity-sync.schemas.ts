@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { EEntitySyncEvent } from '../enums';
 import { IRoom, IRoomDeleted } from './room.schemas';
 import { IUser, IUserDeleted } from './user.schemas';
@@ -16,8 +15,8 @@ export type TEntitySyncEventPayloadMap = {
 export type TEntitySyncEventMap = {
   [K in EEntitySyncEvent]: (
     data: TEntitySyncEventPayloadMap[K],
-    ...args: any[]
-  ) => any;
+    ...args: unknown[]
+  ) => void;
 };
 
 export type TEntitySyncEvent = {

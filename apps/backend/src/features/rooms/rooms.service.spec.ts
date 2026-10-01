@@ -26,8 +26,9 @@ import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 
 import { RoomsService } from './rooms.service';
 import { RoomEntity } from './rooms.entity';
-import { ERoomType } from '@konvoez/shared';
+import { ERoomType, EUserRole } from '@konvoez/shared';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { GetUserDto } from '../users/users.dto';
 
 describe('RoomsService', () => {
   let service: RoomsService;
@@ -40,12 +41,12 @@ describe('RoomsService', () => {
     username: 'alice',
     fullname: 'Alice Example',
     email: 'alice@example.com',
-    role: 'OWNER' as any,
+    role: EUserRole.OWNER,
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
-  };
+  } as unknown as GetUserDto;
 
   const room = {
     id: 1,
@@ -77,7 +78,7 @@ describe('RoomsService', () => {
   });
 
   it('should throw ConflictException if room name is already taken on create', async () => {
-    mockRepo.findOne.mockResolvedValueOnce(room as any);
+    mockRepo.findOne.mockResolvedValueOnce(room);
 
     await expect(
       service.create({ name: 'Meeting', type: ERoomType.TEXT }, author),
@@ -97,8 +98,8 @@ describe('RoomsService', () => {
 
   it('should throw ConflictException if room name is already taken on update', async () => {
     mockRepo.findOne
-      .mockResolvedValueOnce(room as any) // findOne(id)
-      .mockResolvedValueOnce(room as any); // findOne({ name, id: { $ne: id } })
+      .mockResolvedValueOnce(room) // findOne(id)
+      .mockResolvedValueOnce(room); // findOne({ name, id: { $ne: id } })
 
     await expect(service.update(1, { name: 'Meeting' })).rejects.toThrow(
       new ConflictException('Room name already taken'),
@@ -106,9 +107,7 @@ describe('RoomsService', () => {
   });
 
   it('should emit ROOM_UPDATED after successful update', async () => {
-    mockRepo.findOne
-      .mockResolvedValueOnce(room as any)
-      .mockResolvedValueOnce(null);
+    mockRepo.findOne.mockResolvedValueOnce(room).mockResolvedValueOnce(null);
 
     await service.update(1, { name: 'Renamed' });
 
@@ -119,7 +118,7 @@ describe('RoomsService', () => {
   });
 
   it('should emit ROOM_DELETED after successful remove', async () => {
-    mockRepo.findOne.mockResolvedValueOnce(room as any);
+    mockRepo.findOne.mockResolvedValueOnce(room);
     mockEm.remove = jest.fn();
 
     await service.remove(1);

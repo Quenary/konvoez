@@ -137,27 +137,23 @@ describe('TextRoomMessageComponent', () => {
     });
     fixture.detectChanges();
     // sanitizedContent is a computed signal
-    expect(
-      (
-        component as unknown as { sanitizedContent: () => string }
-      ).sanitizedContent(),
-    ).toBeTruthy();
+    expect(component['sanitizedContent']()).toBeTruthy();
   });
 
   it('should set reply target when replyMessage is called', () => {
-    (component as unknown as { replyMessage: () => void }).replyMessage();
+    component['replyMessage']();
     expect(mockTextRoomStore.setReplyToMessageId).toHaveBeenCalledWith('msg-1');
   });
 
   it('should set editable message when editMessage is called', () => {
-    (component as unknown as { editMessage: () => void }).editMessage();
+    component['editMessage']();
     expect(mockTextRoomStore.setEditableMessageId).toHaveBeenCalledWith(
       'msg-1',
     );
   });
 
   it('should delete message when deleteMessage is called', () => {
-    (component as unknown as { deleteMessage: () => void }).deleteMessage();
+    component['deleteMessage']();
     expect(mockTextRoomStore.deleteMessage).toHaveBeenCalledWith('msg-1');
   });
 
@@ -169,9 +165,7 @@ describe('TextRoomMessageComponent', () => {
       content: 'hi',
       isDeleted: false,
     };
-    (
-      component as unknown as { onReplyQuoteClick: (r: typeof reply) => void }
-    ).onReplyQuoteClick(reply);
+    component['onReplyQuoteClick'](reply);
     expect(mockTextRoomStore.jumpToMessage).toHaveBeenCalledWith('target-1');
   });
 
@@ -183,28 +177,23 @@ describe('TextRoomMessageComponent', () => {
       content: null,
       isDeleted: true,
     };
-    (
-      component as unknown as { onReplyQuoteClick: (r: typeof reply) => void }
-    ).onReplyQuoteClick(reply);
+    component['onReplyQuoteClick'](reply);
     expect(mockNotificationService.open).toHaveBeenCalled();
     expect(mockTextRoomStore.jumpToMessage).not.toHaveBeenCalled();
   });
 
   it('should expose sent and read status only for own messages', () => {
-    const componentWithStatus = component as unknown as {
-      readStatus: () => 'loading' | 'error' | 'sent' | 'read' | null;
-    };
-    expect(componentWithStatus.readStatus()).toBeNull();
+    expect(component['readStatus']()).toBeNull();
 
     TestBed.inject(Store).dispatch(
       AuthActions.requestLoginSuccess({ user: currentUser }),
     );
     fixture.detectChanges();
-    expect(componentWithStatus.readStatus()).toBe('sent');
+    expect(component['readStatus']()).toBe('sent');
 
     fixture.componentRef.setInput('message', { ...testMessage, isRead: true });
     fixture.detectChanges();
-    expect(componentWithStatus.readStatus()).toBe('read');
+    expect(component['readStatus']()).toBe('read');
   });
 
   it('should show loading status and allow resend for failed pending create', () => {
@@ -212,20 +201,14 @@ describe('TextRoomMessageComponent', () => {
       AuthActions.requestLoginSuccess({ user: currentUser }),
     );
 
-    const componentWithStatus = component as unknown as {
-      readStatus: () => 'loading' | 'error' | 'sent' | 'read' | null;
-      canResend: () => boolean;
-      resendMessage: () => void;
-    };
-
     fixture.componentRef.setInput('message', {
       ...testMessage,
       status: EMessageStatus.LOADING,
       isPendingCreate: true,
     });
     fixture.detectChanges();
-    expect(componentWithStatus.readStatus()).toBe('loading');
-    expect(componentWithStatus.canResend()).toBe(false);
+    expect(component['readStatus']()).toBe('loading');
+    expect(component['canResend']()).toBe(false);
 
     fixture.componentRef.setInput('message', {
       ...testMessage,
@@ -233,10 +216,10 @@ describe('TextRoomMessageComponent', () => {
       isPendingCreate: true,
     });
     fixture.detectChanges();
-    expect(componentWithStatus.readStatus()).toBe('error');
-    expect(componentWithStatus.canResend()).toBe(true);
+    expect(component['readStatus']()).toBe('error');
+    expect(component['canResend']()).toBe(true);
 
-    componentWithStatus.resendMessage();
+    component['resendMessage']();
     expect(mockTextRoomStore.retryMessage).toHaveBeenCalledWith('msg-1');
   });
 
@@ -244,16 +227,10 @@ describe('TextRoomMessageComponent', () => {
     const readers = [{ ...currentUser, id: 2, username: 'bob' }];
     mockTextRoomApi.getReaders.mockReturnValue(of(readers));
 
-    (
-      component as unknown as {
-        showReadersDialog: (template: unknown) => void;
-      }
-    ).showReadersDialog('tmpl');
+    component['showReadersDialog']('tmpl');
 
     expect(mockTextRoomApi.getReaders).toHaveBeenCalledWith('msg-1');
-    expect(
-      (component as unknown as { readers: () => IUser[] }).readers(),
-    ).toEqual(readers);
+    expect(component['readers']()).toEqual(readers);
     expect(mockDialogService.open).toHaveBeenCalled();
   });
 
@@ -262,29 +239,12 @@ describe('TextRoomMessageComponent', () => {
       throwError(() => new Error('fail')),
     );
 
-    (
-      component as unknown as {
-        showReadersDialog: (template: unknown) => void;
-      }
-    ).showReadersDialog('tmpl');
+    component['showReadersDialog']('tmpl');
 
-    expect(
-      (
-        component as unknown as { readersLoading: () => boolean }
-      ).readersLoading(),
-    ).toBe(false);
+    expect(component['readersLoading']()).toBe(false);
   });
 
   describe('sender display from UsersStore', () => {
-    type SenderApi = {
-      senderUser: () => IUser | null;
-      senderUsername: () => string;
-      senderFullnameHint: () => string | null;
-      avatarUrl: () => string | null;
-    };
-
-    const senderApi = () => component as unknown as SenderApi;
-
     const otherUser: IUser = {
       id: 2,
       username: 'bob-new',
@@ -308,10 +268,10 @@ describe('TextRoomMessageComponent', () => {
       fixture.componentRef.setInput('message', otherMessage);
       fixture.detectChanges();
 
-      expect(senderApi().senderUser()).toBeNull();
-      expect(senderApi().senderUsername()).toBe('bob-old');
-      expect(senderApi().senderFullnameHint()).toBeNull();
-      expect(senderApi().avatarUrl()).toBeNull();
+      expect(component['senderUser']()).toBeNull();
+      expect(component['senderUsername']()).toBe('bob-old');
+      expect(component['senderFullnameHint']()).toBeNull();
+      expect(component['avatarUrl']()).toBeNull();
     });
 
     it('should prefer UsersStore username and avatar over denormalized message fields', () => {
@@ -319,25 +279,25 @@ describe('TextRoomMessageComponent', () => {
       fixture.componentRef.setInput('message', otherMessage);
       fixture.detectChanges();
 
-      expect(senderApi().senderUser()).toEqual(otherUser);
-      expect(senderApi().senderUsername()).toBe('bob-new');
-      expect(senderApi().senderFullnameHint()).toBe('Bob New');
-      expect(senderApi().avatarUrl()).toBe(otherUser.avatarUrl);
+      expect(component['senderUser']()).toEqual(otherUser);
+      expect(component['senderUsername']()).toBe('bob-new');
+      expect(component['senderFullnameHint']()).toBe('Bob New');
+      expect(component['avatarUrl']()).toBe(otherUser.avatarUrl);
     });
 
     it('should refresh senderUsername when UsersStore entity is updated', () => {
       mockUsersStore.entityMap.set({ [otherUser.id]: otherUser });
       fixture.componentRef.setInput('message', otherMessage);
       fixture.detectChanges();
-      expect(senderApi().senderUsername()).toBe('bob-new');
+      expect(component['senderUsername']()).toBe('bob-new');
 
       mockUsersStore.entityMap.set({
         [otherUser.id]: { ...otherUser, username: 'bob-renamed' },
       });
       fixture.detectChanges();
 
-      expect(senderApi().senderUsername()).toBe('bob-renamed');
-      expect(senderApi().senderUsername()).not.toBe(
+      expect(component['senderUsername']()).toBe('bob-renamed');
+      expect(component['senderUsername']()).not.toBe(
         otherMessage.senderUsername,
       );
     });
@@ -359,9 +319,9 @@ describe('TextRoomMessageComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(senderApi().senderUsername()).toBe('alice-live');
-      expect(senderApi().senderFullnameHint()).toBe('Alice Live');
-      expect(senderApi().avatarUrl()).toBe(
+      expect(component['senderUsername']()).toBe('alice-live');
+      expect(component['senderFullnameHint']()).toBe('Alice Live');
+      expect(component['avatarUrl']()).toBe(
         '/api/v1/users/avatar/stream?key=alice',
       );
     });
@@ -377,8 +337,8 @@ describe('TextRoomMessageComponent', () => {
       fixture.componentRef.setInput('message', otherMessage);
       fixture.detectChanges();
 
-      expect(senderApi().senderUsername()).toBe('bob');
-      expect(senderApi().senderFullnameHint()).toBeNull();
+      expect(component['senderUsername']()).toBe('bob');
+      expect(component['senderFullnameHint']()).toBeNull();
     });
   });
 });

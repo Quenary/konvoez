@@ -4,7 +4,7 @@ Guidelines for AI agents working in `apps/frontend` — the Angular client for K
 
 ## Stack
 
-- **Angular 21+** (standalone components by default — do not set `standalone: true`)
+- **Angular 22+** (standalone + OnPush by default — do not set `standalone: true`; keep explicit `ChangeDetectionStrategy.OnPush`)
 - **SCSS** for styles (not LESS/CSS)
 - **Taiga UI** for UI components
 - **NgRx Store + Effects** for cross-cutting app state (`auth`, `rooms`)
@@ -48,7 +48,8 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 
 ## TypeScript
 
-- Keep `strict` checking; avoid `any` (use `unknown` and narrow).
+- Keep `strict` checking **everywhere**, including `*.spec.ts`. Do not use `any` or `as any`.
+- Prefer `unknown` + narrowing; when a cast is unavoidable, use `as unknown as Something` (or a typed guard), not `any`.
 - Prefer inference when obvious; annotate when it clarifies intent.
 - Prefer discriminated unions over boolean flag combinations.
 - Prefer `satisfies` over `as` when checking object shapes.
@@ -56,6 +57,12 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 - Field order in classes: private → protected → public.
 - Naming: PascalCase for classes, camelCase for members/variables.
 - Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `HttpClient` → `httpClient`, `UsersService` → `usersService`). Do not shorten to `http`, `users`, etc.
+
+## Testing
+
+- Prefer unit/integration tests with Vitest + Angular TestBed; E2E only for real multi-layer user flows.
+- Access private/protected members in specs via **index signature** (keeps real types): `component['textRooms']()`, `service['applyAvailableUpdate'] = vi.fn()`. Do **not** introduce helpers that cast the whole instance with `as unknown as { … }` or `as any` just to reach internals.
+- Mock collaborators with typed `useValue` objects; keep mock references instead of casting `TestBed.inject(...)` to `any`.
 
 ## Angular
 

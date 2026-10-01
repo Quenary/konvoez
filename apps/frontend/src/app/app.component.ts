@@ -1,5 +1,11 @@
 import { TuiButton, TuiRoot } from '@taiga-ui/core';
-import { Component, computed, inject, linkedSignal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  linkedSignal,
+} from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
@@ -43,6 +49,7 @@ const DEFAULT_VERSION_INFO = {
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
   private readonly store = inject(Store);

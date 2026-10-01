@@ -13,6 +13,7 @@ import { TextRoomListComponent } from './text-room-list/text-room-list.component
 import { DirectCallPanelComponent } from '@shared/components/voice-room/direct-call-panel/direct-call-panel.component';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceRoomService } from '@core/services/voice-room.service';
+import { RoomManageService } from '@features/rooms/room-manage.service';
 
 @Component({ selector: 'app-text-room-editor', template: '' })
 class MockEditorComponent {}
@@ -57,6 +58,12 @@ describe('TextRoomComponent', () => {
     peersList: signal([]),
   };
 
+  const mockRoomManageService = {
+    canManageRooms: signal(false),
+    editRoom: vi.fn(),
+    deleteRoom: vi.fn(),
+  };
+
   const configure = async (route: { params: unknown; data: unknown }) => {
     await TestBed.configureTestingModule({
       imports: [TextRoomComponent],
@@ -77,6 +84,7 @@ describe('TextRoomComponent', () => {
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: DirectCallService, useValue: mockDirectCallService },
         { provide: VoiceRoomService, useValue: mockVoiceRoomService },
+        { provide: RoomManageService, useValue: mockRoomManageService },
         { provide: ActivatedRoute, useValue: route },
       ],
     })
@@ -125,11 +133,7 @@ describe('TextRoomComponent', () => {
 
   it('should update search query with debounce when search input changes', () => {
     vi.useFakeTimers();
-    (
-      component as unknown as {
-        searchControl: { setValue: (v: string) => void };
-      }
-    ).searchControl.setValue('hello');
+    component['searchControl'].setValue('hello');
     expect(mockTextRoomStore.setSearchQuery).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(350);
@@ -138,39 +142,28 @@ describe('TextRoomComponent', () => {
   });
 
   it('should toggle search visibility when toggleSearch is called', () => {
-    const comp = component as unknown as {
-      toggleSearch: () => void;
-    };
     mockTextRoomStore.isSearchOpen.mockReturnValue(false);
-    comp.toggleSearch();
+    component['toggleSearch']();
     expect(mockTextRoomStore.setSearchOpen).toHaveBeenCalledWith(true);
 
     mockTextRoomStore.isSearchOpen.mockReturnValue(true);
-    comp.toggleSearch();
+    component['toggleSearch']();
     expect(mockTextRoomStore.setSearchOpen).toHaveBeenCalledWith(false);
   });
 
   it('should handle onSearchOpenChange and reset control when closed', () => {
-    const comp = component as unknown as {
-      searchControl: { value: string; setValue: (v: string) => void };
-      onSearchOpenChange: (open: boolean) => void;
-    };
-    comp.searchControl.setValue('test');
-    comp.onSearchOpenChange(false);
+    component['searchControl'].setValue('test');
+    component['onSearchOpenChange'](false);
 
     expect(mockTextRoomStore.setSearchOpen).toHaveBeenCalledWith(false);
-    expect(comp.searchControl.value).toBe('');
+    expect(component['searchControl'].value).toBe('');
   });
 
   it('should clear search input and call store.clearSearch', () => {
-    const comp = component as unknown as {
-      searchControl: { value: string; setValue: (v: string) => void };
-      clearSearch: () => void;
-    };
-    comp.searchControl.setValue('test');
-    comp.clearSearch();
+    component['searchControl'].setValue('test');
+    component['clearSearch']();
 
-    expect(comp.searchControl.value).toBe('');
+    expect(component['searchControl'].value).toBe('');
     expect(mockTextRoomStore.clearSearch).toHaveBeenCalled();
   });
 

@@ -18,9 +18,9 @@ describe('SpeakerService', () => {
       state: 'running',
       close: vi.fn(),
       setSinkId: vi.fn(),
-    } as any;
+    };
 
-    service['context'] = context;
+    service['context'] = context as unknown as AudioContext;
     service['device'] = { deviceId: 'speaker-1' } as MediaDeviceInfo;
 
     await service.release();

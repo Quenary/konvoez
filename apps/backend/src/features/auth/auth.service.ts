@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -35,8 +34,7 @@ import {
   passwordRecoveryCodeLength,
   passwordRecoveryRequestCooldownMs,
 } from '@konvoez/shared';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+import { Cache } from '@nestjs/cache-manager';
 import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
@@ -66,7 +64,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly userRepo: EntityRepository<UserEntity>,
     @InjectRepository(PasswordRecoveryCodeEntity)
     private readonly recoveryCodeRepo: EntityRepository<PasswordRecoveryCodeEntity>,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly cacheManager: Cache,
   ) {
     this.em = this.recoveryCodeRepo.getEntityManager();
   }
@@ -179,7 +177,7 @@ export class AuthService implements OnApplicationBootstrap {
    * @throws UnauthorizedException
    */
   async validateUser(login: string, password: string): Promise<GetUserDto> {
-    let user: UserEntity | null = null;
+    let user: UserEntity | null;
     try {
       user = await this.usersService.findOneByUsernameOrEmail(login.trim());
     } catch {
