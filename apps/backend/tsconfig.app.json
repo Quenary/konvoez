@@ -15,9 +15,11 @@
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "declaration": true,
+    "declaration": false,
     "sourceMap": true,
     "baseUrl": "./",
+    "rootDir": "../..",
+    "ignoreDeprecations": "6.0",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true

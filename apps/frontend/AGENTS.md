@@ -4,7 +4,7 @@ Guidelines for AI agents working in `apps/frontend` — the Angular client for K
 
 ## Stack
 
-- **Angular 21+** (standalone components by default — do not set `standalone: true`)
+- **Angular 22+** (standalone + OnPush by default — do not set `standalone: true`; keep explicit `ChangeDetectionStrategy.OnPush`)
 - **SCSS** for styles (not LESS/CSS)
 - **Taiga UI** for UI components
 - **NgRx Store + Effects** for cross-cutting app state (`auth`, `rooms`)

@@ -19,7 +19,7 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from '@nestjs/cache-manager';
 import { PublicService } from './public.service';
 import { AppService } from '@shared/services/app.service';
 import { IPublicVersion } from '@konvoez/shared';
@@ -52,7 +52,7 @@ describe('PublicService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PublicService,
-        { provide: CACHE_MANAGER, useValue: cacheManager },
+        { provide: Cache, useValue: cacheManager },
         { provide: AppService, useValue: appService },
       ],
     }).compile();

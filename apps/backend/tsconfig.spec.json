@@ -7,6 +7,8 @@
     "types": ["jest", "node", "multer"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "rootDir": "../..",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@konvoez/shared": ["../../libs/shared/src/index.ts"],
       "@shared/*": ["./src/shared/*"],

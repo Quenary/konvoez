@@ -50,7 +50,7 @@ import { ESettingKey, EUserRole } from '@konvoez/shared';
 import { ACCESS_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { Request } from 'express';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from '@nestjs/cache-manager';
 import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
@@ -59,7 +59,6 @@ import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
-import type { Cache } from 'cache-manager';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -198,7 +197,7 @@ describe('AuthService', () => {
           useValue: recoveryCodeRepo,
         },
         {
-          provide: CACHE_MANAGER,
+          provide: Cache,
           useValue: {
             get: jest.fn(),
             set: jest.fn(),
@@ -213,7 +212,7 @@ describe('AuthService', () => {
     appService = module.get(AppService);
     passwordService = module.get(PasswordService);
     usersService = module.get(UsersService);
-    cacheManager = module.get(CACHE_MANAGER);
+    cacheManager = module.get(Cache);
   });
 
   describe('validateUser', () => {
@@ -294,7 +293,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
-      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(null);
+      usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
+        null as unknown as UserEntity,
+      );
 
       await expect(
         service.validateUser('not_found', 'password123'),
