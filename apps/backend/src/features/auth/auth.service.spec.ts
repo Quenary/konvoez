@@ -47,9 +47,9 @@ import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { ESettingKey, EUserRole } from '@konvoez/shared';
-import { ACCESS_TOKEN_KEY } from './auth.const';
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { Cache } from '@nestjs/cache-manager';
 import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
@@ -152,6 +152,11 @@ describe('AuthService', () => {
           provide: AppService,
           useValue: {
             JWT_SECRET: 'test-jwt-secret',
+            COOKIE_SAME_SITE: 'lax',
+            COOKIE_SECURE: false,
+            COOKIE_DOMAIN: undefined,
+            ACCESS_TTL: 15,
+            REFRESH_TTL: 10080,
           },
         },
         {
@@ -338,6 +343,42 @@ describe('AuthService', () => {
         secret: appService.JWT_SECRET,
       });
       expect(token).toBe('mocked_token');
+    });
+  });
+
+  describe('setAuthCookies', () => {
+    it('should set access and refresh cookies from generated tokens', () => {
+      const res = { cookie: jest.fn() } as unknown as Response;
+      jwtService.sign
+        .mockReturnValueOnce('access_token_123')
+        .mockReturnValueOnce('refresh_token_123');
+
+      service.setAuthCookies(1, res);
+
+      expect(res.cookie).toHaveBeenNthCalledWith(
+        1,
+        ACCESS_TOKEN_KEY,
+        'access_token_123',
+        {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: false,
+          domain: undefined,
+          maxAge: 15 * 60 * 1000,
+        },
+      );
+      expect(res.cookie).toHaveBeenNthCalledWith(
+        2,
+        REFRESH_TOKEN_KEY,
+        'refresh_token_123',
+        {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: false,
+          domain: undefined,
+          maxAge: 10080 * 60 * 1000,
+        },
+      );
     });
   });
 
@@ -836,14 +877,14 @@ describe('AuthService', () => {
   });
 
   describe('resolveRefreshToken', () => {
-    it('should return token data when the account is active', async () => {
+    it('should return the active user when the account is active', async () => {
       const payload: AuthJWTData = { type: 'refresh', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
       usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
 
       await expect(
         service.resolveRefreshToken('refresh_token'),
-      ).resolves.toEqual(payload);
+      ).resolves.toEqual(mockUserDto);
     });
 
     it('should throw UnauthorizedException when the account is deleted', async () => {

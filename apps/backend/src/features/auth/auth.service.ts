@@ -18,8 +18,8 @@ import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
 } from '@shared/events/entity-sync.events';
-import { Request } from 'express';
-import { ACCESS_TOKEN_KEY } from './auth.const';
+import { Request, Response } from 'express';
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthJWTData, AuthRegisterDto } from './auth.dto';
 import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
@@ -341,6 +341,31 @@ export class AuthService implements OnApplicationBootstrap {
     });
   }
 
+  setAuthCookies(userId: number, res: Response): void {
+    const accessToken = this.generateToken({
+      type: 'access',
+      userId,
+    });
+    const refreshToken = this.generateToken({
+      type: 'refresh',
+      userId,
+    });
+    res.cookie(ACCESS_TOKEN_KEY, accessToken, {
+      httpOnly: true,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      maxAge: this.appService.ACCESS_TTL * 60 * 1000,
+    });
+    res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
+      httpOnly: true,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      maxAge: this.appService.REFRESH_TTL * 60 * 1000,
+    });
+  }
+
   verifyToken(token: string): AuthJWTData {
     return this.jwt.verify<AuthJWTData>(token, {
       secret: this.appService.JWT_SECRET,
@@ -366,10 +391,9 @@ export class AuthService implements OnApplicationBootstrap {
     return await this.requireActiveUser(res.userId);
   }
 
-  async resolveRefreshToken(refreshToken: string): Promise<AuthJWTData> {
+  async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {
     const data = this.verifyToken(refreshToken);
-    await this.requireActiveUser(data.userId);
-    return data;
+    return await this.requireActiveUser(data.userId);
   }
 
   async getUserFromRawCookies(

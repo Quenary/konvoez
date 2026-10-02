@@ -28,9 +28,11 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
-import { AuthGuardRoles } from './auth.decorator';
+import { AuthGuardRoles, AuthRefreshFallback } from './auth.decorator';
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { EUserRole } from '@konvoez/shared';
 import { GetUserDto } from '../users/users.dto';
+import type { Response } from 'express';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
@@ -49,12 +51,16 @@ describe('AuthGuard', () => {
     updatedAt: null,
   };
 
-  const createMockContext = (requestObj: Record<string, unknown> = {}) => {
+  const createMockContext = (
+    requestObj: Record<string, unknown> = {},
+    responseObj: Partial<Response> = {},
+  ) => {
     const handlerFn = () => undefined;
     const classType = class MockClass {};
     return {
       switchToHttp: () => ({
         getRequest: () => requestObj,
+        getResponse: () => responseObj,
       }),
       getHandler: () => handlerFn,
       getClass: () => classType,
@@ -69,6 +75,8 @@ describe('AuthGuard', () => {
           provide: AuthService,
           useValue: {
             getMe: jest.fn(),
+            resolveRefreshToken: jest.fn(),
+            setAuthCookies: jest.fn(),
           },
         },
         {
@@ -147,6 +155,82 @@ describe('AuthGuard', () => {
         new UnauthorizedException('Unauthorized'),
       );
       expect(request['author']).toBeUndefined();
+      expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
+      expect(authService.setAuthCookies).not.toHaveBeenCalled();
+    });
+
+    it('should renew cookies from the refresh token when the access cookie is missing', async () => {
+      const response = { cookie: jest.fn() };
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
+      };
+      const context = createMockContext(request, response);
+
+      reflector.getAllAndOverride.mockImplementation((key: unknown) => {
+        if (key === AuthRefreshFallback) return true;
+        return undefined;
+      });
+      authService.resolveRefreshToken.mockResolvedValueOnce(mockUser);
+
+      const result = await guard.canActivate(context);
+
+      expect(authService.getMe).not.toHaveBeenCalled();
+      expect(authService.resolveRefreshToken).toHaveBeenCalledWith(
+        'valid_refresh_token',
+      );
+      expect(authService.setAuthCookies).toHaveBeenCalledWith(
+        mockUser.id,
+        response,
+      );
+      expect(request['author']).toEqual(mockUser);
+      expect(result).toBe(true);
+    });
+
+    it('should reject an invalid access cookie without using the refresh token', async () => {
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: {
+          [ACCESS_TOKEN_KEY]: 'broken',
+          [REFRESH_TOKEN_KEY]: 'valid_refresh_token',
+        },
+      };
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockImplementation((key: unknown) => {
+        if (key === AuthRefreshFallback) return true;
+        return undefined;
+      });
+      authService.getMe.mockRejectedValueOnce(
+        new UnauthorizedException('Unauthorized'),
+      );
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new UnauthorizedException('Unauthorized'),
+      );
+      expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
+      expect(authService.setAuthCookies).not.toHaveBeenCalled();
+      expect(request['author']).toBeUndefined();
+    });
+
+    it('should not use the refresh token when the route has no fallback', async () => {
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
+      };
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockReturnValue(undefined);
+      authService.getMe.mockRejectedValueOnce(
+        new UnauthorizedException('Unauthorized'),
+      );
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new UnauthorizedException('Unauthorized'),
+      );
+      expect(authService.getMe).toHaveBeenCalledWith(request);
+      expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
+      expect(authService.setAuthCookies).not.toHaveBeenCalled();
     });
   });
 });
