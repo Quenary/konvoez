@@ -16,7 +16,13 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthRefreshFallback, Author } from '../auth/auth.decorator';
@@ -54,6 +60,16 @@ export class AttachmentsController {
   @UseFilters(AttachmentUploadExceptionFilter)
   @UseInterceptors(AttachmentUploadInterceptor)
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiCreatedResponse({ type: AttachmentDto })
   public upload(
     @Author() author: GetUserDto,
     @UploadedFile()
@@ -64,6 +80,7 @@ export class AttachmentsController {
 
   @Delete(':id')
   @HttpCode(204)
+  @ApiNoContentResponse({ description: "Delete the caller's pending upload" })
   public async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Author() author: GetUserDto,
