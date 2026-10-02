@@ -38,6 +38,7 @@ import {
   EUserRole,
   fullnameSchema,
   IProfileUpdate,
+  maxAvatarSize,
   passwordSchema,
   usernameSchema,
 } from '@konvoez/shared';
@@ -87,6 +88,7 @@ export class SettingsProfileComponent {
   private readonly injector = inject(Injector);
 
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly canDeleteAccount = computed(() => {
     const currentUser = this.currentUser();
     return currentUser != null && currentUser.role !== EUserRole.OWNER;
@@ -187,6 +189,22 @@ export class SettingsProfileComponent {
       .pipe(takeUntilDestroyed())
       .subscribe((avatarFile) => {
         if (!avatarFile) {
+          return;
+        }
+        if (
+          typeof avatarFile.size === 'number' &&
+          avatarFile.size > maxAvatarSize
+        ) {
+          this.form.controls.avatarFile.setValue(null, { emitEvent: false });
+          this.tuiNotificationsService.open(
+            this.translateService.instant('VALIDATION.FILE_TOO_BIG'),
+            {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            },
+          );
           return;
         }
         this.profileApiService.avatarUpload(avatarFile as File).subscribe({

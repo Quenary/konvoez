@@ -13,6 +13,7 @@ import {
   Query,
   Res,
   StreamableFile,
+  UseFilters,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { RoomsService } from './rooms.service';
@@ -20,6 +21,8 @@ import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthGuardRoles, Author } from '../auth/auth.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { avatarUploadLimits } from '@shared/services/file.service';
+import { AvatarUploadExceptionFilter } from '@shared/filters/avatar-upload-exception.filter';
 import { RoomsAvatarsService } from './rooms-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
@@ -53,7 +56,8 @@ export class RoomsController {
 
   @Post('avatar/upload')
   @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseFilters(AvatarUploadExceptionFilter)
+  @UseInterceptors(FileInterceptor('avatar', { limits: avatarUploadLimits }))
   @ApiOkResponse({
     type: UploadFileResultDto,
     description: 'Upload avatar and get its key (no room data mutation)',

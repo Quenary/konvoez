@@ -14,7 +14,6 @@ GENERAL:
   EDIT: Edit
   DELETE: Delete
   REPLY: Reply
-  FILE_TOO_BIG: File is too big
   SIGN_IN: Sign in
   SIGN_UP: Create account
   LOG_OUT: Log out
@@ -190,6 +189,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  FILE_TOO_BIG: File is too big
   STRING: Value must be a string
   TTL_RANGE: Lifetime must be within the allowed range
   USERNAME_LENGTH: Username must be 4–32 characters
