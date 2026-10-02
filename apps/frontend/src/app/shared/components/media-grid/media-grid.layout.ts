@@ -57,3 +57,39 @@ export function computeMediaGridLayout(
   }
   return { columns: 6, cells, singleAspect: 1 };
 }
+
+export interface IMediaFrameLimit {
+  readonly width: number;
+  readonly heightFactor: number;
+}
+
+// Largest grid width that does not upscale a tile past its source pixels.
+// heightFactor is the grid width, in units of the cell max-height, at which
+// the tallest cell still matches that cap.
+export function mediaFrameLimit(
+  sizes: readonly { width: number; height: number }[],
+): IMediaFrameLimit | null {
+  if (sizes.length === 0) {
+    return null;
+  }
+  const layout = computeMediaGridLayout(sizes.length, sizes[0]);
+  let width = Number.POSITIVE_INFINITY;
+  let heightFactor = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < sizes.length; index += 1) {
+    const size = sizes[index];
+    if (!size || size.width <= 0 || size.height <= 0) {
+      return null;
+    }
+    const span = layout.cells[index]?.colSpan ?? 6;
+    width = Math.min(width, (size.width * 6) / span);
+    const aspect =
+      layout.singleAspect !== null && sizes.length <= 2
+        ? layout.singleAspect
+        : 1;
+    heightFactor = Math.min(heightFactor, (aspect * 6) / span);
+  }
+  if (!Number.isFinite(width) || !Number.isFinite(heightFactor)) {
+    return null;
+  }
+  return { width, heightFactor };
+}

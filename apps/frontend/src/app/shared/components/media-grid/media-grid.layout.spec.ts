@@ -1,4 +1,4 @@
-import { computeMediaGridLayout } from './media-grid.layout';
+import { computeMediaGridLayout, mediaFrameLimit } from './media-grid.layout';
 
 describe('computeMediaGridLayout', () => {
   function spans(count: number): number[] {
@@ -17,6 +17,31 @@ describe('computeMediaGridLayout', () => {
 
   it('stacks two items', () => {
     expect(spans(2)).toEqual([6, 6]);
+  });
+
+  it('caps a single image at its source width', () => {
+    expect(mediaFrameLimit([{ width: 400, height: 400 }])).toEqual({
+      width: 400,
+      heightFactor: 1,
+    });
+  });
+
+  it('caps a row so no tile is wider than its source', () => {
+    expect(
+      mediaFrameLimit([
+        { width: 800, height: 800 },
+        { width: 200, height: 200 },
+        { width: 200, height: 200 },
+      ]),
+    ).toEqual({
+      width: 400,
+      heightFactor: 1,
+    });
+  });
+
+  it('returns null when a size is missing', () => {
+    expect(mediaFrameLimit([])).toBeNull();
+    expect(mediaFrameLimit([{ width: 0, height: 10 }])).toBeNull();
   });
 
   it('lays out 3, 4, 5, 7 and 10', () => {

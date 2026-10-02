@@ -41,6 +41,7 @@ import { MessageVisibilityDirective } from '@shared/directives/message-visibilit
 import { TextRoomApiService } from '../text-room-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
+import { mediaFrameLimit } from '@shared/components/media-grid/media-grid.layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { MessageAttachmentsComponent } from '../message-attachments/message-attachments.component';
 import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
@@ -100,6 +101,40 @@ export class TextRoomMessageComponent {
   protected readonly progress = computed(() =>
     this.outgoing() ? this.outgoingStore.uploadProgress() : this.emptyProgress,
   );
+
+  protected readonly mediaFrame = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachmentList();
+    const sizes: { width: number; height: number }[] = [];
+    if (outgoing) {
+      for (const file of outgoing.files) {
+        if (
+          file.kind !== EAttachmentKind.IMAGE &&
+          file.kind !== EAttachmentKind.VIDEO
+        ) {
+          continue;
+        }
+        if (!file.width || !file.height) {
+          return null;
+        }
+        sizes.push({ width: file.width, height: file.height });
+      }
+    } else {
+      for (const item of attachments) {
+        if (
+          item.kind !== EAttachmentKind.IMAGE &&
+          item.kind !== EAttachmentKind.VIDEO
+        ) {
+          continue;
+        }
+        if (!item.width || !item.height) {
+          return null;
+        }
+        sizes.push({ width: item.width, height: item.height });
+      }
+    }
+    return mediaFrameLimit(sizes);
+  });
 
   protected readonly hasMedia = computed(() => {
     const outgoing = this.outgoing();

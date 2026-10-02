@@ -24,6 +24,19 @@
       gap: 0.5rem;
       max-width: 90%;
       min-width: 25%;
+
+      &.message-row-media {
+        width: 90%;
+      }
+
+      &.message-row-sized {
+        min-width: 0;
+        width: min(
+          90%,
+          var(--media-width),
+          calc(min(60vh, 28rem) * var(--media-height-factor))
+        );
+      }
     }
 
     // Own messages: align row to the right
@@ -115,8 +128,8 @@
       gap: 0.5rem;
 
       &.has-media {
-        flex: 0 1 auto;
-        width: min(28rem, 100%);
+        flex: 1 1 auto;
+        width: auto;
       }
 
       // Own message bubble: distinct color (Telegram-like green/blue)

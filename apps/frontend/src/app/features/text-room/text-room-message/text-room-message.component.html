@@ -5,7 +5,12 @@
     [class.message-own]="isOwnMessage()"
     [style.--author-color]="senderUsername() | tuiAutoColor"
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
-    <div class="message-row">
+    <div
+      class="message-row"
+      [class.message-row-media]="hasMedia()"
+      [class.message-row-sized]="mediaFrame() !== null"
+      [style.--media-width.px]="mediaFrame()?.width"
+      [style.--media-height-factor]="mediaFrame()?.heightFactor">
       @if (shouldShowAvatar()) {
         <app-user-avatar
           size="s"
