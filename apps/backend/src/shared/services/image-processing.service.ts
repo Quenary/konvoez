@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import sharp from 'sharp';
+import fs from 'fs';
 import path from 'path';
+import {
+  attachmentsMaxImagePixels,
+  attachmentsThumbnailMaxSide,
+} from '@konvoez/shared';
 
 export interface ImageProcessingOptions {
   width?: number;
@@ -66,5 +71,65 @@ export class ImageProcessingService {
       );
       throw new BadRequestException('Invalid or corrupted image file');
     }
+  }
+
+  public async readImageMetadata(filePath: string): Promise<{
+    width: number | null;
+    height: number | null;
+    pages: number;
+    format: string | undefined;
+  } | null> {
+    try {
+      const metadata = await sharp(filePath, {
+        limitInputPixels: attachmentsMaxImagePixels,
+      }).metadata();
+      let width = metadata.width ?? null;
+      let height = metadata.height ?? null;
+      const orientation = metadata.orientation ?? 1;
+      if (
+        width !== null &&
+        height !== null &&
+        orientation >= 5 &&
+        orientation <= 8
+      ) {
+        const swapped = width;
+        width = height;
+        height = swapped;
+      }
+      return {
+        width,
+        height,
+        pages: metadata.pages ?? 1,
+        format: metadata.format,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  public async stripMetadata(filePath: string): Promise<number> {
+    const cleaned = `${filePath}.clean`;
+    await sharp(filePath).rotate().toFile(cleaned);
+    await fs.promises.rename(cleaned, filePath);
+    const stat = await fs.promises.stat(filePath);
+    return stat.size;
+  }
+
+  public async writeThumbnail(
+    filePath: string,
+    destPath: string,
+    pages: number,
+  ): Promise<void> {
+    let pipeline = sharp(filePath, {
+      limitInputPixels: attachmentsMaxImagePixels,
+      pages: pages > 1 ? 1 : undefined,
+    }).rotate();
+    pipeline = pipeline.resize({
+      width: attachmentsThumbnailMaxSide,
+      height: attachmentsThumbnailMaxSide,
+      fit: 'inside',
+      withoutEnlargement: true,
+    });
+    await pipeline.webp({ quality: 80 }).toFile(destPath);
   }
 }

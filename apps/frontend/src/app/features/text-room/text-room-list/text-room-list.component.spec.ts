@@ -31,6 +31,8 @@ describe('TextRoomListComponent', () => {
       createdAt: new Date('2026-09-15T00:00:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       status: EMessageStatus.SUCCESS,
       replyTo: null,
     },
@@ -44,6 +46,8 @@ describe('TextRoomListComponent', () => {
       createdAt: new Date('2026-09-15T00:01:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       status: EMessageStatus.SUCCESS,
       replyTo: {
         id: 'msg-1',

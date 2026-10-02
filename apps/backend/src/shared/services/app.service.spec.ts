@@ -41,6 +41,19 @@ describe('AppService', () => {
     spy.mockRestore();
   });
 
+  it('should reject an invalid OBJECT_STORAGE_PREFIX', () => {
+    process.env['OBJECT_STORAGE_PREFIX'] = 'Bad.Prefix';
+    expect(() => new AppService()).toThrow(/OBJECT_STORAGE_PREFIX/);
+  });
+
+  it('should default the upload temp dir next to local storage', () => {
+    process.env['LOCAL_OBJECT_STORAGE_PATH'] = '/data/files';
+    delete process.env['UPLOAD_TMP_DIR'];
+    delete process.env['OBJECT_STORAGE_PREFIX'];
+    const service = new AppService();
+    expect(service.UPLOAD_TMP_DIR).toBe('/data/files/.tmp');
+  });
+
   it('should read LOCAL_OBJECT_STORAGE_PATH from env', () => {
     process.env['LOCAL_OBJECT_STORAGE_PATH'] = '/custom/path';
     const service = new AppService();

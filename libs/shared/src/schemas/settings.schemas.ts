@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { ESettingKey } from '../enums';
 import {
+  attachmentsDefaultMaxFileSize,
+  attachmentsDefaultMaxFilesPerMessage,
+  attachmentsMaxFileSizeHardLimit,
+  attachmentsMaxFilesHardLimit,
+  attachmentsMinFileSize,
   passwordRecoveryCodeDefaultTtl,
   passwordRecoveryCodeMaxTtl,
   passwordRecoveryCodeMinTtl,
@@ -116,6 +121,110 @@ export type TPasswordRecoveryCodeTtlSetting = z.infer<
 >;
 
 /* ==========================================================================
+   Attachments Enabled
+   ========================================================================== */
+
+export const attachmentsEnabledSettingValueSchema = z.boolean();
+export type TAttachmentsEnabledSettingValue = z.infer<
+  typeof attachmentsEnabledSettingValueSchema
+>;
+
+export const DEFAULT_ATTACHMENTS_ENABLED: TAttachmentsEnabledSettingValue = true;
+
+export const attachmentsEnabledSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.ATTACHMENTS_ENABLED),
+  value: attachmentsEnabledSettingValueSchema,
+});
+
+export const attachmentsEnabledSettingSchema =
+  attachmentsEnabledSettingBaseSchema.extend(baseEntitySchema.shape);
+export type TAttachmentsEnabledSetting = z.infer<
+  typeof attachmentsEnabledSettingSchema
+>;
+
+/* ==========================================================================
+   Attachments Max File Size
+   ========================================================================== */
+
+export const attachmentsMaxFileSizeSettingValueSchema = z
+  .number({ error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILE_SIZE_RANGE })
+  .int({ error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILE_SIZE_RANGE })
+  .min(attachmentsMinFileSize, {
+    error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILE_SIZE_RANGE,
+  })
+  .max(attachmentsMaxFileSizeHardLimit, {
+    error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILE_SIZE_RANGE,
+  });
+export type TAttachmentsMaxFileSizeSettingValue = z.infer<
+  typeof attachmentsMaxFileSizeSettingValueSchema
+>;
+
+export const DEFAULT_ATTACHMENTS_MAX_FILE_SIZE: TAttachmentsMaxFileSizeSettingValue =
+  attachmentsDefaultMaxFileSize;
+
+export const attachmentsMaxFileSizeSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.ATTACHMENTS_MAX_FILE_SIZE),
+  value: attachmentsMaxFileSizeSettingValueSchema,
+});
+
+export const attachmentsMaxFileSizeSettingSchema =
+  attachmentsMaxFileSizeSettingBaseSchema.extend(baseEntitySchema.shape);
+export type TAttachmentsMaxFileSizeSetting = z.infer<
+  typeof attachmentsMaxFileSizeSettingSchema
+>;
+
+/* ==========================================================================
+   Attachments Max Files Per Message
+   ========================================================================== */
+
+export const attachmentsMaxFilesPerMessageSettingValueSchema = z
+  .number({ error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILES_RANGE })
+  .int({ error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILES_RANGE })
+  .min(1, { error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILES_RANGE })
+  .max(attachmentsMaxFilesHardLimit, {
+    error: SCHEMA_ERROR.ATTACHMENTS_MAX_FILES_RANGE,
+  });
+export type TAttachmentsMaxFilesPerMessageSettingValue = z.infer<
+  typeof attachmentsMaxFilesPerMessageSettingValueSchema
+>;
+
+export const DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE: TAttachmentsMaxFilesPerMessageSettingValue =
+  attachmentsDefaultMaxFilesPerMessage;
+
+export const attachmentsMaxFilesPerMessageSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE),
+  value: attachmentsMaxFilesPerMessageSettingValueSchema,
+});
+
+export const attachmentsMaxFilesPerMessageSettingSchema =
+  attachmentsMaxFilesPerMessageSettingBaseSchema.extend(baseEntitySchema.shape);
+export type TAttachmentsMaxFilesPerMessageSetting = z.infer<
+  typeof attachmentsMaxFilesPerMessageSettingSchema
+>;
+
+/* ==========================================================================
+   Attachments Strip Image Metadata
+   ========================================================================== */
+
+export const attachmentsStripImageMetadataSettingValueSchema = z.boolean();
+export type TAttachmentsStripImageMetadataSettingValue = z.infer<
+  typeof attachmentsStripImageMetadataSettingValueSchema
+>;
+
+export const DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA: TAttachmentsStripImageMetadataSettingValue = false;
+
+export const attachmentsStripImageMetadataSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA),
+  value: attachmentsStripImageMetadataSettingValueSchema,
+});
+
+export const attachmentsStripImageMetadataSettingSchema =
+  attachmentsStripImageMetadataSettingBaseSchema.extend(baseEntitySchema.shape);
+export type TAttachmentsStripImageMetadataSetting = z.infer<
+  typeof attachmentsStripImageMetadataSettingSchema
+>;
+
+/* ==========================================================================
    Maps, Unions & Bulk Update Schemas
    ========================================================================== */
 
@@ -124,12 +233,25 @@ export const settingValueSchemas = {
   [ESettingKey.INVITE_ONLY_SIGN_UP]: inviteOnlySignUpSettingValueSchema,
   [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]:
     passwordRecoveryCodeTtlSettingValueSchema,
+  [ESettingKey.ATTACHMENTS_ENABLED]: attachmentsEnabledSettingValueSchema,
+  [ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]:
+    attachmentsMaxFileSizeSettingValueSchema,
+  [ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]:
+    attachmentsMaxFilesPerMessageSettingValueSchema,
+  [ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]:
+    attachmentsStripImageMetadataSettingValueSchema,
 } as const;
 
 export const defaultSettingValues = {
   [ESettingKey.ICE_SERVERS]: DEFAULT_ICE_SERVERS,
   [ESettingKey.INVITE_ONLY_SIGN_UP]: DEFAULT_INVITE_ONLY_SIGN_UP,
   [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  [ESettingKey.ATTACHMENTS_ENABLED]: DEFAULT_ATTACHMENTS_ENABLED,
+  [ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]: DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
+  [ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]:
+    DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE,
+  [ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]:
+    DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
 } as const;
 
 export type TSettingValueMap = {
@@ -140,6 +262,10 @@ export const settingSchema = z.discriminatedUnion('key', [
   iceServersSettingSchema,
   inviteOnlySignUpSettingSchema,
   passwordRecoveryCodeTtlSettingSchema,
+  attachmentsEnabledSettingSchema,
+  attachmentsMaxFileSizeSettingSchema,
+  attachmentsMaxFilesPerMessageSettingSchema,
+  attachmentsStripImageMetadataSettingSchema,
 ]);
 export type TSetting = z.infer<typeof settingSchema>;
 export type TSettingByKey<K extends ESettingKey> = Extract<
@@ -151,6 +277,10 @@ export const settingItemUpdateSchema = z.discriminatedUnion('key', [
   iceServersSettingBaseSchema,
   inviteOnlySignUpSettingBaseSchema,
   passwordRecoveryCodeTtlSettingBaseSchema,
+  attachmentsEnabledSettingBaseSchema,
+  attachmentsMaxFileSizeSettingBaseSchema,
+  attachmentsMaxFilesPerMessageSettingBaseSchema,
+  attachmentsStripImageMetadataSettingBaseSchema,
 ]);
 export type TSettingItemUpdate = z.infer<typeof settingItemUpdateSchema>;
 

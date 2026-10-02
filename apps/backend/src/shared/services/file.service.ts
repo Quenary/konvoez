@@ -4,6 +4,7 @@ import { Readable } from 'stream';
 
 export const USER_AVATARS_BUCKET = 'users-avatars';
 export const ROOM_AVATARS_BUCKET = 'rooms-avatars';
+export const MESSAGE_ATTACHMENTS_BUCKET = 'message-attachments';
 
 export const avatarUploadLimits = {
   fileSize: maxAvatarSize,
@@ -17,7 +18,22 @@ export function assertAvatarFileSize(
   }
 }
 
-export const FILE_BUCKETS = [USER_AVATARS_BUCKET, ROOM_AVATARS_BUCKET] as const;
+export const FILE_BUCKETS = [
+  USER_AVATARS_BUCKET,
+  ROOM_AVATARS_BUCKET,
+  MESSAGE_ATTACHMENTS_BUCKET,
+] as const;
+
+export interface PutFileSource {
+  path: string;
+  size: number;
+  contentType: string;
+}
+
+export interface FileByteRange {
+  start: number;
+  end: number;
+}
 
 export interface FileStreamResult {
   stream: Readable;
@@ -32,7 +48,13 @@ export interface StoredFileInfo {
 
 export interface FileService {
   upload(file: Express.Multer.File, bucket?: string): Promise<string>;
-  getStream(key: string, bucket?: string): Promise<FileStreamResult>;
+  /** Stores a temp file under an exact key. Takes ownership of source.path. */
+  putFile(key: string, source: PutFileSource, bucket: string): Promise<void>;
+  getStream(
+    key: string,
+    bucket?: string,
+    range?: FileByteRange,
+  ): Promise<FileStreamResult>;
   delete(key: string, bucket?: string): Promise<void>;
   list(bucket: string): Promise<StoredFileInfo[]>;
 }

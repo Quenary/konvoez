@@ -22,3 +22,50 @@ export const passwordRecoveryCodeMaxTtl = 60 * 60 * 1000; // 1 hour in ms
 export const passwordRecoveryCodeDefaultTtl = 10 * 60 * 1000; // 10 minutes in ms
 export const passwordRecoveryCodeLength = 6;
 export const passwordRecoveryRequestCooldownMs = 60_000; // 1 minute
+/** Hard cap on how many files one message may reference. */
+export const attachmentsMaxFilesHardLimit = 10;
+/** Default for the admin setting `ATTACHMENTS_MAX_FILES_PER_MESSAGE`. */
+export const attachmentsDefaultMaxFilesPerMessage = 10;
+/**
+ * Lower bound of the admin setting `ATTACHMENTS_MAX_FILE_SIZE`.
+ * This is the smallest per-file maximum an admin can configure, not a minimum upload size.
+ * A file smaller than this value is allowed.
+ */
+export const attachmentsMinFileSize = 1024 * 1024; // 1 MiB
+/** Upper bound of the admin setting `ATTACHMENTS_MAX_FILE_SIZE`. */
+export const attachmentsMaxFileSizeHardLimit = 1024 * 1024 * 1024; // 1 GiB
+/** Default for the admin setting `ATTACHMENTS_MAX_FILE_SIZE`. */
+export const attachmentsDefaultMaxFileSize = 50 * 1024 * 1024; // 50 MiB
+/** How long an unclaimed pending upload is kept before the sweeper deletes it. */
+export const attachmentsPendingTtlMs = 24 * 60 * 60 * 1000;
+/** Maximum number of pending (not yet attached) uploads per user. */
+export const attachmentsMaxPendingPerUser = 30;
+/** sharp `limitInputPixels`. Images above this are not decoded as images. */
+export const attachmentsMaxImagePixels = 50_000_000;
+/** Longest side of a generated WebP thumbnail, in pixels. */
+export const attachmentsThumbnailMaxSide = 1024;
+/** Animated images up to this size are shown from the original URL so they keep animating. */
+export const attachmentsAnimatedInlineMaxSize = 8 * 1024 * 1024;
+/** Maximum stored length of a sanitised original file name. */
+export const attachmentFileNameMaxLength = 255;
+export const INLINE_IMAGE_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+] as const;
+export const INLINE_VIDEO_MIMES = [
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+] as const;
+export const INLINE_AUDIO_MIMES = [
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/wav',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/flac',
+] as const;

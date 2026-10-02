@@ -8,6 +8,7 @@ export const MessageEntitySchema = defineEntity({
   name: 'MessageEntity',
   tableName: 'messages',
   extends: KonvoezBaseEntitySchema,
+  uniques: [{ properties: ['sender', 'clientId'] }],
   indexes: [
     { properties: ['room', 'id'] },
     { properties: ['recipient', 'id'] },
@@ -38,6 +39,9 @@ export const MessageEntitySchema = defineEntity({
     room: () => p.manyToOne(RoomEntitySchema).index().nullable(),
 
     replyToId: p.uint8array().length(16).nullable().index(),
+
+    /** Client-side message ID for deduplication */
+    clientId: p.uint8array().length(16).nullable(),
 
     replyTo: () =>
       p

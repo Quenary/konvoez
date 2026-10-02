@@ -11,6 +11,7 @@ import {
 import { InviteEntitySchema } from './features/invites/invites.entity';
 import { PushSubscriptionEntitySchema } from './features/notifications/notifications.entity';
 import { PasswordRecoveryCodeEntitySchema } from './features/auth/password-recovery-code.entity';
+import { MessageAttachmentEntitySchema } from './features/attachments/attachments.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { Migration20260801010402_InitialSchema } from './migrations/Migration20260801010402_InitialSchema';
 import { Migration20260915000000_MessageReplyTo } from './migrations/Migration20260915000000_MessageReplyTo';
@@ -39,6 +40,7 @@ export async function createMikroOrmConfig() {
       MessageReadEntitySchema,
       PushSubscriptionEntitySchema,
       PasswordRecoveryCodeEntitySchema,
+      MessageAttachmentEntitySchema,
     ],
     extensions: [Migrator],
     migrations: {

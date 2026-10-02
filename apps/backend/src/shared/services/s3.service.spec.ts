@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   ListObjectsV2Command,
   NoSuchKey,
@@ -9,7 +10,12 @@ import {
 } from '@aws-sdk/client-s3';
 import { NotFoundException } from '@nestjs/common';
 import { Readable } from 'stream';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { AppService } from './app.service';
 import { S3Service } from './s3.service';
+import { StorageNamingService } from './storage-naming.service';
 
 describe('S3Service', () => {
   let service: S3Service;
@@ -19,7 +25,13 @@ describe('S3Service', () => {
     mockS3Client = {
       send: jest.fn(),
     };
-    service = new S3Service(mockS3Client as unknown as S3Client);
+    const appService = {
+      OBJECT_STORAGE_PREFIX: '',
+    } as unknown as AppService;
+    service = new S3Service(
+      mockS3Client as unknown as S3Client,
+      new StorageNamingService(appService),
+    );
   });
 
   it('should upload a file to S3', async () => {
@@ -120,5 +132,79 @@ describe('S3Service', () => {
     (mockS3Client.send as jest.Mock).mockRejectedValueOnce(error);
 
     await expect(service.list('rooms-avatars')).resolves.toEqual([]);
+  });
+
+  it('should put a stream with ContentLength and unlink the source', async () => {
+    const dir = await fs.promises.mkdtemp(
+      path.join(os.tmpdir(), 'konvoez-s3-'),
+    );
+    const source = path.join(dir, 'upload.bin');
+    await fs.promises.writeFile(source, 'payload');
+    (mockS3Client.send as jest.Mock).mockImplementation(
+      async (command: { input?: { Body?: AsyncIterable<unknown> } }) => {
+        const body = command.input?.Body;
+        if (body && Symbol.asyncIterator in Object(body)) {
+          for await (const chunk of body) {
+            void chunk;
+          }
+        }
+        return {};
+      },
+    );
+
+    await service.putFile(
+      'message-attachments/id',
+      {
+        path: source,
+        size: 7,
+        contentType: 'application/octet-stream',
+      },
+      'message-attachments',
+    );
+
+    const put = (mockS3Client.send as jest.Mock).mock.calls
+      .map((call) => call[0] as PutObjectCommand)
+      .find((command) => command instanceof PutObjectCommand);
+    expect(put?.input.Bucket).toBe('message-attachments');
+    expect(put?.input.Key).toBe('message-attachments/id');
+    expect(put?.input.ContentLength).toBe(7);
+    expect(put?.input.ContentType).toBe('application/octet-stream');
+    expect(put?.input.Body).toBeDefined();
+    expect(fs.existsSync(source)).toBe(false);
+    await fs.promises.rm(dir, { recursive: true, force: true });
+  });
+
+  it('should request a byte range', async () => {
+    (mockS3Client.send as jest.Mock).mockResolvedValueOnce({
+      Body: Readable.from(['ab']),
+      ContentType: 'application/octet-stream',
+      ContentLength: 2,
+    });
+
+    await service.getStream('message-attachments/id', undefined, {
+      start: 0,
+      end: 1,
+    });
+
+    const get = (mockS3Client.send as jest.Mock).mock
+      .calls[0]?.[0] as GetObjectCommand;
+    expect(get.input.Range).toBe('bytes=0-1');
+  });
+
+  it('should use the prefixed bucket while keeping the logical object key', async () => {
+    const prefixed = new S3Service(
+      mockS3Client as unknown as S3Client,
+      new StorageNamingService({
+        OBJECT_STORAGE_PREFIX: 'dev',
+      } as unknown as AppService),
+    );
+    (mockS3Client.send as jest.Mock).mockResolvedValue({});
+    await prefixed.delete('users-avatars/1-a.png');
+    const deleted = (mockS3Client.send as jest.Mock).mock
+      .calls[0]?.[0] as DeleteObjectCommand;
+    expect(deleted.input).toMatchObject({
+      Bucket: 'dev-users-avatars',
+      Key: 'users-avatars/1-a.png',
+    });
   });
 });

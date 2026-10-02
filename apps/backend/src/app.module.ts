@@ -17,6 +17,7 @@ import { PublicModule } from './features/public/public.module';
 import { InvitesModule } from './features/invites/invites.module';
 import { NotificationsModule } from './features/notifications/notifications.module';
 import { FilesModule } from './features/files/files.module';
+import { AttachmentsModule } from './features/attachments/attachments.module';
 import { EntitySyncModule } from './features/entity-sync/entity-sync.module';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
@@ -40,6 +41,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     InvitesModule,
     NotificationsModule,
     FilesModule,
+    AttachmentsModule,
     EntitySyncModule,
   ],
   providers: [

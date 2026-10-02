@@ -1,0 +1,96 @@
+import {
+  CallHandler,
+  ExecutionContext,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+  NestInterceptor,
+  PayloadTooLargeException,
+} from '@nestjs/common';
+import { Observable, finalize } from 'rxjs';
+import multer from 'multer';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+import { ESettingKey, attachmentsMaxPendingPerUser } from '@konvoez/shared';
+import { AppService } from '@shared/services/app.service';
+import { SettingsService } from '../settings/settings.service';
+import { EAttachmentStatus } from './attachments.const';
+import { InjectRepository } from '@mikro-orm/nestjs';
+import { EntityRepository } from '@mikro-orm/core';
+import { MessageAttachmentEntity } from './attachments.entity';
+import type { Request, Response } from 'express';
+
+@Injectable()
+export class AttachmentUploadInterceptor implements NestInterceptor {
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly appService: AppService,
+    @InjectRepository(MessageAttachmentEntity)
+    private readonly repo: EntityRepository<MessageAttachmentEntity>,
+  ) {}
+
+  public async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<unknown>> {
+    const http = context.switchToHttp();
+    const req = http.getRequest<Request & { file?: Express.Multer.File }>();
+    const res = http.getResponse<Response>();
+    const enabled = await this.settingsService.getValue(
+      ESettingKey.ATTACHMENTS_ENABLED,
+    );
+    if (!enabled) {
+      throw new ForbiddenException('ATTACHMENTS_DISABLED');
+    }
+    const authorId = (req as Request & { author?: { id: number } }).author?.id;
+    if (authorId !== undefined) {
+      const pending = await this.repo.count({
+        uploader: authorId,
+        status: EAttachmentStatus.PENDING,
+      });
+      if (pending >= attachmentsMaxPendingPerUser) {
+        throw new HttpException('ATTACHMENTS_PENDING_LIMIT', 429);
+      }
+    }
+    const maxFileSize = await this.settingsService.getValue(
+      ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
+    );
+    const contentLength = Number(req.headers['content-length'] ?? 0);
+    if (contentLength > maxFileSize + 64 * 1024) {
+      throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
+    }
+    await fs.promises.mkdir(this.appService.UPLOAD_TMP_DIR, {
+      recursive: true,
+    });
+    const upload = multer({
+      storage: multer.diskStorage({
+        destination: this.appService.UPLOAD_TMP_DIR,
+        filename: (_request, _file, callback) => callback(null, randomUUID()),
+      }),
+      limits: { fileSize: maxFileSize, files: 1, fields: 0, parts: 1 },
+      defParamCharset: 'utf8',
+    }).single('file');
+    await new Promise<void>((resolve, reject) => {
+      upload(req, res, (error: unknown) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    return next.handle().pipe(
+      finalize(() => {
+        const filePath = req.file?.path;
+        if (!filePath) {
+          return;
+        }
+        fs.promises.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== 'ENOENT') {
+            throw error;
+          }
+        });
+      }),
+    );
+  }
+}

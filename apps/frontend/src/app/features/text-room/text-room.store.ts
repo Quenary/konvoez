@@ -182,6 +182,7 @@ export const TextRoomStore = signalStore(
         roomId: message.roomId,
         recipientId: message.recipientId,
         replyToId: message.replyTo?.id ?? null,
+        attachmentIds: [],
       });
 
       const applyCreateResult = (tempId: string) =>
@@ -425,6 +426,8 @@ export const TextRoomStore = signalStore(
                 createdAt: new Date(),
                 updatedAt: null,
                 isRead: false,
+                attachments: [],
+                clientId: data.clientId ?? null,
                 status: EMessageStatus.LOADING,
                 isPendingCreate: true,
                 replyTo: replyTarget

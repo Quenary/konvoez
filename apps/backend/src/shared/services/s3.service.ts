@@ -10,9 +10,17 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import fs from 'fs';
 import { Readable } from 'stream';
 import { S3ClientInjectionToken } from '../tokens/s3-client.token';
-import { FileService, FileStreamResult, StoredFileInfo } from './file.service';
+import {
+  FileByteRange,
+  FileService,
+  FileStreamResult,
+  PutFileSource,
+  StoredFileInfo,
+} from './file.service';
+import { StorageNamingService } from './storage-naming.service';
 
 @Injectable()
 export class S3Service implements FileService {
@@ -22,18 +30,21 @@ export class S3Service implements FileService {
   constructor(
     @Inject(S3ClientInjectionToken)
     private readonly s3Client: S3Client,
+    private readonly storageNamingService: StorageNamingService,
   ) {}
 
   public async upload(
     file: Express.Multer.File,
     bucket = 'default',
   ): Promise<string> {
-    await this.ensureBucketExists(bucket);
+    await this.ensureBucketExists(
+      this.storageNamingService.resolvePhysicalBucket(bucket),
+    );
 
     const key = `${bucket}/${Date.now()}-${file.originalname}`;
 
     const command = new PutObjectCommand({
-      Bucket: bucket,
+      Bucket: this.storageNamingService.resolvePhysicalBucket(bucket),
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
@@ -42,6 +53,26 @@ export class S3Service implements FileService {
     await this.s3Client.send(command);
 
     return key;
+  }
+
+  public async putFile(
+    key: string,
+    source: PutFileSource,
+    bucket: string,
+  ): Promise<void> {
+    const physical = this.storageNamingService.resolvePhysicalBucket(bucket);
+    await this.ensureBucketExists(physical);
+    const objectKey = key.startsWith(`${bucket}/`) ? key : `${bucket}/${key}`;
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: physical,
+        Key: objectKey,
+        Body: fs.createReadStream(source.path),
+        ContentLength: source.size,
+        ContentType: source.contentType,
+      }),
+    );
+    await fs.promises.unlink(source.path);
   }
 
   public async delete(key: string, bucket?: string): Promise<void> {
@@ -69,7 +100,7 @@ export class S3Service implements FileService {
       do {
         const response = await this.s3Client.send(
           new ListObjectsV2Command({
-            Bucket: bucket,
+            Bucket: this.storageNamingService.resolvePhysicalBucket(bucket),
             ContinuationToken: continuationToken,
           }),
         );
@@ -97,6 +128,7 @@ export class S3Service implements FileService {
   public async getStream(
     key: string,
     bucket?: string,
+    range?: FileByteRange,
   ): Promise<FileStreamResult> {
     const target = this.parseBucketAndKey(key, bucket);
 
@@ -104,6 +136,7 @@ export class S3Service implements FileService {
       const command = new GetObjectCommand({
         Bucket: target.bucket,
         Key: target.key,
+        Range: range ? `bytes=${range.start}-${range.end}` : undefined,
       });
 
       const response = await this.s3Client.send(command);
@@ -185,16 +218,15 @@ export class S3Service implements FileService {
     key: string,
     bucket?: string,
   ): { bucket: string; key: string } {
-    if (bucket) {
-      return { bucket, key };
-    }
-    const slashIndex = key.indexOf('/');
-    if (slashIndex > 0) {
-      return {
-        bucket: key.substring(0, slashIndex),
-        key,
-      };
-    }
-    return { bucket: 'default', key };
+    const logicalBucket = bucket
+      ? bucket
+      : (() => {
+          const slashIndex = key.indexOf('/');
+          return slashIndex > 0 ? key.substring(0, slashIndex) : 'default';
+        })();
+    return {
+      bucket: this.storageNamingService.resolvePhysicalBucket(logicalBucket),
+      key,
+    };
   }
 }

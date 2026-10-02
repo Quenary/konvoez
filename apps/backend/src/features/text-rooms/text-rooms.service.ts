@@ -107,6 +107,8 @@ export class TextRoomsService {
       content,
       replyTo,
       isRead,
+      attachments: [],
+      clientId: data.clientId ? uuidStringify(data.clientId) : null,
     };
   }
 

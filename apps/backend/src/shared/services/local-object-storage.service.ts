@@ -3,14 +3,25 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { pipeline } from 'stream/promises';
 import fs from 'fs';
 import path from 'path';
 import { AppService } from './app.service';
-import { FileService, FileStreamResult, StoredFileInfo } from './file.service';
+import {
+  FileByteRange,
+  FileService,
+  FileStreamResult,
+  PutFileSource,
+  StoredFileInfo,
+} from './file.service';
+import { StorageNamingService } from './storage-naming.service';
 
 @Injectable()
 export class LocalObjectStorageService implements FileService {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly storageNamingService: StorageNamingService,
+  ) {}
 
   public async upload(
     file: Express.Multer.File,
@@ -27,6 +38,28 @@ export class LocalObjectStorageService implements FileService {
     await fs.promises.writeFile(fullPath, file.buffer);
 
     return key;
+  }
+
+  public async putFile(
+    key: string,
+    source: PutFileSource,
+    bucket: string,
+  ): Promise<void> {
+    const fullKey = this.normalizeKey(key, bucket);
+    const fullPath = this.resolveSafePath(fullKey);
+    await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+    try {
+      await fs.promises.rename(source.path, fullPath);
+    } catch (error) {
+      if (!this.isExdev(error)) {
+        throw error;
+      }
+      await pipeline(
+        fs.createReadStream(source.path),
+        fs.createWriteStream(fullPath),
+      );
+      await fs.promises.unlink(source.path);
+    }
   }
 
   public async delete(key: string, bucket?: string): Promise<void> {
@@ -80,6 +113,7 @@ export class LocalObjectStorageService implements FileService {
   public async getStream(
     key: string,
     bucket?: string,
+    range?: FileByteRange,
   ): Promise<FileStreamResult> {
     const fullPath = this.resolveSafePath(this.normalizeKey(key, bucket));
 
@@ -94,10 +128,15 @@ export class LocalObjectStorageService implements FileService {
       throw new NotFoundException(`File not found: ${key}`);
     }
 
+    const contentLength = range ? range.end - range.start + 1 : stat.size;
+
     return {
-      stream: fs.createReadStream(fullPath),
+      stream: fs.createReadStream(
+        fullPath,
+        range ? { start: range.start, end: range.end } : undefined,
+      ),
       contentType: this.getContentType(fullPath),
-      contentLength: stat.size,
+      contentLength,
     };
   }
 
@@ -113,16 +152,26 @@ export class LocalObjectStorageService implements FileService {
   }
 
   private isEnoent(error: unknown): boolean {
+    return this.hasCode(error, 'ENOENT');
+  }
+
+  private isExdev(error: unknown): boolean {
+    return this.hasCode(error, 'EXDEV');
+  }
+
+  private hasCode(error: unknown, code: string): boolean {
     return (
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
-      error.code === 'ENOENT'
+      error.code === code
     );
   }
 
   private resolveSafePath(relativePath: string): string {
-    const resolved = path.resolve(this.basePath, relativePath);
+    const physical =
+      this.storageNamingService.toPhysicalRelativePath(relativePath);
+    const resolved = path.resolve(this.basePath, physical);
     if (!resolved.startsWith(this.basePath)) {
       throw new BadRequestException('Invalid path: path traversal detected');
     }

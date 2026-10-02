@@ -93,6 +93,8 @@ describe('TextRoomStore', () => {
     createdAt: new Date('2026-09-15T00:00:00.000Z'),
     updatedAt: null,
     isRead: false,
+    attachments: [],
+    clientId: null,
     replyTo: null,
   };
 
@@ -106,6 +108,8 @@ describe('TextRoomStore', () => {
     createdAt: new Date('2026-09-15T00:01:00.000Z'),
     updatedAt: null,
     isRead: false,
+    attachments: [],
+    clientId: null,
     replyTo: {
       id: 'msg-1',
       senderId: 1,
@@ -249,6 +253,8 @@ describe('TextRoomStore', () => {
       createdAt: new Date('2026-09-14T10:00:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     };
 
@@ -298,6 +304,8 @@ describe('TextRoomStore', () => {
       createdAt: new Date('2026-09-15T00:05:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: {
         id: 'msg-1',
         senderId: 1,
@@ -316,6 +324,7 @@ describe('TextRoomStore', () => {
         roomId: 10,
         recipientId: null,
         replyToId: 'msg-1',
+        attachmentIds: [],
       },
     });
 
@@ -359,6 +368,7 @@ describe('TextRoomStore', () => {
         roomId: 10,
         recipientId: null,
         replyToId: null,
+        attachmentIds: [],
       },
     });
 
@@ -392,6 +402,8 @@ describe('TextRoomStore', () => {
       createdAt: new Date('2026-09-15T00:06:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     });
     retry$.complete();
@@ -426,6 +438,8 @@ describe('TextRoomStore', () => {
       content: 'Updated content',
       updatedAt: new Date('2026-09-15T00:10:00.000Z'),
       isRead: false,
+      attachments: [],
+      clientId: null,
     };
     apiService.update.mockReturnValue(of(updatedMessage));
 
@@ -525,6 +539,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:15:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -546,6 +562,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:16:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -564,6 +582,8 @@ describe('TextRoomStore', () => {
         content: 'Edited via socket event',
         updatedAt: new Date('2026-09-15T00:20:00.000Z'),
         isRead: false,
+        attachments: [],
+        clientId: null,
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_EDITED, editedMessage);
@@ -586,6 +606,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:17:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -603,6 +625,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:18:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -624,6 +648,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:19:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -686,6 +712,7 @@ describe('TextRoomStore', () => {
           roomId: 10,
           recipientId: null,
           replyToId: null,
+          attachmentIds: [],
         },
       });
 
