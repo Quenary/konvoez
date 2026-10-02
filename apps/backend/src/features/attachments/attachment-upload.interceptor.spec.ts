@@ -17,6 +17,16 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 jest.mock('multer', () => {
+  class MulterError extends Error {
+    readonly code: string;
+
+    constructor(code: string) {
+      super(code);
+      this.name = 'MulterError';
+      this.code = code;
+    }
+  }
+
   const middleware = jest.fn(
     (
       _req: unknown,
@@ -35,16 +45,15 @@ jest.mock('multer', () => {
       diskStorage: jest.fn().mockReturnValue({}),
     },
   );
-  return { __esModule: true, default: multer };
+  return { __esModule: true, default: multer, MulterError };
 });
 
 import { lastValueFrom, of, throwError } from 'rxjs';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import multer from 'multer';
+import multer, { MulterError } from 'multer';
 import {
-  BadRequestException,
   ForbiddenException,
   HttpException,
   Logger,
@@ -188,6 +197,7 @@ describe('AttachmentUploadInterceptor', () => {
   });
 
   it('maps a full disk during the upload to 507', async () => {
+    req.destroyed = true;
     multerMock.__middleware.mockImplementation(
       (_request, _response, callback) => {
         callback(Object.assign(new Error('no space'), { code: 'ENOSPC' }));
@@ -199,6 +209,30 @@ describe('AttachmentUploadInterceptor', () => {
     ).rejects.toMatchObject({ message: 'STORAGE_FULL', status: 507 });
   });
 
+  it('forwards MulterError when the request is already destroyed', async () => {
+    req.destroyed = true;
+    const sizeError = new MulterError('LIMIT_FILE_SIZE');
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(sizeError);
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toBe(sizeError);
+
+    const countError = new MulterError('LIMIT_FILE_COUNT');
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(countError);
+      },
+    );
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toBe(countError);
+  });
+
   it('maps a client abort to a bad request', async () => {
     multerMock.__middleware.mockImplementation(
       (_request, _response, callback) => {
@@ -208,17 +242,21 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED' });
+  });
 
+  it('does not treat a destroyed request as an abort', async () => {
     req.destroyed = true;
+    const error = new Error('socket hang up');
     multerMock.__middleware.mockImplementation(
       (_request, _response, callback) => {
-        callback(new Error('socket hang up'));
+        callback(error);
       },
     );
+
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBe(error);
   });
 
   it('logs a temp-file removal failure without an unhandled rejection', async () => {

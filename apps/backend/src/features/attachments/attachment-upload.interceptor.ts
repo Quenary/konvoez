@@ -10,7 +10,7 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { Observable, finalize } from 'rxjs';
-import multer from 'multer';
+import multer, { MulterError } from 'multer';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { ESettingKey, attachmentsMaxPendingPerUser } from '@konvoez/shared';
@@ -22,10 +22,7 @@ import { EntityRepository } from '@mikro-orm/core';
 import { MessageAttachmentEntity } from './attachments.entity';
 import type { Request, Response } from 'express';
 
-function isUploadAborted(req: Request, error: unknown): boolean {
-  if (req.destroyed) {
-    return true;
-  }
+function isUploadAborted(error: unknown): boolean {
   return error instanceof Error && error.message === 'Request aborted';
 }
 
@@ -87,14 +84,20 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
           resolve();
           return;
         }
-        if (isUploadAborted(req, error)) {
+        if (error instanceof MulterError) {
+          reject(error);
+          return;
+        }
+        if (isEnospc(error)) {
+          reject(new HttpException('STORAGE_FULL', 507));
+          return;
+        }
+        if (isUploadAborted(error)) {
           this.logger.debug('Upload aborted by the client');
           reject(new BadRequestException('UPLOAD_ABORTED'));
           return;
         }
-        reject(
-          isEnospc(error) ? new HttpException('STORAGE_FULL', 507) : error,
-        );
+        reject(error);
       });
     });
     return next.handle().pipe(
