@@ -43,6 +43,8 @@ import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { MessageAttachmentsComponent } from '../message-attachments/message-attachments.component';
+import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
+import { EAttachmentKind } from '@konvoez/shared';
 
 @Component({
   selector: 'app-text-room-message',
@@ -77,9 +79,11 @@ export class TextRoomMessageComponent {
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly textRoomApiService = inject(TextRoomApiService);
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  private readonly outgoingStore = inject(OutgoingMessagesStore);
 
   public readonly message = input.required<IMessageEntity>();
+
+  protected readonly uploadProgress = this.outgoingStore.uploadProgress;
 
   protected readonly usersById = computed(() => this.usersStore.entityMap());
 
@@ -90,6 +94,31 @@ export class TextRoomMessageComponent {
   protected readonly attachmentList = computed(
     () => this.message().attachments ?? [],
   );
+
+  protected readonly outgoing = computed(() => this.message().outgoing ?? null);
+
+  protected readonly hasMedia = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachmentList();
+    if (outgoing) {
+      return outgoing.files.some(
+        (file) =>
+          file.kind === EAttachmentKind.IMAGE ||
+          file.kind === EAttachmentKind.VIDEO,
+      );
+    }
+    return attachments.some(
+      (item) =>
+        item.kind === EAttachmentKind.IMAGE ||
+        item.kind === EAttachmentKind.VIDEO,
+    );
+  });
+
+  protected readonly showAttachments = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachmentList();
+    return (outgoing?.files.length ?? 0) > 0 || attachments.length > 0;
+  });
 
   protected readonly hasText = computed(() => {
     const content = this.sanitizedContent();
@@ -174,20 +203,31 @@ export class TextRoomMessageComponent {
 
   protected readonly canResend = computed(() => this.readStatus() === 'error');
 
-  protected readonly canEdit = computed(() => this.isOwnMessage());
+  protected readonly canCancelSending = computed(() => {
+    const phase = this.outgoing()?.state.phase;
+    return phase === 'uploading' || phase === 'failed';
+  });
+
+  protected readonly canEdit = computed(
+    () => this.isOwnMessage() && !this.outgoing(),
+  );
   protected readonly canViewReaders = computed(() => {
     const isOwnMessage = this.isOwnMessage();
     const isDirectChat = this.isDirectChat();
-    return isOwnMessage && !isDirectChat;
+    const outgoing = this.outgoing();
+    return isOwnMessage && !isDirectChat && !outgoing;
   });
   protected readonly canDelete = computed(() => {
     const currentUser = this.currentUser();
     const message = this.message();
-    return canDeleteTextRoomMessage(message, currentUser);
+    const outgoing = this.outgoing();
+    return !outgoing && canDeleteTextRoomMessage(message, currentUser);
   });
 
   protected readonly readers = signal<IUser[]>([]);
   protected readonly readersLoading = signal(false);
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected replyMessage(): void {
     this.textRoomStore.setReplyToMessageId(this.message().id);
@@ -203,6 +243,14 @@ export class TextRoomMessageComponent {
 
   protected resendMessage(): void {
     this.textRoomStore.retryMessage(this.message().id);
+  }
+
+  protected cancelSending(): void {
+    this.textRoomStore.cancelOutgoing(this.message().id);
+  }
+
+  protected removeOutgoingFile(localId: string): void {
+    this.textRoomStore.removeOutgoingFile(this.message().id, localId);
   }
 
   protected onReplyQuoteClick(reply: ITextRoomMessageReply): void {

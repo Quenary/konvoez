@@ -10,13 +10,17 @@
     <app-file-thumbnail
       fill
       interactive
+      [errorText]="item.errorText"
       [kind]="item.kind"
       [name]="item.name"
+      [progress]="item.progress"
+      [removable]="item.removable"
       [serverVideo]="item.serverVideo"
       [size]="item.size"
       [src]="item.src"
       [status]="item.status"
-      (activate)="open(index)" />
+      (activate)="open(index)"
+      (remove)="removeFile.emit(item.key)" />
   </ng-template>
 }
 
@@ -33,11 +37,21 @@
 }
 
 @for (item of files(); track item.key) {
-  <a
-    tuiFile
-    [file]="{ name: item.name, size: item.size, type: '' }"
-    [href]="item.downloadUrl"
-    [state]="item.fileState">
-    {{ item.name }}
-  </a>
+  @if (item.downloadUrl) {
+    <a
+      tuiFile
+      [file]="{ name: item.name, size: item.size, type: '' }"
+      [href]="item.downloadUrl"
+      [state]="item.fileState">
+      {{ item.name }}
+    </a>
+  } @else {
+    <tui-file
+      [file]="{ name: item.name, size: item.size, type: '' }"
+      [showDelete]="item.removable"
+      [state]="item.fileState"
+      (remove)="removeFile.emit(item.key)">
+      {{ item.name }}
+    </tui-file>
+  }
 }

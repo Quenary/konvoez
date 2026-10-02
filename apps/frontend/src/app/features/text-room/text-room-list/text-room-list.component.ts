@@ -24,7 +24,7 @@ import {
   tap,
 } from 'rxjs';
 import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
-import { EMessageStatus, TextRoomStore } from '../text-room.store';
+import { TextRoomStore } from '../text-room.store';
 
 @Component({
   selector: 'app-text-room-list',
@@ -39,6 +39,8 @@ export class TextRoomListComponent implements OnInit {
   private readonly injector = inject(Injector);
 
   protected readonly messages = this.textRoomStore.messages;
+  protected readonly showScrollToBottom = signal<boolean>(false);
+  protected readonly infiniteScrollDisabled = signal<boolean>(true);
 
   private readonly scrollContainerRef = viewChild.required<
     unknown,
@@ -46,18 +48,22 @@ export class TextRoomListComponent implements OnInit {
   >('scrollContainer', {
     read: ElementRef,
   });
-
-  protected readonly showScrollToBottom = signal<boolean>(false);
-  protected readonly infiniteScrollDisabled = signal<boolean>(true);
+  private lastOutgoingId: string | null = null;
 
   constructor() {
     effect(() => {
       const messages = this.messages();
       const last = messages.at(-1);
+      const outgoingId = last?.outgoing ? last.id : null;
 
       untracked(() => {
-        if (last && last.status === EMessageStatus.LOADING) {
+        if (outgoingId && outgoingId !== this.lastOutgoingId) {
+          this.lastOutgoingId = outgoingId;
           this.scrollToBottom('smooth');
+          return;
+        }
+        if (!outgoingId) {
+          this.lastOutgoingId = null;
         }
       });
     });

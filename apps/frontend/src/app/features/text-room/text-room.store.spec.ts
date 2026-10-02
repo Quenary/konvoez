@@ -6,6 +6,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { TextRoomApiService } from './text-room-api.service';
+import { AttachmentsApiService } from './outgoing/attachments-api.service';
 import { MessageReadQueueService } from './message-read-queue.service';
 import { UnreadCountsStore } from './unread-counts.store';
 import { TextRoomStore, EMessageStatus } from './text-room.store';
@@ -151,6 +152,10 @@ describe('TextRoomStore', () => {
         provideStore({ auth: authReducer }),
         provideTranslateService(),
         { provide: TextRoomApiService, useValue: apiService },
+        {
+          provide: AttachmentsApiService,
+          useValue: { upload: vi.fn(), delete: vi.fn(() => of(undefined)) },
+        },
         { provide: TextRoomSocketToken, useValue: mockSocket },
         { provide: TuiNotificationService, useValue: mockNotifications },
         { provide: UnreadCountsStore, useValue: unreadCountsStore },
@@ -305,7 +310,7 @@ describe('TextRoomStore', () => {
       updatedAt: null,
       isRead: false,
       attachments: [],
-      clientId: null,
+      clientId: 'temp-123',
       replyTo: {
         id: 'msg-1',
         senderId: 1,
@@ -333,15 +338,17 @@ describe('TextRoomStore', () => {
       expect.objectContaining({
         content: 'New message replying to 1',
         replyToId: 'msg-1',
+        clientId: 'temp-123',
       }),
     );
-    expect(store.entityMap()['temp-123'].status).toBe(EMessageStatus.LOADING);
-    expect(store.entityMap()['temp-123'].isPendingCreate).toBe(true);
-    expect(store.entityMap()['temp-123'].senderId).toBe(currentUser.id);
-    expect(store.entityMap()['temp-123'].senderUsername).toBe(
-      currentUser.username,
-    );
-    expect(store.entityMap()['temp-123'].replyTo?.id).toBe('msg-1');
+    const pending = store.messages().find((item) => item.id === 'temp-123');
+    expect(pending?.status).toBe(EMessageStatus.LOADING);
+    expect(pending?.isPendingCreate).toBe(true);
+    expect(pending?.senderId).toBe(currentUser.id);
+    expect(pending?.senderUsername).toBe(currentUser.username);
+    expect(pending?.replyTo?.id).toBe('msg-1');
+    expect(store.entityMap()['temp-123']).toBeUndefined();
+    expect(store.newestId()).toBe('msg-2');
 
     create$.next(createdServerMessage);
     create$.complete();
@@ -373,8 +380,13 @@ describe('TextRoomStore', () => {
     });
 
     create$.error(new Error('network'));
-    expect(store.entityMap()['temp-retry'].status).toBe(EMessageStatus.ERROR);
-    expect(store.entityMap()['temp-retry'].isPendingCreate).toBe(true);
+    expect(
+      store.messages().find((item) => item.id === 'temp-retry')?.status,
+    ).toBe(EMessageStatus.ERROR);
+    expect(
+      store.messages().find((item) => item.id === 'temp-retry')
+        ?.isPendingCreate,
+    ).toBe(true);
 
     const retry$ = new Subject<ITextRoomMessage>();
     apiService.create.mockReturnValue(retry$.asObservable());
@@ -382,13 +394,16 @@ describe('TextRoomStore', () => {
 
     store.retryMessage('temp-retry');
 
-    expect(store.entityMap()['temp-retry'].status).toBe(EMessageStatus.LOADING);
+    expect(
+      store.messages().find((item) => item.id === 'temp-retry')?.status,
+    ).toBe(EMessageStatus.LOADING);
     expect(apiService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         content: 'Retry me',
         roomId: 10,
         recipientId: null,
         replyToId: null,
+        clientId: 'temp-retry',
       }),
     );
 
@@ -403,7 +418,7 @@ describe('TextRoomStore', () => {
       updatedAt: null,
       isRead: false,
       attachments: [],
-      clientId: null,
+      clientId: 'temp-retry',
       replyTo: null,
     });
     retry$.complete();
@@ -716,8 +731,13 @@ describe('TextRoomStore', () => {
         },
       });
 
-      expect(store.entityMap()['temp-err'].status).toBe(EMessageStatus.ERROR);
-      expect(store.entityMap()['temp-err'].senderId).toBe(currentUser.id);
+      expect(
+        store.messages().find((item) => item.id === 'temp-err')?.status,
+      ).toBe(EMessageStatus.ERROR);
+      expect(
+        store.messages().find((item) => item.id === 'temp-err')?.senderId,
+      ).toBe(currentUser.id);
+      expect(store.entityMap()['temp-err']).toBeUndefined();
       expect(mockNotifications.open).toHaveBeenCalled();
     });
 

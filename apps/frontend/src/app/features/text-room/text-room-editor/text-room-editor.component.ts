@@ -1,8 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   effect,
   inject,
+  signal,
+  untracked,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -18,9 +21,18 @@ import {
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { v4 } from 'uuid';
 import { createKeyBindingExtension } from '../../../core/tiptap/create-key-binding-extension';
+import { createPasteFilesExtension } from '../../../core/tiptap/create-paste-files-extension';
 import { TextRoomStore } from '../text-room.store';
 import { SCHEMA_ERROR, messageContentSchema } from '@konvoez/shared';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
+import { SettingsStore } from '@features/settings/settings.store';
+import { ComposerDraftsService, toChatKey } from '../composer-drafts';
+import { ComposerAttachmentsComponent } from '../composer-attachments/composer-attachments.component';
+import {
+  createLocalFile,
+  ILocalFile,
+  revokeLocalFiles,
+} from '../outgoing/outgoing.types';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 
@@ -34,6 +46,7 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
     TuiEditor,
     TuiAutoColorPipe,
     TextContentPipe,
+    ComposerAttachmentsComponent,
   ],
   providers: [
     {
@@ -101,6 +114,12 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
           }),
         );
       },
+      (injector) => {
+        const component = injector.get(TextRoomEditorComponent);
+        return Promise.resolve(
+          createPasteFilesExtension((files) => component.addFiles(files)),
+        );
+      },
     ),
   ],
   templateUrl: './text-room-editor.component.html',
@@ -109,13 +128,19 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 })
 export class TextRoomEditorComponent {
   private readonly textRoomStore = inject(TextRoomStore);
+  private readonly settingsStore = inject(SettingsStore);
+  private readonly drafts = inject(ComposerDraftsService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+
+  public readonly replyToMessage = this.textRoomStore.replyToMessage;
 
   protected readonly control = new FormControl('', {
     nonNullable: true,
   });
-
+  protected readonly files = signal<readonly ILocalFile[]>([]);
+  protected readonly attachmentsEnabled = this.settingsStore.attachmentsEnabled;
   protected readonly tools: readonly TuiEditorToolType[] = [
     TuiEditorTool.Undo,
     TuiEditorTool.Bold,
@@ -128,9 +153,12 @@ export class TextRoomEditorComponent {
     TuiEditorTool.Link,
     TuiEditorTool.Clear,
   ];
-
   protected readonly editableMessage = this.textRoomStore.editableMessage;
-  public readonly replyToMessage = this.textRoomStore.replyToMessage;
+
+  private chatKey = toChatKey(
+    this.textRoomStore.selectedRoomId(),
+    this.textRoomStore.selectedRecipientId(),
+  );
 
   constructor() {
     effect(() => {
@@ -139,57 +167,136 @@ export class TextRoomEditorComponent {
         emitEvent: false,
       });
     });
+
+    effect(() => {
+      const nextKey = toChatKey(
+        this.textRoomStore.selectedRoomId(),
+        this.textRoomStore.selectedRecipientId(),
+      );
+      const previous = this.chatKey;
+      if (previous === nextKey) {
+        return;
+      }
+      untracked(() => {
+        if (previous) {
+          this.drafts.stash(previous, this.files());
+          this.files.set(nextKey ? this.drafts.take(nextKey) : []);
+        }
+        this.chatKey = nextKey;
+      });
+    });
+
+    this.destroyRef.onDestroy(() => {
+      const key = this.chatKey;
+      const files = this.files();
+      if (key) {
+        this.drafts.stash(key, files);
+      } else {
+        revokeLocalFiles(files);
+      }
+      this.files.set([]);
+    });
+  }
+
+  addFiles(list: readonly File[]): void {
+    const maxSize = this.settingsStore.attachmentsMaxFileSize();
+    const maxCount = this.settingsStore.attachmentsMaxFilesPerMessage();
+    const next = [...this.files()];
+    let tooBig = false;
+    let overflow = false;
+    for (const file of list) {
+      if (file.size > maxSize) {
+        tooBig = true;
+        continue;
+      }
+      if (next.length >= maxCount) {
+        overflow = true;
+        break;
+      }
+      next.push(createLocalFile(file));
+    }
+    this.files.set(next);
+    if (tooBig) {
+      this.notify('VALIDATION.FILE_TOO_BIG');
+    }
+    if (overflow) {
+      this.notify('ROOMS.TOO_MANY_FILES', { max: maxCount });
+    }
+  }
+
+  protected onPick(event: Event): void {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    this.addFiles(Array.from(input.files ?? []));
+    input.value = '';
+  }
+
+  protected removeFile(localId: string): void {
+    const file = this.files().find((item) => item.localId === localId);
+    if (file) {
+      revokeLocalFiles([file]);
+    }
+    this.files.update((files) =>
+      files.filter((item) => item.localId !== localId),
+    );
   }
 
   protected onSubmit(): void {
     const content = this.control.value.trim();
+    const editableMessage = this.editableMessage();
+    const hasText = !!content && !EMPTY_HTML_PATTERN.test(content);
+    const hasFiles = !editableMessage && this.files().length > 0;
 
-    const notifyInvalidMessage = (message: string): void => {
-      this.tuiNotificationsService
-        .open(this.translateService.instant(message), {
-          appearance: 'negative',
-          autoClose: 5000,
-          closable: true,
-        })
-        .subscribe();
-    };
-
-    if (!content || EMPTY_HTML_PATTERN.test(content)) {
+    if (editableMessage) {
+      if (!hasText) {
+        this.control.markAsTouched();
+        this.notify(SCHEMA_ERROR.MESSAGE_LENGTH);
+        return;
+      }
+    } else if (!hasText && !hasFiles) {
       this.control.markAsTouched();
-      notifyInvalidMessage(SCHEMA_ERROR.MESSAGE_LENGTH);
+      this.notify(SCHEMA_ERROR.MESSAGE_LENGTH);
       return;
     }
 
-    const result = messageContentSchema.safeParse(content);
-    if (!result.success) {
-      this.control.markAsTouched();
-      notifyInvalidMessage(
-        result.error.issues[0]?.message ?? SCHEMA_ERROR.MESSAGE_LENGTH,
-      );
-      return;
+    const payload = hasText ? content : '';
+    if (hasText) {
+      const result = messageContentSchema.safeParse(payload);
+      if (!result.success) {
+        this.control.markAsTouched();
+        this.notify(
+          result.error.issues[0]?.message ?? SCHEMA_ERROR.MESSAGE_LENGTH,
+        );
+        return;
+      }
     }
 
     this.control.reset();
-    const editableMessage = this.editableMessage();
     const replyTo = this.replyToMessage();
 
     if (editableMessage) {
       this.textRoomStore.updateMessage({
         messageId: editableMessage.id,
-        data: { content },
+        data: { content: payload },
       });
-    } else {
-      this.textRoomStore.createMessage({
-        tempId: v4(),
-        data: {
-          content,
-          roomId: this.textRoomStore.selectedRoomId(),
-          recipientId: this.textRoomStore.selectedRecipientId(),
-          replyToId: replyTo?.id ?? null,
-          attachmentIds: [],
-        },
-      });
+      return;
     }
+
+    const files = this.files();
+    this.files.set([]);
+    this.textRoomStore.createMessage({
+      tempId: v4(),
+      data: {
+        content: payload,
+        roomId: this.textRoomStore.selectedRoomId(),
+        recipientId: this.textRoomStore.selectedRecipientId(),
+        replyToId: replyTo?.id ?? null,
+        attachmentIds: [],
+      },
+      files,
+    });
   }
 
   protected cancelEdit(): void {
@@ -198,5 +305,15 @@ export class TextRoomEditorComponent {
 
   protected cancelReply(): void {
     this.textRoomStore.setReplyToMessageId(null);
+  }
+
+  private notify(message: string, params?: Record<string, unknown>): void {
+    this.tuiNotificationsService
+      .open(this.translateService.instant(message, params), {
+        appearance: 'negative',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
   }
 }

@@ -68,6 +68,10 @@
     gap: 0.5rem;
     overflow: hidden;
 
+    input[type='file'] {
+      display: none;
+    }
+
     &-editor {
       flex: 1;
       min-width: 0;

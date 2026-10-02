@@ -16,6 +16,8 @@ import { FileThumbnailComponent } from '@shared/components/file-thumbnail/file-t
 import { MediaGridComponent } from '@shared/components/media-grid/media-grid.component';
 import { IMediaPreviewItem } from '@shared/components/media-preview/media-preview';
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
+import { TranslateService } from '@ngx-translate/core';
+import { IOutgoingMessage, uploadErrorKey } from '../outgoing/outgoing.types';
 
 export interface IAttachmentView {
   readonly key: string;
@@ -42,13 +44,55 @@ export interface IAttachmentView {
 })
 export class MessageAttachmentsComponent {
   private readonly mediaPreviewService = inject(MediaPreviewService);
+  private readonly translateService = inject(TranslateService);
 
   public readonly attachments = input<readonly IAttachment[]>([]);
+  public readonly outgoing = input<IOutgoingMessage | null>(null);
+  public readonly progress = input<Record<string, number>>({});
   public readonly removeFile = output<string>();
 
-  protected readonly views = computed(() =>
-    this.attachments().map((attachment) => this.toView(attachment)),
-  );
+  protected readonly views = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachments();
+    const progress = this.progress();
+    if (outgoing) {
+      return outgoing.files.map((file) => {
+        const status = file.state.status;
+        const failed = status === 'failed';
+        const removable = outgoing.state.phase !== 'creating';
+        return {
+          key: file.localId,
+          kind: file.kind,
+          name: file.file.name,
+          size: file.file.size,
+          src: file.previewUrl,
+          fullSrc: file.previewUrl,
+          downloadUrl: null,
+          status:
+            status === 'queued'
+              ? ('queued' as const)
+              : status === 'uploading'
+                ? ('uploading' as const)
+                : failed
+                  ? ('error' as const)
+                  : ('done' as const),
+          fileState: failed
+            ? ('error' as const)
+            : status === 'queued' || status === 'uploading'
+              ? ('loading' as const)
+              : ('normal' as const),
+          progress:
+            status === 'uploading' ? (progress[file.localId] ?? 0) : null,
+          errorText: failed
+            ? this.translateService.instant(uploadErrorKey(file.state.code))
+            : null,
+          removable,
+          serverVideo: false,
+        };
+      });
+    }
+    return attachments.map((attachment) => this.toServerView(attachment));
+  });
   protected readonly media = computed(() =>
     this.views().filter(
       (item) =>
@@ -56,17 +100,29 @@ export class MessageAttachmentsComponent {
         item.kind === EAttachmentKind.VIDEO,
     ),
   );
-  protected readonly audio = computed(() =>
-    this.views().filter((item) => item.kind === EAttachmentKind.AUDIO),
-  );
-  protected readonly files = computed(() =>
-    this.views().filter(
-      (item) =>
-        item.kind !== EAttachmentKind.IMAGE &&
-        item.kind !== EAttachmentKind.VIDEO &&
-        item.kind !== EAttachmentKind.AUDIO,
-    ),
-  );
+  protected readonly audio = computed(() => {
+    const outgoing = this.outgoing();
+    if (outgoing) {
+      return [];
+    }
+    return this.views().filter((item) => item.kind === EAttachmentKind.AUDIO);
+  });
+  protected readonly files = computed(() => {
+    const outgoing = this.outgoing();
+    const views = this.views();
+    return views.filter((item) => {
+      if (
+        item.kind === EAttachmentKind.IMAGE ||
+        item.kind === EAttachmentKind.VIDEO
+      ) {
+        return false;
+      }
+      if (!outgoing && item.kind === EAttachmentKind.AUDIO) {
+        return false;
+      }
+      return true;
+    });
+  });
   protected readonly aspect = computed(() => {
     const first = this.media()[0];
     const source = this.attachments().find((item) => item.id === first?.key);
@@ -96,7 +152,7 @@ export class MessageAttachmentsComponent {
     this.mediaPreviewService.open(items, index).subscribe();
   }
 
-  private toView(attachment: IAttachment): IAttachmentView {
+  private toServerView(attachment: IAttachment): IAttachmentView {
     const animated =
       attachment.mime === 'image/gif' &&
       attachment.size <= attachmentsAnimatedInlineMaxSize;

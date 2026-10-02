@@ -1,0 +1,18 @@
+<div
+  #strip
+  class="strip"
+  role="list">
+  @for (file of files(); track file.localId) {
+    <div role="listitem">
+      <app-file-thumbnail
+        interactive
+        [removable]="true"
+        [kind]="file.kind"
+        [name]="file.file.name"
+        [size]="file.file.size"
+        [src]="file.previewUrl"
+        (activate)="open(file)"
+        (remove)="remove.emit(file.localId)" />
+    </div>
+  }
+</div>

@@ -14,6 +14,7 @@ import {
 import { AuthApiService } from './auth-api.service';
 import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
 import { UsersStore } from '../users/users.store';
+import { OutgoingMessagesStore } from '../text-room/outgoing/outgoing-messages.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
@@ -32,6 +33,7 @@ export class AuthEffects {
   private readonly authApiService = inject(AuthApiService);
   private readonly profileApiService = inject(ProfileApiService);
   private readonly usersStore = inject(UsersStore);
+  private readonly outgoingMessagesStore = inject(OutgoingMessagesStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
   private readonly socket = inject(VoiceRoomSocketToken);
@@ -124,6 +126,7 @@ export class AuthEffects {
           AuthActions.requestLogoutError,
         ),
         tap(() => {
+          this.outgoingMessagesStore.cancelAll();
           this.usersStore.clear();
           this.router.navigate(['/auth']);
         }),

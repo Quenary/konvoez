@@ -17,6 +17,7 @@
 
       <span
         class="message-body"
+        [class.has-media]="hasMedia()"
         [tuiDropdown]="contextMenu"
         tuiDropdownContext>
         <span class="message-body-header">
@@ -71,8 +72,12 @@
           </div>
         }
 
-        @if (attachmentList().length > 0) {
-          <app-message-attachments [attachments]="attachmentList()" />
+        @if (showAttachments()) {
+          <app-message-attachments
+            [attachments]="attachmentList()"
+            [outgoing]="outgoing()"
+            [progress]="uploadProgress()"
+            (removeFile)="removeOutgoingFile($event)" />
         }
 
         @if (hasText()) {
@@ -128,35 +133,46 @@
     #contextMenu
     let-close>
     <tui-data-list>
-      <button
-        tuiOption
-        iconEnd="@tui.reply"
-        (click)="replyMessage(); close()">
-        {{ 'GENERAL.REPLY' | translate }}
-      </button>
-      @if (canEdit()) {
+      @if (outgoing()) {
+        @if (canCancelSending()) {
+          <button
+            tuiOption
+            iconEnd="@tui.x"
+            (click)="cancelSending(); close()">
+            {{ 'ROOMS.CANCEL_SENDING' | translate }}
+          </button>
+        }
+      } @else {
         <button
           tuiOption
-          iconEnd="@tui.edit"
-          (click)="editMessage(); close()">
-          {{ 'GENERAL.EDIT' | translate }}
+          iconEnd="@tui.reply"
+          (click)="replyMessage(); close()">
+          {{ 'GENERAL.REPLY' | translate }}
         </button>
-      }
-      @if (canDelete()) {
-        <button
-          tuiOption
-          iconEnd="@tui.delete"
-          (click)="deleteMessage(); close()">
-          {{ 'GENERAL.DELETE' | translate }}
-        </button>
-      }
-      @if (canViewReaders()) {
-        <button
-          tuiOption
-          iconEnd="@tui.users"
-          (click)="showReadersDialog(readersDialog); close()">
-          {{ 'ROOMS.READ_BY' | translate }}
-        </button>
+        @if (canEdit()) {
+          <button
+            tuiOption
+            iconEnd="@tui.edit"
+            (click)="editMessage(); close()">
+            {{ 'GENERAL.EDIT' | translate }}
+          </button>
+        }
+        @if (canDelete()) {
+          <button
+            tuiOption
+            iconEnd="@tui.delete"
+            (click)="deleteMessage(); close()">
+            {{ 'GENERAL.DELETE' | translate }}
+          </button>
+        }
+        @if (canViewReaders()) {
+          <button
+            tuiOption
+            iconEnd="@tui.users"
+            (click)="showReadersDialog(readersDialog); close()">
+            {{ 'ROOMS.READ_BY' | translate }}
+          </button>
+        }
       }
     </tui-data-list>
   </ng-template>

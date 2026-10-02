@@ -1,0 +1,12 @@
+.strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+[role='listitem'] {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}

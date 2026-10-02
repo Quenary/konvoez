@@ -9,6 +9,8 @@ import {
 } from '../text-room.store';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { SettingsStore } from '@features/settings/settings.store';
+import { EAttachmentKind } from '@konvoez/shared';
 
 describe('TextRoomEditorComponent', () => {
   let component: TextRoomEditorComponent;
@@ -45,6 +47,12 @@ describe('TextRoomEditorComponent', () => {
     open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
   };
 
+  const mockSettingsStore = {
+    attachmentsEnabled: signal(true),
+    attachmentsMaxFileSize: signal(50 * 1024 * 1024),
+    attachmentsMaxFilesPerMessage: signal(10),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     mockTextRoomStore.editableMessage.set(null);
@@ -55,6 +63,7 @@ describe('TextRoomEditorComponent', () => {
       providers: [
         provideTranslateService(),
         { provide: TextRoomStore, useValue: mockTextRoomStore },
+        { provide: SettingsStore, useValue: mockSettingsStore },
         { provide: TuiNotificationService, useValue: mockNotificationService },
       ],
     })
@@ -146,5 +155,64 @@ describe('TextRoomEditorComponent', () => {
       data: { content: '<p>Edited content</p>' },
     });
     expect(control.value).toBe('');
+  });
+
+  it('should send a files-only message and keep object urls for the outgoing store', () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const file = new File(['hi'], 'note.txt', { type: 'text/plain' });
+    component.addFiles([file]);
+    component['onSubmit']();
+    expect(mockTextRoomStore.createMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ content: '' }),
+        files: [
+          expect.objectContaining({
+            kind: EAttachmentKind.FILE,
+            previewUrl: null,
+          }),
+        ],
+      }),
+    );
+    expect(component['files']()).toEqual([]);
+    expect(revoke).not.toHaveBeenCalled();
+    revoke.mockRestore();
+  });
+
+  it('should reject an oversize file and a pick past the file limit', () => {
+    mockSettingsStore.attachmentsMaxFileSize.set(4);
+    mockSettingsStore.attachmentsMaxFilesPerMessage.set(1);
+    component.addFiles([
+      new File(['12345'], 'big.txt', { type: 'text/plain' }),
+      new File(['a'], 'a.txt', { type: 'text/plain' }),
+      new File(['b'], 'b.txt', { type: 'text/plain' }),
+    ]);
+    expect(component['files']()).toHaveLength(1);
+    expect(mockNotificationService.open).toHaveBeenCalledWith(
+      'VALIDATION.FILE_TOO_BIG',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    expect(mockNotificationService.open).toHaveBeenCalledWith(
+      'ROOMS.TOO_MANY_FILES',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    mockSettingsStore.attachmentsMaxFileSize.set(50 * 1024 * 1024);
+    mockSettingsStore.attachmentsMaxFilesPerMessage.set(10);
+  });
+
+  it('should not create an object url for heic or an empty file type', () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x');
+    component.addFiles([
+      new File(['a'], 'photo.heic', { type: 'image/heic' }),
+      new File(['b'], 'unknown.bin', { type: '' }),
+    ]);
+    expect(component['files']().map((file) => file.kind)).toEqual([
+      EAttachmentKind.FILE,
+      EAttachmentKind.FILE,
+    ]);
+    expect(component['files']().every((file) => file.previewUrl === null)).toBe(
+      true,
+    );
+    expect(create).not.toHaveBeenCalled();
+    create.mockRestore();
   });
 });

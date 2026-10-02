@@ -1,7 +1,7 @@
 <tui-preview
   [rotatable]="isImage()"
   [zoomable]="isImage()">
-  <tui-preview-title>{{ current()?.name }}</tui-preview-title>
+  <tui-preview-title>{{ current().name }}</tui-preview-title>
   @if (items.length > 1) {
     <tui-preview-pagination
       [index]="index()"

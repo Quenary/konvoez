@@ -83,6 +83,11 @@ computed(() => {
 
 - Always set `changeDetection: ChangeDetectionStrategy.OnPush`.
 - Prefer `inject()` over constructor injection.
+- Order class members in four groups, and do not mix them:
+  1. Every `inject()` call, including `protected` ones.
+  2. Other fields, from `public` to `private` (`input()`, `output()`, `signal()`, `computed()`, `viewChild()`, plain fields).
+  3. The constructor, when there is one.
+  4. Methods, from `public` to `private`.
 - Put host bindings in the `host` object of `@Component` / `@Directive` — do not use `@HostBinding` / `@HostListener`.
 - Do not use `ngClass` / `ngStyle`; use `[class.foo]` / `[style.prop]`.
 - Lazy-load feature routes with `loadComponent` (see `app.routes.ts`).

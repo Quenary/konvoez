@@ -17,6 +17,7 @@ import { AuthActions } from '@features/auth/auth.actions';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { TextRoomApiService } from '../text-room-api.service';
 import { MessageReadQueueService } from '../message-read-queue.service';
+import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
 
 describe('TextRoomMessageComponent', () => {
   let component: TextRoomMessageComponent;
@@ -28,6 +29,8 @@ describe('TextRoomMessageComponent', () => {
     deleteMessage: vi.fn(),
     jumpToMessage: vi.fn(),
     retryMessage: vi.fn(),
+    cancelOutgoing: vi.fn(),
+    removeOutgoingFile: vi.fn(),
   };
 
   const mockUsersStore = {
@@ -111,6 +114,10 @@ describe('TextRoomMessageComponent', () => {
           },
         },
         { provide: TextRoomStore, useValue: mockTextRoomStore },
+        {
+          provide: OutgoingMessagesStore,
+          useValue: { uploadProgress: signal({}) },
+        },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: TuiNotificationService, useValue: mockNotificationService },
         { provide: TuiDialogService, useValue: mockDialogService },

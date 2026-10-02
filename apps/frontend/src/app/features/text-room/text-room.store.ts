@@ -21,7 +21,6 @@ import {
   withState,
 } from '@ngrx/signals';
 import {
-  addEntity,
   removeAllEntities,
   removeEntity,
   setEntities,
@@ -47,6 +46,8 @@ import {
 import { TextRoomApiService } from './text-room-api.service';
 import { MessageReadQueueService } from './message-read-queue.service';
 import { UnreadCountsStore } from './unread-counts.store';
+import { OutgoingMessagesStore } from './outgoing/outgoing-messages.store';
+import { ILocalFile, IOutgoingMessage } from './outgoing/outgoing.types';
 
 const defaultChunkSize = 25;
 
@@ -60,6 +61,7 @@ export interface IMessageEntity extends ITextRoomMessage {
   status: EMessageStatus;
   /** Optimistic create not yet confirmed by the server */
   isPendingCreate?: boolean;
+  outgoing?: IOutgoingMessage;
 }
 
 type TextRoomState = {
@@ -84,8 +86,35 @@ function toMessageEntity(
   };
 }
 
+function toOutgoingMessageEntity(
+  message: IOutgoingMessage,
+  userId: number,
+  username: string,
+): IMessageEntity {
+  const failed = message.state.phase === 'failed';
+  return {
+    id: message.tempId,
+    senderId: userId,
+    senderUsername: username,
+    roomId: message.data.roomId ?? null,
+    recipientId: message.data.recipientId ?? null,
+    content: message.data.content,
+    createdAt: message.createdAt,
+    updatedAt: null,
+    isRead: false,
+    attachments: message.files.flatMap((file) =>
+      file.state.status === 'uploaded' ? [file.state.attachment] : [],
+    ),
+    clientId: message.tempId,
+    replyTo: message.replyTo,
+    status: failed ? EMessageStatus.ERROR : EMessageStatus.LOADING,
+    isPendingCreate: true,
+    outgoing: message,
+  };
+}
+
 function messageBelongsToActiveChat(
-  message: ITextRoomMessage,
+  message: Pick<ITextRoomMessage, 'roomId' | 'recipientId' | 'senderId'>,
   selectedRoomId: number | null,
   selectedRecipientId: number | null,
 ): boolean {
@@ -117,22 +146,69 @@ export const TextRoomStore = signalStore(
   }),
   withEntities<IMessageEntity>(),
   withComputed(
-    ({
-      entities,
-      editableMessageId,
-      replyToMessageId,
-      entityMap,
-      searchQuery,
-    }) => {
-      const messages = computed(() =>
+    (
+      {
+        entities,
+        editableMessageId,
+        replyToMessageId,
+        entityMap,
+        searchQuery,
+        selectedRoomId,
+        selectedRecipientId,
+      },
+      outgoingStore = inject(OutgoingMessagesStore),
+      ngrxStore = inject(Store),
+    ) => {
+      const currentUser = ngrxStore.selectSignal(selectCurrentUser);
+      const serverMessages = computed(() =>
         [...entities()].sort(
           (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
         ),
       );
+      const isSearchActive = computed(() => Boolean(searchQuery()?.trim()));
+      const messages = computed(() => {
+        const server = serverMessages();
+        const searching = isSearchActive();
+        const roomId = selectedRoomId();
+        const recipientId = selectedRecipientId();
+        const outgoingMessages = outgoingStore.entities();
+        const user = currentUser();
+        if (searching) {
+          return server;
+        }
+        const knownClientIds = new Set(
+          server.flatMap((message) =>
+            message.clientId ? [message.clientId] : [],
+          ),
+        );
+        const outgoing = outgoingMessages
+          .filter(
+            (message) =>
+              messageBelongsToActiveChat(
+                {
+                  roomId: message.data.roomId ?? null,
+                  recipientId: message.data.recipientId ?? null,
+                  senderId: user?.id ?? 0,
+                },
+                roomId,
+                recipientId,
+              ) && !knownClientIds.has(message.tempId),
+          )
+          .map((message) =>
+            toOutgoingMessageEntity(
+              message,
+              user?.id ?? 0,
+              user?.username ?? '',
+            ),
+          );
+        return [...server, ...outgoing].sort(
+          (a, b) => a.createdAt.valueOf() - b.createdAt.valueOf(),
+        );
+      });
 
       return {
         messages,
-        isSearchActive: computed(() => Boolean(searchQuery()?.trim())),
+        isSearchActive,
         editableMessage: computed(() => {
           const id = editableMessageId();
           return id ? (entityMap()[id] ?? null) : null;
@@ -141,14 +217,8 @@ export const TextRoomStore = signalStore(
           const id = replyToMessageId();
           return id ? (entityMap()[id] ?? null) : null;
         }),
-        newestId: computed(() => {
-          const list = messages();
-          return list.at(-1)?.id ?? null;
-        }),
-        oldestId: computed(() => {
-          const list = messages();
-          return list.at(0)?.id ?? null;
-        }),
+        newestId: computed(() => serverMessages().at(-1)?.id ?? null),
+        oldestId: computed(() => serverMessages().at(0)?.id ?? null),
       };
     },
   ),
@@ -161,9 +231,8 @@ export const TextRoomStore = signalStore(
       tuiNotificationsService = inject(TuiNotificationService),
       messageReadQueueService = inject(MessageReadQueueService),
       unreadCountsStore = inject(UnreadCountsStore),
-      ngrxStore = inject(Store),
+      outgoingStore = inject(OutgoingMessagesStore),
     ) => {
-      const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const showError = (error: unknown): void => {
         tuiNotificationsService
           .open(parseError(error), {
@@ -174,38 +243,6 @@ export const TextRoomStore = signalStore(
           })
           .subscribe();
       };
-
-      const toCreatePayload = (
-        message: IMessageEntity,
-      ): ITextRoomCreateMessage => ({
-        content: message.content,
-        roomId: message.roomId,
-        recipientId: message.recipientId,
-        replyToId: message.replyTo?.id ?? null,
-        attachmentIds: [],
-      });
-
-      const applyCreateResult = (tempId: string) =>
-        pipe(
-          tap((message: ITextRoomMessage) => {
-            patchState(
-              store,
-              removeEntity(tempId),
-              setEntity(toMessageEntity(message)),
-            );
-          }),
-          catchError((error) => {
-            patchState(
-              store,
-              updateEntity({
-                id: tempId,
-                changes: { status: EMessageStatus.ERROR },
-              }),
-            );
-            showError(error);
-            return EMPTY;
-          }),
-        );
 
       const requestList = rxMethod<ITextRoomListRequest>(
         pipe(
@@ -408,74 +445,46 @@ export const TextRoomStore = signalStore(
           ),
         ),
 
-        createMessage: rxMethod<{
+        createMessage({
+          tempId,
+          data,
+          files = [],
+        }: {
           tempId: string;
           data: ITextRoomCreateMessage;
-        }>(
-          pipe(
-            tap(({ tempId, data }) => {
-              const replyTarget = data.replyToId
-                ? store.entityMap()[data.replyToId]
-                : null;
-              const me = currentUser();
-              const optimistic: IMessageEntity = {
-                ...data,
-                id: tempId,
-                senderId: me?.id ?? 0,
-                senderUsername: me?.username ?? '',
-                createdAt: new Date(),
-                updatedAt: null,
-                isRead: false,
-                attachments: [],
-                clientId: data.clientId ?? null,
-                status: EMessageStatus.LOADING,
-                isPendingCreate: true,
-                replyTo: replyTarget
-                  ? {
-                      id: replyTarget.id,
-                      senderId: replyTarget.senderId,
-                      senderUsername: replyTarget.senderUsername,
-                      content: replyTarget.content,
-                      isDeleted: false,
-                    }
-                  : null,
-              };
-              patchState(store, addEntity(optimistic), {
-                replyToMessageId: null,
-              });
-            }),
-            switchMap(({ tempId, data }) =>
-              textRoomApiService.create(data).pipe(applyCreateResult(tempId)),
-            ),
-          ),
-        ),
+          files?: readonly ILocalFile[];
+        }): void {
+          const replyTarget = data.replyToId
+            ? store.entityMap()[data.replyToId]
+            : null;
+          outgoingStore.send({
+            tempId,
+            data,
+            files,
+            replyTo: replyTarget
+              ? {
+                  id: replyTarget.id,
+                  senderId: replyTarget.senderId,
+                  senderUsername: replyTarget.senderUsername,
+                  content: replyTarget.content,
+                  isDeleted: false,
+                }
+              : null,
+          });
+          patchState(store, { replyToMessageId: null });
+        },
 
-        retryMessage: rxMethod<string>(
-          pipe(
-            tap((tempId) => {
-              const message = store.entityMap()[tempId];
-              if (!message?.isPendingCreate) {
-                return;
-              }
-              patchState(
-                store,
-                updateEntity({
-                  id: tempId,
-                  changes: { status: EMessageStatus.LOADING },
-                }),
-              );
-            }),
-            switchMap((tempId) => {
-              const message = store.entityMap()[tempId];
-              if (!message?.isPendingCreate) {
-                return EMPTY;
-              }
-              return textRoomApiService
-                .create(toCreatePayload(message))
-                .pipe(applyCreateResult(tempId));
-            }),
-          ),
-        ),
+        retryMessage(id: string): void {
+          outgoingStore.retry(id);
+        },
+
+        cancelOutgoing(id: string): void {
+          outgoingStore.cancel(id);
+        },
+
+        removeOutgoingFile(id: string, localId: string): void {
+          outgoingStore.removeFile(id, localId);
+        },
 
         updateMessage: rxMethod<{
           messageId: string;
@@ -576,9 +585,26 @@ export const TextRoomStore = signalStore(
           store.selectedRecipientId(),
         );
 
+      const outgoingStore = inject(OutgoingMessagesStore);
+
+      outgoingStore.messageCreated$
+        .pipe(takeUntilDestroyed())
+        .subscribe((message) => {
+          if (store.searchQuery()?.trim()) {
+            return;
+          }
+          if (!belongsToActiveChat(message)) {
+            return;
+          }
+          patchState(store, setEntity(toMessageEntity(message)));
+        });
+
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_CREATED)
         .pipe(takeUntilDestroyed())
         .subscribe((message) => {
+          if (message.clientId) {
+            outgoingStore.resolve(message);
+          }
           // Ignore incoming new messages when search is active to keep search results consistent
           if (store.searchQuery()?.trim()) {
             return;
