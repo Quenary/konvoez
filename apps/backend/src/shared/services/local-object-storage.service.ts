@@ -10,6 +10,7 @@ import { AppService } from './app.service';
 import {
   FileByteRange,
   FileService,
+  FileStat,
   FileStreamResult,
   PutFileSource,
   StoredFileInfo,
@@ -108,6 +109,20 @@ export class LocalObjectStorageService implements FileService {
     }
 
     return files;
+  }
+
+  public async stat(key: string, bucket?: string): Promise<FileStat> {
+    const fullPath = this.resolveSafePath(this.normalizeKey(key, bucket));
+    let stat: fs.Stats;
+    try {
+      stat = await fs.promises.stat(fullPath);
+    } catch {
+      throw new NotFoundException(`File not found: ${key}`);
+    }
+    if (!stat.isFile()) {
+      throw new NotFoundException(`File not found: ${key}`);
+    }
+    return { size: stat.size };
   }
 
   public async getStream(

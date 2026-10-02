@@ -54,7 +54,7 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 - Prefer discriminated unions over boolean flag combinations.
 - Prefer `satisfies` over `as` when checking object shapes.
 - Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
-- Field order in classes: private → protected → public.
+- Class member order is the four groups in the Angular section below.
 - Naming: PascalCase for classes, camelCase for members/variables.
 - Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `HttpClient` → `httpClient`, `UsersService` → `usersService`). Do not shorten to `http`, `users`, etc.
 

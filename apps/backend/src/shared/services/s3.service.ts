@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   NoSuchKey,
   PutObjectCommand,
@@ -16,6 +17,7 @@ import { S3ClientInjectionToken } from '../tokens/s3-client.token';
 import {
   FileByteRange,
   FileService,
+  FileStat,
   FileStreamResult,
   PutFileSource,
   StoredFileInfo,
@@ -123,6 +125,24 @@ export class S3Service implements FileService {
     }
 
     return files;
+  }
+
+  public async stat(key: string, bucket?: string): Promise<FileStat> {
+    const target = this.parseBucketAndKey(key, bucket);
+    try {
+      const response = await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: target.bucket,
+          Key: target.key,
+        }),
+      );
+      return { size: response.ContentLength ?? 0 };
+    } catch (error) {
+      if (this.isMissingObject(error)) {
+        throw new NotFoundException('File not found in S3');
+      }
+      throw error;
+    }
   }
 
   public async getStream(

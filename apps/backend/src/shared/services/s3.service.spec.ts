@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   NoSuchKey,
   PutObjectCommand,
@@ -68,6 +69,21 @@ describe('S3Service', () => {
     expect(result.contentType).toBe('image/png');
     expect(result.contentLength).toBe(11);
     expect(result.stream).toBeDefined();
+  });
+
+  it('should stat an object', async () => {
+    (mockS3Client.send as jest.Mock).mockResolvedValueOnce({
+      ContentLength: 26,
+    });
+
+    await expect(service.stat('message-attachments/id')).resolves.toEqual({
+      size: 26,
+    });
+
+    const head = (mockS3Client.send as jest.Mock).mock
+      .calls[0]?.[0] as HeadObjectCommand;
+    expect(head).toBeInstanceOf(HeadObjectCommand);
+    expect(head.input.Key).toBe('message-attachments/id');
   });
 
   it('should throw NotFoundException when key does not exist', async () => {

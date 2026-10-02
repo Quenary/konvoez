@@ -134,6 +134,9 @@ describe('LocalObjectStorageService', () => {
         end: 3,
       },
     );
+    await expect(service.stat('message-attachments/abc')).resolves.toEqual({
+      size: 26,
+    });
     expect(ranged.contentLength).toBe(4);
     const chunks: Buffer[] = [];
     for await (const chunk of ranged.stream) {

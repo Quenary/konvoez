@@ -149,7 +149,7 @@ export class AttachmentsController {
       'Content-Disposition',
       contentDisposition(disposition, readable.downloadName),
     );
-    const size = readable.entity.size;
+    const { size } = await this.fileService.stat(readable.key);
     const range = resolveByteRange(req.header('range'), size);
     if (range.kind === 'unsatisfiable') {
       res.status(416);
@@ -172,6 +172,9 @@ export class AttachmentsController {
       undefined,
       fileRange,
     );
+    if (stored.contentLength !== undefined) {
+      res.setHeader('Content-Length', String(stored.contentLength));
+    }
     res.on('close', () => stored.stream.destroy());
     return new StreamableFile(stored.stream);
   }

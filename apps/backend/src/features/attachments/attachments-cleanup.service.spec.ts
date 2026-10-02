@@ -127,21 +127,70 @@ describe('AttachmentsCleanupService', () => {
     expect(em.remove).toHaveBeenCalledWith(row);
   });
 
-  it('does not overlap a running purge', async () => {
+  it('repeats a purge that arrives while one is running', async () => {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    repo.find.mockImplementation(async () => {
-      await gate;
-      return [];
+    const late = {
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: 'message-attachments/late',
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    };
+    let detachedQueries = 0;
+    repo.find.mockImplementation(async (where: { $or?: unknown }) => {
+      if (!where.$or) {
+        return [];
+      }
+      detachedQueries += 1;
+      if (detachedQueries === 1) {
+        await gate;
+        return [];
+      }
+      return [late];
     });
 
     const first = service.purgeDetached();
     await expect(service.purgeDetached()).resolves.toBeUndefined();
     release();
     await first;
-    expect(repo.find).toHaveBeenCalledTimes(1);
+
+    expect(em.remove).toHaveBeenCalledWith(late);
+  });
+
+  it('drains every full batch', async () => {
+    const full = Array.from({ length: 100 }, (_, index) => ({
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: `message-attachments/${index}`,
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    }));
+    const rest = {
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: 'message-attachments/rest',
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    };
+    let detachedQueries = 0;
+    repo.find.mockImplementation(async (where: { $or?: unknown }) => {
+      if (!where.$or) {
+        return [];
+      }
+      detachedQueries += 1;
+      if (detachedQueries === 1) {
+        return full;
+      }
+      return [rest];
+    });
+
+    await service.purgeDetached();
+
+    expect(em.remove).toHaveBeenCalledTimes(101);
+    expect(em.remove).toHaveBeenCalledWith(rest);
   });
 
   it('starts a purge from delete events', async () => {

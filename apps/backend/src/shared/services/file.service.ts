@@ -41,6 +41,10 @@ export interface FileStreamResult {
   contentLength?: number;
 }
 
+export interface FileStat {
+  size: number;
+}
+
 export interface StoredFileInfo {
   key: string;
   modifiedAt: Date;
@@ -50,6 +54,7 @@ export interface FileService {
   upload(file: Express.Multer.File, bucket?: string): Promise<string>;
   /** Stores a temp file under an exact key. Takes ownership of source.path. */
   putFile(key: string, source: PutFileSource, bucket: string): Promise<void>;
+  stat(key: string, bucket?: string): Promise<FileStat>;
   getStream(
     key: string,
     bucket?: string,

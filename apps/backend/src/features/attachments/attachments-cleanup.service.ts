@@ -31,6 +31,8 @@ export class AttachmentsCleanupService
   private readonly em: EntityManager;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private expiredDue = false;
+  private detachedDue = false;
 
   constructor(
     @InjectRepository(MessageAttachmentEntity)
@@ -66,28 +68,14 @@ export class AttachmentsCleanupService
   }
 
   public async sweep(): Promise<void> {
-    if (this.running) {
-      return;
-    }
-    this.running = true;
-    try {
-      await this.deleteExpiredPending();
-      await this.deleteDetachedRows();
-    } finally {
-      this.running = false;
-    }
+    this.expiredDue = true;
+    this.detachedDue = true;
+    await this.run();
   }
 
   public async purgeDetached(): Promise<void> {
-    if (this.running) {
-      return;
-    }
-    this.running = true;
-    try {
-      await this.deleteDetachedRows();
-    } finally {
-      this.running = false;
-    }
+    this.detachedDue = true;
+    await this.run();
   }
 
   public async sweepTempDir(now = Date.now()): Promise<void> {
@@ -112,29 +100,69 @@ export class AttachmentsCleanupService
     );
   }
 
+  private async run(): Promise<void> {
+    if (this.running) {
+      return;
+    }
+    this.running = true;
+    try {
+      while (this.expiredDue || this.detachedDue) {
+        const expired = this.expiredDue;
+        const detached = this.detachedDue;
+        this.expiredDue = false;
+        this.detachedDue = false;
+        if (expired) {
+          await this.deleteExpiredPending();
+        }
+        if (detached) {
+          await this.deleteDetachedRows();
+        }
+      }
+    } finally {
+      this.running = false;
+    }
+  }
+
   private async deleteExpiredPending(now = Date.now()): Promise<void> {
     const cutoff = new Date(now - attachmentsPendingTtlMs);
-    const rows = await this.repo.find(
-      {
-        status: EAttachmentStatus.PENDING,
-        createdAt: { $lt: cutoff },
-      },
-      { limit: BATCH_SIZE },
+    await this.drain(() =>
+      this.repo.find(
+        {
+          status: EAttachmentStatus.PENDING,
+          createdAt: { $lt: cutoff },
+        },
+        { limit: BATCH_SIZE },
+      ),
     );
-    await this.deleteRows(rows);
   }
 
   private async deleteDetachedRows(): Promise<void> {
-    const rows = await this.repo.find(
-      {
-        $or: [
-          { status: EAttachmentStatus.ATTACHED, message: null },
-          { status: EAttachmentStatus.PENDING, uploader: null },
-        ],
-      },
-      { limit: BATCH_SIZE },
+    await this.drain(() =>
+      this.repo.find(
+        {
+          $or: [
+            { status: EAttachmentStatus.ATTACHED, message: null },
+            { status: EAttachmentStatus.PENDING, uploader: null },
+          ],
+        },
+        { limit: BATCH_SIZE },
+      ),
     );
-    await this.deleteRows(rows);
+  }
+
+  private async drain(
+    load: () => Promise<MessageAttachmentEntity[]>,
+  ): Promise<void> {
+    for (;;) {
+      const rows = await load();
+      if (rows.length === 0) {
+        return;
+      }
+      await this.deleteRows(rows);
+      if (rows.length < BATCH_SIZE) {
+        return;
+      }
+    }
   }
 
   private async deleteRows(rows: MessageAttachmentEntity[]): Promise<void> {
