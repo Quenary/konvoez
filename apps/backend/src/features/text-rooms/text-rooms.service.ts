@@ -43,6 +43,7 @@ import {
 } from '@shared/events/notifications.events';
 
 import {
+  canDeleteTextRoomMessage,
   ITextRoomMessage,
   ITextRoomMessageReply,
   ITextRoomUnreadCounts,
@@ -524,7 +525,15 @@ export class TextRoomsService {
       throw new NotFoundException('Message not found');
     }
 
-    if (message.sender.id !== user.id) {
+    const allowed = canDeleteTextRoomMessage(
+      {
+        senderId: message.sender.id,
+        recipientId: message.recipient?.id ?? null,
+        roomId: message.room?.id ?? null,
+      },
+      user,
+    );
+    if (!allowed) {
       throw new ForbiddenException('You can only delete your own messages');
     }
 

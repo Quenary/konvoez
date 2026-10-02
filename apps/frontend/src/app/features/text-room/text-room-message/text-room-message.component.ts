@@ -23,7 +23,11 @@ import {
 } from '@taiga-ui/core';
 import { TuiEditorSocket } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
-import { EUserRole, ITextRoomMessageReply, IUser } from '@konvoez/shared';
+import {
+  canDeleteTextRoomMessage,
+  ITextRoomMessageReply,
+  IUser,
+} from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UsersStore } from '@features/users/users.store';
@@ -166,12 +170,9 @@ export class TextRoomMessageComponent {
     return isOwnMessage && !isDirectChat;
   });
   protected readonly canDelete = computed(() => {
-    const currentUser = this.currentUser() as IUser | null;
+    const currentUser = this.currentUser();
     const message = this.message();
-
-    if (!currentUser) return false;
-    if (message.senderId === currentUser.id) return true;
-    return [EUserRole.OWNER, EUserRole.ADMIN].includes(currentUser.role);
+    return canDeleteTextRoomMessage(message, currentUser);
   });
 
   protected readonly readers = signal<IUser[]>([]);

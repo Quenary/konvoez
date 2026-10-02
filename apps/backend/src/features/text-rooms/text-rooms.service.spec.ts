@@ -613,6 +613,8 @@ describe('TextRoomsService', () => {
       const existing = {
         id: parse(msgId),
         sender: { id: 999, username: 'another_user' },
+        recipient: null,
+        room: { id: 1 },
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
@@ -621,6 +623,49 @@ describe('TextRoomsService', () => {
         ForbiddenException,
       );
     });
+
+    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
+      'should let %s delete another user room message',
+      async (role) => {
+        const msgId = v7();
+        const existing = {
+          id: parse(msgId),
+          sender: { id: 999, username: 'another_user' },
+          recipient: null,
+          room: { id: 1 },
+        } as unknown as MessageEntity;
+
+        messageRepository.findOne.mockResolvedValue(existing);
+
+        await service.delete({ ...mockUser, role }, msgId);
+
+        expect(em.remove).toHaveBeenCalledWith(existing);
+        expect(em.flush).toHaveBeenCalled();
+        expect(eventEmitter.emit).toHaveBeenCalledWith(
+          TextRoomDomainEvents.MESSAGE_DELETED,
+          { id: msgId },
+        );
+      },
+    );
+
+    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
+      'should throw ForbiddenException when %s deletes another user direct message',
+      async (role) => {
+        const msgId = v7();
+        const existing = {
+          id: parse(msgId),
+          sender: { id: 999, username: 'another_user' },
+          recipient: { id: mockUser.id },
+          room: null,
+        } as unknown as MessageEntity;
+
+        messageRepository.findOne.mockResolvedValue(existing);
+
+        await expect(
+          service.delete({ ...mockUser, role }, msgId),
+        ).rejects.toThrow(ForbiddenException);
+      },
+    );
   });
 
   describe('getDirectChats', () => {

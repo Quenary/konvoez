@@ -244,6 +244,72 @@ describe('TextRoomMessageComponent', () => {
     expect(component['readersLoading']()).toBe(false);
   });
 
+  describe('canDelete', () => {
+    const otherMessage: IMessageEntity = {
+      ...testMessage,
+      id: 'msg-2',
+      senderId: 2,
+      senderUsername: 'bob',
+    };
+
+    function loginAs(role: EUserRole): void {
+      TestBed.inject(Store).dispatch(
+        AuthActions.requestLoginSuccess({ user: { ...currentUser, role } }),
+      );
+      fixture.detectChanges();
+    }
+
+    it('should hide delete when there is no current user', () => {
+      fixture.componentRef.setInput('message', otherMessage);
+      fixture.detectChanges();
+      expect(component['canDelete']()).toBe(false);
+    });
+
+    it('should allow deleting own messages in a room and in a direct chat', () => {
+      loginAs(EUserRole.MEMBER);
+      expect(component['canDelete']()).toBe(true);
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: null,
+        recipientId: 2,
+      });
+      fixture.detectChanges();
+      expect(component['canDelete']()).toBe(true);
+    });
+
+    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
+      'should let %s delete another user room message',
+      (role) => {
+        loginAs(role);
+        fixture.componentRef.setInput('message', otherMessage);
+        fixture.detectChanges();
+        expect(component['canDelete']()).toBe(true);
+      },
+    );
+
+    it('should hide delete of another user room message for a member', () => {
+      loginAs(EUserRole.MEMBER);
+      fixture.componentRef.setInput('message', otherMessage);
+      fixture.detectChanges();
+      expect(component['canDelete']()).toBe(false);
+    });
+
+    it.each([EUserRole.ADMIN, EUserRole.OWNER, EUserRole.MEMBER])(
+      'should hide delete of another user direct message for %s',
+      (role) => {
+        loginAs(role);
+        fixture.componentRef.setInput('message', {
+          ...otherMessage,
+          roomId: null,
+          recipientId: currentUser.id,
+        });
+        fixture.detectChanges();
+        expect(component['canDelete']()).toBe(false);
+      },
+    );
+  });
+
   describe('sender display from UsersStore', () => {
     const otherUser: IUser = {
       id: 2,
