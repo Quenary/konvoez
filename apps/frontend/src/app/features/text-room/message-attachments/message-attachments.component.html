@@ -1,0 +1,43 @@
+@if (media().length > 0) {
+  <app-media-grid
+    [aspect]="aspect()"
+    [items]="media()"
+    [template]="tile" />
+  <ng-template
+    #tile
+    let-item
+    let-index="index">
+    <app-file-thumbnail
+      fill
+      interactive
+      [kind]="item.kind"
+      [name]="item.name"
+      [serverVideo]="item.serverVideo"
+      [size]="item.size"
+      [src]="item.src"
+      [status]="item.status"
+      (activate)="open(index)" />
+  </ng-template>
+}
+
+@for (item of audio(); track item.key) {
+  <div class="audio-row">
+    <span>{{ item.name }}</span>
+    @if (item.fullSrc) {
+      <audio
+        controls
+        preload="none"
+        [src]="item.fullSrc"></audio>
+    }
+  </div>
+}
+
+@for (item of files(); track item.key) {
+  <a
+    tuiFile
+    [file]="{ name: item.name, size: item.size, type: '' }"
+    [href]="item.downloadUrl"
+    [state]="item.fileState">
+    {{ item.name }}
+  </a>
+}

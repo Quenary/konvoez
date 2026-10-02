@@ -42,6 +42,7 @@ import { TextRoomApiService } from '../text-room-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
+import { MessageAttachmentsComponent } from '../message-attachments/message-attachments.component';
 
 @Component({
   selector: 'app-text-room-message',
@@ -60,6 +61,7 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
     TuiAutoColorPipe,
     TextContentPipe,
     MessageVisibilityDirective,
+    MessageAttachmentsComponent,
     TuiList,
   ],
   templateUrl: './text-room-message.component.html',
@@ -84,6 +86,15 @@ export class TextRoomMessageComponent {
   protected readonly sanitizedContent = computed(() =>
     this.sanitizer.sanitize(SecurityContext.HTML, this.message().content),
   );
+
+  protected readonly attachmentList = computed(
+    () => this.message().attachments ?? [],
+  );
+
+  protected readonly hasText = computed(() => {
+    const content = this.sanitizedContent();
+    return !!content && content.replace(/<[^>]*>/g, '').trim().length > 0;
+  });
 
   protected readonly senderUser = computed(() => {
     const message = this.message();

@@ -1,0 +1,54 @@
+<tui-preview
+  [rotatable]="isImage()"
+  [zoomable]="isImage()">
+  <tui-preview-title>{{ current()?.name }}</tui-preview-title>
+  @if (items.length > 1) {
+    <tui-preview-pagination
+      [index]="index()"
+      [length]="items.length"
+      (indexChange)="onIndex($event)" />
+  }
+  @if (current(); as item) {
+    @if (broken()) {
+      <div class="unsupported">
+        <p>{{ 'ROOMS.PREVIEW_UNSUPPORTED' | translate }}</p>
+        @if (item.downloadUrl) {
+          <a
+            tuiButton
+            [href]="item.downloadUrl"
+            download>
+            {{ 'ROOMS.DOWNLOAD' | translate }}
+          </a>
+        }
+      </div>
+    } @else if (item.kind === kinds.IMAGE) {
+      <img
+        [alt]="item.name"
+        [src]="item.src"
+        (error)="onBroken()" />
+    } @else {
+      <video
+        autoplay
+        controls
+        playsinline
+        [src]="item.src"
+        (error)="onBroken()"></video>
+    }
+    @if (item.downloadUrl) {
+      <a
+        tuiPreviewAction
+        iconStart="@tui.download"
+        [href]="item.downloadUrl"
+        download>
+        {{ 'ROOMS.DOWNLOAD' | translate }}
+      </a>
+    }
+  }
+  <button
+    tuiPreviewAction
+    type="button"
+    iconStart="@tui.x"
+    (click)="close()">
+    {{ 'GENERAL.CLOSE' | translate }}
+  </button>
+</tui-preview>

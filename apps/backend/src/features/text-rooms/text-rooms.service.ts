@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -8,6 +10,7 @@ import {
   EntityRepository,
   FilterQuery,
   raw,
+  UniqueConstraintViolationException,
 } from '@mikro-orm/core';
 import { SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -44,10 +47,16 @@ import {
 
 import {
   canDeleteTextRoomMessage,
+  ESettingKey,
+  IAttachment,
   ITextRoomMessage,
   ITextRoomMessageReply,
   ITextRoomUnreadCounts,
+  SCHEMA_ERROR,
 } from '@konvoez/shared';
+import { htmlToPlainText } from '@shared/utils/html-text.util';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class TextRoomsService {
@@ -64,9 +73,15 @@ export class TextRoomsService {
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly attachmentsService: AttachmentsService,
+    private readonly settingsService: SettingsService,
   ) {}
 
-  private entityToDto(data: MessageEntity, isRead: boolean): ITextRoomMessage {
+  private entityToDto(
+    data: MessageEntity,
+    isRead: boolean,
+    attachments: readonly IAttachment[] = [],
+  ): ITextRoomMessage {
     const content = this.encryptionService.decrypt(
       data.contentEncrypted,
       data.iv,
@@ -107,9 +122,56 @@ export class TextRoomsService {
       content,
       replyTo,
       isRead,
-      attachments: [],
+      attachments: [...attachments],
       clientId: data.clientId ? uuidStringify(data.clientId) : null,
     };
+  }
+
+  private async loadAttachments(
+    messages: readonly MessageEntity[],
+  ): Promise<Map<string, IAttachment[]>> {
+    return this.attachmentsService.findAttachedByMessageIds(
+      messages.map((message) => message.id),
+    );
+  }
+
+  private isEmptyContent(content: string): boolean {
+    return htmlToPlainText(content).length === 0;
+  }
+
+  private messagePreview(
+    content: string,
+    attachments: readonly IAttachment[],
+  ): string {
+    const plain = htmlToPlainText(content);
+    if (plain.length > 0) {
+      return plain;
+    }
+    return `📎 ${attachments.map((item) => item.name).join(', ')}`;
+  }
+
+  private sameMessageTarget(
+    message: MessageEntity,
+    dto: CreateMessageDto,
+  ): boolean {
+    return (
+      (message.room?.id ?? null) === (dto.roomId ?? null) &&
+      (message.recipient?.id ?? null) === (dto.recipientId ?? null)
+    );
+  }
+
+  private async existingMessageDto(
+    user: GetUserDto,
+    message: MessageEntity,
+  ): Promise<ITextRoomMessage> {
+    const attachments = await this.loadAttachments([message]);
+    const isReadMap = await this.buildIsReadMap([message], user.id);
+    const id = uuidStringify(message.id);
+    return this.entityToDto(
+      message,
+      isReadMap.get(id) ?? false,
+      attachments.get(id) ?? [],
+    );
   }
 
   /**
@@ -334,10 +396,16 @@ export class TextRoomsService {
 
       const combined = [...beforeItems.reverse(), target, ...afterItems];
       const isReadMap = await this.buildIsReadMap(combined, user.id);
+      const attachments = await this.loadAttachments(combined);
       return {
-        items: combined.map((m) =>
-          this.entityToDto(m, isReadMap.get(uuidStringify(m.id)) ?? false),
-        ),
+        items: combined.map((m) => {
+          const id = uuidStringify(m.id);
+          return this.entityToDto(
+            m,
+            isReadMap.get(id) ?? false,
+            attachments.get(id) ?? [],
+          );
+        }),
       };
     }
 
@@ -360,10 +428,16 @@ export class TextRoomsService {
     });
 
     const isReadMap = await this.buildIsReadMap(messages, user.id);
+    const attachments = await this.loadAttachments(messages);
     return {
-      items: messages.map((m) =>
-        this.entityToDto(m, isReadMap.get(uuidStringify(m.id)) ?? false),
-      ),
+      items: messages.map((m) => {
+        const id = uuidStringify(m.id);
+        return this.entityToDto(
+          m,
+          isReadMap.get(id) ?? false,
+          attachments.get(id) ?? [],
+        );
+      }),
     };
   }
 
@@ -371,6 +445,47 @@ export class TextRoomsService {
     user: GetUserDto,
     dto: CreateMessageDto,
   ): Promise<ITextRoomMessage> {
+    if (dto.clientId) {
+      const existing = await this.messageRepository.findOne(
+        { sender: user.id, clientId: parse(dto.clientId) },
+        {
+          populate: [
+            'sender',
+            'recipient',
+            'room',
+            'replyTo',
+            'replyTo.sender',
+          ],
+        },
+      );
+      if (existing) {
+        if (!this.sameMessageTarget(existing, dto)) {
+          throw new ConflictException({ message: 'CLIENT_ID_CONFLICT' });
+        }
+        return this.existingMessageDto(user, existing);
+      }
+    }
+
+    const requestedIds = dto.attachmentIds ?? [];
+    if (this.isEmptyContent(dto.content) && requestedIds.length === 0) {
+      throw new BadRequestException(SCHEMA_ERROR.MESSAGE_EMPTY);
+    }
+    if (requestedIds.length > 0) {
+      const enabled = await this.settingsService.getValue(
+        ESettingKey.ATTACHMENTS_ENABLED,
+      );
+      if (!enabled) {
+        throw new ForbiddenException('ATTACHMENTS_DISABLED');
+      }
+      const maxFiles = await this.settingsService.getValue(
+        ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
+      );
+      if (requestedIds.length > maxFiles) {
+        throw new BadRequestException('ATTACHMENTS_TOO_MANY');
+      }
+    }
+    const attachmentIds = [...new Set(requestedIds)];
+
     let recipient: UserEntity | null = null;
     let room: RoomEntity | null = null;
 
@@ -416,32 +531,71 @@ export class TextRoomsService {
       dto.content,
     );
 
-    const message = this.messageRepository.create(
-      {
-        // @Author() is a DTO; reference avoids cascading a User insert without password
-        sender: this.em.getReference(UserEntity, user.id),
-        recipient,
-        room,
-        replyToId,
-        contentEncrypted: encrypted,
-        iv,
-        authTag,
-      },
-      { persist: true },
+    let message: MessageEntity;
+    try {
+      message = await this.em.transactional(async (tx) => {
+        const created = tx.getRepository(MessageEntity).create(
+          {
+            sender: tx.getReference(UserEntity, user.id),
+            recipient,
+            room,
+            replyToId,
+            clientId: dto.clientId ? parse(dto.clientId) : null,
+            contentEncrypted: encrypted,
+            iv,
+            authTag,
+          },
+          { persist: true },
+        );
+        if (replyTarget) {
+          created.replyTo = replyTarget;
+        }
+        this.indexSearchTokens(tx, created, dto.content);
+        await tx.flush();
+        if (attachmentIds.length > 0) {
+          await this.attachmentsService.claimForMessage(
+            tx,
+            user.id,
+            created.id,
+            attachmentIds,
+          );
+        }
+        await tx.populate(created, ['sender', 'replyTo', 'replyTo.sender']);
+        return created;
+      });
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException && dto.clientId) {
+        this.em.clear();
+        const winner = await this.messageRepository.findOne(
+          { sender: user.id, clientId: parse(dto.clientId) },
+          {
+            populate: [
+              'sender',
+              'recipient',
+              'room',
+              'replyTo',
+              'replyTo.sender',
+            ],
+          },
+        );
+        if (winner) {
+          if (!this.sameMessageTarget(winner, dto)) {
+            throw new ConflictException({ message: 'CLIENT_ID_CONFLICT' });
+          }
+          return this.existingMessageDto(user, winner);
+        }
+      }
+      throw error;
+    }
+    if (replyTarget) {
+      message.replyTo = replyTarget;
+    }
+    const attachments = await this.loadAttachments([message]);
+    const messageDto = this.entityToDto(
+      message,
+      false,
+      attachments.get(uuidStringify(message.id)) ?? [],
     );
-    if (replyTarget) {
-      message.replyTo = replyTarget;
-    }
-
-    this.indexSearchTokens(message, dto.content);
-
-    await this.em.flush();
-
-    await this.em.populate(message, ['sender', 'replyTo', 'replyTo.sender']);
-    if (replyTarget) {
-      message.replyTo = replyTarget;
-    }
-    const messageDto = this.entityToDto(message, false);
     emitTextRoomDomainEvent(
       this.eventEmitter,
       TextRoomDomainEvents.MESSAGE_CREATED,
@@ -459,7 +613,10 @@ export class TextRoomsService {
           recipientId: messageDto.recipientId,
           senderId: messageDto.senderId,
           senderUsername: messageDto.senderUsername,
-          messagePreview: messageDto.content,
+          messagePreview: this.messagePreview(
+            messageDto.content,
+            messageDto.attachments,
+          ),
           messageId: messageDto.id,
         },
       );
@@ -486,6 +643,13 @@ export class TextRoomsService {
       throw new ForbiddenException('You can only edit your own messages');
     }
 
+    const existingAttachments = await this.loadAttachments([message]);
+    const currentAttachments =
+      existingAttachments.get(uuidStringify(message.id)) ?? [];
+    if (this.isEmptyContent(dto.content) && currentAttachments.length === 0) {
+      throw new BadRequestException(SCHEMA_ERROR.MESSAGE_EMPTY);
+    }
+
     const { encrypted, iv, authTag } = this.encryptionService.encrypt(
       dto.content,
     );
@@ -499,15 +663,18 @@ export class TextRoomsService {
     await this.em.nativeDelete(MessageSearchTokenEntity, {
       message: message.id,
     });
-    this.indexSearchTokens(message, dto.content);
+    this.indexSearchTokens(this.em, message, dto.content);
 
     this.em.persist(message);
     await this.em.flush();
 
     const isReadMap = await this.buildIsReadMap([message], user.id);
+    const updatedAttachments = await this.loadAttachments([message]);
+    const id = uuidStringify(message.id);
     const messageDto = this.entityToDto(
       message,
-      isReadMap.get(uuidStringify(message.id)) ?? false,
+      isReadMap.get(id) ?? false,
+      updatedAttachments.get(id) ?? currentAttachments,
     );
     emitTextRoomDomainEvent(
       this.eventEmitter,
@@ -549,11 +716,15 @@ export class TextRoomsService {
     );
   }
 
-  private indexSearchTokens(message: MessageEntity, content: string): void {
+  private indexSearchTokens(
+    em: EntityManager,
+    message: MessageEntity,
+    content: string,
+  ): void {
     const trigrams = extractTrigrams(content);
     trigrams.forEach((t) => {
       const tokenHash = this.encryptionService.hashSearchToken(t);
-      const tokenEntity = this.em.create(MessageSearchTokenEntity, {
+      const tokenEntity = em.create(MessageSearchTokenEntity, {
         tokenHash,
         message,
       });
@@ -597,11 +768,13 @@ export class TextRoomsService {
 
     await this.em.flush();
 
+    const attachments = await this.loadAttachments(othersMessages);
     for (const msg of othersMessages) {
+      const id = uuidStringify(msg.id);
       emitTextRoomDomainEvent(
         this.eventEmitter,
         TextRoomDomainEvents.MESSAGE_UPDATED,
-        this.entityToDto(msg, true),
+        this.entityToDto(msg, true, attachments.get(id) ?? []),
       );
     }
   }

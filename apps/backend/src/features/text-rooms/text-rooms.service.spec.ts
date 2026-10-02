@@ -15,6 +15,7 @@ jest.mock('@mikro-orm/core', () => {
     }),
     p: createProxy(),
     raw: (sql: string) => sql,
+    UniqueConstraintViolationException: class UniqueConstraintViolationException extends Error {},
   };
 });
 
@@ -27,13 +28,30 @@ import {
 import { UsersService } from '../users/users.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { EncryptionService } from '@shared/services/encryption.service';
-import { EntityRepository, EntityManager } from '@mikro-orm/core';
+import {
+  EntityRepository,
+  EntityManager,
+  UniqueConstraintViolationException,
+} from '@mikro-orm/core';
 import { parse, v7, stringify as uuidStringify } from 'uuid';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
-import { EUserRole } from '@konvoez/shared';
+import {
+  EAttachmentKind,
+  ESettingKey,
+  EUserRole,
+  IAttachment,
+  SCHEMA_ERROR,
+} from '@konvoez/shared';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { SettingsService } from '../settings/settings.service';
 import { TextRoomDomainEvents } from '@shared/events/text-room.events';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 
@@ -46,6 +64,11 @@ describe('TextRoomsService', () => {
   let encryptionService: jest.Mocked<EncryptionService>;
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
+  let attachmentsService: {
+    findAttachedByMessageIds: jest.Mock;
+    claimForMessage: jest.Mock;
+  };
+  let settingsService: { getValue: jest.Mock };
 
   const mockUser: GetUserDto = {
     id: 1,
@@ -64,9 +87,14 @@ describe('TextRoomsService', () => {
       populate: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
       remove: jest.fn(),
-      getReference: jest.fn().mockImplementation((entityName, id) => ({ id })),
-      create: jest.fn().mockImplementation((entityName, data) => data),
+      clear: jest.fn(),
+      getReference: jest.fn().mockImplementation((_entityName, id) => ({ id })),
+      getRepository: jest.fn(),
+      create: jest.fn().mockImplementation((_entityName, data) => data),
       nativeDelete: jest.fn().mockResolvedValue(1),
+      transactional: jest.fn(async (work: (tx: EntityManager) => unknown) =>
+        work(em),
+      ),
     } as unknown as jest.Mocked<EntityManager>;
 
     messageRepository = {
@@ -110,6 +138,24 @@ describe('TextRoomsService', () => {
     } as unknown as jest.Mocked<EncryptionService>;
 
     eventEmitter = { emit: jest.fn() };
+    attachmentsService = {
+      findAttachedByMessageIds: jest.fn().mockResolvedValue(new Map()),
+      claimForMessage: jest.fn().mockResolvedValue(undefined),
+    };
+    settingsService = {
+      getValue: jest.fn().mockImplementation(async (key: ESettingKey) => {
+        if (key === ESettingKey.ATTACHMENTS_ENABLED) {
+          return true;
+        }
+        if (key === ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE) {
+          return 10;
+        }
+        return null;
+      }),
+    };
+    em.getRepository.mockReturnValue(
+      messageRepository as unknown as EntityRepository<object>,
+    );
 
     service = new TextRoomsService(
       messageRepository,
@@ -118,6 +164,8 @@ describe('TextRoomsService', () => {
       roomsService,
       encryptionService,
       eventEmitter as never,
+      attachmentsService as unknown as AttachmentsService,
+      settingsService as unknown as SettingsService,
     );
   });
 
@@ -145,6 +193,7 @@ describe('TextRoomsService', () => {
       messageRepository.create.mockReturnValue(mockCreated);
 
       const result = await service.create(mockUser, {
+        attachmentIds: [],
         content: 'Hello World',
         roomId,
         recipientId: null,
@@ -186,6 +235,7 @@ describe('TextRoomsService', () => {
       messageRepository.create.mockReturnValue(mockCreated);
 
       const result = await service.create(mockUser, {
+        attachmentIds: [],
         content: 'Hello',
         roomId: null,
         recipientId: 2,
@@ -237,6 +287,7 @@ describe('TextRoomsService', () => {
       messageRepository.create.mockReturnValue(mockCreated);
 
       const result = await service.create(mockUser, {
+        attachmentIds: [],
         content: 'Reply message',
         roomId,
         recipientId: null,
@@ -257,6 +308,7 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.create(mockUser, {
+          attachmentIds: [],
           content: 'Hello',
           roomId: 1,
           recipientId: null,
@@ -276,6 +328,7 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.create(mockUser, {
+          attachmentIds: [],
           content: 'Hello',
           roomId: 1,
           recipientId: null,
@@ -307,6 +360,7 @@ describe('TextRoomsService', () => {
       messageRepository.create.mockReturnValue(mockCreated);
 
       await service.create(mockUser, {
+        attachmentIds: [],
         content: '<p>Searchable message</p>',
         roomId,
         recipientId: null,
@@ -322,6 +376,228 @@ describe('TextRoomsService', () => {
       );
       expect(searchTokensAdd).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
+    });
+
+    function createdMessage(roomId: number, clientId?: string): MessageEntity {
+      return {
+        id: parse(v7()),
+        sender: { id: 1, username: 'test_user' },
+        room: { id: roomId },
+        recipient: null,
+        clientId: clientId ? parse(clientId) : null,
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+    }
+
+    it('returns the existing message for a duplicate clientId without a second event', async () => {
+      const clientId = v7();
+      const existing = createdMessage(10, clientId);
+      messageRepository.findOne.mockResolvedValue(existing);
+      const attachment: IAttachment = {
+        id: v7(),
+        kind: EAttachmentKind.FILE,
+        name: 'notes.md',
+        mime: 'application/octet-stream',
+        size: 4,
+        width: null,
+        height: null,
+        url: '/api/v1/attachments/x/content',
+        thumbnailUrl: null,
+      };
+      attachmentsService.findAttachedByMessageIds.mockResolvedValue(
+        new Map([[uuidStringify(existing.id), [attachment]]]),
+      );
+
+      const result = await service.create(mockUser, {
+        content: 'Hello',
+        roomId: 10,
+        recipientId: null,
+        clientId,
+        attachmentIds: [v7()],
+      });
+
+      expect(result.id).toBe(uuidStringify(existing.id));
+      expect(result.clientId).toBe(clientId);
+      expect(result.attachments).toEqual([attachment]);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      expect(attachmentsService.claimForMessage).not.toHaveBeenCalled();
+    });
+
+    it('creates a new message when the same clientId belongs to another sender', async () => {
+      const clientId = v7();
+      messageRepository.findOne.mockResolvedValue(null);
+      const created = createdMessage(10, clientId);
+      messageRepository.create.mockReturnValue(created);
+      roomsService.findOne.mockResolvedValue({
+        id: 10,
+      } as unknown as RoomEntity);
+
+      await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'Hello',
+        roomId: 10,
+        recipientId: null,
+        clientId,
+      });
+
+      expect(messageRepository.findOne).toHaveBeenCalledWith(
+        { sender: mockUser.id, clientId: parse(clientId) },
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_CREATED,
+        expect.objectContaining({ clientId }),
+      );
+    });
+
+    it('rejects a reused clientId aimed at a different chat', async () => {
+      const clientId = v7();
+      messageRepository.findOne.mockResolvedValue(createdMessage(99, clientId));
+
+      await expect(
+        service.create(mockUser, {
+          attachmentIds: [],
+          content: 'Hello',
+          roomId: 10,
+          recipientId: null,
+          clientId,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('returns the winner when a concurrent insert hits the unique index', async () => {
+      const clientId = v7();
+      const winner = createdMessage(10, clientId);
+      messageRepository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(winner);
+      messageRepository.create.mockReturnValue(createdMessage(10, clientId));
+      roomsService.findOne.mockResolvedValue({
+        id: 10,
+      } as unknown as RoomEntity);
+      em.flush.mockRejectedValueOnce(
+        new UniqueConstraintViolationException(new Error('unique')),
+      );
+
+      const result = await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'Hello',
+        roomId: 10,
+        recipientId: null,
+        clientId,
+      });
+
+      expect(result.id).toBe(uuidStringify(winner.id));
+      expect(em.clear).toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects empty text without attachments', async () => {
+      await expect(
+        service.create(mockUser, {
+          attachmentIds: [],
+          content: '<p></p>',
+          roomId: 10,
+          recipientId: null,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.create(mockUser, {
+          attachmentIds: [],
+          content: '<p><br></p>',
+          roomId: 10,
+          recipientId: null,
+        }),
+      ).rejects.toThrow(SCHEMA_ERROR.MESSAGE_EMPTY);
+    });
+
+    it('creates a message that only has files', async () => {
+      const roomId = 10;
+      const attachmentId = v7();
+      const created = createdMessage(roomId);
+      roomsService.findOne.mockResolvedValue({
+        id: roomId,
+      } as unknown as RoomEntity);
+      messageRepository.create.mockReturnValue(created);
+      const attachment: IAttachment = {
+        id: attachmentId,
+        kind: EAttachmentKind.FILE,
+        name: 'notes.md',
+        mime: 'application/octet-stream',
+        size: 4,
+        width: null,
+        height: null,
+        url: '/api/v1/attachments/x/content',
+        thumbnailUrl: null,
+      };
+      attachmentsService.findAttachedByMessageIds.mockResolvedValue(
+        new Map([[uuidStringify(created.id), [attachment]]]),
+      );
+
+      const result = await service.create(mockUser, {
+        content: '',
+        roomId,
+        recipientId: null,
+        attachmentIds: [attachmentId],
+      });
+
+      expect(attachmentsService.claimForMessage).toHaveBeenCalledWith(
+        em,
+        mockUser.id,
+        created.id,
+        [attachmentId],
+      );
+      expect(result.attachments).toEqual([attachment]);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_CREATED,
+        expect.objectContaining({ attachments: [attachment] }),
+      );
+    });
+
+    it('rolls back when an attachment cannot be claimed', async () => {
+      const attachmentId = v7();
+      roomsService.findOne.mockResolvedValue({
+        id: 10,
+      } as unknown as RoomEntity);
+      messageRepository.create.mockReturnValue(createdMessage(10));
+      attachmentsService.claimForMessage.mockRejectedValue(
+        new ConflictException({
+          message: 'ATTACHMENTS_UNAVAILABLE',
+          attachmentIds: [attachmentId],
+        }),
+      );
+
+      await expect(
+        service.create(mockUser, {
+          content: '',
+          roomId: 10,
+          recipientId: null,
+          attachmentIds: [attachmentId],
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects more attachments than the setting allows', async () => {
+      settingsService.getValue.mockImplementation(async (key: ESettingKey) => {
+        if (key === ESettingKey.ATTACHMENTS_ENABLED) return true;
+        if (key === ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE) return 1;
+        return null;
+      });
+
+      await expect(
+        service.create(mockUser, {
+          content: 'Hello',
+          roomId: 10,
+          recipientId: null,
+          attachmentIds: [v7(), v7()],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 

@@ -53,6 +53,7 @@ Reports are judged against this model rather than against a multi-tenant cloud S
 - Cross-user data manipulation (e.g., editing another user's message, deleting another user's room message without `OWNER` or `ADMIN`, or deleting another user's personal-chat message as any role).
 - Cryptographic flaws in message encryption or key derivation (e.g., IV reuse, ciphertext manipulation bypassing GCM authentication tags).
 - Path traversal, arbitrary file read/write in file/avatar upload (`/api/v1/profile/avatar/upload`) and streaming (`/api/v1/users/avatar/stream`) endpoints (local or S3 storage).
+- Attachment serving (`/api/v1/attachments`): sniffed MIME, inline allowlist, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cross-Origin-Resource-Policy: same-origin`, and 404 for every access denial.
 - Remote Code Execution (RCE) or SQL injection vulnerabilities in database queries.
 - Application-level Denial of Service (DoS) through resource exhaustion or asymmetric workloads (e.g., image bombs/pixel flooding, memory leaks triggered by malformed payloads).
 
@@ -67,6 +68,8 @@ These are not treated as vulnerabilities (and will not be accepted as High/Criti
 - Attacks exploiting lack of TLS termination when the host operator fails to configure a reverse proxy (operators are expected to deploy behind HTTPS/TLS in production).
 - Weak operator-configured environment secrets (e.g., using a trivial `MASTER_KEY` or `JWT_SECRET`).
 - Denial of Service (DoS) resulting from network saturation or standard media bandwidth limits without an underlying software vulnerability.
+- Encryption of stored assets (attachment files and file names, avatars, and other uploaded objects) is the operator's responsibility at the storage layer. The application does not encrypt these bytes. Protect the volume (for example with LUKS) or enable encryption in the object store (for example S3 server-side encryption).
+- Image metadata (EXIF/GPS) is kept unless the admin enables stripping. Stripping applies only to new uploads.
 
 ## Severity
 

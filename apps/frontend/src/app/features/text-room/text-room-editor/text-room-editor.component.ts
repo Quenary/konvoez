@@ -186,6 +186,7 @@ export class TextRoomEditorComponent {
           roomId: this.textRoomStore.selectedRoomId(),
           recipientId: this.textRoomStore.selectedRecipientId(),
           replyToId: replyTo?.id ?? null,
+          attachmentIds: [],
         },
       });
     }

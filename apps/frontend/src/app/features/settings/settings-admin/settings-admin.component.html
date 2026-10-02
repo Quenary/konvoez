@@ -69,6 +69,70 @@
     }
   </div>
 
+  <h3 tuiTitle>{{ 'SETTINGS.ADMIN.ATTACHMENTS' | translate }}</h3>
+
+  <div class="setting-item">
+    <label tuiLabel>
+      <input
+        tuiSwitch
+        formControlName="attachmentsEnabled"
+        type="checkbox" />
+      {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED' | translate }}
+    </label>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED_DESC' | translate }}
+    </p>
+  </div>
+
+  <div class="setting-item">
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="attachments-max-file-size">
+        {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="attachments-max-file-size"
+        type="number"
+        formControlName="attachmentsMaxFileSizeMib" />
+    </tui-textfield>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE_DESC' | translate }}
+    </p>
+  </div>
+
+  <div class="setting-item">
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="attachments-max-files">
+        {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="attachments-max-files"
+        type="number"
+        formControlName="attachmentsMaxFilesPerMessage" />
+    </tui-textfield>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC' | translate }}
+    </p>
+  </div>
+
+  <div class="setting-item">
+    <label tuiLabel>
+      <input
+        tuiSwitch
+        formControlName="attachmentsStripImageMetadata"
+        type="checkbox" />
+      {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA' | translate }}
+    </label>
+    <p class="setting-description">
+      {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA_DESC' | translate }}
+    </p>
+  </div>
+
   <footer>
     <button
       tuiButton

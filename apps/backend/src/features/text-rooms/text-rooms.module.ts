@@ -8,6 +8,8 @@ import {
   MessageReadEntity,
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
+import { AttachmentsModule } from '../attachments/attachments.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import {
       MessageReadEntity,
       MessageSearchTokenEntity,
     ]),
+    AttachmentsModule,
+    SettingsModule,
   ],
   controllers: [TextRoomsController],
   providers: [TextRoomsGateway, TextRoomsService],

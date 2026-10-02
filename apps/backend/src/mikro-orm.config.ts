@@ -24,6 +24,7 @@ import { Migration20260923111848_PushSubscriptionNotifications } from './migrati
 import { Migration20260929152327_PasswordRecoveryCodes } from './migrations/Migration20260929152327_PasswordRecoveryCodes';
 import { Migration20260930120000_NormalizeEmails } from './migrations/Migration20260930120000_NormalizeEmails';
 import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
+import { Migration20261002152542_MessageAttachments } from './migrations/Migration20261002152542_MessageAttachments';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -59,6 +60,7 @@ export async function createMikroOrmConfig() {
         Migration20260929152327_PasswordRecoveryCodes,
         Migration20260930120000_NormalizeEmails,
         Migration20260930092254_UserSoftDelete,
+        Migration20261002152542_MessageAttachments,
       ],
     },
   } satisfies Partial<Options>;

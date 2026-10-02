@@ -1,0 +1,13 @@
+img,
+video {
+  max-width: 100%;
+  max-height: 80vh;
+}
+
+.unsupported {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}

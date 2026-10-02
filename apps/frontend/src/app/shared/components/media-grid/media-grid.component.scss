@@ -1,0 +1,18 @@
+:host {
+  display: block;
+  max-width: 28rem;
+  width: 100%;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.media-grid-cell {
+  min-width: 0;
+  max-height: min(60vh, 28rem);
+}

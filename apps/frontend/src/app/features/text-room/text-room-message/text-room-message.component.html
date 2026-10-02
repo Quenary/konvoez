@@ -61,16 +61,26 @@
                 {{ replyUsername }}
               </span>
               <span class="message-reply-content">
-                {{ reply.content | textContent }}
+                @if (reply.content | textContent) {
+                  {{ reply.content | textContent }}
+                } @else {
+                  📎 {{ 'ROOMS.ATTACHMENT' | translate }}
+                }
               </span>
             }
           </div>
         }
 
-        <tui-editor-socket
-          class="message-body-content"
-          [content]="sanitizedContent()">
-        </tui-editor-socket>
+        @if (attachmentList().length > 0) {
+          <app-message-attachments [attachments]="attachmentList()" />
+        }
+
+        @if (hasText()) {
+          <tui-editor-socket
+            class="message-body-content"
+            [content]="sanitizedContent()">
+          </tui-editor-socket>
+        }
 
         <span class="message-bubble-footer">
           <span class="message-date">{{ m.createdAt | dayjs }}</span>

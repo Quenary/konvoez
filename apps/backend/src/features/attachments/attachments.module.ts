@@ -5,6 +5,7 @@ import { AttachmentsController } from './attachments.controller';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
 import { MimeSnifferService } from './mime-sniffer.service';
+import { AttachmentsCleanupService } from './attachments-cleanup.service';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { SettingsModule } from '../settings/settings.module';
     AttachmentsService,
     AttachmentUploadInterceptor,
     MimeSnifferService,
+    AttachmentsCleanupService,
   ],
   exports: [AttachmentsService],
 })
