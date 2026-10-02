@@ -1,8 +1,9 @@
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import type { EntityManager, FilterQuery } from '@mikro-orm/core';
+import { MikroORM } from '@mikro-orm/core';
 import {
   Inject,
   Injectable,
+  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
@@ -28,24 +29,21 @@ const BATCH_SIZE = 100;
 export class AttachmentsCleanupService
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly em: EntityManager;
+  private readonly logger = new Logger(AttachmentsCleanupService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private expiredDue = false;
   private detachedDue = false;
+  private tempDue = false;
 
   constructor(
-    @InjectRepository(MessageAttachmentEntity)
-    private readonly repo: EntityRepository<MessageAttachmentEntity>,
+    private readonly orm: MikroORM,
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
     private readonly appService: AppService,
-  ) {
-    this.em = this.repo.getEntityManager();
-  }
+  ) {}
 
   public onModuleInit(): void {
-    void this.sweepTempDir();
     void this.sweep();
     this.timer = setInterval(() => {
       void this.sweep();
@@ -70,6 +68,7 @@ export class AttachmentsCleanupService
   public async sweep(): Promise<void> {
     this.expiredDue = true;
     this.detachedDue = true;
+    this.tempDue = true;
     await this.run();
   }
 
@@ -118,6 +117,15 @@ export class AttachmentsCleanupService
           await this.deleteDetachedRows();
         }
       }
+      if (this.tempDue) {
+        this.tempDue = false;
+        await this.sweepTempDir();
+      }
+    } catch (error) {
+      this.logger.error(
+        'Failed to sweep attachments',
+        error instanceof Error ? error.stack : String(error),
+      );
     } finally {
       this.running = false;
     }
@@ -125,56 +133,53 @@ export class AttachmentsCleanupService
 
   private async deleteExpiredPending(now = Date.now()): Promise<void> {
     const cutoff = new Date(now - attachmentsPendingTtlMs);
-    await this.drain(() =>
-      this.repo.find(
-        {
-          status: EAttachmentStatus.PENDING,
-          createdAt: { $lt: cutoff },
-        },
-        { limit: BATCH_SIZE },
-      ),
-    );
+    await this.drain({
+      status: EAttachmentStatus.PENDING,
+      createdAt: { $lt: cutoff },
+    });
   }
 
   private async deleteDetachedRows(): Promise<void> {
-    await this.drain(() =>
-      this.repo.find(
-        {
-          $or: [
-            { status: EAttachmentStatus.ATTACHED, message: null },
-            { status: EAttachmentStatus.PENDING, uploader: null },
-          ],
-        },
-        { limit: BATCH_SIZE },
-      ),
-    );
+    await this.drain({
+      $or: [
+        { status: EAttachmentStatus.ATTACHED, message: null },
+        { status: EAttachmentStatus.PENDING, uploader: null },
+      ],
+    });
   }
 
   private async drain(
-    load: () => Promise<MessageAttachmentEntity[]>,
+    where: FilterQuery<MessageAttachmentEntity>,
   ): Promise<void> {
     for (;;) {
-      const rows = await load();
+      const em = this.orm.em.fork();
+      const rows = await em.find(MessageAttachmentEntity, where, {
+        limit: BATCH_SIZE,
+      });
       if (rows.length === 0) {
         return;
       }
-      await this.deleteRows(rows);
+      await this.deleteRows(em, rows);
+      em.clear();
       if (rows.length < BATCH_SIZE) {
         return;
       }
     }
   }
 
-  private async deleteRows(rows: MessageAttachmentEntity[]): Promise<void> {
+  private async deleteRows(
+    em: EntityManager,
+    rows: MessageAttachmentEntity[],
+  ): Promise<void> {
     for (const row of rows) {
       await this.fileService.delete(row.storageKey).catch(() => undefined);
       if (row.thumbnailKey) {
         await this.fileService.delete(row.thumbnailKey).catch(() => undefined);
       }
-      this.em.remove(row);
+      em.remove(row);
     }
     if (rows.length > 0) {
-      await this.em.flush();
+      await em.flush();
     }
   }
 }

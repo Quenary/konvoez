@@ -13,3 +13,9 @@
 audio {
   width: 100%;
 }
+
+.file-error {
+  margin: 0;
+  color: var(--tui-status-negative);
+  font-size: 0.75rem;
+}

@@ -2,7 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 
 export function createPasteFilesExtension(
-  onFiles: (files: File[]) => void,
+  onFiles: (files: File[]) => boolean,
 ): Extension {
   return Extension.create({
     name: 'pasteFiles',
@@ -15,8 +15,7 @@ export function createPasteFilesExtension(
               if (files.length === 0) {
                 return false;
               }
-              onFiles(files);
-              return true;
+              return onFiles(files);
             },
           },
         }),

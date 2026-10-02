@@ -83,7 +83,7 @@ export class TextRoomMessageComponent {
 
   public readonly message = input.required<IMessageEntity>();
 
-  protected readonly uploadProgress = this.outgoingStore.uploadProgress;
+  private readonly emptyProgress: Record<string, number> = {};
 
   protected readonly usersById = computed(() => this.usersStore.entityMap());
 
@@ -96,6 +96,10 @@ export class TextRoomMessageComponent {
   );
 
   protected readonly outgoing = computed(() => this.message().outgoing ?? null);
+
+  protected readonly progress = computed(() =>
+    this.outgoing() ? this.outgoingStore.uploadProgress() : this.emptyProgress,
+  );
 
   protected readonly hasMedia = computed(() => {
     const outgoing = this.outgoing();

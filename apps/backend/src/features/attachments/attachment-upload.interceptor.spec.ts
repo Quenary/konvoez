@@ -44,8 +44,10 @@ import os from 'os';
 import path from 'path';
 import multer from 'multer';
 import {
+  BadRequestException,
   ForbiddenException,
   HttpException,
+  Logger,
   PayloadTooLargeException,
   type ExecutionContext,
 } from '@nestjs/common';
@@ -72,6 +74,7 @@ describe('AttachmentUploadInterceptor', () => {
     headers: Record<string, string>;
     author?: { id: number };
     file?: { path: string };
+    destroyed?: boolean;
   };
 
   beforeEach(() => {
@@ -173,10 +176,83 @@ describe('AttachmentUploadInterceptor', () => {
       },
     );
 
+    const rm = jest.spyOn(fs.promises, 'rm');
     const observable = await interceptor.intercept(context(), {
       handle: () => throwError(() => new Error('handler failed')),
     });
     await expect(lastValueFrom(observable)).rejects.toThrow('handler failed');
+    await rm.mock.results[0]?.value;
+    expect(rm).toHaveBeenCalledWith(filePath, { force: true });
     expect(fs.existsSync(filePath)).toBe(false);
+    rm.mockRestore();
+  });
+
+  it('maps a full disk during the upload to 507', async () => {
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(Object.assign(new Error('no space'), { code: 'ENOSPC' }));
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({ message: 'STORAGE_FULL', status: 507 });
+  });
+
+  it('maps a client abort to a bad request', async () => {
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(new Error('Request aborted'));
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    req.destroyed = true;
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(new Error('socket hang up'));
+      },
+    );
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('logs a temp-file removal failure without an unhandled rejection', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (error: unknown): void => {
+      unhandled.push(error);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const filePath = path.join(appService.UPLOAD_TMP_DIR, 'locked');
+    multerMock.__middleware.mockImplementation(
+      (request, _response, callback) => {
+        (request as { file?: { path: string } }).file = { path: filePath };
+        callback();
+      },
+    );
+    jest
+      .spyOn(fs.promises, 'rm')
+      .mockRejectedValueOnce(
+        Object.assign(new Error('denied'), { code: 'EACCES' }),
+      );
+
+    const observable = await interceptor.intercept(context(), {
+      handle: () => of('ok'),
+    });
+    await lastValueFrom(observable);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(unhandled).toEqual([]);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+    jest.spyOn(fs.promises, 'rm').mockRestore();
+    process.off('unhandledRejection', onUnhandled);
   });
 });

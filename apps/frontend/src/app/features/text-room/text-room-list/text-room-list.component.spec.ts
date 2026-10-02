@@ -8,7 +8,8 @@ import {
   IMessageEntity,
 } from '../text-room.store';
 import { UsersStore } from '@features/users/users.store';
-import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
 import { Sanitizer, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -131,6 +132,14 @@ describe('TextRoomListComponent', () => {
           provide: MessageReadQueueService,
           useValue: { enqueue: vi.fn(), reset: vi.fn() },
         },
+        {
+          provide: OutgoingMessagesStore,
+          useValue: { uploadProgress: signal({}) },
+        },
+        {
+          provide: TuiDialogService,
+          useValue: { open: vi.fn(() => of(undefined)) },
+        },
       ],
     }).compileComponents();
 
@@ -151,5 +160,38 @@ describe('TextRoomListComponent', () => {
   it('should call requestNextPage on onScrolled', () => {
     component.onScrolled();
     expect(mockTextRoomStore.requestNextPage).toHaveBeenCalled();
+  });
+
+  it('scrolls once when an outgoing message appears and not on later updates', () => {
+    fixture.detectChanges();
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+    const outgoing = {
+      ...mockMessages[1],
+      id: 'out-1',
+      outgoing: {
+        tempId: 'out-1',
+        data: {
+          content: '<p>Second with reply</p>',
+          roomId: 1,
+          recipientId: null,
+          replyToId: null,
+          attachmentIds: [],
+        },
+        replyTo: null,
+        createdAt: mockMessages[1].createdAt,
+        files: [],
+        state: { phase: 'uploading' as const },
+      },
+    };
+    mockTextRoomStore.messages.set([...mockMessages, outgoing]);
+    TestBed.flushEffects();
+    expect(scroll).toHaveBeenCalledTimes(1);
+
+    mockTextRoomStore.messages.set([
+      ...mockMessages,
+      { ...outgoing, content: '<p>progress</p>' },
+    ]);
+    TestBed.flushEffects();
+    expect(scroll).toHaveBeenCalledTimes(1);
   });
 });

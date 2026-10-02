@@ -139,9 +139,8 @@ export class AttachmentsController {
           kind: readable.entity.kind as EAttachmentKind,
           download,
         }).disposition;
-    const contentType = thumbnail
-      ? 'image/webp'
-      : disposition === 'inline'
+    const contentType =
+      thumbnail || disposition === 'inline'
         ? readable.mime
         : 'application/octet-stream';
     res.setHeader('Content-Type', contentType);

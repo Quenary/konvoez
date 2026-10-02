@@ -17,6 +17,18 @@
   outline: 2px solid var(--tui-status-negative);
 }
 
+.activate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
 img,
 video {
   width: 100%;
@@ -46,6 +58,7 @@ video {
 
 .overlay {
   position: absolute;
+  z-index: 1;
   inset: 0;
   display: grid;
   place-items: center;
@@ -61,6 +74,7 @@ video {
 
 .remove {
   position: absolute;
+  z-index: 2;
   inset-block-start: 0.25rem;
   inset-inline-end: 0.25rem;
 }

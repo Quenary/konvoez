@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   booleanAttribute,
   ChangeDetectionStrategy,
@@ -24,18 +25,21 @@ function formatSize(size: number): string {
 
 @Component({
   selector: 'app-file-thumbnail',
-  imports: [TranslatePipe, TuiButton, TuiHint, TuiIcon, TuiLoader, TuiProgress],
+  imports: [
+    NgTemplateOutlet,
+    TranslatePipe,
+    TuiButton,
+    TuiHint,
+    TuiIcon,
+    TuiLoader,
+    TuiProgress,
+  ],
   templateUrl: './file-thumbnail.component.html',
   styleUrl: './file-thumbnail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class._error]': 'status() === "error"',
     '[class._fill]': 'fill()',
-    '[attr.role]': 'interactive() ? "button" : null',
-    '[attr.tabindex]': 'interactive() ? 0 : null',
-    '(click)': 'onActivate()',
-    '(keydown.enter)': 'onActivate()',
-    '(keydown.space)': 'onActivate($event)',
   },
 })
 export class FileThumbnailComponent {
@@ -101,11 +105,10 @@ export class FileThumbnailComponent {
     this.remove.emit();
   }
 
-  protected onActivate(event?: Event): void {
+  protected onActivate(): void {
     if (!this.interactive()) {
       return;
     }
-    event?.preventDefault();
     this.activate.emit();
   }
 }

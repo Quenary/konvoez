@@ -20,9 +20,6 @@ import { MEDIA_PREVIEW_DATA } from './media-preview';
   templateUrl: './media-preview.component.html',
   styleUrl: './media-preview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    '(document:keydown)': 'onKeydown($event)',
-  },
 })
 export class MediaPreviewComponent {
   private readonly data = inject(MEDIA_PREVIEW_DATA);
@@ -51,14 +48,5 @@ export class MediaPreviewComponent {
 
   protected onBroken(): void {
     this.broken.set(true);
-  }
-
-  protected onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'ArrowRight') {
-      this.onIndex(Math.min(this.items.length - 1, this.index() + 1));
-    }
-    if (event.key === 'ArrowLeft') {
-      this.onIndex(Math.max(0, this.index() - 1));
-    }
   }
 }

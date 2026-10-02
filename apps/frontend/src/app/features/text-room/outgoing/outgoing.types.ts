@@ -22,6 +22,8 @@ export interface ILocalFile {
   readonly file: File;
   readonly kind: EAttachmentKind;
   readonly previewUrl: string | null;
+  readonly width?: number | null;
+  readonly height?: number | null;
 }
 
 export type TOutgoingFileState =

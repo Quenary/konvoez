@@ -198,7 +198,13 @@ export class TextRoomEditorComponent {
     });
   }
 
-  addFiles(list: readonly File[]): void {
+  addFiles(list: readonly File[]): boolean {
+    if (!this.attachmentsEnabled() || this.editableMessage()) {
+      if (!this.attachmentsEnabled()) {
+        this.notify('ROOMS.UPLOAD_ERROR.DISABLED');
+      }
+      return false;
+    }
     const maxSize = this.settingsStore.attachmentsMaxFileSize();
     const maxCount = this.settingsStore.attachmentsMaxFilesPerMessage();
     const next = [...this.files()];
@@ -222,6 +228,7 @@ export class TextRoomEditorComponent {
     if (overflow) {
       this.notify('ROOMS.TOO_MANY_FILES', { max: maxCount });
     }
+    return true;
   }
 
   protected onPick(event: Event): void {
@@ -249,8 +256,9 @@ export class TextRoomEditorComponent {
     const hasText = !!content && !EMPTY_HTML_PATTERN.test(content);
     const hasFiles = !editableMessage && this.files().length > 0;
 
+    const keptAttachments = editableMessage?.attachments?.length ?? 0;
     if (editableMessage) {
-      if (!hasText) {
+      if (!hasText && keptAttachments === 0) {
         this.control.markAsTouched();
         this.notify(SCHEMA_ERROR.MESSAGE_LENGTH);
         return;

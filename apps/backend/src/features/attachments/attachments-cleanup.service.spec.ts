@@ -20,18 +20,22 @@ jest.mock('@mikro-orm/core', () => {
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { Logger } from '@nestjs/common';
 import { attachmentsPendingTtlMs } from '@konvoez/shared';
 import { AttachmentsCleanupService } from './attachments-cleanup.service';
 import { EAttachmentStatus } from './attachments.const';
 
 describe('AttachmentsCleanupService', () => {
   const em = {
+    find: jest.fn().mockResolvedValue([]),
     remove: jest.fn(),
     flush: jest.fn().mockResolvedValue(undefined),
+    clear: jest.fn(),
   };
-  const repo = {
-    getEntityManager: jest.fn().mockReturnValue(em),
-    find: jest.fn().mockResolvedValue([]),
+  const orm = {
+    em: {
+      fork: jest.fn(() => em),
+    },
   };
   const fileService = {
     delete: jest.fn().mockResolvedValue(undefined),
@@ -41,13 +45,15 @@ describe('AttachmentsCleanupService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repo.find.mockResolvedValue([]);
+    em.find.mockResolvedValue([]);
+    em.flush.mockResolvedValue(undefined);
     fileService.delete.mockResolvedValue(undefined);
+    orm.em.fork.mockReturnValue(em);
     appService.UPLOAD_TMP_DIR = fs.mkdtempSync(
       path.join(os.tmpdir(), 'konvoez-tmp-'),
     );
     service = new AttachmentsCleanupService(
-      repo as never,
+      orm as never,
       fileService as never,
       appService as never,
     );
@@ -72,12 +78,14 @@ describe('AttachmentsCleanupService', () => {
     const row = pendingRow(
       new Date(Date.now() - attachmentsPendingTtlMs - 1000),
     );
-    repo.find.mockImplementation(async (where: { status?: string }) =>
-      where.status === EAttachmentStatus.PENDING ? [row] : [],
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { status?: string }) =>
+        where.status === EAttachmentStatus.PENDING ? [row] : [],
     );
 
     await service.sweep();
 
+    expect(orm.em.fork).toHaveBeenCalled();
     expect(fileService.delete).toHaveBeenCalledWith(row.storageKey);
     expect(em.remove).toHaveBeenCalledWith(row);
     expect(em.flush).toHaveBeenCalled();
@@ -92,8 +100,9 @@ describe('AttachmentsCleanupService', () => {
       message: null,
       uploader: { id: 1 },
     };
-    repo.find.mockImplementation(async (where: { $or?: unknown }) =>
-      where.$or ? [row] : [],
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) =>
+        where.$or ? [row] : [],
     );
     fileService.delete.mockImplementation(async () => {
       order.push('delete');
@@ -118,7 +127,7 @@ describe('AttachmentsCleanupService', () => {
       message: null,
       uploader: null,
     };
-    repo.find.mockResolvedValue([row]);
+    em.find.mockResolvedValue([row]);
     fileService.delete.mockRejectedValue(
       Object.assign(new Error('missing'), { code: 'ENOENT' }),
     );
@@ -140,17 +149,19 @@ describe('AttachmentsCleanupService', () => {
       uploader: { id: 1 },
     };
     let detachedQueries = 0;
-    repo.find.mockImplementation(async (where: { $or?: unknown }) => {
-      if (!where.$or) {
-        return [];
-      }
-      detachedQueries += 1;
-      if (detachedQueries === 1) {
-        await gate;
-        return [];
-      }
-      return [late];
-    });
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) => {
+        if (!where.$or) {
+          return [];
+        }
+        detachedQueries += 1;
+        if (detachedQueries === 1) {
+          await gate;
+          return [];
+        }
+        return [late];
+      },
+    );
 
     const first = service.purgeDetached();
     await expect(service.purgeDetached()).resolves.toBeUndefined();
@@ -176,16 +187,18 @@ describe('AttachmentsCleanupService', () => {
       uploader: { id: 1 },
     };
     let detachedQueries = 0;
-    repo.find.mockImplementation(async (where: { $or?: unknown }) => {
-      if (!where.$or) {
-        return [];
-      }
-      detachedQueries += 1;
-      if (detachedQueries === 1) {
-        return full;
-      }
-      return [rest];
-    });
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) => {
+        if (!where.$or) {
+          return [];
+        }
+        detachedQueries += 1;
+        if (detachedQueries === 1) {
+          return full;
+        }
+        return [rest];
+      },
+    );
 
     await service.purgeDetached();
 
@@ -199,6 +212,27 @@ describe('AttachmentsCleanupService', () => {
       .mockResolvedValue(undefined);
     service.onDeleted();
     expect(purge).toHaveBeenCalled();
+  });
+
+  it('resolves when a sweep query fails', async () => {
+    const error = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    em.find.mockRejectedValue(new Error('db down'));
+
+    await expect(service.sweep()).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('sweeps the temp directory from the hourly run', async () => {
+    const sweepTemp = jest
+      .spyOn(service, 'sweepTempDir')
+      .mockResolvedValue(undefined);
+
+    await service.sweep();
+
+    expect(sweepTemp).toHaveBeenCalled();
   });
 
   it('removes temp files older than an hour at boot', async () => {

@@ -10,7 +10,8 @@ import {
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsStore } from '@features/settings/settings.store';
-import { EAttachmentKind } from '@konvoez/shared';
+import { EAttachmentKind, IAttachment } from '@konvoez/shared';
+import { createLocalFile } from '../outgoing/outgoing.types';
 
 describe('TextRoomEditorComponent', () => {
   let component: TextRoomEditorComponent;
@@ -214,5 +215,83 @@ describe('TextRoomEditorComponent', () => {
     );
     expect(create).not.toHaveBeenCalled();
     create.mockRestore();
+  });
+
+  it('ignores paste and drop when attachments are disabled or a message is being edited', () => {
+    mockSettingsStore.attachmentsEnabled.set(false);
+    expect(
+      component.addFiles([new File(['a'], 'a.txt', { type: 'text/plain' })]),
+    ).toBe(false);
+    expect(component['files']()).toEqual([]);
+
+    mockSettingsStore.attachmentsEnabled.set(true);
+    mockTextRoomStore.editableMessage.set(mockReplyMessage);
+    expect(
+      component.addFiles([new File(['a'], 'a.txt', { type: 'text/plain' })]),
+    ).toBe(false);
+    expect(component['files']()).toEqual([]);
+    mockSettingsStore.attachmentsEnabled.set(true);
+    mockTextRoomStore.editableMessage.set(null);
+  });
+
+  it('sends empty content when an edited message keeps its attachments', () => {
+    const attachment: IAttachment = {
+      id: 'att-1',
+      kind: EAttachmentKind.IMAGE,
+      name: 'a.png',
+      mime: 'image/png',
+      size: 10,
+      width: 10,
+      height: 10,
+      url: '/api/v1/attachments/att-1/content',
+      thumbnailUrl: null,
+    };
+    mockTextRoomStore.editableMessage.set({
+      ...mockReplyMessage,
+      attachments: [attachment],
+    });
+    component['control'].setValue('');
+    component['onSubmit']();
+    expect(mockTextRoomStore.updateMessage).toHaveBeenCalledWith({
+      messageId: mockReplyMessage.id,
+      data: { content: '' },
+    });
+    mockTextRoomStore.editableMessage.set(null);
+  });
+
+  it('stashes composer files when the chat changes', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:draft');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    component['files'].set([
+      createLocalFile(new File(['a'], 'a.png', { type: 'image/png' })),
+    ]);
+    mockTextRoomStore.selectedRoomId.set(2);
+    TestBed.flushEffects();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:draft');
+    mockTextRoomStore.selectedRoomId.set(1);
+  });
+
+  it('uses a keyboard button and a file input without accept', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [TextRoomEditorComponent],
+      providers: [
+        provideTranslateService(),
+        { provide: TextRoomStore, useValue: mockTextRoomStore },
+        { provide: SettingsStore, useValue: mockSettingsStore },
+        { provide: TuiNotificationService, useValue: mockNotificationService },
+      ],
+    }).compileComponents();
+    const realFixture = TestBed.createComponent(TextRoomEditorComponent);
+    realFixture.detectChanges();
+    const input = realFixture.nativeElement.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const button = input.previousElementSibling as HTMLButtonElement;
+    const click = vi.spyOn(input, 'click').mockImplementation(() => undefined);
+    expect(button.tagName).toBe('BUTTON');
+    expect(input.hasAttribute('accept')).toBe(false);
+    button.click();
+    expect(click).toHaveBeenCalled();
   });
 });

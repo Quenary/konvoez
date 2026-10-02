@@ -32,10 +32,8 @@ import {
   attachmentFileNameMaxLength,
 } from '@konvoez/shared';
 import { MESSAGE_ATTACHMENTS_BUCKET } from '@shared/services/file.service';
-import {
-  AttachmentsService,
-  sanitizeAttachmentName,
-} from './attachments.service';
+import { AttachmentsService } from './attachments.service';
+import { sanitizeAttachmentName } from './attachments.http';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { GetUserDto } from '../users/users.dto';
@@ -77,8 +75,14 @@ describe('AttachmentsService', () => {
     create: jest.Mock;
     find: jest.Mock;
     findOne: jest.Mock;
+    count: jest.Mock;
   };
-  let em: { persist: jest.Mock; flush: jest.Mock; remove: jest.Mock };
+  let em: {
+    persist: jest.Mock;
+    flush: jest.Mock;
+    remove: jest.Mock;
+    nativeDelete: jest.Mock;
+  };
   let fileService: { putFile: jest.Mock; delete: jest.Mock };
   let mimeSnifferService: { sniff: jest.Mock };
   let imageProcessingService: {
@@ -98,12 +102,14 @@ describe('AttachmentsService', () => {
       persist: jest.fn(),
       flush: jest.fn().mockResolvedValue(undefined),
       remove: jest.fn(),
+      nativeDelete: jest.fn().mockResolvedValue(1),
     };
     repo = {
       getEntityManager: jest.fn().mockReturnValue(em),
       create: jest.fn().mockImplementation((data) => data),
       find: jest.fn(),
       findOne: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
     };
     fileService = {
       putFile: jest.fn().mockResolvedValue(undefined),
@@ -254,6 +260,113 @@ describe('AttachmentsService', () => {
     await expect(createPending()).rejects.toBeInstanceOf(HttpException);
   });
 
+  it('stores an image when metadata stripping fails', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('image/jpeg');
+    imageProcessingService.readImageMetadata.mockResolvedValue({
+      width: 20,
+      height: 10,
+      pages: 1,
+      format: 'jpeg',
+    });
+    settingsService.getValue.mockImplementation(async (key: ESettingKey) =>
+      key === ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA ? true : false,
+    );
+    imageProcessingService.stripMetadata.mockRejectedValue(
+      new Error('premature end of JPEG image'),
+    );
+
+    const dto = await createPending('photo.jpg');
+
+    expect(dto.kind).toBe(EAttachmentKind.IMAGE);
+    expect(dto.mime).toBe('image/jpeg');
+    expect(fileService.putFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        path: filePath,
+        contentType: 'image/jpeg',
+      }),
+      MESSAGE_ATTACHMENTS_BUCKET,
+    );
+  });
+
+  it('degrades to FILE when the thumbnail cannot be built', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('image/jpeg');
+    imageProcessingService.readImageMetadata.mockResolvedValue({
+      width: 4000,
+      height: 3000,
+      pages: 1,
+      format: 'jpeg',
+    });
+    imageProcessingService.writeThumbnail.mockRejectedValue(
+      new Error('premature end of JPEG image'),
+    );
+
+    const dto = await createPending('trunc.jpg');
+
+    expect(dto.kind).toBe(EAttachmentKind.FILE);
+    expect(dto.mime).toBe('application/octet-stream');
+    expect(dto.thumbnailUrl).toBeNull();
+    expect(dto.width).toBeNull();
+    expect(fileService.putFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes a derived thumbnail when storing the original fails', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('image/jpeg');
+    imageProcessingService.readImageMetadata.mockResolvedValue({
+      width: 4000,
+      height: 3000,
+      pages: 1,
+      format: 'jpeg',
+    });
+    fileService.putFile.mockRejectedValue(new Error('storage down'));
+
+    await expect(createPending('big.jpg')).rejects.toThrow('storage down');
+    expect(fs.existsSync(`${filePath}.thumb`)).toBe(false);
+  });
+
+  it('does not hold image-processing slots during storage writes', async () => {
+    let sniffCalls = 0;
+    mimeSnifferService.sniff.mockImplementation(async () => {
+      sniffCalls += 1;
+      return sniffCalls <= 2 ? 'image/jpeg' : null;
+    });
+    imageProcessingService.readImageMetadata.mockResolvedValue({
+      width: 20,
+      height: 10,
+      pages: 1,
+      format: 'jpeg',
+    });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fileService.putFile.mockImplementation(() => gate);
+
+    const first = createPending('a.jpg');
+    const second = createPending('b.jpg');
+    for (
+      let attempt = 0;
+      attempt < 20 && fileService.putFile.mock.calls.length < 2;
+      attempt += 1
+    ) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    expect(fileService.putFile).toHaveBeenCalledTimes(2);
+
+    const third = createPending('note.txt');
+    for (
+      let attempt = 0;
+      attempt < 20 && fileService.putFile.mock.calls.length < 3;
+      attempt += 1
+    ) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    expect(fileService.putFile).toHaveBeenCalledTimes(3);
+
+    release();
+    await Promise.all([first, second, third]);
+  });
+
   it('deletes stored objects when the database write fails', async () => {
     em.flush.mockRejectedValue(new Error('db down'));
 
@@ -359,8 +472,27 @@ describe('AttachmentsService', () => {
 
       await service.deletePending(id, author);
 
+      expect(em.nativeDelete).toHaveBeenCalledWith(
+        MessageAttachmentEntity,
+        expect.objectContaining({
+          uploader: author.id,
+          status: EAttachmentStatus.PENDING,
+          message: null,
+        }),
+      );
       expect(fileService.delete).toHaveBeenCalledWith(pending.storageKey);
-      expect(em.remove).toHaveBeenCalledWith(pending);
+      expect(em.remove).not.toHaveBeenCalled();
+    });
+
+    it('does not delete stored files when the row was claimed', async () => {
+      const id = '00000000-0000-7000-8000-000000000006';
+      repo.findOne.mockResolvedValue(row({ id: parse(id) }));
+      em.nativeDelete.mockResolvedValue(0);
+
+      await expect(service.deletePending(id, author)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(fileService.delete).not.toHaveBeenCalled();
     });
 
     it('returns 404 when deleting an attached or foreign upload', async () => {

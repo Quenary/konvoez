@@ -109,10 +109,20 @@ export class ImageProcessingService {
 
   public async stripMetadata(filePath: string): Promise<number> {
     const cleaned = `${filePath}.clean`;
-    await sharp(filePath).rotate().toFile(cleaned);
-    await fs.promises.rename(cleaned, filePath);
-    const stat = await fs.promises.stat(filePath);
-    return stat.size;
+    try {
+      await sharp(filePath, {
+        failOn: 'error',
+        limitInputPixels: attachmentsMaxImagePixels,
+      })
+        .rotate()
+        .toFile(cleaned);
+      await fs.promises.rename(cleaned, filePath);
+      const stat = await fs.promises.stat(filePath);
+      return stat.size;
+    } catch (error) {
+      await fs.promises.rm(cleaned, { force: true });
+      throw error;
+    }
   }
 
   public async writeThumbnail(
@@ -120,16 +130,22 @@ export class ImageProcessingService {
     destPath: string,
     pages: number,
   ): Promise<void> {
-    let pipeline = sharp(filePath, {
-      limitInputPixels: attachmentsMaxImagePixels,
-      pages: pages > 1 ? 1 : undefined,
-    }).rotate();
-    pipeline = pipeline.resize({
-      width: attachmentsThumbnailMaxSide,
-      height: attachmentsThumbnailMaxSide,
-      fit: 'inside',
-      withoutEnlargement: true,
-    });
-    await pipeline.webp({ quality: 80 }).toFile(destPath);
+    try {
+      let pipeline = sharp(filePath, {
+        failOn: 'error',
+        limitInputPixels: attachmentsMaxImagePixels,
+        pages: pages > 1 ? 1 : undefined,
+      }).rotate();
+      pipeline = pipeline.resize({
+        width: attachmentsThumbnailMaxSide,
+        height: attachmentsThumbnailMaxSide,
+        fit: 'inside',
+        withoutEnlargement: true,
+      });
+      await pipeline.webp({ quality: 80 }).toFile(destPath);
+    } catch (error) {
+      await fs.promises.rm(destPath, { force: true });
+      throw error;
+    }
   }
 }

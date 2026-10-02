@@ -45,19 +45,22 @@
 
 <section class="field">
   @if (attachmentsEnabled() && !editableMessage()) {
-    <label
+    <button
       tuiIconButton
+      type="button"
       appearance="flat"
       iconStart="@tui.paperclip"
       size="s"
-      [attr.aria-label]="'ROOMS.ATTACH_FILES' | translate">
-      <input
-        type="file"
-        multiple
-        hidden
-        (change)="onPick($event)" />
+      [attr.aria-label]="'ROOMS.ATTACH_FILES' | translate"
+      (click)="fileInput.click()">
       {{ 'ROOMS.ATTACH_FILES' | translate }}
-    </label>
+    </button>
+    <input
+      #fileInput
+      type="file"
+      multiple
+      hidden
+      (change)="onPick($event)" />
   }
   <tui-editor
     class="field-editor"

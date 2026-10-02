@@ -6,14 +6,14 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Semaphore } from 'async-mutex';
 import fs from 'fs';
-import path from 'path';
 import { parse, stringify as uuidStringify, v7 } from 'uuid';
 import {
-  attachmentFileNameMaxLength,
+  attachmentsMaxPendingPerUser,
   attachmentsThumbnailMaxSide,
   EAttachmentKind,
   ESettingKey,
@@ -30,44 +30,26 @@ import {
 import { ImageProcessingService } from '@shared/services/image-processing.service';
 import { SettingsService } from '../settings/settings.service';
 import { GetUserDto } from '../users/users.dto';
-import { EAttachmentStatus } from './attachments.const';
+import { EAttachmentStatus, isEnospc } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
+import { sanitizeAttachmentName } from './attachments.http';
 import { MimeSnifferService } from './mime-sniffer.service';
 
 const processingSemaphore = new Semaphore(2);
 const STRIPPABLE_FORMATS = new Set(['jpeg', 'webp', 'avif', 'png']);
 
-function isEnospc(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === 'ENOSPC'
-  );
-}
-
-export function sanitizeAttachmentName(originalName: string): string {
-  const base = path
-    .basename(originalName)
-    .normalize('NFC')
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\\/]/g, '')
-    .trim();
-  const name = base.length > 0 ? base : 'file';
-  if (name.length <= attachmentFileNameMaxLength) {
-    return name;
-  }
-  const ext = path.extname(name);
-  const stem = name.slice(0, name.length - ext.length);
-  const kept = stem.slice(
-    0,
-    Math.max(attachmentFileNameMaxLength - ext.length, 1),
-  );
-  return `${kept}${ext}`.slice(0, attachmentFileNameMaxLength);
+interface IStoredUpload {
+  mime: string;
+  kind: EAttachmentKind;
+  width: number | null;
+  height: number | null;
+  thumbnailPath: string | null;
+  size: number;
 }
 
 @Injectable()
 export class AttachmentsService {
+  private readonly logger = new Logger(AttachmentsService.name);
   private readonly em: EntityManager;
 
   constructor(
@@ -95,9 +77,7 @@ export class AttachmentsService {
       originalname: file.originalname,
     };
     try {
-      return await processingSemaphore.runExclusive(() =>
-        this.storePending(author, storedFile),
-      );
+      return await this.storePending(author, storedFile);
     } catch (error) {
       if (isEnospc(error)) {
         throw new HttpException('STORAGE_FULL', 507);
@@ -152,13 +132,23 @@ export class AttachmentsService {
       id: parse(id),
       uploader: author.id,
       status: EAttachmentStatus.PENDING,
+      message: null,
     });
     if (!row) {
       throw new NotFoundException();
     }
-    await this.removeStored(row);
-    this.em.remove(row);
-    await this.em.flush();
+    const storageKey = row.storageKey;
+    const thumbnailKey = row.thumbnailKey;
+    const deleted = await this.em.nativeDelete(MessageAttachmentEntity, {
+      id: parse(id),
+      uploader: author.id,
+      status: EAttachmentStatus.PENDING,
+      message: null,
+    });
+    if (deleted !== 1) {
+      throw new NotFoundException();
+    }
+    await this.removeStored(storageKey, thumbnailKey ?? null);
   }
 
   public async resolveReadable(
@@ -278,70 +268,19 @@ export class AttachmentsService {
     file: { path: string; size: number; originalname?: string },
   ): Promise<IAttachment> {
     const sniffed = await this.mimeSnifferService.sniff(file.path);
-    let mime = sniffed ?? 'application/octet-stream';
-    let kind = EAttachmentKind.FILE;
-    let width: number | null = null;
-    let height: number | null = null;
-    let thumbnailPath: string | null = null;
-    let size = file.size;
-
-    if (
-      sniffed &&
-      (INLINE_IMAGE_MIMES as readonly string[]).includes(sniffed)
-    ) {
-      const metadata = await this.imageProcessingService.readImageMetadata(
-        file.path,
-      );
-      if (metadata) {
-        kind = EAttachmentKind.IMAGE;
-        mime = sniffed;
-        width = metadata.width;
-        height = metadata.height;
-        const strip = await this.settingsService.getValue(
-          ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
-        );
-        const animated = metadata.pages > 1;
-        if (
-          strip &&
-          !animated &&
-          metadata.format &&
-          STRIPPABLE_FORMATS.has(metadata.format) &&
-          metadata.format !== 'gif'
-        ) {
-          size = await this.imageProcessingService.stripMetadata(file.path);
-        }
-        const needsThumb =
-          animated ||
-          (width !== null && width > attachmentsThumbnailMaxSide) ||
-          (height !== null && height > attachmentsThumbnailMaxSide) ||
-          size > 512 * 1024;
-        if (needsThumb) {
-          thumbnailPath = `${file.path}.thumb`;
-          await this.imageProcessingService.writeThumbnail(
-            file.path,
-            thumbnailPath,
-            metadata.pages,
-          );
-        }
-      }
-    } else if (
-      sniffed &&
-      (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed)
-    ) {
-      kind = EAttachmentKind.VIDEO;
-      mime = sniffed;
-    } else if (
-      sniffed &&
-      (INLINE_AUDIO_MIMES as readonly string[]).includes(sniffed)
-    ) {
-      kind = EAttachmentKind.AUDIO;
-      mime = sniffed;
+    const classified = await this.classify(file, sniffed);
+    const pending = await this.repo.count({
+      uploader: author.id,
+      status: EAttachmentStatus.PENDING,
+    });
+    if (pending >= attachmentsMaxPendingPerUser) {
+      throw new HttpException('ATTACHMENTS_PENDING_LIMIT', 429);
     }
 
     const id = parse(v7());
     const idString = uuidStringify(id);
     const storageKey = `${MESSAGE_ATTACHMENTS_BUCKET}/${idString}`;
-    const thumbnailKey = thumbnailPath
+    const thumbnailKey = classified.thumbnailPath
       ? `${MESSAGE_ATTACHMENTS_BUCKET}/${idString}-thumb`
       : null;
     const stat = await fs.promises.stat(file.path);
@@ -351,16 +290,16 @@ export class AttachmentsService {
         {
           path: file.path,
           size: stat.size,
-          contentType: mime,
+          contentType: classified.mime,
         },
         MESSAGE_ATTACHMENTS_BUCKET,
       );
-      if (thumbnailPath && thumbnailKey) {
-        const thumbStat = await fs.promises.stat(thumbnailPath);
+      if (classified.thumbnailPath && thumbnailKey) {
+        const thumbStat = await fs.promises.stat(classified.thumbnailPath);
         await this.fileService.putFile(
           thumbnailKey,
           {
-            path: thumbnailPath,
+            path: classified.thumbnailPath,
             size: thumbStat.size,
             contentType: 'image/webp',
           },
@@ -371,14 +310,14 @@ export class AttachmentsService {
         id,
         status: EAttachmentStatus.PENDING,
         uploader: author.id,
-        kind,
-        mime,
+        kind: classified.kind,
+        mime: classified.mime,
         size: stat.size,
         originalName: sanitizeAttachmentName(file.originalname || 'file'),
         storageKey,
         thumbnailKey,
-        width,
-        height,
+        width: classified.width,
+        height: classified.height,
         position: 0,
         message: null,
       });
@@ -390,14 +329,156 @@ export class AttachmentsService {
       if (thumbnailKey) {
         await this.fileService.delete(thumbnailKey).catch(() => undefined);
       }
+      await fs.promises.rm(`${file.path}.thumb`, { force: true });
+      await fs.promises.rm(`${file.path}.clean`, { force: true });
       throw error;
     }
   }
 
-  private async removeStored(row: MessageAttachmentEntity): Promise<void> {
-    await this.fileService.delete(row.storageKey).catch(() => undefined);
-    if (row.thumbnailKey) {
-      await this.fileService.delete(row.thumbnailKey).catch(() => undefined);
+  private async classify(
+    file: { path: string; size: number },
+    sniffed: string | null,
+  ): Promise<IStoredUpload> {
+    if (
+      sniffed &&
+      (INLINE_IMAGE_MIMES as readonly string[]).includes(sniffed)
+    ) {
+      return processingSemaphore.runExclusive(() =>
+        this.processImage(file, sniffed),
+      );
+    }
+    if (
+      sniffed &&
+      (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed)
+    ) {
+      return {
+        mime: sniffed,
+        kind: EAttachmentKind.VIDEO,
+        width: null,
+        height: null,
+        thumbnailPath: null,
+        size: file.size,
+      };
+    }
+    if (
+      sniffed &&
+      (INLINE_AUDIO_MIMES as readonly string[]).includes(sniffed)
+    ) {
+      return {
+        mime: sniffed,
+        kind: EAttachmentKind.AUDIO,
+        width: null,
+        height: null,
+        thumbnailPath: null,
+        size: file.size,
+      };
+    }
+    return {
+      mime: sniffed ?? 'application/octet-stream',
+      kind: EAttachmentKind.FILE,
+      width: null,
+      height: null,
+      thumbnailPath: null,
+      size: file.size,
+    };
+  }
+
+  private async processImage(
+    file: { path: string; size: number },
+    sniffed: string,
+  ): Promise<IStoredUpload> {
+    const metadata = await this.imageProcessingService.readImageMetadata(
+      file.path,
+    );
+    if (!metadata) {
+      return {
+        mime: 'application/octet-stream',
+        kind: EAttachmentKind.FILE,
+        width: null,
+        height: null,
+        thumbnailPath: null,
+        size: file.size,
+      };
+    }
+    let size = file.size;
+    const strip = await this.settingsService.getValue(
+      ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
+    );
+    const animated = metadata.pages > 1;
+    if (
+      strip &&
+      !animated &&
+      metadata.format &&
+      STRIPPABLE_FORMATS.has(metadata.format) &&
+      metadata.format !== 'gif'
+    ) {
+      try {
+        size = await this.imageProcessingService.stripMetadata(file.path);
+      } catch (error) {
+        this.logger.warn(
+          `Image metadata strip failed, keeping original bytes: ${error instanceof Error ? error.message : error}`,
+        );
+        await fs.promises.rm(`${file.path}.thumb`, { force: true });
+        await fs.promises.rm(`${file.path}.clean`, { force: true });
+        size = file.size;
+      }
+    }
+    const width = metadata.width;
+    const height = metadata.height;
+    const needsThumb =
+      animated ||
+      (width !== null && width > attachmentsThumbnailMaxSide) ||
+      (height !== null && height > attachmentsThumbnailMaxSide) ||
+      size > 512 * 1024;
+    if (!needsThumb) {
+      return {
+        mime: sniffed,
+        kind: EAttachmentKind.IMAGE,
+        width,
+        height,
+        thumbnailPath: null,
+        size,
+      };
+    }
+    const thumbnailPath = `${file.path}.thumb`;
+    try {
+      await this.imageProcessingService.writeThumbnail(
+        file.path,
+        thumbnailPath,
+        metadata.pages,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Thumbnail failed, storing the upload as a file: ${error instanceof Error ? error.message : error}`,
+      );
+      await fs.promises.rm(thumbnailPath, { force: true });
+      await fs.promises.rm(`${file.path}.clean`, { force: true });
+      return {
+        mime: 'application/octet-stream',
+        kind: EAttachmentKind.FILE,
+        width: null,
+        height: null,
+        thumbnailPath: null,
+        size: file.size,
+      };
+    }
+    return {
+      mime: sniffed,
+      kind: EAttachmentKind.IMAGE,
+      width,
+      height,
+      thumbnailPath,
+      size,
+    };
+  }
+
+  private async removeStored(
+    storageKey: string,
+    thumbnailKey: string | null,
+  ): Promise<void> {
+    await this.fileService.delete(storageKey).catch(() => undefined);
+    if (thumbnailKey) {
+      await this.fileService.delete(thumbnailKey).catch(() => undefined);
     }
   }
 }

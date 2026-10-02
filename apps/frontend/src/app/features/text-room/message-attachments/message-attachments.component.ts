@@ -11,12 +11,12 @@ import {
   EAttachmentKind,
   IAttachment,
 } from '@konvoez/shared';
+import { TranslatePipe } from '@ngx-translate/core';
 import { TuiFile } from '@taiga-ui/kit';
 import { FileThumbnailComponent } from '@shared/components/file-thumbnail/file-thumbnail.component';
 import { MediaGridComponent } from '@shared/components/media-grid/media-grid.component';
 import { IMediaPreviewItem } from '@shared/components/media-preview/media-preview';
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
-import { TranslateService } from '@ngx-translate/core';
 import { IOutgoingMessage, uploadErrorKey } from '../outgoing/outgoing.types';
 
 export interface IAttachmentView {
@@ -37,14 +37,13 @@ export interface IAttachmentView {
 
 @Component({
   selector: 'app-message-attachments',
-  imports: [TuiFile, FileThumbnailComponent, MediaGridComponent],
+  imports: [TranslatePipe, TuiFile, FileThumbnailComponent, MediaGridComponent],
   templateUrl: './message-attachments.component.html',
   styleUrl: './message-attachments.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MessageAttachmentsComponent {
   private readonly mediaPreviewService = inject(MediaPreviewService);
-  private readonly translateService = inject(TranslateService);
 
   public readonly attachments = input<readonly IAttachment[]>([]);
   public readonly outgoing = input<IOutgoingMessage | null>(null);
@@ -83,9 +82,7 @@ export class MessageAttachmentsComponent {
               : ('normal' as const),
           progress:
             status === 'uploading' ? (progress[file.localId] ?? 0) : null,
-          errorText: failed
-            ? this.translateService.instant(uploadErrorKey(file.state.code))
-            : null,
+          errorText: failed ? uploadErrorKey(file.state.code) : null,
           removable,
           serverVideo: false,
         };
@@ -124,6 +121,18 @@ export class MessageAttachmentsComponent {
     });
   });
   protected readonly aspect = computed(() => {
+    const outgoing = this.outgoing();
+    if (outgoing) {
+      const first = outgoing.files.find(
+        (file) =>
+          file.kind === EAttachmentKind.IMAGE ||
+          file.kind === EAttachmentKind.VIDEO,
+      );
+      if (first?.width && first.height) {
+        return { width: first.width, height: first.height };
+      }
+      return null;
+    }
     const first = this.media()[0];
     const source = this.attachments().find((item) => item.id === first?.key);
     if (!source?.width || !source.height) {

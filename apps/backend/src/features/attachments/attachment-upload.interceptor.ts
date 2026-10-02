@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   CallHandler,
   ExecutionContext,
   ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
   NestInterceptor,
   PayloadTooLargeException,
 } from '@nestjs/common';
@@ -14,14 +16,23 @@ import { randomUUID } from 'crypto';
 import { ESettingKey, attachmentsMaxPendingPerUser } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
 import { SettingsService } from '../settings/settings.service';
-import { EAttachmentStatus } from './attachments.const';
+import { EAttachmentStatus, isEnospc } from './attachments.const';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/core';
 import { MessageAttachmentEntity } from './attachments.entity';
 import type { Request, Response } from 'express';
 
+function isUploadAborted(req: Request, error: unknown): boolean {
+  if (req.destroyed) {
+    return true;
+  }
+  return error instanceof Error && error.message === 'Request aborted';
+}
+
 @Injectable()
 export class AttachmentUploadInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AttachmentUploadInterceptor.name);
+
   constructor(
     private readonly settingsService: SettingsService,
     private readonly appService: AppService,
@@ -72,11 +83,18 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     }).single('file');
     await new Promise<void>((resolve, reject) => {
       upload(req, res, (error: unknown) => {
-        if (error) {
-          reject(error);
+        if (!error) {
+          resolve();
           return;
         }
-        resolve();
+        if (isUploadAborted(req, error)) {
+          this.logger.debug('Upload aborted by the client');
+          reject(new BadRequestException('UPLOAD_ABORTED'));
+          return;
+        }
+        reject(
+          isEnospc(error) ? new HttpException('STORAGE_FULL', 507) : error,
+        );
       });
     });
     return next.handle().pipe(
@@ -85,10 +103,10 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
         if (!filePath) {
           return;
         }
-        fs.promises.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
-          if (error.code !== 'ENOENT') {
-            throw error;
-          }
+        fs.promises.rm(filePath, { force: true }).catch((error: unknown) => {
+          this.logger.warn(
+            `Failed to remove temp upload ${filePath}: ${error instanceof Error ? error.message : error}`,
+          );
         });
       }),
     );

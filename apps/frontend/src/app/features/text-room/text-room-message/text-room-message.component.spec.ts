@@ -9,7 +9,7 @@ import {
 } from '../text-room.store';
 import { UsersStore } from '@features/users/users.store';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
-import { signal, Sanitizer } from '@angular/core';
+import { computed, signal, Sanitizer } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@features/auth/auth.reducer';
@@ -18,10 +18,13 @@ import { EUserRole, IUser } from '@konvoez/shared';
 import { TextRoomApiService } from '../text-room-api.service';
 import { MessageReadQueueService } from '../message-read-queue.service';
 import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
+import { IOutgoingMessage } from '../outgoing/outgoing.types';
 
 describe('TextRoomMessageComponent', () => {
   let component: TextRoomMessageComponent;
   let fixture: ComponentFixture<TextRoomMessageComponent>;
+
+  const uploadProgress = signal<Record<string, number>>({});
 
   const mockTextRoomStore = {
     setReplyToMessageId: vi.fn(),
@@ -77,6 +80,7 @@ describe('TextRoomMessageComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    uploadProgress.set({});
     mockUsersStore.entityMap.set({});
 
     class MockIntersectionObserver {
@@ -116,7 +120,7 @@ describe('TextRoomMessageComponent', () => {
         { provide: TextRoomStore, useValue: mockTextRoomStore },
         {
           provide: OutgoingMessagesStore,
-          useValue: { uploadProgress: signal({}) },
+          useValue: { uploadProgress },
         },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: TuiNotificationService, useValue: mockNotificationService },
@@ -230,6 +234,91 @@ describe('TextRoomMessageComponent', () => {
 
     component['resendMessage']();
     expect(mockTextRoomStore.retryMessage).toHaveBeenCalledWith('msg-1');
+  });
+
+  it('does not reread upload progress for a server message', () => {
+    fixture.detectChanges();
+    let runs = 0;
+    const watched = computed(() => {
+      runs += 1;
+      return component['progress']();
+    });
+    expect(watched()).toEqual({});
+    expect(runs).toBe(1);
+    uploadProgress.set({ file: 0.4 });
+    expect(watched()).toEqual({});
+    expect(runs).toBe(1);
+  });
+
+  it('offers cancel only while an outgoing send can still be stopped', () => {
+    const outgoing = (
+      phase: IOutgoingMessage['state']['phase'],
+    ): IOutgoingMessage => ({
+      tempId: 'msg-1',
+      data: {
+        content: '<p>Hello world</p>',
+        roomId: 1,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      createdAt: testMessage.createdAt,
+      files: [],
+      state: phase === 'failed' ? { phase, reason: 'upload' } : { phase },
+    });
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      outgoing: outgoing('uploading'),
+    });
+    fixture.detectChanges();
+    expect(component['canCancelSending']()).toBe(true);
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      outgoing: outgoing('failed'),
+    });
+    fixture.detectChanges();
+    expect(component['canCancelSending']()).toBe(true);
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      outgoing: outgoing('creating'),
+    });
+    fixture.detectChanges();
+    expect(component['canCancelSending']()).toBe(false);
+  });
+
+  it('renders attachments before text and hides an empty body', () => {
+    fixture.componentRef.setInput('message', {
+      ...testMessage,
+      attachments: [
+        {
+          id: 'att-1',
+          kind: 'FILE',
+          name: 'a.txt',
+          mime: 'text/plain',
+          size: 1,
+          width: null,
+          height: null,
+          url: '/api/v1/attachments/att-1/content',
+          thumbnailUrl: null,
+        },
+      ],
+    });
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const attachments = root.querySelector('app-message-attachments');
+    const text = root.querySelector('tui-editor-socket');
+    if (!attachments || !text) {
+      throw new Error('attachments and text should both render');
+    }
+    expect(
+      attachments.compareDocumentPosition(text) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+
+    fixture.componentRef.setInput('message', { ...testMessage, content: '' });
+    fixture.detectChanges();
+    expect(root.querySelector('tui-editor-socket')).toBeNull();
   });
 
   it('should load readers and open the dialog', () => {

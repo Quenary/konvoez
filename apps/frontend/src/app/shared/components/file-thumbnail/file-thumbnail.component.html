@@ -1,30 +1,43 @@
-@if (showImage()) {
-  <img
-    [src]="src()"
-    [alt]="name()"
-    loading="lazy"
-    decoding="async"
-    (error)="onBroken()" />
-} @else if (showLocalVideo()) {
-  <video
-    [src]="src()"
-    muted
-    playsinline
-    preload="metadata"
-    (error)="onBroken()"></video>
+<ng-template #visual>
+  @if (showImage()) {
+    <img
+      [src]="src()"
+      [alt]="name()"
+      loading="lazy"
+      decoding="async"
+      (error)="onBroken()" />
+  } @else if (showLocalVideo()) {
+    <video
+      [src]="src()"
+      muted
+      playsinline
+      preload="metadata"
+      (error)="onBroken()"></video>
+  } @else {
+    <span class="file-fallback">
+      <tui-icon [icon]="icon()" />
+      @if (kind() === kinds.VIDEO) {
+        <tui-icon
+          class="play"
+          icon="@tui.play" />
+      }
+      <span class="file-name">{{ name() }}</span>
+      @if (formattedSize(); as label) {
+        <span class="file-size">{{ label }}</span>
+      }
+    </span>
+  }
+</ng-template>
+
+@if (interactive()) {
+  <button
+    type="button"
+    class="activate"
+    (click)="onActivate()">
+    <ng-container [ngTemplateOutlet]="visual" />
+  </button>
 } @else {
-  <span class="file-fallback">
-    <tui-icon [icon]="icon()" />
-    @if (kind() === kinds.VIDEO) {
-      <tui-icon
-        class="play"
-        icon="@tui.play" />
-    }
-    <span class="file-name">{{ name() }}</span>
-    @if (formattedSize(); as label) {
-      <span class="file-size">{{ label }}</span>
-    }
-  </span>
+  <ng-container [ngTemplateOutlet]="visual" />
 }
 
 @switch (status()) {

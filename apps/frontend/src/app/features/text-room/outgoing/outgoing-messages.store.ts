@@ -1,7 +1,7 @@
 import { DestroyRef, computed, effect, inject } from '@angular/core';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { ITextRoomMessage } from '@konvoez/shared';
+import { EAttachmentKind, ITextRoomMessage } from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -13,6 +13,7 @@ import {
 } from '@ngrx/signals';
 import {
   addEntity,
+  removeAllEntities,
   removeEntity,
   setEntity,
   withEntities,
@@ -50,9 +51,9 @@ export const OutgoingMessagesStore = signalStore(
       created$,
       messageCreated$: created$.asObservable(),
       subscriptions: new Map<string, Subscription>(),
+      creatingSubscriptions: new Map<string, Subscription>(),
       waiting: [] as string[],
       active: 0,
-      cancelled: new Set<string>(),
       creating: new Set<string>(),
       progressAt: new Map<string, number>(),
     };
@@ -111,11 +112,39 @@ export const OutgoingMessagesStore = signalStore(
       };
 
       const releaseUpload = (localId: string): void => {
-        store.subscriptions.delete(localId);
-        if (store.cancelled.delete(localId)) {
+        if (!store.subscriptions.delete(localId)) {
           return;
         }
         store.active = Math.max(0, store.active - 1);
+      };
+
+      const rememberImageSize = (tempId: string, file: IOutgoingFile): void => {
+        if (
+          file.kind !== EAttachmentKind.IMAGE ||
+          (file.width && file.height) ||
+          typeof createImageBitmap !== 'function'
+        ) {
+          return;
+        }
+        void createImageBitmap(file.file)
+          .then((bitmap) => {
+            const width = bitmap.width;
+            const height = bitmap.height;
+            bitmap.close();
+            const current = store.entityMap()[tempId];
+            if (!current) {
+              return;
+            }
+            replace({
+              ...current,
+              files: current.files.map((item) =>
+                item.localId === file.localId
+                  ? { ...item, width, height }
+                  : item,
+              ),
+            });
+          })
+          .catch(() => undefined);
       };
 
       const settle = (
@@ -158,7 +187,7 @@ export const OutgoingMessagesStore = signalStore(
         const attachmentIds = message.files.flatMap((file) =>
           file.state.status === 'uploaded' ? [file.state.attachment.id] : [],
         );
-        textRoomApi
+        const subscription = textRoomApi
           .create({
             ...message.data,
             clientId: tempId,
@@ -166,6 +195,7 @@ export const OutgoingMessagesStore = signalStore(
           })
           .subscribe({
             next: (created) => {
+              store.creatingSubscriptions.delete(tempId);
               store.creating.delete(tempId);
               if (!store.entityMap()[tempId]) {
                 return;
@@ -173,6 +203,7 @@ export const OutgoingMessagesStore = signalStore(
               resolve(created);
             },
             error: (error: unknown) => {
+              store.creatingSubscriptions.delete(tempId);
               store.creating.delete(tempId);
               if (!store.entityMap()[tempId]) {
                 return;
@@ -180,6 +211,7 @@ export const OutgoingMessagesStore = signalStore(
               handleCreateError(tempId, error);
             },
           });
+        store.creatingSubscriptions.set(tempId, subscription);
       };
 
       const applySettled = (message: IOutgoingMessage): void => {
@@ -231,9 +263,6 @@ export const OutgoingMessagesStore = signalStore(
         store.active += 1;
         const subscription = attachmentsApi.upload(file.file).subscribe({
           next: (event) => {
-            if (store.cancelled.has(file.localId)) {
-              return;
-            }
             if (event.type === HttpEventType.UploadProgress && event.total) {
               const value = event.loaded / event.total;
               const previous = store.uploadProgress()[file.localId] ?? 0;
@@ -340,10 +369,8 @@ export const OutgoingMessagesStore = signalStore(
         forgetWaiting(file.localId);
         const subscription = store.subscriptions.get(file.localId);
         if (subscription) {
-          store.cancelled.add(file.localId);
           subscription.unsubscribe();
-          store.subscriptions.delete(file.localId);
-          store.active = Math.max(0, store.active - 1);
+          releaseUpload(file.localId);
         }
         if (file.state.status === 'uploaded') {
           attachmentsApi.delete(file.state.attachment.id).subscribe({
@@ -365,13 +392,12 @@ export const OutgoingMessagesStore = signalStore(
         for (const file of outgoing.files) {
           const subscription = store.subscriptions.get(file.localId);
           if (subscription) {
-            store.cancelled.add(file.localId);
             subscription.unsubscribe();
-            store.subscriptions.delete(file.localId);
-            store.active = Math.max(0, store.active - 1);
+            releaseUpload(file.localId);
           }
           forgetWaiting(file.localId);
         }
+        store.creatingSubscriptions.delete(clientId);
         store.creating.delete(clientId);
         revokeLocalFiles(outgoing.files);
         dropProgress(outgoing.files.map((file) => file.localId));
@@ -410,6 +436,9 @@ export const OutgoingMessagesStore = signalStore(
                 : { phase: 'uploading' },
           };
           patchState(store, addEntity(message, { selectId: outgoingId }));
+          for (const file of outgoingFiles) {
+            rememberImageSize(tempId, file);
+          }
           if (outgoingFiles.length === 0) {
             startCreate(tempId);
             return;
@@ -488,18 +517,21 @@ export const OutgoingMessagesStore = signalStore(
         },
 
         cancelAll(): void {
+          for (const subscription of store.creatingSubscriptions.values()) {
+            subscription.unsubscribe();
+          }
+          store.creatingSubscriptions.clear();
+          store.creating.clear();
+          store.waiting = [];
           for (const message of [...store.entities()]) {
-            if (message.state.phase === 'creating') {
-              continue;
-            }
             for (const file of message.files) {
               abortFile(file);
             }
             revokeLocalFiles(message.files);
-            dropProgress(message.files.map((file) => file.localId));
-            patchState(store, removeEntity(message.tempId));
           }
-          pump();
+          store.active = 0;
+          store.progressAt.clear();
+          patchState(store, removeAllEntities(), { uploadProgress: {} });
         },
       };
     },

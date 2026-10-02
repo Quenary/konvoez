@@ -13,9 +13,9 @@ Admin settings (environment variables override the database):
 
 Every setting applies only to new uploads and new messages. Turning stripping on does not rewrite files that are already stored.
 
-With stripping off, a download of a JPEG is byte-for-byte the upload, including EXIF and GPS. Thumbnails never contain metadata. With stripping on, new JPEG, WebP, AVIF and PNG uploads are rotated and saved without metadata. GIF and animated images are not rewritten.
+With stripping off, a download of a JPEG is byte-for-byte the upload, including EXIF and GPS. Thumbnails never contain metadata. With stripping on, new JPEG, WebP, AVIF and PNG uploads are rotated and saved without metadata. GIF and animated images are not rewritten. If stripping fails, the original bytes are stored as an image and a warning is logged, so metadata may remain. If a thumbnail cannot be built, the upload is stored as a generic file.
 
-A user can have at most 30 pending (not yet attached) uploads. Unclaimed pending uploads are deleted after 24 hours.
+A user can have at most 30 pending (not yet attached) uploads. The cap is checked before the body is accepted and again before the row is inserted. Overlapping uploads can still pass both checks; that excess is temporary. Unclaimed pending uploads are deleted after 24 hours, and the same sweep runs every hour.
 
 ## Inline types
 

@@ -10,7 +10,7 @@
     <app-file-thumbnail
       fill
       interactive
-      [errorText]="item.errorText"
+      [errorText]="item.errorText ? (item.errorText | translate) : null"
       [kind]="item.kind"
       [name]="item.name"
       [progress]="item.progress"
@@ -53,5 +53,8 @@
       (remove)="removeFile.emit(item.key)">
       {{ item.name }}
     </tui-file>
+  }
+  @if (item.errorText) {
+    <p class="file-error">{{ item.errorText | translate }}</p>
   }
 }

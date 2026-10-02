@@ -350,4 +350,162 @@ describe('OutgoingMessagesStore', () => {
     );
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:big.txt');
   });
+
+  it('treats a REST response as a no-op when the socket echo arrived first', () => {
+    const created$ = new Subject<ITextRoomMessage>();
+    create.mockReturnValue(created$.asObservable());
+    const received: ITextRoomMessage[] = [];
+    store.messageCreated$.subscribe((message) => received.push(message));
+    store.send({
+      tempId: 'temp-echo',
+      data: {
+        content: 'hi',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [],
+    });
+    const echoed = serverMessage('temp-echo');
+    expect(store.resolve(echoed)).toBe(true);
+    created$.next(echoed);
+    expect(received).toEqual([echoed]);
+    expect(store.entities()).toEqual([]);
+  });
+
+  it('completes two sends that are in flight together', () => {
+    const first$ = new Subject<ITextRoomMessage>();
+    const second$ = new Subject<ITextRoomMessage>();
+    create.mockReturnValueOnce(first$).mockReturnValueOnce(second$);
+    const received: string[] = [];
+    store.messageCreated$.subscribe((message) => received.push(message.id));
+    const payload = {
+      content: 'hi',
+      roomId: 10,
+      recipientId: null,
+      replyToId: null,
+      attachmentIds: [] as string[],
+    };
+    store.send({
+      tempId: 'temp-a',
+      data: payload,
+      replyTo: null,
+      files: [],
+    });
+    store.send({
+      tempId: 'temp-b',
+      data: payload,
+      replyTo: null,
+      files: [],
+    });
+    first$.next(serverMessage('temp-a'));
+    second$.next(serverMessage('temp-b'));
+    expect(received).toEqual(['server-temp-a', 'server-temp-b']);
+    expect(store.entities()).toEqual([]);
+  });
+
+  it('cancels uploads and deletes files that already uploaded', () => {
+    store.send({
+      tempId: 'temp-cancel',
+      data: {
+        content: 'x',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [localFile('stay.txt'), localFile('gone.txt')],
+    });
+    uploads.get('stay.txt')?.next(
+      new HttpResponse({
+        body: attachment('77777777-7777-4777-8777-777777777777', 'stay.txt'),
+      }),
+    );
+    uploads.get('stay.txt')?.complete();
+    store.cancel('temp-cancel');
+    expect(aborted.has('gone.txt')).toBe(true);
+    expect(remove).toHaveBeenCalledWith('77777777-7777-4777-8777-777777777777');
+    expect(store.entityMap()['temp-cancel']).toBeUndefined();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stay.txt');
+  });
+
+  it('drops a creating message on cancelAll and ignores the late response', () => {
+    const created$ = new Subject<ITextRoomMessage>();
+    create.mockReturnValue(created$.asObservable());
+    store.send({
+      tempId: 'temp-logout',
+      data: {
+        content: 'hi',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [],
+    });
+    expect(store.entityMap()['temp-logout']?.state.phase).toBe('creating');
+    store.cancelAll();
+    expect(store.entities()).toEqual([]);
+    created$.next(serverMessage('temp-logout'));
+    expect(store.entities()).toEqual([]);
+  });
+
+  it('keeps a failed message failed after its failed file is removed', () => {
+    store.send({
+      tempId: 'temp-fail',
+      data: {
+        content: 'x',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [localFile('ok.txt'), localFile('bad.txt')],
+    });
+    uploads.get('ok.txt')?.next(
+      new HttpResponse({
+        body: attachment('88888888-8888-4888-8888-888888888888', 'ok.txt'),
+      }),
+    );
+    uploads.get('ok.txt')?.complete();
+    uploads.get('bad.txt')?.error(new HttpErrorResponse({ status: 413 }));
+    store.removeFile('temp-fail', 'bad.txt');
+    expect(store.entityMap()['temp-fail']?.state).toEqual({
+      phase: 'failed',
+      reason: 'upload',
+    });
+    expect(store.entityMap()['temp-fail']?.files).toHaveLength(1);
+    store.retry('temp-fail');
+    expect(store.entityMap()['temp-fail']?.state.phase).toBe('creating');
+  });
+
+  it('revokes object urls when the message resolves', () => {
+    const created$ = new Subject<ITextRoomMessage>();
+    create.mockReturnValue(created$.asObservable());
+    store.send({
+      tempId: 'temp-revoke',
+      data: {
+        content: '',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [localFile('pic.txt')],
+    });
+    uploads.get('pic.txt')?.next(
+      new HttpResponse({
+        body: attachment('99999999-9999-4999-8999-999999999999', 'pic.txt'),
+      }),
+    );
+    uploads.get('pic.txt')?.complete();
+    created$.next(serverMessage('temp-revoke'));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pic.txt');
+  });
 });

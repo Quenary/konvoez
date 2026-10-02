@@ -10,6 +10,7 @@ import { AttachmentsApiService } from './outgoing/attachments-api.service';
 import { MessageReadQueueService } from './message-read-queue.service';
 import { UnreadCountsStore } from './unread-counts.store';
 import { TextRoomStore, EMessageStatus } from './text-room.store';
+import { OutgoingMessagesStore } from './outgoing/outgoing-messages.store';
 import {
   ETextRoomEvent,
   EUserRole,
@@ -797,6 +798,74 @@ describe('TextRoomStore', () => {
           recipientId: 99,
           roomId: null,
         }),
+      );
+    });
+  });
+
+  describe('outgoing messages', () => {
+    function sendOutgoing(tempId: string, roomId: number | null): void {
+      apiService.create.mockReturnValue(new Subject());
+      TestBed.inject(OutgoingMessagesStore).send({
+        tempId,
+        data: {
+          content: 'draft',
+          roomId,
+          recipientId: null,
+          replyToId: null,
+          attachmentIds: [],
+        },
+        replyTo: null,
+        files: [],
+      });
+    }
+
+    it('shows an outgoing message only in its own chat and hides it during search', () => {
+      store.join({ roomId: 10, recipientId: null });
+      sendOutgoing('other-room', 11);
+      expect(
+        store.messages().some((message) => message.id === 'other-room'),
+      ).toBe(false);
+      sendOutgoing('this-room', 10);
+      expect(
+        store.messages().some((message) => message.id === 'this-room'),
+      ).toBe(true);
+      expect(store.newestId()).toBe('msg-2');
+      expect(store.oldestId()).toBe('msg-1');
+
+      store.setSearchQuery('First');
+      expect(store.messages().some((message) => message.outgoing)).toBe(false);
+    });
+
+    it('hides an outgoing row once the server message with the same clientId arrives', () => {
+      store.join({ roomId: 10, recipientId: null });
+      sendOutgoing('temp-dup', 10);
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, {
+        ...message1,
+        id: 'msg-server',
+        clientId: 'temp-dup',
+        content: 'draft',
+      });
+      expect(
+        store.messages().some((message) => message.id === 'temp-dup'),
+      ).toBe(false);
+      expect(
+        store.messages().some((message) => message.id === 'msg-server'),
+      ).toBe(true);
+    });
+
+    it('resolves an outgoing message from a socket echo outside the open chat and during search', () => {
+      const outgoing = TestBed.inject(OutgoingMessagesStore);
+      const resolve = vi.spyOn(outgoing, 'resolve');
+      store.join({ roomId: 10, recipientId: null });
+      store.setSearchQuery('First');
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, {
+        ...message1,
+        id: 'msg-elsewhere',
+        roomId: 99,
+        clientId: 'temp-elsewhere',
+      });
+      expect(resolve).toHaveBeenCalledWith(
+        expect.objectContaining({ clientId: 'temp-elsewhere' }),
       );
     });
   });

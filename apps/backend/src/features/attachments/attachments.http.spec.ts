@@ -14,6 +14,11 @@ describe('attachments.http', () => {
     );
   });
 
+  it('encodes RFC 5987 delimiters in filename*', () => {
+    const value = contentDisposition('attachment', "O'Brien (1)*.txt");
+    expect(value).toContain("filename*=UTF-8''O%27Brien%20%281%29%2A.txt");
+  });
+
   it('strips quotes and newlines from the file name', () => {
     const value = contentDisposition('inline', 'a"b\r\nc');
     expect(value).not.toContain('\n');
@@ -62,6 +67,7 @@ describe('attachments.http', () => {
     expect(resolveByteRange('bytes=1000-1001', 1000).kind).toBe(
       'unsatisfiable',
     );
+    expect(resolveByteRange('bytes=500-100', 1000).kind).toBe('full');
     expect(resolveByteRange('bytes=0-1,2-3', 1000).kind).toBe('full');
     expect(resolveByteRange('not-a-range', 1000).kind).toBe('full');
   });

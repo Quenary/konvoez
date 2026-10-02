@@ -1,4 +1,5 @@
-import { EAttachmentKind } from '@konvoez/shared';
+import path from 'path';
+import { attachmentFileNameMaxLength, EAttachmentKind } from '@konvoez/shared';
 
 export type TByteRangeResolution =
   | { readonly kind: 'full' }
@@ -32,25 +33,44 @@ export function etagMatches(
     .some((part) => part === etag || part === '*');
 }
 
-function sanitizeFileName(name: string): string {
-  // TODO: Implement proper filename sanitization
-  // eslint-disable-next-line no-control-regex
-  const cleaned = name.replace(/[\u0000-\u001f\u007f"\\]/g, '').trim();
-  return cleaned.length > 0 ? cleaned : 'file';
+export function sanitizeAttachmentName(originalName: string): string {
+  const base = path
+    .basename(originalName)
+    .normalize('NFC')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f\\/\u202a-\u202e\u2066-\u2069"]/g, '')
+    .trim();
+  const name = base.length > 0 ? base : 'file';
+  if (name.length <= attachmentFileNameMaxLength) {
+    return name;
+  }
+  const ext = path.extname(name);
+  const stem = name.slice(0, name.length - ext.length);
+  const kept = stem.slice(
+    0,
+    Math.max(attachmentFileNameMaxLength - ext.length, 1),
+  );
+  return `${kept}${ext}`.slice(0, attachmentFileNameMaxLength);
 }
 
 function asciiFallback(name: string): string {
-  const ascii = sanitizeFileName(name).replace(/[^\x20-\x7e]/g, '_');
+  const ascii = name.replace(/[^\x20-\x7e]/g, '_');
   return ascii.length > 0 ? ascii : 'file';
+}
+
+function encodeRfc5987(value: string): string {
+  return encodeURIComponent(value).replace(
+    /['()*!]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
 export function contentDisposition(
   disposition: 'inline' | 'attachment',
   fileName: string,
 ): string {
-  const clean = sanitizeFileName(fileName);
-  const encoded = encodeURIComponent(clean);
-  return `${disposition}; filename="${asciiFallback(clean)}"; filename*=UTF-8''${encoded}`;
+  const clean = sanitizeAttachmentName(fileName);
+  return `${disposition}; filename="${asciiFallback(clean)}"; filename*=UTF-8''${encodeRfc5987(clean)}`;
 }
 
 export function inlinePolicy(input: {
@@ -104,7 +124,7 @@ export function resolveByteRange(
       ? size - 1
       : Math.min(Number(endRaw), size - 1);
   if (!Number.isInteger(end) || end < start) {
-    return { kind: 'unsatisfiable' };
+    return { kind: 'full' };
   }
   return { kind: 'partial', start, end };
 }

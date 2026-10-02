@@ -25,6 +25,8 @@ import { ILocalFile } from '../outgoing/outgoing.types';
 export class ComposerAttachmentsComponent {
   private readonly mediaPreviewService = inject(MediaPreviewService);
 
+  protected readonly kinds = EAttachmentKind;
+
   public readonly files = input.required<readonly ILocalFile[]>();
   public readonly remove = output<string>();
 
