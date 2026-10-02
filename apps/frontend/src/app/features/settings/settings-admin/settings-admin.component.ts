@@ -31,6 +31,7 @@ import {
   TuiError,
   TuiInput,
   TuiLabel,
+  TuiScrollbar,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core';
@@ -72,6 +73,7 @@ function iceServersJsonValidator(
     TuiHeader,
     TuiInput,
     TuiLabel,
+    TuiScrollbar,
     TuiSwitch,
     TuiTextarea,
     TuiTextfield,

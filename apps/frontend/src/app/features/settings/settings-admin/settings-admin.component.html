@@ -14,124 +14,132 @@
     </h2>
   </header>
 
-  <div class="setting-item">
-    <label tuiLabel>
-      <input
-        tuiSwitch
-        formControlName="inviteOnlySignUp"
-        type="checkbox" />
-      {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP' | translate }}
-    </label>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP_DESC' | translate }}
-    </p>
-  </div>
+  <tui-scrollbar class="card-scroll">
+    <div class="card-scroll-content">
+      <div class="setting-item">
+        <label tuiLabel>
+          <input
+            tuiSwitch
+            formControlName="inviteOnlySignUp"
+            type="checkbox" />
+          {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP' | translate }}
+        </label>
+        <p class="setting-description">
+          {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP_DESC' | translate }}
+        </p>
+      </div>
 
-  <div class="setting-item">
-    <tui-textfield>
-      <label
-        tuiLabel
-        for="password-recovery-code-ttl">
-        {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL' | translate }}
-      </label>
-      <input
-        tuiInput
-        id="password-recovery-code-ttl"
-        type="number"
-        formControlName="passwordRecoveryCodeTtl" />
-    </tui-textfield>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL_DESC' | translate }}
-    </p>
-  </div>
+      <div class="setting-item">
+        <tui-textfield>
+          <label
+            tuiLabel
+            for="password-recovery-code-ttl">
+            {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL' | translate }}
+          </label>
+          <input
+            tuiInput
+            id="password-recovery-code-ttl"
+            type="number"
+            formControlName="passwordRecoveryCodeTtl" />
+        </tui-textfield>
+        <p class="setting-description">
+          {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL_DESC' | translate }}
+        </p>
+      </div>
 
-  <div class="setting-item">
-    <tui-textfield class="json-field">
-      <label
-        tuiLabel
-        for="ice-servers-json">
-        {{ 'SETTINGS.ADMIN.ICE_SERVERS' | translate }}
-      </label>
-      <textarea
-        tuiTextarea
-        id="ice-servers-json"
-        formControlName="iceServersJson"
-        [min]="8"
-        [max]="16"
-        [placeholder]="defaultIceServers">
-      </textarea>
-    </tui-textfield>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.ICE_SERVERS_DESC' | translate }}
-    </p>
-    @if (iceServersError; as err) {
-      <tui-error [error]="err | translate" />
-    }
-  </div>
+      <div class="setting-item">
+        <tui-textfield class="json-field">
+          <label
+            tuiLabel
+            for="ice-servers-json">
+            {{ 'SETTINGS.ADMIN.ICE_SERVERS' | translate }}
+          </label>
+          <textarea
+            tuiTextarea
+            id="ice-servers-json"
+            formControlName="iceServersJson"
+            [min]="8"
+            [max]="16"
+            [placeholder]="defaultIceServers">
+          </textarea>
+        </tui-textfield>
+        <p class="setting-description">
+          {{ 'SETTINGS.ADMIN.ICE_SERVERS_DESC' | translate }}
+        </p>
+        @if (iceServersError; as err) {
+          <tui-error [error]="err | translate" />
+        }
+      </div>
 
-  <h3 tuiTitle>{{ 'SETTINGS.ADMIN.ATTACHMENTS' | translate }}</h3>
+      <h3 tuiTitle>{{ 'SETTINGS.ADMIN.ATTACHMENTS' | translate }}</h3>
 
-  <div class="setting-item">
-    <label tuiLabel>
-      <input
-        tuiSwitch
-        formControlName="attachmentsEnabled"
-        type="checkbox" />
-      {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED' | translate }}
-    </label>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED_DESC' | translate }}
-    </p>
-  </div>
+      <div class="setting-item">
+        <label tuiLabel>
+          <input
+            tuiSwitch
+            formControlName="attachmentsEnabled"
+            type="checkbox" />
+          {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED' | translate }}
+        </label>
+        <p class="setting-description">
+          {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED_DESC' | translate }}
+        </p>
+      </div>
 
-  <div class="setting-item">
-    <tui-textfield>
-      <label
-        tuiLabel
-        for="attachments-max-file-size">
-        {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE' | translate }}
-      </label>
-      <input
-        tuiInput
-        id="attachments-max-file-size"
-        type="number"
-        formControlName="attachmentsMaxFileSizeMib" />
-    </tui-textfield>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE_DESC' | translate }}
-    </p>
-  </div>
+      <div class="setting-item">
+        <tui-textfield>
+          <label
+            tuiLabel
+            for="attachments-max-file-size">
+            {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE' | translate }}
+          </label>
+          <input
+            tuiInput
+            id="attachments-max-file-size"
+            type="number"
+            formControlName="attachmentsMaxFileSizeMib" />
+        </tui-textfield>
+        <p class="setting-description">
+          {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE_DESC' | translate }}
+        </p>
+      </div>
 
-  <div class="setting-item">
-    <tui-textfield>
-      <label
-        tuiLabel
-        for="attachments-max-files">
-        {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE' | translate }}
-      </label>
-      <input
-        tuiInput
-        id="attachments-max-files"
-        type="number"
-        formControlName="attachmentsMaxFilesPerMessage" />
-    </tui-textfield>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC' | translate }}
-    </p>
-  </div>
+      <div class="setting-item">
+        <tui-textfield>
+          <label
+            tuiLabel
+            for="attachments-max-files">
+            {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE' | translate }}
+          </label>
+          <input
+            tuiInput
+            id="attachments-max-files"
+            type="number"
+            formControlName="attachmentsMaxFilesPerMessage" />
+        </tui-textfield>
+        <p class="setting-description">
+          {{
+            'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC' | translate
+          }}
+        </p>
+      </div>
 
-  <div class="setting-item">
-    <label tuiLabel>
-      <input
-        tuiSwitch
-        formControlName="attachmentsStripImageMetadata"
-        type="checkbox" />
-      {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA' | translate }}
-    </label>
-    <p class="setting-description">
-      {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA_DESC' | translate }}
-    </p>
-  </div>
+      <div class="setting-item">
+        <label tuiLabel>
+          <input
+            tuiSwitch
+            formControlName="attachmentsStripImageMetadata"
+            type="checkbox" />
+          {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA' | translate }}
+        </label>
+        <p class="setting-description">
+          {{
+            'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA_DESC' | translate
+          }}
+        </p>
+      </div>
+    </div>
+  </tui-scrollbar>
 
   <footer>
     <button

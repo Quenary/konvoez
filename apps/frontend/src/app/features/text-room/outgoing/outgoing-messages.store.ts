@@ -261,28 +261,51 @@ export const OutgoingMessagesStore = signalStore(
           ),
         });
         store.active += 1;
-        const subscription = attachmentsApi.upload(file.file).subscribe({
-          next: (event) => {
-            if (event.type === HttpEventType.UploadProgress && event.total) {
-              const value = event.loaded / event.total;
-              const previous = store.uploadProgress()[file.localId] ?? 0;
-              const now = Date.now();
-              const last = store.progressAt.get(file.localId) ?? 0;
-              if (value - previous < 0.01 && now - last < 100 && value < 1) {
-                return;
+        const subscription = new Subscription();
+        store.subscriptions.set(file.localId, subscription);
+        subscription.add(
+          attachmentsApi.upload(file.file).subscribe({
+            next: (event) => {
+              if (event.type === HttpEventType.UploadProgress && event.total) {
+                const value = event.loaded / event.total;
+                const previous = store.uploadProgress()[file.localId] ?? 0;
+                const now = Date.now();
+                const last = store.progressAt.get(file.localId) ?? 0;
+                if (value - previous < 0.01 && now - last < 100 && value < 1) {
+                  return;
+                }
+                store.progressAt.set(file.localId, now);
+                patchState(store, (state) => ({
+                  uploadProgress: {
+                    ...state.uploadProgress,
+                    [file.localId]: value,
+                  },
+                }));
               }
-              store.progressAt.set(file.localId, now);
-              patchState(store, (state) => ({
-                uploadProgress: {
-                  ...state.uploadProgress,
-                  [file.localId]: value,
-                },
-              }));
-            }
-            if (event.type === HttpEventType.Response && event.body) {
-              const uploaded = event.body;
+              if (event.type === HttpEventType.Response && event.body) {
+                const uploaded = event.body;
+                const current = store.entityMap()[tempId];
+                if (!current) {
+                  return;
+                }
+                replace({
+                  ...current,
+                  files: current.files.map((item) =>
+                    item.localId === file.localId
+                      ? {
+                          ...item,
+                          state: { status: 'uploaded', attachment: uploaded },
+                        }
+                      : item,
+                  ),
+                });
+              }
+            },
+            error: (error: unknown) => {
+              releaseUpload(file.localId);
               const current = store.entityMap()[tempId];
               if (!current) {
+                pump();
                 return;
               }
               replace({
@@ -291,47 +314,30 @@ export const OutgoingMessagesStore = signalStore(
                   item.localId === file.localId
                     ? {
                         ...item,
-                        state: { status: 'uploaded', attachment: uploaded },
+                        state: {
+                          status: 'failed',
+                          code: uploadErrorCode(error),
+                        },
                       }
                     : item,
                 ),
               });
-            }
-          },
-          error: (error: unknown) => {
-            releaseUpload(file.localId);
-            const current = store.entityMap()[tempId];
-            if (!current) {
+              const updated = store.entityMap()[tempId];
+              if (updated) {
+                applySettled(updated);
+              }
               pump();
-              return;
-            }
-            replace({
-              ...current,
-              files: current.files.map((item) =>
-                item.localId === file.localId
-                  ? {
-                      ...item,
-                      state: { status: 'failed', code: uploadErrorCode(error) },
-                    }
-                  : item,
-              ),
-            });
-            const updated = store.entityMap()[tempId];
-            if (updated) {
-              applySettled(updated);
-            }
-            pump();
-          },
-          complete: () => {
-            releaseUpload(file.localId);
-            const updated = store.entityMap()[tempId];
-            if (updated) {
-              applySettled(updated);
-            }
-            pump();
-          },
-        });
-        store.subscriptions.set(file.localId, subscription);
+            },
+            complete: () => {
+              releaseUpload(file.localId);
+              const updated = store.entityMap()[tempId];
+              if (updated) {
+                applySettled(updated);
+              }
+              pump();
+            },
+          }),
+        );
       };
 
       const handleCreateError = (tempId: string, error: unknown): void => {

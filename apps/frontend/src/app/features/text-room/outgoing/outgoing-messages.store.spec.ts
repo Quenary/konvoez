@@ -195,6 +195,36 @@ describe('OutgoingMessagesStore', () => {
     );
   });
 
+  it('frees the upload slot when the upload fails before the request starts', () => {
+    upload.mockImplementation(
+      () =>
+        new Observable<HttpEvent<IAttachment>>((subscriber) => {
+          subscriber.error(new Error('sync'));
+        }),
+    );
+    store.send({
+      tempId: 'temp-sync',
+      data: {
+        content: 'x',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: ['a.txt', 'b.txt', 'c.txt', 'd.txt'].map(localFile),
+    });
+    expect(upload).toHaveBeenCalledTimes(4);
+    const message = store.entityMap()['temp-sync'];
+    expect(message?.files.map((file) => file.state.status)).toEqual([
+      'failed',
+      'failed',
+      'failed',
+      'failed',
+    ]);
+    expect(message?.state).toEqual({ phase: 'failed', reason: 'upload' });
+  });
+
   it('keeps the message failed when one upload fails and retries only that file', () => {
     store.send({
       tempId: 'temp-3',
