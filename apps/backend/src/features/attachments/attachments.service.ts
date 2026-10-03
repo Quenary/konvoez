@@ -353,9 +353,7 @@ export class AttachmentsService {
       sniffed &&
       (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed)
     ) {
-      return processingSemaphore.runExclusive(() =>
-        this.processVideo(file, sniffed),
-      );
+      return this.processVideo(file, sniffed);
     }
     if (
       sniffed &&
@@ -388,6 +386,7 @@ export class AttachmentsService {
     const poster = await this.videoProcessingService.createPoster(
       file.path,
       thumbnailPath,
+      sniffed,
     );
     return {
       mime: sniffed,

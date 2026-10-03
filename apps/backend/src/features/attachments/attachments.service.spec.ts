@@ -415,6 +415,46 @@ describe('AttachmentsService', () => {
     await Promise.all([first, second, third]);
   });
 
+  it('does not hold an image-processing slot while a video poster is built', async () => {
+    let releasePoster: () => void = () => undefined;
+    const posterGate = new Promise<void>((resolve) => {
+      releasePoster = resolve;
+    });
+    videoProcessingService.createPoster.mockReturnValue(
+      posterGate.then(() => ({
+        width: 8,
+        height: 8,
+        written: false,
+      })),
+    );
+    let sniffCalls = 0;
+    mimeSnifferService.sniff.mockImplementation(async () => {
+      sniffCalls += 1;
+      return sniffCalls === 1 ? 'video/mp4' : 'image/jpeg';
+    });
+    imageProcessingService.readImageMetadata.mockResolvedValue({
+      width: 20,
+      height: 10,
+      pages: 1,
+      format: 'jpeg',
+    });
+
+    const video = createPending('clip.mp4');
+    const first = createPending('a.jpg');
+    const second = createPending('b.jpg');
+    for (
+      let attempt = 0;
+      attempt < 20 && fileService.putFile.mock.calls.length < 2;
+      attempt += 1
+    ) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    expect(fileService.putFile).toHaveBeenCalledTimes(2);
+
+    releasePoster();
+    await Promise.all([video, first, second]);
+  });
+
   it('deletes stored objects when the database write fails', async () => {
     em.flush.mockRejectedValue(new Error('db down'));
 

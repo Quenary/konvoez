@@ -1,15 +1,33 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import { Injectable, Logger } from '@nestjs/common';
+import { Semaphore } from 'async-mutex';
 import sharp from 'sharp';
 import {
   attachmentsMaxImagePixels,
   attachmentsThumbnailMaxSide,
 } from '@konvoez/shared';
 
-const PROBE_TIMEOUT_MS = 10_000;
-const POSTER_TIMEOUT_MS = 20_000;
+const POSTER_DEADLINE_MS = 15_000;
+const VIDEO_PROCESSING_SLOTS = 2;
 const OUTPUT_LIMIT = 1024 * 1024;
+const COMMAND_ENV_KEYS = [
+  'PATH',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TZ',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'LD_LIBRARY_PATH',
+] as const;
+const INPUT_FORMAT_BY_MIME: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov',
+};
 
 export interface IVideoDisplaySize {
   readonly width: number;
@@ -36,6 +54,10 @@ export function posterSeekSeconds(
     return [0];
   }
   return [1, 0];
+}
+
+export function videoInputFormat(mime: string): string | null {
+  return INPUT_FORMAT_BY_MIME[mime] ?? null;
 }
 
 export function videoDisplaySize(payload: string): IVideoDisplaySize | null {
@@ -80,24 +102,45 @@ export function assertPosterStorage(stderr: string): void {
 
 @Injectable()
 export class VideoProcessingService {
+  private readonly slots = new Semaphore(VIDEO_PROCESSING_SLOTS);
   private readonly logger = new Logger(VideoProcessingService.name);
   private loggedMissingBinary = false;
 
   public async createPoster(
     sourcePath: string,
     destPath: string,
+    mime: string,
+    deadlineMs = POSTER_DEADLINE_MS,
+  ): Promise<IVideoPoster> {
+    const format = videoInputFormat(mime);
+    if (!format) {
+      return { width: null, height: null, written: false };
+    }
+    return this.slots.runExclusive(() =>
+      this.writePoster(sourcePath, destPath, format, deadlineMs),
+    );
+  }
+
+  private async writePoster(
+    sourcePath: string,
+    destPath: string,
+    format: string,
+    deadlineMs: number,
   ): Promise<IVideoPoster> {
     const framePath = `${destPath}.frame.jpg`;
+    const deadline = Date.now() + deadlineMs;
     let width: number | null = null;
     let height: number | null = null;
     try {
-      const probed = await this.probe(sourcePath);
+      const probed = await this.probe(sourcePath, format, deadline);
       width = probed?.width ?? null;
       height = probed?.height ?? null;
       const framed = await this.extractFrame(
         sourcePath,
         framePath,
+        format,
         posterSeekSeconds(probed?.durationSeconds ?? null),
+        deadline,
       );
       if (!framed) {
         await fs.promises.rm(destPath, { force: true });
@@ -135,7 +178,11 @@ export class VideoProcessingService {
     }
   }
 
-  private async probe(sourcePath: string): Promise<IVideoDisplaySize | null> {
+  private async probe(
+    sourcePath: string,
+    format: string,
+    deadline: number,
+  ): Promise<IVideoDisplaySize | null> {
     try {
       const result = await runCommand(
         'ffprobe',
@@ -143,6 +190,8 @@ export class VideoProcessingService {
           '-hide_banner',
           '-loglevel',
           'error',
+          '-protocol_whitelist',
+          'file',
           '-probesize',
           '5000000',
           '-analyzeduration',
@@ -153,9 +202,11 @@ export class VideoProcessingService {
           'stream=width,height,duration:stream_tags=rotate:stream_side_data=rotation:format=duration',
           '-of',
           'json',
+          '-f',
+          format,
           sourcePath,
         ],
-        PROBE_TIMEOUT_MS,
+        deadline - Date.now(),
       );
       assertPosterStorage(result.stderr);
       if (result.code !== 0) {
@@ -174,7 +225,9 @@ export class VideoProcessingService {
   private async extractFrame(
     sourcePath: string,
     framePath: string,
+    format: string,
     seeks: readonly number[],
+    deadline: number,
   ): Promise<boolean> {
     for (const seek of seeks) {
       await fs.promises.rm(framePath, { force: true });
@@ -185,8 +238,12 @@ export class VideoProcessingService {
           '-loglevel',
           'error',
           '-nostdin',
+          '-protocol_whitelist',
+          'file',
           '-ss',
           String(seek),
+          '-f',
+          format,
           '-i',
           sourcePath,
           '-an',
@@ -199,7 +256,7 @@ export class VideoProcessingService {
           '-y',
           framePath,
         ],
-        POSTER_TIMEOUT_MS,
+        deadline - Date.now(),
       );
       assertPosterStorage(result.stderr);
       if (result.code !== 0) {
@@ -228,18 +285,31 @@ export class VideoProcessingService {
   }
 }
 
+class CommandTimeoutError extends Error {
+  constructor() {
+    super('timed out');
+  }
+}
+
 function runCommand(
   command: string,
   args: readonly string[],
   timeoutMs: number,
 ): Promise<ICommandResult> {
+  if (timeoutMs <= 0) {
+    return Promise.reject(new CommandTimeoutError());
+  }
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: commandEnv(),
+    });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     let stdoutLength = 0;
     let stderrLength = 0;
     let settled = false;
+    let timedOut = false;
     const finish = (error: Error | null, result?: ICommandResult): void => {
       if (settled) {
         return;
@@ -255,6 +325,7 @@ function runCommand(
       }
     };
     const timer = setTimeout(() => {
+      timedOut = true;
       child.kill('SIGKILL');
     }, timeoutMs);
     child.stdout.on('data', (chunk: Buffer) => {
@@ -277,13 +348,37 @@ function runCommand(
       finish(error);
     });
     child.on('close', (code) => {
+      const stderrText = Buffer.concat(stderr).toString('utf8');
+      if (stderrText.includes('No space left on device')) {
+        finish(
+          Object.assign(new Error('No space left on device'), {
+            code: 'ENOSPC',
+          }),
+        );
+        return;
+      }
+      if (timedOut) {
+        finish(new CommandTimeoutError());
+        return;
+      }
       finish(null, {
         code: code ?? 1,
         stdout: Buffer.concat(stdout).toString('utf8'),
-        stderr: Buffer.concat(stderr).toString('utf8'),
+        stderr: stderrText,
       });
     });
   });
+}
+
+function commandEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of COMMAND_ENV_KEYS) {
+    const value = process.env[key];
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  return env;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

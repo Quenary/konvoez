@@ -33,7 +33,7 @@ iPhone Photo Library picks arrive as JPEG or H.264 in a `.mov` container. A HEIC
 
 MP4, WebM and QuickTime uploads get a WebP poster when `ffmpeg` and `ffprobe` are on `PATH`. The poster is one frame at 1 second, or the first frame when the clip is shorter than 1 second. It is scaled to fit inside 1024×1024 and is not enlarged when the frame is already smaller. It is stored as `message-attachments/<uuid>-thumb`. Display width and height come from `ffprobe`; a 90° or 270° rotation swaps them. The original video bytes are stored unchanged and are not transcoded.
 
-`ffprobe` is limited to 10 seconds and the frame grab to 20 seconds. If either binary is missing, the grab times out, or the file cannot be decoded, the video is still stored and the message shows the placeholder tile. A full disk while writing the poster fails the upload with 507. Videos stored before posters existed are not backfilled.
+Probing and the frame grab share a 15 second deadline, on a limit separate from image processing. If the grab at 1 second times out, the first frame is not tried afterwards. A grab that fails immediately still falls back to the first frame. `ffprobe` and `ffmpeg` are started with the sniffed container format (`mp4`, `webm`, or `mov`), the `file` protocol only, and an environment that does not include server secrets. If either binary is missing, the deadline is hit, or the file cannot be decoded, the video is still stored and the message shows the placeholder tile. A full disk while writing the poster fails the upload with 507. Videos stored before posters existed are not backfilled.
 
 The runtime image installs the `ffmpeg` package. Local development needs the same package on `PATH` (`sudo apt-get install -y ffmpeg` on Debian and Ubuntu).
 
