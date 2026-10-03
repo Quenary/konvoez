@@ -7,8 +7,8 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
 - **Single-instance server model**: The deployed application instance acts as its own self-contained server. It hosts text and voice rooms for authenticated users. It is not designed as a multi-tenant public cloud SaaS with tenant isolation.
 - **User roles and authorization**:
   - `OWNER`: The instance creator / primary operator. Assigned exclusively to the first registered user via a one-time cryptographic bootstrap setup token printed to server logs. Possesses full administrative rights across the entire server (user management, room management, server settings, invite management). Cannot be transferred, escalated, or assigned via standard user management APIs.
-  - `ADMIN`: Elevated administrator role. Can manage rooms, moderate chat messages, manage user accounts, manage server settings, and issue/revoke invite links.
-  - `USER` (referred to as `MEMBER` in the codebase): Standard authenticated user. Can join text and voice rooms, send messages, participate in voice channels, edit/delete their own messages, and update their own profile and avatar via self-only `/api/v1/profile` (not via `/api/v1/user-management` or mutating `/api/v1/users`).
+  - `ADMIN`: Elevated administrator role. Can manage rooms, moderate messages in text rooms (including deleting another user's room message), manage user accounts, manage server settings, and issue/revoke invite links. In personal (direct) chats an admin can delete only their own messages.
+  - `USER` (referred to as `MEMBER` in the codebase): Standard authenticated user. Can join text and voice rooms, send messages, participate in voice channels, edit/delete their own messages (in rooms and in personal chats), and update their own profile and avatar via self-only `/api/v1/profile` (not via `/api/v1/user-management` or mutating `/api/v1/users`).
 - **Instance bootstrap & initial OWNER registration**:
   - On a fresh installation (when zero users exist in the database), the server generates a single-use 16-byte cryptographically secure random token (`owner_setup_token`) with a 5-minute TTL and prints it to the server console/stdout log.
   - The initial registration request must supply this valid `setupToken` to create the `OWNER` account.
@@ -50,9 +50,10 @@ Reports are judged against this model rather than against a multi-tenant cloud S
 - Bypassing the invite-only registration policy when `INVITE_ONLY_SIGN_UP` is active (e.g., registering without a code, reusing consumed/revoked/expired invites, or bypassing email binding on restricted invites).
 - Unauthorized creation, revocation, or enumeration of invite codes by unauthenticated users or standard `USER` (`MEMBER`) accounts.
 - Privilege escalation (e.g., a standard `USER` escalating to `ADMIN` or assigning `OWNER`).
-- Cross-user data manipulation (e.g., modifying or deleting messages belonging to other users without admin privileges).
+- Cross-user data manipulation (e.g., editing another user's message, deleting another user's room message without `OWNER` or `ADMIN`, or deleting another user's personal-chat message as any role).
 - Cryptographic flaws in message encryption or key derivation (e.g., IV reuse, ciphertext manipulation bypassing GCM authentication tags).
 - Path traversal, arbitrary file read/write in file/avatar upload (`/api/v1/profile/avatar/upload`) and streaming (`/api/v1/users/avatar/stream`) endpoints (local or S3 storage).
+- Attachment serving (`/api/v1/attachments`): sniffed MIME, inline allowlist, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cross-Origin-Resource-Policy: same-origin`, and 404 for every access denial.
 - Remote Code Execution (RCE) or SQL injection vulnerabilities in database queries.
 - Application-level Denial of Service (DoS) through resource exhaustion or asymmetric workloads (e.g., image bombs/pixel flooding, memory leaks triggered by malformed payloads).
 
@@ -63,10 +64,12 @@ These are not treated as vulnerabilities (and will not be accepted as High/Criti
 - Scenarios requiring an attacker to already possess physical or root/shell access to the host server or Docker container.
 - Intercepting the one-time `OWNER` setup token through access to the server console, stdout, or container log files (host/container access is already considered a fully compromised environment).
 - Access to data made possible by obtaining the host environment variables (`MASTER_KEY`, `JWT_SECRET`, database credentials).
-- Actions intentionally permitted for `OWNER` or `ADMIN` roles (e.g., an admin deleting a room, kicking/deleting a user account, generating invites, or changing server settings).
+- Actions intentionally permitted for `OWNER` or `ADMIN` roles (e.g., an admin deleting a room, deleting another user's message in a text room, kicking/deleting a user account, generating invites, or changing server settings).
 - Attacks exploiting lack of TLS termination when the host operator fails to configure a reverse proxy (operators are expected to deploy behind HTTPS/TLS in production).
 - Weak operator-configured environment secrets (e.g., using a trivial `MASTER_KEY` or `JWT_SECRET`).
 - Denial of Service (DoS) resulting from network saturation or standard media bandwidth limits without an underlying software vulnerability.
+- Encryption of stored assets (attachment files and file names, avatars, and other uploaded objects) is the operator's responsibility at the storage layer. The application does not encrypt these bytes. Protect the volume (for example with LUKS) or enable encryption in the object store (for example S3 server-side encryption).
+- Image metadata (EXIF/GPS) is kept unless the admin enables stripping. Stripping applies only to new uploads.
 
 ## Severity
 

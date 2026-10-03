@@ -62,10 +62,10 @@ docker compose -f docker-compose.build.yml up -d --build
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Rooms](docs/ROOMS.md)
+- [Message attachments](docs/ATTACHMENTS.md)
 
 ## TODO
 
-- Add message assets (files)
 - Add camera/screen sharing
 - Add emojis or/and customizable smile/sticker packs
 - Add connection state indication

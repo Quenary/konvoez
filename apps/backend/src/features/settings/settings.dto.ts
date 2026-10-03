@@ -4,6 +4,10 @@ import {
   iceServersSettingSchema,
   inviteOnlySignUpSettingSchema,
   passwordRecoveryCodeTtlSettingSchema,
+  attachmentsEnabledSettingSchema,
+  attachmentsMaxFileSizeSettingSchema,
+  attachmentsMaxFilesPerMessageSettingSchema,
+  attachmentsStripImageMetadataSettingSchema,
   TSetting,
   TSettingByKey,
 } from '@konvoez/shared';
@@ -23,4 +27,20 @@ export class InviteOnlySignUpSettingDto extends createZodDto(
 
 export class PasswordRecoveryCodeTtlSettingDto extends createZodDto(
   passwordRecoveryCodeTtlSettingSchema,
+) {}
+
+export class AttachmentsEnabledSettingDto extends createZodDto(
+  attachmentsEnabledSettingSchema,
+) {}
+
+export class AttachmentsMaxFileSizeSettingDto extends createZodDto(
+  attachmentsMaxFileSizeSettingSchema,
+) {}
+
+export class AttachmentsMaxFilesPerMessageSettingDto extends createZodDto(
+  attachmentsMaxFilesPerMessageSettingSchema,
+) {}
+
+export class AttachmentsStripImageMetadataSettingDto extends createZodDto(
+  attachmentsStripImageMetadataSettingSchema,
 ) {}

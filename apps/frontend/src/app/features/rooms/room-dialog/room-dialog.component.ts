@@ -5,7 +5,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ERoomType } from '@konvoez/shared';
+import { ERoomType, maxAvatarSize } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IRoom } from '../rooms.interface';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -98,6 +98,7 @@ export class RoomDialogComponent {
   private readonly roomsApiService = inject(RoomsApiService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
+  protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly typeOptions = [ERoomType.TEXT, ERoomType.VOICE];
   protected readonly form = new FormGroup(
     {
@@ -133,6 +134,21 @@ export class RoomDialogComponent {
       .pipe(takeUntilDestroyed())
       .subscribe((avatarFile) => {
         if (!avatarFile) {
+          return;
+        }
+        if (
+          typeof avatarFile.size === 'number' &&
+          avatarFile.size > maxAvatarSize
+        ) {
+          this.form.controls.avatarFile.setValue(null, { emitEvent: false });
+          this.tuiNotificationsService
+            .open(this.translateService.instant('VALIDATION.FILE_TOO_BIG'), {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
           return;
         }
         this.roomsApiService.avatarUpload(avatarFile as File).subscribe({

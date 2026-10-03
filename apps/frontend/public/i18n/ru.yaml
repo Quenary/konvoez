@@ -14,7 +14,6 @@ GENERAL:
   EDIT: Редактировать
   DELETE: Удалить
   REPLY: Ответить
-  FILE_TOO_BIG: Файл слишком большой
   SIGN_IN: Войти
   SIGN_UP: Создать аккаунт
   LOG_OUT: Выйти
@@ -90,6 +89,23 @@ ROOMS:
   READ_BY: Прочитано
   NO_READERS: Сообщение еще не прочитано
   RESEND: Отправить повторно
+  ATTACH_FILES: Прикрепить файлы
+  ATTACHMENT: Вложение
+  DROP_FILES_HERE: Перетащите файлы сюда
+  SCROLL_TO_BOTTOM: Прокрутить вниз
+  REMOVE_FILE: Убрать файл
+  CANCEL_SENDING: Отменить отправку
+  DOWNLOAD: Скачать
+  PREVIEW_UNSUPPORTED: Этот файл нельзя воспроизвести в браузере
+  TOO_MANY_FILES: Можно прикрепить не больше {{max}} файлов
+  UPLOAD_ERROR:
+    TOO_LARGE: Файл слишком большой
+    DISABLED: Вложения отключены
+    RATE_LIMITED: Слишком много незавершённых загрузок
+    STORAGE_FULL: Хранилище заполнено
+    NETWORK: Ошибка сети
+    SERVER: Не удалось загрузить файл
+    EXPIRED: Файл устарел, прикрепите его снова
   DIALOG:
     ADD_HEADER: Добавить комнату
     EDIT_HEADER: Редактировать комнату
@@ -181,6 +197,15 @@ SETTINGS:
     PASSWORD_RECOVERY_CODE_TTL_DESC: Срок действия кода восстановления (60000–3600000 мс, по умолчанию 600000)
     ICE_SERVERS: Конфигурация ICE серверов (JSON)
     ICE_SERVERS_DESC: Список STUN/TURN серверов для WebRTC соединений в формате JSON
+    ATTACHMENTS: Вложения
+    ATTACHMENTS_ENABLED: Разрешить вложения
+    ATTACHMENTS_ENABLED_DESC: Можно прикреплять файлы к сообщениям
+    ATTACHMENTS_MAX_FILE_SIZE: Максимальный размер файла (МиБ)
+    ATTACHMENTS_MAX_FILE_SIZE_DESC: Лимит на файл от 1 до 1024 МиБ. Обратный прокси должен пропускать не меньше этого размера. Действует для новых загрузок.
+    ATTACHMENTS_MAX_FILES_PER_MESSAGE: Максимум файлов в сообщении
+    ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC: Сколько файлов можно прикрепить к одному сообщению (1–10)
+    ATTACHMENTS_STRIP_IMAGE_METADATA: Удалять метаданные изображений
+    ATTACHMENTS_STRIP_IMAGE_METADATA_DESC: По умолчанию выключено, получатели скачивают исходный файл. Применяется только к новым загрузкам; уже сохранённые файлы не меняются.
     SAVED_SUCCESS: Настройки успешно сохранены
 USER_DELETE:
   TITLE: Удаление учетной записи
@@ -190,6 +215,7 @@ USER_DELETE:
     - С флажком безвозвратно удаляются учетная запись, созданные пользователем комнаты и все его сообщения.
 VALIDATION:
   REQUIRED: Обязательное поле
+  FILE_TOO_BIG: Файл слишком большой
   STRING: Значение должно быть строкой
   TTL_RANGE: Срок действия должен быть в допустимом диапазоне
   USERNAME_LENGTH: Имя пользователя должно содержать 4–32 символа
@@ -201,6 +227,9 @@ VALIDATION:
   ROOM_NAME_LENGTH: Название комнаты должно содержать 1–64 символа
   ROOM_TYPE: Выберите тип комнаты
   MESSAGE_LENGTH: Сообщение должно содержать 1–5000 символов
+  MESSAGE_EMPTY: Сообщение должно содержать текст или файл
+  ATTACHMENTS_MAX_FILE_SIZE_RANGE: Лимит размера файла должен быть от 1 МиБ до 1 ГиБ
+  ATTACHMENTS_MAX_FILES_RANGE: Количество файлов должно быть от 1 до 10
   SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации
   INVITE_CODE_REQUIRED: Код приглашения обязателен для регистрации
   INVALID_SCHEMA: Неверный формат схемы

@@ -1,5 +1,6 @@
 export * from './const';
 export * from './enums';
+export * from './text-room';
 export * from './schemas/base.schemas';
 export * from './schemas/settings.schemas';
 export * from './schemas/text-room.schemas';
@@ -16,3 +17,4 @@ export * from './schemas/public.schemas';
 export * from './schemas/notification.schemas';
 export * from './schemas/voice-session.schemas';
 export * from './schemas/entity-sync.schemas';
+export * from './schemas/attachment.schemas';

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   FileServiceInjectionToken,
   USER_AVATARS_BUCKET,
+  assertAvatarFileSize,
   type FileService,
   type FileStreamResult,
 } from '@shared/services/file.service';
@@ -18,6 +19,7 @@ export class UsersAvatarsService {
   ) {}
 
   public async upload(file: Express.Multer.File): Promise<string> {
+    assertAvatarFileSize(file);
     const processedFile = await this.imageProcessingService.convertToWebp(file);
     return this.fileService.upload(processedFile, this.bucketName);
   }

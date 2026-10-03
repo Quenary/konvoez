@@ -15,47 +15,13 @@ import {
   PasswordRecoveryRequestDto,
 } from './auth.dto';
 import type { Request, Response } from 'express';
-import { AppService } from '@shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserDto } from '../users/users.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly appService: AppService,
-  ) {}
-
-  /**
-   * Set auth cookies to the response
-   * @param username
-   * @param res
-   */
-  private setCookies(userId: number, res: Response): void {
-    const accessToken = this.authService.generateToken({
-      type: 'access',
-      userId,
-    });
-    const refreshToken = this.authService.generateToken({
-      type: 'refresh',
-      userId,
-    });
-    res.cookie(ACCESS_TOKEN_KEY, accessToken, {
-      httpOnly: true,
-      sameSite: this.appService.COOKIE_SAME_SITE,
-      secure: this.appService.COOKIE_SECURE,
-      domain: this.appService.COOKIE_DOMAIN,
-      maxAge: this.appService.ACCESS_TTL * 60 * 1000,
-    });
-    res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
-      httpOnly: true,
-      sameSite: this.appService.COOKIE_SAME_SITE,
-      secure: this.appService.COOKIE_SECURE,
-      domain: this.appService.COOKIE_DOMAIN,
-      maxAge: this.appService.REFRESH_TTL * 60 * 1000,
-    });
-  }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @ApiOkResponse({
@@ -66,7 +32,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const user = await this.authService.validateUser(dto.login, dto.password);
-    this.setCookies(user.id, res);
+    this.authService.setAuthCookies(user.id, res);
     return user;
   }
 
@@ -79,8 +45,8 @@ export class AuthController {
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token');
     }
-    const data = await this.authService.resolveRefreshToken(refreshToken);
-    this.setCookies(data.userId, res);
+    const user = await this.authService.resolveRefreshToken(refreshToken);
+    this.authService.setAuthCookies(user.id, res);
     return { ok: true };
   }
 

@@ -66,6 +66,8 @@ describe('TextRoomsGateway', () => {
       createdAt: new Date(),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     };
 
@@ -89,6 +91,8 @@ describe('TextRoomsGateway', () => {
       createdAt: new Date(),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     };
 
@@ -113,6 +117,8 @@ describe('TextRoomsGateway', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     };
 
@@ -136,6 +142,8 @@ describe('TextRoomsGateway', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     };
 

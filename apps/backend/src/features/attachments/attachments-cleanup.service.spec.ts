@@ -1,0 +1,286 @@
+jest.mock('@mikro-orm/nestjs', () => ({
+  InjectRepository: () => () => undefined,
+}));
+jest.mock('@mikro-orm/core', () => {
+  const createProxy = (): unknown =>
+    new Proxy(() => createProxy(), {
+      get: () => createProxy(),
+      apply: () => createProxy(),
+    });
+  return {
+    defineEntity: () => ({
+      class: class {},
+      setClass: () => undefined,
+      addHook: () => undefined,
+    }),
+    p: createProxy(),
+  };
+});
+
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { Logger } from '@nestjs/common';
+import { attachmentsPendingTtlMs } from '@konvoez/shared';
+import { AttachmentsCleanupService } from './attachments-cleanup.service';
+import { EAttachmentStatus } from './attachments.const';
+
+describe('AttachmentsCleanupService', () => {
+  const em = {
+    find: jest.fn().mockResolvedValue([]),
+    remove: jest.fn(),
+    flush: jest.fn().mockResolvedValue(undefined),
+    clear: jest.fn(),
+  };
+  const orm = {
+    em: {
+      fork: jest.fn(() => em),
+    },
+  };
+  const fileService = {
+    delete: jest.fn().mockResolvedValue(undefined),
+  };
+  const appService = { UPLOAD_TMP_DIR: '' };
+  let service: AttachmentsCleanupService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    em.find.mockResolvedValue([]);
+    em.flush.mockResolvedValue(undefined);
+    fileService.delete.mockResolvedValue(undefined);
+    orm.em.fork.mockReturnValue(em);
+    appService.UPLOAD_TMP_DIR = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'konvoez-tmp-'),
+    );
+    service = new AttachmentsCleanupService(
+      orm as never,
+      fileService as never,
+      appService as never,
+    );
+  });
+
+  afterEach(() => {
+    service.onModuleDestroy();
+    fs.rmSync(appService.UPLOAD_TMP_DIR, { recursive: true, force: true });
+  });
+
+  function pendingRow(createdAt: Date) {
+    return {
+      status: EAttachmentStatus.PENDING,
+      createdAt,
+      storageKey: 'message-attachments/old',
+      thumbnailKey: 'message-attachments/old-thumb',
+      message: { id: 1 },
+      uploader: { id: 1 },
+    };
+  }
+
+  it('purges pending rows older than the ttl', async () => {
+    const row = pendingRow(
+      new Date(Date.now() - attachmentsPendingTtlMs - 1000),
+    );
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { status?: string }) =>
+        where.status === EAttachmentStatus.PENDING ? [row] : [],
+    );
+
+    await service.sweep();
+
+    expect(orm.em.fork).toHaveBeenCalled();
+    expect(fileService.delete).toHaveBeenCalledWith(row.storageKey);
+    expect(em.remove).toHaveBeenCalledWith(row);
+    expect(em.flush).toHaveBeenCalled();
+  });
+
+  it('purges detached rows and deletes objects before rows', async () => {
+    const order: string[] = [];
+    const row = {
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: 'message-attachments/gone',
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    };
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) =>
+        where.$or ? [row] : [],
+    );
+    fileService.delete.mockImplementation(async () => {
+      order.push('delete');
+    });
+    em.remove.mockImplementation(() => {
+      order.push('remove');
+    });
+    em.flush.mockImplementation(async () => {
+      order.push('flush');
+    });
+
+    await service.purgeDetached();
+
+    expect(order).toEqual(['delete', 'remove', 'flush']);
+  });
+
+  it('ignores a missing stored object', async () => {
+    const row = {
+      status: EAttachmentStatus.PENDING,
+      storageKey: 'message-attachments/missing',
+      thumbnailKey: null,
+      message: null,
+      uploader: null,
+    };
+    em.find.mockResolvedValue([row]);
+    fileService.delete.mockRejectedValue(
+      Object.assign(new Error('missing'), { code: 'ENOENT' }),
+    );
+
+    await expect(service.purgeDetached()).resolves.toBeUndefined();
+    expect(em.remove).toHaveBeenCalledWith(row);
+  });
+
+  it('repeats a purge that arrives while one is running', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const late = {
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: 'message-attachments/late',
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    };
+    let detachedQueries = 0;
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) => {
+        if (!where.$or) {
+          return [];
+        }
+        detachedQueries += 1;
+        if (detachedQueries === 1) {
+          await gate;
+          return [];
+        }
+        return [late];
+      },
+    );
+
+    const first = service.purgeDetached();
+    await expect(service.purgeDetached()).resolves.toBeUndefined();
+    release();
+    await first;
+
+    expect(em.remove).toHaveBeenCalledWith(late);
+  });
+
+  it('drains every full batch', async () => {
+    const full = Array.from({ length: 100 }, (_, index) => ({
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: `message-attachments/${index}`,
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    }));
+    const rest = {
+      status: EAttachmentStatus.ATTACHED,
+      storageKey: 'message-attachments/rest',
+      thumbnailKey: null,
+      message: null,
+      uploader: { id: 1 },
+    };
+    let detachedQueries = 0;
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) => {
+        if (!where.$or) {
+          return [];
+        }
+        detachedQueries += 1;
+        if (detachedQueries === 1) {
+          return full;
+        }
+        return [rest];
+      },
+    );
+
+    await service.purgeDetached();
+
+    expect(em.remove).toHaveBeenCalledTimes(101);
+    expect(em.remove).toHaveBeenCalledWith(rest);
+  });
+
+  it('starts a purge from delete events', async () => {
+    const purge = jest
+      .spyOn(service, 'purgeDetached')
+      .mockResolvedValue(undefined);
+    service.onDeleted();
+    expect(purge).toHaveBeenCalled();
+  });
+
+  it('resolves when a sweep query fails', async () => {
+    const error = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    em.find.mockRejectedValue(new Error('db down'));
+
+    await expect(service.sweep()).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('purges detached rows flagged while the temp sweep is running', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered: () => void = () => undefined;
+    const enteredTemp = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    jest.spyOn(service, 'sweepTempDir').mockImplementation(async () => {
+      entered();
+      await gate;
+    });
+    let detachedQueries = 0;
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) => {
+        if (!where.$or) {
+          return [];
+        }
+        detachedQueries += 1;
+        return [];
+      },
+    );
+
+    const pending = service.sweep();
+    await enteredTemp;
+    service.onDeleted();
+    release();
+    await pending;
+
+    expect(detachedQueries).toBe(2);
+  });
+
+  it('sweeps the temp directory from the hourly run', async () => {
+    const sweepTemp = jest
+      .spyOn(service, 'sweepTempDir')
+      .mockResolvedValue(undefined);
+
+    await service.sweep();
+
+    expect(sweepTemp).toHaveBeenCalled();
+  });
+
+  it('removes temp files older than an hour at boot', async () => {
+    const oldPath = path.join(appService.UPLOAD_TMP_DIR, 'old');
+    const freshPath = path.join(appService.UPLOAD_TMP_DIR, 'fresh');
+    fs.writeFileSync(oldPath, 'old');
+    fs.writeFileSync(freshPath, 'fresh');
+    const hour = 60 * 60 * 1000;
+    const past = new Date(Date.now() - hour - 1000);
+    fs.utimesSync(oldPath, past, past);
+
+    await service.sweepTempDir();
+
+    expect(fs.existsSync(oldPath)).toBe(false);
+    expect(fs.existsSync(freshPath)).toBe(true);
+  });
+});

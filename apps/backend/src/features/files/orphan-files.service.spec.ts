@@ -24,6 +24,7 @@ import type {
 } from '@shared/services/file.service';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { UserEntity } from '../users/users.entity';
+import { MessageAttachmentEntity } from '../attachments/attachments.entity';
 import { OrphanFilesService } from './orphan-files.service';
 
 describe('OrphanFilesService', () => {
@@ -46,6 +47,14 @@ describe('OrphanFilesService', () => {
       }
       if (entity === RoomEntity) {
         return [{ avatar: referencedRoomKey }];
+      }
+      if (entity === MessageAttachmentEntity) {
+        return [
+          {
+            storageKey: 'message-attachments/keep',
+            thumbnailKey: 'message-attachments/keep-thumb',
+          },
+        ];
       }
       return [];
     });
@@ -94,7 +103,10 @@ describe('OrphanFilesService', () => {
       if (bucket === 'users-avatars') {
         throw new Error('list failed');
       }
-      return [{ key: roomOrphan, modifiedAt: oldFile.modifiedAt }];
+      if (bucket === 'rooms-avatars') {
+        return [{ key: roomOrphan, modifiedAt: oldFile.modifiedAt }];
+      }
+      return [];
     });
     find.mockResolvedValue([]);
     await expect(service.cleanup(now)).resolves.toBe(1);
@@ -116,5 +128,25 @@ describe('OrphanFilesService', () => {
     release();
     await expect(first).resolves.toBe(0);
     expect(fileService.delete).not.toHaveBeenCalled();
+  });
+
+  it('keeps referenced attachment and thumbnail keys', async () => {
+    const orphan = 'message-attachments/orphan';
+    fileService.list.mockImplementation(async (bucket: string) => {
+      if (bucket !== 'message-attachments') {
+        return [];
+      }
+      return [
+        { key: 'message-attachments/keep', modifiedAt: oldFile.modifiedAt },
+        {
+          key: 'message-attachments/keep-thumb',
+          modifiedAt: oldFile.modifiedAt,
+        },
+        { key: orphan, modifiedAt: oldFile.modifiedAt },
+      ];
+    });
+
+    await expect(service.cleanup(now)).resolves.toBe(1);
+    expect(fileService.delete).toHaveBeenCalledWith(orphan);
   });
 });

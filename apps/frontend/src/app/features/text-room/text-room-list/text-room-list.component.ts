@@ -12,8 +12,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
 import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
-import { TuiButton } from '@taiga-ui/core';
+import { TuiButton, TuiHint } from '@taiga-ui/core';
 import {
   auditTime,
   combineLatest,
@@ -24,11 +25,20 @@ import {
   tap,
 } from 'rxjs';
 import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
-import { EMessageStatus, TextRoomStore } from '../text-room.store';
+import { TextRoomStore } from '../text-room.store';
+
+/** Slack for subpixel rounding when deciding the list is fully scrolled down. */
+const bottomPinThresholdPx = 8;
 
 @Component({
   selector: 'app-text-room-list',
-  imports: [TextRoomMessageComponent, InfiniteScrollDirective, TuiButton],
+  imports: [
+    TextRoomMessageComponent,
+    InfiniteScrollDirective,
+    TuiButton,
+    TranslatePipe,
+    TuiHint,
+  ],
   templateUrl: './text-room-list.component.html',
   styleUrl: './text-room-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,6 +49,8 @@ export class TextRoomListComponent implements OnInit {
   private readonly injector = inject(Injector);
 
   protected readonly messages = this.textRoomStore.messages;
+  protected readonly showScrollToBottom = signal<boolean>(false);
+  protected readonly infiniteScrollDisabled = signal<boolean>(true);
 
   private readonly scrollContainerRef = viewChild.required<
     unknown,
@@ -46,18 +58,34 @@ export class TextRoomListComponent implements OnInit {
   >('scrollContainer', {
     read: ElementRef,
   });
-
-  protected readonly showScrollToBottom = signal<boolean>(false);
-  protected readonly infiniteScrollDisabled = signal<boolean>(true);
+  private lastOutgoingId: string | null = null;
+  /** `undefined` until the first messages read, so the initial page does not count as a new tail. */
+  private tailMessageId: string | null | undefined = undefined;
+  private pinnedToBottom = true;
 
   constructor() {
     effect(() => {
       const messages = this.messages();
       const last = messages.at(-1);
+      const tailId = last?.id ?? null;
+      const outgoingId = last?.outgoing ? last.id : null;
 
       untracked(() => {
-        if (last && last.status === EMessageStatus.LOADING) {
+        const isFirstRead = this.tailMessageId === undefined;
+        const tailChanged = !isFirstRead && tailId !== this.tailMessageId;
+        this.tailMessageId = tailId;
+
+        if (outgoingId && outgoingId !== this.lastOutgoingId) {
+          this.lastOutgoingId = outgoingId;
           this.scrollToBottom('smooth');
+          return;
+        }
+        if (!outgoingId) {
+          this.lastOutgoingId = null;
+        }
+
+        if (tailChanged && this.pinnedToBottom) {
+          this.scrollToBottom();
         }
       });
     });
@@ -90,7 +118,14 @@ export class TextRoomListComponent implements OnInit {
   ngOnInit(): void {
     const scrollContainerRef = this.scrollContainerRef();
     fromEvent(scrollContainerRef.nativeElement, 'scroll')
-      .pipe(auditTime(100), takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        tap(($event) => {
+          const el = $event.target as HTMLDivElement;
+          this.pinnedToBottom = this.isAtBottom(el);
+        }),
+        auditTime(100),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(($event) => {
         const el = $event.target as HTMLDivElement;
         this.showScrollToBottom.set(
@@ -137,6 +172,7 @@ export class TextRoomListComponent implements OnInit {
   }
 
   scrollToBottom(behavior: ScrollBehavior = 'instant'): void {
+    this.pinnedToBottom = true;
     requestAnimationFrame(() => {
       const el = this.scrollContainerRef().nativeElement;
       el.scrollTo({
@@ -144,5 +180,11 @@ export class TextRoomListComponent implements OnInit {
         behavior,
       });
     });
+  }
+
+  private isAtBottom(el: HTMLElement): boolean {
+    return (
+      el.scrollHeight - el.scrollTop - el.clientHeight <= bottomPinThresholdPx
+    );
   }
 }

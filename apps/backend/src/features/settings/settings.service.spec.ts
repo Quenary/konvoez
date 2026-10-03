@@ -21,8 +21,11 @@ import { SettingsService } from './settings.service';
 import { SettingsEntity } from './settings.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import {
+  attachmentsDefaultMaxFileSize,
+  attachmentsDefaultMaxFilesPerMessage,
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  defaultSettingValues,
   ESettingKey,
 } from '@konvoez/shared';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -125,6 +128,14 @@ describe('SettingsService', () => {
           return existingInviteSetting;
         if (key === ESettingKey.PASSWORD_RECOVERY_CODE_TTL)
           return existingTtlSetting;
+        if (key) {
+          return {
+            key,
+            value: defaultSettingValues[key],
+            createdAt: new Date(),
+            updatedAt: null,
+          } as unknown as SettingsEntity;
+        }
         return null;
       });
 
@@ -271,6 +282,34 @@ describe('SettingsService', () => {
 
       expect(repo.assign).not.toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
+    });
+
+    it('should initialize attachment settings from defaults and env overrides', async () => {
+      process.env[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE] = String(
+        attachmentsDefaultMaxFileSize,
+      );
+      process.env[ESettingKey.ATTACHMENTS_ENABLED] = 'false';
+
+      repo.findOne.mockResolvedValue(null);
+
+      await service.onApplicationBootstrap();
+
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.ATTACHMENTS_ENABLED,
+        value: false,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
+        value: attachmentsDefaultMaxFileSize,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
+        value: attachmentsDefaultMaxFilesPerMessage,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
+        value: false,
+      });
     });
   });
 

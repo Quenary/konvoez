@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError } from '@nestjs/jwts';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
@@ -18,8 +19,8 @@ import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
 } from '@shared/events/entity-sync.events';
-import { Request } from 'express';
-import { ACCESS_TOKEN_KEY } from './auth.const';
+import { Request, Response } from 'express';
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthJWTData, AuthRegisterDto } from './auth.dto';
 import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
@@ -341,10 +342,47 @@ export class AuthService implements OnApplicationBootstrap {
     });
   }
 
-  verifyToken(token: string): AuthJWTData {
-    return this.jwt.verify<AuthJWTData>(token, {
-      secret: this.appService.JWT_SECRET,
+  setAuthCookies(userId: number, res: Response): void {
+    const accessToken = this.generateToken({
+      type: 'access',
+      userId,
     });
+    const refreshToken = this.generateToken({
+      type: 'refresh',
+      userId,
+    });
+    res.cookie(ACCESS_TOKEN_KEY, accessToken, {
+      httpOnly: true,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      maxAge: this.appService.ACCESS_TTL * 60 * 1000,
+    });
+    res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
+      httpOnly: true,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      maxAge: this.appService.REFRESH_TTL * 60 * 1000,
+    });
+  }
+
+  verifyToken(token: string, type: AuthJWTData['type']): AuthJWTData {
+    let data: AuthJWTData;
+    try {
+      data = this.jwt.verify<AuthJWTData>(token, {
+        secret: this.appService.JWT_SECRET,
+      });
+    } catch (error) {
+      if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Unauthorized');
+      }
+      throw error;
+    }
+    if (data.type !== type) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+    return data;
   }
 
   /**
@@ -362,14 +400,13 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
-    const res = this.verifyToken(accessToken);
+    const res = this.verifyToken(accessToken, 'access');
     return await this.requireActiveUser(res.userId);
   }
 
-  async resolveRefreshToken(refreshToken: string): Promise<AuthJWTData> {
-    const data = this.verifyToken(refreshToken);
-    await this.requireActiveUser(data.userId);
-    return data;
+  async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {
+    const data = this.verifyToken(refreshToken, 'refresh');
+    return await this.requireActiveUser(data.userId);
   }
 
   async getUserFromRawCookies(

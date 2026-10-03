@@ -9,7 +9,9 @@ import { S3Service } from './services/s3.service';
 import type { FileService } from './services/file.service';
 import { FileServiceInjectionToken } from './tokens/file-service.token';
 import { ImageProcessingService } from './services/image-processing.service';
+import { VideoProcessingService } from './services/video-processing.service';
 import { MailService } from './services/mail.service';
+import { StorageNamingService } from './services/storage-naming.service';
 
 @Global()
 @Module({
@@ -18,9 +20,11 @@ import { MailService } from './services/mail.service';
     PasswordService,
     MailService,
     EncryptionService,
+    StorageNamingService,
     LocalObjectStorageService,
     S3Service,
     ImageProcessingService,
+    VideoProcessingService,
     {
       provide: S3ClientInjectionToken,
       inject: [AppService],
@@ -29,6 +33,8 @@ import { MailService } from './services/mail.service';
           region: configService.S3_REGION,
           endpoint: configService.S3_ENDPOINT,
           forcePathStyle: configService.S3_FORCE_PATH_STYLE,
+          requestChecksumCalculation: 'WHEN_REQUIRED',
+          responseChecksumValidation: 'WHEN_REQUIRED',
         };
         if (configService.S3_ACCESS_KEY_ID && configService.S3_ACCESS_KEY) {
           config.credentials = {
@@ -58,6 +64,7 @@ import { MailService } from './services/mail.service';
     FileServiceInjectionToken,
     EncryptionService,
     ImageProcessingService,
+    VideoProcessingService,
   ],
 })
 export class SharedModule {}

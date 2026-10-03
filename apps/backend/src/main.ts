@@ -36,6 +36,8 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, documentFactory);
 
   app.enableShutdownHooks();
+  const server = app.getHttpServer();
+  server.requestTimeout = 15 * 60 * 1000;
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

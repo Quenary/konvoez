@@ -54,7 +54,7 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 - Prefer discriminated unions over boolean flag combinations.
 - Prefer `satisfies` over `as` when checking object shapes.
 - Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
-- Field order in classes: private → protected → public.
+- Class member order is the four groups in the Angular section below.
 - Naming: PascalCase for classes, camelCase for members/variables.
 - Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `HttpClient` → `httpClient`, `UsersService` → `usersService`). Do not shorten to `http`, `users`, etc.
 
@@ -83,6 +83,11 @@ computed(() => {
 
 - Always set `changeDetection: ChangeDetectionStrategy.OnPush`.
 - Prefer `inject()` over constructor injection.
+- Order class members in four groups, and do not mix them:
+  1. Every `inject()` call, including `protected` ones.
+  2. Other fields, from `public` to `private` (`input()`, `output()`, `signal()`, `computed()`, `viewChild()`, plain fields).
+  3. The constructor, when there is one.
+  4. Methods, from `public` to `private`.
 - Put host bindings in the `host` object of `@Component` / `@Directive` — do not use `@HostBinding` / `@HostListener`.
 - Do not use `ngClass` / `ngStyle`; use `[class.foo]` / `[style.prop]`.
 - Lazy-load feature routes with `loadComponent` (see `app.routes.ts`).
@@ -91,7 +96,7 @@ computed(() => {
 ### Templates
 
 - Prefer `@if`, `@for`, `@switch` (native control flow).
-- Keep templates simple — no heavy logic or method calls in loops.
+- Keep templates simple. Do not call ordinary methods or functions from templates (bindings, interpolations, `@if` / `@for` / `@switch`, or `host` property bindings). Change detection re-runs them on every cycle. Precompute derived values in `computed()` (or on the view-model passed into `@for`) and read those signals in the template. Event bindings such as `(click)="save()"` are fine.
 - Prefer signals in templates; use `async` pipe for Observables when signals are not available.
 - Two-way binding with writable signals is fine: `[(open)]="isOpen"`.
 - Format dates with `DayjsPipe` (`| dayjs`), not Angular `DatePipe`. Default format is locale-aware (`L LTS`); pass a dayjs format string only when a specific layout is required. Import from `@shared/pipes/dayjs.pipe`.

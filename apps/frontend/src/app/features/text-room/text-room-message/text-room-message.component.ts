@@ -23,9 +23,12 @@ import {
 } from '@taiga-ui/core';
 import { TuiEditorSocket } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
-import { EUserRole, ITextRoomMessageReply, IUser } from '@konvoez/shared';
+import {
+  canDeleteTextRoomMessage,
+  ITextRoomMessageReply,
+  IUser,
+} from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UsersStore } from '@features/users/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import {
@@ -37,12 +40,16 @@ import { MessageVisibilityDirective } from '@shared/directives/message-visibilit
 import { TextRoomApiService } from '../text-room-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
+import { mediaFrameLimit } from '@shared/components/media-grid/media-grid.layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
+import { MessageAttachmentsComponent } from '../message-attachments/message-attachments.component';
+import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
+import { EAttachmentKind } from '@konvoez/shared';
+import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
 
 @Component({
   selector: 'app-text-room-message',
   imports: [
-    DayjsPipe,
     TranslatePipe,
     UserAvatarComponent,
     TuiButton,
@@ -56,7 +63,9 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
     TuiAutoColorPipe,
     TextContentPipe,
     MessageVisibilityDirective,
+    MessageAttachmentsComponent,
     TuiList,
+    TodayDayjsPipe,
   ],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',
@@ -71,15 +80,89 @@ export class TextRoomMessageComponent {
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly textRoomApiService = inject(TextRoomApiService);
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  private readonly outgoingStore = inject(OutgoingMessagesStore);
 
   public readonly message = input.required<IMessageEntity>();
+
+  private readonly emptyProgress: Record<string, number> = {};
 
   protected readonly usersById = computed(() => this.usersStore.entityMap());
 
   protected readonly sanitizedContent = computed(() =>
     this.sanitizer.sanitize(SecurityContext.HTML, this.message().content),
   );
+
+  protected readonly attachmentList = computed(
+    () => this.message().attachments ?? [],
+  );
+
+  protected readonly outgoing = computed(() => this.message().outgoing ?? null);
+
+  protected readonly progress = computed(() =>
+    this.outgoing() ? this.outgoingStore.uploadProgress() : this.emptyProgress,
+  );
+
+  protected readonly mediaFrame = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachmentList();
+    const sizes: { width: number; height: number }[] = [];
+    if (outgoing) {
+      for (const file of outgoing.files) {
+        if (
+          file.kind !== EAttachmentKind.IMAGE &&
+          file.kind !== EAttachmentKind.VIDEO
+        ) {
+          continue;
+        }
+        if (!file.width || !file.height) {
+          return null;
+        }
+        sizes.push({ width: file.width, height: file.height });
+      }
+    } else {
+      for (const item of attachments) {
+        if (
+          item.kind !== EAttachmentKind.IMAGE &&
+          item.kind !== EAttachmentKind.VIDEO
+        ) {
+          continue;
+        }
+        if (!item.width || !item.height) {
+          return null;
+        }
+        sizes.push({ width: item.width, height: item.height });
+      }
+    }
+    return mediaFrameLimit(sizes);
+  });
+
+  protected readonly hasMedia = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachmentList();
+    if (outgoing) {
+      return outgoing.files.some(
+        (file) =>
+          file.kind === EAttachmentKind.IMAGE ||
+          file.kind === EAttachmentKind.VIDEO,
+      );
+    }
+    return attachments.some(
+      (item) =>
+        item.kind === EAttachmentKind.IMAGE ||
+        item.kind === EAttachmentKind.VIDEO,
+    );
+  });
+
+  protected readonly showAttachments = computed(() => {
+    const outgoing = this.outgoing();
+    const attachments = this.attachmentList();
+    return (outgoing?.files.length ?? 0) > 0 || attachments.length > 0;
+  });
+
+  protected readonly hasText = computed(() => {
+    const content = this.sanitizedContent();
+    return !!content && content.replace(/<[^>]*>/g, '').trim().length > 0;
+  });
 
   protected readonly senderUser = computed(() => {
     const message = this.message();
@@ -159,23 +242,31 @@ export class TextRoomMessageComponent {
 
   protected readonly canResend = computed(() => this.readStatus() === 'error');
 
-  protected readonly canEdit = computed(() => this.isOwnMessage());
+  protected readonly canCancelSending = computed(() => {
+    const phase = this.outgoing()?.state.phase;
+    return phase === 'uploading' || phase === 'failed';
+  });
+
+  protected readonly canEdit = computed(
+    () => this.isOwnMessage() && !this.outgoing(),
+  );
   protected readonly canViewReaders = computed(() => {
     const isOwnMessage = this.isOwnMessage();
     const isDirectChat = this.isDirectChat();
-    return isOwnMessage && !isDirectChat;
+    const outgoing = this.outgoing();
+    return isOwnMessage && !isDirectChat && !outgoing;
   });
   protected readonly canDelete = computed(() => {
-    const currentUser = this.currentUser() as IUser | null;
+    const currentUser = this.currentUser();
     const message = this.message();
-
-    if (!currentUser) return false;
-    if (message.senderId === currentUser.id) return true;
-    return [EUserRole.OWNER, EUserRole.ADMIN].includes(currentUser.role);
+    const outgoing = this.outgoing();
+    return !outgoing && canDeleteTextRoomMessage(message, currentUser);
   });
 
   protected readonly readers = signal<IUser[]>([]);
   protected readonly readersLoading = signal(false);
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected replyMessage(): void {
     this.textRoomStore.setReplyToMessageId(this.message().id);
@@ -191,6 +282,14 @@ export class TextRoomMessageComponent {
 
   protected resendMessage(): void {
     this.textRoomStore.retryMessage(this.message().id);
+  }
+
+  protected cancelSending(): void {
+    this.textRoomStore.cancelOutgoing(this.message().id);
+  }
+
+  protected removeOutgoingFile(localId: string): void {
+    this.textRoomStore.removeOutgoingFile(this.message().id, localId);
   }
 
   protected onReplyQuoteClick(reply: ITextRoomMessageReply): void {

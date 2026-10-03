@@ -13,6 +13,7 @@ import { UsersService } from './users.service';
 import { GetUserDto } from './users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
+import { AuthRefreshFallback } from '../auth/auth.decorator';
 import { UsersAvatarsService } from './users-avatars.service';
 
 @Controller('users')
@@ -34,6 +35,7 @@ export class UsersController {
   }
 
   @Get('avatar/stream')
+  @AuthRefreshFallback(true)
   @ApiOkResponse({
     type: StreamableFile,
     description: 'Returns avatar binary stream directly',
@@ -47,7 +49,7 @@ export class UsersController {
     res.set({
       'Content-Type': contentType,
       ...(contentLength && { 'Content-Length': contentLength.toString() }),
-      'Cache-Control': 'public, max-age=86400',
+      'Cache-Control': 'private, max-age=86400',
     });
 
     return new StreamableFile(stream);

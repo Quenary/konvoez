@@ -37,14 +37,35 @@
   </section>
 }
 
+@if (files().length > 0) {
+  <app-composer-attachments
+    [files]="files()"
+    (remove)="removeFile($event)" />
+}
+
 <section class="field">
+  @if (attachmentsEnabled() && !editableMessage()) {
+    <button
+      tuiIconButton
+      type="button"
+      iconStart="@tui.paperclip"
+      size="s"
+      [attr.aria-label]="'ROOMS.ATTACH_FILES' | translate"
+      (click)="fileInput.click()">
+      {{ 'ROOMS.ATTACH_FILES' | translate }}
+    </button>
+    <input
+      #fileInput
+      type="file"
+      multiple
+      hidden
+      (change)="onPick($event)" />
+  }
   <tui-editor
     class="field-editor"
     [formControl]="control"
     [tools]="tools"
-    [floatingToolbar]="true"
-    [style.min-height.rem]="4"
-    [style.max-height.rem]="12">
+    [floatingToolbar]="true">
   </tui-editor>
 
   <button

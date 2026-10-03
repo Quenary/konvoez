@@ -1,11 +1,39 @@
 :host {
-  display: block;
-  inline-size: 100%;
-  max-inline-size: 40rem;
-  margin: 0 auto;
+  position: absolute;
+  // main[tuiNavigationMain] already insets the sides and the bottom by 1.5rem.
+  // Its top border is 0, so the same gap is added here.
+  inset-block: 1.5rem 0;
+  inset-inline: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
 }
 
 form[tuiForm] {
+  inline-size: 100%;
+  // Same track as navigation main: 12 columns, 8.5625rem max each.
+  max-inline-size: calc(12 * 8.5625rem);
+  min-block-size: 0;
+  max-block-size: 100%;
+  flex-shrink: 1;
+  gap: 2rem;
+
+  > header,
+  > footer {
+    flex-shrink: 0;
+  }
+}
+
+.card-scroll {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-block-size: 0;
+}
+
+.card-scroll-content {
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
 }
 

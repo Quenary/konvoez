@@ -1,0 +1,71 @@
+:host {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+[role='listitem'] {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.edge {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  inline-size: 2.75rem;
+  pointer-events: none;
+  opacity: 0;
+
+  &._on {
+    opacity: 1;
+  }
+
+  &-start {
+    inset-inline-start: 0;
+    background: linear-gradient(
+      to right,
+      var(--tui-background-base) 0%,
+      var(--tui-background-base) 30%,
+      transparent 100%
+    );
+  }
+
+  &-end {
+    inset-inline-end: 0;
+    background: linear-gradient(
+      to left,
+      var(--tui-background-base) 0%,
+      var(--tui-background-base) 30%,
+      transparent 100%
+    );
+  }
+}
+
+:host-context([dir='rtl']) {
+  .edge-start {
+    background: linear-gradient(
+      to left,
+      var(--tui-background-base) 0%,
+      var(--tui-background-base) 30%,
+      transparent 100%
+    );
+  }
+
+  .edge-end {
+    background: linear-gradient(
+      to right,
+      var(--tui-background-base) 0%,
+      var(--tui-background-base) 30%,
+      transparent 100%
+    );
+  }
+}

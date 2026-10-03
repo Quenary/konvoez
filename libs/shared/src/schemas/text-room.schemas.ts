@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { baseEntitySchema, stringSchema } from './base.schemas';
-import { messageListMaxLimit, messageListMinLimit } from '../const';
-import { messageContentSchema } from './fields.schemas';
+import {
+  attachmentsMaxFilesHardLimit,
+  messageListMaxLimit,
+  messageListMinLimit,
+} from '../const';
+import { attachmentSchema } from './attachment.schemas';
+import { messageOptionalContentSchema } from './fields.schemas';
 import { IUser } from './user.schemas';
 import { ETextRoomEvent } from '../enums';
 
@@ -43,12 +48,17 @@ export const messageReplyToSchema = z.object({
 export const messageCreateSchema = z.object({
   recipientId: nullableInt,
   roomId: nullableInt,
-  content: messageContentSchema,
+  content: messageOptionalContentSchema.default(''),
   replyToId: z.uuid().nullish(),
+  attachmentIds: z
+    .array(z.uuid())
+    .max(attachmentsMaxFilesHardLimit)
+    .default([]),
+  clientId: z.uuid().optional(),
 });
 
 export const messageEditSchema = z.object({
-  content: messageContentSchema,
+  content: messageOptionalContentSchema,
 });
 
 export const messageSchema = baseEntitySchema.extend({
@@ -57,9 +67,11 @@ export const messageSchema = baseEntitySchema.extend({
   senderUsername: stringSchema,
   recipientId: nullableInt,
   roomId: nullableInt,
-  content: messageContentSchema,
+  content: messageOptionalContentSchema,
   replyTo: messageReplyToSchema.nullish(),
   isRead: z.boolean(),
+  attachments: z.array(attachmentSchema).default([]),
+  clientId: z.uuid().nullable(),
 });
 
 export const markReadSchema = z.object({
