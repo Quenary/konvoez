@@ -94,6 +94,7 @@ ROOMS:
   DROP_FILES_HERE: Перетащите файлы сюда
   SCROLL_TO_BOTTOM: Прокрутить вниз
   REMOVE_FILE: Убрать файл
+  VIDEO_DURATION: Длительность {{duration}}
   CANCEL_SENDING: Отменить отправку
   DOWNLOAD: Скачать
   PREVIEW_UNSUPPORTED: Этот файл нельзя воспроизвести в браузере

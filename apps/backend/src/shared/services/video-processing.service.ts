@@ -2,12 +2,13 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import { Injectable, Logger } from '@nestjs/common';
 import { Semaphore } from 'async-mutex';
-import ffmpegStatic from 'ffmpeg-static';
 import sharp from 'sharp';
 import {
   attachmentsMaxImagePixels,
+  attachmentsMaxVideoDurationSeconds,
   attachmentsThumbnailMaxSide,
 } from '@konvoez/shared';
+import { isEnospc } from '@shared/utils/is-enospc';
 
 const POSTER_DEADLINE_MS = 15_000;
 const VIDEO_PROCESSING_SLOTS = 2;
@@ -30,11 +31,16 @@ const INPUT_FORMAT_BY_MIME: Record<string, string> = {
   'video/quicktime': 'mov',
 };
 
+export type TVideoPosterOutcome =
+  'frame' | 'timeout' | 'missing' | 'failed' | 'undecodable' | 'skipped';
+
 export interface IVideoPoster {
   readonly width: number | null;
   readonly height: number | null;
   readonly written: boolean;
   readonly undecodable: boolean;
+  readonly durationMs: number | null;
+  readonly outcome: TVideoPosterOutcome;
 }
 
 interface ICommandResult {
@@ -43,24 +49,56 @@ interface ICommandResult {
   readonly stderr: string;
 }
 
-type TFrameGrab = 'frame' | 'none' | 'timeout';
+type TFrameGrab = 'frame' | 'none' | 'timeout' | 'missing' | 'failed';
 
-const skippedPoster = {
-  width: null,
-  height: null,
-  written: false,
-  undecodable: false,
-} as const satisfies IVideoPoster;
+interface IFrameGrab {
+  readonly status: TFrameGrab;
+  readonly durationMs: number | null;
+}
+
+function posterResult(
+  outcome: TVideoPosterOutcome,
+  extra: Partial<IVideoPoster> = {},
+): IVideoPoster {
+  return {
+    width: null,
+    height: null,
+    written: false,
+    undecodable: outcome === 'undecodable',
+    durationMs: null,
+    outcome,
+    ...extra,
+  };
+}
 
 export function resolveFfmpegBinary(): string {
   const override = process.env['FFMPEG_PATH'];
   if (override !== undefined && override.trim() !== '') {
     return override;
   }
-  if (typeof ffmpegStatic === 'string' && ffmpegStatic !== '') {
-    return ffmpegStatic;
-  }
   return 'ffmpeg';
+}
+
+export function parseFfmpegDurationMs(stderr: string): number | null {
+  const match = /Duration:\s+(?:N\/A|(\d+):(\d+):(\d+(?:\.\d+)?))/.exec(stderr);
+  if (!match?.[1] || !match[2] || !match[3]) {
+    return null;
+  }
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  if (minutes >= 60 || seconds >= 60) {
+    return null;
+  }
+  const durationMs = Math.round((hours * 3600 + minutes * 60 + seconds) * 1000);
+  if (
+    !Number.isFinite(durationMs) ||
+    durationMs <= 0 ||
+    durationMs > attachmentsMaxVideoDurationSeconds * 1000
+  ) {
+    return null;
+  }
+  return durationMs;
 }
 
 export function videoInputFormat(mime: string): string | null {
@@ -88,7 +126,7 @@ export class VideoProcessingService {
   ): Promise<IVideoPoster> {
     const format = videoInputFormat(mime);
     if (!format) {
-      return skippedPoster;
+      return posterResult('skipped');
     }
     return this.slots.runExclusive(() =>
       this.writePoster(sourcePath, destPath, format, deadlineMs),
@@ -110,20 +148,25 @@ export class VideoProcessingService {
         format,
         deadline,
       );
-      if (framed === 'timeout') {
+      if (framed.status === 'timeout') {
         await fs.promises.rm(destPath, { force: true });
         this.logger.warn('Video poster skipped: frame grab timed out');
-        return skippedPoster;
+        return posterResult('timeout');
       }
-      if (framed === 'none') {
+      if (framed.status === 'missing') {
+        await fs.promises.rm(destPath, { force: true });
+        this.noteMissingBinary();
+        return posterResult('missing');
+      }
+      if (framed.status === 'failed') {
+        await fs.promises.rm(destPath, { force: true });
+        this.logger.warn('Video poster skipped: ffmpeg failed');
+        return posterResult('failed');
+      }
+      if (framed.status === 'none') {
         await fs.promises.rm(destPath, { force: true });
         this.logger.warn('Video poster skipped: no frame could be read');
-        return {
-          width: null,
-          height: null,
-          written: false,
-          undecodable: true,
-        };
+        return posterResult('undecodable');
       }
       const info = await sharp(framePath, {
         failOn: 'error',
@@ -137,17 +180,18 @@ export class VideoProcessingService {
         })
         .webp({ quality: 80 })
         .toFile(destPath);
-      return {
+      return posterResult('frame', {
         width: info.width ?? null,
         height: info.height ?? null,
         written: true,
         undecodable: false,
-      };
+        durationMs: framed.durationMs,
+      });
     } catch (error) {
       await fs.promises.rm(destPath, { force: true });
-      if (isEnoent(error)) {
+      if (isMissingBinary(error)) {
         this.noteMissingBinary();
-        return skippedPoster;
+        return posterResult('missing');
       }
       if (isEnospc(error)) {
         throw error;
@@ -155,7 +199,7 @@ export class VideoProcessingService {
       this.logger.warn(
         `Video poster skipped: ${error instanceof Error ? error.message : error}`,
       );
-      return skippedPoster;
+      return posterResult('failed');
     } finally {
       await fs.promises.rm(framePath, { force: true });
     }
@@ -166,8 +210,10 @@ export class VideoProcessingService {
     framePath: string,
     format: string,
     deadline: number,
-  ): Promise<TFrameGrab> {
+  ): Promise<IFrameGrab> {
     const binary = resolveFfmpegBinary();
+    let failed = false;
+    let empty = false;
     for (const seek of [1, 0]) {
       await fs.promises.rm(framePath, { force: true });
       let result: ICommandResult;
@@ -177,7 +223,7 @@ export class VideoProcessingService {
           [
             '-hide_banner',
             '-loglevel',
-            'error',
+            'info',
             '-nostdin',
             '-threads',
             '1',
@@ -205,24 +251,39 @@ export class VideoProcessingService {
         );
       } catch (error) {
         if (error instanceof CommandTimeoutError) {
-          return 'timeout';
+          return { status: 'timeout', durationMs: null };
+        }
+        if (isMissingBinary(error)) {
+          return { status: 'missing', durationMs: null };
         }
         throw error;
       }
       assertPosterStorage(result.stderr);
       if (result.code !== 0) {
+        failed = true;
         continue;
       }
       try {
         const stat = await fs.promises.stat(framePath);
         if (stat.size > 0) {
-          return 'frame';
+          return {
+            status: 'frame',
+            durationMs: parseFfmpegDurationMs(result.stderr),
+          };
         }
       } catch {
+        empty = true;
         continue;
       }
+      empty = true;
     }
-    return 'none';
+    if (empty) {
+      return { status: 'none', durationMs: null };
+    }
+    if (failed) {
+      return { status: 'failed', durationMs: null };
+    }
+    return { status: 'none', durationMs: null };
   }
 
   private noteMissingBinary(): void {
@@ -231,7 +292,7 @@ export class VideoProcessingService {
     }
     this.loggedMissingBinary = true;
     this.logger.warn(
-      'ffmpeg is not installed; video posters are skipped. Set FFMPEG_PATH or install ffmpeg-static.',
+      'ffmpeg is not installed; video posters are skipped. Set FFMPEG_PATH or install ffmpeg.',
     );
   }
 }
@@ -332,20 +393,13 @@ function commandEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
-function isEnoent(error: unknown): boolean {
+function isMissingBinary(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    error.code === 'ENOENT'
-  );
-}
-
-function isEnospc(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === 'ENOSPC'
+    (error.code === 'ENOENT' ||
+      error.code === 'EACCES' ||
+      error.code === 'ENOEXEC')
   );
 }

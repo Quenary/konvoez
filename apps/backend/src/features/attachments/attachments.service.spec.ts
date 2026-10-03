@@ -89,6 +89,7 @@ describe('AttachmentsService', () => {
     readImageMetadata: jest.Mock;
     stripMetadata: jest.Mock;
     writeThumbnail: jest.Mock;
+    reencodeClientPoster: jest.Mock;
   };
   let videoProcessingService: { createPoster: jest.Mock };
   let settingsService: { getValue: jest.Mock };
@@ -126,6 +127,7 @@ describe('AttachmentsService', () => {
         .mockImplementation(async (_src: string, dest: string) => {
           fs.writeFileSync(dest, 'thumb');
         }),
+      reencodeClientPoster: jest.fn(),
     };
     videoProcessingService = {
       createPoster: jest.fn().mockResolvedValue({
@@ -133,6 +135,8 @@ describe('AttachmentsService', () => {
         height: null,
         written: false,
         undecodable: false,
+        durationMs: null,
+        outcome: 'timeout',
       }),
     };
     settingsService = {
@@ -155,12 +159,17 @@ describe('AttachmentsService', () => {
   async function createPending(
     originalname = 'note.txt',
     size = fs.statSync(filePath).size,
+    extras?: { poster?: { path?: string; size: number }; body?: unknown },
   ) {
-    return service.createPending(author, {
-      path: filePath,
-      size,
-      originalname,
-    });
+    return service.createPending(
+      author,
+      {
+        path: filePath,
+        size,
+        originalname,
+      },
+      extras,
+    );
   }
 
   it('maps a jpeg to IMAGE and stores the original bytes when stripping is off', async () => {
@@ -266,16 +275,24 @@ describe('AttachmentsService', () => {
           height: 1080,
           written: true,
           undecodable: false,
+          durationMs: 2000,
+          outcome: 'frame',
         };
       },
     );
 
-    const dto = await createPending('clip.mp4');
+    const posterPath = path.join(dir, 'client-poster');
+    fs.writeFileSync(posterPath, 'client');
+    const dto = await createPending('clip.mp4', fs.statSync(filePath).size, {
+      poster: { path: posterPath, size: 6 },
+    });
 
     expect(dto.kind).toBe(EAttachmentKind.VIDEO);
     expect(dto.width).toBe(1920);
     expect(dto.height).toBe(1080);
+    expect(dto.durationMs).toBe(2000);
     expect(dto.thumbnailUrl).toMatch(/\/thumbnail$/);
+    expect(imageProcessingService.reencodeClientPoster).not.toHaveBeenCalled();
     expect(fileService.putFile).toHaveBeenCalledWith(
       expect.stringMatching(/-thumb$/),
       expect.objectContaining({ contentType: 'image/webp' }),
@@ -283,21 +300,51 @@ describe('AttachmentsService', () => {
     );
   });
 
+  it('keeps the client duration when ffmpeg writes a frame without one', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('video/mp4');
+    videoProcessingService.createPoster.mockImplementation(
+      async (_source: string, dest: string) => {
+        fs.writeFileSync(dest, 'poster');
+        return {
+          width: 640,
+          height: 360,
+          written: true,
+          undecodable: false,
+          durationMs: null,
+          outcome: 'frame' as const,
+        };
+      },
+    );
+
+    const dto = await createPending('clip.mp4', fs.statSync(filePath).size, {
+      body: { videoDuration: '12.5' },
+    });
+
+    expect(dto.kind).toBe(EAttachmentKind.VIDEO);
+    expect(dto.durationMs).toBe(12500);
+    expect(dto.thumbnailUrl).toMatch(/\/thumbnail$/);
+  });
+
   it('keeps a video when the poster cannot be built', async () => {
     mimeSnifferService.sniff.mockResolvedValue('video/webm');
     videoProcessingService.createPoster.mockResolvedValue({
-      width: 640,
-      height: 360,
+      width: null,
+      height: null,
       written: false,
       undecodable: false,
+      durationMs: null,
+      outcome: 'timeout',
     });
 
-    const dto = await createPending('clip.webm');
+    const dto = await createPending('clip.webm', fs.statSync(filePath).size, {
+      body: { videoWidth: '640', videoHeight: '360', videoDuration: '12.5' },
+    });
 
     expect(dto.kind).toBe(EAttachmentKind.VIDEO);
     expect(dto.thumbnailUrl).toBeNull();
     expect(dto.width).toBe(640);
     expect(dto.height).toBe(360);
+    expect(dto.durationMs).toBe(12500);
     expect(fileService.putFile).toHaveBeenCalledTimes(1);
   });
 
@@ -308,6 +355,8 @@ describe('AttachmentsService', () => {
       height: null,
       written: false,
       undecodable: true,
+      durationMs: null,
+      outcome: 'undecodable',
     });
 
     const dto = await createPending('clip.mp4');
@@ -317,6 +366,90 @@ describe('AttachmentsService', () => {
     expect(dto.width).toBeNull();
     expect(dto.height).toBeNull();
     expect(dto.thumbnailUrl).toBeNull();
+    expect(dto.durationMs).toBeNull();
+  });
+
+  it('keeps an undecodable video when the client poster is valid', async () => {
+    const posterPath = path.join(dir, 'poster');
+    fs.writeFileSync(posterPath, 'jpeg');
+    mimeSnifferService.sniff.mockImplementation(async (target: string) =>
+      target === posterPath ? 'image/jpeg' : 'video/mp4',
+    );
+    videoProcessingService.createPoster.mockResolvedValue({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+      durationMs: null,
+      outcome: 'undecodable',
+    });
+    imageProcessingService.reencodeClientPoster.mockImplementation(
+      async (_src: string, dest: string) => {
+        fs.writeFileSync(dest, 'webp');
+        return { width: 320, height: 180 };
+      },
+    );
+
+    const dto = await createPending('clip.mp4', fs.statSync(filePath).size, {
+      poster: { path: posterPath, size: 4 },
+      body: { videoDuration: '3' },
+    });
+
+    expect(dto.kind).toBe(EAttachmentKind.VIDEO);
+    expect(dto.width).toBe(320);
+    expect(dto.height).toBe(180);
+    expect(dto.durationMs).toBe(3000);
+    expect(dto.thumbnailUrl).toMatch(/\/thumbnail$/);
+  });
+
+  it('drops a bad client poster and fits hint dimensions', async () => {
+    const posterPath = path.join(dir, 'poster');
+    fs.writeFileSync(posterPath, 'nope');
+    mimeSnifferService.sniff.mockImplementation(async (target: string) =>
+      target === posterPath ? 'image/gif' : 'video/mp4',
+    );
+    videoProcessingService.createPoster.mockResolvedValue({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: false,
+      durationMs: null,
+      outcome: 'missing',
+    });
+
+    const dto = await createPending('clip.mp4', fs.statSync(filePath).size, {
+      poster: { path: posterPath, size: 4 },
+      body: { videoWidth: '2000', videoHeight: '1000', videoDuration: 'nope' },
+    });
+
+    expect(imageProcessingService.reencodeClientPoster).not.toHaveBeenCalled();
+    expect(dto.kind).toBe(EAttachmentKind.VIDEO);
+    expect(dto.width).toBe(1024);
+    expect(dto.height).toBe(512);
+    expect(dto.durationMs).toBeNull();
+    expect(dto.thumbnailUrl).toBeNull();
+    expect(fs.existsSync(posterPath)).toBe(false);
+  });
+
+  it('ignores a poster attached to a non-video', async () => {
+    const posterPath = path.join(dir, 'poster');
+    fs.writeFileSync(posterPath, 'jpeg');
+    mimeSnifferService.sniff.mockResolvedValue('image/jpeg');
+    imageProcessingService.readImageMetadata.mockResolvedValue({
+      width: 20,
+      height: 10,
+      pages: 1,
+      format: 'jpeg',
+    });
+
+    const dto = await createPending('photo.jpg', fs.statSync(filePath).size, {
+      poster: { path: posterPath, size: 4 },
+    });
+
+    expect(dto.kind).toBe(EAttachmentKind.IMAGE);
+    expect(imageProcessingService.reencodeClientPoster).not.toHaveBeenCalled();
+    expect(videoProcessingService.createPoster).not.toHaveBeenCalled();
+    expect(fs.existsSync(posterPath)).toBe(false);
   });
 
   it('stores a sanitised original name', async () => {

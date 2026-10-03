@@ -299,6 +299,7 @@ describe('TextRoomMessageComponent', () => {
           size: 1,
           width: null,
           height: null,
+          durationMs: null,
           url: '/api/v1/attachments/att-1/content',
           thumbnailUrl: null,
         },

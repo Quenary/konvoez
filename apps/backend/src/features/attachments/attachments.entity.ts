@@ -32,6 +32,7 @@ export const MessageAttachmentEntitySchema = defineEntity({
     thumbnailKey: p.string().length(512).nullable(),
     width: p.integer().nullable(),
     height: p.integer().nullable(),
+    durationMs: p.integer().nullable(),
   },
 });
 

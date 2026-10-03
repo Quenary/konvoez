@@ -12,7 +12,7 @@ Konvoez is an Nx monorepo:
 
 ### Getting Started
 
-1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Video posters use the `ffmpeg-static` binary installed by `npm install` (the install script downloads it from GitHub). Posters are skipped when that binary is missing. `FFMPEG_PATH`, or an `ffmpeg` binary on `PATH`, is used instead when set.
+1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH`, or `ffmpeg` on `PATH`). Posters are skipped when that binary is missing. The browser can still send a poster.
 
 2. **Install dependencies**:
    ```bash

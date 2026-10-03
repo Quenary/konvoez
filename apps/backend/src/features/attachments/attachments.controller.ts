@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -11,7 +12,7 @@ import {
   Req,
   Res,
   StreamableFile,
-  UploadedFile,
+  UploadedFiles,
   UseFilters,
   UseGuards,
   UseInterceptors,
@@ -65,6 +66,10 @@ export class AttachmentsController {
       type: 'object',
       required: ['file'],
       properties: {
+        videoWidth: { type: 'string' },
+        videoHeight: { type: 'string' },
+        videoDuration: { type: 'string' },
+        poster: { type: 'string', format: 'binary' },
         file: { type: 'string', format: 'binary' },
       },
     },
@@ -72,10 +77,19 @@ export class AttachmentsController {
   @ApiCreatedResponse({ type: AttachmentDto })
   public upload(
     @Author() author: GetUserDto,
-    @UploadedFile()
-    file: { path?: string; size: number; originalname?: string } | undefined,
+    @UploadedFiles()
+    files:
+      | {
+          file?: { path?: string; size: number; originalname?: string }[];
+          poster?: { path?: string; size: number }[];
+        }
+      | undefined,
+    @Body() body: Record<string, unknown>,
   ): Promise<AttachmentDto> {
-    return this.attachmentsService.createPending(author, file);
+    return this.attachmentsService.createPending(author, files?.file?.[0], {
+      poster: files?.poster?.[0],
+      body,
+    });
   }
 
   @Delete(':id')

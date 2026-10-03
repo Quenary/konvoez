@@ -243,6 +243,7 @@ describe('TextRoomEditorComponent', () => {
       size: 10,
       width: 10,
       height: 10,
+      durationMs: null,
       url: '/api/v1/attachments/att-1/content',
       thumbnailUrl: null,
     };

@@ -39,6 +39,7 @@ jest.mock('multer', () => {
   const multer = Object.assign(
     jest.fn(() => ({
       single: () => middleware,
+      fields: () => middleware,
     })),
     {
       __middleware: middleware,
@@ -82,7 +83,10 @@ describe('AttachmentUploadInterceptor', () => {
   let req: {
     headers: Record<string, string>;
     author?: { id: number };
-    file?: { path: string };
+    files?: {
+      file?: { path: string; size: number }[];
+      poster?: { path: string; size: number }[];
+    };
     destroyed?: boolean;
   };
 
@@ -158,7 +162,9 @@ describe('AttachmentUploadInterceptor', () => {
   });
 
   it('rejects an oversized Content-Length before multer runs', async () => {
-    req.headers['content-length'] = String(1024 + 64 * 1024 + 1);
+    req.headers['content-length'] = String(
+      1024 + 2 * 1024 * 1024 + 64 * 1024 + 1,
+    );
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
@@ -174,17 +180,35 @@ describe('AttachmentUploadInterceptor', () => {
     expect(multerMock).toHaveBeenCalledWith(
       expect.objectContaining({
         defParamCharset: 'utf8',
-        limits: { fileSize: 1024, files: 1, fields: 0, parts: 1 },
+        limits: {
+          fileSize: 2 * 1024 * 1024,
+          files: 2,
+          fields: 3,
+          fieldSize: 256,
+          parts: 5,
+        },
       }),
     );
   });
 
   it('unlinks the temp file when the handler fails', async () => {
     const filePath = path.join(appService.UPLOAD_TMP_DIR, 'partial');
+    const posterPath = path.join(appService.UPLOAD_TMP_DIR, 'poster');
     fs.writeFileSync(filePath, 'data');
+    fs.writeFileSync(posterPath, 'poster');
     multerMock.__middleware.mockImplementation(
       (request, _response, callback) => {
-        (request as { file?: { path: string } }).file = { path: filePath };
+        (
+          request as {
+            files?: {
+              file?: { path: string; size: number }[];
+              poster?: { path: string; size: number }[];
+            };
+          }
+        ).files = {
+          file: [{ path: filePath, size: 4 }],
+          poster: [{ path: posterPath, size: 6 }],
+        };
         callback();
       },
     );
@@ -196,7 +220,9 @@ describe('AttachmentUploadInterceptor', () => {
     await expect(lastValueFrom(observable)).rejects.toThrow('handler failed');
     await rm.mock.results[0]?.value;
     expect(rm).toHaveBeenCalledWith(filePath, { force: true });
+    expect(rm).toHaveBeenCalledWith(posterPath, { force: true });
     expect(fs.existsSync(filePath)).toBe(false);
+    expect(fs.existsSync(posterPath)).toBe(false);
     rm.mockRestore();
   });
 
@@ -275,7 +301,11 @@ describe('AttachmentUploadInterceptor', () => {
     const filePath = path.join(appService.UPLOAD_TMP_DIR, 'locked');
     multerMock.__middleware.mockImplementation(
       (request, _response, callback) => {
-        (request as { file?: { path: string } }).file = { path: filePath };
+        (
+          request as {
+            files?: { file?: { path: string; size: number }[] };
+          }
+        ).files = { file: [{ path: filePath, size: 1 }] };
         callback();
       },
     );

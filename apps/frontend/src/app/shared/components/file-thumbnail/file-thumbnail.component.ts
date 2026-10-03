@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { EAttachmentKind } from '@konvoez/shared';
+import { formatVideoDuration } from '@shared/functions/format-video-duration';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint, TuiIcon, TuiLoader } from '@taiga-ui/core';
 import { TuiProgress } from '@taiga-ui/kit';
@@ -56,6 +57,7 @@ export class FileThumbnailComponent {
   public readonly fill = input(false, { transform: booleanAttribute });
   public readonly interactive = input(false, { transform: booleanAttribute });
   public readonly serverVideo = input(false);
+  public readonly durationMs = input<number | null>(null);
 
   public readonly remove = output<void>();
   public readonly activate = output<void>();
@@ -97,6 +99,14 @@ export class FileThumbnailComponent {
   protected readonly formattedSize = computed(() => {
     const size = this.size();
     return size === null ? null : formatSize(size);
+  });
+  protected readonly durationLabel = computed(() => {
+    const kind = this.kind();
+    const durationMs = this.durationMs();
+    if (kind !== EAttachmentKind.VIDEO || durationMs === null) {
+      return null;
+    }
+    return formatVideoDuration(durationMs);
   });
 
   protected onBroken(): void {

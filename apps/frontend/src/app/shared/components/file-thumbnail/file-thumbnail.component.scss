@@ -73,6 +73,21 @@ video {
   inset-block-end: 0.25rem;
 }
 
+.duration {
+  position: absolute;
+  z-index: 1;
+  inset-block-end: 0.25rem;
+  inset-inline-end: 0.25rem;
+  padding-block: 0.05rem;
+  padding-inline: 0.3rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, black 55%, transparent);
+  color: white;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 .play {
   position: absolute;
   z-index: 1;

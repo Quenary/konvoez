@@ -1,3 +1,4 @@
+import { IClientVideoPoster } from '@core/services/video-poster.service';
 import {
   EAttachmentKind,
   INLINE_IMAGE_MIMES,
@@ -24,6 +25,13 @@ export interface ILocalFile {
   readonly previewUrl: string | null;
   readonly width?: number | null;
   readonly height?: number | null;
+  readonly posterStatus: 'pending' | 'ready';
+  readonly posterFile: File | null;
+  readonly posterUrl: string | null;
+  readonly videoWidth: number | null;
+  readonly videoHeight: number | null;
+  readonly videoDuration: number | null;
+  readonly disposePoster?: () => void;
 }
 
 export type TOutgoingFileState =
@@ -70,13 +78,44 @@ export function uploadErrorKey(code: TAttachmentUploadErrorCode): string {
   }
 }
 
+export function withClientPoster<T extends ILocalFile>(
+  file: T,
+  result: IClientVideoPoster | null,
+  posterUrl: string | null,
+): T {
+  return {
+    ...file,
+    posterStatus: 'ready',
+    posterFile: file.posterFile ?? result?.poster ?? null,
+    posterUrl,
+    videoWidth: file.videoWidth ?? result?.videoWidth ?? null,
+    videoHeight: file.videoHeight ?? result?.videoHeight ?? null,
+    videoDuration: file.videoDuration ?? result?.durationSeconds ?? null,
+    width: file.width ?? result?.displayWidth ?? null,
+    height: file.height ?? result?.displayHeight ?? null,
+  };
+}
+
 export function revokeLocalFiles(files: readonly ILocalFile[]): void {
   for (const file of files) {
+    file.disposePoster?.();
     if (file.previewUrl) {
       URL.revokeObjectURL(file.previewUrl);
     }
+    if (file.posterUrl) {
+      URL.revokeObjectURL(file.posterUrl);
+    }
   }
 }
+
+const emptyPoster = {
+  posterStatus: 'ready' as const,
+  posterFile: null,
+  posterUrl: null,
+  videoWidth: null,
+  videoHeight: null,
+  videoDuration: null,
+};
 
 export function createLocalFile(file: File): ILocalFile {
   const localId = v4();
@@ -86,6 +125,7 @@ export function createLocalFile(file: File): ILocalFile {
       file,
       kind: EAttachmentKind.IMAGE,
       previewUrl: URL.createObjectURL(file),
+      ...emptyPoster,
     };
   }
   if (videoMimes.includes(file.type)) {
@@ -94,6 +134,8 @@ export function createLocalFile(file: File): ILocalFile {
       file,
       kind: EAttachmentKind.VIDEO,
       previewUrl: URL.createObjectURL(file),
+      ...emptyPoster,
+      posterStatus: 'pending',
     };
   }
   if (file.type.startsWith('audio/')) {
@@ -102,6 +144,7 @@ export function createLocalFile(file: File): ILocalFile {
       file,
       kind: EAttachmentKind.AUDIO,
       previewUrl: null,
+      ...emptyPoster,
     };
   }
   return {
@@ -109,6 +152,7 @@ export function createLocalFile(file: File): ILocalFile {
     file,
     kind: EAttachmentKind.FILE,
     previewUrl: null,
+    ...emptyPoster,
   };
 }
 

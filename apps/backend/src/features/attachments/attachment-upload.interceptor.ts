@@ -13,14 +13,22 @@ import { Observable, finalize } from 'rxjs';
 import multer, { MulterError } from 'multer';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
-import { ESettingKey, attachmentsMaxPendingPerUser } from '@konvoez/shared';
+import {
+  ESettingKey,
+  attachmentsMaxPendingPerUser,
+  attachmentsMaxPosterSize,
+} from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
+import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
-import { EAttachmentStatus, isEnospc } from './attachments.const';
+import { EAttachmentStatus } from './attachments.const';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/core';
 import { MessageAttachmentEntity } from './attachments.entity';
 import type { Request, Response } from 'express';
+
+/** Byte cap for text hints. Invalid values are dropped by the upload schema. */
+const HINT_FIELD_SIZE = 256;
 
 function isUploadAborted(error: unknown): boolean {
   return error instanceof Error && error.message === 'Request aborted';
@@ -42,7 +50,14 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<unknown>> {
     const http = context.switchToHttp();
-    const req = http.getRequest<Request & { file?: Express.Multer.File }>();
+    const req = http.getRequest<
+      Request & {
+        files?: {
+          file?: Express.Multer.File[];
+          poster?: Express.Multer.File[];
+        };
+      }
+    >();
     const res = http.getResponse<Response>();
     const enabled = await this.settingsService.getValue(
       ESettingKey.ATTACHMENTS_ENABLED,
@@ -64,7 +79,7 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
       ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
     );
     const contentLength = Number(req.headers['content-length'] ?? 0);
-    if (contentLength > maxFileSize + 64 * 1024) {
+    if (contentLength > maxFileSize + attachmentsMaxPosterSize + 64 * 1024) {
       throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
     }
     await fs.promises.mkdir(this.appService.UPLOAD_TMP_DIR, {
@@ -75,9 +90,18 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
         destination: this.appService.UPLOAD_TMP_DIR,
         filename: (_request, _file, callback) => callback(null, randomUUID()),
       }),
-      limits: { fileSize: maxFileSize, files: 1, fields: 0, parts: 1 },
+      limits: {
+        fileSize: Math.max(maxFileSize, attachmentsMaxPosterSize),
+        files: 2,
+        fields: 3,
+        fieldSize: HINT_FIELD_SIZE,
+        parts: 5,
+      },
       defParamCharset: 'utf8',
-    }).single('file');
+    }).fields([
+      { name: 'file', maxCount: 1 },
+      { name: 'poster', maxCount: 1 },
+    ]);
     await new Promise<void>((resolve, reject) => {
       upload(req, res, (error: unknown) => {
         if (!error) {
@@ -100,18 +124,35 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
         reject(error);
       });
     });
+    const video = req.files?.file?.[0];
+    const poster = req.files?.poster?.[0];
+    if (video && video.size > maxFileSize) {
+      this.removeTemp(video.path);
+      this.removeTemp(poster?.path);
+      throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
+    }
+    if (poster && poster.size > attachmentsMaxPosterSize) {
+      this.removeTemp(poster.path);
+      if (req.files) {
+        req.files.poster = [];
+      }
+    }
     return next.handle().pipe(
       finalize(() => {
-        const filePath = req.file?.path;
-        if (!filePath) {
-          return;
-        }
-        fs.promises.rm(filePath, { force: true }).catch((error: unknown) => {
-          this.logger.warn(
-            `Failed to remove temp upload ${filePath}: ${error instanceof Error ? error.message : error}`,
-          );
-        });
+        this.removeTemp(req.files?.file?.[0]?.path);
+        this.removeTemp(req.files?.poster?.[0]?.path);
       }),
     );
+  }
+
+  private removeTemp(filePath: string | undefined): void {
+    if (!filePath) {
+      return;
+    }
+    fs.promises.rm(filePath, { force: true }).catch((error: unknown) => {
+      this.logger.warn(
+        `Failed to remove temp upload ${filePath}: ${error instanceof Error ? error.message : error}`,
+      );
+    });
   }
 }

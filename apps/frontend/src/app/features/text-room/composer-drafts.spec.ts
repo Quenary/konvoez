@@ -23,6 +23,12 @@ describe('composer drafts', () => {
         file: new File(['a'], 'a.png', { type: 'image/png' }),
         kind: EAttachmentKind.IMAGE,
         previewUrl: 'blob:a',
+        posterStatus: 'ready',
+        posterFile: null,
+        posterUrl: null,
+        videoWidth: null,
+        videoHeight: null,
+        videoDuration: null,
       },
     ];
     service.stash('room:1', files);

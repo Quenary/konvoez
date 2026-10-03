@@ -13,11 +13,14 @@ import { Semaphore } from 'async-mutex';
 import fs from 'fs';
 import { parse, stringify as uuidStringify, v7 } from 'uuid';
 import {
+  attachmentUploadHintsSchema,
   attachmentsMaxPendingPerUser,
+  attachmentsMaxPosterSize,
   attachmentsThumbnailMaxSide,
   EAttachmentKind,
   ESettingKey,
   IAttachment,
+  IAttachmentUploadHints,
   INLINE_AUDIO_MIMES,
   INLINE_IMAGE_MIMES,
   INLINE_VIDEO_MIMES,
@@ -29,9 +32,10 @@ import {
 } from '@shared/services/file.service';
 import { ImageProcessingService } from '@shared/services/image-processing.service';
 import { VideoProcessingService } from '@shared/services/video-processing.service';
+import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
 import { GetUserDto } from '../users/users.dto';
-import { EAttachmentStatus, isEnospc } from './attachments.const';
+import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { sanitizeAttachmentName } from './attachments.http';
 import { MimeSnifferService } from './mime-sniffer.service';
@@ -39,11 +43,19 @@ import { MimeSnifferService } from './mime-sniffer.service';
 const processingSemaphore = new Semaphore(2);
 const STRIPPABLE_FORMATS = new Set(['jpeg', 'webp', 'avif', 'png']);
 
+const CLIENT_POSTER_MIMES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+interface IUploadExtras {
+  poster?: { path?: string; size: number };
+  body?: unknown;
+}
+
 interface IStoredUpload {
   mime: string;
   kind: EAttachmentKind;
   width: number | null;
   height: number | null;
+  durationMs: number | null;
   thumbnailPath: string | null;
   size: number;
 }
@@ -69,6 +81,7 @@ export class AttachmentsService {
   public async createPending(
     author: GetUserDto,
     file: { path?: string; size: number; originalname?: string } | undefined,
+    extras?: IUploadExtras,
   ): Promise<IAttachment> {
     if (!file?.path) {
       throw new HttpException('FILE_REQUIRED', HttpStatus.BAD_REQUEST);
@@ -79,7 +92,7 @@ export class AttachmentsService {
       originalname: file.originalname,
     };
     try {
-      return await this.storePending(author, storedFile);
+      return await this.storePending(author, storedFile, extras);
     } catch (error) {
       if (isEnospc(error)) {
         throw new HttpException('STORAGE_FULL', 507);
@@ -98,6 +111,7 @@ export class AttachmentsService {
       size: entity.size,
       width: entity.width ?? null,
       height: entity.height ?? null,
+      durationMs: entity.durationMs ?? null,
       url: `/api/v1/attachments/${id}/content`,
       thumbnailUrl: entity.thumbnailKey
         ? `/api/v1/attachments/${id}/thumbnail`
@@ -268,9 +282,16 @@ export class AttachmentsService {
   private async storePending(
     author: GetUserDto,
     file: { path: string; size: number; originalname?: string },
+    extras?: IUploadExtras,
   ): Promise<IAttachment> {
     const sniffed = await this.mimeSnifferService.sniff(file.path);
-    const classified = await this.classify(file, sniffed);
+    const hints = attachmentUploadHintsSchema.parse(extras?.body ?? {});
+    const classified = await this.classify(
+      file,
+      sniffed,
+      extras?.poster,
+      hints,
+    );
     const pending = await this.repo.count({
       uploader: author.id,
       status: EAttachmentStatus.PENDING,
@@ -320,6 +341,7 @@ export class AttachmentsService {
         thumbnailKey,
         width: classified.width,
         height: classified.height,
+        durationMs: classified.durationMs,
         position: 0,
         message: null,
       });
@@ -340,7 +362,14 @@ export class AttachmentsService {
   private async classify(
     file: { path: string; size: number },
     sniffed: string | null,
+    poster: { path?: string; size: number } | undefined,
+    hints: IAttachmentUploadHints,
   ): Promise<IStoredUpload> {
+    const isVideo =
+      !!sniffed && (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed);
+    if (!isVideo) {
+      await this.discardPoster(poster?.path);
+    }
     if (
       sniffed &&
       (INLINE_IMAGE_MIMES as readonly string[]).includes(sniffed)
@@ -349,11 +378,8 @@ export class AttachmentsService {
         this.processImage(file, sniffed),
       );
     }
-    if (
-      sniffed &&
-      (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed)
-    ) {
-      return this.processVideo(file, sniffed);
+    if (isVideo && sniffed) {
+      return this.processVideo(file, sniffed, poster, hints);
     }
     if (
       sniffed &&
@@ -364,6 +390,7 @@ export class AttachmentsService {
         kind: EAttachmentKind.AUDIO,
         width: null,
         height: null,
+        durationMs: null,
         thumbnailPath: null,
         size: file.size,
       };
@@ -373,6 +400,7 @@ export class AttachmentsService {
       kind: EAttachmentKind.FILE,
       width: null,
       height: null,
+      durationMs: null,
       thumbnailPath: null,
       size: file.size,
     };
@@ -381,31 +409,92 @@ export class AttachmentsService {
   private async processVideo(
     file: { path: string; size: number },
     sniffed: string,
+    poster: { path?: string; size: number } | undefined,
+    hints: IAttachmentUploadHints,
   ): Promise<IStoredUpload> {
     const thumbnailPath = `${file.path}.thumb`;
-    const poster = await this.videoProcessingService.createPoster(
+    const server = await this.videoProcessingService.createPoster(
       file.path,
       thumbnailPath,
       sniffed,
     );
-    if (poster.undecodable) {
+    const clientDuration = clientDurationMs(hints.videoDuration);
+    if (server.outcome === 'frame') {
+      await this.discardPoster(poster?.path);
+      return {
+        mime: sniffed,
+        kind: EAttachmentKind.VIDEO,
+        width: server.width,
+        height: server.height,
+        durationMs: server.durationMs ?? clientDuration,
+        thumbnailPath: server.written ? thumbnailPath : null,
+        size: file.size,
+      };
+    }
+    const client = await this.acceptClientPoster(poster, thumbnailPath);
+    if (server.outcome === 'undecodable' && !client) {
       return {
         mime: sniffed,
         kind: EAttachmentKind.FILE,
         width: null,
         height: null,
+        durationMs: null,
         thumbnailPath: null,
         size: file.size,
       };
     }
+    if (client) {
+      return {
+        mime: sniffed,
+        kind: EAttachmentKind.VIDEO,
+        width: client.width,
+        height: client.height,
+        durationMs: clientDuration,
+        thumbnailPath,
+        size: file.size,
+      };
+    }
+    const fitted = fitVideoHints(hints.videoWidth, hints.videoHeight);
     return {
       mime: sniffed,
       kind: EAttachmentKind.VIDEO,
-      width: poster.width,
-      height: poster.height,
-      thumbnailPath: poster.written ? thumbnailPath : null,
+      width: fitted?.width ?? null,
+      height: fitted?.height ?? null,
+      durationMs: clientDuration,
+      thumbnailPath: null,
       size: file.size,
     };
+  }
+
+  private async acceptClientPoster(
+    poster: { path?: string; size: number } | undefined,
+    destPath: string,
+  ): Promise<{ width: number; height: number } | null> {
+    if (!poster?.path || poster.size > attachmentsMaxPosterSize) {
+      await this.discardPoster(poster?.path);
+      return null;
+    }
+    const sniffed = await this.mimeSnifferService.sniff(poster.path);
+    if (
+      !sniffed ||
+      !(CLIENT_POSTER_MIMES as readonly string[]).includes(sniffed)
+    ) {
+      await this.discardPoster(poster.path);
+      return null;
+    }
+    const encoded = await this.imageProcessingService.reencodeClientPoster(
+      poster.path,
+      destPath,
+    );
+    await this.discardPoster(poster.path);
+    return encoded;
+  }
+
+  private async discardPoster(posterPath: string | undefined): Promise<void> {
+    if (!posterPath) {
+      return;
+    }
+    await fs.promises.rm(posterPath, { force: true });
   }
 
   private async processImage(
@@ -421,6 +510,7 @@ export class AttachmentsService {
         kind: EAttachmentKind.FILE,
         width: null,
         height: null,
+        durationMs: null,
         thumbnailPath: null,
         size: file.size,
       };
@@ -461,6 +551,7 @@ export class AttachmentsService {
         kind: EAttachmentKind.IMAGE,
         width,
         height,
+        durationMs: null,
         thumbnailPath: null,
         size,
       };
@@ -483,6 +574,7 @@ export class AttachmentsService {
         kind: EAttachmentKind.FILE,
         width: null,
         height: null,
+        durationMs: null,
         thumbnailPath: null,
         size: file.size,
       };
@@ -492,6 +584,7 @@ export class AttachmentsService {
       kind: EAttachmentKind.IMAGE,
       width,
       height,
+      durationMs: null,
       thumbnailPath,
       size,
     };
@@ -506,4 +599,28 @@ export class AttachmentsService {
       await this.fileService.delete(thumbnailKey).catch(() => undefined);
     }
   }
+}
+
+function clientDurationMs(seconds: number | undefined): number | null {
+  if (seconds === undefined) {
+    return null;
+  }
+  return Math.round(seconds * 1000);
+}
+
+function fitVideoHints(
+  width: number | undefined,
+  height: number | undefined,
+): { width: number; height: number } | null {
+  if (width === undefined || height === undefined) {
+    return null;
+  }
+  const scale = Math.min(
+    1,
+    attachmentsThumbnailMaxSide / Math.max(width, height),
+  );
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
 }

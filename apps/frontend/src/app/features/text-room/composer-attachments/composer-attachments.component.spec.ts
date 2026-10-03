@@ -16,12 +16,24 @@ describe('ComposerAttachmentsComponent', () => {
     file: new File(['a'], 'a.png', { type: 'image/png' }),
     kind: EAttachmentKind.IMAGE,
     previewUrl: 'blob:a',
+    posterStatus: 'ready',
+    posterFile: null,
+    posterUrl: null,
+    videoWidth: null,
+    videoHeight: null,
+    videoDuration: null,
   };
   const documentFile: ILocalFile = {
     localId: 'doc',
     file: new File(['b'], 'b.txt', { type: 'text/plain' }),
     kind: EAttachmentKind.FILE,
     previewUrl: null,
+    posterStatus: 'ready',
+    posterFile: null,
+    posterUrl: null,
+    videoWidth: null,
+    videoHeight: null,
+    videoDuration: null,
   };
 
   beforeEach(async () => {

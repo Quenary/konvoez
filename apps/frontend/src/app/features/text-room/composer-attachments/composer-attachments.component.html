@@ -8,10 +8,16 @@
       <app-file-thumbnail
         [interactive]="file.kind === kinds.IMAGE || file.kind === kinds.VIDEO"
         [removable]="true"
+        [durationMs]="
+          file.videoDuration === null ? null : file.videoDuration * 1000
+        "
         [kind]="file.kind"
         [name]="file.file.name"
+        [serverVideo]="file.kind === kinds.VIDEO && !!file.posterUrl"
         [size]="file.file.size"
-        [src]="file.previewUrl"
+        [src]="
+          file.posterUrl ?? (file.kind === kinds.VIDEO ? null : file.previewUrl)
+        "
         (activate)="open(file)"
         (remove)="remove.emit(file.localId)" />
     </div>

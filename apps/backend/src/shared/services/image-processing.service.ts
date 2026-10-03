@@ -4,8 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import {
   attachmentsMaxImagePixels,
+  attachmentsMaxPosterPixels,
   attachmentsThumbnailMaxSide,
 } from '@konvoez/shared';
+import { isEnospc } from '@shared/utils/is-enospc';
 
 export interface ImageProcessingOptions {
   width?: number;
@@ -146,6 +148,39 @@ export class ImageProcessingService {
     } catch (error) {
       await fs.promises.rm(destPath, { force: true });
       throw error;
+    }
+  }
+
+  public async reencodeClientPoster(
+    filePath: string,
+    destPath: string,
+  ): Promise<{ width: number; height: number } | null> {
+    try {
+      const info = await sharp(filePath, {
+        failOn: 'error',
+        limitInputPixels: attachmentsMaxPosterPixels,
+        pages: 1,
+        animated: false,
+      })
+        .resize({
+          width: attachmentsThumbnailMaxSide,
+          height: attachmentsThumbnailMaxSide,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 80 })
+        .toFile(destPath);
+      if (!info.width || !info.height) {
+        await fs.promises.rm(destPath, { force: true });
+        return null;
+      }
+      return { width: info.width, height: info.height };
+    } catch (error) {
+      await fs.promises.rm(destPath, { force: true });
+      if (isEnospc(error)) {
+        throw error;
+      }
+      return null;
     }
   }
 }

@@ -1,3 +1,15 @@
+<ng-template #durationBadge>
+  @if (durationLabel(); as label) {
+    <span
+      class="duration"
+      [attr.aria-label]="
+        'ROOMS.VIDEO_DURATION' | translate: { duration: label }
+      ">
+      {{ label }}
+    </span>
+  }
+</ng-template>
+
 <ng-template #visual>
   @if (showImage()) {
     <img
@@ -10,6 +22,7 @@
       <tui-icon
         class="play"
         icon="@tui.play" />
+      <ng-container [ngTemplateOutlet]="durationBadge" />
     }
   } @else if (showLocalVideo()) {
     <video
@@ -21,6 +34,7 @@
     <tui-icon
       class="play"
       icon="@tui.play" />
+    <ng-container [ngTemplateOutlet]="durationBadge" />
   } @else {
     <span class="file-fallback">
       <tui-icon [icon]="icon()" />
@@ -28,6 +42,7 @@
         <tui-icon
           class="play"
           icon="@tui.play" />
+        <ng-container [ngTemplateOutlet]="durationBadge" />
       }
       <span class="file-name">{{ name() }}</span>
       @if (formattedSize(); as label) {

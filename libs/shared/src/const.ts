@@ -44,6 +44,14 @@ export const attachmentsMaxPendingPerUser = 30;
 export const attachmentsMaxImagePixels = 50_000_000;
 /** Longest side of a generated WebP thumbnail, in pixels. */
 export const attachmentsThumbnailMaxSide = 1024;
+/** Client-supplied poster bytes, before the server re-encodes them. */
+export const attachmentsMaxPosterSize = 2 * 1024 * 1024;
+/** sharp `limitInputPixels` for an untrusted client poster. */
+export const attachmentsMaxPosterPixels = 4096 * 4096;
+/** Largest accepted video width or height hint, in pixels. */
+export const attachmentsMaxVideoSide = 16384;
+/** Longest accepted video duration, in seconds (24 hours). */
+export const attachmentsMaxVideoDurationSeconds = 86_400;
 /** Animated images up to this size are shown from the original URL so they keep animating. */
 export const attachmentsAnimatedInlineMaxSize = 8 * 1024 * 1024;
 /** Maximum stored length of a sanitised original file name. */

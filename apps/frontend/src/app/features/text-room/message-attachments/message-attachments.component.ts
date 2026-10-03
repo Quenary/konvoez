@@ -33,6 +33,7 @@ export interface IAttachmentView {
   readonly errorText: string | null;
   readonly removable: boolean;
   readonly serverVideo: boolean;
+  readonly durationMs: number | null;
 }
 
 @Component({
@@ -64,7 +65,9 @@ export class MessageAttachmentsComponent {
           kind: file.kind,
           name: file.file.name,
           size: file.file.size,
-          src: file.previewUrl,
+          src:
+            file.posterUrl ??
+            (file.kind === EAttachmentKind.VIDEO ? null : file.previewUrl),
           fullSrc: file.previewUrl,
           downloadUrl: null,
           status:
@@ -84,7 +87,9 @@ export class MessageAttachmentsComponent {
             status === 'uploading' ? (progress[file.localId] ?? 0) : null,
           errorText: failed ? uploadErrorKey(file.state.code) : null,
           removable,
-          serverVideo: false,
+          serverVideo: file.kind === EAttachmentKind.VIDEO && !!file.posterUrl,
+          durationMs:
+            file.videoDuration === null ? null : file.videoDuration * 1000,
         };
       });
     }
@@ -187,6 +192,7 @@ export class MessageAttachmentsComponent {
       errorText: null,
       removable: false,
       serverVideo: attachment.kind === EAttachmentKind.VIDEO,
+      durationMs: attachment.durationMs,
     };
   }
 }

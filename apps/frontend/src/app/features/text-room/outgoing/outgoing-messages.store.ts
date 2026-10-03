@@ -22,8 +22,9 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { Subject, Subscription } from 'rxjs';
+import { firstValueFrom, Subject, Subscription } from 'rxjs';
 import { TextRoomApiService } from '../text-room-api.service';
+import { VideoPosterService } from '@core/services/video-poster.service';
 import { AttachmentsApiService } from './attachments-api.service';
 import {
   ILocalFile,
@@ -32,6 +33,7 @@ import {
   isBlankMessageContent,
   revokeLocalFiles,
   TAttachmentUploadErrorCode,
+  withClientPoster,
 } from './outgoing.types';
 
 const uploadConcurrency = 3;
@@ -71,6 +73,7 @@ export const OutgoingMessagesStore = signalStore(
     (
       store,
       attachmentsApi = inject(AttachmentsApiService),
+      videoPosterService = inject(VideoPosterService),
       textRoomApi = inject(TextRoomApiService),
       ngrxStore = inject(Store),
       translateService = inject(TranslateService),
@@ -263,28 +266,62 @@ export const OutgoingMessagesStore = signalStore(
         const subscription = new Subscription();
         store.subscriptions.set(file.localId, subscription);
         subscription.add(
-          attachmentsApi.upload(file.file).subscribe({
-            next: (event) => {
-              if (event.type === HttpEventType.UploadProgress && event.total) {
-                const value = event.loaded / event.total;
-                const previous = store.uploadProgress()[file.localId] ?? 0;
-                const now = Date.now();
-                const last = store.progressAt.get(file.localId) ?? 0;
-                if (value - previous < 0.01 && now - last < 100 && value < 1) {
-                  return;
+          attachmentsApi
+            .upload(file.file, {
+              poster: file.posterFile,
+              videoWidth: file.videoWidth,
+              videoHeight: file.videoHeight,
+              videoDuration: file.videoDuration,
+            })
+            .subscribe({
+              next: (event) => {
+                if (
+                  event.type === HttpEventType.UploadProgress &&
+                  event.total
+                ) {
+                  const value = event.loaded / event.total;
+                  const previous = store.uploadProgress()[file.localId] ?? 0;
+                  const now = Date.now();
+                  const last = store.progressAt.get(file.localId) ?? 0;
+                  if (
+                    value - previous < 0.01 &&
+                    now - last < 100 &&
+                    value < 1
+                  ) {
+                    return;
+                  }
+                  store.progressAt.set(file.localId, now);
+                  patchState(store, (state) => ({
+                    uploadProgress: {
+                      ...state.uploadProgress,
+                      [file.localId]: value,
+                    },
+                  }));
                 }
-                store.progressAt.set(file.localId, now);
-                patchState(store, (state) => ({
-                  uploadProgress: {
-                    ...state.uploadProgress,
-                    [file.localId]: value,
-                  },
-                }));
-              }
-              if (event.type === HttpEventType.Response && event.body) {
-                const uploaded = event.body;
+                if (event.type === HttpEventType.Response && event.body) {
+                  const uploaded = event.body;
+                  const current = store.entityMap()[tempId];
+                  if (!current) {
+                    return;
+                  }
+                  replace({
+                    ...current,
+                    files: current.files.map((item) =>
+                      item.localId === file.localId
+                        ? {
+                            ...item,
+                            state: { status: 'uploaded', attachment: uploaded },
+                          }
+                        : item,
+                    ),
+                  });
+                }
+              },
+              error: (error: unknown) => {
+                releaseUpload(file.localId);
                 const current = store.entityMap()[tempId];
                 if (!current) {
+                  pump();
                   return;
                 }
                 replace({
@@ -293,49 +330,29 @@ export const OutgoingMessagesStore = signalStore(
                     item.localId === file.localId
                       ? {
                           ...item,
-                          state: { status: 'uploaded', attachment: uploaded },
+                          state: {
+                            status: 'failed',
+                            code: uploadErrorCode(error),
+                          },
                         }
                       : item,
                   ),
                 });
-              }
-            },
-            error: (error: unknown) => {
-              releaseUpload(file.localId);
-              const current = store.entityMap()[tempId];
-              if (!current) {
+                const updated = store.entityMap()[tempId];
+                if (updated) {
+                  applySettled(updated);
+                }
                 pump();
-                return;
-              }
-              replace({
-                ...current,
-                files: current.files.map((item) =>
-                  item.localId === file.localId
-                    ? {
-                        ...item,
-                        state: {
-                          status: 'failed',
-                          code: uploadErrorCode(error),
-                        },
-                      }
-                    : item,
-                ),
-              });
-              const updated = store.entityMap()[tempId];
-              if (updated) {
-                applySettled(updated);
-              }
-              pump();
-            },
-            complete: () => {
-              releaseUpload(file.localId);
-              const updated = store.entityMap()[tempId];
-              if (updated) {
-                applySettled(updated);
-              }
-              pump();
-            },
-          }),
+              },
+              complete: () => {
+                releaseUpload(file.localId);
+                const updated = store.entityMap()[tempId];
+                if (updated) {
+                  applySettled(updated);
+                }
+                pump();
+              },
+            }),
         );
       };
 
@@ -411,6 +428,38 @@ export const OutgoingMessagesStore = signalStore(
         return true;
       };
 
+      const finishPoster = async (
+        tempId: string,
+        localId: string,
+      ): Promise<void> => {
+        const result = await firstValueFrom(
+          videoPosterService.whenReady(localId),
+        );
+        const current = store.entityMap()[tempId];
+        const file = current?.files.find((item) => item.localId === localId);
+        if (!current || !file || file.state.status !== 'queued') {
+          return;
+        }
+        const posterUrl =
+          file.posterUrl ??
+          (result?.poster ? URL.createObjectURL(result.poster) : null);
+        replace({
+          ...current,
+          files: current.files.map((item) =>
+            item.localId === localId
+              ? withClientPoster(item, result, posterUrl)
+              : item,
+          ),
+        });
+        const updated = store.entityMap()[tempId];
+        const ready = updated?.files.find((item) => item.localId === localId);
+        if (!updated || !ready || ready.state.status !== 'queued') {
+          return;
+        }
+        store.waiting.push(localId);
+        pump();
+      };
+
       return {
         resolve,
 
@@ -449,7 +498,11 @@ export const OutgoingMessagesStore = signalStore(
             return;
           }
           for (const file of outgoingFiles) {
-            store.waiting.push(file.localId);
+            if (file.posterStatus === 'pending') {
+              void finishPoster(tempId, file.localId);
+            } else {
+              store.waiting.push(file.localId);
+            }
           }
           pump();
         },
@@ -464,9 +517,7 @@ export const OutgoingMessagesStore = signalStore(
             return;
           }
           abortFile(file);
-          if (file.previewUrl) {
-            URL.revokeObjectURL(file.previewUrl);
-          }
+          revokeLocalFiles([file]);
           dropProgress([localId]);
           applySettled({
             ...message,

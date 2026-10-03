@@ -94,6 +94,7 @@ ROOMS:
   DROP_FILES_HERE: Drop files here
   SCROLL_TO_BOTTOM: Scroll to bottom
   REMOVE_FILE: Remove file
+  VIDEO_DURATION: Duration {{duration}}
   CANCEL_SENDING: Cancel sending
   DOWNLOAD: Download
   PREVIEW_UNSUPPORTED: This file can't be played in your browser

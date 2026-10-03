@@ -31,11 +31,31 @@ iPhone Photo Library picks arrive as JPEG or H.264 in a `.mov` container. A HEIC
 
 ## Video posters
 
-MP4, WebM and QuickTime uploads get a WebP poster from one `ffmpeg` call. The frame is taken at 1 second, or at 0 when that grab writes nothing. It is grabbed at the source resolution. ffmpeg applies rotation, so a 90° or 270° clip comes out upright. sharp then fits the frame inside 1024×1024 and does not enlarge a smaller frame. Display width and height are the poster size from sharp. The poster is stored as `message-attachments/<uuid>-thumb`. The original video bytes are stored unchanged and are not transcoded. Duration is not stored; the player reads it from the video.
+The browser builds a poster when the file is chosen and sends it with the upload. The same `POST /api/v1/attachments` accepts multipart parts in this order: `videoWidth`, `videoHeight`, `videoDuration` (seconds), `poster`, `file`. Hints that are missing or out of range become null. A bad poster is dropped and the upload continues. A poster on a non-video is ignored.
 
-The grab has a 15 second deadline, on a limit separate from image processing. If the grab at 1 second times out, the first frame is not tried afterwards. A grab that fails immediately still falls back to the first frame. `ffmpeg` is started with one thread, the first video stream (`0:V:0`), the sniffed container format (`mp4`, `webm`, or `mov`), the `file` protocol only, and an environment that does not include server secrets. If the binary is missing or the deadline is hit, the upload is still stored as a video and the message shows the placeholder tile. If both grabs finish without a frame, the upload is stored as a generic file and keeps the sniffed type. A full disk while writing the poster fails the upload with 507. Videos stored before posters existed are not backfilled.
+The server still sniffs the type. Poster choice:
 
-The runtime image does not install the Debian `ffmpeg` package. The binary comes from the `ffmpeg-static` npm package, downloaded by its `postinstall` script (the image build needs access to GitHub). `FFMPEG_PATH`, when set, is used instead. Otherwise the service uses `ffmpeg` on `PATH`.
+1. If `ffmpeg` returns a frame, that WebP and the duration parsed from `Duration: HH:MM:SS.xx` win. `N/A` or a value over 24 hours is stored as null. The client poster is deleted and not decoded.
+2. If `ffmpeg` is missing, fails, or hits the deadline, the client poster is re-encoded and the client duration is stored. Width and height are the re-encoded poster size.
+3. If neither source produced a poster, the upload stays a video. Width and height come from the hints when both are valid, fitted inside 1024. Duration is the client hint or null.
+4. If `ffmpeg` runs but no frame can be read, a valid client poster keeps the upload as a video. Without that poster the upload is stored as a generic file and keeps the sniffed type.
+
+The client poster is untrusted: at most 2 MiB, sniffed as WebP, JPEG, or PNG, decoded with a 4096² pixel cap, first frame only, no rotation, then saved as WebP quality 80 inside 1024×1024 with metadata removed. A full disk while writing a poster fails the upload with 507.
+
+Duration is `durationMs` on the attachment. The client draws it as text on the tile (`m:ss`, or `h:mm:ss` from one hour). A null duration hides the badge.
+
+`ffmpeg` is not in the runtime image. The process uses `FFMPEG_PATH` when that variable is non-empty, otherwise `ffmpeg` on `PATH`. A bad `FFMPEG_PATH` is not replaced with `PATH`. Mount a static build that matches the container architecture and Debian 12 glibc, for example:
+
+```yaml
+services:
+  backend:
+    volumes:
+      - /opt/ffmpeg/ffmpeg:/usr/local/bin/ffmpeg:ro
+    environment:
+      FFMPEG_PATH: /usr/local/bin/ffmpeg
+```
+
+The operator owns that binary, its updates, and its license. The grab still has a 15 second deadline, on a limit separate from image processing. If the grab at 1 second times out, the first frame is not tried afterwards. A grab that fails immediately still falls back to the first frame. `ffmpeg` is started with one thread, `-loglevel info` so the duration line is present, the first video stream (`0:V:0`), the sniffed container format (`mp4`, `webm`, or `mov`), the `file` protocol only, and an environment that does not include server secrets. The original video bytes are stored unchanged and are not transcoded. The poster is stored as `message-attachments/<uuid>-thumb`.
 
 ## Storage
 
@@ -67,4 +87,4 @@ The 50 MiB default fits Cloudflare Free/Pro (100 MB request-body cap) and typica
 
 ## Client
 
-Choosing files does not upload them. Upload starts when the message is sent. Reloading the page drops unsent messages; uploaded files that were never attached expire after 24 hours.
+Choosing files does not upload them. For a video, the browser starts a poster immediately and shows it in the composer. Upload starts when the message is sent and waits for that poster attempt to finish. Retry sends the same poster. Reloading the page drops unsent messages; uploaded files that were never attached expire after 24 hours.

@@ -19,6 +19,7 @@ import { authReducer } from '@features/auth/auth.reducer';
 import { AuthActions } from '@features/auth/auth.actions';
 import { Observable, Subject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { VideoPosterService } from '@core/services/video-poster.service';
 import { TextRoomApiService } from '../text-room-api.service';
 import { AttachmentsApiService } from './attachments-api.service';
 import { OutgoingMessagesStore } from './outgoing-messages.store';
@@ -30,6 +31,8 @@ describe('OutgoingMessagesStore', () => {
   let upload: ReturnType<typeof vi.fn>;
   let remove: ReturnType<typeof vi.fn>;
   let notifications: { open: ReturnType<typeof vi.fn> };
+  let whenReady: ReturnType<typeof vi.fn>;
+  let capture: ReturnType<typeof vi.fn>;
   const uploads = new Map<
     string,
     {
@@ -61,6 +64,7 @@ describe('OutgoingMessagesStore', () => {
       size: 4,
       width: null,
       height: null,
+      durationMs: null,
       url: `/api/v1/attachments/${id}/content`,
       thumbnailUrl: null,
     };
@@ -72,6 +76,12 @@ describe('OutgoingMessagesStore', () => {
       file: new File(['data'], name, { type: 'text/plain' }),
       kind: EAttachmentKind.FILE,
       previewUrl: `blob:${name}`,
+      posterStatus: 'ready',
+      posterFile: null,
+      posterUrl: null,
+      videoWidth: null,
+      videoHeight: null,
+      videoDuration: null,
     };
   }
 
@@ -106,6 +116,8 @@ describe('OutgoingMessagesStore', () => {
         }),
     );
     remove = vi.fn(() => of(undefined));
+    whenReady = vi.fn(() => of(null));
+    capture = vi.fn();
     notifications = { open: vi.fn(() => of(undefined)) };
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 
@@ -119,6 +131,10 @@ describe('OutgoingMessagesStore', () => {
           useValue: { upload, delete: remove },
         },
         { provide: TuiNotificationService, useValue: notifications },
+        {
+          provide: VideoPosterService,
+          useValue: { whenReady, capture, dispose: vi.fn() },
+        },
       ],
     });
     TestBed.inject(Store).dispatch(AuthActions.requestLoginSuccess({ user }));
@@ -306,6 +322,34 @@ describe('OutgoingMessagesStore', () => {
     expect(remove).toHaveBeenCalledWith('55555555-5555-4555-8555-555555555555');
     expect(store.entityMap()['temp-5']).toBeUndefined();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:only.txt');
+  });
+
+  it('revokes the poster and disposes its job when a file is removed', () => {
+    const disposePoster = vi.fn();
+    store.send({
+      tempId: 'temp-poster',
+      data: {
+        content: 'x',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [
+        {
+          ...localFile('clip.mp4'),
+          kind: EAttachmentKind.VIDEO,
+          posterUrl: 'blob:poster',
+          disposePoster,
+        },
+      ],
+    });
+    store.removeFile('temp-poster', 'clip.mp4');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:clip.mp4');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:poster');
+    expect(disposePoster).toHaveBeenCalledTimes(1);
+    expect(store.entityMap()['temp-poster']?.files).toEqual([]);
   });
 
   it('marks listed files expired after a 409 and ignores a late success', () => {
@@ -537,5 +581,74 @@ describe('OutgoingMessagesStore', () => {
     uploads.get('pic.txt')?.complete();
     created$.next(serverMessage('temp-revoke'));
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pic.txt');
+  });
+
+  it('waits for a poster, and retry sends the same poster', async () => {
+    const poster$ = new Subject<unknown>();
+    whenReady.mockReturnValue(poster$);
+    const poster = new File(['p'], 'poster.webp', { type: 'image/webp' });
+    const file = {
+      ...localFile('clip.mp4'),
+      kind: EAttachmentKind.VIDEO,
+      posterStatus: 'pending' as const,
+      file: new File(['v'], 'clip.mp4', { type: 'video/mp4' }),
+    };
+    store.send({
+      tempId: 'temp-poster',
+      data: {
+        content: '',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [file],
+    });
+    expect(upload).not.toHaveBeenCalled();
+
+    store.cancel('temp-poster');
+    poster$.next({
+      poster,
+      videoWidth: 16,
+      videoHeight: 9,
+      durationSeconds: 2,
+      displayWidth: 16,
+      displayHeight: 9,
+    });
+    await Promise.resolve();
+    expect(upload).not.toHaveBeenCalled();
+
+    const ready = {
+      ...file,
+      posterStatus: 'ready' as const,
+      posterFile: poster,
+      videoWidth: 16,
+      videoHeight: 9,
+      videoDuration: 2,
+    };
+    store.send({
+      tempId: 'temp-ready',
+      data: {
+        content: '',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [ready],
+    });
+    expect(upload).toHaveBeenCalledWith(
+      ready.file,
+      expect.objectContaining({ poster, videoDuration: 2 }),
+    );
+    uploads.get('clip.mp4')?.error(new HttpErrorResponse({ status: 500 }));
+    store.retry('temp-ready');
+    expect(capture).not.toHaveBeenCalled();
+    expect(upload).toHaveBeenLastCalledWith(
+      ready.file,
+      expect.objectContaining({ poster, videoDuration: 2 }),
+    );
   });
 });

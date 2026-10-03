@@ -20,6 +20,8 @@ import {
 } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { v4 } from 'uuid';
+import { firstValueFrom } from 'rxjs';
+import { VideoPosterService } from '@core/services/video-poster.service';
 import { createKeyBindingExtension } from '../../../core/tiptap/create-key-binding-extension';
 import { createPasteFilesExtension } from '../../../core/tiptap/create-paste-files-extension';
 import { TextRoomStore } from '../text-room.store';
@@ -32,6 +34,7 @@ import {
   createLocalFile,
   ILocalFile,
   revokeLocalFiles,
+  withClientPoster,
 } from '../outgoing/outgoing.types';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
@@ -130,6 +133,7 @@ export class TextRoomEditorComponent {
   private readonly textRoomStore = inject(TextRoomStore);
   private readonly settingsStore = inject(SettingsStore);
   private readonly drafts = inject(ComposerDraftsService);
+  private readonly videoPosterService = inject(VideoPosterService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
@@ -219,7 +223,17 @@ export class TextRoomEditorComponent {
         overflow = true;
         break;
       }
-      next.push(createLocalFile(file));
+      const local = createLocalFile(file);
+      next.push({
+        ...local,
+        disposePoster:
+          local.posterStatus === 'pending'
+            ? () => this.videoPosterService.dispose(local.localId)
+            : undefined,
+      });
+      if (local.posterStatus === 'pending') {
+        void this.trackPoster(local.localId, file);
+      }
     }
     this.files.set(next);
     if (tooBig) {
@@ -313,6 +327,31 @@ export class TextRoomEditorComponent {
 
   protected cancelReply(): void {
     this.textRoomStore.setReplyToMessageId(null);
+  }
+
+  private async trackPoster(localId: string, file: File): Promise<void> {
+    const result = await firstValueFrom(
+      this.videoPosterService.capture(localId, file),
+    );
+    const posterUrl = result?.poster
+      ? URL.createObjectURL(result.poster)
+      : null;
+    let applied = false;
+    this.files.update((files) =>
+      files.map((item) => {
+        if (item.localId !== localId) {
+          return item;
+        }
+        applied = true;
+        if (item.posterUrl) {
+          URL.revokeObjectURL(item.posterUrl);
+        }
+        return withClientPoster(item, result, posterUrl);
+      }),
+    );
+    if (!applied && posterUrl) {
+      URL.revokeObjectURL(posterUrl);
+    }
   }
 
   private notify(message: string, params?: Record<string, unknown>): void {

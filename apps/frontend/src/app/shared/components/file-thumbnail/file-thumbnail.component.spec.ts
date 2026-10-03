@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { EAttachmentKind } from '@konvoez/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileThumbnailComponent } from './file-thumbnail.component';
@@ -71,6 +71,27 @@ describe('FileThumbnailComponent', () => {
     ) as HTMLButtonElement;
     activate.click();
     expect(activated).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a duration badge and hides it when duration is missing', () => {
+    fixture.componentRef.setInput('name', 'clip.mp4');
+    fixture.componentRef.setInput('kind', EAttachmentKind.VIDEO);
+    fixture.componentRef.setInput('serverVideo', true);
+    fixture.componentRef.setInput('src', '/poster.webp');
+    fixture.componentRef.setInput('durationMs', 83_000);
+    const translate = TestBed.inject(TranslateService);
+    translate.setTranslation('en', {
+      ROOMS: { VIDEO_DURATION: 'Duration {{duration}}' },
+    });
+    translate.use('en');
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('.duration');
+    expect(badge?.textContent?.trim()).toBe('1:23');
+    expect(badge?.getAttribute('aria-label')).toBe('Duration 1:23');
+
+    fixture.componentRef.setInput('durationMs', null);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.duration')).toBeNull();
   });
 
   it('shows a server video poster with a play badge', () => {

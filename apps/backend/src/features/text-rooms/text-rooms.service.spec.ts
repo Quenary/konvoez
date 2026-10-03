@@ -406,6 +406,7 @@ describe('TextRoomsService', () => {
         size: 4,
         width: null,
         height: null,
+        durationMs: null,
         url: '/api/v1/attachments/x/content',
         thumbnailUrl: null,
       };
@@ -532,6 +533,7 @@ describe('TextRoomsService', () => {
         size: 4,
         width: null,
         height: null,
+        durationMs: null,
         url: '/api/v1/attachments/x/content',
         thumbnailUrl: null,
       };
