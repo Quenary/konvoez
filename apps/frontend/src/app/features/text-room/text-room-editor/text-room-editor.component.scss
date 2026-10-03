@@ -75,6 +75,26 @@
     &-editor {
       flex: 1;
       min-width: 0;
+      min-block-size: 0;
+      max-block-size: 12rem;
     }
+  }
+}
+
+// Taiga sizes tui-editor as a document (min-block-size: 10rem, 2rem of padding
+// under the content, and an empty label with a 1rem margin). One text line is
+// 1.5rem; 0.25rem on each side matches the size-s icon buttons (2rem).
+:host ::ng-deep tui-editor.field-editor {
+  [tuiEditorLabel]:not(:has(*)) {
+    display: none;
+  }
+
+  [tuiEditorScrollbar] {
+    padding-block-end: 0;
+  }
+
+  .tui-editor-socket .ProseMirror {
+    margin-block: 0.25rem;
+    padding-block-end: 0;
   }
 }
