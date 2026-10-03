@@ -26,6 +26,9 @@ import {
 import { TextRoomMessageComponent } from '../text-room-message/text-room-message.component';
 import { TextRoomStore } from '../text-room.store';
 
+/** Slack for subpixel rounding when deciding the list is fully scrolled down. */
+const bottomPinThresholdPx = 8;
+
 @Component({
   selector: 'app-text-room-list',
   imports: [TextRoomMessageComponent, InfiniteScrollDirective, TuiButton],
@@ -49,14 +52,22 @@ export class TextRoomListComponent implements OnInit {
     read: ElementRef,
   });
   private lastOutgoingId: string | null = null;
+  /** `undefined` until the first messages read, so the initial page does not count as a new tail. */
+  private tailMessageId: string | null | undefined = undefined;
+  private pinnedToBottom = true;
 
   constructor() {
     effect(() => {
       const messages = this.messages();
       const last = messages.at(-1);
+      const tailId = last?.id ?? null;
       const outgoingId = last?.outgoing ? last.id : null;
 
       untracked(() => {
+        const isFirstRead = this.tailMessageId === undefined;
+        const tailChanged = !isFirstRead && tailId !== this.tailMessageId;
+        this.tailMessageId = tailId;
+
         if (outgoingId && outgoingId !== this.lastOutgoingId) {
           this.lastOutgoingId = outgoingId;
           this.scrollToBottom('smooth');
@@ -64,6 +75,10 @@ export class TextRoomListComponent implements OnInit {
         }
         if (!outgoingId) {
           this.lastOutgoingId = null;
+        }
+
+        if (tailChanged && this.pinnedToBottom) {
+          this.scrollToBottom();
         }
       });
     });
@@ -96,7 +111,14 @@ export class TextRoomListComponent implements OnInit {
   ngOnInit(): void {
     const scrollContainerRef = this.scrollContainerRef();
     fromEvent(scrollContainerRef.nativeElement, 'scroll')
-      .pipe(auditTime(100), takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        tap(($event) => {
+          const el = $event.target as HTMLDivElement;
+          this.pinnedToBottom = this.isAtBottom(el);
+        }),
+        auditTime(100),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(($event) => {
         const el = $event.target as HTMLDivElement;
         this.showScrollToBottom.set(
@@ -143,6 +165,7 @@ export class TextRoomListComponent implements OnInit {
   }
 
   scrollToBottom(behavior: ScrollBehavior = 'instant'): void {
+    this.pinnedToBottom = true;
     requestAnimationFrame(() => {
       const el = this.scrollContainerRef().nativeElement;
       el.scrollTo({
@@ -150,5 +173,11 @@ export class TextRoomListComponent implements OnInit {
         behavior,
       });
     });
+  }
+
+  private isAtBottom(el: HTMLElement): boolean {
+    return (
+      el.scrollHeight - el.scrollTop - el.clientHeight <= bottomPinThresholdPx
+    );
   }
 }

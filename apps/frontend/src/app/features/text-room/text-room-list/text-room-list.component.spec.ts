@@ -194,4 +194,64 @@ describe('TextRoomListComponent', () => {
     TestBed.flushEffects();
     expect(scroll).toHaveBeenCalledTimes(1);
   });
+
+  it('scrolls to the bottom when a new message arrives while already at the bottom', () => {
+    fixture.detectChanges();
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+    mockTextRoomStore.messages.set([
+      ...mockMessages,
+      {
+        ...mockMessages[0],
+        id: 'msg-3',
+        content: '<p>Third</p>',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      },
+    ]);
+    TestBed.flushEffects();
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the scroll position when a new message arrives above the bottom', () => {
+    fixture.detectChanges();
+    const container = fixture.nativeElement.querySelector(
+      '.scroll-container',
+    ) as HTMLDivElement;
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 1200,
+    });
+    container.dispatchEvent(new Event('scroll'));
+
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+    mockTextRoomStore.messages.set([
+      ...mockMessages,
+      {
+        ...mockMessages[0],
+        id: 'msg-3',
+        content: '<p>Third</p>',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      },
+    ]);
+    TestBed.flushEffects();
+    expect(scroll).not.toHaveBeenCalled();
+  });
 });
+
+function setScroll(
+  element: HTMLElement,
+  metrics: { scrollTop: number; clientHeight: number; scrollHeight: number },
+): void {
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    value: metrics.scrollTop,
+  });
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    value: metrics.clientHeight,
+  });
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    value: metrics.scrollHeight,
+  });
+}
