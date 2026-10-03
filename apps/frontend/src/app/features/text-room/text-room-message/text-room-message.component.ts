@@ -29,7 +29,6 @@ import {
   IUser,
 } from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UsersStore } from '@features/users/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import {
@@ -46,11 +45,11 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
 import { MessageAttachmentsComponent } from '../message-attachments/message-attachments.component';
 import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
 import { EAttachmentKind } from '@konvoez/shared';
+import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
 
 @Component({
   selector: 'app-text-room-message',
   imports: [
-    DayjsPipe,
     TranslatePipe,
     UserAvatarComponent,
     TuiButton,
@@ -66,6 +65,7 @@ import { EAttachmentKind } from '@konvoez/shared';
     MessageVisibilityDirective,
     MessageAttachmentsComponent,
     TuiList,
+    TodayDayjsPipe,
   ],
   templateUrl: './text-room-message.component.html',
   styleUrl: './text-room-message.component.scss',

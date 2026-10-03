@@ -93,7 +93,7 @@
         }
 
         <span class="message-bubble-footer">
-          <span class="message-date">{{ m.createdAt | dayjs }}</span>
+          <span class="message-date">{{ m.createdAt | todayDayjs }}</span>
           @switch (readStatus()) {
             @case ('loading') {
               <tui-loader
