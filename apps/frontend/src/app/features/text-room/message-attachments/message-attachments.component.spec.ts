@@ -62,7 +62,9 @@ describe('MessageAttachmentsComponent', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelectorAll('app-file-thumbnail')).toHaveLength(1);
     expect(root.querySelector('audio')).toBeTruthy();
-    expect(root.querySelectorAll('a[tuiFile], a')).toHaveLength(1);
+    const fileLink = root.querySelector('a[tuiFile]');
+    expect(fileLink).toBeTruthy();
+    expect(fileLink?.textContent?.match(/doc/g)).toHaveLength(1);
   });
 
   it('uses the original url for a small gif and the thumbnail otherwise', () => {

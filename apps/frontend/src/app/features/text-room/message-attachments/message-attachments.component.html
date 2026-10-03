@@ -43,16 +43,13 @@
       [file]="{ name: item.name, size: item.size, type: '' }"
       [href]="item.downloadUrl"
       [state]="item.fileState">
-      {{ item.name }}
     </a>
   } @else {
     <tui-file
       [file]="{ name: item.name, size: item.size, type: '' }"
       [showDelete]="item.removable"
       [state]="item.fileState"
-      (remove)="removeFile.emit(item.key)">
-      {{ item.name }}
-    </tui-file>
+      (remove)="removeFile.emit(item.key)"></tui-file>
   }
   @if (item.errorText) {
     <p class="file-error">{{ item.errorText | translate }}</p>
