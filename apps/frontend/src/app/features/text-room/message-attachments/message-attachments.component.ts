@@ -170,7 +170,9 @@ export class MessageAttachmentsComponent {
         ? animated
           ? attachment.url
           : (attachment.thumbnailUrl ?? attachment.url)
-        : null;
+        : attachment.kind === EAttachmentKind.VIDEO
+          ? attachment.thumbnailUrl
+          : null;
     return {
       key: attachment.id,
       kind: attachment.kind,

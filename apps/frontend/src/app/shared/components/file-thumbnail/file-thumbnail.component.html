@@ -6,6 +6,11 @@
       loading="lazy"
       decoding="async"
       (error)="onBroken()" />
+    @if (kind() === kinds.VIDEO) {
+      <tui-icon
+        class="play"
+        icon="@tui.play" />
+    }
   } @else if (showLocalVideo()) {
     <video
       [src]="src()"
@@ -13,6 +18,9 @@
       playsinline
       preload="metadata"
       (error)="onBroken()"></video>
+    <tui-icon
+      class="play"
+      icon="@tui.play" />
   } @else {
     <span class="file-fallback">
       <tui-icon [icon]="icon()" />

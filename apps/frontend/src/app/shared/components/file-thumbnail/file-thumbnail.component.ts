@@ -63,12 +63,15 @@ export class FileThumbnailComponent {
   protected readonly broken = signal(false);
   protected readonly kinds = EAttachmentKind;
   protected readonly showImage = computed(() => {
-    const kind = this.kind();
     const src = this.src();
-    const broken = this.broken();
-    return (
-      kind === EAttachmentKind.IMAGE && !!src && !broken && !this.serverVideo()
-    );
+    if (!src || this.broken()) {
+      return false;
+    }
+    const kind = this.kind();
+    if (kind === EAttachmentKind.IMAGE) {
+      return true;
+    }
+    return kind === EAttachmentKind.VIDEO && this.serverVideo();
   });
   protected readonly showLocalVideo = computed(() => {
     const kind = this.kind();

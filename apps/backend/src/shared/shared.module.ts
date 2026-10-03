@@ -9,6 +9,7 @@ import { S3Service } from './services/s3.service';
 import type { FileService } from './services/file.service';
 import { FileServiceInjectionToken } from './tokens/file-service.token';
 import { ImageProcessingService } from './services/image-processing.service';
+import { VideoProcessingService } from './services/video-processing.service';
 import { MailService } from './services/mail.service';
 import { StorageNamingService } from './services/storage-naming.service';
 
@@ -23,6 +24,7 @@ import { StorageNamingService } from './services/storage-naming.service';
     LocalObjectStorageService,
     S3Service,
     ImageProcessingService,
+    VideoProcessingService,
     {
       provide: S3ClientInjectionToken,
       inject: [AppService],
@@ -62,6 +64,7 @@ import { StorageNamingService } from './services/storage-naming.service';
     FileServiceInjectionToken,
     EncryptionService,
     ImageProcessingService,
+    VideoProcessingService,
   ],
 })
 export class SharedModule {}

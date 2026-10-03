@@ -13,7 +13,7 @@ Admin settings (environment variables override the database):
 
 Every setting applies only to new uploads and new messages. Turning stripping on does not rewrite files that are already stored.
 
-With stripping off, a download of a JPEG is byte-for-byte the upload, including EXIF and GPS. Thumbnails never contain metadata. With stripping on, new JPEG, WebP, AVIF and PNG uploads are rotated and saved without metadata. GIF and animated images are not rewritten. If stripping fails, the original bytes are stored as an image and a warning is logged, so metadata may remain. If a thumbnail cannot be built, the upload is stored as a generic file.
+With stripping off, a download of a JPEG is byte-for-byte the upload, including EXIF and GPS. Thumbnails never contain metadata. With stripping on, new JPEG, WebP, AVIF and PNG uploads are rotated and saved without metadata. GIF and animated images are not rewritten. If stripping fails, the original bytes are stored as an image and a warning is logged, so metadata may remain. If an image thumbnail cannot be built, the upload is stored as a generic file.
 
 A user can have at most 30 pending (not yet attached) uploads. The cap is checked before the body is accepted and again before the row is inserted. Overlapping uploads can still pass both checks; that excess is temporary. Unclaimed pending uploads are deleted after 24 hours, and the same sweep runs every hour.
 
@@ -28,6 +28,14 @@ Shown in the message when the sniffed type matches:
 Everything else, including SVG, HTML, PDF, HEIC and HEIF, is a download-only file. The server does not convert HEIC.
 
 iPhone Photo Library picks arrive as JPEG or H.264 in a `.mov` container. A HEIC or HEVC file chosen from the Files app, or dropped from a desktop, is stored as uploaded. HEVC `.mov` plays only in browsers that decode it; others get a download.
+
+## Video posters
+
+MP4, WebM and QuickTime uploads get a WebP poster when `ffmpeg` and `ffprobe` are on `PATH`. The poster is one frame at 1 second, or the first frame when the clip is shorter than 1 second. It is scaled to fit inside 1024×1024 and is not enlarged when the frame is already smaller. It is stored as `message-attachments/<uuid>-thumb`. Display width and height come from `ffprobe`; a 90° or 270° rotation swaps them. The original video bytes are stored unchanged and are not transcoded.
+
+`ffprobe` is limited to 10 seconds and the frame grab to 20 seconds. If either binary is missing, the grab times out, or the file cannot be decoded, the video is still stored and the message shows the placeholder tile. A full disk while writing the poster fails the upload with 507. Videos stored before posters existed are not backfilled.
+
+The runtime image installs the `ffmpeg` package. Local development needs the same package on `PATH` (`sudo apt-get install -y ffmpeg` on Debian and Ubuntu).
 
 ## Storage
 

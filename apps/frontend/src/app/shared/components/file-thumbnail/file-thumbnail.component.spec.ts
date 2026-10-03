@@ -73,6 +73,19 @@ describe('FileThumbnailComponent', () => {
     expect(activated).toHaveBeenCalledTimes(1);
   });
 
+  it('shows a server video poster with a play badge', () => {
+    fixture.componentRef.setInput('name', 'clip.mp4');
+    fixture.componentRef.setInput('kind', EAttachmentKind.VIDEO);
+    fixture.componentRef.setInput('serverVideo', true);
+    fixture.componentRef.setInput('src', '/poster.webp');
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('img')?.getAttribute('src'),
+    ).toBe('/poster.webp');
+    expect(fixture.nativeElement.querySelector('.play')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
+  });
+
   it('swaps a broken image for the fallback icon', () => {
     fixture.componentRef.setInput('src', 'blob:broken');
     fixture.detectChanges();

@@ -28,6 +28,7 @@ import {
   MESSAGE_ATTACHMENTS_BUCKET,
 } from '@shared/services/file.service';
 import { ImageProcessingService } from '@shared/services/image-processing.service';
+import { VideoProcessingService } from '@shared/services/video-processing.service';
 import { SettingsService } from '../settings/settings.service';
 import { GetUserDto } from '../users/users.dto';
 import { EAttachmentStatus, isEnospc } from './attachments.const';
@@ -59,6 +60,7 @@ export class AttachmentsService {
     private readonly fileService: FileService,
     private readonly mimeSnifferService: MimeSnifferService,
     private readonly imageProcessingService: ImageProcessingService,
+    private readonly videoProcessingService: VideoProcessingService,
     private readonly settingsService: SettingsService,
   ) {
     this.em = this.repo.getEntityManager();
@@ -351,14 +353,9 @@ export class AttachmentsService {
       sniffed &&
       (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed)
     ) {
-      return {
-        mime: sniffed,
-        kind: EAttachmentKind.VIDEO,
-        width: null,
-        height: null,
-        thumbnailPath: null,
-        size: file.size,
-      };
+      return processingSemaphore.runExclusive(() =>
+        this.processVideo(file, sniffed),
+      );
     }
     if (
       sniffed &&
@@ -379,6 +376,25 @@ export class AttachmentsService {
       width: null,
       height: null,
       thumbnailPath: null,
+      size: file.size,
+    };
+  }
+
+  private async processVideo(
+    file: { path: string; size: number },
+    sniffed: string,
+  ): Promise<IStoredUpload> {
+    const thumbnailPath = `${file.path}.thumb`;
+    const poster = await this.videoProcessingService.createPoster(
+      file.path,
+      thumbnailPath,
+    );
+    return {
+      mime: sniffed,
+      kind: EAttachmentKind.VIDEO,
+      width: poster.width,
+      height: poster.height,
+      thumbnailPath: poster.written ? thumbnailPath : null,
       size: file.size,
     };
   }

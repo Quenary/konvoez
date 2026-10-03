@@ -90,6 +90,7 @@ describe('AttachmentsService', () => {
     stripMetadata: jest.Mock;
     writeThumbnail: jest.Mock;
   };
+  let videoProcessingService: { createPoster: jest.Mock };
   let settingsService: { getValue: jest.Mock };
   let service: AttachmentsService;
   let filePath: string;
@@ -125,6 +126,13 @@ describe('AttachmentsService', () => {
           fs.writeFileSync(dest, 'thumb');
         }),
     };
+    videoProcessingService = {
+      createPoster: jest.fn().mockResolvedValue({
+        width: null,
+        height: null,
+        written: false,
+      }),
+    };
     settingsService = {
       getValue: jest.fn().mockResolvedValue(false),
     };
@@ -133,6 +141,7 @@ describe('AttachmentsService', () => {
       fileService as never,
       mimeSnifferService as never,
       imageProcessingService as never,
+      videoProcessingService as never,
       settingsService as never,
     );
   });
@@ -239,6 +248,45 @@ describe('AttachmentsService', () => {
 
     mimeSnifferService.sniff.mockResolvedValue('video/quicktime');
     expect((await createPending('clip.mov')).kind).toBe(EAttachmentKind.VIDEO);
+  });
+
+  it('stores a video poster and the display size', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('video/mp4');
+    videoProcessingService.createPoster.mockImplementation(
+      async (_source: string, dest: string) => {
+        fs.writeFileSync(dest, 'poster');
+        return { width: 1920, height: 1080, written: true };
+      },
+    );
+
+    const dto = await createPending('clip.mp4');
+
+    expect(dto.kind).toBe(EAttachmentKind.VIDEO);
+    expect(dto.width).toBe(1920);
+    expect(dto.height).toBe(1080);
+    expect(dto.thumbnailUrl).toMatch(/\/thumbnail$/);
+    expect(fileService.putFile).toHaveBeenCalledWith(
+      expect.stringMatching(/-thumb$/),
+      expect.objectContaining({ contentType: 'image/webp' }),
+      MESSAGE_ATTACHMENTS_BUCKET,
+    );
+  });
+
+  it('keeps a video when the poster cannot be built', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('video/webm');
+    videoProcessingService.createPoster.mockResolvedValue({
+      width: 640,
+      height: 360,
+      written: false,
+    });
+
+    const dto = await createPending('clip.webm');
+
+    expect(dto.kind).toBe(EAttachmentKind.VIDEO);
+    expect(dto.thumbnailUrl).toBeNull();
+    expect(dto.width).toBe(640);
+    expect(dto.height).toBe(360);
+    expect(fileService.putFile).toHaveBeenCalledTimes(1);
   });
 
   it('stores a sanitised original name', async () => {

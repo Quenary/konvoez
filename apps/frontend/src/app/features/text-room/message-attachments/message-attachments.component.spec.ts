@@ -128,6 +128,41 @@ describe('MessageAttachmentsComponent', () => {
     expect(removed).toEqual(['doc']);
   });
 
+  it('uses a video poster when the server stored one', () => {
+    fixture.componentRef.setInput('attachments', [
+      attachment({
+        id: 'clip',
+        kind: EAttachmentKind.VIDEO,
+        mime: 'video/mp4',
+        url: '/clip',
+        thumbnailUrl: '/clip-thumb',
+        width: 160,
+        height: 90,
+      }),
+    ]);
+    fixture.detectChanges();
+    const image = fixture.nativeElement.querySelector(
+      'img',
+    ) as HTMLImageElement;
+    expect(image.getAttribute('src')).toBe('/clip-thumb');
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.play')).toBeTruthy();
+  });
+
+  it('keeps a placeholder when a video has no poster', () => {
+    fixture.componentRef.setInput('attachments', [
+      attachment({
+        id: 'clip',
+        kind: EAttachmentKind.VIDEO,
+        mime: 'video/mp4',
+        url: '/clip',
+      }),
+    ]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('img')).toBeNull();
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
+  });
+
   it('opens the preview at the clicked media index', () => {
     fixture.componentRef.setInput('attachments', [
       attachment({

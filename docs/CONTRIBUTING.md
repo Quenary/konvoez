@@ -12,7 +12,12 @@ Konvoez is an Nx monorepo:
 
 ### Getting Started
 
-1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`.
+1. **Prerequisites**: Node.js `^22.22.3`, npm `>=10.9`, and `ffmpeg` (the package provides `ffprobe` as well). Video attachment posters are skipped when either binary is missing. On Debian and Ubuntu:
+
+   ```bash
+   sudo apt-get install -y ffmpeg
+   ```
+
 2. **Install dependencies**:
    ```bash
    npm install

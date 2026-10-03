@@ -68,8 +68,13 @@ video {
 .error-icon,
 .play {
   position: absolute;
+  z-index: 1;
   inset-inline-start: 0.25rem;
   inset-block-end: 0.25rem;
+}
+
+.play {
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 70%));
 }
 
 .remove {
