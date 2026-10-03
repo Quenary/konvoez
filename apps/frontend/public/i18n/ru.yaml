@@ -92,6 +92,7 @@ ROOMS:
   ATTACH_FILES: Прикрепить файлы
   ATTACHMENT: Вложение
   DROP_FILES_HERE: Перетащите файлы сюда
+  SCROLL_TO_BOTTOM: Прокрутить вниз
   REMOVE_FILE: Убрать файл
   CANCEL_SENDING: Отменить отправку
   DOWNLOAD: Скачать

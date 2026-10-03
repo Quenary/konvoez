@@ -12,8 +12,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '@ngx-translate/core';
 import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
-import { TuiButton } from '@taiga-ui/core';
+import { TuiButton, TuiHint } from '@taiga-ui/core';
 import {
   auditTime,
   combineLatest,
@@ -31,7 +32,13 @@ const bottomPinThresholdPx = 8;
 
 @Component({
   selector: 'app-text-room-list',
-  imports: [TextRoomMessageComponent, InfiniteScrollDirective, TuiButton],
+  imports: [
+    TextRoomMessageComponent,
+    InfiniteScrollDirective,
+    TuiButton,
+    TranslatePipe,
+    TuiHint,
+  ],
   templateUrl: './text-room-list.component.html',
   styleUrl: './text-room-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

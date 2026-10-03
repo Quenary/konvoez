@@ -17,11 +17,12 @@
 @if (showScrollToBottom()) {
   <button
     class="scroll-to-bottom"
-    tuiButton
+    tuiIconButton
+    type="button"
     iconStart="@tui.arrow-down"
     size="s"
-    appearance="secondary"
+    [tuiHint]="'ROOMS.SCROLL_TO_BOTTOM' | translate"
     (click)="scrollToBottom('smooth')">
-    <span class="tui-sr-only">Scroll to bottom</span>
+    {{ 'ROOMS.SCROLL_TO_BOTTOM' | translate }}
   </button>
 }

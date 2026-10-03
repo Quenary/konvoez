@@ -92,6 +92,7 @@ ROOMS:
   ATTACH_FILES: Attach files
   ATTACHMENT: Attachment
   DROP_FILES_HERE: Drop files here
+  SCROLL_TO_BOTTOM: Scroll to bottom
   REMOVE_FILE: Remove file
   CANCEL_SENDING: Cancel sending
   DOWNLOAD: Download
