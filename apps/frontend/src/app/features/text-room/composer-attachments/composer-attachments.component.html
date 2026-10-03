@@ -1,7 +1,8 @@
 <div
   #strip
   class="strip"
-  role="list">
+  role="list"
+  (scroll)="onScroll()">
   @for (file of files(); track file.localId) {
     <div role="listitem">
       <app-file-thumbnail
@@ -16,3 +17,11 @@
     </div>
   }
 </div>
+<div
+  aria-hidden="true"
+  class="edge edge-start"
+  [class._on]="canScrollStart()"></div>
+<div
+  aria-hidden="true"
+  class="edge edge-end"
+  [class._on]="canScrollEnd()"></div>

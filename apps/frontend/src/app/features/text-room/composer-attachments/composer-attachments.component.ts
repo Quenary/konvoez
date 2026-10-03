@@ -1,11 +1,14 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
   input,
   output,
+  signal,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -24,15 +27,19 @@ import { ILocalFile } from '../outgoing/outgoing.types';
 })
 export class ComposerAttachmentsComponent {
   private readonly mediaPreviewService = inject(MediaPreviewService);
-
-  protected readonly kinds = EAttachmentKind;
+  private readonly destroyRef = inject(DestroyRef);
 
   public readonly files = input.required<readonly ILocalFile[]>();
   public readonly remove = output<string>();
 
+  protected readonly kinds = EAttachmentKind;
+  protected readonly canScrollStart = signal(false);
+  protected readonly canScrollEnd = signal(false);
+
   private readonly strip = viewChild<ElementRef<HTMLDivElement>>('strip');
 
   constructor() {
+    afterNextRender(() => this.observeStrip());
     effect(() => {
       const count = this.files().length;
       const element = this.strip()?.nativeElement;
@@ -42,9 +49,14 @@ export class ComposerAttachmentsComponent {
       untracked(() => {
         queueMicrotask(() => {
           element.scrollTo({ left: element.scrollWidth });
+          requestAnimationFrame(() => this.updateEdges());
         });
       });
     });
+  }
+
+  protected onScroll(): void {
+    this.updateEdges();
   }
 
   protected open(file: ILocalFile): void {
@@ -70,5 +82,29 @@ export class ComposerAttachmentsComponent {
       downloadUrl: null,
     }));
     this.mediaPreviewService.open(items, index).subscribe();
+  }
+
+  private observeStrip(): void {
+    const element = this.strip()?.nativeElement;
+    if (!element || typeof ResizeObserver === 'undefined') {
+      this.updateEdges();
+      return;
+    }
+    const observer = new ResizeObserver(() => this.updateEdges());
+    observer.observe(element);
+    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.updateEdges();
+  }
+
+  private updateEdges(): void {
+    const element = this.strip()?.nativeElement;
+    if (!element) {
+      this.canScrollStart.set(false);
+      this.canScrollEnd.set(false);
+      return;
+    }
+    const slack = element.scrollWidth - element.clientWidth;
+    this.canScrollStart.set(element.scrollLeft > 1);
+    this.canScrollEnd.set(slack - element.scrollLeft > 1);
   }
 }

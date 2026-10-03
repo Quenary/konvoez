@@ -50,6 +50,32 @@ describe('ComposerAttachmentsComponent', () => {
     expect(removed).toEqual(['doc']);
   });
 
+  it('blurs only the edge that still has content to scroll', () => {
+    const strip = fixture.nativeElement.querySelector('.strip') as HTMLElement;
+    setScroll(strip, { scrollLeft: 0, clientWidth: 100, scrollWidth: 300 });
+    strip.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.edge-end._on')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.edge-start._on')).toBeNull();
+
+    setScroll(strip, { scrollLeft: 200, clientWidth: 100, scrollWidth: 300 });
+    strip.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.edge-start._on')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.edge-end._on')).toBeNull();
+
+    setScroll(strip, { scrollLeft: 80, clientWidth: 100, scrollWidth: 300 });
+    strip.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.edge-start._on')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.edge-end._on')).toBeTruthy();
+
+    setScroll(strip, { scrollLeft: 0, clientWidth: 300, scrollWidth: 300 });
+    strip.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.edge._on')).toBeNull();
+  });
+
   it('opens the preview at the media index and skips non-media', () => {
     const thumbnails =
       fixture.nativeElement.querySelectorAll('app-file-thumbnail');
@@ -61,3 +87,21 @@ describe('ComposerAttachmentsComponent', () => {
     );
   });
 });
+
+function setScroll(
+  element: HTMLElement,
+  metrics: { scrollLeft: number; clientWidth: number; scrollWidth: number },
+): void {
+  Object.defineProperty(element, 'scrollLeft', {
+    configurable: true,
+    value: metrics.scrollLeft,
+  });
+  Object.defineProperty(element, 'clientWidth', {
+    configurable: true,
+    value: metrics.clientWidth,
+  });
+  Object.defineProperty(element, 'scrollWidth', {
+    configurable: true,
+    value: metrics.scrollWidth,
+  });
+}
