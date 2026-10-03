@@ -38,6 +38,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError } from 'jsonwebtoken';
 import { AuthService } from './auth.service';
 
 import { AppService } from '@shared/services/app.service';
@@ -387,12 +388,30 @@ describe('AuthService', () => {
       const payload: AuthJWTData = { type: 'access', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
 
-      const result = service.verifyToken('valid_token');
+      const result = service.verifyToken('valid_token', 'access');
 
       expect(jwtService.verify).toHaveBeenCalledWith('valid_token', {
         secret: appService.JWT_SECRET,
       });
       expect(result).toEqual(payload);
+    });
+
+    it('should reject a token of the wrong type', () => {
+      jwtService.verify.mockReturnValueOnce({ type: 'refresh', userId: 1 });
+
+      expect(() => service.verifyToken('refresh_token', 'access')).toThrow(
+        new UnauthorizedException('Unauthorized'),
+      );
+    });
+
+    it('should reject a malformed token', () => {
+      jwtService.verify.mockImplementationOnce(() => {
+        throw new JsonWebTokenError('jwt malformed');
+      });
+
+      expect(() => service.verifyToken('garbage', 'access')).toThrow(
+        new UnauthorizedException('Unauthorized'),
+      );
     });
   });
 
@@ -422,6 +441,15 @@ describe('AuthService', () => {
       await expect(
         service.getUserFromAccessToken('valid_token'),
       ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
+    });
+
+    it('should reject a refresh token presented as an access token', async () => {
+      jwtService.verify.mockReturnValueOnce({ type: 'refresh', userId: 1 });
+
+      await expect(
+        service.getUserFromAccessToken('refresh_token'),
+      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
+      expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
     });
   });
 
@@ -898,6 +926,15 @@ describe('AuthService', () => {
       await expect(
         service.resolveRefreshToken('refresh_token'),
       ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
+    });
+
+    it('should reject an access token presented as a refresh token', async () => {
+      jwtService.verify.mockReturnValueOnce({ type: 'access', userId: 1 });
+
+      await expect(service.resolveRefreshToken('access_token')).rejects.toThrow(
+        new UnauthorizedException('Unauthorized'),
+      );
+      expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
     });
   });
 });

@@ -104,7 +104,8 @@ export class ComposerAttachmentsComponent {
       return;
     }
     const slack = element.scrollWidth - element.clientWidth;
-    this.canScrollStart.set(element.scrollLeft > 1);
-    this.canScrollEnd.set(slack - element.scrollLeft > 1);
+    const scrollLeft = Math.abs(element.scrollLeft);
+    this.canScrollStart.set(scrollLeft > 1);
+    this.canScrollEnd.set(slack - scrollLeft > 1);
   }
 }

@@ -213,6 +213,29 @@ describe('AuthGuard', () => {
       expect(request['author']).toBeUndefined();
     });
 
+    it('should reject an access token in the refresh cookie without setting cookies', async () => {
+      const response = { cookie: jest.fn() };
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: { [REFRESH_TOKEN_KEY]: 'access_token' },
+      };
+      const context = createMockContext(request, response);
+
+      reflector.getAllAndOverride.mockImplementation((key: unknown) => {
+        if (key === AuthRefreshFallback) return true;
+        return undefined;
+      });
+      authService.resolveRefreshToken.mockRejectedValueOnce(
+        new UnauthorizedException('Unauthorized'),
+      );
+
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        new UnauthorizedException('Unauthorized'),
+      );
+      expect(authService.setAuthCookies).not.toHaveBeenCalled();
+      expect(request['author']).toBeUndefined();
+    });
+
     it('should not use the refresh token when the route has no fallback', async () => {
       const request: Record<string, unknown> = {
         method: 'GET',

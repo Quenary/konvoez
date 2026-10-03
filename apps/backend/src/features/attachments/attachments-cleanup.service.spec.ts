@@ -225,6 +225,39 @@ describe('AttachmentsCleanupService', () => {
     error.mockRestore();
   });
 
+  it('purges detached rows flagged while the temp sweep is running', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered: () => void = () => undefined;
+    const enteredTemp = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    jest.spyOn(service, 'sweepTempDir').mockImplementation(async () => {
+      entered();
+      await gate;
+    });
+    let detachedQueries = 0;
+    em.find.mockImplementation(
+      async (_entity: unknown, where: { $or?: unknown }) => {
+        if (!where.$or) {
+          return [];
+        }
+        detachedQueries += 1;
+        return [];
+      },
+    );
+
+    const pending = service.sweep();
+    await enteredTemp;
+    service.onDeleted();
+    release();
+    await pending;
+
+    expect(detachedQueries).toBe(2);
+  });
+
   it('sweeps the temp directory from the hourly run', async () => {
     const sweepTemp = jest
       .spyOn(service, 'sweepTempDir')

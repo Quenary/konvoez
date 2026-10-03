@@ -388,6 +388,16 @@ export class AttachmentsService {
       thumbnailPath,
       sniffed,
     );
+    if (poster.undecodable) {
+      return {
+        mime: sniffed,
+        kind: EAttachmentKind.FILE,
+        width: null,
+        height: null,
+        thumbnailPath: null,
+        size: file.size,
+      };
+    }
     return {
       mime: sniffed,
       kind: EAttachmentKind.VIDEO,

@@ -105,21 +105,22 @@ export class AttachmentsCleanupService
     }
     this.running = true;
     try {
-      while (this.expiredDue || this.detachedDue) {
+      while (this.expiredDue || this.detachedDue || this.tempDue) {
         const expired = this.expiredDue;
         const detached = this.detachedDue;
+        const temp = this.tempDue;
         this.expiredDue = false;
         this.detachedDue = false;
+        this.tempDue = false;
         if (expired) {
           await this.deleteExpiredPending();
         }
         if (detached) {
           await this.deleteDetachedRows();
         }
-      }
-      if (this.tempDue) {
-        this.tempDue = false;
-        await this.sweepTempDir();
+        if (temp) {
+          await this.sweepTempDir();
+        }
       }
     } catch (error) {
       this.logger.error(

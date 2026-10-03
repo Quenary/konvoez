@@ -122,29 +122,28 @@ export const OutgoingMessagesStore = signalStore(
         if (
           file.kind !== EAttachmentKind.IMAGE ||
           (file.width && file.height) ||
-          typeof createImageBitmap !== 'function'
+          !file.previewUrl
         ) {
           return;
         }
-        void createImageBitmap(file.file)
-          .then((bitmap) => {
-            const width = bitmap.width;
-            const height = bitmap.height;
-            bitmap.close();
-            const current = store.entityMap()[tempId];
-            if (!current) {
-              return;
-            }
-            replace({
-              ...current,
-              files: current.files.map((item) =>
-                item.localId === file.localId
-                  ? { ...item, width, height }
-                  : item,
-              ),
-            });
-          })
-          .catch(() => undefined);
+        const previewUrl = file.previewUrl;
+        const image = new Image();
+        image.onload = () => {
+          const width = image.naturalWidth;
+          const height = image.naturalHeight;
+          const current = store.entityMap()[tempId];
+          if (!current) {
+            return;
+          }
+          replace({
+            ...current,
+            files: current.files.map((item) =>
+              item.localId === file.localId ? { ...item, width, height } : item,
+            ),
+          });
+        };
+        image.onerror = () => undefined;
+        image.src = previewUrl;
       };
 
       const settle = (

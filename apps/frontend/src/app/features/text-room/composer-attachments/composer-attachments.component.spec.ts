@@ -76,6 +76,20 @@ describe('ComposerAttachmentsComponent', () => {
     expect(fixture.nativeElement.querySelector('.edge._on')).toBeNull();
   });
 
+  it('treats a negative RTL offset as scrolled to the end', () => {
+    fixture.nativeElement.setAttribute('dir', 'rtl');
+    const strip = fixture.nativeElement.querySelector('.strip') as HTMLElement;
+    setScroll(strip, {
+      scrollLeft: -(300 - 100),
+      clientWidth: 100,
+      scrollWidth: 300,
+    });
+    strip.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.edge-start._on')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.edge-end._on')).toBeNull();
+  });
+
   it('opens the preview at the media index and skips non-media', () => {
     const thumbnails =
       fixture.nativeElement.querySelectorAll('app-file-thumbnail');

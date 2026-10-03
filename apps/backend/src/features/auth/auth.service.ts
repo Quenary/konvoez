@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError } from 'jsonwebtoken';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
@@ -366,10 +367,22 @@ export class AuthService implements OnApplicationBootstrap {
     });
   }
 
-  verifyToken(token: string): AuthJWTData {
-    return this.jwt.verify<AuthJWTData>(token, {
-      secret: this.appService.JWT_SECRET,
-    });
+  verifyToken(token: string, type: AuthJWTData['type']): AuthJWTData {
+    let data: AuthJWTData;
+    try {
+      data = this.jwt.verify<AuthJWTData>(token, {
+        secret: this.appService.JWT_SECRET,
+      });
+    } catch (error) {
+      if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Unauthorized');
+      }
+      throw error;
+    }
+    if (data.type !== type) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+    return data;
   }
 
   /**
@@ -387,12 +400,12 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
-    const res = this.verifyToken(accessToken);
+    const res = this.verifyToken(accessToken, 'access');
     return await this.requireActiveUser(res.userId);
   }
 
   async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {
-    const data = this.verifyToken(refreshToken);
+    const data = this.verifyToken(refreshToken, 'refresh');
     return await this.requireActiveUser(data.userId);
   }
 

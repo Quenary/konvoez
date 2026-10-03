@@ -12,11 +12,7 @@ Konvoez is an Nx monorepo:
 
 ### Getting Started
 
-1. **Prerequisites**: Node.js `^22.22.3`, npm `>=10.9`, and `ffmpeg` (the package provides `ffprobe` as well). Video attachment posters are skipped when either binary is missing. On Debian and Ubuntu:
-
-   ```bash
-   sudo apt-get install -y ffmpeg
-   ```
+1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Video posters use the `ffmpeg-static` binary installed by `npm install` (the install script downloads it from GitHub). Posters are skipped when that binary is missing. `FFMPEG_PATH`, or an `ffmpeg` binary on `PATH`, is used instead when set.
 
 2. **Install dependencies**:
    ```bash

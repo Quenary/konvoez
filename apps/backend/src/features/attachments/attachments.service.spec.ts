@@ -131,6 +131,7 @@ describe('AttachmentsService', () => {
         width: null,
         height: null,
         written: false,
+        undecodable: false,
       }),
     };
     settingsService = {
@@ -255,7 +256,12 @@ describe('AttachmentsService', () => {
     videoProcessingService.createPoster.mockImplementation(
       async (_source: string, dest: string) => {
         fs.writeFileSync(dest, 'poster');
-        return { width: 1920, height: 1080, written: true };
+        return {
+          width: 1920,
+          height: 1080,
+          written: true,
+          undecodable: false,
+        };
       },
     );
 
@@ -278,6 +284,7 @@ describe('AttachmentsService', () => {
       width: 640,
       height: 360,
       written: false,
+      undecodable: false,
     });
 
     const dto = await createPending('clip.webm');
@@ -287,6 +294,24 @@ describe('AttachmentsService', () => {
     expect(dto.width).toBe(640);
     expect(dto.height).toBe(360);
     expect(fileService.putFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores an undecodable video as a file', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('video/mp4');
+    videoProcessingService.createPoster.mockResolvedValue({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+    });
+
+    const dto = await createPending('clip.mp4');
+
+    expect(dto.kind).toBe(EAttachmentKind.FILE);
+    expect(dto.mime).toBe('video/mp4');
+    expect(dto.width).toBeNull();
+    expect(dto.height).toBeNull();
+    expect(dto.thumbnailUrl).toBeNull();
   });
 
   it('stores a sanitised original name', async () => {
@@ -388,27 +413,32 @@ describe('AttachmentsService', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    fileService.putFile.mockImplementation(() => gate);
+    let resolveAtTwo: () => void = () => undefined;
+    const atTwo = new Promise<void>((resolve) => {
+      resolveAtTwo = resolve;
+    });
+    let resolveAtThree: () => void = () => undefined;
+    const atThree = new Promise<void>((resolve) => {
+      resolveAtThree = resolve;
+    });
+    fileService.putFile.mockImplementation(() => {
+      const calls = fileService.putFile.mock.calls.length;
+      if (calls === 2) {
+        resolveAtTwo();
+      }
+      if (calls === 3) {
+        resolveAtThree();
+      }
+      return gate;
+    });
 
     const first = createPending('a.jpg');
     const second = createPending('b.jpg');
-    for (
-      let attempt = 0;
-      attempt < 20 && fileService.putFile.mock.calls.length < 2;
-      attempt += 1
-    ) {
-      await new Promise((resolve) => setImmediate(resolve));
-    }
+    await atTwo;
     expect(fileService.putFile).toHaveBeenCalledTimes(2);
 
     const third = createPending('note.txt');
-    for (
-      let attempt = 0;
-      attempt < 20 && fileService.putFile.mock.calls.length < 3;
-      attempt += 1
-    ) {
-      await new Promise((resolve) => setImmediate(resolve));
-    }
+    await atThree;
     expect(fileService.putFile).toHaveBeenCalledTimes(3);
 
     release();
@@ -425,6 +455,7 @@ describe('AttachmentsService', () => {
         width: 8,
         height: 8,
         written: false,
+        undecodable: false,
       })),
     );
     let sniffCalls = 0;
@@ -439,16 +470,21 @@ describe('AttachmentsService', () => {
       format: 'jpeg',
     });
 
+    let resolveAtTwo: () => void = () => undefined;
+    const atTwo = new Promise<void>((resolve) => {
+      resolveAtTwo = resolve;
+    });
+    fileService.putFile.mockImplementation(() => {
+      if (fileService.putFile.mock.calls.length === 2) {
+        resolveAtTwo();
+      }
+      return undefined;
+    });
+
     const video = createPending('clip.mp4');
     const first = createPending('a.jpg');
     const second = createPending('b.jpg');
-    for (
-      let attempt = 0;
-      attempt < 20 && fileService.putFile.mock.calls.length < 2;
-      attempt += 1
-    ) {
-      await new Promise((resolve) => setImmediate(resolve));
-    }
+    await atTwo;
     expect(fileService.putFile).toHaveBeenCalledTimes(2);
 
     releasePoster();

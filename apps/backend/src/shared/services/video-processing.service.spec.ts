@@ -9,58 +9,26 @@ jest.mock('child_process', () => {
   };
 });
 
-import { type ChildProcess } from 'child_process';
+import { type ChildProcess, spawnSync } from 'child_process';
 import * as childProcess from 'child_process';
 import { EventEmitter } from 'events';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { Logger } from '@nestjs/common';
 import sharp from 'sharp';
 import {
   assertPosterStorage,
-  posterSeekSeconds,
-  videoDisplaySize,
+  resolveFfmpegBinary,
   videoInputFormat,
   VideoProcessingService,
 } from './video-processing.service';
 
+const ffmpegBinary = resolveFfmpegBinary();
+const hasFfmpeg =
+  spawnSync(ffmpegBinary, ['-version'], { stdio: 'ignore' }).status === 0;
+
 describe('video poster helpers', () => {
-  it('swaps display size for 90 and 270 degree rotation', () => {
-    expect(
-      videoDisplaySize(
-        JSON.stringify({
-          streams: [
-            {
-              width: 1920,
-              height: 1080,
-              side_data_list: [{ rotation: -90 }],
-            },
-          ],
-        }),
-      ),
-    ).toEqual({ width: 1080, height: 1920, durationSeconds: null });
-
-    expect(
-      videoDisplaySize(
-        JSON.stringify({
-          streams: [{ width: 640, height: 480, tags: { rotate: '180' } }],
-          format: { duration: '3.5' },
-        }),
-      ),
-    ).toEqual({ width: 640, height: 480, durationSeconds: 3.5 });
-  });
-
-  it('rejects a probe payload without a video stream', () => {
-    expect(videoDisplaySize('not-json')).toBeNull();
-    expect(videoDisplaySize(JSON.stringify({ streams: [] }))).toBeNull();
-  });
-
-  it('seeks to the first frame only for a short clip', () => {
-    expect(posterSeekSeconds(0.4)).toEqual([0]);
-    expect(posterSeekSeconds(5)).toEqual([1, 0]);
-    expect(posterSeekSeconds(null)).toEqual([1, 0]);
-  });
-
   it('maps a full disk message to ENOSPC', () => {
     expect(() => assertPosterStorage('ok')).not.toThrow();
     expect(() => assertPosterStorage('No space left on device')).toThrow(
@@ -74,9 +42,20 @@ describe('video poster helpers', () => {
     expect(videoInputFormat('video/quicktime')).toBe('mov');
     expect(videoInputFormat('video/hevc')).toBeNull();
   });
+
+  it('prefers FFMPEG_PATH over the packaged binary', () => {
+    const previous = process.env['FFMPEG_PATH'];
+    process.env['FFMPEG_PATH'] = '/opt/ffmpeg';
+    expect(resolveFfmpegBinary()).toBe('/opt/ffmpeg');
+    if (previous === undefined) {
+      delete process.env['FFMPEG_PATH'];
+    } else {
+      process.env['FFMPEG_PATH'] = previous;
+    }
+  });
 });
 
-describe('VideoProcessingService', () => {
+(hasFfmpeg ? describe : describe.skip)('VideoProcessingService', () => {
   const service = new VideoProcessingService();
   let dir: string;
 
@@ -87,7 +66,7 @@ describe('VideoProcessingService', () => {
   it('writes a webp poster and the display size', async () => {
     const source = path.join(dir, 'clip.mp4');
     const dest = path.join(dir, 'clip.webp');
-    await run('ffmpeg', [
+    await run(ffmpegBinary, [
       '-hide_banner',
       '-loglevel',
       'error',
@@ -104,8 +83,13 @@ describe('VideoProcessingService', () => {
 
     const poster = await service.createPoster(source, dest, 'video/mp4');
 
-    expect(poster).toEqual({ width: 1280, height: 720, written: true });
     const metadata = await sharp(dest).metadata();
+    expect(poster).toEqual({
+      width: metadata.width,
+      height: metadata.height,
+      written: true,
+      undecodable: false,
+    });
     expect(metadata.format).toBe('webp');
     expect(metadata.width).toBeLessThanOrEqual(1024);
     expect(metadata.height).toBeLessThanOrEqual(1024);
@@ -115,7 +99,7 @@ describe('VideoProcessingService', () => {
   it('still writes a poster for a clip shorter than one second', async () => {
     const source = path.join(dir, 'short.mp4');
     const dest = path.join(dir, 'short.webp');
-    await run('ffmpeg', [
+    await run(ffmpegBinary, [
       '-hide_banner',
       '-loglevel',
       'error',
@@ -133,6 +117,7 @@ describe('VideoProcessingService', () => {
     const poster = await service.createPoster(source, dest, 'video/mp4');
 
     expect(poster.written).toBe(true);
+    expect(poster.undecodable).toBe(false);
     expect(poster.width).toBe(160);
     expect(poster.height).toBe(90);
   }, 20_000);
@@ -144,7 +129,12 @@ describe('VideoProcessingService', () => {
 
     const poster = await service.createPoster(source, dest, 'video/mp4');
 
-    expect(poster).toEqual({ width: null, height: null, written: false });
+    expect(poster).toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+    });
     expect(fs.existsSync(dest)).toBe(false);
     expect(fs.existsSync(`${dest}.frame.jpg`)).toBe(false);
   });
@@ -194,7 +184,7 @@ describe('poster process limits', () => {
     }
   });
 
-  function fakeProcess(close: 'ok' | 'fail' | 'hang'): ChildProcess {
+  function fakeProcess(close: 'fail' | 'hang' | 'enoent'): ChildProcess {
     const stdout = new EventEmitter();
     const stderr = new EventEmitter();
     const child = new EventEmitter() as EventEmitter & {
@@ -213,19 +203,18 @@ describe('poster process limits', () => {
       finish(null);
       return true;
     };
-    if (close !== 'hang') {
+    if (close === 'enoent') {
       setTimeout(() => {
-        if (close === 'ok') {
-          stdout.emit(
-            'data',
-            Buffer.from(
-              JSON.stringify({
-                streams: [{ width: 16, height: 16, duration: '2' }],
-              }),
-            ),
-          );
-        }
-        finish(close === 'ok' ? 0 : 1);
+        child.emit(
+          'error',
+          Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }),
+        );
+      }, 0);
+      return child as unknown as ChildProcess;
+    }
+    if (close === 'fail') {
+      setTimeout(() => {
+        finish(1);
       }, 0);
     }
     return child as unknown as ChildProcess;
@@ -244,9 +233,7 @@ describe('poster process limits', () => {
   it('pins the container format and omits server secrets', async () => {
     const spawnMock = jest
       .mocked(childProcess.spawn)
-      .mockImplementation((command) =>
-        fakeProcess(command === 'ffprobe' ? 'ok' : 'fail'),
-      );
+      .mockImplementation(() => fakeProcess('fail'));
     spawnMock.mockClear();
 
     const poster = await service.createPoster(
@@ -255,55 +242,43 @@ describe('poster process limits', () => {
       'video/webm',
     );
 
-    expect(poster).toEqual({ width: 16, height: 16, written: false });
-    expect(spawnMock).toHaveBeenCalledTimes(3);
+    expect(poster).toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+    });
+    expect(spawnMock).toHaveBeenCalledTimes(2);
     const seeks: string[] = [];
     for (const call of spawnMock.mock.calls) {
+      expect(call[0]).toBe(resolveFfmpegBinary());
       const args = call[1] as readonly string[];
       expect(args).toEqual(
-        expect.arrayContaining(['-protocol_whitelist', 'file', '-f', 'webm']),
+        expect.arrayContaining([
+          '-protocol_whitelist',
+          'file',
+          '-f',
+          'webm',
+          '-threads',
+          '1',
+          '-filter_threads',
+          '1',
+          '-map',
+          '0:V:0',
+        ]),
       );
+      expect(args).not.toContain('-vf');
       const options = call[2] as { env?: NodeJS.ProcessEnv } | undefined;
       expect(options?.env).not.toHaveProperty('MASTER_KEY');
       expect(options?.env).not.toHaveProperty('JWT_SECRET');
       expect(options?.env).not.toHaveProperty('S3_ACCESS_KEY');
       expect(options?.env?.PATH).toBe(process.env.PATH);
-      if (call[0] === 'ffmpeg') {
-        seeks.push(args[args.indexOf('-ss') + 1] ?? '');
-      }
+      seeks.push(args[args.indexOf('-ss') + 1] ?? '');
     }
     expect(seeks).toEqual(['1', '0']);
   });
 
   it('does not grab another frame after a timeout', async () => {
-    const spawnMock = jest
-      .mocked(childProcess.spawn)
-      .mockImplementation((command) =>
-        fakeProcess(command === 'ffprobe' ? 'ok' : 'hang'),
-      );
-    spawnMock.mockClear();
-    const pending = service.createPoster(
-      path.join(dir, 'clip.mp4'),
-      path.join(dir, 'clip.webp'),
-      'video/mp4',
-      40,
-    );
-
-    await untilSpawns(2);
-    expect(spawnMock.mock.calls.map((call) => call[0])).toEqual([
-      'ffprobe',
-      'ffmpeg',
-    ]);
-
-    await expect(pending).resolves.toEqual({
-      width: 16,
-      height: 16,
-      written: false,
-    });
-    expect(spawnMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not start ffmpeg when probing uses the deadline', async () => {
     const spawnMock = jest
       .mocked(childProcess.spawn)
       .mockImplementation(() => fakeProcess('hang'));
@@ -316,14 +291,42 @@ describe('poster process limits', () => {
     );
 
     await untilSpawns(1);
-    expect(spawnMock.mock.calls.map((call) => call[0])).toEqual(['ffprobe']);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
 
     await expect(pending).resolves.toEqual({
       width: null,
       height: null,
       written: false,
+      undecodable: false,
     });
     expect(spawnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('warns once when ffmpeg cannot be started', async () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const spawnMock = jest
+      .mocked(childProcess.spawn)
+      .mockImplementation(() => fakeProcess('enoent'));
+    spawnMock.mockClear();
+    warn.mockClear();
+
+    await expect(
+      service.createPoster(
+        path.join(dir, 'clip.mp4'),
+        path.join(dir, 'clip.webp'),
+        'video/mp4',
+      ),
+    ).resolves.toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: false,
+    });
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it('runs at most two posters at once', async () => {
@@ -347,9 +350,9 @@ describe('poster process limits', () => {
     expect(spawnMock).toHaveBeenCalledTimes(3);
 
     await expect(Promise.all(jobs)).resolves.toEqual([
-      { width: null, height: null, written: false },
-      { width: null, height: null, written: false },
-      { width: null, height: null, written: false },
+      { width: null, height: null, written: false, undecodable: false },
+      { width: null, height: null, written: false, undecodable: false },
+      { width: null, height: null, written: false, undecodable: false },
     ]);
   });
 });
