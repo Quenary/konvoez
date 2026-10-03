@@ -154,40 +154,43 @@ describe('S3Service', () => {
     const dir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'konvoez-s3-'),
     );
-    const source = path.join(dir, 'upload.bin');
-    await fs.promises.writeFile(source, 'payload');
-    (mockS3Client.send as jest.Mock).mockImplementation(
-      async (command: { input?: { Body?: AsyncIterable<unknown> } }) => {
-        const body = command.input?.Body;
-        if (body && Symbol.asyncIterator in Object(body)) {
-          for await (const chunk of body) {
-            void chunk;
+    try {
+      const source = path.join(dir, 'upload.bin');
+      await fs.promises.writeFile(source, 'payload');
+      (mockS3Client.send as jest.Mock).mockImplementation(
+        async (command: { input?: { Body?: AsyncIterable<unknown> } }) => {
+          const body = command.input?.Body;
+          if (body && Symbol.asyncIterator in Object(body)) {
+            for await (const chunk of body) {
+              void chunk;
+            }
           }
-        }
-        return {};
-      },
-    );
+          return {};
+        },
+      );
 
-    await service.putFile(
-      'message-attachments/id',
-      {
-        path: source,
-        size: 7,
-        contentType: 'application/octet-stream',
-      },
-      'message-attachments',
-    );
+      await service.putFile(
+        'message-attachments/id',
+        {
+          path: source,
+          size: 7,
+          contentType: 'application/octet-stream',
+        },
+        'message-attachments',
+      );
 
-    const put = (mockS3Client.send as jest.Mock).mock.calls
-      .map((call) => call[0] as PutObjectCommand)
-      .find((command) => command instanceof PutObjectCommand);
-    expect(put?.input.Bucket).toBe('message-attachments');
-    expect(put?.input.Key).toBe('message-attachments/id');
-    expect(put?.input.ContentLength).toBe(7);
-    expect(put?.input.ContentType).toBe('application/octet-stream');
-    expect(put?.input.Body).toBeDefined();
-    expect(fs.existsSync(source)).toBe(false);
-    await fs.promises.rm(dir, { recursive: true, force: true });
+      const put = (mockS3Client.send as jest.Mock).mock.calls
+        .map((call) => call[0] as PutObjectCommand)
+        .find((command) => command instanceof PutObjectCommand);
+      expect(put?.input.Bucket).toBe('message-attachments');
+      expect(put?.input.Key).toBe('message-attachments/id');
+      expect(put?.input.ContentLength).toBe(7);
+      expect(put?.input.ContentType).toBe('application/octet-stream');
+      expect(put?.input.Body).toBeDefined();
+      expect(fs.existsSync(source)).toBe(false);
+    } finally {
+      await fs.promises.rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('should request a byte range', async () => {

@@ -65,6 +65,10 @@ describe('MimeSnifferService', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'konvoez-mime-'));
   });
 
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   async function sniff(name: string, bytes: Buffer): Promise<string | null> {
     const filePath = path.join(dir, name);
     fs.writeFileSync(filePath, bytes);

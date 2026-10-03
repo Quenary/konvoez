@@ -12,6 +12,10 @@ describe('ImageProcessingService', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'konvoez-img-'));
   });
 
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it('rejects a truncated jpeg and leaves no thumbnail file', async () => {
     const jpeg = await sharp({
       create: {

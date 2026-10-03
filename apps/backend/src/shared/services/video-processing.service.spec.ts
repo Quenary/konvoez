@@ -63,6 +63,10 @@ describe('video poster helpers', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'konvoez-video-'));
   });
 
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it('writes a webp poster and the display size', async () => {
     const source = path.join(dir, 'clip.mp4');
     const dest = path.join(dir, 'clip.webp');
@@ -169,6 +173,7 @@ describe('poster process limits', () => {
   });
 
   afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
     const actual =
       jest.requireActual<typeof import('child_process')>('child_process');
     jest.mocked(childProcess.spawn).mockClear();

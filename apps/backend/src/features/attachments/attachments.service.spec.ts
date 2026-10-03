@@ -93,10 +93,11 @@ describe('AttachmentsService', () => {
   let videoProcessingService: { createPoster: jest.Mock };
   let settingsService: { getValue: jest.Mock };
   let service: AttachmentsService;
+  let dir: string;
   let filePath: string;
 
   beforeEach(() => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'konvoez-att-'));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'konvoez-att-'));
     filePath = path.join(dir, 'upload');
     fs.writeFileSync(filePath, Buffer.from('jpeg-bytes'));
     em = {
@@ -145,6 +146,10 @@ describe('AttachmentsService', () => {
       videoProcessingService as never,
       settingsService as never,
     );
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   async function createPending(

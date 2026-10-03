@@ -114,6 +114,10 @@ describe('AttachmentUploadInterceptor', () => {
     );
   });
 
+  afterEach(() => {
+    fs.rmSync(appService.UPLOAD_TMP_DIR, { recursive: true, force: true });
+  });
+
   function context(): ExecutionContext {
     return {
       switchToHttp: () => ({

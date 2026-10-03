@@ -61,6 +61,7 @@ describe('AttachmentsCleanupService', () => {
 
   afterEach(() => {
     service.onModuleDestroy();
+    fs.rmSync(appService.UPLOAD_TMP_DIR, { recursive: true, force: true });
   });
 
   function pendingRow(createdAt: Date) {
