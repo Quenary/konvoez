@@ -38,7 +38,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { JsonWebTokenError } from 'jsonwebtoken';
+import { JsonWebTokenError } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 
 import { AppService } from '@shared/services/app.service';

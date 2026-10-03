@@ -10,7 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { JsonWebTokenError } from 'jsonwebtoken';
+import { JsonWebTokenError } from '@nestjs/jwts';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
