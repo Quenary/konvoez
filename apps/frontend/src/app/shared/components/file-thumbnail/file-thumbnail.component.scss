@@ -6,6 +6,7 @@
   overflow: hidden;
   border-radius: 0.5rem;
   background: var(--tui-background-neutral-1);
+  container-type: size;
 }
 
 :host._fill {
@@ -65,8 +66,7 @@ video {
   background: color-mix(in srgb, black 35%, transparent);
 }
 
-.error-icon,
-.play {
+.error-icon {
   position: absolute;
   z-index: 1;
   inset-inline-start: 0.25rem;
@@ -74,7 +74,19 @@ video {
 }
 
 .play {
-  filter: drop-shadow(0 0 2px rgb(0 0 0 / 70%));
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  font-size: clamp(1.5rem, 48cqmin, 3rem);
+  color: var(--tui-text-action);
+  background-color: var(--tui-background-neutral-2);
+  border-radius: 50%;
+  pointer-events: none;
+  padding: 0.5rem;
+  box-sizing: content-box;
+  filter: drop-shadow(0 0 0.2rem rgb(0 0 0 / 70%));
 }
 
 .remove {
