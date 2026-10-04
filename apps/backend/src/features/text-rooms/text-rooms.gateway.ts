@@ -74,9 +74,10 @@ export class TextRoomsGateway
         `Socket connected: socketId=${client.id}, userId=${user.id}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Socket auth failed: socketId=${client.id}`,
-        error instanceof Error ? error.stack : String(error),
+      this.logger.warn(
+        `Socket auth failed: socketId=${client.id}, message=${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);

@@ -109,9 +109,10 @@ export class VoiceRoomsGateway
         `Socket connected: socketId=${client.id}, userId=${user.id}`,
       );
     } catch (error) {
-      this.logger.error(
-        `Socket auth failed: socketId=${client.id}`,
-        error instanceof Error ? error.stack : String(error),
+      this.logger.warn(
+        `Socket auth failed: socketId=${client.id}, message=${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       client.emit(EVoiceRoomEvent.ERROR, {
         message: 'Unauthorized',
@@ -157,7 +158,11 @@ export class VoiceRoomsGateway
       );
       if (!parsed) {
         this.logger.warn(
-          `Invalid session key: socketId=${socket.id}, sessionKey=${body.sessionKey}`,
+          `Invalid session key: socketId=${socket.id}, sessionKey=${String(
+            body.sessionKey,
+          )
+            .slice(0, 64)
+            .replace(/[\r\n]/g, ' ')}`,
         );
         throw new Error('Invalid session key');
       }
