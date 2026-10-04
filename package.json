@@ -1,6 +1,6 @@
 {
   "name": "konvoez",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Self-hosted voice and text chat app",
   "scripts": {
     "nx": "nx",

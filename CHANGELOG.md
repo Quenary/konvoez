@@ -1,3 +1,15 @@
+## [1.9.1](https://github.com/Quenary/konvoez/compare/v1.9.0...v1.9.1) (2026-10-04)
+
+### Bug Fixes
+
+- **backend:** map malformed multipart uploads to 400 ([7f4bf89](https://github.com/Quenary/konvoez/commit/7f4bf8989480a6b6300bf2e2bcb15e16c2eb5c29))
+- **backend:** reject an empty attachment upload body with 400 ([407d79b](https://github.com/Quenary/konvoez/commit/407d79b7ff2abf3dbfd1fb680e3d10d6b9eb7137))
+- **backend:** remove partial temp files after a failed upload ([ab37f79](https://github.com/Quenary/konvoez/commit/ab37f7989b5d08e510949052d92ac04f34c295f7))
+- **frontend:** bypass the service worker for uploads ([f29f921](https://github.com/Quenary/konvoez/commit/f29f921af5f5fbecfcbebeee794847b5a10cb407))
+- **frontend:** explain empty or malformed upload failures ([c11574b](https://github.com/Quenary/konvoez/commit/c11574bae276d1024cb025b34c00dbd5f1d6c9d2))
+- **frontend:** upload a slice of picked files for webkit ([5db38d0](https://github.com/Quenary/konvoez/commit/5db38d0d261438ce1b5b8717aac320900800332a))
+- **frontend:** upload a slice of the poster too ([a0f12f3](https://github.com/Quenary/konvoez/commit/a0f12f3092489e4da29323e07f8b84aa2d28d6a6))
+
 # [1.9.0](https://github.com/Quenary/konvoez/compare/v1.8.0...v1.9.0) (2026-10-04)
 
 ### Bug Fixes
