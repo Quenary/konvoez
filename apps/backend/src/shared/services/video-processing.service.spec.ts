@@ -16,9 +16,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Logger } from '@nestjs/common';
+import sharp from 'sharp';
 import {
   assertPosterStorage,
   parseFfmpegDurationMs,
+  stderrIndicatesUndecodableVideo,
   resolveFfmpegBinary,
   videoInputFormat,
   VideoProcessingService,
@@ -26,9 +28,36 @@ import {
 
 describe('video poster helpers', () => {
   it('maps a full disk message to ENOSPC', () => {
-    expect(() => assertPosterStorage('ok')).not.toThrow();
-    expect(() => assertPosterStorage('No space left on device')).toThrow(
+    expect(() => assertPosterStorage('ok', 1)).not.toThrow();
+    expect(() =>
+      assertPosterStorage('No space left on device', 0),
+    ).not.toThrow();
+    expect(() =>
+      assertPosterStorage('    comment         : No space left on device', 1),
+    ).not.toThrow();
+    expect(() => assertPosterStorage('No space left on device', 1)).toThrow(
       expect.objectContaining({ code: 'ENOSPC' }),
+    );
+  });
+
+  it('detects ffmpeg stderr that means the clip has no decodable video', () => {
+    expect(
+      stderrIndicatesUndecodableVideo(
+        "Stream map '0:V:0' matches no streams.\n",
+      ),
+    ).toBe(true);
+    expect(
+      stderrIndicatesUndecodableVideo(
+        '[mov,mp4,m4a,3gp,3g2,mj2 @ 0x...] moov atom not found\n',
+      ),
+    ).toBe(true);
+    expect(
+      stderrIndicatesUndecodableVideo(
+        'Invalid data found when processing input\n',
+      ),
+    ).toBe(true);
+    expect(stderrIndicatesUndecodableVideo('ffmpeg failed mysteriously')).toBe(
+      false,
     );
   });
 
@@ -59,13 +88,36 @@ describe('video poster helpers', () => {
     expect(parseFfmpegDurationMs('Duration: N/A, bitrate: N/A')).toBeNull();
     expect(parseFfmpegDurationMs('Duration: 24:00:00.01')).toBeNull();
     expect(parseFfmpegDurationMs('Duration: 24:00:00.00')).toBe(86_400_000);
+    expect(
+      parseFfmpegDurationMs(
+        [
+          '  Metadata:',
+          '    title           : Duration: 23:59:59.00',
+          '  Duration: 00:00:03.00, start: 0.000000, bitrate: 1234 kb/s',
+        ].join('\n'),
+      ),
+    ).toBe(3000);
   });
 });
 
 describe('poster process limits', () => {
   let service: VideoProcessingService;
   let dir: string;
+  let miniJpeg: Buffer;
   const savedEnv: Record<string, string | undefined> = {};
+
+  beforeAll(async () => {
+    miniJpeg = await sharp({
+      create: {
+        width: 8,
+        height: 8,
+        channels: 3,
+        background: { r: 10, g: 20, b: 30 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+  });
 
   beforeEach(() => {
     service = new VideoProcessingService();
@@ -94,7 +146,14 @@ describe('poster process limits', () => {
   });
 
   function fakeProcess(
-    close: 'fail' | 'hang' | 'enoent' | 'eacces' | 'enoexec' | 'empty',
+    close:
+      | 'fail'
+      | 'hang'
+      | 'enoent'
+      | 'eacces'
+      | 'enoexec'
+      | 'empty'
+      | { code: number; stderr: string; framePath?: string },
   ): ChildProcess {
     const stdout = new EventEmitter();
     const stderr = new EventEmitter();
@@ -132,6 +191,16 @@ describe('poster process limits', () => {
     if (close === 'empty') {
       setTimeout(() => {
         finish(0);
+      }, 0);
+      return child as unknown as ChildProcess;
+    }
+    if (typeof close === 'object') {
+      setTimeout(() => {
+        stderr.emit('data', Buffer.from(close.stderr));
+        if (close.framePath) {
+          fs.writeFileSync(close.framePath, miniJpeg);
+        }
+        finish(close.code);
       }, 0);
       return child as unknown as ChildProcess;
     }
@@ -229,6 +298,60 @@ describe('poster process limits', () => {
       outcome: 'timeout',
     });
     expect(spawnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores spoofed metadata when ffmpeg succeeds', async () => {
+    const spawnMock = jest
+      .mocked(childProcess.spawn)
+      .mockImplementation((_cmd, args) =>
+        fakeProcess({
+          code: 0,
+          stderr: [
+            '    comment         : No space left on device',
+            '    title           : Duration: 23:59:59.00',
+            '  Duration: 00:00:03.00, start: 0.000000, bitrate: 1234 kb/s',
+          ].join('\n'),
+          framePath: String(args[args.length - 1]),
+        }),
+      );
+    spawnMock.mockClear();
+
+    const poster = await service.createPoster(
+      path.join(dir, 'clip.mp4'),
+      path.join(dir, 'clip.webp'),
+      'video/mp4',
+    );
+
+    expect(poster.outcome).toBe('frame');
+    expect(poster.durationMs).toBe(3000);
+    expect(poster.written).toBe(true);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats typical ffmpeg decode errors as undecodable', async () => {
+    const spawnMock = jest.mocked(childProcess.spawn).mockImplementation(() =>
+      fakeProcess({
+        code: 234,
+        stderr: "Stream map '0:V:0' matches no streams.\n",
+      }),
+    );
+    spawnMock.mockClear();
+
+    await expect(
+      service.createPoster(
+        path.join(dir, 'audio-only.mp4'),
+        path.join(dir, 'audio-only.webp'),
+        'video/mp4',
+      ),
+    ).resolves.toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+      durationMs: null,
+      outcome: 'undecodable',
+    });
+    expect(spawnMock).toHaveBeenCalledTimes(2);
   });
 
   it('treats an empty frame as undecodable', async () => {

@@ -79,8 +79,38 @@ export function resolveFfmpegBinary(): string {
   return 'ffmpeg';
 }
 
+const FFMPEG_DURATION_LINE =
+  /^\s*Duration:\s+(?:N\/A|(\d+):(\d+):(\d+(?:\.\d+)?))/m;
+const FFMPEG_METADATA_TAG_LINE = /^\s+(?!Duration:)\S+\s+:\s/;
+
+const FFMPEG_UNDECODABLE_STDERR = [
+  /Invalid data found when processing input/i,
+  /moov atom not found/i,
+  /matches no streams/i,
+  /does not contain any stream/i,
+  /could not find codec parameters/i,
+  /Output file .* does not contain any stream/i,
+] as const;
+
+export function stderrIndicatesUndecodableVideo(stderr: string): boolean {
+  return FFMPEG_UNDECODABLE_STDERR.some((pattern) => pattern.test(stderr));
+}
+
+export function stderrIndicatesEnospc(stderr: string): boolean {
+  for (const line of stderr.split(/\r?\n/)) {
+    if (!line.includes('No space left on device')) {
+      continue;
+    }
+    if (FFMPEG_METADATA_TAG_LINE.test(line)) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 export function parseFfmpegDurationMs(stderr: string): number | null {
-  const match = /Duration:\s+(?:N\/A|(\d+):(\d+):(\d+(?:\.\d+)?))/.exec(stderr);
+  const match = FFMPEG_DURATION_LINE.exec(stderr);
   if (!match?.[1] || !match[2] || !match[3]) {
     return null;
   }
@@ -105,8 +135,8 @@ export function videoInputFormat(mime: string): string | null {
   return INPUT_FORMAT_BY_MIME[mime] ?? null;
 }
 
-export function assertPosterStorage(stderr: string): void {
-  if (!stderr.includes('No space left on device')) {
+export function assertPosterStorage(stderr: string, exitCode: number): void {
+  if (exitCode === 0 || !stderrIndicatesEnospc(stderr)) {
     return;
   }
   throw Object.assign(new Error('No space left on device'), { code: 'ENOSPC' });
@@ -214,6 +244,7 @@ export class VideoProcessingService {
     const binary = resolveFfmpegBinary();
     let failed = false;
     let empty = false;
+    let undecodable = false;
     for (const seek of [1, 0]) {
       await fs.promises.rm(framePath, { force: true });
       let result: ICommandResult;
@@ -258,9 +289,13 @@ export class VideoProcessingService {
         }
         throw error;
       }
-      assertPosterStorage(result.stderr);
+      assertPosterStorage(result.stderr, result.code);
       if (result.code !== 0) {
-        failed = true;
+        if (stderrIndicatesUndecodableVideo(result.stderr)) {
+          undecodable = true;
+        } else {
+          failed = true;
+        }
         continue;
       }
       try {
@@ -277,7 +312,7 @@ export class VideoProcessingService {
       }
       empty = true;
     }
-    if (empty) {
+    if (empty || undecodable) {
       return { status: 'none', durationMs: null };
     }
     if (failed) {
@@ -361,7 +396,8 @@ function runCommand(
     });
     child.on('close', (code) => {
       const stderrText = Buffer.concat(stderr).toString('utf8');
-      if (stderrText.includes('No space left on device')) {
+      const exitCode = code ?? 1;
+      if ((exitCode !== 0 || timedOut) && stderrIndicatesEnospc(stderrText)) {
         finish(
           Object.assign(new Error('No space left on device'), {
             code: 'ENOSPC',

@@ -93,7 +93,64 @@ if (process.env['KONVOEZ_REQUIRE_FFMPEG'] === '1' && !hasFfmpeg) {
     expect(poster.durationMs).toBe(400);
   }, 20_000);
 
-  it('treats a file ffmpeg cannot open as a failed grab', async () => {
+  it('ignores misleading container metadata tags', async () => {
+    const source = path.join(dir, 'meta.mp4');
+    const dest = path.join(dir, 'meta.webp');
+    await run(ffmpegBinary, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=size=320x180:rate=10:duration=2',
+      '-pix_fmt',
+      'yuv420p',
+      '-metadata',
+      'comment=No space left on device',
+      '-metadata',
+      'title=Duration: 23:59:59.00, start',
+      '-t',
+      '2',
+      source,
+    ]);
+
+    const poster = await service.createPoster(source, dest, 'video/mp4');
+
+    expect(poster.outcome).toBe('frame');
+    expect(poster.durationMs).toBe(2000);
+    expect(poster.written).toBe(true);
+  }, 20_000);
+
+  it('treats an audio-only mp4 as undecodable', async () => {
+    const source = path.join(dir, 'audio-only.mp4');
+    const dest = path.join(dir, 'audio-only.webp');
+    await run(ffmpegBinary, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=440:duration=1',
+      '-c:a',
+      'aac',
+      source,
+    ]);
+
+    const poster = await service.createPoster(source, dest, 'video/mp4');
+
+    expect(poster).toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+      durationMs: null,
+      outcome: 'undecodable',
+    });
+  }, 20_000);
+
+  it('treats a file ffmpeg cannot decode as undecodable', async () => {
     const source = path.join(dir, 'note.txt');
     const dest = path.join(dir, 'note.webp');
     fs.writeFileSync(source, 'hello');
@@ -104,9 +161,9 @@ if (process.env['KONVOEZ_REQUIRE_FFMPEG'] === '1' && !hasFfmpeg) {
       width: null,
       height: null,
       written: false,
-      undecodable: false,
+      undecodable: true,
       durationMs: null,
-      outcome: 'failed',
+      outcome: 'undecodable',
     });
     expect(fs.existsSync(dest)).toBe(false);
     expect(fs.existsSync(`${dest}.frame.jpg`)).toBe(false);
