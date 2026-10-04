@@ -37,6 +37,7 @@ describe('VoiceSessionService', () => {
     on: ReturnType<typeof vi.fn>;
     off: ReturnType<typeof vi.fn>;
     emitWithAck: ReturnType<typeof vi.fn>;
+    timeout: ReturnType<typeof vi.fn>;
     connected: boolean;
   };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
@@ -97,8 +98,10 @@ describe('VoiceSessionService', () => {
         }
         return Promise.resolve(undefined);
       }),
+      timeout: vi.fn(),
       connected: true,
     };
+    socket.timeout.mockReturnValue(socket);
 
     const activeSession = signal<unknown>(null);
     voiceRoomStore = {
@@ -199,6 +202,49 @@ describe('VoiceSessionService', () => {
       EVoiceRoomEvent.GET_ALL_PEERS,
     );
     expect(voiceRoomStore.setRoomsState).toHaveBeenCalledWith(nextSnapshot);
+  });
+
+  it('releases the microphone when the leave ack rejects or times out', async () => {
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const failures = [
+      new Error('ack failed'),
+      new Error('operation has timed out'),
+    ];
+
+    try {
+      for (const error of failures) {
+        voiceRoomStore.setActiveSession({
+          type: EVoiceSessionType.GROUP_ROOM,
+          roomId: 7,
+        });
+        socket.emitWithAck.mockImplementation((event: string) => {
+          if (event === EVoiceRoomEvent.LEAVE_ROOM) {
+            return new Promise(() => undefined);
+          }
+          if (event === EVoiceRoomEvent.GET_ALL_PEERS) {
+            return Promise.resolve(roomsSnapshot);
+          }
+          return Promise.resolve(undefined);
+        });
+        socket.timeout.mockReturnValue({
+          emitWithAck: vi.fn().mockRejectedValue(error),
+        });
+        microphoneService.release.mockClear();
+        mediasoup.cleanup.mockClear();
+        voiceRoomStore.clearSessionPeers.mockClear();
+
+        await service.leaveSession();
+
+        expect(socket.timeout).toHaveBeenCalledWith(3000);
+        expect(microphoneService.release).toHaveBeenCalledTimes(1);
+        expect(mediasoup.cleanup).toHaveBeenCalled();
+        expect(voiceRoomStore.clearSessionPeers).toHaveBeenCalled();
+      }
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('releases the microphone when leaving a session', async () => {

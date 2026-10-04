@@ -172,12 +172,25 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.voiceRoomStore.setActiveSession(null);
     this.removeSocketListeners();
     this.mediasoupSessionService.clearPendingConsumes();
-    await this.socket.emitWithAck(EVoiceRoomEvent.LEAVE_ROOM);
-    this.voiceRoomStore.clearSessionPeers();
-    this.mediasoupSessionService.cleanup();
-    await this.microphoneService.release();
-    await this.updateRoomsState();
-    this.audioService.playPeerLeaveAudio();
+
+    try {
+      // A disconnected socket buffers emitWithAck with no ack timeout, and
+      // that promise never settles. Skip it, and bound a live socket so local
+      // teardown does not wait on the ack.
+      if (this.socket.connected) {
+        await this.socket.timeout(3000).emitWithAck(EVoiceRoomEvent.LEAVE_ROOM);
+      }
+    } catch (error) {
+      console.error('Failed to leave voice room', error);
+    } finally {
+      this.voiceRoomStore.clearSessionPeers();
+      this.mediasoupSessionService.cleanup();
+      await this.microphoneService.release();
+      if (this.socket.connected) {
+        await this.updateRoomsState();
+      }
+      this.audioService.playPeerLeaveAudio();
+    }
   }
 
   private addSocketListeners(): void {

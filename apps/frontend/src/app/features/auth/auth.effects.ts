@@ -10,6 +10,7 @@ import {
   of,
   switchMap,
   tap,
+  timeout,
   type Observable,
 } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
@@ -112,10 +113,22 @@ export class AuthEffects {
   readonly requestLogout$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.requestLogout),
+      // Leave while the socket is still up. Clearing the user disconnects it
+      // before logoutEnd$ runs, and a buffered LEAVE_ROOM ack never settles.
       switchMap(() =>
-        this.authApiService.logout().pipe(
-          map(() => AuthActions.requestLogoutSuccess()),
-          catchError((error) => of(AuthActions.requestLogoutError({ error }))),
+        from(this.voiceLeaveService.leaveActiveVoice()).pipe(
+          catchError((error: unknown) => {
+            console.error('Failed to leave voice on logout', error);
+            return of(undefined);
+          }),
+          switchMap(() =>
+            this.authApiService.logout().pipe(
+              map(() => AuthActions.requestLogoutSuccess()),
+              catchError((error) =>
+                of(AuthActions.requestLogoutError({ error })),
+              ),
+            ),
+          ),
         ),
       ),
     ),
@@ -130,6 +143,7 @@ export class AuthEffects {
         ),
         switchMap(() =>
           from(this.voiceLeaveService.leaveActiveVoice()).pipe(
+            timeout(3000),
             catchError((error: unknown) => {
               console.error('Failed to leave voice on logout', error);
               return of(undefined);
