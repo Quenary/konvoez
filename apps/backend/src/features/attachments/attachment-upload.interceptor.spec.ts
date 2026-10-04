@@ -297,6 +297,47 @@ describe('AttachmentUploadInterceptor', () => {
     ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED' });
   });
 
+  it('maps a closed request to a bad request', async () => {
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(new Error('Request closed'));
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED', status: 400 });
+  });
+
+  it.each([
+    'Unexpected end of form',
+    'Unexpected end of file',
+    'Malformed part header',
+    'Multipart: Boundary not found',
+  ])('maps the busboy error "%s" to a bad request', async (message) => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    req.headers['content-length'] = '1234';
+    req.headers['user-agent'] = 'Safari';
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(Object.assign(new Error(message), { storageErrors: [] }));
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({
+      message: EAttachmentUploadError.MALFORMED,
+      status: 400,
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/contentLength=1234.*userAgent=Safari/),
+    );
+    warn.mockRestore();
+  });
+
   it('does not treat a destroyed request as an abort', async () => {
     req.destroyed = true;
     const error = new Error('socket hang up');
