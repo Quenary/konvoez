@@ -658,8 +658,8 @@ export class VoiceRoomService implements IAudioDeviceHandler {
         routerRtpCapabilities:
           routerRtpCapabilities as unknown as RtpCapabilities,
       });
-      console.log('Can produce video', this.device.canProduce('video'));
-      console.log('Can produce audio', this.device.canProduce('audio'));
+      console.debug('Can produce video', this.device.canProduce('video'));
+      console.debug('Can produce audio', this.device.canProduce('audio'));
     } catch (error) {
       console.error('Error loading device', error);
     }
@@ -697,7 +697,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
               dtlsParameters,
             } satisfies IVoiceRoomConnectTransport,
           );
-          console.log('connect success', res);
+          console.debug('connect success', res);
           callback();
         } catch (err) {
           errback(err as Error);
@@ -708,7 +708,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     this.sendTransport.on(
       'produce',
       async ({ kind, rtpParameters, appData }, callback, errback) => {
-        console.log('pruduce', kind, rtpParameters, appData);
+        console.debug('pruduce', kind, rtpParameters, appData);
         try {
           const res: IVoiceRoomProduceResult = await this.socket.emitWithAck(
             EVoiceRoomEvent.PRODUCE,
@@ -727,7 +727,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     );
 
     this.sendTransport.on('connectionstatechange', (state) => {
-      console.log('Send transport state change', state);
+      console.debug('Send transport state change', state);
       if (state === 'failed') {
         this.sendTransport = null;
       }
@@ -787,7 +787,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     );
 
     this.recvTransport.on('connectionstatechange', (state) => {
-      console.log('Recv transport state change', state);
+      console.debug('Recv transport state change', state);
       if (state === 'failed') {
         this.recvTransport = null;
       }
@@ -809,7 +809,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     }
     this.consuming.add(data.producerId);
 
-    console.log('consume', data);
+    console.debug('consume', data);
 
     try {
       await this.ensureRecvTransport();
@@ -859,7 +859,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       consumer.on('trackended', () => {
         _audioEl.srcObject = null;
         _audioEl.remove();
-        console.log('trackended');
+        console.debug('trackended');
       });
 
       const context = await this.speakerService.getContext();

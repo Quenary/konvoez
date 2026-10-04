@@ -40,7 +40,6 @@ Selector prefix: `app`. Component files: `.ts` + `.html` + `.scss` (+ `.spec.ts`
 
 - Smallest change that fully solves the problem; do not refactor unrelated code.
 - Drop unused variables and imports.
-- Do not use `console.log`.
 - Prefer meaningful names over comments; comment only non-obvious intent or constraints.
 - Every new file must end with a trailing newline.
 - Never use deprecated APIs; replace them with the recommended alternative.

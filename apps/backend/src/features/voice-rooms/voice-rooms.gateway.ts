@@ -94,7 +94,7 @@ export class VoiceRoomsGateway
 
       if (!user) {
         this.logger.warn(
-          `Unauthorized voice socket connection attempt: socketId=${client.id}`,
+          `Unauthorized socket connection attempt: socketId=${client.id}`,
         );
         client.emit(EVoiceRoomEvent.ERROR, {
           message: 'Unauthorized',
@@ -105,9 +105,12 @@ export class VoiceRoomsGateway
 
       client.data.user = user;
       client.join(user.id.toString());
+      this.logger.debug(
+        `Socket connected: socketId=${client.id}, userId=${user.id}`,
+      );
     } catch (error) {
       this.logger.error(
-        `Voice socket auth failed: socketId=${client.id}`,
+        `Socket auth failed: socketId=${client.id}`,
         error instanceof Error ? error.stack : String(error),
       );
       client.emit(EVoiceRoomEvent.ERROR, {
@@ -142,6 +145,9 @@ export class VoiceRoomsGateway
           call.status !== 'active' ||
           !this.directCallsStateService.isParticipant(call, socket.data.user.id)
         ) {
+          this.logger.warn(
+            `Direct call is not available to join: socketId=${socket.id}, callId=${body.sessionTarget.callId}, userId=${socket.data.user.id}`,
+          );
           throw new Error('Direct call is not available to join');
         }
       }
@@ -150,6 +156,9 @@ export class VoiceRoomsGateway
         body.sessionKey,
       );
       if (!parsed) {
+        this.logger.warn(
+          `Invalid session key: socketId=${socket.id}, sessionKey=${body.sessionKey}`,
+        );
         throw new Error('Invalid session key');
       }
       identity = parsed;
@@ -160,6 +169,9 @@ export class VoiceRoomsGateway
       roomId = body.roomId;
       identity = this.voiceRoomsStateService.createGroupIdentity(body.roomId);
     } else {
+      this.logger.warn(
+        `No room or session provided to join: socketId=${socket.id}, userId=${socket.data.user?.id}`,
+      );
       throw new Error('No room or session provided to join');
     }
 
@@ -217,7 +229,7 @@ export class VoiceRoomsGateway
     const identity = socket.data.sessionTarget;
 
     this.logger.debug(
-      `handleLeaveRoom: socketId=${socket.id}, sessionKey=${sessionKey}`,
+      `handleLeaveRoom: socketId=${socket.id}, sessionKey=${sessionKey}, userId=${socket.data.user?.id}`,
     );
 
     delete socket.data.sessionKey;
@@ -463,6 +475,7 @@ export class VoiceRoomsGateway
   ) {
     const caller = client.data.user;
     if (!caller) {
+      this.logger.warn(`Call initiate without user: socketId=${client.id}`);
       return { error: 'Unauthorized' };
     }
 
@@ -472,8 +485,15 @@ export class VoiceRoomsGateway
     );
 
     if (call.status === 'active') {
+      this.logger.debug(
+        `Call already active: callId=${call.callId}, callerId=${caller.id}, recipientId=${body.recipientId}`,
+      );
       return { callId: call.callId, alreadyActive: true };
     }
+
+    this.logger.debug(
+      `Call initiated: callId=${call.callId}, callerId=${caller.id}, recipientId=${body.recipientId}`,
+    );
 
     this.server
       .to(body.recipientId.toString())
@@ -503,13 +523,23 @@ export class VoiceRoomsGateway
   ) {
     const recipient = client.data.user;
     if (!recipient) {
+      this.logger.warn(
+        `Call accept without user: socketId=${client.id}, callId=${body.callId}`,
+      );
       return { error: 'Unauthorized' };
     }
 
     const call = this.directCallsStateService.accept(body.callId, recipient.id);
     if (!call) {
+      this.logger.warn(
+        `Call accept failed: callId=${body.callId}, userId=${recipient.id}`,
+      );
       return { error: 'Call not found or already ended' };
     }
+
+    this.logger.debug(
+      `Call accepted: callId=${body.callId}, callerId=${body.callerId}, recipientId=${recipient.id}`,
+    );
 
     this.server
       .to(body.callerId.toString())
@@ -528,6 +558,9 @@ export class VoiceRoomsGateway
   ) {
     const call = this.directCallsStateService.cancel(body.callId);
     if (call) {
+      this.logger.debug(
+        `Call rejected: callId=${body.callId}, callerId=${body.callerId}, reason=${body.reason ?? 'declined'}`,
+      );
       this.server
         .to(body.callerId.toString())
         .emit(EDirectCallEvent.CALL_REJECTED, {
@@ -554,6 +587,10 @@ export class VoiceRoomsGateway
     if (!call) {
       return {};
     }
+
+    this.logger.debug(
+      `Call hangup: callId=${body.callId}, byUserId=${body.byUserId}`,
+    );
 
     const otherUserId =
       call.callerId === body.byUserId ? call.recipientId : call.callerId;
@@ -613,7 +650,7 @@ export class VoiceRoomsGateway
     const sessionKey = this.resolveSessionKey(socket);
     if (!sessionKey) {
       this.logger.warn(
-        `Voice socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
+        `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
       throw new Error('Socket missing session key');
     }
@@ -624,13 +661,13 @@ export class VoiceRoomsGateway
     const sessionKey = this.resolveSessionKey(socket);
     if (!sessionKey) {
       this.logger.warn(
-        `Voice socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
+        `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
       throw new Error('Socket missing session key');
     }
     if (!socket.rooms.has(sessionKey)) {
       this.logger.warn(
-        `Voice socket not in session: socketId=${socket.id}, sessionKey=${sessionKey}`,
+        `Socket not in session: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
       throw new Error('Socket not in session');
     }
@@ -643,7 +680,7 @@ export class VoiceRoomsGateway
     const room = this.voiceRoomsStateService.getRoom(sessionKey);
     if (!room) {
       this.logger.warn(
-        `Voice room not found: socketId=${socket.id}, sessionKey=${sessionKey}`,
+        `Room not found: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
       throw new Error(`Room not found for session: ${sessionKey}`);
     }
@@ -651,7 +688,7 @@ export class VoiceRoomsGateway
     const peer = room.peers.get(socket.id);
     if (!peer) {
       this.logger.warn(
-        `Voice peer not registered in room: socketId=${socket.id}, sessionKey=${sessionKey}, roomPeers=${Array.from(room.peers.keys())}`,
+        `Peer not registered in room: socketId=${socket.id}, sessionKey=${sessionKey}, roomPeers=${Array.from(room.peers.keys())}`,
       );
       throw new Error(`Socket peer not registered in session: ${sessionKey}`);
     }
@@ -688,7 +725,7 @@ export class VoiceRoomsGateway
       }
 
       this.logger.debug(
-        `Evicting stale voice peer on rejoin: sessionKey=${sessionKey}, userId=${userId}, oldSocketId=${existingSocketId}, newSocketId=${joiningSocket.id}`,
+        `Evicting stale peer on rejoin: sessionKey=${sessionKey}, userId=${userId}, oldSocketId=${existingSocketId}, newSocketId=${joiningSocket.id}`,
       );
 
       this.removePeerMedia(room, existingPeer, sessionKey, roomId);
@@ -776,6 +813,9 @@ export class VoiceRoomsGateway
     }
     const ended = this.directCallsStateService.end(identity.callId);
     if (ended) {
+      this.logger.debug(
+        `Call ended: callId=${ended.callId}, callerId=${ended.callerId}, recipientId=${ended.recipientId}`,
+      );
       this.emitCallEnded(ended.callId, ended.callerId, ended.recipientId);
     }
   }

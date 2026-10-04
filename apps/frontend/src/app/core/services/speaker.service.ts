@@ -21,7 +21,6 @@ export class SpeakerService implements OnDestroy {
       this.onDeviceChange,
     );
     window.addEventListener('click', async () => {
-      console.log(this.context, this.context?.state);
       if (this.context?.state === 'suspended') {
         await this.context.resume();
       }
