@@ -43,6 +43,8 @@ import { interval } from 'rxjs';
 import { Mutex } from 'async-mutex';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from './audio.service';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
 
 interface IManagedPeer extends IUser {
   consumers: Consumer[];
@@ -78,6 +80,8 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   private readonly speakerService = inject(SpeakerService);
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly audioService = inject(AudioService);
+  private readonly store = inject(Store);
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   private readonly _activeSession = signal<TVoiceSessionTarget | null>(null);
   private readonly _roomsState = signal<Readonly<TVoiceRoomGetAllPeersResult>>(
@@ -175,6 +179,19 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     effect(() => {
       const value = this.speakerMuted();
       localStorage.setItemJson(EStorageKey.SPEAKER_MUTED, value);
+    });
+
+    effect(() => {
+      const session = this.activeSession();
+      const currentUser = this.currentUser();
+      const microphoneMuted = this.microphoneMuted();
+      const analyserNode = this.microphoneService.analyserNode();
+
+      if (session && currentUser && analyserNode && !microphoneMuted) {
+        this.audioActivityService.register(currentUser.id, analyserNode);
+      } else if (currentUser) {
+        this.audioActivityService.unregister(currentUser.id);
+      }
     });
 
     // Reconnect to room / session and refresh the lobby peer list.

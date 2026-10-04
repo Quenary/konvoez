@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Store } from '@ngrx/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -57,6 +59,7 @@ describe('VoiceRoomService', () => {
     getStream: ReturnType<typeof vi.fn>;
     setDevice: ReturnType<typeof vi.fn>;
     release: ReturnType<typeof vi.fn>;
+    analyserNode: ReturnType<typeof signal<AnalyserNode | null>>;
   };
 
   beforeEach(() => {
@@ -110,11 +113,18 @@ describe('VoiceRoomService', () => {
       getStream: vi.fn(),
       setDevice: vi.fn(),
       release: vi.fn(),
+      analyserNode: signal<AnalyserNode | null>(null),
     };
 
     TestBed.configureTestingModule({
       providers: [
         VoiceRoomService,
+        {
+          provide: Store,
+          useValue: {
+            selectSignal: () => signal<IUser | null>(null),
+          },
+        },
         {
           provide: VoiceRoomSocketToken,
           useValue: socket,
