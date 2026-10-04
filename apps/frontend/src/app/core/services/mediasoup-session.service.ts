@@ -26,6 +26,7 @@ import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 
 const mediasoupMutex = new Mutex();
+const microphoneProducerMutex = new Mutex();
 
 export interface IConsumePeerContext {
   gain: number;
@@ -49,8 +50,7 @@ export class MediasoupSessionService {
   private sendTransport: Transport | null = null;
   private recvTransport: Transport | null = null;
   private microphoneProducer: Producer | null = null;
-  private lastProduceMuted = false;
-  private ignoreProducerTrackEnded = false;
+  private microphoneMuted = false;
   private readonly consuming = new Set<string>();
   private pendingConsumes: IVoiceRoomProduceResult[] = [];
 
@@ -59,6 +59,7 @@ export class MediasoupSessionService {
   }
 
   public setMicrophoneMuted(muted: boolean): void {
+    this.microphoneMuted = muted;
     const track = this.microphoneProducer?.track;
     if (track) {
       track.enabled = !muted;
@@ -71,29 +72,39 @@ export class MediasoupSessionService {
   }
 
   public cleanup(): void {
-    this.ignoreProducerTrackEnded = true;
-    this.sendTransport?.close();
-    this.recvTransport?.close();
-    this.microphoneProducer?.close();
-
+    const producer = this.microphoneProducer;
+    const sendTransport = this.sendTransport;
+    const recvTransport = this.recvTransport;
+    this.microphoneProducer = null;
     this.sendTransport = null;
     this.recvTransport = null;
-    this.microphoneProducer = null;
-    this.ignoreProducerTrackEnded = false;
+    sendTransport?.close();
+    recvTransport?.close();
+    producer?.close();
   }
 
-  public async produceMicrophone(muted: boolean): Promise<void> {
-    this.lastProduceMuted = muted;
+  public produceMicrophone(muted: boolean): Promise<void> {
+    return microphoneProducerMutex.runExclusive(() =>
+      this.produceMicrophoneLocked(muted),
+    );
+  }
+
+  public replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
+    return microphoneProducerMutex.runExclusive(() =>
+      this.replaceMicrophoneTrackLocked(track),
+    );
+  }
+
+  private async produceMicrophoneLocked(muted: boolean): Promise<void> {
+    this.microphoneMuted = muted;
     const sendTransport = this.sendTransport;
     if (!sendTransport || sendTransport.closed) {
       return;
     }
 
-    this.ignoreProducerTrackEnded = true;
-    if (this.microphoneProducer) {
-      this.microphoneProducer.close();
-      this.microphoneProducer = null;
-    }
+    const previous = this.microphoneProducer;
+    this.microphoneProducer = null;
+    previous?.close();
 
     try {
       const stream = await this.microphoneService.getStream();
@@ -103,12 +114,15 @@ export class MediasoupSessionService {
       }
 
       await waitForTrackUnmute(track);
-      track.enabled = !muted;
+      track.enabled = !this.microphoneMuted;
       const producer = await sendTransport.produce({
         track,
         stopTracks: false,
         appData: { mediaTag: 'mic' },
       });
+      if (producer.track) {
+        producer.track.enabled = !this.microphoneMuted;
+      }
       this.microphoneProducer = producer;
       producer.on('trackended', () => {
         if (this.microphoneProducer !== producer) {
@@ -118,17 +132,36 @@ export class MediasoupSessionService {
       });
     } catch (error) {
       console.error('Failed to produce microphone\n', error);
-    } finally {
-      this.ignoreProducerTrackEnded = false;
     }
   }
 
-  private onProducerTrackEnded(): void {
-    if (this.ignoreProducerTrackEnded) {
+  private async replaceMicrophoneTrackLocked(
+    track: MediaStreamTrack,
+  ): Promise<void> {
+    const producer = this.microphoneProducer;
+    if (!producer || producer.closed) {
       return;
     }
+    track.enabled = !this.microphoneMuted;
+    if (producer.track === track) {
+      return;
+    }
+    await producer.replaceTrack({ track });
+  }
+
+  private onProducerTrackEnded(): void {
     this.microphoneProducer = null;
-    void this.produceMicrophone(this.lastProduceMuted);
+    const reproduce = (): void => {
+      if (!this.sendTransport || this.sendTransport.closed) {
+        return;
+      }
+      void this.produceMicrophone(this.microphoneMuted);
+    };
+    if (microphoneProducerMutex.isLocked()) {
+      void microphoneProducerMutex.waitForUnlock().then(reproduce);
+      return;
+    }
+    reproduce();
   }
 
   @Mutexed(mediasoupMutex)

@@ -1,6 +1,8 @@
-import { inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import {
   EVoiceRoomEvent,
   EVoiceSessionType,
@@ -42,6 +44,8 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
+  private readonly translateService = inject(TranslateService);
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
 
   private readonly sessionWillChangeSubject = new Subject<{
     previous: TVoiceSessionTarget | null;
@@ -55,7 +59,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       this.mediasoupSessionService.cleanup();
       const session = this.voiceRoomStore.activeSession();
       if (session) {
-        void this.joinSession(session);
+        void this.joinSession(session).catch((error: unknown) => {
+          this.reportJoinFailure(error);
+        });
       }
       void this.updateRoomsState();
     });
@@ -70,6 +76,27 @@ export class VoiceSessionService implements IAudioDeviceHandler {
           void this.updateRoomsState();
         }
       });
+
+    effect(() => {
+      const stream = this.microphoneService.processedStream();
+      const session = this.voiceRoomStore.activeSession();
+      const track = stream?.getAudioTracks()[0] ?? null;
+      if (!session || !track) {
+        return;
+      }
+      void this.mediasoupSessionService.replaceMicrophoneTrack(track);
+    });
+  }
+
+  public reportJoinFailure(error: unknown): void {
+    console.error('Failed to join voice session', error);
+    this.tuiNotificationsService
+      .open(this.translateService.instant('VOICE.JOIN_FAILED'), {
+        appearance: 'negative',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
   }
 
   @Mutexed(voiceSessionMutex)
@@ -85,9 +112,12 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   @Mutexed(micControlsMutex)
   public async setAudioInput(device: MediaDeviceInfo | null): Promise<void> {
     await this.microphoneService.setDevice(device);
-    await this.mediasoupSessionService.produceMicrophone(
-      this.voiceRoomStore.microphoneMuted(),
-    );
+    const track =
+      this.microphoneService.processedStream()?.getAudioTracks()[0] ?? null;
+    if (!track) {
+      return;
+    }
+    await this.mediasoupSessionService.replaceMicrophoneTrack(track);
   }
 
   @Mutexed()

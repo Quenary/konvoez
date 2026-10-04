@@ -143,4 +143,122 @@ describe('MediasoupSessionService', () => {
       expect(produce).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('applies a mute that arrives while getStream is in flight', async () => {
+    let resolveStream: (stream: {
+      getAudioTracks: () => MediaStreamTrack[];
+    }) => void = () => undefined;
+    const track = {
+      enabled: true,
+      muted: false,
+      readyState: 'live',
+    } as MediaStreamTrack;
+    const produce = vi.fn().mockResolvedValue({
+      track,
+      on: vi.fn(),
+      closed: false,
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    getStream.mockReturnValue(
+      new Promise((resolve) => {
+        resolveStream = resolve;
+      }),
+    );
+
+    const pending = service.produceMicrophone(false);
+    await vi.waitFor(() => {
+      expect(getStream).toHaveBeenCalled();
+    });
+    service.setMicrophoneMuted(true);
+    resolveStream({ getAudioTracks: () => [track] });
+    await pending;
+
+    expect(track.enabled).toBe(false);
+  });
+
+  it('reproduces a muted track after trackended', async () => {
+    const producedTracks: Array<{ enabled: boolean }> = [];
+    const trackEndedHandlers: Array<() => void> = [];
+    const produce = vi.fn().mockImplementation(async () => {
+      const track = { enabled: true };
+      producedTracks.push(track);
+      return {
+        track,
+        closed: false,
+        on: (event: string, handler: () => void) => {
+          if (event === 'trackended') {
+            trackEndedHandlers.push(handler);
+          }
+        },
+      };
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    getStream.mockResolvedValue({
+      getAudioTracks: () => [
+        { enabled: true, muted: false, readyState: 'live' },
+      ],
+    });
+
+    await service.produceMicrophone(false);
+    service.setMicrophoneMuted(true);
+    trackEndedHandlers[0]?.();
+    await vi.waitFor(() => {
+      expect(produce).toHaveBeenCalledTimes(2);
+    });
+
+    expect(producedTracks[1]?.enabled).toBe(false);
+  });
+
+  it('keeps a single open producer when produce overlaps', async () => {
+    const producers: Array<{
+      close: ReturnType<typeof vi.fn>;
+      closed: boolean;
+    }> = [];
+    const produce = vi.fn().mockImplementation(async () => {
+      const producer = {
+        track: { enabled: true },
+        on: vi.fn(),
+        closed: false,
+        close: vi.fn(),
+      };
+      producer.close.mockImplementation(() => {
+        producer.closed = true;
+      });
+      producers.push(producer);
+      return producer;
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    getStream.mockResolvedValue({
+      getAudioTracks: () => [
+        { enabled: true, muted: false, readyState: 'live' },
+      ],
+    });
+
+    await Promise.all([
+      service.produceMicrophone(false),
+      service.produceMicrophone(false),
+    ]);
+
+    expect(producers).toHaveLength(2);
+    expect(producers[0]?.closed).toBe(true);
+    expect(producers[1]?.closed).toBe(false);
+    expect(service['microphoneProducer']).toBe(producers[1]);
+  });
+
+  it('replaces the microphone track and keeps the mute state', async () => {
+    const replaceTrack = vi.fn().mockResolvedValue(undefined);
+    const current = { enabled: true } as MediaStreamTrack;
+    const next = { enabled: true } as MediaStreamTrack;
+    service['microphoneProducer'] = {
+      replaceTrack,
+      track: current,
+      closed: false,
+    } as never;
+    service.setMicrophoneMuted(true);
+
+    await service.replaceMicrophoneTrack(next);
+
+    expect(next.enabled).toBe(false);
+    expect(replaceTrack).toHaveBeenCalledWith({ track: next });
+  });
 });

@@ -1,5 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EUserRole,
@@ -54,9 +56,11 @@ describe('VoiceSessionService', () => {
     removePeerFromRoom: ReturnType<typeof vi.fn>;
     clearSessionPeers: ReturnType<typeof vi.fn>;
   };
+  let processedStream: ReturnType<typeof signal<MediaStream | null>>;
   let microphoneService: {
     setDevice: ReturnType<typeof vi.fn>;
     release: ReturnType<typeof vi.fn>;
+    processedStream: typeof processedStream;
   };
   let mediasoup: {
     cleanup: ReturnType<typeof vi.fn>;
@@ -65,8 +69,12 @@ describe('VoiceSessionService', () => {
     ensureSendTransport: ReturnType<typeof vi.fn>;
     ensureRecvTransport: ReturnType<typeof vi.fn>;
     produceMicrophone: ReturnType<typeof vi.fn>;
+    replaceMicrophoneTrack: ReturnType<typeof vi.fn>;
     consume: ReturnType<typeof vi.fn>;
     consumePending: ReturnType<typeof vi.fn>;
+  };
+  let notifications: {
+    open: ReturnType<typeof vi.fn>;
   };
   let wakeLock: {
     acquire: ReturnType<typeof vi.fn>;
@@ -111,9 +119,11 @@ describe('VoiceSessionService', () => {
       clearSessionPeers: vi.fn(),
     };
 
+    processedStream = signal<MediaStream | null>(null);
     microphoneService = {
       setDevice: vi.fn(),
       release: vi.fn(),
+      processedStream,
     };
 
     mediasoup = {
@@ -123,8 +133,12 @@ describe('VoiceSessionService', () => {
       ensureSendTransport: vi.fn().mockResolvedValue(undefined),
       ensureRecvTransport: vi.fn().mockResolvedValue(undefined),
       produceMicrophone: vi.fn().mockResolvedValue(undefined),
+      replaceMicrophoneTrack: vi.fn().mockResolvedValue(undefined),
       consume: vi.fn().mockResolvedValue(undefined),
       consumePending: vi.fn().mockResolvedValue(undefined),
+    };
+    notifications = {
+      open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
     };
 
     wakeLock = {
@@ -149,6 +163,11 @@ describe('VoiceSessionService', () => {
         { provide: MediasoupSessionService, useValue: mediasoup },
         { provide: PeerPlaybackService, useValue: { removeConsumer: vi.fn() } },
         { provide: ScreenWakeLockService, useValue: wakeLock },
+        {
+          provide: TranslateService,
+          useValue: { instant: (key: string) => key },
+        },
+        { provide: TuiNotificationService, useValue: notifications },
       ],
     });
 
@@ -227,5 +246,48 @@ describe('VoiceSessionService', () => {
 
     expect(voiceRoomStore.removePeer).toHaveBeenCalledWith(bob.id);
     expect(voiceRoomStore.removePeerFromRoom).toHaveBeenCalledWith(1, bob.id);
+  });
+
+  it('replaces the published track when the selected device disappears', async () => {
+    const track = { enabled: true } as MediaStreamTrack;
+    microphoneService.setDevice.mockImplementation(async () => {
+      processedStream.set({
+        getAudioTracks: () => [track],
+      } as MediaStream);
+    });
+    voiceRoomStore.setActiveSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+
+    await service.setAudioInput(null);
+    TestBed.flushEffects();
+
+    expect(microphoneService.setDevice).toHaveBeenCalledWith(null);
+    expect(mediasoup.replaceMicrophoneTrack).toHaveBeenCalledWith(track);
+  });
+
+  it('notifies when rejoining on connect fails', async () => {
+    voiceRoomStore.setActiveSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+    socket.emitWithAck.mockImplementation((event: string) => {
+      if (event === EVoiceRoomEvent.JOIN_ROOM) {
+        return Promise.reject(new Error('join failed'));
+      }
+      if (event === EVoiceRoomEvent.GET_ALL_PEERS) {
+        return Promise.resolve(roomsSnapshot);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    handlers['connect']();
+    await vi.waitFor(() => {
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.JOIN_FAILED',
+        expect.objectContaining({ appearance: 'negative' }),
+      );
+    });
   });
 });
