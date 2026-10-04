@@ -57,4 +57,60 @@ describe('ScreenWakeLockService', () => {
 
     expect(release).toHaveBeenCalledTimes(1);
   });
+
+  it('releases a sentinel that resolves after release()', async () => {
+    let resolveRequest: (sentinel: WakeLockSentinel) => void = () => undefined;
+    const release = vi.fn().mockResolvedValue(undefined);
+    const addEventListener = vi.fn();
+    const request = vi.fn(
+      () =>
+        new Promise<WakeLockSentinel>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    Object.defineProperty(navigator, 'wakeLock', {
+      value: { request },
+      configurable: true,
+    });
+
+    const pending = service.acquire();
+    service.release();
+    resolveRequest({
+      release,
+      addEventListener,
+      removeEventListener: vi.fn(),
+    } as unknown as WakeLockSentinel);
+    await pending;
+
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(service['screenWakeLock']).toBeNull();
+    expect(addEventListener).not.toHaveBeenCalled();
+  });
+
+  it('requests the wake lock once when acquire overlaps', async () => {
+    let resolveRequest: (sentinel: WakeLockSentinel) => void = () => undefined;
+    const request = vi.fn(
+      () =>
+        new Promise<WakeLockSentinel>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    Object.defineProperty(navigator, 'wakeLock', {
+      value: { request },
+      configurable: true,
+    });
+
+    const first = service.acquire();
+    const second = service.acquire();
+    expect(request).toHaveBeenCalledTimes(1);
+
+    resolveRequest({
+      release: vi.fn().mockResolvedValue(undefined),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as WakeLockSentinel);
+    await Promise.all([first, second]);
+
+    expect(request).toHaveBeenCalledTimes(1);
+  });
 });
