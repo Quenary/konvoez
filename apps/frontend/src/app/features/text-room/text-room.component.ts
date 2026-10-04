@@ -37,7 +37,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { DirectCallPanelComponent } from '@shared/components/voice-room/direct-call-panel/direct-call-panel.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { FileDropDirective } from '@shared/directives/file-drop.directive';
 
@@ -75,7 +75,7 @@ export class TextRoomComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly ngrxStore = inject(Store);
   private readonly usersStore = inject(UsersStore);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly roomManageService = inject(RoomManageService);
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
@@ -86,7 +86,7 @@ export class TextRoomComponent {
 
   protected readonly isCurrentDirectCallActive = computed(() => {
     const isDirectChat = this.isDirectChat();
-    const session = this.voiceRoomService.activeSession();
+    const session = this.voiceRoomStore.activeSession();
     const directUser = this.user();
     const interlocutor = this.directCallService.interlocutor();
     const isCallActive = this.directCallService.isCallActive();

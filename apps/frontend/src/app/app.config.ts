@@ -42,7 +42,7 @@ import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
 import { AUDIO_DEVICE_HANDLER } from './core/tokens/audio-device-handler.token';
-import { VoiceRoomService } from './core/services/voice-room.service';
+import { VoiceSessionService } from './core/services/voice-session.service';
 import { provideServiceWorker } from '@angular/service-worker';
 
 // Fetch throws if upload progress is requested. XHR is what reports it.
@@ -57,7 +57,7 @@ export const appConfig: ApplicationConfig = {
     provideAppHttpClient(),
     {
       provide: AUDIO_DEVICE_HANDLER,
-      useExisting: VoiceRoomService,
+      useExisting: VoiceSessionService,
     },
     provideTranslateService({
       loader: {

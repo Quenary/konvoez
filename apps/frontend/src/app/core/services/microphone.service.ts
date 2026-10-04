@@ -1,15 +1,22 @@
-import { Injectable, OnDestroy, signal } from '@angular/core';
+import { Injectable, OnDestroy, inject, signal } from '@angular/core';
 import { SpeexWorkletNode, loadSpeex } from '@sapphi-red/web-noise-suppressor';
 const speexWorkletUrl = 'assets/web-noise-suppressor/speex/workletProcessor.js';
 const speexWasmUrl = 'assets/web-noise-suppressor/speex.wasm';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
+import { AudioContextResumeService } from './audio-context-resume.service';
 
 const publicMethodsMutex = new Mutex();
 
+/**
+ * Local capture pipeline: device stream, gain, highpass, Speex, analyser, processed MediaStream.
+ */
 @Injectable({ providedIn: 'root' })
 export class MicrophoneService implements OnDestroy {
+  private readonly audioContextResumeService = inject(
+    AudioContextResumeService,
+  );
   private context: AudioContext | null = null;
 
   private inputStream: MediaStream | null = null;
@@ -41,12 +48,6 @@ export class MicrophoneService implements OnDestroy {
       'devicechange',
       this.onDeviceChange,
     );
-
-    window.addEventListener('click', async () => {
-      if (this.context?.state === 'suspended') {
-        await this.context.resume();
-      }
-    });
   }
 
   ngOnDestroy(): void {
@@ -121,6 +122,7 @@ export class MicrophoneService implements OnDestroy {
 
     if (this.context && this.context.state !== 'closed') {
       try {
+        this.audioContextResumeService.unregister(this.context);
         await this.context.close();
       } catch (error) {
         console.warn('Failed to close microphone context', error);
@@ -135,8 +137,12 @@ export class MicrophoneService implements OnDestroy {
 
   private async ensureContext() {
     if (!this.context || this.context.state === 'closed') {
+      if (this.context) {
+        this.audioContextResumeService.unregister(this.context);
+      }
       this.context = new AudioContext({ sampleRate: 48000 });
       this.workletLoaded = null;
+      this.audioContextResumeService.register(this.context);
     }
 
     if (this.context.state === 'suspended') {
@@ -207,8 +213,8 @@ export class MicrophoneService implements OnDestroy {
     });
 
     const analyserNode = this.context.createAnalyser();
-    analyserNode.fftSize = 512;
-    analyserNode.smoothingTimeConstant = 0.1;
+    analyserNode.fftSize = 128;
+    analyserNode.smoothingTimeConstant = 0.2;
 
     this.destinationNode = this.context.createMediaStreamDestination();
 
@@ -239,6 +245,7 @@ export class MicrophoneService implements OnDestroy {
       this.gainNode?.disconnect();
       this.biquadNode?.disconnect();
       this.speexNode?.disconnect();
+      this._analyserNode()?.disconnect();
       this.destinationNode?.disconnect();
     } catch (error) {
       console.error(error);
@@ -248,6 +255,7 @@ export class MicrophoneService implements OnDestroy {
       this.biquadNode = null;
       this.speexNode = null;
       this.destinationNode = null;
+      this._analyserNode.set(null);
       this._processedStream.set(null);
     }
   }

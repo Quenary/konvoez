@@ -6,7 +6,8 @@ import {
   input,
   output,
 } from '@angular/core';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
@@ -26,7 +27,8 @@ import {
 })
 export class VoicePeersGridComponent {
   private readonly store = inject(Store);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
 
   /**
@@ -47,8 +49,8 @@ export class VoicePeersGridComponent {
 
   protected readonly peers = computed(() => {
     const me = this.currentUser();
-    const remotePeers = this.voiceRoomService.peersList();
-    const session = this.voiceRoomService.activeSession();
+    const remotePeers = this.voiceRoomStore.peersList();
+    const session = this.voiceRoomStore.activeSession();
     const interlocutor = this.directCallService.interlocutor();
     const isCalling = this.directCallService.isCalling();
     const isIncoming = this.directCallService.isIncoming();
@@ -69,7 +71,7 @@ export class VoicePeersGridComponent {
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected async onHangup(): Promise<void> {
-    await this.voiceRoomService.leaveCurrent();
+    await this.voiceLeaveService.leaveActiveVoice();
     this.left.emit();
   }
 }

@@ -1,13 +1,18 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
+import { AudioContextResumeService } from './audio-context-resume.service';
 
 const publicMethodsMutex = new Mutex();
 
+/** Playback AudioContext and output sink (`setSinkId`) for remote peer audio. */
 @Injectable({
   providedIn: 'root',
 })
 export class SpeakerService implements OnDestroy {
+  private readonly audioContextResumeService = inject(
+    AudioContextResumeService,
+  );
   private context: AudioContext | null = null;
   private device: MediaDeviceInfo | null = null;
 
@@ -20,11 +25,6 @@ export class SpeakerService implements OnDestroy {
       'devicechange',
       this.onDeviceChange,
     );
-    window.addEventListener('click', async () => {
-      if (this.context?.state === 'suspended') {
-        await this.context.resume();
-      }
-    });
   }
 
   @Mutexed(publicMethodsMutex)
@@ -48,6 +48,7 @@ export class SpeakerService implements OnDestroy {
         ) {
           await this.context.setSinkId('default');
         }
+        this.audioContextResumeService.unregister(this.context);
         await this.context.close();
       } catch (error) {
         console.warn('Failed to close speaker context', error);
@@ -62,11 +63,16 @@ export class SpeakerService implements OnDestroy {
       'devicechange',
       this.onDeviceChange,
     );
+    void this.release();
   }
 
   private async ensureContext(): Promise<AudioContext> {
     if (!this.context || this.context.state === 'closed') {
+      if (this.context) {
+        this.audioContextResumeService.unregister(this.context);
+      }
       this.context = new AudioContext({ sampleRate: 48000 });
+      this.audioContextResumeService.register(this.context);
     }
     if (this.context.state === 'suspended') {
       await this.context.resume();

@@ -7,7 +7,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { ERoomType, EVoiceSessionType } from '@konvoez/shared';
 import { Router } from '@angular/router';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 
 @Injectable()
@@ -16,7 +17,8 @@ export class RoomsEffects {
   private readonly roomsApiService = inject(RoomsApiService);
   private readonly translateService = inject(TranslateService);
   private readonly router = inject(Router);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
   readonly selectRoom$ = createEffect(
@@ -26,10 +28,9 @@ export class RoomsEffects {
         tap((action) => {
           switch (action?.room?.type) {
             case ERoomType.VOICE: {
-              const selectedVoiceRoomId =
-                this.voiceRoomService.selectedRoomId();
+              const selectedVoiceRoomId = this.voiceRoomStore.selectedRoomId();
               if (selectedVoiceRoomId !== action.room.id) {
-                this.voiceRoomService.joinSession({
+                this.voiceSessionService.joinSession({
                   type: EVoiceSessionType.GROUP_ROOM,
                   roomId: action.room.id,
                 });

@@ -26,6 +26,7 @@ export class RoomPeerComponent {
   public readonly peer = input.required<IUser>();
 
   protected readonly isSpeaking = computed(() => {
-    return this.audioActivityService.selectIsSpeaking(this.peer().id)();
+    const speakingMap = this.audioActivityService.speakingMap();
+    return Boolean(speakingMap[this.peer().id]);
   });
 }

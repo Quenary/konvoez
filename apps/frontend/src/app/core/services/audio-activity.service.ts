@@ -5,6 +5,10 @@ interface IMonitoredNode {
   lastSpokeAt: number;
 }
 
+/**
+ * Polls registered analysers and exposes a speaking map for avatars/tiles.
+ * Does not mutate analyser fftSize; callers configure the node before register.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -20,8 +24,6 @@ export class AudioActivityService {
   private intervalRef: ReturnType<typeof setInterval> | null = null;
 
   public register(userId: number, analyserNode: AnalyserNode): void {
-    analyserNode.fftSize = 128;
-    analyserNode.smoothingTimeConstant = 0.2;
     this.nodes.set(userId, {
       analyserNode,
       lastSpokeAt: 0,

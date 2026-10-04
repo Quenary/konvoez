@@ -12,10 +12,12 @@ import {
   ICallInitiateResult,
   ICallRejectedPayload,
   IUser,
+  TVoiceSessionTarget,
 } from '@konvoez/shared';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { AudioService } from './audio.service';
-import { VoiceRoomService } from './voice-room.service';
+import { VoiceSessionService } from './voice-session.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
@@ -35,13 +37,18 @@ export interface IActiveCall {
   status: ECallStatus;
 }
 
+/**
+ * Direct-call signaling and ringing state. Media join/leave goes through VoiceSessionService.
+ * Detaches from a live call without hangup when the voice session switches away.
+ */
 @Injectable({
   providedIn: 'root',
 })
 export class DirectCallService {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly audioService = inject(AudioService);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly notificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly store = inject(Store);
@@ -76,6 +83,12 @@ export class DirectCallService {
 
   constructor() {
     this.setupSocketListeners();
+
+    this.voiceSessionService.sessionWillChange$.subscribe(
+      ({ previous, next }) => {
+        this.detachIfLeavingCall(previous, next);
+      },
+    );
 
     this.socket.on('connect', () => {
       void this.refreshActiveCall();
@@ -157,7 +170,7 @@ export class DirectCallService {
       status: ECallStatus.CONNECTED,
     });
 
-    await this.voiceRoomService.joinSession({
+    await this.voiceSessionService.joinSession({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: current.callId,
       interlocutorId: current.interlocutor.id,
@@ -261,8 +274,8 @@ export class DirectCallService {
     });
     this._activeCall.set(null);
 
-    if (this.voiceRoomService.directCallTarget()) {
-      await this.voiceRoomService.leaveSession();
+    if (this.voiceRoomStore.directCallTarget()) {
+      await this.voiceSessionService.leaveSession();
     }
   }
 
@@ -277,7 +290,7 @@ export class DirectCallService {
 
       const inThisCall =
         this._activeCall()?.callId === result?.callId &&
-        this.voiceRoomService.directCallTarget()?.callId === result?.callId;
+        this.voiceRoomStore.directCallTarget()?.callId === result?.callId;
 
       if (result && !inThisCall) {
         this._rejoinableCall.set(result);
@@ -309,7 +322,7 @@ export class DirectCallService {
     });
     this._rejoinableCall.set(null);
 
-    await this.voiceRoomService.joinSession({
+    await this.voiceSessionService.joinSession({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: call.callId,
       interlocutorId: interlocutor.id,
@@ -345,6 +358,22 @@ export class DirectCallService {
         ? current.interlocutor.id
         : (this.currentUser()?.id ?? 0),
     });
+  }
+
+  private detachIfLeavingCall(
+    previous: TVoiceSessionTarget | null,
+    next: TVoiceSessionTarget,
+  ): void {
+    const leavingDirectCall =
+      previous?.type === EVoiceSessionType.DIRECT_CALL &&
+      (next.type !== EVoiceSessionType.DIRECT_CALL ||
+        next.callId !== previous.callId);
+    const joiningGroupWhileInCall =
+      next.type === EVoiceSessionType.GROUP_ROOM && this.isConnected();
+
+    if (leavingDirectCall || joiningGroupWhileInCall) {
+      this.detachFromCallWithoutHangup();
+    }
   }
 
   private setupSocketListeners(): void {
@@ -390,7 +419,7 @@ export class DirectCallService {
           status: ECallStatus.CONNECTED,
         });
 
-        await this.voiceRoomService.joinSession({
+        await this.voiceSessionService.joinSession({
           type: EVoiceSessionType.DIRECT_CALL,
           callId: data.callId,
           interlocutorId: data.recipient.id,
@@ -451,8 +480,8 @@ export class DirectCallService {
         this.audioService.playCallEndSound();
         this._activeCall.set(null);
 
-        if (this.voiceRoomService.directCallTarget()?.callId === data.callId) {
-          void this.voiceRoomService.leaveSession();
+        if (this.voiceRoomStore.directCallTarget()?.callId === data.callId) {
+          void this.voiceSessionService.leaveSession();
         }
       }
 
