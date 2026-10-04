@@ -1,3 +1,50 @@
+# [1.9.0](https://github.com/Quenary/konvoez/compare/v1.8.0...v1.9.0) (2026-10-04)
+
+### Bug Fixes
+
+- **attachments:** api docs ([20876a4](https://github.com/Quenary/konvoez/commit/20876a4a596aae032a1abf14151ffbc01d82c6ad))
+- **attachments:** enhance error handling in AttachmentUploadInterceptor ([d3fc7da](https://github.com/Quenary/konvoez/commit/d3fc7da01a764d09721dff3547a4e587c02aa822))
+- **attachments:** improve attachment upload handling and error management ([0ee5cfc](https://github.com/Quenary/konvoez/commit/0ee5cfc1b44cd5ccb247125595f18c697cee17b1))
+- **attachments:** update video processing for poster generation ([d53a058](https://github.com/Quenary/konvoez/commit/d53a058c4e6c6eaf123df6da24013237e26bc7ac))
+- **attachments:** uploading, ui in settings form ([53b06eb](https://github.com/Quenary/konvoez/commit/53b06eb7f7de0a92b23c21ab77261d110208d8c1))
+- avatar size validation ([9d267da](https://github.com/Quenary/konvoez/commit/9d267da0eee266fe955ec4092fd4d8d0af95c05d))
+- **backend:** handle zero-second client duration hint in attachments service ([f09c8b4](https://github.com/Quenary/konvoez/commit/f09c8b41b79b123bc0c97be1c1fe510e6f4fda7f))
+- **backend:** ignore multiline ffmpeg metadata as ENOSPC ([26c0afc](https://github.com/Quenary/konvoez/commit/26c0afc1cf2c0275f3ded63119213c98229266d8))
+- **frontend:** attach button style ([ef97820](https://github.com/Quenary/konvoez/commit/ef9782089e467fab66d7f7f8a3d1f1a065fd94e1))
+- **frontend:** audio activity on mobile ([d01722d](https://github.com/Quenary/konvoez/commit/d01722db403d70d49211bd58178a2749f5c0a51b))
+- **frontend:** dbl downloadable file name ([7c53903](https://github.com/Quenary/konvoez/commit/7c539030fc9e48c2db22dfe5801133b94205185b))
+- **frontend:** drop peer playback if the peer leaves during attach ([beb1bdb](https://github.com/Quenary/konvoez/commit/beb1bdb22d7e9e27d85f2fa92f0dbf153ffbbd8d))
+- **frontend:** ensure proper closure of producer tracks on end event ([2064d24](https://github.com/Quenary/konvoez/commit/2064d24e8cee42b35d128fe8e130ffc84c2c5da4))
+- **frontend:** fix the screen wake lock acquire race ([23f984f](https://github.com/Quenary/konvoez/commit/23f984fb7adc3daaf098e3eabfbfea92aea40494))
+- **frontend:** handle microphone release and socket timeout on voice session leave ([63270b6](https://github.com/Quenary/konvoez/commit/63270b6d01fb896cd0599267524db4f0716a41e8))
+- **frontend:** hydrate voice mute from storage, unregister on logout ([228630e](https://github.com/Quenary/konvoez/commit/228630ed3d677ac070dc641bf29b63e23860c1bf))
+- **frontend:** join-time mute overwritten by stale param ([51cee74](https://github.com/Quenary/konvoez/commit/51cee745dc56c2a9902c19c667a73cb6a014b9e3))
+- **frontend:** leave voice before navigating away on logout ([71b31cd](https://github.com/Quenary/konvoez/commit/71b31cde72d644e08f66a285feb13e39ed633cd3))
+- **frontend:** mic/produce race on devicechange (ios, permission) ([21c85db](https://github.com/Quenary/konvoez/commit/21c85db8c93e35e08f73aa65e25f9ddc593276ae))
+- **frontend:** notify when joining a voice room fails ([263c34d](https://github.com/Quenary/konvoez/commit/263c34dc5d30fa9da5128764f6ee0eb3b3fd2e59))
+- **frontend:** paint a video poster only when a frame is ready ([3fc3224](https://github.com/Quenary/konvoez/commit/3fc3224c41e32d0430b9fc5d02282f73558237a3))
+- **frontend:** play button contrast ([4dcba1d](https://github.com/Quenary/konvoez/commit/4dcba1d1f8e023214e8278b6d8af8a05619e2e2d))
+- **frontend:** safari/ios webp encoding fallback ([0ba277c](https://github.com/Quenary/konvoez/commit/0ba277cfe01cdc1867ed19141a4472b06c0056e9))
+- **frontend:** scroll to bottom button appearance ([07258c6](https://github.com/Quenary/konvoez/commit/07258c61f64a5326a34f4f2e324e8c6fa7f32b26))
+- **frontend:** serialize mic produce, replace track, report join failure ([9ed6fd8](https://github.com/Quenary/konvoez/commit/9ed6fd80c5946ad86731a5f98b54ce7cae43f3d3))
+- **frontend:** text room input height ([60557f1](https://github.com/Quenary/konvoez/commit/60557f124ce6b88975de8034c0fbbdbaaff741bc))
+- message deletion behavior ([9286680](https://github.com/Quenary/konvoez/commit/9286680a3ca471e31acb92833b4052652b9613f6))
+
+### Features
+
+- **attachments:** add video processing service and poster generation ([8071619](https://github.com/Quenary/konvoez/commit/807161978194c0d8ec434e53bc9f187c1ec8ac97))
+- **attachments:** composer, upload pipeline on frontend ([fb415f3](https://github.com/Quenary/konvoez/commit/fb415f3a03e5cbe65140dc8d40e87a0753db1130))
+- **attachments:** enhance attachment cleanup and file stat functionality ([cb4ef93](https://github.com/Quenary/konvoez/commit/cb4ef933b5907a43bd6141d37696073ba97a8772))
+- **attachments:** entity, upload/download api, infra, display ([41e37ee](https://github.com/Quenary/konvoez/commit/41e37eef56be40d65ee9b9fbc4a6802bdc4df0f3))
+- **attachments:** improve video poster generation and processing limits ([e7e0374](https://github.com/Quenary/konvoez/commit/e7e037417f67d75fdb0776ebf90b24edfb725028))
+- **attachments:** shared, settings, storage layer ([8029e4b](https://github.com/Quenary/konvoez/commit/8029e4b8fd4cf418ea48315b5d217c90b5e219cd))
+- **attachments:** text input assets scroll indication ([e2f3513](https://github.com/Quenary/konvoez/commit/e2f351389aecf1e2a34c4e42ce90b4ba5c14b47b))
+- client posters, optional ffmpeg ([ffd8224](https://github.com/Quenary/konvoez/commit/ffd82240a4734c138c14db9e1fd539a169076c91))
+- **frontend:** message balloon match prime media width ([78bbd33](https://github.com/Quenary/konvoez/commit/78bbd33bf75343e9349197c10d8fa5e550511b92))
+- **frontend:** screen wake lock on active voice room ([b55a596](https://github.com/Quenary/konvoez/commit/b55a596a9c1566933c06ad3bfebf9bb2851a265a))
+- **frontend:** scroll on new message if already on the bottom ([a96fbf3](https://github.com/Quenary/konvoez/commit/a96fbf3c14b47784b925eefc414f0b6f74dfc7a2))
+- **frontend:** shortened dt for today's messages ([786b485](https://github.com/Quenary/konvoez/commit/786b48501ebfbfd63d44b30ebb0b1ddbc0f5af93))
+
 # [1.8.0](https://github.com/Quenary/konvoez/compare/v1.7.0...v1.8.0) (2026-10-01)
 
 ### Features
