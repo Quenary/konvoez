@@ -105,7 +105,8 @@ server {
     ssl_certificate_key /path/to/privkey.pem;
 
     location / {
-        client_max_body_size 50m;
+        # At least the admin attachment limit; matches the bundled nginx.
+        client_max_body_size 1100m;
         proxy_pass http://192.168.0.10:80;
         proxy_http_version 1.1;
 
