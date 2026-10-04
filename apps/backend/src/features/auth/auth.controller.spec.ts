@@ -22,9 +22,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { AppService } from '@shared/services/app.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
-import { AuthLoginDto, AuthJWTData } from './auth.dto';
+import { AuthLoginDto } from './auth.dto';
 import { GetUserDto } from '../users/users.dto';
 import { EUserRole } from '@konvoez/shared';
 import type { Request, Response } from 'express';
@@ -32,7 +31,6 @@ import type { Request, Response } from 'express';
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<AuthService>;
-  let appService: AppService;
 
   const mockUser: GetUserDto = {
     id: 10,
@@ -44,14 +42,6 @@ describe('AuthController', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
-  };
-
-  const mockAppService = {
-    COOKIE_SAME_SITE: 'lax' as const,
-    COOKIE_SECURE: false,
-    COOKIE_DOMAIN: undefined,
-    ACCESS_TTL: 15,
-    REFRESH_TTL: 10080,
   };
 
   let mockResponse: jest.Mocked<Partial<Response>>;
@@ -72,22 +62,17 @@ describe('AuthController', () => {
             generateToken: jest.fn(),
             verifyToken: jest.fn(),
             resolveRefreshToken: jest.fn(),
+            setAuthCookies: jest.fn(),
             getMe: jest.fn(),
             isOwnerSetupRequired: jest.fn(),
             register: jest.fn(),
           },
-        },
-
-        {
-          provide: AppService,
-          useValue: mockAppService,
         },
       ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
     authService = module.get(AuthService);
-    appService = module.get(AppService);
   });
 
   describe('login', () => {
@@ -97,9 +82,6 @@ describe('AuthController', () => {
         password: 'password123',
       };
       authService.validateUser.mockResolvedValueOnce(mockUser);
-      authService.generateToken
-        .mockReturnValueOnce('access_token_123')
-        .mockReturnValueOnce('refresh_token_123');
 
       const result = await controller.login(
         dto,
@@ -110,38 +92,9 @@ describe('AuthController', () => {
         'testuser',
         'password123',
       );
-      expect(authService.generateToken).toHaveBeenNthCalledWith(1, {
-        type: 'access',
-        userId: mockUser.id,
-      });
-      expect(authService.generateToken).toHaveBeenNthCalledWith(2, {
-        type: 'refresh',
-        userId: mockUser.id,
-      });
-
-      expect(mockResponse.cookie).toHaveBeenNthCalledWith(
-        1,
-        ACCESS_TOKEN_KEY,
-        'access_token_123',
-        {
-          httpOnly: true,
-          sameSite: appService.COOKIE_SAME_SITE,
-          secure: appService.COOKIE_SECURE,
-          domain: appService.COOKIE_DOMAIN,
-          maxAge: appService.ACCESS_TTL * 60 * 1000,
-        },
-      );
-      expect(mockResponse.cookie).toHaveBeenNthCalledWith(
-        2,
-        REFRESH_TOKEN_KEY,
-        'refresh_token_123',
-        {
-          httpOnly: true,
-          sameSite: appService.COOKIE_SAME_SITE,
-          secure: appService.COOKIE_SECURE,
-          domain: appService.COOKIE_DOMAIN,
-          maxAge: appService.REFRESH_TTL * 60 * 1000,
-        },
+      expect(authService.setAuthCookies).toHaveBeenCalledWith(
+        mockUser.id,
+        mockResponse,
       );
 
       expect(result).toEqual(mockUser);
@@ -162,11 +115,7 @@ describe('AuthController', () => {
       const req = {
         cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
       } as unknown as Request;
-      const tokenData: AuthJWTData = { type: 'refresh', userId: 10 };
-      authService.resolveRefreshToken.mockResolvedValueOnce(tokenData);
-      authService.generateToken
-        .mockReturnValueOnce('new_access_token')
-        .mockReturnValueOnce('new_refresh_token');
+      authService.resolveRefreshToken.mockResolvedValueOnce(mockUser);
 
       const result = await controller.refresh(
         req,
@@ -176,15 +125,10 @@ describe('AuthController', () => {
       expect(authService.resolveRefreshToken).toHaveBeenCalledWith(
         'valid_refresh_token',
       );
-      expect(authService.generateToken).toHaveBeenNthCalledWith(1, {
-        type: 'access',
-        userId: 10,
-      });
-      expect(authService.generateToken).toHaveBeenNthCalledWith(2, {
-        type: 'refresh',
-        userId: 10,
-      });
-      expect(mockResponse.cookie).toHaveBeenCalledTimes(2);
+      expect(authService.setAuthCookies).toHaveBeenCalledWith(
+        mockUser.id,
+        mockResponse,
+      );
       expect(result).toEqual({ ok: true });
     });
   });

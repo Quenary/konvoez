@@ -1,4 +1,5 @@
 import { defineConfig, Options } from '@mikro-orm/core';
+import { CompiledQuery, type DatabaseConnection } from 'kysely';
 import { Migrator } from '@mikro-orm/migrations';
 import { UserEntitySchema } from './features/users/users.entity';
 import { RoomEntitySchema } from './features/rooms/rooms.entity';
@@ -11,6 +12,7 @@ import {
 import { InviteEntitySchema } from './features/invites/invites.entity';
 import { PushSubscriptionEntitySchema } from './features/notifications/notifications.entity';
 import { PasswordRecoveryCodeEntitySchema } from './features/auth/password-recovery-code.entity';
+import { MessageAttachmentEntitySchema } from './features/attachments/attachments.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { Migration20260801010402_InitialSchema } from './migrations/Migration20260801010402_InitialSchema';
 import { Migration20260915000000_MessageReplyTo } from './migrations/Migration20260915000000_MessageReplyTo';
@@ -23,6 +25,7 @@ import { Migration20260923111848_PushSubscriptionNotifications } from './migrati
 import { Migration20260929152327_PasswordRecoveryCodes } from './migrations/Migration20260929152327_PasswordRecoveryCodes';
 import { Migration20260930120000_NormalizeEmails } from './migrations/Migration20260930120000_NormalizeEmails';
 import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
+import { Migration20261003224050_MessageAttachments } from './migrations/Migration20261003224050_MessageAttachments';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -39,6 +42,7 @@ export async function createMikroOrmConfig() {
       MessageReadEntitySchema,
       PushSubscriptionEntitySchema,
       PasswordRecoveryCodeEntitySchema,
+      MessageAttachmentEntitySchema,
     ],
     extensions: [Migrator],
     migrations: {
@@ -57,6 +61,7 @@ export async function createMikroOrmConfig() {
         Migration20260929152327_PasswordRecoveryCodes,
         Migration20260930120000_NormalizeEmails,
         Migration20260930092254_UserSoftDelete,
+        Migration20261003224050_MessageAttachments,
       ],
     },
   } satisfies Partial<Options>;
@@ -93,6 +98,15 @@ export async function createMikroOrmConfig() {
         ...baseOptions,
         driver: await import('@mikro-orm/sqlite').then((m) => m.SqliteDriver),
         dbName: process.env.DB_NAME || getDefaultSqliteDbPath(),
+        onCreateConnection: async (connection) => {
+          const conn = connection as DatabaseConnection;
+          await conn.executeQuery(
+            CompiledQuery.raw('pragma journal_mode = WAL'),
+          );
+          await conn.executeQuery(
+            CompiledQuery.raw('pragma synchronous = NORMAL'),
+          );
+        },
       });
     }
   }

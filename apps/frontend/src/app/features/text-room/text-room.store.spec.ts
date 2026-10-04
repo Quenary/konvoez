@@ -6,9 +6,11 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { TextRoomApiService } from './text-room-api.service';
+import { AttachmentsApiService } from './outgoing/attachments-api.service';
 import { MessageReadQueueService } from './message-read-queue.service';
 import { UnreadCountsStore } from './unread-counts.store';
 import { TextRoomStore, EMessageStatus } from './text-room.store';
+import { OutgoingMessagesStore } from './outgoing/outgoing-messages.store';
 import {
   ETextRoomEvent,
   EUserRole,
@@ -93,6 +95,8 @@ describe('TextRoomStore', () => {
     createdAt: new Date('2026-09-15T00:00:00.000Z'),
     updatedAt: null,
     isRead: false,
+    attachments: [],
+    clientId: null,
     replyTo: null,
   };
 
@@ -106,6 +110,8 @@ describe('TextRoomStore', () => {
     createdAt: new Date('2026-09-15T00:01:00.000Z'),
     updatedAt: null,
     isRead: false,
+    attachments: [],
+    clientId: null,
     replyTo: {
       id: 'msg-1',
       senderId: 1,
@@ -147,6 +153,10 @@ describe('TextRoomStore', () => {
         provideStore({ auth: authReducer }),
         provideTranslateService(),
         { provide: TextRoomApiService, useValue: apiService },
+        {
+          provide: AttachmentsApiService,
+          useValue: { upload: vi.fn(), delete: vi.fn(() => of(undefined)) },
+        },
         { provide: TextRoomSocketToken, useValue: mockSocket },
         { provide: TuiNotificationService, useValue: mockNotifications },
         { provide: UnreadCountsStore, useValue: unreadCountsStore },
@@ -249,6 +259,8 @@ describe('TextRoomStore', () => {
       createdAt: new Date('2026-09-14T10:00:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       replyTo: null,
     };
 
@@ -298,6 +310,8 @@ describe('TextRoomStore', () => {
       createdAt: new Date('2026-09-15T00:05:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: 'temp-123',
       replyTo: {
         id: 'msg-1',
         senderId: 1,
@@ -316,6 +330,7 @@ describe('TextRoomStore', () => {
         roomId: 10,
         recipientId: null,
         replyToId: 'msg-1',
+        attachmentIds: [],
       },
     });
 
@@ -324,15 +339,17 @@ describe('TextRoomStore', () => {
       expect.objectContaining({
         content: 'New message replying to 1',
         replyToId: 'msg-1',
+        clientId: 'temp-123',
       }),
     );
-    expect(store.entityMap()['temp-123'].status).toBe(EMessageStatus.LOADING);
-    expect(store.entityMap()['temp-123'].isPendingCreate).toBe(true);
-    expect(store.entityMap()['temp-123'].senderId).toBe(currentUser.id);
-    expect(store.entityMap()['temp-123'].senderUsername).toBe(
-      currentUser.username,
-    );
-    expect(store.entityMap()['temp-123'].replyTo?.id).toBe('msg-1');
+    const pending = store.messages().find((item) => item.id === 'temp-123');
+    expect(pending?.status).toBe(EMessageStatus.LOADING);
+    expect(pending?.isPendingCreate).toBe(true);
+    expect(pending?.senderId).toBe(currentUser.id);
+    expect(pending?.senderUsername).toBe(currentUser.username);
+    expect(pending?.replyTo?.id).toBe('msg-1');
+    expect(store.entityMap()['temp-123']).toBeUndefined();
+    expect(store.newestId()).toBe('msg-2');
 
     create$.next(createdServerMessage);
     create$.complete();
@@ -359,12 +376,18 @@ describe('TextRoomStore', () => {
         roomId: 10,
         recipientId: null,
         replyToId: null,
+        attachmentIds: [],
       },
     });
 
     create$.error(new Error('network'));
-    expect(store.entityMap()['temp-retry'].status).toBe(EMessageStatus.ERROR);
-    expect(store.entityMap()['temp-retry'].isPendingCreate).toBe(true);
+    expect(
+      store.messages().find((item) => item.id === 'temp-retry')?.status,
+    ).toBe(EMessageStatus.ERROR);
+    expect(
+      store.messages().find((item) => item.id === 'temp-retry')
+        ?.isPendingCreate,
+    ).toBe(true);
 
     const retry$ = new Subject<ITextRoomMessage>();
     apiService.create.mockReturnValue(retry$.asObservable());
@@ -372,13 +395,16 @@ describe('TextRoomStore', () => {
 
     store.retryMessage('temp-retry');
 
-    expect(store.entityMap()['temp-retry'].status).toBe(EMessageStatus.LOADING);
+    expect(
+      store.messages().find((item) => item.id === 'temp-retry')?.status,
+    ).toBe(EMessageStatus.LOADING);
     expect(apiService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         content: 'Retry me',
         roomId: 10,
         recipientId: null,
         replyToId: null,
+        clientId: 'temp-retry',
       }),
     );
 
@@ -392,6 +418,8 @@ describe('TextRoomStore', () => {
       createdAt: new Date('2026-09-15T00:06:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: 'temp-retry',
       replyTo: null,
     });
     retry$.complete();
@@ -426,6 +454,8 @@ describe('TextRoomStore', () => {
       content: 'Updated content',
       updatedAt: new Date('2026-09-15T00:10:00.000Z'),
       isRead: false,
+      attachments: [],
+      clientId: null,
     };
     apiService.update.mockReturnValue(of(updatedMessage));
 
@@ -525,6 +555,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:15:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -546,6 +578,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:16:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -564,6 +598,8 @@ describe('TextRoomStore', () => {
         content: 'Edited via socket event',
         updatedAt: new Date('2026-09-15T00:20:00.000Z'),
         isRead: false,
+        attachments: [],
+        clientId: null,
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_EDITED, editedMessage);
@@ -586,6 +622,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:17:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -603,6 +641,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:18:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -624,6 +664,8 @@ describe('TextRoomStore', () => {
         createdAt: new Date('2026-09-15T00:19:00.000Z'),
         updatedAt: null,
         isRead: false,
+        attachments: [],
+        clientId: null,
         replyTo: null,
       };
 
@@ -686,11 +728,17 @@ describe('TextRoomStore', () => {
           roomId: 10,
           recipientId: null,
           replyToId: null,
+          attachmentIds: [],
         },
       });
 
-      expect(store.entityMap()['temp-err'].status).toBe(EMessageStatus.ERROR);
-      expect(store.entityMap()['temp-err'].senderId).toBe(currentUser.id);
+      expect(
+        store.messages().find((item) => item.id === 'temp-err')?.status,
+      ).toBe(EMessageStatus.ERROR);
+      expect(
+        store.messages().find((item) => item.id === 'temp-err')?.senderId,
+      ).toBe(currentUser.id);
+      expect(store.entityMap()['temp-err']).toBeUndefined();
       expect(mockNotifications.open).toHaveBeenCalled();
     });
 
@@ -750,6 +798,74 @@ describe('TextRoomStore', () => {
           recipientId: 99,
           roomId: null,
         }),
+      );
+    });
+  });
+
+  describe('outgoing messages', () => {
+    function sendOutgoing(tempId: string, roomId: number | null): void {
+      apiService.create.mockReturnValue(new Subject());
+      TestBed.inject(OutgoingMessagesStore).send({
+        tempId,
+        data: {
+          content: 'draft',
+          roomId,
+          recipientId: null,
+          replyToId: null,
+          attachmentIds: [],
+        },
+        replyTo: null,
+        files: [],
+      });
+    }
+
+    it('shows an outgoing message only in its own chat and hides it during search', () => {
+      store.join({ roomId: 10, recipientId: null });
+      sendOutgoing('other-room', 11);
+      expect(
+        store.messages().some((message) => message.id === 'other-room'),
+      ).toBe(false);
+      sendOutgoing('this-room', 10);
+      expect(
+        store.messages().some((message) => message.id === 'this-room'),
+      ).toBe(true);
+      expect(store.newestId()).toBe('msg-2');
+      expect(store.oldestId()).toBe('msg-1');
+
+      store.setSearchQuery('First');
+      expect(store.messages().some((message) => message.outgoing)).toBe(false);
+    });
+
+    it('hides an outgoing row once the server message with the same clientId arrives', () => {
+      store.join({ roomId: 10, recipientId: null });
+      sendOutgoing('temp-dup', 10);
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, {
+        ...message1,
+        id: 'msg-server',
+        clientId: 'temp-dup',
+        content: 'draft',
+      });
+      expect(
+        store.messages().some((message) => message.id === 'temp-dup'),
+      ).toBe(false);
+      expect(
+        store.messages().some((message) => message.id === 'msg-server'),
+      ).toBe(true);
+    });
+
+    it('resolves an outgoing message from a socket echo outside the open chat and during search', () => {
+      const outgoing = TestBed.inject(OutgoingMessagesStore);
+      const resolve = vi.spyOn(outgoing, 'resolve');
+      store.join({ roomId: 10, recipientId: null });
+      store.setSearchQuery('First');
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, {
+        ...message1,
+        id: 'msg-elsewhere',
+        roomId: 99,
+        clientId: 'temp-elsewhere',
+      });
+      expect(resolve).toHaveBeenCalledWith(
+        expect.objectContaining({ clientId: 'temp-elsewhere' }),
       );
     });
   });

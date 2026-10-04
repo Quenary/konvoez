@@ -7,7 +7,7 @@ import {
   TIceServersSettingValue,
   TSetting,
   TSettingsUpdate,
-  DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  defaultSettingValues,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -80,7 +80,35 @@ export const SettingsStore = signalStore(
       const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
       return (
         (item?.value as number | undefined) ??
-        DEFAULT_PASSWORD_RECOVERY_CODE_TTL
+        defaultSettingValues[ESettingKey.PASSWORD_RECOVERY_CODE_TTL]
+      );
+    }),
+    attachmentsEnabled: computed(() => {
+      const item = entityMap()[ESettingKey.ATTACHMENTS_ENABLED];
+      return (
+        (item?.value as boolean | undefined) ??
+        defaultSettingValues[ESettingKey.ATTACHMENTS_ENABLED]
+      );
+    }),
+    attachmentsMaxFileSize: computed(() => {
+      const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE];
+      return (
+        (item?.value as number | undefined) ??
+        defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]
+      );
+    }),
+    attachmentsMaxFilesPerMessage: computed(() => {
+      const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE];
+      return (
+        (item?.value as number | undefined) ??
+        defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]
+      );
+    }),
+    attachmentsStripImageMetadata: computed(() => {
+      const item = entityMap()[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA];
+      return (
+        (item?.value as boolean | undefined) ??
+        defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
       );
     }),
     needsInitialSetup: computed(

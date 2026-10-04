@@ -1,0 +1,100 @@
+<ng-template #durationBadge>
+  @if (durationLabel(); as label) {
+    <span
+      class="duration"
+      [attr.aria-label]="
+        'ROOMS.VIDEO_DURATION' | translate: { duration: label }
+      ">
+      {{ label }}
+    </span>
+  }
+</ng-template>
+
+<ng-template #visual>
+  @if (showImage()) {
+    <img
+      [src]="src()"
+      [alt]="name()"
+      loading="lazy"
+      decoding="async"
+      (error)="onBroken()" />
+    @if (kind() === kinds.VIDEO) {
+      <tui-icon
+        class="play"
+        icon="@tui.play" />
+      <ng-container [ngTemplateOutlet]="durationBadge" />
+    }
+  } @else if (showLocalVideo()) {
+    <video
+      [src]="src()"
+      muted
+      playsinline
+      preload="metadata"
+      (error)="onBroken()"></video>
+    <tui-icon
+      class="play"
+      icon="@tui.play" />
+    <ng-container [ngTemplateOutlet]="durationBadge" />
+  } @else {
+    <span class="file-fallback">
+      <tui-icon [icon]="icon()" />
+      @if (kind() === kinds.VIDEO) {
+        <tui-icon
+          class="play"
+          icon="@tui.play" />
+        <ng-container [ngTemplateOutlet]="durationBadge" />
+      }
+      <span class="file-name">{{ name() }}</span>
+      @if (formattedSize(); as label) {
+        <span class="file-size">{{ label }}</span>
+      }
+    </span>
+  }
+</ng-template>
+
+@if (interactive()) {
+  <button
+    type="button"
+    class="activate"
+    (click)="onActivate()">
+    <ng-container [ngTemplateOutlet]="visual" />
+  </button>
+} @else {
+  <ng-container [ngTemplateOutlet]="visual" />
+}
+
+@switch (status()) {
+  @case ('queued') {
+    <span class="overlay">
+      <tui-loader size="s" />
+    </span>
+  }
+  @case ('uploading') {
+    <span class="overlay">
+      <tui-progress-circle
+        size="s"
+        [max]="100"
+        [value]="(progress() ?? 0) * 100" />
+    </span>
+  }
+  @case ('error') {
+    <tui-icon
+      class="error-icon"
+      icon="@tui.circle-alert"
+      [tuiHint]="errorText()" />
+  }
+}
+
+@if (removable()) {
+  <button
+    tuiIconButton
+    type="button"
+    size="xs"
+    appearance="secondary"
+    iconStart="@tui.x"
+    class="remove"
+    [attr.aria-label]="'ROOMS.REMOVE_FILE' | translate"
+    (click)="onRemove($event)">
+    {{ 'ROOMS.REMOVE_FILE' | translate }}
+  </button>
+}

@@ -9,7 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
@@ -43,7 +43,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 })
 export class VoicePeerTileComponent {
   private readonly store = inject(Store);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly directCallService = inject(DirectCallService);
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
@@ -64,23 +64,24 @@ export class VoicePeerTileComponent {
   });
 
   protected readonly isSpeaking = computed(() => {
-    return this.audioActivityService.selectIsSpeaking(this.peer().id)();
+    const speakingMap = this.audioActivityService.speakingMap();
+    return Boolean(speakingMap[this.peer().id]);
   });
 
   protected readonly isMuted = computed(() => {
     const isLocal = this.isLocal();
-    const microphoneMuted = this.voiceRoomService.microphoneMuted();
+    const microphoneMuted = this.voiceRoomStore.microphoneMuted();
     return isLocal ? microphoneMuted : false;
   });
 
   protected readonly isDeafened = computed(() => {
     const isLocal = this.isLocal();
-    const speakerMuted = this.voiceRoomService.speakerMuted();
+    const speakerMuted = this.voiceRoomStore.speakerMuted();
     return isLocal ? speakerMuted : false;
   });
 
   protected readonly volume = computed(() => {
-    const levels = this.voiceRoomService.peerGainLevels();
+    const levels = this.voiceRoomStore.peerGainLevels();
     const gain = levels[this.peer().id] ?? 1;
     return Math.round(gain * 100);
   });
@@ -97,6 +98,6 @@ export class VoicePeerTileComponent {
   });
 
   protected onVolumeChange(value: number): void {
-    this.voiceRoomService.setPeerGain(this.peer().id, value / 100);
+    this.voiceRoomStore.setPeerGain(this.peer().id, value / 100);
   }
 }

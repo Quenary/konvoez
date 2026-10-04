@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import crypto from 'crypto';
+import path from 'path';
 import {
   getDefaultDataDir,
   getDefaultLocalStoragePath,
 } from '../storage.utils';
+import { assertObjectStoragePrefix } from './storage-naming';
 
 export type FileServiceType = 'local' | 's3';
 
@@ -26,6 +28,22 @@ export class AppService {
    */
   public readonly LOCAL_OBJECT_STORAGE_PATH: string =
     process.env['LOCAL_OBJECT_STORAGE_PATH'] || getDefaultLocalStoragePath();
+  /**
+   * Prefix for physical storage containers (local directory and S3 bucket).
+   * Empty keeps the current layout. Changing it points at new empty containers.
+   */
+  public readonly OBJECT_STORAGE_PREFIX: string = this.readStoragePrefix();
+  /**
+   * Directory for in-flight attachment uploads.
+   */
+  public readonly UPLOAD_TMP_DIR: string =
+    process.env['UPLOAD_TMP_DIR'] ||
+    path.join(
+      this.LOCAL_OBJECT_STORAGE_PATH,
+      this.OBJECT_STORAGE_PREFIX
+        ? `.tmp-${this.OBJECT_STORAGE_PREFIX}`
+        : '.tmp',
+    );
   //#endregion
 
   /**
@@ -165,6 +183,12 @@ export class AppService {
   public readonly SMTP_TLS_REJECT_UNAUTHORIZED: boolean =
     process.env['SMTP_TLS_REJECT_UNAUTHORIZED']?.toLowerCase() !== 'false';
   //#endregion
+
+  private readStoragePrefix(): string {
+    const prefix = (process.env['OBJECT_STORAGE_PREFIX'] ?? '').trim();
+    assertObjectStoragePrefix(prefix);
+    return prefix;
+  }
 
   private parseSmtpEncryption(raw: string | undefined): SmtpEncryption {
     const value = (raw ?? '').trim().toUpperCase();

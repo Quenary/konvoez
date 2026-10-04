@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -36,8 +37,9 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { DirectCallPanelComponent } from '@shared/components/voice-room/direct-call-panel/direct-call-panel.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { FileDropDirective } from '@shared/directives/file-drop.directive';
 
 @Component({
   selector: 'app-text-room',
@@ -58,6 +60,7 @@ import { EVoiceSessionType, IUser } from '@konvoez/shared';
     NgOptimizedImage,
     ReactiveFormsModule,
     TranslatePipe,
+    FileDropDirective,
     DirectCallPanelComponent,
     PulseIndicatorComponent,
   ],
@@ -72,7 +75,7 @@ export class TextRoomComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly ngrxStore = inject(Store);
   private readonly usersStore = inject(UsersStore);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly roomManageService = inject(RoomManageService);
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
@@ -83,7 +86,7 @@ export class TextRoomComponent {
 
   protected readonly isCurrentDirectCallActive = computed(() => {
     const isDirectChat = this.isDirectChat();
-    const session = this.voiceRoomService.activeSession();
+    const session = this.voiceRoomStore.activeSession();
     const directUser = this.user();
     const interlocutor = this.directCallService.interlocutor();
     const isCallActive = this.directCallService.isCallActive();
@@ -170,6 +173,7 @@ export class TextRoomComponent {
   private readonly roomsDict = this.ngrxStore.selectSignal(selectRoomsDict);
   private readonly routeData = toSignal(this.activatedRoute.data);
   private readonly targetId = signal<number | null>(null);
+  private readonly editor = viewChild(TextRoomEditorComponent);
 
   constructor() {
     this.activatedRoute.params
@@ -203,6 +207,10 @@ export class TextRoomComponent {
       .subscribe((query) => {
         this.textRoomStore.setSearchQuery(query);
       });
+  }
+
+  protected onFilesDropped(files: File[]): void {
+    this.editor()?.addFiles(files);
   }
 
   protected toggleSearch(): void {

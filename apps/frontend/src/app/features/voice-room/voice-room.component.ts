@@ -18,7 +18,8 @@ import { VoicePeersGridComponent } from '@shared/components/voice-room/voice-pee
 import { TuiButton, TuiDropdown, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe } from '@ngx-translate/core';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionService } from '@core/services/voice-session.service';
 import { resolveVoiceSessionPeers } from '@shared/components/voice-room/voice-session-peers';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DirectCallService } from '@core/services/direct-call.service';
@@ -49,7 +50,8 @@ export class VoiceRoomComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly store = inject(Store);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly directCallService = inject(DirectCallService);
   private readonly roomManageService = inject(RoomManageService);
 
@@ -79,8 +81,8 @@ export class VoiceRoomComponent {
     const isIncoming = this.directCallService.isIncoming();
     return resolveVoiceSessionPeers({
       me: this.currentUser(),
-      remotePeers: this.voiceRoomService.peersList(),
-      session: this.voiceRoomService.activeSession(),
+      remotePeers: this.voiceRoomStore.peersList(),
+      session: this.voiceRoomStore.activeSession(),
       isRinging: isCalling || isIncoming,
       interlocutor: this.directCallService.interlocutor(),
     }).length;
@@ -96,7 +98,7 @@ export class VoiceRoomComponent {
     effect(() => {
       const id = this.roomId();
       const alreadyJoinedFor = this.joinedForRoomId();
-      const current = this.voiceRoomService.selectedRoomId();
+      const current = this.voiceRoomStore.selectedRoomId();
 
       if (!id || !Number.isFinite(id) || id <= 0) {
         return;
@@ -110,10 +112,14 @@ export class VoiceRoomComponent {
         return;
       }
 
-      void this.voiceRoomService.joinSession({
-        type: EVoiceSessionType.GROUP_ROOM,
-        roomId: id,
-      });
+      void this.voiceSessionService
+        .joinSession({
+          type: EVoiceSessionType.GROUP_ROOM,
+          roomId: id,
+        })
+        .catch((error: unknown) => {
+          this.voiceSessionService.reportJoinFailure(error);
+        });
     });
   }
 

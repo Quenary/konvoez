@@ -136,5 +136,13 @@
   </div>
 }
 
-<app-text-room-list />
-<app-text-room-editor />
+<div
+  class="chat-drop"
+  appFileDrop
+  (filesDropped)="onFilesDropped($event)">
+  <app-text-room-list />
+  <app-text-room-editor />
+  <div class="drop-overlay">
+    {{ 'ROOMS.DROP_FILES_HERE' | translate }}
+  </div>
+</div>

@@ -11,6 +11,12 @@ import type { GetUserDto } from '../users/users.dto';
 export const AuthGuardRoles = Reflector.createDecorator<EUserRole[]>();
 
 /**
+ * On GET, when the access cookie is missing, renew the session from the
+ * refresh cookie and continue. Invalid access cookies still fail closed.
+ */
+export const AuthRefreshFallback = Reflector.createDecorator<true>();
+
+/**
  * Decorator to get current user info as param of the controller method.
  * Controller or method must use AuthGuard
  */

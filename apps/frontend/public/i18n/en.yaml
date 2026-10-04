@@ -14,7 +14,6 @@ GENERAL:
   EDIT: Edit
   DELETE: Delete
   REPLY: Reply
-  FILE_TOO_BIG: File is too big
   SIGN_IN: Sign in
   SIGN_UP: Create account
   LOG_OUT: Log out
@@ -82,6 +81,8 @@ CALL:
   SOUND_OFF: Sound off
   CAMERA_SOON: Camera (soon)
   SCREEN_SOON: Screen share (soon)
+VOICE:
+  JOIN_FAILED: Couldn't join the voice channel
 ROOMS:
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
@@ -90,6 +91,24 @@ ROOMS:
   READ_BY: Read by
   NO_READERS: The message has not yet been read
   RESEND: Resend
+  ATTACH_FILES: Attach files
+  ATTACHMENT: Attachment
+  DROP_FILES_HERE: Drop files here
+  SCROLL_TO_BOTTOM: Scroll to bottom
+  REMOVE_FILE: Remove file
+  VIDEO_DURATION: Duration {{duration}}
+  CANCEL_SENDING: Cancel sending
+  DOWNLOAD: Download
+  PREVIEW_UNSUPPORTED: This file can't be played in your browser
+  TOO_MANY_FILES: You can attach up to {{max}} files
+  UPLOAD_ERROR:
+    TOO_LARGE: File is too big
+    DISABLED: Attachments are disabled
+    RATE_LIMITED: Too many pending uploads
+    STORAGE_FULL: Storage is full
+    NETWORK: Network error
+    SERVER: Upload failed
+    EXPIRED: This file expired, attach it again
   DIALOG:
     ADD_HEADER: Add room
     EDIT_HEADER: Edit room
@@ -181,6 +200,15 @@ SETTINGS:
     PASSWORD_RECOVERY_CODE_TTL_DESC: How long a recovery code stays valid (60000–3600000 ms, default 600000)
     ICE_SERVERS: ICE servers configuration (JSON)
     ICE_SERVERS_DESC: List of STUN/TURN servers for WebRTC connections in JSON format
+    ATTACHMENTS: Attachments
+    ATTACHMENTS_ENABLED: Allow attachments
+    ATTACHMENTS_ENABLED_DESC: Let people attach files to messages
+    ATTACHMENTS_MAX_FILE_SIZE: Maximum file size (MiB)
+    ATTACHMENTS_MAX_FILE_SIZE_DESC: Per-file limit from 1 to 1024 MiB. The reverse proxy must allow at least this size. Applies to new uploads.
+    ATTACHMENTS_MAX_FILES_PER_MESSAGE: Maximum files per message
+    ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC: How many files one message may include (1–10)
+    ATTACHMENTS_STRIP_IMAGE_METADATA: Strip image metadata
+    ATTACHMENTS_STRIP_IMAGE_METADATA_DESC: Off by default, so recipients download the exact original. Applies only to new uploads; existing files are not changed.
     SAVED_SUCCESS: Settings saved successfully
 USER_DELETE:
   TITLE: Account deletion
@@ -190,6 +218,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  FILE_TOO_BIG: File is too big
   STRING: Value must be a string
   TTL_RANGE: Lifetime must be within the allowed range
   USERNAME_LENGTH: Username must be 4–32 characters
@@ -201,6 +230,9 @@ VALIDATION:
   ROOM_NAME_LENGTH: Room name must be 1–64 characters
   ROOM_TYPE: Select a room type
   MESSAGE_LENGTH: Message must be 1–5000 characters
+  MESSAGE_EMPTY: Message must contain text or a file
+  ATTACHMENTS_MAX_FILE_SIZE_RANGE: File size limit must be between 1 MiB and 1 GiB
+  ATTACHMENTS_MAX_FILES_RANGE: File count must be between 1 and 10
   SETUP_TOKEN_REQUIRED: Setup token is required for initial registration
   INVITE_CODE_REQUIRED: Invite code is required for registration
   INVALID_SCHEMA: Invalid schema format

@@ -12,7 +12,7 @@ import { TextRoomEditorComponent } from './text-room-editor/text-room-editor.com
 import { TextRoomListComponent } from './text-room-list/text-room-list.component';
 import { DirectCallPanelComponent } from '@shared/components/voice-room/direct-call-panel/direct-call-panel.component';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { RoomManageService } from '@features/rooms/room-manage.service';
 
 @Component({ selector: 'app-text-room-editor', template: '' })
@@ -53,7 +53,7 @@ describe('TextRoomComponent', () => {
     refreshActiveCall: vi.fn().mockResolvedValue(null),
   };
 
-  const mockVoiceRoomService = {
+  const mockVoiceRoomStore = {
     activeSession: signal(null),
     peersList: signal([]),
   };
@@ -83,7 +83,7 @@ describe('TextRoomComponent', () => {
         { provide: TextRoomStore, useValue: mockTextRoomStore },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: DirectCallService, useValue: mockDirectCallService },
-        { provide: VoiceRoomService, useValue: mockVoiceRoomService },
+        { provide: VoiceRoomStore, useValue: mockVoiceRoomStore },
         { provide: RoomManageService, useValue: mockRoomManageService },
         { provide: ActivatedRoute, useValue: route },
       ],

@@ -16,7 +16,9 @@ import {
 import { DirectCallService, ECallStatus } from './direct-call.service';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { AudioService } from './audio.service';
-import { VoiceRoomService } from './voice-room.service';
+import { Subject } from 'rxjs';
+import { VoiceSessionService } from './voice-session.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
@@ -51,9 +53,15 @@ describe('DirectCallService', () => {
     emitWithAck: ReturnType<typeof vi.fn>;
     connected: boolean;
   };
-  let voiceRoomService: {
+  let voiceSessionService: {
     joinSession: ReturnType<typeof vi.fn>;
     leaveSession: ReturnType<typeof vi.fn>;
+    sessionWillChange$: Subject<{
+      previous: unknown;
+      next: unknown;
+    }>;
+  };
+  let voiceRoomStore: {
     directCallTarget: ReturnType<typeof vi.fn>;
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
@@ -70,9 +78,12 @@ describe('DirectCallService', () => {
       connected: false,
     };
 
-    voiceRoomService = {
+    voiceSessionService = {
       joinSession: vi.fn().mockResolvedValue(undefined),
       leaveSession: vi.fn().mockResolvedValue(undefined),
+      sessionWillChange$: new Subject(),
+    };
+    voiceRoomStore = {
       directCallTarget: vi.fn().mockReturnValue(null),
     };
 
@@ -94,7 +105,8 @@ describe('DirectCallService', () => {
             playCallEndSound: vi.fn(),
           },
         },
-        { provide: VoiceRoomService, useValue: voiceRoomService },
+        { provide: VoiceSessionService, useValue: voiceSessionService },
+        { provide: VoiceRoomStore, useValue: voiceRoomStore },
         { provide: Router, useValue: router },
         {
           provide: TuiNotificationService,
@@ -130,7 +142,7 @@ describe('DirectCallService', () => {
       callId: 'c1',
       byUserId: caller.id,
     });
-    expect(voiceRoomService.leaveSession).not.toHaveBeenCalled();
+    expect(voiceSessionService.leaveSession).not.toHaveBeenCalled();
     expect(service.activeCall()).toBeNull();
   });
 
@@ -141,7 +153,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomService.directCallTarget.mockReturnValue({
+    voiceRoomStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
@@ -153,7 +165,7 @@ describe('DirectCallService', () => {
       EDirectCallEvent.CALL_HANGUP,
       expect.anything(),
     );
-    expect(voiceRoomService.leaveSession).toHaveBeenCalled();
+    expect(voiceSessionService.leaveSession).toHaveBeenCalled();
     expect(service.activeCall()).toBeNull();
     expect(service.rejoinableCall()?.callId).toBe('c1');
   });
@@ -165,12 +177,12 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomService.directCallTarget.mockReturnValue({
+    voiceRoomStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
     });
-    voiceRoomService.leaveSession.mockImplementation(async () => {
+    voiceSessionService.leaveSession.mockImplementation(async () => {
       handlers[EDirectCallEvent.CALL_ENDED]({ callId: 'c1' });
     });
 
@@ -194,7 +206,7 @@ describe('DirectCallService', () => {
       callId: 'c1',
       byUserId: caller.id,
     });
-    expect(voiceRoomService.leaveSession).not.toHaveBeenCalled();
+    expect(voiceSessionService.leaveSession).not.toHaveBeenCalled();
     expect(service.activeCall()).toBeNull();
   });
 
@@ -205,7 +217,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomService.directCallTarget.mockReturnValue({
+    voiceRoomStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
@@ -214,7 +226,7 @@ describe('DirectCallService', () => {
     handlers[EDirectCallEvent.CALL_ENDED]({ callId: 'c1' });
 
     expect(service.activeCall()).toBeNull();
-    expect(voiceRoomService.leaveSession).toHaveBeenCalled();
+    expect(voiceSessionService.leaveSession).toHaveBeenCalled();
   });
 
   it('detachFromCallWithoutHangup does not emit hangup for connected call', () => {
@@ -226,6 +238,31 @@ describe('DirectCallService', () => {
     });
 
     service.detachFromCallWithoutHangup();
+
+    expect(socket.emit).not.toHaveBeenCalled();
+    expect(service.activeCall()).toBeNull();
+    expect(service.rejoinableCall()?.callId).toBe('c1');
+  });
+
+  it('detaches from a connected call when joining a group voice session', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CONNECTED,
+    });
+
+    voiceSessionService.sessionWillChange$.next({
+      previous: {
+        type: EVoiceSessionType.DIRECT_CALL,
+        callId: 'c1',
+        interlocutorId: recipient.id,
+      },
+      next: {
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 7,
+      },
+    });
 
     expect(socket.emit).not.toHaveBeenCalled();
     expect(service.activeCall()).toBeNull();

@@ -14,6 +14,7 @@ import {
 } from '@shared/services/file.service';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { UserEntity } from '../users/users.entity';
+import { MessageAttachmentEntity } from '../attachments/attachments.entity';
 
 @Injectable()
 export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
@@ -80,9 +81,14 @@ export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
 
   private async loadReferencedKeys(): Promise<Set<string>> {
     const em = this.orm.em.fork();
-    const [users, rooms] = await Promise.all([
+    const [users, rooms, attachments] = await Promise.all([
       em.find(UserEntity, { avatar: { $ne: null } }, { fields: ['avatar'] }),
       em.find(RoomEntity, { avatar: { $ne: null } }, { fields: ['avatar'] }),
+      em.find(
+        MessageAttachmentEntity,
+        {},
+        { fields: ['storageKey', 'thumbnailKey'] },
+      ),
     ]);
 
     const referenced = new Set<string>();
@@ -94,6 +100,12 @@ export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
     for (const room of rooms) {
       if (room.avatar) {
         referenced.add(room.avatar);
+      }
+    }
+    for (const attachment of attachments) {
+      referenced.add(attachment.storageKey);
+      if (attachment.thumbnailKey) {
+        referenced.add(attachment.thumbnailKey);
       }
     }
     return referenced;

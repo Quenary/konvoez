@@ -11,7 +11,8 @@ import { TuiTitle } from '@taiga-ui/core';
 import { TuiAccordion } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { resolveVoiceSessionPeers } from '../voice-session-peers';
@@ -31,7 +32,8 @@ import { resolveVoiceSessionPeers } from '../voice-session-peers';
 })
 export class DirectCallPanelComponent {
   private readonly store = inject(Store);
-  private readonly voiceRoomService = inject(VoiceRoomService);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -40,8 +42,8 @@ export class DirectCallPanelComponent {
     const isIncoming = this.directCallService.isIncoming();
     return resolveVoiceSessionPeers({
       me: this.currentUser(),
-      remotePeers: this.voiceRoomService.peersList(),
-      session: this.voiceRoomService.activeSession(),
+      remotePeers: this.voiceRoomStore.peersList(),
+      session: this.voiceRoomStore.activeSession(),
       isRinging: isCalling || isIncoming,
       interlocutor: this.directCallService.interlocutor(),
     }).length;
@@ -50,6 +52,6 @@ export class DirectCallPanelComponent {
   public readonly expanded = model(true);
 
   protected onHangup(): void {
-    void this.voiceRoomService.leaveCurrent();
+    void this.voiceLeaveService.leaveActiveVoice();
   }
 }

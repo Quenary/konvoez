@@ -5,20 +5,24 @@ import {
   catchError,
   filter,
   finalize,
+  from,
   map,
   of,
   switchMap,
   tap,
+  timeout,
   type Observable,
 } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
 import { UsersStore } from '../users/users.store';
+import { OutgoingMessagesStore } from '../text-room/outgoing/outgoing-messages.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { PushNotificationService } from '@core/services/push-notification.service';
+import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { Store } from '@ngrx/store';
 import { selectIsAuthorized } from './auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -32,11 +36,13 @@ export class AuthEffects {
   private readonly authApiService = inject(AuthApiService);
   private readonly profileApiService = inject(ProfileApiService);
   private readonly usersStore = inject(UsersStore);
+  private readonly outgoingMessagesStore = inject(OutgoingMessagesStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly pushNotificationService = inject(PushNotificationService);
+  private readonly voiceLeaveService = inject(VoiceLeaveService);
 
   constructor() {
     this.store
@@ -107,10 +113,22 @@ export class AuthEffects {
   readonly requestLogout$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.requestLogout),
+      // Leave while the socket is still up. Clearing the user disconnects it
+      // before logoutEnd$ runs, and a buffered LEAVE_ROOM ack never settles.
       switchMap(() =>
-        this.authApiService.logout().pipe(
-          map(() => AuthActions.requestLogoutSuccess()),
-          catchError((error) => of(AuthActions.requestLogoutError({ error }))),
+        from(this.voiceLeaveService.leaveActiveVoice()).pipe(
+          catchError((error: unknown) => {
+            console.error('Failed to leave voice on logout', error);
+            return of(undefined);
+          }),
+          switchMap(() =>
+            this.authApiService.logout().pipe(
+              map(() => AuthActions.requestLogoutSuccess()),
+              catchError((error) =>
+                of(AuthActions.requestLogoutError({ error })),
+              ),
+            ),
+          ),
         ),
       ),
     ),
@@ -123,10 +141,20 @@ export class AuthEffects {
           AuthActions.requestLogoutSuccess,
           AuthActions.requestLogoutError,
         ),
-        tap(() => {
-          this.usersStore.clear();
-          this.router.navigate(['/auth']);
-        }),
+        switchMap(() =>
+          from(this.voiceLeaveService.leaveActiveVoice()).pipe(
+            timeout(3000),
+            catchError((error: unknown) => {
+              console.error('Failed to leave voice on logout', error);
+              return of(undefined);
+            }),
+            tap(() => {
+              this.outgoingMessagesStore.cancelAll();
+              this.usersStore.clear();
+              this.router.navigate(['/auth']);
+            }),
+          ),
+        ),
       ),
     { dispatch: false },
   );

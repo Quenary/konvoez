@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { AppService } from './app.service';
 import { LocalObjectStorageService } from './local-object-storage.service';
+import { StorageNamingService } from './storage-naming.service';
 
 describe('LocalObjectStorageService', () => {
   let service: LocalObjectStorageService;
@@ -16,8 +17,12 @@ describe('LocalObjectStorageService', () => {
     );
     appService = {
       LOCAL_OBJECT_STORAGE_PATH: tempDir,
+      OBJECT_STORAGE_PREFIX: '',
     } as unknown as AppService;
-    service = new LocalObjectStorageService(appService);
+    service = new LocalObjectStorageService(
+      appService,
+      new StorageNamingService(appService),
+    );
   });
 
   afterEach(async () => {
@@ -101,6 +106,70 @@ describe('LocalObjectStorageService', () => {
 
   it('should return an empty list when the bucket directory does not exist', async () => {
     await expect(service.list('users-avatars')).resolves.toEqual([]);
+  });
+
+  it('should put a file by renaming and serve a byte range', async () => {
+    const source = path.join(tempDir, 'incoming.bin');
+    await fs.promises.writeFile(source, 'abcdefghijklmnopqrstuvwxyz');
+
+    await service.putFile(
+      'message-attachments/abc',
+      {
+        path: source,
+        size: 26,
+        contentType: 'application/octet-stream',
+      },
+      'message-attachments',
+    );
+
+    expect(fs.existsSync(source)).toBe(false);
+    const stored = path.join(tempDir, 'message-attachments/abc');
+    expect(fs.existsSync(stored)).toBe(true);
+
+    const ranged = await service.getStream(
+      'message-attachments/abc',
+      undefined,
+      {
+        start: 0,
+        end: 3,
+      },
+    );
+    await expect(service.stat('message-attachments/abc')).resolves.toEqual({
+      size: 26,
+    });
+    expect(ranged.contentLength).toBe(4);
+    const chunks: Buffer[] = [];
+    for await (const chunk of ranged.stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    expect(Buffer.concat(chunks).toString()).toBe('abcd');
+  });
+
+  it('should store new files under the prefixed directory and list logical keys', async () => {
+    const prefixed = {
+      LOCAL_OBJECT_STORAGE_PATH: tempDir,
+      OBJECT_STORAGE_PREFIX: 'dev',
+    } as unknown as AppService;
+    const prefixedService = new LocalObjectStorageService(
+      prefixed,
+      new StorageNamingService(prefixed),
+    );
+    const key = await prefixedService.upload(
+      {
+        originalname: 'a.png',
+        buffer: Buffer.from('x'),
+        mimetype: 'image/png',
+      } as Express.Multer.File,
+      'users-avatars',
+    );
+    expect(key.startsWith('users-avatars/')).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, 'dev-users-avatars'))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, key))).toBe(false);
+    const listed = await prefixedService.list('users-avatars');
+    expect(listed.map((item) => item.key)).toEqual([key]);
+    await prefixedService.delete(key);
+    expect(fs.existsSync(path.join(tempDir, 'dev-users-avatars'))).toBe(true);
+    await expect(prefixedService.list('users-avatars')).resolves.toEqual([]);
   });
 
   it('should throw BadRequestException when deleting outside storage', async () => {

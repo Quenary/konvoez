@@ -3,6 +3,10 @@ import { AuthGuard } from '../auth/auth.guard';
 import { SettingsService } from './settings.service';
 import { ApiExtraModels, ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
 import {
+  AttachmentsEnabledSettingDto,
+  AttachmentsMaxFileSizeSettingDto,
+  AttachmentsMaxFilesPerMessageSettingDto,
+  AttachmentsStripImageMetadataSettingDto,
   IceServersSettingDto,
   InviteOnlySignUpSettingDto,
   PasswordRecoveryCodeTtlSettingDto,
@@ -16,12 +20,26 @@ import {
   TSettingByKey,
 } from '@konvoez/shared';
 
+const settingResponseModels = [
+  { $ref: getSchemaPath(IceServersSettingDto) },
+  { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
+  { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
+  { $ref: getSchemaPath(AttachmentsEnabledSettingDto) },
+  { $ref: getSchemaPath(AttachmentsMaxFileSizeSettingDto) },
+  { $ref: getSchemaPath(AttachmentsMaxFilesPerMessageSettingDto) },
+  { $ref: getSchemaPath(AttachmentsStripImageMetadataSettingDto) },
+] as const;
+
 @Controller('settings')
 @UseGuards(AuthGuard)
 @ApiExtraModels(
   IceServersSettingDto,
   InviteOnlySignUpSettingDto,
   PasswordRecoveryCodeTtlSettingDto,
+  AttachmentsEnabledSettingDto,
+  AttachmentsMaxFileSizeSettingDto,
+  AttachmentsMaxFilesPerMessageSettingDto,
+  AttachmentsStripImageMetadataSettingDto,
 )
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
@@ -31,11 +49,7 @@ export class SettingsController {
     schema: {
       type: 'array',
       items: {
-        oneOf: [
-          { $ref: getSchemaPath(IceServersSettingDto) },
-          { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
-          { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
-        ],
+        oneOf: [...settingResponseModels],
       },
     },
     description: 'Get all settings',
@@ -47,11 +61,7 @@ export class SettingsController {
   @Get(':key')
   @ApiOkResponse({
     schema: {
-      oneOf: [
-        { $ref: getSchemaPath(IceServersSettingDto) },
-        { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
-        { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
-      ],
+      oneOf: [...settingResponseModels],
     },
     description: 'Get setting by key',
   })
@@ -66,11 +76,7 @@ export class SettingsController {
     schema: {
       type: 'array',
       items: {
-        oneOf: [
-          { $ref: getSchemaPath(IceServersSettingDto) },
-          { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
-          { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
-        ],
+        oneOf: [...settingResponseModels],
       },
     },
     description: 'Update settings',

@@ -10,7 +10,11 @@ import {
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import {
+  provideHttpClient,
+  withInterceptors,
+  withXhr,
+} from '@angular/common/http';
 import {
   provideTranslateService,
   TranslateLoader,
@@ -38,17 +42,22 @@ import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
 import { AUDIO_DEVICE_HANDLER } from './core/tokens/audio-device-handler.token';
-import { VoiceRoomService } from './core/services/voice-room.service';
+import { VoiceSessionService } from './core/services/voice-session.service';
 import { provideServiceWorker } from '@angular/service-worker';
+
+// Fetch throws if upload progress is requested. XHR is what reports it.
+export function provideAppHttpClient() {
+  return provideHttpClient(withInterceptors([authInterceptor]), withXhr());
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideAppHttpClient(),
     {
       provide: AUDIO_DEVICE_HANDLER,
-      useExisting: VoiceRoomService,
+      useExisting: VoiceSessionService,
     },
     provideTranslateService({
       loader: {

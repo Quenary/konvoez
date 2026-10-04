@@ -1,0 +1,15 @@
+<div class="media-grid">
+  @for (cell of cells(); track cell.index) {
+    <div
+      class="media-grid-cell"
+      [style.aspect-ratio]="cell.aspectRatio"
+      [style.grid-column]="cell.gridColumn">
+      <ng-container
+        [ngTemplateOutlet]="template()"
+        [ngTemplateOutletContext]="{
+          $implicit: cell.item,
+          index: cell.index,
+        }" />
+    </div>
+  }
+</div>

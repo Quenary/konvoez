@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { AudioContextResumeService } from './audio-context-resume.service';
 
 interface IToneOptions {
   frequency: number;
@@ -27,25 +28,20 @@ const F = {
   leaveHigh: 659.25, // E5
   joinLow: 648,
   joinHigh: 864,
-  notifyLow: 880,
-  notifyHigh: 1320,
   chord: [523.25, 659.25, 783.99] as const, // C5 E5 G5
 } as const;
 
+/** UI/telephony cue tones (join/leave, mute, dial, ringtone). Not peer media playback. */
 @Injectable({
   providedIn: 'root',
 })
 export class AudioService {
+  private readonly audioContextResumeService = inject(
+    AudioContextResumeService,
+  );
   private audioContext: AudioContext | null = null;
   private dialingInterval: ReturnType<typeof setInterval> | null = null;
   private ringtoneInterval: ReturnType<typeof setInterval> | null = null;
-
-  public playNotificationAudio(): void {
-    this.playNotes([
-      { frequency: F.notifyLow, when: 0, duration: 0.14, peak: 0.13 },
-      { frequency: F.notifyHigh, when: 0.11, duration: 0.2, peak: 0.12 },
-    ]);
-  }
 
   public playPeerJoinAudio(): void {
     this.playNotes([
@@ -193,6 +189,7 @@ export class AudioService {
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext;
       this.audioContext = new AudioContextClass();
+      this.audioContextResumeService.register(this.audioContext);
     }
     if (this.audioContext.state === 'suspended') {
       void this.audioContext.resume();

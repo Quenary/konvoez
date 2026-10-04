@@ -12,7 +12,13 @@ import {
 } from '@core/tokens/audio-device-handler.token';
 import { authReducer } from '@features/auth/auth.reducer';
 import { AuthActions } from '@features/auth/auth.actions';
-import { ESettingKey, EUserRole, TSetting } from '@konvoez/shared';
+import {
+  attachmentsDefaultMaxFileSize,
+  attachmentsDefaultMaxFilesPerMessage,
+  ESettingKey,
+  EUserRole,
+  TSetting,
+} from '@konvoez/shared';
 import { EStorageKey } from '../../app.enums';
 import { LOCAL_SETTINGS_VERSION } from '@shared/schemas/local-settings.schema';
 
@@ -90,6 +96,12 @@ describe('SettingsStore', () => {
     expect(store.audioInput()).toBeNull();
     expect(store.audioOutput()).toBeNull();
     expect(store.iceServers()).toEqual([]);
+    expect(store.attachmentsEnabled()).toBe(true);
+    expect(store.attachmentsMaxFileSize()).toBe(attachmentsDefaultMaxFileSize);
+    expect(store.attachmentsMaxFilesPerMessage()).toBe(
+      attachmentsDefaultMaxFilesPerMessage,
+    );
+    expect(store.attachmentsStripImageMetadata()).toBe(false);
     expect(store.needsInitialSetup()).toBe(true);
   });
 

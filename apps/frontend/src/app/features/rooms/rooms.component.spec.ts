@@ -12,7 +12,7 @@ import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
 import { RoomsActions } from './rooms.actions';
 import { IRoom } from './rooms.interface';
-import { VoiceRoomService } from '@core/services/voice-room.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import {
   DirectCallService,
   ECallStatus,
@@ -146,7 +146,7 @@ describe('RoomsComponent', () => {
           ],
         }),
         {
-          provide: VoiceRoomService,
+          provide: VoiceRoomStore,
           useValue: {
             selectedRoomId,
             roomsState,

@@ -1,0 +1,33 @@
+<div
+  #strip
+  class="strip"
+  role="list"
+  (scroll)="onScroll()">
+  @for (file of files(); track file.localId) {
+    <div role="listitem">
+      <app-file-thumbnail
+        [interactive]="file.kind === kinds.IMAGE || file.kind === kinds.VIDEO"
+        [removable]="true"
+        [durationMs]="
+          file.videoDuration === null ? null : file.videoDuration * 1000
+        "
+        [kind]="file.kind"
+        [name]="file.file.name"
+        [serverVideo]="file.kind === kinds.VIDEO && !!file.posterUrl"
+        [size]="file.file.size"
+        [src]="
+          file.posterUrl ?? (file.kind === kinds.VIDEO ? null : file.previewUrl)
+        "
+        (activate)="open(file)"
+        (remove)="remove.emit(file.localId)" />
+    </div>
+  }
+</div>
+<div
+  aria-hidden="true"
+  class="edge edge-start"
+  [class._on]="canScrollStart()"></div>
+<div
+  aria-hidden="true"
+  class="edge edge-end"
+  [class._on]="canScrollEnd()"></div>

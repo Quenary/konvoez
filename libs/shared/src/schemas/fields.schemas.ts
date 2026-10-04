@@ -46,6 +46,10 @@ export const messageContentSchema = lengthString(
   SCHEMA_ERROR.MESSAGE_LENGTH,
 );
 
+export const messageOptionalContentSchema = stringSchema.max(messageMaxLength, {
+  error: SCHEMA_ERROR.MESSAGE_LENGTH,
+});
+
 export const roomNameSchema = lengthString(
   roomNameMinLength,
   roomNameMaxLength,

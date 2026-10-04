@@ -8,7 +8,8 @@ import {
   IMessageEntity,
 } from '../text-room.store';
 import { UsersStore } from '@features/users/users.store';
-import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { OutgoingMessagesStore } from '../outgoing/outgoing-messages.store';
 import { Sanitizer, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -31,6 +32,8 @@ describe('TextRoomListComponent', () => {
       createdAt: new Date('2026-09-15T00:00:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       status: EMessageStatus.SUCCESS,
       replyTo: null,
     },
@@ -44,6 +47,8 @@ describe('TextRoomListComponent', () => {
       createdAt: new Date('2026-09-15T00:01:00.000Z'),
       updatedAt: null,
       isRead: false,
+      attachments: [],
+      clientId: null,
       status: EMessageStatus.SUCCESS,
       replyTo: {
         id: 'msg-1',
@@ -127,6 +132,14 @@ describe('TextRoomListComponent', () => {
           provide: MessageReadQueueService,
           useValue: { enqueue: vi.fn(), reset: vi.fn() },
         },
+        {
+          provide: OutgoingMessagesStore,
+          useValue: { uploadProgress: signal({}) },
+        },
+        {
+          provide: TuiDialogService,
+          useValue: { open: vi.fn(() => of(undefined)) },
+        },
       ],
     }).compileComponents();
 
@@ -148,4 +161,97 @@ describe('TextRoomListComponent', () => {
     component.onScrolled();
     expect(mockTextRoomStore.requestNextPage).toHaveBeenCalled();
   });
+
+  it('scrolls once when an outgoing message appears and not on later updates', () => {
+    fixture.detectChanges();
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+    const outgoing = {
+      ...mockMessages[1],
+      id: 'out-1',
+      outgoing: {
+        tempId: 'out-1',
+        data: {
+          content: '<p>Second with reply</p>',
+          roomId: 1,
+          recipientId: null,
+          replyToId: null,
+          attachmentIds: [],
+        },
+        replyTo: null,
+        createdAt: mockMessages[1].createdAt,
+        files: [],
+        state: { phase: 'uploading' as const },
+      },
+    };
+    mockTextRoomStore.messages.set([...mockMessages, outgoing]);
+    TestBed.flushEffects();
+    expect(scroll).toHaveBeenCalledTimes(1);
+
+    mockTextRoomStore.messages.set([
+      ...mockMessages,
+      { ...outgoing, content: '<p>progress</p>' },
+    ]);
+    TestBed.flushEffects();
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('scrolls to the bottom when a new message arrives while already at the bottom', () => {
+    fixture.detectChanges();
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+    mockTextRoomStore.messages.set([
+      ...mockMessages,
+      {
+        ...mockMessages[0],
+        id: 'msg-3',
+        content: '<p>Third</p>',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      },
+    ]);
+    TestBed.flushEffects();
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the scroll position when a new message arrives above the bottom', () => {
+    fixture.detectChanges();
+    const container = fixture.nativeElement.querySelector(
+      '.scroll-container',
+    ) as HTMLDivElement;
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 1200,
+    });
+    container.dispatchEvent(new Event('scroll'));
+
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+    mockTextRoomStore.messages.set([
+      ...mockMessages,
+      {
+        ...mockMessages[0],
+        id: 'msg-3',
+        content: '<p>Third</p>',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      },
+    ]);
+    TestBed.flushEffects();
+    expect(scroll).not.toHaveBeenCalled();
+  });
 });
+
+function setScroll(
+  element: HTMLElement,
+  metrics: { scrollTop: number; clientHeight: number; scrollHeight: number },
+): void {
+  Object.defineProperty(element, 'scrollTop', {
+    configurable: true,
+    value: metrics.scrollTop,
+  });
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    value: metrics.clientHeight,
+  });
+  Object.defineProperty(element, 'scrollHeight', {
+    configurable: true,
+    value: metrics.scrollHeight,
+  });
+}
