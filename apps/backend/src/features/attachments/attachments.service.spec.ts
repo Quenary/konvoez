@@ -325,6 +325,25 @@ describe('AttachmentsService', () => {
     expect(dto.thumbnailUrl).toMatch(/\/thumbnail$/);
   });
 
+  it('ignores a zero-second client duration hint', async () => {
+    mimeSnifferService.sniff.mockResolvedValue('video/mp4');
+    videoProcessingService.createPoster.mockResolvedValue({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: false,
+      durationMs: null,
+      outcome: 'timeout',
+    });
+
+    const dto = await createPending('clip.mp4', fs.statSync(filePath).size, {
+      body: { videoDuration: '0' },
+    });
+
+    expect(dto.kind).toBe(EAttachmentKind.VIDEO);
+    expect(dto.durationMs).toBeNull();
+  });
+
   it('keeps a video when the poster cannot be built', async () => {
     mimeSnifferService.sniff.mockResolvedValue('video/webm');
     videoProcessingService.createPoster.mockResolvedValue({

@@ -605,7 +605,11 @@ function clientDurationMs(seconds: number | undefined): number | null {
   if (seconds === undefined) {
     return null;
   }
-  return Math.round(seconds * 1000);
+  const durationMs = Math.round(seconds * 1000);
+  if (durationMs < 1) {
+    return null;
+  }
+  return durationMs;
 }
 
 function fitVideoHints(
