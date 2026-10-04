@@ -237,10 +237,15 @@ export class VideoPosterService {
         if (signal.aborted) {
           return of(null);
         }
-        return from(this.paint(video)).pipe(
-          switchMap((bitmap) =>
-            bitmap ? of(bitmap) : from(this.playFrame(video, signal)),
-          ),
+        const captured =
+          video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+            ? from(this.paint(video)).pipe(
+                switchMap((bitmap) =>
+                  bitmap ? of(bitmap) : from(this.playFrame(video, signal)),
+                ),
+              )
+            : from(this.playFrame(video, signal));
+        return captured.pipe(
           map((bitmap) =>
             signal.aborted
               ? null

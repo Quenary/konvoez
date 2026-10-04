@@ -71,6 +71,48 @@ describe('VideoPosterService', () => {
     expect(result?.durationSeconds).toBe(10);
   });
 
+  it('plays a frame when the element has no current data', async () => {
+    vi.useRealTimers();
+    const video = fakeVideo({
+      duration: 4,
+      videoWidth: 100,
+      videoHeight: 80,
+      readyState: HTMLMediaElement.HAVE_METADATA,
+    });
+    const order: string[] = [];
+    video.play = vi.fn(() => {
+      order.push('play');
+      return Promise.resolve();
+    });
+    const canvas = fakeCanvas(new Blob(['webp'], { type: 'image/webp' }));
+    canvas.getContext = vi.fn(() => {
+      order.push('paint');
+      return { drawImage: vi.fn() };
+    }) as unknown as HTMLCanvasElement['getContext'];
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      if (tag === 'video') {
+        return video as unknown as HTMLElement;
+      }
+      if (tag === 'canvas') {
+        return canvas as unknown as HTMLElement;
+      }
+      return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const pending = firstValueFrom(
+      service.capture('c', new File(['v'], 'clip.mp4', { type: 'video/mp4' })),
+    );
+    await Promise.resolve();
+    video.dispatchEvent(new Event('loadedmetadata'));
+    const result = await pending;
+
+    expect(order[0]).toBe('play');
+    expect(video.play).toHaveBeenCalled();
+    expect(result?.poster?.type).toBe('image/webp');
+  });
+
   it('falls back to jpeg when webp encoding returns nothing', async () => {
     vi.useRealTimers();
     const video = fakeVideo({ duration: 4, videoWidth: 100, videoHeight: 80 });
@@ -292,6 +334,7 @@ function fakeVideo(values: {
   duration: number;
   videoWidth: number;
   videoHeight: number;
+  readyState?: number;
 }): HTMLVideoElement {
   const video = Document.prototype.createElement.call(
     document,
@@ -304,6 +347,10 @@ function fakeVideo(values: {
   });
   Object.defineProperty(video, 'videoHeight', {
     value: values.videoHeight,
+    writable: true,
+  });
+  Object.defineProperty(video, 'readyState', {
+    value: values.readyState ?? HTMLMediaElement.HAVE_CURRENT_DATA,
     writable: true,
   });
   video.play = vi.fn(() => Promise.resolve());
