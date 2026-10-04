@@ -49,6 +49,8 @@ export class MediasoupSessionService {
   private sendTransport: Transport | null = null;
   private recvTransport: Transport | null = null;
   private microphoneProducer: Producer | null = null;
+  private lastProduceMuted = false;
+  private ignoreProducerTrackEnded = false;
   private readonly consuming = new Set<string>();
   private pendingConsumes: IVoiceRoomProduceResult[] = [];
 
@@ -69,6 +71,7 @@ export class MediasoupSessionService {
   }
 
   public cleanup(): void {
+    this.ignoreProducerTrackEnded = true;
     this.sendTransport?.close();
     this.recvTransport?.close();
     this.microphoneProducer?.close();
@@ -76,13 +79,17 @@ export class MediasoupSessionService {
     this.sendTransport = null;
     this.recvTransport = null;
     this.microphoneProducer = null;
+    this.ignoreProducerTrackEnded = false;
   }
 
   public async produceMicrophone(muted: boolean): Promise<void> {
-    if (!this.sendTransport) {
+    this.lastProduceMuted = muted;
+    const sendTransport = this.sendTransport;
+    if (!sendTransport || sendTransport.closed) {
       return;
     }
 
+    this.ignoreProducerTrackEnded = true;
     if (this.microphoneProducer) {
       this.microphoneProducer.close();
       this.microphoneProducer = null;
@@ -91,14 +98,37 @@ export class MediasoupSessionService {
     try {
       const stream = await this.microphoneService.getStream();
       const track = stream.getAudioTracks()[0];
+      if (!track) {
+        throw new Error('Microphone stream has no audio track');
+      }
+
+      await waitForTrackUnmute(track);
       track.enabled = !muted;
-      this.microphoneProducer = await this.sendTransport.produce({
+      const producer = await sendTransport.produce({
         track,
+        stopTracks: false,
         appData: { mediaTag: 'mic' },
+      });
+      this.microphoneProducer = producer;
+      producer.on('trackended', () => {
+        if (this.microphoneProducer !== producer) {
+          return;
+        }
+        this.onProducerTrackEnded();
       });
     } catch (error) {
       console.error('Failed to produce microphone\n', error);
+    } finally {
+      this.ignoreProducerTrackEnded = false;
     }
+  }
+
+  private onProducerTrackEnded(): void {
+    if (this.ignoreProducerTrackEnded) {
+      return;
+    }
+    this.microphoneProducer = null;
+    void this.produceMicrophone(this.lastProduceMuted);
   }
 
   @Mutexed(mediasoupMutex)
@@ -320,4 +350,25 @@ export class MediasoupSessionService {
         routerRtpCapabilities as unknown as RtpCapabilities,
     });
   }
+}
+
+const TRACK_UNMUTE_TIMEOUT_MS = 2000;
+
+function waitForTrackUnmute(track: MediaStreamTrack): Promise<void> {
+  if (track.readyState !== 'live' || !track.muted) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const finish = () => {
+      track.removeEventListener('unmute', finish);
+      globalThis.clearTimeout(timeoutId);
+      resolve();
+    };
+    const timeoutId = globalThis.setTimeout(finish, TRACK_UNMUTE_TIMEOUT_MS);
+    track.addEventListener('unmute', finish);
+    if (!track.muted) {
+      finish();
+    }
+  });
 }

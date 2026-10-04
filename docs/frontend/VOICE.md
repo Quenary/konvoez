@@ -46,7 +46,7 @@ Capture, playback, and UI SFX each use their own `AudioContext`. Auto-resume aft
 
 1. **Session.** UI, `RoomsEffects`, or `DirectCallService` call `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`). Join: join SFX, emit `sessionWillChange$`, leave the previous session if any, `JOIN_ROOM`, load Device, send/recv transports, produce mic, screen wake lock. Leave reverses that and releases the mic. Socket `connect` cleans mediasoup and rejoins the stored session; lobby peers are polled with `GET_ALL_PEERS` every 10s.
 
-2. **Capture.** `MicrophoneService`: `source → gain → highpass → Speex → analyser + MediaStreamDestination`. Mute is `producer.track.enabled`. Changing the input device closes and replaces the producer.
+2. **Capture.** `MicrophoneService`: `source → gain → highpass → Speex → analyser + MediaStreamDestination`. Mute is `producer.track.enabled`. Changing the input device closes and replaces the producer. A `devicechange` after the first mic permission does not rebuild capture (iOS fires that event without a hardware change); produce waits until the track unmutes, and an ended producer track is replaced.
 
 3. **Playback.** On remote produce: `CONSUME`, dummy muted `<audio>` (Chrome), then `source → gain → analyser + destination`. Gain is speaker-mute (deafen) times per-peer volume. Graphs are keyed by user id in `PeerPlaybackService`, not on peer entities.
 

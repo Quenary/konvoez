@@ -16,8 +16,19 @@ import type { SpeexWorkletNode } from '@sapphi-red/web-noise-suppressor';
 
 describe('MicrophoneService', () => {
   let service: MicrophoneService;
+  let enumerateDevices: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    enumerateDevices = vi.fn().mockResolvedValue([]);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        enumerateDevices,
+      },
+    });
+
     TestBed.configureTestingModule({
       providers: [MicrophoneService],
     });
@@ -63,5 +74,28 @@ describe('MicrophoneService', () => {
     expect(stop).toHaveBeenCalled();
     expect(context.close).toHaveBeenCalledTimes(1);
     expect(service.processedStream()).toBeNull();
+  });
+
+  it('does not recreate capture after a spurious devicechange', async () => {
+    const setDevice = vi.spyOn(service, 'setDevice').mockResolvedValue();
+    service['_processedStream'].set({} as MediaStream);
+
+    await service['handleDeviceChange']();
+
+    expect(setDevice).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the default input when the selected device disappears', async () => {
+    const setDevice = vi.spyOn(service, 'setDevice').mockResolvedValue();
+    service['device'] = {
+      deviceId: 'missing',
+      kind: 'audioinput',
+    } as MediaDeviceInfo;
+    service['_processedStream'].set({} as MediaStream);
+    enumerateDevices.mockResolvedValue([]);
+
+    await service['handleDeviceChange']();
+
+    expect(setDevice).toHaveBeenCalledWith(null);
   });
 });

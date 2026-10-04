@@ -41,7 +41,9 @@ export class MicrophoneService implements OnDestroy {
   private readonly _processedStream = signal<MediaStream | null>(null);
   public readonly processedStream = this._processedStream.asReadonly();
 
-  private readonly onDeviceChange = () => this.setDevice(this.device);
+  private readonly onDeviceChange = (): void => {
+    void this.handleDeviceChange();
+  };
 
   constructor() {
     navigator.mediaDevices?.addEventListener(
@@ -55,6 +57,30 @@ export class MicrophoneService implements OnDestroy {
       'devicechange',
       this.onDeviceChange,
     );
+  }
+
+  /**
+   * iOS/Safari fires `devicechange` after the first mic permission even when
+   * hardware did not change. Recreating capture then stops the track already
+   * given to mediasoup (local VAD still works on the new analyser).
+   */
+  private async handleDeviceChange(): Promise<void> {
+    if (!this.processedStream()) {
+      return;
+    }
+
+    if (!this.device) {
+      return;
+    }
+
+    const devices = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
+    const selectedStillPresent = devices.some(
+      (item) =>
+        item.kind === 'audioinput' && item.deviceId === this.device?.deviceId,
+    );
+    if (!selectedStillPresent) {
+      await this.setDevice(null);
+    }
   }
 
   /**
