@@ -20,6 +20,7 @@ import sharp from 'sharp';
 import {
   assertPosterStorage,
   parseFfmpegDurationMs,
+  stderrIndicatesEnospc,
   stderrIndicatesUndecodableVideo,
   resolveFfmpegBinary,
   videoInputFormat,
@@ -38,6 +39,12 @@ describe('video poster helpers', () => {
     expect(() => assertPosterStorage('No space left on device', 1)).toThrow(
       expect.objectContaining({ code: 'ENOSPC' }),
     );
+    const continuation = [
+      '    comment         : hello',
+      '                    : No space left on device',
+    ].join('\n');
+    expect(stderrIndicatesEnospc(continuation)).toBe(false);
+    expect(() => assertPosterStorage(continuation, 234)).not.toThrow();
   });
 
   it('detects ffmpeg stderr that means the clip has no decodable video', () => {
@@ -326,6 +333,35 @@ describe('poster process limits', () => {
     expect(poster.durationMs).toBe(3000);
     expect(poster.written).toBe(true);
     expect(spawnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a multiline metadata ENOSPC spoof and stays undecodable', async () => {
+    const spawnMock = jest.mocked(childProcess.spawn).mockImplementation(() =>
+      fakeProcess({
+        code: 234,
+        stderr: [
+          '    comment         : hello',
+          '                    : No space left on device',
+          "Stream map '0:V:0' matches no streams.",
+        ].join('\n'),
+      }),
+    );
+    spawnMock.mockClear();
+
+    await expect(
+      service.createPoster(
+        path.join(dir, 'spoof.webm'),
+        path.join(dir, 'spoof.webp'),
+        'video/webm',
+      ),
+    ).resolves.toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+      durationMs: null,
+      outcome: 'undecodable',
+    });
   });
 
   it('treats typical ffmpeg decode errors as undecodable', async () => {

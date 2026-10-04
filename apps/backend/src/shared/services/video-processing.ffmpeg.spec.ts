@@ -122,6 +122,36 @@ if (process.env['KONVOEZ_REQUIRE_FFMPEG'] === '1' && !hasFfmpeg) {
     expect(poster.written).toBe(true);
   }, 20_000);
 
+  it('treats a multiline metadata spoof on an audio-only webm as undecodable', async () => {
+    const source = path.join(dir, 'spoof.webm');
+    const dest = path.join(dir, 'spoof.webp');
+    await run(ffmpegBinary, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=d=1',
+      '-c:a',
+      'libopus',
+      '-metadata',
+      'comment=hello\nNo space left on device',
+      source,
+    ]);
+
+    await expect(
+      service.createPoster(source, dest, 'video/webm'),
+    ).resolves.toEqual({
+      width: null,
+      height: null,
+      written: false,
+      undecodable: true,
+      durationMs: null,
+      outcome: 'undecodable',
+    });
+  }, 20_000);
+
   it('treats an audio-only mp4 as undecodable', async () => {
     const source = path.join(dir, 'audio-only.mp4');
     const dest = path.join(dir, 'audio-only.webp');

@@ -81,7 +81,7 @@ export function resolveFfmpegBinary(): string {
 
 const FFMPEG_DURATION_LINE =
   /^\s*Duration:\s+(?:N\/A|(\d+):(\d+):(\d+(?:\.\d+)?))/m;
-const FFMPEG_METADATA_TAG_LINE = /^\s+(?!Duration:)\S+\s+:\s/;
+const FFMPEG_METADATA_TAG_LINE = /^\s+(?:(?!Duration:)\S+\s+)?:\s/;
 
 const FFMPEG_UNDECODABLE_STDERR = [
   /Invalid data found when processing input/i,

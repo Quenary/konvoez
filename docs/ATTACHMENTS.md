@@ -36,9 +36,9 @@ The browser builds a poster when the file is chosen and sends it with the upload
 The server still sniffs the type. Poster choice:
 
 1. If `ffmpeg` returns a frame, that WebP and the duration parsed from `Duration: HH:MM:SS.xx` win. `N/A` or a value over 24 hours is stored as null. The client poster is deleted and not decoded.
-2. If `ffmpeg` is missing, fails, or hits the deadline, the client poster is re-encoded and the client duration is stored. Width and height are the re-encoded poster size.
+2. If `ffmpeg` is missing, hits the deadline, or fails without a bad-input marker, the client poster is re-encoded and the client duration is stored. Width and height are the re-encoded poster size. The upload stays a video.
 3. If neither source produced a poster, the upload stays a video. Width and height come from the hints when both are valid, fitted inside 1024. Duration is the client hint or null.
-4. If `ffmpeg` runs but no frame can be read, a valid client poster keeps the upload as a video. Without that poster the upload is stored as a generic file and keeps the sniffed type.
+4. A non-zero `ffmpeg` exit whose stderr matches a bad-input marker (invalid data, a missing moov atom, no streams, or no codec parameters) is undecodable. A valid client poster keeps the upload as a video. Without that poster the upload is stored as a generic file and keeps the sniffed type. Other `ffmpeg` failures keep the upload as a video.
 
 The client poster is untrusted: at most 2 MiB, sniffed as WebP, JPEG, or PNG, decoded with a 4096² pixel cap, first frame only, no rotation, then saved as WebP quality 80 inside 1024×1024 with metadata removed. A full disk while writing a poster fails the upload with 507.
 
