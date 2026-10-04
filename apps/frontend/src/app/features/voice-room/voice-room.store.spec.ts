@@ -3,7 +3,6 @@ import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
-import { storageJson } from '../../../extentions/local-storage-json';
 import { EStorageKey } from '../../app.enums';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
@@ -32,10 +31,24 @@ describe('VoiceRoomStore', () => {
   let mediasoup: {
     setMicrophoneMuted: ReturnType<typeof vi.fn>;
   };
+  let currentUser: ReturnType<typeof signal<IUser | null>>;
+  let analyserNode: ReturnType<typeof signal<AnalyserNode | null>>;
+  let audioActivity: {
+    register: ReturnType<typeof vi.fn>;
+    unregister: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     localStorage.clear();
-    storageJson();
+    Reflect.deleteProperty(Storage.prototype, 'getItemJson');
+    Reflect.deleteProperty(Storage.prototype, 'setItemJson');
+
+    currentUser = signal(null);
+    analyserNode = signal(null);
+    audioActivity = {
+      register: vi.fn(),
+      unregister: vi.fn(),
+    };
 
     playback = {
       detach: vi.fn(),
@@ -60,20 +73,17 @@ describe('VoiceRoomStore', () => {
         {
           provide: MicrophoneService,
           useValue: {
-            analyserNode: signal(null),
+            analyserNode,
           },
         },
         {
           provide: AudioActivityService,
-          useValue: {
-            register: vi.fn(),
-            unregister: vi.fn(),
-          },
+          useValue: audioActivity,
         },
         {
           provide: Store,
           useValue: {
-            selectSignal: () => signal(null),
+            selectSignal: () => currentUser,
           },
         },
       ],
@@ -89,8 +99,48 @@ describe('VoiceRoomStore', () => {
 
     expect(mediasoup.setMicrophoneMuted).toHaveBeenCalledWith(true);
     expect(playback.applySpeakerMuted).toHaveBeenCalledWith(true, {});
-    expect(localStorage.getItemJson(EStorageKey.MICROPHONE_MUTED)).toBe(true);
-    expect(localStorage.getItemJson(EStorageKey.SPEAKER_MUTED)).toBe(true);
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.MICROPHONE_MUTED) ?? 'null'),
+    ).toBe(true);
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.SPEAKER_MUTED) ?? 'null'),
+    ).toBe(true);
+  });
+
+  it('hydrates mute and peer gains before the storage prototype is patched', () => {
+    localStorage.setItem('konvoez-microphone-muted', 'true');
+    localStorage.setItem(
+      'konvoez-peer-gain-levels',
+      JSON.stringify({ 42: 0.25 }),
+    );
+
+    const store = TestBed.inject(VoiceRoomStore);
+
+    expect(store.microphoneMuted()).toBe(true);
+    expect(store.peerGainLevels()[42]).toBe(0.25);
+
+    TestBed.flushEffects();
+
+    expect(localStorage.getItem('konvoez-microphone-muted')).toBe('true');
+  });
+
+  it('unregisters the previous user when the current user is cleared', () => {
+    const store = TestBed.inject(VoiceRoomStore);
+    const node = {} as AnalyserNode;
+    store.setActiveSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+    currentUser.set(bob);
+    analyserNode.set(node);
+    TestBed.flushEffects();
+
+    expect(audioActivity.register).toHaveBeenCalledWith(bob.id, node);
+
+    currentUser.set(null);
+    TestBed.flushEffects();
+
+    expect(audioActivity.unregister).toHaveBeenCalledWith(bob.id);
   });
 
   it('updates lobby peers when a user entity changes', () => {

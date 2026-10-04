@@ -3,6 +3,10 @@ import { AudioActivityService } from '@core/services/audio-activity.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerPlaybackService } from '@core/services/peer-playback.service';
+import {
+  storageGetItemJson,
+  storageSetItemJson,
+} from '../../../extentions/local-storage-json';
 import { EStorageKey } from '../../app.enums';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
@@ -36,14 +40,19 @@ type VoiceRoomState = {
   peerGainLevels: Readonly<Record<number, number>>;
 };
 
-function readStoredJson<T>(key: EStorageKey, fallback: T): T {
-  const storage = globalThis.localStorage as Storage & {
-    getItemJson?: (key: string) => T | null;
+function createInitialState(): VoiceRoomState {
+  return {
+    activeSession: null,
+    roomsState: {},
+    microphoneMuted: !!storageGetItemJson<boolean>(
+      EStorageKey.MICROPHONE_MUTED,
+    ),
+    speakerMuted: !!storageGetItemJson<boolean>(EStorageKey.SPEAKER_MUTED),
+    peerGainLevels:
+      storageGetItemJson<Record<number, number>>(
+        EStorageKey.PEER_GAIN_LEVELS,
+      ) ?? {},
   };
-  if (typeof storage.getItemJson === 'function') {
-    return storage.getItemJson(key) ?? fallback;
-  }
-  return fallback;
 }
 
 function toPeerUser(user: IUser & { producers?: unknown }): IUser {
@@ -90,24 +99,13 @@ function omitRoomsUser(
   return changed ? next : rooms;
 }
 
-const initialState: VoiceRoomState = {
-  activeSession: null,
-  roomsState: {},
-  microphoneMuted: !!readStoredJson(EStorageKey.MICROPHONE_MUTED, false),
-  speakerMuted: !!readStoredJson(EStorageKey.SPEAKER_MUTED, false),
-  peerGainLevels: readStoredJson<Readonly<Record<number, number>>>(
-    EStorageKey.PEER_GAIN_LEVELS,
-    {},
-  ),
-};
-
 /**
  * Voice domain state: active session, session peers (`IUser`), lobby rooms, mute, and per-peer gain.
  * Does not own mediasoup objects or Web Audio nodes.
  */
 export const VoiceRoomStore = signalStore(
   { providedIn: 'root' },
-  withState(initialState),
+  withState(createInitialState),
   withEntities<IUser>(),
   withComputed(({ activeSession, entities, entityMap }) => ({
     selectedRoomId: computed(() => {
@@ -203,10 +201,7 @@ export const VoiceRoomStore = signalStore(
             ...state.peerGainLevels,
             [userId]: gain,
           };
-          localStorage.setItemJson(
-            EStorageKey.PEER_GAIN_LEVELS,
-            peerGainLevels,
-          );
+          storageSetItemJson(EStorageKey.PEER_GAIN_LEVELS, peerGainLevels);
           return { peerGainLevels };
         });
         peerPlaybackService.setPeerGain(userId, gain, store.speakerMuted());
@@ -242,25 +237,30 @@ export const VoiceRoomStore = signalStore(
 
       effect(() => {
         const value = store.microphoneMuted();
-        localStorage.setItemJson(EStorageKey.MICROPHONE_MUTED, value);
+        storageSetItemJson(EStorageKey.MICROPHONE_MUTED, value);
       });
 
       effect(() => {
         const value = store.speakerMuted();
-        localStorage.setItemJson(EStorageKey.SPEAKER_MUTED, value);
+        storageSetItemJson(EStorageKey.SPEAKER_MUTED, value);
       });
 
+      let registeredUserId: number | null = null;
       effect(() => {
         const session = store.activeSession();
         const user = currentUser();
         const microphoneMuted = store.microphoneMuted();
         const analyserNode = microphoneService.analyserNode();
+        const nextUserId =
+          session && user && analyserNode && !microphoneMuted ? user.id : null;
 
-        if (session && user && analyserNode && !microphoneMuted) {
-          audioActivityService.register(user.id, analyserNode);
-        } else if (user) {
-          audioActivityService.unregister(user.id);
+        if (registeredUserId !== null && registeredUserId !== nextUserId) {
+          audioActivityService.unregister(registeredUserId);
         }
+        if (nextUserId !== null && analyserNode) {
+          audioActivityService.register(nextUserId, analyserNode);
+        }
+        registeredUserId = nextUserId;
       });
     },
   }),
