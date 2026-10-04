@@ -81,9 +81,9 @@ video {
   padding-block: 0.05rem;
   padding-inline: 0.3rem;
   border-radius: 0.25rem;
-  background: color-mix(in srgb, black 55%, transparent);
+  background: color-mix(in srgb, black 50%, transparent);
   color: white;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.2;
   pointer-events: none;
 }
@@ -95,13 +95,12 @@ video {
   inset-inline-start: 50%;
   translate: -50% -50%;
   font-size: clamp(1.5rem, 48cqmin, 3rem);
-  color: var(--tui-text-action);
-  background-color: var(--tui-background-neutral-2);
+  background: color-mix(in srgb, black 50%, transparent);
+  color: white;
   border-radius: 50%;
   pointer-events: none;
   padding: 0.5rem;
   box-sizing: content-box;
-  filter: drop-shadow(0 0 0.2rem rgb(0 0 0 / 70%));
 }
 
 .remove {
