@@ -148,9 +148,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       this.voiceRoomStore.setActiveSession(target);
       await this.updateRoomsState();
       await this.mediasoupSessionService.ensureDeviceLoaded();
-      await this.mediasoupSessionService.ensureSendTransport(
+      this.mediasoupSessionService.setMicrophoneMuted(
         this.voiceRoomStore.microphoneMuted(),
       );
+      await this.mediasoupSessionService.ensureSendTransport();
       await this.mediasoupSessionService.ensureRecvTransport();
       void this.screenWakeLockService.acquire();
     } catch (error) {

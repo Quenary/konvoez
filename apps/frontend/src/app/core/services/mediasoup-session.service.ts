@@ -83,9 +83,9 @@ export class MediasoupSessionService {
     producer?.close();
   }
 
-  public produceMicrophone(muted: boolean): Promise<void> {
+  public produceMicrophone(): Promise<void> {
     return microphoneProducerMutex.runExclusive(() =>
-      this.produceMicrophoneLocked(muted),
+      this.produceMicrophoneLocked(),
     );
   }
 
@@ -95,8 +95,7 @@ export class MediasoupSessionService {
     );
   }
 
-  private async produceMicrophoneLocked(muted: boolean): Promise<void> {
-    this.microphoneMuted = muted;
+  private async produceMicrophoneLocked(): Promise<void> {
     const sendTransport = this.sendTransport;
     if (!sendTransport || sendTransport.closed) {
       return;
@@ -155,7 +154,7 @@ export class MediasoupSessionService {
       if (!this.sendTransport || this.sendTransport.closed) {
         return;
       }
-      void this.produceMicrophone(this.microphoneMuted);
+      void this.produceMicrophone();
     };
     if (microphoneProducerMutex.isLocked()) {
       void microphoneProducerMutex.waitForUnlock().then(reproduce);
@@ -170,7 +169,7 @@ export class MediasoupSessionService {
   }
 
   @Mutexed(mediasoupMutex)
-  public async ensureSendTransport(muted: boolean): Promise<void> {
+  public async ensureSendTransport(): Promise<void> {
     if (this.sendTransport) {
       return;
     }
@@ -236,7 +235,7 @@ export class MediasoupSessionService {
       }
     });
 
-    await this.produceMicrophone(muted);
+    await this.produceMicrophone();
   }
 
   @Mutexed(mediasoupMutex)

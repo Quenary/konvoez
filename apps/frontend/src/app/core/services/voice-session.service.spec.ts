@@ -67,6 +67,7 @@ describe('VoiceSessionService', () => {
     cleanup: ReturnType<typeof vi.fn>;
     clearPendingConsumes: ReturnType<typeof vi.fn>;
     ensureDeviceLoaded: ReturnType<typeof vi.fn>;
+    setMicrophoneMuted: ReturnType<typeof vi.fn>;
     ensureSendTransport: ReturnType<typeof vi.fn>;
     ensureRecvTransport: ReturnType<typeof vi.fn>;
     produceMicrophone: ReturnType<typeof vi.fn>;
@@ -133,6 +134,7 @@ describe('VoiceSessionService', () => {
       cleanup: vi.fn(),
       clearPendingConsumes: vi.fn(),
       ensureDeviceLoaded: vi.fn().mockResolvedValue(undefined),
+      setMicrophoneMuted: vi.fn(),
       ensureSendTransport: vi.fn().mockResolvedValue(undefined),
       ensureRecvTransport: vi.fn().mockResolvedValue(undefined),
       produceMicrophone: vi.fn().mockResolvedValue(undefined),
@@ -245,6 +247,21 @@ describe('VoiceSessionService', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it('seeds microphone mute from the store before opening the send transport', async () => {
+    voiceRoomStore.microphoneMuted.set(true);
+
+    await service.joinSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+
+    expect(mediasoup.setMicrophoneMuted).toHaveBeenCalledWith(true);
+    expect(mediasoup.ensureSendTransport).toHaveBeenCalledWith();
+    expect(
+      mediasoup.setMicrophoneMuted.mock.invocationCallOrder[0],
+    ).toBeLessThan(mediasoup.ensureSendTransport.mock.invocationCallOrder[0]);
   });
 
   it('releases the microphone when leaving a session', async () => {

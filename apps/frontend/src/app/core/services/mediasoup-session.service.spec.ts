@@ -71,7 +71,7 @@ describe('MediasoupSessionService', () => {
       ],
     });
 
-    await service.produceMicrophone(false);
+    await service.produceMicrophone();
 
     expect(close).toHaveBeenCalledTimes(1);
     expect(produce).toHaveBeenCalledTimes(1);
@@ -100,7 +100,7 @@ describe('MediasoupSessionService', () => {
       getAudioTracks: () => [track],
     });
 
-    const pending = service.produceMicrophone(false);
+    const pending = service.produceMicrophone();
     await vi.waitFor(() => {
       expect(listeners['unmute']).toBeTypeOf('function');
     });
@@ -132,7 +132,7 @@ describe('MediasoupSessionService', () => {
       ],
     });
 
-    await service.produceMicrophone(false);
+    await service.produceMicrophone();
     expect(produce).toHaveBeenCalledTimes(1);
     expect(trackEndedHandlers).toHaveLength(1);
 
@@ -142,6 +142,51 @@ describe('MediasoupSessionService', () => {
     await vi.waitFor(() => {
       expect(produce).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('keeps a mute set before produce starts', async () => {
+    const track = {
+      enabled: true,
+      muted: false,
+      readyState: 'live',
+    } as MediaStreamTrack;
+    const produce = vi.fn().mockResolvedValue({
+      track,
+      on: vi.fn(),
+      closed: false,
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    getStream.mockResolvedValue({
+      getAudioTracks: () => [track],
+    });
+
+    service.setMicrophoneMuted(true);
+    await service.produceMicrophone();
+
+    expect(track.enabled).toBe(false);
+  });
+
+  it('keeps a mute clicked synchronously after produce starts', async () => {
+    const track = {
+      enabled: true,
+      muted: false,
+      readyState: 'live',
+    } as MediaStreamTrack;
+    const produce = vi.fn().mockResolvedValue({
+      track,
+      on: vi.fn(),
+      closed: false,
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    getStream.mockResolvedValue({
+      getAudioTracks: () => [track],
+    });
+
+    const pending = service.produceMicrophone();
+    service.setMicrophoneMuted(true);
+    await pending;
+
+    expect(track.enabled).toBe(false);
   });
 
   it('applies a mute that arrives while getStream is in flight', async () => {
@@ -165,7 +210,7 @@ describe('MediasoupSessionService', () => {
       }),
     );
 
-    const pending = service.produceMicrophone(false);
+    const pending = service.produceMicrophone();
     await vi.waitFor(() => {
       expect(getStream).toHaveBeenCalled();
     });
@@ -199,7 +244,7 @@ describe('MediasoupSessionService', () => {
       ],
     });
 
-    await service.produceMicrophone(false);
+    await service.produceMicrophone();
     service.setMicrophoneMuted(true);
     trackEndedHandlers[0]?.();
     await vi.waitFor(() => {
@@ -235,8 +280,8 @@ describe('MediasoupSessionService', () => {
     });
 
     await Promise.all([
-      service.produceMicrophone(false),
-      service.produceMicrophone(false),
+      service.produceMicrophone(),
+      service.produceMicrophone(),
     ]);
 
     expect(producers).toHaveLength(2);
