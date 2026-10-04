@@ -61,7 +61,11 @@ import {
   PayloadTooLargeException,
   type ExecutionContext,
 } from '@nestjs/common';
-import { ESettingKey, attachmentsMaxPendingPerUser } from '@konvoez/shared';
+import {
+  EAttachmentUploadError,
+  ESettingKey,
+  attachmentsMaxPendingPerUser,
+} from '@konvoez/shared';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
 import { EAttachmentStatus } from './attachments.const';
 
@@ -170,6 +174,24 @@ describe('AttachmentUploadInterceptor', () => {
       interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toBeInstanceOf(PayloadTooLargeException);
     expect(multerMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty body before multer runs', async () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    req.headers['content-length'] = '0';
+    req.headers['user-agent'] = 'Safari';
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({
+      message: EAttachmentUploadError.EMPTY,
+      status: 400,
+    });
+    expect(multerMock).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Safari'));
+    warn.mockRestore();
   });
 
   it('configures multer with utf8 names and the current file size limit', async () => {

@@ -74,6 +74,7 @@ Deleting a message follows `canDeleteTextRoomMessage`. The file is removed by th
 ## HTTP
 
 - `POST /api/v1/attachments` uploads one file and returns a pending attachment.
+  An empty body is a 400 `UPLOAD_EMPTY`; Safari 26.5+ can send one for a picked file (WebKit bug 319985).
 - `DELETE /api/v1/attachments/:id` cancels the caller's own pending upload.
 - `GET /api/v1/attachments/:id/content` and `.../thumbnail` stream the file. `Range` is supported. `?download=1` forces a download.
 

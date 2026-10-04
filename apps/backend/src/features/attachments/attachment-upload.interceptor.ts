@@ -14,6 +14,7 @@ import multer, { MulterError } from 'multer';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import {
+  EAttachmentUploadError,
   ESettingKey,
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
@@ -78,6 +79,13 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     const maxFileSize = await this.settingsService.getValue(
       ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
     );
+    if (req.headers['content-length'] === '0') {
+      // Safari 26.5+ can send a picked file as an empty multipart body.
+      this.logger.warn(
+        `Empty upload body: userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
+      );
+      throw new BadRequestException(EAttachmentUploadError.EMPTY);
+    }
     const contentLength = Number(req.headers['content-length'] ?? 0);
     if (contentLength > maxFileSize + attachmentsMaxPosterSize + 64 * 1024) {
       throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
