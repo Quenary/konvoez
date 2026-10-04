@@ -109,6 +109,7 @@ ROOMS:
     NETWORK: Network error
     SERVER: Upload failed
     EXPIRED: This file expired, attach it again
+    UNREADABLE: The browser didn't send the file, try again
   DIALOG:
     ADD_HEADER: Add room
     EDIT_HEADER: Edit room
