@@ -156,6 +156,7 @@
     "cookie-parser": "^1.4.7",
     "dayjs": "^1.11.23",
     "file-type": "^21.3.4",
+    "kysely": "^0.29.6",
     "load-esm": "^1.0.3",
     "mediasoup": "^3.27.1",
     "mediasoup-client": "^3.24.3",
