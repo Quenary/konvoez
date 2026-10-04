@@ -36,6 +36,7 @@ describe('attachment upload fields', () => {
     });
     const poster = new File(['p'], 'poster.webp', { type: 'image/webp' });
     const file = new File(['v'], 'clip.mp4', { type: 'video/mp4' });
+    const slice = vi.spyOn(file, 'slice');
     TestBed.inject(AttachmentsApiService)
       .upload(file, {
         videoWidth: 1920,
@@ -58,6 +59,7 @@ describe('attachment upload fields', () => {
     ]);
     expect(body.get('videoDuration')).toBe('3.5');
     expect((body.get('file') as File).name).toBe('clip.mp4');
+    expect(slice).toHaveBeenCalledWith(0, file.size, 'video/mp4');
     expect((body.get('poster') as File).name).toBe('poster.webp');
   });
 });

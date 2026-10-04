@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { IAttachment } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
+import { toUploadBlob } from '@shared/functions/upload-blob.function';
 
 export interface IAttachmentUploadParts {
   readonly poster?: File | null;
@@ -32,7 +33,7 @@ export class AttachmentsApiService {
     if (hints?.poster) {
       body.append('poster', hints.poster, hints.poster.name);
     }
-    body.append('file', file, file.name);
+    body.append('file', toUploadBlob(file), file.name);
     return this.httpClient.post<IAttachment>(
       `${environment.apiPath}/attachments`,
       body,
