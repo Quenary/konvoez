@@ -61,7 +61,11 @@ import {
   PayloadTooLargeException,
   type ExecutionContext,
 } from '@nestjs/common';
-import { ESettingKey, attachmentsMaxPendingPerUser } from '@konvoez/shared';
+import {
+  EAttachmentUploadError,
+  ESettingKey,
+  attachmentsMaxPendingPerUser,
+} from '@konvoez/shared';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
 import { EAttachmentStatus } from './attachments.const';
 
@@ -172,6 +176,24 @@ describe('AttachmentUploadInterceptor', () => {
     expect(multerMock).not.toHaveBeenCalled();
   });
 
+  it('rejects an empty body before multer runs', async () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    req.headers['content-length'] = '0';
+    req.headers['user-agent'] = 'Safari';
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({
+      message: EAttachmentUploadError.EMPTY,
+      status: 400,
+    });
+    expect(multerMock).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Safari'));
+    warn.mockRestore();
+  });
+
   it('configures multer with utf8 names and the current file size limit', async () => {
     await lastValueFrom(
       await interceptor.intercept(context(), { handle: () => of('ok') }),
@@ -273,6 +295,83 @@ describe('AttachmentUploadInterceptor', () => {
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED' });
+  });
+
+  it('maps a closed request to a bad request', async () => {
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(new Error('Request closed'));
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED', status: 400 });
+  });
+
+  it.each([
+    'Unexpected end of form',
+    'Unexpected end of file',
+    'Malformed part header',
+    'Multipart: Boundary not found',
+  ])('maps the busboy error "%s" to a bad request', async (message) => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    req.headers['content-length'] = '1234';
+    req.headers['user-agent'] = 'Safari';
+    multerMock.__middleware.mockImplementation(
+      (_request, _response, callback) => {
+        callback(Object.assign(new Error(message), { storageErrors: [] }));
+      },
+    );
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({
+      message: EAttachmentUploadError.MALFORMED,
+      status: 400,
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/contentLength=1234.*userAgent=Safari/),
+    );
+    warn.mockRestore();
+  });
+
+  it('removes temp files of an upload that failed mid-write', async () => {
+    const diskStorage = multer.diskStorage as unknown as jest.Mock;
+    let tempPath = '';
+    multerMock.__middleware.mockImplementation(
+      (request, _response, callback) => {
+        const options = diskStorage.mock.calls.at(-1)?.[0] as {
+          filename: (
+            request: unknown,
+            file: unknown,
+            callback: (error: Error | null, name: string) => void,
+          ) => void;
+        };
+        options.filename(request, {}, (_error, name) => {
+          tempPath = path.join(appService.UPLOAD_TMP_DIR, name);
+          fs.writeFileSync(tempPath, '');
+        });
+        callback(new Error('Unexpected end of form'));
+      },
+    );
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const rm = jest.spyOn(fs.promises, 'rm');
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({ message: EAttachmentUploadError.MALFORMED });
+    await Promise.all(rm.mock.results.map((r) => r.value));
+
+    expect(tempPath).not.toBe('');
+    expect(rm).toHaveBeenCalledWith(tempPath, { force: true });
+    expect(fs.existsSync(tempPath)).toBe(false);
+    rm.mockRestore();
+    warn.mockRestore();
   });
 
   it('does not treat a destroyed request as an abort', async () => {

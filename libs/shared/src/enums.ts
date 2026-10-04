@@ -26,6 +26,12 @@ export enum EAttachmentKind {
   FILE = 'FILE',
 }
 
+/** Messages of a 400 for an unusable attachment upload body. */
+export enum EAttachmentUploadError {
+  EMPTY = 'UPLOAD_EMPTY',
+  MALFORMED = 'UPLOAD_MALFORMED',
+}
+
 export enum ETextRoomEvent {
   JOIN = 'join',
   LEAVE = 'leave',

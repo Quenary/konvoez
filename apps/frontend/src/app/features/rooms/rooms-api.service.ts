@@ -2,6 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { Observable } from 'rxjs';
+import { toUploadBlob } from '@shared/functions/upload-blob.function';
+import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';
 import { environment } from '@environments/environment';
 import { IUploadFileResult } from '@konvoez/shared';
 
@@ -47,12 +49,13 @@ export class RoomsApiService {
 
   avatarUpload(avatar: File): Observable<IUploadFileResult> {
     const formData = new FormData();
-    formData.append('avatar', avatar);
+    formData.append('avatar', toUploadBlob(avatar), avatar.name);
     return this.httpClient.post<IUploadFileResult>(
       `${environment.apiPath}/rooms/avatar/upload`,
       formData,
       {
         withCredentials: true,
+        headers: uploadRequestHeaders,
       },
     );
   }

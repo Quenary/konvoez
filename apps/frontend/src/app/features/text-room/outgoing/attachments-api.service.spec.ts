@@ -27,7 +27,10 @@ describe('attachment upload transport', () => {
 
 describe('attachment upload fields', () => {
   it('appends hints, poster, then the file', () => {
-    const post = vi.fn((_url: string, body: FormData) => of(body));
+    const post = vi.fn(
+      (_url: string, body: FormData, _options?: { headers?: unknown }) =>
+        of(body),
+    );
     TestBed.configureTestingModule({
       providers: [
         AttachmentsApiService,
@@ -36,6 +39,7 @@ describe('attachment upload fields', () => {
     });
     const poster = new File(['p'], 'poster.webp', { type: 'image/webp' });
     const file = new File(['v'], 'clip.mp4', { type: 'video/mp4' });
+    const slice = vi.spyOn(file, 'slice');
     TestBed.inject(AttachmentsApiService)
       .upload(file, {
         videoWidth: 1920,
@@ -58,6 +62,35 @@ describe('attachment upload fields', () => {
     ]);
     expect(body.get('videoDuration')).toBe('3.5');
     expect((body.get('file') as File).name).toBe('clip.mp4');
+    expect(slice).toHaveBeenCalledWith(0, file.size, 'video/mp4');
+    expect(post.mock.calls[0]?.[2]?.headers).toEqual({ 'ngsw-bypass': 'true' });
     expect((body.get('poster') as File).name).toBe('poster.webp');
+  });
+
+  it('uploads a slice of the poster, not the picked file', async () => {
+    const post = vi.fn((_url: string, body: FormData) => of(body));
+    TestBed.configureTestingModule({
+      providers: [
+        AttachmentsApiService,
+        { provide: HttpClient, useValue: { post } },
+      ],
+    });
+    const poster = new File(['original'], 'poster.webp', {
+      type: 'image/webp',
+    });
+    const slice = vi
+      .spyOn(poster, 'slice')
+      .mockReturnValue(new Blob(['sliced'], { type: 'image/webp' }));
+    TestBed.inject(AttachmentsApiService)
+      .upload(new File(['v'], 'clip.mp4', { type: 'video/mp4' }), { poster })
+      .subscribe();
+    const part = post.mock.calls[0]?.[1].get('poster');
+    expect(slice).toHaveBeenCalledWith(0, poster.size, 'image/webp');
+    expect(part).toBeInstanceOf(File);
+    if (!(part instanceof File)) {
+      return;
+    }
+    expect(part.name).toBe('poster.webp');
+    expect(await part.text()).toBe('sliced');
   });
 });

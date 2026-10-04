@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { IAttachment } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
+import { toUploadBlob } from '@shared/functions/upload-blob.function';
+import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';
 
 export interface IAttachmentUploadParts {
   readonly poster?: File | null;
@@ -30,13 +32,17 @@ export class AttachmentsApiService {
       body.append('videoDuration', String(hints.videoDuration));
     }
     if (hints?.poster) {
-      body.append('poster', hints.poster, hints.poster.name);
+      body.append('poster', toUploadBlob(hints.poster), hints.poster.name);
     }
-    body.append('file', file, file.name);
+    body.append('file', toUploadBlob(file), file.name);
     return this.httpClient.post<IAttachment>(
       `${environment.apiPath}/attachments`,
       body,
-      { reportUploadProgress: true, observe: 'events' },
+      {
+        reportUploadProgress: true,
+        observe: 'events',
+        headers: uploadRequestHeaders,
+      },
     );
   }
 

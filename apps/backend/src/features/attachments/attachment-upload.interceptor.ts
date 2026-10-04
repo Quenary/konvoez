@@ -12,8 +12,10 @@ import {
 import { Observable, finalize } from 'rxjs';
 import multer, { MulterError } from 'multer';
 import fs from 'fs';
+import path from 'path';
 import { randomUUID } from 'crypto';
 import {
+  EAttachmentUploadError,
   ESettingKey,
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
@@ -30,8 +32,25 @@ import type { Request, Response } from 'express';
 /** Byte cap for text hints. Invalid values are dropped by the upload schema. */
 const HINT_FIELD_SIZE = 256;
 
+/** busboy errors for a body that ends early or breaks the multipart format. */
+const MALFORMED_MULTIPART_MESSAGES: ReadonlySet<string> = new Set([
+  'Unexpected end of form',
+  'Unexpected end of file',
+  'Malformed part header',
+  'Multipart: Boundary not found',
+]);
+
 function isUploadAborted(error: unknown): boolean {
-  return error instanceof Error && error.message === 'Request aborted';
+  return (
+    error instanceof Error &&
+    (error.message === 'Request aborted' || error.message === 'Request closed')
+  );
+}
+
+function isMalformedMultipart(error: unknown): error is Error {
+  return (
+    error instanceof Error && MALFORMED_MULTIPART_MESSAGES.has(error.message)
+  );
 }
 
 @Injectable()
@@ -78,6 +97,13 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     const maxFileSize = await this.settingsService.getValue(
       ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
     );
+    if (req.headers['content-length'] === '0') {
+      // Safari 26.5+ can send a picked file as an empty multipart body.
+      this.logger.warn(
+        `Empty upload body: userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
+      );
+      throw new BadRequestException(EAttachmentUploadError.EMPTY);
+    }
     const contentLength = Number(req.headers['content-length'] ?? 0);
     if (contentLength > maxFileSize + attachmentsMaxPosterSize + 64 * 1024) {
       throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
@@ -85,10 +111,15 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     await fs.promises.mkdir(this.appService.UPLOAD_TMP_DIR, {
       recursive: true,
     });
+    const tempPaths: string[] = [];
     const upload = multer({
       storage: multer.diskStorage({
         destination: this.appService.UPLOAD_TMP_DIR,
-        filename: (_request, _file, callback) => callback(null, randomUUID()),
+        filename: (_request, _file, callback) => {
+          const name = randomUUID();
+          tempPaths.push(path.join(this.appService.UPLOAD_TMP_DIR, name));
+          callback(null, name);
+        },
       }),
       limits: {
         fileSize: Math.max(maxFileSize, attachmentsMaxPosterSize),
@@ -108,6 +139,8 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
           resolve();
           return;
         }
+        // multer cannot remove a part whose write had not finished.
+        tempPaths.forEach((tempPath) => this.removeTemp(tempPath));
         if (error instanceof MulterError) {
           reject(error);
           return;
@@ -119,6 +152,13 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
         if (isUploadAborted(error)) {
           this.logger.debug('Upload aborted by the client');
           reject(new BadRequestException('UPLOAD_ABORTED'));
+          return;
+        }
+        if (isMalformedMultipart(error)) {
+          this.logger.warn(
+            `Malformed upload body: error=${error.message}, contentLength=${req.headers['content-length'] ?? 'none'}, userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
+          );
+          reject(new BadRequestException(EAttachmentUploadError.MALFORMED));
           return;
         }
         reject(error);

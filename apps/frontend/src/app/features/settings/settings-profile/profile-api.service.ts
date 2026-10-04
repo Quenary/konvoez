@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { IUploadFileResult, IUser, IProfileUpdate } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
+import { toUploadBlob } from '@shared/functions/upload-blob.function';
+import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';
 
 @Injectable({
   providedIn: 'root',
@@ -35,12 +37,13 @@ export class ProfileApiService {
 
   avatarUpload(avatar: File): Observable<IUploadFileResult> {
     const formData = new FormData();
-    formData.append('avatar', avatar);
+    formData.append('avatar', toUploadBlob(avatar), avatar.name);
     return this.httpClient.post<IUploadFileResult>(
       `${this.baseUrl}/avatar/upload`,
       formData,
       {
         withCredentials: true,
+        headers: uploadRequestHeaders,
       },
     );
   }

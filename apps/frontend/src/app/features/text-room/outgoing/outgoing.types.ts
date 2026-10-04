@@ -16,7 +16,8 @@ export type TAttachmentUploadErrorCode =
   | 'storageFull'
   | 'network'
   | 'server'
-  | 'expired';
+  | 'expired'
+  | 'unreadable';
 
 export interface ILocalFile {
   readonly localId: string;
@@ -73,6 +74,8 @@ export function uploadErrorKey(code: TAttachmentUploadErrorCode): string {
       return 'ROOMS.UPLOAD_ERROR.NETWORK';
     case 'expired':
       return 'ROOMS.UPLOAD_ERROR.EXPIRED';
+    case 'unreadable':
+      return 'ROOMS.UPLOAD_ERROR.UNREADABLE';
     default:
       return 'ROOMS.UPLOAD_ERROR.SERVER';
   }

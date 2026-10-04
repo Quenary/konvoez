@@ -10,6 +10,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
   EAttachmentKind,
+  EAttachmentUploadError,
   EUserRole,
   IAttachment,
   ITextRoomMessage,
@@ -270,6 +271,32 @@ describe('OutgoingMessagesStore', () => {
     store.retry('temp-3');
     expect(upload).toHaveBeenCalledTimes(3);
     expect(upload.mock.calls.at(-1)?.[0].name).toBe('bad.txt');
+  });
+
+  it.each([
+    [EAttachmentUploadError.EMPTY, 'unreadable'],
+    [EAttachmentUploadError.MALFORMED, 'unreadable'],
+    ['UPLOAD_ABORTED', 'server'],
+  ])('maps a 400 %s upload error to %s', (message, code) => {
+    store.send({
+      tempId: 'temp-400',
+      data: {
+        content: '',
+        roomId: 10,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      files: [localFile('empty.png')],
+    });
+    uploads
+      .get('empty.png')
+      ?.error(new HttpErrorResponse({ status: 400, error: { message } }));
+    expect(store.entityMap()['temp-400']?.files[0]?.state).toEqual({
+      status: 'failed',
+      code,
+    });
   });
 
   it('aborts an uploading file and still creates the message', () => {

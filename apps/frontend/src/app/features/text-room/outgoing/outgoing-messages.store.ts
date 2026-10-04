@@ -1,7 +1,11 @@
 import { DestroyRef, computed, effect, inject } from '@angular/core';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { EAttachmentKind, ITextRoomMessage } from '@konvoez/shared';
+import {
+  EAttachmentKind,
+  EAttachmentUploadError,
+  ITextRoomMessage,
+} from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -618,6 +622,8 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
     return 'server';
   }
   switch (error.status) {
+    case 400:
+      return isUnreadableUpload(error) ? 'unreadable' : 'server';
     case 413:
       return 'tooLarge';
     case 403:
@@ -631,4 +637,17 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
     default:
       return 'server';
   }
+}
+
+/** The server got no file or a broken multipart body from the browser. */
+function isUnreadableUpload(error: HttpErrorResponse): boolean {
+  const body: unknown = error.error;
+  const message =
+    typeof body === 'object' && body !== null && 'message' in body
+      ? body.message
+      : null;
+  return (
+    message === EAttachmentUploadError.EMPTY ||
+    message === EAttachmentUploadError.MALFORMED
+  );
 }
