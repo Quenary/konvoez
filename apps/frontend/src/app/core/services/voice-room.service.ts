@@ -158,6 +158,14 @@ export class VoiceRoomService implements IAudioDeviceHandler {
   private readonly consuming = new Set<string>();
   //#endregion
 
+  private screenWakeLock: WakeLockSentinel | null = null;
+  private screenWakeLockOnRelease: (() => void) | null = null;
+  private readonly onDocumentVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible' && this._activeSession()) {
+      void this.acquireScreenWakeLock();
+    }
+  };
+
   constructor() {
     effect(() => {
       const value = this.microphoneMuted();
@@ -187,6 +195,11 @@ export class VoiceRoomService implements IAudioDeviceHandler {
         await this.updateRoomsState();
       }
     });
+
+    document.addEventListener(
+      'visibilitychange',
+      this.onDocumentVisibilityChange,
+    );
   }
 
   @Mutexed(voiceSessionMutex)
@@ -252,6 +265,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     await this.ensureDeviceLoaded();
     await this.ensureSendTransport();
     await this.ensureRecvTransport();
+    void this.acquireScreenWakeLock();
   }
 
   private async leaveSessionLocked(): Promise<void> {
@@ -259,6 +273,7 @@ export class VoiceRoomService implements IAudioDeviceHandler {
       return;
     }
 
+    this.releaseScreenWakeLock();
     this._activeSession.set(null);
     this.removeSocketListeners();
     this.pendingConsumes = [];
@@ -398,6 +413,49 @@ export class VoiceRoomService implements IAudioDeviceHandler {
     } catch (error) {
       console.error('Failed to update all rooms state', error);
     }
+  }
+
+  private async acquireScreenWakeLock(): Promise<void> {
+    const wakeLock = navigator.wakeLock;
+    if (!wakeLock?.request) {
+      return;
+    }
+    if (this.screenWakeLock) {
+      return;
+    }
+    try {
+      const sentinel = await wakeLock.request('screen');
+      this.screenWakeLock = sentinel;
+      const onRelease = (): void => {
+        sentinel.removeEventListener('release', onRelease);
+        if (this.screenWakeLockOnRelease === onRelease) {
+          this.screenWakeLockOnRelease = null;
+        }
+        if (this.screenWakeLock === sentinel) {
+          this.screenWakeLock = null;
+        }
+      };
+      this.screenWakeLockOnRelease = onRelease;
+      sentinel.addEventListener('release', onRelease);
+    } catch (error) {
+      console.error('Screen wake lock unavailable', error);
+    }
+  }
+
+  private releaseScreenWakeLock(): void {
+    const sentinel = this.screenWakeLock;
+    const onRelease = this.screenWakeLockOnRelease;
+    this.screenWakeLock = null;
+    this.screenWakeLockOnRelease = null;
+    if (!sentinel) {
+      return;
+    }
+    if (onRelease) {
+      sentinel.removeEventListener('release', onRelease);
+    }
+    void sentinel.release().catch(() => {
+      // Sentinel may already be released by the browser.
+    });
   }
 
   private addSocketListeners(): void {

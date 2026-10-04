@@ -284,6 +284,50 @@ describe('VoiceRoomService', () => {
     expect(service.peersDict()[bob.id]).toBeUndefined();
   });
 
+  it('requests screen wake lock when the API is available', async () => {
+    const release = vi.fn().mockResolvedValue(undefined);
+    const addEventListener = vi.fn();
+    const request = vi.fn().mockResolvedValue({
+      release,
+      addEventListener,
+    });
+    Object.defineProperty(navigator, 'wakeLock', {
+      value: { request },
+      configurable: true,
+    });
+
+    await service['acquireScreenWakeLock']();
+
+    expect(request).toHaveBeenCalledWith('screen');
+    expect(service['screenWakeLock']).toBeTruthy();
+  });
+
+  it('does not throw when screen wake lock API is unavailable', async () => {
+    Object.defineProperty(navigator, 'wakeLock', {
+      value: undefined,
+      configurable: true,
+    });
+
+    await expect(service['acquireScreenWakeLock']()).resolves.toBeUndefined();
+    expect(service['screenWakeLock']).toBeNull();
+  });
+
+  it('releases screen wake lock when leaving a session', async () => {
+    const release = vi.fn().mockResolvedValue(undefined);
+    service['screenWakeLock'] = {
+      release,
+    } as unknown as WakeLockSentinel;
+    service['_activeSession'].set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 42,
+    });
+
+    await service.leaveSession();
+
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(service['screenWakeLock']).toBeNull();
+  });
+
   it('drains pending consumes after PEER_JOINED when producer arrived first', async () => {
     service['addSocketListeners']();
 
