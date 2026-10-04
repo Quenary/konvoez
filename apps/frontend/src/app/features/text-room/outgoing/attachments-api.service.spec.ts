@@ -66,4 +66,31 @@ describe('attachment upload fields', () => {
     expect(post.mock.calls[0]?.[2]?.headers).toEqual({ 'ngsw-bypass': 'true' });
     expect((body.get('poster') as File).name).toBe('poster.webp');
   });
+
+  it('uploads a slice of the poster, not the picked file', async () => {
+    const post = vi.fn((_url: string, body: FormData) => of(body));
+    TestBed.configureTestingModule({
+      providers: [
+        AttachmentsApiService,
+        { provide: HttpClient, useValue: { post } },
+      ],
+    });
+    const poster = new File(['original'], 'poster.webp', {
+      type: 'image/webp',
+    });
+    const slice = vi
+      .spyOn(poster, 'slice')
+      .mockReturnValue(new Blob(['sliced'], { type: 'image/webp' }));
+    TestBed.inject(AttachmentsApiService)
+      .upload(new File(['v'], 'clip.mp4', { type: 'video/mp4' }), { poster })
+      .subscribe();
+    const part = post.mock.calls[0]?.[1].get('poster');
+    expect(slice).toHaveBeenCalledWith(0, poster.size, 'image/webp');
+    expect(part).toBeInstanceOf(File);
+    if (!(part instanceof File)) {
+      return;
+    }
+    expect(part.name).toBe('poster.webp');
+    expect(await part.text()).toBe('sliced');
+  });
 });

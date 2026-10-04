@@ -32,7 +32,7 @@ export class AttachmentsApiService {
       body.append('videoDuration', String(hints.videoDuration));
     }
     if (hints?.poster) {
-      body.append('poster', hints.poster, hints.poster.name);
+      body.append('poster', toUploadBlob(hints.poster), hints.poster.name);
     }
     body.append('file', toUploadBlob(file), file.name);
     return this.httpClient.post<IAttachment>(
