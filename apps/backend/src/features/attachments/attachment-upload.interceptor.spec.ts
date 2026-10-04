@@ -218,7 +218,7 @@ describe('AttachmentUploadInterceptor', () => {
       handle: () => throwError(() => new Error('handler failed')),
     });
     await expect(lastValueFrom(observable)).rejects.toThrow('handler failed');
-    await rm.mock.results[0]?.value;
+    await Promise.all(rm.mock.results.map((r) => r.value));
     expect(rm).toHaveBeenCalledWith(filePath, { force: true });
     expect(rm).toHaveBeenCalledWith(posterPath, { force: true });
     expect(fs.existsSync(filePath)).toBe(false);
