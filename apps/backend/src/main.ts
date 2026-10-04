@@ -15,14 +15,6 @@ async function bootstrap() {
   const notificationsService = app.get(NotificationsService);
   await notificationsService.ensureVapidKeys();
 
-  if ((process.env.DB_ENGINE || 'sqlite') === 'sqlite') {
-    await orm.em.getConnection().executeDump(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA synchronous = NORMAL;
-      PRAGMA busy_timeout = 5000;
-    `);
-  }
-
   app.setGlobalPrefix('/api/v1');
   app.use(cookieParser());
 

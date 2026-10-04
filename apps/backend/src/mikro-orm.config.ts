@@ -1,4 +1,5 @@
 import { defineConfig, Options } from '@mikro-orm/core';
+import { CompiledQuery, type DatabaseConnection } from 'kysely';
 import { Migrator } from '@mikro-orm/migrations';
 import { UserEntitySchema } from './features/users/users.entity';
 import { RoomEntitySchema } from './features/rooms/rooms.entity';
@@ -97,6 +98,15 @@ export async function createMikroOrmConfig() {
         ...baseOptions,
         driver: await import('@mikro-orm/sqlite').then((m) => m.SqliteDriver),
         dbName: process.env.DB_NAME || getDefaultSqliteDbPath(),
+        onCreateConnection: async (connection) => {
+          const conn = connection as DatabaseConnection;
+          await conn.executeQuery(
+            CompiledQuery.raw('pragma journal_mode = WAL'),
+          );
+          await conn.executeQuery(
+            CompiledQuery.raw('pragma synchronous = NORMAL'),
+          );
+        },
       });
     }
   }
