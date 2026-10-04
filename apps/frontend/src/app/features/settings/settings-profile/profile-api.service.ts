@@ -4,6 +4,7 @@ import { IUploadFileResult, IUser, IProfileUpdate } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
+import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';
 
 @Injectable({
   providedIn: 'root',
@@ -42,6 +43,7 @@ export class ProfileApiService {
       formData,
       {
         withCredentials: true,
+        headers: uploadRequestHeaders,
       },
     );
   }

@@ -6,7 +6,10 @@ import { RoomsApiService } from './rooms-api.service';
 
 describe('RoomsApiService avatar upload', () => {
   it('sends a slice of the picked file under its name', () => {
-    const post = vi.fn((_url: string, body: FormData) => of(body));
+    const post = vi.fn(
+      (_url: string, body: FormData, _options?: { headers?: unknown }) =>
+        of(body),
+    );
     TestBed.configureTestingModule({
       providers: [RoomsApiService, { provide: HttpClient, useValue: { post } }],
     });
@@ -15,10 +18,11 @@ describe('RoomsApiService avatar upload', () => {
 
     TestBed.inject(RoomsApiService).avatarUpload(avatar).subscribe();
 
-    const [url, body] = post.mock.calls[0] ?? [];
+    const [url, body, options] = post.mock.calls[0] ?? [];
     expect(url).toContain('/rooms/avatar/upload');
     expect(body).toBeInstanceOf(FormData);
     expect((body?.get('avatar') as File).name).toBe('me.png');
     expect(slice).toHaveBeenCalledWith(0, avatar.size, 'image/png');
+    expect(options?.headers).toEqual({ 'ngsw-bypass': 'true' });
   });
 });

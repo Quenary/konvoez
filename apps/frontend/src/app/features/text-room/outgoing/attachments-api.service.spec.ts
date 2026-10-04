@@ -27,7 +27,10 @@ describe('attachment upload transport', () => {
 
 describe('attachment upload fields', () => {
   it('appends hints, poster, then the file', () => {
-    const post = vi.fn((_url: string, body: FormData) => of(body));
+    const post = vi.fn(
+      (_url: string, body: FormData, _options?: { headers?: unknown }) =>
+        of(body),
+    );
     TestBed.configureTestingModule({
       providers: [
         AttachmentsApiService,
@@ -60,6 +63,7 @@ describe('attachment upload fields', () => {
     expect(body.get('videoDuration')).toBe('3.5');
     expect((body.get('file') as File).name).toBe('clip.mp4');
     expect(slice).toHaveBeenCalledWith(0, file.size, 'video/mp4');
+    expect(post.mock.calls[0]?.[2]?.headers).toEqual({ 'ngsw-bypass': 'true' });
     expect((body.get('poster') as File).name).toBe('poster.webp');
   });
 });

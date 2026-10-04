@@ -4,6 +4,7 @@ import { IAttachment } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
+import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';
 
 export interface IAttachmentUploadParts {
   readonly poster?: File | null;
@@ -37,7 +38,11 @@ export class AttachmentsApiService {
     return this.httpClient.post<IAttachment>(
       `${environment.apiPath}/attachments`,
       body,
-      { reportUploadProgress: true, observe: 'events' },
+      {
+        reportUploadProgress: true,
+        observe: 'events',
+        headers: uploadRequestHeaders,
+      },
     );
   }
 

@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
+import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';
 import { environment } from '@environments/environment';
 import { IUploadFileResult } from '@konvoez/shared';
 
@@ -54,6 +55,7 @@ export class RoomsApiService {
       formData,
       {
         withCredentials: true,
+        headers: uploadRequestHeaders,
       },
     );
   }
