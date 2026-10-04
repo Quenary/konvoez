@@ -149,7 +149,11 @@ export class MediasoupSessionService {
   }
 
   private onProducerTrackEnded(): void {
+    const producer = this.microphoneProducer;
     this.microphoneProducer = null;
+    if (producer && !producer.closed) {
+      producer.close();
+    }
     const reproduce = (): void => {
       if (!this.sendTransport || this.sendTransport.closed) {
         return;

@@ -117,14 +117,27 @@ describe('MediasoupSessionService', () => {
 
   it('reproduces when the producer track ends unexpectedly', async () => {
     const trackEndedHandlers: Array<() => void> = [];
-    const produce = vi.fn().mockImplementation(async () => ({
-      track: { enabled: true },
-      on: (event: string, handler: () => void) => {
-        if (event === 'trackended') {
-          trackEndedHandlers.push(handler);
-        }
-      },
-    }));
+    const producers: Array<{
+      close: ReturnType<typeof vi.fn>;
+      closed: boolean;
+    }> = [];
+    const produce = vi.fn().mockImplementation(async () => {
+      const producer = {
+        track: { enabled: true },
+        closed: false,
+        close: vi.fn(),
+        on: (event: string, handler: () => void) => {
+          if (event === 'trackended') {
+            trackEndedHandlers.push(handler);
+          }
+        },
+      };
+      producer.close.mockImplementation(() => {
+        producer.closed = true;
+      });
+      producers.push(producer);
+      return producer;
+    });
     service['sendTransport'] = { produce, closed: false } as never;
     getStream.mockResolvedValue({
       getAudioTracks: () => [
@@ -139,9 +152,12 @@ describe('MediasoupSessionService', () => {
     const endedHandler = trackEndedHandlers.at(0);
     expect(endedHandler).toBeTypeOf('function');
     endedHandler?.();
+    expect(producers[0]?.close).toHaveBeenCalledTimes(1);
+    expect(producers[0]?.closed).toBe(true);
     await vi.waitFor(() => {
       expect(produce).toHaveBeenCalledTimes(2);
     });
+    expect(producers[1]?.closed).toBe(false);
   });
 
   it('keeps a mute set before produce starts', async () => {
@@ -230,6 +246,7 @@ describe('MediasoupSessionService', () => {
       return {
         track,
         closed: false,
+        close: vi.fn(),
         on: (event: string, handler: () => void) => {
           if (event === 'trackended') {
             trackEndedHandlers.push(handler);
