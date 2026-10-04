@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { attachmentsMaxPosterSize } from '@konvoez/shared';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -95,6 +96,96 @@ describe('VideoPosterService', () => {
 
     expect(result?.poster?.type).toBe('image/jpeg');
     expect(result?.displayWidth).toBe(100);
+  });
+
+  it('falls back to jpeg when webkit labels a png as webp', async () => {
+    vi.useRealTimers();
+    const video = fakeVideo({ duration: 4, videoWidth: 100, videoHeight: 80 });
+    const canvas = Document.prototype.createElement.call(
+      document,
+      'canvas',
+    ) as HTMLCanvasElement;
+    canvas.getContext = vi.fn(() => ({
+      drawImage: vi.fn(),
+    })) as unknown as HTMLCanvasElement['getContext'];
+    const toBlob = vi
+      .spyOn(HTMLCanvasElement.prototype, 'toBlob')
+      .mockImplementation((callback, type) => {
+        callback(
+          type === 'image/webp'
+            ? new Blob(['png'], { type: 'image/png' })
+            : new Blob(['jpg'], { type: 'image/jpeg' }),
+        );
+      });
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      if (tag === 'video') {
+        return video as unknown as HTMLElement;
+      }
+      if (tag === 'canvas') {
+        return canvas as unknown as HTMLElement;
+      }
+      return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const pending = firstValueFrom(
+      service.capture(
+        'safari',
+        new File(['v'], 'clip.mp4', { type: 'video/mp4' }),
+      ),
+    );
+    await Promise.resolve();
+    video.dispatchEvent(new Event('loadedmetadata'));
+    const result = await pending;
+
+    expect(toBlob).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Function),
+      'image/webp',
+      0.8,
+    );
+    expect(toBlob).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Function),
+      'image/jpeg',
+      0.8,
+    );
+    expect(result?.poster?.type).toBe('image/jpeg');
+    expect(result?.poster?.name).toBe('poster.jpg');
+  });
+
+  it('drops an oversized poster blob', async () => {
+    vi.useRealTimers();
+    const video = fakeVideo({ duration: 4, videoWidth: 100, videoHeight: 80 });
+    const oversized = new Blob(['webp'], { type: 'image/webp' });
+    Object.defineProperty(oversized, 'size', {
+      value: attachmentsMaxPosterSize + 1,
+    });
+    const canvas = fakeCanvas(oversized);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      if (tag === 'video') {
+        return video as unknown as HTMLElement;
+      }
+      if (tag === 'canvas') {
+        return canvas as unknown as HTMLElement;
+      }
+      return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    const pending = firstValueFrom(
+      service.capture(
+        'oversize',
+        new File(['v'], 'clip.mp4', { type: 'video/mp4' }),
+      ),
+    );
+    await Promise.resolve();
+    video.dispatchEvent(new Event('loadedmetadata'));
+    const result = await pending;
+
+    expect(result?.poster).toBeNull();
   });
 
   it('returns null when the grab times out', async () => {
@@ -218,6 +309,10 @@ function fakeVideo(values: {
   video.play = vi.fn(() => Promise.resolve());
   video.pause = vi.fn();
   video.load = vi.fn();
+  video.requestVideoFrameCallback = ((callback: VideoFrameRequestCallback) => {
+    queueMicrotask(() => callback(0, {} as VideoFrameCallbackMetadata));
+    return 1;
+  }) as HTMLVideoElement['requestVideoFrameCallback'];
   let time = 0;
   Object.defineProperty(video, 'currentTime', {
     configurable: true,

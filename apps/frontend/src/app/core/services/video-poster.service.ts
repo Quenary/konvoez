@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
+  attachmentsMaxPosterSize,
   attachmentsMaxVideoDurationSeconds,
   attachmentsThumbnailMaxSide,
 } from '@konvoez/shared';
@@ -340,11 +341,17 @@ export class VideoPosterService {
     }
     context.drawImage(video, 0, 0, size.width, size.height);
     const webp = await canvasToBlob(canvas, 'image/webp');
-    const blob = webp ?? (await canvasToBlob(canvas, 'image/jpeg'));
-    if (!blob) {
+    const blob =
+      webp?.type === 'image/webp'
+        ? webp
+        : await canvasToBlob(canvas, 'image/jpeg');
+    if (!blob || (blob.type !== 'image/webp' && blob.type !== 'image/jpeg')) {
       return null;
     }
-    const type = blob.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
+    if (blob.size > attachmentsMaxPosterSize) {
+      return null;
+    }
+    const type = blob.type;
     const extension = type === 'image/webp' ? 'webp' : 'jpg';
     return {
       poster: new File([blob], `poster.${extension}`, { type }),
