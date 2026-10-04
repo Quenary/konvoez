@@ -5,6 +5,7 @@ import {
   catchError,
   filter,
   finalize,
+  from,
   map,
   of,
   switchMap,
@@ -20,6 +21,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { PushNotificationService } from '@core/services/push-notification.service';
+import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { Store } from '@ngrx/store';
 import { selectIsAuthorized } from './auth.selectors';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -39,6 +41,7 @@ export class AuthEffects {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly pushNotificationService = inject(PushNotificationService);
+  private readonly voiceLeaveService = inject(VoiceLeaveService);
 
   constructor() {
     this.store
@@ -125,11 +128,19 @@ export class AuthEffects {
           AuthActions.requestLogoutSuccess,
           AuthActions.requestLogoutError,
         ),
-        tap(() => {
-          this.outgoingMessagesStore.cancelAll();
-          this.usersStore.clear();
-          this.router.navigate(['/auth']);
-        }),
+        switchMap(() =>
+          from(this.voiceLeaveService.leaveActiveVoice()).pipe(
+            catchError((error: unknown) => {
+              console.error('Failed to leave voice on logout', error);
+              return of(undefined);
+            }),
+            tap(() => {
+              this.outgoingMessagesStore.cancelAll();
+              this.usersStore.clear();
+              this.router.navigate(['/auth']);
+            }),
+          ),
+        ),
       ),
     { dispatch: false },
   );
