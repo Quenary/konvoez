@@ -338,6 +338,42 @@ describe('AttachmentUploadInterceptor', () => {
     warn.mockRestore();
   });
 
+  it('removes temp files of an upload that failed mid-write', async () => {
+    const diskStorage = multer.diskStorage as unknown as jest.Mock;
+    let tempPath = '';
+    multerMock.__middleware.mockImplementation(
+      (request, _response, callback) => {
+        const options = diskStorage.mock.calls.at(-1)?.[0] as {
+          filename: (
+            request: unknown,
+            file: unknown,
+            callback: (error: Error | null, name: string) => void,
+          ) => void;
+        };
+        options.filename(request, {}, (_error, name) => {
+          tempPath = path.join(appService.UPLOAD_TMP_DIR, name);
+          fs.writeFileSync(tempPath, '');
+        });
+        callback(new Error('Unexpected end of form'));
+      },
+    );
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const rm = jest.spyOn(fs.promises, 'rm');
+
+    await expect(
+      interceptor.intercept(context(), { handle: () => of(null) }),
+    ).rejects.toMatchObject({ message: EAttachmentUploadError.MALFORMED });
+    await Promise.all(rm.mock.results.map((r) => r.value));
+
+    expect(tempPath).not.toBe('');
+    expect(rm).toHaveBeenCalledWith(tempPath, { force: true });
+    expect(fs.existsSync(tempPath)).toBe(false);
+    rm.mockRestore();
+    warn.mockRestore();
+  });
+
   it('does not treat a destroyed request as an abort', async () => {
     req.destroyed = true;
     const error = new Error('socket hang up');

@@ -12,6 +12,7 @@ import {
 import { Observable, finalize } from 'rxjs';
 import multer, { MulterError } from 'multer';
 import fs from 'fs';
+import path from 'path';
 import { randomUUID } from 'crypto';
 import {
   EAttachmentUploadError,
@@ -110,10 +111,15 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     await fs.promises.mkdir(this.appService.UPLOAD_TMP_DIR, {
       recursive: true,
     });
+    const tempPaths: string[] = [];
     const upload = multer({
       storage: multer.diskStorage({
         destination: this.appService.UPLOAD_TMP_DIR,
-        filename: (_request, _file, callback) => callback(null, randomUUID()),
+        filename: (_request, _file, callback) => {
+          const name = randomUUID();
+          tempPaths.push(path.join(this.appService.UPLOAD_TMP_DIR, name));
+          callback(null, name);
+        },
       }),
       limits: {
         fileSize: Math.max(maxFileSize, attachmentsMaxPosterSize),
@@ -133,6 +139,8 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
           resolve();
           return;
         }
+        // multer cannot remove a part whose write had not finished.
+        tempPaths.forEach((tempPath) => this.removeTemp(tempPath));
         if (error instanceof MulterError) {
           reject(error);
           return;
