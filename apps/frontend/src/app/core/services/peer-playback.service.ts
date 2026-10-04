@@ -22,12 +22,17 @@ export class PeerPlaybackService {
   private readonly speakerService = inject(SpeakerService);
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly graphs = new Map<number, IPeerPlaybackGraph>();
+  private readonly generations = new Map<number, number>();
 
   public async attach(
     userId: number,
     consumer: Consumer,
     options: { gain: number; speakerMuted: boolean },
   ): Promise<void> {
+    if (!this.generations.has(userId)) {
+      this.generations.set(userId, 0);
+    }
+    const generation = this.generations.get(userId) ?? 0;
     const existing = this.graphs.get(userId);
     this.disconnectGraph(existing);
 
@@ -48,10 +53,31 @@ export class PeerPlaybackService {
     const context = await this.speakerService.getContext();
     const sourceNode = context.createMediaStreamSource(stream);
     const gainNode = context.createGain();
-    gainNode.gain.value = options.speakerMuted ? 0 : options.gain;
     const analyserNode = context.createAnalyser();
     analyserNode.fftSize = 128;
     analyserNode.smoothingTimeConstant = 0.2;
+
+    if (consumer.closed || (this.generations.get(userId) ?? 0) !== generation) {
+      try {
+        this.disconnectGraph({
+          consumers: [],
+          sourceNode,
+          gainNode,
+          analyserNode,
+          audioEl: null,
+        });
+      } catch (error) {
+        console.error('Error dropping stale peer playback', userId, error);
+      }
+      audioEl.srcObject = null;
+      audioEl.remove();
+      if (!consumer.closed) {
+        consumer.close();
+      }
+      return;
+    }
+
+    gainNode.gain.value = options.speakerMuted ? 0 : options.gain;
 
     sourceNode.connect(gainNode);
     gainNode.connect(analyserNode);
@@ -114,6 +140,7 @@ export class PeerPlaybackService {
   }
 
   public detach(userId: number): void {
+    this.generations.set(userId, (this.generations.get(userId) ?? 0) + 1);
     const graph = this.graphs.get(userId);
     if (!graph) {
       return;
@@ -123,6 +150,12 @@ export class PeerPlaybackService {
   }
 
   public detachAll(): void {
+    for (const userId of new Set<number>([
+      ...this.graphs.keys(),
+      ...this.generations.keys(),
+    ])) {
+      this.generations.set(userId, (this.generations.get(userId) ?? 0) + 1);
+    }
     for (const [userId, graph] of this.graphs) {
       this.cleanupGraph(userId, graph);
     }
