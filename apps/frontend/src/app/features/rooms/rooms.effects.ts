@@ -30,10 +30,14 @@ export class RoomsEffects {
             case ERoomType.VOICE: {
               const selectedVoiceRoomId = this.voiceRoomStore.selectedRoomId();
               if (selectedVoiceRoomId !== action.room.id) {
-                this.voiceSessionService.joinSession({
-                  type: EVoiceSessionType.GROUP_ROOM,
-                  roomId: action.room.id,
-                });
+                void this.voiceSessionService
+                  .joinSession({
+                    type: EVoiceSessionType.GROUP_ROOM,
+                    roomId: action.room.id,
+                  })
+                  .catch((error: unknown) => {
+                    this.voiceSessionService.reportJoinFailure(error);
+                  });
               }
               this.router.navigate([`/voice-room/${action.room.id}`]);
               break;

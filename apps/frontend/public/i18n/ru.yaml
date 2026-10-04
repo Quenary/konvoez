@@ -81,6 +81,8 @@ CALL:
   SOUND_OFF: Звук выключен
   CAMERA_SOON: Камера (скоро)
   SCREEN_SOON: Демонстрация экрана (скоро)
+VOICE:
+  JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение

@@ -81,6 +81,8 @@ CALL:
   SOUND_OFF: Sound off
   CAMERA_SOON: Camera (soon)
   SCREEN_SOON: Screen share (soon)
+VOICE:
+  JOIN_FAILED: Couldn't join the voice channel
 ROOMS:
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message

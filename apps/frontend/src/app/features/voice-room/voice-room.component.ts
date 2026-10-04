@@ -112,10 +112,14 @@ export class VoiceRoomComponent {
         return;
       }
 
-      void this.voiceSessionService.joinSession({
-        type: EVoiceSessionType.GROUP_ROOM,
-        roomId: id,
-      });
+      void this.voiceSessionService
+        .joinSession({
+          type: EVoiceSessionType.GROUP_ROOM,
+          roomId: id,
+        })
+        .catch((error: unknown) => {
+          this.voiceSessionService.reportJoinFailure(error);
+        });
     });
   }
 
