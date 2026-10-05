@@ -20,6 +20,7 @@ import {
   type IVoiceRoomProduce,
   type IVoiceRoomProduceResult,
   type IVoiceRoomCloseProducer,
+  type IVoiceRoomCloseConsumer,
   type IUser,
   EVoiceRoomEvent,
   EDirectCallEvent,
@@ -472,6 +473,26 @@ export class VoiceRoomsGateway
     return {};
   }
 
+  @SubscribeMessage(EVoiceRoomEvent.CLOSE_CONSUMER)
+  async closeConsumer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: IVoiceRoomCloseConsumer,
+  ) {
+    const { peer, sessionKey } = this.getSocketRoomPeer(socket);
+    this.logger.debug(
+      `closeConsumer: socketId=${socket.id}, sessionKey=${sessionKey}, consumerId=${body.consumerId}`,
+    );
+
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer || consumer.closed) {
+      throw new Error('Consumer not found');
+    }
+
+    peer.consumers.delete(consumer.id);
+    consumer.close();
+    return {};
+  }
+
   @SubscribeMessage(EVoiceRoomEvent.CONSUME)
   async consume(
     @ConnectedSocket() socket: TSocket,
@@ -514,16 +535,20 @@ export class VoiceRoomsGateway
 
     peer.consumers.set(consumer.id, consumer);
 
-    consumer.on('producerclose', () => {
-      this.logger.debug(
-        `Producer closed, removing consumer: consumerId=${consumer.id}, peerId=${peer.id}`,
-      );
+    const onConsumerGone = () => {
+      if (!peer.consumers.has(consumer.id)) {
+        return;
+      }
       peer.consumers.delete(consumer.id);
-
+      this.logger.debug(
+        `Consumer closed: consumerId=${consumer.id}, peerId=${peer.id}`,
+      );
       socket.emit(EVoiceRoomEvent.CONSUMER_CLOSED, {
         consumerId: consumer.id,
       });
-    });
+    };
+    consumer.observer.on('close', onConsumerGone);
+    consumer.on('producerclose', onConsumerGone);
 
     return {
       id: consumer.id,
