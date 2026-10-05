@@ -16,10 +16,26 @@ services:
     volumes:
       - konvoez_data:/konvoez_data
     environment:
-      # Public IP or domain of your server for WebRTC ICE candidates:
-      - MEDIASOUP_ANNOUNCED_IP=${MEDIASOUP_ANNOUNCED_IP:-127.0.0.1}
-      - JWT_SECRET=${JWT_SECRET:-}
+      # See .env.example for more information
+      # Secrets (required)
       - MASTER_KEY=${MASTER_KEY:-}
+      - JWT_SECRET=${JWT_SECRET:-}
+      # Cookies
+      - COOKIE_SECURE=${COOKIE_SECURE:-}
+      - COOKIE_SAME_SITE=${COOKIE_SAME_SITE:-}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
+      # Mediasoup (required for voice calls)
+      # See docs/NETWORKING.md for more information
+      - MEDIASOUP_ANNOUNCED_IP=${MEDIASOUP_ANNOUNCED_IP:-}
+      - MEDIASOUP_MIN_PORT=${MEDIASOUP_MIN_PORT:-}
+      - MEDIASOUP_MAX_PORT=${MEDIASOUP_MAX_PORT:-}
+      # SMTP
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
 
 volumes:
   konvoez_data:
