@@ -1,6 +1,7 @@
 <div
   class="peers-grid-root"
-  [class.compact]="compact()">
+  [class.compact]="compact()"
+  [class.theatre-open]="theatreFocusPeer() !== null">
   <div
     class="peers-layout"
     [class.split]="hasSplitLayout()"
@@ -24,7 +25,8 @@
               [showingScreen]="showingScreenByPeerId().get(peer.id) ?? false"
               [screenLive]="screenLiveByPeerId().get(peer.id) ?? false"
               (watchScreen)="onWatchScreen(peer.id)"
-              (stopWatchScreen)="onStopWatchScreen(peer.id)" />
+              (stopWatchScreen)="onStopWatchScreen(peer.id)"
+              (openTheatre)="onOpenTheatre(peer.id)" />
           </div>
         }
       </section>
@@ -50,6 +52,18 @@
       </section>
     }
   </div>
+
+  @if (theatreFocusPeer(); as focusPeer) {
+    <app-voice-theatre
+      [focusPeer]="focusPeer"
+      [videoTrack]="theatreVideoTrack()"
+      [stripPeers]="peers()"
+      [watchingByPeerId]="watchingByPeerId()"
+      [screenLiveByPeerId]="screenLiveByPeerId()"
+      (closeTheatre)="onCloseTheatre()"
+      (focusPeerId)="onTheatreFocusPeer($event)"
+      (stopWatch)="onTheatreStopWatch()" />
+  }
 
   <app-screen-share-pip />
 

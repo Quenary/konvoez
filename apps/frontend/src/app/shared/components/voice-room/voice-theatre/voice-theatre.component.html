@@ -1,0 +1,115 @@
+@let focus = focusPeer();
+
+<div
+  class="theatre"
+  [class.strip-right]="stripRight()"
+  [class.strip-bottom]="!stripRight()"
+  (pointermove)="onPointerMove()">
+  <div
+    #stageEl
+    class="stage"
+    [class.overlay-on]="overlayVisible()">
+    @if (videoTrack()) {
+      <video
+        #videoEl
+        class="stage-video"
+        autoplay
+        playsinline
+        muted
+        (loadedmetadata)="onVideoMetadata($event)"></video>
+    } @else {
+      <div class="stage-empty">{{ 'CALL.THEATRE_NO_VIDEO' | translate }}</div>
+    }
+
+    <div class="stage-overlay">
+      <div class="overlay-top">
+        <span class="focus-name">{{ focus.username }}</span>
+        <div class="overlay-actions">
+          <button
+            tuiIconButton
+            appearance="flat"
+            size="s"
+            type="button"
+            [iconStart]="isFullscreen() ? '@tui.minimize' : '@tui.maximize'"
+            tuiHintAppearance="floating"
+            [tuiHint]="
+              (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
+                | translate
+            "
+            (click)="onToggleFullscreen()">
+          </button>
+          <button
+            tuiIconButton
+            appearance="flat"
+            size="s"
+            type="button"
+            iconStart="@tui.x"
+            tuiHintAppearance="floating"
+            [tuiHint]="'CALL.EXIT_THEATRE' | translate"
+            (click)="onCloseClick()">
+          </button>
+        </div>
+      </div>
+
+      <div class="overlay-bottom">
+        <button
+          tuiButton
+          appearance="accent"
+          size="s"
+          type="button"
+          (click)="stopWatch.emit()">
+          {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
+        </button>
+
+        <button
+          tuiIconButton
+          appearance="flat"
+          size="s"
+          type="button"
+          tuiDropdownAuto
+          tuiDropdownDirection="top"
+          iconStart="@tui.volume-2"
+          [tuiDropdown]="screenVolumeDropdown"
+          tuiHintAppearance="floating"
+          [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
+        </button>
+
+        <ng-template #screenVolumeDropdown>
+          <label
+            tuiLabel
+            class="volume">
+            {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
+            <input
+              tuiSlider
+              type="range"
+              min="0"
+              max="200"
+              step="5"
+              [ngModel]="screenVolume()"
+              (ngModelChange)="onScreenVolumeChange($event)" />
+          </label>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+
+  <aside class="strip">
+    @for (peer of stripPeers(); track peer.id) {
+      <button
+        type="button"
+        class="strip-tile"
+        [class.active]="peer.id === focus.id"
+        [class.watching]="watchingByPeerId().get(peer.id) === true"
+        [class.live]="screenLiveByPeerId().get(peer.id) === true"
+        [disabled]="
+          peer.id !== focus.id && watchingByPeerId().get(peer.id) !== true
+        "
+        (click)="onStripPeerClick(peer.id)">
+        <span class="strip-name">{{ peer.username }}</span>
+        @if (screenLiveByPeerId().get(peer.id)) {
+          <span class="strip-live">{{ 'CALL.LIVE' | translate }}</span>
+        }
+      </button>
+    }
+  </aside>
+</div>

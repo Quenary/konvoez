@@ -2,9 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   output,
+  signal,
 } from '@angular/core';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -16,6 +18,7 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.component';
 import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
 import { ScreenSharePipComponent } from '../screen-share-pip/screen-share-pip.component';
+import { VoiceTheatreComponent } from '../voice-theatre/voice-theatre.component';
 import { resolveVoiceSessionPeers } from '../voice-session-peers';
 import {
   partitionVoicePeers,
@@ -24,6 +27,7 @@ import {
 import { parseError } from '@shared/functions/parse-error.function';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
+import { IUser } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-peers-grid',
@@ -31,6 +35,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
     VoicePeerTileComponent,
     VoiceControlsBarComponent,
     ScreenSharePipComponent,
+    VoiceTheatreComponent,
   ],
   templateUrl: './voice-peers-grid.component.html',
   styleUrl: './voice-peers-grid.component.scss',
@@ -51,6 +56,7 @@ export class VoicePeersGridComponent {
   public readonly left = output<void>();
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  private readonly theatreFocusId = signal<number | null>(null);
 
   protected readonly peers = computed(() => {
     const me = this.currentUser();
@@ -150,9 +156,57 @@ export class VoicePeersGridComponent {
   );
 
   protected readonly hasSplitLayout = computed(
-    () =>
-      this.streamingPeers().length > 0 && this.voiceOnlyPeers().length > 0,
+    () => this.streamingPeers().length > 0 && this.voiceOnlyPeers().length > 0,
   );
+
+  protected readonly theatreFocusPeer = computed((): IUser | null => {
+    const id = this.theatreFocusId();
+    if (id == null) {
+      return null;
+    }
+    return this.peers().find((peer) => peer.id === id) ?? null;
+  });
+
+  protected readonly theatreVideoTrack = computed(() => {
+    const peer = this.theatreFocusPeer();
+    if (!peer) {
+      return null;
+    }
+    return this.videoTracksByPeerId().get(peer.id) ?? null;
+  });
+
+  constructor() {
+    effect(() => {
+      const focusId = this.theatreFocusId();
+      if (focusId == null) {
+        return;
+      }
+      const watching = this.watchingByPeerId().get(focusId);
+      const stillPresent = this.peers().some((peer) => peer.id === focusId);
+      if (!watching || !stillPresent) {
+        this.theatreFocusId.set(null);
+      }
+    });
+  }
+
+  protected onOpenTheatre(userId: number): void {
+    const me = this.currentUser();
+    if (me && me.id === userId) {
+      return;
+    }
+    if (!this.watchingByPeerId().get(userId)) {
+      return;
+    }
+    this.theatreFocusId.set(userId);
+  }
+
+  protected onCloseTheatre(): void {
+    this.theatreFocusId.set(null);
+  }
+
+  protected onTheatreFocusPeer(userId: number): void {
+    this.onOpenTheatre(userId);
+  }
 
   protected async onWatchScreen(userId: number): Promise<void> {
     try {
@@ -175,9 +229,21 @@ export class VoicePeersGridComponent {
 
   protected async onStopWatchScreen(userId: number): Promise<void> {
     await this.voiceSessionService.stopWatchingPeerScreen(userId);
+    if (this.theatreFocusId() === userId) {
+      this.theatreFocusId.set(null);
+    }
+  }
+
+  protected async onTheatreStopWatch(): Promise<void> {
+    const id = this.theatreFocusId();
+    if (id == null) {
+      return;
+    }
+    await this.onStopWatchScreen(id);
   }
 
   protected async onHangup(): Promise<void> {
+    this.theatreFocusId.set(null);
     await this.voiceLeaveService.leaveActiveVoice();
     this.left.emit();
   }
