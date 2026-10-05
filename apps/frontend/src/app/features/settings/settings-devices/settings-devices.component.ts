@@ -38,6 +38,12 @@ import {
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '../settings.store';
+import {
+  STREAM_FPS_OPTIONS,
+  STREAM_HEIGHTS,
+  TStreamFps,
+  TStreamHeight,
+} from '@shared/schemas/local-settings.schema';
 
 type DevicesLoadResult = {
   devices: MediaDeviceInfo[];
@@ -48,6 +54,36 @@ const EMPTY_DEVICES: DevicesLoadResult = {
   devices: [],
   streamInputDeviceId: null,
 };
+
+type TStreamSelectValue = TStreamHeight | TStreamFps;
+type TDeviceSelectValue = MediaDeviceInfo | TStreamSelectValue;
+
+function stringifyDeviceSelectItem(
+  item: TDeviceSelectValue | null | undefined,
+): string {
+  if (item == null) {
+    return '';
+  }
+  if (typeof item === 'number') {
+    return (STREAM_HEIGHTS as readonly number[]).includes(item)
+      ? `${item}p`
+      : String(item);
+  }
+  return item.label;
+}
+
+function identityMatchDeviceSelectItem(
+  a: TDeviceSelectValue,
+  b: TDeviceSelectValue,
+): boolean {
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a === b;
+  }
+  if (typeof a === 'object' && typeof b === 'object') {
+    return a.deviceId === b.deviceId;
+  }
+  return false;
+}
 
 @Component({
   selector: 'app-settings-devices',
@@ -75,10 +111,8 @@ const EMPTY_DEVICES: DevicesLoadResult = {
   ],
   providers: [
     tuiItemsHandlersProvider({
-      stringify: signal((a: MediaDeviceInfo) => a.label),
-      identityMatcher: signal(
-        (a: MediaDeviceInfo, b: MediaDeviceInfo) => a.deviceId === b.deviceId,
-      ),
+      stringify: signal(stringifyDeviceSelectItem),
+      identityMatcher: signal(identityMatchDeviceSelectItem),
     }),
   ],
   templateUrl: './settings-devices.component.html',
@@ -110,6 +144,10 @@ export class SettingsDevicesComponent {
    * Selected audio output
    */
   protected readonly audioOutput = this.settingsStore.audioOutput;
+  protected readonly streamHeight = this.settingsStore.streamHeight;
+  protected readonly streamFps = this.settingsStore.streamFps;
+  protected readonly streamHeights = [...STREAM_HEIGHTS];
+  protected readonly streamFpsOptions = [...STREAM_FPS_OPTIONS];
   /**
    * Is selected audio output available
    */
@@ -213,5 +251,13 @@ export class SettingsDevicesComponent {
    */
   protected onSelectAudioOutput(audioOutput: MediaDeviceInfo) {
     this.settingsStore.setAudioOutput(audioOutput);
+  }
+
+  protected onSelectStreamHeight(height: TStreamHeight): void {
+    this.settingsStore.setStreamHeight(height);
+  }
+
+  protected onSelectStreamFps(fps: TStreamFps): void {
+    this.settingsStore.setStreamFps(fps);
   }
 }

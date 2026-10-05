@@ -23,13 +23,13 @@
 
   <button
     tuiIconButton
-    appearance="neutral"
+    [appearance]="cameraOn() ? 'primary' : 'neutral'"
     size="m"
-    iconStart="@tui.video-off"
+    [iconStart]="cameraOn() ? '@tui.video' : '@tui.video-off'"
     type="button"
-    disabled
     tuiHintAppearance="floating"
-    [tuiHint]="'CALL.CAMERA_SOON' | translate">
+    [tuiHint]="(cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON') | translate"
+    (click)="toggleCamera()">
   </button>
 
   <button

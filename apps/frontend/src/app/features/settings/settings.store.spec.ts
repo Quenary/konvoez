@@ -20,7 +20,11 @@ import {
   TSetting,
 } from '@konvoez/shared';
 import { EStorageKey } from '../../app.enums';
-import { LOCAL_SETTINGS_VERSION } from '@shared/schemas/local-settings.schema';
+import {
+  DEFAULT_STREAM_FPS,
+  DEFAULT_STREAM_HEIGHT,
+  LOCAL_SETTINGS_VERSION,
+} from '@shared/schemas/local-settings.schema';
 
 describe('SettingsStore', () => {
   let store: InstanceType<typeof SettingsStore>;
@@ -205,6 +209,8 @@ describe('SettingsStore', () => {
         label: 'Microphone 1',
         groupId: 'group',
       },
+      streamHeight: DEFAULT_STREAM_HEIGHT,
+      streamFps: DEFAULT_STREAM_FPS,
     });
     expect(store.needsInitialSetup()).toBe(true);
   });
@@ -215,7 +221,11 @@ describe('SettingsStore', () => {
     expect(store.needsInitialSetup()).toBe(false);
     expect(
       JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
-    ).toEqual({ version: LOCAL_SETTINGS_VERSION });
+    ).toEqual({
+      version: LOCAL_SETTINGS_VERSION,
+      streamHeight: DEFAULT_STREAM_HEIGHT,
+      streamFps: DEFAULT_STREAM_FPS,
+    });
   });
 
   it('should keep version when updating devices after setup', () => {
@@ -238,6 +248,8 @@ describe('SettingsStore', () => {
         label: 'Mic',
         groupId: 'group',
       },
+      streamHeight: DEFAULT_STREAM_HEIGHT,
+      streamFps: DEFAULT_STREAM_FPS,
     });
     expect(store.needsInitialSetup()).toBe(false);
   });
@@ -262,6 +274,8 @@ describe('SettingsStore', () => {
         label: 'Speaker 1',
         groupId: 'group',
       },
+      streamHeight: DEFAULT_STREAM_HEIGHT,
+      streamFps: DEFAULT_STREAM_FPS,
     });
   });
 

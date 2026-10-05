@@ -6,7 +6,9 @@
     [class]="gridClass()">
     @for (peer of peers(); track peer.id) {
       <div class="grid-item">
-        <app-voice-peer-tile [peer]="peer" />
+        <app-voice-peer-tile
+          [peer]="peer"
+          [videoTrack]="videoTracksByPeerId().get(peer.id) ?? null" />
       </div>
     }
   </main>

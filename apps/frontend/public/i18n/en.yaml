@@ -79,7 +79,15 @@ CALL:
   VOLUME: Volume
   SOUND: Sound
   SOUND_OFF: Sound off
+  CAMERA: Camera
+  CAMERA_ON: Turn on camera
+  CAMERA_OFF: Turn off camera
   CAMERA_SOON: Camera (soon)
+  CAMERA_SETTINGS: Camera settings
+  CAMERA_FAILED: Couldn't start the camera
+  START_CAMERA: Start camera
+  STREAM_HEIGHT: Resolution
+  STREAM_FPS: Frame rate
   SCREEN_SOON: Screen share (soon)
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel

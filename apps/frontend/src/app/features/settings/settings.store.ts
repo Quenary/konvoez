@@ -28,7 +28,13 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
-import { LOCAL_SETTINGS_VERSION } from '@shared/schemas/local-settings.schema';
+import {
+  DEFAULT_STREAM_FPS,
+  DEFAULT_STREAM_HEIGHT,
+  LOCAL_SETTINGS_VERSION,
+  TStreamFps,
+  TStreamHeight,
+} from '@shared/schemas/local-settings.schema';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import {
@@ -46,6 +52,9 @@ export type SettingsStoreState = {
   loading: boolean;
   audioInput: MediaDeviceInfo | null;
   audioOutput: MediaDeviceInfo | null;
+  videoInput: MediaDeviceInfo | null;
+  streamHeight: TStreamHeight;
+  streamFps: TStreamFps;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -56,6 +65,9 @@ export const SettingsStore = signalStore(
     loading: false,
     audioInput: null,
     audioOutput: null,
+    videoInput: null,
+    streamHeight: DEFAULT_STREAM_HEIGHT,
+    streamFps: DEFAULT_STREAM_FPS,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
@@ -134,10 +146,13 @@ export const SettingsStore = signalStore(
           .subscribe();
       };
 
-      const persistDevices = (): void => {
+      const persistLocal = (): void => {
         writeLocalSettings({
           audioInput: store.audioInput(),
           audioOutput: store.audioOutput(),
+          videoInput: store.videoInput(),
+          streamHeight: store.streamHeight(),
+          streamFps: store.streamFps(),
         });
       };
 
@@ -150,6 +165,9 @@ export const SettingsStore = signalStore(
             {
               audioInput: store.audioInput(),
               audioOutput: store.audioOutput(),
+              videoInput: store.videoInput(),
+              streamHeight: store.streamHeight(),
+              streamFps: store.streamFps(),
             },
             { stampVersion: true },
           );
@@ -159,13 +177,28 @@ export const SettingsStore = signalStore(
         setAudioInput(audioInput: MediaDeviceInfo | null): void {
           audioDeviceHandler.setAudioInput(audioInput);
           patchState(store, { audioInput });
-          persistDevices();
+          persistLocal();
         },
 
         setAudioOutput(audioOutput: MediaDeviceInfo | null): void {
           audioDeviceHandler.setAudioOutput(audioOutput);
           patchState(store, { audioOutput });
-          persistDevices();
+          persistLocal();
+        },
+
+        setVideoInput(videoInput: MediaDeviceInfo | null): void {
+          patchState(store, { videoInput });
+          persistLocal();
+        },
+
+        setStreamHeight(streamHeight: TStreamHeight): void {
+          patchState(store, { streamHeight });
+          persistLocal();
+        },
+
+        setStreamFps(streamFps: TStreamFps): void {
+          patchState(store, { streamFps });
+          persistLocal();
         },
 
         loadAll: rxMethod<void>(
@@ -229,10 +262,15 @@ export const SettingsStore = signalStore(
         (partial.audioInput as MediaDeviceInfo | undefined) ?? null;
       const audioOutput =
         (partial.audioOutput as MediaDeviceInfo | undefined) ?? null;
+      const videoInput =
+        (partial.videoInput as MediaDeviceInfo | undefined) ?? null;
 
       patchState(store, {
         audioInput,
         audioOutput,
+        videoInput,
+        streamHeight: partial.streamHeight ?? DEFAULT_STREAM_HEIGHT,
+        streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });

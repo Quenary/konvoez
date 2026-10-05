@@ -2,8 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  ElementRef,
   inject,
   input,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IUser } from '@konvoez/shared';
@@ -50,6 +53,31 @@ export class VoicePeerTileComponent {
 
   public readonly peer = input.required<IUser>();
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
+
+  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
+
+  constructor() {
+    effect(() => {
+      const el = this.videoEl()?.nativeElement;
+      const track = this.videoTrack();
+      if (!el) {
+        return;
+      }
+      if (track) {
+        const stream = el.srcObject;
+        if (
+          stream instanceof MediaStream &&
+          stream.getVideoTracks()[0] === track
+        ) {
+          return;
+        }
+        el.srcObject = new MediaStream([track]);
+        void el.play().catch(() => undefined);
+      } else {
+        el.srcObject = null;
+      }
+    });
+  }
 
   protected readonly isLocal = computed(() => {
     const me = this.currentUser();
