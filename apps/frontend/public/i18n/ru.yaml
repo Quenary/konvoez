@@ -101,7 +101,8 @@ CALL:
   STREAMING: 'Ведет трансляцию:'
   YOUR_SCREEN: Ваш экран
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
-  PREVIEW_EXTEND: Продлить превью
+  PREVIEW_RESUME: Возобновить
+  PREVIEW_AUTO_PAUSE: Автоматическая пауза
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:

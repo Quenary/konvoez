@@ -101,7 +101,8 @@ CALL:
   STREAMING: 'Streaming:'
   YOUR_SCREEN: Your screen
   PREVIEW_PAUSED: Preview paused to save resources
-  PREVIEW_EXTEND: Keep preview
+  PREVIEW_RESUME: Resume
+  PREVIEW_AUTO_PAUSE: Auto-pause
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
 ROOMS:

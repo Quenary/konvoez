@@ -10,12 +10,23 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { PeerVideoService } from '@core/services/peer-video.service';
+import { SettingsStore } from '@features/settings/settings.store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiButton } from '@taiga-ui/core';
-import { TuiBadge } from '@taiga-ui/kit';
-import { fromEvent } from 'rxjs';
+import { TuiButton, TuiLabel } from '@taiga-ui/core';
+import { TuiCheckbox } from '@taiga-ui/core/components/checkbox';
+import {
+  combineLatest,
+  distinctUntilChanged,
+  fromEvent,
+  map,
+  merge,
+  of,
+  switchMap,
+  timer,
+} from 'rxjs';
 
 const PREVIEW_PAUSE_MS = 5_000;
 
@@ -25,52 +36,85 @@ const PREVIEW_PAUSE_MS = 5_000;
  */
 @Component({
   selector: 'app-screen-share-pip',
-  imports: [TuiButton, TuiBadge, TranslatePipe],
+  imports: [FormsModule, TuiButton, TuiCheckbox, TuiLabel, TranslatePipe],
   templateUrl: './screen-share-pip.component.html',
   styleUrl: './screen-share-pip.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ScreenSharePipComponent implements OnDestroy {
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly settingsStore = inject(SettingsStore);
   private readonly destroyRef = inject(DestroyRef);
-
-  private readonly videoEl =
-    viewChild<ElementRef<HTMLVideoElement>>('previewEl');
-
-  private pauseTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly track = this.peerVideoService.localScreenTrack;
   protected readonly visible = computed(() => this.track() !== null);
   protected readonly previewPaused = signal(false);
-  protected readonly tabHidden = signal(
-    typeof document !== 'undefined' && document.visibilityState === 'hidden',
-  );
+  protected readonly autoPauseWhenHidden =
+    this.settingsStore.screenPreviewAutoPauseWhenHidden;
+
+  private readonly videoEl =
+    viewChild<ElementRef<HTMLVideoElement>>('previewEl');
 
   constructor() {
-    fromEvent(document, 'visibilitychange')
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    const visibilityHidden$ = merge(
+      fromEvent(document, 'visibilitychange'),
+      of(null),
+    ).pipe(
+      map(() => document.visibilityState === 'hidden'),
+      distinctUntilChanged(),
+    );
+
+    const windowFocused$ = merge(
+      fromEvent(window, 'focus').pipe(map(() => true)),
+      fromEvent(window, 'blur').pipe(map(() => false)),
+      of(typeof document !== 'undefined' ? document.hasFocus() : true),
+    ).pipe(distinctUntilChanged());
+
+    const previewContextInactive$ = combineLatest([
+      visibilityHidden$,
+      windowFocused$,
+    ]).pipe(
+      map(([hidden, focused]) => hidden || !focused),
+      distinctUntilChanged(),
+    );
+
+    combineLatest([
+      previewContextInactive$,
+      toObservable(this.autoPauseWhenHidden),
+      toObservable(this.track),
+    ])
+      .pipe(
+        switchMap(([inactive, autoPause, track]) => {
+          if (!inactive || !autoPause || !track) {
+            return of(null);
+          }
+          return timer(PREVIEW_PAUSE_MS);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(() => {
-        const hidden = document.visibilityState === 'hidden';
-        this.tabHidden.set(hidden);
-        if (hidden) {
-          this.schedulePause();
-        } else {
-          this.cancelPauseTimer();
-          this.resumePreview();
+        if (
+          this.isPreviewContextInactive() &&
+          this.track() &&
+          this.autoPauseWhenHidden()
+        ) {
+          this.previewPaused.set(true);
         }
       });
 
     effect(() => {
       const track = this.track();
+      const paused = this.previewPaused();
       const el = this.videoEl()?.nativeElement;
+
       if (!track) {
-        this.cancelPauseTimer();
         this.previewPaused.set(false);
         this.detachPreview();
         return;
       }
-      if (this.previewPaused() || !el) {
-        if (this.previewPaused()) {
+
+      if (paused || !el) {
+        if (paused) {
           this.detachPreview();
         }
         return;
@@ -80,39 +124,22 @@ export class ScreenSharePipComponent implements OnDestroy {
   }
 
   public ngOnDestroy(): void {
-    this.cancelPauseTimer();
     this.detachPreview();
   }
 
-  protected onExtendPreview(): void {
-    this.resumePreview();
-    if (this.tabHidden()) {
-      this.schedulePause();
-    }
-  }
-
-  private schedulePause(): void {
-    this.cancelPauseTimer();
-    if (!this.track()) {
-      return;
-    }
-    this.pauseTimer = setTimeout(() => {
-      this.pauseTimer = null;
-      if (document.visibilityState === 'hidden' && this.track()) {
-        this.previewPaused.set(true);
-      }
-    }, PREVIEW_PAUSE_MS);
-  }
-
-  private cancelPauseTimer(): void {
-    if (this.pauseTimer !== null) {
-      clearTimeout(this.pauseTimer);
-      this.pauseTimer = null;
-    }
-  }
-
-  private resumePreview(): void {
+  protected onResumePreview(): void {
     this.previewPaused.set(false);
+  }
+
+  protected onAutoPauseWhenHiddenChange(enabled: boolean): void {
+    this.settingsStore.setScreenPreviewAutoPauseWhenHidden(enabled);
+    if (!enabled) {
+      this.previewPaused.set(false);
+    }
+  }
+
+  private isPreviewContextInactive(): boolean {
+    return document.visibilityState === 'hidden' || !document.hasFocus();
   }
 
   private attachPreview(track: MediaStreamTrack): void {

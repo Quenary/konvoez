@@ -53,6 +53,10 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     streamFps: parseFps(parsed.data.streamFps),
     screenHeight: parseHeight(parsed.data.screenHeight),
     screenFps: parseFps(parsed.data.screenFps),
+    screenPreviewAutoPauseWhenHidden:
+      typeof parsed.data.screenPreviewAutoPauseWhenHidden === 'boolean'
+        ? parsed.data.screenPreviewAutoPauseWhenHidden
+        : undefined,
   };
 };
 
@@ -85,6 +89,7 @@ export type TLocalSettingsWrite = {
   streamFps?: TStreamFps | null;
   screenHeight?: TStreamHeight | null;
   screenFps?: TStreamFps | null;
+  screenPreviewAutoPauseWhenHidden?: boolean;
 };
 
 export const writeLocalSettings = (
@@ -130,6 +135,10 @@ export const writeLocalSettings = (
     settings.screenFps === undefined
       ? existing.screenFps
       : (settings.screenFps ?? undefined);
+  const nextScreenPreviewAutoPause =
+    settings.screenPreviewAutoPauseWhenHidden === undefined
+      ? existing.screenPreviewAutoPauseWhenHidden
+      : settings.screenPreviewAutoPauseWhenHidden;
 
   const payload = {
     ...(typeof version === 'number' ? { version } : {}),
@@ -142,6 +151,9 @@ export const writeLocalSettings = (
       ? { screenHeight: nextScreenHeight }
       : {}),
     ...(nextScreenFps !== undefined ? { screenFps: nextScreenFps } : {}),
+    ...(nextScreenPreviewAutoPause !== undefined
+      ? { screenPreviewAutoPauseWhenHidden: nextScreenPreviewAutoPause }
+      : {}),
   };
 
   storageSetItemJson(EStorageKey.LOCAL_SETTINGS, payload);

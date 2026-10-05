@@ -29,6 +29,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
+  DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
   LOCAL_SETTINGS_VERSION,
@@ -57,6 +58,7 @@ export type SettingsStoreState = {
   streamFps: TStreamFps;
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
+  screenPreviewAutoPauseWhenHidden: boolean;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -72,6 +74,8 @@ export const SettingsStore = signalStore(
     streamFps: DEFAULT_STREAM_FPS,
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
+    screenPreviewAutoPauseWhenHidden:
+      DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
@@ -159,6 +163,8 @@ export const SettingsStore = signalStore(
           streamFps: store.streamFps(),
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
+          screenPreviewAutoPauseWhenHidden:
+            store.screenPreviewAutoPauseWhenHidden(),
         });
       };
 
@@ -176,6 +182,8 @@ export const SettingsStore = signalStore(
               streamFps: store.streamFps(),
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
+              screenPreviewAutoPauseWhenHidden:
+                store.screenPreviewAutoPauseWhenHidden(),
             },
             { stampVersion: true },
           );
@@ -216,6 +224,13 @@ export const SettingsStore = signalStore(
 
         setScreenFps(screenFps: TStreamFps): void {
           patchState(store, { screenFps });
+          persistLocal();
+        },
+
+        setScreenPreviewAutoPauseWhenHidden(
+          screenPreviewAutoPauseWhenHidden: boolean,
+        ): void {
+          patchState(store, { screenPreviewAutoPauseWhenHidden });
           persistLocal();
         },
 
@@ -291,6 +306,9 @@ export const SettingsStore = signalStore(
         streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
+        screenPreviewAutoPauseWhenHidden:
+          partial.screenPreviewAutoPauseWhenHidden ??
+          DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });
