@@ -47,6 +47,10 @@ import {
   VoiceRoomStateMediasoupAppData,
 } from './voice-rooms.state';
 import { DirectCallsStateService } from './direct-calls.state';
+import {
+  buildWebRtcListenInfos,
+  resolveAnnouncedAddresses,
+} from './webrtc-listen-infos';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 import type {
   DtlsParameters,
@@ -305,12 +309,11 @@ export class VoiceRoomsGateway
       `handleCreateTransport: socketId=${socket.id}, sessionKey=${sessionKey}, direction=${body.direction}`,
     );
 
+    const announcedAddresses = await resolveAnnouncedAddresses(
+      this.appService.MEDIASOUP_ANNOUNCED_ADDRESSES,
+    );
     const transport = await room.router.createWebRtcTransport({
-      listenIps: [
-        { ip: '0.0.0.0', announcedIp: this.appService.MEDIASOUP_ANNOUNCED_IP },
-      ],
-      enableUdp: true,
-      enableTcp: true,
+      listenInfos: buildWebRtcListenInfos(announcedAddresses),
     });
 
     if (body.direction === 'send') {

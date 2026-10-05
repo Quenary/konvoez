@@ -60,19 +60,41 @@ describe('AppService', () => {
     expect(service.LOCAL_OBJECT_STORAGE_PATH).toBe('/custom/path');
   });
 
-  it('should default MEDIASOUP_MIN_PORT and MEDIASOUP_MAX_PORT to 40000 and 40100', () => {
-    delete process.env['MEDIASOUP_MIN_PORT'];
-    delete process.env['MEDIASOUP_MAX_PORT'];
+  it('should default the mediasoup port range and announced address', () => {
+    delete process.env['MEDIASOUP_PORT_RANGE'];
+    delete process.env['MEDIASOUP_ANNOUNCED_IP'];
     const service = new AppService();
-    expect(service.MEDIASOUP_MIN_PORT).toBe(40000);
-    expect(service.MEDIASOUP_MAX_PORT).toBe(40100);
+    const portRange = { min: 40000, max: 40100 };
+    expect(service.MEDIASOUP_PORT_RANGE).toEqual(portRange);
+    expect(service.MEDIASOUP_ANNOUNCED_ADDRESSES).toEqual([
+      { address: '127.0.0.1', portRange },
+    ]);
   });
 
-  it('should read MEDIASOUP_MIN_PORT and MEDIASOUP_MAX_PORT from env', () => {
-    process.env['MEDIASOUP_MIN_PORT'] = '45000';
-    process.env['MEDIASOUP_MAX_PORT'] = '45100';
+  it('should use MEDIASOUP_PORT_RANGE for addresses without their own range', () => {
+    process.env['MEDIASOUP_PORT_RANGE'] = '45000-45100';
+    process.env['MEDIASOUP_ANNOUNCED_IP'] =
+      '192.168.0.10:45050-45100, my.ddns.example';
     const service = new AppService();
-    expect(service.MEDIASOUP_MIN_PORT).toBe(45000);
-    expect(service.MEDIASOUP_MAX_PORT).toBe(45100);
+    expect(service.MEDIASOUP_PORT_RANGE).toEqual({ min: 45000, max: 45100 });
+    expect(service.MEDIASOUP_ANNOUNCED_ADDRESSES).toEqual([
+      { address: '192.168.0.10', portRange: { min: 45050, max: 45100 } },
+      { address: 'my.ddns.example', portRange: { min: 45000, max: 45100 } },
+    ]);
+  });
+
+  it('should fail to start on a malformed MEDIASOUP_PORT_RANGE', () => {
+    process.env['MEDIASOUP_PORT_RANGE'] = '40100-40000';
+    expect(() => new AppService()).toThrow(
+      'Invalid MEDIASOUP_PORT_RANGE "40100-40000"',
+    );
+  });
+
+  it('should fail to start on a malformed MEDIASOUP_ANNOUNCED_IP range', () => {
+    delete process.env['MEDIASOUP_PORT_RANGE'];
+    process.env['MEDIASOUP_ANNOUNCED_IP'] = '203.0.113.5:40000-x';
+    expect(() => new AppService()).toThrow(
+      'Invalid MEDIASOUP_ANNOUNCED_IP port range in "203.0.113.5:40000-x"',
+    );
   });
 });

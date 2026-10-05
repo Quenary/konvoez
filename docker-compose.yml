@@ -24,8 +24,7 @@ services:
       # Mediasoup (required for voice calls)
       # See docs/NETWORKING.md for more information
       - MEDIASOUP_ANNOUNCED_IP=${MEDIASOUP_ANNOUNCED_IP:-}
-      - MEDIASOUP_MIN_PORT=${MEDIASOUP_MIN_PORT:-}
-      - MEDIASOUP_MAX_PORT=${MEDIASOUP_MAX_PORT:-}
+      - MEDIASOUP_PORT_RANGE=${MEDIASOUP_PORT_RANGE:-}
       # SMTP
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-}

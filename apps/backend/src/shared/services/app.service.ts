@@ -6,6 +6,12 @@ import {
   getDefaultLocalStoragePath,
 } from '../storage.utils';
 import { assertObjectStoragePrefix } from './storage-naming';
+import {
+  type IAnnouncedAddress,
+  type IPortRange,
+  parseAnnouncedAddresses,
+  parseMediasoupPortRange,
+} from '../utils/mediasoup-addresses.util';
 
 export type FileServiceType = 'local' | 's3';
 
@@ -114,20 +120,25 @@ export class AppService {
   //#endregion
 
   //#region MediaSoup
-  public readonly MEDIASOUP_ANNOUNCED_IP: string | undefined =
-    process.env['MEDIASOUP_ANNOUNCED_IP'];
   /**
-   * Lowest WebRTC UDP/TCP port for Mediasoup
-   * @default 40000
+   * WebRTC UDP/TCP port range for announced addresses without their own range.
+   * Throws on a malformed MEDIASOUP_PORT_RANGE.
+   * @default 40000-40100
    */
-  public readonly MEDIASOUP_MIN_PORT: number =
-    Number(process.env['MEDIASOUP_MIN_PORT']) || 40000;
+  public readonly MEDIASOUP_PORT_RANGE: IPortRange = parseMediasoupPortRange(
+    process.env['MEDIASOUP_PORT_RANGE'],
+  );
   /**
-   * Highest WebRTC UDP/TCP port for Mediasoup
-   * @default 40100
+   * Addresses announced in ICE candidates, from the comma-separated
+   * MEDIASOUP_ANNOUNCED_IP (`address[:start-end]`, IPv4 or hostname). Earlier
+   * entries are preferred. Throws on a malformed entry.
+   * @default 127.0.0.1 with MEDIASOUP_PORT_RANGE
    */
-  public readonly MEDIASOUP_MAX_PORT: number =
-    Number(process.env['MEDIASOUP_MAX_PORT']) || 40100;
+  public readonly MEDIASOUP_ANNOUNCED_ADDRESSES: readonly IAnnouncedAddress[] =
+    parseAnnouncedAddresses(
+      process.env['MEDIASOUP_ANNOUNCED_IP'],
+      this.MEDIASOUP_PORT_RANGE,
+    );
   //#endregion
 
   /**

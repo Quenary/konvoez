@@ -77,7 +77,25 @@ In your internet router's administration panel:
 - **Destination IP**: Your Docker host's private IP (e.g., `192.168.0.10`)
 
 > [!NOTE]
-> Each voice participant consumes 2 ports (1 for sending audio, 1 for receiving). A range of 100 ports (`40000-40100`) comfortably supports up to 50 concurrent active voice transports.
+> Each voice participant uses 2 transports (sending and receiving), and each transport takes 1 UDP and 1 TCP port for every announced address. With one address, `40000-40100` fits about 100 transports (50 participants). Two addresses sharing that range fit about 50 transports (25 participants). With [per-address ranges](#format) each address uses only its own ports, so the smallest range sets the limit: `40000-40049` and `40050-40100` also fit about 50 transports. Widen the ranges, and the Docker and router mappings, when you add addresses.
+
+#### Example: MikroTik RouterOS
+
+Forward the range to the Docker host (`192.168.88.10` here). `MY_DDNS_IP` is an address list holding your public IP; RouterOS keeps a DNS name in it up to date (e.g. `/ip firewall address-list add list=MY_DDNS_IP address=my.ddns.example`):
+
+```
+/ip firewall nat add chain=dstnat action=dst-nat protocol=udp dst-address-list=MY_DDNS_IP dst-port=40000-40100 to-addresses=192.168.88.10 to-ports=40000-40100 comment="Konvoez WebRTC UDP"
+/ip firewall nat add chain=dstnat action=dst-nat protocol=tcp dst-address-list=MY_DDNS_IP dst-port=40000-40100 to-addresses=192.168.88.10 to-ports=40000-40100 comment="Konvoez WebRTC TCP"
+```
+
+Hairpin NAT lets LAN clients reach the host through the public address. Place it before the default masquerade:
+
+```
+/ip firewall nat add chain=srcnat action=masquerade protocol=udp src-address=192.168.88.0/24 dst-address=192.168.88.10 dst-port=40000-40100 comment="Konvoez hairpin UDP" place-before=[find comment="defconf: masquerade"]
+/ip firewall nat add chain=srcnat action=masquerade protocol=tcp src-address=192.168.88.0/24 dst-address=192.168.88.10 dst-port=40000-40100 comment="Konvoez hairpin TCP" place-before=[find comment="defconf: masquerade"]
+```
+
+Hairpin is only needed when LAN clients use the public address. Announcing the LAN IP too, first in `MEDIASOUP_ANNOUNCED_IP`, avoids it (see [LAN and internet clients](#lan-and-internet-clients)).
 
 ### Step 2: Configure `MEDIASOUP_ANNOUNCED_IP`
 
@@ -91,6 +109,35 @@ Set this to your **external public IPv4 address** (the public IP of `example.com
 
 **Why this is mandatory**:
 When creating WebRTC transports, Mediasoup sends this IP to browsers as an ICE candidate (`typ host`). If `MEDIASOUP_ANNOUNCED_IP` is left unset or set to `192.168.0.10`, external internet users will receive an unreachable private LAN IP and will not hear or transmit any audio.
+
+#### Format
+
+`MEDIASOUP_ANNOUNCED_IP` is a comma-separated list of `address[:start-end]` entries. `address` is an IPv4 address or a hostname; IPv6 is not supported because Mediasoup listens on IPv4 `0.0.0.0`. An entry with `:start-end` uses that port range, and the other entries use `MEDIASOUP_PORT_RANGE` (default `40000-40100`):
+
+```env
+MEDIASOUP_PORT_RANGE=40000-40100
+MEDIASOUP_ANNOUNCED_IP=203.0.113.5:40000-40049, 192.168.0.10:40050-40100
+```
+
+Ranges may overlap; addresses then share those ports. The Docker port mapping must cover every range. The backend refuses to start on a malformed entry or range (not `start-end`, start above end, or outside 1–65535) and names the variable and value in the error.
+
+#### LAN and internet clients
+
+If your router has no NAT loopback (hairpin NAT), LAN clients cannot reach your public IP. Announce the LAN IP as well as the public IP or DDNS name:
+
+```env
+MEDIASOUP_ANNOUNCED_IP=192.168.0.10,konvoez.example.com
+```
+
+Each address gets its own UDP and TCP candidate, and browsers try them all. The order only sets which one they try first: with the LAN IP first, local clients connect directly, and external clients, which cannot reach the LAN IP, still connect via the public address.
+
+To keep part of the ports for LAN clients only, give each address its own range and forward only the public address's range on the router (here `40000-40049`, UDP and TCP), while Docker still maps `40000-40100`:
+
+```env
+MEDIASOUP_ANNOUNCED_IP=192.168.0.10:40050-40100,konvoez.example.com:40000-40049
+```
+
+Hostnames are resolved to IPv4 by the server whenever a transport is created, because Firefox ignores hostname candidates; this also picks up DDNS changes. The server uses its own DNS, so if it answers with a LAN address (split-horizon DNS), list the public IP instead of the name.
 
 ### Step 3: Configure External Reverse Proxy (Nginx Example)
 
@@ -167,4 +214,4 @@ services:
 ### Symptom: External users can talk, but users on the same local Wi-Fi / LAN cannot
 
 - **Cause**: Your router does not support **NAT Loopback** (Hairpin NAT), preventing LAN clients from sending packets to their own external public IP.
-- **Fix**: Enable "NAT Loopback" / "Hairpin NAT" in your router settings.
+- **Fix**: Enable "NAT Loopback" / "Hairpin NAT" in your router settings, or add the LAN IP to `MEDIASOUP_ANNOUNCED_IP` (see [LAN and internet clients](#lan-and-internet-clients)).
