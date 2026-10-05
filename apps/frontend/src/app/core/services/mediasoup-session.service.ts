@@ -337,8 +337,7 @@ export class MediasoupSessionService {
         });
       }
     } catch (error) {
-      this.peerVideoService.setLocalScreenTrack(null);
-      this.screenCaptureService.release();
+      await this.stopScreenLocked();
       console.error('Failed to produce screen\n', error);
       throw error;
     }
@@ -380,6 +379,9 @@ export class MediasoupSessionService {
     resolvePeer: (userId: number) => IConsumePeerContext | null,
     screenGain: number,
   ): Promise<void> {
+    if (this.peerVideoService.isWatching(userId)) {
+      return;
+    }
     const available = this.peerVideoService.availableScreens().get(userId);
     if (!available?.videoProducerId) {
       throw new Error('No screen share available for peer');
@@ -436,9 +438,42 @@ export class MediasoupSessionService {
       }
     }
 
+    this.releaseScreenWatchLocal(userId);
+  }
+
+  /** Teardown local screen-audio watch state (does not close SFU consumers). */
+  public releaseScreenWatchLocal(userId: number): void {
     this.peerVideoService.stopWatchingLocal(userId);
     this.screenAudioConsumers.delete(userId);
     this.peerScreenAudioService.detach(userId);
+  }
+
+  public onRemoteProducerClosed(userId: number, producerId: string): void {
+    this.peerScreenAudioService.remove(userId, producerId);
+    const audioConsumer = this.screenAudioConsumers.get(userId);
+    if (audioConsumer?.producerId === producerId) {
+      this.screenAudioConsumers.delete(userId);
+    }
+    const available = this.peerVideoService.availableScreens().get(userId);
+    if (available?.videoProducerId === producerId) {
+      this.releaseScreenWatchLocal(userId);
+    }
+  }
+
+  public releasePeerScreenWatch(userId: number): void {
+    this.releaseScreenWatchLocal(userId);
+  }
+
+  public handleConsumerClosed(consumerId: string): void {
+    this.peerVideoService.removeByConsumerId(consumerId);
+    for (const [userId, consumer] of this.screenAudioConsumers) {
+      if (consumer.id === consumerId) {
+        this.screenAudioConsumers.delete(userId);
+        this.peerScreenAudioService.detach(userId);
+        return;
+      }
+    }
+    this.peerScreenAudioService.detachByConsumerId(consumerId);
   }
 
   @Mutexed(mediasoupMutex)

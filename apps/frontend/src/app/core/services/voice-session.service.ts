@@ -248,6 +248,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
       this.voiceRoomStore.removePeer(data.user.id);
       this.peerVideoService.removeUser(data.user.id);
+      this.mediasoupSessionService.releasePeerScreenWatch(data.user.id);
       if (data.roomId !== undefined) {
         this.voiceRoomStore.removePeerFromRoom(data.roomId, data.user.id);
       }
@@ -260,10 +261,18 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
       this.peerVideoService.remove(data.userId, data.producerId);
+      this.mediasoupSessionService.onRemoteProducerClosed(
+        data.userId,
+        data.producerId,
+      );
       this.peerVideoService.unregisterAvailableScreenProducer(
         data.userId,
         data.producerId,
       );
+    });
+
+    this.socket.on(EVoiceRoomEvent.CONSUMER_CLOSED, (data) => {
+      this.mediasoupSessionService.handleConsumerClosed(data.consumerId);
     });
   }
 
@@ -273,6 +282,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.off(EVoiceRoomEvent.PEER_LEFT);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CLOSED);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CREATED);
+    this.socket.off(EVoiceRoomEvent.CONSUMER_CLOSED);
   }
 
   private async updateRoomsState(): Promise<void> {

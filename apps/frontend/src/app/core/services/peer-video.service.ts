@@ -205,6 +205,18 @@ export class PeerVideoService {
     return this._remoteScreen().get(userId)?.consumer.id ?? null;
   }
 
+  public removeByConsumerId(consumerId: string): void {
+    for (const target of [this._remoteCam, this._remoteScreen] as const) {
+      for (const [userId, entry] of target()) {
+        if (entry.consumer.id !== consumerId) {
+          continue;
+        }
+        this.remove(userId, entry.producerId);
+        return;
+      }
+    }
+  }
+
   public stopWatchingLocal(userId: number): void {
     const entry = this._remoteScreen().get(userId);
     if (entry) {

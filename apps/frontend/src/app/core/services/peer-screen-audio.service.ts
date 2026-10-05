@@ -58,6 +58,15 @@ export class PeerScreenAudioService {
     return this.graphs.get(userId)?.consumer.id ?? null;
   }
 
+  public detachByConsumerId(consumerId: string): void {
+    for (const [userId, graph] of this.graphs) {
+      if (graph.consumer.id === consumerId) {
+        this.detach(userId);
+        return;
+      }
+    }
+  }
+
   public detach(userId: number): void {
     const graph = this.graphs.get(userId);
     if (!graph) {
