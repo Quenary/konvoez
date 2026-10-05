@@ -20,10 +20,7 @@ import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-
 import { ScreenSharePipComponent } from '../screen-share-pip/screen-share-pip.component';
 import { VoiceTheatreComponent } from '../voice-theatre/voice-theatre.component';
 import { resolveVoiceSessionPeers } from '../voice-session-peers';
-import {
-  partitionVoicePeers,
-  voiceSectionGridClass,
-} from '../voice-peers-layout';
+import { voiceSectionGridClass } from '../voice-peers-layout';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -127,32 +124,8 @@ export class VoicePeersGridComponent {
     return this.screenAvailableByPeerId();
   });
 
-  protected readonly peerPartitions = computed(() => {
-    const tracks = this.videoTracksByPeerId();
-    const screens = this.screenAvailableByPeerId();
-    return partitionVoicePeers(this.peers(), (id) => {
-      return Boolean(screens[id] || tracks[id]);
-    });
-  });
-
-  protected readonly streamingPeers = computed(
-    () => this.peerPartitions().streaming,
-  );
-
-  protected readonly voiceOnlyPeers = computed(
-    () => this.peerPartitions().voiceOnly,
-  );
-
-  protected readonly streamingSectionClass = computed(() =>
-    voiceSectionGridClass(this.streamingPeers().length),
-  );
-
-  protected readonly voiceSectionClass = computed(() =>
-    voiceSectionGridClass(this.voiceOnlyPeers().length),
-  );
-
-  protected readonly hasSplitLayout = computed(
-    () => this.streamingPeers().length > 0 && this.voiceOnlyPeers().length > 0,
+  protected readonly peersSectionClass = computed(() =>
+    voiceSectionGridClass(this.peers().length),
   );
 
   protected readonly theatreFocusPeer = computed((): IUser | null => {

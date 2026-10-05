@@ -2,53 +2,25 @@
   class="peers-grid-root"
   [class.compact]="compact()">
   @if (!theatreFocusPeer()) {
-    <div
-      class="peers-layout"
-      [class.split]="hasSplitLayout()"
-      [class.streaming-only]="
-        streamingPeers().length > 0 && voiceOnlyPeers().length === 0
-      "
-      [class.voice-only]="streamingPeers().length === 0">
-      @if (streamingPeers().length) {
-        <section
-          class="streaming-section"
-          [class]="streamingSectionClass()">
-          @for (peer of streamingPeers(); track peer.id) {
-            <div class="grid-item streaming">
-              <app-voice-peer-tile
-                [peer]="peer"
-                [videoTrack]="videoTracksByPeerId()[peer.id] ?? null"
-                [screenAvailable]="screenAvailableByPeerId()[peer.id] ?? false"
-                [watchingScreen]="watchingByPeerId()[peer.id] ?? false"
-                [showingScreen]="showingScreenByPeerId()[peer.id] ?? false"
-                [screenLive]="screenLiveByPeerId()[peer.id] ?? false"
-                (watchScreen)="onWatchScreen(peer.id)"
-                (stopWatchScreen)="onStopWatchScreen(peer.id)"
-                (openTheatre)="onOpenTheatre(peer.id)" />
-            </div>
-          }
-        </section>
-      }
-
-      @if (voiceOnlyPeers().length) {
-        <section
-          class="voice-section"
-          [class]="voiceSectionClass()">
-          @for (peer of voiceOnlyPeers(); track peer.id) {
-            <div class="grid-item voice">
-              <app-voice-peer-tile
-                [peer]="peer"
-                [videoTrack]="null"
-                [screenAvailable]="false"
-                [watchingScreen]="false"
-                [showingScreen]="false"
-                [screenLive]="false"
-                (watchScreen)="onWatchScreen(peer.id)"
-                (stopWatchScreen)="onStopWatchScreen(peer.id)" />
-            </div>
-          }
-        </section>
-      }
+    <div class="peers-layout">
+      <section
+        class="peers-section"
+        [class]="peersSectionClass()">
+        @for (peer of peers(); track peer.id) {
+          <div class="grid-item">
+            <app-voice-peer-tile
+              [peer]="peer"
+              [videoTrack]="videoTracksByPeerId()[peer.id] ?? null"
+              [screenAvailable]="screenAvailableByPeerId()[peer.id] ?? false"
+              [watchingScreen]="watchingByPeerId()[peer.id] ?? false"
+              [showingScreen]="showingScreenByPeerId()[peer.id] ?? false"
+              [screenLive]="screenLiveByPeerId()[peer.id] ?? false"
+              (watchScreen)="onWatchScreen(peer.id)"
+              (stopWatchScreen)="onStopWatchScreen(peer.id)"
+              (openTheatre)="onOpenTheatre(peer.id)" />
+          </div>
+        }
+      </section>
     </div>
   }
 

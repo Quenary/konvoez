@@ -142,17 +142,16 @@ describe('VoicePeersGridComponent', () => {
     return fixture;
   };
 
-  it('partitions peers into streaming and voice-only sections', () => {
+  it('renders all peers in one grid with 16:9 tiles', () => {
     remoteTracks.set({ 3: { id: 'cam-3' } as MediaStreamTrack });
     const fixture = create();
-    const cmp = fixture.componentInstance;
 
-    expect(cmp['streamingPeers']().map((p) => p.id)).toEqual([3]);
-    expect(cmp['voiceOnlyPeers']().map((p) => p.id)).toEqual([1, 2]);
+    expect(fixture.nativeElement.querySelector('.peers-section')).toBeTruthy();
     expect(
       fixture.nativeElement.querySelector('.streaming-section'),
-    ).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.voice-section')).toBeTruthy();
+    ).toBeNull();
+    expect(fixture.nativeElement.querySelector('.voice-section')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.grid-item').length).toBe(3);
   });
 
   it('does not render the grid while theatre is open', () => {
