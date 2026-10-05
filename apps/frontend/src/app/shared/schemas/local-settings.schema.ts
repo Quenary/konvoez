@@ -43,6 +43,8 @@ export const localSettingsSchema = z.object({
   videoInput: mediaDeviceInfoSchema.optional(),
   streamHeight: streamHeightSchema.optional(),
   streamFps: streamFpsSchema.optional(),
+  screenHeight: streamHeightSchema.optional(),
+  screenFps: streamFpsSchema.optional(),
 });
 
 export type TLocalSettings = z.infer<typeof localSettingsSchema>;
@@ -54,6 +56,8 @@ export const localSettingsLooseSchema = z.looseObject({
   videoInput: mediaDeviceInfoSchema.optional(),
   streamHeight: streamHeightSchema.optional(),
   streamFps: streamFpsSchema.optional(),
+  screenHeight: streamHeightSchema.optional(),
+  screenFps: streamFpsSchema.optional(),
 });
 
 export type TLocalSettingsPartial = z.infer<typeof localSettingsLooseSchema>;

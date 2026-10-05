@@ -55,6 +55,8 @@ export type SettingsStoreState = {
   videoInput: MediaDeviceInfo | null;
   streamHeight: TStreamHeight;
   streamFps: TStreamFps;
+  screenHeight: TStreamHeight;
+  screenFps: TStreamFps;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -68,6 +70,8 @@ export const SettingsStore = signalStore(
     videoInput: null,
     streamHeight: DEFAULT_STREAM_HEIGHT,
     streamFps: DEFAULT_STREAM_FPS,
+    screenHeight: DEFAULT_STREAM_HEIGHT,
+    screenFps: DEFAULT_STREAM_FPS,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
@@ -153,6 +157,8 @@ export const SettingsStore = signalStore(
           videoInput: store.videoInput(),
           streamHeight: store.streamHeight(),
           streamFps: store.streamFps(),
+          screenHeight: store.screenHeight(),
+          screenFps: store.screenFps(),
         });
       };
 
@@ -168,6 +174,8 @@ export const SettingsStore = signalStore(
               videoInput: store.videoInput(),
               streamHeight: store.streamHeight(),
               streamFps: store.streamFps(),
+              screenHeight: store.screenHeight(),
+              screenFps: store.screenFps(),
             },
             { stampVersion: true },
           );
@@ -198,6 +206,16 @@ export const SettingsStore = signalStore(
 
         setStreamFps(streamFps: TStreamFps): void {
           patchState(store, { streamFps });
+          persistLocal();
+        },
+
+        setScreenHeight(screenHeight: TStreamHeight): void {
+          patchState(store, { screenHeight });
+          persistLocal();
+        },
+
+        setScreenFps(screenFps: TStreamFps): void {
+          patchState(store, { screenFps });
           persistLocal();
         },
 
@@ -271,6 +289,8 @@ export const SettingsStore = signalStore(
         videoInput,
         streamHeight: partial.streamHeight ?? DEFAULT_STREAM_HEIGHT,
         streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
+        screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
+        screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });

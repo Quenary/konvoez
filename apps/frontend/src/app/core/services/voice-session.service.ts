@@ -23,6 +23,7 @@ import {
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
+import { ScreenCaptureService } from './screen-capture.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 
@@ -196,6 +197,31 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     }
   }
 
+  public watchPeerScreen(userId: number): Promise<void> {
+    const gain = this.voiceRoomStore.peerScreenGainLevels()[userId] ?? 1;
+    return this.mediasoupSessionService.watchScreen(
+      userId,
+      (id) => this.resolvePeer(id),
+      gain,
+    );
+  }
+
+  public stopWatchingPeerScreen(userId: number): Promise<void> {
+    return this.mediasoupSessionService.stopWatchingScreen(userId);
+  }
+
+  public produceScreen(): Promise<void> {
+    return this.mediasoupSessionService.produceScreen();
+  }
+
+  public stopScreen(): Promise<void> {
+    return this.mediasoupSessionService.stopScreen();
+  }
+
+  public isScreenSharingSupported(): boolean {
+    return ScreenCaptureService.isSupported();
+  }
+
   private addSocketListeners(): void {
     this.removeSocketListeners();
 
@@ -234,6 +260,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
       this.peerVideoService.remove(data.userId, data.producerId);
+      this.peerVideoService.unregisterAvailableScreenProducer(
+        data.userId,
+        data.producerId,
+      );
     });
   }
 

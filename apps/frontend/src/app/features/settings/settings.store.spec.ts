@@ -211,6 +211,8 @@ describe('SettingsStore', () => {
       },
       streamHeight: DEFAULT_STREAM_HEIGHT,
       streamFps: DEFAULT_STREAM_FPS,
+      screenHeight: DEFAULT_STREAM_HEIGHT,
+      screenFps: DEFAULT_STREAM_FPS,
     });
     expect(store.needsInitialSetup()).toBe(true);
   });
@@ -225,6 +227,8 @@ describe('SettingsStore', () => {
       version: LOCAL_SETTINGS_VERSION,
       streamHeight: DEFAULT_STREAM_HEIGHT,
       streamFps: DEFAULT_STREAM_FPS,
+      screenHeight: DEFAULT_STREAM_HEIGHT,
+      screenFps: DEFAULT_STREAM_FPS,
     });
   });
 
@@ -250,6 +254,8 @@ describe('SettingsStore', () => {
       },
       streamHeight: DEFAULT_STREAM_HEIGHT,
       streamFps: DEFAULT_STREAM_FPS,
+      screenHeight: DEFAULT_STREAM_HEIGHT,
+      screenFps: DEFAULT_STREAM_FPS,
     });
     expect(store.needsInitialSetup()).toBe(false);
   });
@@ -276,6 +282,8 @@ describe('SettingsStore', () => {
       },
       streamHeight: DEFAULT_STREAM_HEIGHT,
       streamFps: DEFAULT_STREAM_FPS,
+      screenHeight: DEFAULT_STREAM_HEIGHT,
+      screenFps: DEFAULT_STREAM_FPS,
     });
   });
 

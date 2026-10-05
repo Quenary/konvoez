@@ -51,6 +51,8 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     videoInput: parseDevice(parsed.data.videoInput) ?? undefined,
     streamHeight: parseHeight(parsed.data.streamHeight),
     streamFps: parseFps(parsed.data.streamFps),
+    screenHeight: parseHeight(parsed.data.screenHeight),
+    screenFps: parseFps(parsed.data.screenFps),
   };
 };
 
@@ -81,6 +83,8 @@ export type TLocalSettingsWrite = {
   videoInput?: MediaDeviceInfo | TMediaDeviceInfo | null;
   streamHeight?: TStreamHeight | null;
   streamFps?: TStreamFps | null;
+  screenHeight?: TStreamHeight | null;
+  screenFps?: TStreamFps | null;
 };
 
 export const writeLocalSettings = (
@@ -118,6 +122,14 @@ export const writeLocalSettings = (
     settings.streamFps === undefined
       ? existing.streamFps
       : (settings.streamFps ?? undefined);
+  const nextScreenHeight =
+    settings.screenHeight === undefined
+      ? existing.screenHeight
+      : (settings.screenHeight ?? undefined);
+  const nextScreenFps =
+    settings.screenFps === undefined
+      ? existing.screenFps
+      : (settings.screenFps ?? undefined);
 
   const payload = {
     ...(typeof version === 'number' ? { version } : {}),
@@ -126,6 +138,10 @@ export const writeLocalSettings = (
     ...(nextVideoInput ? { videoInput: nextVideoInput } : {}),
     ...(nextHeight !== undefined ? { streamHeight: nextHeight } : {}),
     ...(nextFps !== undefined ? { streamFps: nextFps } : {}),
+    ...(nextScreenHeight !== undefined
+      ? { screenHeight: nextScreenHeight }
+      : {}),
+    ...(nextScreenFps !== undefined ? { screenFps: nextScreenFps } : {}),
   };
 
   storageSetItemJson(EStorageKey.LOCAL_SETTINGS, payload);
