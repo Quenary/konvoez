@@ -1,5 +1,3 @@
-@let focus = focusPeer();
-
 <div
   class="theatre"
   [class.strip-right]="stripRight()"
@@ -36,21 +34,16 @@
   </div>
 
   <aside class="strip">
-    @for (peer of stripPeers(); track peer.id) {
+    @for (tile of stripTiles(); track tile.key) {
       <button
         type="button"
-        class="strip-tile"
-        [class.active]="peer.id === focus.id"
-        [class.watching]="watchingByPeerId()[peer.id] === true"
-        [class.live]="screenLiveByPeerId()[peer.id] === true"
-        [disabled]="
-          peer.id !== focus.id && watchingByPeerId()[peer.id] !== true
-        "
-        (click)="onStripPeerClick(peer.id)">
-        <span class="strip-name">{{ peer.username }}</span>
-        @if (screenLiveByPeerId()[peer.id]) {
-          <span class="strip-live">{{ 'CALL.LIVE' | translate }}</span>
-        }
+        class="strip-tile-wrap"
+        [class.active]="isStripTileActive(tile)"
+        [disabled]="isStripTileDisabled(tile)"
+        (click)="onStripTileClick(tile)">
+        <app-voice-peer-tile-mini
+          [peer]="tile.peer"
+          [videoTrack]="tile.videoTrack" />
       </button>
     }
   </aside>

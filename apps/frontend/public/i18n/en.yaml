@@ -93,12 +93,11 @@ CALL:
   SCREEN_SETTINGS: Screen share settings
   SCREEN_FAILED: Couldn't start screen sharing
   START_SCREEN: Share screen
-  WATCH_SCREEN: Watch
+  WATCH_SCREEN: Start watching
   STOP_WATCH_SCREEN: Stop watching
   WATCH_SCREEN_FAILED: Couldn't watch the screen share
   SCREEN_VOLUME: Screen volume
   LIVE: LIVE
-  STREAMING: 'Streaming:'
   YOUR_SCREEN: Your screen
   PREVIEW_PAUSED: Preview paused to save resources
   PREVIEW_RESUME: Resume

@@ -93,12 +93,11 @@ CALL:
   SCREEN_SETTINGS: Настройки демонстрации экрана
   SCREEN_FAILED: Не удалось начать демонстрацию экрана
   START_SCREEN: Демонстрировать
-  WATCH_SCREEN: Смотреть
-  STOP_WATCH_SCREEN: Не смотреть
+  WATCH_SCREEN: Начать просмотр
+  STOP_WATCH_SCREEN: Прекратить просмотр
   WATCH_SCREEN_FAILED: Не удалось подписаться на демонстрацию
   SCREEN_VOLUME: Громкость экрана
   LIVE: LIVE
-  STREAMING: 'Ведет трансляцию:'
   YOUR_SCREEN: Ваш экран
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
   PREVIEW_RESUME: Возобновить

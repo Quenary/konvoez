@@ -56,7 +56,7 @@
 <footer
   class="controls-dock"
   [class.vignette]="isFullscreen()">
-  @if (theatreOpen()) {
+  @if (theatreShowsRemoteScreenWatchControls()) {
     <app-voice-theatre-watch-controls />
   }
   <app-voice-controls-bar (hangup)="onHangup()" />

@@ -27,8 +27,7 @@ const omitPeer = <T>(
 
 /**
  * Remote/local video tracks for voice tiles (not Web Audio).
- * Local tile uses cam only; local screen is shown in a floating PiP.
- * Remote display prefers screen over cam when watching.
+ * Cam and screen are separate sources; UI builds one or two tiles per peer.
  */
 @Injectable({ providedIn: 'root' })
 export class PeerVideoService {
@@ -36,8 +35,6 @@ export class PeerVideoService {
   private readonly _localScreenTrack = signal<MediaStreamTrack | null>(null);
   public readonly localCamTrack = this._localCamTrack.asReadonly();
   public readonly localScreenTrack = this._localScreenTrack.asReadonly();
-  /** Local tile / self-view: camera only (screen goes to PiP). */
-  public readonly localTrack = computed(() => this._localCamTrack());
 
   private readonly _remoteCam =
     signal<Readonly<TPeerIdRecord<TRemoteVideo>>>(emptyPeerRecord());
@@ -52,28 +49,24 @@ export class PeerVideoService {
   public readonly availableScreens = this._availableScreens.asReadonly();
   public readonly watchingUserIds = this._watching.asReadonly();
 
-  /** Display track per remote user: screen if watching, else cam. */
-  public readonly remoteTracks = computed(() => {
+  public readonly remoteCamTracks = computed(() => {
+    const byUserId: TPeerIdRecord<MediaStreamTrack> = {};
+    for (const [userId, entry] of Object.entries(this._remoteCam())) {
+      byUserId[Number(userId)] = entry.track;
+    }
+    return byUserId;
+  });
+
+  public readonly remoteScreenTracks = computed(() => {
     const byUserId: TPeerIdRecord<MediaStreamTrack> = {};
     for (const [userId, entry] of Object.entries(this._remoteScreen())) {
       byUserId[Number(userId)] = entry.track;
-    }
-    for (const [userId, entry] of Object.entries(this._remoteCam())) {
-      const id = Number(userId);
-      if (byUserId[id] === undefined) {
-        byUserId[id] = entry.track;
-      }
     }
     return byUserId;
   });
 
   public setLocalCamTrack(track: MediaStreamTrack | null): void {
     this._localCamTrack.set(track);
-  }
-
-  /** @deprecated use setLocalCamTrack */
-  public setLocalTrack(track: MediaStreamTrack | null): void {
-    this.setLocalCamTrack(track);
   }
 
   public setLocalScreenTrack(track: MediaStreamTrack | null): void {
@@ -239,17 +232,6 @@ export class PeerVideoService {
       this._remoteScreen.set(omitPeer(this._remoteScreen(), userId));
     }
     this.setWatching(userId, false);
-  }
-
-  public trackFor(userId: number, isLocal: boolean): MediaStreamTrack | null {
-    if (isLocal) {
-      return this.localCamTrack();
-    }
-    return (
-      this._remoteScreen()[userId]?.track ??
-      this._remoteCam()[userId]?.track ??
-      null
-    );
   }
 
   public clear(): void {

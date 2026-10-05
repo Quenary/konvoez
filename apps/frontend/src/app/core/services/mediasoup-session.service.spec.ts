@@ -41,7 +41,6 @@ describe('MediasoupSessionService', () => {
           useValue: {
             attach: vi.fn(),
             clear: vi.fn(),
-            setLocalTrack: vi.fn(),
             setLocalCamTrack: vi.fn(),
             setLocalScreenTrack: vi.fn(),
             registerAvailableScreen: vi.fn(),

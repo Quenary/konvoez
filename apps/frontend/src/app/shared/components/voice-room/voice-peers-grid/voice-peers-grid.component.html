@@ -6,18 +6,17 @@
       <section
         class="peers-section"
         [class]="peersSectionClass()">
-        @for (peer of peers(); track peer.id) {
+        @for (tile of tiles(); track tile.key) {
           <div class="grid-item">
             <app-voice-peer-tile
-              [peer]="peer"
-              [videoTrack]="videoTracksByPeerId()[peer.id] ?? null"
-              [screenAvailable]="screenAvailableByPeerId()[peer.id] ?? false"
-              [watchingScreen]="watchingByPeerId()[peer.id] ?? false"
-              [showingScreen]="showingScreenByPeerId()[peer.id] ?? false"
-              [screenLive]="screenLiveByPeerId()[peer.id] ?? false"
-              (watchScreen)="onWatchScreen(peer.id)"
-              (stopWatchScreen)="onStopWatchScreen(peer.id)"
-              (openTheatre)="onOpenTheatre(peer.id)" />
+              [peer]="tile.peer"
+              [streamKind]="tile.streamKind"
+              [videoTrack]="tile.videoTrack"
+              [screenAvailable]="tile.screenAvailable"
+              [watchingScreen]="tile.watchingScreen"
+              (watchScreen)="onWatchScreen(tile.peerId)"
+              (stopWatchScreen)="onStopWatchScreen(tile.peerId)"
+              (openTheatre)="onOpenTheatre(tile.peerId, tile.streamKind)" />
           </div>
         }
       </section>
@@ -27,18 +26,19 @@
   @if (theatreFocusPeer(); as focusPeer) {
     <app-voice-theatre
       [focusPeer]="focusPeer"
+      [focusStream]="theatreFocusStream()"
       [videoTrack]="theatreVideoTrack()"
-      [stripPeers]="peers()"
-      [watchingByPeerId]="watchingByPeerId()"
-      [screenLiveByPeerId]="screenLiveByPeerId()"
+      [stripTiles]="tiles()"
       [showLocalChrome]="compact()" />
   }
 
-  <app-screen-share-pip />
-
   @if (showControls()) {
     <footer class="controls-dock">
-      @if (compact() && theatreFocusPeer()) {
+      @if (
+        compact() &&
+        theatreFocusPeer() &&
+        theatreShowsRemoteScreenWatchControls()
+      ) {
         <app-voice-theatre-watch-controls />
       }
       <app-voice-controls-bar (hangup)="onHangup()" />

@@ -2,14 +2,33 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { IUser } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { AudioActivityService } from '@core/services/audio-activity.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceTheatreComponent } from './voice-theatre.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VOICE_CHROME_HIDE_MS } from '../voice-chrome-reveal';
+import { buildVoicePeerTiles } from '../voice-peer-tiles';
 
 const peer = (id: number, username = `u${id}`): IUser =>
-  ({ id, username }) as IUser;
+  ({ id, username, fullname: `User ${id}` }) as IUser;
+
+const stripTiles = () =>
+  buildVoicePeerTiles({
+    peers: [peer(1), peer(2), peer(3)],
+    localUserId: 1,
+    localCamTrack: null,
+    localScreenTrack: null,
+    remoteCamTracks: {},
+    remoteScreenTracks: {
+      2: { id: 'scr-2' } as MediaStreamTrack,
+      3: { id: 'scr-3' } as MediaStreamTrack,
+    },
+    availableScreens: {
+      2: { videoProducerId: 'p1' },
+      3: { videoProducerId: 'p2' },
+    },
+    watchingUserIds: new Set([2, 3]),
+  });
 
 describe('VoiceTheatreComponent', () => {
   let openTheatre: ReturnType<typeof vi.fn>;
@@ -27,15 +46,15 @@ describe('VoiceTheatreComponent', () => {
         }
       },
     );
+    vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined);
     TestBed.configureTestingModule({
       imports: [VoiceTheatreComponent],
       providers: [
         provideTranslateService(),
         {
-          provide: VoiceRoomStore,
+          provide: AudioActivityService,
           useValue: {
-            peerScreenGainLevels: signal({}).asReadonly(),
-            setPeerScreenGain: vi.fn(),
+            speakingMap: signal({}).asReadonly(),
           },
         },
         {
@@ -43,6 +62,9 @@ describe('VoiceTheatreComponent', () => {
           useValue: {
             chromeVisible: signal(true).asReadonly(),
             theatreFocusId: signal<number | null>(2).asReadonly(),
+            theatreFocusStream: signal<'screen' | 'cam' | null>(
+              'screen',
+            ).asReadonly(),
             theatreOpen: signal(true).asReadonly(),
             isFullscreen: signal(false).asReadonly(),
             revealChrome,
@@ -64,18 +86,17 @@ describe('VoiceTheatreComponent', () => {
   const create = (
     overrides: Partial<{
       focusPeer: IUser;
-      watchingByPeerId: Readonly<Record<number, boolean>>;
+      focusStream: 'cam' | 'screen' | null;
       showLocalChrome: boolean;
     }> = {},
   ) => {
     const fixture = TestBed.createComponent(VoiceTheatreComponent);
     fixture.componentRef.setInput('focusPeer', overrides.focusPeer ?? peer(2));
-    fixture.componentRef.setInput('stripPeers', [peer(1), peer(2), peer(3)]);
     fixture.componentRef.setInput(
-      'watchingByPeerId',
-      overrides.watchingByPeerId ?? { 2: true, 3: true },
+      'focusStream',
+      overrides.focusStream ?? 'screen',
     );
-    fixture.componentRef.setInput('screenLiveByPeerId', { 2: true });
+    fixture.componentRef.setInput('stripTiles', stripTiles());
     fixture.componentRef.setInput(
       'showLocalChrome',
       overrides.showLocalChrome ?? true,
@@ -121,10 +142,17 @@ describe('VoiceTheatreComponent', () => {
     expect(cmp['overlayVisible']()).toBe(false);
   });
 
-  it('opens another watching peer from the strip via the view service', () => {
+  it('opens another watching screen tile from the strip via the view service', () => {
     const fixture = create();
-    const cmp = fixture.componentInstance;
-    cmp['onStripPeerClick'](3);
-    expect(openTheatre).toHaveBeenCalledWith(3);
+    const tiles = stripTiles();
+    const otherScreen = tiles.find(
+      (t) => t.peerId === 3 && t.streamKind === 'screen',
+    );
+    expect(otherScreen).toBeDefined();
+    if (otherScreen == null) {
+      return;
+    }
+    fixture.componentInstance['onStripTileClick'](otherScreen);
+    expect(openTheatre).toHaveBeenCalledWith(3, 'screen');
   });
 });

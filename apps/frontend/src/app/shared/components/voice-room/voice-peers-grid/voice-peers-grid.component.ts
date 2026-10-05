@@ -15,25 +15,26 @@ import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.component';
 import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
-import { ScreenSharePipComponent } from '../screen-share-pip/screen-share-pip.component';
 import { VoiceTheatreComponent } from '../voice-theatre/voice-theatre.component';
 import { VoiceTheatreWatchControlsComponent } from '../voice-theatre-watch-controls/voice-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { resolveVoiceSessionPeers } from '../voice-session-peers';
 import { voiceSectionGridClass } from '../voice-peers-layout';
+import {
+  buildVoicePeerTiles,
+  findVoicePeerTile,
+  type TVoiceStreamKind,
+} from '../voice-peer-tiles';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { IUser } from '@konvoez/shared';
-
-type TPeerIdRecord<T> = Record<number, T>;
 
 @Component({
   selector: 'app-voice-peers-grid',
   imports: [
     VoicePeerTileComponent,
     VoiceControlsBarComponent,
-    ScreenSharePipComponent,
     VoiceTheatreComponent,
     VoiceTheatreWatchControlsComponent,
   ],
@@ -75,80 +76,55 @@ export class VoicePeersGridComponent {
     });
   });
 
-  protected readonly videoTracksByPeerId = computed(() => {
+  protected readonly tiles = computed(() => {
     const me = this.currentUser();
-    const localCam = this.peerVideoService.localCamTrack();
-    const remoteTracks = this.peerVideoService.remoteTracks();
-    const byPeerId: TPeerIdRecord<MediaStreamTrack | null> = {};
-    for (const peer of this.peers()) {
-      const isLocal = Boolean(me && me.id === peer.id);
-      byPeerId[peer.id] = isLocal ? localCam : (remoteTracks[peer.id] ?? null);
-    }
-    return byPeerId;
-  });
-
-  protected readonly screenAvailableByPeerId = computed(() => {
-    const me = this.currentUser();
-    const available = this.peerVideoService.availableScreens();
-    const localScreen = this.peerVideoService.localScreenTrack();
-    const byPeerId: TPeerIdRecord<boolean> = {};
-    for (const peer of this.peers()) {
-      const isLocal = Boolean(me && me.id === peer.id);
-      byPeerId[peer.id] = isLocal
-        ? localScreen !== null
-        : Boolean(available[peer.id]?.videoProducerId);
-    }
-    return byPeerId;
-  });
-
-  protected readonly watchingByPeerId = computed(() => {
-    const watching = this.peerVideoService.watchingUserIds();
-    const byPeerId: TPeerIdRecord<boolean> = {};
-    for (const peer of this.peers()) {
-      byPeerId[peer.id] = watching.has(peer.id);
-    }
-    return byPeerId;
-  });
-
-  protected readonly showingScreenByPeerId = computed(() => {
-    const me = this.currentUser();
-    const watching = this.peerVideoService.watchingUserIds();
-    const byPeerId: TPeerIdRecord<boolean> = {};
-    for (const peer of this.peers()) {
-      const isLocal = Boolean(me && me.id === peer.id);
-      byPeerId[peer.id] = !isLocal && watching.has(peer.id);
-    }
-    return byPeerId;
-  });
-
-  protected readonly screenLiveByPeerId = computed(() => {
-    return this.screenAvailableByPeerId();
+    return buildVoicePeerTiles({
+      peers: this.peers(),
+      localUserId: me?.id ?? null,
+      localCamTrack: this.peerVideoService.localCamTrack(),
+      localScreenTrack: this.peerVideoService.localScreenTrack(),
+      remoteCamTracks: this.peerVideoService.remoteCamTracks(),
+      remoteScreenTracks: this.peerVideoService.remoteScreenTracks(),
+      availableScreens: this.peerVideoService.availableScreens(),
+      watchingUserIds: this.peerVideoService.watchingUserIds(),
+    });
   });
 
   protected readonly peersSectionClass = computed(() =>
-    voiceSectionGridClass(this.peers().length),
+    voiceSectionGridClass(this.tiles().length),
   );
 
+  protected readonly theatreFocus = this.voiceRoomViewService.theatreFocus;
+  protected readonly theatreFocusStream =
+    this.voiceRoomViewService.theatreFocusStream;
+  protected readonly theatreShowsRemoteScreenWatchControls =
+    this.voiceRoomViewService.theatreShowsRemoteScreenWatchControls;
+
   protected readonly theatreFocusPeer = computed((): IUser | null => {
-    const id = this.voiceRoomViewService.theatreFocusId();
-    const peers = this.peers();
-    if (id == null) {
+    const focus = this.theatreFocus();
+    if (focus == null) {
       return null;
     }
-    return peers.find((peer) => peer.id === id) ?? null;
+    return this.peers().find((peer) => peer.id === focus.peerId) ?? null;
   });
 
   protected readonly theatreVideoTrack = computed(() => {
-    const peer = this.theatreFocusPeer();
-    const tracks = this.videoTracksByPeerId();
-    if (!peer) {
+    const focus = this.theatreFocus();
+    if (focus == null) {
       return null;
     }
-    return tracks[peer.id] ?? null;
+    const tile = findVoicePeerTile(this.tiles(), focus.peerId, focus.stream);
+    return tile?.videoTrack ?? null;
   });
 
-  protected onOpenTheatre(userId: number): void {
-    this.voiceRoomViewService.openTheatre(userId);
+  protected onOpenTheatre(
+    userId: number,
+    streamKind: TVoiceStreamKind | null,
+  ): void {
+    if (streamKind == null) {
+      return;
+    }
+    this.voiceRoomViewService.openTheatre(userId, streamKind);
   }
 
   protected async onWatchScreen(userId: number): Promise<void> {

@@ -1,11 +1,13 @@
 <div tuiGroup>
   <button
-    tuiButton
+    tuiIconButton
     appearance="accent"
     size="m"
     type="button"
+    iconStart="@tui.screen-share-off"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.STOP_WATCH_SCREEN' | translate"
     (click)="onStopWatch()">
-    {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
   </button>
 
   <button

@@ -15,6 +15,12 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceChromeReveal } from './voice-chrome-reveal';
+import type { TVoiceStreamKind } from './voice-peer-tiles';
+
+export type TTheatreFocus = {
+  peerId: number;
+  stream: TVoiceStreamKind;
+};
 
 @Injectable({ providedIn: 'root' })
 export class VoiceRoomViewService {
@@ -26,35 +32,70 @@ export class VoiceRoomViewService {
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly chrome = new VoiceChromeReveal(true);
-  private readonly focusId = signal<number | null>(null);
+  private readonly focus = signal<TTheatreFocus | null>(null);
   private readonly fullscreen = signal(false);
   private hostEl: HTMLElement | null = null;
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly chromeVisible = this.chrome.visible.asReadonly();
-  public readonly theatreFocusId = this.focusId.asReadonly();
-  public readonly theatreOpen = computed(() => this.focusId() != null);
+  public readonly theatreFocus = this.focus.asReadonly();
+  public readonly theatreFocusId = computed(() => this.focus()?.peerId ?? null);
+  public readonly theatreFocusStream = computed(
+    () => this.focus()?.stream ?? null,
+  );
+  public readonly theatreOpen = computed(() => this.focus() != null);
   public readonly isFullscreen = this.fullscreen.asReadonly();
 
   constructor() {
     this.destroyRef.onDestroy(() => this.chrome.destroy());
 
     effect(() => {
-      const id = this.focusId();
+      const focus = this.focus();
       const watching = this.peerVideoService.watchingUserIds();
       const peers = this.voiceRoomStore.peersList();
       const me = this.currentUser();
       const interlocutor = this.directCallService.interlocutor();
-      if (id == null) {
+      const localCam = this.peerVideoService.localCamTrack();
+      const localScreen = this.peerVideoService.localScreenTrack();
+      const remoteCam = this.peerVideoService.remoteCamTracks();
+
+      if (focus == null) {
         return;
       }
+
       const present =
-        peers.some((peer) => peer.id === id) ||
-        me?.id === id ||
-        interlocutor?.id === id;
-      if (!watching.has(id) || !present) {
-        this.focusId.set(null);
+        peers.some((peer) => peer.id === focus.peerId) ||
+        me?.id === focus.peerId ||
+        interlocutor?.id === focus.peerId;
+      if (!present) {
+        this.focus.set(null);
+        return;
+      }
+
+      const isLocal = me?.id === focus.peerId;
+      if (focus.stream === 'screen') {
+        if (isLocal) {
+          if (localScreen == null) {
+            this.focus.set(null);
+          }
+          return;
+        }
+        if (!watching.has(focus.peerId)) {
+          this.focus.set(null);
+        }
+        return;
+      }
+
+      if (isLocal) {
+        if (localCam == null) {
+          this.focus.set(null);
+        }
+        return;
+      }
+
+      if (remoteCam[focus.peerId] == null) {
+        this.focus.set(null);
       }
     });
 
@@ -88,22 +129,43 @@ export class VoiceRoomViewService {
     this.hostEl = element;
   }
 
-  public openTheatre(userId: number): void {
+  public openTheatre(peerId: number, stream: TVoiceStreamKind): void {
     const me = this.currentUser();
     const watching = this.peerVideoService.watchingUserIds();
-    if (me && me.id === userId) {
+    const isLocal = me?.id === peerId;
+
+    if (stream === 'screen') {
+      if (isLocal) {
+        if (this.peerVideoService.localScreenTrack() == null) {
+          return;
+        }
+      } else if (!watching.has(peerId)) {
+        return;
+      }
+    } else if (isLocal) {
+      if (this.peerVideoService.localCamTrack() == null) {
+        return;
+      }
+    } else if (this.peerVideoService.remoteCamTracks()[peerId] == null) {
       return;
     }
-    if (!watching.has(userId)) {
-      return;
-    }
-    this.focusId.set(userId);
+
+    this.focus.set({ peerId, stream });
     this.revealChrome();
   }
 
   public closeTheatre(): void {
-    this.focusId.set(null);
+    this.focus.set(null);
   }
+
+  public readonly theatreShowsRemoteScreenWatchControls = computed(() => {
+    const focus = this.focus();
+    const me = this.currentUser();
+    if (focus == null || focus.stream !== 'screen') {
+      return false;
+    }
+    return me?.id !== focus.peerId;
+  });
 
   public async toggleFullscreen(target?: HTMLElement | null): Promise<void> {
     const element = target ?? this.hostEl;
@@ -122,10 +184,10 @@ export class VoiceRoomViewService {
   }
 
   public async stopWatchingFocus(): Promise<void> {
-    const id = this.focusId();
-    if (id == null) {
+    const focus = this.focus();
+    if (focus == null) {
       return;
     }
-    await this.voiceSessionService.stopWatchingPeerScreen(id);
+    await this.voiceSessionService.stopWatchingPeerScreen(focus.peerId);
   }
 }

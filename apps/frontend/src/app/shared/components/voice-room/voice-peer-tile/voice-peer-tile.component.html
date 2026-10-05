@@ -4,38 +4,54 @@
 <div
   class="tile"
   [class.speaking]="isSpeaking()"
-  [class.screen]="showingScreen()">
-  @if (videoTrack()) {
+  [class.screen]="showingScreen()"
+  [class.preview-paused]="previewPaused()">
+  @if (videoTrack() && !(isLocalScreenPreview() && previewPaused())) {
     <video
       #videoEl
       class="video"
-      [class.clickable]="watchingScreen()"
+      [class.clickable]="videoClickable()"
       autoplay
       playsinline
       muted
       (click)="onVideoActivate()"></video>
+  } @else if (isLocalScreenPreview() && previewPaused()) {
+    <div class="preview-paused-overlay">
+      <p class="preview-paused-text">{{ 'CALL.PREVIEW_PAUSED' | translate }}</p>
+      <button
+        tuiButton
+        size="s"
+        type="button"
+        (click)="onResumePreview()">
+        {{ 'CALL.PREVIEW_RESUME' | translate }}
+      </button>
+    </div>
   } @else {
-    <app-user-avatar
-      class="avatar"
-      size="xl"
-      [username]="p.username"
-      [fullname]="p.fullname"
-      [avatarUrl]="p.avatarUrl"
-      [talking]="isSpeaking()" />
+    <div class="idle-media">
+      <app-user-avatar
+        class="avatar"
+        size="xl"
+        [username]="p.username"
+        [fullname]="p.fullname"
+        [avatarUrl]="p.avatarUrl"
+        [talking]="isSpeaking()" />
+
+      @if (showWatchButton()) {
+        <button
+          class="watch-cta"
+          tuiButton
+          appearance="primary"
+          size="s"
+          type="button"
+          iconStart="@tui.screen-share"
+          (click)="onWatchClick()">
+          {{ 'CALL.WATCH_SCREEN' | translate }}
+        </button>
+      }
+    </div>
   }
 
   <div class="badges">
-    @if (screenLive()) {
-      <span
-        appearance="negative"
-        size="m"
-        tuiBadge
-        class="badge-live"
-        tuiHintAppearance="floating"
-        [tuiHint]="'CALL.LIVE' | translate">
-        {{ 'CALL.LIVE' | translate }}
-      </span>
-    }
     @if (isCalling()) {
       <tui-icon
         appearance="info"
@@ -82,75 +98,74 @@
         @if (isLocal()) {
           <span class="you">({{ 'CALL.YOU' | translate }})</span>
         }
+        @if (streamKind() === 'screen' && isLocal()) {
+          <span class="stream-kind-label">
+            — {{ 'CALL.YOUR_SCREEN' | translate }}
+          </span>
+        }
+        @if (streamKind() === 'cam' && isLocal() && screenAvailable()) {
+          <span class="stream-kind-label">
+            — {{ 'CALL.CAMERA' | translate }}</span
+          >
+        }
       </span>
 
       @if (!isLocal()) {
-        <button
-          tuiIconButton
-          appearance="flat"
-          size="s"
-          type="button"
-          tuiDropdownAuto
-          tuiDropdownDirection="top"
-          [iconStart]="volumeIcon()"
-          [tuiDropdown]="volumeDropdown"
-          tuiHintAppearance="floating"
-          [tuiHint]="'CALL.VOLUME' | translate">
-        </button>
+        <div class="info-actions">
+          @if (showStopWatchButton()) {
+            <div tuiGroup>
+              <button
+                tuiIconButton
+                appearance="accent"
+                size="s"
+                type="button"
+                iconStart="@tui.screen-share-off"
+                tuiHintAppearance="floating"
+                [tuiHint]="'CALL.STOP_WATCH_SCREEN' | translate"
+                (click)="onStopWatchClick()">
+              </button>
 
-        <ng-template #volumeDropdown>
-          <label
-            tuiLabel
-            class="volume">
-            {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
-            <input
-              tuiSlider
-              type="range"
-              min="0"
-              max="200"
-              step="5"
-              [ngModel]="volume()"
-              (ngModelChange)="onVolumeChange($event)" />
-          </label>
-        </ng-template>
-      }
-    </div>
+              <button
+                tuiIconButton
+                appearance="primary"
+                size="s"
+                type="button"
+                iconStart="@tui.maximize"
+                tuiHintAppearance="floating"
+                [tuiHint]="'CALL.OPEN_THEATRE' | translate"
+                (click)="onOpenTheatreClick()">
+              </button>
 
-    @if (showStreamRow()) {
-      <div class="stream-row">
-        <span class="stream-label">{{ 'CALL.STREAMING' | translate }}</span>
+              <button
+                tuiIconButton
+                appearance="primary"
+                size="s"
+                type="button"
+                tuiDropdownAuto
+                tuiDropdownDirection="top"
+                iconStart="@tui.volume-2"
+                [tuiDropdown]="screenVolumeDropdown"
+                tuiHintAppearance="floating"
+                [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
+              </button>
+            </div>
 
-        @if (showWatchButton()) {
-          <button
-            tuiButton
-            appearance="primary"
-            size="s"
-            type="button"
-            (click)="onWatchClick()">
-            {{ 'CALL.WATCH_SCREEN' | translate }}
-          </button>
-        }
-
-        @if (showStopWatchButton()) {
-          <button
-            tuiButton
-            appearance="accent"
-            size="s"
-            type="button"
-            (click)="onStopWatchClick()">
-            {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
-          </button>
-
-          <button
-            tuiIconButton
-            appearance="flat"
-            size="s"
-            type="button"
-            iconStart="@tui.maximize"
-            tuiHintAppearance="floating"
-            [tuiHint]="'CALL.OPEN_THEATRE' | translate"
-            (click)="onOpenTheatreClick()">
-          </button>
+            <ng-template #screenVolumeDropdown>
+              <label
+                tuiLabel
+                class="volume">
+                {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
+                <input
+                  tuiSlider
+                  type="range"
+                  min="0"
+                  max="200"
+                  step="5"
+                  [ngModel]="screenVolume()"
+                  (ngModelChange)="onScreenVolumeChange($event)" />
+              </label>
+            </ng-template>
+          }
 
           <button
             tuiIconButton
@@ -159,29 +174,42 @@
             type="button"
             tuiDropdownAuto
             tuiDropdownDirection="top"
-            iconStart="@tui.volume-2"
-            [tuiDropdown]="screenVolumeDropdown"
+            [iconStart]="volumeIcon()"
+            [tuiDropdown]="volumeDropdown"
             tuiHintAppearance="floating"
-            [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
+            [tuiHint]="'CALL.VOLUME' | translate">
           </button>
 
-          <ng-template #screenVolumeDropdown>
+          <ng-template #volumeDropdown>
             <label
               tuiLabel
               class="volume">
-              {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
+              {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
               <input
                 tuiSlider
                 type="range"
                 min="0"
                 max="200"
                 step="5"
-                [ngModel]="screenVolume()"
-                (ngModelChange)="onScreenVolumeChange($event)" />
+                [ngModel]="volume()"
+                (ngModelChange)="onVolumeChange($event)" />
             </label>
           </ng-template>
-        }
-      </div>
+        </div>
+      }
+    </div>
+
+    @if (showLocalScreenPreviewControls()) {
+      <label
+        tuiLabel
+        class="auto-pause-row">
+        <input
+          tuiCheckbox
+          type="checkbox"
+          [ngModel]="autoPauseWhenHidden()"
+          (ngModelChange)="onAutoPauseWhenHiddenChange($event)" />
+        {{ 'CALL.PREVIEW_AUTO_PAUSE' | translate }}
+      </label>
     }
   </div>
 </div>

@@ -16,10 +16,16 @@ import { preferTheatreStripRight } from '../voice-peers-layout';
 import { VoiceChromeReveal } from '../voice-chrome-reveal';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceTheatreActionsComponent } from '../voice-theatre-actions/voice-theatre-actions.component';
+import { VoicePeerTileMiniComponent } from '../voice-peer-tile-mini/voice-peer-tile-mini.component';
+import type { TVoicePeerTile, TVoiceStreamKind } from '../voice-peer-tiles';
 
 @Component({
   selector: 'app-voice-theatre',
-  imports: [TranslatePipe, VoiceTheatreActionsComponent],
+  imports: [
+    TranslatePipe,
+    VoiceTheatreActionsComponent,
+    VoicePeerTileMiniComponent,
+  ],
   templateUrl: './voice-theatre.component.html',
   styleUrl: './voice-theatre.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,12 +36,9 @@ export class VoiceTheatreComponent {
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
   public readonly focusPeer = input.required<IUser>();
+  public readonly focusStream = input<TVoiceStreamKind | null>(null);
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
-  public readonly stripPeers = input.required<readonly IUser[]>();
-  public readonly watchingByPeerId =
-    input.required<Readonly<Record<number, boolean>>>();
-  public readonly screenLiveByPeerId =
-    input.required<Readonly<Record<number, boolean>>>();
+  public readonly stripTiles = input.required<readonly TVoicePeerTile[]>();
   public readonly showLocalChrome = input(false);
 
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
@@ -51,6 +54,8 @@ export class VoiceTheatreComponent {
     const local = this.chrome.visible();
     return showLocal && local;
   });
+
+  protected readonly focusId = computed(() => this.focusPeer().id);
 
   constructor() {
     effect(() => {
@@ -83,6 +88,22 @@ export class VoiceTheatreComponent {
     }
   }
 
+  protected isStripTileActive(tile: TVoicePeerTile): boolean {
+    const focus = this.focusId();
+    const stream = this.focusStream();
+    return tile.peerId === focus && tile.streamKind === stream;
+  }
+
+  protected isStripTileDisabled(tile: TVoicePeerTile): boolean {
+    if (this.isStripTileActive(tile)) {
+      return false;
+    }
+    if (tile.streamKind == null) {
+      return true;
+    }
+    return tile.videoTrack == null;
+  }
+
   protected onVideoMetadata(event: Event): void {
     const video = event.target as HTMLVideoElement;
     if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -105,11 +126,14 @@ export class VoiceTheatreComponent {
     this.revealOverlay();
   }
 
-  protected onStripPeerClick(peerId: number): void {
-    if (peerId === this.focusPeer().id) {
+  protected onStripTileClick(tile: TVoicePeerTile): void {
+    if (this.isStripTileDisabled(tile) || tile.streamKind == null) {
       return;
     }
-    this.voiceRoomViewService.openTheatre(peerId);
+    if (this.isStripTileActive(tile)) {
+      return;
+    }
+    this.voiceRoomViewService.openTheatre(tile.peerId, tile.streamKind);
   }
 
   private updateStripPlacement(): void {

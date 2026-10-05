@@ -12,17 +12,17 @@ describe('PeerVideoService', () => {
     service = TestBed.inject(PeerVideoService);
   });
 
-  it('uses cam only for local tile track; screen stays separate', () => {
+  it('keeps local cam and screen tracks separate', () => {
     const cam = { id: 'cam' } as MediaStreamTrack;
     const screen = { id: 'screen' } as MediaStreamTrack;
     service.setLocalCamTrack(cam);
-    expect(service.localTrack()).toBe(cam);
+    expect(service.localCamTrack()).toBe(cam);
     service.setLocalScreenTrack(screen);
-    expect(service.localTrack()).toBe(cam);
+    expect(service.localCamTrack()).toBe(cam);
     expect(service.localScreenTrack()).toBe(screen);
   });
 
-  it('registers available screen and prefers screen when watching', () => {
+  it('exposes cam and screen remote tracks separately', () => {
     const close = vi.fn();
     const camTrack = { id: 'cam' } as MediaStreamTrack;
     const screenTrack = { id: 'screen' } as MediaStreamTrack;
@@ -36,7 +36,8 @@ describe('PeerVideoService', () => {
       } as never,
       'cam',
     );
-    expect(service.remoteTracks()[7]).toBe(camTrack);
+    expect(service.remoteCamTracks()[7]).toBe(camTrack);
+    expect(service.remoteScreenTracks()[7]).toBeUndefined();
 
     service.registerAvailableScreen(7, 'scr1', 'video');
     service.registerAvailableScreen(7, 'aud1', 'audio');
@@ -58,7 +59,8 @@ describe('PeerVideoService', () => {
       'screen',
     );
     expect(service.isWatching(7)).toBe(true);
-    expect(service.remoteTracks()[7]).toBe(screenTrack);
+    expect(service.remoteCamTracks()[7]).toBe(camTrack);
+    expect(service.remoteScreenTracks()[7]).toBe(screenTrack);
   });
 
   it('clears watching when screen producer is unregistered', () => {

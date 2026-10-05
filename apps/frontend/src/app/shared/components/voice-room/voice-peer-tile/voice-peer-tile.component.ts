@@ -1,31 +1,50 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   ElementRef,
   inject,
   input,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { DirectCallService } from '@core/services/direct-call.service';
+import { SettingsStore } from '@features/settings/settings.store';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
   TuiButton,
+  TuiCheckbox,
   TuiDropdown,
+  TuiGroup,
   TuiHint,
   TuiLabel,
   TuiSlider,
 } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
+import type { TVoiceStreamKind } from '../voice-peer-tiles';
+import {
+  combineLatest,
+  distinctUntilChanged,
+  fromEvent,
+  map,
+  merge,
+  of,
+  switchMap,
+  timer,
+} from 'rxjs';
+
+const PREVIEW_PAUSE_MS = 5_000;
 
 @Component({
   selector: 'app-voice-peer-tile',
@@ -34,12 +53,14 @@ import { TranslatePipe } from '@ngx-translate/core';
     UserAvatarComponent,
     TuiBadge,
     TuiButton,
+    TuiCheckbox,
     TuiDropdown,
     TuiHint,
     TuiLabel,
     TuiSlider,
     TuiAutoColorPipe,
     TranslatePipe,
+    TuiGroup,
   ],
   templateUrl: './voice-peer-tile.component.html',
   styleUrl: './voice-peer-tile.component.scss',
@@ -50,50 +71,133 @@ export class VoicePeerTileComponent {
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly directCallService = inject(DirectCallService);
+  private readonly settingsStore = inject(SettingsStore);
+  private readonly destroyRef = inject(DestroyRef);
+
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly peer = input.required<IUser>();
+  public readonly streamKind = input<TVoiceStreamKind | null>(null);
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);
   public readonly watchingScreen = input(false);
-  public readonly showingScreen = input(false);
-  /** Screen share is live (available), even before watch — Discord-style LIVE. */
-  public readonly screenLive = input(false);
 
   public readonly watchScreen = output<void>();
   public readonly stopWatchScreen = output<void>();
   public readonly openTheatre = output<void>();
 
-  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
+  protected readonly previewPaused = signal(false);
+  protected readonly autoPauseWhenHidden =
+    this.settingsStore.screenPreviewAutoPauseWhenHidden;
 
-  constructor() {
-    effect(() => {
-      const el = this.videoEl()?.nativeElement;
-      const track = this.videoTrack();
-      if (!el) {
-        return;
-      }
-      if (track) {
-        const stream = el.srcObject;
-        if (
-          stream instanceof MediaStream &&
-          stream.getVideoTracks()[0] === track
-        ) {
-          return;
-        }
-        el.srcObject = new MediaStream([track]);
-        void el.play().catch(() => undefined);
-      } else {
-        el.srcObject = null;
-      }
-    });
-  }
+  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
   protected readonly isLocal = computed(() => {
     const me = this.currentUser();
     const p = this.peer();
     return Boolean(me && p && me.id === p.id);
   });
+
+  protected readonly isLocalScreenPreview = computed(
+    () => this.isLocal() && this.streamKind() === 'screen',
+  );
+
+  protected readonly showingScreen = computed(
+    () => this.streamKind() === 'screen' && this.videoTrack() !== null,
+  );
+
+  protected readonly showLocalScreenPreviewControls = computed(
+    () => this.isLocalScreenPreview() && this.videoTrack() !== null,
+  );
+
+  constructor() {
+    const visibilityHidden$ = merge(
+      fromEvent(document, 'visibilitychange'),
+      of(null),
+    ).pipe(
+      map(() => document.visibilityState === 'hidden'),
+      distinctUntilChanged(),
+    );
+
+    const windowFocused$ = merge(
+      fromEvent(window, 'focus').pipe(map(() => true)),
+      fromEvent(window, 'blur').pipe(map(() => false)),
+      of(typeof document !== 'undefined' ? document.hasFocus() : true),
+    ).pipe(distinctUntilChanged());
+
+    const previewContextInactive$ = combineLatest([
+      visibilityHidden$,
+      windowFocused$,
+    ]).pipe(
+      map(([hidden, focused]) => hidden || !focused),
+      distinctUntilChanged(),
+    );
+
+    combineLatest([
+      previewContextInactive$,
+      toObservable(this.autoPauseWhenHidden),
+      toObservable(this.videoTrack),
+      toObservable(this.streamKind),
+      toObservable(this.isLocal),
+    ])
+      .pipe(
+        switchMap(([inactive, autoPause, track, kind, isLocal]) => {
+          const isLocalScreen = isLocal && kind === 'screen' && track != null;
+          if (!inactive || !autoPause || !isLocalScreen) {
+            return of(null);
+          }
+          return timer(PREVIEW_PAUSE_MS);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        if (!this.isLocalScreenPreview()) {
+          return;
+        }
+        if (
+          this.isPreviewContextInactive() &&
+          this.videoTrack() &&
+          this.autoPauseWhenHidden()
+        ) {
+          this.previewPaused.set(true);
+        }
+      });
+
+    effect(() => {
+      const el = this.videoEl()?.nativeElement;
+      const track = this.videoTrack();
+      const paused = this.previewPaused();
+      const localScreenPreview = this.isLocalScreenPreview();
+
+      if (!el) {
+        return;
+      }
+
+      if (!track || (localScreenPreview && paused)) {
+        el.srcObject = null;
+        return;
+      }
+
+      const stream = el.srcObject;
+      if (
+        stream instanceof MediaStream &&
+        stream.getVideoTracks()[0] === track
+      ) {
+        void el.play()?.catch(() => undefined);
+        return;
+      }
+      el.srcObject = new MediaStream([track]);
+      void el.play()?.catch(() => undefined);
+    });
+
+    effect(() => {
+      const track = this.videoTrack();
+      const kind = this.streamKind();
+      if (!this.isLocal() || kind !== 'screen' || track == null) {
+        this.previewPaused.set(false);
+      }
+    });
+  }
 
   protected readonly isCalling = computed(() => {
     const isLocal = this.isLocal();
@@ -142,7 +246,10 @@ export class VoicePeerTileComponent {
   });
 
   protected readonly showStreamRow = computed(
-    () => !this.isLocal() && this.screenAvailable(),
+    () =>
+      !this.isLocal() &&
+      this.streamKind() === 'screen' &&
+      this.screenAvailable(),
   );
 
   protected readonly showWatchButton = computed(
@@ -151,6 +258,10 @@ export class VoicePeerTileComponent {
 
   protected readonly showStopWatchButton = computed(
     () => this.showStreamRow() && this.watchingScreen(),
+  );
+
+  protected readonly videoClickable = computed(
+    () => this.videoTrack() !== null && !this.previewPaused(),
   );
 
   protected onVolumeChange(value: number): void {
@@ -174,8 +285,23 @@ export class VoicePeerTileComponent {
   }
 
   protected onVideoActivate(): void {
-    if (this.watchingScreen()) {
+    if (this.videoTrack() && !this.previewPaused()) {
       this.openTheatre.emit();
     }
+  }
+
+  protected onResumePreview(): void {
+    this.previewPaused.set(false);
+  }
+
+  protected onAutoPauseWhenHiddenChange(enabled: boolean): void {
+    this.settingsStore.setScreenPreviewAutoPauseWhenHidden(enabled);
+    if (!enabled) {
+      this.previewPaused.set(false);
+    }
+  }
+
+  private isPreviewContextInactive(): boolean {
+    return document.visibilityState === 'hidden' || !document.hasFocus();
   }
 }

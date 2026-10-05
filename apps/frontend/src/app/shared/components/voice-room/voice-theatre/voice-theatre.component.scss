@@ -40,7 +40,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: black;
 }
 
 .stage-empty {
@@ -78,8 +78,7 @@
   display: flex;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: var(--tui-background-elevation-2);
-  border-top: 1px solid var(--tui-border-normal);
+  background: black;
   overflow: auto;
 }
 
@@ -89,24 +88,25 @@
   border-left: 1px solid var(--tui-border-normal);
 }
 
-.strip-tile {
+.strip-tile-wrap {
   appearance: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  min-width: 7rem;
-  padding: 0.5rem 0.65rem;
-  border: 1px solid var(--tui-border-normal);
+  flex: 0 0 auto;
+  width: 7.5rem;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 2px solid transparent;
   border-radius: var(--tui-radius-m);
-  background: var(--tui-background-neutral-1);
-  color: var(--tui-text-primary);
+  background: transparent;
   cursor: pointer;
-  text-align: left;
+  overflow: hidden;
 
   &:disabled {
     opacity: 0.55;
     cursor: default;
+  }
+
+  &:not(:disabled):hover {
+    border-color: var(--tui-border-hover);
   }
 
   &.active {
@@ -114,22 +114,24 @@
     box-shadow: 0 0 0 1px var(--tui-status-info);
   }
 
-  &.watching:not(.active) {
+  &:has(app-voice-peer-tile-mini.speaking) {
     border-color: var(--tui-status-positive);
+    box-shadow:
+      0 0 0 2px var(--tui-status-positive),
+      0 0 1rem var(--tui-status-positive-pale);
   }
-}
 
-.strip-name {
-  font: var(--tui-font-text-s);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
+  &.active:has(app-voice-peer-tile-mini.speaking) {
+    border-color: var(--tui-status-positive);
+    box-shadow:
+      0 0 0 2px var(--tui-status-positive),
+      0 0 1rem var(--tui-status-positive-pale);
+  }
 
-.strip-live {
-  font: var(--tui-font-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--tui-status-negative);
+  app-voice-peer-tile-mini {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
 }

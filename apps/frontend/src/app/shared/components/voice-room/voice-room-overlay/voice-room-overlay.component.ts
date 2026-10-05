@@ -57,6 +57,8 @@ export class VoiceRoomOverlayComponent {
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly theatreOpen = this.voiceRoomViewService.theatreOpen;
+  protected readonly theatreShowsRemoteScreenWatchControls =
+    this.voiceRoomViewService.theatreShowsRemoteScreenWatchControls;
   protected readonly isFullscreen = this.voiceRoomViewService.isFullscreen;
 
   protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? '');

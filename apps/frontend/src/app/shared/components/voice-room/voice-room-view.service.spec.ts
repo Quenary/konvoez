@@ -16,6 +16,11 @@ describe('VoiceRoomViewService', () => {
   let remotePeers: ReturnType<typeof signal<readonly IUser[]>>;
   let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
   let interlocutor: ReturnType<typeof signal<IUser | null>>;
+  let localCamTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
+  let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
+  let remoteCamTracks: ReturnType<
+    typeof signal<Readonly<Record<number, MediaStreamTrack>>>
+  >;
   let stopWatchingPeerScreen: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -23,6 +28,9 @@ describe('VoiceRoomViewService', () => {
     remotePeers = signal([user(2), user(3)]);
     watchingUserIds = signal(new Set([2]));
     interlocutor = signal(null);
+    localCamTrack = signal<MediaStreamTrack | null>(null);
+    localScreenTrack = signal<MediaStreamTrack | null>(null);
+    remoteCamTracks = signal<Record<number, MediaStreamTrack>>({});
     stopWatchingPeerScreen = vi.fn().mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
@@ -44,6 +52,9 @@ describe('VoiceRoomViewService', () => {
           provide: PeerVideoService,
           useValue: {
             watchingUserIds: watchingUserIds.asReadonly(),
+            localCamTrack: localCamTrack.asReadonly(),
+            localScreenTrack: localScreenTrack.asReadonly(),
+            remoteCamTracks: remoteCamTracks.asReadonly(),
           },
         },
         {
@@ -64,25 +75,43 @@ describe('VoiceRoomViewService', () => {
     vi.restoreAllMocks();
   });
 
-  it('opens theatre for a watched remote peer and ignores the local user', () => {
+  it('opens theatre for a watched remote screen', () => {
     const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(1);
-    expect(view.theatreFocusId()).toBeNull();
-
-    view.openTheatre(2);
+    view.openTheatre(2, 'screen');
     expect(view.theatreFocusId()).toBe(2);
+    expect(view.theatreFocusStream()).toBe('screen');
     expect(view.theatreOpen()).toBe(true);
   });
 
-  it('does not open theatre for a peer that is not being watched', () => {
+  it('opens theatre for local camera when track exists', () => {
+    localCamTrack.set({ id: 'cam' } as MediaStreamTrack);
     const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(3);
+    view.openTheatre(1, 'cam');
+    expect(view.theatreFocus()).toEqual({ peerId: 1, stream: 'cam' });
+  });
+
+  it('does not open theatre for local screen without track', () => {
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(1, 'screen');
     expect(view.theatreOpen()).toBe(false);
   });
 
-  it('closes theatre when the focused peer is no longer watched', () => {
+  it('does not open theatre for a peer that is not being watched (screen)', () => {
     const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(2);
+    view.openTheatre(3, 'screen');
+    expect(view.theatreOpen()).toBe(false);
+  });
+
+  it('opens remote cam without watching screen', () => {
+    remoteCamTracks.set({ 3: { id: 'cam' } as MediaStreamTrack });
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(3, 'cam');
+    expect(view.theatreFocusStream()).toBe('cam');
+  });
+
+  it('closes theatre when the focused peer stops watching screen', () => {
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(2, 'screen');
     expect(view.theatreOpen()).toBe(true);
 
     watchingUserIds.set(new Set());
@@ -90,9 +119,18 @@ describe('VoiceRoomViewService', () => {
     expect(view.theatreOpen()).toBe(false);
   });
 
+  it('keeps theatre open for cam when watching set clears', () => {
+    remoteCamTracks.set({ 2: { id: 'cam' } as MediaStreamTrack });
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(2, 'cam');
+    watchingUserIds.set(new Set());
+    TestBed.flushEffects();
+    expect(view.theatreOpen()).toBe(true);
+  });
+
   it('closes theatre on Escape when not fullscreen', () => {
     const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(2);
+    view.openTheatre(2, 'screen');
     document.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
     );
@@ -101,14 +139,14 @@ describe('VoiceRoomViewService', () => {
 
   it('stops watching the focused peer', async () => {
     const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(2);
+    view.openTheatre(2, 'screen');
     await view.stopWatchingFocus();
     expect(stopWatchingPeerScreen).toHaveBeenCalledWith(2);
   });
 
   it('fullscreens the attached host without closing theatre', async () => {
     const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(2);
+    view.openTheatre(2, 'screen');
     const host = document.createElement('div');
     const requestFullscreen = vi.fn().mockResolvedValue(undefined);
     host.requestFullscreen = requestFullscreen;
@@ -130,8 +168,23 @@ describe('VoiceRoomViewService', () => {
       configurable: true,
       value: exitFullscreen,
     });
-    view.openTheatre(2);
+    view.openTheatre(2, 'screen');
     view.closeTheatre();
     expect(exitFullscreen).not.toHaveBeenCalled();
+  });
+
+  it('exposes remote screen watch controls only for remote screen focus', () => {
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(2, 'screen');
+    expect(view.theatreShowsRemoteScreenWatchControls()).toBe(true);
+
+    view.openTheatre(2, 'cam');
+    remoteCamTracks.set({ 2: { id: 'cam' } as MediaStreamTrack });
+    view.openTheatre(2, 'cam');
+    expect(view.theatreShowsRemoteScreenWatchControls()).toBe(false);
+
+    localScreenTrack.set({ id: 'scr' } as MediaStreamTrack);
+    view.openTheatre(1, 'screen');
+    expect(view.theatreShowsRemoteScreenWatchControls()).toBe(false);
   });
 });

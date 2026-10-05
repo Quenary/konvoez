@@ -22,7 +22,10 @@ const user = (id: number): IUser =>
 describe('VoicePeersGridComponent', () => {
   let currentUser: ReturnType<typeof signal<IUser | null>>;
   let remotePeers: ReturnType<typeof signal<readonly IUser[]>>;
-  let remoteTracks: ReturnType<
+  let remoteCamTracks: ReturnType<
+    typeof signal<Readonly<Record<number, MediaStreamTrack>>>
+  >;
+  let remoteScreenTracks: ReturnType<
     typeof signal<Readonly<Record<number, MediaStreamTrack>>>
   >;
   let availableScreens: ReturnType<
@@ -39,7 +42,8 @@ describe('VoicePeersGridComponent', () => {
   beforeEach(() => {
     currentUser = signal(user(1));
     remotePeers = signal([user(2), user(3)]);
-    remoteTracks = signal<Record<number, MediaStreamTrack>>({});
+    remoteCamTracks = signal<Record<number, MediaStreamTrack>>({});
+    remoteScreenTracks = signal<Record<number, MediaStreamTrack>>({});
     availableScreens = signal<Record<number, { videoProducerId: string }>>({});
     watchingUserIds = signal(new Set<number>());
     localCamTrack = signal<MediaStreamTrack | null>(null);
@@ -90,7 +94,8 @@ describe('VoicePeersGridComponent', () => {
           useValue: {
             localCamTrack: localCamTrack.asReadonly(),
             localScreenTrack: localScreenTrack.asReadonly(),
-            remoteTracks: remoteTracks.asReadonly(),
+            remoteCamTracks: remoteCamTracks.asReadonly(),
+            remoteScreenTracks: remoteScreenTracks.asReadonly(),
             availableScreens: availableScreens.asReadonly(),
             watchingUserIds: watchingUserIds.asReadonly(),
           },
@@ -145,25 +150,35 @@ describe('VoicePeersGridComponent', () => {
   };
 
   it('renders all peers in one grid with 16:9 tiles', () => {
-    remoteTracks.set({ 3: { id: 'cam-3' } as MediaStreamTrack });
+    remoteCamTracks.set({ 3: { id: 'cam-3' } as MediaStreamTrack });
     const fixture = create();
 
     expect(fixture.nativeElement.querySelector('.peers-section')).toBeTruthy();
-    expect(
-      fixture.nativeElement.querySelector('.streaming-section'),
-    ).toBeNull();
-    expect(fixture.nativeElement.querySelector('.voice-section')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('.grid-item').length).toBe(3);
   });
 
+  it('renders two tiles when local cam and screen are active', () => {
+    localCamTrack.set({ id: 'cam' } as MediaStreamTrack);
+    localScreenTrack.set({ id: 'scr' } as MediaStreamTrack);
+    const fixture = create();
+    expect(fixture.nativeElement.querySelectorAll('.grid-item').length).toBe(4);
+  });
+
+  it('renders two tiles for a remote peer with cam and live screen', () => {
+    remoteCamTracks.set({ 2: { id: 'cam' } as MediaStreamTrack });
+    availableScreens.set({ 2: { videoProducerId: 'p1' } });
+    const fixture = create();
+    expect(fixture.nativeElement.querySelectorAll('.grid-item').length).toBe(4);
+  });
+
   it('does not render the grid while theatre is open', () => {
-    remoteTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+    remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
     const fixture = create();
     const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](2);
+    cmp['onOpenTheatre'](2, 'screen');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.peers-layout')).toBeNull();
@@ -173,13 +188,13 @@ describe('VoicePeersGridComponent', () => {
   });
 
   it('closes theatre when stop watching the focused peer', async () => {
-    remoteTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+    remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
     const fixture = create();
     const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](2);
+    cmp['onOpenTheatre'](2, 'screen');
     fixture.detectChanges();
 
     await cmp['onStopWatchScreen'](2);
@@ -192,13 +207,13 @@ describe('VoicePeersGridComponent', () => {
   });
 
   it('closes theatre when focus peer is no longer watched', () => {
-    remoteTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+    remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
     const fixture = create();
     const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](2);
+    cmp['onOpenTheatre'](2, 'screen');
     fixture.detectChanges();
 
     watchingUserIds.set(new Set());
