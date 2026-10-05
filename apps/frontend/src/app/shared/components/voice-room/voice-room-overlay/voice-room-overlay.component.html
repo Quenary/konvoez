@@ -1,6 +1,7 @@
 <header
   tuiHeader
-  class="room-header">
+  class="room-header"
+  [class.vignette]="isFullscreen()">
   <h2 tuiTitle>
     <div
       tuiAvatar
@@ -23,40 +24,38 @@
     </span>
   </h2>
 
-  @if (showAccessories()) {
-    <aside tuiAccessories>
-      @if (canManageRooms() && room(); as manageRoom) {
-        <button
-          tuiIconButton
-          appearance="flat"
-          size="s"
-          iconStart="@tui.ellipsis-vertical"
-          type="button"
-          tuiDropdownAuto
-          [tuiDropdown]="roomContextMenu"
-          tuiHintAppearance="floating"
-          [tuiHint]="'GENERAL.MORE' | translate">
-          {{ 'GENERAL.MORE' | translate }}
-        </button>
+  <aside tuiAccessories>
+    @if (canManageRooms() && room(); as manageRoom) {
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="s"
+        iconStart="@tui.ellipsis-vertical"
+        type="button"
+        tuiDropdownAuto
+        [tuiDropdown]="roomContextMenu"
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.MORE' | translate">
+        {{ 'GENERAL.MORE' | translate }}
+      </button>
 
-        <ng-template
-          #roomContextMenu
-          let-close>
-          <app-room-context-menu
-            [roomName]="manageRoom.name"
-            (edit)="editRoom(manageRoom); close()"
-            (delete)="deleteRoom(manageRoom); close()" />
-        </ng-template>
-      }
+      <ng-template
+        #roomContextMenu
+        let-close>
+        <app-room-context-menu
+          [roomName]="manageRoom.name"
+          (edit)="editRoom(manageRoom); close()"
+          (delete)="deleteRoom(manageRoom); close()" />
+      </ng-template>
+    }
 
-      @if (theatreOpen()) {
-        <app-voice-theatre-actions />
-      }
-    </aside>
-  }
+    <app-voice-theatre-actions [showClose]="theatreOpen()" />
+  </aside>
 </header>
 
-<footer class="controls-dock">
+<footer
+  class="controls-dock"
+  [class.vignette]="isFullscreen()">
   @if (theatreOpen()) {
     <app-voice-theatre-watch-controls />
   }

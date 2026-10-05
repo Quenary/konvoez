@@ -80,11 +80,9 @@ export class VoiceRoomComponent {
   );
 
   constructor() {
-    this.voiceRoomViewService.setFullscreenRoot(this.host.nativeElement);
+    this.voiceRoomViewService.attachHost(this.host.nativeElement);
     this.voiceRoomViewService.revealChrome();
-    this.destroyRef.onDestroy(() =>
-      this.voiceRoomViewService.setFullscreenRoot(null),
-    );
+    this.destroyRef.onDestroy(() => this.voiceRoomViewService.attachHost(null));
 
     effect(() => {
       const id = this.roomId();

@@ -57,13 +57,7 @@ export class VoiceRoomOverlayComponent {
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly theatreOpen = this.voiceRoomViewService.theatreOpen;
-
-  protected readonly showAccessories = computed(() => {
-    const canManage = this.canManageRooms();
-    const room = this.room();
-    const theatreOpen = this.theatreOpen();
-    return (canManage && room != null) || theatreOpen;
-  });
+  protected readonly isFullscreen = this.voiceRoomViewService.isFullscreen;
 
   protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? '');
   protected readonly roomName = computed(() => this.room()?.name ?? '');

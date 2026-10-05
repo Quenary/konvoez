@@ -11,14 +11,16 @@
     "
     (click)="onToggleFullscreen()">
   </button>
-  <button
-    tuiIconButton
-    appearance="flat"
-    size="s"
-    type="button"
-    iconStart="@tui.x"
-    tuiHintAppearance="floating"
-    [tuiHint]="'CALL.EXIT_THEATRE' | translate"
-    (click)="onCloseTheatre()">
-  </button>
+  @if (showClose()) {
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      iconStart="@tui.x"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.EXIT_THEATRE' | translate"
+      (click)="onCloseTheatre()">
+    </button>
+  }
 </div>

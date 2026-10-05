@@ -49,7 +49,6 @@ describe('VoiceTheatreComponent', () => {
             openTheatre,
             closeTheatre: vi.fn(),
             toggleFullscreen: vi.fn(),
-            setFullscreenRoot: vi.fn(),
             stopWatchingFocus: vi.fn(),
           },
         },

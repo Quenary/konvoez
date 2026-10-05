@@ -38,7 +38,6 @@ export class VoiceTheatreComponent {
     input.required<Readonly<Record<number, boolean>>>();
   public readonly showLocalChrome = input(false);
 
-  private readonly stageEl = viewChild<ElementRef<HTMLElement>>('stageEl');
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
   protected readonly stripRight = signal(false);
@@ -75,21 +74,7 @@ export class VoiceTheatreComponent {
       }
     });
 
-    this.destroyRef.onDestroy(() => {
-      this.chrome.destroy();
-      if (this.showLocalChrome()) {
-        this.voiceRoomViewService.setFullscreenRoot(null);
-      }
-    });
-
-    effect(() => {
-      const showLocal = this.showLocalChrome();
-      const stage = this.stageEl()?.nativeElement ?? null;
-      if (!showLocal) {
-        return;
-      }
-      this.voiceRoomViewService.setFullscreenRoot(stage);
-    });
+    this.destroyRef.onDestroy(() => this.chrome.destroy());
 
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(() => this.updateStripPlacement());

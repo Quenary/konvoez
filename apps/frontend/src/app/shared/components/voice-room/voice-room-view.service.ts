@@ -28,7 +28,7 @@ export class VoiceRoomViewService {
   private readonly chrome = new VoiceChromeReveal(true);
   private readonly focusId = signal<number | null>(null);
   private readonly fullscreen = signal(false);
-  private readonly fullscreenRoot = signal<HTMLElement | null>(null);
+  private hostEl: HTMLElement | null = null;
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -77,8 +77,15 @@ export class VoiceRoomViewService {
     this.chrome.reveal();
   }
 
-  public setFullscreenRoot(element: HTMLElement | null): void {
-    this.fullscreenRoot.set(element);
+  public attachHost(element: HTMLElement | null): void {
+    if (
+      element == null &&
+      this.hostEl != null &&
+      document.fullscreenElement === this.hostEl
+    ) {
+      void document.exitFullscreen();
+    }
+    this.hostEl = element;
   }
 
   public openTheatre(userId: number): void {
@@ -95,15 +102,11 @@ export class VoiceRoomViewService {
   }
 
   public closeTheatre(): void {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().finally(() => this.focusId.set(null));
-      return;
-    }
     this.focusId.set(null);
   }
 
   public async toggleFullscreen(target?: HTMLElement | null): Promise<void> {
-    const element = target ?? this.fullscreenRoot();
+    const element = target ?? this.hostEl;
     if (!element) {
       return;
     }

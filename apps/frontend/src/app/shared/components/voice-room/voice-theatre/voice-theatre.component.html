@@ -29,7 +29,7 @@
     @if (showLocalChrome()) {
       <div class="stage-overlay">
         <div class="overlay-top">
-          <app-voice-theatre-actions />
+          <app-voice-theatre-actions [fullscreenTarget]="stageEl" />
         </div>
       </div>
     }

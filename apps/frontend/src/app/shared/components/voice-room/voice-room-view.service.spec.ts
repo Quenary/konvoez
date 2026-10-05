@@ -105,4 +105,33 @@ describe('VoiceRoomViewService', () => {
     await view.stopWatchingFocus();
     expect(stopWatchingPeerScreen).toHaveBeenCalledWith(2);
   });
+
+  it('fullscreens the attached host without closing theatre', async () => {
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(2);
+    const host = document.createElement('div');
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    host.requestFullscreen = requestFullscreen;
+    view.attachHost(host);
+
+    await view.toggleFullscreen();
+
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    expect(view.theatreOpen()).toBe(true);
+
+    view.closeTheatre();
+    expect(view.theatreOpen()).toBe(false);
+  });
+
+  it('does not exit fullscreen when closing theatre', () => {
+    const view = TestBed.inject(VoiceRoomViewService);
+    const exitFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exitFullscreen,
+    });
+    view.openTheatre(2);
+    view.closeTheatre();
+    expect(exitFullscreen).not.toHaveBeenCalled();
+  });
 });

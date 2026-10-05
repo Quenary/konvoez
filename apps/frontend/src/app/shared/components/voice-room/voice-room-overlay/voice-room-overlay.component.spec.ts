@@ -25,10 +25,12 @@ const room = {
 describe('VoiceRoomOverlayComponent', () => {
   let theatreOpen: ReturnType<typeof signal<boolean>>;
   let chromeVisible: ReturnType<typeof signal<boolean>>;
+  let isFullscreen: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     theatreOpen = signal(false);
     chromeVisible = signal(true);
+    isFullscreen = signal(false);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomOverlayComponent],
@@ -40,7 +42,7 @@ describe('VoiceRoomOverlayComponent', () => {
             chromeVisible: chromeVisible.asReadonly(),
             theatreOpen: theatreOpen.asReadonly(),
             theatreFocusId: signal<number | null>(null).asReadonly(),
-            isFullscreen: signal(false).asReadonly(),
+            isFullscreen: isFullscreen.asReadonly(),
             closeTheatre: vi.fn(),
             revealChrome: vi.fn(),
             toggleFullscreen: vi.fn(),
@@ -118,8 +120,7 @@ describe('VoiceRoomOverlayComponent', () => {
     vi.restoreAllMocks();
   });
 
-  it('keeps theatre actions on the header line when theatre is open', () => {
-    theatreOpen.set(true);
+  it('keeps fullscreen in the header for grid and theatre', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
     fixture.componentRef.setInput('room', room);
     fixture.componentRef.setInput('participantsCount', 2);
@@ -128,25 +129,45 @@ describe('VoiceRoomOverlayComponent', () => {
     const accessories = fixture.nativeElement.querySelector(
       '[tuiAccessories]',
     ) as HTMLElement | null;
+    const actions = accessories?.querySelector(
+      'app-voice-theatre-actions',
+    ) as HTMLElement | null;
     expect(accessories).toBeTruthy();
+    expect(actions).toBeTruthy();
+    expect(actions?.querySelectorAll('button').length).toBe(1);
     expect(
-      accessories?.querySelector('app-voice-theatre-actions'),
-    ).toBeTruthy();
+      fixture.nativeElement.querySelector('app-voice-theatre-watch-controls'),
+    ).toBeNull();
+
+    theatreOpen.set(true);
+    fixture.detectChanges();
+
+    expect(actions?.querySelectorAll('button').length).toBe(2);
     expect(
       fixture.nativeElement.querySelector('app-voice-theatre-watch-controls'),
     ).toBeTruthy();
   });
 
-  it('hides theatre-only chrome when theatre is closed', () => {
+  it('applies vignette classes only in fullscreen', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
     fixture.componentRef.setInput('room', room);
     fixture.detectChanges();
 
     expect(
-      fixture.nativeElement.querySelector('app-voice-theatre-actions'),
+      fixture.nativeElement.querySelector('.room-header.vignette'),
     ).toBeNull();
     expect(
-      fixture.nativeElement.querySelector('app-voice-theatre-watch-controls'),
+      fixture.nativeElement.querySelector('.controls-dock.vignette'),
     ).toBeNull();
+
+    isFullscreen.set(true);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('.room-header.vignette'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('.controls-dock.vignette'),
+    ).toBeTruthy();
   });
 });

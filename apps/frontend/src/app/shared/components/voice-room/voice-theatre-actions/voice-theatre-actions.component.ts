@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint } from '@taiga-ui/core';
 import { VoiceRoomViewService } from '../voice-room-view.service';
@@ -13,10 +18,13 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
 export class VoiceTheatreActionsComponent {
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
+  public readonly showClose = input(true);
+  public readonly fullscreenTarget = input<HTMLElement | null>(null);
+
   protected readonly isFullscreen = this.voiceRoomViewService.isFullscreen;
 
   protected onToggleFullscreen(): void {
-    void this.voiceRoomViewService.toggleFullscreen();
+    void this.voiceRoomViewService.toggleFullscreen(this.fullscreenTarget());
   }
 
   protected onCloseTheatre(): void {
