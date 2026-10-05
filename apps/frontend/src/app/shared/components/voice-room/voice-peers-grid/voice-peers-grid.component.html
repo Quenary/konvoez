@@ -31,15 +31,16 @@
       [stripPeers]="peers()"
       [watchingByPeerId]="watchingByPeerId()"
       [screenLiveByPeerId]="screenLiveByPeerId()"
-      (closeTheatre)="onCloseTheatre()"
-      (focusPeerId)="onTheatreFocusPeer($event)"
-      (stopWatch)="onTheatreStopWatch()" />
+      [showLocalChrome]="compact()" />
   }
 
   <app-screen-share-pip />
 
   @if (showControls()) {
     <footer class="controls-dock">
+      @if (compact() && theatreFocusPeer()) {
+        <app-voice-theatre-watch-controls />
+      }
       <app-voice-controls-bar (hangup)="onHangup()" />
     </footer>
   }

@@ -17,6 +17,7 @@ import { parseError } from '@shared/functions/parse-error.function';
 import {
   TuiButton,
   TuiDialogService,
+  TuiGroup,
   TuiHint,
   TuiNotificationService,
 } from '@taiga-ui/core';
@@ -34,7 +35,7 @@ import {
 
 @Component({
   selector: 'app-voice-controls-bar',
-  imports: [TuiButton, TuiHint, TranslatePipe],
+  imports: [TuiButton, TuiGroup, TuiHint, TranslatePipe],
   templateUrl: './voice-controls-bar.component.html',
   styleUrl: './voice-controls-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

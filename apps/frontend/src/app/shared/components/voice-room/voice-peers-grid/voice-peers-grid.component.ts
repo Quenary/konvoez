@@ -2,11 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
   input,
   output,
-  signal,
 } from '@angular/core';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -19,6 +17,8 @@ import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.compo
 import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
 import { ScreenSharePipComponent } from '../screen-share-pip/screen-share-pip.component';
 import { VoiceTheatreComponent } from '../voice-theatre/voice-theatre.component';
+import { VoiceTheatreWatchControlsComponent } from '../voice-theatre-watch-controls/voice-theatre-watch-controls.component';
+import { VoiceRoomViewService } from '../voice-room-view.service';
 import { resolveVoiceSessionPeers } from '../voice-session-peers';
 import { voiceSectionGridClass } from '../voice-peers-layout';
 import { parseError } from '@shared/functions/parse-error.function';
@@ -35,6 +35,7 @@ type TPeerIdRecord<T> = Record<number, T>;
     VoiceControlsBarComponent,
     ScreenSharePipComponent,
     VoiceTheatreComponent,
+    VoiceTheatreWatchControlsComponent,
   ],
   templateUrl: './voice-peers-grid.component.html',
   styleUrl: './voice-peers-grid.component.scss',
@@ -47,6 +48,7 @@ export class VoicePeersGridComponent {
   private readonly directCallService = inject(DirectCallService);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
@@ -55,7 +57,6 @@ export class VoicePeersGridComponent {
   public readonly left = output<void>();
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-  private readonly theatreFocusId = signal<number | null>(null);
 
   protected readonly peers = computed(() => {
     const me = this.currentUser();
@@ -129,52 +130,25 @@ export class VoicePeersGridComponent {
   );
 
   protected readonly theatreFocusPeer = computed((): IUser | null => {
-    const id = this.theatreFocusId();
+    const id = this.voiceRoomViewService.theatreFocusId();
+    const peers = this.peers();
     if (id == null) {
       return null;
     }
-    return this.peers().find((peer) => peer.id === id) ?? null;
+    return peers.find((peer) => peer.id === id) ?? null;
   });
 
   protected readonly theatreVideoTrack = computed(() => {
     const peer = this.theatreFocusPeer();
+    const tracks = this.videoTracksByPeerId();
     if (!peer) {
       return null;
     }
-    return this.videoTracksByPeerId()[peer.id] ?? null;
+    return tracks[peer.id] ?? null;
   });
 
-  constructor() {
-    effect(() => {
-      const focusId = this.theatreFocusId();
-      if (focusId == null) {
-        return;
-      }
-      const watching = this.watchingByPeerId()[focusId];
-      const stillPresent = this.peers().some((peer) => peer.id === focusId);
-      if (!watching || !stillPresent) {
-        this.theatreFocusId.set(null);
-      }
-    });
-  }
-
   protected onOpenTheatre(userId: number): void {
-    const me = this.currentUser();
-    if (me && me.id === userId) {
-      return;
-    }
-    if (!this.watchingByPeerId()[userId]) {
-      return;
-    }
-    this.theatreFocusId.set(userId);
-  }
-
-  protected onCloseTheatre(): void {
-    this.theatreFocusId.set(null);
-  }
-
-  protected onTheatreFocusPeer(userId: number): void {
-    this.onOpenTheatre(userId);
+    this.voiceRoomViewService.openTheatre(userId);
   }
 
   protected async onWatchScreen(userId: number): Promise<void> {
@@ -198,21 +172,10 @@ export class VoicePeersGridComponent {
 
   protected async onStopWatchScreen(userId: number): Promise<void> {
     await this.voiceSessionService.stopWatchingPeerScreen(userId);
-    if (this.theatreFocusId() === userId) {
-      this.theatreFocusId.set(null);
-    }
-  }
-
-  protected async onTheatreStopWatch(): Promise<void> {
-    const id = this.theatreFocusId();
-    if (id == null) {
-      return;
-    }
-    await this.onStopWatchScreen(id);
   }
 
   protected async onHangup(): Promise<void> {
-    this.theatreFocusId.set(null);
+    this.voiceRoomViewService.closeTheatre();
     await this.voiceLeaveService.leaveActiveVoice();
     this.left.emit();
   }

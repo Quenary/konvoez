@@ -26,76 +26,13 @@
       <div class="stage-empty">{{ 'CALL.THEATRE_NO_VIDEO' | translate }}</div>
     }
 
-    <div class="stage-overlay">
-      <div class="overlay-top">
-        <span class="focus-name">{{ focus.username }}</span>
-        <div class="overlay-actions">
-          <button
-            tuiIconButton
-            appearance="flat"
-            size="s"
-            type="button"
-            [iconStart]="isFullscreen() ? '@tui.minimize' : '@tui.maximize'"
-            tuiHintAppearance="floating"
-            [tuiHint]="
-              (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
-                | translate
-            "
-            (click)="onToggleFullscreen()">
-          </button>
-          <button
-            tuiIconButton
-            appearance="flat"
-            size="s"
-            type="button"
-            iconStart="@tui.x"
-            tuiHintAppearance="floating"
-            [tuiHint]="'CALL.EXIT_THEATRE' | translate"
-            (click)="onCloseClick()">
-          </button>
+    @if (showLocalChrome()) {
+      <div class="stage-overlay">
+        <div class="overlay-top">
+          <app-voice-theatre-actions />
         </div>
       </div>
-
-      <div class="overlay-bottom">
-        <button
-          tuiButton
-          appearance="accent"
-          size="s"
-          type="button"
-          (click)="stopWatch.emit()">
-          {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
-        </button>
-
-        <button
-          tuiIconButton
-          appearance="flat"
-          size="s"
-          type="button"
-          tuiDropdownAuto
-          tuiDropdownDirection="top"
-          iconStart="@tui.volume-2"
-          [tuiDropdown]="screenVolumeDropdown"
-          tuiHintAppearance="floating"
-          [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
-        </button>
-
-        <ng-template #screenVolumeDropdown>
-          <label
-            tuiLabel
-            class="volume">
-            {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
-            <input
-              tuiSlider
-              type="range"
-              min="0"
-              max="200"
-              step="5"
-              [ngModel]="screenVolume()"
-              (ngModelChange)="onScreenVolumeChange($event)" />
-          </label>
-        </ng-template>
-      </div>
-    </div>
+    }
   </div>
 
   <aside class="strip">

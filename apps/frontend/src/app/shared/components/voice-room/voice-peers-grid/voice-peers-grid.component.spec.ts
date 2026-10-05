@@ -14,6 +14,7 @@ import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/l
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoicePeersGridComponent } from './voice-peers-grid.component';
+import { VoiceRoomViewService } from '../voice-room-view.service';
 
 const user = (id: number): IUser =>
   ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
@@ -113,6 +114,7 @@ describe('VoicePeersGridComponent', () => {
           provide: VoiceLeaveService,
           useValue: { leaveActiveVoice: vi.fn().mockResolvedValue(undefined) },
         },
+        VoiceRoomViewService,
         {
           provide: TuiNotificationService,
           useValue: { open: vi.fn(() => of(null)) },
@@ -182,6 +184,7 @@ describe('VoicePeersGridComponent', () => {
 
     await cmp['onStopWatchScreen'](2);
     watchingUserIds.set(new Set());
+    TestBed.flushEffects();
     fixture.detectChanges();
 
     expect(cmp['theatreFocusPeer']()).toBeNull();
@@ -199,6 +202,7 @@ describe('VoicePeersGridComponent', () => {
     fixture.detectChanges();
 
     watchingUserIds.set(new Set());
+    TestBed.flushEffects();
     fixture.detectChanges();
 
     expect(cmp['theatreFocusPeer']()).toBeNull();

@@ -5,15 +5,19 @@ import { IUser } from '@konvoez/shared';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceTheatreComponent } from './voice-theatre.component';
+import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VOICE_CHROME_HIDE_MS } from '../voice-chrome-reveal';
 
 const peer = (id: number, username = `u${id}`): IUser =>
   ({ id, username }) as IUser;
 
 describe('VoiceTheatreComponent', () => {
-  const peerScreenGainLevels = signal<Record<number, number>>({});
+  let openTheatre: ReturnType<typeof vi.fn>;
+  let revealChrome: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    peerScreenGainLevels.set({});
+    openTheatre = vi.fn();
+    revealChrome = vi.fn();
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -30,8 +34,23 @@ describe('VoiceTheatreComponent', () => {
         {
           provide: VoiceRoomStore,
           useValue: {
-            peerScreenGainLevels: peerScreenGainLevels.asReadonly(),
+            peerScreenGainLevels: signal({}).asReadonly(),
             setPeerScreenGain: vi.fn(),
+          },
+        },
+        {
+          provide: VoiceRoomViewService,
+          useValue: {
+            chromeVisible: signal(true).asReadonly(),
+            theatreFocusId: signal<number | null>(2).asReadonly(),
+            theatreOpen: signal(true).asReadonly(),
+            isFullscreen: signal(false).asReadonly(),
+            revealChrome,
+            openTheatre,
+            closeTheatre: vi.fn(),
+            toggleFullscreen: vi.fn(),
+            setFullscreenRoot: vi.fn(),
+            stopWatchingFocus: vi.fn(),
           },
         },
       ],
@@ -47,6 +66,7 @@ describe('VoiceTheatreComponent', () => {
     overrides: Partial<{
       focusPeer: IUser;
       watchingByPeerId: Readonly<Record<number, boolean>>;
+      showLocalChrome: boolean;
     }> = {},
   ) => {
     const fixture = TestBed.createComponent(VoiceTheatreComponent);
@@ -57,11 +77,15 @@ describe('VoiceTheatreComponent', () => {
       overrides.watchingByPeerId ?? { 2: true, 3: true },
     );
     fixture.componentRef.setInput('screenLiveByPeerId', { 2: true });
+    fixture.componentRef.setInput(
+      'showLocalChrome',
+      overrides.showLocalChrome ?? true,
+    );
     fixture.detectChanges();
     return fixture;
   };
 
-  it('reveals overlay on touchstart on stage', () => {
+  it('reveals overlay on touchstart on stage when local chrome is on', () => {
     const fixture = create();
     const cmp = fixture.componentInstance;
     expect(cmp['overlayVisible']()).toBe(false);
@@ -86,29 +110,22 @@ describe('VoiceTheatreComponent', () => {
     cmp['revealOverlay']();
     expect(cmp['overlayVisible']()).toBe(true);
 
-    vi.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(VOICE_CHROME_HIDE_MS);
     expect(cmp['overlayVisible']()).toBe(false);
   });
 
-  it('emits closeTheatre on Escape when not fullscreen', () => {
-    const fixture = create();
+  it('forwards activity to the room view when local chrome is off', () => {
+    const fixture = create({ showLocalChrome: false });
     const cmp = fixture.componentInstance;
-    const closeSpy = vi.fn();
-    cmp.closeTheatre.subscribe(closeSpy);
-
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
-    expect(closeSpy).toHaveBeenCalledTimes(1);
+    cmp['revealOverlay']();
+    expect(revealChrome).toHaveBeenCalled();
+    expect(cmp['overlayVisible']()).toBe(false);
   });
 
-  it('emits focusPeerId when selecting another watching peer in the strip', () => {
+  it('opens another watching peer from the strip via the view service', () => {
     const fixture = create();
     const cmp = fixture.componentInstance;
-    const focusSpy = vi.fn();
-    cmp.focusPeerId.subscribe(focusSpy);
-
     cmp['onStripPeerClick'](3);
-    expect(focusSpy).toHaveBeenCalledWith(3);
+    expect(openTheatre).toHaveBeenCalledWith(3);
   });
 });

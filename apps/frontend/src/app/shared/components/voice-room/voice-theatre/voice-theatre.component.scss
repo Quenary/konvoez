@@ -53,48 +53,25 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0.75rem;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
-  background: linear-gradient(
-    180deg,
-    rgb(0 0 0 / 45%) 0%,
-    transparent 28%,
-    transparent 72%,
-    rgb(0 0 0 / 45%) 100%
-  );
 }
 
 .stage.overlay-on .stage-overlay,
-.stage:hover .stage-overlay,
-.stage:focus-within .stage-overlay {
+.stage-overlay:hover,
+.stage-overlay:focus-within {
   opacity: 1;
   pointer-events: auto;
 }
 
-.overlay-top,
-.overlay-bottom {
+.overlay-top {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.overlay-top {
-  justify-content: space-between;
-}
-
-.overlay-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.focus-name {
-  color: var(--tui-text-primary-on-dark, #fff);
-  font: var(--tui-font-text-m);
-  font-weight: 600;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
 }
 
 .strip {
@@ -155,12 +132,4 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--tui-status-negative);
-}
-
-.volume {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-inline-size: 10rem;
-  padding: 0.75rem 1rem;
 }

@@ -7,44 +7,27 @@ import {
   effect,
   inject,
   input,
-  output,
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { IUser } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-  TuiButton,
-  TuiDropdown,
-  TuiHint,
-  TuiLabel,
-  TuiSlider,
-} from '@taiga-ui/core';
+import { IUser } from '@konvoez/shared';
 import { preferTheatreStripRight } from '../voice-peers-layout';
-import { fromEvent } from 'rxjs';
+import { VoiceChromeReveal } from '../voice-chrome-reveal';
+import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceTheatreActionsComponent } from '../voice-theatre-actions/voice-theatre-actions.component';
 
 @Component({
   selector: 'app-voice-theatre',
-  imports: [
-    FormsModule,
-    TuiButton,
-    TuiDropdown,
-    TuiHint,
-    TuiLabel,
-    TuiSlider,
-    TranslatePipe,
-  ],
+  imports: [TranslatePipe, VoiceTheatreActionsComponent],
   templateUrl: './voice-theatre.component.html',
   styleUrl: './voice-theatre.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VoiceTheatreComponent {
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
   public readonly focusPeer = input.required<IUser>();
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
@@ -53,26 +36,21 @@ export class VoiceTheatreComponent {
     input.required<Readonly<Record<number, boolean>>>();
   public readonly screenLiveByPeerId =
     input.required<Readonly<Record<number, boolean>>>();
-
-  public readonly closeTheatre = output<void>();
-  public readonly focusPeerId = output<number>();
-  public readonly stopWatch = output<void>();
+  public readonly showLocalChrome = input(false);
 
   private readonly stageEl = viewChild<ElementRef<HTMLElement>>('stageEl');
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
   protected readonly stripRight = signal(false);
-  protected readonly isFullscreen = signal(false);
-  protected readonly overlayVisible = signal(false);
 
+  private readonly chrome = new VoiceChromeReveal(false);
   private streamWidth = 16;
   private streamHeight = 9;
-  private hideOverlayTimer: ReturnType<typeof setTimeout> | null = null;
 
-  protected readonly screenVolume = computed(() => {
-    const levels = this.voiceRoomStore.peerScreenGainLevels();
-    const gain = levels[this.focusPeer().id] ?? 1;
-    return Math.round(gain * 100);
+  protected readonly overlayVisible = computed(() => {
+    const showLocal = this.showLocalChrome();
+    const local = this.chrome.visible();
+    return showLocal && local;
   });
 
   constructor() {
@@ -97,19 +75,21 @@ export class VoiceTheatreComponent {
       }
     });
 
-    fromEvent(document, 'fullscreenchange')
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.isFullscreen.set(Boolean(document.fullscreenElement));
-      });
+    this.destroyRef.onDestroy(() => {
+      this.chrome.destroy();
+      if (this.showLocalChrome()) {
+        this.voiceRoomViewService.setFullscreenRoot(null);
+      }
+    });
 
-    fromEvent<KeyboardEvent>(document, 'keydown')
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (event.key === 'Escape' && !document.fullscreenElement) {
-          this.closeTheatre.emit();
-        }
-      });
+    effect(() => {
+      const showLocal = this.showLocalChrome();
+      const stage = this.stageEl()?.nativeElement ?? null;
+      if (!showLocal) {
+        return;
+      }
+      this.voiceRoomViewService.setFullscreenRoot(stage);
+    });
 
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(() => this.updateStripPlacement());
@@ -128,55 +108,23 @@ export class VoiceTheatreComponent {
   }
 
   protected revealOverlay(): void {
-    this.overlayVisible.set(true);
-    if (this.hideOverlayTimer) {
-      clearTimeout(this.hideOverlayTimer);
+    const showLocal = this.showLocalChrome();
+    if (!showLocal) {
+      this.voiceRoomViewService.revealChrome();
+      return;
     }
-    this.hideOverlayTimer = setTimeout(() => {
-      this.overlayVisible.set(false);
-      this.hideOverlayTimer = null;
-    }, 2500);
+    this.chrome.reveal();
   }
 
   protected onStageActivate(): void {
     this.revealOverlay();
   }
 
-  protected onScreenVolumeChange(value: number): void {
-    this.voiceRoomStore.setPeerScreenGain(this.focusPeer().id, value / 100);
-  }
-
   protected onStripPeerClick(peerId: number): void {
     if (peerId === this.focusPeer().id) {
       return;
     }
-    if (this.watchingByPeerId()[peerId]) {
-      this.focusPeerId.emit(peerId);
-    }
-  }
-
-  protected async onToggleFullscreen(): Promise<void> {
-    const stage = this.stageEl()?.nativeElement;
-    if (!stage) {
-      return;
-    }
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await stage.requestFullscreen();
-      }
-    } catch (error) {
-      console.warn('Fullscreen failed', error);
-    }
-  }
-
-  protected onCloseClick(): void {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().finally(() => this.closeTheatre.emit());
-      return;
-    }
-    this.closeTheatre.emit();
+    this.voiceRoomViewService.openTheatre(peerId);
   }
 
   private updateStripPlacement(): void {

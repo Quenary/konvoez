@@ -90,9 +90,11 @@
 .controls-dock {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
   flex-shrink: 0;
   padding: 0.75rem 1rem 1rem;
-  z-index: 25;
+  z-index: 30;
 }
 
 .peers-grid-root.compact {
