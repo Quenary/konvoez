@@ -382,7 +382,7 @@ export class MediasoupSessionService {
     if (this.peerVideoService.isWatching(userId)) {
       return;
     }
-    const available = this.peerVideoService.availableScreens().get(userId);
+    const available = this.peerVideoService.availableScreens()[userId];
     if (!available?.videoProducerId) {
       throw new Error('No screen share available for peer');
     }
@@ -454,7 +454,7 @@ export class MediasoupSessionService {
     if (audioConsumer?.producerId === producerId) {
       this.screenAudioConsumers.delete(userId);
     }
-    const available = this.peerVideoService.availableScreens().get(userId);
+    const available = this.peerVideoService.availableScreens()[userId];
     if (available?.videoProducerId === producerId) {
       this.releaseScreenWatchLocal(userId);
     }

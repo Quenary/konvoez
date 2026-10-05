@@ -22,10 +22,10 @@ describe('VoicePeersGridComponent', () => {
   let currentUser: ReturnType<typeof signal<IUser | null>>;
   let remotePeers: ReturnType<typeof signal<readonly IUser[]>>;
   let remoteTracks: ReturnType<
-    typeof signal<ReadonlyMap<number, MediaStreamTrack>>
+    typeof signal<Readonly<Record<number, MediaStreamTrack>>>
   >;
   let availableScreens: ReturnType<
-    typeof signal<ReadonlyMap<number, { videoProducerId: string }>>
+    typeof signal<Readonly<Record<number, { videoProducerId: string }>>>
   >;
   let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
   let localCamTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
@@ -38,8 +38,8 @@ describe('VoicePeersGridComponent', () => {
   beforeEach(() => {
     currentUser = signal(user(1));
     remotePeers = signal([user(2), user(3)]);
-    remoteTracks = signal(new Map<number, MediaStreamTrack>());
-    availableScreens = signal(new Map());
+    remoteTracks = signal<Record<number, MediaStreamTrack>>({});
+    availableScreens = signal<Record<number, { videoProducerId: string }>>({});
     watchingUserIds = signal(new Set<number>());
     localCamTrack = signal<MediaStreamTrack | null>(null);
     localScreenTrack = signal<MediaStreamTrack | null>(null);
@@ -143,7 +143,7 @@ describe('VoicePeersGridComponent', () => {
   };
 
   it('partitions peers into streaming and voice-only sections', () => {
-    remoteTracks.set(new Map([[3, { id: 'cam-3' } as MediaStreamTrack]]));
+    remoteTracks.set({ 3: { id: 'cam-3' } as MediaStreamTrack });
     const fixture = create();
     const cmp = fixture.componentInstance;
 
@@ -156,8 +156,8 @@ describe('VoicePeersGridComponent', () => {
   });
 
   it('does not render the grid while theatre is open', () => {
-    remoteTracks.set(new Map([[2, { id: 'scr' } as MediaStreamTrack]]));
-    availableScreens.set(new Map([[2, { videoProducerId: 'p1' }]]));
+    remoteTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+    availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
     const fixture = create();
@@ -172,8 +172,8 @@ describe('VoicePeersGridComponent', () => {
   });
 
   it('closes theatre when stop watching the focused peer', async () => {
-    remoteTracks.set(new Map([[2, { id: 'scr' } as MediaStreamTrack]]));
-    availableScreens.set(new Map([[2, { videoProducerId: 'p1' }]]));
+    remoteTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+    availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
     const fixture = create();
@@ -190,8 +190,8 @@ describe('VoicePeersGridComponent', () => {
   });
 
   it('closes theatre when focus peer is no longer watched', () => {
-    remoteTracks.set(new Map([[2, { id: 'scr' } as MediaStreamTrack]]));
-    availableScreens.set(new Map([[2, { videoProducerId: 'p1' }]]));
+    remoteTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+    availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
     const fixture = create();

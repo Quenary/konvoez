@@ -36,12 +36,12 @@ describe('PeerVideoService', () => {
       } as never,
       'cam',
     );
-    expect(service.remoteTracks().get(7)).toBe(camTrack);
+    expect(service.remoteTracks()[7]).toBe(camTrack);
 
     service.registerAvailableScreen(7, 'scr1', 'video');
     service.registerAvailableScreen(7, 'aud1', 'audio');
     expect(service.hasAvailableScreen(7)).toBe(true);
-    expect(service.availableScreens().get(7)).toEqual({
+    expect(service.availableScreens()[7]).toEqual({
       videoProducerId: 'scr1',
       audioProducerId: 'aud1',
     });
@@ -58,7 +58,7 @@ describe('PeerVideoService', () => {
       'screen',
     );
     expect(service.isWatching(7)).toBe(true);
-    expect(service.remoteTracks().get(7)).toBe(screenTrack);
+    expect(service.remoteTracks()[7]).toBe(screenTrack);
   });
 
   it('clears watching when screen producer is unregistered', () => {

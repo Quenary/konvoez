@@ -17,13 +17,11 @@
             <div class="grid-item streaming">
               <app-voice-peer-tile
                 [peer]="peer"
-                [videoTrack]="videoTracksByPeerId().get(peer.id) ?? null"
-                [screenAvailable]="
-                  screenAvailableByPeerId().get(peer.id) ?? false
-                "
-                [watchingScreen]="watchingByPeerId().get(peer.id) ?? false"
-                [showingScreen]="showingScreenByPeerId().get(peer.id) ?? false"
-                [screenLive]="screenLiveByPeerId().get(peer.id) ?? false"
+                [videoTrack]="videoTracksByPeerId()[peer.id] ?? null"
+                [screenAvailable]="screenAvailableByPeerId()[peer.id] ?? false"
+                [watchingScreen]="watchingByPeerId()[peer.id] ?? false"
+                [showingScreen]="showingScreenByPeerId()[peer.id] ?? false"
+                [screenLive]="screenLiveByPeerId()[peer.id] ?? false"
                 (watchScreen)="onWatchScreen(peer.id)"
                 (stopWatchScreen)="onStopWatchScreen(peer.id)"
                 (openTheatre)="onOpenTheatre(peer.id)" />

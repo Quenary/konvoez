@@ -104,14 +104,14 @@
         type="button"
         class="strip-tile"
         [class.active]="peer.id === focus.id"
-        [class.watching]="watchingByPeerId().get(peer.id) === true"
-        [class.live]="screenLiveByPeerId().get(peer.id) === true"
+        [class.watching]="watchingByPeerId()[peer.id] === true"
+        [class.live]="screenLiveByPeerId()[peer.id] === true"
         [disabled]="
-          peer.id !== focus.id && watchingByPeerId().get(peer.id) !== true
+          peer.id !== focus.id && watchingByPeerId()[peer.id] !== true
         "
         (click)="onStripPeerClick(peer.id)">
         <span class="strip-name">{{ peer.username }}</span>
-        @if (screenLiveByPeerId().get(peer.id)) {
+        @if (screenLiveByPeerId()[peer.id]) {
           <span class="strip-live">{{ 'CALL.LIVE' | translate }}</span>
         }
       </button>

@@ -46,7 +46,7 @@ describe('MediasoupSessionService', () => {
             setLocalScreenTrack: vi.fn(),
             registerAvailableScreen: vi.fn(),
             unregisterAvailableScreenProducer: vi.fn(),
-            availableScreens: vi.fn(() => new Map()),
+            availableScreens: vi.fn(() => ({})),
             stopWatchingLocal: vi.fn(),
             getScreenConsumerId: vi.fn(),
           },

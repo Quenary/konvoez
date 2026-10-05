@@ -29,6 +29,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { IUser } from '@konvoez/shared';
 
+type TPeerIdRecord<T> = Record<number, T>;
+
 @Component({
   selector: 'app-voice-peers-grid',
   imports: [
@@ -79,52 +81,46 @@ export class VoicePeersGridComponent {
     const me = this.currentUser();
     const localCam = this.peerVideoService.localCamTrack();
     const remoteTracks = this.peerVideoService.remoteTracks();
-    const map = new Map<number, MediaStreamTrack | null>();
+    const byPeerId: TPeerIdRecord<MediaStreamTrack | null> = {};
     for (const peer of this.peers()) {
       const isLocal = Boolean(me && me.id === peer.id);
-      map.set(
-        peer.id,
-        isLocal ? localCam : (remoteTracks.get(peer.id) ?? null),
-      );
+      byPeerId[peer.id] = isLocal ? localCam : (remoteTracks[peer.id] ?? null);
     }
-    return map;
+    return byPeerId;
   });
 
   protected readonly screenAvailableByPeerId = computed(() => {
     const me = this.currentUser();
     const available = this.peerVideoService.availableScreens();
     const localScreen = this.peerVideoService.localScreenTrack();
-    const map = new Map<number, boolean>();
+    const byPeerId: TPeerIdRecord<boolean> = {};
     for (const peer of this.peers()) {
       const isLocal = Boolean(me && me.id === peer.id);
-      map.set(
-        peer.id,
-        isLocal
-          ? localScreen !== null
-          : Boolean(available.get(peer.id)?.videoProducerId),
-      );
+      byPeerId[peer.id] = isLocal
+        ? localScreen !== null
+        : Boolean(available[peer.id]?.videoProducerId);
     }
-    return map;
+    return byPeerId;
   });
 
   protected readonly watchingByPeerId = computed(() => {
     const watching = this.peerVideoService.watchingUserIds();
-    const map = new Map<number, boolean>();
+    const byPeerId: TPeerIdRecord<boolean> = {};
     for (const peer of this.peers()) {
-      map.set(peer.id, watching.has(peer.id));
+      byPeerId[peer.id] = watching.has(peer.id);
     }
-    return map;
+    return byPeerId;
   });
 
   protected readonly showingScreenByPeerId = computed(() => {
     const me = this.currentUser();
     const watching = this.peerVideoService.watchingUserIds();
-    const map = new Map<number, boolean>();
+    const byPeerId: TPeerIdRecord<boolean> = {};
     for (const peer of this.peers()) {
       const isLocal = Boolean(me && me.id === peer.id);
-      map.set(peer.id, !isLocal && watching.has(peer.id));
+      byPeerId[peer.id] = !isLocal && watching.has(peer.id);
     }
-    return map;
+    return byPeerId;
   });
 
   protected readonly screenLiveByPeerId = computed(() => {
@@ -135,7 +131,7 @@ export class VoicePeersGridComponent {
     const tracks = this.videoTracksByPeerId();
     const screens = this.screenAvailableByPeerId();
     return partitionVoicePeers(this.peers(), (id) => {
-      return Boolean(screens.get(id) || tracks.get(id));
+      return Boolean(screens[id] || tracks[id]);
     });
   });
 
@@ -172,7 +168,7 @@ export class VoicePeersGridComponent {
     if (!peer) {
       return null;
     }
-    return this.videoTracksByPeerId().get(peer.id) ?? null;
+    return this.videoTracksByPeerId()[peer.id] ?? null;
   });
 
   constructor() {
@@ -181,7 +177,7 @@ export class VoicePeersGridComponent {
       if (focusId == null) {
         return;
       }
-      const watching = this.watchingByPeerId().get(focusId);
+      const watching = this.watchingByPeerId()[focusId];
       const stillPresent = this.peers().some((peer) => peer.id === focusId);
       if (!watching || !stillPresent) {
         this.theatreFocusId.set(null);
@@ -194,7 +190,7 @@ export class VoicePeersGridComponent {
     if (me && me.id === userId) {
       return;
     }
-    if (!this.watchingByPeerId().get(userId)) {
+    if (!this.watchingByPeerId()[userId]) {
       return;
     }
     this.theatreFocusId.set(userId);

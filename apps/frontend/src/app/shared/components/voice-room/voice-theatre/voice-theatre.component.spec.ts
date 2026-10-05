@@ -46,7 +46,7 @@ describe('VoiceTheatreComponent', () => {
   const create = (
     overrides: Partial<{
       focusPeer: IUser;
-      watchingByPeerId: ReadonlyMap<number, boolean>;
+      watchingByPeerId: Readonly<Record<number, boolean>>;
     }> = {},
   ) => {
     const fixture = TestBed.createComponent(VoiceTheatreComponent);
@@ -54,16 +54,9 @@ describe('VoiceTheatreComponent', () => {
     fixture.componentRef.setInput('stripPeers', [peer(1), peer(2), peer(3)]);
     fixture.componentRef.setInput(
       'watchingByPeerId',
-      overrides.watchingByPeerId ??
-        new Map<number, boolean>([
-          [2, true],
-          [3, true],
-        ]),
+      overrides.watchingByPeerId ?? { 2: true, 3: true },
     );
-    fixture.componentRef.setInput(
-      'screenLiveByPeerId',
-      new Map<number, boolean>([[2, true]]),
-    );
+    fixture.componentRef.setInput('screenLiveByPeerId', { 2: true });
     fixture.detectChanges();
     return fixture;
   };

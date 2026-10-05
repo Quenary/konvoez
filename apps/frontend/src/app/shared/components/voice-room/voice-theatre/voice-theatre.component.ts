@@ -50,9 +50,9 @@ export class VoiceTheatreComponent {
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly stripPeers = input.required<readonly IUser[]>();
   public readonly watchingByPeerId =
-    input.required<ReadonlyMap<number, boolean>>();
+    input.required<Readonly<Record<number, boolean>>>();
   public readonly screenLiveByPeerId =
-    input.required<ReadonlyMap<number, boolean>>();
+    input.required<Readonly<Record<number, boolean>>>();
 
   public readonly closeTheatre = output<void>();
   public readonly focusPeerId = output<number>();
@@ -150,7 +150,7 @@ export class VoiceTheatreComponent {
     if (peerId === this.focusPeer().id) {
       return;
     }
-    if (this.watchingByPeerId().get(peerId)) {
+    if (this.watchingByPeerId()[peerId]) {
       this.focusPeerId.emit(peerId);
     }
   }
