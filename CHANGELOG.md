@@ -1,3 +1,9 @@
+# [1.10.0](https://github.com/Quenary/konvoez/compare/v1.9.1...v1.10.0) (2026-10-05)
+
+### Features
+
+- **backend:** announced list, mediasoup port ranges, listenInfos ([f62e052](https://github.com/Quenary/konvoez/commit/f62e0528dd3f3276fb48fb88b3f3f74c1fc8cee3))
+
 ## [1.9.1](https://github.com/Quenary/konvoez/compare/v1.9.0...v1.9.1) (2026-10-04)
 
 ### Bug Fixes
