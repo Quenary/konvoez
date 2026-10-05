@@ -32,16 +32,20 @@
     (click)="toggleCamera()">
   </button>
 
-  <button
-    tuiIconButton
-    appearance="neutral"
-    size="m"
-    iconStart="@tui.screen-share"
-    type="button"
-    disabled
-    tuiHintAppearance="floating"
-    [tuiHint]="'CALL.SCREEN_SOON' | translate">
-  </button>
+  @if (screenSupported) {
+    <button
+      tuiIconButton
+      [appearance]="screenOn() ? 'primary' : 'neutral'"
+      size="m"
+      [iconStart]="screenOn() ? '@tui.screen-share' : '@tui.screen-share'"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="
+        (screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON') | translate
+      "
+      (click)="toggleScreen()">
+    </button>
+  }
 
   <div class="controls-divider"></div>
 

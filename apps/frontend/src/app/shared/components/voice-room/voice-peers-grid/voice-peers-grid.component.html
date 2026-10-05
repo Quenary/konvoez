@@ -8,7 +8,12 @@
       <div class="grid-item">
         <app-voice-peer-tile
           [peer]="peer"
-          [videoTrack]="videoTracksByPeerId().get(peer.id) ?? null" />
+          [videoTrack]="videoTracksByPeerId().get(peer.id) ?? null"
+          [screenAvailable]="screenAvailableByPeerId().get(peer.id) ?? false"
+          [watchingScreen]="watchingByPeerId().get(peer.id) ?? false"
+          [showingScreen]="showingScreenByPeerId().get(peer.id) ?? false"
+          (watchScreen)="onWatchScreen(peer.id)"
+          (stopWatchScreen)="onStopWatchScreen(peer.id)" />
       </div>
     }
   </main>

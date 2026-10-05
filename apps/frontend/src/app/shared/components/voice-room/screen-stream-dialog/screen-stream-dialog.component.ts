@@ -22,12 +22,12 @@ import { TuiForm } from '@taiga-ui/layout';
 import type { TuiDialogContext } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
 
-export type TCameraStreamDialogResult = {
+export type TScreenStreamDialogResult = {
   height: TStreamHeight;
   fps: TStreamFps;
 };
 
-export type TCameraStreamDialogData = {
+export type TScreenStreamDialogData = {
   height: TStreamHeight;
   fps: TStreamFps;
 };
@@ -53,7 +53,7 @@ function identityMatchStreamSelectItem(
 }
 
 @Component({
-  selector: 'app-camera-stream-dialog',
+  selector: 'app-screen-stream-dialog',
   imports: [
     FormsModule,
     TranslatePipe,
@@ -73,15 +73,15 @@ function identityMatchStreamSelectItem(
       identityMatcher: signal(identityMatchStreamSelectItem),
     }),
   ],
-  templateUrl: './camera-stream-dialog.component.html',
+  templateUrl: './screen-stream-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CameraStreamDialogComponent {
+export class ScreenStreamDialogComponent {
   private readonly context =
     injectContext<
       TuiDialogContext<
-        TCameraStreamDialogResult | null,
-        TCameraStreamDialogData
+        TScreenStreamDialogResult | null,
+        TScreenStreamDialogData
       >
     >();
 
