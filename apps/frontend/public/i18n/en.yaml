@@ -82,7 +82,6 @@ CALL:
   CAMERA: Camera
   CAMERA_ON: Turn on camera
   CAMERA_OFF: Turn off camera
-  CAMERA_SOON: Camera (soon)
   CAMERA_SETTINGS: Camera settings
   CAMERA_FAILED: Couldn't start the camera
   START_CAMERA: Start camera
@@ -91,7 +90,6 @@ CALL:
   SCREEN: Screen
   SCREEN_ON: Share screen
   SCREEN_OFF: Stop sharing
-  SCREEN_SOON: Screen share (soon)
   SCREEN_SETTINGS: Screen share settings
   SCREEN_FAILED: Couldn't start screen sharing
   START_SCREEN: Share screen

@@ -82,7 +82,6 @@ CALL:
   CAMERA: Камера
   CAMERA_ON: Включить камеру
   CAMERA_OFF: Выключить камеру
-  CAMERA_SOON: Камера (скоро)
   CAMERA_SETTINGS: Настройки камеры
   CAMERA_FAILED: Не удалось запустить камеру
   START_CAMERA: Запустить камеру
@@ -91,7 +90,6 @@ CALL:
   SCREEN: Экран
   SCREEN_ON: Демонстрация экрана
   SCREEN_OFF: Остановить демонстрацию
-  SCREEN_SOON: Демонстрация экрана (скоро)
   SCREEN_SETTINGS: Настройки демонстрации экрана
   SCREEN_FAILED: Не удалось начать демонстрацию экрана
   START_SCREEN: Демонстрировать
