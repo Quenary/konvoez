@@ -23,6 +23,7 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.PRODUCER_CLOSED]: IVoiceRoomProducerClosed;
   [EVoiceRoomEvent.CLOSE_PRODUCER]: IVoiceRoomCloseProducer;
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsume;
+  [EVoiceRoomEvent.CLOSE_CONSUMER]: IVoiceRoomCloseConsumer;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: IVoiceRoomConsumerClosed;
   [EVoiceRoomEvent.ERROR]: { message: string };
 } & TDirectCallEventPayloadMap;
@@ -43,6 +44,7 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.PRODUCER_CLOSED]: void;
   [EVoiceRoomEvent.CLOSE_PRODUCER]: object;
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsumeResult;
+  [EVoiceRoomEvent.CLOSE_CONSUMER]: object;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: void;
   [EVoiceRoomEvent.ERROR]: void;
 } & TDirectCallEventResultMap;
@@ -158,6 +160,10 @@ export interface IVoiceRoomConsumeResult {
   mediaTag: TVoiceRoomMediaTag;
   /** Opaque mediasoup RtpParameters JSON */
   rtpParameters: unknown;
+}
+
+export interface IVoiceRoomCloseConsumer {
+  consumerId: string;
 }
 
 export interface IVoiceRoomConsumerClosed {
