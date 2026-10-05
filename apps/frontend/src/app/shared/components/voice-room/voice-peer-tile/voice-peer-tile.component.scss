@@ -15,7 +15,7 @@
   min-height: 0;
   overflow: hidden;
   border: 2px solid transparent;
-  border-radius: 1rem;
+  border-radius: var(--tui-radius-l);
   background: var(--tui-background-elevation-2);
   transition:
     border-color 0.15s ease,
@@ -46,6 +46,12 @@
   z-index: 1;
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.badge-live {
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .badge-calling {
@@ -71,14 +77,38 @@
   bottom: 0.75rem;
   z-index: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.35rem;
   pointer-events: none;
 
   > * {
     pointer-events: auto;
   }
+}
+
+.info-row,
+.stream-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.info-row {
+  justify-content: space-between;
+}
+
+.stream-row {
+  flex-wrap: wrap;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--tui-radius-m);
+  background: var(--tui-background-neutral-1);
+}
+
+.stream-label {
+  color: var(--tui-text-secondary);
+  font: var(--tui-font-text-s);
+  white-space: nowrap;
 }
 
 .name {

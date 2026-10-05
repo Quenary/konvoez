@@ -12,11 +12,13 @@
           [screenAvailable]="screenAvailableByPeerId().get(peer.id) ?? false"
           [watchingScreen]="watchingByPeerId().get(peer.id) ?? false"
           [showingScreen]="showingScreenByPeerId().get(peer.id) ?? false"
+          [screenLive]="screenLiveByPeerId().get(peer.id) ?? false"
           (watchScreen)="onWatchScreen(peer.id)"
           (stopWatchScreen)="onStopWatchScreen(peer.id)" />
       </div>
     }
   </main>
+
 
   @if (showControls()) {
     <footer class="controls-dock">

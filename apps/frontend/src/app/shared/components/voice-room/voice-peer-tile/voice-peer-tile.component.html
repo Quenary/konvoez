@@ -23,6 +23,17 @@
   }
 
   <div class="badges">
+    @if (screenLive()) {
+      <span
+        appearance="negative"
+        size="m"
+        tuiBadge
+        class="badge-live"
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.LIVE' | translate">
+        {{ 'CALL.LIVE' | translate }}
+      </span>
+    }
     @if (isCalling()) {
       <tui-icon
         appearance="info"
@@ -32,15 +43,6 @@
         class="badge-calling"
         tuiHintAppearance="floating"
         [tuiHint]="'CALL.CALLING' | translate" />
-    }
-    @if (showingScreen()) {
-      <tui-icon
-        appearance="info"
-        iconStart="@tui.screen-share"
-        size="l"
-        tuiBadge
-        tuiHintAppearance="floating"
-        [tuiHint]="'CALL.SCREEN' | translate" />
     }
     @if (isMuted()) {
       <tui-icon
@@ -63,102 +65,110 @@
   </div>
 
   <div class="footer">
-    <span
-      appearance="neutral"
-      size="m"
-      tuiBadge
-      class="name">
+    <div class="info-row">
       <span
-        tuiHintAppearance="floating"
-        [style.color]="p.username | tuiAutoColor"
-        [tuiHint]="hintValue">
-        {{ p.username }}
+        appearance="neutral"
+        size="m"
+        tuiBadge
+        class="name">
+        <span
+          tuiHintAppearance="floating"
+          [style.color]="p.username | tuiAutoColor"
+          [tuiHint]="hintValue">
+          {{ p.username }}
+        </span>
+        @if (isLocal()) {
+          <span class="you">({{ 'CALL.YOU' | translate }})</span>
+        }
       </span>
-      @if (isLocal()) {
-        <span class="you">({{ 'CALL.YOU' | translate }})</span>
+
+      @if (!isLocal()) {
+        <button
+          tuiIconButton
+          appearance="flat"
+          size="s"
+          type="button"
+          tuiDropdownAuto
+          tuiDropdownDirection="top"
+          [iconStart]="volumeIcon()"
+          [tuiDropdown]="volumeDropdown"
+          tuiHintAppearance="floating"
+          [tuiHint]="'CALL.VOLUME' | translate">
+        </button>
+
+        <ng-template #volumeDropdown>
+          <label
+            tuiLabel
+            class="volume">
+            {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
+            <input
+              tuiSlider
+              type="range"
+              min="0"
+              max="200"
+              step="5"
+              [ngModel]="volume()"
+              (ngModelChange)="onVolumeChange($event)" />
+          </label>
+        </ng-template>
       }
-    </span>
+    </div>
 
-    @if (showWatchButton()) {
-      <button
-        tuiButton
-        appearance="primary"
-        size="s"
-        type="button"
-        (click)="onWatchClick()">
-        {{ 'CALL.WATCH_SCREEN' | translate }}
-      </button>
-    }
+    @if (showStreamRow()) {
+      <div class="stream-row">
+        <span class="stream-label">{{ 'CALL.STREAMING' | translate }}</span>
 
-    @if (showStopWatchButton()) {
-      <button
-        tuiButton
-        appearance="flat"
-        size="s"
-        type="button"
-        (click)="onStopWatchClick()">
-        {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
-      </button>
+        @if (showWatchButton()) {
+          <button
+            tuiButton
+            appearance="primary"
+            size="s"
+            type="button"
+            (click)="onWatchClick()">
+            {{ 'CALL.WATCH_SCREEN' | translate }}
+          </button>
+        }
 
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        type="button"
-        tuiDropdownAuto
-        tuiDropdownDirection="top"
-        iconStart="@tui.volume-2"
-        [tuiDropdown]="screenVolumeDropdown"
-        tuiHintAppearance="floating"
-        [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
-      </button>
+        @if (showStopWatchButton()) {
+          <button
+            tuiButton
+            appearance="accent"
+            size="s"
+            type="button"
+            (click)="onStopWatchClick()">
+            {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
+          </button>
 
-      <ng-template #screenVolumeDropdown>
-        <label
-          tuiLabel
-          class="volume">
-          {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
-          <input
-            tuiSlider
-            type="range"
-            min="0"
-            max="200"
-            step="5"
-            [ngModel]="screenVolume()"
-            (ngModelChange)="onScreenVolumeChange($event)" />
-        </label>
-      </ng-template>
-    }
+          <button
+            tuiIconButton
+            appearance="flat"
+            size="s"
+            type="button"
+            tuiDropdownAuto
+            tuiDropdownDirection="top"
+            iconStart="@tui.volume-2"
+            [tuiDropdown]="screenVolumeDropdown"
+            tuiHintAppearance="floating"
+            [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
+          </button>
 
-    @if (!isLocal()) {
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        type="button"
-        tuiDropdownAuto
-        tuiDropdownDirection="top"
-        [iconStart]="volumeIcon()"
-        [tuiDropdown]="volumeDropdown"
-        tuiHintAppearance="floating"
-        [tuiHint]="'CALL.VOLUME' | translate">
-      </button>
-
-      <ng-template #volumeDropdown>
-        <label
-          tuiLabel
-          class="volume">
-          {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
-          <input
-            tuiSlider
-            type="range"
-            min="0"
-            max="200"
-            step="5"
-            [ngModel]="volume()"
-            (ngModelChange)="onVolumeChange($event)" />
-        </label>
-      </ng-template>
+          <ng-template #screenVolumeDropdown>
+            <label
+              tuiLabel
+              class="volume">
+              {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
+              <input
+                tuiSlider
+                type="range"
+                min="0"
+                max="200"
+                step="5"
+                [ngModel]="screenVolume()"
+                (ngModelChange)="onScreenVolumeChange($event)" />
+            </label>
+          </ng-template>
+        }
+      </div>
     }
   </div>
 </div>

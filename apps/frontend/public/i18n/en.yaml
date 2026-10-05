@@ -97,6 +97,11 @@ CALL:
   STOP_WATCH_SCREEN: Stop watching
   WATCH_SCREEN_FAILED: Couldn't watch the screen share
   SCREEN_VOLUME: Screen volume
+  LIVE: LIVE
+  STREAMING: 'Streaming:'
+  YOUR_SCREEN: Your screen
+  PREVIEW_PAUSED: Preview paused to save resources
+  PREVIEW_EXTEND: Keep preview
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
 ROOMS:

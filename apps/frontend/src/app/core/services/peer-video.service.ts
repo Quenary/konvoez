@@ -15,7 +15,8 @@ export type TAvailableScreenShare = {
 
 /**
  * Remote/local video tracks for voice tiles (not Web Audio).
- * Prefer screen over cam when both are present (local or watching).
+ * Local tile uses cam only; local screen is shown in a floating PiP.
+ * Remote display prefers screen over cam when watching.
  */
 @Injectable({ providedIn: 'root' })
 export class PeerVideoService {
@@ -23,9 +24,8 @@ export class PeerVideoService {
   private readonly _localScreenTrack = signal<MediaStreamTrack | null>(null);
   public readonly localCamTrack = this._localCamTrack.asReadonly();
   public readonly localScreenTrack = this._localScreenTrack.asReadonly();
-  public readonly localTrack = computed(
-    () => this._localScreenTrack() ?? this._localCamTrack(),
-  );
+  /** Local tile / self-view: camera only (screen goes to PiP). */
+  public readonly localTrack = computed(() => this._localCamTrack());
 
   private readonly _remoteCam = signal<ReadonlyMap<number, TRemoteVideo>>(
     new Map(),
@@ -232,7 +232,7 @@ export class PeerVideoService {
 
   public trackFor(userId: number, isLocal: boolean): MediaStreamTrack | null {
     if (isLocal) {
-      return this.localTrack();
+      return this.localCamTrack();
     }
     return (
       this._remoteScreen().get(userId)?.track ??

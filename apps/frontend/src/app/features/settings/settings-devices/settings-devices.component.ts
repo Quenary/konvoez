@@ -38,12 +38,6 @@ import {
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '../settings.store';
-import {
-  STREAM_FPS_OPTIONS,
-  STREAM_HEIGHTS,
-  TStreamFps,
-  TStreamHeight,
-} from '@shared/schemas/local-settings.schema';
 
 type DevicesLoadResult = {
   devices: MediaDeviceInfo[];
@@ -55,34 +49,12 @@ const EMPTY_DEVICES: DevicesLoadResult = {
   streamInputDeviceId: null,
 };
 
-type TStreamSelectValue = TStreamHeight | TStreamFps;
-type TDeviceSelectValue = MediaDeviceInfo | TStreamSelectValue;
-
-function stringifyDeviceSelectItem(
-  item: TDeviceSelectValue | null | undefined,
-): string {
-  if (item == null) {
-    return '';
-  }
-  if (typeof item === 'number') {
-    return (STREAM_HEIGHTS as readonly number[]).includes(item)
-      ? `${item}p`
-      : String(item);
-  }
-  return item.label;
+function stringifyDevice(item: MediaDeviceInfo | null | undefined): string {
+  return item?.label ?? '';
 }
 
-function identityMatchDeviceSelectItem(
-  a: TDeviceSelectValue,
-  b: TDeviceSelectValue,
-): boolean {
-  if (typeof a === 'number' && typeof b === 'number') {
-    return a === b;
-  }
-  if (typeof a === 'object' && typeof b === 'object') {
-    return a.deviceId === b.deviceId;
-  }
-  return false;
+function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
+  return a.deviceId === b.deviceId;
 }
 
 @Component({
@@ -111,8 +83,8 @@ function identityMatchDeviceSelectItem(
   ],
   providers: [
     tuiItemsHandlersProvider({
-      stringify: signal(stringifyDeviceSelectItem),
-      identityMatcher: signal(identityMatchDeviceSelectItem),
+      stringify: signal(stringifyDevice),
+      identityMatcher: signal(identityMatchDevice),
     }),
   ],
   templateUrl: './settings-devices.component.html',
@@ -125,13 +97,7 @@ export class SettingsDevicesComponent {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
 
-  /**
-   * Selected audio input
-   */
   protected readonly audioInput = this.settingsStore.audioInput;
-  /**
-   * Is selected audio input available
-   */
   protected readonly audioInputAvailable = computed(() => {
     const audioInput = this.audioInput();
     const audioInputList = this.audioInputList();
@@ -140,19 +106,7 @@ export class SettingsDevicesComponent {
       audioInputList.some((item) => item.deviceId === audioInput.deviceId)
     );
   });
-  /**
-   * Selected audio output
-   */
   protected readonly audioOutput = this.settingsStore.audioOutput;
-  protected readonly streamHeight = this.settingsStore.streamHeight;
-  protected readonly streamFps = this.settingsStore.streamFps;
-  protected readonly screenHeight = this.settingsStore.screenHeight;
-  protected readonly screenFps = this.settingsStore.screenFps;
-  protected readonly streamHeights = [...STREAM_HEIGHTS];
-  protected readonly streamFpsOptions = [...STREAM_FPS_OPTIONS];
-  /**
-   * Is selected audio output available
-   */
   protected readonly audioOutputAvailable = computed(() => {
     const audioOutput = this.audioOutput();
     const audioOutputList = this.audioOutputList();
@@ -161,24 +115,15 @@ export class SettingsDevicesComponent {
       audioOutputList.some((item) => item.deviceId === audioOutput.deviceId)
     );
   });
-  /**
-   * List of available inputs
-   */
   protected readonly audioInputList = computed(() => {
     const devices = this.devicesLoad.value().devices;
     return devices.filter((d) => d.kind == 'audioinput');
   });
-  /**
-   * List of available outputs
-   */
   protected readonly audioOutputList = computed(() => {
     const devices = this.devicesLoad.value().devices;
     return devices.filter((d) => d.kind == 'audiooutput');
   });
 
-  /**
-   * Enumerated audio devices (+ preferred input id from the permission stream).
-   */
   protected readonly devicesLoad = rxResource({
     stream: () =>
       from(this.mediaDevicesService.getUserMedia({ audio: true })).pipe(
@@ -241,33 +186,11 @@ export class SettingsDevicesComponent {
     });
   }
 
-  /**
-   * Select audio input
-   */
   protected onSelectAudioInput(audioInput: MediaDeviceInfo) {
     this.settingsStore.setAudioInput(audioInput);
   }
 
-  /**
-   * Select audio output
-   */
   protected onSelectAudioOutput(audioOutput: MediaDeviceInfo) {
     this.settingsStore.setAudioOutput(audioOutput);
-  }
-
-  protected onSelectStreamHeight(height: TStreamHeight): void {
-    this.settingsStore.setStreamHeight(height);
-  }
-
-  protected onSelectStreamFps(fps: TStreamFps): void {
-    this.settingsStore.setStreamFps(fps);
-  }
-
-  protected onSelectScreenHeight(height: TStreamHeight): void {
-    this.settingsStore.setScreenHeight(height);
-  }
-
-  protected onSelectScreenFps(fps: TStreamFps): void {
-    this.settingsStore.setScreenFps(fps);
   }
 }

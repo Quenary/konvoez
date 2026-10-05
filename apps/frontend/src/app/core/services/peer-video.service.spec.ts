@@ -12,13 +12,14 @@ describe('PeerVideoService', () => {
     service = TestBed.inject(PeerVideoService);
   });
 
-  it('prefers local screen track over cam for display', () => {
+  it('uses cam only for local tile track; screen stays separate', () => {
     const cam = { id: 'cam' } as MediaStreamTrack;
     const screen = { id: 'screen' } as MediaStreamTrack;
     service.setLocalCamTrack(cam);
     expect(service.localTrack()).toBe(cam);
     service.setLocalScreenTrack(screen);
-    expect(service.localTrack()).toBe(screen);
+    expect(service.localTrack()).toBe(cam);
+    expect(service.localScreenTrack()).toBe(screen);
   });
 
   it('registers available screen and prefers screen when watching', () => {

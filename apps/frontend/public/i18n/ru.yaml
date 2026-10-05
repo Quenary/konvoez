@@ -97,6 +97,11 @@ CALL:
   STOP_WATCH_SCREEN: Не смотреть
   WATCH_SCREEN_FAILED: Не удалось подписаться на демонстрацию
   SCREEN_VOLUME: Громкость экрана
+  LIVE: LIVE
+  STREAMING: 'Ведет трансляцию:'
+  YOUR_SCREEN: Ваш экран
+  PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
+  PREVIEW_EXTEND: Продлить превью
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:
