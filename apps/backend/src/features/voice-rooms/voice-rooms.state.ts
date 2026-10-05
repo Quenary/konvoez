@@ -24,6 +24,7 @@ import {
   Worker as MediasoupWorker,
 } from 'mediasoup/types';
 import { createWorker } from 'mediasoup';
+import { announcedAddressKey } from '@shared/utils/mediasoup-addresses.util';
 import { AppService } from '@shared/services/app.service';
 
 type VoiceRoomState = {
@@ -76,12 +77,9 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly appService: AppService) {}
 
   public async onModuleInit(): Promise<void> {
-    this.worker = await createWorker({
-      rtcMinPort: this.appService.MEDIASOUP_MIN_PORT,
-      rtcMaxPort: this.appService.MEDIASOUP_MAX_PORT,
-    });
+    this.worker = await createWorker();
     this.logger.log(
-      `Mediasoup worker started (ports ${this.appService.MEDIASOUP_MIN_PORT}-${this.appService.MEDIASOUP_MAX_PORT})`,
+      `Mediasoup worker started (announced ${this.appService.MEDIASOUP_ANNOUNCED_ADDRESSES.map(announcedAddressKey).join(', ')})`,
     );
   }
 

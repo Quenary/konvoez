@@ -12,6 +12,17 @@ jest.mock('mediasoup', () => ({
   createWorker: jest.fn(),
 }));
 jest.mock('mediasoup/types', () => ({}), { virtual: true });
+jest.mock('./webrtc-listen-infos', () => ({
+  ...jest.requireActual('./webrtc-listen-infos'),
+  resolveAnnouncedAddresses: jest.fn(
+    async (addresses: { address: string; portRange: unknown }[]) =>
+      addresses.map((announced) =>
+        announced.address === 'my.ddns.example'
+          ? { ...announced, address: '203.0.113.5' }
+          : announced,
+      ),
+  ),
+}));
 
 import { VoiceRoomsGateway } from './voice-rooms.gateway';
 import { VoiceRoomsStateService } from './voice-rooms.state';
@@ -166,6 +177,70 @@ describe('VoiceRoomsGateway', () => {
         message: 'Unauthorized',
       });
       expect(client.disconnect).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('transports', () => {
+    it('creates a WebRTC transport on every announced address and range', async () => {
+      const lanOnly = { min: 40050, max: 40100 };
+      const shared = { min: 40000, max: 40100 };
+      Object.assign(gateway, {
+        appService: {
+          MEDIASOUP_ANNOUNCED_ADDRESSES: [
+            { address: '192.168.0.10', portRange: lanOnly },
+            { address: 'my.ddns.example', portRange: shared },
+          ],
+        },
+      });
+      const transport = {
+        id: 't1',
+        iceParameters: {},
+        iceCandidates: [],
+        dtlsParameters: {},
+        sctpParameters: undefined,
+      };
+      const createWebRtcTransport = jest.fn().mockResolvedValue(transport);
+      const peer = { id: 'socket-1' };
+      voiceRoomsStateService.getRoom.mockReturnValue({
+        ...createRoom(new Map([['socket-1', peer]])),
+        router: { createWebRtcTransport },
+      });
+      const socket = createSocket({ data: { sessionKey: 'room:1' } });
+      socket.rooms.add('room:1');
+
+      await gateway.handleCreateTransport(socket as never, {
+        direction: 'send',
+      });
+
+      expect(createWebRtcTransport).toHaveBeenCalledWith({
+        listenInfos: [
+          {
+            protocol: 'udp',
+            ip: '0.0.0.0',
+            announcedAddress: '192.168.0.10',
+            portRange: lanOnly,
+          },
+          {
+            protocol: 'udp',
+            ip: '0.0.0.0',
+            announcedAddress: '203.0.113.5',
+            portRange: shared,
+          },
+          {
+            protocol: 'tcp',
+            ip: '0.0.0.0',
+            announcedAddress: '192.168.0.10',
+            portRange: lanOnly,
+          },
+          {
+            protocol: 'tcp',
+            ip: '0.0.0.0',
+            announcedAddress: '203.0.113.5',
+            portRange: shared,
+          },
+        ],
+      });
+      expect(peer).toEqual({ id: 'socket-1', sendTransport: transport });
     });
   });
 
