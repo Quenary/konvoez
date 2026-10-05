@@ -4,11 +4,16 @@
   class="theatre"
   [class.strip-right]="stripRight()"
   [class.strip-bottom]="!stripRight()"
-  (pointermove)="onPointerMove()">
+  (pointermove)="revealOverlay()"
+  (pointerdown)="revealOverlay()">
   <div
     #stageEl
     class="stage"
-    [class.overlay-on]="overlayVisible()">
+    [class.overlay-on]="overlayVisible()"
+    (click)="onStageActivate()"
+    tabindex="-1"
+    (keypress)="onStageActivate()"
+    (touchstart)="revealOverlay()">
     @if (videoTrack()) {
       <video
         #videoEl

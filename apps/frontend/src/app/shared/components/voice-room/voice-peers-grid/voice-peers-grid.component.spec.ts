@@ -1,0 +1,207 @@
+import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { provideTranslateService } from '@ngx-translate/core';
+import { Store } from '@ngrx/store';
+import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { PeerVideoService } from '@core/services/peer-video.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceLeaveService } from '@core/services/voice-leave.service';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { SettingsStore } from '@features/settings/settings.store';
+import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
+import { of } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { VoicePeersGridComponent } from './voice-peers-grid.component';
+
+const user = (id: number): IUser =>
+  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
+
+describe('VoicePeersGridComponent', () => {
+  let currentUser: ReturnType<typeof signal<IUser | null>>;
+  let remotePeers: ReturnType<typeof signal<readonly IUser[]>>;
+  let remoteTracks: ReturnType<
+    typeof signal<ReadonlyMap<number, MediaStreamTrack>>
+  >;
+  let availableScreens: ReturnType<
+    typeof signal<ReadonlyMap<number, { videoProducerId: string }>>
+  >;
+  let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
+  let localCamTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
+  let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
+  let stopWatchingPeerScreen: ReturnType<typeof vi.fn>;
+  let activeSession: ReturnType<
+    typeof signal<{ type: EVoiceSessionType.GROUP_ROOM; roomId: number } | null>
+  >;
+
+  beforeEach(() => {
+    currentUser = signal(user(1));
+    remotePeers = signal([user(2), user(3)]);
+    remoteTracks = signal(new Map<number, MediaStreamTrack>());
+    availableScreens = signal(new Map());
+    watchingUserIds = signal(new Set<number>());
+    localCamTrack = signal<MediaStreamTrack | null>(null);
+    localScreenTrack = signal<MediaStreamTrack | null>(null);
+    stopWatchingPeerScreen = vi.fn().mockResolvedValue(undefined);
+    activeSession = signal({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+
+    vi.stubGlobal(
+      'MediaStream',
+      class MediaStream {
+        constructor(readonly tracks: readonly MediaStreamTrack[] = []) {}
+        getVideoTracks() {
+          return this.tracks;
+        }
+      },
+    );
+    vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLVideoElement.prototype, 'pause').mockImplementation(() => {
+      /* noop */
+    });
+
+    TestBed.configureTestingModule({
+      imports: [VoicePeersGridComponent],
+      providers: [
+        provideTranslateService(),
+        {
+          provide: Store,
+          useValue: {
+            selectSignal: () => currentUser.asReadonly(),
+          },
+        },
+        {
+          provide: VoiceRoomStore,
+          useValue: {
+            peersList: remotePeers.asReadonly(),
+            activeSession: activeSession.asReadonly(),
+            microphoneMuted: signal(false).asReadonly(),
+            speakerMuted: signal(false).asReadonly(),
+            peerGainLevels: signal({}).asReadonly(),
+            peerScreenGainLevels: signal({}).asReadonly(),
+          },
+        },
+        {
+          provide: PeerVideoService,
+          useValue: {
+            localCamTrack: localCamTrack.asReadonly(),
+            localScreenTrack: localScreenTrack.asReadonly(),
+            remoteTracks: remoteTracks.asReadonly(),
+            availableScreens: availableScreens.asReadonly(),
+            watchingUserIds: watchingUserIds.asReadonly(),
+          },
+        },
+        {
+          provide: DirectCallService,
+          useValue: {
+            interlocutor: signal(null).asReadonly(),
+            isCalling: signal(false).asReadonly(),
+            isIncoming: signal(false).asReadonly(),
+          },
+        },
+        {
+          provide: VoiceSessionService,
+          useValue: {
+            watchPeerScreen: vi.fn().mockResolvedValue(undefined),
+            stopWatchingPeerScreen,
+          },
+        },
+        {
+          provide: VoiceLeaveService,
+          useValue: { leaveActiveVoice: vi.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: TuiNotificationService,
+          useValue: { open: vi.fn(() => of(null)) },
+        },
+        {
+          provide: SettingsStore,
+          useValue: {
+            screenPreviewAutoPauseWhenHidden: signal(
+              DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+            ).asReadonly(),
+            setScreenPreviewAutoPauseWhenHidden: vi.fn(),
+          },
+        },
+      ],
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const create = () => {
+    const fixture = TestBed.createComponent(VoicePeersGridComponent);
+    fixture.componentRef.setInput('showControls', false);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  it('partitions peers into streaming and voice-only sections', () => {
+    remoteTracks.set(new Map([[3, { id: 'cam-3' } as MediaStreamTrack]]));
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+
+    expect(cmp['streamingPeers']().map((p) => p.id)).toEqual([3]);
+    expect(cmp['voiceOnlyPeers']().map((p) => p.id)).toEqual([1, 2]);
+    expect(
+      fixture.nativeElement.querySelector('.streaming-section'),
+    ).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.voice-section')).toBeTruthy();
+  });
+
+  it('does not render the grid while theatre is open', () => {
+    remoteTracks.set(new Map([[2, { id: 'scr' } as MediaStreamTrack]]));
+    availableScreens.set(new Map([[2, { videoProducerId: 'p1' }]]));
+    watchingUserIds.set(new Set([2]));
+
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+    cmp['onOpenTheatre'](2);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.peers-layout')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('app-voice-theatre'),
+    ).toBeTruthy();
+  });
+
+  it('closes theatre when stop watching the focused peer', async () => {
+    remoteTracks.set(new Map([[2, { id: 'scr' } as MediaStreamTrack]]));
+    availableScreens.set(new Map([[2, { videoProducerId: 'p1' }]]));
+    watchingUserIds.set(new Set([2]));
+
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+    cmp['onOpenTheatre'](2);
+    fixture.detectChanges();
+
+    await cmp['onStopWatchScreen'](2);
+    watchingUserIds.set(new Set());
+    fixture.detectChanges();
+
+    expect(cmp['theatreFocusPeer']()).toBeNull();
+    expect(fixture.nativeElement.querySelector('.peers-layout')).toBeTruthy();
+  });
+
+  it('closes theatre when focus peer is no longer watched', () => {
+    remoteTracks.set(new Map([[2, { id: 'scr' } as MediaStreamTrack]]));
+    availableScreens.set(new Map([[2, { videoProducerId: 'p1' }]]));
+    watchingUserIds.set(new Set([2]));
+
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+    cmp['onOpenTheatre'](2);
+    fixture.detectChanges();
+
+    watchingUserIds.set(new Set());
+    fixture.detectChanges();
+
+    expect(cmp['theatreFocusPeer']()).toBeNull();
+  });
+});

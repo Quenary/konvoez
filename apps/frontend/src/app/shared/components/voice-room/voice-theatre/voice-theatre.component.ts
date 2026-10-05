@@ -127,7 +127,7 @@ export class VoiceTheatreComponent {
     }
   }
 
-  protected onPointerMove(): void {
+  protected revealOverlay(): void {
     this.overlayVisible.set(true);
     if (this.hideOverlayTimer) {
       clearTimeout(this.hideOverlayTimer);
@@ -136,6 +136,10 @@ export class VoiceTheatreComponent {
       this.overlayVisible.set(false);
       this.hideOverlayTimer = null;
     }, 2500);
+  }
+
+  protected onStageActivate(): void {
+    this.revealOverlay();
   }
 
   protected onScreenVolumeChange(value: number): void {

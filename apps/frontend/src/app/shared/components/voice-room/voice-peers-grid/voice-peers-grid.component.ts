@@ -131,21 +131,21 @@ export class VoicePeersGridComponent {
     return this.screenAvailableByPeerId();
   });
 
-  protected readonly streamingPeers = computed(() => {
+  protected readonly peerPartitions = computed(() => {
     const tracks = this.videoTracksByPeerId();
     const screens = this.screenAvailableByPeerId();
     return partitionVoicePeers(this.peers(), (id) => {
       return Boolean(screens.get(id) || tracks.get(id));
-    }).streaming;
+    });
   });
 
-  protected readonly voiceOnlyPeers = computed(() => {
-    const tracks = this.videoTracksByPeerId();
-    const screens = this.screenAvailableByPeerId();
-    return partitionVoicePeers(this.peers(), (id) => {
-      return Boolean(screens.get(id) || tracks.get(id));
-    }).voiceOnly;
-  });
+  protected readonly streamingPeers = computed(
+    () => this.peerPartitions().streaming,
+  );
+
+  protected readonly voiceOnlyPeers = computed(
+    () => this.peerPartitions().voiceOnly,
+  );
 
   protected readonly streamingSectionClass = computed(() =>
     voiceSectionGridClass(this.streamingPeers().length),
