@@ -1,0 +1,85 @@
+:host {
+  position: absolute;
+  left: 1rem;
+  bottom: 5.5rem;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.pip {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  width: min(240px, 40vw);
+  overflow: hidden;
+  border: 1px solid var(--tui-border-normal);
+  border-radius: var(--tui-radius-l);
+  background: var(--tui-background-elevation-3);
+  box-shadow: var(--tui-shadow-medium);
+}
+
+.pip-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--tui-background-neutral-1);
+}
+
+.pip-title {
+  color: var(--tui-text-secondary);
+  font: var(--tui-font-text-s);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pip-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: var(--tui-background-base);
+}
+
+.pip-paused {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  aspect-ratio: 16 / 9;
+  padding: 0.75rem;
+  background: var(--tui-background-base);
+}
+
+.pip-paused-text {
+  margin: 0;
+  color: var(--tui-text-secondary);
+  font: var(--tui-font-text-s);
+  text-align: center;
+}
+
+.pip-extend-bar {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem;
+  background: var(--tui-background-neutral-1);
+}
+
+.peers-grid-root.compact :host,
+:host-context(.compact) {
+  bottom: 4.5rem;
+  left: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  :host {
+    left: 0.5rem;
+    bottom: 4.5rem;
+  }
+
+  .pip {
+    width: min(180px, 45vw);
+  }
+}

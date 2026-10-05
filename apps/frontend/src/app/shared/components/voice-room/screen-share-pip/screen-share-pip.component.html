@@ -1,0 +1,48 @@
+@if (visible()) {
+  <aside
+    class="pip"
+    [class.paused]="previewPaused()">
+    <div class="pip-chrome">
+      <span
+        appearance="negative"
+        size="s"
+        tuiBadge>
+        {{ 'CALL.LIVE' | translate }}
+      </span>
+      <span class="pip-title">{{ 'CALL.YOUR_SCREEN' | translate }}</span>
+    </div>
+
+    @if (previewPaused()) {
+      <div class="pip-paused">
+        <p class="pip-paused-text">{{ 'CALL.PREVIEW_PAUSED' | translate }}</p>
+        <button
+          tuiButton
+          appearance="accent"
+          size="s"
+          type="button"
+          (click)="onExtendPreview()">
+          {{ 'CALL.PREVIEW_EXTEND' | translate }}
+        </button>
+      </div>
+    } @else {
+      <video
+        #previewEl
+        class="pip-video"
+        autoplay
+        playsinline
+        muted></video>
+      @if (tabHidden()) {
+        <div class="pip-extend-bar">
+          <button
+            tuiButton
+            appearance="flat"
+            size="xs"
+            type="button"
+            (click)="onExtendPreview()">
+            {{ 'CALL.PREVIEW_EXTEND' | translate }}
+          </button>
+        </div>
+      }
+    }
+  </aside>
+}
