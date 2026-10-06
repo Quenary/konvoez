@@ -13,6 +13,13 @@ import { LocalScreenPreviewService } from './local-screen-preview.service';
 import { ConsumerRegistry } from './consumer-registry';
 import { ScreenWatchService } from './screen-watch.service';
 import { VoiceSessionPeersService } from '@shared/components/voice-room/voice-session-peers.service';
+import { VoiceRoomViewService } from '@shared/components/voice-room/voice-room-view.service';
+import { VoiceLeaveService } from './voice-leave.service';
+import { DirectCallService } from './direct-call.service';
+import { AudioService } from './audio.service';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -23,6 +30,8 @@ import { roomsReducer } from '@features/rooms/rooms.reducer';
  * Guards against NG0200 circular DI:
  * SettingsStore → AUDIO_DEVICE_HANDLER → VoiceSessionService → Mediasoup →
  * Camera/ScreenCapture → SettingsStore (must be lazy via Injector).
+ * Also covers voice stores, DirectCallService, VoiceLeaveService, and
+ * VoiceRoomViewService used by the shared voice-room UI.
  */
 describe('voice DI graph', () => {
   beforeEach(() => {
@@ -40,9 +49,26 @@ describe('voice DI graph', () => {
         ScreenCaptureService,
         LocalScreenPreviewService,
         VoiceSessionPeersService,
+        VoiceRoomViewService,
+        VoiceLeaveService,
+        DirectCallService,
+        VoiceSessionStore,
+        VoiceLobbyStore,
+        VoiceAudioPreferencesStore,
         ConsumerRegistry,
         ScreenWatchService,
         SettingsStore,
+        {
+          provide: AudioService,
+          useValue: {
+            startOutgoingDialing: vi.fn(),
+            stopOutgoingDialing: vi.fn(),
+            startIncomingRingtone: vi.fn(),
+            stopIncomingRingtone: vi.fn(),
+            playCallEndSound: vi.fn(),
+            playMuteAudio: vi.fn(),
+          },
+        },
         {
           provide: AUDIO_DEVICE_HANDLER,
           useExisting: VoiceSessionService,
@@ -79,6 +105,12 @@ describe('voice DI graph', () => {
       TestBed.inject(SettingsStore);
       TestBed.inject(LocalScreenPreviewService);
       TestBed.inject(VoiceSessionPeersService);
+      TestBed.inject(VoiceSessionStore);
+      TestBed.inject(VoiceLobbyStore);
+      TestBed.inject(VoiceAudioPreferencesStore);
+      TestBed.inject(DirectCallService);
+      TestBed.inject(VoiceLeaveService);
+      TestBed.inject(VoiceRoomViewService);
       TestBed.inject(ConsumerRegistry);
       TestBed.inject(ScreenWatchService);
     } catch (e) {
@@ -93,6 +125,12 @@ describe('voice DI graph', () => {
     expect(TestBed.inject(ScreenCaptureService)).toBeTruthy();
     expect(TestBed.inject(LocalScreenPreviewService)).toBeTruthy();
     expect(TestBed.inject(VoiceSessionPeersService)).toBeTruthy();
+    expect(TestBed.inject(VoiceSessionStore)).toBeTruthy();
+    expect(TestBed.inject(VoiceLobbyStore)).toBeTruthy();
+    expect(TestBed.inject(VoiceAudioPreferencesStore)).toBeTruthy();
+    expect(TestBed.inject(DirectCallService)).toBeTruthy();
+    expect(TestBed.inject(VoiceLeaveService)).toBeTruthy();
+    expect(TestBed.inject(VoiceRoomViewService)).toBeTruthy();
     expect(TestBed.inject(ConsumerRegistry)).toBeTruthy();
     expect(TestBed.inject(ScreenWatchService)).toBeTruthy();
   });
