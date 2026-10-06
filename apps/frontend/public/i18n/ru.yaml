@@ -63,6 +63,8 @@ DIRECT:
 CALL:
   START_CALL: Начать звонок
   JOIN_CALL: Присоединиться
+  TO_CALL: К звонку
+  TO_CHAT: К чату
   DIRECT_CALL: Личный звонок
   INCOMING_CALL: Входящий голосовой звонок...
   CALLING: Вызов...

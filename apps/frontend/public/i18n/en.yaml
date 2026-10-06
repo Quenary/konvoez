@@ -63,6 +63,8 @@ DIRECT:
 CALL:
   START_CALL: Start call
   JOIN_CALL: Join call
+  TO_CALL: Back to call
+  TO_CHAT: Back to chat
   DIRECT_CALL: Direct call
   INCOMING_CALL: Incoming voice call...
   CALLING: Calling...

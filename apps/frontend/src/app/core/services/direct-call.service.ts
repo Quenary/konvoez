@@ -14,7 +14,7 @@ import {
   IUser,
   TVoiceSessionTarget,
 } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { AudioService } from './audio.service';
 import { VoiceSessionService } from './voice-session.service';
@@ -48,7 +48,7 @@ export class DirectCallService {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly audioService = inject(AudioService);
   private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly notificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly store = inject(Store);
@@ -274,7 +274,7 @@ export class DirectCallService {
     });
     this._activeCall.set(null);
 
-    if (this.voiceRoomStore.directCallTarget()) {
+    if (this.voiceSessionStore.directCallTarget()) {
       await this.voiceSessionService.leaveSession();
     }
   }
@@ -290,7 +290,7 @@ export class DirectCallService {
 
       const inThisCall =
         this._activeCall()?.callId === result?.callId &&
-        this.voiceRoomStore.directCallTarget()?.callId === result?.callId;
+        this.voiceSessionStore.directCallTarget()?.callId === result?.callId;
 
       if (result && !inThisCall) {
         this._rejoinableCall.set(result);
@@ -480,7 +480,7 @@ export class DirectCallService {
         this.audioService.playCallEndSound();
         this._activeCall.set(null);
 
-        if (this.voiceRoomStore.directCallTarget()?.callId === data.callId) {
+        if (this.voiceSessionStore.directCallTarget()?.callId === data.callId) {
           void this.voiceSessionService.leaveSession();
         }
       }

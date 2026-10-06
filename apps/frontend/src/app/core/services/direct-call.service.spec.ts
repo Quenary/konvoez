@@ -18,7 +18,7 @@ import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { AudioService } from './audio.service';
 import { Subject } from 'rxjs';
 import { VoiceSessionService } from './voice-session.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
@@ -61,7 +61,7 @@ describe('DirectCallService', () => {
       next: unknown;
     }>;
   };
-  let voiceRoomStore: {
+  let voiceSessionStore: {
     directCallTarget: ReturnType<typeof vi.fn>;
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
@@ -83,7 +83,7 @@ describe('DirectCallService', () => {
       leaveSession: vi.fn().mockResolvedValue(undefined),
       sessionWillChange$: new Subject(),
     };
-    voiceRoomStore = {
+    voiceSessionStore = {
       directCallTarget: vi.fn().mockReturnValue(null),
     };
 
@@ -106,7 +106,7 @@ describe('DirectCallService', () => {
           },
         },
         { provide: VoiceSessionService, useValue: voiceSessionService },
-        { provide: VoiceRoomStore, useValue: voiceRoomStore },
+        { provide: VoiceSessionStore, useValue: voiceSessionStore },
         { provide: Router, useValue: router },
         {
           provide: TuiNotificationService,
@@ -153,7 +153,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomStore.directCallTarget.mockReturnValue({
+    voiceSessionStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
@@ -177,7 +177,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomStore.directCallTarget.mockReturnValue({
+    voiceSessionStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
@@ -217,7 +217,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomStore.directCallTarget.mockReturnValue({
+    voiceSessionStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,

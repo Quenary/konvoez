@@ -5,8 +5,9 @@ import {
   inject,
   input,
   output,
+  TemplateRef,
 } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiDropdown, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
@@ -35,6 +36,7 @@ import {
   },
   imports: [
     NgOptimizedImage,
+    NgTemplateOutlet,
     TranslatePipe,
     TuiAvatar,
     TuiButton,
@@ -62,9 +64,12 @@ export class VoiceRoomOverlayComponent {
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly room = input<IRoom | null>(null);
+  public readonly title = input<string>('');
+  public readonly avatarUrl = input<string | null>(null);
   public readonly participantsCount = input(0);
   public readonly fullscreenTarget = input<HTMLElement | null>(null);
   public readonly theatreTile = input<TVoiceRoomTile | null>(null);
+  public readonly headerActions = input<TemplateRef<unknown> | null>(null);
   public readonly left = output<void>();
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
@@ -86,8 +91,17 @@ export class VoiceRoomOverlayComponent {
   );
   protected readonly isFullscreen = this.voiceRoomViewService.isFullscreen;
 
-  protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? '');
-  protected readonly roomName = computed(() => this.room()?.name ?? '');
+  protected readonly displayTitle = computed(() => {
+    const title = this.title();
+    const roomName = this.room()?.name ?? '';
+    return title || roomName;
+  });
+
+  protected readonly displayAvatarUrl = computed(() => {
+    const avatarUrl = this.avatarUrl();
+    const roomAvatar = this.room()?.avatarUrl ?? null;
+    return avatarUrl ?? roomAvatar ?? '';
+  });
 
   protected editRoom(room: IRoom): Promise<void> {
     return this.roomManageService.editRoom(room);

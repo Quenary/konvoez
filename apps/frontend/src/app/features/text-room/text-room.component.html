@@ -1,148 +1,32 @@
-<header
-  tuiHeader
-  class="room-header">
-  @if (title(); as currentTitle) {
-    <h2 tuiTitle>
-      <div
-        tuiAvatar
-        size="s"
-        class="header-avatar">
-        @if (avatarUrl()) {
-          <img
-            [alt]="currentTitle"
-            [ngSrc]="avatarUrl()!"
-            fill
-            priority />
-        } @else {
-          {{ currentTitle | tuiInitials }}
-        }
-      </div>
-
-      {{ currentTitle }}
-    </h2>
-  }
-
-  <aside tuiAccessories>
-    @if (isDirectChat() && user(); as directUser) {
-      @if (!isCurrentDirectCallActive()) {
-        @if (canRejoinCall()) {
-          <app-pulse-indicator
-            variant="glow"
-            shape="rounded">
-            <button
-              tuiIconButton
-              appearance="positive"
-              size="s"
-              iconStart="@tui.phone-call"
-              type="button"
-              tuiHintAppearance="floating"
-              [tuiHint]="'CALL.JOIN_CALL' | translate"
-              (click)="rejoinDirectCall(directUser)">
-              {{ 'CALL.JOIN_CALL' | translate }}
-            </button>
-          </app-pulse-indicator>
-        } @else {
-          <button
-            tuiIconButton
-            appearance="flat"
-            size="s"
-            iconStart="@tui.phone"
-            type="button"
-            tuiHintAppearance="floating"
-            [tuiHint]="'CALL.START_CALL' | translate"
-            (click)="startDirectCall(directUser)">
-            {{ 'CALL.START_CALL' | translate }}
-          </button>
-        }
-      }
-    }
-
-    <button
-      tuiIconButton
-      appearance="flat"
-      size="s"
-      iconStart="@tui.search"
-      type="button"
-      tuiHintAppearance="floating"
-      [tuiHint]="'GENERAL.SEARCH' | translate"
-      (click)="toggleSearch()">
-      {{ 'GENERAL.SEARCH' | translate }}
-    </button>
-
+@if (roomId(); as id) {
+  <app-chat
+    [roomId]="id"
+    [title]="title()"
+    [avatarUrl]="avatarUrl()">
     @if (canManageRooms() && room(); as manageRoom) {
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        iconStart="@tui.ellipsis-vertical"
-        type="button"
-        tuiDropdownAuto
-        [tuiDropdown]="roomContextMenu"
-        tuiHintAppearance="floating"
-        [tuiHint]="'GENERAL.MORE' | translate">
-        {{ 'GENERAL.MORE' | translate }}
-      </button>
-
-      <ng-template
-        #roomContextMenu
-        let-close>
-        <app-room-context-menu
-          [roomName]="manageRoom.name"
-          (edit)="editRoom(manageRoom); close()"
-          (delete)="deleteRoom(manageRoom); close()" />
-      </ng-template>
-    }
-  </aside>
-
-  @if (textRoomStore.isSearchOpen()) {
-    <tui-textfield
-      iconStart="@tui.search"
-      [tuiTextfieldCleaner]="false"
-      class="search-textfield">
-      <input
-        tuiInput
-        [formControl]="searchControl"
-        [placeholder]="'ROOMS.SEARCH_MESSAGES' | translate"
-        tuiAutoFocus />
-      @if (searchControl.value) {
+      <div chatHeaderActions>
         <button
           tuiIconButton
           appearance="flat"
-          size="xs"
-          iconStart="@tui.x"
+          size="s"
+          iconStart="@tui.ellipsis-vertical"
           type="button"
+          tuiDropdownAuto
+          [tuiDropdown]="roomContextMenu"
           tuiHintAppearance="floating"
-          [tuiHint]="'GENERAL.CANCEL' | translate"
-          (click)="clearSearch()">
+          [tuiHint]="'GENERAL.MORE' | translate">
+          {{ 'GENERAL.MORE' | translate }}
         </button>
-      }
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="xs"
-        iconStart="@tui.chevron-up"
-        type="button"
-        tuiHintAppearance="floating"
-        [tuiHint]="'GENERAL.CLOSE' | translate"
-        (click)="toggleSearch()">
-      </button>
-    </tui-textfield>
-  }
-</header>
 
-@if (isCurrentDirectCallActive()) {
-  <div class="direct-voice-section">
-    <app-direct-call-panel />
-  </div>
+        <ng-template
+          #roomContextMenu
+          let-close>
+          <app-room-context-menu
+            [roomName]="manageRoom.name"
+            (edit)="editRoom(manageRoom); close()"
+            (delete)="deleteRoom(manageRoom); close()" />
+        </ng-template>
+      </div>
+    }
+  </app-chat>
 }
-
-<div
-  class="chat-drop"
-  appFileDrop
-  (filesDropped)="onFilesDropped($event)">
-  <app-text-room-list />
-  <app-text-room-editor />
-  <div class="drop-overlay">
-    {{ 'ROOMS.DROP_FILES_HERE' | translate }}
-  </div>
-</div>

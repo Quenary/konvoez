@@ -1,8 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
-  ElementRef,
   computed,
   effect,
   inject,
@@ -14,26 +12,14 @@ import { Store } from '@ngrx/store';
 import { map } from 'rxjs';
 import { selectRoomsDict } from '../rooms/rooms.selectors';
 import { IRoom } from '../rooms/rooms.interface';
-import { VoiceRoomGridComponent } from '@shared/components/voice-room/voice-room-grid/voice-room-grid.component';
-import { VoiceRoomOverlayComponent } from '@shared/components/voice-room/voice-room-overlay/voice-room-overlay.component';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceSessionPeersService } from '@shared/components/voice-room/voice-session-peers.service';
-import { VoiceRoomViewService } from '@shared/components/voice-room/voice-room-view.service';
-import { VoiceOverlaySlotDirective } from '@shared/components/voice-room/voice-overlay-slot.directive';
 import { EVoiceSessionType } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-room',
-  host: {
-    '(pointermove)': 'revealChrome()',
-    '(pointerdown)': 'revealChrome()',
-  },
-  imports: [
-    VoiceRoomGridComponent,
-    VoiceRoomOverlayComponent,
-    VoiceOverlaySlotDirective,
-  ],
+  imports: [VoiceRoomShellComponent],
   templateUrl: './voice-room.component.html',
   styleUrl: './voice-room.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,13 +28,8 @@ export class VoiceRoomComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly store = inject(Store);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
-  private readonly voiceRoomViewService = inject(VoiceRoomViewService);
-  private readonly destroyRef = inject(DestroyRef);
-  private readonly host = inject(ElementRef<HTMLElement>);
-  protected readonly fullscreenHost = this.host.nativeElement;
 
   /**
    * Tracks which route room id we already attempted to join, so leaving
@@ -65,25 +46,16 @@ export class VoiceRoomComponent {
     return roomsDict[id] ?? null;
   });
 
-  protected readonly participantsCount = this.voiceSessionPeersService.count;
-
   private readonly roomsDict = this.store.selectSignal(selectRoomsDict);
   private readonly roomId = toSignal(
     this.route.paramMap.pipe(map((params) => Number(params.get('id')))),
   );
 
   constructor() {
-    this.voiceRoomViewService.revealChrome();
-    this.destroyRef.onDestroy(() => {
-      if (document.fullscreenElement === this.fullscreenHost) {
-        void document.exitFullscreen();
-      }
-    });
-
     effect(() => {
       const id = this.roomId();
       const alreadyJoinedFor = this.joinedForRoomId();
-      const current = this.voiceRoomStore.selectedRoomId();
+      const current = this.voiceSessionStore.selectedRoomId();
 
       if (!id || !Number.isFinite(id) || id <= 0) {
         return;
@@ -106,10 +78,6 @@ export class VoiceRoomComponent {
           this.voiceSessionService.reportJoinFailure(error);
         });
     });
-  }
-
-  protected revealChrome(): void {
-    this.voiceRoomViewService.revealChrome();
   }
 
   protected onLeft(): void {

@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceRoomTheatreWatchControlsComponent } from './voice-room-theatre-watch-controls.component';
 
 describe('VoiceRoomTheatreWatchControlsComponent', () => {
@@ -25,7 +25,7 @@ describe('VoiceRoomTheatreWatchControlsComponent', () => {
           useValue: { stopWatchingPeerScreen },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceAudioPreferencesStore,
           useValue: {
             peerScreenGainLevels: peerScreenGainLevels.asReadonly(),
             setPeerScreenGain,

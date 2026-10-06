@@ -7,7 +7,7 @@ import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { SettingsStore } from '@features/settings/settings.store';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { VoiceRoomControlsBarComponent } from './voice-room-controls-bar.component';
 
@@ -46,7 +46,7 @@ describe('VoiceRoomControlsBarComponent', () => {
       providers: [
         provideTranslateService(),
         {
-          provide: VoiceRoomStore,
+          provide: VoiceAudioPreferencesStore,
           useValue: {
             microphoneMuted: signal(false).asReadonly(),
             speakerMuted: signal(false).asReadonly(),

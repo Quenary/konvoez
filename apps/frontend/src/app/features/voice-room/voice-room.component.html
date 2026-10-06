@@ -1,14 +1,9 @@
-<div class="voice-room-body">
-  <app-voice-room-grid [showControls]="false">
-    <ng-template
-      appVoiceOverlay
-      let-theatreTile>
-      <app-voice-room-overlay
-        [room]="room()"
-        [participantsCount]="participantsCount()"
-        [fullscreenTarget]="fullscreenHost"
-        [theatreTile]="theatreTile"
-        (left)="onLeft()" />
-    </ng-template>
-  </app-voice-room-grid>
-</div>
+@if (room(); as currentRoom) {
+  <app-voice-room-shell
+    [room]="currentRoom"
+    [title]="currentRoom.name"
+    [avatarUrl]="currentRoom.avatarUrl ?? null"
+    (left)="onLeft()" />
+} @else {
+  <app-voice-room-shell (left)="onLeft()" />
+}

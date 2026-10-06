@@ -6,7 +6,7 @@ import {
   inject,
   output,
 } from '@angular/core';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
@@ -37,7 +37,9 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VoiceRoomControlsBarComponent {
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceAudioPreferencesStore = inject(
+    VoiceAudioPreferencesStore,
+  );
   private readonly settingsStore = inject(SettingsStore);
   private readonly audioService = inject(AudioService);
   private readonly peerVideoService = inject(PeerVideoService);
@@ -49,8 +51,9 @@ export class VoiceRoomControlsBarComponent {
 
   public readonly hangup = output<void>();
 
-  protected readonly micMuted = this.voiceRoomStore.microphoneMuted;
-  protected readonly speakerMuted = this.voiceRoomStore.speakerMuted;
+  protected readonly micMuted = this.voiceAudioPreferencesStore.microphoneMuted;
+  protected readonly speakerMuted =
+    this.voiceAudioPreferencesStore.speakerMuted;
   protected readonly cameraOn = computed(
     () => this.peerVideoService.localCamTrack() !== null,
   );
@@ -61,18 +64,18 @@ export class VoiceRoomControlsBarComponent {
 
   protected toggleMicrophone(): void {
     const value = !this.micMuted();
-    this.voiceRoomStore.setMicrophoneMuted(value);
+    this.voiceAudioPreferencesStore.setMicrophoneMuted(value);
     if (!value) {
-      this.voiceRoomStore.setSpeakerMuted(false);
+      this.voiceAudioPreferencesStore.setSpeakerMuted(false);
     }
     this.audioService.playMuteAudio();
   }
 
   protected toggleSpeaker(): void {
     const value = !this.speakerMuted();
-    this.voiceRoomStore.setSpeakerMuted(value);
+    this.voiceAudioPreferencesStore.setSpeakerMuted(value);
     if (value) {
-      this.voiceRoomStore.setMicrophoneMuted(true);
+      this.voiceAudioPreferencesStore.setMicrophoneMuted(true);
     }
     this.audioService.playMuteAudio();
   }

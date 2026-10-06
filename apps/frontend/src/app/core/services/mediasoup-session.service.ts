@@ -39,7 +39,7 @@ export interface IConsumePeerContext {
 
 /**
  * Mediasoup-client Device, send/recv transports, mic/cam produce, and remote consume.
- * Pending consumes wait until the peer exists in VoiceRoomStore.
+ * Pending consumes wait until the peer exists in VoiceSessionStore.
  */
 @Injectable({
   providedIn: 'root',

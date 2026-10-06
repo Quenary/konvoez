@@ -10,7 +10,8 @@ import {
   type IUserDeleted,
 } from '@konvoez/shared';
 import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { AuthActions } from '@features/auth/auth.actions';
 import {
   selectCurrentUser,
@@ -25,7 +26,8 @@ export class EntitySyncEffects {
   private readonly store = inject(Store);
   private readonly socket = inject(EntitySyncSocketToken);
   private readonly usersStore = inject(UsersStore);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
+  private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly emitter = this.socket as never;
 
   constructor() {
@@ -60,7 +62,8 @@ export class EntitySyncEffects {
     fromEvent<IUser>(this.emitter, EEntitySyncEvent.USER_UPDATED).pipe(
       tap((user) => {
         this.usersStore.upsertOne(user);
-        this.voiceRoomStore.applyUserEntityUpdate(user);
+        this.voiceSessionStore.applyUserEntityUpdate(user);
+        this.voiceLobbyStore.applyUserEntityUpdate(user);
       }),
       withLatestFrom(this.store.select(selectCurrentUser)),
       filter(([user, currentUser]) => currentUser?.id === user.id),
@@ -72,7 +75,8 @@ export class EntitySyncEffects {
     fromEvent<IUserDeleted>(this.emitter, EEntitySyncEvent.USER_DELETED).pipe(
       tap(({ id }) => {
         this.usersStore.removeOne(id);
-        this.voiceRoomStore.applyUserEntityDeleted(id);
+        this.voiceSessionStore.applyUserEntityDeleted(id);
+        this.voiceLobbyStore.applyUserEntityDeleted(id);
       }),
       withLatestFrom(this.store.select(selectCurrentUser)),
       filter(([{ id }, currentUser]) => currentUser?.id === id),

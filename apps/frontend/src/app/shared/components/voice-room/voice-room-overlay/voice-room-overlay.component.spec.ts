@@ -9,7 +9,7 @@ import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { IRoom } from '@features/rooms/rooms.interface';
 import { RoomManageService } from '@features/rooms/room-manage.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
@@ -77,7 +77,7 @@ describe('VoiceRoomOverlayComponent', () => {
           useValue: { leaveActiveVoice: vi.fn().mockResolvedValue(undefined) },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceAudioPreferencesStore,
           useValue: {
             microphoneMuted: signal(false).asReadonly(),
             speakerMuted: signal(false).asReadonly(),

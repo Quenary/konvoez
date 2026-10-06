@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { EVoiceSessionType, TVoiceSessionTarget } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomViewService } from './voice-room-view.service';
 
@@ -17,7 +17,7 @@ describe('VoiceRoomViewService', () => {
       providers: [
         VoiceRoomViewService,
         {
-          provide: VoiceRoomStore,
+          provide: VoiceSessionStore,
           useValue: {
             activeSession: activeSession.asReadonly(),
           },

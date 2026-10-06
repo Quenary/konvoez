@@ -1,0 +1,86 @@
+<header
+  tuiHeader
+  class="room-header">
+  @if (title(); as currentTitle) {
+    <h2 tuiTitle>
+      <div
+        tuiAvatar
+        size="s"
+        class="header-avatar">
+        @if (avatarUrl()) {
+          <img
+            [alt]="currentTitle"
+            [ngSrc]="avatarUrl()!"
+            fill
+            priority />
+        } @else {
+          {{ currentTitle | tuiInitials }}
+        }
+      </div>
+
+      {{ currentTitle }}
+    </h2>
+  }
+
+  <aside tuiAccessories>
+    <ng-content select="[chatHeaderActions]" />
+
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      iconStart="@tui.search"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'GENERAL.SEARCH' | translate"
+      (click)="toggleSearch()">
+      {{ 'GENERAL.SEARCH' | translate }}
+    </button>
+  </aside>
+
+  @if (chatStore.isSearchOpen()) {
+    <tui-textfield
+      iconStart="@tui.search"
+      [tuiTextfieldCleaner]="false"
+      class="search-textfield">
+      <input
+        tuiInput
+        [formControl]="searchControl"
+        [placeholder]="'ROOMS.SEARCH_MESSAGES' | translate"
+        tuiAutoFocus />
+      @if (searchControl.value) {
+        <button
+          tuiIconButton
+          appearance="flat"
+          size="xs"
+          iconStart="@tui.x"
+          type="button"
+          tuiHintAppearance="floating"
+          [tuiHint]="'GENERAL.CANCEL' | translate"
+          (click)="clearSearch()">
+        </button>
+      }
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="xs"
+        iconStart="@tui.chevron-up"
+        type="button"
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.CLOSE' | translate"
+        (click)="toggleSearch()">
+      </button>
+    </tui-textfield>
+  }
+</header>
+
+<div
+  class="chat-drop"
+  appFileDrop
+  (filesDropped)="onFilesDropped($event)">
+  <app-chat-messages-list />
+  <app-chat-editor />
+  <div class="drop-overlay">
+    {{ 'ROOMS.DROP_FILES_HERE' | translate }}
+  </div>
+</div>

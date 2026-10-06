@@ -11,7 +11,7 @@ import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
@@ -53,7 +53,9 @@ import type { TVoiceStreamKind } from '../voice-room-tiles';
 })
 export class VoiceRoomTileComponent {
   private readonly store = inject(Store);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceAudioPreferencesStore = inject(
+    VoiceAudioPreferencesStore,
+  );
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly directCallService = inject(DirectCallService);
   private readonly localScreenPreviewService = inject(
@@ -122,24 +124,24 @@ export class VoiceRoomTileComponent {
 
   protected readonly isMuted = computed(() => {
     const isLocal = this.isLocal();
-    const microphoneMuted = this.voiceRoomStore.microphoneMuted();
+    const microphoneMuted = this.voiceAudioPreferencesStore.microphoneMuted();
     return isLocal ? microphoneMuted : false;
   });
 
   protected readonly isDeafened = computed(() => {
     const isLocal = this.isLocal();
-    const speakerMuted = this.voiceRoomStore.speakerMuted();
+    const speakerMuted = this.voiceAudioPreferencesStore.speakerMuted();
     return isLocal ? speakerMuted : false;
   });
 
   protected readonly volume = computed(() => {
-    const levels = this.voiceRoomStore.peerGainLevels();
+    const levels = this.voiceAudioPreferencesStore.peerGainLevels();
     const gain = levels[this.peer().id] ?? 1;
     return Math.round(gain * 100);
   });
 
   protected readonly screenVolume = computed(() => {
-    const levels = this.voiceRoomStore.peerScreenGainLevels();
+    const levels = this.voiceAudioPreferencesStore.peerScreenGainLevels();
     const gain = levels[this.peer().id] ?? 1;
     return Math.round(gain * 100);
   });
@@ -175,11 +177,14 @@ export class VoiceRoomTileComponent {
   );
 
   protected onVolumeChange(value: number): void {
-    this.voiceRoomStore.setPeerGain(this.peer().id, value / 100);
+    this.voiceAudioPreferencesStore.setPeerGain(this.peer().id, value / 100);
   }
 
   protected onScreenVolumeChange(value: number): void {
-    this.voiceRoomStore.setPeerScreenGain(this.peer().id, value / 100);
+    this.voiceAudioPreferencesStore.setPeerScreenGain(
+      this.peer().id,
+      value / 100,
+    );
   }
 
   protected onWatchClick(): void {

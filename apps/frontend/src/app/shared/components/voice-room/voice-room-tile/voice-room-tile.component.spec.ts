@@ -4,7 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IUser } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
@@ -49,7 +49,7 @@ describe('VoiceRoomTileComponent', () => {
           },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceAudioPreferencesStore,
           useValue: {
             microphoneMuted: signal(false).asReadonly(),
             speakerMuted: signal(false).asReadonly(),

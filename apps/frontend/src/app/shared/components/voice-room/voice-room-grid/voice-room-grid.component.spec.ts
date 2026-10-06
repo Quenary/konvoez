@@ -4,7 +4,8 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { PeerVideoService } from '@core/services/peer-video.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
@@ -79,10 +80,15 @@ describe('VoiceRoomGridComponent', () => {
           },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceSessionStore,
           useValue: {
             peersList: remotePeers.asReadonly(),
             activeSession: activeSession.asReadonly(),
+          },
+        },
+        {
+          provide: VoiceAudioPreferencesStore,
+          useValue: {
             microphoneMuted: signal(false).asReadonly(),
             speakerMuted: signal(false).asReadonly(),
             peerGainLevels: signal({}).asReadonly(),

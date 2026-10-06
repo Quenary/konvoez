@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { getVoiceSessionKey } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { fromEvent } from 'rxjs';
 import { VoiceChromeReveal } from './voice-chrome-reveal';
 import type { TVoiceStreamKind } from './voice-room-tiles';
@@ -21,7 +21,7 @@ export type TTheatreFocus = {
 @Injectable({ providedIn: 'root' })
 export class VoiceRoomViewService {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
 
   private readonly chrome = new VoiceChromeReveal(true);
   private readonly focus = signal<TTheatreFocus | null>(null);
@@ -38,7 +38,7 @@ export class VoiceRoomViewService {
     this.destroyRef.onDestroy(() => this.chrome.destroy());
 
     effect(() => {
-      const session = this.voiceRoomStore.activeSession();
+      const session = this.voiceSessionStore.activeSession();
       const key = session ? getVoiceSessionKey(session) : null;
       if (this.sessionKey === undefined) {
         this.sessionKey = key;

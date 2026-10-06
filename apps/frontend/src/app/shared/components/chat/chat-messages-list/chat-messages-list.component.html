@@ -1,0 +1,28 @@
+<div
+  #scrollContainer
+  class="scroll-container"
+  infiniteScroll
+  [infiniteScrollDistance]="1"
+  [infiniteScrollUpDistance]="1"
+  [infiniteScrollThrottle]="150"
+  [scrollWindow]="false"
+  [infiniteScrollDisabled]="infiniteScrollDisabled()"
+  (scrolledUp)="onScrollUp()"
+  (scrolled)="onScrolled()">
+  @for (m of messages(); track m.id) {
+    <app-chat-message [message]="m"> </app-chat-message>
+  }
+</div>
+
+@if (showScrollToBottom()) {
+  <button
+    class="scroll-to-bottom"
+    tuiIconButton
+    type="button"
+    iconStart="@tui.arrow-down"
+    size="s"
+    [tuiHint]="'ROOMS.SCROLL_TO_BOTTOM' | translate"
+    (click)="scrollToBottom('smooth')">
+    {{ 'ROOMS.SCROLL_TO_BOTTOM' | translate }}
+  </button>
+}

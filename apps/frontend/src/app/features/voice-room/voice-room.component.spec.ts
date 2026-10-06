@@ -6,9 +6,7 @@ import { EVoiceSessionType } from '@konvoez/shared';
 import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceSessionPeersService } from '@shared/components/voice-room/voice-session-peers.service';
-import { VoiceRoomViewService } from '@shared/components/voice-room/voice-room-view.service';
-import { VoiceRoomStore } from './voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomComponent } from './voice-room.component';
 import { IRoom } from '../rooms/rooms.interface';
 
@@ -18,8 +16,6 @@ describe('VoiceRoomComponent', () => {
   let joinSession: ReturnType<typeof vi.fn>;
   let reportJoinFailure: ReturnType<typeof vi.fn>;
   let navigate: ReturnType<typeof vi.fn>;
-  let revealChrome: ReturnType<typeof vi.fn>;
-  let count: ReturnType<typeof signal<number>>;
 
   beforeEach(() => {
     paramMap = new BehaviorSubject(convertToParamMap({ id: '4' }));
@@ -27,8 +23,6 @@ describe('VoiceRoomComponent', () => {
     joinSession = vi.fn().mockResolvedValue(undefined);
     reportJoinFailure = vi.fn();
     navigate = vi.fn().mockResolvedValue(true);
-    revealChrome = vi.fn();
-    count = signal(3);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomComponent],
@@ -51,7 +45,7 @@ describe('VoiceRoomComponent', () => {
           },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceSessionStore,
           useValue: {
             selectedRoomId: selectedRoomId.asReadonly(),
           },
@@ -60,23 +54,12 @@ describe('VoiceRoomComponent', () => {
           provide: VoiceSessionService,
           useValue: { joinSession, reportJoinFailure },
         },
-        {
-          provide: VoiceSessionPeersService,
-          useValue: {
-            count: count.asReadonly(),
-            peers: signal([]).asReadonly(),
-          },
-        },
-        {
-          provide: VoiceRoomViewService,
-          useValue: { revealChrome },
-        },
       ],
     });
     TestBed.overrideComponent(VoiceRoomComponent, {
       set: {
         imports: [],
-        template: `<p class="count">{{ participantsCount() }}</p>`,
+        template: `<p class="room-name">{{ room()?.name }}</p>`,
       },
     });
   });
@@ -90,15 +73,14 @@ describe('VoiceRoomComponent', () => {
 
   it('joins the route room once', async () => {
     const fixture = create();
-    expect(fixture.nativeElement.querySelector('.count')?.textContent).toBe(
-      '3',
+    expect(fixture.nativeElement.querySelector('.room-name')?.textContent).toBe(
+      'VIP',
     );
     expect(joinSession).toHaveBeenCalledTimes(1);
     expect(joinSession).toHaveBeenCalledWith({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 4,
     });
-    expect(revealChrome).toHaveBeenCalled();
 
     selectedRoomId.set(9);
     TestBed.flushEffects();
@@ -121,24 +103,5 @@ describe('VoiceRoomComponent', () => {
     await vi.waitFor(() => {
       expect(reportJoinFailure).toHaveBeenCalledWith(error);
     });
-  });
-
-  it('leaves fullscreen with the page', () => {
-    const fixture = create();
-    const exitFullscreen = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(document, 'exitFullscreen', {
-      configurable: true,
-      value: exitFullscreen,
-    });
-    Object.defineProperty(document, 'fullscreenElement', {
-      configurable: true,
-      get: () => fixture.nativeElement,
-    });
-
-    fixture.destroy();
-
-    expect(exitFullscreen).toHaveBeenCalledTimes(1);
-    Reflect.deleteProperty(document, 'fullscreenElement');
-    Reflect.deleteProperty(document, 'exitFullscreen');
   });
 });

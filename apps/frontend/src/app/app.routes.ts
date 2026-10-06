@@ -51,10 +51,9 @@ export const routes: Routes = [
       },
       {
         path: 'direct/:id',
-        data: { isDirect: true },
         loadComponent: () =>
-          import('./features/text-room/text-room.component').then(
-            (m) => m.TextRoomComponent,
+          import('./features/direct/direct.component').then(
+            (m) => m.DirectComponent,
           ),
       },
       {

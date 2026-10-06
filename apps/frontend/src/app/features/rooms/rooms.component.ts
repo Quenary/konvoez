@@ -24,7 +24,8 @@ import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import {
   DirectCallService,
   ECallStatus,
@@ -91,7 +92,8 @@ export class RoomsComponent implements OnInit {
   private readonly store = inject(Store);
   private readonly usersStore = inject(UsersStore);
   private readonly translateService = inject(TranslateService);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
+  private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly directCallService = inject(DirectCallService);
   private readonly router = inject(Router);
   private readonly tuiDialogService = inject(TuiDialogService);
@@ -105,13 +107,13 @@ export class RoomsComponent implements OnInit {
 
   protected readonly selectedRoomId =
     this.store.selectSignal(selectSelectedRoomId);
-  protected readonly activeVoiceRoomId = this.voiceRoomStore.selectedRoomId;
+  protected readonly activeVoiceRoomId = this.voiceSessionStore.selectedRoomId;
 
   protected readonly textRooms = this.store.selectSignal(selectTextRoomsList);
 
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
     const voiceRooms = this._voiceRooms();
-    const voiceRoomsState = this.voiceRoomStore.roomsState();
+    const voiceRoomsState = this.voiceLobbyStore.roomsState();
     const currentUser = this.currentUser();
 
     return voiceRooms.map((item) => {

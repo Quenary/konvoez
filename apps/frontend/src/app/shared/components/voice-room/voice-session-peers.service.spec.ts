@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
 
@@ -49,7 +49,7 @@ describe('VoiceSessionPeersService', () => {
           useValue: { selectSignal: () => me.asReadonly() },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceSessionStore,
           useValue: {
             peersList: remotePeers.asReadonly(),
             activeSession: activeSession.asReadonly(),

@@ -11,7 +11,9 @@ import {
   TVoiceRoomGetAllPeersResult,
 } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { AudioService } from './audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { ScreenWatchService } from './screen-watch.service';
@@ -44,20 +46,25 @@ describe('VoiceSessionService', () => {
   };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
   let roomsSnapshot: TVoiceRoomGetAllPeersResult;
-  let voiceRoomStore: {
+  let voiceSessionStore: {
     activeSession: ReturnType<typeof signal>;
+    peersDict: ReturnType<typeof signal<Record<number, IUser>>>;
+    setActiveSession: (session: unknown) => void;
+    setPeers: ReturnType<typeof vi.fn>;
+    upsertPeer: ReturnType<typeof vi.fn>;
+    removePeer: ReturnType<typeof vi.fn>;
+    clearSessionPeers: ReturnType<typeof vi.fn>;
+  };
+  let voiceLobbyStore: {
+    setRoomsState: ReturnType<typeof vi.fn>;
+    addPeerToRoom: ReturnType<typeof vi.fn>;
+    removePeerFromRoom: ReturnType<typeof vi.fn>;
+  };
+  let voiceAudioPreferencesStore: {
     microphoneMuted: ReturnType<typeof signal<boolean>>;
     speakerMuted: ReturnType<typeof signal<boolean>>;
     peerGainLevels: ReturnType<typeof signal<Record<number, number>>>;
-    peersDict: ReturnType<typeof signal<Record<number, IUser>>>;
-    setActiveSession: (session: unknown) => void;
-    setRoomsState: ReturnType<typeof vi.fn>;
-    setPeers: ReturnType<typeof vi.fn>;
-    upsertPeer: ReturnType<typeof vi.fn>;
-    addPeerToRoom: ReturnType<typeof vi.fn>;
-    removePeer: ReturnType<typeof vi.fn>;
-    removePeerFromRoom: ReturnType<typeof vi.fn>;
-    clearSessionPeers: ReturnType<typeof vi.fn>;
+    peerScreenGainLevels: ReturnType<typeof signal<Record<number, number>>>;
   };
   let processedStream: ReturnType<typeof signal<MediaStream | null>>;
   let microphoneService: {
@@ -112,22 +119,27 @@ describe('VoiceSessionService', () => {
     socket.timeout.mockReturnValue(socket);
 
     const activeSession = signal<unknown>(null);
-    voiceRoomStore = {
+    voiceSessionStore = {
       activeSession: activeSession as never,
-      microphoneMuted: signal(false),
-      speakerMuted: signal(false),
-      peerGainLevels: signal({}),
       peersDict: signal({}),
       setActiveSession: vi.fn((session: unknown) => {
         activeSession.set(session);
       }),
-      setRoomsState: vi.fn(),
       setPeers: vi.fn(),
       upsertPeer: vi.fn(),
-      addPeerToRoom: vi.fn(),
       removePeer: vi.fn(),
-      removePeerFromRoom: vi.fn(),
       clearSessionPeers: vi.fn(),
+    };
+    voiceLobbyStore = {
+      setRoomsState: vi.fn(),
+      addPeerToRoom: vi.fn(),
+      removePeerFromRoom: vi.fn(),
+    };
+    voiceAudioPreferencesStore = {
+      microphoneMuted: signal(false),
+      speakerMuted: signal(false),
+      peerGainLevels: signal({}),
+      peerScreenGainLevels: signal({}),
     };
 
     processedStream = signal<MediaStream | null>(null);
@@ -167,7 +179,12 @@ describe('VoiceSessionService', () => {
       providers: [
         VoiceSessionService,
         { provide: VoiceRoomSocketToken, useValue: socket },
-        { provide: VoiceRoomStore, useValue: voiceRoomStore },
+        { provide: VoiceSessionStore, useValue: voiceSessionStore },
+        { provide: VoiceLobbyStore, useValue: voiceLobbyStore },
+        {
+          provide: VoiceAudioPreferencesStore,
+          useValue: voiceAudioPreferencesStore,
+        },
         { provide: MicrophoneService, useValue: microphoneService },
         { provide: SpeakerService, useValue: { setDevice: vi.fn() } },
         {
@@ -202,7 +219,7 @@ describe('VoiceSessionService', () => {
     expect(socket.emitWithAck).toHaveBeenCalledWith(
       EVoiceRoomEvent.GET_ALL_PEERS,
     );
-    expect(voiceRoomStore.setRoomsState).toHaveBeenCalledWith(roomsSnapshot);
+    expect(voiceLobbyStore.setRoomsState).toHaveBeenCalledWith(roomsSnapshot);
   });
 
   it('refreshes rooms state when the socket connects', async () => {
@@ -212,7 +229,7 @@ describe('VoiceSessionService', () => {
     };
     roomsSnapshot = nextSnapshot;
     socket.emitWithAck.mockClear();
-    voiceRoomStore.setRoomsState.mockClear();
+    voiceLobbyStore.setRoomsState.mockClear();
 
     handlers['connect']();
     await Promise.resolve();
@@ -220,7 +237,7 @@ describe('VoiceSessionService', () => {
     expect(socket.emitWithAck).toHaveBeenCalledWith(
       EVoiceRoomEvent.GET_ALL_PEERS,
     );
-    expect(voiceRoomStore.setRoomsState).toHaveBeenCalledWith(nextSnapshot);
+    expect(voiceLobbyStore.setRoomsState).toHaveBeenCalledWith(nextSnapshot);
   });
 
   it('releases the microphone when the leave ack rejects or times out', async () => {
@@ -234,7 +251,7 @@ describe('VoiceSessionService', () => {
 
     try {
       for (const error of failures) {
-        voiceRoomStore.setActiveSession({
+        voiceSessionStore.setActiveSession({
           type: EVoiceSessionType.GROUP_ROOM,
           roomId: 7,
         });
@@ -252,14 +269,14 @@ describe('VoiceSessionService', () => {
         });
         microphoneService.release.mockClear();
         mediasoup.cleanup.mockClear();
-        voiceRoomStore.clearSessionPeers.mockClear();
+        voiceSessionStore.clearSessionPeers.mockClear();
 
         await service.leaveSession();
 
         expect(socket.timeout).toHaveBeenCalledWith(3000);
         expect(microphoneService.release).toHaveBeenCalledTimes(1);
         expect(mediasoup.cleanup).toHaveBeenCalled();
-        expect(voiceRoomStore.clearSessionPeers).toHaveBeenCalled();
+        expect(voiceSessionStore.clearSessionPeers).toHaveBeenCalled();
       }
     } finally {
       errorSpy.mockRestore();
@@ -267,7 +284,7 @@ describe('VoiceSessionService', () => {
   });
 
   it('seeds microphone mute from the store before opening the send transport', async () => {
-    voiceRoomStore.microphoneMuted.set(true);
+    voiceAudioPreferencesStore.microphoneMuted.set(true);
 
     await service.joinSession({
       type: EVoiceSessionType.GROUP_ROOM,
@@ -282,7 +299,7 @@ describe('VoiceSessionService', () => {
   });
 
   it('releases the microphone when leaving a session', async () => {
-    voiceRoomStore.setActiveSession({
+    voiceSessionStore.setActiveSession({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 42,
     });
@@ -295,7 +312,7 @@ describe('VoiceSessionService', () => {
   });
 
   it('drains pending consumes after PEER_JOINED', async () => {
-    voiceRoomStore.setActiveSession({
+    voiceSessionStore.setActiveSession({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 1,
     });
@@ -307,12 +324,12 @@ describe('VoiceSessionService', () => {
       sessionKey: 'room:1',
     });
 
-    expect(voiceRoomStore.upsertPeer).toHaveBeenCalledWith(bob);
+    expect(voiceSessionStore.upsertPeer).toHaveBeenCalledWith(bob);
     expect(mediasoup.consumePending).toHaveBeenCalled();
   });
 
   it('removes a peer when PEER_LEFT arrives', () => {
-    voiceRoomStore.setActiveSession({
+    voiceSessionStore.setActiveSession({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 1,
     });
@@ -324,8 +341,8 @@ describe('VoiceSessionService', () => {
       sessionKey: 'room:1',
     });
 
-    expect(voiceRoomStore.removePeer).toHaveBeenCalledWith(bob.id);
-    expect(voiceRoomStore.removePeerFromRoom).toHaveBeenCalledWith(1, bob.id);
+    expect(voiceSessionStore.removePeer).toHaveBeenCalledWith(bob.id);
+    expect(voiceLobbyStore.removePeerFromRoom).toHaveBeenCalledWith(1, bob.id);
     expect(screenWatch.release).toHaveBeenCalledWith(bob.id);
   });
 
@@ -336,7 +353,7 @@ describe('VoiceSessionService', () => {
         getAudioTracks: () => [track],
       } as MediaStream);
     });
-    voiceRoomStore.setActiveSession({
+    voiceSessionStore.setActiveSession({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 1,
     });
@@ -349,7 +366,7 @@ describe('VoiceSessionService', () => {
   });
 
   it('notifies when rejoining on connect fails', async () => {
-    voiceRoomStore.setActiveSession({
+    voiceSessionStore.setActiveSession({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 1,
     });

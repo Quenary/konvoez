@@ -2,7 +2,7 @@ import { Injectable, computed, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { resolveVoiceSessionPeers } from './voice-session-peers';
 
 /**
@@ -11,14 +11,14 @@ import { resolveVoiceSessionPeers } from './voice-session-peers';
 @Injectable({ providedIn: 'root' })
 export class VoiceSessionPeersService {
   private readonly store = inject(Store);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly directCallService = inject(DirectCallService);
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly peers = computed(() => {
     const me = this.currentUser();
-    const remotePeers = this.voiceRoomStore.peersList();
-    const session = this.voiceRoomStore.activeSession();
+    const remotePeers = this.voiceSessionStore.peersList();
+    const session = this.voiceSessionStore.activeSession();
     const interlocutor = this.directCallService.interlocutor();
     const isCalling = this.directCallService.isCalling();
     const isIncoming = this.directCallService.isIncoming();

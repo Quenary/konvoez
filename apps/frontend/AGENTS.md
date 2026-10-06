@@ -118,7 +118,7 @@ computed(() => {
 ## State
 
 - **Local UI state** → component signals.
-- **Feature/domain state** → NgRx `signalStore` (see `users.store.ts`, `text-room.store.ts`, `settings.store.ts`).
+- **Feature/domain state** → NgRx `signalStore` (see `users.store.ts`, `chat.store.ts`, `settings.store.ts`).
 - **Cross-cutting app state** → NgRx Store + Effects (`auth`, `rooms`). Do not invent a third pattern for the same concern.
 - Derived state goes in `computed()` / `withComputed` — no side effects inside.
 - Services own imperative/realtime side effects (sockets, mediasoup, media devices); components and stores consume them.

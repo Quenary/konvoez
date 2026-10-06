@@ -7,24 +7,28 @@
       tuiAvatar
       size="s"
       class="header-avatar">
-      @if (avatarUrl()) {
+      @if (displayAvatarUrl()) {
         <img
-          [alt]="roomName()"
-          [ngSrc]="avatarUrl()!"
+          [alt]="displayTitle()"
+          [ngSrc]="displayAvatarUrl()!"
           fill
           priority />
       } @else {
-        {{ roomName() | tuiInitials }}
+        {{ displayTitle() | tuiInitials }}
       }
     </div>
 
-    {{ roomName() }}
+    {{ displayTitle() }}
     <span tuiSubtitle>
       {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
     </span>
   </h2>
 
   <aside tuiAccessories>
+    @if (headerActions(); as actions) {
+      <ng-container *ngTemplateOutlet="actions" />
+    }
+
     @if (canManageRooms() && room(); as manageRoom) {
       <button
         tuiIconButton

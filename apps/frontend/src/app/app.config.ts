@@ -38,6 +38,7 @@ import { EntitySyncEffects } from './features/entity-sync/entity-sync.effects';
 import { initialSetupInitializer } from './core/initializers/initial-setup-initializer';
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { pwaUpdateInitializer } from './core/initializers/pwa-update-initializer';
+import { TextRoomSocketConnectionService } from './core/services/text-room-socket-connection.service';
 import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
@@ -115,6 +116,9 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => localeInitializer()),
     provideAppInitializer(() => initialSetupInitializer()),
     provideAppInitializer(() => pwaUpdateInitializer()),
+    provideAppInitializer(() => {
+      inject(TextRoomSocketConnectionService);
+    }),
     provideTaiga(),
     {
       provide: Sanitizer,

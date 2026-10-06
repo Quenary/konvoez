@@ -1,0 +1,22 @@
+:host {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.view-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.view-layer-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+[chatHeaderActions] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}

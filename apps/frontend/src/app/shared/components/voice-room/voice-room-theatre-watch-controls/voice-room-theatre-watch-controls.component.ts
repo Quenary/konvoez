@@ -15,7 +15,7 @@ import {
   TuiLabel,
   TuiSlider,
 } from '@taiga-ui/core';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 
 @Component({
@@ -36,13 +36,15 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 })
 export class VoiceRoomTheatreWatchControlsComponent {
   private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceAudioPreferencesStore = inject(
+    VoiceAudioPreferencesStore,
+  );
 
   public readonly userId = input<number | null>(null);
 
   protected readonly screenVolume = computed(() => {
     const id = this.userId();
-    const levels = this.voiceRoomStore.peerScreenGainLevels();
+    const levels = this.voiceAudioPreferencesStore.peerScreenGainLevels();
     if (id == null) {
       return 100;
     }
@@ -62,6 +64,6 @@ export class VoiceRoomTheatreWatchControlsComponent {
     if (id == null) {
       return;
     }
-    this.voiceRoomStore.setPeerScreenGain(id, value / 100);
+    this.voiceAudioPreferencesStore.setPeerScreenGain(id, value / 100);
   }
 }
