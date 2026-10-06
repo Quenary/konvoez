@@ -42,7 +42,10 @@ describe('CameraService', () => {
   });
 
   it('reports a missing camera without stopping the live track', async () => {
-    const track = { readyState: 'live' } as MediaStreamTrack;
+    const track = {
+      readyState: 'live',
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack;
     service['track'] = track;
     const release = vi.spyOn(service, 'release');
     const lost = vi.fn();
@@ -74,7 +77,10 @@ describe('CameraService', () => {
   });
 
   it('ignores device changes while the selected camera is still present', async () => {
-    service['track'] = { readyState: 'live' } as MediaStreamTrack;
+    service['track'] = {
+      readyState: 'live',
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack;
     enumerateDevices.mockResolvedValue([
       { kind: 'videoinput', deviceId: 'cam-1' },
     ]);

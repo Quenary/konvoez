@@ -126,7 +126,10 @@ describe('VoiceRoomComponent', () => {
   it('leaves fullscreen with the page', () => {
     const fixture = create();
     const exitFullscreen = vi.fn().mockResolvedValue(undefined);
-    vi.spyOn(document, 'exitFullscreen').mockImplementation(exitFullscreen);
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exitFullscreen,
+    });
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
       get: () => fixture.nativeElement,
@@ -136,5 +139,6 @@ describe('VoiceRoomComponent', () => {
 
     expect(exitFullscreen).toHaveBeenCalledTimes(1);
     Reflect.deleteProperty(document, 'fullscreenElement');
+    Reflect.deleteProperty(document, 'exitFullscreen');
   });
 });
