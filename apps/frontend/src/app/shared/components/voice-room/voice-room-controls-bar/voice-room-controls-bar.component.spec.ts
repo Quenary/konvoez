@@ -24,7 +24,7 @@ describe('VoiceRoomControlsBarComponent', () => {
   let setScreenFps: ReturnType<typeof vi.fn>;
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
-  let setMicrophoneMuted: ReturnType<typeof vi.fn>;
+  let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localCamTrack = signal<MediaStreamTrack | null>(null);
@@ -39,7 +39,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     setScreenFps = vi.fn();
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
-    setMicrophoneMuted = vi.fn();
+    toggleMicrophoneMuted = vi.fn();
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomControlsBarComponent],
@@ -50,8 +50,8 @@ describe('VoiceRoomControlsBarComponent', () => {
           useValue: {
             microphoneMuted: signal(false).asReadonly(),
             speakerMuted: signal(false).asReadonly(),
-            setMicrophoneMuted,
-            setSpeakerMuted: vi.fn(),
+            toggleMicrophoneMuted,
+            toggleSpeakerMuted: vi.fn(),
           },
         },
         {
@@ -167,6 +167,6 @@ describe('VoiceRoomControlsBarComponent', () => {
   it('toggles the microphone', () => {
     const fixture = create();
     button(fixture, 0).click();
-    expect(setMicrophoneMuted).toHaveBeenCalledWith(true);
+    expect(toggleMicrophoneMuted).toHaveBeenCalledTimes(1);
   });
 });

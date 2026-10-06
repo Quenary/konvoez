@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';
-import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
@@ -41,7 +40,6 @@ export class VoiceRoomControlsBarComponent {
     VoiceAudioPreferencesStore,
   );
   private readonly settingsStore = inject(SettingsStore);
-  private readonly audioService = inject(AudioService);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly dialogService = inject(TuiDialogService);
@@ -63,21 +61,11 @@ export class VoiceRoomControlsBarComponent {
   protected readonly screenSupported = ScreenCaptureService.isSupported();
 
   protected toggleMicrophone(): void {
-    const value = !this.micMuted();
-    this.voiceAudioPreferencesStore.setMicrophoneMuted(value);
-    if (!value) {
-      this.voiceAudioPreferencesStore.setSpeakerMuted(false);
-    }
-    this.audioService.playMuteAudio();
+    this.voiceAudioPreferencesStore.toggleMicrophoneMuted();
   }
 
   protected toggleSpeaker(): void {
-    const value = !this.speakerMuted();
-    this.voiceAudioPreferencesStore.setSpeakerMuted(value);
-    if (value) {
-      this.voiceAudioPreferencesStore.setMicrophoneMuted(true);
-    }
-    this.audioService.playMuteAudio();
+    this.voiceAudioPreferencesStore.toggleSpeakerMuted();
   }
 
   protected onHangupClick(): void {

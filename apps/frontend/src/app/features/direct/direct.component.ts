@@ -12,11 +12,10 @@ import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { UsersStore } from '@features/users/users.store';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
@@ -40,7 +39,6 @@ export class DirectComponent {
   protected readonly directCallService = inject(DirectCallService);
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly usersStore = inject(UsersStore);
-  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
 
   protected readonly preferChat = signal(false);
@@ -67,25 +65,12 @@ export class DirectComponent {
   protected readonly avatarUrl = computed(() => this.user()?.avatarUrl ?? null);
 
   protected readonly isCurrentDirectCallActive = computed(() => {
-    const session = this.voiceSessionStore.activeSession();
     const directUser = this.user();
-    const interlocutor = this.directCallService.interlocutor();
-    const isCallActive = this.directCallService.isCallActive();
-
-    if (
-      session?.type === EVoiceSessionType.DIRECT_CALL &&
-      directUser &&
-      session.interlocutorId === directUser.id
-    ) {
-      return true;
+    const callWithUserId = this.directCallService.callWithUserId();
+    if (directUser === null || callWithUserId === null) {
+      return false;
     }
-
-    return (
-      isCallActive &&
-      interlocutor !== null &&
-      directUser !== null &&
-      interlocutor.id === directUser.id
-    );
+    return callWithUserId === directUser.id;
   });
 
   protected readonly canRejoinCall = computed(() => {

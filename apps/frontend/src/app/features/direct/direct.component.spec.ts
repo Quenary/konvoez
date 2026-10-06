@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, input, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,11 +7,10 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { UsersStore } from '@features/users/users.store';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { DirectComponent } from './direct.component';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 
 @Component({ selector: 'app-chat', template: '<ng-content />' })
 class MockChatComponent {
@@ -39,9 +38,20 @@ describe('DirectComponent', () => {
     avatarUrl: null,
   } as IUser;
 
+  const interlocutor = signal<IUser | null>(null);
+  const isCallActive = signal(false);
+
   const mockDirectCallService = {
-    interlocutor: signal<IUser | null>(null),
-    isCallActive: signal(false),
+    interlocutor,
+    isCallActive,
+    callWithUserId: computed(() => {
+      const active = isCallActive();
+      const peerId = interlocutor()?.id ?? null;
+      if (!active) {
+        return null;
+      }
+      return peerId;
+    }),
     rejoinableCall: signal<{
       callId: string;
       callerId: number;
@@ -50,13 +60,6 @@ describe('DirectComponent', () => {
     initiateCall: vi.fn(),
     rejoinCall: vi.fn(),
     refreshActiveCall: vi.fn().mockResolvedValue(null),
-  };
-
-  const mockVoiceSessionStore = {
-    activeSession: signal<{
-      type: EVoiceSessionType;
-      interlocutorId?: number;
-    } | null>(null),
   };
 
   const mockUsersStore = {
@@ -70,17 +73,15 @@ describe('DirectComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockDirectCallService.interlocutor.set(null);
-    mockDirectCallService.isCallActive.set(false);
+    interlocutor.set(null);
+    isCallActive.set(false);
     mockDirectCallService.rejoinableCall.set(null);
-    mockVoiceSessionStore.activeSession.set(null);
 
     await TestBed.configureTestingModule({
       imports: [DirectComponent],
       providers: [
         provideTranslateService(),
         { provide: DirectCallService, useValue: mockDirectCallService },
-        { provide: VoiceSessionStore, useValue: mockVoiceSessionStore },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: VoiceLeaveService, useValue: mockVoiceLeaveService },
         {
@@ -126,8 +127,8 @@ describe('DirectComponent', () => {
   });
 
   it('mounts voice shell only when current direct call is active', () => {
-    mockDirectCallService.isCallActive.set(true);
-    mockDirectCallService.interlocutor.set(user);
+    isCallActive.set(true);
+    interlocutor.set(user);
     fixture.detectChanges();
 
     expect(component['view']()).toBe('call');
@@ -136,8 +137,8 @@ describe('DirectComponent', () => {
   });
 
   it('mounts chat only while preferring chat during an active call', () => {
-    mockDirectCallService.isCallActive.set(true);
-    mockDirectCallService.interlocutor.set(user);
+    isCallActive.set(true);
+    interlocutor.set(user);
     fixture.detectChanges();
 
     component['showChat']();

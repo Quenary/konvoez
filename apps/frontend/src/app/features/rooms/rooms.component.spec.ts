@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -163,6 +163,23 @@ describe('RoomsComponent', () => {
           useValue: {
             activeCall,
             rejoinableCall,
+            hangingCallUserId: computed(() => {
+              const active = activeCall();
+              const rejoinable = rejoinableCall();
+              if (
+                active &&
+                (active.status === ECallStatus.CONNECTED ||
+                  active.status === ECallStatus.CALLING)
+              ) {
+                return active.interlocutor.id;
+              }
+              if (!rejoinable) {
+                return null;
+              }
+              return rejoinable.callerId === me.id
+                ? rejoinable.recipientId
+                : rejoinable.callerId;
+            }),
           },
         },
         { provide: UsersStore, useValue: usersStore },

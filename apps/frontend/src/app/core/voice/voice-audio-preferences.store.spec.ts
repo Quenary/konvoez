@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
 import { EStorageKey } from '../../app.enums';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { AudioService } from '@core/services/audio.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerPlaybackService } from '@core/services/peer-playback.service';
@@ -43,6 +44,7 @@ describe('VoiceAudioPreferencesStore', () => {
     register: ReturnType<typeof vi.fn>;
     unregister: ReturnType<typeof vi.fn>;
   };
+  let playMuteAudio: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -69,9 +71,14 @@ describe('VoiceAudioPreferencesStore', () => {
     mediasoup = {
       setMicrophoneMuted: vi.fn(),
     };
+    playMuteAudio = vi.fn();
 
     TestBed.configureTestingModule({
       providers: [
+        {
+          provide: AudioService,
+          useValue: { playMuteAudio },
+        },
         {
           provide: PeerPlaybackService,
           useValue: playback,
@@ -102,6 +109,28 @@ describe('VoiceAudioPreferencesStore', () => {
         },
       ],
     });
+  });
+
+  it('toggleMicrophoneMuted unmutes speaker when the mic is enabled', () => {
+    const store = TestBed.inject(VoiceAudioPreferencesStore);
+    store.setMicrophoneMuted(true);
+    store.setSpeakerMuted(true);
+
+    store.toggleMicrophoneMuted();
+
+    expect(store.microphoneMuted()).toBe(false);
+    expect(store.speakerMuted()).toBe(false);
+    expect(playMuteAudio).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggleSpeakerMuted mutes the microphone when deafened', () => {
+    const store = TestBed.inject(VoiceAudioPreferencesStore);
+
+    store.toggleSpeakerMuted();
+
+    expect(store.speakerMuted()).toBe(true);
+    expect(store.microphoneMuted()).toBe(true);
+    expect(playMuteAudio).toHaveBeenCalledTimes(1);
   });
 
   it('persists mute flags and applies them to mediasoup and playback', () => {

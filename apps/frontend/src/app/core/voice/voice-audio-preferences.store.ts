@@ -1,5 +1,6 @@
 import { effect, inject } from '@angular/core';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { AudioService } from '@core/services/audio.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerPlaybackService } from '@core/services/peer-playback.service';
@@ -58,6 +59,7 @@ export const VoiceAudioPreferencesStore = signalStore(
       peerPlaybackService = inject(PeerPlaybackService),
       peerScreenAudioService = inject(PeerScreenAudioService),
       mediasoupSessionService = inject(MediasoupSessionService),
+      audioService = inject(AudioService),
     ) => ({
       setMicrophoneMuted(microphoneMuted: boolean): void {
         patchState(store, { microphoneMuted });
@@ -74,6 +76,39 @@ export const VoiceAudioPreferencesStore = signalStore(
           speakerMuted,
           store.peerScreenGainLevels(),
         );
+      },
+
+      toggleMicrophoneMuted(): void {
+        const microphoneMuted = !store.microphoneMuted();
+        patchState(store, { microphoneMuted });
+        mediasoupSessionService.setMicrophoneMuted(microphoneMuted);
+        if (!microphoneMuted) {
+          patchState(store, { speakerMuted: false });
+          peerPlaybackService.applySpeakerMuted(false, store.peerGainLevels());
+          peerScreenAudioService.applySpeakerMuted(
+            false,
+            store.peerScreenGainLevels(),
+          );
+        }
+        audioService.playMuteAudio();
+      },
+
+      toggleSpeakerMuted(): void {
+        const speakerMuted = !store.speakerMuted();
+        patchState(store, { speakerMuted });
+        peerPlaybackService.applySpeakerMuted(
+          speakerMuted,
+          store.peerGainLevels(),
+        );
+        peerScreenAudioService.applySpeakerMuted(
+          speakerMuted,
+          store.peerScreenGainLevels(),
+        );
+        if (speakerMuted) {
+          patchState(store, { microphoneMuted: true });
+          mediasoupSessionService.setMicrophoneMuted(true);
+        }
+        audioService.playMuteAudio();
       },
 
       setPeerGain(userId: number, gain: number): void {

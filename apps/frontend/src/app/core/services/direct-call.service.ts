@@ -78,6 +78,54 @@ export class DirectCallService {
     () => this._activeCall()?.interlocutor ?? null,
   );
 
+  /** User id for an in-progress or connected direct call (media session or signaling). */
+  public readonly callWithUserId = computed(() => {
+    const session = this.voiceSessionStore.activeSession();
+    const callActive = this.isCallActive();
+    const signalingInterlocutorId = this.interlocutor()?.id ?? null;
+
+    if (session?.type === EVoiceSessionType.DIRECT_CALL) {
+      return session.interlocutorId;
+    }
+    if (!callActive) {
+      return null;
+    }
+    return signalingInterlocutorId;
+  });
+
+  /** Sidebar / aside entry for an ongoing or rejoinable direct call. */
+  public readonly hangingCallUserId = computed(() => {
+    const active = this._activeCall();
+    const rejoinable = this._rejoinableCall();
+    const me = this.currentUser();
+
+    if (
+      active &&
+      (active.status === ECallStatus.CONNECTED ||
+        active.status === ECallStatus.CALLING)
+    ) {
+      return active.interlocutor.id;
+    }
+
+    if (!rejoinable || !me) {
+      return null;
+    }
+
+    return rejoinable.callerId === me.id
+      ? rejoinable.recipientId
+      : rejoinable.callerId;
+  });
+
+  public readonly isDirectCallContext = computed(() => {
+    const session = this.voiceSessionStore.activeSession();
+    const calling = this.isCalling();
+    const incoming = this.isIncoming();
+
+    return (
+      session?.type === EVoiceSessionType.DIRECT_CALL || calling || incoming
+    );
+  });
+
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private timeoutRef: ReturnType<typeof setTimeout> | null = null;
 

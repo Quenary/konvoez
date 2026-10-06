@@ -11,7 +11,6 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { AudioService } from '@core/services/audio.service';
 import { TuiButton, TuiGroup } from '@taiga-ui/core';
 import { RoomsActions } from '../rooms.actions';
 import { Router } from '@angular/router';
@@ -34,7 +33,6 @@ export class VoiceRoomPanelComponent {
   );
   private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
-  private readonly audioService = inject(AudioService);
   private readonly translateService = inject(TranslateService);
 
   public readonly collapsed = input.required<boolean>();
@@ -44,14 +42,7 @@ export class VoiceRoomPanelComponent {
   protected readonly speakerMuted =
     this.voiceAudioPreferencesStore.speakerMuted;
 
-  protected readonly isDirectCall = computed(() => {
-    const session = this.activeSession();
-    const isCalling = this.directCallService.isCalling();
-    const isIncoming = this.directCallService.isIncoming();
-    return (
-      session?.type === EVoiceSessionType.DIRECT_CALL || isCalling || isIncoming
-    );
-  });
+  protected readonly isDirectCall = this.directCallService.isDirectCallContext;
 
   protected readonly isSessionActive = computed(() => {
     const session = this.activeSession();
@@ -78,9 +69,9 @@ export class VoiceRoomPanelComponent {
 
   protected clickSession(): void {
     if (this.isDirectCall()) {
-      const interlocutor = this.directCallService.interlocutor();
-      if (interlocutor) {
-        this.router.navigate(['/direct', interlocutor.id]);
+      const userId = this.directCallService.callWithUserId();
+      if (userId !== null) {
+        void this.router.navigate(['/direct', userId]);
       }
       return;
     }
@@ -99,20 +90,10 @@ export class VoiceRoomPanelComponent {
   }
 
   protected toggleMicrophoneMuted(): void {
-    const microphoneMuted = !this.microphoneMuted();
-    this.voiceAudioPreferencesStore.setMicrophoneMuted(microphoneMuted);
-    if (!microphoneMuted) {
-      this.voiceAudioPreferencesStore.setSpeakerMuted(false);
-    }
-    this.audioService.playMuteAudio();
+    this.voiceAudioPreferencesStore.toggleMicrophoneMuted();
   }
 
   protected toggleSpeakerMuted(): void {
-    const speakerMuted = !this.speakerMuted();
-    this.voiceAudioPreferencesStore.setSpeakerMuted(speakerMuted);
-    if (speakerMuted) {
-      this.voiceAudioPreferencesStore.setMicrophoneMuted(true);
-    }
-    this.audioService.playMuteAudio();
+    this.voiceAudioPreferencesStore.toggleSpeakerMuted();
   }
 }

@@ -26,10 +26,7 @@ import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.
 import { RoomManageService } from './room-manage.service';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import {
-  DirectCallService,
-  ECallStatus,
-} from '@core/services/direct-call.service';
+import { DirectCallService } from '@core/services/direct-call.service';
 import {
   TuiButton,
   TuiDialogService,
@@ -128,28 +125,12 @@ export class RoomsComponent implements OnInit {
   });
 
   protected readonly hangingCallPeer = computed(() => {
-    const active = this.directCallService.activeCall();
-    const rejoinable = this.directCallService.rejoinableCall();
-    const me = this.currentUser();
+    const userId = this.directCallService.hangingCallUserId();
     const users = this.usersStore.entityMap();
-
-    if (
-      active &&
-      (active.status === ECallStatus.CONNECTED ||
-        active.status === ECallStatus.CALLING)
-    ) {
-      return active.interlocutor;
-    }
-
-    if (!rejoinable || !me) {
+    if (userId === null) {
       return null;
     }
-
-    const otherId =
-      rejoinable.callerId === me.id
-        ? rejoinable.recipientId
-        : rejoinable.callerId;
-    return users[otherId] ?? null;
+    return users[userId] ?? null;
   });
 
   protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);
