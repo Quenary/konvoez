@@ -10,7 +10,6 @@ GENERAL:
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
   PERMISSION_ERROR: Нет доступа к устройствам
-  MUTE: Заглушить
   EDIT: Редактировать
   DELETE: Удалить
   REPLY: Ответить
@@ -77,6 +76,7 @@ CALL:
   PARTICIPANTS: 'Участников: {{count}}'
   YOU: Вы
   VOLUME: Громкость
+  MUTE: Заглушить
   SOUND: Звук
   SOUND_OFF: Звук выключен
   CAMERA: Камера

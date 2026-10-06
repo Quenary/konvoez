@@ -10,7 +10,6 @@ GENERAL:
   GO_BACK: Go back
   REQ_ERR: Request error
   PERMISSION_ERROR: No access to devices
-  MUTE: Mute
   EDIT: Edit
   DELETE: Delete
   REPLY: Reply
@@ -77,6 +76,7 @@ CALL:
   PARTICIPANTS: '{{count}} participants'
   YOU: You
   VOLUME: Volume
+  MUTE: Mute
   SOUND: Sound
   SOUND_OFF: Sound off
   CAMERA: Camera

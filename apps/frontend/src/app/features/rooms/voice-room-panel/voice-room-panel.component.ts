@@ -11,7 +11,9 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { TuiButton, TuiGroup } from '@taiga-ui/core';
+import { PeerVideoService } from '@core/services/peer-video.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
+import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { RoomsActions } from '../rooms.actions';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
@@ -19,7 +21,7 @@ import { EVoiceSessionType } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-room-panel',
-  imports: [TranslatePipe, TuiGroup, TuiButton],
+  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint],
   templateUrl: './voice-room-panel.component.html',
   styleUrl: './voice-room-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,6 +36,8 @@ export class VoiceRoomPanelComponent {
   private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
   private readonly translateService = inject(TranslateService);
+  private readonly peerVideoService = inject(PeerVideoService);
+  private readonly voiceSessionService = inject(VoiceSessionService);
 
   public readonly collapsed = input.required<boolean>();
 
@@ -41,6 +45,13 @@ export class VoiceRoomPanelComponent {
     this.voiceAudioPreferencesStore.microphoneMuted;
   protected readonly speakerMuted =
     this.voiceAudioPreferencesStore.speakerMuted;
+
+  protected readonly cameraOn = computed(
+    () => this.peerVideoService.localCamTrack() !== null,
+  );
+  protected readonly screenOn = computed(
+    () => this.peerVideoService.localScreenTrack() !== null,
+  );
 
   protected readonly isDirectCall = this.directCallService.isDirectCallContext;
 
@@ -95,5 +106,13 @@ export class VoiceRoomPanelComponent {
 
   protected toggleSpeakerMuted(): void {
     this.voiceAudioPreferencesStore.toggleSpeakerMuted();
+  }
+
+  protected stopCamera(): void {
+    void this.voiceSessionService.stopCamera();
+  }
+
+  protected stopScreen(): void {
+    void this.voiceSessionService.stopScreen();
   }
 }
