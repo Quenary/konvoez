@@ -103,6 +103,11 @@ CALL:
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
   PREVIEW_RESUME: Возобновить
   PREVIEW_AUTO_PAUSE: Автоматическая пауза
+  OPEN_THEATRE: Театр
+  EXIT_THEATRE: Закрыть театр
+  FULLSCREEN: На весь экран
+  EXIT_FULLSCREEN: Свернуть
+  THEATRE_NO_VIDEO: Нет видео
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:

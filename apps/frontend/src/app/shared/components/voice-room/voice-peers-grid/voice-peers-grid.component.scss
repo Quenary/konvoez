@@ -115,6 +115,12 @@
   z-index: 25;
 }
 
+.peers-grid-root.theatre-open {
+  .peers-layout {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
 
 .peers-grid-root.compact {
   .peers-layout {

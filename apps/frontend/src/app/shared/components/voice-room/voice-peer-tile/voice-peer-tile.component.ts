@@ -62,6 +62,7 @@ export class VoicePeerTileComponent {
 
   public readonly watchScreen = output<void>();
   public readonly stopWatchScreen = output<void>();
+  public readonly openTheatre = output<void>();
 
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
@@ -166,5 +167,15 @@ export class VoicePeerTileComponent {
 
   protected onStopWatchClick(): void {
     this.stopWatchScreen.emit();
+  }
+
+  protected onOpenTheatreClick(): void {
+    this.openTheatre.emit();
+  }
+
+  protected onVideoActivate(): void {
+    if (this.watchingScreen()) {
+      this.openTheatre.emit();
+    }
   }
 }

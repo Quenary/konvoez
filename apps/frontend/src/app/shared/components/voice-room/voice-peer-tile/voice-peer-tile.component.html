@@ -9,9 +9,11 @@
     <video
       #videoEl
       class="video"
+      [class.clickable]="watchingScreen()"
       autoplay
       playsinline
-      muted></video>
+      muted
+      (click)="onVideoActivate()"></video>
   } @else {
     <app-user-avatar
       class="avatar"
@@ -137,6 +139,17 @@
             type="button"
             (click)="onStopWatchClick()">
             {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
+          </button>
+
+          <button
+            tuiIconButton
+            appearance="flat"
+            size="s"
+            type="button"
+            iconStart="@tui.maximize"
+            tuiHintAppearance="floating"
+            [tuiHint]="'CALL.OPEN_THEATRE' | translate"
+            (click)="onOpenTheatreClick()">
           </button>
 
           <button
