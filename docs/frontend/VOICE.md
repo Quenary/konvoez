@@ -57,7 +57,7 @@ Capture, playback, and UI SFX each use their own `AudioContext`. Auto-resume aft
 
 4. **Speaking.** `AudioActivityService` polls registered analysers (~50ms). Local user is registered from a `VoiceRoomStore` hook when there is an active session, a live mic analyser, and the mic is unmuted.
 
-5. **Video.** Cam produces/consumes through `MediasoupSessionService` into `PeerVideoService`; screen is opt-in watch via `VoiceSessionService.watchPeerScreen`. Screen-audio uses `PeerScreenAudioService` with separate per-peer gain in the store. UI: `voice-peers-grid`, PiP, theatre — see [STREAMING.md](./STREAMING.md).
+5. **Video.** Cam produces/consumes through `MediasoupSessionService` into `PeerVideoService`; screen is opt-in watch via `VoiceSessionService.watchPeerScreen`. Screen-audio uses `PeerScreenAudioService` with separate per-peer gain in the store. UI is `voice-room-grid` (one or two tiles per peer) and theatre as a display mode (`VoiceRoomViewService`). See [STREAMING.md](./STREAMING.md).
 
 6. **Lobby.** `roomsState` is the sidebar map of who is in which **group** voice room (direct calls are excluded). Updated on connect, poll, join/leave, and peer join/leave; user entity sync patches both lobby and session peers.
 
@@ -73,6 +73,7 @@ Capture, playback, and UI SFX each use their own `AudioContext`. Auto-resume aft
 | Cam / screen tracks, watch set                | `PeerVideoService`                                         |
 | Screen-audio playback                         | `PeerScreenAudioService`                                   |
 | Watch / stop screen                           | `VoiceSessionService`                                      |
+| Theatre focus, chrome, fullscreen             | `VoiceRoomViewService`                                     |
 | Mic vs screen-audio volume                    | `VoiceRoomStore` `peerGainLevels` / `peerScreenGainLevels` |
 
 ## Main files

@@ -5,8 +5,8 @@ import {
   inject,
   model,
 } from '@angular/core';
-import { VoicePeersGridComponent } from '../voice-peers-grid/voice-peers-grid.component';
-import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
+import { VoiceRoomGridComponent } from '../voice-room-grid/voice-room-grid.component';
+import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
 import { TuiTitle } from '@taiga-ui/core';
 import { TuiAccordion } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -20,8 +20,8 @@ import { resolveVoiceSessionPeers } from '../voice-session-peers';
 @Component({
   selector: 'app-direct-call-panel',
   imports: [
-    VoicePeersGridComponent,
-    VoiceControlsBarComponent,
+    VoiceRoomGridComponent,
+    VoiceRoomControlsBarComponent,
     TuiAccordion,
     TuiTitle,
     TranslatePipe,

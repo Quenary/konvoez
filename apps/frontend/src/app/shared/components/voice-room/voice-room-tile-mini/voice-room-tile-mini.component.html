@@ -16,7 +16,7 @@
       tuiHintAppearance="floating"
       [tuiHint]="hintLabel()">
       <app-user-avatar
-        size="s"
+        size="xs"
         [username]="p.username"
         [fullname]="p.fullname"
         [avatarUrl]="p.avatarUrl"
@@ -24,15 +24,12 @@
     </span>
   } @else {
     <div class="avatar-backdrop">
-      <div class="center-avatar-box">
-        <app-user-avatar
-          class="center-avatar"
-          size="l"
-          [username]="p.username"
-          [fullname]="p.fullname"
-          [avatarUrl]="p.avatarUrl"
-          [talking]="isSpeaking()" />
-      </div>
+      <app-user-avatar
+        class="center-avatar"
+        [username]="p.username"
+        [fullname]="p.fullname"
+        [avatarUrl]="p.avatarUrl"
+        [talking]="isSpeaking()" />
     </div>
   }
 </div>

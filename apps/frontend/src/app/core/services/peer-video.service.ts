@@ -144,11 +144,6 @@ export class PeerVideoService {
     return this._watching().has(userId);
   }
 
-  public hasAvailableScreen(userId: number): boolean {
-    const available = this._availableScreens()[userId];
-    return Boolean(available?.videoProducerId);
-  }
-
   public attach(
     userId: number,
     consumer: Consumer,

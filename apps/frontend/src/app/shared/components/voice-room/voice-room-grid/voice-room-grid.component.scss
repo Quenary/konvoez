@@ -67,6 +67,13 @@
   }
 }
 
+.view-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
 .grid-item {
   box-sizing: border-box;
   width: min(100%, 42rem);

@@ -70,6 +70,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Video streaming — phase 4 (simulcast & adaptive)
 
+- fix direct call panel
 - Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
 - Bitrate caps tied to capture height; optional `maxIncomingBitrate` on recv transport
 - Pause or reduce offscreen / hidden video consumers (adaptive downlink; align with PiP pause patterns where useful)

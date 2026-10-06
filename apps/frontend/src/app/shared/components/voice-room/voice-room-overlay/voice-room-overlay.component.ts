@@ -14,11 +14,15 @@ import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { IRoom } from '@features/rooms/rooms.interface';
 import { RoomContextMenuComponent } from '@features/rooms/room-context-menu/room-context-menu.component';
 import { RoomManageService } from '@features/rooms/room-manage.service';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
-import { VoiceTheatreActionsComponent } from '../voice-theatre-actions/voice-theatre-actions.component';
-import { VoiceTheatreWatchControlsComponent } from '../voice-theatre-watch-controls/voice-theatre-watch-controls.component';
+import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
+import { VoiceRoomTheatreActionsComponent } from '../voice-room-theatre-actions/voice-room-theatre-actions.component';
+import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
 
 @Component({
   selector: 'app-voice-room-overlay',
@@ -37,18 +41,22 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
     TuiInitialsPipe,
     TuiTitle,
     RoomContextMenuComponent,
-    VoiceControlsBarComponent,
-    VoiceTheatreActionsComponent,
-    VoiceTheatreWatchControlsComponent,
+    VoiceRoomControlsBarComponent,
+    VoiceRoomTheatreActionsComponent,
+    VoiceRoomTheatreWatchControlsComponent,
   ],
   templateUrl: './voice-room-overlay.component.html',
   styleUrl: './voice-room-overlay.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VoiceRoomOverlayComponent {
+  private readonly store = inject(Store);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
+  private readonly peerVideoService = inject(PeerVideoService);
   private readonly roomManageService = inject(RoomManageService);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly room = input<IRoom | null>(null);
   public readonly participantsCount = input(0);
@@ -57,8 +65,13 @@ export class VoiceRoomOverlayComponent {
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly theatreOpen = this.voiceRoomViewService.theatreOpen;
-  protected readonly theatreShowsRemoteScreenWatchControls =
-    this.voiceRoomViewService.theatreShowsRemoteScreenWatchControls;
+  protected readonly showRemoteScreenWatchControls = computed(() =>
+    showsRemoteScreenWatchControls(
+      this.voiceRoomViewService.theatreFocus(),
+      this.currentUser()?.id ?? null,
+      this.peerVideoService.watchingUserIds(),
+    ),
+  );
   protected readonly isFullscreen = this.voiceRoomViewService.isFullscreen;
 
   protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? '');

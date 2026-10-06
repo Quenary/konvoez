@@ -13,13 +13,13 @@ import { SettingsStore } from '@features/settings/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VoicePeersGridComponent } from './voice-peers-grid.component';
+import { VoiceRoomGridComponent } from './voice-room-grid.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 
 const user = (id: number): IUser =>
   ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
 
-describe('VoicePeersGridComponent', () => {
+describe('VoiceRoomGridComponent', () => {
   let currentUser: ReturnType<typeof signal<IUser | null>>;
   let remotePeers: ReturnType<typeof signal<readonly IUser[]>>;
   let remoteCamTracks: ReturnType<
@@ -69,7 +69,7 @@ describe('VoicePeersGridComponent', () => {
     });
 
     TestBed.configureTestingModule({
-      imports: [VoicePeersGridComponent],
+      imports: [VoiceRoomGridComponent],
       providers: [
         provideTranslateService(),
         {
@@ -143,7 +143,7 @@ describe('VoicePeersGridComponent', () => {
   });
 
   const create = () => {
-    const fixture = TestBed.createComponent(VoicePeersGridComponent);
+    const fixture = TestBed.createComponent(VoiceRoomGridComponent);
     fixture.componentRef.setInput('showControls', false);
     fixture.detectChanges();
     return fixture;
@@ -183,11 +183,11 @@ describe('VoicePeersGridComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.peers-layout')).toBeNull();
     expect(
-      fixture.nativeElement.querySelector('app-voice-theatre'),
+      fixture.nativeElement.querySelector('app-voice-room-theatre'),
     ).toBeTruthy();
   });
 
-  it('closes theatre when stop watching the focused peer', async () => {
+  it('keeps theatre on the same screen tile after stop watching', async () => {
     remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
@@ -199,15 +199,21 @@ describe('VoicePeersGridComponent', () => {
 
     await cmp['onStopWatchScreen'](2);
     watchingUserIds.set(new Set());
+    remoteScreenTracks.set({});
     TestBed.flushEffects();
     fixture.detectChanges();
 
-    expect(cmp['theatreFocusPeer']()).toBeNull();
-    expect(fixture.nativeElement.querySelector('.peers-layout')).toBeTruthy();
+    expect(cmp['theatreFocus']()).toEqual({ peerId: 2, stream: 'screen' });
+    expect(fixture.nativeElement.querySelector('.peers-layout')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('app-voice-room-theatre'),
+    ).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.stage-tile')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
   });
 
-  it('closes theatre when focus peer is no longer watched', () => {
-    remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
+  it('retargets to the same peer camera when their screen tile disappears', () => {
+    remoteCamTracks.set({ 2: { id: 'cam' } as MediaStreamTrack });
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
 
@@ -216,10 +222,28 @@ describe('VoicePeersGridComponent', () => {
     cmp['onOpenTheatre'](2, 'screen');
     fixture.detectChanges();
 
+    availableScreens.set({});
     watchingUserIds.set(new Set());
     TestBed.flushEffects();
     fixture.detectChanges();
 
-    expect(cmp['theatreFocusPeer']()).toBeNull();
+    expect(cmp['theatreFocus']()).toEqual({ peerId: 2, stream: 'cam' });
+    expect(fixture.nativeElement.querySelector('.stage-video')).toBeTruthy();
+  });
+
+  it('retargets to the first tile when the focused peer leaves', () => {
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+    cmp['onOpenTheatre'](3, null);
+    fixture.detectChanges();
+
+    remotePeers.set([]);
+    TestBed.flushEffects();
+    fixture.detectChanges();
+
+    expect(cmp['theatreFocus']()).toEqual({ peerId: 1, stream: null });
+    expect(
+      fixture.nativeElement.querySelector('app-voice-room-theatre'),
+    ).toBeTruthy();
   });
 });

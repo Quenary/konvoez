@@ -27,7 +27,13 @@
       </button>
     </div>
   } @else {
-    <div class="idle-media">
+    <div
+      class="idle-media"
+      role="button"
+      tabindex="0"
+      (click)="onOpenTheatreClick()"
+      (keydown.enter)="onOpenTheatreClick()"
+      (keydown.space)="$event.preventDefault(); onOpenTheatreClick()">
       <app-user-avatar
         class="avatar"
         size="xl"
@@ -44,7 +50,7 @@
           size="s"
           type="button"
           iconStart="@tui.screen-share"
-          (click)="onWatchClick()">
+          (click)="$event.stopPropagation(); onWatchClick()">
           {{ 'CALL.WATCH_SCREEN' | translate }}
         </button>
       }

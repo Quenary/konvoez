@@ -1,25 +1,3 @@
-import { IUser } from '@konvoez/shared';
-
-/**
- * Split peers into streaming (cam and/or screen present) vs voice-only.
- * Streaming peers stay first (stable order within each group).
- */
-export function partitionVoicePeers(
-  peers: readonly IUser[],
-  isStreaming: (userId: number) => boolean,
-): { streaming: IUser[]; voiceOnly: IUser[] } {
-  const streaming: IUser[] = [];
-  const voiceOnly: IUser[] = [];
-  for (const peer of peers) {
-    if (isStreaming(peer.id)) {
-      streaming.push(peer);
-    } else {
-      voiceOnly.push(peer);
-    }
-  }
-  return { streaming, voiceOnly };
-}
-
 export function voiceSectionGridClass(count: number): string {
   if (count <= 1) {
     return 'section-1';

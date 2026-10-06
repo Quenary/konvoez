@@ -9,13 +9,13 @@ import { TuiButton, TuiHint } from '@taiga-ui/core';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 
 @Component({
-  selector: 'app-voice-theatre-actions',
+  selector: 'app-voice-room-theatre-actions',
   imports: [TuiButton, TuiHint, TranslatePipe],
-  templateUrl: './voice-theatre-actions.component.html',
-  styleUrl: './voice-theatre-actions.component.scss',
+  templateUrl: './voice-room-theatre-actions.component.html',
+  styleUrl: './voice-room-theatre-actions.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoiceTheatreActionsComponent {
+export class VoiceRoomTheatreActionsComponent {
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
   public readonly showClose = input(true);

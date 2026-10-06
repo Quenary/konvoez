@@ -14,12 +14,13 @@ import { Store } from '@ngrx/store';
 import { map } from 'rxjs';
 import { selectRoomsDict } from '../rooms/rooms.selectors';
 import { IRoom } from '../rooms/rooms.interface';
-import { VoicePeersGridComponent } from '@shared/components/voice-room/voice-peers-grid/voice-peers-grid.component';
+import { VoiceRoomGridComponent } from '@shared/components/voice-room/voice-room-grid/voice-room-grid.component';
 import { VoiceRoomOverlayComponent } from '@shared/components/voice-room/voice-room-overlay/voice-room-overlay.component';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { resolveVoiceSessionPeers } from '@shared/components/voice-room/voice-session-peers';
 import { VoiceRoomViewService } from '@shared/components/voice-room/voice-room-view.service';
+import { VoiceOverlaySlotDirective } from '@shared/components/voice-room/voice-overlay-slot.directive';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { EVoiceSessionType } from '@konvoez/shared';
@@ -30,7 +31,11 @@ import { EVoiceSessionType } from '@konvoez/shared';
     '(pointermove)': 'revealChrome()',
     '(pointerdown)': 'revealChrome()',
   },
-  imports: [VoicePeersGridComponent, VoiceRoomOverlayComponent],
+  imports: [
+    VoiceRoomGridComponent,
+    VoiceRoomOverlayComponent,
+    VoiceOverlaySlotDirective,
+  ],
   templateUrl: './voice-room.component.html',
   styleUrl: './voice-room.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

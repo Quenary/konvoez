@@ -25,8 +25,16 @@
   }
 }
 
+.stage-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
 .stage {
   position: relative;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -36,16 +44,34 @@
   overflow: hidden;
 }
 
+.stage-tile {
+  position: absolute;
+  inset: 0.75rem;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+
+  app-voice-room-tile {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+.view-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
 .stage-video {
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: black;
-}
-
-.stage-empty {
-  color: var(--tui-text-secondary);
-  font: var(--tui-font-text-m);
 }
 
 .stage-overlay {
@@ -114,21 +140,21 @@
     box-shadow: 0 0 0 1px var(--tui-status-info);
   }
 
-  &:has(app-voice-peer-tile-mini.speaking) {
+  &:has(app-voice-room-tile-mini.speaking) {
     border-color: var(--tui-status-positive);
     box-shadow:
       0 0 0 2px var(--tui-status-positive),
       0 0 1rem var(--tui-status-positive-pale);
   }
 
-  &.active:has(app-voice-peer-tile-mini.speaking) {
+  &.active:has(app-voice-room-tile-mini.speaking) {
     border-color: var(--tui-status-positive);
     box-shadow:
       0 0 0 2px var(--tui-status-positive),
       0 0 1rem var(--tui-status-positive-pale);
   }
 
-  app-voice-peer-tile-mini {
+  app-voice-room-tile-mini {
     display: block;
     width: 100%;
     height: 100%;

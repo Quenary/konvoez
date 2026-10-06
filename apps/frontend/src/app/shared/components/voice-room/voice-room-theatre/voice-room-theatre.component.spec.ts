@@ -1,19 +1,24 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
+import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { SettingsStore } from '@features/settings/settings.store';
+import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VoiceTheatreComponent } from './voice-theatre.component';
+import { VoiceRoomTheatreComponent } from './voice-room-theatre.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VOICE_CHROME_HIDE_MS } from '../voice-chrome-reveal';
-import { buildVoicePeerTiles } from '../voice-peer-tiles';
+import { buildVoiceRoomTiles, type TVoiceRoomTile } from '../voice-room-tiles';
 
 const peer = (id: number, username = `u${id}`): IUser =>
   ({ id, username, fullname: `User ${id}` }) as IUser;
 
 const stripTiles = () =>
-  buildVoicePeerTiles({
+  buildVoiceRoomTiles({
     peers: [peer(1), peer(2), peer(3)],
     localUserId: 1,
     localCamTrack: null,
@@ -30,7 +35,7 @@ const stripTiles = () =>
     watchingUserIds: new Set([2, 3]),
   });
 
-describe('VoiceTheatreComponent', () => {
+describe('VoiceRoomTheatreComponent', () => {
   let openTheatre: ReturnType<typeof vi.fn>;
   let revealChrome: ReturnType<typeof vi.fn>;
 
@@ -48,9 +53,39 @@ describe('VoiceTheatreComponent', () => {
     );
     vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined);
     TestBed.configureTestingModule({
-      imports: [VoiceTheatreComponent],
+      imports: [VoiceRoomTheatreComponent],
       providers: [
         provideTranslateService(),
+        {
+          provide: Store,
+          useValue: {
+            selectSignal: () => signal(peer(1)).asReadonly(),
+          },
+        },
+        {
+          provide: VoiceRoomStore,
+          useValue: {
+            microphoneMuted: signal(false).asReadonly(),
+            speakerMuted: signal(false).asReadonly(),
+            peerGainLevels: signal({}).asReadonly(),
+            peerScreenGainLevels: signal({}).asReadonly(),
+          },
+        },
+        {
+          provide: DirectCallService,
+          useValue: {
+            isCalling: signal(false).asReadonly(),
+          },
+        },
+        {
+          provide: SettingsStore,
+          useValue: {
+            screenPreviewAutoPauseWhenHidden: signal(
+              DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+            ).asReadonly(),
+            setScreenPreviewAutoPauseWhenHidden: vi.fn(),
+          },
+        },
         {
           provide: AudioActivityService,
           useValue: {
@@ -71,7 +106,6 @@ describe('VoiceTheatreComponent', () => {
             openTheatre,
             closeTheatre: vi.fn(),
             toggleFullscreen: vi.fn(),
-            stopWatchingFocus: vi.fn(),
           },
         },
       ],
@@ -85,18 +119,20 @@ describe('VoiceTheatreComponent', () => {
 
   const create = (
     overrides: Partial<{
-      focusPeer: IUser;
-      focusStream: 'cam' | 'screen' | null;
+      focusTile: TVoiceRoomTile | null;
       showLocalChrome: boolean;
     }> = {},
   ) => {
-    const fixture = TestBed.createComponent(VoiceTheatreComponent);
-    fixture.componentRef.setInput('focusPeer', overrides.focusPeer ?? peer(2));
-    fixture.componentRef.setInput(
-      'focusStream',
-      overrides.focusStream ?? 'screen',
-    );
-    fixture.componentRef.setInput('stripTiles', stripTiles());
+    const tiles = stripTiles();
+    const fixture = TestBed.createComponent(VoiceRoomTheatreComponent);
+    const focusTile =
+      overrides.focusTile === undefined
+        ? (tiles.find(
+            (tile) => tile.peerId === 2 && tile.streamKind === 'screen',
+          ) ?? null)
+        : overrides.focusTile;
+    fixture.componentRef.setInput('focusTile', focusTile);
+    fixture.componentRef.setInput('stripTiles', tiles);
     fixture.componentRef.setInput(
       'showLocalChrome',
       overrides.showLocalChrome ?? true,
@@ -154,5 +190,36 @@ describe('VoiceTheatreComponent', () => {
     }
     fixture.componentInstance['onStripTileClick'](otherScreen);
     expect(openTheatre).toHaveBeenCalledWith(3, 'screen');
+  });
+
+  it('shows a large tile without video and opens a voice strip tile', () => {
+    const tiles = stripTiles();
+    const voice = tiles.find(
+      (tile) => tile.peerId === 1 && tile.streamKind == null,
+    );
+    expect(voice).toBeDefined();
+    if (voice == null) {
+      return;
+    }
+
+    const fixture = create({ focusTile: voice });
+    expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('app-voice-room-tile'),
+    ).toBeTruthy();
+
+    fixture.componentInstance['onStripTileClick'](voice);
+    expect(openTheatre).not.toHaveBeenCalled();
+
+    const screen = tiles.find(
+      (tile) => tile.peerId === 2 && tile.streamKind === 'screen',
+    );
+    expect(screen).toBeDefined();
+    if (screen == null) {
+      return;
+    }
+    const watching = create();
+    watching.componentInstance['onStripTileClick'](voice);
+    expect(openTheatre).toHaveBeenCalledWith(1, null);
   });
 });

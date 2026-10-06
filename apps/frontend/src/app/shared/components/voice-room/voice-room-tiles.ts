@@ -2,7 +2,7 @@ import { IUser } from '@konvoez/shared';
 
 export type TVoiceStreamKind = 'cam' | 'screen';
 
-export type TVoicePeerTile = {
+export type TVoiceRoomTile = {
   key: string;
   peer: IUser;
   peerId: number;
@@ -12,7 +12,7 @@ export type TVoicePeerTile = {
   watchingScreen: boolean;
 };
 
-export type TBuildVoicePeerTilesInput = {
+export type TBuildVoiceRoomTilesInput = {
   peers: readonly IUser[];
   localUserId: number | null;
   localCamTrack: MediaStreamTrack | null;
@@ -31,7 +31,7 @@ const voiceTile = (
   videoTrack: MediaStreamTrack | null,
   screenAvailable: boolean,
   watchingScreen: boolean,
-): TVoicePeerTile => {
+): TVoiceRoomTile => {
   const kindKey = streamKind ?? 'voice';
   return {
     key: `${peer.id}:${kindKey}`,
@@ -45,7 +45,7 @@ const voiceTile = (
 };
 
 const screenAvailableForPeer = (
-  input: TBuildVoicePeerTilesInput,
+  input: TBuildVoiceRoomTilesInput,
   peerId: number,
   isLocal: boolean,
 ): boolean => {
@@ -56,10 +56,10 @@ const screenAvailableForPeer = (
   return Boolean(available?.videoProducerId);
 };
 
-export function buildVoicePeerTiles(
-  input: TBuildVoicePeerTilesInput,
-): TVoicePeerTile[] {
-  const tiles: TVoicePeerTile[] = [];
+export function buildVoiceRoomTiles(
+  input: TBuildVoiceRoomTilesInput,
+): TVoiceRoomTile[] {
+  const tiles: TVoiceRoomTile[] = [];
 
   for (const peer of input.peers) {
     const isLocal = input.localUserId !== null && peer.id === input.localUserId;
@@ -102,14 +102,51 @@ export function buildVoicePeerTiles(
   return tiles;
 }
 
-export function findVoicePeerTile(
-  tiles: readonly TVoicePeerTile[],
+export function findVoiceRoomTile(
+  tiles: readonly TVoiceRoomTile[],
   peerId: number,
-  stream: TVoiceStreamKind,
-): TVoicePeerTile | null {
+  stream: TVoiceStreamKind | null,
+): TVoiceRoomTile | null {
   return (
     tiles.find(
       (tile) => tile.peerId === peerId && tile.streamKind === stream,
     ) ?? null
   );
+}
+
+/**
+ * Theatre display target. Keeps the focused tile when it still exists,
+ * otherwise the same peer's remaining tile, otherwise the first tile.
+ * Returns null only when the room has no tiles; the caller keeps theatre open.
+ */
+export function resolveTheatreTile(
+  focus: { peerId: number; stream: TVoiceStreamKind | null } | null,
+  tiles: readonly TVoiceRoomTile[],
+): TVoiceRoomTile | null {
+  if (focus == null) {
+    return null;
+  }
+  const exact = findVoiceRoomTile(tiles, focus.peerId, focus.stream);
+  if (exact) {
+    return exact;
+  }
+  const samePeer = tiles.find((tile) => tile.peerId === focus.peerId);
+  if (samePeer) {
+    return samePeer;
+  }
+  return tiles[0] ?? null;
+}
+
+export function showsRemoteScreenWatchControls(
+  focus: { peerId: number; stream: TVoiceStreamKind | null } | null,
+  localUserId: number | null,
+  watchingUserIds: ReadonlySet<number>,
+): boolean {
+  if (focus == null || focus.stream !== 'screen') {
+    return false;
+  }
+  if (localUserId != null && focus.peerId === localUserId) {
+    return false;
+  }
+  return watchingUserIds.has(focus.peerId);
 }

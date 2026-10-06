@@ -2,10 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  contentChild,
+  effect,
   inject,
   input,
   output,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
@@ -13,36 +16,38 @@ import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.component';
-import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
-import { VoiceTheatreComponent } from '../voice-theatre/voice-theatre.component';
-import { VoiceTheatreWatchControlsComponent } from '../voice-theatre-watch-controls/voice-theatre-watch-controls.component';
+import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
+import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
+import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-theatre.component';
+import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceOverlaySlotDirective } from '../voice-overlay-slot.directive';
 import { resolveVoiceSessionPeers } from '../voice-session-peers';
 import { voiceSectionGridClass } from '../voice-peers-layout';
 import {
-  buildVoicePeerTiles,
-  findVoicePeerTile,
+  buildVoiceRoomTiles,
+  resolveTheatreTile,
+  showsRemoteScreenWatchControls,
   type TVoiceStreamKind,
-} from '../voice-peer-tiles';
+} from '../voice-room-tiles';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { IUser } from '@konvoez/shared';
 
 @Component({
-  selector: 'app-voice-peers-grid',
+  selector: 'app-voice-room-grid',
   imports: [
-    VoicePeerTileComponent,
-    VoiceControlsBarComponent,
-    VoiceTheatreComponent,
-    VoiceTheatreWatchControlsComponent,
+    NgTemplateOutlet,
+    VoiceRoomTileComponent,
+    VoiceRoomControlsBarComponent,
+    VoiceRoomTheatreComponent,
+    VoiceRoomTheatreWatchControlsComponent,
   ],
-  templateUrl: './voice-peers-grid.component.html',
-  styleUrl: './voice-peers-grid.component.scss',
+  templateUrl: './voice-room-grid.component.html',
+  styleUrl: './voice-room-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoicePeersGridComponent {
+export class VoiceRoomGridComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
@@ -56,6 +61,8 @@ export class VoicePeersGridComponent {
   public readonly compact = input(false);
   public readonly showControls = input(true);
   public readonly left = output<void>();
+
+  private readonly overlaySlot = contentChild(VoiceOverlaySlotDirective);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -78,7 +85,7 @@ export class VoicePeersGridComponent {
 
   protected readonly tiles = computed(() => {
     const me = this.currentUser();
-    return buildVoicePeerTiles({
+    return buildVoiceRoomTiles({
       peers: this.peers(),
       localUserId: me?.id ?? null,
       localCamTrack: this.peerVideoService.localCamTrack(),
@@ -95,35 +102,49 @@ export class VoicePeersGridComponent {
   );
 
   protected readonly theatreFocus = this.voiceRoomViewService.theatreFocus;
-  protected readonly theatreFocusStream =
-    this.voiceRoomViewService.theatreFocusStream;
-  protected readonly theatreShowsRemoteScreenWatchControls =
-    this.voiceRoomViewService.theatreShowsRemoteScreenWatchControls;
 
-  protected readonly theatreFocusPeer = computed((): IUser | null => {
-    const focus = this.theatreFocus();
-    if (focus == null) {
-      return null;
-    }
-    return this.peers().find((peer) => peer.id === focus.peerId) ?? null;
-  });
+  protected readonly theatreTile = computed(() =>
+    resolveTheatreTile(this.theatreFocus(), this.tiles()),
+  );
 
-  protected readonly theatreVideoTrack = computed(() => {
-    const focus = this.theatreFocus();
-    if (focus == null) {
-      return null;
-    }
-    const tile = findVoicePeerTile(this.tiles(), focus.peerId, focus.stream);
-    return tile?.videoTrack ?? null;
-  });
+  protected readonly overlayTemplate = computed(
+    () => this.overlaySlot()?.template ?? null,
+  );
+
+  protected readonly showRemoteScreenWatchControls = computed(() =>
+    showsRemoteScreenWatchControls(
+      this.theatreFocus(),
+      this.currentUser()?.id ?? null,
+      this.peerVideoService.watchingUserIds(),
+    ),
+  );
+
+  constructor() {
+    effect(() => {
+      const focus = this.voiceRoomViewService.theatreFocus();
+      if (focus == null) {
+        return;
+      }
+      const resolved = resolveTheatreTile(focus, this.tiles());
+      if (resolved == null) {
+        return;
+      }
+      if (
+        resolved.peerId !== focus.peerId ||
+        resolved.streamKind !== focus.stream
+      ) {
+        this.voiceRoomViewService.retargetTheatre(
+          resolved.peerId,
+          resolved.streamKind,
+        );
+      }
+    });
+  }
 
   protected onOpenTheatre(
     userId: number,
     streamKind: TVoiceStreamKind | null,
   ): void {
-    if (streamKind == null) {
-      return;
-    }
     this.voiceRoomViewService.openTheatre(userId, streamKind);
   }
 

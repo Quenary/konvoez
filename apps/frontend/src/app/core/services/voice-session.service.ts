@@ -23,7 +23,6 @@ import {
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
-import { ScreenCaptureService } from './screen-capture.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 
@@ -216,10 +215,6 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public stopScreen(): Promise<void> {
     return this.mediasoupSessionService.stopScreen();
-  }
-
-  public isScreenSharingSupported(): boolean {
-    return ScreenCaptureService.isSupported();
   }
 
   private addSocketListeners(): void {

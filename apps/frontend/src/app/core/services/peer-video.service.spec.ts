@@ -41,7 +41,6 @@ describe('PeerVideoService', () => {
 
     service.registerAvailableScreen(7, 'scr1', 'video');
     service.registerAvailableScreen(7, 'aud1', 'audio');
-    expect(service.hasAvailableScreen(7)).toBe(true);
     expect(service.availableScreens()[7]).toEqual({
       videoProducerId: 'scr1',
       audioProducerId: 'aud1',
@@ -67,7 +66,7 @@ describe('PeerVideoService', () => {
     service.registerAvailableScreen(3, 'p1', 'video');
     service.setWatching(3, true);
     service.unregisterAvailableScreenProducer(3, 'p1');
-    expect(service.hasAvailableScreen(3)).toBe(false);
+    expect(service.availableScreens()[3]).toBeUndefined();
     expect(service.isWatching(3)).toBe(false);
   });
 });

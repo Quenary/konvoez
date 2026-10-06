@@ -1,8 +1,10 @@
-<app-voice-room-overlay
-  [room]="room()"
-  [participantsCount]="participantsCount()"
-  (left)="onLeft()" />
-
 <div class="voice-room-body">
-  <app-voice-peers-grid [showControls]="false" />
+  <app-voice-room-grid [showControls]="false">
+    <ng-template appVoiceOverlay>
+      <app-voice-room-overlay
+        [room]="room()"
+        [participantsCount]="participantsCount()"
+        (left)="onLeft()" />
+    </ng-template>
+  </app-voice-room-grid>
 </div>

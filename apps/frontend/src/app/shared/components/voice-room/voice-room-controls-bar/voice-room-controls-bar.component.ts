@@ -34,13 +34,13 @@ import {
 } from '../screen-stream-dialog/screen-stream-dialog.component';
 
 @Component({
-  selector: 'app-voice-controls-bar',
+  selector: 'app-voice-room-controls-bar',
   imports: [TuiButton, TuiGroup, TuiHint, TranslatePipe],
-  templateUrl: './voice-controls-bar.component.html',
-  styleUrl: './voice-controls-bar.component.scss',
+  templateUrl: './voice-room-controls-bar.component.html',
+  styleUrl: './voice-room-controls-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoiceControlsBarComponent {
+export class VoiceRoomControlsBarComponent {
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly settingsStore = inject(SettingsStore);
   private readonly audioService = inject(AudioService);

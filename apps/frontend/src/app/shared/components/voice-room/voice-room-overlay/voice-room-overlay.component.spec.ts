@@ -3,6 +3,8 @@ import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Store } from '@ngrx/store';
+import { IUser } from '@konvoez/shared';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { IRoom } from '@features/rooms/rooms.interface';
 import { RoomManageService } from '@features/rooms/room-manage.service';
@@ -26,27 +28,40 @@ describe('VoiceRoomOverlayComponent', () => {
   let theatreOpen: ReturnType<typeof signal<boolean>>;
   let chromeVisible: ReturnType<typeof signal<boolean>>;
   let isFullscreen: ReturnType<typeof signal<boolean>>;
+  let theatreFocus: ReturnType<
+    typeof signal<{ peerId: number; stream: 'cam' | 'screen' | null } | null>
+  >;
+  let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
 
   beforeEach(() => {
     theatreOpen = signal(false);
     chromeVisible = signal(true);
     isFullscreen = signal(false);
+    theatreFocus = signal(null);
+    watchingUserIds = signal(new Set<number>());
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomOverlayComponent],
       providers: [
         provideTranslateService(),
         {
+          provide: Store,
+          useValue: {
+            selectSignal: () =>
+              signal({ id: 1, username: 'me' } as IUser).asReadonly(),
+          },
+        },
+        {
           provide: VoiceRoomViewService,
           useValue: {
             chromeVisible: chromeVisible.asReadonly(),
             theatreOpen: theatreOpen.asReadonly(),
+            theatreFocus: theatreFocus.asReadonly(),
             theatreFocusId: signal<number | null>(null).asReadonly(),
             isFullscreen: isFullscreen.asReadonly(),
             closeTheatre: vi.fn(),
             revealChrome: vi.fn(),
             toggleFullscreen: vi.fn(),
-            stopWatchingFocus: vi.fn(),
           },
         },
         {
@@ -98,11 +113,16 @@ describe('VoiceRoomOverlayComponent', () => {
           useValue: {
             localCamTrack: signal(null).asReadonly(),
             localScreenTrack: signal(null).asReadonly(),
+            watchingUserIds: watchingUserIds.asReadonly(),
           },
         },
         {
           provide: VoiceSessionService,
-          useValue: { produceScreen: vi.fn(), stopScreen: vi.fn() },
+          useValue: {
+            produceScreen: vi.fn(),
+            stopScreen: vi.fn(),
+            stopWatchingPeerScreen: vi.fn().mockResolvedValue(undefined),
+          },
         },
         {
           provide: TuiDialogService,
@@ -130,13 +150,15 @@ describe('VoiceRoomOverlayComponent', () => {
       '[tuiAccessories]',
     ) as HTMLElement | null;
     const actions = accessories?.querySelector(
-      'app-voice-theatre-actions',
+      'app-voice-room-theatre-actions',
     ) as HTMLElement | null;
     expect(accessories).toBeTruthy();
     expect(actions).toBeTruthy();
     expect(actions?.querySelectorAll('button').length).toBe(1);
     expect(
-      fixture.nativeElement.querySelector('app-voice-theatre-watch-controls'),
+      fixture.nativeElement.querySelector(
+        'app-voice-room-theatre-watch-controls',
+      ),
     ).toBeNull();
 
     theatreOpen.set(true);
@@ -144,7 +166,19 @@ describe('VoiceRoomOverlayComponent', () => {
 
     expect(actions?.querySelectorAll('button').length).toBe(2);
     expect(
-      fixture.nativeElement.querySelector('app-voice-theatre-watch-controls'),
+      fixture.nativeElement.querySelector(
+        'app-voice-room-theatre-watch-controls',
+      ),
+    ).toBeNull();
+
+    theatreFocus.set({ peerId: 2, stream: 'screen' });
+    watchingUserIds.set(new Set([2]));
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector(
+        'app-voice-room-theatre-watch-controls',
+      ),
     ).toBeTruthy();
   });
 

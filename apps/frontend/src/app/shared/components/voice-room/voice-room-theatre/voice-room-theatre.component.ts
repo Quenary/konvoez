@@ -3,43 +3,48 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  TemplateRef,
   computed,
   effect,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
-import { IUser } from '@konvoez/shared';
+import { NgTemplateOutlet } from '@angular/common';
 import { preferTheatreStripRight } from '../voice-peers-layout';
 import { VoiceChromeReveal } from '../voice-chrome-reveal';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { VoiceTheatreActionsComponent } from '../voice-theatre-actions/voice-theatre-actions.component';
-import { VoicePeerTileMiniComponent } from '../voice-peer-tile-mini/voice-peer-tile-mini.component';
-import type { TVoicePeerTile, TVoiceStreamKind } from '../voice-peer-tiles';
+import { VoiceRoomTheatreActionsComponent } from '../voice-room-theatre-actions/voice-room-theatre-actions.component';
+import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
+import { VoiceRoomTileMiniComponent } from '../voice-room-tile-mini/voice-room-tile-mini.component';
+import type { TVoiceRoomTile } from '../voice-room-tiles';
 
 @Component({
-  selector: 'app-voice-theatre',
+  selector: 'app-voice-room-theatre',
   imports: [
-    TranslatePipe,
-    VoiceTheatreActionsComponent,
-    VoicePeerTileMiniComponent,
+    NgTemplateOutlet,
+    VoiceRoomTheatreActionsComponent,
+    VoiceRoomTileComponent,
+    VoiceRoomTileMiniComponent,
   ],
-  templateUrl: './voice-theatre.component.html',
-  styleUrl: './voice-theatre.component.scss',
+  templateUrl: './voice-room-theatre.component.html',
+  styleUrl: './voice-room-theatre.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoiceTheatreComponent {
+export class VoiceRoomTheatreComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
-  public readonly focusPeer = input.required<IUser>();
-  public readonly focusStream = input<TVoiceStreamKind | null>(null);
-  public readonly videoTrack = input<MediaStreamTrack | null>(null);
-  public readonly stripTiles = input.required<readonly TVoicePeerTile[]>();
+  public readonly focusTile = input<TVoiceRoomTile | null>(null);
+  public readonly stripTiles = input.required<readonly TVoiceRoomTile[]>();
+  public readonly overlay = input<TemplateRef<void> | null>(null);
   public readonly showLocalChrome = input(false);
+
+  public readonly watchScreen = output<number>();
+  public readonly stopWatchScreen = output<number>();
 
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
@@ -55,7 +60,9 @@ export class VoiceTheatreComponent {
     return showLocal && local;
   });
 
-  protected readonly focusId = computed(() => this.focusPeer().id);
+  protected readonly videoTrack = computed(
+    () => this.focusTile()?.videoTrack ?? null,
+  );
 
   constructor() {
     effect(() => {
@@ -88,22 +95,6 @@ export class VoiceTheatreComponent {
     }
   }
 
-  protected isStripTileActive(tile: TVoicePeerTile): boolean {
-    const focus = this.focusId();
-    const stream = this.focusStream();
-    return tile.peerId === focus && tile.streamKind === stream;
-  }
-
-  protected isStripTileDisabled(tile: TVoicePeerTile): boolean {
-    if (this.isStripTileActive(tile)) {
-      return false;
-    }
-    if (tile.streamKind == null) {
-      return true;
-    }
-    return tile.videoTrack == null;
-  }
-
   protected onVideoMetadata(event: Event): void {
     const video = event.target as HTMLVideoElement;
     if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -126,13 +117,14 @@ export class VoiceTheatreComponent {
     this.revealOverlay();
   }
 
-  protected onStripTileClick(tile: TVoicePeerTile): void {
-    if (this.isStripTileDisabled(tile) || tile.streamKind == null) {
+  protected onStripTileClick(tile: TVoiceRoomTile): void {
+    if (this.focusTile()?.key === tile.key) {
       return;
     }
-    if (this.isStripTileActive(tile)) {
-      return;
-    }
+    this.voiceRoomViewService.openTheatre(tile.peerId, tile.streamKind);
+  }
+
+  protected onStageTileOpen(tile: TVoiceRoomTile): void {
     this.voiceRoomViewService.openTheatre(tile.peerId, tile.streamKind);
   }
 

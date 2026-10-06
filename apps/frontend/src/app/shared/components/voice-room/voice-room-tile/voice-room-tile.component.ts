@@ -32,7 +32,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
-import type { TVoiceStreamKind } from '../voice-peer-tiles';
+import type { TVoiceStreamKind } from '../voice-room-tiles';
 import {
   combineLatest,
   distinctUntilChanged,
@@ -47,7 +47,7 @@ import {
 const PREVIEW_PAUSE_MS = 5_000;
 
 @Component({
-  selector: 'app-voice-peer-tile',
+  selector: 'app-voice-room-tile',
   imports: [
     FormsModule,
     UserAvatarComponent,
@@ -62,11 +62,11 @@ const PREVIEW_PAUSE_MS = 5_000;
     TranslatePipe,
     TuiGroup,
   ],
-  templateUrl: './voice-peer-tile.component.html',
-  styleUrl: './voice-peer-tile.component.scss',
+  templateUrl: './voice-room-tile.component.html',
+  styleUrl: './voice-room-tile.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoicePeerTileComponent {
+export class VoiceRoomTileComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly audioActivityService = inject(AudioActivityService);

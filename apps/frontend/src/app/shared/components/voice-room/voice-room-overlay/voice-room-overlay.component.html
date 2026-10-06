@@ -49,15 +49,15 @@
       </ng-template>
     }
 
-    <app-voice-theatre-actions [showClose]="theatreOpen()" />
+    <app-voice-room-theatre-actions [showClose]="theatreOpen()" />
   </aside>
 </header>
 
 <footer
   class="controls-dock"
   [class.vignette]="isFullscreen()">
-  @if (theatreShowsRemoteScreenWatchControls()) {
-    <app-voice-theatre-watch-controls />
+  @if (showRemoteScreenWatchControls()) {
+    <app-voice-room-theatre-watch-controls />
   }
-  <app-voice-controls-bar (hangup)="onHangup()" />
+  <app-voice-room-controls-bar (hangup)="onHangup()" />
 </footer>

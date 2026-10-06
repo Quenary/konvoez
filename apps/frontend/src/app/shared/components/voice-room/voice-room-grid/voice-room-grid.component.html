@@ -1,14 +1,14 @@
 <div
   class="peers-grid-root"
   [class.compact]="compact()">
-  @if (!theatreFocusPeer()) {
+  @if (!theatreFocus()) {
     <div class="peers-layout">
       <section
         class="peers-section"
         [class]="peersSectionClass()">
         @for (tile of tiles(); track tile.key) {
           <div class="grid-item">
-            <app-voice-peer-tile
+            <app-voice-room-tile
               [peer]="tile.peer"
               [streamKind]="tile.streamKind"
               [videoTrack]="tile.videoTrack"
@@ -21,27 +21,30 @@
         }
       </section>
     </div>
+
+    @if (overlayTemplate(); as overlay) {
+      <div class="view-chrome">
+        <ng-container *ngTemplateOutlet="overlay" />
+      </div>
+    }
   }
 
-  @if (theatreFocusPeer(); as focusPeer) {
-    <app-voice-theatre
-      [focusPeer]="focusPeer"
-      [focusStream]="theatreFocusStream()"
-      [videoTrack]="theatreVideoTrack()"
+  @if (theatreFocus()) {
+    <app-voice-room-theatre
+      [focusTile]="theatreTile()"
       [stripTiles]="tiles()"
-      [showLocalChrome]="compact()" />
+      [overlay]="overlayTemplate()"
+      [showLocalChrome]="compact()"
+      (watchScreen)="onWatchScreen($event)"
+      (stopWatchScreen)="onStopWatchScreen($event)" />
   }
 
   @if (showControls()) {
     <footer class="controls-dock">
-      @if (
-        compact() &&
-        theatreFocusPeer() &&
-        theatreShowsRemoteScreenWatchControls()
-      ) {
-        <app-voice-theatre-watch-controls />
+      @if (compact() && showRemoteScreenWatchControls()) {
+        <app-voice-room-theatre-watch-controls />
       }
-      <app-voice-controls-bar (hangup)="onHangup()" />
+      <app-voice-room-controls-bar (hangup)="onHangup()" />
     </footer>
   }
 </div>

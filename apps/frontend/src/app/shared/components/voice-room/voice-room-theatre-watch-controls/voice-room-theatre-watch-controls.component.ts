@@ -15,10 +15,11 @@ import {
   TuiSlider,
 } from '@taiga-ui/core';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 
 @Component({
-  selector: 'app-voice-theatre-watch-controls',
+  selector: 'app-voice-room-theatre-watch-controls',
   imports: [
     FormsModule,
     TuiButton,
@@ -29,12 +30,13 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
     TuiSlider,
     TranslatePipe,
   ],
-  templateUrl: './voice-theatre-watch-controls.component.html',
-  styleUrl: './voice-theatre-watch-controls.component.scss',
+  templateUrl: './voice-room-theatre-watch-controls.component.html',
+  styleUrl: './voice-room-theatre-watch-controls.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoiceTheatreWatchControlsComponent {
+export class VoiceRoomTheatreWatchControlsComponent {
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
+  private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceRoomStore = inject(VoiceRoomStore);
 
   protected readonly screenVolume = computed(() => {
@@ -47,7 +49,11 @@ export class VoiceTheatreWatchControlsComponent {
   });
 
   protected onStopWatch(): void {
-    void this.voiceRoomViewService.stopWatchingFocus();
+    const id = this.voiceRoomViewService.theatreFocusId();
+    if (id == null) {
+      return;
+    }
+    void this.voiceSessionService.stopWatchingPeerScreen(id);
   }
 
   protected onScreenVolumeChange(value: number): void {

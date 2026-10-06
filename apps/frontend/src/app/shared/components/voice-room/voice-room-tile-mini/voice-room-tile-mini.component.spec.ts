@@ -4,7 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { signal } from '@angular/core';
 import { IUser } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
-import { VoicePeerTileMiniComponent } from './voice-peer-tile-mini.component';
+import { VoiceRoomTileMiniComponent } from './voice-room-tile-mini.component';
 
 const user = (id: number): IUser =>
   ({
@@ -13,7 +13,7 @@ const user = (id: number): IUser =>
     fullname: `User ${id}`,
   }) as IUser;
 
-describe('VoicePeerTileMiniComponent', () => {
+describe('VoiceRoomTileMiniComponent', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'MediaStream',
@@ -27,7 +27,7 @@ describe('VoicePeerTileMiniComponent', () => {
     vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
-      imports: [VoicePeerTileMiniComponent],
+      imports: [VoiceRoomTileMiniComponent],
       providers: [
         provideTranslateService(),
         {
@@ -46,7 +46,7 @@ describe('VoicePeerTileMiniComponent', () => {
   });
 
   it('shows centered avatar when there is no video track', () => {
-    const fixture = TestBed.createComponent(VoicePeerTileMiniComponent);
+    const fixture = TestBed.createComponent(VoiceRoomTileMiniComponent);
     fixture.componentRef.setInput('peer', user(1));
     fixture.detectChanges();
 
@@ -57,7 +57,7 @@ describe('VoicePeerTileMiniComponent', () => {
   });
 
   it('shows video and corner avatar when a track is present', () => {
-    const fixture = TestBed.createComponent(VoicePeerTileMiniComponent);
+    const fixture = TestBed.createComponent(VoiceRoomTileMiniComponent);
     fixture.componentRef.setInput('peer', user(2));
     fixture.componentRef.setInput('videoTrack', {
       id: 'v',

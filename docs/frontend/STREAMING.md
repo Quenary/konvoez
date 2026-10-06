@@ -1,74 +1,68 @@
 # Frontend streaming (camera & screen)
 
-Camera and screen share on top of the voice stack described in [VOICE.md](./VOICE.md). Product decisions and completed phases are summarized in [konvoez-streaming-plan.ru.md](../../konvoez-streaming-plan.ru.md) (Russian).
+Camera and screen share on the voice stack in [VOICE.md](./VOICE.md).
 
-## Limits and subscribe model
+## Subscribe model
 
-| Kind                             | Produce                 | Remote subscribe                         | Audio path                                                                        |
-| -------------------------------- | ----------------------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| Microphone                       | Always while in session | Auto (`CONSUME` on `produce`)            | `PeerPlaybackService` (mic graph)                                                 |
-| Camera                           | User toggles            | Auto                                     | Video: `PeerVideoService` → tile `<video>`                                        |
-| Screen (+ optional screen-audio) | User toggles            | **Opt-in** («Watch» / `watchPeerScreen`) | Video: `PeerVideoService`; screen-audio: `PeerScreenAudioService` (separate gain) |
+| Kind                             | Produce                 | Remote subscribe           | Audio                                                                 |
+| -------------------------------- | ----------------------- | -------------------------- | --------------------------------------------------------------------- |
+| Microphone                       | Always while in session | Auto                       | `PeerPlaybackService`                                                 |
+| Camera                           | User toggles            | Auto                       | Video only: `PeerVideoService`                                        |
+| Screen (+ optional screen-audio) | User toggles            | Opt-in (`watchPeerScreen`) | Video: `PeerVideoService`. Audio: `PeerScreenAudioService` (own gain) |
 
-- At most **one cam + one screen** (+ screen-audio tied to screen) per user.
-- Room cap: **≤4** video producers (`cam` + `screen` total); backend returns room-full error.
-- Sender MVP codec: **VP8** (router advertises VP8/H264/VP9/AV1; no server-side transcode).
+One cam and one screen per user. A room allows at most 4 video producers (`cam` + `screen`); the backend rejects another. Senders use VP8.
+
+`VoiceRoomStore` keeps mic gain (`peerGainLevels`) and screen-audio gain (`peerScreenGainLevels`) separate. Capture height and FPS come from local settings and are chosen in the start dialogs.
+
+The screen button is hidden when `getDisplayMedia` is missing.
 
 ## Services
 
-| Service                                  | Role                                                                                                                                                         |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `MediasoupSessionService`                | Produce/consume cam, screen, screen-audio; register available screen producers; `CLOSE_CONSUMER` / `CONSUMER_CLOSED` teardown                                |
-| `PeerVideoService`                       | Remote/local **video** tracks for UI (`Record<userId, …>`); `watchingUserIds` (`Set`); `remoteTracks` computed (screen over cam when screen consumer exists) |
-| `PeerScreenAudioService`                 | Screen-audio consumers and gain (not mixed into mic playback graph)                                                                                          |
-| `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`, height & FPS from local settings                                                                                         |
-| `VoiceSessionService`                    | `watchPeerScreen` / `stopWatchingPeerScreen`; socket handlers that call into mediasoup + `PeerVideoService`                                                  |
+| Service                                  | Role                                                                                                              |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `MediasoupSessionService`                | Produce and consume cam, screen, and screen-audio. Registers available screen producers and tears consumers down. |
+| `PeerVideoService`                       | Local and remote cam and screen tracks, `availableScreens`, `watchingUserIds`. Cam and screen stay separate.      |
+| `PeerScreenAudioService`                 | Screen-audio graphs and gain. Not mixed into mic playback.                                                        |
+| `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`.                                                                               |
+| `VoiceSessionService`                    | `watchPeerScreen` / `stopWatchingPeerScreen`.                                                                     |
+| `VoiceRoomViewService`                   | Theatre focus, chrome auto-hide, fullscreen. Does not start or stop media.                                        |
 
-`VoiceRoomStore` holds **per-peer mic gain** (`peerGainLevels`) and **per-peer screen-audio gain** (`peerScreenGainLevels`) — independent sliders in UI.
+On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch.
 
-Local stream quality (`cameraHeight`, `cameraFps`, `screenHeight`, `screenFps`) lives in local settings; height/FPS pickers appear only in **start** dialogs, not in the main device settings panel.
+## Tiles
 
-## Display rules
+`buildVoiceRoomTiles` (`voice-room-tiles.ts`) builds the grid:
 
-- **Local user tile:** camera only (`PeerVideoService.localCamTrack`). Own screen preview is **not** in the grid tile.
-- **Local screen:** floating PiP (`ScreenSharePipComponent`, bottom-left). Preview rendering can pause after 5s when the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden` in local settings); user resumes manually. Producing to peers is unaffected.
-- **Remote tile:** camera until the viewer clicks Watch; then screen track replaces video in the tile. **LIVE** badge when a screen is available before watch.
+- No cam and no screen: one voice tile.
+- Cam or screen only: one tile.
+- Both: two tiles, so both can be seen at once.
 
-## UI layout
+A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. Its preview pauses 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`); producing to peers continues. The user resumes the preview manually.
 
-```mermaid
-flowchart TB
-  Grid[VoicePeersGridComponent]
-  Tile[VoicePeerTileComponent]
-  Pip[ScreenSharePipComponent]
-  Theatre[VoiceTheatreComponent]
+## Theatre
 
-  Grid --> Tile
-  Grid --> Pip
-  Grid --> Theatre
-```
+Theatre is a display mode, not a watch action. Any tile can open it, including a voice tile with no stream. `VoiceRoomViewService` stores `{ peerId, stream }` where `stream` is `'cam'`, `'screen'`, or `null`.
 
-- **Grid:** peers split into a larger **streaming** section (cam and/or screen available) and a compact **voice-only** section (`partitionVoicePeers` in `voice-peers-layout.ts`).
-- **Theatre:** local-only focus on a **watched** remote screen; participant strip (bottom or right by container vs stream aspect); fullscreen on stage; stop-watch + screen volume on hover/touch overlay. Opening theatre **unmounts** the grid (`@if`) so hidden tiles do not decode video.
-- **Controls:** stream row on tile (watch / stop / theatre / screen volume); theatre entry also via click on video when watching.
+The stage shows a `<video>` when the focused tile has a track, otherwise a large `voice-room-tile` with a small inset. The grid is unmounted while theatre is open.
 
-Shared components: `apps/frontend/src/app/shared/components/voice-room/`.
+The strip (`voice-room-tile-mini`) sits on the bottom or the right (`preferTheatreStripRight`, container aspect vs stream aspect). Clicking a mini-tile selects it. There is no automatic switch to whoever is speaking.
 
-## Lifecycle
+Stop watching, or the other peer ending the stream, does not close theatre. If that tile still exists, focus stays on it (without a track the stage is the large tile). If that stream tile is gone, focus moves to the same peer's remaining tile, otherwise the first tile in the list. An empty room stays in theatre with an empty stage. Close is explicit: the close button, Escape when not fullscreen, or hangup.
 
-On leave, producer close, or consumer close, mediasoup session code must clear **cam, screen, and screen-audio** graphs and `PeerVideoService` / `PeerScreenAudioService` state. Screen watch state is cleared when the screen producer goes away or the user stops watching.
+## Chrome
 
-## Platform notes
+The room page projects `app-voice-room-overlay` into `app-voice-room-grid` with `<ng-template appVoiceOverlay>`. The grid draws it over the whole grid. Theatre draws it over the stage cell only, so the mini-tile strip stays clickable.
 
-- `playsinline` on preview `<video>` elements.
-- Screen share button hidden on iOS (capture not supported in MVP).
-- Electron / desktop capture: separate follow-up (see plan).
+Stop-watch and screen volume show only while a remote screen is actually being watched. The compact direct-call grid does not use this overlay; it keeps its own footer.
 
-## Tests (representative)
+Shared UI: `apps/frontend/src/app/shared/components/voice-room/`. Preview `<video>` elements use `playsinline`.
 
-- `peer-video.service.spec.ts` — local cam vs screen, watch, available screen registry
-- `voice-peers-layout.spec.ts` — grid partition, theatre strip placement (16:9 vs ultrawide)
-- `screen-share-pip.component.spec.ts` — pause debounce, settings opt-out
-- `voice-peers-grid.component.spec.ts` / `voice-theatre.component.spec.ts` — theatre open/close, grid unmount
+## Tests
 
-Manual checklist (from streaming plan): two clients cam+screen; watch only after click; leave cleans screen-audio; Safari cam; theatre layouts.
+- `peer-video.service.spec.ts` — separate cam and screen tracks, watch set, available screens
+- `voice-room-tiles.spec.ts` — one or two tiles, theatre focus fallback
+- `voice-peers-layout.spec.ts` — section class and strip side
+- `voice-room-tile.component.spec.ts` — local screen preview pause
+- `voice-room-grid.component.spec.ts` — grid vs theatre, focus stays or retargets
+- `voice-room-theatre.component.spec.ts` — strip selection, large tile without video
+- `voice-room-view.service.spec.ts` — open, retarget, Escape, fullscreen

@@ -13,16 +13,16 @@ import { AudioActivityService } from '@core/services/audio-activity.service';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { TuiHint } from '@taiga-ui/core';
 @Component({
-  selector: 'app-voice-peer-tile-mini',
+  selector: 'app-voice-room-tile-mini',
   host: {
     '[class.speaking]': 'isSpeaking()',
   },
   imports: [UserAvatarComponent, TuiHint],
-  templateUrl: './voice-peer-tile-mini.component.html',
-  styleUrl: './voice-peer-tile-mini.component.scss',
+  templateUrl: './voice-room-tile-mini.component.html',
+  styleUrl: './voice-room-tile-mini.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class VoicePeerTileMiniComponent {
+export class VoiceRoomTileMiniComponent {
   private readonly audioActivityService = inject(AudioActivityService);
 
   public readonly peer = input.required<IUser>();

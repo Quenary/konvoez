@@ -95,7 +95,16 @@ computed(() => {
 ### Templates
 
 - Prefer `@if`, `@for`, `@switch` (native control flow).
-- Keep templates simple. Do not call ordinary methods or functions from templates (bindings, interpolations, `@if` / `@for` / `@switch`, or `host` property bindings). Change detection re-runs them on every cycle. Precompute derived values in `computed()` (or on the view-model passed into `@for`) and read those signals in the template. Event bindings such as `(click)="save()"` are fine.
+- Keep templates simple. Do not call ordinary methods or functions from templates (bindings, interpolations, `@if` / `@for` / `@switch`, or `host` property bindings). Change detection re-runs them on every cycle. Precompute derived values in `computed()` and read those signals in the template. Event bindings such as `(click)="save()"` are fine.
+- When a binding inside `@for` only compares each item to one shared signal (the active tile, the selection, and so on), read that signal once with `@let` before the loop and compare in the binding.
+
+```html
+// GOOD EXAMPLE @let focus = focusTile(); @for (tile of tiles(); track tile.key)
+{
+<button [class.active]="focus?.key === tile.key"></button>
+}
+```
+
 - Prefer signals in templates; use `async` pipe for Observables when signals are not available.
 - Two-way binding with writable signals is fine: `[(open)]="isOpen"`.
 - Format dates with `DayjsPipe` (`| dayjs`), not Angular `DatePipe`. Default format is locale-aware (`L LTS`); pass a dayjs format string only when a specific layout is required. Import from `@shared/pipes/dayjs.pipe`.

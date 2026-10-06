@@ -9,11 +9,11 @@ import { DirectCallService } from '@core/services/direct-call.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { SettingsStore } from '@features/settings/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
-import { VoicePeerTileComponent } from './voice-peer-tile.component';
+import { VoiceRoomTileComponent } from './voice-room-tile.component';
 
 const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
 
-describe('VoicePeerTileComponent', () => {
+describe('VoiceRoomTileComponent', () => {
   let currentUser: ReturnType<typeof signal<IUser | null>>;
   let autoPauseWhenHidden: ReturnType<typeof signal<boolean>>;
   let setScreenPreviewAutoPauseWhenHidden: ReturnType<typeof vi.fn>;
@@ -36,7 +36,7 @@ describe('VoicePeerTileComponent', () => {
     vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
-      imports: [VoicePeerTileComponent],
+      imports: [VoiceRoomTileComponent],
       providers: [
         provideTranslateService(),
         {
@@ -83,7 +83,7 @@ describe('VoicePeerTileComponent', () => {
   });
 
   const create = (streamKind: 'cam' | 'screen' | null = 'screen') => {
-    const fixture = TestBed.createComponent(VoicePeerTileComponent);
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
     fixture.componentRef.setInput('peer', user(1));
     fixture.componentRef.setInput('streamKind', streamKind);
     fixture.componentRef.setInput('videoTrack', {
