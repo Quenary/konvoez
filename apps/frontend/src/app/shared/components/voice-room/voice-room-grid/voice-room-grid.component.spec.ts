@@ -150,7 +150,6 @@ describe('VoiceRoomGridComponent', () => {
 
   const create = () => {
     const fixture = TestBed.createComponent(VoiceRoomGridComponent);
-    fixture.componentRef.setInput('showControls', false);
     fixture.detectChanges();
     return fixture;
   };

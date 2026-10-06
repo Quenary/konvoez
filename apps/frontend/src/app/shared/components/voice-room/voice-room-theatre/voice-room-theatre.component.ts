@@ -15,10 +15,8 @@ import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { preferTheatreStripRight } from '../voice-peers-layout';
-import { VoiceChromeReveal } from '../voice-chrome-reveal';
 import type { TVoiceOverlayContext } from '../voice-overlay-slot.directive';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { VoiceRoomTheatreActionsComponent } from '../voice-room-theatre-actions/voice-room-theatre-actions.component';
 import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
 import { VoiceRoomTileMiniComponent } from '../voice-room-tile-mini/voice-room-tile-mini.component';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
@@ -28,7 +26,6 @@ import type { TVoiceRoomTile } from '../voice-room-tiles';
   selector: 'app-voice-room-theatre',
   imports: [
     NgTemplateOutlet,
-    VoiceRoomTheatreActionsComponent,
     VoiceRoomTileComponent,
     VoiceRoomTileMiniComponent,
     VideoTrackDirective,
@@ -53,22 +50,13 @@ export class VoiceRoomTheatreComponent {
   public readonly overlay = input<TemplateRef<TVoiceOverlayContext> | null>(
     null,
   );
-  public readonly showLocalChrome = input(false);
-
   public readonly watchScreen = output<number>();
   public readonly stopWatchScreen = output<number>();
 
   protected readonly stripRight = signal(false);
 
-  private readonly chrome = new VoiceChromeReveal(false);
   private streamWidth = 16;
   private streamHeight = 9;
-
-  protected readonly overlayVisible = computed(() => {
-    const showLocal = this.showLocalChrome();
-    const local = this.chrome.visible();
-    return showLocal && local;
-  });
 
   protected readonly videoTrack = computed(() => {
     const tile = this.focusTile();
@@ -103,8 +91,6 @@ export class VoiceRoomTheatreComponent {
   });
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.chrome.destroy());
-
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(() => this.updateStripPlacement());
       ro.observe(this.host.nativeElement);
@@ -122,12 +108,7 @@ export class VoiceRoomTheatreComponent {
   }
 
   protected revealOverlay(): void {
-    const showLocal = this.showLocalChrome();
-    if (!showLocal) {
-      this.voiceRoomViewService.revealChrome();
-      return;
-    }
-    this.chrome.reveal();
+    this.voiceRoomViewService.revealChrome();
   }
 
   protected onStageActivate(): void {

@@ -12,7 +12,6 @@ import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/l
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomTheatreComponent } from './voice-room-theatre.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { VOICE_CHROME_HIDE_MS } from '../voice-chrome-reveal';
 import { buildVoiceRoomTiles, type TVoiceRoomTile } from '../voice-room-tiles';
 
 const peer = (id: number, username = `u${id}`): IUser =>
@@ -127,10 +126,7 @@ describe('VoiceRoomTheatreComponent', () => {
   });
 
   const create = (
-    overrides: Partial<{
-      focusTile: TVoiceRoomTile | null;
-      showLocalChrome: boolean;
-    }> = {},
+    overrides: Partial<{ focusTile: TVoiceRoomTile | null }> = {},
   ) => {
     const tiles = stripTiles();
     const fixture = TestBed.createComponent(VoiceRoomTheatreComponent);
@@ -142,49 +138,24 @@ describe('VoiceRoomTheatreComponent', () => {
         : overrides.focusTile;
     fixture.componentRef.setInput('focusTile', focusTile);
     fixture.componentRef.setInput('stripTiles', tiles);
-    fixture.componentRef.setInput(
-      'showLocalChrome',
-      overrides.showLocalChrome ?? true,
-    );
     fixture.detectChanges();
     return fixture;
   };
 
-  it('reveals overlay on touchstart on stage when local chrome is on', () => {
+  it('forwards pointer activity to the room view chrome reveal', () => {
     const fixture = create();
     const cmp = fixture.componentInstance;
-    expect(cmp['overlayVisible']()).toBe(false);
-
     const stage = fixture.nativeElement.querySelector('.stage') as HTMLElement;
     stage.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }));
-    expect(cmp['overlayVisible']()).toBe(true);
-  });
+    expect(revealChrome).toHaveBeenCalled();
 
-  it('reveals overlay on stage click (tap)', () => {
-    const fixture = create();
-    const cmp = fixture.componentInstance;
-    const stage = fixture.nativeElement.querySelector('.stage') as HTMLElement;
+    revealChrome.mockClear();
     stage.click();
-    expect(cmp['overlayVisible']()).toBe(true);
-  });
+    expect(revealChrome).toHaveBeenCalled();
 
-  it('hides overlay again after the reveal timeout', () => {
-    vi.useFakeTimers();
-    const fixture = create();
-    const cmp = fixture.componentInstance;
-    cmp['revealOverlay']();
-    expect(cmp['overlayVisible']()).toBe(true);
-
-    vi.advanceTimersByTime(VOICE_CHROME_HIDE_MS);
-    expect(cmp['overlayVisible']()).toBe(false);
-  });
-
-  it('forwards activity to the room view when local chrome is off', () => {
-    const fixture = create({ showLocalChrome: false });
-    const cmp = fixture.componentInstance;
+    revealChrome.mockClear();
     cmp['revealOverlay']();
     expect(revealChrome).toHaveBeenCalled();
-    expect(cmp['overlayVisible']()).toBe(false);
   });
 
   it('opens another watching screen tile from the strip via the view service', () => {
@@ -260,7 +231,6 @@ describe('VoiceRoomTheatreComponent', () => {
     const fixture = TestBed.createComponent(VoiceRoomTheatreComponent);
     fixture.componentRef.setInput('focusTile', localScreen ?? null);
     fixture.componentRef.setInput('stripTiles', tiles);
-    fixture.componentRef.setInput('showLocalChrome', false);
     fixture.detectChanges();
 
     document.dispatchEvent(new Event('visibilitychange'));

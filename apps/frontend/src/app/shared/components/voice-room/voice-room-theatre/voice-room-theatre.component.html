@@ -8,9 +8,7 @@
   (pointerdown)="revealOverlay()">
   <div class="stage-cell">
     <div
-      #stageEl
       class="stage"
-      [class.overlay-on]="overlayVisible()"
       (click)="onStageActivate()"
       tabindex="-1"
       (keypress)="onStageActivate()"
@@ -34,14 +32,6 @@
             (watchScreen)="watchScreen.emit(tile.peerId)"
             (stopWatchScreen)="stopWatchScreen.emit(tile.peerId)"
             (openTheatre)="onStageTileOpen(tile)" />
-        </div>
-      }
-
-      @if (showLocalChrome()) {
-        <div class="stage-overlay">
-          <div class="overlay-top">
-            <app-voice-room-theatre-actions [fullscreenTarget]="stageEl" />
-          </div>
         </div>
       }
     </div>

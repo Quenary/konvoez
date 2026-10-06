@@ -4,19 +4,14 @@ import {
   computed,
   contentChild,
   inject,
-  input,
-  output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
-import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
 import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-theatre.component';
-import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceOverlaySlotDirective } from '../voice-overlay-slot.directive';
 import { VoiceSessionPeersService } from '../voice-session-peers.service';
@@ -24,7 +19,6 @@ import { voiceSectionGridClass } from '../voice-peers-layout';
 import {
   buildVoiceRoomTiles,
   resolveTheatreTile,
-  showsRemoteScreenWatchControls,
   type TVoiceStreamKind,
 } from '../voice-room-tiles';
 import { notifyError } from '@shared/functions/notify-error.function';
@@ -39,9 +33,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
   imports: [
     NgTemplateOutlet,
     VoiceRoomTileComponent,
-    VoiceRoomControlsBarComponent,
     VoiceRoomTheatreComponent,
-    VoiceRoomTheatreWatchControlsComponent,
   ],
   templateUrl: './voice-room-grid.component.html',
   styleUrl: './voice-room-grid.component.scss',
@@ -49,17 +41,12 @@ import { TuiNotificationService } from '@taiga-ui/core';
 })
 export class VoiceRoomGridComponent {
   private readonly store = inject(Store);
-  private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
-
-  public readonly compact = input(false);
-  public readonly showControls = input(true);
-  public readonly left = output<void>();
 
   private readonly overlaySlot = contentChild(VoiceOverlaySlotDirective);
 
@@ -94,24 +81,9 @@ export class VoiceRoomGridComponent {
     return resolveTheatreTile(focus, tiles, localUserId);
   });
 
-  protected readonly watchUserId = computed(
-    () => this.theatreTile()?.peerId ?? null,
-  );
-
   protected readonly overlayTemplate = computed(
     () => this.overlaySlot()?.template ?? null,
   );
-
-  protected readonly showRemoteScreenWatchControls = computed(() => {
-    const tile = this.theatreTile();
-    const localUserId = this.currentUser()?.id ?? null;
-    const watching = this.peerVideoService.watchingUserIds();
-    return showsRemoteScreenWatchControls(
-      tile ? { peerId: tile.peerId, stream: tile.streamKind } : null,
-      localUserId,
-      watching,
-    );
-  });
 
   protected onOpenTheatre(
     userId: number,
@@ -159,12 +131,5 @@ export class VoiceRoomGridComponent {
       }
       this.voiceRoomViewService.closeTheatre();
     });
-  }
-
-  protected async onHangup(): Promise<void> {
-    // Emit before leave so parents still navigate if theatre chrome is torn
-    // down when activeSession clears during leaveActiveVoice.
-    this.left.emit();
-    await this.voiceLeaveService.leaveActiveVoice();
   }
 }

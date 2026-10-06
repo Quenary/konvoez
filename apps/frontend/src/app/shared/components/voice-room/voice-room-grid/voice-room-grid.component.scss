@@ -94,37 +94,6 @@
   width: 100%;
 }
 
-.controls-dock {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  padding: 0.75rem 1rem 1rem;
-  z-index: 30;
-}
-
-.peers-grid-root.compact {
-  .peers-layout {
-    justify-content: center;
-    padding: 0.75rem;
-  }
-
-  .peers-section {
-    align-content: center;
-  }
-
-  .peers-section.section-2 {
-    grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: auto;
-    place-items: center;
-  }
-
-  .controls-dock {
-    padding: 0.5rem 0.75rem 0.75rem;
-  }
-}
-
 @media (max-width: 640px) {
   .peers-layout {
     justify-content: center;

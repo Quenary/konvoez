@@ -1,6 +1,4 @@
-<div
-  class="peers-grid-root"
-  [class.compact]="compact()">
+<div class="peers-grid-root">
   @if (!theatreFocus()) {
     <div class="peers-layout">
       <section
@@ -35,17 +33,7 @@
       [focusTile]="theatreTile()"
       [stripTiles]="tiles()"
       [overlay]="overlayTemplate()"
-      [showLocalChrome]="compact()"
       (watchScreen)="onWatchScreen($event)"
       (stopWatchScreen)="onStopWatchScreen($event)" />
-  }
-
-  @if (showControls()) {
-    <footer class="controls-dock">
-      @if (compact() && showRemoteScreenWatchControls()) {
-        <app-voice-room-theatre-watch-controls [userId]="watchUserId()" />
-      }
-      <app-voice-room-controls-bar (hangup)="onHangup()" />
-    </footer>
   }
 </div>
