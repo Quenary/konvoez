@@ -4,22 +4,12 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  gap: 0.5rem;
-}
+  background: var(--tui-background-base);
 
-.room-header {
-  flex-shrink: 0;
-  padding: 1rem 0 0 0;
-
-  h2[tuiTitle] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .header-avatar {
-    flex-shrink: 0;
+  &:fullscreen {
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 }
 

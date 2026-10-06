@@ -1,0 +1,41 @@
+<div tuiGroup>
+  <button
+    tuiIconButton
+    appearance="accent"
+    size="m"
+    type="button"
+    iconStart="@tui.screen-share-off"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.STOP_WATCH_SCREEN' | translate"
+    (click)="onStopWatch()">
+  </button>
+
+  <button
+    tuiIconButton
+    appearance="neutral"
+    size="m"
+    type="button"
+    tuiDropdownAuto
+    tuiDropdownDirection="top"
+    iconStart="@tui.volume-2"
+    [tuiDropdown]="screenVolumeDropdown"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
+  </button>
+</div>
+
+<ng-template #screenVolumeDropdown>
+  <label
+    tuiLabel
+    class="volume">
+    {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
+    <input
+      tuiSlider
+      type="range"
+      min="0"
+      max="200"
+      step="5"
+      [ngModel]="screenVolume()"
+      (ngModelChange)="onScreenVolumeChange($event)" />
+  </label>
+</ng-template>

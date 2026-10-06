@@ -1,0 +1,26 @@
+<div class="theatre-actions">
+  <button
+    tuiIconButton
+    appearance="flat"
+    size="s"
+    type="button"
+    [iconStart]="isFullscreen() ? '@tui.minimize' : '@tui.maximize'"
+    tuiHintAppearance="floating"
+    [tuiHint]="
+      (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN') | translate
+    "
+    (click)="onToggleFullscreen()">
+  </button>
+  @if (showClose()) {
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      iconStart="@tui.x"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.EXIT_THEATRE' | translate"
+      (click)="onCloseTheatre()">
+    </button>
+  }
+</div>

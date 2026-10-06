@@ -63,10 +63,24 @@ docker compose -f docker-compose.build.yml up -d --build
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Rooms](docs/ROOMS.md)
 - [Message attachments](docs/ATTACHMENTS.md)
+- [Frontend voice](docs/frontend/VOICE.md)
+- [Frontend streaming](docs/frontend/STREAMING.md)
 
 ## TODO
 
-- Add camera/screen sharing
+### Video streaming — phase 4 (simulcast & adaptive)
+
+- fix direct call panel
+- Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
+- Bitrate caps tied to capture height; optional `maxIncomingBitrate` on recv transport
+- Pause or reduce offscreen / hidden video consumers (adaptive downlink; align with PiP pause patterns where useful)
+- Optional viewer-side quality picker (layer selection when simulcast exists)
+- Optional stream viewer count (needs signaling; not in phase 3)
+- Codec auto-pick for screen (e.g. VP9/AV1) when all consumers `canConsume` — still no server transcode
+- Mid-share height/FPS change via `replaceTrack` (gear on PiP / tile)
+
+### Other
+
 - Add emojis or/and customizable smile/sticker packs
 - Add connection state indication
 - Add mute indication for other peers

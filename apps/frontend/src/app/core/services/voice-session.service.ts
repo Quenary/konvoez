@@ -11,6 +11,7 @@ import {
   TVoiceSessionTarget,
 } from '@konvoez/shared';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
+import { notifyError } from '@shared/functions/notify-error.function';
 import { Mutex } from 'async-mutex';
 import { interval, Subject } from 'rxjs';
 import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
@@ -23,7 +24,7 @@ import {
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
-import { ScreenCaptureService } from './screen-capture.service';
+import { ScreenWatchService } from './screen-watch.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 
@@ -46,6 +47,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly screenWatchService = inject(ScreenWatchService);
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
@@ -93,13 +95,12 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public reportJoinFailure(error: unknown): void {
     console.error('Failed to join voice session', error);
-    this.tuiNotificationsService
-      .open(this.translateService.instant('VOICE.JOIN_FAILED'), {
-        appearance: 'negative',
-        autoClose: 5000,
-        closable: true,
-      })
-      .subscribe();
+    notifyError(
+      this.tuiNotificationsService,
+      this.translateService,
+      'VOICE.JOIN_FAILED',
+      error,
+    );
   }
 
   @Mutexed(voiceSessionMutex)
@@ -199,7 +200,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public watchPeerScreen(userId: number): Promise<void> {
     const gain = this.voiceRoomStore.peerScreenGainLevels()[userId] ?? 1;
-    return this.mediasoupSessionService.watchScreen(
+    return this.screenWatchService.watchScreen(
       userId,
       (id) => this.resolvePeer(id),
       gain,
@@ -207,7 +208,15 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   }
 
   public stopWatchingPeerScreen(userId: number): Promise<void> {
-    return this.mediasoupSessionService.stopWatchingScreen(userId);
+    return this.screenWatchService.stopWatchingScreen(userId);
+  }
+
+  public produceCamera(): Promise<void> {
+    return this.mediasoupSessionService.produceCamera();
+  }
+
+  public stopCamera(): Promise<void> {
+    return this.mediasoupSessionService.stopCamera();
   }
 
   public produceScreen(): Promise<void> {
@@ -216,10 +225,6 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public stopScreen(): Promise<void> {
     return this.mediasoupSessionService.stopScreen();
-  }
-
-  public isScreenSharingSupported(): boolean {
-    return ScreenCaptureService.isSupported();
   }
 
   private addSocketListeners(): void {
@@ -248,7 +253,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
       this.voiceRoomStore.removePeer(data.user.id);
       this.peerVideoService.removeUser(data.user.id);
-      this.mediasoupSessionService.releasePeerScreenWatch(data.user.id);
+      this.screenWatchService.release(data.user.id);
       if (data.roomId !== undefined) {
         this.voiceRoomStore.removePeerFromRoom(data.roomId, data.user.id);
       }
@@ -261,7 +266,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
       this.peerVideoService.remove(data.userId, data.producerId);
-      this.mediasoupSessionService.onRemoteProducerClosed(
+      this.screenWatchService.onRemoteProducerClosed(
         data.userId,
         data.producerId,
       );

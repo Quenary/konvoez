@@ -1,0 +1,66 @@
+<div class="controls-bar">
+  <div tuiGroup>
+    <button
+      tuiIconButton
+      [appearance]="micMuted() ? 'negative' : 'neutral'"
+      size="m"
+      [iconStart]="micMuted() ? '@tui.mic-off' : '@tui.mic'"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'GENERAL.MUTE' | translate"
+      (click)="toggleMicrophone()">
+    </button>
+
+    <button
+      tuiIconButton
+      [appearance]="speakerMuted() ? 'negative' : 'neutral'"
+      size="m"
+      [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.SOUND' | translate"
+      (click)="toggleSpeaker()">
+    </button>
+  </div>
+
+  <div tuiGroup>
+    <button
+      tuiIconButton
+      [appearance]="cameraOn() ? 'primary' : 'neutral'"
+      size="m"
+      [iconStart]="cameraOn() ? '@tui.video' : '@tui.video-off'"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="
+        (cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON') | translate
+      "
+      (click)="toggleStream('cam')">
+    </button>
+
+    @if (screenSupported) {
+      <button
+        tuiIconButton
+        [appearance]="screenOn() ? 'primary' : 'neutral'"
+        size="m"
+        [iconStart]="screenOn() ? '@tui.screen-share-off' : '@tui.screen-share'"
+        type="button"
+        tuiHintAppearance="floating"
+        [tuiHint]="
+          (screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON') | translate
+        "
+        (click)="toggleStream('screen')">
+      </button>
+    }
+  </div>
+
+  <button
+    tuiIconButton
+    appearance="negative"
+    size="m"
+    iconStart="@tui.phone-off"
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.HANGUP' | translate"
+    (click)="onHangupClick()">
+  </button>
+</div>

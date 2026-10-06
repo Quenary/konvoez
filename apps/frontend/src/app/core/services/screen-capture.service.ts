@@ -1,4 +1,4 @@
-import { Injectable, Injector, OnDestroy, inject, signal } from '@angular/core';
+import { Injectable, Injector, OnDestroy, inject } from '@angular/core';
 import {
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
@@ -26,10 +26,8 @@ export class ScreenCaptureService implements OnDestroy {
   }
 
   private stream: MediaStream | null = null;
-  private readonly _videoTrack = signal<MediaStreamTrack | null>(null);
-  private readonly _audioTrack = signal<MediaStreamTrack | null>(null);
-  public readonly videoTrack = this._videoTrack.asReadonly();
-  public readonly audioTrack = this._audioTrack.asReadonly();
+  private videoTrack: MediaStreamTrack | null = null;
+  private audioTrack: MediaStreamTrack | null = null;
 
   public static isSupported(): boolean {
     return (
@@ -83,11 +81,11 @@ export class ScreenCaptureService implements OnDestroy {
     const audioTrack = stream.getAudioTracks()[0] ?? null;
 
     this.stream = stream;
-    this._videoTrack.set(videoTrack);
-    this._audioTrack.set(audioTrack);
+    this.videoTrack = videoTrack;
+    this.audioTrack = audioTrack;
 
     videoTrack.addEventListener('ended', () => {
-      if (this._videoTrack() === videoTrack) {
+      if (this.videoTrack === videoTrack) {
         this.release();
       }
     });
@@ -96,10 +94,10 @@ export class ScreenCaptureService implements OnDestroy {
   }
 
   public release(): void {
-    const video = this._videoTrack();
-    const audio = this._audioTrack();
-    this._videoTrack.set(null);
-    this._audioTrack.set(null);
+    const video = this.videoTrack;
+    const audio = this.audioTrack;
+    this.videoTrack = null;
+    this.audioTrack = null;
     if (this.stream) {
       this.stream.getTracks().forEach((t) => t.stop());
       this.stream = null;

@@ -1,8 +1,8 @@
 import { inject, Injectable, Injector } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   EVoiceRoomEvent,
   IVoiceRoomCloseProducer,
-  IVoiceRoomCloseConsumer,
   IVoiceRoomConnectTransport,
   IVoiceRoomConsume,
   IVoiceRoomConsumeResult,
@@ -12,14 +12,13 @@ import {
   IVoiceRoomProduceResult,
   TVoiceRoomMediaTag,
 } from '@konvoez/shared';
-import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import type { Device } from 'mediasoup-client';
 import type {
-  Consumer,
   ConsumerOptions,
   Producer,
   RtpCapabilities,
+  RtpCodecCapability,
   Transport,
   TransportOptions,
 } from 'mediasoup-client/types';
@@ -30,12 +29,8 @@ import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
+import { ConsumerRegistry } from './consumer-registry';
 import { PeerVideoService } from './peer-video.service';
-
-const mediasoupMutex = new Mutex();
-const microphoneProducerMutex = new Mutex();
-const cameraProducerMutex = new Mutex();
-const screenProducerMutex = new Mutex();
 
 export interface IConsumePeerContext {
   gain: number;
@@ -58,6 +53,13 @@ export class MediasoupSessionService {
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly peerScreenAudioService = inject(PeerScreenAudioService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly consumerRegistry = inject(ConsumerRegistry);
+
+  private readonly sessionMutex = new Mutex();
+  private readonly microphoneMutex = new Mutex();
+  private readonly cameraMutex = new Mutex();
+  private readonly screenMutex = new Mutex();
+  private readonly consumeMutex = new Mutex();
 
   private device: Device | null = null;
   private sendTransport: Transport | null = null;
@@ -66,14 +68,18 @@ export class MediasoupSessionService {
   private cameraProducer: Producer | null = null;
   private screenVideoProducer: Producer | null = null;
   private screenAudioProducer: Producer | null = null;
-  /** Screen-audio consumers by remote user id (for stop-watching). */
-  private readonly screenAudioConsumers = new Map<number, Consumer>();
   private microphoneMuted = false;
   private readonly consuming = new Set<string>();
   private pendingConsumes: IVoiceRoomProduceResult[] = [];
 
   private get settingsStore(): InstanceType<typeof SettingsStore> {
     return this.injector.get(SettingsStore);
+  }
+
+  constructor() {
+    this.cameraService.deviceLost$.pipe(takeUntilDestroyed()).subscribe(() => {
+      void this.stopCamera();
+    });
   }
 
   public setMicrophoneMuted(muted: boolean): void {
@@ -102,7 +108,6 @@ export class MediasoupSessionService {
     this.screenAudioProducer = null;
     this.sendTransport = null;
     this.recvTransport = null;
-    this.screenAudioConsumers.clear();
     this.peerVideoService.clear();
     this.peerScreenAudioService.clear();
     this.cameraService.release();
@@ -126,29 +131,29 @@ export class MediasoupSessionService {
   }
 
   public produceCamera(): Promise<void> {
-    return cameraProducerMutex.runExclusive(() => this.produceCameraLocked());
+    return this.cameraMutex.runExclusive(() => this.produceCameraLocked());
   }
 
   public stopCamera(): Promise<void> {
-    return cameraProducerMutex.runExclusive(() => this.stopCameraLocked());
+    return this.cameraMutex.runExclusive(() => this.stopCameraLocked());
   }
 
   public produceScreen(): Promise<void> {
-    return screenProducerMutex.runExclusive(() => this.produceScreenLocked());
+    return this.screenMutex.runExclusive(() => this.produceScreenLocked());
   }
 
   public stopScreen(): Promise<void> {
-    return screenProducerMutex.runExclusive(() => this.stopScreenLocked());
+    return this.screenMutex.runExclusive(() => this.stopScreenLocked());
   }
 
   public produceMicrophone(): Promise<void> {
-    return microphoneProducerMutex.runExclusive(() =>
+    return this.microphoneMutex.runExclusive(() =>
       this.produceMicrophoneLocked(),
     );
   }
 
   public replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
-    return microphoneProducerMutex.runExclusive(() =>
+    return this.microphoneMutex.runExclusive(() =>
       this.replaceMicrophoneTrackLocked(track),
     );
   }
@@ -218,42 +223,22 @@ export class MediasoupSessionService {
       }
       void this.produceMicrophone();
     };
-    if (microphoneProducerMutex.isLocked()) {
-      void microphoneProducerMutex.waitForUnlock().then(reproduce);
+    if (this.microphoneMutex.isLocked()) {
+      void this.microphoneMutex.waitForUnlock().then(reproduce);
       return;
     }
     reproduce();
   }
 
   private async produceCameraLocked(): Promise<void> {
-    const sendTransport = this.sendTransport;
-    if (!sendTransport || sendTransport.closed) {
-      throw new Error('Send transport is not ready');
-    }
+    this.requireSendTransport();
     await this.loadDevice();
-    const device = this.device;
-    if (!device) {
-      throw new Error('mediasoup Device is not loaded');
-    }
-
-    const vp8 = device.rtpCapabilities.codecs?.find(
-      (codec) => codec.mimeType.toLowerCase() === 'video/vp8',
-    );
-    if (!vp8) {
-      throw new Error('VP8 codec is not available');
-    }
-
     await this.stopCameraLocked();
 
     try {
       const track = await this.cameraService.getTrack();
       this.peerVideoService.setLocalCamTrack(track);
-      const producer = await sendTransport.produce({
-        track,
-        codec: vp8,
-        stopTracks: false,
-        appData: { mediaTag: 'cam' },
-      });
+      const producer = await this.produceVideo('cam', track);
       this.cameraProducer = producer;
       producer.on('trackended', () => {
         if (this.cameraProducer !== producer) {
@@ -280,23 +265,8 @@ export class MediasoupSessionService {
   }
 
   private async produceScreenLocked(): Promise<void> {
-    const sendTransport = this.sendTransport;
-    if (!sendTransport || sendTransport.closed) {
-      throw new Error('Send transport is not ready');
-    }
+    const sendTransport = this.requireSendTransport();
     await this.loadDevice();
-    const device = this.device;
-    if (!device) {
-      throw new Error('mediasoup Device is not loaded');
-    }
-
-    const vp8 = device.rtpCapabilities.codecs?.find(
-      (codec) => codec.mimeType.toLowerCase() === 'video/vp8',
-    );
-    if (!vp8) {
-      throw new Error('VP8 codec is not available');
-    }
-
     await this.stopScreenLocked();
 
     try {
@@ -304,12 +274,7 @@ export class MediasoupSessionService {
         await this.screenCaptureService.getTracks();
       this.peerVideoService.setLocalScreenTrack(videoTrack);
 
-      const videoProducer = await sendTransport.produce({
-        track: videoTrack,
-        codec: vp8,
-        stopTracks: false,
-        appData: { mediaTag: 'screen' },
-      });
+      const videoProducer = await this.produceVideo('screen', videoTrack);
       this.screenVideoProducer = videoProducer;
       videoProducer.on('trackended', () => {
         if (this.screenVideoProducer !== videoProducer) {
@@ -343,6 +308,55 @@ export class MediasoupSessionService {
     }
   }
 
+  /**
+   * Codec for a video producer. `tag` is the phase-4 hook for a per-stream
+   * choice; camera and screen both use VP8 today.
+   */
+  private pickVideoCodec(tag: 'cam' | 'screen'): RtpCodecCapability {
+    const device = this.device;
+    if (!device) {
+      throw new Error('mediasoup Device is not loaded');
+    }
+    const codec = device.rtpCapabilities.codecs?.find(
+      (item) => item.mimeType.toLowerCase() === this.videoCodecMimeType(tag),
+    );
+    if (!codec) {
+      throw new Error('VP8 codec is not available');
+    }
+    return codec;
+  }
+
+  private videoCodecMimeType(tag: 'cam' | 'screen'): string {
+    switch (tag) {
+      case 'cam':
+      case 'screen':
+        return 'video/vp8';
+    }
+  }
+
+  private async produceVideo(
+    tag: 'cam' | 'screen',
+    track: MediaStreamTrack,
+  ): Promise<Producer> {
+    const sendTransport = this.requireSendTransport();
+    await this.loadDevice();
+    const codec = this.pickVideoCodec(tag);
+    return sendTransport.produce({
+      track,
+      codec,
+      stopTracks: false,
+      appData: { mediaTag: tag },
+    });
+  }
+
+  private requireSendTransport(): Transport {
+    const sendTransport = this.sendTransport;
+    if (!sendTransport || sendTransport.closed) {
+      throw new Error('Send transport is not ready');
+    }
+    return sendTransport;
+  }
+
   private async stopScreenLocked(): Promise<void> {
     const video = this.screenVideoProducer;
     const audio = this.screenAudioProducer;
@@ -371,236 +385,123 @@ export class MediasoupSessionService {
     }
   }
 
-  /**
-   * Opt-in consume of a peer's screen (+ screen-audio when registered).
-   */
-  public async watchScreen(
-    userId: number,
-    resolvePeer: (userId: number) => IConsumePeerContext | null,
-    screenGain: number,
-  ): Promise<void> {
-    if (this.peerVideoService.isWatching(userId)) {
-      return;
-    }
-    const available = this.peerVideoService.availableScreens().get(userId);
-    if (!available?.videoProducerId) {
-      throw new Error('No screen share available for peer');
-    }
-    const peer = resolvePeer(userId);
-    if (!peer) {
-      throw new Error('Peer not found');
-    }
-
-    await this.consumeProducer(
-      {
-        producerId: available.videoProducerId,
-        userId,
-        kind: 'video',
-        mediaTag: 'screen',
-      },
-      resolvePeer,
-    );
-
-    if (available.audioProducerId) {
-      await this.consumeProducer(
-        {
-          producerId: available.audioProducerId,
-          userId,
-          kind: 'audio',
-          mediaTag: 'screen-audio',
-        },
-        resolvePeer,
-        { screenGain },
-      );
-    }
-  }
-
-  public async stopWatchingScreen(userId: number): Promise<void> {
-    const consumerIds: string[] = [];
-    const videoId = this.peerVideoService.getScreenConsumerId(userId);
-    if (videoId) {
-      consumerIds.push(videoId);
-    }
-    const audioId =
-      this.screenAudioConsumers.get(userId)?.id ??
-      this.peerScreenAudioService.getConsumerId(userId);
-    if (audioId) {
-      consumerIds.push(audioId);
-    }
-
-    for (const consumerId of consumerIds) {
-      try {
-        await this.socket.emitWithAck(EVoiceRoomEvent.CLOSE_CONSUMER, {
-          consumerId,
-        } satisfies IVoiceRoomCloseConsumer);
-      } catch (error) {
-        console.warn('close-consumer ack failed', error);
-      }
-    }
-
-    this.releaseScreenWatchLocal(userId);
-  }
-
-  /** Teardown local screen-audio watch state (does not close SFU consumers). */
-  public releaseScreenWatchLocal(userId: number): void {
-    this.peerVideoService.stopWatchingLocal(userId);
-    this.screenAudioConsumers.delete(userId);
-    this.peerScreenAudioService.detach(userId);
-  }
-
-  public onRemoteProducerClosed(userId: number, producerId: string): void {
-    this.peerScreenAudioService.remove(userId, producerId);
-    const audioConsumer = this.screenAudioConsumers.get(userId);
-    if (audioConsumer?.producerId === producerId) {
-      this.screenAudioConsumers.delete(userId);
-    }
-    const available = this.peerVideoService.availableScreens().get(userId);
-    if (available?.videoProducerId === producerId) {
-      this.releaseScreenWatchLocal(userId);
-    }
-  }
-
-  public releasePeerScreenWatch(userId: number): void {
-    this.releaseScreenWatchLocal(userId);
-  }
-
   public handleConsumerClosed(consumerId: string): void {
     this.peerVideoService.removeByConsumerId(consumerId);
-    for (const [userId, consumer] of this.screenAudioConsumers) {
-      if (consumer.id === consumerId) {
-        this.screenAudioConsumers.delete(userId);
-        this.peerScreenAudioService.detach(userId);
-        return;
-      }
-    }
     this.peerScreenAudioService.detachByConsumerId(consumerId);
   }
 
-  @Mutexed(mediasoupMutex)
-  public async ensureDeviceLoaded(): Promise<void> {
-    await this.loadDevice();
+  public ensureDeviceLoaded(): Promise<void> {
+    return this.sessionMutex.runExclusive(() => this.loadDevice());
   }
 
-  @Mutexed(mediasoupMutex)
-  public async ensureSendTransport(): Promise<void> {
+  public ensureSendTransport(): Promise<void> {
+    return this.sessionMutex.runExclusive(() =>
+      this.ensureSendTransportLocked(),
+    );
+  }
+
+  public ensureRecvTransport(): Promise<void> {
+    return this.sessionMutex.runExclusive(() =>
+      this.ensureRecvTransportLocked(),
+    );
+  }
+
+  private async ensureSendTransportLocked(): Promise<void> {
     if (this.sendTransport) {
       return;
     }
-
-    await this.loadDevice();
-
-    const result: IVoiceRoomCreateTransportResult =
-      await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
-        direction: 'send',
-      } satisfies IVoiceRoomCreateTransport);
-
-    const iceServers = this.settingsStore.iceServers();
-    const device = this.device;
-    if (!device) {
-      throw new Error('mediasoup Device is not loaded');
-    }
-
-    const sendTransport = device.createSendTransport({
-      ...(result as unknown as TransportOptions),
-      iceServers:
-        iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
-    });
-    this.sendTransport = sendTransport;
-
-    sendTransport.on(
-      'connect',
-      async ({ dtlsParameters }, callback, errback) => {
-        try {
-          await this.socket.emitWithAck(EVoiceRoomEvent.CONNECT_TRANSPORT, {
-            transportId: sendTransport.id,
-            dtlsParameters,
-          } satisfies IVoiceRoomConnectTransport);
-          callback();
-        } catch (err) {
-          errback(err as Error);
-        }
-      },
-    );
-
-    sendTransport.on(
-      'produce',
-      async ({ kind, rtpParameters, appData }, callback, errback) => {
-        try {
-          const res: IVoiceRoomProduceResult = await this.socket.emitWithAck(
-            EVoiceRoomEvent.PRODUCE,
-            {
-              kind,
-              rtpParameters,
-              transportId: sendTransport.id,
-              mediaTag: appData['mediaTag'] as TVoiceRoomMediaTag,
-            } satisfies IVoiceRoomProduce,
-          );
-          callback({ id: res.producerId });
-        } catch (error) {
-          errback(error as Error);
-        }
-      },
-    );
-
-    sendTransport.on('connectionstatechange', (state) => {
-      if (state === 'failed') {
-        this.sendTransport = null;
-      }
-    });
-
+    this.sendTransport = await this.createTransport('send');
     await this.produceMicrophone();
   }
 
-  @Mutexed(mediasoupMutex)
-  public async ensureRecvTransport(): Promise<void> {
+  private async ensureRecvTransportLocked(): Promise<void> {
     if (this.recvTransport) {
       return;
     }
+    this.recvTransport = await this.createTransport('recv');
+  }
 
+  private async createTransport(
+    direction: 'send' | 'recv',
+  ): Promise<Transport> {
     await this.loadDevice();
-
-    const result: IVoiceRoomCreateTransportResult =
-      await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
-        direction: 'recv',
-      } satisfies IVoiceRoomCreateTransport);
-
-    const iceServers = this.settingsStore.iceServers();
     const device = this.device;
     if (!device) {
       throw new Error('mediasoup Device is not loaded');
     }
 
-    const recvTransport = device.createRecvTransport({
+    const result: IVoiceRoomCreateTransportResult =
+      await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
+        direction,
+      } satisfies IVoiceRoomCreateTransport);
+
+    const iceServers = this.settingsStore.iceServers();
+    const options = {
       ...(result as unknown as TransportOptions),
       iceServers:
         iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
+    };
+    const transport =
+      direction === 'send'
+        ? device.createSendTransport(options)
+        : device.createRecvTransport(options);
+
+    transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+      try {
+        await this.socket.emitWithAck(EVoiceRoomEvent.CONNECT_TRANSPORT, {
+          transportId: transport.id,
+          dtlsParameters,
+        } satisfies IVoiceRoomConnectTransport);
+        callback();
+      } catch (err) {
+        errback(err as Error);
+      }
     });
-    this.recvTransport = recvTransport;
 
-    recvTransport.on(
-      'connect',
-      async ({ dtlsParameters }, callback, errback) => {
-        try {
-          await this.socket.emitWithAck(EVoiceRoomEvent.CONNECT_TRANSPORT, {
-            transportId: recvTransport.id,
-            dtlsParameters,
-          } satisfies IVoiceRoomConnectTransport);
-          callback();
-        } catch (err) {
-          errback(err as Error);
-        }
-      },
-    );
+    if (direction === 'send') {
+      transport.on(
+        'produce',
+        async ({ kind, rtpParameters, appData }, callback, errback) => {
+          try {
+            const res: IVoiceRoomProduceResult = await this.socket.emitWithAck(
+              EVoiceRoomEvent.PRODUCE,
+              {
+                kind,
+                rtpParameters,
+                transportId: transport.id,
+                mediaTag: appData['mediaTag'] as TVoiceRoomMediaTag,
+              } satisfies IVoiceRoomProduce,
+            );
+            callback({ id: res.producerId });
+          } catch (error) {
+            errback(error as Error);
+          }
+        },
+      );
+    }
 
-    recvTransport.on('connectionstatechange', (state) => {
-      if (state === 'failed') {
+    transport.on('connectionstatechange', (state) => {
+      if (state !== 'failed') {
+        return;
+      }
+      if (direction === 'send' && this.sendTransport === transport) {
+        this.sendTransport = null;
+      }
+      if (direction === 'recv' && this.recvTransport === transport) {
         this.recvTransport = null;
       }
     });
+
+    return transport;
   }
 
-  @Mutexed()
-  public async consumePending(
+  public consumePending(
+    resolvePeer: (userId: number) => IConsumePeerContext | null,
+  ): Promise<void> {
+    return this.consumeMutex.runExclusive(() => this.drainPending(resolvePeer));
+  }
+
+  private async drainPending(
     resolvePeer: (userId: number) => IConsumePeerContext | null,
   ): Promise<void> {
     const pendingConsumes = [...this.pendingConsumes];
@@ -635,10 +536,10 @@ export class MediasoupSessionService {
     await this.consumeProducer(data, resolvePeer);
   }
 
-  private async consumeProducer(
+  public async consumeProducer(
     data: IVoiceRoomProduceResult,
     resolvePeer: (userId: number) => IConsumePeerContext | null,
-    options?: { screenGain?: number },
+    options?: { screenGain?: number; rethrow?: boolean },
   ): Promise<void> {
     if (this.consuming.has(data.producerId)) {
       console.warn('Producer already consuming\n', data);
@@ -651,6 +552,9 @@ export class MediasoupSessionService {
 
       const peer = resolvePeer(data.userId);
       if (!peer) {
+        if (options?.rethrow) {
+          throw new Error('Peer not found');
+        }
         console.warn(
           'Peer not found while consuming\n',
           data,
@@ -658,7 +562,11 @@ export class MediasoupSessionService {
         );
         this.pendingConsumes.push(data);
         if (resolvePeer(data.userId)) {
-          await this.consumePending(resolvePeer);
+          if (this.consumeMutex.isLocked()) {
+            await this.drainPending(resolvePeer);
+          } else {
+            await this.consumePending(resolvePeer);
+          }
         }
         return;
       }
@@ -683,17 +591,18 @@ export class MediasoupSessionService {
       );
 
       if (data.mediaTag === 'screen') {
-        this.peerVideoService.attach(data.userId, consumer, 'screen');
+        this.consumerRegistry.add(consumer);
+        this.peerVideoService.attach(data.userId, {
+          producerId: consumer.producerId,
+          consumerId: consumer.id,
+          track: consumer.track,
+          mediaTag: 'screen',
+        });
         consumer.resume();
         return;
       }
 
       if (data.mediaTag === 'screen-audio') {
-        const previous = this.screenAudioConsumers.get(data.userId);
-        if (previous && !previous.closed) {
-          previous.close();
-        }
-        this.screenAudioConsumers.set(data.userId, consumer);
         await this.peerScreenAudioService.attach(data.userId, consumer, {
           gain: options?.screenGain ?? 1,
           speakerMuted: peer.speakerMuted,
@@ -703,7 +612,13 @@ export class MediasoupSessionService {
       }
 
       if (data.kind === 'video' || data.mediaTag === 'cam') {
-        this.peerVideoService.attach(data.userId, consumer, 'cam');
+        this.consumerRegistry.add(consumer);
+        this.peerVideoService.attach(data.userId, {
+          producerId: consumer.producerId,
+          consumerId: consumer.id,
+          track: consumer.track,
+          mediaTag: 'cam',
+        });
         consumer.resume();
         return;
       }
@@ -712,6 +627,9 @@ export class MediasoupSessionService {
       consumer.resume();
     } catch (error) {
       console.error('Error while consuming', data, error);
+      if (options?.rethrow) {
+        throw error;
+      }
     } finally {
       this.consuming.delete(data.producerId);
     }

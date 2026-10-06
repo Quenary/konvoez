@@ -1,0 +1,71 @@
+@let focus = focusTile();
+
+<div
+  class="theatre"
+  [class.strip-right]="stripRight()"
+  [class.strip-bottom]="!stripRight()"
+  (pointermove)="revealOverlay()"
+  (pointerdown)="revealOverlay()">
+  <div class="stage-cell">
+    <div
+      #stageEl
+      class="stage"
+      [class.overlay-on]="overlayVisible()"
+      (click)="onStageActivate()"
+      tabindex="-1"
+      (keypress)="onStageActivate()"
+      (touchstart)="revealOverlay()">
+      @if (videoTrack()) {
+        <video
+          class="stage-video"
+          [appVideoTrack]="videoTrack()"
+          autoplay
+          playsinline
+          muted
+          (loadedmetadata)="onVideoMetadata($event)"></video>
+      } @else if (focus; as tile) {
+        <div class="stage-tile">
+          <app-voice-room-tile
+            [peer]="tile.peer"
+            [streamKind]="tile.streamKind"
+            [videoTrack]="tile.videoTrack"
+            [screenAvailable]="tile.screenAvailable"
+            [watchingScreen]="tile.watchingScreen"
+            (watchScreen)="watchScreen.emit(tile.peerId)"
+            (stopWatchScreen)="stopWatchScreen.emit(tile.peerId)"
+            (openTheatre)="onStageTileOpen(tile)" />
+        </div>
+      }
+
+      @if (showLocalChrome()) {
+        <div class="stage-overlay">
+          <div class="overlay-top">
+            <app-voice-room-theatre-actions [fullscreenTarget]="stageEl" />
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (overlay(); as overlayTpl) {
+      <div class="view-chrome">
+        <ng-container
+          *ngTemplateOutlet="overlayTpl; context: { $implicit: focus }" />
+      </div>
+    }
+  </div>
+
+  <aside class="strip">
+    @for (item of stripItems(); track item.tile.key) {
+      <button
+        type="button"
+        class="strip-tile-wrap"
+        [class.active]="focus?.key === item.tile.key"
+        [class.preview-paused]="item.previewPaused"
+        (click)="onStripTileClick(item.tile)">
+        <app-voice-room-tile-mini
+          [peer]="item.tile.peer"
+          [videoTrack]="item.videoTrack" />
+      </button>
+    }
+  </aside>
+</div>

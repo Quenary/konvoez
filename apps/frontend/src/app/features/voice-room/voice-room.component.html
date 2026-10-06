@@ -1,55 +1,14 @@
-<header
-  tuiHeader
-  class="room-header">
-  <h2 tuiTitle>
-    <div
-      tuiAvatar
-      size="s"
-      class="header-avatar">
-      @if (avatarUrl()) {
-        <img
-          [alt]="roomName()"
-          [ngSrc]="avatarUrl()!"
-          fill
-          priority />
-      } @else {
-        {{ roomName() | tuiInitials }}
-      }
-    </div>
-
-    {{ roomName() }}
-    <span tuiSubtitle>
-      {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
-    </span>
-  </h2>
-
-  @if (canManageRooms() && room(); as manageRoom) {
-    <aside tuiAccessories>
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        iconStart="@tui.ellipsis-vertical"
-        type="button"
-        tuiDropdownAuto
-        [tuiDropdown]="roomContextMenu"
-        tuiHintAppearance="floating"
-        [tuiHint]="'GENERAL.MORE' | translate">
-        {{ 'GENERAL.MORE' | translate }}
-      </button>
-
-      <ng-template
-        #roomContextMenu
-        let-close>
-        <app-room-context-menu
-          [roomName]="manageRoom.name"
-          (edit)="editRoom(manageRoom); close()"
-          (delete)="deleteRoom(manageRoom); close()" />
-      </ng-template>
-    </aside>
-  }
-</header>
-
 <div class="voice-room-body">
-  <app-voice-peers-grid (left)="onLeft()" />
+  <app-voice-room-grid [showControls]="false">
+    <ng-template
+      appVoiceOverlay
+      let-theatreTile>
+      <app-voice-room-overlay
+        [room]="room()"
+        [participantsCount]="participantsCount()"
+        [fullscreenTarget]="fullscreenHost"
+        [theatreTile]="theatreTile"
+        (left)="onLeft()" />
+    </ng-template>
+  </app-voice-room-grid>
 </div>

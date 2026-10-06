@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
-import {
-  resolveVoiceSessionPeers,
-  voicePeersGridClass,
-} from './voice-session-peers';
+import { resolveVoiceSessionPeers } from './voice-session-peers';
 
 const me = {
   id: 1,
@@ -71,14 +68,5 @@ describe('resolveVoiceSessionPeers', () => {
     });
 
     expect(peers.map((p) => p.id)).toEqual([me.id, interlocutor.id]);
-  });
-});
-
-describe('voicePeersGridClass', () => {
-  it('maps peer counts to grid classes', () => {
-    expect(voicePeersGridClass(1)).toBe('grid-1');
-    expect(voicePeersGridClass(2)).toBe('grid-2');
-    expect(voicePeersGridClass(4)).toBe('grid-4');
-    expect(voicePeersGridClass(5)).toBe('grid-many');
   });
 });

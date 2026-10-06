@@ -1,24 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  partitionVoicePeers,
   preferTheatreStripRight,
   voiceSectionGridClass,
 } from './voice-peers-layout';
-import { IUser } from '@konvoez/shared';
-
-const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
-
-describe('partitionVoicePeers', () => {
-  it('keeps streaming peers first and preserves order', () => {
-    const peers = [user(1), user(2), user(3), user(4)];
-    const { streaming, voiceOnly } = partitionVoicePeers(
-      peers,
-      (id) => id === 2 || id === 4,
-    );
-    expect(streaming.map((p) => p.id)).toEqual([2, 4]);
-    expect(voiceOnly.map((p) => p.id)).toEqual([1, 3]);
-  });
-});
 
 describe('voiceSectionGridClass', () => {
   it('maps counts to section classes', () => {

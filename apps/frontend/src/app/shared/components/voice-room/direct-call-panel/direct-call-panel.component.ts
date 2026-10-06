@@ -1,27 +1,22 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   model,
 } from '@angular/core';
-import { VoicePeersGridComponent } from '../voice-peers-grid/voice-peers-grid.component';
-import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
+import { VoiceRoomGridComponent } from '../voice-room-grid/voice-room-grid.component';
+import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
 import { TuiTitle } from '@taiga-ui/core';
 import { TuiAccordion } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
-import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { resolveVoiceSessionPeers } from '../voice-session-peers';
+import { VoiceSessionPeersService } from '../voice-session-peers.service';
 
 @Component({
   selector: 'app-direct-call-panel',
   imports: [
-    VoicePeersGridComponent,
-    VoiceControlsBarComponent,
+    VoiceRoomGridComponent,
+    VoiceRoomControlsBarComponent,
     TuiAccordion,
     TuiTitle,
     TranslatePipe,
@@ -31,25 +26,12 @@ import { resolveVoiceSessionPeers } from '../voice-session-peers';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DirectCallPanelComponent {
-  private readonly store = inject(Store);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
-  private readonly directCallService = inject(DirectCallService);
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-
-  protected readonly participantsCount = computed(() => {
-    const isCalling = this.directCallService.isCalling();
-    const isIncoming = this.directCallService.isIncoming();
-    return resolveVoiceSessionPeers({
-      me: this.currentUser(),
-      remotePeers: this.voiceRoomStore.peersList(),
-      session: this.voiceRoomStore.activeSession(),
-      isRinging: isCalling || isIncoming,
-      interlocutor: this.directCallService.interlocutor(),
-    }).length;
-  });
+  private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
 
   public readonly expanded = model(true);
+
+  protected readonly participantsCount = this.voiceSessionPeersService.count;
 
   protected onHangup(): void {
     void this.voiceLeaveService.leaveActiveVoice();

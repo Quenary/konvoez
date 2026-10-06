@@ -1,10 +1,17 @@
-import { Injectable, computed, signal } from '@angular/core';
-import type { Consumer } from 'mediasoup-client/types';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { ConsumerRegistry } from './consumer-registry';
 
 type TRemoteVideo = {
   producerId: string;
+  consumerId: string;
   track: MediaStreamTrack;
-  consumer: Consumer;
+  mediaTag: 'cam' | 'screen';
+};
+
+export type TRemoteVideoAttach = {
+  producerId: string;
+  consumerId: string;
+  track: MediaStreamTrack;
   mediaTag: 'cam' | 'screen';
 };
 
@@ -13,57 +20,62 @@ export type TAvailableScreenShare = {
   audioProducerId?: string;
 };
 
+type TPeerIdRecord<T> = Record<number, T>;
+
+const emptyPeerRecord = <T>(): TPeerIdRecord<T> => ({});
+
+const omitPeer = <T>(
+  record: Readonly<TPeerIdRecord<T>>,
+  userId: number,
+): TPeerIdRecord<T> => {
+  const { [userId]: _removed, ...rest } = record;
+  return rest;
+};
+
 /**
  * Remote/local video tracks for voice tiles (not Web Audio).
- * Local tile uses cam only; local screen is shown in a floating PiP.
- * Remote display prefers screen over cam when watching.
+ * Cam and screen are separate sources; UI builds one or two tiles per peer.
  */
 @Injectable({ providedIn: 'root' })
 export class PeerVideoService {
+  private readonly consumerRegistry = inject(ConsumerRegistry);
+
   private readonly _localCamTrack = signal<MediaStreamTrack | null>(null);
   private readonly _localScreenTrack = signal<MediaStreamTrack | null>(null);
   public readonly localCamTrack = this._localCamTrack.asReadonly();
   public readonly localScreenTrack = this._localScreenTrack.asReadonly();
-  /** Local tile / self-view: camera only (screen goes to PiP). */
-  public readonly localTrack = computed(() => this._localCamTrack());
 
-  private readonly _remoteCam = signal<ReadonlyMap<number, TRemoteVideo>>(
-    new Map(),
-  );
-  private readonly _remoteScreen = signal<ReadonlyMap<number, TRemoteVideo>>(
-    new Map(),
-  );
+  private readonly _remoteCam =
+    signal<Readonly<TPeerIdRecord<TRemoteVideo>>>(emptyPeerRecord());
+  private readonly _remoteScreen =
+    signal<Readonly<TPeerIdRecord<TRemoteVideo>>>(emptyPeerRecord());
 
-  private readonly _availableScreens = signal<
-    ReadonlyMap<number, TAvailableScreenShare>
-  >(new Map());
+  private readonly _availableScreens =
+    signal<Readonly<TPeerIdRecord<TAvailableScreenShare>>>(emptyPeerRecord());
 
   private readonly _watching = signal<ReadonlySet<number>>(new Set());
 
   public readonly availableScreens = this._availableScreens.asReadonly();
   public readonly watchingUserIds = this._watching.asReadonly();
 
-  /** Display track per remote user: screen if watching, else cam. */
-  public readonly remoteTracks = computed(() => {
-    const map = new Map<number, MediaStreamTrack>();
-    for (const [userId, entry] of this._remoteScreen()) {
-      map.set(userId, entry.track);
+  public readonly remoteCamTracks = computed(() => {
+    const byUserId: TPeerIdRecord<MediaStreamTrack> = {};
+    for (const [userId, entry] of Object.entries(this._remoteCam())) {
+      byUserId[Number(userId)] = entry.track;
     }
-    for (const [userId, entry] of this._remoteCam()) {
-      if (!map.has(userId)) {
-        map.set(userId, entry.track);
-      }
+    return byUserId;
+  });
+
+  public readonly remoteScreenTracks = computed(() => {
+    const byUserId: TPeerIdRecord<MediaStreamTrack> = {};
+    for (const [userId, entry] of Object.entries(this._remoteScreen())) {
+      byUserId[Number(userId)] = entry.track;
     }
-    return map;
+    return byUserId;
   });
 
   public setLocalCamTrack(track: MediaStreamTrack | null): void {
     this._localCamTrack.set(track);
-  }
-
-  /** @deprecated use setLocalCamTrack */
-  public setLocalTrack(track: MediaStreamTrack | null): void {
-    this.setLocalCamTrack(track);
   }
 
   public setLocalScreenTrack(track: MediaStreamTrack | null): void {
@@ -75,52 +87,53 @@ export class PeerVideoService {
     producerId: string,
     kind: 'video' | 'audio',
   ): void {
-    const next = new Map(this._availableScreens());
-    const existing = next.get(userId) ?? { videoProducerId: '' };
+    const prev = this._availableScreens();
+    const existing = prev[userId] ?? { videoProducerId: '' };
     if (kind === 'video') {
-      next.set(userId, {
-        ...existing,
-        videoProducerId: producerId,
-      });
-    } else {
-      if (!existing.videoProducerId) {
-        // audio-only announcement before video is unusual; keep placeholder
-        next.set(userId, {
-          videoProducerId: existing.videoProducerId,
-          audioProducerId: producerId,
-        });
-      } else {
-        next.set(userId, {
+      this._availableScreens.set({
+        ...prev,
+        [userId]: {
           ...existing,
-          audioProducerId: producerId,
-        });
-      }
+          videoProducerId: producerId,
+        },
+      });
+      return;
     }
-    this._availableScreens.set(next);
+    this._availableScreens.set({
+      ...prev,
+      [userId]: {
+        ...existing,
+        audioProducerId: producerId,
+      },
+    });
   }
 
   public unregisterAvailableScreenProducer(
     userId: number,
     producerId: string,
   ): void {
-    const existing = this._availableScreens().get(userId);
+    const existing = this._availableScreens()[userId];
     if (!existing) {
       return;
     }
-    const next = new Map(this._availableScreens());
+    const prev = this._availableScreens();
     if (existing.videoProducerId === producerId) {
-      next.delete(userId);
+      this._availableScreens.set(omitPeer(prev, userId));
       this.setWatching(userId, false);
     } else if (existing.audioProducerId === producerId) {
-      next.set(userId, { videoProducerId: existing.videoProducerId });
-    } else {
-      return;
+      this._availableScreens.set({
+        ...prev,
+        [userId]: { videoProducerId: existing.videoProducerId },
+      });
     }
-    this._availableScreens.set(next);
   }
 
   public setWatching(userId: number, watching: boolean): void {
-    const next = new Set(this._watching());
+    const current = this._watching();
+    if (current.has(userId) === watching) {
+      return;
+    }
+    const next = new Set(current);
     if (watching) {
       next.add(userId);
     } else {
@@ -133,48 +146,32 @@ export class PeerVideoService {
     return this._watching().has(userId);
   }
 
-  public hasAvailableScreen(userId: number): boolean {
-    const available = this._availableScreens().get(userId);
-    return Boolean(available?.videoProducerId);
-  }
-
-  public attach(
-    userId: number,
-    consumer: Consumer,
-    mediaTag: 'cam' | 'screen' = 'cam',
-  ): void {
-    const target = mediaTag === 'screen' ? this._remoteScreen : this._remoteCam;
-    const previous = target().get(userId);
-    if (previous && previous.producerId !== consumer.producerId) {
-      previous.consumer.close();
+  public attach(userId: number, entry: TRemoteVideoAttach): void {
+    const target =
+      entry.mediaTag === 'screen' ? this._remoteScreen : this._remoteCam;
+    const previous = target()[userId];
+    if (previous && previous.producerId !== entry.producerId) {
+      this.consumerRegistry.close(previous.consumerId);
     }
 
-    const next = new Map(target());
-    next.set(userId, {
-      producerId: consumer.producerId,
-      track: consumer.track,
-      consumer,
-      mediaTag,
+    target.set({
+      ...target(),
+      [userId]: entry,
     });
-    target.set(next);
 
-    if (mediaTag === 'screen') {
+    if (entry.mediaTag === 'screen') {
       this.setWatching(userId, true);
     }
   }
 
   public remove(userId: number, producerId: string): void {
     for (const target of [this._remoteCam, this._remoteScreen] as const) {
-      const entry = target().get(userId);
+      const entry = target()[userId];
       if (!entry || entry.producerId !== producerId) {
         continue;
       }
-      if (!entry.consumer.closed) {
-        entry.consumer.close();
-      }
-      const next = new Map(target());
-      next.delete(userId);
-      target.set(next);
+      this.consumerRegistry.close(entry.consumerId);
+      target.set(omitPeer(target(), userId));
       if (entry.mediaTag === 'screen') {
         this.setWatching(userId, false);
       }
@@ -184,74 +181,51 @@ export class PeerVideoService {
 
   public removeUser(userId: number): void {
     for (const target of [this._remoteCam, this._remoteScreen] as const) {
-      const entry = target().get(userId);
+      const entry = target()[userId];
       if (!entry) {
         continue;
       }
-      if (!entry.consumer.closed) {
-        entry.consumer.close();
-      }
-      const next = new Map(target());
-      next.delete(userId);
-      target.set(next);
+      this.consumerRegistry.close(entry.consumerId);
+      target.set(omitPeer(target(), userId));
     }
-    const available = new Map(this._availableScreens());
-    available.delete(userId);
-    this._availableScreens.set(available);
+    this._availableScreens.set(omitPeer(this._availableScreens(), userId));
     this.setWatching(userId, false);
   }
 
   public getScreenConsumerId(userId: number): string | null {
-    return this._remoteScreen().get(userId)?.consumer.id ?? null;
+    return this._remoteScreen()[userId]?.consumerId ?? null;
   }
 
   public removeByConsumerId(consumerId: string): void {
     for (const target of [this._remoteCam, this._remoteScreen] as const) {
-      for (const [userId, entry] of target()) {
-        if (entry.consumer.id !== consumerId) {
+      for (const [userId, entry] of Object.entries(target())) {
+        if (entry.consumerId !== consumerId) {
           continue;
         }
-        this.remove(userId, entry.producerId);
+        this.remove(Number(userId), entry.producerId);
         return;
       }
     }
   }
 
   public stopWatchingLocal(userId: number): void {
-    const entry = this._remoteScreen().get(userId);
+    const entry = this._remoteScreen()[userId];
     if (entry) {
-      if (!entry.consumer.closed) {
-        entry.consumer.close();
-      }
-      const next = new Map(this._remoteScreen());
-      next.delete(userId);
-      this._remoteScreen.set(next);
+      this.consumerRegistry.close(entry.consumerId);
+      this._remoteScreen.set(omitPeer(this._remoteScreen(), userId));
     }
     this.setWatching(userId, false);
   }
 
-  public trackFor(userId: number, isLocal: boolean): MediaStreamTrack | null {
-    if (isLocal) {
-      return this.localCamTrack();
-    }
-    return (
-      this._remoteScreen().get(userId)?.track ??
-      this._remoteCam().get(userId)?.track ??
-      null
-    );
-  }
-
   public clear(): void {
-    for (const map of [this._remoteCam(), this._remoteScreen()]) {
-      for (const entry of map.values()) {
-        if (!entry.consumer.closed) {
-          entry.consumer.close();
-        }
+    for (const record of [this._remoteCam(), this._remoteScreen()]) {
+      for (const entry of Object.values(record)) {
+        this.consumerRegistry.close(entry.consumerId);
       }
     }
-    this._remoteCam.set(new Map());
-    this._remoteScreen.set(new Map());
-    this._availableScreens.set(new Map());
+    this._remoteCam.set(emptyPeerRecord());
+    this._remoteScreen.set(emptyPeerRecord());
+    this._availableScreens.set(emptyPeerRecord());
     this._watching.set(new Set());
     this._localCamTrack.set(null);
     this._localScreenTrack.set(null);
