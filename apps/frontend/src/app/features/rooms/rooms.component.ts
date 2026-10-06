@@ -24,11 +24,9 @@ import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
-import {
-  DirectCallService,
-  ECallStatus,
-} from '@core/services/direct-call.service';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { DirectCallService } from '@core/services/direct-call.service';
 import {
   TuiButton,
   TuiDialogService,
@@ -43,7 +41,7 @@ import {
   TuiBadgeNotification,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';
@@ -91,7 +89,8 @@ export class RoomsComponent implements OnInit {
   private readonly store = inject(Store);
   private readonly usersStore = inject(UsersStore);
   private readonly translateService = inject(TranslateService);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
+  private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly directCallService = inject(DirectCallService);
   private readonly router = inject(Router);
   private readonly tuiDialogService = inject(TuiDialogService);
@@ -105,13 +104,13 @@ export class RoomsComponent implements OnInit {
 
   protected readonly selectedRoomId =
     this.store.selectSignal(selectSelectedRoomId);
-  protected readonly activeVoiceRoomId = this.voiceRoomStore.selectedRoomId;
+  protected readonly activeVoiceRoomId = this.voiceSessionStore.selectedRoomId;
 
   protected readonly textRooms = this.store.selectSignal(selectTextRoomsList);
 
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
     const voiceRooms = this._voiceRooms();
-    const voiceRoomsState = this.voiceRoomStore.roomsState();
+    const voiceRoomsState = this.voiceLobbyStore.roomsState();
     const currentUser = this.currentUser();
 
     return voiceRooms.map((item) => {
@@ -126,28 +125,12 @@ export class RoomsComponent implements OnInit {
   });
 
   protected readonly hangingCallPeer = computed(() => {
-    const active = this.directCallService.activeCall();
-    const rejoinable = this.directCallService.rejoinableCall();
-    const me = this.currentUser();
+    const userId = this.directCallService.hangingCallUserId();
     const users = this.usersStore.entityMap();
-
-    if (
-      active &&
-      (active.status === ECallStatus.CONNECTED ||
-        active.status === ECallStatus.CALLING)
-    ) {
-      return active.interlocutor;
-    }
-
-    if (!rejoinable || !me) {
+    if (userId === null) {
       return null;
     }
-
-    const otherId =
-      rejoinable.callerId === me.id
-        ? rejoinable.recipientId
-        : rejoinable.callerId;
-    return users[otherId] ?? null;
+    return users[userId] ?? null;
   });
 
   protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);

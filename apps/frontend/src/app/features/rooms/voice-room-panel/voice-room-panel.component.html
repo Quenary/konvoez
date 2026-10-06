@@ -6,6 +6,9 @@
       tuiButton
       iconStart="@tui.audio-lines"
       appearance="positive"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="sessionTitle()"
       [style.justify-content]="'space-between'"
       (click)="clickSession()">
       @if (!collapsed()) {
@@ -16,6 +19,9 @@
       tuiIconButton
       iconStart="@tui.log-out"
       appearance="negative"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.HANGUP' | translate"
       [style.flex]="'0 0 auto'"
       (click)="leaveSession()">
     </button>
@@ -27,19 +33,49 @@
   [orientation]="collapsed() ? 'vertical' : 'horizontal'">
   <button
     tuiButton
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.MUTE' | translate"
     [iconEnd]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
     [style.justify-content]="'space-between'"
-    [appearance]="microphoneMuted() ? 'negative' : 'positive'"
+    [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
     (click)="toggleMicrophoneMuted()">
     @if (!collapsed()) {
-      {{ 'GENERAL.MUTE' | translate }}
+      {{ 'CALL.MUTE' | translate }}
     }
   </button>
   <button
     tuiIconButton
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.SOUND' | translate"
     [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
     [style.flex]="'0 0 auto'"
-    [appearance]="speakerMuted() ? 'negative' : 'positive'"
+    [appearance]="speakerMuted() ? 'negative' : 'neutral'"
     (click)="toggleSpeakerMuted()">
   </button>
+  @if (cameraOn()) {
+    <button
+      tuiIconButton
+      iconStart="@tui.video"
+      [style.flex]="'0 0 auto'"
+      appearance="primary"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.CAMERA_OFF' | translate"
+      (click)="stopCamera()">
+    </button>
+  }
+  @if (screenOn()) {
+    <button
+      tuiIconButton
+      iconStart="@tui.screen-share-off"
+      [style.flex]="'0 0 auto'"
+      appearance="primary"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.SCREEN_OFF' | translate"
+      (click)="stopScreen()">
+    </button>
+  }
 </div>

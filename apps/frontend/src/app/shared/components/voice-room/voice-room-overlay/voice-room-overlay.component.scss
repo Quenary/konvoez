@@ -1,0 +1,81 @@
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.room-header,
+.controls-dock {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+:host.visible .room-header,
+:host.visible .controls-dock,
+.room-header:hover,
+.room-header:focus-within,
+.controls-dock:hover,
+.controls-dock:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.room-header {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  padding: 0.75rem 1rem;
+  background: transparent;
+
+  &.vignette::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 5.5rem;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgb(0 0 0 / 45%) 0%, transparent 100%);
+    z-index: -1;
+  }
+
+  h2[tuiTitle] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
+  }
+
+  .header-avatar {
+    flex-shrink: 0;
+  }
+
+  aside[tuiAccessories] {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+}
+
+.controls-dock {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+
+  &.vignette::before {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 6.5rem;
+    pointer-events: none;
+    background: linear-gradient(0deg, rgb(0 0 0 / 45%) 0%, transparent 100%);
+    z-index: -1;
+  }
+}

@@ -1,0 +1,11 @@
+:host {
+  display: inline-flex;
+}
+
+.volume {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-inline-size: 10rem;
+  padding: 0.75rem 1rem;
+}

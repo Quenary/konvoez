@@ -6,7 +6,7 @@ import {
   TVoiceSessionTarget,
 } from './voice-session.schemas';
 
-export type TVoiceRoomMediaTag = 'mic' | 'cam' | 'screen';
+export type TVoiceRoomMediaTag = 'mic' | 'cam' | 'screen' | 'screen-audio';
 
 export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.JOIN_ROOM]: IVoiceRoomJoin;
@@ -21,7 +21,9 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.PRODUCE]: IVoiceRoomProduce;
   [EVoiceRoomEvent.PRODUCER_CREATED]: IVoiceRoomProduceResult;
   [EVoiceRoomEvent.PRODUCER_CLOSED]: IVoiceRoomProducerClosed;
+  [EVoiceRoomEvent.CLOSE_PRODUCER]: IVoiceRoomCloseProducer;
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsume;
+  [EVoiceRoomEvent.CLOSE_CONSUMER]: IVoiceRoomCloseConsumer;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: IVoiceRoomConsumerClosed;
   [EVoiceRoomEvent.ERROR]: { message: string };
 } & TDirectCallEventPayloadMap;
@@ -40,7 +42,9 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.PRODUCE]: IVoiceRoomProduceResult;
   [EVoiceRoomEvent.PRODUCER_CREATED]: void;
   [EVoiceRoomEvent.PRODUCER_CLOSED]: void;
+  [EVoiceRoomEvent.CLOSE_PRODUCER]: object;
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsumeResult;
+  [EVoiceRoomEvent.CLOSE_CONSUMER]: object;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: void;
   [EVoiceRoomEvent.ERROR]: void;
 } & TDirectCallEventResultMap;
@@ -138,6 +142,10 @@ export interface IVoiceRoomProducerClosed {
   userId: number;
 }
 
+export interface IVoiceRoomCloseProducer {
+  producerId: string;
+}
+
 export interface IVoiceRoomConsume {
   producerId: string;
   transportId: string;
@@ -152,6 +160,10 @@ export interface IVoiceRoomConsumeResult {
   mediaTag: TVoiceRoomMediaTag;
   /** Opaque mediasoup RtpParameters JSON */
   rtpParameters: unknown;
+}
+
+export interface IVoiceRoomCloseConsumer {
+  consumerId: string;
 }
 
 export interface IVoiceRoomConsumerClosed {

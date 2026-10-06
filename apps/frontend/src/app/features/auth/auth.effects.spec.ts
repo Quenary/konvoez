@@ -19,8 +19,10 @@ import { SpeakerService } from '@core/services/speaker.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
-import { OutgoingMessagesStore } from '@features/text-room/outgoing/outgoing-messages.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { UsersStore } from '@features/users/users.store';
 import { AuthApiService } from './auth-api.service';
 import { AuthEffects } from './auth.effects';
@@ -109,12 +111,29 @@ describe('AuthEffects logout', () => {
           },
         },
         {
-          provide: VoiceRoomStore,
+          provide: VoiceSessionStore,
           useValue: {
             activeSession,
             setActiveSession,
             clearSessionPeers: vi.fn(),
+            peersDict: signal({}),
+          },
+        },
+        {
+          provide: VoiceLobbyStore,
+          useValue: {
             setRoomsState: vi.fn(),
+            addPeerToRoom: vi.fn(),
+            removePeerFromRoom: vi.fn(),
+          },
+        },
+        {
+          provide: VoiceAudioPreferencesStore,
+          useValue: {
+            microphoneMuted: signal(false),
+            speakerMuted: signal(false),
+            peerGainLevels: signal({}),
+            peerScreenGainLevels: signal({}),
           },
         },
         { provide: MicrophoneService, useValue: microphoneService },

@@ -1,0 +1,92 @@
+@let _avatarUrl = avatarUrl();
+@let _title = title();
+
+<div class="view-layer">
+  @if (view() === 'call') {
+    <app-voice-room-shell
+      [title]="_title"
+      [avatarUrl]="_avatarUrl"
+      [headerActions]="toChatActions"
+      (left)="onCallLeft()" />
+  } @else {
+    @if (recipientId(); as id) {
+      <app-chat
+        [recipientId]="id"
+        [title]="_title"
+        [avatarUrl]="_avatarUrl">
+        <div chatHeaderActions>
+          @if (user(); as directUser) {
+            @if (isCurrentDirectCallActive()) {
+              <div tuiGroup>
+                <button
+                  tuiIconButton
+                  appearance="positive"
+                  size="s"
+                  iconStart="@tui.phone-call"
+                  type="button"
+                  tuiHintAppearance="floating"
+                  [tuiHint]="'CALL.TO_CALL' | translate"
+                  (click)="showCall()">
+                  {{ 'CALL.TO_CALL' | translate }}
+                </button>
+                <button
+                  tuiIconButton
+                  appearance="negative"
+                  size="s"
+                  iconStart="@tui.phone-off"
+                  type="button"
+                  tuiHintAppearance="floating"
+                  [tuiHint]="'CALL.HANGUP' | translate"
+                  (click)="hangup()">
+                  {{ 'CALL.HANGUP' | translate }}
+                </button>
+              </div>
+            } @else if (canRejoinCall()) {
+              <app-pulse-indicator
+                variant="glow"
+                shape="rounded">
+                <button
+                  tuiIconButton
+                  appearance="positive"
+                  size="s"
+                  iconStart="@tui.phone-call"
+                  type="button"
+                  tuiHintAppearance="floating"
+                  [tuiHint]="'CALL.JOIN_CALL' | translate"
+                  (click)="rejoinDirectCall(directUser)">
+                  {{ 'CALL.JOIN_CALL' | translate }}
+                </button>
+              </app-pulse-indicator>
+            } @else {
+              <button
+                tuiIconButton
+                appearance="flat"
+                size="s"
+                iconStart="@tui.phone"
+                type="button"
+                tuiHintAppearance="floating"
+                [tuiHint]="'CALL.START_CALL' | translate"
+                (click)="startDirectCall(directUser)">
+                {{ 'CALL.START_CALL' | translate }}
+              </button>
+            }
+          }
+        </div>
+      </app-chat>
+    }
+  }
+</div>
+
+<ng-template #toChatActions>
+  <button
+    tuiIconButton
+    appearance="flat"
+    size="s"
+    iconStart="@tui.message-circle"
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.TO_CHAT' | translate"
+    (click)="showChat()">
+    {{ 'CALL.TO_CHAT' | translate }}
+  </button>
+</ng-template>

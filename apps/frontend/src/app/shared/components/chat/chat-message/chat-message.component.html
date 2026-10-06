@@ -1,0 +1,217 @@
+@if (message(); as m) {
+  <div
+    [attr.id]="'message-' + m.id"
+    class="message"
+    [class.message-own]="isOwnMessage()"
+    [style.--author-color]="senderUsername() | tuiAutoColor"
+    [appMessageVisibility]="!isOwnMessage() ? m.id : null">
+    <div
+      class="message-row"
+      [class.message-row-media]="hasMedia()"
+      [class.message-row-sized]="mediaFrame() !== null"
+      [style.--media-width.px]="mediaFrame()?.width"
+      [style.--media-height-factor]="mediaFrame()?.heightFactor">
+      @if (shouldShowAvatar()) {
+        <app-user-avatar
+          size="s"
+          class="message-sender"
+          [username]="senderUsername()"
+          [fullname]="senderUser()?.fullname ?? senderUsername()"
+          [avatarUrl]="avatarUrl()" />
+      }
+
+      <span
+        class="message-body"
+        [class.has-media]="hasMedia()"
+        [tuiDropdown]="contextMenu"
+        tuiDropdownContext>
+        <span class="message-body-header">
+          <span
+            class="message-body-header-username"
+            tuiHintAppearance="floating"
+            [style.color]="senderUsername() | tuiAutoColor"
+            [tuiHint]="senderFullnameHint()">
+            {{ senderUsername() }}
+          </span>
+        </span>
+
+        @if (m.replyTo; as reply) {
+          @let replyUser = reply.senderId ? usersById()[reply.senderId] : null;
+          @let replyUsername =
+            replyUser?.username ?? reply.senderUsername ?? '';
+          @let replyFullname = replyUser?.fullname ?? null;
+          @let replyHint =
+            replyFullname && replyUsername && replyFullname !== replyUsername
+              ? replyFullname
+              : null;
+          <div
+            class="message-reply"
+            role="button"
+            tabindex="0"
+            [class.message-reply-deleted]="reply.isDeleted"
+            [style.border-left-color]="
+              reply.isDeleted ? null : (replyUsername | tuiAutoColor)
+            "
+            (click)="onReplyQuoteClick(reply)"
+            (keydown.enter)="onReplyQuoteClick(reply)">
+            @if (reply.isDeleted) {
+              <span class="message-reply-deleted">
+                {{ 'ROOMS.DELETED_MESSAGE' | translate }}
+              </span>
+            } @else {
+              <span
+                class="message-reply-sender"
+                tuiHintAppearance="floating"
+                [style.color]="replyUsername | tuiAutoColor"
+                [tuiHint]="replyHint">
+                {{ replyUsername }}
+              </span>
+              <span class="message-reply-content">
+                @if (reply.content | textContent) {
+                  {{ reply.content | textContent }}
+                } @else {
+                  📎 {{ 'ROOMS.ATTACHMENT' | translate }}
+                }
+              </span>
+            }
+          </div>
+        }
+
+        @if (showAttachments()) {
+          <app-chat-message-attachments
+            [attachments]="attachmentList()"
+            [outgoing]="outgoing()"
+            [progress]="progress()"
+            (removeFile)="removeOutgoingFile($event)" />
+        }
+
+        @if (hasText()) {
+          <tui-editor-socket
+            class="message-body-content"
+            [content]="sanitizedContent()">
+          </tui-editor-socket>
+        }
+
+        <span class="message-bubble-footer">
+          <span class="message-date">{{ m.createdAt | todayDayjs }}</span>
+          @switch (readStatus()) {
+            @case ('loading') {
+              <tui-loader
+                class="message-status-loader"
+                size="xs"
+                [inheritColor]="true" />
+            }
+            @case ('error') {
+              <tui-icon
+                class="message-status-icon message-status-icon--error"
+                icon="@tui.circle-x" />
+            }
+            @case ('read') {
+              <tui-icon
+                class="message-status-icon"
+                icon="@tui.check-check" />
+            }
+            @case ('sent') {
+              <tui-icon
+                class="message-status-icon"
+                icon="@tui.check" />
+            }
+          }
+        </span>
+      </span>
+    </div>
+
+    @if (canResend()) {
+      <button
+        class="message-resend"
+        tuiButton
+        type="button"
+        size="xs"
+        appearance="flat"
+        (click)="resendMessage()">
+        {{ 'ROOMS.RESEND' | translate }}
+      </button>
+    }
+  </div>
+
+  <ng-template
+    #contextMenu
+    let-close>
+    <tui-data-list>
+      @if (outgoing()) {
+        @if (canCancelSending()) {
+          <button
+            tuiOption
+            iconEnd="@tui.x"
+            (click)="cancelSending(); close()">
+            {{ 'ROOMS.CANCEL_SENDING' | translate }}
+          </button>
+        }
+      } @else {
+        <button
+          tuiOption
+          iconEnd="@tui.reply"
+          (click)="replyMessage(); close()">
+          {{ 'GENERAL.REPLY' | translate }}
+        </button>
+        @if (canEdit()) {
+          <button
+            tuiOption
+            iconEnd="@tui.edit"
+            (click)="editMessage(); close()">
+            {{ 'GENERAL.EDIT' | translate }}
+          </button>
+        }
+        @if (canDelete()) {
+          <button
+            tuiOption
+            iconEnd="@tui.delete"
+            (click)="deleteMessage(); close()">
+            {{ 'GENERAL.DELETE' | translate }}
+          </button>
+        }
+        @if (canViewReaders()) {
+          <button
+            tuiOption
+            iconEnd="@tui.users"
+            (click)="showReadersDialog(readersDialog); close()">
+            {{ 'ROOMS.READ_BY' | translate }}
+          </button>
+        }
+      }
+    </tui-data-list>
+  </ng-template>
+
+  <ng-template #readersDialog>
+    @if (readersLoading()) {
+      <p>{{ 'GENERAL.LOADING' | translate }}</p>
+    } @else if (readers().length === 0) {
+      <p>{{ 'ROOMS.NO_READERS' | translate }}</p>
+    } @else {
+      <ul tuiList="m">
+        @for (user of readers(); track user.id) {
+          @let hintValue =
+            user.fullname && user.fullname !== user.username
+              ? user.fullname
+              : null;
+          <li style="display: inline-flex">
+            <div class="readers-item">
+              <app-user-avatar
+                size="xs"
+                [style.margin-right.rem]="0.5"
+                [username]="user.username"
+                [fullname]="user.fullname"
+                [avatarUrl]="user.avatarUrl" />
+              <span
+                tuiHintAppearance="floating"
+                [style.color]="user.username | tuiAutoColor"
+                [tuiHint]="hintValue">
+                {{ user.username }}
+              </span>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </ng-template>
+}

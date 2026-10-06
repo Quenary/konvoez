@@ -520,6 +520,233 @@ describe('VoiceRoomsGateway', () => {
     });
   });
 
+  describe('produce / closeProducer', () => {
+    function readyPeer(overrides: Record<string, unknown> = {}) {
+      const sendTransport = {
+        produce: jest.fn(),
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        sendTransport,
+        ...overrides,
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      return { peer, room, sendTransport };
+    }
+
+    function joinedSocket() {
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+          sessionTarget: { type: EVoiceSessionType.GROUP_ROOM, roomId: 1 },
+        },
+      });
+      socket.rooms.add('room:1');
+      return socket;
+    }
+
+    it('rejects kind/mediaTag mismatch', async () => {
+      const { room } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'cam',
+          rtpParameters: {},
+        }),
+      ).rejects.toThrow(/Invalid kind/);
+    });
+
+    it('rejects screen-audio without screen', async () => {
+      const { room } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'screen-audio',
+          rtpParameters: {},
+        }),
+      ).rejects.toThrow(/screen-audio requires/);
+    });
+
+    it('enforces room video producer limit of 4', async () => {
+      const { peer, room, sendTransport } = readyPeer();
+      for (let i = 0; i < 4; i += 1) {
+        const p = {
+          id: `v${i}`,
+          kind: 'video',
+          closed: false,
+          appData: { mediaTag: 'cam', peerId: `other-${i}` },
+          close: jest.fn(),
+          observer: { on: jest.fn() },
+          on: jest.fn(),
+        };
+        room.producers.set(p.id, p);
+      }
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: {},
+        }),
+      ).rejects.toThrow(/Room video producer limit reached/);
+      expect(sendTransport.produce).not.toHaveBeenCalled();
+      expect(peer.producers.size).toBe(0);
+    });
+
+    it('allows replacing own cam when room already has 4 video producers', async () => {
+      const { peer, room, sendTransport } = readyPeer();
+      const existingCam = {
+        id: 'cam-old',
+        kind: 'video',
+        closed: false,
+        appData: { mediaTag: 'cam', peerId: 'socket-1' },
+        close: jest.fn(function (this: { closed: boolean }) {
+          this.closed = true;
+        }),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      peer.producers.set('cam-old', existingCam);
+      room.producers.set('cam-old', existingCam);
+
+      for (let i = 0; i < 3; i += 1) {
+        const p = {
+          id: `v${i}`,
+          kind: 'video',
+          closed: false,
+          appData: { mediaTag: 'cam', peerId: `other-${i}` },
+          close: jest.fn(),
+          observer: { on: jest.fn() },
+          on: jest.fn(),
+        };
+        room.producers.set(p.id, p);
+      }
+
+      const newCam = {
+        id: 'cam-new',
+        kind: 'video',
+        closed: false,
+        appData: { mediaTag: 'cam', peerId: 'socket-1' },
+        close: jest.fn(),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      sendTransport.produce.mockResolvedValue(newCam);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+      (socket.to as jest.Mock).mockReturnValue({ emit: jest.fn() });
+
+      const result = await gateway.produce(socket as never, {
+        transportId: 't',
+        kind: 'video',
+        mediaTag: 'cam',
+        rtpParameters: {},
+      });
+
+      expect(result.producerId).toBe('cam-new');
+      expect(existingCam.close).toHaveBeenCalled();
+      expect(room.producers.has('cam-old')).toBe(false);
+      expect(peer.producers.get('cam-new')).toBe(newCam);
+      expect(
+        [...room.producers.values()].filter(
+          (p) => !p.closed && p.kind === 'video',
+        ).length,
+      ).toBe(4);
+      expect(sendTransport.produce).toHaveBeenCalled();
+    });
+
+    it('produces camera and registers close observers', async () => {
+      const { peer, room, sendTransport } = readyPeer();
+      const observerHandlers: Record<string, () => void> = {};
+      const producer = {
+        id: 'cam-1',
+        kind: 'video',
+        closed: false,
+        appData: { mediaTag: 'cam', peerId: 'socket-1' },
+        close: jest.fn(function (this: { closed: boolean }) {
+          this.closed = true;
+          observerHandlers['close']?.();
+        }),
+        observer: {
+          on: jest.fn((event: string, handler: () => void) => {
+            observerHandlers[event] = handler;
+          }),
+        },
+        on: jest.fn(),
+      };
+      sendTransport.produce.mockResolvedValue(producer);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+      const toEmit = jest.fn();
+      (socket.to as jest.Mock).mockReturnValue({ emit: toEmit });
+
+      const result = await gateway.produce(socket as never, {
+        transportId: 't',
+        kind: 'video',
+        mediaTag: 'cam',
+        rtpParameters: {},
+      });
+
+      expect(result.producerId).toBe('cam-1');
+      expect(peer.producers.get('cam-1')).toBe(producer);
+      expect(room.producers.get('cam-1')).toBe(producer);
+      expect(toEmit).toHaveBeenCalledWith(
+        EVoiceRoomEvent.PRODUCER_CREATED,
+        expect.objectContaining({ producerId: 'cam-1', mediaTag: 'cam' }),
+      );
+
+      const serverEmit = jest.fn();
+      serverMock.to.mockReturnValue({ emit: serverEmit });
+
+      await gateway.closeProducer(socket as never, { producerId: 'cam-1' });
+      expect(producer.close).toHaveBeenCalled();
+      expect(peer.producers.has('cam-1')).toBe(false);
+      expect(room.producers.has('cam-1')).toBe(false);
+      expect(serverEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_CLOSED, {
+        producerId: 'cam-1',
+        userId: alice.id,
+      });
+    });
+  });
+
+  describe('closeConsumer', () => {
+    it('closes a consumer owned by the peer', async () => {
+      const consumer = { id: 'c1', closed: false, close: jest.fn() };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await gateway.closeConsumer(socket as never, { consumerId: 'c1' });
+
+      expect(consumer.close).toHaveBeenCalled();
+      expect(peer.consumers.has('c1')).toBe(false);
+    });
+  });
+
   describe('direct call signaling', () => {
     it('initiates a ringing call and notifies the recipient', () => {
       directCallsStateService.create.mockReturnValue({

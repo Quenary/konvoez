@@ -18,7 +18,7 @@ import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { AudioService } from './audio.service';
 import { Subject } from 'rxjs';
 import { VoiceSessionService } from './voice-session.service';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
@@ -61,8 +61,9 @@ describe('DirectCallService', () => {
       next: unknown;
     }>;
   };
-  let voiceRoomStore: {
+  let voiceSessionStore: {
     directCallTarget: ReturnType<typeof vi.fn>;
+    activeSession: ReturnType<typeof vi.fn>;
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
@@ -83,8 +84,9 @@ describe('DirectCallService', () => {
       leaveSession: vi.fn().mockResolvedValue(undefined),
       sessionWillChange$: new Subject(),
     };
-    voiceRoomStore = {
+    voiceSessionStore = {
       directCallTarget: vi.fn().mockReturnValue(null),
+      activeSession: vi.fn().mockReturnValue(null),
     };
 
     router = {
@@ -106,7 +108,7 @@ describe('DirectCallService', () => {
           },
         },
         { provide: VoiceSessionService, useValue: voiceSessionService },
-        { provide: VoiceRoomStore, useValue: voiceRoomStore },
+        { provide: VoiceSessionStore, useValue: voiceSessionStore },
         { provide: Router, useValue: router },
         {
           provide: TuiNotificationService,
@@ -126,6 +128,43 @@ describe('DirectCallService', () => {
     });
 
     service = TestBed.inject(DirectCallService);
+  });
+
+  it('callWithUserId prefers the media session interlocutor', () => {
+    voiceSessionStore.activeSession.mockReturnValue({
+      type: EVoiceSessionType.DIRECT_CALL,
+      callId: 'c1',
+      interlocutorId: recipient.id,
+    });
+
+    expect(service.callWithUserId()).toBe(recipient.id);
+  });
+
+  it('callWithUserId falls back to signaling interlocutor', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CALLING,
+    });
+
+    expect(service.callWithUserId()).toBe(recipient.id);
+  });
+
+  it('hangingCallUserId ignores incoming calls and uses rejoinable peer', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+    service['_rejoinableCall'].set({
+      callId: 'c2',
+      callerId: recipient.id,
+      recipientId: caller.id,
+    });
+
+    expect(service.hangingCallUserId()).toBe(recipient.id);
   });
 
   it('cancelCall emits hangup for ringing caller and does not leave media', () => {
@@ -153,7 +192,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomStore.directCallTarget.mockReturnValue({
+    voiceSessionStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
@@ -177,7 +216,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomStore.directCallTarget.mockReturnValue({
+    voiceSessionStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,
@@ -217,7 +256,7 @@ describe('DirectCallService', () => {
       isCaller: true,
       status: ECallStatus.CONNECTED,
     });
-    voiceRoomStore.directCallTarget.mockReturnValue({
+    voiceSessionStore.directCallTarget.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
       callId: 'c1',
       interlocutorId: recipient.id,

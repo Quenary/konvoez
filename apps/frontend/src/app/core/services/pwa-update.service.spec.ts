@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { SwUpdate, VersionEvent } from '@angular/service-worker';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { Subject, of } from 'rxjs';
+import { EMPTY, Subject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PwaUpdateService } from './pwa-update.service';
 
@@ -12,6 +12,7 @@ describe('PwaUpdateService', () => {
   let swUpdate: {
     isEnabled: boolean;
     versionUpdates: ReturnType<Subject<VersionEvent>['asObservable']>;
+    unrecoverable: typeof EMPTY;
   };
 
   beforeEach(() => {
@@ -22,6 +23,7 @@ describe('PwaUpdateService', () => {
     swUpdate = {
       isEnabled: true,
       versionUpdates: versionUpdates$.asObservable(),
+      unrecoverable: EMPTY,
     };
 
     TestBed.configureTestingModule({

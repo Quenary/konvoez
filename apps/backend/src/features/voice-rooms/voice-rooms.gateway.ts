@@ -19,6 +19,8 @@ import {
   type IVoiceRoomJoin,
   type IVoiceRoomProduce,
   type IVoiceRoomProduceResult,
+  type IVoiceRoomCloseProducer,
+  type IVoiceRoomCloseConsumer,
   type IUser,
   EVoiceRoomEvent,
   EDirectCallEvent,
@@ -51,6 +53,12 @@ import {
   buildWebRtcListenInfos,
   resolveAnnouncedAddresses,
 } from './webrtc-listen-infos';
+import {
+  assertKindMatchesMediaTag,
+  assertScreenAudioAllowed,
+  isVideoMediaTag,
+  MAX_ROOM_VIDEO_PRODUCERS,
+} from './voice-media.util';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 import type {
   DtlsParameters,
@@ -368,9 +376,38 @@ export class VoiceRoomsGateway
       `produce: socketId=${socket.id}, sessionKey=${sessionKey}, kind=${body.kind}, mediaTag=${body.mediaTag}`,
     );
 
+    assertKindMatchesMediaTag(body.kind, body.mediaTag);
+
     const transport = peer.sendTransport;
     if (!transport) {
       throw new Error('Send transport not created');
+    }
+
+    const hasScreen = [...peer.producers.values()].some(
+      (p) => p.appData.mediaTag === 'screen' && !p.closed,
+    );
+    assertScreenAudioAllowed(body.mediaTag, hasScreen);
+
+    // Replace existing producer with the same mediaTag (one per tag per peer).
+    for (const existing of [...peer.producers.values()]) {
+      if (existing.appData.mediaTag === body.mediaTag && !existing.closed) {
+        this.closeProducerInternal(
+          room,
+          peer,
+          existing,
+          sessionKey,
+          socket.data.roomId,
+        );
+      }
+    }
+
+    if (isVideoMediaTag(body.mediaTag)) {
+      const videoCount = [...room.producers.values()].filter(
+        (p) => !p.closed && p.kind === 'video',
+      ).length;
+      if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
+        throw new Error('Room video producer limit reached');
+      }
     }
 
     const producer: Producer<VoiceRoomStateMediasoupAppData> =
@@ -386,18 +423,17 @@ export class VoiceRoomsGateway
     peer.producers.set(producer.id, producer);
     room.producers.set(producer.id, producer);
 
-    producer.on('transportclose', () => {
-      room.producers.delete(producer.id);
-      this.logger.debug(
-        `Producer transport closed: producerId=${producer.id}, userId=${peer.user.id}, roomId=${room.id}`,
+    const onClosed = () => {
+      this.finalizeProducerClosed(
+        room,
+        peer,
+        producer,
+        sessionKey,
+        socket.data.roomId,
       );
-
-      const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
-      this.server.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CLOSED, {
-        producerId: producer.id,
-        userId: peer.user.id,
-      });
-    });
+    };
+    producer.observer.on('close', onClosed);
+    producer.on('transportclose', onClosed);
 
     const result: IVoiceRoomProduceResult = {
       producerId: producer.id,
@@ -410,6 +446,51 @@ export class VoiceRoomsGateway
     socket.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
 
     return result;
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.CLOSE_PRODUCER)
+  async closeProducer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: IVoiceRoomCloseProducer,
+  ) {
+    const { room, peer, sessionKey } = this.getSocketRoomPeer(socket);
+    this.logger.debug(
+      `closeProducer: socketId=${socket.id}, sessionKey=${sessionKey}, producerId=${body.producerId}`,
+    );
+
+    const producer = peer.producers.get(body.producerId);
+    if (!producer || producer.closed) {
+      throw new Error('Producer not found');
+    }
+
+    this.closeProducerInternal(
+      room,
+      peer,
+      producer,
+      sessionKey,
+      socket.data.roomId,
+    );
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.CLOSE_CONSUMER)
+  async closeConsumer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: IVoiceRoomCloseConsumer,
+  ) {
+    const { peer, sessionKey } = this.getSocketRoomPeer(socket);
+    this.logger.debug(
+      `closeConsumer: socketId=${socket.id}, sessionKey=${sessionKey}, consumerId=${body.consumerId}`,
+    );
+
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer || consumer.closed) {
+      throw new Error('Consumer not found');
+    }
+
+    peer.consumers.delete(consumer.id);
+    consumer.close();
+    return {};
   }
 
   @SubscribeMessage(EVoiceRoomEvent.CONSUME)
@@ -454,16 +535,20 @@ export class VoiceRoomsGateway
 
     peer.consumers.set(consumer.id, consumer);
 
-    consumer.on('producerclose', () => {
-      this.logger.debug(
-        `Producer closed, removing consumer: consumerId=${consumer.id}, peerId=${peer.id}`,
-      );
+    const onConsumerGone = () => {
+      if (!peer.consumers.has(consumer.id)) {
+        return;
+      }
       peer.consumers.delete(consumer.id);
-
+      this.logger.debug(
+        `Consumer closed: consumerId=${consumer.id}, peerId=${peer.id}`,
+      );
       socket.emit(EVoiceRoomEvent.CONSUMER_CLOSED, {
         consumerId: consumer.id,
       });
-    });
+    };
+    consumer.observer.on('close', onConsumerGone);
+    consumer.on('producerclose', onConsumerGone);
 
     return {
       id: consumer.id,
@@ -778,26 +863,82 @@ export class VoiceRoomsGateway
     exceptSocket?: TSocket,
   ): void {
     peer.consumers.forEach((c) => c.close());
-    peer.producers.forEach((p) => {
-      p.close();
-      room.producers.delete(p.id);
-      const payload = {
-        producerId: p.id,
-        userId: peer.user.id,
-      };
-      const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
-      if (exceptSocket) {
-        exceptSocket
-          .to(roomsToEmit)
-          .emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
-      } else {
-        this.server
-          .to(roomsToEmit)
-          .emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
-      }
-    });
+    for (const producer of [...peer.producers.values()]) {
+      this.closeProducerInternal(
+        room,
+        peer,
+        producer,
+        sessionKey,
+        roomId,
+        exceptSocket,
+      );
+    }
     peer.sendTransport?.close?.();
     peer.recvTransport?.close?.();
+  }
+
+  /**
+   * Close a producer and emit PRODUCER_CLOSED once (idempotent with observer).
+   */
+  private closeProducerInternal(
+    room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
+    peer: {
+      user: IUser;
+      producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
+    },
+    producer: Producer<VoiceRoomStateMediasoupAppData>,
+    sessionKey: string,
+    roomId: number | undefined,
+    exceptSocket?: TSocket,
+  ): void {
+    this.finalizeProducerClosed(
+      room,
+      peer,
+      producer,
+      sessionKey,
+      roomId,
+      exceptSocket,
+    );
+    if (!producer.closed) {
+      producer.close();
+    }
+  }
+
+  private finalizeProducerClosed(
+    room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
+    peer: {
+      user: IUser;
+      producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
+    },
+    producer: Producer<VoiceRoomStateMediasoupAppData>,
+    sessionKey: string,
+    roomId: number | undefined,
+    exceptSocket?: TSocket,
+  ): void {
+    const hadPeer = peer.producers.delete(producer.id);
+    const hadRoom = room.producers.delete(producer.id);
+    if (!hadPeer && !hadRoom) {
+      return;
+    }
+
+    this.logger.debug(
+      `Producer closed: producerId=${producer.id}, userId=${peer.user.id}, sessionKey=${sessionKey}`,
+    );
+
+    const payload = {
+      producerId: producer.id,
+      userId: peer.user.id,
+    };
+    const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
+    if (exceptSocket) {
+      exceptSocket
+        .to(roomsToEmit)
+        .emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
+    } else {
+      this.server
+        .to(roomsToEmit)
+        .emit(EVoiceRoomEvent.PRODUCER_CLOSED, payload);
+    }
   }
 
   private emitCallEnded(callId: string, callerId: number, recipientId: number) {

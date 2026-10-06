@@ -10,7 +10,6 @@ GENERAL:
   GO_BACK: Go back
   REQ_ERR: Request error
   PERMISSION_ERROR: No access to devices
-  MUTE: Mute
   EDIT: Edit
   DELETE: Delete
   REPLY: Reply
@@ -63,6 +62,8 @@ DIRECT:
 CALL:
   START_CALL: Start call
   JOIN_CALL: Join call
+  TO_CALL: Back to call
+  TO_CHAT: Back to chat
   DIRECT_CALL: Direct call
   INCOMING_CALL: Incoming voice call...
   CALLING: Calling...
@@ -73,14 +74,36 @@ CALL:
   DECLINED: Call declined
   NO_ANSWER: User is not answering
   PARTICIPANTS: '{{count}} participants'
-  EXPAND: Expand
-  COLLAPSE: Collapse
   YOU: You
   VOLUME: Volume
+  MUTE: Mute
   SOUND: Sound
   SOUND_OFF: Sound off
-  CAMERA_SOON: Camera (soon)
-  SCREEN_SOON: Screen share (soon)
+  CAMERA: Camera
+  CAMERA_ON: Turn on camera
+  CAMERA_OFF: Turn off camera
+  CAMERA_SETTINGS: Camera settings
+  CAMERA_FAILED: Couldn't start the camera
+  START_CAMERA: Start camera
+  STREAM_HEIGHT: Resolution
+  STREAM_FPS: Frame rate
+  SCREEN: Screen
+  SCREEN_ON: Share screen
+  SCREEN_OFF: Stop sharing
+  SCREEN_SETTINGS: Screen share settings
+  SCREEN_FAILED: Couldn't start screen sharing
+  START_SCREEN: Share screen
+  WATCH_SCREEN: Start watching
+  STOP_WATCH_SCREEN: Stop watching
+  WATCH_SCREEN_FAILED: Couldn't watch the screen share
+  SCREEN_VOLUME: Screen volume
+  YOUR_SCREEN: Your screen
+  PREVIEW_PAUSED: Preview paused to save resources
+  PREVIEW_RESUME: Resume
+  PREVIEW_AUTO_PAUSE: Auto-pause
+  EXIT_THEATRE: Exit theatre
+  FULLSCREEN: Fullscreen
+  EXIT_FULLSCREEN: Exit fullscreen
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
 ROOMS:

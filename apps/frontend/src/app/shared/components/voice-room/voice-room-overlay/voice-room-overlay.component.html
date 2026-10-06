@@ -1,0 +1,69 @@
+<header
+  tuiHeader
+  class="room-header"
+  [class.vignette]="isFullscreen()">
+  <h2 tuiTitle>
+    <div
+      tuiAvatar
+      size="s"
+      class="header-avatar">
+      @if (displayAvatarUrl()) {
+        <img
+          [alt]="displayTitle()"
+          [ngSrc]="displayAvatarUrl()!"
+          fill
+          priority />
+      } @else {
+        {{ displayTitle() | tuiInitials }}
+      }
+    </div>
+
+    {{ displayTitle() }}
+    <span tuiSubtitle>
+      {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
+    </span>
+  </h2>
+
+  <aside tuiAccessories>
+    @if (headerActions(); as actions) {
+      <ng-container *ngTemplateOutlet="actions" />
+    }
+
+    @if (canManageRooms() && room(); as manageRoom) {
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="s"
+        iconStart="@tui.ellipsis-vertical"
+        type="button"
+        tuiDropdownAuto
+        [tuiDropdown]="roomContextMenu"
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.MORE' | translate">
+        {{ 'GENERAL.MORE' | translate }}
+      </button>
+
+      <ng-template
+        #roomContextMenu
+        let-close>
+        <app-room-context-menu
+          [roomName]="manageRoom.name"
+          (edit)="editRoom(manageRoom); close()"
+          (delete)="deleteRoom(manageRoom); close()" />
+      </ng-template>
+    }
+
+    <app-voice-room-theatre-actions
+      [showClose]="theatreOpen()"
+      [fullscreenTarget]="fullscreenTarget()" />
+  </aside>
+</header>
+
+<footer
+  class="controls-dock"
+  [class.vignette]="isFullscreen()">
+  @if (showRemoteScreenWatchControls()) {
+    <app-voice-room-theatre-watch-controls [userId]="watchUserId()" />
+  }
+  <app-voice-room-controls-bar (hangup)="onHangup()" />
+</footer>

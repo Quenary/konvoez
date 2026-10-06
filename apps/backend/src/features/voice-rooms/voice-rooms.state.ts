@@ -26,6 +26,7 @@ import {
 import { createWorker } from 'mediasoup';
 import { announcedAddressKey } from '@shared/utils/mediasoup-addresses.util';
 import { AppService } from '@shared/services/app.service';
+import { VOICE_ROOM_MEDIA_CODECS } from './voice-media.util';
 
 type VoiceRoomState = {
   /**
@@ -193,14 +194,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       target,
       id: sessionKey,
       router: await this.worker.createRouter({
-        mediaCodecs: [
-          {
-            kind: 'audio',
-            mimeType: 'audio/opus',
-            clockRate: 48000,
-            channels: 2,
-          },
-        ],
+        mediaCodecs: VOICE_ROOM_MEDIA_CODECS,
       }),
       peers: new Map(),
       producers: new Map(),

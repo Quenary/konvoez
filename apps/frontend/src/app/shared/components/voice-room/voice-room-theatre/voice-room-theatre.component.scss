@@ -1,0 +1,137 @@
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: block;
+  background: var(--tui-background-base);
+}
+
+.theatre {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  background: var(--tui-background-base);
+
+  &.strip-bottom {
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &.strip-right {
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, 12rem);
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+
+.stage-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stage-tile {
+  position: absolute;
+  inset: 4rem 3rem 5rem 3rem;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+
+  @media (max-width: 600px) {
+    inset: 4rem 1rem 5rem 1rem;
+  }
+
+  app-voice-room-tile {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+.view-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.stage-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.strip {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  overflow: auto;
+}
+
+.strip-right .strip {
+  flex-direction: column;
+  border-top: none;
+  border-left: 1px solid var(--tui-border-normal);
+}
+
+.strip-tile-wrap {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 7.5rem;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--tui-radius-m);
+  cursor: pointer;
+  overflow: hidden;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  &:not(:disabled):hover {
+    border-color: var(--tui-border-hover);
+  }
+
+  &.active {
+    border-color: var(--tui-status-info);
+    box-shadow: 0 0 0 1px var(--tui-status-info);
+  }
+
+  &:has(app-voice-room-tile-mini.speaking) {
+    border-color: var(--tui-status-positive);
+    box-shadow:
+      0 0 0 2px var(--tui-status-positive),
+      0 0 1rem var(--tui-status-positive-pale);
+  }
+
+  &.active:has(app-voice-room-tile-mini.speaking) {
+    border-color: var(--tui-status-positive);
+    box-shadow:
+      0 0 0 2px var(--tui-status-positive),
+      0 0 1rem var(--tui-status-positive-pale);
+  }
+
+  app-voice-room-tile-mini {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+}

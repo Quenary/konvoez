@@ -8,10 +8,12 @@ import {
 import { Store } from '@ngrx/store';
 import { selectRoomsDict } from '../rooms.selectors';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { AudioService } from '@core/services/audio.service';
-import { TuiButton, TuiGroup } from '@taiga-ui/core';
+import { PeerVideoService } from '@core/services/peer-video.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
+import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { RoomsActions } from '../rooms.actions';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
@@ -19,7 +21,7 @@ import { EVoiceSessionType } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-room-panel',
-  imports: [TranslatePipe, TuiGroup, TuiButton],
+  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint],
   templateUrl: './voice-room-panel.component.html',
   styleUrl: './voice-room-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,25 +29,31 @@ import { EVoiceSessionType } from '@konvoez/shared';
 export class VoiceRoomPanelComponent {
   private readonly router = inject(Router);
   private readonly store = inject(Store);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
+  private readonly voiceAudioPreferencesStore = inject(
+    VoiceAudioPreferencesStore,
+  );
   private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
-  private readonly audioService = inject(AudioService);
   private readonly translateService = inject(TranslateService);
+  private readonly peerVideoService = inject(PeerVideoService);
+  private readonly voiceSessionService = inject(VoiceSessionService);
 
   public readonly collapsed = input.required<boolean>();
 
-  protected readonly microphoneMuted = this.voiceRoomStore.microphoneMuted;
-  protected readonly speakerMuted = this.voiceRoomStore.speakerMuted;
+  protected readonly microphoneMuted =
+    this.voiceAudioPreferencesStore.microphoneMuted;
+  protected readonly speakerMuted =
+    this.voiceAudioPreferencesStore.speakerMuted;
 
-  protected readonly isDirectCall = computed(() => {
-    const session = this.activeSession();
-    const isCalling = this.directCallService.isCalling();
-    const isIncoming = this.directCallService.isIncoming();
-    return (
-      session?.type === EVoiceSessionType.DIRECT_CALL || isCalling || isIncoming
-    );
-  });
+  protected readonly cameraOn = computed(
+    () => this.peerVideoService.localCamTrack() !== null,
+  );
+  protected readonly screenOn = computed(
+    () => this.peerVideoService.localScreenTrack() !== null,
+  );
+
+  protected readonly isDirectCall = this.directCallService.isDirectCallContext;
 
   protected readonly isSessionActive = computed(() => {
     const session = this.activeSession();
@@ -68,13 +76,13 @@ export class VoiceRoomPanelComponent {
   });
 
   private readonly rooms = this.store.selectSignal(selectRoomsDict);
-  private readonly activeSession = this.voiceRoomStore.activeSession;
+  private readonly activeSession = this.voiceSessionStore.activeSession;
 
   protected clickSession(): void {
     if (this.isDirectCall()) {
-      const interlocutor = this.directCallService.interlocutor();
-      if (interlocutor) {
-        this.router.navigate(['/direct', interlocutor.id]);
+      const userId = this.directCallService.callWithUserId();
+      if (userId !== null) {
+        void this.router.navigate(['/direct', userId]);
       }
       return;
     }
@@ -93,20 +101,18 @@ export class VoiceRoomPanelComponent {
   }
 
   protected toggleMicrophoneMuted(): void {
-    const microphoneMuted = !this.microphoneMuted();
-    this.voiceRoomStore.setMicrophoneMuted(microphoneMuted);
-    if (!microphoneMuted) {
-      this.voiceRoomStore.setSpeakerMuted(false);
-    }
-    this.audioService.playMuteAudio();
+    this.voiceAudioPreferencesStore.toggleMicrophoneMuted();
   }
 
   protected toggleSpeakerMuted(): void {
-    const speakerMuted = !this.speakerMuted();
-    this.voiceRoomStore.setSpeakerMuted(speakerMuted);
-    if (speakerMuted) {
-      this.voiceRoomStore.setMicrophoneMuted(true);
-    }
-    this.audioService.playMuteAudio();
+    this.voiceAudioPreferencesStore.toggleSpeakerMuted();
+  }
+
+  protected stopCamera(): void {
+    void this.voiceSessionService.stopCamera();
+  }
+
+  protected stopScreen(): void {
+    void this.voiceSessionService.stopScreen();
   }
 }

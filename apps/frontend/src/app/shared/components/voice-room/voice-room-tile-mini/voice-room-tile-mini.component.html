@@ -1,0 +1,35 @@
+@let p = peer();
+
+<div
+  class="mini-tile"
+  [class.speaking]="isSpeaking()">
+  @if (videoTrack()) {
+    <video
+      class="video"
+      [appVideoTrack]="videoTrack()"
+      autoplay
+      playsinline
+      muted></video>
+
+    <span
+      class="corner-avatar"
+      tuiHintAppearance="floating"
+      [tuiHint]="hintLabel()">
+      <app-user-avatar
+        size="xs"
+        [username]="p.username"
+        [fullname]="p.fullname"
+        [avatarUrl]="p.avatarUrl"
+        [talking]="isSpeaking()" />
+    </span>
+  } @else {
+    <div class="avatar-backdrop">
+      <app-user-avatar
+        class="center-avatar"
+        [username]="p.username"
+        [fullname]="p.fullname"
+        [avatarUrl]="p.avatarUrl"
+        [talking]="isSpeaking()" />
+    </div>
+  }
+</div>

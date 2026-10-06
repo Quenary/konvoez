@@ -1,0 +1,77 @@
+@if (editableMessage(); as m) {
+  <section class="edit">
+    <div class="edit-title">
+      {{ 'GENERAL.EDIT' | translate }}
+    </div>
+
+    <button
+      tuiButtonX
+      class="edit-close"
+      (click)="cancelEdit()">
+      Close
+    </button>
+  </section>
+}
+
+@if (replyToMessage(); as reply) {
+  <section class="reply">
+    <div
+      class="reply-quote"
+      [style.border-left-color]="reply.senderUsername | tuiAutoColor">
+      <div
+        class="reply-sender"
+        [style.color]="reply.senderUsername | tuiAutoColor">
+        {{ reply.senderUsername }}
+      </div>
+      <div class="reply-text">
+        {{ reply.content | textContent }}
+      </div>
+    </div>
+
+    <button
+      tuiButtonX
+      class="reply-close"
+      (click)="cancelReply()">
+      Close
+    </button>
+  </section>
+}
+
+@if (files().length > 0) {
+  <app-chat-composer-attachments
+    [files]="files()"
+    (remove)="removeFile($event)" />
+}
+
+<section class="field">
+  @if (attachmentsEnabled() && !editableMessage()) {
+    <button
+      tuiIconButton
+      type="button"
+      iconStart="@tui.paperclip"
+      size="s"
+      [attr.aria-label]="'ROOMS.ATTACH_FILES' | translate"
+      (click)="fileInput.click()">
+      {{ 'ROOMS.ATTACH_FILES' | translate }}
+    </button>
+    <input
+      #fileInput
+      type="file"
+      multiple
+      hidden
+      (change)="onPick($event)" />
+  }
+  <tui-editor
+    class="field-editor"
+    [formControl]="control"
+    [tools]="tools"
+    [floatingToolbar]="true">
+  </tui-editor>
+
+  <button
+    tuiIconButton
+    iconStart="@tui.send"
+    size="s"
+    (click)="onSubmit()">
+  </button>
+</section>

@@ -41,16 +41,3 @@ export function resolveVoiceSessionPeers(
 
   return list;
 }
-
-export function voicePeersGridClass(count: number): string {
-  if (count <= 1) {
-    return 'grid-1';
-  }
-  if (count === 2) {
-    return 'grid-2';
-  }
-  if (count <= 4) {
-    return 'grid-4';
-  }
-  return 'grid-many';
-}

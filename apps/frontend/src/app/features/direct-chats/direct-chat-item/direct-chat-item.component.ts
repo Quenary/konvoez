@@ -11,7 +11,7 @@ import {
   TuiBadgedContent,
   TuiBadgeNotification,
 } from '@taiga-ui/kit';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 

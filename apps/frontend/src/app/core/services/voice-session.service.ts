@@ -1,6 +1,8 @@
 import { effect, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
@@ -11,6 +13,7 @@ import {
   TVoiceSessionTarget,
 } from '@konvoez/shared';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
+import { notifyError } from '@shared/functions/notify-error.function';
 import { Mutex } from 'async-mutex';
 import { interval, Subject } from 'rxjs';
 import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
@@ -22,6 +25,8 @@ import {
 } from './mediasoup-session.service';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
+import { PeerVideoService } from './peer-video.service';
+import { ScreenWatchService } from './screen-watch.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 
@@ -30,19 +35,26 @@ const micControlsMutex = new Mutex();
 
 /**
  * Owns the active voice session: join/leave, socket listeners, reconnect, and device switching.
- * Does not hold peer UI state (see VoiceRoomStore) or call signaling (see DirectCallService).
+ * Peer UI state lives in VoiceSessionStore / VoiceLobbyStore / VoiceAudioPreferencesStore.
+ * Call signaling is in DirectCallService.
  */
 @Injectable({
   providedIn: 'root',
 })
 export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly socket = inject(VoiceRoomSocketToken);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
+  private readonly voiceLobbyStore = inject(VoiceLobbyStore);
+  private readonly voiceAudioPreferencesStore = inject(
+    VoiceAudioPreferencesStore,
+  );
   private readonly microphoneService = inject(MicrophoneService);
   private readonly speakerService = inject(SpeakerService);
   private readonly audioService = inject(AudioService);
   private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly peerPlaybackService = inject(PeerPlaybackService);
+  private readonly peerVideoService = inject(PeerVideoService);
+  private readonly screenWatchService = inject(ScreenWatchService);
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
@@ -57,7 +69,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   constructor() {
     this.socket.on('connect', () => {
       this.mediasoupSessionService.cleanup();
-      const session = this.voiceRoomStore.activeSession();
+      const session = this.voiceSessionStore.activeSession();
       if (session) {
         void this.joinSession(session).catch((error: unknown) => {
           this.reportJoinFailure(error);
@@ -79,7 +91,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
     effect(() => {
       const stream = this.microphoneService.processedStream();
-      const session = this.voiceRoomStore.activeSession();
+      const session = this.voiceSessionStore.activeSession();
       const track = stream?.getAudioTracks()[0] ?? null;
       if (!session || !track) {
         return;
@@ -90,13 +102,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public reportJoinFailure(error: unknown): void {
     console.error('Failed to join voice session', error);
-    this.tuiNotificationsService
-      .open(this.translateService.instant('VOICE.JOIN_FAILED'), {
-        appearance: 'negative',
-        autoClose: 5000,
-        closable: true,
-      })
-      .subscribe();
+    notifyError(
+      this.tuiNotificationsService,
+      this.translateService,
+      'VOICE.JOIN_FAILED',
+    );
   }
 
   @Mutexed(voiceSessionMutex)
@@ -127,10 +137,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   private async joinSessionLocked(target: TVoiceSessionTarget): Promise<void> {
     this.audioService.playPeerJoinAudio();
-    const previous = this.voiceRoomStore.activeSession();
+    const previous = this.voiceSessionStore.activeSession();
     this.sessionWillChangeSubject.next({ previous, next: target });
 
-    if (this.voiceRoomStore.activeSession()) {
+    if (this.voiceSessionStore.activeSession()) {
       await this.leaveSessionLocked();
     }
 
@@ -145,17 +155,17 @@ export class VoiceSessionService implements IAudioDeviceHandler {
             : undefined,
       } satisfies IVoiceRoomJoin);
 
-      this.voiceRoomStore.setActiveSession(target);
+      this.voiceSessionStore.setActiveSession(target);
       await this.updateRoomsState();
       await this.mediasoupSessionService.ensureDeviceLoaded();
       this.mediasoupSessionService.setMicrophoneMuted(
-        this.voiceRoomStore.microphoneMuted(),
+        this.voiceAudioPreferencesStore.microphoneMuted(),
       );
       await this.mediasoupSessionService.ensureSendTransport();
       await this.mediasoupSessionService.ensureRecvTransport();
       void this.screenWakeLockService.acquire();
     } catch (error) {
-      if (this.voiceRoomStore.activeSession()) {
+      if (this.voiceSessionStore.activeSession()) {
         await this.leaveSessionLocked();
       } else {
         this.removeSocketListeners();
@@ -165,12 +175,12 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   }
 
   private async leaveSessionLocked(): Promise<void> {
-    if (!this.voiceRoomStore.activeSession()) {
+    if (!this.voiceSessionStore.activeSession()) {
       return;
     }
 
     this.screenWakeLockService.release();
-    this.voiceRoomStore.setActiveSession(null);
+    this.voiceSessionStore.setActiveSession(null);
     this.removeSocketListeners();
     this.mediasoupSessionService.clearPendingConsumes();
 
@@ -184,7 +194,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     } catch (error) {
       console.error('Failed to leave voice room', error);
     } finally {
-      this.voiceRoomStore.clearSessionPeers();
+      this.voiceSessionStore.clearSessionPeers();
       this.mediasoupSessionService.cleanup();
       await this.microphoneService.release();
       if (this.socket.connected) {
@@ -194,12 +204,42 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     }
   }
 
+  public watchPeerScreen(userId: number): Promise<void> {
+    const gain =
+      this.voiceAudioPreferencesStore.peerScreenGainLevels()[userId] ?? 1;
+    return this.screenWatchService.watchScreen(
+      userId,
+      (id) => this.resolvePeer(id),
+      gain,
+    );
+  }
+
+  public stopWatchingPeerScreen(userId: number): Promise<void> {
+    return this.screenWatchService.stopWatchingScreen(userId);
+  }
+
+  public produceCamera(): Promise<void> {
+    return this.mediasoupSessionService.produceCamera();
+  }
+
+  public stopCamera(): Promise<void> {
+    return this.mediasoupSessionService.stopCamera();
+  }
+
+  public produceScreen(): Promise<void> {
+    return this.mediasoupSessionService.produceScreen();
+  }
+
+  public stopScreen(): Promise<void> {
+    return this.mediasoupSessionService.stopScreen();
+  }
+
   private addSocketListeners(): void {
     this.removeSocketListeners();
 
     this.socket.on(EVoiceRoomEvent.PEERS_ON_JOIN, async (data) => {
       const users = Object.values(data);
-      this.voiceRoomStore.setPeers(users);
+      this.voiceSessionStore.setPeers(users);
 
       await Promise.all(
         users.flatMap((user) =>
@@ -210,17 +250,19 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_JOINED, async (data) => {
-      this.voiceRoomStore.upsertPeer(data.user);
+      this.voiceSessionStore.upsertPeer(data.user);
       if (data.roomId !== undefined) {
-        this.voiceRoomStore.addPeerToRoom(data.roomId, data.user);
+        this.voiceLobbyStore.addPeerToRoom(data.roomId, data.user);
       }
       await this.consumePending();
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
-      this.voiceRoomStore.removePeer(data.user.id);
+      this.voiceSessionStore.removePeer(data.user.id);
+      this.peerVideoService.removeUser(data.user.id);
+      this.screenWatchService.release(data.user.id);
       if (data.roomId !== undefined) {
-        this.voiceRoomStore.removePeerFromRoom(data.roomId, data.user.id);
+        this.voiceLobbyStore.removePeerFromRoom(data.roomId, data.user.id);
       }
     });
 
@@ -230,6 +272,19 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
+      this.peerVideoService.remove(data.userId, data.producerId);
+      this.screenWatchService.onRemoteProducerClosed(
+        data.userId,
+        data.producerId,
+      );
+      this.peerVideoService.unregisterAvailableScreenProducer(
+        data.userId,
+        data.producerId,
+      );
+    });
+
+    this.socket.on(EVoiceRoomEvent.CONSUMER_CLOSED, (data) => {
+      this.mediasoupSessionService.handleConsumerClosed(data.consumerId);
     });
   }
 
@@ -239,6 +294,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.off(EVoiceRoomEvent.PEER_LEFT);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CLOSED);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CREATED);
+    this.socket.off(EVoiceRoomEvent.CONSUMER_CLOSED);
   }
 
   private async updateRoomsState(): Promise<void> {
@@ -246,7 +302,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       const roomsState = await this.socket.emitWithAck(
         EVoiceRoomEvent.GET_ALL_PEERS,
       );
-      this.voiceRoomStore.setRoomsState(roomsState);
+      this.voiceLobbyStore.setRoomsState(roomsState);
     } catch (error) {
       console.error('Failed to update all rooms state', error);
     }
@@ -265,9 +321,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   }
 
   private resolvePeer(userId: number): IConsumePeerContext | null {
-    const peersDict = this.voiceRoomStore.peersDict();
-    const peerGainLevels = this.voiceRoomStore.peerGainLevels();
-    const speakerMuted = this.voiceRoomStore.speakerMuted();
+    const peersDict = this.voiceSessionStore.peersDict();
+    const peerGainLevels = this.voiceAudioPreferencesStore.peerGainLevels();
+    const speakerMuted = this.voiceAudioPreferencesStore.speakerMuted();
     if (!peersDict[userId]) {
       return null;
     }

@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -12,14 +12,15 @@ import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
 import { RoomsActions } from './rooms.actions';
 import { IRoom } from './rooms.interface';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import {
   DirectCallService,
   ECallStatus,
   IActiveCall,
 } from '@core/services/direct-call.service';
 import { UsersStore } from '@features/users/users.store';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
   selectSelectedRoomId,
@@ -146,9 +147,14 @@ describe('RoomsComponent', () => {
           ],
         }),
         {
-          provide: VoiceRoomStore,
+          provide: VoiceSessionStore,
           useValue: {
             selectedRoomId,
+          },
+        },
+        {
+          provide: VoiceLobbyStore,
+          useValue: {
             roomsState,
           },
         },
@@ -157,6 +163,23 @@ describe('RoomsComponent', () => {
           useValue: {
             activeCall,
             rejoinableCall,
+            hangingCallUserId: computed(() => {
+              const active = activeCall();
+              const rejoinable = rejoinableCall();
+              if (
+                active &&
+                (active.status === ECallStatus.CONNECTED ||
+                  active.status === ECallStatus.CALLING)
+              ) {
+                return active.interlocutor.id;
+              }
+              if (!rejoinable) {
+                return null;
+              }
+              return rejoinable.callerId === me.id
+                ? rejoinable.recipientId
+                : rejoinable.callerId;
+            }),
           },
         },
         { provide: UsersStore, useValue: usersStore },

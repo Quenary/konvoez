@@ -22,7 +22,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
-import { TextRoomApiService } from '../text-room/text-room-api.service';
+import { TextRoomApiService } from '@core/chat/text-room-api.service';
 
 type DirectChatsState = {
   loading: boolean;

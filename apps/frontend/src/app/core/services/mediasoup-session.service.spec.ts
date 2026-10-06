@@ -1,16 +1,27 @@
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
+import { PeerVideoService } from './peer-video.service';
+import { CameraService } from './camera.service';
+import { ScreenCaptureService } from './screen-capture.service';
+import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 
 describe('MediasoupSessionService', () => {
   let service: MediasoupSessionService;
   let getStream: ReturnType<typeof vi.fn>;
+  let releaseCamera: ReturnType<typeof vi.fn>;
+  let setLocalCamTrack: ReturnType<typeof vi.fn>;
+  let deviceLost$: Subject<void>;
 
   beforeEach(() => {
     getStream = vi.fn();
+    releaseCamera = vi.fn();
+    setLocalCamTrack = vi.fn();
+    deviceLost$ = new Subject<void>();
     TestBed.configureTestingModule({
       providers: [
         MediasoupSessionService,
@@ -32,9 +43,56 @@ describe('MediasoupSessionService', () => {
             attach: vi.fn(),
           },
         },
+        {
+          provide: PeerVideoService,
+          useValue: {
+            attach: vi.fn(),
+            clear: vi.fn(),
+            setLocalCamTrack,
+            setLocalScreenTrack: vi.fn(),
+            registerAvailableScreen: vi.fn(),
+            unregisterAvailableScreenProducer: vi.fn(),
+            availableScreens: vi.fn(() => ({})),
+            stopWatchingLocal: vi.fn(),
+            getScreenConsumerId: vi.fn(),
+          },
+        },
+        {
+          provide: CameraService,
+          useValue: {
+            getTrack: vi.fn(),
+            release: releaseCamera,
+            deviceLost$: deviceLost$.asObservable(),
+          },
+        },
+        {
+          provide: ScreenCaptureService,
+          useValue: {
+            getTracks: vi.fn(),
+            release: vi.fn(),
+          },
+        },
+        {
+          provide: PeerScreenAudioService,
+          useValue: {
+            attach: vi.fn(),
+            detach: vi.fn(),
+            clear: vi.fn(),
+            getConsumerId: vi.fn(),
+          },
+        },
       ],
     });
     service = TestBed.inject(MediasoupSessionService);
+  });
+
+  it('stops the camera when its device disappears', async () => {
+    deviceLost$.next();
+
+    await vi.waitFor(() => {
+      expect(releaseCamera).toHaveBeenCalledTimes(1);
+    });
+    expect(setLocalCamTrack).toHaveBeenCalledWith(null);
   });
 
   it('clears pending consumes', () => {
@@ -322,5 +380,29 @@ describe('MediasoupSessionService', () => {
 
     expect(next.enabled).toBe(false);
     expect(replaceTrack).toHaveBeenCalledWith({ track: next });
+  });
+
+  it('rethrows opt-in consume errors and swallows auto-consume errors', async () => {
+    service['device'] = { recvRtpCapabilities: {} } as never;
+    service['recvTransport'] = {
+      id: 'recv',
+      closed: false,
+      consume: vi.fn().mockRejectedValue(new Error('consume failed')),
+    } as never;
+    const data = {
+      producerId: 'p-screen',
+      userId: 2,
+      kind: 'video' as const,
+      mediaTag: 'screen' as const,
+    };
+    const resolvePeer = () => ({ gain: 1, speakerMuted: false });
+
+    await expect(
+      service.consumeProducer(data, resolvePeer, { rethrow: true }),
+    ).rejects.toThrow('consume failed');
+
+    await expect(
+      service.consumeProducer(data, resolvePeer),
+    ).resolves.toBeUndefined();
   });
 });

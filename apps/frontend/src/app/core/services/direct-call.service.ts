@@ -14,7 +14,7 @@ import {
   IUser,
   TVoiceSessionTarget,
 } from '@konvoez/shared';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { AudioService } from './audio.service';
 import { VoiceSessionService } from './voice-session.service';
@@ -48,7 +48,7 @@ export class DirectCallService {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly audioService = inject(AudioService);
   private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly notificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly store = inject(Store);
@@ -77,6 +77,54 @@ export class DirectCallService {
   public readonly interlocutor = computed(
     () => this._activeCall()?.interlocutor ?? null,
   );
+
+  /** User id for an in-progress or connected direct call (media session or signaling). */
+  public readonly callWithUserId = computed(() => {
+    const session = this.voiceSessionStore.activeSession();
+    const callActive = this.isCallActive();
+    const signalingInterlocutorId = this.interlocutor()?.id ?? null;
+
+    if (session?.type === EVoiceSessionType.DIRECT_CALL) {
+      return session.interlocutorId;
+    }
+    if (!callActive) {
+      return null;
+    }
+    return signalingInterlocutorId;
+  });
+
+  /** Sidebar / aside entry for an ongoing or rejoinable direct call. */
+  public readonly hangingCallUserId = computed(() => {
+    const active = this._activeCall();
+    const rejoinable = this._rejoinableCall();
+    const me = this.currentUser();
+
+    if (
+      active &&
+      (active.status === ECallStatus.CONNECTED ||
+        active.status === ECallStatus.CALLING)
+    ) {
+      return active.interlocutor.id;
+    }
+
+    if (!rejoinable || !me) {
+      return null;
+    }
+
+    return rejoinable.callerId === me.id
+      ? rejoinable.recipientId
+      : rejoinable.callerId;
+  });
+
+  public readonly isDirectCallContext = computed(() => {
+    const session = this.voiceSessionStore.activeSession();
+    const calling = this.isCalling();
+    const incoming = this.isIncoming();
+
+    return (
+      session?.type === EVoiceSessionType.DIRECT_CALL || calling || incoming
+    );
+  });
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private timeoutRef: ReturnType<typeof setTimeout> | null = null;
@@ -274,7 +322,7 @@ export class DirectCallService {
     });
     this._activeCall.set(null);
 
-    if (this.voiceRoomStore.directCallTarget()) {
+    if (this.voiceSessionStore.directCallTarget()) {
       await this.voiceSessionService.leaveSession();
     }
   }
@@ -290,7 +338,7 @@ export class DirectCallService {
 
       const inThisCall =
         this._activeCall()?.callId === result?.callId &&
-        this.voiceRoomStore.directCallTarget()?.callId === result?.callId;
+        this.voiceSessionStore.directCallTarget()?.callId === result?.callId;
 
       if (result && !inThisCall) {
         this._rejoinableCall.set(result);
@@ -480,7 +528,7 @@ export class DirectCallService {
         this.audioService.playCallEndSound();
         this._activeCall.set(null);
 
-        if (this.voiceRoomStore.directCallTarget()?.callId === data.callId) {
+        if (this.voiceSessionStore.directCallTarget()?.callId === data.callId) {
           void this.voiceSessionService.leaveSession();
         }
       }

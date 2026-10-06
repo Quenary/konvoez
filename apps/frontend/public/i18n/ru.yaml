@@ -10,7 +10,6 @@ GENERAL:
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
   PERMISSION_ERROR: Нет доступа к устройствам
-  MUTE: Заглушить
   EDIT: Редактировать
   DELETE: Удалить
   REPLY: Ответить
@@ -63,6 +62,8 @@ DIRECT:
 CALL:
   START_CALL: Начать звонок
   JOIN_CALL: Присоединиться
+  TO_CALL: К звонку
+  TO_CHAT: К чату
   DIRECT_CALL: Личный звонок
   INCOMING_CALL: Входящий голосовой звонок...
   CALLING: Вызов...
@@ -73,14 +74,36 @@ CALL:
   DECLINED: Звонок отклонен
   NO_ANSWER: Пользователь не отвечает
   PARTICIPANTS: 'Участников: {{count}}'
-  EXPAND: Развернуть
-  COLLAPSE: Свернуть
   YOU: Вы
   VOLUME: Громкость
+  MUTE: Заглушить
   SOUND: Звук
   SOUND_OFF: Звук выключен
-  CAMERA_SOON: Камера (скоро)
-  SCREEN_SOON: Демонстрация экрана (скоро)
+  CAMERA: Камера
+  CAMERA_ON: Включить камеру
+  CAMERA_OFF: Выключить камеру
+  CAMERA_SETTINGS: Настройки камеры
+  CAMERA_FAILED: Не удалось запустить камеру
+  START_CAMERA: Запустить камеру
+  STREAM_HEIGHT: Разрешение
+  STREAM_FPS: Частота кадров
+  SCREEN: Экран
+  SCREEN_ON: Демонстрация экрана
+  SCREEN_OFF: Остановить демонстрацию
+  SCREEN_SETTINGS: Настройки демонстрации экрана
+  SCREEN_FAILED: Не удалось начать демонстрацию экрана
+  START_SCREEN: Демонстрировать
+  WATCH_SCREEN: Начать просмотр
+  STOP_WATCH_SCREEN: Прекратить просмотр
+  WATCH_SCREEN_FAILED: Не удалось подписаться на демонстрацию
+  SCREEN_VOLUME: Громкость экрана
+  YOUR_SCREEN: Ваш экран
+  PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
+  PREVIEW_RESUME: Возобновить
+  PREVIEW_AUTO_PAUSE: Автоматическая пауза
+  EXIT_THEATRE: Закрыть театр
+  FULLSCREEN: На весь экран
+  EXIT_FULLSCREEN: Свернуть
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:

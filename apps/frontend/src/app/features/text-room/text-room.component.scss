@@ -1,62 +1,6 @@
 :host {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  gap: 1rem;
-}
-
-.room-header {
-  flex-wrap: wrap;
-  align-items: center;
-  padding: 1rem 0 0 0;
-
-  h2[tuiTitle] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .header-avatar {
-    flex-shrink: 0;
-  }
-
-  .search-textfield {
-    width: 100%;
-  }
-}
-
-.chat-drop {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  gap: 1rem;
-
-  &._drag-over .drop-overlay {
-    display: grid;
-  }
-}
-
-.drop-overlay {
-  display: none;
-  position: absolute;
-  inset: 0;
-  place-items: center;
-  background: color-mix(in srgb, var(--tui-background-base) 80%, transparent);
-  border: 2px dashed var(--tui-border-normal);
-  border-radius: 0.75rem;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.direct-voice-section {
-  width: 100%;
-  max-height: 50dvh;
-  flex-shrink: 0;
-  display: flex;
+  display: block;
   overflow: hidden;
 }

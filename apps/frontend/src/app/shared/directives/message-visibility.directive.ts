@@ -6,7 +6,7 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
-import { MessageReadQueueService } from '@features/text-room/message-read-queue.service';
+import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 
 /**
  * Tracks whether a message element has become visible in the viewport.

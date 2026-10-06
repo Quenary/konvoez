@@ -7,7 +7,7 @@ import { TuiDialogService } from '@taiga-ui/core';
 import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
 import { UsersStore } from '@features/users/users.store';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { EUserRole, IUser } from '@konvoez/shared';
 
 describe('DirectChatsComponent', () => {

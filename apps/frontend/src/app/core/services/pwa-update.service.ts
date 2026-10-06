@@ -22,6 +22,12 @@ export class PwaUpdateService {
       return;
     }
 
+    this.swUpdate.unrecoverable
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        document.location.reload();
+      });
+
     this.swUpdate.versionUpdates
       .pipe(
         filter(

@@ -1,0 +1,58 @@
+<form
+  tuiForm="m"
+  class="form"
+  (submit)="$event.preventDefault(); onConfirm()">
+  <h3>{{ titleKey() | translate }}</h3>
+
+  <label tuiLabel>
+    {{ 'CALL.STREAM_HEIGHT' | translate }}
+    <tui-textfield
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        [ngModel]="height()"
+        (ngModelChange)="height.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="heights" />
+    </tui-textfield>
+  </label>
+
+  <label tuiLabel>
+    {{ 'CALL.STREAM_FPS' | translate }}
+    <tui-textfield
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        [ngModel]="fps()"
+        (ngModelChange)="fps.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="fpsOptions" />
+    </tui-textfield>
+  </label>
+
+  <footer class="actions">
+    <button
+      tuiButton
+      type="button"
+      appearance="flat"
+      size="m"
+      (click)="onCancel()">
+      {{ 'GENERAL.CANCEL' | translate }}
+    </button>
+    <button
+      tuiButton
+      type="submit"
+      appearance="primary"
+      size="m">
+      {{ confirmKey() | translate }}
+    </button>
+  </footer>
+</form>
