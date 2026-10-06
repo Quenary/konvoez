@@ -103,7 +103,7 @@ export class ScreenWatchService {
       return;
     }
     if (available.videoProducerId === producerId) {
-      this.peerVideoService.stopWatchingLocal(userId);
+      this.release(userId);
     }
   }
 }

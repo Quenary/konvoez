@@ -110,12 +110,12 @@ describe('ScreenWatchService', () => {
     expect(consumeProducer).not.toHaveBeenCalled();
   });
 
-  it('stops only local video watch when the screen video producer closes', () => {
+  it('releases video and screen-audio when the screen video producer closes', () => {
     service.onRemoteProducerClosed(4, 'vid');
 
     expect(stopWatchingLocal).toHaveBeenCalledWith(4);
+    expect(detach).toHaveBeenCalledWith(4);
     expect(removeScreenAudio).not.toHaveBeenCalled();
-    expect(detach).not.toHaveBeenCalled();
   });
 
   it('removes screen-audio when its producer closes', () => {
