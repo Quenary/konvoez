@@ -71,3 +71,9 @@ Shared UI: `apps/frontend/src/app/shared/components/voice-room/`. Preview `<vide
 - `voice-room-grid.component.spec.ts` — grid vs theatre, focus stays or retargets
 - `voice-room-theatre.component.spec.ts` — strip selection, large tile without video
 - `voice-room-view.service.spec.ts` — open, retarget, Escape, fullscreen
+- `voice-room-controls-bar.component.spec.ts` — shared start dialog for camera and screen
+- `voice-room-theatre-watch-controls.component.spec.ts` — stop watch and screen volume
+- `voice-room-theatre-actions.component.spec.ts` — fullscreen target and close
+- `camera.service.spec.ts` — missing camera is reported, capture is not stopped there
+- `voice-room.component.spec.ts` — join once for the route room
+- `direct-call-panel.component.spec.ts` — shared participant count and hangup

@@ -55,6 +55,21 @@ describe('CameraService', () => {
     expect(service['track']).toBe(track);
   });
 
+  it('stops the captured stream on release', () => {
+    const stop = vi.fn();
+    const track = { stop, readyState: 'live' } as MediaStreamTrack;
+    service['track'] = track;
+    service['stream'] = {
+      getTracks: () => [track],
+    } as MediaStream;
+
+    service.release();
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(service['track']).toBeNull();
+    expect(service['stream']).toBeNull();
+  });
+
   it('ignores device changes while the selected camera is still present', async () => {
     service['track'] = { readyState: 'live' } as MediaStreamTrack;
     enumerateDevices.mockResolvedValue([
