@@ -7,7 +7,7 @@ import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsStore } from '@features/settings/settings.store';
 import { EAttachmentKind, IAttachment } from '@konvoez/shared';
-import { createLocalFile } from '@features/text-room/outgoing/outgoing.types';
+import { createLocalFile } from '@core/chat/outgoing/outgoing.types';
 
 describe('ChatEditorComponent', () => {
   let component: ChatEditorComponent;

@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MessageReadQueueService } from '@features/text-room/message-read-queue.service';
+import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { MessageVisibilityDirective } from './message-visibility.directive';
 
 @Component({

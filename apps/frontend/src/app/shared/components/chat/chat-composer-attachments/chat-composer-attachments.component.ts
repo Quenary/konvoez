@@ -16,7 +16,7 @@ import { EAttachmentKind } from '@konvoez/shared';
 import { FileThumbnailComponent } from '@shared/components/file-thumbnail/file-thumbnail.component';
 import { IMediaPreviewItem } from '@shared/components/media-preview/media-preview';
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
-import { ILocalFile } from '@features/text-room/outgoing/outgoing.types';
+import { ILocalFile } from '@core/chat/outgoing/outgoing.types';
 
 @Component({
   selector: 'app-chat-composer-attachments',

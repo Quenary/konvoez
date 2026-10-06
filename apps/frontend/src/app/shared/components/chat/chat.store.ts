@@ -32,14 +32,14 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
-import { TextRoomApiService } from '@features/text-room/text-room-api.service';
-import { MessageReadQueueService } from '@features/text-room/message-read-queue.service';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
-import { OutgoingMessagesStore } from '@features/text-room/outgoing/outgoing-messages.store';
+import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
+import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import {
   ILocalFile,
   IOutgoingMessage,
-} from '@features/text-room/outgoing/outgoing.types';
+} from '@core/chat/outgoing/outgoing.types';
 import {
   ChatTarget,
   chatTargetToApiIds,

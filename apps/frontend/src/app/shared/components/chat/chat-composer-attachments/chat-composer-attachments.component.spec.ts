@@ -4,7 +4,7 @@ import { EAttachmentKind } from '@konvoez/shared';
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ILocalFile } from '@features/text-room/outgoing/outgoing.types';
+import { ILocalFile } from '@core/chat/outgoing/outgoing.types';
 import { ChatComposerAttachmentsComponent } from './chat-composer-attachments.component';
 
 describe('ChatComposerAttachmentsComponent', () => {

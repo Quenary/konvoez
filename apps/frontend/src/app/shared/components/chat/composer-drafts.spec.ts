@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EAttachmentKind } from '@konvoez/shared';
 import { ComposerDraftsService, toChatKey } from './composer-drafts';
-import { ILocalFile } from '@features/text-room/outgoing/outgoing.types';
+import { ILocalFile } from '@core/chat/outgoing/outgoing.types';
 
 describe('composer drafts', () => {
   beforeEach(() => {

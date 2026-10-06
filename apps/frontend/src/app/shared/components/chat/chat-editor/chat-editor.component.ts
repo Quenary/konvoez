@@ -36,7 +36,7 @@ import {
   ILocalFile,
   revokeLocalFiles,
   withClientPoster,
-} from '@features/text-room/outgoing/outgoing.types';
+} from '@core/chat/outgoing/outgoing.types';
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 

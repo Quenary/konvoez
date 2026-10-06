@@ -20,7 +20,7 @@ import { MediaPreviewService } from '@shared/components/media-preview/media-prev
 import {
   IOutgoingMessage,
   uploadErrorKey,
-} from '@features/text-room/outgoing/outgoing.types';
+} from '@core/chat/outgoing/outgoing.types';
 
 export interface IAttachmentView {
   readonly key: string;

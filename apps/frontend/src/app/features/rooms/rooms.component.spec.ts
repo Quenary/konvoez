@@ -20,7 +20,7 @@ import {
   IActiveCall,
 } from '@core/services/direct-call.service';
 import { UsersStore } from '@features/users/users.store';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
   selectSelectedRoomId,

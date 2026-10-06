@@ -5,13 +5,13 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
 import { UsersStore } from '@features/users/users.store';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
-import { OutgoingMessagesStore } from '@features/text-room/outgoing/outgoing-messages.store';
+import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { Sanitizer, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@features/auth/auth.reducer';
-import { TextRoomApiService } from '@features/text-room/text-room-api.service';
-import { MessageReadQueueService } from '@features/text-room/message-read-queue.service';
+import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 
 describe('ChatMessagesListComponent', () => {
   let component: ChatMessagesListComponent;

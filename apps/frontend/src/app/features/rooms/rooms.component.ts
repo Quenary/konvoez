@@ -44,7 +44,7 @@ import {
   TuiBadgeNotification,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
-import { UnreadCountsStore } from '@features/text-room/unread-counts.store';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { UsersStore } from '@features/users/users.store';

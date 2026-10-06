@@ -11,10 +11,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@features/auth/auth.reducer';
 import { AuthActions } from '@features/auth/auth.actions';
 import { EUserRole, IUser } from '@konvoez/shared';
-import { TextRoomApiService } from '@features/text-room/text-room-api.service';
-import { MessageReadQueueService } from '@features/text-room/message-read-queue.service';
-import { OutgoingMessagesStore } from '@features/text-room/outgoing/outgoing-messages.store';
-import { IOutgoingMessage } from '@features/text-room/outgoing/outgoing.types';
+import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
+import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
+import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
 
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;

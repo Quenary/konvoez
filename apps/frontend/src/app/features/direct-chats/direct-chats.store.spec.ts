@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideStore } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { TextRoomApiService } from '../text-room/text-room-api.service';
+import { TextRoomApiService } from '@core/chat/text-room-api.service';
 import { DirectChatsStore } from './direct-chats.store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { EUserRole, IUser } from '@konvoez/shared';

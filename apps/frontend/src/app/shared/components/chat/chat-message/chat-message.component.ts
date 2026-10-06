@@ -33,13 +33,13 @@ import { UsersStore } from '@features/users/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
 import { MessageVisibilityDirective } from '@shared/directives/message-visibility.directive';
-import { TextRoomApiService } from '@features/text-room/text-room-api.service';
+import { TextRoomApiService } from '@core/chat/text-room-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 import { mediaFrameLimit } from '@shared/components/media-grid/media-grid.layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { ChatMessageAttachmentsComponent } from '../chat-message-attachments/chat-message-attachments.component';
-import { OutgoingMessagesStore } from '@features/text-room/outgoing/outgoing-messages.store';
+import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { EAttachmentKind } from '@konvoez/shared';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
 

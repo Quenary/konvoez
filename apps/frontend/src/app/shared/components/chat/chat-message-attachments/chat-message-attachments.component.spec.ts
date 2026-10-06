@@ -9,7 +9,7 @@ import {
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { IOutgoingMessage } from '@features/text-room/outgoing/outgoing.types';
+import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
 import { ChatMessageAttachmentsComponent } from './chat-message-attachments.component';
 
 function attachment(

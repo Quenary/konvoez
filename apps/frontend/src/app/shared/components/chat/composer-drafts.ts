@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import {
   ILocalFile,
   revokeLocalFiles,
-} from '@features/text-room/outgoing/outgoing.types';
+} from '@core/chat/outgoing/outgoing.types';
 
 export type TChatKey = `room:${number}` | `dm:${number}`;
 

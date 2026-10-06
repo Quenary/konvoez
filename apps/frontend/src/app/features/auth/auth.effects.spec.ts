@@ -22,7 +22,7 @@ import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { OutgoingMessagesStore } from '@features/text-room/outgoing/outgoing-messages.store';
+import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { UsersStore } from '@features/users/users.store';
 import { AuthApiService } from './auth-api.service';
 import { AuthEffects } from './auth.effects';
