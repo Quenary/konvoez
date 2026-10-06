@@ -1,12 +1,31 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { EVoiceSessionType, TVoiceSessionTarget } from '@konvoez/shared';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomViewService } from './voice-room-view.service';
 
 describe('VoiceRoomViewService', () => {
+  let activeSession: ReturnType<typeof signal<TVoiceSessionTarget | null>>;
+
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [VoiceRoomViewService],
+    activeSession = signal<TVoiceSessionTarget | null>({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
     });
+    TestBed.configureTestingModule({
+      providers: [
+        VoiceRoomViewService,
+        {
+          provide: VoiceRoomStore,
+          useValue: {
+            activeSession: activeSession.asReadonly(),
+          },
+        },
+      ],
+    });
+    TestBed.inject(VoiceRoomViewService);
+    TestBed.flushEffects();
   });
 
   afterEach(() => {
@@ -56,6 +75,40 @@ describe('VoiceRoomViewService', () => {
     expect(view.theatreOpen()).toBe(true);
 
     view.closeTheatre();
+    expect(view.theatreOpen()).toBe(false);
+  });
+
+  it('closes theatre when the voice session changes or ends', () => {
+    const view = TestBed.inject(VoiceRoomViewService);
+    view.openTheatre(2, 'screen');
+    expect(view.theatreOpen()).toBe(true);
+
+    activeSession.set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+    TestBed.flushEffects();
+    expect(view.theatreOpen()).toBe(true);
+
+    activeSession.set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 4,
+    });
+    TestBed.flushEffects();
+    expect(view.theatreOpen()).toBe(false);
+
+    view.openTheatre(3, null);
+    activeSession.set({
+      type: EVoiceSessionType.DIRECT_CALL,
+      callId: 'c1',
+      interlocutorId: 9,
+    });
+    TestBed.flushEffects();
+    expect(view.theatreOpen()).toBe(false);
+
+    view.openTheatre(3, 'cam');
+    activeSession.set(null);
+    TestBed.flushEffects();
     expect(view.theatreOpen()).toBe(false);
   });
 

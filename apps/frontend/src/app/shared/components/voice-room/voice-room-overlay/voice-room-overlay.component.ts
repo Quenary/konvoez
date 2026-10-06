@@ -86,7 +86,6 @@ export class VoiceRoomOverlayComponent {
   }
 
   protected async onHangup(): Promise<void> {
-    this.voiceRoomViewService.closeTheatre();
     await this.voiceLeaveService.leaveActiveVoice();
     this.left.emit();
   }

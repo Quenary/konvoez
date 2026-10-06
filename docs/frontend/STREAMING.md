@@ -47,7 +47,7 @@ The stage shows a `<video>` when the focused tile has a track, otherwise a large
 
 The strip (`voice-room-tile-mini`) sits on the bottom or the right (`preferTheatreStripRight`, container aspect vs stream aspect). Clicking a mini-tile selects it. There is no automatic switch to whoever is speaking.
 
-Stop watching, or the other peer ending the stream, does not close theatre. If that tile still exists, focus stays on it (without a track the stage is the large tile). If that stream tile is gone, focus moves to the same peer's remaining tile, otherwise the first tile in the list. An empty room stays in theatre with an empty stage. Close is explicit: the close button, Escape when not fullscreen, or hangup.
+Stop watching, or the other peer ending the stream, does not close theatre. If that tile still exists, focus stays on it (without a track the stage is the large tile). If that stream tile is gone, focus moves to the same peer's remaining tile, otherwise the first tile in the list. An empty room stays in theatre with an empty stage. Close is the close button or Escape when not fullscreen. Leaving the voice session also closes it: hangup (including the direct-call panel), sidebar leave, the remote side ending the call, logout, and switching rooms. The next session starts in the grid.
 
 ## Chrome
 

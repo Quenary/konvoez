@@ -2,10 +2,13 @@ import {
   DestroyRef,
   Injectable,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { getVoiceSessionKey } from '@konvoez/shared';
+import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { fromEvent } from 'rxjs';
 import { VoiceChromeReveal } from './voice-chrome-reveal';
 import type { TVoiceStreamKind } from './voice-room-tiles';
@@ -18,11 +21,14 @@ export type TTheatreFocus = {
 @Injectable({ providedIn: 'root' })
 export class VoiceRoomViewService {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly voiceRoomStore = inject(VoiceRoomStore);
 
   private readonly chrome = new VoiceChromeReveal(true);
   private readonly focus = signal<TTheatreFocus | null>(null);
   private readonly fullscreen = signal(false);
   private hostEl: HTMLElement | null = null;
+  /** Undefined until the first session read, so construction does not count as a change. */
+  private sessionKey: string | null | undefined = undefined;
 
   public readonly chromeVisible = this.chrome.visible.asReadonly();
   public readonly theatreFocus = this.focus.asReadonly();
@@ -35,6 +41,20 @@ export class VoiceRoomViewService {
 
   constructor() {
     this.destroyRef.onDestroy(() => this.chrome.destroy());
+
+    effect(() => {
+      const session = this.voiceRoomStore.activeSession();
+      const key = session ? getVoiceSessionKey(session) : null;
+      if (this.sessionKey === undefined) {
+        this.sessionKey = key;
+        return;
+      }
+      if (this.sessionKey === key) {
+        return;
+      }
+      this.sessionKey = key;
+      this.closeTheatre();
+    });
 
     fromEvent(document, 'fullscreenchange')
       .pipe(takeUntilDestroyed(this.destroyRef))
