@@ -16,6 +16,7 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { preferTheatreStripRight } from '../voice-peers-layout';
 import { VoiceChromeReveal } from '../voice-chrome-reveal';
+import type { TVoiceOverlayContext } from '../voice-overlay-slot.directive';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomTheatreActionsComponent } from '../voice-room-theatre-actions/voice-room-theatre-actions.component';
 import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
@@ -49,7 +50,9 @@ export class VoiceRoomTheatreComponent {
 
   public readonly focusTile = input<TVoiceRoomTile | null>(null);
   public readonly stripTiles = input.required<readonly TVoiceRoomTile[]>();
-  public readonly overlay = input<TemplateRef<void> | null>(null);
+  public readonly overlay = input<TemplateRef<TVoiceOverlayContext> | null>(
+    null,
+  );
   public readonly showLocalChrome = input(false);
 
   public readonly watchScreen = output<number>();

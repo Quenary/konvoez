@@ -57,11 +57,14 @@ describe('CameraService', () => {
 
   it('stops the captured stream on release', () => {
     const stop = vi.fn();
-    const track = { stop, readyState: 'live' } as MediaStreamTrack;
+    const track = {
+      stop,
+      readyState: 'live',
+    } as unknown as MediaStreamTrack;
     service['track'] = track;
     service['stream'] = {
       getTracks: () => [track],
-    } as MediaStream;
+    } as unknown as MediaStream;
 
     service.release();
 
