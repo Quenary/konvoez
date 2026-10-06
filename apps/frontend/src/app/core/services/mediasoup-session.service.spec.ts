@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
@@ -12,9 +13,15 @@ import { MediasoupSessionService } from './mediasoup-session.service';
 describe('MediasoupSessionService', () => {
   let service: MediasoupSessionService;
   let getStream: ReturnType<typeof vi.fn>;
+  let releaseCamera: ReturnType<typeof vi.fn>;
+  let setLocalCamTrack: ReturnType<typeof vi.fn>;
+  let deviceLost$: Subject<void>;
 
   beforeEach(() => {
     getStream = vi.fn();
+    releaseCamera = vi.fn();
+    setLocalCamTrack = vi.fn();
+    deviceLost$ = new Subject<void>();
     TestBed.configureTestingModule({
       providers: [
         MediasoupSessionService,
@@ -41,7 +48,7 @@ describe('MediasoupSessionService', () => {
           useValue: {
             attach: vi.fn(),
             clear: vi.fn(),
-            setLocalCamTrack: vi.fn(),
+            setLocalCamTrack,
             setLocalScreenTrack: vi.fn(),
             registerAvailableScreen: vi.fn(),
             unregisterAvailableScreenProducer: vi.fn(),
@@ -54,7 +61,8 @@ describe('MediasoupSessionService', () => {
           provide: CameraService,
           useValue: {
             getTrack: vi.fn(),
-            release: vi.fn(),
+            release: releaseCamera,
+            deviceLost$: deviceLost$.asObservable(),
           },
         },
         {
@@ -76,6 +84,15 @@ describe('MediasoupSessionService', () => {
       ],
     });
     service = TestBed.inject(MediasoupSessionService);
+  });
+
+  it('stops the camera when its device disappears', async () => {
+    deviceLost$.next();
+
+    await vi.waitFor(() => {
+      expect(releaseCamera).toHaveBeenCalledTimes(1);
+    });
+    expect(setLocalCamTrack).toHaveBeenCalledWith(null);
   });
 
   it('clears pending consumes', () => {

@@ -6,6 +6,7 @@ import {
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
 import { SettingsStore } from '@features/settings/settings.store';
+import { Observable, Subject } from 'rxjs';
 
 /**
  * Local webcam capture with height/FPS constraints from local settings.
@@ -22,6 +23,10 @@ export class CameraService implements OnDestroy {
   private stream: MediaStream | null = null;
   private readonly _track = signal<MediaStreamTrack | null>(null);
   public readonly track = this._track.asReadonly();
+  private readonly deviceLostSubject = new Subject<void>();
+  /** Selected camera disappeared. Capture stays live until the session stops it. */
+  public readonly deviceLost$: Observable<void> =
+    this.deviceLostSubject.asObservable();
 
   private readonly onDeviceChange = (): void => {
     void this.handleDeviceChange();
@@ -39,6 +44,7 @@ export class CameraService implements OnDestroy {
       'devicechange',
       this.onDeviceChange,
     );
+    this.deviceLostSubject.complete();
     this.release();
   }
 
@@ -124,7 +130,7 @@ export class CameraService implements OnDestroy {
       (item) => item.kind === 'videoinput' && item.deviceId === device.deviceId,
     );
     if (!stillPresent) {
-      this.release();
+      this.deviceLostSubject.next();
     }
   }
 }

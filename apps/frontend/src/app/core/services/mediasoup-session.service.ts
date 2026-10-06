@@ -1,4 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   EVoiceRoomEvent,
   IVoiceRoomCloseProducer,
@@ -73,6 +74,12 @@ export class MediasoupSessionService {
 
   private get settingsStore(): InstanceType<typeof SettingsStore> {
     return this.injector.get(SettingsStore);
+  }
+
+  constructor() {
+    this.cameraService.deviceLost$.pipe(takeUntilDestroyed()).subscribe(() => {
+      void this.stopCamera();
+    });
   }
 
   public setMicrophoneMuted(muted: boolean): void {
