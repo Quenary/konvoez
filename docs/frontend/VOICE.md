@@ -70,7 +70,7 @@ Capture, playback, and UI SFX each use their own `AudioContext`. Auto-resume aft
 | Hangup / leave button                         | `VoiceLeaveService.leaveActiveVoice()`                     |
 | Settings input/output devices                 | `AUDIO_DEVICE_HANDLER` → `VoiceSessionService`             |
 | Speaking indicator                            | `AudioActivityService.speakingMap`                         |
-| Cam / screen tracks, watch set                | `PeerVideoService`                                         |
+| Cam / screen tracks, watch set                | `PeerVideoService` (video consumers: `ConsumerRegistry`)   |
 | Screen-audio playback                         | `PeerScreenAudioService`                                   |
 | Watch / stop screen                           | `VoiceSessionService`                                      |
 | Theatre focus, chrome, fullscreen             | `VoiceRoomViewService`                                     |

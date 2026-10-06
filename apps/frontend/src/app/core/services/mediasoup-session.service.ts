@@ -28,8 +28,8 @@ import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
+import { ConsumerRegistry } from './consumer-registry';
 import { PeerVideoService } from './peer-video.service';
-import { ScreenWatchService } from './screen-watch.service';
 
 export interface IConsumePeerContext {
   gain: number;
@@ -52,6 +52,7 @@ export class MediasoupSessionService {
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly peerScreenAudioService = inject(PeerScreenAudioService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly consumerRegistry = inject(ConsumerRegistry);
 
   private readonly sessionMutex = new Mutex();
   private readonly microphoneMutex = new Mutex();
@@ -72,10 +73,6 @@ export class MediasoupSessionService {
 
   private get settingsStore(): InstanceType<typeof SettingsStore> {
     return this.injector.get(SettingsStore);
-  }
-
-  private get screenWatchService(): ScreenWatchService {
-    return this.injector.get(ScreenWatchService);
   }
 
   public setMicrophoneMuted(muted: boolean): void {
@@ -104,7 +101,6 @@ export class MediasoupSessionService {
     this.screenAudioProducer = null;
     this.sendTransport = null;
     this.recvTransport = null;
-    this.screenWatchService.clear();
     this.peerVideoService.clear();
     this.peerScreenAudioService.clear();
     this.cameraService.release();
@@ -384,9 +380,6 @@ export class MediasoupSessionService {
 
   public handleConsumerClosed(consumerId: string): void {
     this.peerVideoService.removeByConsumerId(consumerId);
-    if (this.screenWatchService.onConsumerClosed(consumerId)) {
-      return;
-    }
     this.peerScreenAudioService.detachByConsumerId(consumerId);
   }
 
@@ -588,13 +581,18 @@ export class MediasoupSessionService {
       );
 
       if (data.mediaTag === 'screen') {
-        this.peerVideoService.attach(data.userId, consumer, 'screen');
+        this.consumerRegistry.add(consumer);
+        this.peerVideoService.attach(data.userId, {
+          producerId: consumer.producerId,
+          consumerId: consumer.id,
+          track: consumer.track,
+          mediaTag: 'screen',
+        });
         consumer.resume();
         return;
       }
 
       if (data.mediaTag === 'screen-audio') {
-        this.screenWatchService.rememberAudioConsumer(data.userId, consumer);
         await this.peerScreenAudioService.attach(data.userId, consumer, {
           gain: options?.screenGain ?? 1,
           speakerMuted: peer.speakerMuted,
@@ -604,7 +602,13 @@ export class MediasoupSessionService {
       }
 
       if (data.kind === 'video' || data.mediaTag === 'cam') {
-        this.peerVideoService.attach(data.userId, consumer, 'cam');
+        this.consumerRegistry.add(consumer);
+        this.peerVideoService.attach(data.userId, {
+          producerId: consumer.producerId,
+          consumerId: consumer.id,
+          track: consumer.track,
+          mediaTag: 'cam',
+        });
         consumer.resume();
         return;
       }

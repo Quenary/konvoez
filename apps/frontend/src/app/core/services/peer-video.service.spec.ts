@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConsumerRegistry } from './consumer-registry';
 import { PeerVideoService } from './peer-video.service';
 
 describe('PeerVideoService', () => {
@@ -23,19 +24,14 @@ describe('PeerVideoService', () => {
   });
 
   it('exposes cam and screen remote tracks separately', () => {
-    const close = vi.fn();
     const camTrack = { id: 'cam' } as MediaStreamTrack;
     const screenTrack = { id: 'screen' } as MediaStreamTrack;
-    service.attach(
-      7,
-      {
-        producerId: 'cam1',
-        track: camTrack,
-        closed: false,
-        close,
-      } as never,
-      'cam',
-    );
+    service.attach(7, {
+      producerId: 'cam1',
+      consumerId: 'c-cam',
+      track: camTrack,
+      mediaTag: 'cam',
+    });
     expect(service.remoteCamTracks()[7]).toBe(camTrack);
     expect(service.remoteScreenTracks()[7]).toBeUndefined();
 
@@ -46,17 +42,12 @@ describe('PeerVideoService', () => {
       audioProducerId: 'aud1',
     });
 
-    service.attach(
-      7,
-      {
-        producerId: 'scr1',
-        track: screenTrack,
-        closed: false,
-        close,
-        id: 'c-scr',
-      } as never,
-      'screen',
-    );
+    service.attach(7, {
+      producerId: 'scr1',
+      consumerId: 'c-scr',
+      track: screenTrack,
+      mediaTag: 'screen',
+    });
     expect(service.isWatching(7)).toBe(true);
     expect(service.remoteCamTracks()[7]).toBe(camTrack);
     expect(service.remoteScreenTracks()[7]).toBe(screenTrack);
@@ -68,5 +59,30 @@ describe('PeerVideoService', () => {
     service.unregisterAvailableScreenProducer(3, 'p1');
     expect(service.availableScreens()[3]).toBeUndefined();
     expect(service.isWatching(3)).toBe(false);
+  });
+
+  it('closes a replaced video consumer through the registry', () => {
+    const close = vi.fn();
+    const registry = TestBed.inject(ConsumerRegistry);
+    registry.add({
+      id: 'c-old',
+      closed: false,
+      close,
+    } as never);
+    const track = { id: 'cam' } as MediaStreamTrack;
+    service.attach(4, {
+      producerId: 'old',
+      consumerId: 'c-old',
+      track,
+      mediaTag: 'cam',
+    });
+    service.attach(4, {
+      producerId: 'new',
+      consumerId: 'c-new',
+      track,
+      mediaTag: 'cam',
+    });
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(registry.get('c-old')).toBeUndefined();
   });
 });

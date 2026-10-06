@@ -1,10 +1,17 @@
-import { Injectable, computed, signal } from '@angular/core';
-import type { Consumer } from 'mediasoup-client/types';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { ConsumerRegistry } from './consumer-registry';
 
 type TRemoteVideo = {
   producerId: string;
+  consumerId: string;
   track: MediaStreamTrack;
-  consumer: Consumer;
+  mediaTag: 'cam' | 'screen';
+};
+
+export type TRemoteVideoAttach = {
+  producerId: string;
+  consumerId: string;
+  track: MediaStreamTrack;
   mediaTag: 'cam' | 'screen';
 };
 
@@ -31,6 +38,8 @@ const omitPeer = <T>(
  */
 @Injectable({ providedIn: 'root' })
 export class PeerVideoService {
+  private readonly consumerRegistry = inject(ConsumerRegistry);
+
   private readonly _localCamTrack = signal<MediaStreamTrack | null>(null);
   private readonly _localScreenTrack = signal<MediaStreamTrack | null>(null);
   public readonly localCamTrack = this._localCamTrack.asReadonly();
@@ -144,28 +153,20 @@ export class PeerVideoService {
     return this._watching().has(userId);
   }
 
-  public attach(
-    userId: number,
-    consumer: Consumer,
-    mediaTag: 'cam' | 'screen' = 'cam',
-  ): void {
-    const target = mediaTag === 'screen' ? this._remoteScreen : this._remoteCam;
+  public attach(userId: number, entry: TRemoteVideoAttach): void {
+    const target =
+      entry.mediaTag === 'screen' ? this._remoteScreen : this._remoteCam;
     const previous = target()[userId];
-    if (previous && previous.producerId !== consumer.producerId) {
-      previous.consumer.close();
+    if (previous && previous.producerId !== entry.producerId) {
+      this.consumerRegistry.close(previous.consumerId);
     }
 
     target.set({
       ...target(),
-      [userId]: {
-        producerId: consumer.producerId,
-        track: consumer.track,
-        consumer,
-        mediaTag,
-      },
+      [userId]: entry,
     });
 
-    if (mediaTag === 'screen') {
+    if (entry.mediaTag === 'screen') {
       this.setWatching(userId, true);
     }
   }
@@ -176,9 +177,7 @@ export class PeerVideoService {
       if (!entry || entry.producerId !== producerId) {
         continue;
       }
-      if (!entry.consumer.closed) {
-        entry.consumer.close();
-      }
+      this.consumerRegistry.close(entry.consumerId);
       target.set(omitPeer(target(), userId));
       if (entry.mediaTag === 'screen') {
         this.setWatching(userId, false);
@@ -193,9 +192,7 @@ export class PeerVideoService {
       if (!entry) {
         continue;
       }
-      if (!entry.consumer.closed) {
-        entry.consumer.close();
-      }
+      this.consumerRegistry.close(entry.consumerId);
       target.set(omitPeer(target(), userId));
     }
     this._availableScreens.set(omitPeer(this._availableScreens(), userId));
@@ -203,13 +200,13 @@ export class PeerVideoService {
   }
 
   public getScreenConsumerId(userId: number): string | null {
-    return this._remoteScreen()[userId]?.consumer.id ?? null;
+    return this._remoteScreen()[userId]?.consumerId ?? null;
   }
 
   public removeByConsumerId(consumerId: string): void {
     for (const target of [this._remoteCam, this._remoteScreen] as const) {
       for (const [userId, entry] of Object.entries(target())) {
-        if (entry.consumer.id !== consumerId) {
+        if (entry.consumerId !== consumerId) {
           continue;
         }
         this.remove(Number(userId), entry.producerId);
@@ -221,9 +218,7 @@ export class PeerVideoService {
   public stopWatchingLocal(userId: number): void {
     const entry = this._remoteScreen()[userId];
     if (entry) {
-      if (!entry.consumer.closed) {
-        entry.consumer.close();
-      }
+      this.consumerRegistry.close(entry.consumerId);
       this._remoteScreen.set(omitPeer(this._remoteScreen(), userId));
     }
     this.setWatching(userId, false);
@@ -232,9 +227,7 @@ export class PeerVideoService {
   public clear(): void {
     for (const record of [this._remoteCam(), this._remoteScreen()]) {
       for (const entry of Object.values(record)) {
-        if (!entry.consumer.closed) {
-          entry.consumer.close();
-        }
+        this.consumerRegistry.close(entry.consumerId);
       }
     }
     this._remoteCam.set(emptyPeerRecord());

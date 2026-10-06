@@ -1,14 +1,13 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { EVoiceRoomEvent, IVoiceRoomCloseConsumer } from '@konvoez/shared';
-import type { Consumer } from 'mediasoup-client/types';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { PeerVideoService } from './peer-video.service';
 
 /**
- * Opt-in screen watch: which peers are being watched and their screen-audio
- * consumers. MediasoupSessionService still opens the recv transport.
+ * Opt-in screen watch. Screen-audio consumers stay in PeerScreenAudioService.
+ * MediasoupSessionService still opens the recv transport.
  */
 @Injectable({ providedIn: 'root' })
 export class ScreenWatchService {
@@ -16,9 +15,6 @@ export class ScreenWatchService {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly peerScreenAudioService = inject(PeerScreenAudioService);
-
-  /** Screen-audio consumers by remote user id, so stop-watching can close them. */
-  private readonly screenAudioConsumers = new Map<number, Consumer>();
 
   private get mediasoupSessionService(): MediasoupSessionService {
     return this.injector.get(MediasoupSessionService);
@@ -73,9 +69,7 @@ export class ScreenWatchService {
     if (videoId) {
       consumerIds.push(videoId);
     }
-    const audioId =
-      this.screenAudioConsumers.get(userId)?.id ??
-      this.peerScreenAudioService.getConsumerId(userId);
+    const audioId = this.peerScreenAudioService.getConsumerId(userId);
     if (audioId) {
       consumerIds.push(audioId);
     }
@@ -93,45 +87,16 @@ export class ScreenWatchService {
     this.release(userId);
   }
 
-  public rememberAudioConsumer(userId: number, consumer: Consumer): void {
-    const previous = this.screenAudioConsumers.get(userId);
-    if (previous && previous !== consumer && !previous.closed) {
-      previous.close();
-    }
-    this.screenAudioConsumers.set(userId, consumer);
-  }
-
   public release(userId: number): void {
     this.peerVideoService.stopWatchingLocal(userId);
-    this.screenAudioConsumers.delete(userId);
     this.peerScreenAudioService.detach(userId);
   }
 
   public onRemoteProducerClosed(userId: number, producerId: string): void {
     this.peerScreenAudioService.remove(userId, producerId);
-    const audioConsumer = this.screenAudioConsumers.get(userId);
-    if (audioConsumer?.producerId === producerId) {
-      this.screenAudioConsumers.delete(userId);
-    }
     const available = this.peerVideoService.availableScreens()[userId];
     if (available?.videoProducerId === producerId) {
       this.release(userId);
     }
-  }
-
-  public onConsumerClosed(consumerId: string): boolean {
-    for (const [userId, consumer] of this.screenAudioConsumers) {
-      if (consumer.id !== consumerId) {
-        continue;
-      }
-      this.screenAudioConsumers.delete(userId);
-      this.peerScreenAudioService.detach(userId);
-      return true;
-    }
-    return false;
-  }
-
-  public clear(): void {
-    this.screenAudioConsumers.clear();
   }
 }

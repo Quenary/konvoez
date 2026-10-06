@@ -22,8 +22,9 @@ The screen button is hidden when `getDisplayMedia` is missing.
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `MediasoupSessionService`                | Device, transports, and produce/consume. Shared transport setup, VP8 pick, and video produce for cam and screen.  |
 | `ScreenWatchService`                     | Opt-in screen watch: start, stop, and teardown.                                                                   |
+| `ConsumerRegistry`                       | Owns video consumers. Peer video state keeps the track and ids.                                                   |
 | `PeerVideoService`                       | Local and remote cam and screen tracks, `availableScreens`, `watchingUserIds`. Cam and screen stay separate.      |
-| `PeerScreenAudioService`                 | Screen-audio graphs and gain. Not mixed into mic playback.                                                        |
+| `PeerScreenAudioService`                 | Sole owner of screen-audio consumers, graphs, and gain. Not mixed into mic playback.                              |
 | `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`.                                                                               |
 | `VoiceSessionService`                    | `watchPeerScreen` / `stopWatchingPeerScreen`.                                                                     |
 | `LocalScreenPreviewService`              | Shared pause flag for the local screen preview.                                                                   |
