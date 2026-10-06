@@ -1,4 +1,4 @@
-import { Injectable, Injector, OnDestroy, inject, signal } from '@angular/core';
+import { Injectable, Injector, OnDestroy, inject } from '@angular/core';
 import {
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
@@ -21,8 +21,7 @@ export class CameraService implements OnDestroy {
   }
 
   private stream: MediaStream | null = null;
-  private readonly _track = signal<MediaStreamTrack | null>(null);
-  public readonly track = this._track.asReadonly();
+  private track: MediaStreamTrack | null = null;
   private readonly deviceLostSubject = new Subject<void>();
   /** Selected camera disappeared. Capture stays live until the session stops it. */
   public readonly deviceLost$: Observable<void> =
@@ -98,19 +97,19 @@ export class CameraService implements OnDestroy {
     }
 
     this.stream = stream;
-    this._track.set(track);
+    this.track = track;
     track.addEventListener('ended', () => {
-      if (this._track() === track) {
+      if (this.track === track) {
         this.stream = null;
-        this._track.set(null);
+        this.track = null;
       }
     });
     return track;
   }
 
   public release(): void {
-    const track = this._track();
-    this._track.set(null);
+    const track = this.track;
+    this.track = null;
     if (this.stream) {
       this.stream.getTracks().forEach((t) => t.stop());
       this.stream = null;
@@ -120,7 +119,7 @@ export class CameraService implements OnDestroy {
   }
 
   private async handleDeviceChange(): Promise<void> {
-    const current = this._track();
+    const current = this.track;
     const device = this.settingsStore.videoInput();
     if (!current || !device) {
       return;
