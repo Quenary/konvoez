@@ -18,11 +18,9 @@ import { VoiceRoomGridComponent } from '@shared/components/voice-room/voice-room
 import { VoiceRoomOverlayComponent } from '@shared/components/voice-room/voice-room-overlay/voice-room-overlay.component';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { resolveVoiceSessionPeers } from '@shared/components/voice-room/voice-session-peers';
+import { VoiceSessionPeersService } from '@shared/components/voice-room/voice-session-peers.service';
 import { VoiceRoomViewService } from '@shared/components/voice-room/voice-room-view.service';
 import { VoiceOverlaySlotDirective } from '@shared/components/voice-room/voice-overlay-slot.directive';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { EVoiceSessionType } from '@konvoez/shared';
 
 @Component({
@@ -46,7 +44,7 @@ export class VoiceRoomComponent {
   private readonly store = inject(Store);
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly directCallService = inject(DirectCallService);
+  private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
@@ -67,20 +65,9 @@ export class VoiceRoomComponent {
     return roomsDict[id] ?? null;
   });
 
-  protected readonly participantsCount = computed(() => {
-    const isCalling = this.directCallService.isCalling();
-    const isIncoming = this.directCallService.isIncoming();
-    return resolveVoiceSessionPeers({
-      me: this.currentUser(),
-      remotePeers: this.voiceRoomStore.peersList(),
-      session: this.voiceRoomStore.activeSession(),
-      isRinging: isCalling || isIncoming,
-      interlocutor: this.directCallService.interlocutor(),
-    }).length;
-  });
+  protected readonly participantsCount = this.voiceSessionPeersService.count;
 
   private readonly roomsDict = this.store.selectSignal(selectRoomsDict);
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private readonly roomId = toSignal(
     this.route.paramMap.pipe(map((params) => Number(params.get('id')))),
   );

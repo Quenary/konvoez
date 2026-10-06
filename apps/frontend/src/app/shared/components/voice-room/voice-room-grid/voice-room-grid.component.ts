@@ -8,9 +8,7 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { Store } from '@ngrx/store';
@@ -21,7 +19,7 @@ import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-thea
 import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceOverlaySlotDirective } from '../voice-overlay-slot.directive';
-import { resolveVoiceSessionPeers } from '../voice-session-peers';
+import { VoiceSessionPeersService } from '../voice-session-peers.service';
 import { voiceSectionGridClass } from '../voice-peers-layout';
 import {
   buildVoiceRoomTiles,
@@ -51,10 +49,9 @@ import { TuiNotificationService } from '@taiga-ui/core';
 })
 export class VoiceRoomGridComponent {
   private readonly store = inject(Store);
-  private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
-  private readonly directCallService = inject(DirectCallService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly translateService = inject(TranslateService);
@@ -68,22 +65,7 @@ export class VoiceRoomGridComponent {
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  protected readonly peers = computed(() => {
-    const me = this.currentUser();
-    const remotePeers = this.voiceRoomStore.peersList();
-    const session = this.voiceRoomStore.activeSession();
-    const interlocutor = this.directCallService.interlocutor();
-    const isCalling = this.directCallService.isCalling();
-    const isIncoming = this.directCallService.isIncoming();
-    const isRinging = isCalling || isIncoming;
-    return resolveVoiceSessionPeers({
-      me,
-      remotePeers,
-      session,
-      isRinging,
-      interlocutor,
-    });
-  });
+  protected readonly peers = this.voiceSessionPeersService.peers;
 
   protected readonly tiles = computed(() => {
     const me = this.currentUser();
