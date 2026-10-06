@@ -111,13 +111,18 @@ export function findVoiceRoomTile(
   );
 }
 
+const isRemoteTile = (
+  tile: TVoiceRoomTile,
+  localUserId: number | null,
+): boolean => localUserId == null || tile.peerId !== localUserId;
+
 /**
  * Theatre display target. Keeps the focused tile when it still exists.
- * Otherwise that peer's other tile (their camera, or the regular voice tile
- * after a screen share ends), then the first remote tile that has video,
- * then any other remote tile, then the remaining tile (yourself).
- * Returns null only when the room has no tiles; the caller keeps theatre open.
- * This does not change the stored focus.
+ * When that stream is gone, switches to an active remote stream: a watched
+ * screen first, then any other remote tile that has video. A regular tile
+ * is used only when nothing is streaming, and a remote one comes before
+ * yourself. Returns null only when the room has no tiles; the caller keeps
+ * theatre open. This does not change the stored focus.
  */
 export function resolveTheatreTile(
   focus: { peerId: number; stream: TVoiceStreamKind | null } | null,
@@ -131,17 +136,23 @@ export function resolveTheatreTile(
   if (exact) {
     return exact;
   }
-  const samePeer = tiles.find((tile) => tile.peerId === focus.peerId);
-  if (samePeer) {
-    return samePeer;
+  const watchedScreen = tiles.find(
+    (tile) =>
+      isRemoteTile(tile, localUserId) &&
+      tile.streamKind === 'screen' &&
+      tile.watchingScreen &&
+      tile.videoTrack != null,
+  );
+  if (watchedScreen) {
+    return watchedScreen;
   }
   const remoteWithVideo = tiles.find(
-    (tile) => tile.peerId !== localUserId && tile.videoTrack != null,
+    (tile) => isRemoteTile(tile, localUserId) && tile.videoTrack != null,
   );
   if (remoteWithVideo) {
     return remoteWithVideo;
   }
-  const remote = tiles.find((tile) => tile.peerId !== localUserId);
+  const remote = tiles.find((tile) => isRemoteTile(tile, localUserId));
   if (remote) {
     return remote;
   }
