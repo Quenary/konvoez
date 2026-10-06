@@ -100,6 +100,7 @@ CALL:
   PREVIEW_RESUME: Resume
   PREVIEW_AUTO_PAUSE: Auto-pause
   OPEN_THEATRE: Open theatre
+  OPEN_THEATRE_TILE: Open theatre
   EXIT_THEATRE: Exit theatre
   FULLSCREEN: Fullscreen
   EXIT_FULLSCREEN: Exit fullscreen

@@ -100,6 +100,7 @@ CALL:
   PREVIEW_RESUME: Возобновить
   PREVIEW_AUTO_PAUSE: Автоматическая пауза
   OPEN_THEATRE: Театр
+  OPEN_THEATRE_TILE: Открыть театр
   EXIT_THEATRE: Закрыть театр
   FULLSCREEN: На весь экран
   EXIT_FULLSCREEN: Свернуть

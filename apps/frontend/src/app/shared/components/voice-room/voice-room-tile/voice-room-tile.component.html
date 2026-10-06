@@ -13,7 +13,14 @@
       autoplay
       playsinline
       muted
-      (click)="onVideoActivate()"></video>
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="'CALL.OPEN_THEATRE_TILE' | translate"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.OPEN_THEATRE_TILE' | translate"
+      (click)="onVideoActivate()"
+      (keydown.enter)="onVideoActivate()"
+      (keydown.space)="$event.preventDefault(); onVideoActivate()"></video>
   } @else if (isLocalScreenPreview() && previewPaused()) {
     <div class="preview-paused-overlay">
       <p class="preview-paused-text">{{ 'CALL.PREVIEW_PAUSED' | translate }}</p>
@@ -30,6 +37,9 @@
       class="idle-media"
       role="button"
       tabindex="0"
+      [attr.aria-label]="'CALL.OPEN_THEATRE_TILE' | translate"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.OPEN_THEATRE_TILE' | translate"
       (click)="onOpenTheatreClick()"
       (keydown.enter)="onOpenTheatreClick()"
       (keydown.space)="$event.preventDefault(); onOpenTheatreClick()">

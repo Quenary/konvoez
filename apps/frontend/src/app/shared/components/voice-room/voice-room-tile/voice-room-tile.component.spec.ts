@@ -173,6 +173,27 @@ describe('VoiceRoomTileComponent', () => {
     expect(setScreenPreviewAutoPauseWhenHidden).toHaveBeenCalledWith(false);
   });
 
+  it('labels the tile as opening theatre', () => {
+    const fixture = create('cam');
+    const video = fixture.nativeElement.querySelector(
+      'video',
+    ) as HTMLVideoElement;
+    expect(video.getAttribute('aria-label')).toBe('CALL.OPEN_THEATRE_TILE');
+
+    fixture.componentRef.setInput('peer', {
+      id: 1,
+      username: 'u1',
+      fullname: 'User 1',
+    } as IUser);
+    fixture.componentRef.setInput('videoTrack', null);
+    fixture.componentRef.setInput('streamKind', null);
+    fixture.detectChanges();
+    const idle = fixture.nativeElement.querySelector(
+      '.idle-media',
+    ) as HTMLElement;
+    expect(idle.getAttribute('aria-label')).toBe('CALL.OPEN_THEATRE_TILE');
+  });
+
   it('keeps the pause when the tile is created again', () => {
     vi.useFakeTimers();
     const fixture = create('screen');
