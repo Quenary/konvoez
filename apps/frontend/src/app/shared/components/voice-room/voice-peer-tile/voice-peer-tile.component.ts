@@ -57,6 +57,8 @@ export class VoicePeerTileComponent {
   public readonly screenAvailable = input(false);
   public readonly watchingScreen = input(false);
   public readonly showingScreen = input(false);
+  /** Screen share is live (available), even before watch — Discord-style LIVE. */
+  public readonly screenLive = input(false);
 
   public readonly watchScreen = output<void>();
   public readonly stopWatchScreen = output<void>();
@@ -138,12 +140,16 @@ export class VoicePeerTileComponent {
     return '@tui.volume-2';
   });
 
+  protected readonly showStreamRow = computed(
+    () => !this.isLocal() && this.screenAvailable(),
+  );
+
   protected readonly showWatchButton = computed(
-    () => !this.isLocal() && this.screenAvailable() && !this.watchingScreen(),
+    () => this.showStreamRow() && !this.watchingScreen(),
   );
 
   protected readonly showStopWatchButton = computed(
-    () => !this.isLocal() && this.watchingScreen(),
+    () => this.showStreamRow() && this.watchingScreen(),
   );
 
   protected onVolumeChange(value: number): void {

@@ -69,24 +69,32 @@ export class VoicePeersGridComponent {
 
   protected readonly videoTracksByPeerId = computed(() => {
     const me = this.currentUser();
-    const localTrack = this.peerVideoService.localTrack();
+    const localCam = this.peerVideoService.localCamTrack();
     const remoteTracks = this.peerVideoService.remoteTracks();
     const map = new Map<number, MediaStreamTrack | null>();
     for (const peer of this.peers()) {
       const isLocal = Boolean(me && me.id === peer.id);
       map.set(
         peer.id,
-        isLocal ? localTrack : (remoteTracks.get(peer.id) ?? null),
+        isLocal ? localCam : (remoteTracks.get(peer.id) ?? null),
       );
     }
     return map;
   });
 
   protected readonly screenAvailableByPeerId = computed(() => {
+    const me = this.currentUser();
     const available = this.peerVideoService.availableScreens();
+    const localScreen = this.peerVideoService.localScreenTrack();
     const map = new Map<number, boolean>();
     for (const peer of this.peers()) {
-      map.set(peer.id, Boolean(available.get(peer.id)?.videoProducerId));
+      const isLocal = Boolean(me && me.id === peer.id);
+      map.set(
+        peer.id,
+        isLocal
+          ? localScreen !== null
+          : Boolean(available.get(peer.id)?.videoProducerId),
+      );
     }
     return map;
   });
@@ -100,17 +108,21 @@ export class VoicePeersGridComponent {
     return map;
   });
 
-  /** True when the displayed track is a screen share (local screen or watching). */
+  /** True when the tile video is a watched remote screen (local screen is PiP). */
   protected readonly showingScreenByPeerId = computed(() => {
     const me = this.currentUser();
-    const localScreen = this.peerVideoService.localScreenTrack();
     const watching = this.peerVideoService.watchingUserIds();
     const map = new Map<number, boolean>();
     for (const peer of this.peers()) {
       const isLocal = Boolean(me && me.id === peer.id);
-      map.set(peer.id, isLocal ? localScreen !== null : watching.has(peer.id));
+      map.set(peer.id, !isLocal && watching.has(peer.id));
     }
     return map;
+  });
+
+  /** LIVE badge: screen share present, even before watch. */
+  protected readonly screenLiveByPeerId = computed(() => {
+    return this.screenAvailableByPeerId();
   });
 
   protected async onWatchScreen(userId: number): Promise<void> {
