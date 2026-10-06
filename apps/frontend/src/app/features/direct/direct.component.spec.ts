@@ -113,24 +113,44 @@ describe('DirectComponent', () => {
     expect(mockDirectCallService.refreshActiveCall).toHaveBeenCalledWith(99);
   });
 
-  it('defaults to chat view', () => {
+  const queryChat = (): Element | null =>
+    fixture.nativeElement.querySelector('app-chat');
+
+  const queryVoiceShell = (): Element | null =>
+    fixture.nativeElement.querySelector('app-voice-room-shell');
+
+  it('defaults to chat view and mounts chat only', () => {
     expect(component['view']()).toBe('chat');
+    expect(queryChat()).toBeTruthy();
+    expect(queryVoiceShell()).toBeNull();
   });
 
-  it('switches to call view when current direct call is active', () => {
+  it('mounts voice shell only when current direct call is active', () => {
     mockDirectCallService.isCallActive.set(true);
     mockDirectCallService.interlocutor.set(user);
     fixture.detectChanges();
+
     expect(component['view']()).toBe('call');
+    expect(queryVoiceShell()).toBeTruthy();
+    expect(queryChat()).toBeNull();
   });
 
-  it('can prefer chat while call stays active', () => {
+  it('mounts chat only while preferring chat during an active call', () => {
     mockDirectCallService.isCallActive.set(true);
     mockDirectCallService.interlocutor.set(user);
+    fixture.detectChanges();
+
     component['showChat']();
+    fixture.detectChanges();
     expect(component['view']()).toBe('chat');
+    expect(queryChat()).toBeTruthy();
+    expect(queryVoiceShell()).toBeNull();
+
     component['showCall']();
+    fixture.detectChanges();
     expect(component['view']()).toBe('call');
+    expect(queryVoiceShell()).toBeTruthy();
+    expect(queryChat()).toBeNull();
   });
 
   it('starts a direct call', () => {

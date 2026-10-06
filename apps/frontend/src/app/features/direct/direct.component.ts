@@ -11,7 +11,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiButton, TuiHint } from '@taiga-ui/core';
+import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -30,6 +30,7 @@ import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-roo
     TuiButton,
     TuiHint,
     TranslatePipe,
+    TuiGroup,
   ],
   templateUrl: './direct.component.html',
   styleUrl: './direct.component.scss',
