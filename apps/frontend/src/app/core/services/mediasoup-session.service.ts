@@ -532,7 +532,7 @@ export class MediasoupSessionService {
   public async consumeProducer(
     data: IVoiceRoomProduceResult,
     resolvePeer: (userId: number) => IConsumePeerContext | null,
-    options?: { screenGain?: number },
+    options?: { screenGain?: number; rethrow?: boolean },
   ): Promise<void> {
     if (this.consuming.has(data.producerId)) {
       console.warn('Producer already consuming\n', data);
@@ -545,6 +545,9 @@ export class MediasoupSessionService {
 
       const peer = resolvePeer(data.userId);
       if (!peer) {
+        if (options?.rethrow) {
+          throw new Error('Peer not found');
+        }
         console.warn(
           'Peer not found while consuming\n',
           data,
@@ -617,6 +620,9 @@ export class MediasoupSessionService {
       consumer.resume();
     } catch (error) {
       console.error('Error while consuming', data, error);
+      if (options?.rethrow) {
+        throw error;
+      }
     } finally {
       this.consuming.delete(data.producerId);
     }

@@ -30,7 +30,7 @@ The screen button is hidden when `getDisplayMedia` is missing.
 | `LocalScreenPreviewService`              | Shared pause flag for the local screen preview.                                                                   |
 | `VoiceRoomViewService`                   | Theatre focus, chrome auto-hide, fullscreen. Resets when the voice session changes. Does not start or stop media. |
 
-On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch.
+On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch. Auto-consume stays best-effort. An opt-in screen watch rejects when the SFU or the recv transport fails, so the UI can show `CALL.WATCH_SCREEN_FAILED`.
 
 ## Tiles
 

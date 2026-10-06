@@ -47,6 +47,7 @@ export class ScreenWatchService {
         mediaTag: 'screen',
       },
       resolvePeer,
+      { rethrow: true },
     );
 
     if (available.audioProducerId) {
@@ -58,7 +59,7 @@ export class ScreenWatchService {
           mediaTag: 'screen-audio',
         },
         resolvePeer,
-        { screenGain },
+        { screenGain, rethrow: true },
       );
     }
   }

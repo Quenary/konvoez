@@ -364,4 +364,28 @@ describe('MediasoupSessionService', () => {
     expect(next.enabled).toBe(false);
     expect(replaceTrack).toHaveBeenCalledWith({ track: next });
   });
+
+  it('rethrows opt-in consume errors and swallows auto-consume errors', async () => {
+    service['device'] = { recvRtpCapabilities: {} } as never;
+    service['recvTransport'] = {
+      id: 'recv',
+      closed: false,
+      consume: vi.fn().mockRejectedValue(new Error('consume failed')),
+    } as never;
+    const data = {
+      producerId: 'p-screen',
+      userId: 2,
+      kind: 'video' as const,
+      mediaTag: 'screen' as const,
+    };
+    const resolvePeer = () => ({ gain: 1, speakerMuted: false });
+
+    await expect(
+      service.consumeProducer(data, resolvePeer, { rethrow: true }),
+    ).rejects.toThrow('consume failed');
+
+    await expect(
+      service.consumeProducer(data, resolvePeer),
+    ).resolves.toBeUndefined();
+  });
 });
