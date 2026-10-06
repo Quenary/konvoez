@@ -29,7 +29,7 @@
     tuiButton
     [iconEnd]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
     [style.justify-content]="'space-between'"
-    [appearance]="microphoneMuted() ? 'negative' : 'positive'"
+    [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
     (click)="toggleMicrophoneMuted()">
     @if (!collapsed()) {
       {{ 'GENERAL.MUTE' | translate }}
@@ -39,7 +39,7 @@
     tuiIconButton
     [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
     [style.flex]="'0 0 auto'"
-    [appearance]="speakerMuted() ? 'negative' : 'positive'"
+    [appearance]="speakerMuted() ? 'negative' : 'neutral'"
     (click)="toggleSpeakerMuted()">
   </button>
 </div>
