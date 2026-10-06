@@ -42,7 +42,10 @@ describe('CameraService', () => {
   });
 
   it('reports a missing camera without stopping the live track', async () => {
-    const track = { readyState: 'live' } as MediaStreamTrack;
+    const track = {
+      readyState: 'live',
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack;
     service['track'] = track;
     const release = vi.spyOn(service, 'release');
     const lost = vi.fn();
@@ -55,8 +58,29 @@ describe('CameraService', () => {
     expect(service['track']).toBe(track);
   });
 
+  it('stops the captured stream on release', () => {
+    const stop = vi.fn();
+    const track = {
+      stop,
+      readyState: 'live',
+    } as unknown as MediaStreamTrack;
+    service['track'] = track;
+    service['stream'] = {
+      getTracks: () => [track],
+    } as unknown as MediaStream;
+
+    service.release();
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(service['track']).toBeNull();
+    expect(service['stream']).toBeNull();
+  });
+
   it('ignores device changes while the selected camera is still present', async () => {
-    service['track'] = { readyState: 'live' } as MediaStreamTrack;
+    service['track'] = {
+      readyState: 'live',
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack;
     enumerateDevices.mockResolvedValue([
       { kind: 'videoinput', deviceId: 'cam-1' },
     ]);

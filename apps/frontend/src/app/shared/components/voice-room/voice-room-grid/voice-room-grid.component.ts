@@ -138,7 +138,7 @@ export class VoiceRoomGridComponent {
     await this.voiceSessionService.stopWatchingPeerScreen(userId);
   }
 
-  protected onEscape(event: KeyboardEvent): void {
+  protected onEscape(event: Event): void {
     if (
       !this.voiceRoomViewService.theatreOpen() ||
       document.fullscreenElement

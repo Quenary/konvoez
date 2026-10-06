@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 import { provideStore } from '@ngrx/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_DEVICE_HANDLER } from '../tokens/audio-device-handler.token';
@@ -8,6 +9,10 @@ import { VoiceSessionService } from './voice-session.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
+import { LocalScreenPreviewService } from './local-screen-preview.service';
+import { ConsumerRegistry } from './consumer-registry';
+import { ScreenWatchService } from './screen-watch.service';
+import { VoiceSessionPeersService } from '@shared/components/voice-room/voice-session-peers.service';
 import { SettingsStore } from '@features/settings/settings.store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -24,6 +29,7 @@ describe('voice DI graph', () => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
+        provideRouter([]),
         provideStore({
           auth: authReducer,
           rooms: roomsReducer,
@@ -32,6 +38,10 @@ describe('voice DI graph', () => {
         MediasoupSessionService,
         CameraService,
         ScreenCaptureService,
+        LocalScreenPreviewService,
+        VoiceSessionPeersService,
+        ConsumerRegistry,
+        ScreenWatchService,
         SettingsStore,
         {
           provide: AUDIO_DEVICE_HANDLER,
@@ -67,6 +77,10 @@ describe('voice DI graph', () => {
       TestBed.inject(ScreenCaptureService);
       TestBed.inject(MediasoupSessionService);
       TestBed.inject(SettingsStore);
+      TestBed.inject(LocalScreenPreviewService);
+      TestBed.inject(VoiceSessionPeersService);
+      TestBed.inject(ConsumerRegistry);
+      TestBed.inject(ScreenWatchService);
     } catch (e) {
       error = e;
     }
@@ -77,5 +91,9 @@ describe('voice DI graph', () => {
     }
     expect(TestBed.inject(CameraService)).toBeTruthy();
     expect(TestBed.inject(ScreenCaptureService)).toBeTruthy();
+    expect(TestBed.inject(LocalScreenPreviewService)).toBeTruthy();
+    expect(TestBed.inject(VoiceSessionPeersService)).toBeTruthy();
+    expect(TestBed.inject(ConsumerRegistry)).toBeTruthy();
+    expect(TestBed.inject(ScreenWatchService)).toBeTruthy();
   });
 });

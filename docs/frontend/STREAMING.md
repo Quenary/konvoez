@@ -42,7 +42,7 @@ On leave or producer/consumer close, cam, screen, and screen-audio state is clea
 - Cam or screen only: one tile.
 - Both: two tiles, so both can be seen at once.
 
-A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. `LocalScreenPreviewService` pauses that preview 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`). The grid tile, theatre stage, and strip mini-tile share that flag, so it survives the grid unmounting in theatre. Producing to peers continues. Nothing resumes the preview except the Resume button or turning the setting off.
+A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. `LocalScreenPreviewService` pauses that preview 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`). Resume starts that delay again while the tab stays hidden or the window stays blurred. The grid tile, theatre stage, and strip mini-tile share that flag, so it survives the grid unmounting in theatre. Producing to peers continues. Nothing resumes the preview except the Resume button or turning the setting off.
 
 ## Theatre
 
@@ -71,3 +71,9 @@ Shared UI: `apps/frontend/src/app/shared/components/voice-room/`. Preview `<vide
 - `voice-room-grid.component.spec.ts` — grid vs theatre, focus stays or retargets
 - `voice-room-theatre.component.spec.ts` — strip selection, large tile without video
 - `voice-room-view.service.spec.ts` — open, retarget, Escape, fullscreen
+- `voice-room-controls-bar.component.spec.ts` — shared start dialog for camera and screen
+- `voice-room-theatre-watch-controls.component.spec.ts` — stop watch and screen volume
+- `voice-room-theatre-actions.component.spec.ts` — fullscreen target and close
+- `camera.service.spec.ts` — missing camera is reported, capture is not stopped there
+- `voice-room.component.spec.ts` — join once for the route room
+- `direct-call-panel.component.spec.ts` — shared participant count and hangup

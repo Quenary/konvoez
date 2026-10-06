@@ -12,6 +12,7 @@
   ],
   "compilerOptions": {
     "esModuleInterop": true,
+    "types": ["node"],
     "paths": {
       "@konvoez/shared": ["../../libs/shared/src/index.ts"],
       "@shared/*": ["./src/shared/*"]
