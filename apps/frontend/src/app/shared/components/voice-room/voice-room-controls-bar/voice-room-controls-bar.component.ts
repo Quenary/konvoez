@@ -113,6 +113,7 @@ export class VoiceRoomControlsBarComponent {
           ),
         },
       ),
+      { defaultValue: null },
     );
     if (!result) {
       return;
