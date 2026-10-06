@@ -20,7 +20,8 @@ The screen button is hidden when `getDisplayMedia` is missing.
 
 | Service                                  | Role                                                                                                              |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `MediasoupSessionService`                | Produce and consume cam, screen, and screen-audio. Registers available screen producers and tears consumers down. |
+| `MediasoupSessionService`                | Device, transports, and produce/consume. Shared transport setup, VP8 pick, and video produce for cam and screen.  |
+| `ScreenWatchService`                     | Opt-in screen watch: start, stop, and teardown.                                                                   |
 | `PeerVideoService`                       | Local and remote cam and screen tracks, `availableScreens`, `watchingUserIds`. Cam and screen stay separate.      |
 | `PeerScreenAudioService`                 | Screen-audio graphs and gain. Not mixed into mic playback.                                                        |
 | `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`.                                                                               |

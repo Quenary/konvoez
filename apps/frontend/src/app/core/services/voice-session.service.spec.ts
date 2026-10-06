@@ -14,6 +14,7 @@ import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { AudioService } from './audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
+import { ScreenWatchService } from './screen-watch.service';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
@@ -75,9 +76,11 @@ describe('VoiceSessionService', () => {
     replaceMicrophoneTrack: ReturnType<typeof vi.fn>;
     consume: ReturnType<typeof vi.fn>;
     consumePending: ReturnType<typeof vi.fn>;
-    releasePeerScreenWatch: ReturnType<typeof vi.fn>;
-    onRemoteProducerClosed: ReturnType<typeof vi.fn>;
     handleConsumerClosed: ReturnType<typeof vi.fn>;
+  };
+  let screenWatch: {
+    release: ReturnType<typeof vi.fn>;
+    onRemoteProducerClosed: ReturnType<typeof vi.fn>;
   };
   let notifications: {
     open: ReturnType<typeof vi.fn>;
@@ -145,9 +148,11 @@ describe('VoiceSessionService', () => {
       replaceMicrophoneTrack: vi.fn().mockResolvedValue(undefined),
       consume: vi.fn().mockResolvedValue(undefined),
       consumePending: vi.fn().mockResolvedValue(undefined),
-      releasePeerScreenWatch: vi.fn(),
-      onRemoteProducerClosed: vi.fn(),
       handleConsumerClosed: vi.fn(),
+    };
+    screenWatch = {
+      release: vi.fn(),
+      onRemoteProducerClosed: vi.fn(),
     };
     notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
@@ -173,6 +178,7 @@ describe('VoiceSessionService', () => {
           },
         },
         { provide: MediasoupSessionService, useValue: mediasoup },
+        { provide: ScreenWatchService, useValue: screenWatch },
         { provide: PeerPlaybackService, useValue: { removeConsumer: vi.fn() } },
         {
           provide: PeerVideoService,
@@ -320,7 +326,7 @@ describe('VoiceSessionService', () => {
 
     expect(voiceRoomStore.removePeer).toHaveBeenCalledWith(bob.id);
     expect(voiceRoomStore.removePeerFromRoom).toHaveBeenCalledWith(1, bob.id);
-    expect(mediasoup.releasePeerScreenWatch).toHaveBeenCalledWith(bob.id);
+    expect(screenWatch.release).toHaveBeenCalledWith(bob.id);
   });
 
   it('replaces the published track when the selected device disappears', async () => {

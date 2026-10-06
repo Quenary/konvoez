@@ -23,6 +23,7 @@ import {
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
+import { ScreenWatchService } from './screen-watch.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 
@@ -45,6 +46,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly screenWatchService = inject(ScreenWatchService);
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
@@ -198,7 +200,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public watchPeerScreen(userId: number): Promise<void> {
     const gain = this.voiceRoomStore.peerScreenGainLevels()[userId] ?? 1;
-    return this.mediasoupSessionService.watchScreen(
+    return this.screenWatchService.watchScreen(
       userId,
       (id) => this.resolvePeer(id),
       gain,
@@ -206,7 +208,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   }
 
   public stopWatchingPeerScreen(userId: number): Promise<void> {
-    return this.mediasoupSessionService.stopWatchingScreen(userId);
+    return this.screenWatchService.stopWatchingScreen(userId);
   }
 
   public produceScreen(): Promise<void> {
@@ -243,7 +245,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
       this.voiceRoomStore.removePeer(data.user.id);
       this.peerVideoService.removeUser(data.user.id);
-      this.mediasoupSessionService.releasePeerScreenWatch(data.user.id);
+      this.screenWatchService.release(data.user.id);
       if (data.roomId !== undefined) {
         this.voiceRoomStore.removePeerFromRoom(data.roomId, data.user.id);
       }
@@ -256,7 +258,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
       this.peerVideoService.remove(data.userId, data.producerId);
-      this.mediasoupSessionService.onRemoteProducerClosed(
+      this.screenWatchService.onRemoteProducerClosed(
         data.userId,
         data.producerId,
       );
