@@ -60,7 +60,7 @@ The room page projects `app-voice-room-overlay` into `app-voice-room-grid` with 
 
 Stop-watch and screen volume show only while a remote screen is actually being watched. The compact direct-call grid does not use this overlay; it keeps its own footer.
 
-Shared UI: `apps/frontend/src/app/shared/components/voice-room/`. Preview `<video>` elements use `playsinline`.
+Shared UI: `apps/frontend/src/app/shared/components/voice-room/`. Preview `<video>` elements use `playsinline` and bind the track through `appVideoTrack`.
 
 ## Tests
 

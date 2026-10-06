@@ -17,8 +17,8 @@
       (touchstart)="revealOverlay()">
       @if (videoTrack()) {
         <video
-          #videoEl
           class="stage-video"
+          [appVideoTrack]="videoTrack()"
           autoplay
           playsinline
           muted

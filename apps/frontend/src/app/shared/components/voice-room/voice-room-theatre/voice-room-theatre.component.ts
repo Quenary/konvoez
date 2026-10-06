@@ -5,12 +5,10 @@ import {
   ElementRef,
   TemplateRef,
   computed,
-  effect,
   inject,
   input,
   output,
   signal,
-  viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Store } from '@ngrx/store';
@@ -22,6 +20,7 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomTheatreActionsComponent } from '../voice-room-theatre-actions/voice-room-theatre-actions.component';
 import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
 import { VoiceRoomTileMiniComponent } from '../voice-room-tile-mini/voice-room-tile-mini.component';
+import { VideoTrackDirective } from '@shared/directives/video-track.directive';
 import type { TVoiceRoomTile } from '../voice-room-tiles';
 
 @Component({
@@ -31,6 +30,7 @@ import type { TVoiceRoomTile } from '../voice-room-tiles';
     VoiceRoomTheatreActionsComponent,
     VoiceRoomTileComponent,
     VoiceRoomTileMiniComponent,
+    VideoTrackDirective,
   ],
   templateUrl: './voice-room-theatre.component.html',
   styleUrl: './voice-room-theatre.component.scss',
@@ -54,8 +54,6 @@ export class VoiceRoomTheatreComponent {
 
   public readonly watchScreen = output<number>();
   public readonly stopWatchScreen = output<number>();
-
-  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
   protected readonly stripRight = signal(false);
 
@@ -102,27 +100,6 @@ export class VoiceRoomTheatreComponent {
   });
 
   constructor() {
-    effect(() => {
-      const el = this.videoEl()?.nativeElement;
-      const track = this.videoTrack();
-      if (!el) {
-        return;
-      }
-      if (track) {
-        const stream = el.srcObject;
-        if (
-          stream instanceof MediaStream &&
-          stream.getVideoTracks()[0] === track
-        ) {
-          return;
-        }
-        el.srcObject = new MediaStream([track]);
-        void el.play()?.catch(() => undefined);
-      } else {
-        el.srcObject = null;
-      }
-    });
-
     this.destroyRef.onDestroy(() => this.chrome.destroy());
 
     if (typeof ResizeObserver !== 'undefined') {

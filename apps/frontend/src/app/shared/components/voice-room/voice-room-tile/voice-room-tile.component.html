@@ -8,8 +8,8 @@
   [class.preview-paused]="previewPaused()">
   @if (videoTrack() && !(isLocalScreenPreview() && previewPaused())) {
     <video
-      #videoEl
       class="video"
+      [appVideoTrack]="videoTrack()"
       [class.clickable]="videoClickable()"
       autoplay
       playsinline

@@ -2,12 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
-  ElementRef,
   inject,
   input,
   output,
-  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IUser } from '@konvoez/shared';
@@ -29,6 +26,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
+import { VideoTrackDirective } from '@shared/directives/video-track.directive';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
 
 @Component({
@@ -46,6 +44,7 @@ import type { TVoiceStreamKind } from '../voice-room-tiles';
     TuiAutoColorPipe,
     TranslatePipe,
     TuiGroup,
+    VideoTrackDirective,
   ],
   templateUrl: './voice-room-tile.component.html',
   styleUrl: './voice-room-tile.component.scss',
@@ -75,8 +74,6 @@ export class VoiceRoomTileComponent {
   protected readonly autoPauseWhenHidden =
     this.localScreenPreviewService.autoPauseWhenHidden;
 
-  private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
-
   protected readonly isLocal = computed(() => {
     const me = this.currentUser();
     const p = this.peer();
@@ -99,35 +96,6 @@ export class VoiceRoomTileComponent {
     () =>
       this.isLocalScreenPreview() && this.localScreenPreviewService.paused(),
   );
-
-  constructor() {
-    effect(() => {
-      const el = this.videoEl()?.nativeElement;
-      const track = this.videoTrack();
-      const paused = this.previewPaused();
-      const localScreenPreview = this.isLocalScreenPreview();
-
-      if (!el) {
-        return;
-      }
-
-      if (!track || (localScreenPreview && paused)) {
-        el.srcObject = null;
-        return;
-      }
-
-      const stream = el.srcObject;
-      if (
-        stream instanceof MediaStream &&
-        stream.getVideoTracks()[0] === track
-      ) {
-        void el.play()?.catch(() => undefined);
-        return;
-      }
-      el.srcObject = new MediaStream([track]);
-      void el.play()?.catch(() => undefined);
-    });
-  }
 
   protected readonly isCalling = computed(() => {
     const isLocal = this.isLocal();
