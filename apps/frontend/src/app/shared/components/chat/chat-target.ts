@@ -3,6 +3,19 @@ import { ITextRoomMessage } from '@konvoez/shared';
 export type ChatTarget =
   { kind: 'room'; id: number } | { kind: 'direct'; id: number };
 
+export function chatTargetsEqual(
+  a: ChatTarget | null,
+  b: ChatTarget | null,
+): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (a === null || b === null) {
+    return false;
+  }
+  return a.kind === b.kind && a.id === b.id;
+}
+
 export function chatTargetToApiIds(target: ChatTarget | null): {
   roomId: number | null;
   recipientId: number | null;

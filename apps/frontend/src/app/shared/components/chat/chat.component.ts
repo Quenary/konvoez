@@ -26,6 +26,7 @@ import { FileDropDirective } from '@shared/directives/file-drop.directive';
 import { ChatEditorComponent } from './chat-editor/chat-editor.component';
 import { ChatMessagesListComponent } from './chat-messages-list/chat-messages-list.component';
 import { ChatStore } from './chat.store';
+import { ChatTarget, chatTargetsEqual } from './chat-target';
 
 @Component({
   selector: 'app-chat',
@@ -69,14 +70,20 @@ export class ChatComponent {
     effect(() => {
       const roomId = this.roomId();
       const recipientId = this.recipientId();
+      const nextTarget = resolveChatTarget(roomId, recipientId);
 
-      // join()/patchState read store signals; keep them untracked or the
-      // effect re-runs on every store update and freezes the tab.
+      // join()/leave()/patchState read store signals; keep them untracked or
+      // the effect re-runs on every store update and freezes the tab.
       untracked(() => {
-        if (roomId != null) {
-          this.chatStore.join({ kind: 'room', id: roomId });
-        } else if (recipientId != null) {
-          this.chatStore.join({ kind: 'direct', id: recipientId });
+        const current = this.chatStore.target();
+        if (chatTargetsEqual(current, nextTarget)) {
+          return;
+        }
+        if (current !== null) {
+          this.chatStore.leave();
+        }
+        if (nextTarget !== null) {
+          this.chatStore.join(nextTarget);
         }
         this.searchControl.setValue('', { emitEvent: false });
       });
@@ -108,4 +115,17 @@ export class ChatComponent {
     this.searchControl.setValue('');
     this.chatStore.clearSearch();
   }
+}
+
+function resolveChatTarget(
+  roomId: number | null,
+  recipientId: number | null,
+): ChatTarget | null {
+  if (roomId != null) {
+    return { kind: 'room', id: roomId };
+  }
+  if (recipientId != null) {
+    return { kind: 'direct', id: recipientId };
+  }
+  return null;
 }
