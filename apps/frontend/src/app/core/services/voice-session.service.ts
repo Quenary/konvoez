@@ -22,6 +22,7 @@ import {
 } from './mediasoup-session.service';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
+import { PeerVideoService } from './peer-video.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 
@@ -43,6 +44,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly audioService = inject(AudioService);
   private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly peerPlaybackService = inject(PeerPlaybackService);
+  private readonly peerVideoService = inject(PeerVideoService);
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
@@ -219,6 +221,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
       this.voiceRoomStore.removePeer(data.user.id);
+      this.peerVideoService.removeUser(data.user.id);
       if (data.roomId !== undefined) {
         this.voiceRoomStore.removePeerFromRoom(data.roomId, data.user.id);
       }
@@ -230,6 +233,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
+      this.peerVideoService.remove(data.userId, data.producerId);
     });
   }
 

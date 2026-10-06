@@ -62,6 +62,7 @@ export enum EVoiceRoomEvent {
   PRODUCE = 'produce',
   PRODUCER_CREATED = 'producer-created',
   PRODUCER_CLOSED = 'producer-closed',
+  CLOSE_PRODUCER = 'close-producer',
   CONSUME = 'consume',
   CONSUMER_CLOSED = 'consumer-closed',
   ERROR = 'error',

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
+import { PeerVideoService } from './peer-video.service';
+import { CameraService } from './camera.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 
 describe('MediasoupSessionService', () => {
@@ -30,6 +32,21 @@ describe('MediasoupSessionService', () => {
           provide: PeerPlaybackService,
           useValue: {
             attach: vi.fn(),
+          },
+        },
+        {
+          provide: PeerVideoService,
+          useValue: {
+            attach: vi.fn(),
+            clear: vi.fn(),
+            setLocalTrack: vi.fn(),
+          },
+        },
+        {
+          provide: CameraService,
+          useValue: {
+            getTrack: vi.fn(),
+            release: vi.fn(),
           },
         },
       ],

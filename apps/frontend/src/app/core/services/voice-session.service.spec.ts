@@ -16,6 +16,7 @@ import { AudioService } from './audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
+import { PeerVideoService } from './peer-video.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
 import { VoiceSessionService } from './voice-session.service';
@@ -167,6 +168,10 @@ describe('VoiceSessionService', () => {
         },
         { provide: MediasoupSessionService, useValue: mediasoup },
         { provide: PeerPlaybackService, useValue: { removeConsumer: vi.fn() } },
+        {
+          provide: PeerVideoService,
+          useValue: { remove: vi.fn(), removeUser: vi.fn(), clear: vi.fn() },
+        },
         { provide: ScreenWakeLockService, useValue: wakeLock },
         {
           provide: TranslateService,

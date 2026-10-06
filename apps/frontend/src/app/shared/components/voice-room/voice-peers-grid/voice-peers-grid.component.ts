@@ -9,6 +9,7 @@ import {
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
+import { PeerVideoService } from '@core/services/peer-video.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.component';
@@ -30,6 +31,7 @@ export class VoicePeersGridComponent {
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
+  private readonly peerVideoService = inject(PeerVideoService);
 
   /**
    * Compact layout for embedded direct-call panel (constrained height).
@@ -69,6 +71,21 @@ export class VoicePeersGridComponent {
   );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+
+  protected readonly videoTracksByPeerId = computed(() => {
+    const me = this.currentUser();
+    const localTrack = this.peerVideoService.localTrack();
+    const remoteTracks = this.peerVideoService.remoteTracks();
+    const map = new Map<number, MediaStreamTrack | null>();
+    for (const peer of this.peers()) {
+      const isLocal = Boolean(me && me.id === peer.id);
+      map.set(
+        peer.id,
+        isLocal ? localTrack : (remoteTracks.get(peer.id) ?? null),
+      );
+    }
+    return map;
+  });
 
   protected async onHangup(): Promise<void> {
     await this.voiceLeaveService.leaveActiveVoice();

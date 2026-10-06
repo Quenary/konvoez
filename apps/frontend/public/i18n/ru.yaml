@@ -79,7 +79,15 @@ CALL:
   VOLUME: Громкость
   SOUND: Звук
   SOUND_OFF: Звук выключен
+  CAMERA: Камера
+  CAMERA_ON: Включить камеру
+  CAMERA_OFF: Выключить камеру
   CAMERA_SOON: Камера (скоро)
+  CAMERA_SETTINGS: Настройки камеры
+  CAMERA_FAILED: Не удалось запустить камеру
+  START_CAMERA: Запустить камеру
+  STREAM_HEIGHT: Разрешение
+  STREAM_FPS: Частота кадров
   SCREEN_SOON: Демонстрация экрана (скоро)
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
