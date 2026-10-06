@@ -4,6 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { PeerVideoService } from '@core/services/peer-video.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { SettingsStore } from '@features/settings/settings.store';
@@ -38,10 +39,12 @@ const stripTiles = () =>
 describe('VoiceRoomTheatreComponent', () => {
   let openTheatre: ReturnType<typeof vi.fn>;
   let revealChrome: ReturnType<typeof vi.fn>;
+  let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
 
   beforeEach(() => {
     openTheatre = vi.fn();
     revealChrome = vi.fn();
+    localScreenTrack = signal<MediaStreamTrack | null>(null);
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -75,6 +78,12 @@ describe('VoiceRoomTheatreComponent', () => {
           provide: DirectCallService,
           useValue: {
             isCalling: signal(false).asReadonly(),
+          },
+        },
+        {
+          provide: PeerVideoService,
+          useValue: {
+            localScreenTrack: localScreenTrack.asReadonly(),
           },
         },
         {
@@ -221,5 +230,54 @@ describe('VoiceRoomTheatreComponent', () => {
     const watching = create();
     watching.componentInstance['onStripTileClick'](voice);
     expect(openTheatre).toHaveBeenCalledWith(1, null);
+  });
+
+  it('shows a paused placeholder for the local screen on the stage and the strip', () => {
+    vi.useFakeTimers();
+    const screenTrack = { id: 'local-scr' } as MediaStreamTrack;
+    localScreenTrack.set(screenTrack);
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+
+    const local = peer(1);
+    const tiles = buildVoiceRoomTiles({
+      peers: [local, peer(2)],
+      localUserId: 1,
+      localCamTrack: null,
+      localScreenTrack: screenTrack,
+      remoteCamTracks: {},
+      remoteScreenTracks: {},
+      availableScreens: {},
+      watchingUserIds: new Set(),
+    });
+    const localScreen = tiles.find(
+      (tile) => tile.peerId === 1 && tile.streamKind === 'screen',
+    );
+    expect(localScreen).toBeDefined();
+
+    const fixture = TestBed.createComponent(VoiceRoomTheatreComponent);
+    fixture.componentRef.setInput('focusTile', localScreen ?? null);
+    fixture.componentRef.setInput('stripTiles', tiles);
+    fixture.componentRef.setInput('showLocalChrome', false);
+    fixture.detectChanges();
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.advanceTimersByTime(5000);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.preview-paused-overlay'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector(
+        '.strip-tile-wrap.preview-paused video',
+      ),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.strip-tile-wrap.preview-paused'),
+    ).toBeTruthy();
   });
 });

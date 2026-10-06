@@ -7,6 +7,7 @@ import { IUser } from '@konvoez/shared';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { PeerVideoService } from '@core/services/peer-video.service';
 import { SettingsStore } from '@features/settings/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
@@ -16,11 +17,13 @@ const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
 describe('VoiceRoomTileComponent', () => {
   let currentUser: ReturnType<typeof signal<IUser | null>>;
   let autoPauseWhenHidden: ReturnType<typeof signal<boolean>>;
+  let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let setScreenPreviewAutoPauseWhenHidden: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     currentUser = signal(user(1));
     autoPauseWhenHidden = signal(DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN);
+    localScreenTrack = signal<MediaStreamTrack | null>(null);
     setScreenPreviewAutoPauseWhenHidden = vi.fn((value: boolean) => {
       autoPauseWhenHidden.set(value);
     });
@@ -73,6 +76,12 @@ describe('VoiceRoomTileComponent', () => {
             setScreenPreviewAutoPauseWhenHidden,
           },
         },
+        {
+          provide: PeerVideoService,
+          useValue: {
+            localScreenTrack: localScreenTrack.asReadonly(),
+          },
+        },
       ],
     });
   });
@@ -83,6 +92,9 @@ describe('VoiceRoomTileComponent', () => {
   });
 
   const create = (streamKind: 'cam' | 'screen' | null = 'screen') => {
+    if (streamKind === 'screen') {
+      localScreenTrack.set({ id: 'scr' } as MediaStreamTrack);
+    }
     const fixture = TestBed.createComponent(VoiceRoomTileComponent);
     fixture.componentRef.setInput('peer', user(1));
     fixture.componentRef.setInput('streamKind', streamKind);
@@ -159,5 +171,21 @@ describe('VoiceRoomTileComponent', () => {
     const fixture = create('screen');
     fixture.componentInstance['onAutoPauseWhenHiddenChange'](false);
     expect(setScreenPreviewAutoPauseWhenHidden).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps the pause when the tile is created again', () => {
+    vi.useFakeTimers();
+    const fixture = create('screen');
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.advanceTimersByTime(5000);
+    expect(fixture.componentInstance['previewPaused']()).toBe(true);
+
+    fixture.destroy();
+    const again = create('screen');
+    expect(again.componentInstance['previewPaused']()).toBe(true);
   });
 });

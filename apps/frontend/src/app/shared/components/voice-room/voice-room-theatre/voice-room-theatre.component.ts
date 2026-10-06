@@ -13,6 +13,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { preferTheatreStripRight } from '../voice-peers-layout';
 import { VoiceChromeReveal } from '../voice-chrome-reveal';
 import { VoiceRoomViewService } from '../voice-room-view.service';
@@ -36,7 +39,13 @@ import type { TVoiceRoomTile } from '../voice-room-tiles';
 export class VoiceRoomTheatreComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly store = inject(Store);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
+  private readonly localScreenPreviewService = inject(
+    LocalScreenPreviewService,
+  );
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly focusTile = input<TVoiceRoomTile | null>(null);
   public readonly stripTiles = input.required<readonly TVoiceRoomTile[]>();
@@ -60,9 +69,37 @@ export class VoiceRoomTheatreComponent {
     return showLocal && local;
   });
 
-  protected readonly videoTrack = computed(
-    () => this.focusTile()?.videoTrack ?? null,
-  );
+  protected readonly videoTrack = computed(() => {
+    const tile = this.focusTile();
+    const paused = this.localScreenPreviewService.paused();
+    const localId = this.currentUser()?.id ?? null;
+    if (
+      paused &&
+      tile?.streamKind === 'screen' &&
+      localId != null &&
+      tile.peerId === localId
+    ) {
+      return null;
+    }
+    return tile?.videoTrack ?? null;
+  });
+
+  protected readonly stripItems = computed(() => {
+    const paused = this.localScreenPreviewService.paused();
+    const localId = this.currentUser()?.id ?? null;
+    return this.stripTiles().map((tile) => {
+      const previewPaused =
+        paused &&
+        tile.streamKind === 'screen' &&
+        localId != null &&
+        tile.peerId === localId;
+      return {
+        tile,
+        videoTrack: previewPaused ? null : tile.videoTrack,
+        previewPaused,
+      };
+    });
+  });
 
   constructor() {
     effect(() => {

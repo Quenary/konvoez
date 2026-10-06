@@ -54,15 +54,16 @@
   </div>
 
   <aside class="strip">
-    @for (tile of stripTiles(); track tile.key) {
+    @for (item of stripItems(); track item.tile.key) {
       <button
         type="button"
         class="strip-tile-wrap"
-        [class.active]="focus?.key === tile.key"
-        (click)="onStripTileClick(tile)">
+        [class.active]="focus?.key === item.tile.key"
+        [class.preview-paused]="item.previewPaused"
+        (click)="onStripTileClick(item.tile)">
         <app-voice-room-tile-mini
-          [peer]="tile.peer"
-          [videoTrack]="tile.videoTrack" />
+          [peer]="item.tile.peer"
+          [videoTrack]="item.videoTrack" />
       </button>
     }
   </aside>

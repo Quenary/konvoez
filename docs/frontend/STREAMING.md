@@ -25,7 +25,8 @@ The screen button is hidden when `getDisplayMedia` is missing.
 | `PeerScreenAudioService`                 | Screen-audio graphs and gain. Not mixed into mic playback.                                                        |
 | `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`.                                                                               |
 | `VoiceSessionService`                    | `watchPeerScreen` / `stopWatchingPeerScreen`.                                                                     |
-| `VoiceRoomViewService`                   | Theatre focus, chrome auto-hide, fullscreen. Does not start or stop media.                                        |
+| `LocalScreenPreviewService`              | Shared pause flag for the local screen preview.                                                                   |
+| `VoiceRoomViewService`                   | Theatre focus, chrome auto-hide, fullscreen. Resets when the voice session changes. Does not start or stop media. |
 
 On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch.
 
@@ -37,7 +38,7 @@ On leave or producer/consumer close, cam, screen, and screen-audio state is clea
 - Cam or screen only: one tile.
 - Both: two tiles, so both can be seen at once.
 
-A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. Its preview pauses 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`); producing to peers continues. The user resumes the preview manually.
+A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. `LocalScreenPreviewService` pauses that preview 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`). The grid tile, theatre stage, and strip mini-tile share that flag, so it survives the grid unmounting in theatre. Producing to peers continues. Nothing resumes the preview except the Resume button or turning the setting off.
 
 ## Theatre
 

@@ -1,24 +1,21 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   computed,
   effect,
   ElementRef,
   inject,
   input,
   output,
-  signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { SettingsStore } from '@features/settings/settings.store';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
@@ -33,18 +30,6 @@ import {
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
-import {
-  combineLatest,
-  distinctUntilChanged,
-  fromEvent,
-  map,
-  merge,
-  of,
-  switchMap,
-  timer,
-} from 'rxjs';
-
-const PREVIEW_PAUSE_MS = 5_000;
 
 @Component({
   selector: 'app-voice-room-tile',
@@ -71,8 +56,9 @@ export class VoiceRoomTileComponent {
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly directCallService = inject(DirectCallService);
-  private readonly settingsStore = inject(SettingsStore);
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly localScreenPreviewService = inject(
+    LocalScreenPreviewService,
+  );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -86,9 +72,8 @@ export class VoiceRoomTileComponent {
   public readonly stopWatchScreen = output<void>();
   public readonly openTheatre = output<void>();
 
-  protected readonly previewPaused = signal(false);
   protected readonly autoPauseWhenHidden =
-    this.settingsStore.screenPreviewAutoPauseWhenHidden;
+    this.localScreenPreviewService.autoPauseWhenHidden;
 
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
@@ -110,59 +95,12 @@ export class VoiceRoomTileComponent {
     () => this.isLocalScreenPreview() && this.videoTrack() !== null,
   );
 
+  protected readonly previewPaused = computed(
+    () =>
+      this.isLocalScreenPreview() && this.localScreenPreviewService.paused(),
+  );
+
   constructor() {
-    const visibilityHidden$ = merge(
-      fromEvent(document, 'visibilitychange'),
-      of(null),
-    ).pipe(
-      map(() => document.visibilityState === 'hidden'),
-      distinctUntilChanged(),
-    );
-
-    const windowFocused$ = merge(
-      fromEvent(window, 'focus').pipe(map(() => true)),
-      fromEvent(window, 'blur').pipe(map(() => false)),
-      of(typeof document !== 'undefined' ? document.hasFocus() : true),
-    ).pipe(distinctUntilChanged());
-
-    const previewContextInactive$ = combineLatest([
-      visibilityHidden$,
-      windowFocused$,
-    ]).pipe(
-      map(([hidden, focused]) => hidden || !focused),
-      distinctUntilChanged(),
-    );
-
-    combineLatest([
-      previewContextInactive$,
-      toObservable(this.autoPauseWhenHidden),
-      toObservable(this.videoTrack),
-      toObservable(this.streamKind),
-      toObservable(this.isLocal),
-    ])
-      .pipe(
-        switchMap(([inactive, autoPause, track, kind, isLocal]) => {
-          const isLocalScreen = isLocal && kind === 'screen' && track != null;
-          if (!inactive || !autoPause || !isLocalScreen) {
-            return of(null);
-          }
-          return timer(PREVIEW_PAUSE_MS);
-        }),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(() => {
-        if (!this.isLocalScreenPreview()) {
-          return;
-        }
-        if (
-          this.isPreviewContextInactive() &&
-          this.videoTrack() &&
-          this.autoPauseWhenHidden()
-        ) {
-          this.previewPaused.set(true);
-        }
-      });
-
     effect(() => {
       const el = this.videoEl()?.nativeElement;
       const track = this.videoTrack();
@@ -188,14 +126,6 @@ export class VoiceRoomTileComponent {
       }
       el.srcObject = new MediaStream([track]);
       void el.play()?.catch(() => undefined);
-    });
-
-    effect(() => {
-      const track = this.videoTrack();
-      const kind = this.streamKind();
-      if (!this.isLocal() || kind !== 'screen' || track == null) {
-        this.previewPaused.set(false);
-      }
     });
   }
 
@@ -291,17 +221,10 @@ export class VoiceRoomTileComponent {
   }
 
   protected onResumePreview(): void {
-    this.previewPaused.set(false);
+    this.localScreenPreviewService.resume();
   }
 
   protected onAutoPauseWhenHiddenChange(enabled: boolean): void {
-    this.settingsStore.setScreenPreviewAutoPauseWhenHidden(enabled);
-    if (!enabled) {
-      this.previewPaused.set(false);
-    }
-  }
-
-  private isPreviewContextInactive(): boolean {
-    return document.visibilityState === 'hidden' || !document.hasFocus();
+    this.localScreenPreviewService.setAutoPauseWhenHidden(enabled);
   }
 }
