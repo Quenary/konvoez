@@ -118,7 +118,17 @@ export class PeerVideoService {
     }
     const prev = this._availableScreens();
     if (existing.videoProducerId === producerId) {
-      this._availableScreens.set(omitPeer(prev, userId));
+      if (existing.audioProducerId) {
+        this._availableScreens.set({
+          ...prev,
+          [userId]: {
+            videoProducerId: '',
+            audioProducerId: existing.audioProducerId,
+          },
+        });
+      } else {
+        this._availableScreens.set(omitPeer(prev, userId));
+      }
       this.setWatching(userId, false);
     } else if (existing.audioProducerId === producerId) {
       this._availableScreens.set({

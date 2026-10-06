@@ -94,10 +94,16 @@ export class ScreenWatchService {
   }
 
   public onRemoteProducerClosed(userId: number, producerId: string): void {
-    this.peerScreenAudioService.remove(userId, producerId);
     const available = this.peerVideoService.availableScreens()[userId];
-    if (available?.videoProducerId === producerId) {
-      this.release(userId);
+    if (!available) {
+      return;
+    }
+    if (available.audioProducerId === producerId) {
+      this.peerScreenAudioService.remove(userId, producerId);
+      return;
+    }
+    if (available.videoProducerId === producerId) {
+      this.peerVideoService.stopWatchingLocal(userId);
     }
   }
 }

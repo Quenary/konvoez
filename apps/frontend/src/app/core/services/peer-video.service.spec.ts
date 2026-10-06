@@ -61,6 +61,31 @@ describe('PeerVideoService', () => {
     expect(service.isWatching(3)).toBe(false);
   });
 
+  it('keeps screen-audio availability when only the video producer closes', () => {
+    service.registerAvailableScreen(3, 'vid', 'video');
+    service.registerAvailableScreen(3, 'aud', 'audio');
+    service.setWatching(3, true);
+
+    service.unregisterAvailableScreenProducer(3, 'vid');
+
+    expect(service.availableScreens()[3]).toEqual({
+      videoProducerId: '',
+      audioProducerId: 'aud',
+    });
+    expect(service.isWatching(3)).toBe(false);
+  });
+
+  it('drops screen-audio from availability when its producer closes', () => {
+    service.registerAvailableScreen(3, 'vid', 'video');
+    service.registerAvailableScreen(3, 'aud', 'audio');
+
+    service.unregisterAvailableScreenProducer(3, 'aud');
+
+    expect(service.availableScreens()[3]).toEqual({
+      videoProducerId: 'vid',
+    });
+  });
+
   it('closes a replaced video consumer through the registry', () => {
     const close = vi.fn();
     const registry = TestBed.inject(ConsumerRegistry);

@@ -14,6 +14,7 @@ describe('ScreenWatchService', () => {
   let emitWithAck: ReturnType<typeof vi.fn>;
   let stopWatchingLocal: ReturnType<typeof vi.fn>;
   let detach: ReturnType<typeof vi.fn>;
+  let removeScreenAudio: ReturnType<typeof vi.fn>;
   let availableScreens: ReturnType<
     typeof signal<
       Record<number, { videoProducerId: string; audioProducerId?: string }>
@@ -28,6 +29,7 @@ describe('ScreenWatchService', () => {
     emitWithAck = vi.fn().mockResolvedValue(undefined);
     stopWatchingLocal = vi.fn();
     detach = vi.fn();
+    removeScreenAudio = vi.fn();
     availableScreens = signal({
       4: { videoProducerId: 'vid', audioProducerId: 'aud' },
     });
@@ -58,7 +60,7 @@ describe('ScreenWatchService', () => {
           useValue: {
             getConsumerId: () => 'audio-consumer',
             detach,
-            remove: vi.fn(),
+            remove: removeScreenAudio,
           },
         },
       ],
@@ -106,6 +108,21 @@ describe('ScreenWatchService', () => {
       /No screen share/,
     );
     expect(consumeProducer).not.toHaveBeenCalled();
+  });
+
+  it('stops only local video watch when the screen video producer closes', () => {
+    service.onRemoteProducerClosed(4, 'vid');
+
+    expect(stopWatchingLocal).toHaveBeenCalledWith(4);
+    expect(removeScreenAudio).not.toHaveBeenCalled();
+    expect(detach).not.toHaveBeenCalled();
+  });
+
+  it('removes screen-audio when its producer closes', () => {
+    service.onRemoteProducerClosed(4, 'aud');
+
+    expect(removeScreenAudio).toHaveBeenCalledWith(4, 'aud');
+    expect(stopWatchingLocal).not.toHaveBeenCalled();
   });
 
   it('closes both consumers when stopping', async () => {
