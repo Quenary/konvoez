@@ -73,8 +73,6 @@ CALL:
   DECLINED: Call declined
   NO_ANSWER: User is not answering
   PARTICIPANTS: '{{count}} participants'
-  EXPAND: Expand
-  COLLAPSE: Collapse
   YOU: You
   VOLUME: Volume
   SOUND: Sound
@@ -97,7 +95,6 @@ CALL:
   STOP_WATCH_SCREEN: Stop watching
   WATCH_SCREEN_FAILED: Couldn't watch the screen share
   SCREEN_VOLUME: Screen volume
-  LIVE: LIVE
   YOUR_SCREEN: Your screen
   PREVIEW_PAUSED: Preview paused to save resources
   PREVIEW_RESUME: Resume
@@ -106,7 +103,6 @@ CALL:
   EXIT_THEATRE: Exit theatre
   FULLSCREEN: Fullscreen
   EXIT_FULLSCREEN: Exit fullscreen
-  THEATRE_NO_VIDEO: No video
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
 ROOMS:

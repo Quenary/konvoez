@@ -4,5 +4,5 @@ import { Directive, inject, TemplateRef } from '@angular/core';
   selector: 'ng-template[appVoiceOverlay]',
 })
 export class VoiceOverlaySlotDirective {
-  readonly template = inject(TemplateRef<void>);
+  public readonly template = inject(TemplateRef<void>);
 }

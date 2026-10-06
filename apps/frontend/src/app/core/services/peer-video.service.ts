@@ -99,17 +99,6 @@ export class PeerVideoService {
       });
       return;
     }
-    if (!existing.videoProducerId) {
-      // audio-only announcement before video is unusual; keep placeholder
-      this._availableScreens.set({
-        ...prev,
-        [userId]: {
-          videoProducerId: existing.videoProducerId,
-          audioProducerId: producerId,
-        },
-      });
-      return;
-    }
     this._availableScreens.set({
       ...prev,
       [userId]: {
@@ -140,7 +129,11 @@ export class PeerVideoService {
   }
 
   public setWatching(userId: number, watching: boolean): void {
-    const next = new Set(this._watching());
+    const current = this._watching();
+    if (current.has(userId) === watching) {
+      return;
+    }
+    const next = new Set(current);
     if (watching) {
       next.add(userId);
     } else {

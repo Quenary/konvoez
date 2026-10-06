@@ -1,5 +1,4 @@
 @let p = peer();
-@let hintValue = p.fullname && p.fullname !== p.username ? p.fullname : null;
 
 <div
   class="tile"
@@ -98,21 +97,14 @@
         <span
           tuiHintAppearance="floating"
           [style.color]="p.username | tuiAutoColor"
-          [tuiHint]="hintValue">
+          [tuiHint]="hintLabel()">
           {{ p.username }}
         </span>
         @if (isLocal()) {
           <span class="you">({{ 'CALL.YOU' | translate }})</span>
         }
-        @if (streamKind() === 'screen' && isLocal()) {
-          <span class="stream-kind-label">
-            — {{ 'CALL.YOUR_SCREEN' | translate }}
-          </span>
-        }
-        @if (streamKind() === 'cam' && isLocal() && screenAvailable()) {
-          <span class="stream-kind-label">
-            — {{ 'CALL.CAMERA' | translate }}</span
-          >
+        @if (streamKindLabelKey(); as labelKey) {
+          <span class="stream-kind-label">— {{ labelKey | translate }}</span>
         }
       </span>
 

@@ -73,8 +73,6 @@ CALL:
   DECLINED: Звонок отклонен
   NO_ANSWER: Пользователь не отвечает
   PARTICIPANTS: 'Участников: {{count}}'
-  EXPAND: Развернуть
-  COLLAPSE: Свернуть
   YOU: Вы
   VOLUME: Громкость
   SOUND: Звук
@@ -97,7 +95,6 @@ CALL:
   STOP_WATCH_SCREEN: Прекратить просмотр
   WATCH_SCREEN_FAILED: Не удалось подписаться на демонстрацию
   SCREEN_VOLUME: Громкость экрана
-  LIVE: LIVE
   YOUR_SCREEN: Ваш экран
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
   PREVIEW_RESUME: Возобновить
@@ -106,7 +103,6 @@ CALL:
   EXIT_THEATRE: Закрыть театр
   FULLSCREEN: На весь экран
   EXIT_FULLSCREEN: Свернуть
-  THEATRE_NO_VIDEO: Нет видео
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:

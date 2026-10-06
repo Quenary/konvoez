@@ -1,42 +1,34 @@
 import { signal } from '@angular/core';
+import { Subject, Subscription, switchMap, timer } from 'rxjs';
 
 export const VOICE_CHROME_HIDE_MS = 2500;
 
 export class VoiceChromeReveal {
   public readonly visible = signal(false);
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly reveal$ = new Subject<void>();
+  private readonly subscription: Subscription;
 
   constructor(
     initiallyVisible = false,
     private readonly hideMs = VOICE_CHROME_HIDE_MS,
   ) {
+    this.subscription = this.reveal$
+      .pipe(switchMap(() => timer(this.hideMs)))
+      .subscribe(() => {
+        this.visible.set(false);
+      });
     if (initiallyVisible) {
-      this.visible.set(true);
-      this.scheduleHide();
+      this.reveal();
     }
   }
 
   public reveal(): void {
     this.visible.set(true);
-    this.scheduleHide();
+    this.reveal$.next();
   }
 
   public destroy(): void {
-    this.clearTimer();
-  }
-
-  private scheduleHide(): void {
-    this.clearTimer();
-    this.timer = setTimeout(() => {
-      this.visible.set(false);
-      this.timer = null;
-    }, this.hideMs);
-  }
-
-  private clearTimer(): void {
-    if (this.timer !== null) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
+    this.subscription.unsubscribe();
+    this.reveal$.complete();
   }
 }

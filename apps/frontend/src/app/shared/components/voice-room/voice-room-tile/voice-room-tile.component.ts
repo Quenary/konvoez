@@ -27,6 +27,7 @@ import {
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
+import { distinctFullname } from '../voice-peer-label';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
 
 @Component({
@@ -78,6 +79,21 @@ export class VoiceRoomTileComponent {
     const me = this.currentUser();
     const p = this.peer();
     return Boolean(me && p && me.id === p.id);
+  });
+
+  protected readonly hintLabel = computed(() => distinctFullname(this.peer()));
+
+  protected readonly streamKindLabelKey = computed(() => {
+    const kind = this.streamKind();
+    const local = this.isLocal();
+    const screenAvailable = this.screenAvailable();
+    if (local && kind === 'screen') {
+      return 'CALL.YOUR_SCREEN';
+    }
+    if (local && kind === 'cam' && screenAvailable) {
+      return 'CALL.CAMERA';
+    }
+    return null;
   });
 
   protected readonly isLocalScreenPreview = computed(

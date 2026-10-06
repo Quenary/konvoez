@@ -9,6 +9,7 @@ import { IUser } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
+import { distinctFullname } from '../voice-peer-label';
 import { TuiHint } from '@taiga-ui/core';
 
 @Component({
@@ -28,8 +29,8 @@ export class VoiceRoomTileMiniComponent {
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
 
   protected readonly hintLabel = computed(() => {
-    const p = this.peer();
-    return p.fullname && p.fullname !== p.username ? p.fullname : p.username;
+    const peer = this.peer();
+    return distinctFullname(peer) ?? peer.username;
   });
 
   protected readonly isSpeaking = computed(() => {
