@@ -9,6 +9,8 @@ import {
   map,
   merge,
   of,
+  startWith,
+  Subject,
   switchMap,
   timer,
 } from 'rxjs';
@@ -29,6 +31,7 @@ export class LocalScreenPreviewService {
   private readonly peerVideoService = inject(PeerVideoService);
 
   private readonly _paused = signal(false);
+  private readonly resume$ = new Subject<void>();
 
   public readonly paused = this._paused.asReadonly();
   public readonly autoPauseWhenHidden =
@@ -66,6 +69,7 @@ export class LocalScreenPreviewService {
       inactive$,
       toObservable(this.autoPauseWhenHidden),
       toObservable(this.peerVideoService.localScreenTrack),
+      this.resume$.pipe(startWith(undefined)),
     ])
       .pipe(
         switchMap(([inactive, autoPause, track]) => {
@@ -83,6 +87,7 @@ export class LocalScreenPreviewService {
 
   public resume(): void {
     this._paused.set(false);
+    this.resume$.next();
   }
 
   public setAutoPauseWhenHidden(enabled: boolean): void {

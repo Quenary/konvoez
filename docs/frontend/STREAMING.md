@@ -42,7 +42,7 @@ On leave or producer/consumer close, cam, screen, and screen-audio state is clea
 - Cam or screen only: one tile.
 - Both: two tiles, so both can be seen at once.
 
-A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. `LocalScreenPreviewService` pauses that preview 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`). The grid tile, theatre stage, and strip mini-tile share that flag, so it survives the grid unmounting in theatre. Producing to peers continues. Nothing resumes the preview except the Resume button or turning the setting off.
+A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. `LocalScreenPreviewService` pauses that preview 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`). Resume starts that delay again while the tab stays hidden or the window stays blurred. The grid tile, theatre stage, and strip mini-tile share that flag, so it survives the grid unmounting in theatre. Producing to peers continues. Nothing resumes the preview except the Resume button or turning the setting off.
 
 ## Theatre
 
