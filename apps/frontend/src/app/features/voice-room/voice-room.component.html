@@ -4,6 +4,7 @@
       <app-voice-room-overlay
         [room]="room()"
         [participantsCount]="participantsCount()"
+        [fullscreenTarget]="fullscreenHost"
         (left)="onLeft()" />
     </ng-template>
   </app-voice-room-grid>

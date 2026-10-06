@@ -246,4 +246,59 @@ describe('VoiceRoomGridComponent', () => {
       fixture.nativeElement.querySelector('app-voice-room-theatre'),
     ).toBeTruthy();
   });
+
+  it('closes theatre on Escape when nothing else handled it', async () => {
+    const fixture = create();
+    fixture.componentInstance['onOpenTheatre'](2, null);
+    fixture.detectChanges();
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance['theatreFocus']()).toBeNull();
+  });
+
+  it('keeps theatre open when Escape was already handled', async () => {
+    const fixture = create();
+    fixture.componentInstance['onOpenTheatre'](2, null);
+    fixture.detectChanges();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    event.preventDefault();
+    document.dispatchEvent(event);
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance['theatreFocus']()).toEqual({
+      peerId: 2,
+      stream: null,
+    });
+  });
+
+  it('keeps theatre open when a dialog is open', async () => {
+    const fixture = create();
+    fixture.componentInstance['onOpenTheatre'](2, null);
+    fixture.detectChanges();
+
+    const dialog = document.createElement('tui-dialog');
+    document.body.append(dialog);
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    await Promise.resolve();
+    dialog.remove();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance['theatreFocus']()).toEqual({
+      peerId: 2,
+      stream: null,
+    });
+  });
 });

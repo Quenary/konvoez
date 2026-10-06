@@ -60,6 +60,7 @@ export class VoiceRoomOverlayComponent {
 
   public readonly room = input<IRoom | null>(null);
   public readonly participantsCount = input(0);
+  public readonly fullscreenTarget = input<HTMLElement | null>(null);
   public readonly left = output<void>();
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;

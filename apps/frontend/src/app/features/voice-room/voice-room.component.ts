@@ -50,6 +50,7 @@ export class VoiceRoomComponent {
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
+  protected readonly fullscreenHost = this.host.nativeElement;
 
   /**
    * Tracks which route room id we already attempted to join, so leaving
@@ -85,9 +86,12 @@ export class VoiceRoomComponent {
   );
 
   constructor() {
-    this.voiceRoomViewService.attachHost(this.host.nativeElement);
     this.voiceRoomViewService.revealChrome();
-    this.destroyRef.onDestroy(() => this.voiceRoomViewService.attachHost(null));
+    this.destroyRef.onDestroy(() => {
+      if (document.fullscreenElement === this.fullscreenHost) {
+        void document.exitFullscreen();
+      }
+    });
 
     effect(() => {
       const id = this.roomId();

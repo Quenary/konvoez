@@ -26,7 +26,6 @@ export class VoiceRoomViewService {
   private readonly chrome = new VoiceChromeReveal(true);
   private readonly focus = signal<TTheatreFocus | null>(null);
   private readonly fullscreen = signal(false);
-  private hostEl: HTMLElement | null = null;
   /** Undefined until the first session read, so construction does not count as a change. */
   private sessionKey: string | null | undefined = undefined;
 
@@ -61,29 +60,10 @@ export class VoiceRoomViewService {
       .subscribe(() => {
         this.fullscreen.set(Boolean(document.fullscreenElement));
       });
-
-    fromEvent<KeyboardEvent>(document, 'keydown')
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => {
-        if (event.key === 'Escape' && !document.fullscreenElement) {
-          this.closeTheatre();
-        }
-      });
   }
 
   public revealChrome(): void {
     this.chrome.reveal();
-  }
-
-  public attachHost(element: HTMLElement | null): void {
-    if (
-      element == null &&
-      this.hostEl != null &&
-      document.fullscreenElement === this.hostEl
-    ) {
-      void document.exitFullscreen();
-    }
-    this.hostEl = element;
   }
 
   public openTheatre(peerId: number, stream: TVoiceStreamKind | null): void {
@@ -114,16 +94,15 @@ export class VoiceRoomViewService {
     this.focus.set(null);
   }
 
-  public async toggleFullscreen(target?: HTMLElement | null): Promise<void> {
-    const element = target ?? this.hostEl;
-    if (!element) {
+  public async toggleFullscreen(target: HTMLElement | null): Promise<void> {
+    if (!target) {
       return;
     }
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
       } else {
-        await element.requestFullscreen();
+        await target.requestFullscreen();
       }
     } catch (error) {
       console.warn('Fullscreen failed', error);

@@ -36,6 +36,9 @@ import { TuiNotificationService } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-voice-room-grid',
+  host: {
+    '(document:keydown.escape)': 'onEscape($event)',
+  },
   imports: [
     NgTemplateOutlet,
     VoiceRoomTileComponent,
@@ -169,6 +172,29 @@ export class VoiceRoomGridComponent {
 
   protected async onStopWatchScreen(userId: number): Promise<void> {
     await this.voiceSessionService.stopWatchingPeerScreen(userId);
+  }
+
+  protected onEscape(event: KeyboardEvent): void {
+    if (
+      !this.voiceRoomViewService.theatreOpen() ||
+      document.fullscreenElement
+    ) {
+      return;
+    }
+    const overlayOpen = document.querySelector(
+      'tui-dialog, tui-dropdown, tui-sheet-dialog',
+    );
+    queueMicrotask(() => {
+      if (
+        event.defaultPrevented ||
+        overlayOpen ||
+        document.fullscreenElement ||
+        !this.voiceRoomViewService.theatreOpen()
+      ) {
+        return;
+      }
+      this.voiceRoomViewService.closeTheatre();
+    });
   }
 
   protected async onHangup(): Promise<void> {

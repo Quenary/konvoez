@@ -52,24 +52,14 @@ describe('VoiceRoomViewService', () => {
     expect(view.theatreFocus()).toEqual({ peerId: 2, stream: 'cam' });
   });
 
-  it('closes theatre on Escape when not fullscreen', () => {
-    const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(2, 'screen');
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
-    expect(view.theatreOpen()).toBe(false);
-  });
-
-  it('fullscreens the attached host without closing theatre', async () => {
+  it('fullscreens an explicit target without closing theatre', async () => {
     const view = TestBed.inject(VoiceRoomViewService);
     view.openTheatre(2, 'screen');
     const host = document.createElement('div');
     const requestFullscreen = vi.fn().mockResolvedValue(undefined);
     host.requestFullscreen = requestFullscreen;
-    view.attachHost(host);
 
-    await view.toggleFullscreen();
+    await view.toggleFullscreen(host);
 
     expect(requestFullscreen).toHaveBeenCalledTimes(1);
     expect(view.theatreOpen()).toBe(true);
