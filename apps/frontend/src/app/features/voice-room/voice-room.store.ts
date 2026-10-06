@@ -3,6 +3,7 @@ import { AudioActivityService } from '@core/services/audio-activity.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerPlaybackService } from '@core/services/peer-playback.service';
+import { PeerScreenAudioService } from '@core/services/peer-screen-audio.service';
 import {
   storageGetItemJson,
   storageSetItemJson,
@@ -38,6 +39,7 @@ type VoiceRoomState = {
   microphoneMuted: boolean;
   speakerMuted: boolean;
   peerGainLevels: Readonly<Record<number, number>>;
+  peerScreenGainLevels: Readonly<Record<number, number>>;
 };
 
 function createInitialState(): VoiceRoomState {
@@ -51,6 +53,10 @@ function createInitialState(): VoiceRoomState {
     peerGainLevels:
       storageGetItemJson<Record<number, number>>(
         EStorageKey.PEER_GAIN_LEVELS,
+      ) ?? {},
+    peerScreenGainLevels:
+      storageGetItemJson<Record<number, number>>(
+        EStorageKey.PEER_SCREEN_GAIN_LEVELS,
       ) ?? {},
   };
 }
@@ -125,6 +131,7 @@ export const VoiceRoomStore = signalStore(
     (
       store,
       peerPlaybackService = inject(PeerPlaybackService),
+      peerScreenAudioService = inject(PeerScreenAudioService),
       mediasoupSessionService = inject(MediasoupSessionService),
     ) => ({
       setActiveSession(activeSession: TVoiceSessionTarget | null): void {
@@ -193,6 +200,10 @@ export const VoiceRoomStore = signalStore(
           speakerMuted,
           store.peerGainLevels(),
         );
+        peerScreenAudioService.applySpeakerMuted(
+          speakerMuted,
+          store.peerScreenGainLevels(),
+        );
       },
 
       setPeerGain(userId: number, gain: number): void {
@@ -205,6 +216,21 @@ export const VoiceRoomStore = signalStore(
           return { peerGainLevels };
         });
         peerPlaybackService.setPeerGain(userId, gain, store.speakerMuted());
+      },
+
+      setPeerScreenGain(userId: number, gain: number): void {
+        patchState(store, (state) => {
+          const peerScreenGainLevels = {
+            ...state.peerScreenGainLevels,
+            [userId]: gain,
+          };
+          storageSetItemJson(
+            EStorageKey.PEER_SCREEN_GAIN_LEVELS,
+            peerScreenGainLevels,
+          );
+          return { peerScreenGainLevels };
+        });
+        peerScreenAudioService.setGain(userId, gain, store.speakerMuted());
       },
 
       applyUserEntityUpdate(user: IUser): void {

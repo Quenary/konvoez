@@ -6,6 +6,7 @@ import {
   ElementRef,
   inject,
   input,
+  output,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -53,6 +54,12 @@ export class VoicePeerTileComponent {
 
   public readonly peer = input.required<IUser>();
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
+  public readonly screenAvailable = input(false);
+  public readonly watchingScreen = input(false);
+  public readonly showingScreen = input(false);
+
+  public readonly watchScreen = output<void>();
+  public readonly stopWatchScreen = output<void>();
 
   private readonly videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
 
@@ -114,6 +121,12 @@ export class VoicePeerTileComponent {
     return Math.round(gain * 100);
   });
 
+  protected readonly screenVolume = computed(() => {
+    const levels = this.voiceRoomStore.peerScreenGainLevels();
+    const gain = levels[this.peer().id] ?? 1;
+    return Math.round(gain * 100);
+  });
+
   protected readonly volumeIcon = computed(() => {
     const volume = this.volume();
     if (volume === 0) {
@@ -125,7 +138,27 @@ export class VoicePeerTileComponent {
     return '@tui.volume-2';
   });
 
+  protected readonly showWatchButton = computed(
+    () => !this.isLocal() && this.screenAvailable() && !this.watchingScreen(),
+  );
+
+  protected readonly showStopWatchButton = computed(
+    () => !this.isLocal() && this.watchingScreen(),
+  );
+
   protected onVolumeChange(value: number): void {
     this.voiceRoomStore.setPeerGain(this.peer().id, value / 100);
+  }
+
+  protected onScreenVolumeChange(value: number): void {
+    this.voiceRoomStore.setPeerScreenGain(this.peer().id, value / 100);
+  }
+
+  protected onWatchClick(): void {
+    this.watchScreen.emit();
+  }
+
+  protected onStopWatchClick(): void {
+    this.stopWatchScreen.emit();
   }
 }

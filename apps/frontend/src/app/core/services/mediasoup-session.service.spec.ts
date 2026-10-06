@@ -5,6 +5,8 @@ import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
 import { CameraService } from './camera.service';
+import { ScreenCaptureService } from './screen-capture.service';
+import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 
 describe('MediasoupSessionService', () => {
@@ -40,6 +42,13 @@ describe('MediasoupSessionService', () => {
             attach: vi.fn(),
             clear: vi.fn(),
             setLocalTrack: vi.fn(),
+            setLocalCamTrack: vi.fn(),
+            setLocalScreenTrack: vi.fn(),
+            registerAvailableScreen: vi.fn(),
+            unregisterAvailableScreenProducer: vi.fn(),
+            availableScreens: vi.fn(() => new Map()),
+            stopWatchingLocal: vi.fn(),
+            getScreenConsumerId: vi.fn(),
           },
         },
         {
@@ -47,6 +56,22 @@ describe('MediasoupSessionService', () => {
           useValue: {
             getTrack: vi.fn(),
             release: vi.fn(),
+          },
+        },
+        {
+          provide: ScreenCaptureService,
+          useValue: {
+            getTracks: vi.fn(),
+            release: vi.fn(),
+          },
+        },
+        {
+          provide: PeerScreenAudioService,
+          useValue: {
+            attach: vi.fn(),
+            detach: vi.fn(),
+            clear: vi.fn(),
+            getConsumerId: vi.fn(),
           },
         },
       ],

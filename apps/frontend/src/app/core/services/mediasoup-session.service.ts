@@ -2,6 +2,7 @@ import { inject, Injectable, Injector } from '@angular/core';
 import {
   EVoiceRoomEvent,
   IVoiceRoomCloseProducer,
+  IVoiceRoomCloseConsumer,
   IVoiceRoomConnectTransport,
   IVoiceRoomConsume,
   IVoiceRoomConsumeResult,
@@ -15,6 +16,7 @@ import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import type { Device } from 'mediasoup-client';
 import type {
+  Consumer,
   ConsumerOptions,
   Producer,
   RtpCapabilities,
@@ -25,12 +27,15 @@ import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { SettingsStore } from '@features/settings/settings.store';
 import { MicrophoneService } from './microphone.service';
 import { CameraService } from './camera.service';
+import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
+import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { PeerVideoService } from './peer-video.service';
 
 const mediasoupMutex = new Mutex();
 const microphoneProducerMutex = new Mutex();
 const cameraProducerMutex = new Mutex();
+const screenProducerMutex = new Mutex();
 
 export interface IConsumePeerContext {
   gain: number;
@@ -49,7 +54,9 @@ export class MediasoupSessionService {
   private readonly injector = inject(Injector);
   private readonly microphoneService = inject(MicrophoneService);
   private readonly cameraService = inject(CameraService);
+  private readonly screenCaptureService = inject(ScreenCaptureService);
   private readonly peerPlaybackService = inject(PeerPlaybackService);
+  private readonly peerScreenAudioService = inject(PeerScreenAudioService);
   private readonly peerVideoService = inject(PeerVideoService);
 
   private device: Device | null = null;
@@ -57,6 +64,10 @@ export class MediasoupSessionService {
   private recvTransport: Transport | null = null;
   private microphoneProducer: Producer | null = null;
   private cameraProducer: Producer | null = null;
+  private screenVideoProducer: Producer | null = null;
+  private screenAudioProducer: Producer | null = null;
+  /** Screen-audio consumers by remote user id (for stop-watching). */
+  private readonly screenAudioConsumers = new Map<number, Consumer>();
   private microphoneMuted = false;
   private readonly consuming = new Set<string>();
   private pendingConsumes: IVoiceRoomProduceResult[] = [];
@@ -81,22 +92,37 @@ export class MediasoupSessionService {
   public cleanup(): void {
     const micProducer = this.microphoneProducer;
     const camProducer = this.cameraProducer;
+    const screenVideo = this.screenVideoProducer;
+    const screenAudio = this.screenAudioProducer;
     const sendTransport = this.sendTransport;
     const recvTransport = this.recvTransport;
     this.microphoneProducer = null;
     this.cameraProducer = null;
+    this.screenVideoProducer = null;
+    this.screenAudioProducer = null;
     this.sendTransport = null;
     this.recvTransport = null;
+    this.screenAudioConsumers.clear();
     this.peerVideoService.clear();
+    this.peerScreenAudioService.clear();
     this.cameraService.release();
+    this.screenCaptureService.release();
     sendTransport?.close();
     recvTransport?.close();
     micProducer?.close();
     camProducer?.close();
+    screenVideo?.close();
+    screenAudio?.close();
   }
 
   public isCameraActive(): boolean {
     return Boolean(this.cameraProducer && !this.cameraProducer.closed);
+  }
+
+  public isScreenActive(): boolean {
+    return Boolean(
+      this.screenVideoProducer && !this.screenVideoProducer.closed,
+    );
   }
 
   public produceCamera(): Promise<void> {
@@ -105,6 +131,14 @@ export class MediasoupSessionService {
 
   public stopCamera(): Promise<void> {
     return cameraProducerMutex.runExclusive(() => this.stopCameraLocked());
+  }
+
+  public produceScreen(): Promise<void> {
+    return screenProducerMutex.runExclusive(() => this.produceScreenLocked());
+  }
+
+  public stopScreen(): Promise<void> {
+    return screenProducerMutex.runExclusive(() => this.stopScreenLocked());
   }
 
   public produceMicrophone(): Promise<void> {
@@ -213,7 +247,7 @@ export class MediasoupSessionService {
 
     try {
       const track = await this.cameraService.getTrack();
-      this.peerVideoService.setLocalTrack(track);
+      this.peerVideoService.setLocalCamTrack(track);
       const producer = await sendTransport.produce({
         track,
         codec: vp8,
@@ -228,7 +262,7 @@ export class MediasoupSessionService {
         void this.stopCamera();
       });
     } catch (error) {
-      this.peerVideoService.setLocalTrack(null);
+      this.peerVideoService.setLocalCamTrack(null);
       this.cameraService.release();
       console.error('Failed to produce camera\n', error);
       throw error;
@@ -238,19 +272,208 @@ export class MediasoupSessionService {
   private async stopCameraLocked(): Promise<void> {
     const producer = this.cameraProducer;
     this.cameraProducer = null;
-    this.peerVideoService.setLocalTrack(null);
+    this.peerVideoService.setLocalCamTrack(null);
     if (producer && !producer.closed) {
-      const producerId = producer.id;
-      try {
-        await this.socket.emitWithAck(EVoiceRoomEvent.CLOSE_PRODUCER, {
-          producerId,
-        } satisfies IVoiceRoomCloseProducer);
-      } catch (error) {
-        console.warn('close-producer ack failed', error);
-      }
-      producer.close();
+      await this.closeProducerRemote(producer);
     }
     this.cameraService.release();
+  }
+
+  private async produceScreenLocked(): Promise<void> {
+    const sendTransport = this.sendTransport;
+    if (!sendTransport || sendTransport.closed) {
+      throw new Error('Send transport is not ready');
+    }
+    await this.loadDevice();
+    const device = this.device;
+    if (!device) {
+      throw new Error('mediasoup Device is not loaded');
+    }
+
+    const vp8 = device.rtpCapabilities.codecs?.find(
+      (codec) => codec.mimeType.toLowerCase() === 'video/vp8',
+    );
+    if (!vp8) {
+      throw new Error('VP8 codec is not available');
+    }
+
+    await this.stopScreenLocked();
+
+    try {
+      const { videoTrack, audioTrack } =
+        await this.screenCaptureService.getTracks();
+      this.peerVideoService.setLocalScreenTrack(videoTrack);
+
+      const videoProducer = await sendTransport.produce({
+        track: videoTrack,
+        codec: vp8,
+        stopTracks: false,
+        appData: { mediaTag: 'screen' },
+      });
+      this.screenVideoProducer = videoProducer;
+      videoProducer.on('trackended', () => {
+        if (this.screenVideoProducer !== videoProducer) {
+          return;
+        }
+        void this.stopScreen();
+      });
+
+      if (audioTrack) {
+        const audioProducer = await sendTransport.produce({
+          track: audioTrack,
+          stopTracks: false,
+          appData: { mediaTag: 'screen-audio' },
+        });
+        this.screenAudioProducer = audioProducer;
+        audioProducer.on('trackended', () => {
+          if (this.screenAudioProducer !== audioProducer) {
+            return;
+          }
+          void this.closeProducerRemote(audioProducer).then(() => {
+            if (this.screenAudioProducer === audioProducer) {
+              this.screenAudioProducer = null;
+            }
+          });
+        });
+      }
+    } catch (error) {
+      await this.stopScreenLocked();
+      console.error('Failed to produce screen\n', error);
+      throw error;
+    }
+  }
+
+  private async stopScreenLocked(): Promise<void> {
+    const video = this.screenVideoProducer;
+    const audio = this.screenAudioProducer;
+    this.screenVideoProducer = null;
+    this.screenAudioProducer = null;
+    this.peerVideoService.setLocalScreenTrack(null);
+    if (video && !video.closed) {
+      await this.closeProducerRemote(video);
+    }
+    if (audio && !audio.closed) {
+      await this.closeProducerRemote(audio);
+    }
+    this.screenCaptureService.release();
+  }
+
+  private async closeProducerRemote(producer: Producer): Promise<void> {
+    try {
+      await this.socket.emitWithAck(EVoiceRoomEvent.CLOSE_PRODUCER, {
+        producerId: producer.id,
+      } satisfies IVoiceRoomCloseProducer);
+    } catch (error) {
+      console.warn('close-producer ack failed', error);
+    }
+    if (!producer.closed) {
+      producer.close();
+    }
+  }
+
+  /**
+   * Opt-in consume of a peer's screen (+ screen-audio when registered).
+   */
+  public async watchScreen(
+    userId: number,
+    resolvePeer: (userId: number) => IConsumePeerContext | null,
+    screenGain: number,
+  ): Promise<void> {
+    if (this.peerVideoService.isWatching(userId)) {
+      return;
+    }
+    const available = this.peerVideoService.availableScreens().get(userId);
+    if (!available?.videoProducerId) {
+      throw new Error('No screen share available for peer');
+    }
+    const peer = resolvePeer(userId);
+    if (!peer) {
+      throw new Error('Peer not found');
+    }
+
+    await this.consumeProducer(
+      {
+        producerId: available.videoProducerId,
+        userId,
+        kind: 'video',
+        mediaTag: 'screen',
+      },
+      resolvePeer,
+    );
+
+    if (available.audioProducerId) {
+      await this.consumeProducer(
+        {
+          producerId: available.audioProducerId,
+          userId,
+          kind: 'audio',
+          mediaTag: 'screen-audio',
+        },
+        resolvePeer,
+        { screenGain },
+      );
+    }
+  }
+
+  public async stopWatchingScreen(userId: number): Promise<void> {
+    const consumerIds: string[] = [];
+    const videoId = this.peerVideoService.getScreenConsumerId(userId);
+    if (videoId) {
+      consumerIds.push(videoId);
+    }
+    const audioId =
+      this.screenAudioConsumers.get(userId)?.id ??
+      this.peerScreenAudioService.getConsumerId(userId);
+    if (audioId) {
+      consumerIds.push(audioId);
+    }
+
+    for (const consumerId of consumerIds) {
+      try {
+        await this.socket.emitWithAck(EVoiceRoomEvent.CLOSE_CONSUMER, {
+          consumerId,
+        } satisfies IVoiceRoomCloseConsumer);
+      } catch (error) {
+        console.warn('close-consumer ack failed', error);
+      }
+    }
+
+    this.releaseScreenWatchLocal(userId);
+  }
+
+  /** Teardown local screen-audio watch state (does not close SFU consumers). */
+  public releaseScreenWatchLocal(userId: number): void {
+    this.peerVideoService.stopWatchingLocal(userId);
+    this.screenAudioConsumers.delete(userId);
+    this.peerScreenAudioService.detach(userId);
+  }
+
+  public onRemoteProducerClosed(userId: number, producerId: string): void {
+    this.peerScreenAudioService.remove(userId, producerId);
+    const audioConsumer = this.screenAudioConsumers.get(userId);
+    if (audioConsumer?.producerId === producerId) {
+      this.screenAudioConsumers.delete(userId);
+    }
+    const available = this.peerVideoService.availableScreens().get(userId);
+    if (available?.videoProducerId === producerId) {
+      this.releaseScreenWatchLocal(userId);
+    }
+  }
+
+  public releasePeerScreenWatch(userId: number): void {
+    this.releaseScreenWatchLocal(userId);
+  }
+
+  public handleConsumerClosed(consumerId: string): void {
+    this.peerVideoService.removeByConsumerId(consumerId);
+    for (const [userId, consumer] of this.screenAudioConsumers) {
+      if (consumer.id === consumerId) {
+        this.screenAudioConsumers.delete(userId);
+        this.peerScreenAudioService.detach(userId);
+        return;
+      }
+    }
+    this.peerScreenAudioService.detachByConsumerId(consumerId);
   }
 
   @Mutexed(mediasoupMutex)
@@ -391,11 +614,32 @@ export class MediasoupSessionService {
     data: IVoiceRoomProduceResult,
     resolvePeer: (userId: number) => IConsumePeerContext | null,
   ): Promise<void> {
-    // Phase 1: auto-subscribe cam only; screen waits for opt-in (phase 2).
-    if (data.mediaTag === 'screen' || data.mediaTag === 'screen-audio') {
+    // Screen is opt-in: register availability, do not auto-consume.
+    if (data.mediaTag === 'screen') {
+      this.peerVideoService.registerAvailableScreen(
+        data.userId,
+        data.producerId,
+        'video',
+      );
+      return;
+    }
+    if (data.mediaTag === 'screen-audio') {
+      this.peerVideoService.registerAvailableScreen(
+        data.userId,
+        data.producerId,
+        'audio',
+      );
       return;
     }
 
+    await this.consumeProducer(data, resolvePeer);
+  }
+
+  private async consumeProducer(
+    data: IVoiceRoomProduceResult,
+    resolvePeer: (userId: number) => IConsumePeerContext | null,
+    options?: { screenGain?: number },
+  ): Promise<void> {
     if (this.consuming.has(data.producerId)) {
       console.warn('Producer already consuming\n', data);
       return;
@@ -437,6 +681,26 @@ export class MediasoupSessionService {
       const consumer = await recvTransport.consume(
         result as unknown as ConsumerOptions,
       );
+
+      if (data.mediaTag === 'screen') {
+        this.peerVideoService.attach(data.userId, consumer, 'screen');
+        consumer.resume();
+        return;
+      }
+
+      if (data.mediaTag === 'screen-audio') {
+        const previous = this.screenAudioConsumers.get(data.userId);
+        if (previous && !previous.closed) {
+          previous.close();
+        }
+        this.screenAudioConsumers.set(data.userId, consumer);
+        await this.peerScreenAudioService.attach(data.userId, consumer, {
+          gain: options?.screenGain ?? 1,
+          speakerMuted: peer.speakerMuted,
+        });
+        consumer.resume();
+        return;
+      }
 
       if (data.kind === 'video' || data.mediaTag === 'cam') {
         this.peerVideoService.attach(data.userId, consumer, 'cam');

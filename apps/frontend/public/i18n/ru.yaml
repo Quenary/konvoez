@@ -82,13 +82,21 @@ CALL:
   CAMERA: Камера
   CAMERA_ON: Включить камеру
   CAMERA_OFF: Выключить камеру
-  CAMERA_SOON: Камера (скоро)
   CAMERA_SETTINGS: Настройки камеры
   CAMERA_FAILED: Не удалось запустить камеру
   START_CAMERA: Запустить камеру
   STREAM_HEIGHT: Разрешение
   STREAM_FPS: Частота кадров
-  SCREEN_SOON: Демонстрация экрана (скоро)
+  SCREEN: Экран
+  SCREEN_ON: Демонстрация экрана
+  SCREEN_OFF: Остановить демонстрацию
+  SCREEN_SETTINGS: Настройки демонстрации экрана
+  SCREEN_FAILED: Не удалось начать демонстрацию экрана
+  START_SCREEN: Демонстрировать
+  WATCH_SCREEN: Смотреть
+  STOP_WATCH_SCREEN: Не смотреть
+  WATCH_SCREEN_FAILED: Не удалось подписаться на демонстрацию
+  SCREEN_VOLUME: Громкость экрана
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
 ROOMS:

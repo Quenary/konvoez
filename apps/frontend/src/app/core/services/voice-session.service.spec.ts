@@ -75,6 +75,9 @@ describe('VoiceSessionService', () => {
     replaceMicrophoneTrack: ReturnType<typeof vi.fn>;
     consume: ReturnType<typeof vi.fn>;
     consumePending: ReturnType<typeof vi.fn>;
+    releasePeerScreenWatch: ReturnType<typeof vi.fn>;
+    onRemoteProducerClosed: ReturnType<typeof vi.fn>;
+    handleConsumerClosed: ReturnType<typeof vi.fn>;
   };
   let notifications: {
     open: ReturnType<typeof vi.fn>;
@@ -142,6 +145,9 @@ describe('VoiceSessionService', () => {
       replaceMicrophoneTrack: vi.fn().mockResolvedValue(undefined),
       consume: vi.fn().mockResolvedValue(undefined),
       consumePending: vi.fn().mockResolvedValue(undefined),
+      releasePeerScreenWatch: vi.fn(),
+      onRemoteProducerClosed: vi.fn(),
+      handleConsumerClosed: vi.fn(),
     };
     notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
@@ -314,6 +320,7 @@ describe('VoiceSessionService', () => {
 
     expect(voiceRoomStore.removePeer).toHaveBeenCalledWith(bob.id);
     expect(voiceRoomStore.removePeerFromRoom).toHaveBeenCalledWith(1, bob.id);
+    expect(mediasoup.releasePeerScreenWatch).toHaveBeenCalledWith(bob.id);
   });
 
   it('replaces the published track when the selected device disappears', async () => {

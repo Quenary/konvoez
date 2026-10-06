@@ -146,6 +146,8 @@ export class SettingsDevicesComponent {
   protected readonly audioOutput = this.settingsStore.audioOutput;
   protected readonly streamHeight = this.settingsStore.streamHeight;
   protected readonly streamFps = this.settingsStore.streamFps;
+  protected readonly screenHeight = this.settingsStore.screenHeight;
+  protected readonly screenFps = this.settingsStore.screenFps;
   protected readonly streamHeights = [...STREAM_HEIGHTS];
   protected readonly streamFpsOptions = [...STREAM_FPS_OPTIONS];
   /**
@@ -259,5 +261,13 @@ export class SettingsDevicesComponent {
 
   protected onSelectStreamFps(fps: TStreamFps): void {
     this.settingsStore.setStreamFps(fps);
+  }
+
+  protected onSelectScreenHeight(height: TStreamHeight): void {
+    this.settingsStore.setScreenHeight(height);
+  }
+
+  protected onSelectScreenFps(fps: TStreamFps): void {
+    this.settingsStore.setScreenFps(fps);
   }
 }

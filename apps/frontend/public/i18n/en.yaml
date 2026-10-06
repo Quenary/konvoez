@@ -82,13 +82,21 @@ CALL:
   CAMERA: Camera
   CAMERA_ON: Turn on camera
   CAMERA_OFF: Turn off camera
-  CAMERA_SOON: Camera (soon)
   CAMERA_SETTINGS: Camera settings
   CAMERA_FAILED: Couldn't start the camera
   START_CAMERA: Start camera
   STREAM_HEIGHT: Resolution
   STREAM_FPS: Frame rate
-  SCREEN_SOON: Screen share (soon)
+  SCREEN: Screen
+  SCREEN_ON: Share screen
+  SCREEN_OFF: Stop sharing
+  SCREEN_SETTINGS: Screen share settings
+  SCREEN_FAILED: Couldn't start screen sharing
+  START_SCREEN: Share screen
+  WATCH_SCREEN: Watch
+  STOP_WATCH_SCREEN: Stop watching
+  WATCH_SCREEN_FAILED: Couldn't watch the screen share
+  SCREEN_VOLUME: Screen volume
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
 ROOMS:

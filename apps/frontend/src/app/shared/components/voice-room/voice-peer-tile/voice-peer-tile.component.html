@@ -3,7 +3,8 @@
 
 <div
   class="tile"
-  [class.speaking]="isSpeaking()">
+  [class.speaking]="isSpeaking()"
+  [class.screen]="showingScreen()">
   @if (videoTrack()) {
     <video
       #videoEl
@@ -31,6 +32,15 @@
         class="badge-calling"
         tuiHintAppearance="floating"
         [tuiHint]="'CALL.CALLING' | translate" />
+    }
+    @if (showingScreen()) {
+      <tui-icon
+        appearance="info"
+        iconStart="@tui.screen-share"
+        size="l"
+        tuiBadge
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.SCREEN' | translate" />
     }
     @if (isMuted()) {
       <tui-icon
@@ -68,6 +78,57 @@
         <span class="you">({{ 'CALL.YOU' | translate }})</span>
       }
     </span>
+
+    @if (showWatchButton()) {
+      <button
+        tuiButton
+        appearance="primary"
+        size="s"
+        type="button"
+        (click)="onWatchClick()">
+        {{ 'CALL.WATCH_SCREEN' | translate }}
+      </button>
+    }
+
+    @if (showStopWatchButton()) {
+      <button
+        tuiButton
+        appearance="flat"
+        size="s"
+        type="button"
+        (click)="onStopWatchClick()">
+        {{ 'CALL.STOP_WATCH_SCREEN' | translate }}
+      </button>
+
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="s"
+        type="button"
+        tuiDropdownAuto
+        tuiDropdownDirection="top"
+        iconStart="@tui.volume-2"
+        [tuiDropdown]="screenVolumeDropdown"
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
+      </button>
+
+      <ng-template #screenVolumeDropdown>
+        <label
+          tuiLabel
+          class="volume">
+          {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
+          <input
+            tuiSlider
+            type="range"
+            min="0"
+            max="200"
+            step="5"
+            [ngModel]="screenVolume()"
+            (ngModelChange)="onScreenVolumeChange($event)" />
+        </label>
+      </ng-template>
+    }
 
     @if (!isLocal()) {
       <button

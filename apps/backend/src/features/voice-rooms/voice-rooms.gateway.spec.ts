@@ -720,6 +720,33 @@ describe('VoiceRoomsGateway', () => {
     });
   });
 
+  describe('closeConsumer', () => {
+    it('closes a consumer owned by the peer', async () => {
+      const consumer = { id: 'c1', closed: false, close: jest.fn() };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await gateway.closeConsumer(socket as never, { consumerId: 'c1' });
+
+      expect(consumer.close).toHaveBeenCalled();
+      expect(peer.consumers.has('c1')).toBe(false);
+    });
+  });
+
   describe('direct call signaling', () => {
     it('initiates a ringing call and notifies the recipient', () => {
       directCallsStateService.create.mockReturnValue({
