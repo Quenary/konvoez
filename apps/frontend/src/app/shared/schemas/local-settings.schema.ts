@@ -45,6 +45,7 @@ export const localSettingsSchema = z.object({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
+  screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
 });
 
 export type TLocalSettings = z.infer<typeof localSettingsSchema>;
@@ -58,6 +59,9 @@ export const localSettingsLooseSchema = z.looseObject({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
+  screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
 });
 
 export type TLocalSettingsPartial = z.infer<typeof localSettingsLooseSchema>;
+
+export const DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN = true;

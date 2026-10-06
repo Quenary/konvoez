@@ -15,6 +15,7 @@ import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.component';
 import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
+import { ScreenSharePipComponent } from '../screen-share-pip/screen-share-pip.component';
 import {
   resolveVoiceSessionPeers,
   voicePeersGridClass,
@@ -25,7 +26,11 @@ import { TuiNotificationService } from '@taiga-ui/core';
 
 @Component({
   selector: 'app-voice-peers-grid',
-  imports: [VoicePeerTileComponent, VoiceControlsBarComponent],
+  imports: [
+    VoicePeerTileComponent,
+    VoiceControlsBarComponent,
+    ScreenSharePipComponent,
+  ],
   templateUrl: './voice-peers-grid.component.html',
   styleUrl: './voice-peers-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
