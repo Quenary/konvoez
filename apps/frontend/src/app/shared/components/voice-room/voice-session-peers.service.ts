@@ -6,7 +6,7 @@ import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { resolveVoiceSessionPeers } from './voice-session-peers';
 
 /**
- * One participant list for the grid, the room page, and the direct-call panel.
+ * One participant list for the grid, voice room page, and direct call shell.
  */
 @Injectable({ providedIn: 'root' })
 export class VoiceSessionPeersService {

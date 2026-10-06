@@ -1,85 +1,66 @@
-# Frontend voice flow
+# Frontend voice
 
-Client-side voice for group rooms and direct calls. Signaling and SFU networking are in [NETWORKING.md](../NETWORKING.md). Camera and screen sharing are documented in [STREAMING.md](./STREAMING.md).
+Group voice rooms and direct calls share one media stack. Signaling and SFU: [NETWORKING.md](../NETWORKING.md). Camera/screen: [STREAMING.md](./STREAMING.md).
 
-## Architecture
+## Layers
 
-Domain state lives in a signal store. Sockets, mediasoup, and device pipelines live in services. The store does not hold `Device`, `Transport`, or `AudioNode` instances.
+Signal stores hold session, lobby presence, and audio prefs. Sockets, mediasoup, and device pipelines live in services (no `Device` / `Transport` / `AudioNode` in stores).
 
 ```mermaid
 flowchart TB
-  UI[Components Effects Settings]
-  Store[VoiceRoomStore]
+  UI[Pages and shared voice-room UI]
+  VSS[VoiceSessionStore]
+  VLS[VoiceLobbyStore]
+  VAP[VoiceAudioPreferencesStore]
   Session[VoiceSessionService]
   Ms[MediasoupSessionService]
-  Play[PeerPlaybackService]
-  Video[PeerVideoService]
-  ScrAud[PeerScreenAudioService]
-  Wake[ScreenWakeLockService]
   DC[DirectCallService]
-  Mic[MicrophoneService]
-  Spk[SpeakerService]
-  Act[AudioActivityService]
-  Sfx[AudioService]
+  Leave[VoiceLeaveService]
+  View[VoiceRoomViewService]
 
-  UI --> Store
+  UI --> VSS
+  UI --> VLS
+  UI --> VAP
   UI --> Session
   UI --> DC
-  UI --> Act
+  UI --> Leave
+  UI --> View
   DC --> Session
-  DC --> Store
-  Session --> Store
+  Session --> VSS
+  Session --> VLS
   Session --> Ms
-  Session --> Play
-  Session --> Wake
-  Session --> Sfx
-  Ms --> Mic
-  Ms --> Play
-  Ms --> Video
-  Ms --> ScrAud
-  Play --> Spk
-  Play --> Act
-  Play --> Store
-  Video --> UI
+  Leave --> DC
+  Leave --> Session
 ```
 
-Hangup from UI goes through `VoiceLeaveService`: if a direct call is active it calls `DirectCallService.leaveCall()`, otherwise `VoiceSessionService.leaveSession()`. `VoiceSessionService` does not depend on `DirectCallService`. Switching away from a live call is handled by `DirectCallService` on `sessionWillChange$` (`detachFromCallWithoutHangup()`).
+- **Hangup:** `VoiceLeaveService.leaveActiveVoice()` — direct call via `DirectCallService.leaveCall()`, else `VoiceSessionService.leaveSession()`. `VoiceSessionService` does not import `DirectCallService`; switching sessions uses `sessionWillChange$` and `detachFromCallWithoutHangup()`.
+- **Audio contexts:** capture, playback, and UI SFX are separate; resume after gesture is centralized in `AudioContextResumeService`.
 
-Capture, playback, and UI SFX each use their own `AudioContext`. Auto-resume after a user gesture is centralized in `AudioContextResumeService`.
+## Flow (short)
 
-## Runtime path
+1. **Join** — `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`) from room UI, effects, or `DirectCallService`. Join/leave SFX, transports, mic produce, wake lock; reconnect rejoins stored session. Lobby peers: `GET_ALL_PEERS` poll + socket events (`VoiceLobbyStore`; direct calls excluded).
+2. **Mic** — `MicrophoneService` pipeline; mute via producer track + `VoiceAudioPreferencesStore`.
+3. **Remote audio** — consume → `PeerPlaybackService` (deafen × per-peer gain).
+4. **Speaking** — `AudioActivityService`; local registration from `VoiceAudioPreferencesStore` when session + analyser + unmuted mic.
+5. **Direct calls** — signaling in `DirectCallService`; UI on `/direct/:id` (`DirectComponent` + `app-voice-room-shell`) and sidebar (`voice-room-panel`, hanging call in rooms aside). Shared grid/overlay: `shared/components/voice-room/`.
 
-1. **Session.** UI, `RoomsEffects`, or `DirectCallService` call `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`). Join: join SFX, emit `sessionWillChange$`, leave the previous session if any, `JOIN_ROOM`, load Device, send/recv transports, produce mic, screen wake lock. Leave reverses that and releases the mic. Socket `connect` cleans mediasoup and rejoins the stored session; lobby peers are polled with `GET_ALL_PEERS` every 10s.
+## Ownership
 
-2. **Capture.** `MicrophoneService`: `source → gain → highpass → Speex → analyser + MediaStreamDestination`. Mute is `producer.track.enabled`. Changing the input device closes and replaces the producer. A `devicechange` after the first mic permission does not rebuild capture (iOS fires that event without a hardware change); produce waits until the track unmutes, and an ended producer track is replaced.
+| Concern                                  | Owner                                          |
+| ---------------------------------------- | ---------------------------------------------- |
+| Active session + session peers           | `VoiceSessionStore`                            |
+| Who is in which group voice room         | `VoiceLobbyStore`                              |
+| Mute, deafen, peer / screen-audio gain   | `VoiceAudioPreferencesStore`                   |
+| Join / leave media                       | `VoiceSessionService`                          |
+| Call signaling, `callWithUserId`, rejoin | `DirectCallService`                            |
+| Hangup button                            | `VoiceLeaveService`                            |
+| Device changes in settings               | `AUDIO_DEVICE_HANDLER` → `VoiceSessionService` |
+| Theatre, chrome, fullscreen              | `VoiceRoomViewService`                         |
+| Grid peer list                           | `VoiceSessionPeersService`                     |
 
-3. **Playback.** On remote produce: `CONSUME`, dummy muted `<audio>` (Chrome), then `source → gain → analyser + destination`. Gain is speaker-mute (deafen) times per-peer volume. Graphs are keyed by user id in `PeerPlaybackService`, not on peer entities.
+## Code map
 
-4. **Speaking.** `AudioActivityService` polls registered analysers (~50ms). Local user is registered from a `VoiceRoomStore` hook when there is an active session, a live mic analyser, and the mic is unmuted.
-
-5. **Video.** Cam produces/consumes through `MediasoupSessionService` into `PeerVideoService`; screen is opt-in watch via `VoiceSessionService.watchPeerScreen`. Screen-audio uses `PeerScreenAudioService` with separate per-peer gain in the store. UI is `voice-room-grid` (one or two tiles per peer) and theatre as a display mode (`VoiceRoomViewService`). See [STREAMING.md](./STREAMING.md).
-
-6. **Lobby.** `roomsState` is the sidebar map of who is in which **group** voice room (direct calls are excluded). Updated on connect, poll, join/leave, and peer join/leave; user entity sync patches both lobby and session peers.
-
-## UI contract
-
-| Concern                                       | Owner                                                      |
-| --------------------------------------------- | ---------------------------------------------------------- |
-| Session, lobby, peers (`IUser[]`), mute, gain | `VoiceRoomStore`                                           |
-| `joinSession` / `leaveSession`                | `VoiceSessionService`                                      |
-| Hangup / leave button                         | `VoiceLeaveService.leaveActiveVoice()`                     |
-| Settings input/output devices                 | `AUDIO_DEVICE_HANDLER` → `VoiceSessionService`             |
-| Speaking indicator                            | `AudioActivityService.speakingMap`                         |
-| Cam / screen tracks, watch set                | `PeerVideoService` (video consumers: `ConsumerRegistry`)   |
-| Screen-audio playback                         | `PeerScreenAudioService`                                   |
-| Watch / stop screen                           | `VoiceSessionService`                                      |
-| Theatre focus, chrome, fullscreen             | `VoiceRoomViewService`                                     |
-| Mic vs screen-audio volume                    | `VoiceRoomStore` `peerGainLevels` / `peerScreenGainLevels` |
-
-## Main files
-
-- Store: `apps/frontend/src/app/features/voice-room/voice-room.store.ts`
-- Session / mediasoup / playback / video / wake lock / leave: `apps/frontend/src/app/core/services/voice-*.ts`, `mediasoup-session.service.ts`, `peer-playback.service.ts`, `peer-video.service.ts`, `peer-screen-audio.service.ts`, `camera.service.ts`, `screen-capture.service.ts`, `screen-wake-lock.service.ts`
-- Capture / sink / VAD / SFX: `microphone.service.ts`, `speaker.service.ts`, `audio-activity.service.ts`, `audio.service.ts`, `audio-context-resume.service.ts`
-- Call signaling: `direct-call.service.ts`
+- Stores: `apps/frontend/src/app/core/voice/`
+- Session / mediasoup / devices: `apps/frontend/src/app/core/services/voice-*.ts`, `mediasoup-session.service.ts`, `peer-*.service.ts`, `direct-call.service.ts`, `voice-leave.service.ts`
 - Shared UI: `apps/frontend/src/app/shared/components/voice-room/`
+- Routes: `features/voice-room/`, `features/direct/`

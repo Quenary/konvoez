@@ -1,79 +1,29 @@
-# Frontend streaming (camera & screen)
+# Frontend streaming
 
-Camera and screen share on the voice stack in [VOICE.md](./VOICE.md).
+Camera and screen on the voice stack ([VOICE.md](./VOICE.md)).
 
 ## Subscribe model
 
-| Kind                             | Produce                 | Remote subscribe           | Audio                                                                 |
-| -------------------------------- | ----------------------- | -------------------------- | --------------------------------------------------------------------- |
-| Microphone                       | Always while in session | Auto                       | `PeerPlaybackService`                                                 |
-| Camera                           | User toggles            | Auto                       | Video only: `PeerVideoService`                                        |
-| Screen (+ optional screen-audio) | User toggles            | Opt-in (`watchPeerScreen`) | Video: `PeerVideoService`. Audio: `PeerScreenAudioService` (own gain) |
+| Kind                             | Produce          | Remote video             | Audio                                                               |
+| -------------------------------- | ---------------- | ------------------------ | ------------------------------------------------------------------- |
+| Mic                              | While in session | —                        | Auto → `PeerPlaybackService`                                        |
+| Camera                           | User toggle      | Auto                     | Video only → `PeerVideoService`                                     |
+| Screen (+ optional screen-audio) | User toggle      | Opt-in `watchPeerScreen` | Video → `PeerVideoService`; screen-audio → `PeerScreenAudioService` |
 
-One cam and one screen per user. A room allows at most 4 video producers (`cam` + `screen`); the backend rejects another. Senders use VP8.
+One cam and one screen per user; room cap 4 video producers (backend). VP8 for senders. Mic gain and screen-audio gain live in `VoiceAudioPreferencesStore`. Height/FPS from settings + shared start dialog. Screen button hidden if `getDisplayMedia` is unavailable.
 
-`VoiceRoomStore` keeps mic gain (`peerGainLevels`) and screen-audio gain (`peerScreenGainLevels`) separate. Capture height and FPS come from local settings and are chosen in the shared start dialog.
+## Pipeline
 
-The screen button is hidden when `getDisplayMedia` is missing.
+`MediasoupSessionService` — device, transports, produce/consume. `PeerVideoService` — tracks, `availableScreens`, `watchingUserIds`. `ScreenWatchService` + `ConsumerRegistry` for opt-in screen video. `LocalScreenPreviewService` — shared pause for **local** screen preview (tab hidden / window blur; producing continues). `VoiceRoomViewService` — theatre/chrome only.
 
-## Services
+Tiles: `buildVoiceRoomTiles` — voice-only, cam, screen, or cam+screen as separate 16:9 tiles. Remote screen video attaches only while watching.
 
-| Service                                  | Role                                                                                                              |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `MediasoupSessionService`                | Device, transports, and produce/consume. Shared transport setup, VP8 pick, and video produce for cam and screen.  |
-| `ScreenWatchService`                     | Opt-in screen watch: start, stop, and teardown.                                                                   |
-| `ConsumerRegistry`                       | Owns video consumers. Peer video state keeps the track and ids.                                                   |
-| `PeerVideoService`                       | Local and remote cam and screen tracks, `availableScreens`, `watchingUserIds`. Cam and screen stay separate.      |
-| `PeerScreenAudioService`                 | Sole owner of screen-audio consumers, graphs, and gain. Not mixed into mic playback.                              |
-| `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`.                                                                               |
-| `VoiceSessionService`                    | UI entry for camera and screen produce/stop, plus `watchPeerScreen` / `stopWatchingPeerScreen`.                   |
-| `LocalScreenPreviewService`              | Shared pause flag for the local screen preview.                                                                   |
-| `VoiceRoomViewService`                   | Theatre focus, chrome auto-hide, fullscreen. Resets when the voice session changes. Does not start or stop media. |
+## Theatre & chrome
 
-When the selected camera disappears, `CameraService` emits `deviceLost$` and the session stops that producer. Stopping the capture track does not fire the producer `trackended` event.
+Theatre is a layout mode (`VoiceRoomViewService`: `{ peerId, stream }`). Grid unmounts while open; strip of mini-tiles; stage video or large tile. Focus is sticky; fallback to another stream if the focused tile disappears. Close: overlay actions, Escape (if allowed), or session end (hangup, leave, logout, room switch).
 
-On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch. Auto-consume stays best-effort. An opt-in screen watch rejects when the video subscribe fails, so the UI can show `CALL.WATCH_SCREEN_FAILED`. If the video is up and screen audio fails, the watch stays and the audio error is only logged. Pending consumes are drained under one mutex.
+`app-voice-room-overlay` is projected into `app-voice-room-grid` (grid and theatre stage). Stop-watch and screen volume when watching a remote screen. Group room page and `app-voice-room-shell` (group + direct call) use the same overlay; controls in `voice-room-controls-bar`.
 
-## Tiles
+## Tests (spot checks)
 
-`buildVoiceRoomTiles` (`voice-room-tiles.ts`) builds the grid:
-
-- No cam and no screen: one voice tile.
-- Cam or screen only: one tile.
-- Both: two tiles, so both can be seen at once.
-
-A remote screen tile exists while that peer is sharing. Its video track is attached only while this client is watching. The local screen tile uses `localScreenTrack`. `LocalScreenPreviewService` pauses that preview 5s after the tab is hidden or the window loses focus (`screenPreviewAutoPauseWhenHidden`). Resume starts that delay again while the tab stays hidden or the window stays blurred. The grid tile, theatre stage, and strip mini-tile share that flag, so it survives the grid unmounting in theatre. Producing to peers continues. Nothing resumes the preview except the Resume button or turning the setting off.
-
-## Theatre
-
-Theatre is a display mode, not a watch action. Any tile can open it, including a voice tile with no stream. `VoiceRoomViewService` stores `{ peerId, stream }` where `stream` is `'cam'`, `'screen'`, or `null`.
-
-The stage shows a `<video>` when the focused tile has a track, otherwise a large `voice-room-tile` with a small inset. The grid is unmounted while theatre is open.
-
-The strip (`voice-room-tile-mini`) sits on the bottom or the right (`preferTheatreStripRight`, container aspect vs stream aspect). Clicking a mini-tile selects it. There is no automatic switch to whoever is speaking.
-
-Stop watching, or the other peer ending the stream, does not close theatre. The service stores the tile the user picked. The stage shows that tile while it exists (without a track the stage is the large tile). If it disappears, the stage switches to an active remote stream: a watched screen, then any other remote tile with video. A regular tile is used only when nothing is streaming, and a remote one comes before yourself. That fallback is not written back, so the original tile returns if it shows up again. An empty room stays in theatre with an empty stage. Close is the close button, or Escape when the browser is not fullscreen and a Taiga dialog or dropdown has not already handled that key. Leaving the voice session also closes it: hangup (including the direct-call panel), sidebar leave, the remote side ending the call, logout, and switching rooms. The next session starts in the grid.
-
-## Chrome
-
-The room page projects `app-voice-room-overlay` into `app-voice-room-grid` with `<ng-template appVoiceOverlay>`. The grid draws it over the whole grid. Theatre draws it over the stage cell only, so the mini-tile strip stays clickable.
-
-Stop-watch and screen volume show only while a remote screen is actually being watched. The compact direct-call grid does not use this overlay; it keeps its own footer.
-
-Shared UI: `apps/frontend/src/app/shared/components/voice-room/`. Preview `<video>` elements use `playsinline` and bind the track through `appVideoTrack`.
-
-## Tests
-
-- `peer-video.service.spec.ts` — separate cam and screen tracks, watch set, available screens
-- `voice-room-tiles.spec.ts` — one or two tiles, theatre focus fallback
-- `voice-peers-layout.spec.ts` — section class and strip side
-- `voice-room-tile.component.spec.ts` — local screen preview pause
-- `voice-room-grid.component.spec.ts` — grid vs theatre, focus stays or retargets
-- `voice-room-theatre.component.spec.ts` — strip selection, large tile without video
-- `voice-room-view.service.spec.ts` — open, retarget, Escape, fullscreen
-- `voice-room-controls-bar.component.spec.ts` — shared start dialog for camera and screen
-- `voice-room-theatre-watch-controls.component.spec.ts` — stop watch and screen volume
-- `voice-room-theatre-actions.component.spec.ts` — fullscreen target and close
-- `camera.service.spec.ts` — missing camera is reported, capture is not stopped there
-- `voice-room.component.spec.ts` — join once for the route room
-- `direct-call-panel.component.spec.ts` — shared participant count and hangup
+`peer-video.service.spec.ts`, `voice-room-tiles.spec.ts`, `voice-room-grid.component.spec.ts`, `voice-room-theatre.component.spec.ts`, `voice-room-view.service.spec.ts`, `voice-room-controls-bar.component.spec.ts`, `voice-room.component.spec.ts`, `direct.component.spec.ts`
