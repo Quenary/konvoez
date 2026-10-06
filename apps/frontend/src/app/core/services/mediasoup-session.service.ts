@@ -120,16 +120,6 @@ export class MediasoupSessionService {
     screenAudio?.close();
   }
 
-  public isCameraActive(): boolean {
-    return Boolean(this.cameraProducer && !this.cameraProducer.closed);
-  }
-
-  public isScreenActive(): boolean {
-    return Boolean(
-      this.screenVideoProducer && !this.screenVideoProducer.closed,
-    );
-  }
-
   public produceCamera(): Promise<void> {
     return this.cameraMutex.runExclusive(() => this.produceCameraLocked());
   }
@@ -501,6 +491,8 @@ export class MediasoupSessionService {
     return this.consumeMutex.runExclusive(() => this.drainPending(resolvePeer));
   }
 
+  /** Only called while `consumeMutex` is held. */
+
   private async drainPending(
     resolvePeer: (userId: number) => IConsumePeerContext | null,
   ): Promise<void> {
@@ -561,13 +553,6 @@ export class MediasoupSessionService {
           '\nAdded to pending consumes',
         );
         this.pendingConsumes.push(data);
-        if (resolvePeer(data.userId)) {
-          if (this.consumeMutex.isLocked()) {
-            await this.drainPending(resolvePeer);
-          } else {
-            await this.consumePending(resolvePeer);
-          }
-        }
         return;
       }
 

@@ -32,7 +32,7 @@ The screen button is hidden when `getDisplayMedia` is missing.
 
 When the selected camera disappears, `CameraService` emits `deviceLost$` and the session stops that producer. Stopping the capture track does not fire the producer `trackended` event.
 
-On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch. Auto-consume stays best-effort. An opt-in screen watch rejects when the SFU or the recv transport fails, so the UI can show `CALL.WATCH_SCREEN_FAILED`.
+On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch. Auto-consume stays best-effort. An opt-in screen watch rejects when the video subscribe fails, so the UI can show `CALL.WATCH_SCREEN_FAILED`. If the video is up and screen audio fails, the watch stays and the audio error is only logged. Pending consumes are drained under one mutex.
 
 ## Tiles
 

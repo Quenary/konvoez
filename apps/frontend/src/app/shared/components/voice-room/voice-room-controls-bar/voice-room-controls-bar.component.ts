@@ -77,40 +77,34 @@ export class VoiceRoomControlsBarComponent {
     this.audioService.playMuteAudio();
   }
 
+  protected onHangupClick(): void {
+    this.hangup.emit();
+  }
+
   protected async toggleStream(kind: TStreamQualityKind): Promise<void> {
     if (kind === 'screen' && !this.screenSupported) {
       return;
     }
 
-    const active = kind === 'cam' ? this.cameraOn() : this.screenOn();
-    if (active) {
-      if (kind === 'cam') {
-        await this.voiceSessionService.stopCamera();
-      } else {
-        await this.voiceSessionService.stopScreen();
-      }
+    const start = this.streamStart(kind);
+    if (start.active()) {
+      await start.stop();
       return;
     }
 
-    const screen = kind === 'screen';
+    const settings = start.settings();
     const result = await firstValueFrom(
       this.dialogService.open<TStreamQualityDialogResult | null>(
         new PolymorpheusComponent(StreamQualityDialogComponent, this.injector),
         {
           data: {
             kind,
-            height: screen
-              ? this.settingsStore.screenHeight()
-              : this.settingsStore.streamHeight(),
-            fps: screen
-              ? this.settingsStore.screenFps()
-              : this.settingsStore.streamFps(),
+            height: settings.height,
+            fps: settings.fps,
           },
           size: 's',
           dismissible: true,
-          label: this.translateService.instant(
-            screen ? 'CALL.SCREEN' : 'CALL.CAMERA',
-          ),
+          label: this.translateService.instant(start.labelKey),
         },
       ),
       { defaultValue: null },
@@ -119,35 +113,71 @@ export class VoiceRoomControlsBarComponent {
       return;
     }
 
-    if (screen) {
-      this.settingsStore.setScreenHeight(result.height);
-      this.settingsStore.setScreenFps(result.fps);
-    } else {
-      this.settingsStore.setStreamHeight(result.height);
-      this.settingsStore.setStreamFps(result.fps);
-    }
+    start.save(result);
 
     try {
-      if (screen) {
-        await this.voiceSessionService.produceScreen();
-      } else {
-        await this.voiceSessionService.produceCamera();
-      }
+      await start.produce();
     } catch (error) {
-      console.error(
-        screen ? 'Failed to start screen share' : 'Failed to start camera',
-        error,
-      );
+      console.error(start.failedLog, error);
       notifyError(
         this.tuiNotificationsService,
         this.translateService,
-        screen ? 'CALL.SCREEN_FAILED' : 'CALL.CAMERA_FAILED',
+        start.failedKey,
         error,
       );
     }
   }
 
-  protected onHangupClick(): void {
-    this.hangup.emit();
+  private streamStart(kind: TStreamQualityKind) {
+    const starts: Record<
+      TStreamQualityKind,
+      {
+        labelKey: string;
+        failedKey: string;
+        failedLog: string;
+        active: () => boolean;
+        settings: () => {
+          height: TStreamQualityDialogResult['height'];
+          fps: TStreamQualityDialogResult['fps'];
+        };
+        save: (result: TStreamQualityDialogResult) => void;
+        stop: () => Promise<void>;
+        produce: () => Promise<void>;
+      }
+    > = {
+      cam: {
+        labelKey: 'CALL.CAMERA',
+        failedKey: 'CALL.CAMERA_FAILED',
+        failedLog: 'Failed to start camera',
+        active: () => this.cameraOn(),
+        settings: () => ({
+          height: this.settingsStore.streamHeight(),
+          fps: this.settingsStore.streamFps(),
+        }),
+        save: (result) => {
+          this.settingsStore.setStreamHeight(result.height);
+          this.settingsStore.setStreamFps(result.fps);
+        },
+        stop: () => this.voiceSessionService.stopCamera(),
+        produce: () => this.voiceSessionService.produceCamera(),
+      },
+      screen: {
+        labelKey: 'CALL.SCREEN',
+        failedKey: 'CALL.SCREEN_FAILED',
+        failedLog: 'Failed to start screen share',
+        active: () => this.screenOn(),
+        settings: () => ({
+          height: this.settingsStore.screenHeight(),
+          fps: this.settingsStore.screenFps(),
+        }),
+        save: (result) => {
+          this.settingsStore.setScreenHeight(result.height);
+          this.settingsStore.setScreenFps(result.fps);
+        },
+        stop: () => this.voiceSessionService.stopScreen(),
+        produce: () => this.voiceSessionService.produceScreen(),
+      },
+    };
+    return starts[kind];
   }
 }

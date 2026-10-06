@@ -366,7 +366,7 @@ describe('VoiceSessionService', () => {
     handlers['connect']();
     await vi.waitFor(() => {
       expect(notifications.open).toHaveBeenCalledWith(
-        'join failed',
+        'VOICE.JOIN_FAILED',
         expect.objectContaining({ appearance: 'negative' }),
       );
     });
