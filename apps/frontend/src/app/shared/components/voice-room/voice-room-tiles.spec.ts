@@ -145,6 +145,45 @@ describe('resolveTheatreTile', () => {
     });
   });
 
+  it('falls back to the same peer before another remote video', () => {
+    const cam = track('cam');
+    const other = track('other');
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      peers: [user(1), user(2), user(3)],
+      remoteCamTracks: { 2: cam, 3: other },
+    });
+    const resolved = resolveTheatreTile(
+      { peerId: 2, stream: 'screen' },
+      tiles,
+      1,
+    );
+    expect(resolved).toMatchObject({
+      peerId: 2,
+      streamKind: 'cam',
+      videoTrack: cam,
+    });
+  });
+
+  it('keeps the same peer voice tile ahead of another remote video', () => {
+    const other = track('other');
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      peers: [user(1), user(2), user(3)],
+      remoteCamTracks: { 3: other },
+    });
+    const resolved = resolveTheatreTile(
+      { peerId: 2, stream: 'screen' },
+      tiles,
+      1,
+    );
+    expect(resolved).toMatchObject({
+      peerId: 2,
+      streamKind: null,
+      videoTrack: null,
+    });
+  });
+
   it('falls back to the first remote tile with video', () => {
     const cam = track('cam');
     const tiles = buildVoiceRoomTiles({

@@ -113,8 +113,9 @@ export function findVoiceRoomTile(
 
 /**
  * Theatre display target. Keeps the focused tile when it still exists.
- * Otherwise the first remote tile that has video, then any other remote
- * tile, then the remaining tile (yourself, when nobody else is left).
+ * Otherwise that peer's other tile (their camera, or the regular voice tile
+ * after a screen share ends), then the first remote tile that has video,
+ * then any other remote tile, then the remaining tile (yourself).
  * Returns null only when the room has no tiles; the caller keeps theatre open.
  * This does not change the stored focus.
  */
@@ -129,6 +130,10 @@ export function resolveTheatreTile(
   const exact = findVoiceRoomTile(tiles, focus.peerId, focus.stream);
   if (exact) {
     return exact;
+  }
+  const samePeer = tiles.find((tile) => tile.peerId === focus.peerId);
+  if (samePeer) {
+    return samePeer;
   }
   const remoteWithVideo = tiles.find(
     (tile) => tile.peerId !== localUserId && tile.videoTrack != null,
