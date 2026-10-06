@@ -3,7 +3,6 @@ import {
   Component,
   computed,
   contentChild,
-  effect,
   inject,
   input,
   output,
@@ -106,43 +105,31 @@ export class VoiceRoomGridComponent {
 
   protected readonly theatreFocus = this.voiceRoomViewService.theatreFocus;
 
-  protected readonly theatreTile = computed(() =>
-    resolveTheatreTile(this.theatreFocus(), this.tiles()),
+  protected readonly theatreTile = computed(() => {
+    const focus = this.theatreFocus();
+    const tiles = this.tiles();
+    const localUserId = this.currentUser()?.id ?? null;
+    return resolveTheatreTile(focus, tiles, localUserId);
+  });
+
+  protected readonly watchUserId = computed(
+    () => this.theatreTile()?.peerId ?? null,
   );
 
   protected readonly overlayTemplate = computed(
     () => this.overlaySlot()?.template ?? null,
   );
 
-  protected readonly showRemoteScreenWatchControls = computed(() =>
-    showsRemoteScreenWatchControls(
-      this.theatreFocus(),
-      this.currentUser()?.id ?? null,
-      this.peerVideoService.watchingUserIds(),
-    ),
-  );
-
-  constructor() {
-    effect(() => {
-      const focus = this.voiceRoomViewService.theatreFocus();
-      if (focus == null) {
-        return;
-      }
-      const resolved = resolveTheatreTile(focus, this.tiles());
-      if (resolved == null) {
-        return;
-      }
-      if (
-        resolved.peerId !== focus.peerId ||
-        resolved.streamKind !== focus.stream
-      ) {
-        this.voiceRoomViewService.retargetTheatre(
-          resolved.peerId,
-          resolved.streamKind,
-        );
-      }
-    });
-  }
+  protected readonly showRemoteScreenWatchControls = computed(() => {
+    const tile = this.theatreTile();
+    const localUserId = this.currentUser()?.id ?? null;
+    const watching = this.peerVideoService.watchingUserIds();
+    return showsRemoteScreenWatchControls(
+      tile ? { peerId: tile.peerId, stream: tile.streamKind } : null,
+      localUserId,
+      watching,
+    );
+  });
 
   protected onOpenTheatre(
     userId: number,

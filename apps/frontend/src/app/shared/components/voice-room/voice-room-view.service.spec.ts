@@ -40,16 +40,7 @@ describe('VoiceRoomViewService', () => {
 
     view.openTheatre(1, 'screen');
     expect(view.theatreFocus()).toEqual({ peerId: 1, stream: 'screen' });
-    expect(view.theatreFocusId()).toBe(1);
-    expect(view.theatreFocusStream()).toBe('screen');
-  });
-
-  it('retargets focus without closing theatre', () => {
-    const view = TestBed.inject(VoiceRoomViewService);
-    view.openTheatre(2, 'screen');
-    view.retargetTheatre(2, 'cam');
     expect(view.theatreOpen()).toBe(true);
-    expect(view.theatreFocus()).toEqual({ peerId: 2, stream: 'cam' });
   });
 
   it('fullscreens an explicit target without closing theatre', async () => {

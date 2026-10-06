@@ -48,7 +48,8 @@
 
     @if (overlay(); as overlayTpl) {
       <div class="view-chrome">
-        <ng-container *ngTemplateOutlet="overlayTpl" />
+        <ng-container
+          *ngTemplateOutlet="overlayTpl; context: { $implicit: focus }" />
       </div>
     }
   </div>

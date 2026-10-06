@@ -22,7 +22,10 @@ import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-
 import { VoiceRoomTheatreActionsComponent } from '../voice-room-theatre-actions/voice-room-theatre-actions.component';
 import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
+import {
+  showsRemoteScreenWatchControls,
+  type TVoiceRoomTile,
+} from '../voice-room-tiles';
 
 @Component({
   selector: 'app-voice-room-overlay',
@@ -61,17 +64,25 @@ export class VoiceRoomOverlayComponent {
   public readonly room = input<IRoom | null>(null);
   public readonly participantsCount = input(0);
   public readonly fullscreenTarget = input<HTMLElement | null>(null);
+  public readonly theatreTile = input<TVoiceRoomTile | null>(null);
   public readonly left = output<void>();
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly theatreOpen = this.voiceRoomViewService.theatreOpen;
-  protected readonly showRemoteScreenWatchControls = computed(() =>
-    showsRemoteScreenWatchControls(
-      this.voiceRoomViewService.theatreFocus(),
-      this.currentUser()?.id ?? null,
-      this.peerVideoService.watchingUserIds(),
-    ),
+  protected readonly showRemoteScreenWatchControls = computed(() => {
+    const tile = this.theatreTile();
+    const localUserId = this.currentUser()?.id ?? null;
+    const watching = this.peerVideoService.watchingUserIds();
+    return showsRemoteScreenWatchControls(
+      tile ? { peerId: tile.peerId, stream: tile.streamKind } : null,
+      localUserId,
+      watching,
+    );
+  });
+
+  protected readonly watchUserId = computed(
+    () => this.theatreTile()?.peerId ?? null,
   );
   protected readonly isFullscreen = this.voiceRoomViewService.isFullscreen;
 

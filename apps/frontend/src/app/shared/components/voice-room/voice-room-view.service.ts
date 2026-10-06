@@ -31,10 +31,6 @@ export class VoiceRoomViewService {
 
   public readonly chromeVisible = this.chrome.visible.asReadonly();
   public readonly theatreFocus = this.focus.asReadonly();
-  public readonly theatreFocusId = computed(() => this.focus()?.peerId ?? null);
-  public readonly theatreFocusStream = computed(
-    () => this.focus()?.stream ?? null,
-  );
   public readonly theatreOpen = computed(() => this.focus() != null);
   public readonly isFullscreen = this.fullscreen.asReadonly();
 
@@ -69,25 +65,6 @@ export class VoiceRoomViewService {
   public openTheatre(peerId: number, stream: TVoiceStreamKind | null): void {
     this.focus.set({ peerId, stream });
     this.revealChrome();
-  }
-
-  /**
-   * Keeps theatre open and moves the focused tile when the previous one disappeared.
-   * Does not reveal chrome: this is not a user gesture.
-   */
-  public retargetTheatre(
-    peerId: number,
-    stream: TVoiceStreamKind | null,
-  ): void {
-    const current = this.focus();
-    if (
-      current != null &&
-      current.peerId === peerId &&
-      current.stream === stream
-    ) {
-      return;
-    }
-    this.focus.set({ peerId, stream });
   }
 
   public closeTheatre(): void {

@@ -1,4 +1,5 @@
 import { IUser } from '@konvoez/shared';
+import type { TAvailableScreenShare } from '@core/services/peer-video.service';
 
 export type TVoiceStreamKind = 'cam' | 'screen';
 
@@ -19,9 +20,7 @@ export type TBuildVoiceRoomTilesInput = {
   localScreenTrack: MediaStreamTrack | null;
   remoteCamTracks: Readonly<Record<number, MediaStreamTrack>>;
   remoteScreenTracks: Readonly<Record<number, MediaStreamTrack>>;
-  availableScreens: Readonly<
-    Record<number, { videoProducerId: string; audioProducerId?: string }>
-  >;
+  availableScreens: Readonly<Record<number, TAvailableScreenShare>>;
   watchingUserIds: ReadonlySet<number>;
 };
 
@@ -74,14 +73,12 @@ export function buildVoiceRoomTiles(
       : watchingScreen
         ? (input.remoteScreenTracks[peer.id] ?? null)
         : null;
-    const hasScreenSource = screenLive;
-
-    if (!hasCam && !hasScreenSource) {
+    if (!hasCam && !screenLive) {
       tiles.push(voiceTile(peer, null, null, false, watchingScreen));
       continue;
     }
 
-    if (hasCam && hasScreenSource) {
+    if (hasCam && screenLive) {
       tiles.push(voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen));
       tiles.push(
         voiceTile(peer, 'screen', screenTrack, screenLive, watchingScreen),
@@ -90,7 +87,7 @@ export function buildVoiceRoomTiles(
     }
 
     if (hasCam) {
-      tiles.push(voiceTile(peer, 'cam', camTrack, false, watchingScreen));
+      tiles.push(voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen));
       continue;
     }
 
@@ -115,13 +112,16 @@ export function findVoiceRoomTile(
 }
 
 /**
- * Theatre display target. Keeps the focused tile when it still exists,
- * otherwise the same peer's remaining tile, otherwise the first tile.
+ * Theatre display target. Keeps the focused tile when it still exists.
+ * Otherwise the first remote tile that has video, then any other remote
+ * tile, then the remaining tile (yourself, when nobody else is left).
  * Returns null only when the room has no tiles; the caller keeps theatre open.
+ * This does not change the stored focus.
  */
 export function resolveTheatreTile(
   focus: { peerId: number; stream: TVoiceStreamKind | null } | null,
   tiles: readonly TVoiceRoomTile[],
+  localUserId: number | null,
 ): TVoiceRoomTile | null {
   if (focus == null) {
     return null;
@@ -130,9 +130,15 @@ export function resolveTheatreTile(
   if (exact) {
     return exact;
   }
-  const samePeer = tiles.find((tile) => tile.peerId === focus.peerId);
-  if (samePeer) {
-    return samePeer;
+  const remoteWithVideo = tiles.find(
+    (tile) => tile.peerId !== localUserId && tile.videoTrack != null,
+  );
+  if (remoteWithVideo) {
+    return remoteWithVideo;
+  }
+  const remote = tiles.find((tile) => tile.peerId !== localUserId);
+  if (remote) {
+    return remote;
   }
   return tiles[0] ?? null;
 }

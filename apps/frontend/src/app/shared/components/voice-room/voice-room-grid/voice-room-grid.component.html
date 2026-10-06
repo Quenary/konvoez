@@ -24,7 +24,8 @@
 
     @if (overlayTemplate(); as overlay) {
       <div class="view-chrome">
-        <ng-container *ngTemplateOutlet="overlay" />
+        <ng-container
+          *ngTemplateOutlet="overlay; context: { $implicit: theatreTile() }" />
       </div>
     }
   }
@@ -42,7 +43,7 @@
   @if (showControls()) {
     <footer class="controls-dock">
       @if (compact() && showRemoteScreenWatchControls()) {
-        <app-voice-room-theatre-watch-controls />
+        <app-voice-room-theatre-watch-controls [userId]="watchUserId()" />
       }
       <app-voice-room-controls-bar (hangup)="onHangup()" />
     </footer>

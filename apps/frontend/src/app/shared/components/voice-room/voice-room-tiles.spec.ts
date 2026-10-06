@@ -133,7 +133,11 @@ describe('resolveTheatreTile', () => {
       ...baseInput(),
       availableScreens: { 2: { videoProducerId: 'p1' } },
     });
-    const resolved = resolveTheatreTile({ peerId: 2, stream: 'screen' }, tiles);
+    const resolved = resolveTheatreTile(
+      { peerId: 2, stream: 'screen' },
+      tiles,
+      1,
+    );
     expect(resolved).toMatchObject({
       peerId: 2,
       streamKind: 'screen',
@@ -141,32 +145,46 @@ describe('resolveTheatreTile', () => {
     });
   });
 
-  it('falls back to the same peer when the focused stream tile is gone', () => {
+  it('falls back to the first remote tile with video', () => {
     const cam = track('cam');
     const tiles = buildVoiceRoomTiles({
       ...baseInput(),
-      remoteCamTracks: { 2: cam },
+      peers: [user(1), user(2), user(3)],
+      remoteCamTracks: { 3: cam },
     });
-    const resolved = resolveTheatreTile({ peerId: 2, stream: 'screen' }, tiles);
+    const resolved = resolveTheatreTile(
+      { peerId: 9, stream: 'screen' },
+      tiles,
+      1,
+    );
     expect(resolved).toMatchObject({
-      peerId: 2,
+      peerId: 3,
       streamKind: 'cam',
       videoTrack: cam,
     });
   });
 
-  it('falls back to the first tile when the focused peer is gone', () => {
+  it('falls back to a remote tile before the local one', () => {
     const tiles = buildVoiceRoomTiles(baseInput());
-    const resolved = resolveTheatreTile({ peerId: 9, stream: 'cam' }, tiles);
-    expect(resolved?.peerId).toBe(1);
+    const resolved = resolveTheatreTile({ peerId: 9, stream: 'cam' }, tiles, 1);
+    expect(resolved?.peerId).toBe(2);
     expect(resolved?.streamKind).toBeNull();
+  });
+
+  it('uses the remaining tile when nobody else is in the room', () => {
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      peers: [user(1)],
+    });
+    const resolved = resolveTheatreTile({ peerId: 9, stream: null }, tiles, 1);
+    expect(resolved?.peerId).toBe(1);
   });
 
   it('returns null when theatre is closed or there are no tiles', () => {
     expect(
-      resolveTheatreTile(null, buildVoiceRoomTiles(baseInput())),
+      resolveTheatreTile(null, buildVoiceRoomTiles(baseInput()), 1),
     ).toBeNull();
-    expect(resolveTheatreTile({ peerId: 1, stream: null }, [])).toBeNull();
+    expect(resolveTheatreTile({ peerId: 1, stream: null }, [], 1)).toBeNull();
   });
 });
 

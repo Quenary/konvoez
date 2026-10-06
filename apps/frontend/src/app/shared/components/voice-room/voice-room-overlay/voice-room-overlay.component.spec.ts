@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
+import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { IRoom } from '@features/rooms/rooms.interface';
 import { RoomManageService } from '@features/rooms/room-manage.service';
@@ -171,8 +172,16 @@ describe('VoiceRoomOverlayComponent', () => {
       ),
     ).toBeNull();
 
-    theatreFocus.set({ peerId: 2, stream: 'screen' });
     watchingUserIds.set(new Set([2]));
+    fixture.componentRef.setInput('theatreTile', {
+      key: '2:screen',
+      peer: { id: 2, username: 'u2' } as IUser,
+      peerId: 2,
+      streamKind: 'screen',
+      videoTrack: null,
+      screenAvailable: true,
+      watchingScreen: true,
+    } satisfies TVoiceRoomTile);
     fixture.detectChanges();
 
     expect(

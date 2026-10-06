@@ -212,7 +212,7 @@ describe('VoiceRoomGridComponent', () => {
     expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
   });
 
-  it('retargets to the same peer camera when their screen tile disappears', () => {
+  it('shows the first remote video when the focused screen tile disappears', () => {
     remoteCamTracks.set({ 2: { id: 'cam' } as MediaStreamTrack });
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     watchingUserIds.set(new Set([2]));
@@ -227,11 +227,15 @@ describe('VoiceRoomGridComponent', () => {
     TestBed.flushEffects();
     fixture.detectChanges();
 
-    expect(cmp['theatreFocus']()).toEqual({ peerId: 2, stream: 'cam' });
+    expect(cmp['theatreFocus']()).toEqual({ peerId: 2, stream: 'screen' });
+    expect(cmp['theatreTile']()).toMatchObject({
+      peerId: 2,
+      streamKind: 'cam',
+    });
     expect(fixture.nativeElement.querySelector('.stage-video')).toBeTruthy();
   });
 
-  it('retargets to the first tile when the focused peer leaves', () => {
+  it('shows a remaining tile when the focused peer leaves without rewriting focus', () => {
     const fixture = create();
     const cmp = fixture.componentInstance;
     cmp['onOpenTheatre'](3, null);
@@ -241,7 +245,8 @@ describe('VoiceRoomGridComponent', () => {
     TestBed.flushEffects();
     fixture.detectChanges();
 
-    expect(cmp['theatreFocus']()).toEqual({ peerId: 1, stream: null });
+    expect(cmp['theatreFocus']()).toEqual({ peerId: 3, stream: null });
+    expect(cmp['theatreTile']()?.peerId).toBe(1);
     expect(
       fixture.nativeElement.querySelector('app-voice-room-theatre'),
     ).toBeTruthy();

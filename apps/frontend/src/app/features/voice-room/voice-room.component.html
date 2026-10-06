@@ -1,10 +1,13 @@
 <div class="voice-room-body">
   <app-voice-room-grid [showControls]="false">
-    <ng-template appVoiceOverlay>
+    <ng-template
+      appVoiceOverlay
+      let-theatreTile>
       <app-voice-room-overlay
         [room]="room()"
         [participantsCount]="participantsCount()"
         [fullscreenTarget]="fullscreenHost"
+        [theatreTile]="theatreTile"
         (left)="onLeft()" />
     </ng-template>
   </app-voice-room-grid>

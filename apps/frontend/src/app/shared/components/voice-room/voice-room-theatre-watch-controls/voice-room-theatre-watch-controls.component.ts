@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   inject,
+  input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -16,7 +17,6 @@ import {
 } from '@taiga-ui/core';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceRoomViewService } from '../voice-room-view.service';
 
 @Component({
   selector: 'app-voice-room-theatre-watch-controls',
@@ -35,12 +35,13 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VoiceRoomTheatreWatchControlsComponent {
-  private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceRoomStore = inject(VoiceRoomStore);
 
+  public readonly userId = input<number | null>(null);
+
   protected readonly screenVolume = computed(() => {
-    const id = this.voiceRoomViewService.theatreFocusId();
+    const id = this.userId();
     const levels = this.voiceRoomStore.peerScreenGainLevels();
     if (id == null) {
       return 100;
@@ -49,7 +50,7 @@ export class VoiceRoomTheatreWatchControlsComponent {
   });
 
   protected onStopWatch(): void {
-    const id = this.voiceRoomViewService.theatreFocusId();
+    const id = this.userId();
     if (id == null) {
       return;
     }
@@ -57,7 +58,7 @@ export class VoiceRoomTheatreWatchControlsComponent {
   }
 
   protected onScreenVolumeChange(value: number): void {
-    const id = this.voiceRoomViewService.theatreFocusId();
+    const id = this.userId();
     if (id == null) {
       return;
     }

@@ -59,7 +59,7 @@
   class="controls-dock"
   [class.vignette]="isFullscreen()">
   @if (showRemoteScreenWatchControls()) {
-    <app-voice-room-theatre-watch-controls />
+    <app-voice-room-theatre-watch-controls [userId]="watchUserId()" />
   }
   <app-voice-room-controls-bar (hangup)="onHangup()" />
 </footer>
