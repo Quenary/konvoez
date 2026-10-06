@@ -135,6 +135,26 @@ describe('VoiceRoomTileComponent', () => {
     expect(cmp['previewPaused']()).toBe(false);
   });
 
+  it('shows auto-pause checkbox under resume only when preview is paused', () => {
+    vi.useFakeTimers();
+    const fixture = create('screen');
+    expect(fixture.nativeElement.querySelector('.auto-pause-row')).toBeNull();
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.advanceTimersByTime(5000);
+    fixture.detectChanges();
+
+    const overlay = fixture.nativeElement.querySelector(
+      '.preview-paused-overlay',
+    ) as HTMLElement | null;
+    expect(overlay).not.toBeNull();
+    expect(overlay?.querySelector('button + .auto-pause-row')).not.toBeNull();
+  });
+
   it('resumes only when the user clicks resume', () => {
     vi.useFakeTimers();
     const fixture = create('screen');

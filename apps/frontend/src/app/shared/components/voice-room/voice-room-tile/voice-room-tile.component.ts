@@ -104,10 +104,6 @@ export class VoiceRoomTileComponent {
     () => this.streamKind() === 'screen' && this.videoTrack() !== null,
   );
 
-  protected readonly showLocalScreenPreviewControls = computed(
-    () => this.isLocalScreenPreview() && this.videoTrack() !== null,
-  );
-
   protected readonly previewPaused = computed(
     () =>
       this.isLocalScreenPreview() && this.localScreenPreviewService.paused(),

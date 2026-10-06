@@ -46,10 +46,14 @@
 
 .stage-tile {
   position: absolute;
-  inset: 0.75rem;
+  inset: 4rem 3rem 5rem 3rem;
   display: flex;
   min-width: 0;
   min-height: 0;
+
+  @media (max-width: 600px) {
+    inset: 4rem 1rem 5rem 1rem;
+  }
 
   app-voice-room-tile {
     flex: 1 1 auto;

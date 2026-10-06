@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService, TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
@@ -150,6 +150,18 @@ describe('VoiceRoomControlsBarComponent', () => {
       'no camera',
       expect.objectContaining({ appearance: 'negative' }),
     );
+  });
+
+  it('treats a dismissed start dialog as a no-op', async () => {
+    openDialog.mockReturnValue(EMPTY);
+    const fixture = create();
+
+    await expect(
+      fixture.componentInstance['toggleStream']('cam'),
+    ).resolves.toBeUndefined();
+
+    expect(produceCamera).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 
   it('toggles the microphone', () => {

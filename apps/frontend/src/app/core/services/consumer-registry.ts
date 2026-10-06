@@ -11,10 +11,6 @@ export class ConsumerRegistry {
   private readonly byId = new Map<string, Consumer>();
 
   public add(consumer: Consumer): void {
-    const previous = this.byId.get(consumer.id);
-    if (previous && previous !== consumer && !previous.closed) {
-      previous.close();
-    }
     this.byId.set(consumer.id, consumer);
   }
 

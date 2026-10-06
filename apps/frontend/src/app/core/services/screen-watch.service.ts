@@ -1,4 +1,4 @@
-import { inject, Injectable, Injector } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { EVoiceRoomEvent, IVoiceRoomCloseConsumer } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MediasoupSessionService } from './mediasoup-session.service';
@@ -11,14 +11,10 @@ import { PeerVideoService } from './peer-video.service';
  */
 @Injectable({ providedIn: 'root' })
 export class ScreenWatchService {
-  private readonly injector = inject(Injector);
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly peerScreenAudioService = inject(PeerScreenAudioService);
-
-  private get mediasoupSessionService(): MediasoupSessionService {
-    return this.injector.get(MediasoupSessionService);
-  }
+  private readonly mediasoupSessionService = inject(MediasoupSessionService);
 
   public async watchScreen(
     userId: number,
@@ -51,16 +47,20 @@ export class ScreenWatchService {
     );
 
     if (available.audioProducerId) {
-      await this.mediasoupSessionService.consumeProducer(
-        {
-          producerId: available.audioProducerId,
-          userId,
-          kind: 'audio',
-          mediaTag: 'screen-audio',
-        },
-        resolvePeer,
-        { screenGain, rethrow: true },
-      );
+      try {
+        await this.mediasoupSessionService.consumeProducer(
+          {
+            producerId: available.audioProducerId,
+            userId,
+            kind: 'audio',
+            mediaTag: 'screen-audio',
+          },
+          resolvePeer,
+          { screenGain, rethrow: true },
+        );
+      } catch (error) {
+        console.warn('Screen audio failed after video subscribed', error);
+      }
     }
   }
 

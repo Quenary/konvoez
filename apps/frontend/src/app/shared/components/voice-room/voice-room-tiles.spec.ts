@@ -145,6 +145,48 @@ describe('resolveTheatreTile', () => {
     });
   });
 
+  it('switches to a remote watched screen before another remote camera', () => {
+    const cam = track('cam');
+    const screen = track('screen');
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      peers: [user(1), user(2), user(3)],
+      remoteCamTracks: { 2: cam },
+      remoteScreenTracks: { 3: screen },
+      availableScreens: { 3: { videoProducerId: 'p3' } },
+      watchingUserIds: new Set([3]),
+    });
+    const resolved = resolveTheatreTile(
+      { peerId: 2, stream: 'screen' },
+      tiles,
+      1,
+    );
+    expect(resolved).toMatchObject({
+      peerId: 3,
+      streamKind: 'screen',
+      videoTrack: screen,
+    });
+  });
+
+  it('switches to another remote video when nothing is being watched', () => {
+    const other = track('other');
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      peers: [user(1), user(2), user(3)],
+      remoteCamTracks: { 3: other },
+    });
+    const resolved = resolveTheatreTile(
+      { peerId: 2, stream: 'screen' },
+      tiles,
+      1,
+    );
+    expect(resolved).toMatchObject({
+      peerId: 3,
+      streamKind: 'cam',
+      videoTrack: other,
+    });
+  });
+
   it('falls back to the first remote tile with video', () => {
     const cam = track('cam');
     const tiles = buildVoiceRoomTiles({
@@ -169,6 +211,23 @@ describe('resolveTheatreTile', () => {
     const resolved = resolveTheatreTile({ peerId: 9, stream: 'cam' }, tiles, 1);
     expect(resolved?.peerId).toBe(2);
     expect(resolved?.streamKind).toBeNull();
+  });
+
+  it('keeps a remote voice tile ahead of the local camera', () => {
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      localCamTrack: track('mine'),
+    });
+    const resolved = resolveTheatreTile(
+      { peerId: 9, stream: 'screen' },
+      tiles,
+      1,
+    );
+    expect(resolved).toMatchObject({
+      peerId: 2,
+      streamKind: null,
+      videoTrack: null,
+    });
   });
 
   it('uses the remaining tile when nobody else is in the room', () => {

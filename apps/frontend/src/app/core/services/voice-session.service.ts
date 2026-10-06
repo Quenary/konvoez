@@ -99,7 +99,6 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       this.tuiNotificationsService,
       this.translateService,
       'VOICE.JOIN_FAILED',
-      error,
     );
   }
 

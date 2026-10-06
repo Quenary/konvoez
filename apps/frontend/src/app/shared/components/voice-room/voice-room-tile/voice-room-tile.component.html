@@ -13,7 +13,11 @@
       autoplay
       playsinline
       muted
-      (click)="onVideoActivate()"></video>
+      role="button"
+      tabindex="0"
+      (click)="onVideoActivate()"
+      (keydown.enter)="onVideoActivate()"
+      (keydown.space)="$event.preventDefault(); onVideoActivate()"></video>
   } @else if (isLocalScreenPreview() && previewPaused()) {
     <div class="preview-paused-overlay">
       <p class="preview-paused-text">{{ 'CALL.PREVIEW_PAUSED' | translate }}</p>
@@ -24,6 +28,16 @@
         (click)="onResumePreview()">
         {{ 'CALL.PREVIEW_RESUME' | translate }}
       </button>
+      <label
+        tuiLabel
+        class="auto-pause-row">
+        <input
+          tuiCheckbox
+          type="checkbox"
+          [ngModel]="autoPauseWhenHidden()"
+          (ngModelChange)="onAutoPauseWhenHiddenChange($event)" />
+        {{ 'CALL.PREVIEW_AUTO_PAUSE' | translate }}
+      </label>
     </div>
   } @else {
     <div
@@ -129,8 +143,6 @@
                 size="s"
                 type="button"
                 iconStart="@tui.maximize"
-                tuiHintAppearance="floating"
-                [tuiHint]="'CALL.OPEN_THEATRE' | translate"
                 (click)="onOpenTheatreClick()">
               </button>
 
@@ -196,18 +208,5 @@
         </div>
       }
     </div>
-
-    @if (showLocalScreenPreviewControls()) {
-      <label
-        tuiLabel
-        class="auto-pause-row">
-        <input
-          tuiCheckbox
-          type="checkbox"
-          [ngModel]="autoPauseWhenHidden()"
-          (ngModelChange)="onAutoPauseWhenHiddenChange($event)" />
-        {{ 'CALL.PREVIEW_AUTO_PAUSE' | translate }}
-      </label>
-    }
   </div>
 </div>

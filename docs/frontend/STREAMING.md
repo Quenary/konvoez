@@ -32,7 +32,7 @@ The screen button is hidden when `getDisplayMedia` is missing.
 
 When the selected camera disappears, `CameraService` emits `deviceLost$` and the session stops that producer. Stopping the capture track does not fire the producer `trackended` event.
 
-On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch. Auto-consume stays best-effort. An opt-in screen watch rejects when the SFU or the recv transport fails, so the UI can show `CALL.WATCH_SCREEN_FAILED`.
+On leave or producer/consumer close, cam, screen, and screen-audio state is cleared. Stopping a watch or losing a screen producer drops that watch. Auto-consume stays best-effort. An opt-in screen watch rejects when the video subscribe fails, so the UI can show `CALL.WATCH_SCREEN_FAILED`. If the video is up and screen audio fails, the watch stays and the audio error is only logged. Pending consumes are drained under one mutex.
 
 ## Tiles
 
@@ -52,7 +52,7 @@ The stage shows a `<video>` when the focused tile has a track, otherwise a large
 
 The strip (`voice-room-tile-mini`) sits on the bottom or the right (`preferTheatreStripRight`, container aspect vs stream aspect). Clicking a mini-tile selects it. There is no automatic switch to whoever is speaking.
 
-Stop watching, or the other peer ending the stream, does not close theatre. The service stores the tile the user picked. The stage shows that tile while it exists (without a track the stage is the large tile). If it disappears, the stage shows the first remote tile that has video, otherwise another remote tile, otherwise the remaining tile. That fallback is not written back, so the original tile returns if it shows up again. An empty room stays in theatre with an empty stage. Close is the close button, or Escape when the browser is not fullscreen and a Taiga dialog or dropdown has not already handled that key. Leaving the voice session also closes it: hangup (including the direct-call panel), sidebar leave, the remote side ending the call, logout, and switching rooms. The next session starts in the grid.
+Stop watching, or the other peer ending the stream, does not close theatre. The service stores the tile the user picked. The stage shows that tile while it exists (without a track the stage is the large tile). If it disappears, the stage switches to an active remote stream: a watched screen, then any other remote tile with video. A regular tile is used only when nothing is streaming, and a remote one comes before yourself. That fallback is not written back, so the original tile returns if it shows up again. An empty room stays in theatre with an empty stage. Close is the close button, or Escape when the browser is not fullscreen and a Taiga dialog or dropdown has not already handled that key. Leaving the voice session also closes it: hangup (including the direct-call panel), sidebar leave, the remote side ending the call, logout, and switching rooms. The next session starts in the grid.
 
 ## Chrome
 

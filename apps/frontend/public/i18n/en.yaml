@@ -99,7 +99,6 @@ CALL:
   PREVIEW_PAUSED: Preview paused to save resources
   PREVIEW_RESUME: Resume
   PREVIEW_AUTO_PAUSE: Auto-pause
-  OPEN_THEATRE: Open theatre
   EXIT_THEATRE: Exit theatre
   FULLSCREEN: Fullscreen
   EXIT_FULLSCREEN: Exit fullscreen
