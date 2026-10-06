@@ -34,7 +34,7 @@
       [tuiHint]="
         (cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON') | translate
       "
-      (click)="toggleCamera()">
+      (click)="toggleStream('cam')">
     </button>
 
     @if (screenSupported) {
@@ -48,7 +48,7 @@
         [tuiHint]="
           (screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON') | translate
         "
-        (click)="toggleScreen()">
+        (click)="toggleStream('screen')">
       </button>
     }
   </div>

@@ -11,6 +11,7 @@ import {
   TVoiceSessionTarget,
 } from '@konvoez/shared';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
+import { notifyError } from '@shared/functions/notify-error.function';
 import { Mutex } from 'async-mutex';
 import { interval, Subject } from 'rxjs';
 import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
@@ -94,13 +95,12 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public reportJoinFailure(error: unknown): void {
     console.error('Failed to join voice session', error);
-    this.tuiNotificationsService
-      .open(this.translateService.instant('VOICE.JOIN_FAILED'), {
-        appearance: 'negative',
-        autoClose: 5000,
-        closable: true,
-      })
-      .subscribe();
+    notifyError(
+      this.tuiNotificationsService,
+      this.translateService,
+      'VOICE.JOIN_FAILED',
+      error,
+    );
   }
 
   @Mutexed(voiceSessionMutex)
@@ -209,6 +209,14 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
   public stopWatchingPeerScreen(userId: number): Promise<void> {
     return this.screenWatchService.stopWatchingScreen(userId);
+  }
+
+  public produceCamera(): Promise<void> {
+    return this.mediasoupSessionService.produceCamera();
+  }
+
+  public stopCamera(): Promise<void> {
+    return this.mediasoupSessionService.stopCamera();
   }
 
   public produceScreen(): Promise<void> {

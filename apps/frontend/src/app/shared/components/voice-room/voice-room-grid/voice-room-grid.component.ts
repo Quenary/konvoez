@@ -29,7 +29,7 @@ import {
   showsRemoteScreenWatchControls,
   type TVoiceStreamKind,
 } from '../voice-room-tiles';
-import { parseError } from '@shared/functions/parse-error.function';
+import { notifyError } from '@shared/functions/notify-error.function';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 
@@ -143,17 +143,12 @@ export class VoiceRoomGridComponent {
       await this.voiceSessionService.watchPeerScreen(userId);
     } catch (error) {
       console.error('Failed to watch screen', error);
-      this.tuiNotificationsService
-        .open(
-          parseError(error) ||
-            this.translateService.instant('CALL.WATCH_SCREEN_FAILED'),
-          {
-            appearance: 'negative',
-            autoClose: 5000,
-            closable: true,
-          },
-        )
-        .subscribe();
+      notifyError(
+        this.tuiNotificationsService,
+        this.translateService,
+        'CALL.WATCH_SCREEN_FAILED',
+        error,
+      );
     }
   }
 

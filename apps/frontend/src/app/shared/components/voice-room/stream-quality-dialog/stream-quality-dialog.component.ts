@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -22,12 +27,15 @@ import { TuiForm } from '@taiga-ui/layout';
 import type { TuiDialogContext } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
 
-export type TScreenStreamDialogResult = {
+export type TStreamQualityKind = 'cam' | 'screen';
+
+export type TStreamQualityDialogResult = {
   height: TStreamHeight;
   fps: TStreamFps;
 };
 
-export type TScreenStreamDialogData = {
+export type TStreamQualityDialogData = {
+  kind: TStreamQualityKind;
   height: TStreamHeight;
   fps: TStreamFps;
 };
@@ -53,7 +61,7 @@ function identityMatchStreamSelectItem(
 }
 
 @Component({
-  selector: 'app-screen-stream-dialog',
+  selector: 'app-stream-quality-dialog',
   imports: [
     FormsModule,
     TranslatePipe,
@@ -73,20 +81,31 @@ function identityMatchStreamSelectItem(
       identityMatcher: signal(identityMatchStreamSelectItem),
     }),
   ],
-  templateUrl: './screen-stream-dialog.component.html',
+  templateUrl: './stream-quality-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ScreenStreamDialogComponent {
+export class StreamQualityDialogComponent {
   private readonly context =
     injectContext<
       TuiDialogContext<
-        TScreenStreamDialogResult | null,
-        TScreenStreamDialogData
+        TStreamQualityDialogResult | null,
+        TStreamQualityDialogData
       >
     >();
 
   protected readonly heights = [...STREAM_HEIGHTS];
   protected readonly fpsOptions = [...STREAM_FPS_OPTIONS];
+
+  protected readonly titleKey = computed(() =>
+    this.context.data?.kind === 'screen'
+      ? 'CALL.SCREEN_SETTINGS'
+      : 'CALL.CAMERA_SETTINGS',
+  );
+  protected readonly confirmKey = computed(() =>
+    this.context.data?.kind === 'screen'
+      ? 'CALL.START_SCREEN'
+      : 'CALL.START_CAMERA',
+  );
 
   protected readonly height = signal<TStreamHeight>(
     this.context.data?.height ?? DEFAULT_STREAM_HEIGHT,

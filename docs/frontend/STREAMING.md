@@ -12,7 +12,7 @@ Camera and screen share on the voice stack in [VOICE.md](./VOICE.md).
 
 One cam and one screen per user. A room allows at most 4 video producers (`cam` + `screen`); the backend rejects another. Senders use VP8.
 
-`VoiceRoomStore` keeps mic gain (`peerGainLevels`) and screen-audio gain (`peerScreenGainLevels`) separate. Capture height and FPS come from local settings and are chosen in the start dialogs.
+`VoiceRoomStore` keeps mic gain (`peerGainLevels`) and screen-audio gain (`peerScreenGainLevels`) separate. Capture height and FPS come from local settings and are chosen in the shared start dialog.
 
 The screen button is hidden when `getDisplayMedia` is missing.
 
@@ -26,7 +26,7 @@ The screen button is hidden when `getDisplayMedia` is missing.
 | `PeerVideoService`                       | Local and remote cam and screen tracks, `availableScreens`, `watchingUserIds`. Cam and screen stay separate.      |
 | `PeerScreenAudioService`                 | Sole owner of screen-audio consumers, graphs, and gain. Not mixed into mic playback.                              |
 | `CameraService` / `ScreenCaptureService` | `getUserMedia` / `getDisplayMedia`.                                                                               |
-| `VoiceSessionService`                    | `watchPeerScreen` / `stopWatchingPeerScreen`.                                                                     |
+| `VoiceSessionService`                    | UI entry for camera and screen produce/stop, plus `watchPeerScreen` / `stopWatchingPeerScreen`.                   |
 | `LocalScreenPreviewService`              | Shared pause flag for the local screen preview.                                                                   |
 | `VoiceRoomViewService`                   | Theatre focus, chrome auto-hide, fullscreen. Resets when the voice session changes. Does not start or stop media. |
 

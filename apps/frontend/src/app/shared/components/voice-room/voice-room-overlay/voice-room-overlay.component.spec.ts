@@ -12,7 +12,6 @@ import { RoomManageService } from '@features/rooms/room-manage.service';
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from '@core/services/audio.service';
-import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
@@ -106,10 +105,6 @@ describe('VoiceRoomOverlayComponent', () => {
           useValue: { playMuteAudio: vi.fn() },
         },
         {
-          provide: MediasoupSessionService,
-          useValue: { produceCamera: vi.fn(), stopCamera: vi.fn() },
-        },
-        {
           provide: PeerVideoService,
           useValue: {
             localCamTrack: signal(null).asReadonly(),
@@ -120,6 +115,8 @@ describe('VoiceRoomOverlayComponent', () => {
         {
           provide: VoiceSessionService,
           useValue: {
+            produceCamera: vi.fn(),
+            stopCamera: vi.fn(),
             produceScreen: vi.fn(),
             stopScreen: vi.fn(),
             stopWatchingPeerScreen: vi.fn().mockResolvedValue(undefined),

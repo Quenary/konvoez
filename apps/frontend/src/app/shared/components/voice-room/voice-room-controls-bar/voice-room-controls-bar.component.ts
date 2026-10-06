@@ -9,11 +9,10 @@ import {
 import { VoiceRoomStore } from '@features/voice-room/voice-room.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from '@core/services/audio.service';
-import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { parseError } from '@shared/functions/parse-error.function';
+import { notifyError } from '@shared/functions/notify-error.function';
 import {
   TuiButton,
   TuiDialogService,
@@ -25,13 +24,10 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { firstValueFrom } from 'rxjs';
 import {
-  CameraStreamDialogComponent,
-  TCameraStreamDialogResult,
-} from '../camera-stream-dialog/camera-stream-dialog.component';
-import {
-  ScreenStreamDialogComponent,
-  TScreenStreamDialogResult,
-} from '../screen-stream-dialog/screen-stream-dialog.component';
+  StreamQualityDialogComponent,
+  TStreamQualityDialogResult,
+  TStreamQualityKind,
+} from '../stream-quality-dialog/stream-quality-dialog.component';
 
 @Component({
   selector: 'app-voice-room-controls-bar',
@@ -44,7 +40,6 @@ export class VoiceRoomControlsBarComponent {
   private readonly voiceRoomStore = inject(VoiceRoomStore);
   private readonly settingsStore = inject(SettingsStore);
   private readonly audioService = inject(AudioService);
-  private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly dialogService = inject(TuiDialogService);
@@ -82,23 +77,40 @@ export class VoiceRoomControlsBarComponent {
     this.audioService.playMuteAudio();
   }
 
-  protected async toggleCamera(): Promise<void> {
-    if (this.cameraOn()) {
-      await this.mediasoupSessionService.stopCamera();
+  protected async toggleStream(kind: TStreamQualityKind): Promise<void> {
+    if (kind === 'screen' && !this.screenSupported) {
       return;
     }
 
+    const active = kind === 'cam' ? this.cameraOn() : this.screenOn();
+    if (active) {
+      if (kind === 'cam') {
+        await this.voiceSessionService.stopCamera();
+      } else {
+        await this.voiceSessionService.stopScreen();
+      }
+      return;
+    }
+
+    const screen = kind === 'screen';
     const result = await firstValueFrom(
-      this.dialogService.open<TCameraStreamDialogResult | null>(
-        new PolymorpheusComponent(CameraStreamDialogComponent, this.injector),
+      this.dialogService.open<TStreamQualityDialogResult | null>(
+        new PolymorpheusComponent(StreamQualityDialogComponent, this.injector),
         {
           data: {
-            height: this.settingsStore.streamHeight(),
-            fps: this.settingsStore.streamFps(),
+            kind,
+            height: screen
+              ? this.settingsStore.screenHeight()
+              : this.settingsStore.streamHeight(),
+            fps: screen
+              ? this.settingsStore.screenFps()
+              : this.settingsStore.streamFps(),
           },
           size: 's',
           dismissible: true,
-          label: this.translateService.instant('CALL.CAMERA'),
+          label: this.translateService.instant(
+            screen ? 'CALL.SCREEN' : 'CALL.CAMERA',
+          ),
         },
       ),
     );
@@ -106,72 +118,31 @@ export class VoiceRoomControlsBarComponent {
       return;
     }
 
-    this.settingsStore.setStreamHeight(result.height);
-    this.settingsStore.setStreamFps(result.fps);
+    if (screen) {
+      this.settingsStore.setScreenHeight(result.height);
+      this.settingsStore.setScreenFps(result.fps);
+    } else {
+      this.settingsStore.setStreamHeight(result.height);
+      this.settingsStore.setStreamFps(result.fps);
+    }
 
     try {
-      await this.mediasoupSessionService.produceCamera();
+      if (screen) {
+        await this.voiceSessionService.produceScreen();
+      } else {
+        await this.voiceSessionService.produceCamera();
+      }
     } catch (error) {
-      console.error('Failed to start camera', error);
-      this.tuiNotificationsService
-        .open(
-          parseError(error) ||
-            this.translateService.instant('CALL.CAMERA_FAILED'),
-          {
-            appearance: 'negative',
-            autoClose: 5000,
-            closable: true,
-          },
-        )
-        .subscribe();
-    }
-  }
-
-  protected async toggleScreen(): Promise<void> {
-    if (!this.screenSupported) {
-      return;
-    }
-    if (this.screenOn()) {
-      await this.voiceSessionService.stopScreen();
-      return;
-    }
-
-    const result = await firstValueFrom(
-      this.dialogService.open<TScreenStreamDialogResult | null>(
-        new PolymorpheusComponent(ScreenStreamDialogComponent, this.injector),
-        {
-          data: {
-            height: this.settingsStore.screenHeight(),
-            fps: this.settingsStore.screenFps(),
-          },
-          size: 's',
-          dismissible: true,
-          label: this.translateService.instant('CALL.SCREEN'),
-        },
-      ),
-    );
-    if (!result) {
-      return;
-    }
-
-    this.settingsStore.setScreenHeight(result.height);
-    this.settingsStore.setScreenFps(result.fps);
-
-    try {
-      await this.voiceSessionService.produceScreen();
-    } catch (error) {
-      console.error('Failed to start screen share', error);
-      this.tuiNotificationsService
-        .open(
-          parseError(error) ||
-            this.translateService.instant('CALL.SCREEN_FAILED'),
-          {
-            appearance: 'negative',
-            autoClose: 5000,
-            closable: true,
-          },
-        )
-        .subscribe();
+      console.error(
+        screen ? 'Failed to start screen share' : 'Failed to start camera',
+        error,
+      );
+      notifyError(
+        this.tuiNotificationsService,
+        this.translateService,
+        screen ? 'CALL.SCREEN_FAILED' : 'CALL.CAMERA_FAILED',
+        error,
+      );
     }
   }
 
