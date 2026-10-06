@@ -32,6 +32,7 @@ describe('VoiceRoomOverlayComponent', () => {
     typeof signal<{ peerId: number; stream: 'cam' | 'screen' | null } | null>
   >;
   let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
+  let leaveActiveVoice: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     theatreOpen = signal(false);
@@ -39,6 +40,7 @@ describe('VoiceRoomOverlayComponent', () => {
     isFullscreen = signal(false);
     theatreFocus = signal(null);
     watchingUserIds = signal(new Set<number>());
+    leaveActiveVoice = vi.fn().mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomOverlayComponent],
@@ -74,7 +76,7 @@ describe('VoiceRoomOverlayComponent', () => {
         },
         {
           provide: VoiceLeaveService,
-          useValue: { leaveActiveVoice: vi.fn().mockResolvedValue(undefined) },
+          useValue: { leaveActiveVoice },
         },
         {
           provide: VoiceAudioPreferencesStore,
@@ -136,6 +138,31 @@ describe('VoiceRoomOverlayComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('emits left before leave finishes so navigation survives theatre teardown', async () => {
+    let resolveLeave!: () => void;
+    leaveActiveVoice.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveLeave = resolve;
+      }),
+    );
+
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.componentRef.setInput('room', room);
+    fixture.detectChanges();
+
+    let left = false;
+    fixture.componentInstance.left.subscribe(() => {
+      left = true;
+    });
+
+    const hangup = fixture.componentInstance['onHangup']();
+    expect(left).toBe(true);
+    expect(leaveActiveVoice).toHaveBeenCalledTimes(1);
+
+    resolveLeave();
+    await hangup;
   });
 
   it('keeps fullscreen in the header for grid and theatre', () => {

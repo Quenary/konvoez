@@ -162,7 +162,9 @@ export class VoiceRoomGridComponent {
   }
 
   protected async onHangup(): Promise<void> {
-    await this.voiceLeaveService.leaveActiveVoice();
+    // Emit before leave so parents still navigate if theatre chrome is torn
+    // down when activeSession clears during leaveActiveVoice.
     this.left.emit();
+    await this.voiceLeaveService.leaveActiveVoice();
   }
 }

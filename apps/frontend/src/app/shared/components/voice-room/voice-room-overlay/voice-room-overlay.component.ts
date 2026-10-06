@@ -112,7 +112,10 @@ export class VoiceRoomOverlayComponent {
   }
 
   protected async onHangup(): Promise<void> {
-    await this.voiceLeaveService.leaveActiveVoice();
+    // Emit before leave: leave clears activeSession mid-await, which closes
+    // theatre and destroys this overlay (projected into theatre). Emitting
+    // after await would drop navigation to `/`.
     this.left.emit();
+    await this.voiceLeaveService.leaveActiveVoice();
   }
 }
