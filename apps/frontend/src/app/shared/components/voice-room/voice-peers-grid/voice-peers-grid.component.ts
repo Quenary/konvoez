@@ -16,10 +16,11 @@ import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoicePeerTileComponent } from '../voice-peer-tile/voice-peer-tile.component';
 import { VoiceControlsBarComponent } from '../voice-controls-bar/voice-controls-bar.component';
 import { ScreenSharePipComponent } from '../screen-share-pip/screen-share-pip.component';
+import { resolveVoiceSessionPeers } from '../voice-session-peers';
 import {
-  resolveVoiceSessionPeers,
-  voicePeersGridClass,
-} from '../voice-session-peers';
+  partitionVoicePeers,
+  voiceSectionGridClass,
+} from '../voice-peers-layout';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -49,6 +50,8 @@ export class VoicePeersGridComponent {
   public readonly showControls = input(true);
   public readonly left = output<void>();
 
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+
   protected readonly peers = computed(() => {
     const me = this.currentUser();
     const remotePeers = this.voiceRoomStore.peersList();
@@ -65,12 +68,6 @@ export class VoicePeersGridComponent {
       interlocutor,
     });
   });
-
-  protected readonly gridClass = computed(() =>
-    voicePeersGridClass(this.peers().length),
-  );
-
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected readonly videoTracksByPeerId = computed(() => {
     const me = this.currentUser();
@@ -113,7 +110,6 @@ export class VoicePeersGridComponent {
     return map;
   });
 
-  /** True when the tile video is a watched remote screen (local screen is PiP). */
   protected readonly showingScreenByPeerId = computed(() => {
     const me = this.currentUser();
     const watching = this.peerVideoService.watchingUserIds();
@@ -125,10 +121,38 @@ export class VoicePeersGridComponent {
     return map;
   });
 
-  /** LIVE badge: screen share present, even before watch. */
   protected readonly screenLiveByPeerId = computed(() => {
     return this.screenAvailableByPeerId();
   });
+
+  protected readonly streamingPeers = computed(() => {
+    const tracks = this.videoTracksByPeerId();
+    const screens = this.screenAvailableByPeerId();
+    return partitionVoicePeers(this.peers(), (id) => {
+      return Boolean(screens.get(id) || tracks.get(id));
+    }).streaming;
+  });
+
+  protected readonly voiceOnlyPeers = computed(() => {
+    const tracks = this.videoTracksByPeerId();
+    const screens = this.screenAvailableByPeerId();
+    return partitionVoicePeers(this.peers(), (id) => {
+      return Boolean(screens.get(id) || tracks.get(id));
+    }).voiceOnly;
+  });
+
+  protected readonly streamingSectionClass = computed(() =>
+    voiceSectionGridClass(this.streamingPeers().length),
+  );
+
+  protected readonly voiceSectionClass = computed(() =>
+    voiceSectionGridClass(this.voiceOnlyPeers().length),
+  );
+
+  protected readonly hasSplitLayout = computed(
+    () =>
+      this.streamingPeers().length > 0 && this.voiceOnlyPeers().length > 0,
+  );
 
   protected async onWatchScreen(userId: number): Promise<void> {
     try {

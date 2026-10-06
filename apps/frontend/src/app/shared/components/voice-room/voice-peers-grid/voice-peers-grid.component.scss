@@ -17,54 +17,94 @@
   overflow: hidden;
 }
 
-.peers-grid {
+.peers-layout {
   flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   padding: 1rem;
   overflow: hidden;
-  align-content: center;
-  justify-content: center;
   box-sizing: border-box;
 
-  &.grid-1 {
-    grid-template-columns: minmax(0, 640px);
-    grid-template-rows: minmax(0, 1fr);
-    justify-content: center;
+  &.split {
+    .streaming-section {
+      flex: 1 1 65%;
+    }
+
+    .voice-section {
+      flex: 0 1 35%;
+      max-height: 38%;
+    }
   }
 
-  &.grid-2 {
+  &.streaming-only .streaming-section,
+  &.voice-only .voice-section {
+    flex: 1 1 auto;
+  }
+}
+
+.streaming-section,
+.voice-section {
+  display: grid;
+  gap: 0.75rem;
+  min-height: 0;
+  align-content: stretch;
+  justify-content: center;
+  width: 100%;
+
+  &.section-1 {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    max-width: 960px;
+    margin-inline: auto;
+  }
+
+  &.section-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: minmax(0, 1fr);
-    max-width: 1100px;
-    margin: 0 auto;
-    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
   }
 
-  &.grid-4 {
+  &.section-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: repeat(2, minmax(0, 1fr));
-    max-width: 1100px;
-    margin: 0 auto;
-    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
   }
 
-  &.grid-many {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  &.section-many {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     grid-auto-rows: minmax(0, 1fr);
-    width: 100%;
     overflow-y: auto;
     align-content: start;
   }
+}
 
-  .grid-item {
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    display: flex;
-    overflow: hidden;
+.voice-section {
+  &.section-1,
+  &.section-2,
+  &.section-4,
+  &.section-many {
+    max-width: none;
   }
+
+  &.section-many {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .grid-item.voice {
+    min-height: 7rem;
+  }
+}
+
+.grid-item {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
 }
 
 .controls-dock {
@@ -72,25 +112,21 @@
   justify-content: center;
   flex-shrink: 0;
   padding: 0.75rem 1rem 1rem;
+  z-index: 25;
 }
 
-// Embedded direct-call panel: stack 2 peers when height is tight
-.peers-grid-root.compact {
-  .peers-grid {
-    gap: 0.75rem;
-    padding: 0.75rem;
 
-    &.grid-2 {
+.peers-grid-root.compact {
+  .peers-layout {
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .streaming-section,
+  .voice-section {
+    &.section-2 {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: repeat(2, minmax(0, 1fr));
-      max-width: none;
-    }
-
-    &.grid-4,
-    &.grid-many {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-auto-rows: minmax(0, 1fr);
-      overflow-y: auto;
     }
   }
 
@@ -100,8 +136,20 @@
 }
 
 @media (max-width: 640px) {
-  .peers-grid.grid-2 {
+  .streaming-section.section-2,
+  .voice-section.section-2 {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .peers-layout.split {
+    .streaming-section {
+      flex: 1 1 55%;
+    }
+
+    .voice-section {
+      flex: 0 1 45%;
+      max-height: 45%;
+    }
   }
 }
