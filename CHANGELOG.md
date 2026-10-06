@@ -1,3 +1,9 @@
+# [1.11.0](https://github.com/Quenary/konvoez/compare/v1.10.0...v1.11.0) (2026-10-06)
+
+### Features
+
+- camera and screen sharing ([9cf75a1](https://github.com/Quenary/konvoez/commit/9cf75a1ed7ba3a8ed77bb825da2d040b96a54bf5))
+
 # [1.10.0](https://github.com/Quenary/konvoez/compare/v1.9.1...v1.10.0) (2026-10-05)
 
 ### Features
