@@ -12,6 +12,7 @@ import type { TuiContext } from '@taiga-ui/cdk/types';
 import { TuiPreview } from '@taiga-ui/kit';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import type { Observer } from 'rxjs';
+import { DownloadService } from '@core/services/download.service';
 import { MEDIA_PREVIEW_DATA } from './media-preview';
 
 @Component({
@@ -24,6 +25,7 @@ import { MEDIA_PREVIEW_DATA } from './media-preview';
 export class MediaPreviewComponent {
   private readonly data = inject(MEDIA_PREVIEW_DATA);
   private readonly context = injectContext<TuiContext<Observer<void>>>();
+  private readonly downloadService = inject(DownloadService);
 
   protected readonly items = this.data.items;
   protected readonly index = signal(this.data.startIndex);
@@ -39,6 +41,15 @@ export class MediaPreviewComponent {
 
   protected close(): void {
     this.context.$implicit.complete();
+  }
+
+  protected download(): void {
+    const item = this.current();
+    if (!item?.downloadUrl) {
+      return;
+    }
+
+    this.downloadService.downloadUrl(item.downloadUrl, item.name);
   }
 
   protected onIndex(index: number): void {

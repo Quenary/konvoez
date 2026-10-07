@@ -8,6 +8,24 @@
       [length]="items.length"
       (indexChange)="onIndex($event)" />
   }
+  @if (current()?.downloadUrl && !broken()) {
+    <button
+      iconStart="@tui.download"
+      tuiIconButton
+      tuiPreviewAction
+      type="button"
+      [attr.aria-label]="'ROOMS.DOWNLOAD' | translate"
+      (click)="download()">
+    </button>
+  }
+  <button
+    iconStart="@tui.x"
+    tuiIconButton
+    tuiPreviewAction
+    type="button"
+    [attr.aria-label]="'GENERAL.CLOSE' | translate"
+    (click)="close()">
+  </button>
   @if (current(); as item) {
     @if (broken()) {
       <div class="unsupported">
@@ -34,21 +52,5 @@
         [src]="item.src"
         (error)="onBroken()"></video>
     }
-    @if (item.downloadUrl) {
-      <a
-        tuiPreviewAction
-        iconStart="@tui.download"
-        [href]="item.downloadUrl"
-        download>
-        {{ 'ROOMS.DOWNLOAD' | translate }}
-      </a>
-    }
   }
-  <button
-    tuiPreviewAction
-    type="button"
-    iconStart="@tui.x"
-    (click)="close()">
-    {{ 'GENERAL.CLOSE' | translate }}
-  </button>
 </tui-preview>
