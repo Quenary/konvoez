@@ -1,39 +1,18 @@
-<div class="peers-grid-root">
-  @if (!theatreFocus()) {
-    <div class="peers-layout">
-      <section
-        class="peers-section"
-        [class]="peersSectionClass()">
-        @for (tile of tiles(); track tile.key) {
-          <div class="grid-item">
-            <app-voice-room-tile
-              [peer]="tile.peer"
-              [streamKind]="tile.streamKind"
-              [videoTrack]="tile.videoTrack"
-              [screenAvailable]="tile.screenAvailable"
-              [watchingScreen]="tile.watchingScreen"
-              (watchScreen)="onWatchScreen(tile.peerId)"
-              (stopWatchScreen)="onStopWatchScreen(tile.peerId)"
-              (openTheatre)="onOpenTheatre(tile.peerId, tile.streamKind)" />
-          </div>
-        }
-      </section>
-    </div>
-
-    @if (overlayTemplate(); as overlay) {
-      <div class="view-chrome">
-        <ng-container
-          *ngTemplateOutlet="overlay; context: { $implicit: theatreTile() }" />
+<div class="peers-layout">
+  <section
+    class="peers-section"
+    [class]="peersSectionClass()">
+    @for (tile of tiles(); track tile.key) {
+      <div class="grid-item">
+        <app-voice-room-tile
+          [peer]="tile.peer"
+          [streamKind]="tile.streamKind"
+          [videoTrack]="tile.videoTrack"
+          [screenAvailable]="tile.screenAvailable"
+          [watchingScreen]="tile.watchingScreen" />
       </div>
     }
-  }
-
-  @if (theatreFocus()) {
-    <app-voice-room-theatre
-      [focusTile]="theatreTile()"
-      [stripTiles]="tiles()"
-      [overlay]="overlayTemplate()"
-      (watchScreen)="onWatchScreen($event)"
-      (stopWatchScreen)="onStopWatchScreen($event)" />
-  }
+  </section>
 </div>
+
+<ng-content />

@@ -36,11 +36,11 @@ describe('VoiceRoomViewService', () => {
     const view = TestBed.inject(VoiceRoomViewService);
     view.openTheatre(2, null);
     expect(view.theatreFocus()).toEqual({ peerId: 2, stream: null });
-    expect(view.theatreOpen()).toBe(true);
+    expect(view.layout()).toBe('theatre');
 
     view.openTheatre(1, 'screen');
     expect(view.theatreFocus()).toEqual({ peerId: 1, stream: 'screen' });
-    expect(view.theatreOpen()).toBe(true);
+    expect(view.layout()).toBe('theatre');
   });
 
   it('fullscreens an explicit target without closing theatre', async () => {
@@ -53,30 +53,32 @@ describe('VoiceRoomViewService', () => {
     await view.toggleFullscreen(host);
 
     expect(requestFullscreen).toHaveBeenCalledTimes(1);
-    expect(view.theatreOpen()).toBe(true);
+    expect(view.layout()).toBe('theatre');
 
-    view.closeTheatre();
-    expect(view.theatreOpen()).toBe(false);
+    view.showGrid();
+    expect(view.layout()).toBe('grid');
+    expect(view.theatreFocus()).toEqual({ peerId: 2, stream: 'screen' });
   });
 
   it('closes theatre when the voice session changes or ends', () => {
     const view = TestBed.inject(VoiceRoomViewService);
     view.openTheatre(2, 'screen');
-    expect(view.theatreOpen()).toBe(true);
+    expect(view.layout()).toBe('theatre');
 
     activeSession.set({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 1,
     });
     TestBed.flushEffects();
-    expect(view.theatreOpen()).toBe(true);
+    expect(view.layout()).toBe('theatre');
 
     activeSession.set({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 4,
     });
     TestBed.flushEffects();
-    expect(view.theatreOpen()).toBe(false);
+    expect(view.layout()).toBe('grid');
+    expect(view.theatreFocus()).toBeNull();
 
     view.openTheatre(3, null);
     activeSession.set({
@@ -85,12 +87,12 @@ describe('VoiceRoomViewService', () => {
       interlocutorId: 9,
     });
     TestBed.flushEffects();
-    expect(view.theatreOpen()).toBe(false);
+    expect(view.layout()).toBe('grid');
 
     view.openTheatre(3, 'cam');
     activeSession.set(null);
     TestBed.flushEffects();
-    expect(view.theatreOpen()).toBe(false);
+    expect(view.layout()).toBe('grid');
   });
 
   it('does not exit fullscreen when closing theatre', () => {
@@ -101,7 +103,7 @@ describe('VoiceRoomViewService', () => {
       value: exitFullscreen,
     });
     view.openTheatre(2, 'screen');
-    view.closeTheatre();
+    view.showGrid();
     expect(exitFullscreen).not.toHaveBeenCalled();
   });
 });

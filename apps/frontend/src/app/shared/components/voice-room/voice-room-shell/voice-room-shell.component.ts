@@ -8,11 +8,12 @@ import {
   output,
   TemplateRef,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { VoiceRoomGridComponent } from '../voice-room-grid/voice-room-grid.component';
+import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-theatre.component';
 import { VoiceRoomOverlayComponent } from '../voice-room-overlay/voice-room-overlay.component';
 import { VoiceSessionPeersService } from '../voice-session-peers.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { VoiceOverlaySlotDirective } from '../voice-overlay-slot.directive';
 import { IRoom } from '@konvoez/shared';
 
 @Component({
@@ -20,11 +21,13 @@ import { IRoom } from '@konvoez/shared';
   host: {
     '(pointermove)': 'revealChrome()',
     '(pointerdown)': 'revealChrome()',
+    '(document:keydown.escape)': 'onEscape($event)',
   },
   imports: [
+    NgTemplateOutlet,
     VoiceRoomGridComponent,
+    VoiceRoomTheatreComponent,
     VoiceRoomOverlayComponent,
-    VoiceOverlaySlotDirective,
   ],
   templateUrl: './voice-room-shell.component.html',
   styleUrl: './voice-room-shell.component.scss',
@@ -44,6 +47,7 @@ export class VoiceRoomShellComponent {
 
   protected readonly fullscreenHost = this.host.nativeElement;
   protected readonly participantsCount = this.voiceSessionPeersService.count;
+  protected readonly layout = this.voiceRoomViewService.layout;
 
   constructor() {
     this.voiceRoomViewService.revealChrome();
@@ -60,5 +64,25 @@ export class VoiceRoomShellComponent {
 
   protected onLeft(): void {
     this.left.emit();
+  }
+
+  protected onEscape(event: Event): void {
+    if (this.layout() !== 'theatre' || document.fullscreenElement) {
+      return;
+    }
+    const overlayOpen = document.querySelector(
+      'tui-dialog, tui-dropdown, tui-sheet-dialog',
+    );
+    queueMicrotask(() => {
+      if (
+        event.defaultPrevented ||
+        overlayOpen ||
+        document.fullscreenElement ||
+        this.layout() !== 'theatre'
+      ) {
+        return;
+      }
+      this.voiceRoomViewService.showGrid();
+    });
   }
 }

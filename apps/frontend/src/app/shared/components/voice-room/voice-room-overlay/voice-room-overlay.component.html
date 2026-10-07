@@ -54,9 +54,36 @@
       </ng-template>
     }
 
-    <app-voice-room-theatre-actions
-      [showClose]="theatreOpen()"
-      [fullscreenTarget]="fullscreenTarget()" />
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      [iconStart]="layoutToggleIcon()"
+      [disabled]="!canToggleLayout()"
+      [attr.aria-label]="layoutToggleHintKey() | translate"
+      tuiHintAppearance="floating"
+      [tuiHint]="layoutToggleHintKey() | translate"
+      (click)="onToggleLayout()">
+    </button>
+
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      [iconStart]="isFullscreen() ? '@tui.minimize' : '@tui.maximize'"
+      [attr.aria-label]="
+        (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
+          | translate
+      "
+      tuiHintAppearance="floating"
+      [tuiHint]="
+        (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
+          | translate
+      "
+      (click)="onToggleFullscreen()">
+    </button>
   </aside>
 </header>
 

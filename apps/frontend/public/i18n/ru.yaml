@@ -101,7 +101,8 @@ CALL:
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
   PREVIEW_RESUME: Возобновить
   PREVIEW_AUTO_PAUSE: Автоматическая пауза
-  EXIT_THEATRE: Закрыть театр
+  SHOW_THEATRE: Режим театра
+  SHOW_GRID: Режим сетки
   FULLSCREEN: На весь экран
   EXIT_FULLSCREEN: Свернуть
 VOICE:

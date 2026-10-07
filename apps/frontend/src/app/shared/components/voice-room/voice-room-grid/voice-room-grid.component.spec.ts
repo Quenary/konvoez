@@ -26,16 +26,11 @@ describe('VoiceRoomGridComponent', () => {
   let remoteCamTracks: ReturnType<
     typeof signal<Readonly<Record<number, MediaStreamTrack>>>
   >;
-  let remoteScreenTracks: ReturnType<
-    typeof signal<Readonly<Record<number, MediaStreamTrack>>>
-  >;
   let availableScreens: ReturnType<
     typeof signal<Readonly<Record<number, { videoProducerId: string }>>>
   >;
-  let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
   let localCamTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
-  let stopWatchingPeerScreen: ReturnType<typeof vi.fn>;
   let activeSession: ReturnType<
     typeof signal<{ type: EVoiceSessionType.GROUP_ROOM; roomId: number } | null>
   >;
@@ -44,12 +39,9 @@ describe('VoiceRoomGridComponent', () => {
     currentUser = signal(user(1));
     remotePeers = signal([user(2), user(3)]);
     remoteCamTracks = signal<Record<number, MediaStreamTrack>>({});
-    remoteScreenTracks = signal<Record<number, MediaStreamTrack>>({});
     availableScreens = signal<Record<number, { videoProducerId: string }>>({});
-    watchingUserIds = signal(new Set<number>());
     localCamTrack = signal<MediaStreamTrack | null>(null);
     localScreenTrack = signal<MediaStreamTrack | null>(null);
-    stopWatchingPeerScreen = vi.fn().mockResolvedValue(undefined);
     activeSession = signal({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: 1,
@@ -73,6 +65,7 @@ describe('VoiceRoomGridComponent', () => {
       imports: [VoiceRoomGridComponent],
       providers: [
         provideTranslateService(),
+        VoiceRoomViewService,
         {
           provide: Store,
           useValue: {
@@ -101,9 +94,9 @@ describe('VoiceRoomGridComponent', () => {
             localCamTrack: localCamTrack.asReadonly(),
             localScreenTrack: localScreenTrack.asReadonly(),
             remoteCamTracks: remoteCamTracks.asReadonly(),
-            remoteScreenTracks: remoteScreenTracks.asReadonly(),
+            remoteScreenTracks: signal({}).asReadonly(),
             availableScreens: availableScreens.asReadonly(),
-            watchingUserIds: watchingUserIds.asReadonly(),
+            watchingUserIds: signal(new Set<number>()).asReadonly(),
           },
         },
         {
@@ -115,17 +108,16 @@ describe('VoiceRoomGridComponent', () => {
           },
         },
         {
+          provide: VoiceLeaveService,
+          useValue: { leaveActiveVoice: vi.fn() },
+        },
+        {
           provide: VoiceSessionService,
           useValue: {
             watchPeerScreen: vi.fn().mockResolvedValue(undefined),
-            stopWatchingPeerScreen,
+            stopWatchingPeerScreen: vi.fn().mockResolvedValue(undefined),
           },
         },
-        {
-          provide: VoiceLeaveService,
-          useValue: { leaveActiveVoice: vi.fn().mockResolvedValue(undefined) },
-        },
-        VoiceRoomViewService,
         {
           provide: TuiNotificationService,
           useValue: { open: vi.fn(() => of(null)) },
@@ -136,7 +128,6 @@ describe('VoiceRoomGridComponent', () => {
             screenPreviewAutoPauseWhenHidden: signal(
               DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
             ).asReadonly(),
-            setScreenPreviewAutoPauseWhenHidden: vi.fn(),
           },
         },
       ],
@@ -160,6 +151,9 @@ describe('VoiceRoomGridComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.peers-section')).toBeTruthy();
     expect(fixture.nativeElement.querySelectorAll('.grid-item').length).toBe(3);
+    expect(
+      fixture.nativeElement.querySelector('app-voice-room-theatre'),
+    ).toBeNull();
   });
 
   it('renders two tiles when local cam and screen are active', () => {
@@ -174,141 +168,5 @@ describe('VoiceRoomGridComponent', () => {
     availableScreens.set({ 2: { videoProducerId: 'p1' } });
     const fixture = create();
     expect(fixture.nativeElement.querySelectorAll('.grid-item').length).toBe(4);
-  });
-
-  it('does not render the grid while theatre is open', () => {
-    remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
-    availableScreens.set({ 2: { videoProducerId: 'p1' } });
-    watchingUserIds.set(new Set([2]));
-
-    const fixture = create();
-    const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](2, 'screen');
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.querySelector('.peers-layout')).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('app-voice-room-theatre'),
-    ).toBeTruthy();
-  });
-
-  it('keeps theatre on the same screen tile after stop watching', async () => {
-    remoteScreenTracks.set({ 2: { id: 'scr' } as MediaStreamTrack });
-    availableScreens.set({ 2: { videoProducerId: 'p1' } });
-    watchingUserIds.set(new Set([2]));
-
-    const fixture = create();
-    const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](2, 'screen');
-    fixture.detectChanges();
-
-    await cmp['onStopWatchScreen'](2);
-    watchingUserIds.set(new Set());
-    remoteScreenTracks.set({});
-    TestBed.flushEffects();
-    fixture.detectChanges();
-
-    expect(cmp['theatreFocus']()).toEqual({ peerId: 2, stream: 'screen' });
-    expect(fixture.nativeElement.querySelector('.peers-layout')).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('app-voice-room-theatre'),
-    ).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.stage-tile')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
-  });
-
-  it('shows the first remote video when the focused screen tile disappears', () => {
-    remoteCamTracks.set({ 2: { id: 'cam' } as MediaStreamTrack });
-    availableScreens.set({ 2: { videoProducerId: 'p1' } });
-    watchingUserIds.set(new Set([2]));
-
-    const fixture = create();
-    const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](2, 'screen');
-    fixture.detectChanges();
-
-    availableScreens.set({});
-    watchingUserIds.set(new Set());
-    TestBed.flushEffects();
-    fixture.detectChanges();
-
-    expect(cmp['theatreFocus']()).toEqual({ peerId: 2, stream: 'screen' });
-    expect(cmp['theatreTile']()).toMatchObject({
-      peerId: 2,
-      streamKind: 'cam',
-    });
-    expect(fixture.nativeElement.querySelector('.stage-video')).toBeTruthy();
-  });
-
-  it('shows a remaining tile when the focused peer leaves without rewriting focus', () => {
-    const fixture = create();
-    const cmp = fixture.componentInstance;
-    cmp['onOpenTheatre'](3, null);
-    fixture.detectChanges();
-
-    remotePeers.set([]);
-    TestBed.flushEffects();
-    fixture.detectChanges();
-
-    expect(cmp['theatreFocus']()).toEqual({ peerId: 3, stream: null });
-    expect(cmp['theatreTile']()?.peerId).toBe(1);
-    expect(
-      fixture.nativeElement.querySelector('app-voice-room-theatre'),
-    ).toBeTruthy();
-  });
-
-  it('closes theatre on Escape when nothing else handled it', async () => {
-    const fixture = create();
-    fixture.componentInstance['onOpenTheatre'](2, null);
-    fixture.detectChanges();
-
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
-    await Promise.resolve();
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['theatreFocus']()).toBeNull();
-  });
-
-  it('keeps theatre open when Escape was already handled', async () => {
-    const fixture = create();
-    fixture.componentInstance['onOpenTheatre'](2, null);
-    fixture.detectChanges();
-
-    const event = new KeyboardEvent('keydown', {
-      key: 'Escape',
-      bubbles: true,
-      cancelable: true,
-    });
-    event.preventDefault();
-    document.dispatchEvent(event);
-    await Promise.resolve();
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['theatreFocus']()).toEqual({
-      peerId: 2,
-      stream: null,
-    });
-  });
-
-  it('keeps theatre open when a dialog is open', async () => {
-    const fixture = create();
-    fixture.componentInstance['onOpenTheatre'](2, null);
-    fixture.detectChanges();
-
-    const dialog = document.createElement('tui-dialog');
-    document.body.append(dialog);
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
-    await Promise.resolve();
-    dialog.remove();
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['theatreFocus']()).toEqual({
-      peerId: 2,
-      stream: null,
-    });
   });
 });

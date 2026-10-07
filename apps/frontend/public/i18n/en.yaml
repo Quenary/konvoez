@@ -101,7 +101,8 @@ CALL:
   PREVIEW_PAUSED: Preview paused to save resources
   PREVIEW_RESUME: Resume
   PREVIEW_AUTO_PAUSE: Auto-pause
-  EXIT_THEATRE: Exit theatre
+  SHOW_THEATRE: Theatre mode
+  SHOW_GRID: Grid mode
   FULLSCREEN: Fullscreen
   EXIT_FULLSCREEN: Exit fullscreen
 VOICE:

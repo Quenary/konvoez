@@ -16,7 +16,7 @@ import {
   TuiSlider,
 } from '@taiga-ui/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { VoiceSessionService } from '@core/services/voice-session.service';
+import { VoiceRoomActionsService } from '../voice-room-actions.service';
 
 @Component({
   selector: 'app-voice-room-theatre-watch-controls',
@@ -35,7 +35,7 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VoiceRoomTheatreWatchControlsComponent {
-  private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
   );
@@ -56,7 +56,7 @@ export class VoiceRoomTheatreWatchControlsComponent {
     if (id == null) {
       return;
     }
-    void this.voiceSessionService.stopWatchingPeerScreen(id);
+    void this.voiceRoomActionsService.stopWatchingPeerScreen(id);
   }
 
   protected onScreenVolumeChange(value: number): void {
