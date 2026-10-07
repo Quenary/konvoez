@@ -7,7 +7,7 @@ Guidelines for AI agents working in `apps/frontend` — the Angular client for K
 - **Angular 22+** (standalone + OnPush by default — do not set `standalone: true`; keep explicit `ChangeDetectionStrategy.OnPush`)
 - **SCSS** for styles (not LESS/CSS)
 - **Taiga UI** for UI components
-- **NgRx Store + Effects** for cross-cutting app state (`auth`, `rooms`)
+- **NgRx Store + Effects** for cross-cutting app state (`auth`)
 - **NgRx Signal Stores** for feature/domain state (`*Store` under features)
 - **ngx-translate** with YAML loaders
 - **Zod** schemas from `@konvoez/shared` for forms and shared contracts
@@ -118,8 +118,8 @@ computed(() => {
 ## State
 
 - **Local UI state** → component signals.
-- **Feature/domain state** → NgRx `signalStore` (see `users.store.ts`, `chat.store.ts`, `settings.store.ts`).
-- **Cross-cutting app state** → NgRx Store + Effects (`auth`, `rooms`). Do not invent a third pattern for the same concern.
+- **Feature/domain state** → NgRx `signalStore` (see `users.store.ts`, `rooms.store.ts`, `chat.store.ts`, `settings.store.ts`).
+- **Cross-cutting app state** → NgRx Store + Effects (`auth`). Do not invent a third pattern for the same concern.
 - Derived state goes in `computed()` / `withComputed` — no side effects inside.
 - Services own imperative/realtime side effects (sockets, mediasoup, media devices); components and stores consume them.
 

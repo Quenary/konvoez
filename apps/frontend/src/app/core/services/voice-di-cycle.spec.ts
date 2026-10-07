@@ -24,7 +24,7 @@ import { SettingsStore } from '@features/settings/settings.store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { authReducer } from '@features/auth/auth.reducer';
-import { roomsReducer } from '@features/rooms/rooms.reducer';
+import { RoomsStore } from '@features/rooms/rooms.store';
 
 /**
  * Guards against NG0200 circular DI:
@@ -41,8 +41,8 @@ describe('voice DI graph', () => {
         provideRouter([]),
         provideStore({
           auth: authReducer,
-          rooms: roomsReducer,
         }),
+        RoomsStore,
         VoiceSessionService,
         MediasoupSessionService,
         CameraService,
@@ -106,6 +106,7 @@ describe('voice DI graph', () => {
       TestBed.inject(LocalScreenPreviewService);
       TestBed.inject(VoiceSessionPeersService);
       TestBed.inject(VoiceSessionStore);
+      TestBed.inject(RoomsStore);
       TestBed.inject(VoiceLobbyStore);
       TestBed.inject(VoiceAudioPreferencesStore);
       TestBed.inject(DirectCallService);

@@ -17,7 +17,7 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@features/auth/auth.selectors';
-import { RoomsActions } from '@features/rooms/rooms.actions';
+import { RoomsStore } from '@features/rooms/rooms.store';
 import { UsersStore } from '@features/users/users.store';
 import { filter, finalize, fromEvent, map, tap, withLatestFrom } from 'rxjs';
 
@@ -26,6 +26,7 @@ export class EntitySyncEffects {
   private readonly store = inject(Store);
   private readonly socket = inject(EntitySyncSocketToken);
   private readonly usersStore = inject(UsersStore);
+  private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly emitter = this.socket as never;
@@ -84,21 +85,33 @@ export class EntitySyncEffects {
     ),
   );
 
-  readonly roomCreated$ = createEffect(() =>
-    fromEvent<IRoom>(this.emitter, EEntitySyncEvent.ROOM_CREATED).pipe(
-      map((room) => RoomsActions.requestCreateRoomSuccess({ room })),
-    ),
+  readonly roomCreated$ = createEffect(
+    () =>
+      fromEvent<IRoom>(this.emitter, EEntitySyncEvent.ROOM_CREATED).pipe(
+        tap((room) => {
+          this.roomsStore.upsertOne(room);
+        }),
+      ),
+    { dispatch: false },
   );
 
-  readonly roomUpdated$ = createEffect(() =>
-    fromEvent<IRoom>(this.emitter, EEntitySyncEvent.ROOM_UPDATED).pipe(
-      map((room) => RoomsActions.requestUpdateRoomSuccess({ room })),
-    ),
+  readonly roomUpdated$ = createEffect(
+    () =>
+      fromEvent<IRoom>(this.emitter, EEntitySyncEvent.ROOM_UPDATED).pipe(
+        tap((room) => {
+          this.roomsStore.upsertOne(room);
+        }),
+      ),
+    { dispatch: false },
   );
 
-  readonly roomDeleted$ = createEffect(() =>
-    fromEvent<IRoomDeleted>(this.emitter, EEntitySyncEvent.ROOM_DELETED).pipe(
-      map(({ id }) => RoomsActions.requestDeleteRoomSuccess({ id })),
-    ),
+  readonly roomDeleted$ = createEffect(
+    () =>
+      fromEvent<IRoomDeleted>(this.emitter, EEntitySyncEvent.ROOM_DELETED).pipe(
+        tap(({ id }) => {
+          this.roomsStore.removeOne(id);
+        }),
+      ),
+    { dispatch: false },
   );
 }

@@ -5,8 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { Store } from '@ngrx/store';
-import { selectRoomsDict } from '../rooms.selectors';
+import { RoomsStore } from '../rooms.store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -14,7 +13,6 @@ import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
-import { RoomsActions } from '../rooms.actions';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { EVoiceSessionType } from '@konvoez/shared';
@@ -28,7 +26,7 @@ import { EVoiceSessionType } from '@konvoez/shared';
 })
 export class VoiceRoomPanelComponent {
   private readonly router = inject(Router);
-  private readonly store = inject(Store);
+  private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
@@ -75,7 +73,7 @@ export class VoiceRoomPanelComponent {
     return '';
   });
 
-  private readonly rooms = this.store.selectSignal(selectRoomsDict);
+  private readonly rooms = this.roomsStore.roomsDict;
   private readonly activeSession = this.voiceSessionStore.activeSession;
 
   protected clickSession(): void {
@@ -91,7 +89,7 @@ export class VoiceRoomPanelComponent {
     if (session?.type === EVoiceSessionType.GROUP_ROOM) {
       const room = this.rooms()[session.roomId];
       if (room) {
-        this.store.dispatch(RoomsActions.selectRoom({ room }));
+        this.roomsStore.selectRoom(room);
       }
     }
   }

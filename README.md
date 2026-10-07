@@ -80,7 +80,14 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
+- Fix voice room hangup > navigate to /
+- Fix common voice > direct voice
+- Improve noise/echo suppression
+- Add stop stream button
+- Volume slider 1 step
+- Add notification click navigation
 - Add common user dialog with short info direct chat/call buttons
+- Add cam/screen share sound
 - Add emojis or/and customizable smile/sticker packs
 - Add connection state indication
 - Add mute indication for other peers

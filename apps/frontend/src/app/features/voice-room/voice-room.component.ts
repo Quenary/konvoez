@@ -8,9 +8,8 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Store } from '@ngrx/store';
 import { map } from 'rxjs';
-import { selectRoomsDict } from '../rooms/rooms.selectors';
+import { RoomsStore } from '../rooms/rooms.store';
 import { IRoom } from '../rooms/rooms.interface';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -27,7 +26,7 @@ import { EVoiceSessionType } from '@konvoez/shared';
 export class VoiceRoomComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly store = inject(Store);
+  private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
 
@@ -46,7 +45,7 @@ export class VoiceRoomComponent {
     return roomsDict[id] ?? null;
   });
 
-  private readonly roomsDict = this.store.selectSignal(selectRoomsDict);
+  private readonly roomsDict = this.roomsStore.roomsDict;
   private readonly roomId = toSignal(
     this.route.paramMap.pipe(map((params) => Number(params.get('id')))),
   );

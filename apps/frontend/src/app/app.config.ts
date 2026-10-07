@@ -23,8 +23,6 @@ import {
 import { TranslateYamlHttpLoader } from './core/services/translate-yaml-http-loader.service';
 import { provideEffects } from '@ngrx/effects';
 import { provideStore, Store } from '@ngrx/store';
-import { RoomsEffects } from './features/rooms/rooms.effects';
-import { roomsReducer } from './features/rooms/rooms.reducer';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { authReducer } from './features/auth/auth.reducer';
 import { AuthEffects } from './features/auth/auth.effects';
@@ -67,10 +65,9 @@ export const appConfig: ApplicationConfig = {
       },
       fallbackLang: 'en',
     }),
-    provideEffects(AuthEffects, RoomsEffects, EntitySyncEffects),
+    provideEffects(AuthEffects, EntitySyncEffects),
     provideStore({
       auth: authReducer,
-      rooms: roomsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
     {

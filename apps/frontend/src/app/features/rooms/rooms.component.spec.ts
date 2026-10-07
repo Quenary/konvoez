@@ -10,9 +10,9 @@ import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
-import { RoomsActions } from './rooms.actions';
 import { IRoom } from './rooms.interface';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { RoomManageService } from './room-manage.service';
+import { RoomsStore } from './rooms.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import {
   DirectCallService,
@@ -22,11 +22,6 @@ import {
 import { UsersStore } from '@features/users/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import {
-  selectSelectedRoomId,
-  selectTextRoomsList,
-  selectVoiceRoomsList,
-} from './rooms.selectors';
 
 vi.hoisted(() => {
   (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
@@ -84,7 +79,6 @@ describe('RoomsComponent', () => {
   };
 
   const roomsState = signal<Record<number, Record<number, IUser>>>({});
-  const selectedRoomId = signal<number | null>(null);
   const activeCall = signal<IActiveCall | null>(null);
   const rejoinableCall = signal<{
     callId: string;
@@ -111,10 +105,17 @@ describe('RoomsComponent', () => {
     open: vi.fn(),
   };
 
+  const roomsStore = {
+    loadAll: vi.fn(),
+    create: vi.fn(),
+    selectRoom: vi.fn(),
+    textRooms: signal([textRoom]),
+    voiceRooms: signal([voiceRoom]),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     roomsState.set({});
-    selectedRoomId.set(null);
     activeCall.set(null);
     rejoinableCall.set(null);
     entityMap.set({ [me.id]: me, [bob.id]: bob });
@@ -126,32 +127,14 @@ describe('RoomsComponent', () => {
         provideTranslateService(),
         provideMockStore({
           initialState: {
-            rooms: {
-              ids: [textRoom.id, voiceRoom.id],
-              entities: {
-                [textRoom.id]: textRoom,
-                [voiceRoom.id]: voiceRoom,
-              },
-              selectedRoomId: null,
-            },
             auth: {
               user: me,
               isAuthorized: true,
             },
           },
-          selectors: [
-            { selector: selectCurrentUser, value: me },
-            { selector: selectSelectedRoomId, value: null },
-            { selector: selectTextRoomsList, value: [textRoom] },
-            { selector: selectVoiceRoomsList, value: [voiceRoom] },
-          ],
+          selectors: [{ selector: selectCurrentUser, value: me }],
         }),
-        {
-          provide: VoiceSessionStore,
-          useValue: {
-            selectedRoomId,
-          },
-        },
+        { provide: RoomsStore, useValue: roomsStore },
         {
           provide: VoiceLobbyStore,
           useValue: {
@@ -208,7 +191,6 @@ describe('RoomsComponent', () => {
       .compileComponents();
 
     store = TestBed.inject(MockStore);
-    vi.spyOn(store, 'dispatch');
 
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -225,7 +207,7 @@ describe('RoomsComponent', () => {
   });
 
   it('should request rooms and load users on init', () => {
-    expect(store.dispatch).toHaveBeenCalledWith(RoomsActions.requestRooms());
+    expect(roomsStore.loadAll).toHaveBeenCalled();
     expect(usersStore.loadAll).toHaveBeenCalled();
   });
 
@@ -361,11 +343,9 @@ describe('RoomsComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/direct', bob.id]);
   });
 
-  it('should dispatch selectRoom', () => {
+  it('should call roomsStore selectRoom', () => {
     component['selectRoom'](voiceRoom);
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.selectRoom({ room: voiceRoom }),
-    );
+    expect(roomsStore.selectRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
   it('should remember room for context menu on longtap', () => {
@@ -375,32 +355,26 @@ describe('RoomsComponent', () => {
 
   it('should select room on click', () => {
     component['onRoomClick'](voiceRoom);
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.selectRoom({ room: voiceRoom }),
-    );
+    expect(roomsStore.selectRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
   it('should not select room on the click that follows a touch longtap', () => {
     isTouch.set(true);
     component['onRoomLongtap'](textRoom);
-    vi.mocked(store.dispatch).mockClear();
+    vi.mocked(roomsStore.selectRoom).mockClear();
 
     component['onRoomClick'](textRoom);
 
-    expect(store.dispatch).not.toHaveBeenCalledWith(
-      RoomsActions.selectRoom({ room: textRoom }),
-    );
+    expect(roomsStore.selectRoom).not.toHaveBeenCalled();
   });
 
   it('should select room on click after desktop right-click longtap', () => {
     component['onRoomLongtap'](textRoom);
-    vi.mocked(store.dispatch).mockClear();
+    vi.mocked(roomsStore.selectRoom).mockClear();
 
     component['onRoomClick'](textRoom);
 
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.selectRoom({ room: textRoom }),
-    );
+    expect(roomsStore.selectRoom).toHaveBeenCalledWith(textRoom);
   });
 
   it('should dispatch create room after dialog confirms', async () => {
@@ -415,67 +389,37 @@ describe('RoomsComponent', () => {
     await component['addRoom'](ERoomType.TEXT);
 
     expect(dialogService.open).toHaveBeenCalled();
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.requestCreateRoom({
-        room: {
-          name: 'ops',
-          type: ERoomType.TEXT,
-          avatar: 'avatar.png',
-        },
-      }),
-    );
+    expect(roomsStore.create).toHaveBeenCalledWith({
+      name: 'ops',
+      type: ERoomType.TEXT,
+      avatar: 'avatar.png',
+    });
   });
 
-  it('should not dispatch create room when dialog is cancelled', async () => {
+  it('should not create room when dialog is cancelled', async () => {
     dialogService.open.mockReturnValue(of(null));
     await component['addRoom'](ERoomType.VOICE);
 
-    expect(store.dispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: RoomsActions.requestCreateRoom.type,
-      }),
-    );
+    expect(roomsStore.create).not.toHaveBeenCalled();
   });
 
-  it('should dispatch update room after dialog confirms', async () => {
-    dialogService.open.mockReturnValue(
-      of({
-        id: voiceRoom.id,
-        name: 'renamed',
-        avatar: null,
-      }),
-    );
+  it('should delegate edit room to RoomManageService', async () => {
+    const editRoom = vi.fn().mockResolvedValue(undefined);
+    const roomManageService = TestBed.inject(RoomManageService);
+    vi.spyOn(roomManageService, 'editRoom').mockImplementation(editRoom);
 
     await component['editRoom'](voiceRoom);
 
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.requestUpdateRoom({
-        id: voiceRoom.id,
-        room: { name: 'renamed', avatar: null },
-      }),
-    );
+    expect(editRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
-  it('should dispatch delete room when confirmed', () => {
-    responsiveDialogService.open.mockReturnValue(of(true));
+  it('should delegate delete room to RoomManageService', () => {
+    const deleteRoom = vi.fn();
+    const roomManageService = TestBed.inject(RoomManageService);
+    vi.spyOn(roomManageService, 'deleteRoom').mockImplementation(deleteRoom);
 
     component['deleteRoom'](textRoom);
 
-    expect(responsiveDialogService.open).toHaveBeenCalled();
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.requestDeleteRoom({ id: textRoom.id }),
-    );
-  });
-
-  it('should not dispatch delete room when confirmation is cancelled', () => {
-    responsiveDialogService.open.mockReturnValue(of(false));
-
-    component['deleteRoom'](textRoom);
-
-    expect(store.dispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: RoomsActions.requestDeleteRoom.type,
-      }),
-    );
+    expect(deleteRoom).toHaveBeenCalledWith(textRoom);
   });
 });
