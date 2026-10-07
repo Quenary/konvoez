@@ -21,15 +21,17 @@
 
   <div tuiTitle>
     @let u = user();
-    @let hintValue =
-      u.fullname && u.fullname !== u.username ? u.fullname : null;
     <span
-      tuiHintAppearance="floating"
       [style.color]="u.username | tuiAutoColor"
-      [tuiHint]="hintValue">
+      tuiFade>
       {{ u.username }}
     </span>
-    <div tuiSubtitle>{{ u.fullname }}</div>
+    <div
+      tuiSubtitle
+      class="overflow-ellipsis"
+      tuiFade
+      >{{ u.fullname }}</div
+    >
   </div>
 
   <tui-icon
