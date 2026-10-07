@@ -7,7 +7,7 @@ import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
 import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { IRoom } from '@features/rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from '@features/rooms/room-manage.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';

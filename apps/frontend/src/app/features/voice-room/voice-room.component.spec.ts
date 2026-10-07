@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomComponent } from './voice-room.component';
-import { IRoom } from '../rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 
 describe('VoiceRoomComponent', () => {
   let paramMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;

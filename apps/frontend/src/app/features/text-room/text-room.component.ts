@@ -11,7 +11,7 @@ import { map } from 'rxjs';
 import { RoomsStore } from '../rooms/rooms.store';
 import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
 import { RoomManageService } from '../rooms/room-manage.service';
-import { IRoom } from '../rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
 import { TranslatePipe } from '@ngx-translate/core';

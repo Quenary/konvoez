@@ -12,7 +12,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiDropdown, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
-import { IRoom } from '@features/rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { RoomContextMenuComponent } from '@features/rooms/room-context-menu/room-context-menu.component';
 import { RoomManageService } from '@features/rooms/room-manage.service';
 import { Store } from '@ngrx/store';

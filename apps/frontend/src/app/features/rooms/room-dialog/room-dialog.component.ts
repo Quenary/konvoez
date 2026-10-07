@@ -7,7 +7,7 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ERoomType, maxAvatarSize } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { IRoom } from '../rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import {
   TuiButton,

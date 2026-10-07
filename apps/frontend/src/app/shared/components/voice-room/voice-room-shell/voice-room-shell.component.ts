@@ -13,7 +13,7 @@ import { VoiceRoomOverlayComponent } from '../voice-room-overlay/voice-room-over
 import { VoiceSessionPeersService } from '../voice-session-peers.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceOverlaySlotDirective } from '../voice-overlay-slot.directive';
-import { IRoom } from '@features/rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-room-shell',

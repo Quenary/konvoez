@@ -7,7 +7,7 @@ import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { IRoom } from './rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from './room-manage.service';
 import { RoomsStore } from './rooms.store';
 

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { IRoom, IRoomCreate, IRoomUpdate } from './rooms.interface';
+import { IRoom, IRoomCreate, IRoomUpdate } from '@konvoez/shared';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
 import { uploadRequestHeaders } from '@shared/functions/upload-request-headers';

@@ -14,7 +14,7 @@ import { RoomsStore } from './rooms.store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomCreate } from './rooms.interface';
+import { IRoom, IRoomCreate } from '@konvoez/shared';
 import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';

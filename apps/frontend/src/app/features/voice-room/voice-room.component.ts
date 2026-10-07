@@ -10,7 +10,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { RoomsStore } from '../rooms/rooms.store';
-import { IRoom } from '../rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
