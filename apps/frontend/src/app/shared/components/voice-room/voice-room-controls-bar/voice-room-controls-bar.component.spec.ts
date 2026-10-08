@@ -25,6 +25,7 @@ describe('VoiceRoomControlsBarComponent', () => {
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
+  let canProduce: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     localCamTrack = signal<MediaStreamTrack | null>(null);
@@ -40,6 +41,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
+    canProduce = signal(true);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomControlsBarComponent],
@@ -85,6 +87,7 @@ describe('VoiceRoomControlsBarComponent', () => {
             stopCamera,
             produceScreen,
             stopScreen,
+            canProduce: canProduce.asReadonly(),
           },
         },
         {
@@ -147,7 +150,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     await fixture.whenStable();
 
     expect(notify).toHaveBeenCalledWith(
-      'no camera',
+      'CALL.CAMERA_FAILED',
       expect.objectContaining({ appearance: 'negative' }),
     );
   });
@@ -162,6 +165,13 @@ describe('VoiceRoomControlsBarComponent', () => {
 
     expect(produceCamera).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('disables camera controls until the session can produce', () => {
+    canProduce.set(false);
+    const fixture = create();
+    const camButton = button(fixture, 2);
+    expect(camButton.disabled).toBe(true);
   });
 
   it('toggles the microphone', () => {
