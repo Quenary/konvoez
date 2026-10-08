@@ -110,6 +110,7 @@ CALL:
   EXIT_FULLSCREEN: Свернуть
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
+  ROOM_CLOSED: Голосовая комната была закрыта
 ROOMS:
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
