@@ -20,11 +20,11 @@
       (keydown.space)="$event.preventDefault(); onVideoActivate()"></video>
   } @else if (previewPaused()) {
     <div class="preview-paused-overlay">
-      <p class="preview-paused-text">{{ 'CALL.PREVIEW_PAUSED' | translate }}</p>
       <button
         tuiButton
         size="s"
         type="button"
+        [tuiHint]="'CALL.PREVIEW_PAUSED' | translate"
         (click)="onResumePreview()">
         {{ 'CALL.PREVIEW_RESUME' | translate }}
       </button>
