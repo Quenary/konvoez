@@ -59,6 +59,9 @@ export class VoiceRoomComponent {
     return roomsDict[id] ?? null;
   });
 
+  protected readonly title = computed(() => this.room()?.name ?? '');
+  protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? null);
+
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
   private readonly roomsDict = this.roomsStore.roomsDict;

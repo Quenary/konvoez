@@ -1,12 +1,8 @@
-@if (room(); as currentRoom) {
-  <app-voice-room-shell
-    [title]="currentRoom.name"
-    [avatarUrl]="currentRoom.avatarUrl ?? null"
-    [headerActions]="roomHeaderActions"
-    (left)="onLeft()" />
-} @else {
-  <app-voice-room-shell (left)="onLeft()" />
-}
+<app-voice-room-shell
+  [title]="title()"
+  [avatarUrl]="avatarUrl()"
+  [headerActions]="roomHeaderActions"
+  (left)="onLeft()" />
 
 <ng-template #roomHeaderActions>
   @if (room(); as manageRoom) {

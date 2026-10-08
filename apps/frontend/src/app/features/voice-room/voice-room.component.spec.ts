@@ -1,15 +1,27 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { provideTranslateService } from '@ngx-translate/core';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { EVoiceSessionType } from '@konvoez/shared';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomComponent } from './voice-room.component';
+import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
+import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
 import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from '../rooms/room-manage.service';
+
+@Component({ selector: 'app-voice-room-shell', template: '' })
+class MockVoiceRoomShellComponent {
+  public readonly title = input<string>('');
+  public readonly avatarUrl = input<string | null>(null);
+  public readonly headerActions = input<unknown>(null);
+  public readonly left = output<void>();
+}
 
 describe('VoiceRoomComponent', () => {
   let paramMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
@@ -143,5 +155,86 @@ describe('VoiceRoomComponent', () => {
     navigate.mockClear();
     roomClosed$.next({ roomId: 99 });
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  describe('shell instance stability', () => {
+    let roomsDictSignal: ReturnType<typeof signal<Record<number, IRoom>>>;
+
+    beforeEach(async () => {
+      roomsDictSignal = signal<Record<number, IRoom>>({});
+
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [VoiceRoomComponent],
+        providers: [
+          provideTranslateService(),
+          {
+            provide: ActivatedRoute,
+            useValue: { paramMap: of(convertToParamMap({ id: '4' })) },
+          },
+          {
+            provide: Router,
+            useValue: { navigate: vi.fn() },
+          },
+          {
+            provide: RoomsStore,
+            useValue: { roomsDict: roomsDictSignal },
+          },
+          {
+            provide: VoiceSessionStore,
+            useValue: { selectedRoomId: signal(4).asReadonly() },
+          },
+          {
+            provide: VoiceSessionService,
+            useValue: {
+              joinSession: vi.fn().mockResolvedValue(undefined),
+              reportJoinFailure: vi.fn(),
+              joiningTarget: signal(null).asReadonly(),
+              roomClosed$: of(),
+            },
+          },
+          {
+            provide: RoomManageService,
+            useValue: {
+              canManageRooms: signal(false).asReadonly(),
+              editRoom: vi.fn(),
+              deleteRoom: vi.fn(),
+            },
+          },
+        ],
+      })
+        .overrideComponent(VoiceRoomComponent, {
+          remove: {
+            imports: [VoiceRoomShellComponent, RoomContextMenuComponent],
+          },
+          add: {
+            imports: [MockVoiceRoomShellComponent],
+          },
+        })
+        .compileComponents();
+    });
+
+    it('keeps the same shell instance after room() changes from null to a value', () => {
+      const fixture = TestBed.createComponent(VoiceRoomComponent);
+      fixture.detectChanges();
+
+      const shellBefore = fixture.debugElement.query(
+        By.directive(MockVoiceRoomShellComponent),
+      )?.componentInstance as MockVoiceRoomShellComponent;
+      expect(shellBefore).toBeTruthy();
+      expect(shellBefore.title()).toBe('');
+
+      roomsDictSignal.set({
+        4: { id: 4, name: 'VIP', avatarUrl: 'http://avatar' } as IRoom,
+      });
+      fixture.detectChanges();
+
+      const shellAfter = fixture.debugElement.query(
+        By.directive(MockVoiceRoomShellComponent),
+      )?.componentInstance as MockVoiceRoomShellComponent;
+      expect(shellAfter).toBe(shellBefore);
+      expect(shellAfter.title()).toBe('VIP');
+      expect(shellAfter.avatarUrl()).toBe('http://avatar');
+    });
   });
 });
