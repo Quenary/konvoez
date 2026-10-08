@@ -80,7 +80,6 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
-- Improve noise/echo suppression
 - Add notification click navigation
 - Add common user dialog with short info direct chat/call buttons
 - Add cam/screen share started sound
