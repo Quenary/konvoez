@@ -27,7 +27,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { firstValueFrom, Subject, Subscription } from 'rxjs';
-import { TextRoomApiService } from '../text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { VideoPosterService } from '@core/services/video-poster.service';
 import { AttachmentsApiService } from './attachments-api.service';
 import {
@@ -78,7 +78,7 @@ export const OutgoingMessagesStore = signalStore(
       store,
       attachmentsApi = inject(AttachmentsApiService),
       videoPosterService = inject(VideoPosterService),
-      textRoomApi = inject(TextRoomApiService),
+      chatApi = inject(ChatApiService),
       ngrxStore = inject(Store),
       translateService = inject(TranslateService),
       notifications = inject(TuiNotificationService),
@@ -193,7 +193,7 @@ export const OutgoingMessagesStore = signalStore(
         const attachmentIds = message.files.flatMap((file) =>
           file.state.status === 'uploaded' ? [file.state.attachment.id] : [],
         );
-        const subscription = textRoomApi
+        const subscription = chatApi
           .create({
             ...message.data,
             clientId: tempId,

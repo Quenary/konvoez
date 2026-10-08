@@ -10,7 +10,7 @@ import { Sanitizer, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@features/auth/auth.reducer';
-import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 
 describe('ChatMessagesListComponent', () => {
@@ -123,7 +123,7 @@ describe('ChatMessagesListComponent', () => {
           useValue: { open: vi.fn(() => of(undefined)) },
         },
         {
-          provide: TextRoomApiService,
+          provide: ChatApiService,
           useValue: { getReaders: vi.fn(), markRead: vi.fn() },
         },
         {

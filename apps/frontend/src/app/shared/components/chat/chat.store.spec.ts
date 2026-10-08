@@ -5,7 +5,7 @@ import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { AttachmentsApiService } from '@core/chat/outgoing/attachments-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
@@ -153,7 +153,7 @@ describe('ChatStore', () => {
         ChatStore,
         provideStore({ auth: authReducer }),
         provideTranslateService(),
-        { provide: TextRoomApiService, useValue: apiService },
+        { provide: ChatApiService, useValue: apiService },
         {
           provide: AttachmentsApiService,
           useValue: { upload: vi.fn(), delete: vi.fn(() => of(undefined)) },

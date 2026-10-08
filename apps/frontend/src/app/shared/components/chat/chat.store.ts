@@ -32,7 +32,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
-import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
@@ -199,7 +199,7 @@ export const ChatStore = signalStore(
   withMethods(
     (
       store,
-      textRoomApiService = inject(TextRoomApiService),
+      chatApiService = inject(ChatApiService),
       socket = inject(TextRoomSocketToken),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
@@ -221,7 +221,7 @@ export const ChatStore = signalStore(
       const requestList = rxMethod<ITextRoomListRequest>(
         pipe(
           switchMap((data) =>
-            textRoomApiService.list(data).pipe(
+            chatApiService.list(data).pipe(
               tap(({ items }) => {
                 patchState(
                   store,
@@ -385,7 +385,7 @@ export const ChatStore = signalStore(
               }
 
               const { roomId, recipientId } = apiIds();
-              return textRoomApiService
+              return chatApiService
                 .list({
                   roomId,
                   recipientId,
@@ -478,7 +478,7 @@ export const ChatStore = signalStore(
               );
             }),
             switchMap(({ messageId, data }) =>
-              textRoomApiService.update(messageId, data).pipe(
+              chatApiService.update(messageId, data).pipe(
                 tap((message) => {
                   patchState(store, setEntity(toMessageEntity(message)), {
                     editableMessageId: null,
@@ -512,7 +512,7 @@ export const ChatStore = signalStore(
               );
             }),
             switchMap((messageId) =>
-              textRoomApiService.delete(messageId).pipe(
+              chatApiService.delete(messageId).pipe(
                 tap(() => {
                   patchState(store, removeEntity(messageId));
                 }),

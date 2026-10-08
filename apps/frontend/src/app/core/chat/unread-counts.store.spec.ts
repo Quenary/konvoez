@@ -11,7 +11,7 @@ import {
   ITextRoomMessage,
   IUser,
 } from '@konvoez/shared';
-import { TextRoomApiService } from './text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { UnreadCountsStore } from './unread-counts.store';
 
 class MockSocket {
@@ -91,7 +91,7 @@ describe('UnreadCountsStore', () => {
     TestBed.configureTestingModule({
       providers: [
         provideStore({ auth: authReducer }),
-        { provide: TextRoomApiService, useValue: apiService },
+        { provide: ChatApiService, useValue: apiService },
         { provide: TextRoomSocketToken, useValue: mockSocket },
       ],
     });

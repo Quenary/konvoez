@@ -21,7 +21,7 @@ import { AuthActions } from '@features/auth/auth.actions';
 import { Observable, Subject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoPosterService } from '@core/services/video-poster.service';
-import { TextRoomApiService } from '../text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { AttachmentsApiService } from './attachments-api.service';
 import { OutgoingMessagesStore } from './outgoing-messages.store';
 import { ILocalFile } from './outgoing.types';
@@ -126,7 +126,7 @@ describe('OutgoingMessagesStore', () => {
       providers: [
         provideStore({ auth: authReducer }),
         provideTranslateService(),
-        { provide: TextRoomApiService, useValue: { create } },
+        { provide: ChatApiService, useValue: { create } },
         {
           provide: AttachmentsApiService,
           useValue: { upload, delete: remove },
