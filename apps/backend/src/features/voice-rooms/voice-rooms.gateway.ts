@@ -413,7 +413,7 @@ export class VoiceRoomsGateway
       transport = peer.recvTransport;
     }
     if (!transport) {
-      throw new Error('Transport not found');
+      throw new WsException('Transport not found');
     }
 
     await transport.connect({
@@ -439,7 +439,7 @@ export class VoiceRoomsGateway
     return room.produceMutex.runExclusive(async () => {
       const transport = peer.sendTransport;
       if (!transport) {
-        throw new Error('Send transport not created');
+        throw new WsException('Send transport not created');
       }
 
       const hasScreen = [...peer.producers.values()].some(
@@ -565,13 +565,13 @@ export class VoiceRoomsGateway
 
     const transport = peer.recvTransport;
     if (!transport) {
-      throw new Error('Receive transport not created');
+      throw new WsException('Receive transport not created');
     }
 
     const producer = room.producers.get(body.producerId);
 
     if (!producer) {
-      throw new Error('Producer not found');
+      throw new WsException('Producer not found');
     }
 
     if (
@@ -580,7 +580,7 @@ export class VoiceRoomsGateway
         rtpCapabilities: body.rtpCapabilities as unknown as RtpCapabilities,
       })
     ) {
-      throw new Error('Cannot consume');
+      throw new WsException('Cannot consume');
     }
 
     const consumer: Consumer<VoiceRoomStateMediasoupAppData> =
@@ -813,7 +813,7 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
-      throw new Error('Socket missing session key');
+      throw new WsException('Socket missing session key');
     }
     return sessionKey;
   }
@@ -824,13 +824,13 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
-      throw new Error('Socket missing session key');
+      throw new WsException('Socket missing session key');
     }
     if (!socket.rooms.has(sessionKey)) {
       this.logger.warn(
         `Socket not in session: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
-      throw new Error('Socket not in session');
+      throw new WsException('Socket not in session');
     }
   }
 
@@ -843,7 +843,7 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Room not found: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
-      throw new Error(`Room not found for session: ${sessionKey}`);
+      throw new WsException(`Room not found for session: ${sessionKey}`);
     }
 
     const peer = room.peers.get(socket.id);
@@ -851,7 +851,9 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Peer not registered in room: socketId=${socket.id}, sessionKey=${sessionKey}, roomPeers=${Array.from(room.peers.keys())}`,
       );
-      throw new Error(`Socket peer not registered in session: ${sessionKey}`);
+      throw new WsException(
+        `Socket peer not registered in session: ${sessionKey}`,
+      );
     }
 
     return { room, peer, sessionKey };
