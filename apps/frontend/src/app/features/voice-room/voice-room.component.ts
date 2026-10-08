@@ -9,16 +9,27 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { RoomsStore } from '../rooms/rooms.store';
-import { IRoom } from '@konvoez/shared';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { EVoiceSessionType } from '@konvoez/shared';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { EVoiceSessionType } from '@konvoez/shared';
+import { RoomManageService } from '../rooms/room-manage.service';
+import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
+import { TranslatePipe } from '@ngx-translate/core';
+import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
+import { IRoom } from '@konvoez/shared';
 
 @Component({
   selector: 'app-voice-room',
-  imports: [VoiceRoomShellComponent],
+  imports: [
+    VoiceRoomShellComponent,
+    RoomContextMenuComponent,
+    TranslatePipe,
+    TuiButton,
+    TuiDropdown,
+    TuiHint,
+  ],
   templateUrl: './voice-room.component.html',
   styleUrl: './voice-room.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +40,7 @@ export class VoiceRoomComponent {
   private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  protected readonly roomManageService = inject(RoomManageService);
 
   /**
    * Tracks which route room id we already attempted to join, so leaving
@@ -44,6 +56,8 @@ export class VoiceRoomComponent {
     }
     return roomsDict[id] ?? null;
   });
+
+  protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
   private readonly roomsDict = this.roomsStore.roomsDict;
   private readonly roomId = toSignal(
@@ -84,6 +98,14 @@ export class VoiceRoomComponent {
           this.voiceSessionService.reportJoinFailure(error);
         });
     });
+  }
+
+  protected editRoom(room: IRoom): Promise<void> {
+    return this.roomManageService.editRoom(room);
+  }
+
+  protected deleteRoom(room: IRoom): void {
+    this.roomManageService.deleteRoom(room);
   }
 
   protected onLeft(): void {

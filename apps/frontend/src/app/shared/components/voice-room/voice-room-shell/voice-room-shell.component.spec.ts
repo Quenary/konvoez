@@ -116,6 +116,7 @@ describe('VoiceRoomShellComponent', () => {
           provide: DirectCallService,
           useValue: {
             interlocutor: signal(null).asReadonly(),
+            isRinging: signal(false).asReadonly(),
             isCalling: signal(false).asReadonly(),
             isIncoming: signal(false).asReadonly(),
           },
@@ -133,6 +134,7 @@ describe('VoiceRoomShellComponent', () => {
             stopCamera: vi.fn(),
             produceScreen: vi.fn(),
             stopScreen: vi.fn(),
+            canProduce: signal(true).asReadonly(),
           },
         },
         {

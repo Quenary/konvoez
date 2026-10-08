@@ -9,6 +9,7 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomComponent } from './voice-room.component';
 import { IRoom } from '@konvoez/shared';
+import { RoomManageService } from '../rooms/room-manage.service';
 
 describe('VoiceRoomComponent', () => {
   let paramMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
@@ -57,6 +58,14 @@ describe('VoiceRoomComponent', () => {
             joinSession,
             reportJoinFailure,
             joiningTarget: joiningTarget.asReadonly(),
+          },
+        },
+        {
+          provide: RoomManageService,
+          useValue: {
+            canManageRooms: signal(false).asReadonly(),
+            editRoom: vi.fn(),
+            deleteRoom: vi.fn(),
           },
         },
       ],

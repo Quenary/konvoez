@@ -29,31 +29,6 @@
       <ng-container *ngTemplateOutlet="actions" />
     }
 
-    @if (canManageRooms() && room(); as manageRoom) {
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        iconStart="@tui.ellipsis-vertical"
-        type="button"
-        tuiDropdownAuto
-        [tuiDropdown]="roomContextMenu"
-        [tuiDropdownSided]="true"
-        tuiHintAppearance="floating"
-        [tuiHint]="'GENERAL.MORE' | translate">
-        {{ 'GENERAL.MORE' | translate }}
-      </button>
-
-      <ng-template
-        #roomContextMenu
-        let-close>
-        <app-room-context-menu
-          [roomName]="manageRoom.name"
-          (edit)="editRoom(manageRoom); close()"
-          (delete)="deleteRoom(manageRoom); close()" />
-      </ng-template>
-    }
-
     <button
       tuiIconButton
       appearance="flat"

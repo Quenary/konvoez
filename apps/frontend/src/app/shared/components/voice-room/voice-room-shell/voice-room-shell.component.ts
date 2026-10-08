@@ -14,8 +14,6 @@ import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-thea
 import { VoiceRoomOverlayComponent } from '../voice-room-overlay/voice-room-overlay.component';
 import { VoiceSessionPeersService } from '../voice-session-peers.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { IRoom } from '@konvoez/shared';
-
 @Component({
   selector: 'app-voice-room-shell',
   host: {
@@ -39,7 +37,6 @@ export class VoiceRoomShellComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
 
-  public readonly room = input<IRoom | null>(null);
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
