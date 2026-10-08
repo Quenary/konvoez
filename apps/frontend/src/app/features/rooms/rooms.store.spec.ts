@@ -142,4 +142,44 @@ describe('RoomsStore', () => {
     expect(store.entities()).toHaveLength(1);
     expect(mockNotifications.open).toHaveBeenCalled();
   });
+
+  it('handles concurrent removes and updates state for both', () => {
+    store.upsertOne(textRoom);
+    store.upsertOne(voiceRoom);
+
+    store.remove(textRoom.id);
+    store.remove(voiceRoom.id);
+
+    expect(apiService.remove).toHaveBeenCalledWith(textRoom.id);
+    expect(apiService.remove).toHaveBeenCalledWith(voiceRoom.id);
+    expect(store.entityMap()[textRoom.id]).toBeUndefined();
+    expect(store.entityMap()[voiceRoom.id]).toBeUndefined();
+  });
+
+  it('handles concurrent removes with errors and shows notifications for both', () => {
+    store.upsertOne(textRoom);
+    store.upsertOne(voiceRoom);
+
+    apiService.remove.mockReturnValue(
+      throwError(() => new Error('Delete failed')),
+    );
+
+    store.remove(textRoom.id);
+    store.remove(voiceRoom.id);
+
+    expect(mockNotifications.open).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles concurrent creates and upserts both entities', () => {
+    const anotherRoom: IRoom = { ...betaTextRoom, id: 99, name: 'other' };
+    apiService.create
+      .mockReturnValueOnce(of(betaTextRoom))
+      .mockReturnValueOnce(of(anotherRoom));
+
+    store.create({ name: 'beta', type: ERoomType.TEXT });
+    store.create({ name: 'other', type: ERoomType.TEXT });
+
+    expect(store.entityMap()[betaTextRoom.id]).toEqual(betaTextRoom);
+    expect(store.entityMap()[anotherRoom.id]).toEqual(anotherRoom);
+  });
 });
