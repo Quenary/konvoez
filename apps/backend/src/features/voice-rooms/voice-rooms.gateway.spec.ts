@@ -766,6 +766,58 @@ describe('VoiceRoomsGateway', () => {
         userId: alice.id,
       });
     });
+
+    it('closing screen also closes screen-audio and emits PRODUCER_CLOSED for both', async () => {
+      const screenAudio = {
+        id: 'screen-audio-1',
+        kind: 'audio',
+        closed: false,
+        appData: { mediaTag: 'screen-audio', peerId: 'socket-1' },
+        close: jest.fn(function (this: { closed: boolean }) {
+          this.closed = true;
+        }),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const screen = {
+        id: 'screen-1',
+        kind: 'video',
+        closed: false,
+        appData: { mediaTag: 'screen', peerId: 'socket-1' },
+        close: jest.fn(function (this: { closed: boolean }) {
+          this.closed = true;
+        }),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const { peer, room } = readyPeer({
+        producers: new Map([
+          ['screen-1', screen],
+          ['screen-audio-1', screenAudio],
+        ]),
+      });
+      room.producers.set('screen-1', screen);
+      room.producers.set('screen-audio-1', screenAudio);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+      const serverEmit = jest.fn();
+      serverMock.to.mockReturnValue({ emit: serverEmit });
+
+      await gateway.closeProducer(socket as never, { producerId: 'screen-1' });
+
+      expect(screen.close).toHaveBeenCalled();
+      expect(screenAudio.close).toHaveBeenCalled();
+      expect(peer.producers.has('screen-1')).toBe(false);
+      expect(peer.producers.has('screen-audio-1')).toBe(false);
+      expect(serverEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_CLOSED, {
+        producerId: 'screen-audio-1',
+        userId: alice.id,
+      });
+      expect(serverEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_CLOSED, {
+        producerId: 'screen-1',
+        userId: alice.id,
+      });
+    });
   });
 
   describe('closeConsumer', () => {

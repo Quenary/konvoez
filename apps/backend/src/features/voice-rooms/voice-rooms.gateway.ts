@@ -927,6 +927,25 @@ export class VoiceRoomsGateway
     roomId: number | undefined,
     exceptSocket?: TSocket,
   ): void {
+    if (producer.appData?.mediaTag === 'screen' && !producer.closed) {
+      for (const other of [...peer.producers.values()]) {
+        if (
+          other.appData?.mediaTag === 'screen-audio' &&
+          !other.closed &&
+          other.id !== producer.id
+        ) {
+          this.closeProducerInternal(
+            room,
+            peer,
+            other,
+            sessionKey,
+            roomId,
+            exceptSocket,
+          );
+        }
+      }
+    }
+
     this.finalizeProducerClosed(
       room,
       peer,
