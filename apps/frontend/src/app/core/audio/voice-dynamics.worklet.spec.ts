@@ -138,6 +138,26 @@ describe('voice dynamics worklet', () => {
     expect(tailMean).toBeLessThan(0.0001);
   });
 
+  it('reaches at least -3 dB gain by the first output sample of the onset', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.001)),
+    );
+    const speech = render(
+      processor,
+      Array.from({ length: 3 }, () => constantBlock(0.25)),
+    );
+    expect(speech[0][0]).toBeLessThan(0.001);
+
+    const firstOnsetSample = speech[1][240 - 128];
+    const gainAtOnset = firstOnsetSample / 0.25;
+    const gainDb = 20 * Math.log10(gainAtOnset);
+    expect(gainDb).toBeGreaterThanOrEqual(-3);
+  });
+
   it('holds a full-scale burst under the ceiling', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,

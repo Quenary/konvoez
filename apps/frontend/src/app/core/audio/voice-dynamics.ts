@@ -33,6 +33,7 @@ export const VOICE_EXPANDER_OPTIONS = {
   attackMs: 5,
   releaseMs: 120,
   maxReductionDb: 40,
+  expanderLookaheadSamples: 240,
 } as const;
 
 export const VOICE_LIMITER_OPTIONS = {
