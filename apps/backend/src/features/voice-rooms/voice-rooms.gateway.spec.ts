@@ -585,6 +585,19 @@ describe('VoiceRoomsGateway', () => {
       return socket;
     }
 
+    it('rejects unknown mediaTag', async () => {
+      const { room } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'webcam' as never,
+          rtpParameters: {},
+        }),
+      ).rejects.toThrow(/Unknown mediaTag/);
+    });
+
     it('rejects kind/mediaTag mismatch', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);

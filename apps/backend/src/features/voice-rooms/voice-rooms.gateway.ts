@@ -59,6 +59,7 @@ import {
 } from './webrtc-listen-infos';
 import {
   assertKindMatchesMediaTag,
+  assertKnownMediaTag,
   assertScreenAudioAllowed,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
@@ -398,6 +399,7 @@ export class VoiceRoomsGateway
       `produce: socketId=${socket.id}, sessionKey=${sessionKey}, kind=${body.kind}, mediaTag=${body.mediaTag}`,
     );
 
+    assertKnownMediaTag(body.mediaTag, body.kind);
     assertKindMatchesMediaTag(body.kind, body.mediaTag);
 
     const transport = peer.sendTransport;
