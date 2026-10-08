@@ -5,7 +5,8 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { RoomsStore } from '../rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { RoomNavigationService } from '../room-navigation.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -27,6 +28,7 @@ import { EVoiceSessionType } from '@konvoez/shared';
 export class VoiceRoomPanelComponent {
   private readonly router = inject(Router);
   private readonly roomsStore = inject(RoomsStore);
+  private readonly roomNavigationService = inject(RoomNavigationService);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
@@ -89,7 +91,7 @@ export class VoiceRoomPanelComponent {
     if (session?.type === EVoiceSessionType.GROUP_ROOM) {
       const room = this.rooms()[session.roomId];
       if (room) {
-        this.roomsStore.selectRoom(room);
+        this.roomNavigationService.selectRoom(room);
       }
     }
   }

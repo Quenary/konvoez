@@ -64,13 +64,11 @@ export class DirectComponent {
   protected readonly title = computed(() => this.user()?.username ?? '');
   protected readonly avatarUrl = computed(() => this.user()?.avatarUrl ?? null);
 
+  /** True when the route recipient matches the active direct call target. */
   protected readonly isCurrentDirectCallActive = computed(() => {
-    const directUser = this.user();
+    const recipientId = this.recipientId();
     const callWithUserId = this.directCallService.callWithUserId();
-    if (directUser === null || callWithUserId === null) {
-      return false;
-    }
-    return callWithUserId === directUser.id;
+    return recipientId !== null && callWithUserId === recipientId;
   });
 
   protected readonly canRejoinCall = computed(() => {
