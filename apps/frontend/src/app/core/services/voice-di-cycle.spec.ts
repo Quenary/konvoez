@@ -5,6 +5,7 @@ import { provideStore } from '@ngrx/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_DEVICE_HANDLER } from '../tokens/audio-device-handler.token';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
+import { EntitySyncSocketToken } from '../tokens/entity-sync-socket.token';
 import { VoiceSessionService } from './voice-session.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
@@ -14,9 +15,16 @@ import { ConsumerRegistry } from './consumer-registry';
 import { ScreenWatchService } from './screen-watch.service';
 import { VoiceSessionPeersService } from '@shared/components/voice-room/voice-session-peers.service';
 import { VoiceRoomViewService } from '@shared/components/voice-room/voice-room-view.service';
+import { VoiceRoomTilesService } from '@shared/components/voice-room/voice-room-tiles.service';
+import { VoiceRoomActionsService } from '@shared/components/voice-room/voice-room-actions.service';
 import { VoiceLeaveService } from './voice-leave.service';
 import { DirectCallService } from './direct-call.service';
 import { AudioService } from './audio.service';
+import { MicrophoneService } from './microphone.service';
+import { SpeakerService } from './speaker.service';
+import { PeerPlaybackService } from './peer-playback.service';
+import { PeerScreenAudioService } from './peer-screen-audio.service';
+import { EntitySyncService } from './entity-sync.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -24,7 +32,8 @@ import { SettingsStore } from '@features/settings/settings.store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { authReducer } from '@features/auth/auth.reducer';
-import { RoomsStore } from '@features/rooms/rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { UsersStore } from '@core/stores/users.store';
 
 /**
  * Guards against NG0200 circular DI:
@@ -42,7 +51,10 @@ describe('voice DI graph', () => {
         provideStore({
           auth: authReducer,
         }),
+        SettingsStore,
+        EntitySyncService,
         RoomsStore,
+        UsersStore,
         VoiceSessionService,
         MediasoupSessionService,
         CameraService,
@@ -50,6 +62,8 @@ describe('voice DI graph', () => {
         LocalScreenPreviewService,
         VoiceSessionPeersService,
         VoiceRoomViewService,
+        VoiceRoomTilesService,
+        VoiceRoomActionsService,
         VoiceLeaveService,
         DirectCallService,
         VoiceSessionStore,
@@ -57,7 +71,10 @@ describe('voice DI graph', () => {
         VoiceAudioPreferencesStore,
         ConsumerRegistry,
         ScreenWatchService,
-        SettingsStore,
+        MicrophoneService,
+        SpeakerService,
+        PeerPlaybackService,
+        PeerScreenAudioService,
         {
           provide: AudioService,
           useValue: {
@@ -67,6 +84,8 @@ describe('voice DI graph', () => {
             stopIncomingRingtone: vi.fn(),
             playCallEndSound: vi.fn(),
             playMuteAudio: vi.fn(),
+            playPeerJoinAudio: vi.fn(),
+            playPeerLeaveAudio: vi.fn(),
           },
         },
         {
@@ -79,8 +98,19 @@ describe('voice DI graph', () => {
             connected: false,
             on: vi.fn(),
             off: vi.fn(),
+            emit: vi.fn(),
             emitWithAck: vi.fn(),
             timeout: vi.fn().mockReturnValue({ emitWithAck: vi.fn() }),
+          },
+        },
+        {
+          provide: EntitySyncSocketToken,
+          useValue: {
+            connected: false,
+            on: vi.fn(),
+            off: vi.fn(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
           },
         },
         {
@@ -98,13 +128,20 @@ describe('voice DI graph', () => {
   it('constructs the voice/settings graph without NG0200 circular dependency', () => {
     let error: unknown;
     try {
+      TestBed.inject(SettingsStore);
+      TestBed.inject(EntitySyncService);
       TestBed.inject(VoiceSessionService);
       TestBed.inject(CameraService);
       TestBed.inject(ScreenCaptureService);
       TestBed.inject(MediasoupSessionService);
-      TestBed.inject(SettingsStore);
       TestBed.inject(LocalScreenPreviewService);
       TestBed.inject(VoiceSessionPeersService);
+      TestBed.inject(VoiceRoomTilesService);
+      TestBed.inject(VoiceRoomActionsService);
+      TestBed.inject(MicrophoneService);
+      TestBed.inject(SpeakerService);
+      TestBed.inject(PeerPlaybackService);
+      TestBed.inject(PeerScreenAudioService);
       TestBed.inject(VoiceSessionStore);
       TestBed.inject(RoomsStore);
       TestBed.inject(VoiceLobbyStore);
@@ -126,6 +163,12 @@ describe('voice DI graph', () => {
     expect(TestBed.inject(ScreenCaptureService)).toBeTruthy();
     expect(TestBed.inject(LocalScreenPreviewService)).toBeTruthy();
     expect(TestBed.inject(VoiceSessionPeersService)).toBeTruthy();
+    expect(TestBed.inject(VoiceRoomTilesService)).toBeTruthy();
+    expect(TestBed.inject(VoiceRoomActionsService)).toBeTruthy();
+    expect(TestBed.inject(MicrophoneService)).toBeTruthy();
+    expect(TestBed.inject(SpeakerService)).toBeTruthy();
+    expect(TestBed.inject(PeerPlaybackService)).toBeTruthy();
+    expect(TestBed.inject(PeerScreenAudioService)).toBeTruthy();
     expect(TestBed.inject(VoiceSessionStore)).toBeTruthy();
     expect(TestBed.inject(VoiceLobbyStore)).toBeTruthy();
     expect(TestBed.inject(VoiceAudioPreferencesStore)).toBeTruthy();
