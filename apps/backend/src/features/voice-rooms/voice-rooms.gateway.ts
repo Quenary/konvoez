@@ -436,74 +436,76 @@ export class VoiceRoomsGateway
     assertKnownMediaTag(body.mediaTag, body.kind);
     assertKindMatchesMediaTag(body.kind, body.mediaTag);
 
-    const transport = peer.sendTransport;
-    if (!transport) {
-      throw new Error('Send transport not created');
-    }
+    return room.produceMutex.runExclusive(async () => {
+      const transport = peer.sendTransport;
+      if (!transport) {
+        throw new Error('Send transport not created');
+      }
 
-    const hasScreen = [...peer.producers.values()].some(
-      (p) => p.appData.mediaTag === 'screen' && !p.closed,
-    );
-    assertScreenAudioAllowed(body.mediaTag, hasScreen);
+      const hasScreen = [...peer.producers.values()].some(
+        (p) => p.appData.mediaTag === 'screen' && !p.closed,
+      );
+      assertScreenAudioAllowed(body.mediaTag, hasScreen);
 
-    // Replace existing producer with the same mediaTag (one per tag per peer).
-    for (const existing of [...peer.producers.values()]) {
-      if (existing.appData.mediaTag === body.mediaTag && !existing.closed) {
-        this.closeProducerInternal(
+      // Replace existing producer with the same mediaTag (one per tag per peer).
+      for (const existing of [...peer.producers.values()]) {
+        if (existing.appData.mediaTag === body.mediaTag && !existing.closed) {
+          this.closeProducerInternal(
+            room,
+            peer,
+            existing,
+            sessionKey,
+            socket.data.roomId,
+          );
+        }
+      }
+
+      if (isVideoMediaTag(body.mediaTag)) {
+        const videoCount = [...room.producers.values()].filter(
+          (p) => !p.closed && p.kind === 'video',
+        ).length;
+        if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
+          throw new WsException(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+        }
+      }
+
+      const producer: Producer<VoiceRoomStateMediasoupAppData> =
+        await transport.produce({
+          kind: body.kind,
+          rtpParameters: body.rtpParameters as unknown as RtpParameters,
+          appData: {
+            peerId: peer.id,
+            mediaTag: body.mediaTag,
+          },
+        });
+
+      peer.producers.set(producer.id, producer);
+      room.producers.set(producer.id, producer);
+
+      const onClosed = () => {
+        this.finalizeProducerClosed(
           room,
           peer,
-          existing,
+          producer,
           sessionKey,
           socket.data.roomId,
         );
-      }
-    }
+      };
+      producer.observer.on('close', onClosed);
+      producer.on('transportclose', onClosed);
 
-    if (isVideoMediaTag(body.mediaTag)) {
-      const videoCount = [...room.producers.values()].filter(
-        (p) => !p.closed && p.kind === 'video',
-      ).length;
-      if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-        throw new WsException(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
-      }
-    }
-
-    const producer: Producer<VoiceRoomStateMediasoupAppData> =
-      await transport.produce({
+      const result: IVoiceRoomProduceResult = {
+        producerId: producer.id,
+        userId: peer.user.id,
         kind: body.kind,
-        rtpParameters: body.rtpParameters as unknown as RtpParameters,
-        appData: {
-          peerId: peer.id,
-          mediaTag: body.mediaTag,
-        },
-      });
+        mediaTag: body.mediaTag,
+      };
 
-    peer.producers.set(producer.id, producer);
-    room.producers.set(producer.id, producer);
+      const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
+      socket.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
 
-    const onClosed = () => {
-      this.finalizeProducerClosed(
-        room,
-        peer,
-        producer,
-        sessionKey,
-        socket.data.roomId,
-      );
-    };
-    producer.observer.on('close', onClosed);
-    producer.on('transportclose', onClosed);
-
-    const result: IVoiceRoomProduceResult = {
-      producerId: producer.id,
-      userId: peer.user.id,
-      kind: body.kind,
-      mediaTag: body.mediaTag,
-    };
-
-    const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
-    socket.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
-
-    return result;
+      return result;
+    });
   }
 
   @SubscribeMessage(EVoiceRoomEvent.CLOSE_PRODUCER)

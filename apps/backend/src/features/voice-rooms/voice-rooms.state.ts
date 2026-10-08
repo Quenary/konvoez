@@ -35,9 +35,10 @@ import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
 } from '@shared/events/entity-sync.events';
+import { Mutex } from 'async-mutex';
 import { VOICE_ROOM_MEDIA_CODECS } from './voice-media.util';
 
-type VoiceRoomState = {
+export type VoiceRoomState = {
   /**
    * Typed session identity (group room or direct call).
    */
@@ -55,6 +56,11 @@ type VoiceRoomState = {
    * Map producer id to producer state
    */
   producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
+  /**
+   * Serializes PRODUCE calls per room to prevent race conditions on limits
+   * and replace-by-tag.
+   */
+  produceMutex: Mutex;
 };
 
 type VoiceRoomStatePeer = {
@@ -244,6 +250,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       }),
       peers: new Map(),
       producers: new Map(),
+      produceMutex: new Mutex(),
     };
     this.rooms.set(sessionKey, room);
     return room;

@@ -35,9 +35,12 @@ import {
   EVoiceRoomErrorCode,
   EVoiceSessionType,
   type IUser,
+  type IVoiceRoomProduce,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { WsException } from '@nestjs/websockets';
+import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
 
 const alice: IUser = {
@@ -64,6 +67,7 @@ function createRoom(peers: Map<string, unknown> = new Map()) {
     id: 'room:1',
     peers,
     producers: new Map(),
+    produceMutex: new Mutex(),
   };
 }
 
@@ -715,6 +719,150 @@ describe('VoiceRoomsGateway', () => {
         ).length,
       ).toBe(4);
       expect(sendTransport.produce).toHaveBeenCalled();
+    });
+
+    it('serializes concurrent video produces and rejects when limit is exceeded', async () => {
+      const room = createRoom();
+      const sendTransport = {
+        produce: jest
+          .fn()
+          .mockImplementation(
+            async ({
+              appData,
+              kind,
+            }: {
+              appData: { peerId: string; mediaTag: string };
+              kind: string;
+            }) => {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+              const p = {
+                id: `prod-${appData.peerId}`,
+                kind,
+                closed: false,
+                appData,
+                close: jest.fn(),
+                observer: { on: jest.fn() },
+                on: jest.fn(),
+              };
+              return p;
+            },
+          ),
+      };
+
+      const sockets: Socket[] = [];
+      for (let i = 0; i < 5; i += 1) {
+        const user: IUser = { ...alice, id: 10 + i, username: `user-${i}` };
+        const peer = {
+          id: `socket-${i}`,
+          user,
+          producers: new Map(),
+          consumers: new Map(),
+          sendTransport,
+        };
+        room.peers.set(`socket-${i}`, peer);
+        const socket = createSocket({
+          id: `socket-${i}`,
+          data: {
+            user,
+            sessionKey: 'room:1',
+            roomId: 1,
+            sessionTarget: { type: EVoiceSessionType.GROUP_ROOM, roomId: 1 },
+          },
+        });
+        socket.rooms.add('room:1');
+        sockets.push(socket);
+      }
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const results = await Promise.allSettled(
+        sockets.map((s) =>
+          gateway.produce(s as never, {
+            transportId: 't',
+            kind: 'video',
+            mediaTag: 'cam',
+            rtpParameters: {},
+          }),
+        ),
+      );
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(4);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+        WsException,
+      );
+      expect(
+        (
+          (rejected[0] as PromiseRejectedResult).reason as WsException
+        ).getError(),
+      ).toBe(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+      expect(room.producers.size).toBe(4);
+    });
+
+    it('serializes overlapping PRODUCE calls with the same tag, leaving one open producer', async () => {
+      const { peer, room } = readyPeer();
+      let callCount = 0;
+      const producersCreated: Array<{
+        id: string;
+        kind: string;
+        closed: boolean;
+        appData: { peerId: string; mediaTag: string };
+        close: jest.Mock;
+        observer: { on: jest.Mock };
+        on: jest.Mock;
+      }> = [];
+
+      peer.sendTransport.produce.mockImplementation(
+        async ({
+          appData,
+          kind,
+        }: {
+          appData: { peerId: string; mediaTag: string };
+          kind: string;
+        }) => {
+          callCount += 1;
+          const currentCount = callCount;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          const p = {
+            id: `p-${currentCount}`,
+            kind,
+            closed: false,
+            appData,
+            close: jest.fn(function (this: { closed: boolean }) {
+              this.closed = true;
+            }),
+            observer: { on: jest.fn() },
+            on: jest.fn(),
+          };
+          producersCreated.push(p);
+          return p;
+        },
+      );
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = joinedSocket();
+      const producePayload: IVoiceRoomProduce = {
+        transportId: 't',
+        kind: 'video',
+        mediaTag: 'cam',
+        rtpParameters: {},
+      };
+
+      const [res1, res2] = await Promise.all([
+        gateway.produce(socket as never, producePayload),
+        gateway.produce(socket as never, producePayload),
+      ]);
+
+      expect(res1.producerId).toBe('p-1');
+      expect(res2.producerId).toBe('p-2');
+      expect(producersCreated[0].close).toHaveBeenCalled();
+      expect(producersCreated[0].closed).toBe(true);
+      expect(peer.producers.size).toBe(1);
+      expect(peer.producers.get('p-2')).toBeDefined();
+      expect(room.producers.size).toBe(1);
+      expect(room.producers.get('p-2')).toBeDefined();
     });
 
     it('produces camera and registers close observers', async () => {
