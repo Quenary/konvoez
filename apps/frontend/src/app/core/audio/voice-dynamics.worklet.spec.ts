@@ -158,6 +158,27 @@ describe('voice dynamics worklet', () => {
     expect(gainDb).toBeGreaterThanOrEqual(-3);
   });
 
+  it('does not open the gate on bursty low-level noise', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.0015)),
+    );
+
+    const burstyBlocks = Array.from({ length: 20 }, (_, i) => {
+      const b = constantBlock(0.0015);
+      if (i % 3 === 0) {
+        b.fill(0.0035);
+      }
+      return b;
+    });
+
+    const rendered = render(processor, burstyBlocks);
+    expect(peak(rendered)).toBeLessThan(0.001);
+  });
+
   it('holds a full-scale burst under the ceiling', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,

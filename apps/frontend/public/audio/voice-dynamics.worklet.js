@@ -252,7 +252,7 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
       } else {
         this.updateDetector(levelDb, blockMs);
       }
-      this.updateFloor(levelDb, blockMs);
+      this.updateFloor(this.detectorDb, blockMs);
       this.updateGate(blockMs);
     }
 
