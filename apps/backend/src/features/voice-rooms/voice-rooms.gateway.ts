@@ -704,10 +704,18 @@ export class VoiceRoomsGateway
 
   @SubscribeMessage(EDirectCallEvent.CALL_REJECT)
   handleCallReject(
-    @ConnectedSocket() _client: TSocket,
+    @ConnectedSocket() client: TSocket,
     @MessageBody() body: ICallRejectPayload,
   ) {
-    const call = this.directCallsStateService.cancel(body.callId);
+    const recipient = client.data.user;
+    if (!recipient) {
+      this.logger.warn(
+        `Call reject without user: socketId=${client.id}, callId=${body.callId}`,
+      );
+      return { error: 'Unauthorized' };
+    }
+
+    const call = this.directCallsStateService.reject(body.callId, recipient.id);
     if (call) {
       this.logger.debug(
         `Call rejected: callId=${body.callId}, callerId=${body.callerId}, reason=${body.reason ?? 'declined'}`,

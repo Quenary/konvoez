@@ -104,6 +104,7 @@ describe('VoiceRoomsGateway', () => {
     create: jest.Mock;
     get: jest.Mock;
     accept: jest.Mock;
+    reject: jest.Mock;
     cancel: jest.Mock;
     end: jest.Mock;
     isParticipant: jest.Mock;
@@ -148,6 +149,7 @@ describe('VoiceRoomsGateway', () => {
       create: jest.fn(),
       get: jest.fn(),
       accept: jest.fn(),
+      reject: jest.fn(),
       cancel: jest.fn(),
       end: jest.fn(),
       isParticipant: jest.fn(),
@@ -984,7 +986,7 @@ describe('VoiceRoomsGateway', () => {
     });
 
     it('rejects a ringing call and notifies the caller', () => {
-      directCallsStateService.cancel.mockReturnValue({
+      directCallsStateService.reject.mockReturnValue({
         callId: 'c1',
         status: 'ringing',
         callerId: alice.id,
@@ -997,11 +999,32 @@ describe('VoiceRoomsGateway', () => {
         reason: 'busy',
       });
 
+      expect(directCallsStateService.reject).toHaveBeenCalledWith('c1', bob.id);
       expect(serverMock.to).toHaveBeenCalledWith('7');
       expect(serverMock.emit).toHaveBeenCalledWith(
         EDirectCallEvent.CALL_REJECTED,
         { callId: 'c1', reason: 'busy' },
       );
+    });
+
+    it('leaves the call untouched when reject returns undefined (active call or non-recipient)', () => {
+      directCallsStateService.reject.mockReturnValue(undefined);
+
+      gateway.handleCallReject(
+        createSocket({ data: { user: alice } }) as never,
+        {
+          callId: 'c1',
+          callerId: alice.id,
+          reason: 'declined',
+        },
+      );
+
+      expect(directCallsStateService.reject).toHaveBeenCalledWith(
+        'c1',
+        alice.id,
+      );
+      expect(serverMock.to).not.toHaveBeenCalled();
+      expect(serverMock.emit).not.toHaveBeenCalled();
     });
 
     it('hangs up only while ringing', () => {

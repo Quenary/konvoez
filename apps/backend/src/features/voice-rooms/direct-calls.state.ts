@@ -54,6 +54,22 @@ export class DirectCallsStateService {
     return call;
   }
 
+  public reject(
+    callId: string,
+    recipientId: number,
+  ): TDirectCallRecord | undefined {
+    const call = this.calls.get(callId);
+    if (
+      !call ||
+      call.recipientId !== recipientId ||
+      call.status !== 'ringing'
+    ) {
+      return undefined;
+    }
+    this.calls.delete(callId);
+    return call;
+  }
+
   public cancel(callId: string): TDirectCallRecord | undefined {
     const call = this.calls.get(callId);
     if (!call) {

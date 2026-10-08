@@ -133,6 +133,7 @@ export class DirectCallService {
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private timeoutRef: ReturnType<typeof setTimeout> | null = null;
+  private accepting = false;
 
   constructor() {
     this.setupSocketListeners();
@@ -212,45 +213,54 @@ export class DirectCallService {
   }
 
   public async acceptCall(): Promise<void> {
+    if (this.accepting) {
+      return;
+    }
     const current = this._activeCall();
     if (!current || current.status !== ECallStatus.INCOMING) {
       return;
     }
 
+    this.accepting = true;
     this.audioService.stopIncomingRingtone();
 
     try {
-      await emitVoiceRoomWithAck(this.socket, EDirectCallEvent.CALL_ACCEPT, {
-        callId: current.callId,
-        callerId: current.interlocutor.id,
-      });
-    } catch (error) {
-      if (isVoiceSocketAckTimeout(error)) {
-        const active = await this.refreshActiveCall(current.interlocutor.id);
-        if (active?.callId === current.callId) {
-          this._rejoinableCall.set(null);
-          await this.joinAcceptedCall(current);
-          return;
+      try {
+        await emitVoiceRoomWithAck(this.socket, EDirectCallEvent.CALL_ACCEPT, {
+          callId: current.callId,
+          callerId: current.interlocutor.id,
+        });
+      } catch (error) {
+        if (isVoiceSocketAckTimeout(error)) {
+          const active = await this.refreshActiveCall(current.interlocutor.id);
+          if (active?.callId === current.callId) {
+            this._rejoinableCall.set(null);
+            await this.joinAcceptedCall(current);
+            return;
+          }
+
+          this.socket.emit(EDirectCallEvent.CALL_REJECT, {
+            callId: current.callId,
+            callerId: current.interlocutor.id,
+            reason: 'failed',
+          });
         }
+
+        this._activeCall.set(null);
+        this.notificationsService
+          .open(this.translateService.instant('CALL.ACCEPT_FAILED'), {
+            appearance: 'negative',
+            autoClose: 5000,
+          })
+          .subscribe();
+        console.error('Failed to accept direct call', error);
+        return;
       }
 
-      this.socket.emit(EDirectCallEvent.CALL_REJECT, {
-        callId: current.callId,
-        callerId: current.interlocutor.id,
-        reason: 'declined',
-      });
-      this._activeCall.set(null);
-      this.notificationsService
-        .open(this.translateService.instant('CALL.ACCEPT_FAILED'), {
-          appearance: 'negative',
-          autoClose: 5000,
-        })
-        .subscribe();
-      console.error('Failed to accept direct call', error);
-      return;
+      await this.joinAcceptedCall(current);
+    } finally {
+      this.accepting = false;
     }
-
-    await this.joinAcceptedCall(current);
   }
 
   private async joinAcceptedCall(current: IActiveCall): Promise<void> {
@@ -546,7 +556,9 @@ export class DirectCallService {
         const reasonText =
           data.reason === 'busy'
             ? this.translateService.instant('CALL.BUSY')
-            : this.translateService.instant('CALL.DECLINED');
+            : data.reason === 'failed'
+              ? this.translateService.instant('CALL.CALL_FAILED')
+              : this.translateService.instant('CALL.DECLINED');
 
         this.notificationsService
           .open(reasonText, {

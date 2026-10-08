@@ -72,6 +72,7 @@ CALL:
   HANGUP: Leave call
   BUSY: User is busy with another call
   DECLINED: Call declined
+  CALL_FAILED: Call failed
   NO_ANSWER: User is not answering
   ACCEPT_FAILED: Couldn't accept the call
   INITIATE_FAILED: Couldn't start the call

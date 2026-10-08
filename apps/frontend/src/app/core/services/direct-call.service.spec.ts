@@ -197,7 +197,35 @@ describe('DirectCallService', () => {
       'CALL.ACCEPT_FAILED',
       expect.objectContaining({ appearance: 'negative' }),
     );
+    expect(socket.emit).not.toHaveBeenCalledWith(
+      EDirectCallEvent.CALL_REJECT,
+      expect.anything(),
+    );
     expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
+  });
+
+  it('guards acceptCall against re-entry while an accept is in flight', async () => {
+    let resolveAck!: (val: unknown) => void;
+    socket.emitWithAck.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAck = resolve;
+      }),
+    );
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    const first = service.acceptCall();
+    const second = service.acceptCall();
+
+    await second;
+    expect(socket.emitWithAck).toHaveBeenCalledTimes(1);
+
+    resolveAck(undefined);
+    await first;
   });
 
   it('acceptCall reports join failure and hangs up when media join fails', async () => {
@@ -268,7 +296,7 @@ describe('DirectCallService', () => {
     expect(socket.emit).toHaveBeenCalledWith(EDirectCallEvent.CALL_REJECT, {
       callId: 'c1',
       callerId: recipient.id,
-      reason: 'declined',
+      reason: 'failed',
     });
     expect(service.activeCall()).toBeNull();
     expect(notifications.open).toHaveBeenCalledWith(
@@ -277,6 +305,26 @@ describe('DirectCallService', () => {
     );
     expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+
+  it('shows CALL_FAILED toast on CALL_REJECTED with reason failed', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CALLING,
+    });
+
+    handlers[EDirectCallEvent.CALL_REJECTED]({
+      callId: 'c1',
+      reason: 'failed',
+    });
+
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.CALL_FAILED',
+      expect.objectContaining({ appearance: 'warning' }),
+    );
+    expect(service.activeCall()).toBeNull();
   });
 
   it('callWithUserId prefers the media session interlocutor', () => {

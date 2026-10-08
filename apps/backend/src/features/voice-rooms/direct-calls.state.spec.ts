@@ -37,6 +37,22 @@ describe('DirectCallsStateService', () => {
     expect(service.accept(call.callId, 1)).toBeUndefined();
   });
 
+  it('rejects a ringing call only by recipient', () => {
+    const call = service.create(1, 2);
+    expect(service.reject(call.callId, 1)).toBeUndefined();
+    expect(service.get(call.callId)).toBeDefined();
+
+    expect(service.reject(call.callId, 2)?.callId).toBe(call.callId);
+    expect(service.get(call.callId)).toBeUndefined();
+  });
+
+  it('does not reject an active call', () => {
+    const call = service.create(1, 2);
+    service.accept(call.callId, 2);
+    expect(service.reject(call.callId, 2)).toBeUndefined();
+    expect(service.get(call.callId)?.status).toBe('active');
+  });
+
   it('cancels a call and removes it from the registry', () => {
     const call = service.create(1, 2);
     service.cancel(call.callId);
