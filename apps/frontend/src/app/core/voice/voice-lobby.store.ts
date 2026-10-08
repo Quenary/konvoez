@@ -140,13 +140,27 @@ export const VoiceLobbyStore = signalStore(
     };
 
     /** Applies events buffered before the snapshot; returns whether a new snapshot is needed. */
-    const flushPendingEvents = (): boolean => {
-      const sorted = [...store.pendingLobbyEvents()].sort(
-        (a, b) => a.payload.revision - b.payload.revision,
-      );
+    const flushPendingEvents = (
+      snapshot: IVoiceRoomGetAllPeersSnapshot,
+    ): boolean => {
+      const sorted = [...store.pendingLobbyEvents()]
+        .filter(
+          (event) =>
+            event.payload.epoch === snapshot.epoch &&
+            event.payload.revision > snapshot.revision,
+        )
+        .sort((a, b) => a.payload.revision - b.payload.revision);
       patchState(store, { pendingLobbyEvents: [] });
 
-      return sorted.some((event) => applyIncremental(event) === 'gap');
+      let needsResync = false;
+      for (const event of sorted) {
+        const result = applyIncremental(event);
+        if (result === 'gap') {
+          needsResync = true;
+          break;
+        }
+      }
+      return needsResync;
     };
 
     return {
@@ -167,7 +181,7 @@ export const VoiceLobbyStore = signalStore(
           lobbyEpoch: snapshot.epoch,
           lobbyRevision: snapshot.revision,
         });
-        return flushPendingEvents();
+        return flushPendingEvents(snapshot);
       },
 
       applyVoicePeerJoined(
