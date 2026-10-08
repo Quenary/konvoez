@@ -5,7 +5,6 @@ import {
   signalStore,
   withComputed,
   withMethods,
-  withState,
 } from '@ngrx/signals';
 import {
   removeEntity,
@@ -20,17 +19,10 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
 import { RoomsApiService } from '@core/api/rooms-api.service';
 
-type RoomsStoreState = {
-  selectedRoomId: number | null;
-};
-
 const sortByName = (a: IRoom, b: IRoom): number => a.name.localeCompare(b.name);
 
 export const RoomsStore = signalStore(
   { providedIn: 'root' },
-  withState<RoomsStoreState>({
-    selectedRoomId: null,
-  }),
   withEntities<IRoom>(),
   withComputed(({ entities, entityMap }) => ({
     roomsDict: entityMap,
@@ -68,20 +60,12 @@ export const RoomsStore = signalStore(
       };
 
       const removeOne = (id: number): void => {
-        patchState(store, removeEntity(id), {
-          selectedRoomId:
-            store.selectedRoomId() === id ? null : store.selectedRoomId(),
-        });
-      };
-
-      const setSelectedRoomId = (id: number | null): void => {
-        patchState(store, { selectedRoomId: id });
+        patchState(store, removeEntity(id));
       };
 
       return {
         upsertOne,
         removeOne,
-        setSelectedRoomId,
 
         loadAll: rxMethod<void>(
           pipe(

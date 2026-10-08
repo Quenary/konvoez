@@ -39,7 +39,6 @@ describe('TextRoomComponent', () => {
   };
 
   const mockRoomsStore = {
-    setSelectedRoomId: vi.fn(),
     loadOne: vi.fn(),
     roomsDict: signal({
       42: { id: 42, name: 'General', avatarUrl: null },
@@ -89,21 +88,18 @@ describe('TextRoomComponent', () => {
     expect(component['title']()).toBe('General');
   });
 
-  it('should select room and load one on valid id', () => {
-    expect(mockRoomsStore.setSelectedRoomId).toHaveBeenCalledWith(42);
+  it('should load one on valid id', () => {
     expect(mockRoomsStore.loadOne).toHaveBeenCalledWith(42);
   });
 
-  it('does not select room or load one when id is negative or non-numeric', () => {
+  it('does not load one when id is negative or non-numeric', () => {
     vi.clearAllMocks();
     paramMap$.next(convertToParamMap({ id: '-1' }));
     fixture.detectChanges();
-    expect(mockRoomsStore.setSelectedRoomId).not.toHaveBeenCalled();
     expect(mockRoomsStore.loadOne).not.toHaveBeenCalled();
 
     paramMap$.next(convertToParamMap({ id: 'invalid' }));
     fixture.detectChanges();
-    expect(mockRoomsStore.setSelectedRoomId).not.toHaveBeenCalled();
     expect(mockRoomsStore.loadOne).not.toHaveBeenCalled();
   });
 });

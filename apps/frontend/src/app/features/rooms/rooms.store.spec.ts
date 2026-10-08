@@ -75,9 +75,8 @@ describe('RoomsStore', () => {
     vi.clearAllMocks();
   });
 
-  it('should initialize with empty entities and no selection', () => {
+  it('should initialize with empty entities', () => {
     expect(store.entities()).toEqual([]);
-    expect(store.selectedRoomId()).toBeNull();
   });
 
   it('should load all rooms sorted by name within each type list', () => {
@@ -113,31 +112,23 @@ describe('RoomsStore', () => {
     expect(store.entityMap()[textRoom.id]?.name).toBe('renamed');
   });
 
-  it('should remove a room via API and clear selection when selected', () => {
+  it('should remove a room via API', () => {
     store.upsertOne(textRoom);
-    store.setSelectedRoomId(textRoom.id);
 
     store.remove(textRoom.id);
 
     expect(apiService.remove).toHaveBeenCalledWith(textRoom.id);
     expect(store.entityMap()[textRoom.id]).toBeUndefined();
-    expect(store.selectedRoomId()).toBeNull();
   });
 
-  it('should remove one entity without clearing unrelated selection', () => {
+  it('should remove one entity', () => {
     store.upsertOne(textRoom);
     store.upsertOne(voiceRoom);
-    store.setSelectedRoomId(voiceRoom.id);
 
     store.removeOne(textRoom.id);
 
     expect(store.entityMap()[textRoom.id]).toBeUndefined();
-    expect(store.selectedRoomId()).toBe(voiceRoom.id);
-  });
-
-  it('should set selected room id', () => {
-    store.setSelectedRoomId(textRoom.id);
-    expect(store.selectedRoomId()).toBe(textRoom.id);
+    expect(store.entityMap()[voiceRoom.id]).toBeDefined();
   });
 
   it('should show notification and keep entities on loadAll error', () => {

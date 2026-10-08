@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   effect,
   inject,
   untracked,
@@ -36,7 +35,6 @@ export class TextRoomComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly roomsStore = inject(RoomsStore);
   private readonly roomManageService = inject(RoomManageService);
-  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
@@ -69,14 +67,9 @@ export class TextRoomComponent {
       const id = this.roomId();
       if (id !== null) {
         untracked(() => {
-          this.roomsStore.setSelectedRoomId(id);
           this.roomsStore.loadOne(id);
         });
       }
-    });
-
-    this.destroyRef.onDestroy(() => {
-      this.roomsStore.setSelectedRoomId(null);
     });
   }
 
