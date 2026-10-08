@@ -179,6 +179,24 @@ describe('voice dynamics worklet', () => {
     expect(peak(rendered)).toBeLessThan(0.001);
   });
 
+  it('adapts the noise floor to a louder steady noise and keeps the gate closed', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.001)),
+    );
+
+    const louderBlocks = Array.from({ length: 850 }, (_, i) => {
+      return constantBlock(i % 4 === 0 ? 0.0005 : 0.004);
+    });
+    const returnBlocks = Array.from({ length: 50 }, () => constantBlock(0.001));
+
+    const rendered = render(processor, [...louderBlocks, ...returnBlocks]);
+    expect(peak(rendered)).toBeLessThan(0.0005);
+  });
+
   it('holds a full-scale burst under the ceiling', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,
