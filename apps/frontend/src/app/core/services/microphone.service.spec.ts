@@ -238,6 +238,42 @@ describe('MicrophoneService', () => {
     expect(expander.disconnect).toHaveBeenCalled();
     expect(limiter.disconnect).toHaveBeenCalled();
   });
+
+  it('drops nodes built before ensurePipeline throws', async () => {
+    const source = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    service['context'] = {
+      createMediaStreamSource: () => source,
+      createGain: () => ({
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        gain: { value: 0 },
+      }),
+      createBiquadFilter: () => ({
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        frequency: { value: 0 },
+        Q: { value: 0 },
+        type: '',
+      }),
+      createDynamicsCompressor: () => {
+        throw new Error('compressor failed');
+      },
+    } as unknown as AudioContext;
+    service['inputStream'] = {} as MediaStream;
+    service['denoiserKind'] = 'rnnoise';
+    service['rnnoiseWasmBinary'] = new ArrayBuffer(8);
+    service['dynamicsReady'] = false;
+
+    await expect(service['ensurePipeline']()).rejects.toThrow(
+      'compressor failed',
+    );
+    expect(source.disconnect).toHaveBeenCalled();
+    expect(workletNodes.rnnoise[0]?.destroy).toHaveBeenCalled();
+    expect(service.processedStream()).toBeNull();
+  });
 });
 
 function node(name: string) {

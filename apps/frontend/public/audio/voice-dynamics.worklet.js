@@ -66,6 +66,11 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     this.delayed = new Float32Array(0);
     this.writeIndex = 0;
     this.limiterGain = 1;
+    this.peakValues = new Float32Array(this.lookahead);
+    this.peakIndices = new Float64Array(this.lookahead);
+    this.peakHead = 0;
+    this.peakCount = 0;
+    this.written = 0;
     this.disposed = false;
     this.port.onmessage = (event) => {
       if (event.data && event.data.type === 'dispose') {
@@ -85,6 +90,35 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     this.delayed = new Float32Array(channelCount);
     this.writeIndex = 0;
     this.limiterGain = 1;
+    this.peakHead = 0;
+    this.peakCount = 0;
+    this.written = 0;
+  }
+
+  /**
+   * Maximum of the last `lookahead` samples. The deque drops expired
+   * indices and values that can no longer be the max, so each sample is O(1).
+   */
+  pushPeak(value) {
+    const index = this.written;
+    const minIndex = index - this.lookahead + 1;
+    while (this.peakCount > 0 && this.peakIndices[this.peakHead] < minIndex) {
+      this.peakHead = (this.peakHead + 1) % this.lookahead;
+      this.peakCount -= 1;
+    }
+    while (this.peakCount > 0) {
+      const back = (this.peakHead + this.peakCount - 1) % this.lookahead;
+      if (this.peakValues[back] > value) {
+        break;
+      }
+      this.peakCount -= 1;
+    }
+    const slot = (this.peakHead + this.peakCount) % this.lookahead;
+    this.peakValues[slot] = value;
+    this.peakIndices[slot] = index;
+    this.peakCount += 1;
+    this.written += 1;
+    return this.peakValues[this.peakHead];
   }
 
   blockLevelDb(channels) {
@@ -217,26 +251,19 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     this.ensureDelay(channelCount);
     for (let index = 0; index < length; index++) {
       const envGain = this.advanceEnvelope();
-      let peak = 0;
+      let samplePeak = 0;
       for (let channel = 0; channel < channelCount; channel++) {
         const buffer = this.delay[channel];
         const delayedSample = buffer[this.writeIndex];
-        buffer[this.writeIndex] = input[channel][index] * envGain;
+        const next = input[channel][index] * envGain;
+        buffer[this.writeIndex] = next;
         this.delayed[channel] = delayedSample;
-        const delayedAbs = Math.abs(delayedSample);
-        if (delayedAbs > peak) {
-          peak = delayedAbs;
+        const abs = Math.abs(next);
+        if (abs > samplePeak) {
+          samplePeak = abs;
         }
       }
-      for (let channel = 0; channel < channelCount; channel++) {
-        const buffer = this.delay[channel];
-        for (let tap = 0; tap < buffer.length; tap++) {
-          const abs = Math.abs(buffer[tap]);
-          if (abs > peak) {
-            peak = abs;
-          }
-        }
-      }
+      const peak = this.pushPeak(samplePeak);
       const desired = peak > this.ceiling ? this.ceiling / peak : 1;
       const coef =
         desired < this.limiterGain

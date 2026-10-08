@@ -6,6 +6,8 @@
  *
  * Browser noise suppression and AGC stay off: RNNoise plus the capture
  * compressor own those jobs. Echo cancellation stays on.
+ * Looser constraints are retried only after OverconstrainedError or TypeError.
+ * NotAllowedError stops the search so Firefox does not prompt again.
  * @param device
  * @returns
  */
@@ -26,6 +28,77 @@ function captureConstraints(deviceId?: string): MediaTrackConstraints {
   };
 }
 
+function errorName(error: unknown): string {
+  if (typeof error !== 'object' || error === null || !('name' in error)) {
+    return '';
+  }
+  return typeof error.name === 'string' ? error.name : '';
+}
+
+function isConstraintRejection(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    errorName(error) === 'OverconstrainedError' ||
+    errorName(error) === 'TypeError'
+  );
+}
+
+function isPermissionDenied(error: unknown): boolean {
+  const name = errorName(error);
+  return (
+    name === 'NotAllowedError' ||
+    name === 'SecurityError' ||
+    name === 'PermissionDeniedError'
+  );
+}
+
+async function openAudio(
+  constraints: MediaTrackConstraints | boolean,
+): Promise<MediaStream> {
+  return navigator.mediaDevices.getUserMedia({ audio: constraints });
+}
+
+async function openDevice(deviceId?: string): Promise<MediaStream> {
+  try {
+    return await openAudio(captureConstraints(deviceId));
+  } catch (error) {
+    if (!isConstraintRejection(error)) {
+      throw error;
+    }
+    console.warn('getUserMedia rejected capture constraints', error);
+    if (!deviceId) {
+      return openAudio(true);
+    }
+    return openAudio({ deviceId: { exact: deviceId } });
+  }
+}
+
+async function fuzzyDevice(
+  device: MediaDeviceInfo,
+): Promise<MediaDeviceInfo | null> {
+  try {
+    const devices = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
+    const audioInputs = devices.filter((item) => item.kind === 'audioinput');
+    const normalize = (value: string) =>
+      value.toLowerCase().replace(/[^\w]+/g, '');
+    const targetName = normalize(device.label);
+    if (!targetName) {
+      return null;
+    }
+    return (
+      audioInputs.find((item) => {
+        if (item.deviceId === device.deviceId) {
+          return false;
+        }
+        const name = normalize(item.label);
+        return name.includes(targetName) || targetName.includes(name);
+      }) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function getStream(
   device: MediaDeviceInfo | null,
 ): Promise<MediaStream> {
@@ -35,58 +108,38 @@ export async function getStream(
     );
   }
 
-  const tryGetStream = async (
-    constraints: MediaTrackConstraints | boolean,
-  ): Promise<MediaStream | null> => {
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: constraints,
-      });
-    } catch (err: unknown) {
-      console.warn(
-        'getUserMedia failed:',
-        err instanceof Error ? err.name : err,
-      );
-      console.warn(constraints);
-      return null;
-    }
-  };
-
-  // стандартное
   if (!device) {
-    const defaultStream =
-      (await tryGetStream(captureConstraints())) ?? (await tryGetStream(true));
-    if (defaultStream) return defaultStream;
-    throw new Error('Unable to access default audio device');
+    return openDevice();
   }
 
-  // точное
-  const exactStream =
-    (await tryGetStream(captureConstraints(device.deviceId))) ??
-    (await tryGetStream({ deviceId: { exact: device.deviceId } }));
-
-  if (exactStream) return exactStream;
-
-  // примерное
-  const devices = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
-  const audioInputs = devices.filter((d) => d.kind === 'audioinput');
-  const normalize = (s: string) => s.toLowerCase().replace(/[^\w]+/g, '');
-  const targetName = normalize(device.label);
-  const fuzzyMatch = audioInputs.find((d) => {
-    const name = normalize(d.label);
-    return name.includes(targetName) || targetName.includes(name);
-  });
-  if (fuzzyMatch) {
-    const fuzzyStream =
-      (await tryGetStream(captureConstraints(fuzzyMatch.deviceId))) ??
-      (await tryGetStream({ deviceId: { exact: fuzzyMatch.deviceId } }));
-
-    if (fuzzyStream) return fuzzyStream;
+  try {
+    return await openDevice(device.deviceId);
+  } catch (error) {
+    if (isPermissionDenied(error)) {
+      throw error;
+    }
+    console.warn('getUserMedia failed for the selected device', error);
   }
 
-  // стандартное
-  const defaultStream =
-    (await tryGetStream(captureConstraints())) ?? (await tryGetStream(true));
-  if (defaultStream) return defaultStream;
-  throw new Error('Unable to access any audio device');
+  const fuzzy = await fuzzyDevice(device);
+  if (fuzzy) {
+    try {
+      return await openDevice(fuzzy.deviceId);
+    } catch (error) {
+      if (isPermissionDenied(error)) {
+        throw error;
+      }
+      console.warn('getUserMedia failed for a similarly named device', error);
+    }
+  }
+
+  try {
+    return await openDevice();
+  } catch (error) {
+    if (isPermissionDenied(error)) {
+      throw error;
+    }
+    console.warn('getUserMedia failed for the default device', error);
+    throw new Error('Unable to access any audio device', { cause: error });
+  }
 }

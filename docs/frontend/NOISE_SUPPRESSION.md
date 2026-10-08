@@ -30,7 +30,7 @@ flowchart LR
 | Expander               | Closes pauses. Adaptive noise floor over ~2 s (eight 250 ms windows): opens near floor + 14 dB, closes near floor + 8 dB, hold 150 ms, attack 5 ms, release 120 ms, max cut about −40 dB |
 | Compressor             | Gentle level ride: threshold −26 dB, knee 16 dB, ratio 2.5, attack 12 ms, release 250 ms                                                                                                 |
 | Makeup +5 dB           | Lifts speech the compressor did not touch                                                                                                                                                |
-| Limiter                | Lookahead 128 samples (~2.7 ms), ceiling −1 dBFS, release 50 ms                                                                                                                          |
+| Limiter                | Lookahead 128 samples (~2.7 ms) tracked with a sliding maximum, ceiling −1 dBFS, release 50 ms                                                                                           |
 
 The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track. `AudioActivityService` thresholds are unchanged.
 
@@ -40,7 +40,7 @@ Added latency is about one RNNoise frame (10 ms) plus the limiter lookahead. `cl
 
 ## Playback
 
-Loud remote audio and per-peer gain above 1 clip in the speakers. Several peers near full scale also clip when summed. `SpeakerService` keeps one mix bus and one limiter for the life of the speaker context. `PeerPlaybackService` and `PeerScreenAudioService` connect each gain into that bus: `gain → mixBus → peakLimiter → destination`. Detach disconnects only that peer. The speaking-indicator analyser stays on the peer gain, before the bus. Already-clipped audio from the sender cannot be repaired. If the worklet fails to load, the bus connects straight to the destination.
+Loud remote audio and per-peer gain above 1 clip in the speakers. Several peers near full scale also clip when summed. `SpeakerService` keeps one mix bus and one limiter for the life of the speaker context. `getContext()` does not wait for the worklet. `getOutput()` loads it, and stops waiting after 2 s so a hung script cannot block playback. A failed load is not remembered: the next `getOutput()` tries again. Until the limiter attaches, the bus goes straight to the speakers. `PeerPlaybackService` and `PeerScreenAudioService` connect each gain into that bus: `gain → mixBus → peakLimiter → destination`. Detach disconnects only that peer. The speaking-indicator analyser stays on the peer gain, before the bus. Already-clipped audio from the sender cannot be repaired.
 
 ```mermaid
 flowchart LR

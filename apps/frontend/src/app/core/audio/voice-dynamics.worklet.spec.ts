@@ -111,6 +111,33 @@ describe('voice dynamics worklet', () => {
     expect(mean).toBeGreaterThan(0.2);
   });
 
+  it('closes the gate after speech returns to the noise floor', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.001)),
+    );
+    const speech = render(
+      processor,
+      Array.from({ length: 12 }, () => constantBlock(0.25)),
+    );
+    const spoken = speech[speech.length - 1];
+    const spokenMean =
+      spoken.reduce((sum, sample) => sum + Math.abs(sample), 0) / spoken.length;
+    expect(spokenMean).toBeGreaterThan(0.2);
+
+    const after = render(
+      processor,
+      Array.from({ length: 400 }, () => constantBlock(0.001)),
+    );
+    const tail = after[after.length - 1];
+    const tailMean =
+      tail.reduce((sum, sample) => sum + Math.abs(sample), 0) / tail.length;
+    expect(tailMean).toBeLessThan(0.0001);
+  });
+
   it('holds a full-scale burst under the ceiling', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,
