@@ -15,7 +15,7 @@ import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { IUser } from '@konvoez/shared';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';

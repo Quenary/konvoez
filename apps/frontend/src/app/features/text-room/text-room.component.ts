@@ -8,7 +8,7 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
-import { RoomsStore } from '../rooms/rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
 import { RoomManageService } from '../rooms/room-manage.service';
 import { IRoom } from '@konvoez/shared';

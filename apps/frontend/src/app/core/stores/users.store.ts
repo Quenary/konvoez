@@ -13,7 +13,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
-import { UsersApiService } from '@features/users/users-api.service';
+import { UsersApiService } from '@core/api/users-api.service';
 
 type UsersStoreState = {
   loading: boolean;

@@ -13,14 +13,14 @@ import { RoomsComponent } from './rooms.component';
 import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from './room-manage.service';
 import { RoomNavigationService } from './room-navigation.service';
-import { RoomsStore } from './rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import {
   DirectCallService,
   ECallStatus,
   IActiveCall,
 } from '@core/services/direct-call.service';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 

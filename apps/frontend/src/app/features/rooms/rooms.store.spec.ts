@@ -4,7 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RoomsApiService } from './rooms-api.service';
+import { RoomsApiService } from '@core/api/rooms-api.service';
 import { RoomsStore } from '@core/stores/rooms.store';
 
 describe('RoomsStore', () => {

@@ -3,7 +3,7 @@ import { ChatMessagesListComponent } from './chat-messages-list.component';
 import { provideStore } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { Sanitizer, signal } from '@angular/core';

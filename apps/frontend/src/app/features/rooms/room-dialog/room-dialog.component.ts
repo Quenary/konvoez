@@ -31,7 +31,7 @@ import {
   TuiSelect,
 } from '@taiga-ui/kit';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RoomsApiService } from '../rooms-api.service';
+import { RoomsApiService } from '@core/api/rooms-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';

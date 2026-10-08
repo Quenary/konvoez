@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { RoomsStore } from '../rooms/rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { EVoiceSessionType } from '@konvoez/shared';
 import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

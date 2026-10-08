@@ -4,7 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { provideStore } from '@ngrx/store';
 import { DirectChatDialogComponent } from './direct-chat-dialog.component';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { EUserRole, IUser } from '@konvoez/shared';
 

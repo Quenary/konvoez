@@ -18,7 +18,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
-import { RoomsApiService } from '@features/rooms/rooms-api.service';
+import { RoomsApiService } from '@core/api/rooms-api.service';
 
 type RoomsStoreState = {
   selectedRoomId: number | null;
