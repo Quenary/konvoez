@@ -13,6 +13,7 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.LEAVE_ROOM]: void;
   [EVoiceRoomEvent.PEER_JOINED]: IVoiceRoomPeerJoined;
   [EVoiceRoomEvent.PEER_LEFT]: IVoiceRoomPeerLeft;
+  [EVoiceRoomEvent.ROOM_CLOSED]: IVoiceRoomClosed;
   [EVoiceRoomEvent.GET_ALL_PEERS]: void;
   [EVoiceRoomEvent.PEERS_ON_JOIN]: TVoiceRoomPeersOnJoin;
   [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: void;
@@ -33,6 +34,7 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.LEAVE_ROOM]: object;
   [EVoiceRoomEvent.PEER_JOINED]: void;
   [EVoiceRoomEvent.PEER_LEFT]: void;
+  [EVoiceRoomEvent.ROOM_CLOSED]: void;
   [EVoiceRoomEvent.GET_ALL_PEERS]: IVoiceRoomGetAllPeersSnapshot;
   [EVoiceRoomEvent.PEERS_ON_JOIN]: void;
   /** Opaque mediasoup RtpCapabilities JSON */
@@ -83,6 +85,12 @@ export interface IVoiceRoomPeerLeft {
   user: IUser;
   roomId?: number;
   sessionKey: string;
+}
+
+export interface IVoiceRoomClosed {
+  roomId: number;
+  sessionKey: string;
+  reason: 'deleted';
 }
 
 /**
