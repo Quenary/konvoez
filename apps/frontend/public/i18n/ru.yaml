@@ -79,7 +79,9 @@ CALL:
   PARTICIPANTS: 'Участников: {{count}}'
   YOU: Вы
   VOLUME: Громкость
-  MUTE: Заглушить
+  MUTE_MICROPHONE: Выключить микрофон
+  UNMUTE_MICROPHONE: Включить микрофон
+  MICROPHONE_MUTED: Микрофон выключен
   SOUND: Звук
   SOUND_OFF: Звук выключен
   CAMERA: Камера

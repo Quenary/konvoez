@@ -35,13 +35,19 @@
     tuiButton
     type="button"
     tuiHintAppearance="floating"
-    [tuiHint]="'CALL.MUTE' | translate"
+    [tuiHint]="
+      (microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE')
+        | translate
+    "
     [iconEnd]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
     [style.justify-content]="'space-between'"
     [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
     (click)="toggleMicrophoneMuted()">
     @if (!collapsed()) {
-      {{ 'CALL.MUTE' | translate }}
+      {{
+        (microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE')
+          | translate
+      }}
     }
   </button>
   <button

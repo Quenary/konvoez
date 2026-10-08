@@ -79,7 +79,9 @@ CALL:
   PARTICIPANTS: '{{count}} participants'
   YOU: You
   VOLUME: Volume
-  MUTE: Mute
+  MUTE_MICROPHONE: Mute microphone
+  UNMUTE_MICROPHONE: Unmute microphone
+  MICROPHONE_MUTED: Microphone muted
   SOUND: Sound
   SOUND_OFF: Sound off
   CAMERA: Camera
