@@ -245,6 +245,39 @@ describe('voice dynamics worklet', () => {
     expect(mean).toBeLessThan(0.22);
   });
 
+  it('handles stereo input correctly', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_LIMITER_OPTIONS,
+    });
+    const left = constantBlock(0.2);
+    const right = constantBlock(0.2);
+    const outLeft = new Float32Array(128);
+    const outRight = new Float32Array(128);
+
+    processor.process([[left, right]], [[outLeft, outRight]]);
+    processor.process([[left, right]], [[outLeft, outRight]]);
+
+    expect(outLeft[0]).toBeCloseTo(0.2, 2);
+    expect(outRight[0]).toBeCloseTo(0.2, 2);
+  });
+
+  it('handles mono input with stereo output by copying and zero-fills extra channels', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_LIMITER_OPTIONS,
+    });
+    const mono = constantBlock(0.2);
+    const outLeft = new Float32Array(128);
+    const outRight = new Float32Array(128);
+    const outSurround = new Float32Array(128).fill(999);
+
+    processor.process([[mono]], [[outLeft, outRight, outSurround]]);
+    processor.process([[mono]], [[outLeft, outRight, outSurround]]);
+
+    expect(outLeft[0]).toBeCloseTo(0.2, 2);
+    expect(outRight[0]).toBeCloseTo(0.2, 2);
+    expect(outSurround[0]).toBe(0);
+  });
+
   it('stops after dispose so a disconnected node can be collected', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,

@@ -65,11 +65,15 @@ export function ensureVoiceDynamicsWorklet(
 
 export function createVoiceDynamicsNode(
   context: BaseAudioContext,
-  mode: 'expander' | 'limiter',
+  mode: 'expander' | 'limiter' | 'playback-limiter',
 ): AudioWorkletNode {
+  const isPlayback = mode === 'playback-limiter';
   return new AudioWorkletNode(context, VOICE_DYNAMICS_PROCESSOR, {
     numberOfInputs: 1,
     numberOfOutputs: 1,
+    channelCount: isPlayback ? 2 : 1,
+    channelCountMode: 'explicit',
+    ...(isPlayback ? { outputChannelCount: [2] } : {}),
     processorOptions:
       mode === 'expander' ? VOICE_EXPANDER_OPTIONS : VOICE_LIMITER_OPTIONS,
   });

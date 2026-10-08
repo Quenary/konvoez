@@ -172,7 +172,7 @@ export class SpeakerService implements OnDestroy {
     if (this.context !== context || !bus || this.limiterNode) {
       return;
     }
-    const limiter = createVoiceDynamicsNode(context, 'limiter');
+    const limiter = createVoiceDynamicsNode(context, 'playback-limiter');
     try {
       bus.disconnect();
       bus.connect(limiter);
