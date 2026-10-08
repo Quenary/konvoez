@@ -88,6 +88,10 @@ describe('VoiceSessionService', () => {
     acquire: ReturnType<typeof vi.fn>;
     release: ReturnType<typeof vi.fn>;
   };
+  let audioService: {
+    playPeerJoinAudio: ReturnType<typeof vi.fn>;
+    playPeerLeaveAudio: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     handlers = {};
@@ -153,6 +157,10 @@ describe('VoiceSessionService', () => {
       acquire: vi.fn().mockResolvedValue(undefined),
       release: vi.fn(),
     };
+    audioService = {
+      playPeerJoinAudio: vi.fn(),
+      playPeerLeaveAudio: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -165,13 +173,7 @@ describe('VoiceSessionService', () => {
         },
         { provide: MicrophoneService, useValue: microphoneService },
         { provide: SpeakerService, useValue: { setDevice: vi.fn() } },
-        {
-          provide: AudioService,
-          useValue: {
-            playPeerJoinAudio: vi.fn(),
-            playPeerLeaveAudio: vi.fn(),
-          },
-        },
+        { provide: AudioService, useValue: audioService },
         { provide: MediasoupSessionService, useValue: mediasoup },
         { provide: ScreenWatchService, useValue: screenWatch },
         { provide: PeerPlaybackService, useValue: { removeConsumer: vi.fn() } },
@@ -310,6 +312,65 @@ describe('VoiceSessionService', () => {
 
     expect(microphoneService.setDevice).toHaveBeenCalledWith(null);
     expect(mediasoup.replaceMicrophoneTrack).toHaveBeenCalledWith(track);
+  });
+
+  it('ignores a duplicate join to the same active session', async () => {
+    const target: {
+      type: EVoiceSessionType.GROUP_ROOM;
+      roomId: number;
+    } = {
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 3,
+    };
+    voiceSessionStore.setActiveSession(target);
+    socket.emitWithAck.mockClear();
+    audioService.playPeerJoinAudio.mockClear();
+
+    await service.joinSession(target);
+
+    expect(socket.emitWithAck).not.toHaveBeenCalledWith(
+      EVoiceRoomEvent.JOIN_ROOM,
+      expect.anything(),
+    );
+    expect(audioService.playPeerJoinAudio).not.toHaveBeenCalled();
+  });
+
+  it('emits JOIN_ROOM once for two consecutive joins to the same room', async () => {
+    const target: {
+      type: EVoiceSessionType.GROUP_ROOM;
+      roomId: number;
+    } = {
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 5,
+    };
+    let joinAcks = 0;
+    socket.emitWithAck.mockImplementation((event: string) => {
+      if (event === EVoiceRoomEvent.JOIN_ROOM) {
+        joinAcks += 1;
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            voiceSessionStore.setActiveSession(target);
+            resolve(undefined);
+          }, 50);
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+    audioService.playPeerJoinAudio.mockClear();
+
+    const first = service.joinSession(target);
+    await vi.waitFor(() => {
+      expect(service.joiningTarget()).toEqual(target);
+    });
+    const second = service.joinSession(target);
+    await Promise.all([first, second]);
+
+    expect(joinAcks).toBe(1);
+    expect(audioService.playPeerJoinAudio).toHaveBeenCalledTimes(1);
+    const leaveCalls = socket.emitWithAck.mock.calls.filter(
+      ([event]) => event === EVoiceRoomEvent.LEAVE_ROOM,
+    );
+    expect(leaveCalls).toHaveLength(0);
   });
 
   it('notifies when rejoining on connect fails', async () => {

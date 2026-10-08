@@ -1,4 +1,4 @@
-import { effect, inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { TranslateService } from '@ngx-translate/core';
@@ -9,6 +9,7 @@ import {
   IVoiceRoomJoin,
   IVoiceRoomProduceResult,
   TVoiceSessionTarget,
+  getVoiceSessionKey,
 } from '@konvoez/shared';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { notifyError } from '@shared/functions/notify-error.function';
@@ -64,14 +65,22 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   public readonly sessionWillChange$ =
     this.sessionWillChangeSubject.asObservable();
 
+  /** Target of an in-flight `joinSession` (before JOIN_ROOM ack). */
+  private readonly joiningTargetState = signal<TVoiceSessionTarget | null>(
+    null,
+  );
+  public readonly joiningTarget = this.joiningTargetState.asReadonly();
+
   constructor() {
     this.socket.on('connect', () => {
       this.mediasoupSessionService.cleanup();
       const session = this.voiceSessionStore.activeSession();
       if (session) {
-        void this.joinSession(session).catch((error: unknown) => {
-          this.reportJoinFailure(error);
-        });
+        void this.joinSession(session, { force: true }).catch(
+          (error: unknown) => {
+            this.reportJoinFailure(error);
+          },
+        );
       }
     });
 
@@ -96,8 +105,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   }
 
   @Mutexed(voiceSessionMutex)
-  public async joinSession(target: TVoiceSessionTarget): Promise<void> {
-    await this.joinSessionLocked(target);
+  public async joinSession(
+    target: TVoiceSessionTarget,
+    options?: { force?: boolean },
+  ): Promise<void> {
+    await this.joinSessionLocked(target, options?.force ?? false);
   }
 
   @Mutexed(voiceSessionMutex)
@@ -121,9 +133,36 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     await this.speakerService.setDevice(device);
   }
 
-  private async joinSessionLocked(target: TVoiceSessionTarget): Promise<void> {
-    this.audioService.playPeerJoinAudio();
+  private async joinSessionLocked(
+    target: TVoiceSessionTarget,
+    force: boolean,
+  ): Promise<void> {
+    const targetKey = getVoiceSessionKey(target);
     const previous = this.voiceSessionStore.activeSession();
+    if (!force && previous && getVoiceSessionKey(previous) === targetKey) {
+      return;
+    }
+    const pending = this.joiningTargetState();
+    if (!force && pending && getVoiceSessionKey(pending) === targetKey) {
+      return;
+    }
+
+    this.joiningTargetState.set(target);
+    try {
+      await this.joinSessionLockedInner(target, previous);
+    } finally {
+      const pending = this.joiningTargetState();
+      if (pending && getVoiceSessionKey(pending) === targetKey) {
+        this.joiningTargetState.set(null);
+      }
+    }
+  }
+
+  private async joinSessionLockedInner(
+    target: TVoiceSessionTarget,
+    previous: TVoiceSessionTarget | null,
+  ): Promise<void> {
+    this.audioService.playPeerJoinAudio();
     this.sessionWillChangeSubject.next({ previous, next: target });
 
     if (this.voiceSessionStore.activeSession()) {

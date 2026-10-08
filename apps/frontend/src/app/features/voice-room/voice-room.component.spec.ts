@@ -16,6 +16,7 @@ describe('VoiceRoomComponent', () => {
   let joinSession: ReturnType<typeof vi.fn>;
   let reportJoinFailure: ReturnType<typeof vi.fn>;
   let navigate: ReturnType<typeof vi.fn>;
+  let joiningTarget: ReturnType<typeof signal<unknown>>;
 
   beforeEach(() => {
     paramMap = new BehaviorSubject(convertToParamMap({ id: '4' }));
@@ -23,6 +24,7 @@ describe('VoiceRoomComponent', () => {
     joinSession = vi.fn().mockResolvedValue(undefined);
     reportJoinFailure = vi.fn();
     navigate = vi.fn().mockResolvedValue(true);
+    joiningTarget = signal(null);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomComponent],
@@ -51,7 +53,11 @@ describe('VoiceRoomComponent', () => {
         },
         {
           provide: VoiceSessionService,
-          useValue: { joinSession, reportJoinFailure },
+          useValue: {
+            joinSession,
+            reportJoinFailure,
+            joiningTarget: joiningTarget.asReadonly(),
+          },
         },
       ],
     });
@@ -91,6 +97,15 @@ describe('VoiceRoomComponent', () => {
 
   it('skips join when that room is already selected', () => {
     selectedRoomId.set(4);
+    create();
+    expect(joinSession).not.toHaveBeenCalled();
+  });
+
+  it('skips join while the same room join is already in flight', () => {
+    joiningTarget.set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 4,
+    });
     create();
     expect(joinSession).not.toHaveBeenCalled();
   });

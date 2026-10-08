@@ -55,6 +55,7 @@ export class VoiceRoomComponent {
       const id = this.roomId();
       const alreadyJoinedFor = this.joinedForRoomId();
       const current = this.voiceSessionStore.selectedRoomId();
+      const joining = this.voiceSessionService.joiningTarget();
 
       if (!id || !Number.isFinite(id) || id <= 0) {
         return;
@@ -65,6 +66,12 @@ export class VoiceRoomComponent {
 
       this.joinedForRoomId.set(id);
       if (current === id) {
+        return;
+      }
+      if (
+        joining?.type === EVoiceSessionType.GROUP_ROOM &&
+        joining.roomId === id
+      ) {
         return;
       }
 
