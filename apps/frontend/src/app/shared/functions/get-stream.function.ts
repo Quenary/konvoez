@@ -3,9 +3,29 @@
  * - возвращает стрим с указаного устройства
  * - или возвращает стрим с устройства с похожим именем
  * - или возвращает стрим со стандартного устройства
+ *
+ * Browser noise suppression and AGC stay off: RNNoise plus the capture
+ * compressor own those jobs. Echo cancellation stays on.
  * @param device
  * @returns
  */
+const captureProcessing: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: false,
+  autoGainControl: false,
+  channelCount: { ideal: 1 },
+};
+
+function captureConstraints(deviceId?: string): MediaTrackConstraints {
+  if (!deviceId) {
+    return { ...captureProcessing };
+  }
+  return {
+    ...captureProcessing,
+    deviceId: { exact: deviceId },
+  };
+}
+
 export async function getStream(
   device: MediaDeviceInfo | null,
 ): Promise<MediaStream> {
@@ -34,15 +54,16 @@ export async function getStream(
 
   // стандартное
   if (!device) {
-    const defaultStream = await tryGetStream(true);
+    const defaultStream =
+      (await tryGetStream(captureConstraints())) ?? (await tryGetStream(true));
     if (defaultStream) return defaultStream;
     throw new Error('Unable to access default audio device');
   }
 
   // точное
-  const exactStream = await tryGetStream({
-    deviceId: { exact: device.deviceId },
-  });
+  const exactStream =
+    (await tryGetStream(captureConstraints(device.deviceId))) ??
+    (await tryGetStream({ deviceId: { exact: device.deviceId } }));
 
   if (exactStream) return exactStream;
 
@@ -56,15 +77,16 @@ export async function getStream(
     return name.includes(targetName) || targetName.includes(name);
   });
   if (fuzzyMatch) {
-    const fuzzyStream = await tryGetStream({
-      deviceId: { exact: fuzzyMatch.deviceId },
-    });
+    const fuzzyStream =
+      (await tryGetStream(captureConstraints(fuzzyMatch.deviceId))) ??
+      (await tryGetStream({ deviceId: { exact: fuzzyMatch.deviceId } }));
 
     if (fuzzyStream) return fuzzyStream;
   }
 
   // стандартное
-  const defaultStream = await tryGetStream(true);
+  const defaultStream =
+    (await tryGetStream(captureConstraints())) ?? (await tryGetStream(true));
   if (defaultStream) return defaultStream;
   throw new Error('Unable to access any audio device');
 }

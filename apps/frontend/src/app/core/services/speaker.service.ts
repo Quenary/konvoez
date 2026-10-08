@@ -1,4 +1,8 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
+import {
+  createVoiceDynamicsNode,
+  ensureVoiceDynamicsWorklet,
+} from '@core/audio/voice-dynamics';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import { AudioContextResumeService } from './audio-context-resume.service';
@@ -15,6 +19,8 @@ export class SpeakerService implements OnDestroy {
   );
   private context: AudioContext | null = null;
   private device: MediaDeviceInfo | null = null;
+  private dynamicsContext: AudioContext | null = null;
+  private dynamicsReady: Promise<boolean> | null = null;
 
   private readonly onDeviceChange = async () => {
     await this.ensureContext();
@@ -38,6 +44,21 @@ export class SpeakerService implements OnDestroy {
     return await this.ensureContext();
   }
 
+  /** Peak limiter for remote playback. Null when the worklet failed to load. */
+  @Mutexed(publicMethodsMutex)
+  public async createPlaybackLimiter(): Promise<AudioWorkletNode | null> {
+    const context = await this.ensureContext();
+    if (!(await this.prepareDynamics(context))) {
+      return null;
+    }
+    try {
+      return createVoiceDynamicsNode(context, 'limiter');
+    } catch (error) {
+      console.warn('Playback limiter unavailable', error);
+      return null;
+    }
+  }
+
   @Mutexed(publicMethodsMutex)
   public async release(): Promise<void> {
     if (this.context && this.context.state !== 'closed') {
@@ -56,6 +77,8 @@ export class SpeakerService implements OnDestroy {
     }
 
     this.context = null;
+    this.dynamicsContext = null;
+    this.dynamicsReady = null;
   }
 
   ngOnDestroy(): void {
@@ -72,13 +95,31 @@ export class SpeakerService implements OnDestroy {
         this.audioContextResumeService.unregister(this.context);
       }
       this.context = new AudioContext({ sampleRate: 48000 });
+      this.dynamicsContext = null;
+      this.dynamicsReady = null;
       this.audioContextResumeService.register(this.context);
     }
     if (this.context.state === 'suspended') {
       await this.context.resume();
     }
+    await this.prepareDynamics(this.context);
     await this.setSinkId(this.device);
     return this.context;
+  }
+
+  private prepareDynamics(context: AudioContext): Promise<boolean> {
+    if (this.dynamicsContext === context && this.dynamicsReady) {
+      return this.dynamicsReady;
+    }
+    this.dynamicsContext = context;
+    this.dynamicsReady = ensureVoiceDynamicsWorklet(context).then(
+      () => true,
+      (error: unknown) => {
+        console.warn('Voice dynamics worklet failed to load', error);
+        return false;
+      },
+    );
+    return this.dynamicsReady;
   }
 
   private async setSinkId(device: MediaDeviceInfo | null) {

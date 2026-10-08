@@ -5,6 +5,20 @@ import { SpeakerService } from './speaker.service';
 
 describe('PeerScreenAudioService', () => {
   let service: PeerScreenAudioService;
+  let limiter: {
+    connect: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+  };
+  let gain: {
+    gain: { value: number };
+    connect: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+  };
+  let context: {
+    destination: { kind: string };
+    createMediaStreamSource: ReturnType<typeof vi.fn>;
+    createGain: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.stubGlobal(
@@ -20,17 +34,22 @@ describe('PeerScreenAudioService', () => {
       },
     );
 
-    const context = {
+    limiter = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    gain = {
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    context = {
       createMediaStreamSource: vi.fn(() => ({
         connect: vi.fn(),
         disconnect: vi.fn(),
       })),
-      createGain: vi.fn(() => ({
-        gain: { value: 1 },
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      })),
-      destination: {},
+      createGain: vi.fn(() => gain),
+      destination: { kind: 'speakers' },
     };
     TestBed.configureTestingModule({
       providers: [
@@ -39,6 +58,7 @@ describe('PeerScreenAudioService', () => {
           provide: SpeakerService,
           useValue: {
             getContext: vi.fn().mockResolvedValue(context),
+            createPlaybackLimiter: vi.fn().mockResolvedValue(limiter),
           },
         },
       ],
@@ -64,6 +84,8 @@ describe('PeerScreenAudioService', () => {
       speakerMuted: false,
     });
     expect(service.getConsumerId(5)).toBe('c1');
+    expect(gain.connect).toHaveBeenCalledWith(limiter);
+    expect(limiter.connect).toHaveBeenCalledWith(context.destination);
     service.detach(5);
     expect(service.getConsumerId(5)).toBeNull();
     expect(close).toHaveBeenCalled();

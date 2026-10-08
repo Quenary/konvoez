@@ -7,12 +7,13 @@ interface IPeerPlaybackGraph {
   consumers: Consumer[];
   sourceNode: MediaStreamAudioSourceNode | null;
   gainNode: GainNode | null;
+  limiterNode: AudioWorkletNode | null;
   analyserNode: AnalyserNode | null;
   audioEl: HTMLAudioElement | null;
 }
 
 /**
- * Per-peer Web Audio playback graph (gain, analyser, Chrome dummy audio element).
+ * Per-peer Web Audio playback graph (gain, limiter, analyser, Chrome dummy audio element).
  * Graphs are keyed by user id and are not stored on peer entities.
  */
 @Injectable({
@@ -51,6 +52,7 @@ export class PeerPlaybackService {
     });
 
     const context = await this.speakerService.getContext();
+    const limiterNode = await this.speakerService.createPlaybackLimiter();
     const sourceNode = context.createMediaStreamSource(stream);
     const gainNode = context.createGain();
     const analyserNode = context.createAnalyser();
@@ -63,6 +65,7 @@ export class PeerPlaybackService {
           consumers: [],
           sourceNode,
           gainNode,
+          limiterNode,
           analyserNode,
           audioEl: null,
         });
@@ -80,8 +83,12 @@ export class PeerPlaybackService {
     gainNode.gain.value = options.speakerMuted ? 0 : options.gain;
 
     sourceNode.connect(gainNode);
-    gainNode.connect(analyserNode);
-    gainNode.connect(context.destination);
+    const monitored: AudioNode = limiterNode ?? gainNode;
+    if (limiterNode) {
+      gainNode.connect(limiterNode);
+    }
+    monitored.connect(analyserNode);
+    monitored.connect(context.destination);
 
     this.audioActivityService.register(userId, analyserNode);
 
@@ -90,6 +97,7 @@ export class PeerPlaybackService {
       consumers,
       sourceNode,
       gainNode,
+      limiterNode,
       analyserNode,
       audioEl,
     });
@@ -178,6 +186,7 @@ export class PeerPlaybackService {
   private disconnectGraph(graph: IPeerPlaybackGraph | undefined): void {
     graph?.sourceNode?.disconnect?.();
     graph?.gainNode?.disconnect?.();
+    graph?.limiterNode?.disconnect?.();
     graph?.analyserNode?.disconnect?.();
   }
 }

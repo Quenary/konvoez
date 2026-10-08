@@ -1,6 +1,6 @@
 # Frontend voice
 
-Group voice rooms and direct calls share one media stack. Signaling and SFU: [NETWORKING.md](../NETWORKING.md). Camera/screen: [STREAMING.md](./STREAMING.md).
+Group voice rooms and direct calls share one media stack. Signaling and SFU: [NETWORKING.md](../NETWORKING.md). Camera/screen: [STREAMING.md](./STREAMING.md). Mic dynamics: [NOISE_SUPPRESSION.md](./NOISE_SUPPRESSION.md).
 
 ## Layers
 
