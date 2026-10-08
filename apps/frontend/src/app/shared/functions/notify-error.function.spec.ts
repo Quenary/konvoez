@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { EVoiceRoomErrorCode } from '@konvoez/shared';
 import { notifyError } from './notify-error.function';
 
 describe('notifyError', () => {
@@ -14,7 +15,7 @@ describe('notifyError', () => {
       notifications as never,
       translate as never,
       'CALL.CAMERA_FAILED',
-      new Error('Room video producer limit reached'),
+      new Error(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED),
     );
 
     expect(translate.instant).toHaveBeenCalledWith('CALL.VIDEO_LIMIT_REACHED');

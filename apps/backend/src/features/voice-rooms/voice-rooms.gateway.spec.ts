@@ -32,6 +32,7 @@ import {
   EDirectCallEvent,
   EUserRole,
   EVoiceRoomEvent,
+  EVoiceRoomErrorCode,
   EVoiceSessionType,
   type IUser,
 } from '@konvoez/shared';
@@ -647,7 +648,7 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(/Room video producer limit reached/);
+      ).rejects.toThrow(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
       expect(sendTransport.produce).not.toHaveBeenCalled();
       expect(peer.producers.size).toBe(0);
     });

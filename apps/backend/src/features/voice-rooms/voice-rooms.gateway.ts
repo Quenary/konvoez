@@ -38,6 +38,7 @@ import {
   type ICallGetActiveResult,
   type TVoiceSessionIdentity,
   isDirectCallVoiceSession,
+  EVoiceRoomErrorCode,
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
@@ -463,7 +464,7 @@ export class VoiceRoomsGateway
         (p) => !p.closed && p.kind === 'video',
       ).length;
       if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-        throw new WsException('Room video producer limit reached');
+        throw new WsException(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
       }
     }
 
