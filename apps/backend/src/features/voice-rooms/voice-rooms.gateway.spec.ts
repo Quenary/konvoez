@@ -871,6 +871,32 @@ describe('VoiceRoomsGateway', () => {
       expect(consumer.close).toHaveBeenCalled();
       expect(peer.consumers.has('c1')).toBe(false);
     });
+
+    it('acknowledges closeConsumer when the consumer was already closed', async () => {
+      const consumer = { id: 'c1', closed: true, close: jest.fn() };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.closeConsumer(socket as never, { consumerId: 'c1' }),
+      ).resolves.toEqual({});
+      expect(consumer.close).not.toHaveBeenCalled();
+      expect(peer.consumers.has('c1')).toBe(true);
+    });
   });
 
   describe('direct call signaling', () => {

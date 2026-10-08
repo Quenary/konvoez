@@ -542,7 +542,7 @@ export class VoiceRoomsGateway
 
     const consumer = peer.consumers.get(body.consumerId);
     if (!consumer || consumer.closed) {
-      throw new Error('Consumer not found');
+      return {};
     }
 
     peer.consumers.delete(consumer.id);
