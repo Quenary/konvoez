@@ -33,6 +33,7 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     this.attackMs = opts.attackMs ?? 5;
     this.releaseMs = opts.releaseMs ?? 120;
     this.maxReductionDb = opts.maxReductionDb ?? 40;
+    this.expanderLookahead = opts.expanderLookaheadSamples ?? 240;
     this.detectorReleaseMs = 40;
 
     this.ceiling = dbToGain(opts.ceilingDb ?? -1);
@@ -54,7 +55,11 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     this.subElapsed = 0;
     this.noiseFloor = -55;
 
-    this.attackCoef = onePoleCoef(sampleRate * (this.attackMs / 1000));
+    // Reaches at least -3 dB inside the attack time so onsets inside lookahead are preserved.
+    this.attackCoef =
+      1 -
+      (1 - dbToGain(-3)) **
+        (1 / Math.max(1, sampleRate * (this.attackMs / 1000)));
     this.releaseCoef = onePoleCoef(sampleRate * (this.releaseMs / 1000));
     this.limiterReleaseCoef = onePoleCoef(
       sampleRate * (this.limiterReleaseMs / 1000),
@@ -62,6 +67,8 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     // 99% of a downward move lands inside the lookahead, so the peak is already tamed.
     this.limiterAttackCoef = 1 - 0.01 ** (1 / this.lookahead);
 
+    this.expanderDelay = [];
+    this.expanderWriteIndex = 0;
     this.delay = [];
     this.delayed = new Float32Array(0);
     this.writeIndex = 0;
@@ -77,6 +84,17 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
         this.disposed = true;
       }
     };
+  }
+
+  ensureExpanderDelay(channelCount) {
+    if (this.expanderDelay.length === channelCount) {
+      return;
+    }
+    this.expanderDelay = [];
+    for (let channel = 0; channel < channelCount; channel++) {
+      this.expanderDelay.push(new Float32Array(this.expanderLookahead));
+    }
+    this.expanderWriteIndex = 0;
   }
 
   ensureDelay(channelCount) {
@@ -220,7 +238,10 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const channelCount = Math.min(input.length, output.length);
+    const isMonoToStereo = input.length === 1 && output.length >= 2;
+    const processChannels = isMonoToStereo
+      ? 2
+      : Math.min(input.length, output.length);
     const length = input[0].length;
     const blockMs = (length / sampleRate) * 1000;
 
@@ -234,33 +255,74 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
       } else {
         this.updateDetector(levelDb, blockMs);
       }
-      this.updateFloor(levelDb, blockMs);
+      this.updateFloor(this.detectorDb, blockMs);
       this.updateGate(blockMs);
     }
 
     if (!this.limiterEnabled) {
-      for (let index = 0; index < length; index++) {
-        const envGain = this.advanceEnvelope();
-        for (let channel = 0; channel < channelCount; channel++) {
-          output[channel][index] = input[channel][index] * envGain;
+      if (this.expanderEnabled && this.expanderLookahead > 0) {
+        this.ensureExpanderDelay(processChannels);
+        for (let index = 0; index < length; index++) {
+          const envGain = this.advanceEnvelope();
+          for (let channel = 0; channel < processChannels; channel++) {
+            const inSample =
+              channel < input.length ? input[channel][index] : input[0][index];
+            const buffer = this.expanderDelay[channel];
+            const delayedSample = buffer[this.expanderWriteIndex];
+            buffer[this.expanderWriteIndex] = inSample;
+            output[channel][index] = delayedSample * envGain;
+          }
+          this.expanderWriteIndex += 1;
+          if (this.expanderWriteIndex >= this.expanderLookahead) {
+            this.expanderWriteIndex = 0;
+          }
         }
+      } else {
+        for (let index = 0; index < length; index++) {
+          const envGain = this.advanceEnvelope();
+          for (let channel = 0; channel < processChannels; channel++) {
+            const inSample =
+              channel < input.length ? input[channel][index] : input[0][index];
+            output[channel][index] = inSample * envGain;
+          }
+        }
+      }
+      for (let channel = processChannels; channel < output.length; channel++) {
+        output[channel].fill(0);
       }
       return true;
     }
 
-    this.ensureDelay(channelCount);
+    this.ensureDelay(processChannels);
+    if (this.expanderEnabled && this.expanderLookahead > 0) {
+      this.ensureExpanderDelay(processChannels);
+    }
     for (let index = 0; index < length; index++) {
       const envGain = this.advanceEnvelope();
       let samplePeak = 0;
-      for (let channel = 0; channel < channelCount; channel++) {
+      for (let channel = 0; channel < processChannels; channel++) {
+        let sample =
+          channel < input.length ? input[channel][index] : input[0][index];
+        if (this.expanderEnabled && this.expanderLookahead > 0) {
+          const expBuffer = this.expanderDelay[channel];
+          const delayedSample = expBuffer[this.expanderWriteIndex];
+          expBuffer[this.expanderWriteIndex] = sample;
+          sample = delayedSample;
+        }
         const buffer = this.delay[channel];
         const delayedSample = buffer[this.writeIndex];
-        const next = input[channel][index] * envGain;
+        const next = sample * envGain;
         buffer[this.writeIndex] = next;
         this.delayed[channel] = delayedSample;
         const abs = Math.abs(next);
         if (abs > samplePeak) {
           samplePeak = abs;
+        }
+      }
+      if (this.expanderEnabled && this.expanderLookahead > 0) {
+        this.expanderWriteIndex += 1;
+        if (this.expanderWriteIndex >= this.expanderLookahead) {
+          this.expanderWriteIndex = 0;
         }
       }
       const peak = this.pushPeak(samplePeak);
@@ -270,13 +332,27 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
           ? this.limiterAttackCoef
           : this.limiterReleaseCoef;
       this.limiterGain += (desired - this.limiterGain) * coef;
-      for (let channel = 0; channel < channelCount; channel++) {
-        output[channel][index] = this.delayed[channel] * this.limiterGain;
+      let maxDelayed = 0;
+      for (let channel = 0; channel < processChannels; channel++) {
+        const abs = Math.abs(this.delayed[channel]);
+        if (abs > maxDelayed) {
+          maxDelayed = abs;
+        }
+      }
+      const g = Math.min(
+        this.limiterGain,
+        this.ceiling / Math.max(maxDelayed, 1e-9),
+      );
+      for (let channel = 0; channel < processChannels; channel++) {
+        output[channel][index] = this.delayed[channel] * g;
       }
       this.writeIndex += 1;
       if (this.writeIndex >= this.lookahead) {
         this.writeIndex = 0;
       }
+    }
+    for (let channel = processChannels; channel < output.length; channel++) {
+      output[channel].fill(0);
     }
     return true;
   }

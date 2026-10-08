@@ -6,10 +6,11 @@
       <aside [tuiNavigationAside]="!collapsed()">
         <header>
           <button
-            tuiButton
+            tuiAsideItem
             iconStart="@tui.home"
             type="button"
-            [routerLink]="'/'">
+            [routerLink]="'/'"
+            [routerLinkActiveOptions]="{ exact: true }">
             @if (!collapsed()) {
               <app-logo></app-logo>
             }

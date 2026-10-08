@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AUDIO_DEVICE_HANDLER } from '@core/tokens/audio-device-handler.token';
-import { selectIsAuthorized } from '@features/auth/auth.selectors';
+import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import {
   ESettingKey,
   TIceServersSettingValue,
@@ -42,7 +42,7 @@ import {
   readLocalSettings,
   writeLocalSettings,
 } from './local-settings.storage';
-import { SettingsApiService } from './settings-api.service';
+import { SettingsApiService } from '@core/api/settings-api.service';
 
 export const settingsConfig = entityConfig({
   entity: type<TSetting>(),

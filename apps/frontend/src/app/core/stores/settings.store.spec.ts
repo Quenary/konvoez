@@ -4,14 +4,14 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { SettingsApiService } from './settings-api.service';
+import { SettingsApiService } from '@core/api/settings-api.service';
 import { SettingsStore } from './settings.store';
 import {
   AUDIO_DEVICE_HANDLER,
   IAudioDeviceHandler,
 } from '@core/tokens/audio-device-handler.token';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 import {
   attachmentsDefaultMaxFileSize,
   attachmentsDefaultMaxFilesPerMessage,

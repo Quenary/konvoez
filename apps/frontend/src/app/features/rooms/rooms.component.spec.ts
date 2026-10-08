@@ -1,4 +1,4 @@
-import { computed, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -15,14 +15,10 @@ import { RoomManageService } from './room-manage.service';
 import { RoomNavigationService } from './room-navigation.service';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
-import {
-  DirectCallService,
-  ECallStatus,
-  IActiveCall,
-} from '@core/services/direct-call.service';
+import { DirectCallService } from '@core/services/direct-call.service';
 import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 
 vi.hoisted(() => {
   (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
@@ -80,12 +76,8 @@ describe('RoomsComponent', () => {
   };
 
   const roomsState = signal<Record<number, Record<number, IUser>>>({});
-  const activeCall = signal<IActiveCall | null>(null);
-  const rejoinableCall = signal<{
-    callId: string;
-    callerId: number;
-    recipientId: number;
-  } | null>(null);
+  const hangingCallUserId = signal<number | null>(null);
+  const interlocutor = signal<IUser | null>(null);
   const entityMap = signal<Record<number, IUser>>({
     [me.id]: me,
     [bob.id]: bob,
@@ -120,8 +112,8 @@ describe('RoomsComponent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     roomsState.set({});
-    activeCall.set(null);
-    rejoinableCall.set(null);
+    hangingCallUserId.set(null);
+    interlocutor.set(null);
     entityMap.set({ [me.id]: me, [bob.id]: bob });
     isTouch.set(false);
 
@@ -149,25 +141,8 @@ describe('RoomsComponent', () => {
         {
           provide: DirectCallService,
           useValue: {
-            activeCall,
-            rejoinableCall,
-            hangingCallUserId: computed(() => {
-              const active = activeCall();
-              const rejoinable = rejoinableCall();
-              if (
-                active &&
-                (active.status === ECallStatus.CONNECTED ||
-                  active.status === ECallStatus.CALLING)
-              ) {
-                return active.interlocutor.id;
-              }
-              if (!rejoinable) {
-                return null;
-              }
-              return rejoinable.callerId === me.id
-                ? rejoinable.recipientId
-                : rejoinable.callerId;
-            }),
+            hangingCallUserId,
+            interlocutor,
           },
         },
         { provide: UsersStore, useValue: usersStore },
@@ -274,71 +249,32 @@ describe('RoomsComponent', () => {
   });
 
   describe('hangingCallPeer', () => {
-    it('should return interlocutor for a connected active call', () => {
-      activeCall.set({
-        callId: 'c1',
-        interlocutor: bob,
-        isCaller: true,
-        status: ECallStatus.CONNECTED,
-      });
+    it('should resolve peer from users map when hangingCallUserId is present', () => {
+      hangingCallUserId.set(bob.id);
       fixture.detectChanges();
 
       expect(component['hangingCallPeer']()).toEqual(bob);
     });
 
-    it('should return interlocutor while calling', () => {
-      activeCall.set({
-        callId: 'c1',
-        interlocutor: bob,
-        isCaller: true,
-        status: ECallStatus.CALLING,
-      });
-      fixture.detectChanges();
-
-      expect(component['hangingCallPeer']()).toEqual(bob);
-    });
-
-    it('should ignore incoming active call and fall back to rejoinable', () => {
-      activeCall.set({
-        callId: 'c1',
-        interlocutor: bob,
-        isCaller: false,
-        status: ECallStatus.INCOMING,
-      });
-      rejoinableCall.set({
-        callId: 'c2',
-        callerId: bob.id,
-        recipientId: me.id,
-      });
-      fixture.detectChanges();
-
-      expect(component['hangingCallPeer']()).toEqual(bob);
-    });
-
-    it('should resolve rejoinable peer from users map', () => {
-      rejoinableCall.set({
-        callId: 'c1',
-        callerId: me.id,
-        recipientId: bob.id,
-      });
-      fixture.detectChanges();
-
-      expect(component['hangingCallPeer']()).toEqual(bob);
-    });
-
-    it('should return null when rejoinable peer is missing from users', () => {
+    it('should return null when hangingCallUserId is missing from users map and no interlocutor', () => {
       entityMap.set({ [me.id]: me });
-      rejoinableCall.set({
-        callId: 'c1',
-        callerId: me.id,
-        recipientId: bob.id,
-      });
+      hangingCallUserId.set(bob.id);
       fixture.detectChanges();
 
       expect(component['hangingCallPeer']()).toBeNull();
     });
 
-    it('should return null when there is no active or rejoinable call', () => {
+    it('should fall back to interlocutor when users store has not loaded yet', () => {
+      entityMap.set({});
+      hangingCallUserId.set(bob.id);
+      interlocutor.set(bob);
+      fixture.detectChanges();
+
+      expect(component['hangingCallPeer']()).toEqual(bob);
+    });
+
+    it('should return null when there is no hanging call', () => {
+      hangingCallUserId.set(null);
       expect(component['hangingCallPeer']()).toBeNull();
     });
   });

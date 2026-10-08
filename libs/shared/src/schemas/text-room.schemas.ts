@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { baseEntitySchema, stringSchema } from './base.schemas';
 import {
   attachmentsMaxFilesHardLimit,

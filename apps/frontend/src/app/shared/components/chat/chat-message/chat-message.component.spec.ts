@@ -8,10 +8,10 @@ import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { computed, signal, Sanitizer } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 import { EUserRole, IUser } from '@konvoez/shared';
-import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
@@ -42,7 +42,7 @@ describe('ChatMessageComponent', () => {
   const mockDialogService = {
     open: vi.fn(() => of(undefined)),
   };
-  const mockTextRoomApi = {
+  const mockChatApi = {
     getReaders: vi.fn(() => of<IUser[]>([])),
     markRead: vi.fn(() => of(undefined)),
   };
@@ -121,7 +121,7 @@ describe('ChatMessageComponent', () => {
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: TuiNotificationService, useValue: mockNotificationService },
         { provide: TuiDialogService, useValue: mockDialogService },
-        { provide: TextRoomApiService, useValue: mockTextRoomApi },
+        { provide: ChatApiService, useValue: mockChatApi },
         {
           provide: MessageReadQueueService,
           useValue: { enqueue: vi.fn(), reset: vi.fn() },
@@ -318,19 +318,17 @@ describe('ChatMessageComponent', () => {
 
   it('should load readers and open the dialog', () => {
     const readers = [{ ...currentUser, id: 2, username: 'bob' }];
-    mockTextRoomApi.getReaders.mockReturnValue(of(readers));
+    mockChatApi.getReaders.mockReturnValue(of(readers));
 
     component['showReadersDialog']('tmpl');
 
-    expect(mockTextRoomApi.getReaders).toHaveBeenCalledWith('msg-1');
+    expect(mockChatApi.getReaders).toHaveBeenCalledWith('msg-1');
     expect(component['readers']()).toEqual(readers);
     expect(mockDialogService.open).toHaveBeenCalled();
   });
 
   it('should stop loading readers when the request fails', () => {
-    mockTextRoomApi.getReaders.mockReturnValue(
-      throwError(() => new Error('fail')),
-    );
+    mockChatApi.getReaders.mockReturnValue(throwError(() => new Error('fail')));
 
     component['showReadersDialog']('tmpl');
 

@@ -8,6 +8,7 @@ import { PeerVideoService } from './peer-video.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
+import { SettingsStore } from '@core/stores/settings.store';
 import { MediasoupSessionService } from './mediasoup-session.service';
 
 describe('MediasoupSessionService', () => {
@@ -17,6 +18,7 @@ describe('MediasoupSessionService', () => {
   let setLocalCamTrack: ReturnType<typeof vi.fn>;
   let deviceLost$: Subject<void>;
   let emitWithAck: ReturnType<typeof vi.fn>;
+  let socketTimeout: ReturnType<typeof vi.fn>;
   let releaseScreen: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -25,6 +27,7 @@ describe('MediasoupSessionService', () => {
     setLocalCamTrack = vi.fn();
     deviceLost$ = new Subject<void>();
     emitWithAck = vi.fn().mockResolvedValue({});
+    socketTimeout = vi.fn().mockReturnValue({ emitWithAck });
     releaseScreen = vi.fn();
     TestBed.configureTestingModule({
       providers: [
@@ -33,7 +36,7 @@ describe('MediasoupSessionService', () => {
           provide: VoiceRoomSocketToken,
           useValue: {
             emitWithAck,
-            timeout: vi.fn().mockReturnValue({ emitWithAck }),
+            timeout: socketTimeout,
           },
         },
         {
@@ -84,6 +87,12 @@ describe('MediasoupSessionService', () => {
             detach: vi.fn(),
             clear: vi.fn(),
             getConsumerId: vi.fn(),
+          },
+        },
+        {
+          provide: SettingsStore,
+          useValue: {
+            iceServers: vi.fn().mockReturnValue([]),
           },
         },
       ],
@@ -431,5 +440,57 @@ describe('MediasoupSessionService', () => {
     expect(videoClose).toHaveBeenCalled();
     expect(audioClose).toHaveBeenCalled();
     expect(releaseScreen).toHaveBeenCalled();
+  });
+
+  it('creates transport using the 10 s timeout', async () => {
+    service['device'] = {
+      loaded: true,
+      createSendTransport: vi.fn().mockReturnValue({ on: vi.fn() }),
+    } as never;
+
+    await service['createTransport']('send');
+
+    expect(socketTimeout).toHaveBeenCalledWith(10000);
+  });
+
+  it('retries PRODUCE once on ack timeout', async () => {
+    const listeners: Record<string, (...args: unknown[]) => void> = {};
+    const transport = {
+      id: 't-1',
+      on: (event: string, handler: (...args: unknown[]) => void) => {
+        listeners[event] = handler;
+      },
+    };
+    service['device'] = {
+      loaded: true,
+      createSendTransport: vi.fn().mockReturnValue(transport),
+    } as never;
+
+    await service['createTransport']('send');
+
+    const produceHandler = listeners['produce'];
+    expect(produceHandler).toBeDefined();
+
+    emitWithAck
+      .mockRejectedValueOnce(new Error('operation timed out'))
+      .mockResolvedValueOnce({ producerId: 'prod-retry' });
+
+    const callback = vi.fn();
+    const errback = vi.fn();
+
+    await produceHandler(
+      {
+        kind: 'video',
+        rtpParameters: {} as never,
+        appData: { mediaTag: 'cam' },
+      },
+      callback,
+      errback,
+    );
+
+    expect(emitWithAck).toHaveBeenCalledTimes(3);
+    expect(socketTimeout).toHaveBeenCalledWith(10000);
+    expect(callback).toHaveBeenCalledWith({ id: 'prod-retry' });
+    expect(errback).not.toHaveBeenCalled();
   });
 });

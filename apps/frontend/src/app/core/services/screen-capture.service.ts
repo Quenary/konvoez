@@ -5,7 +5,7 @@ import {
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 
 export type TScreenCaptureResult = {
   videoTrack: MediaStreamTrack;

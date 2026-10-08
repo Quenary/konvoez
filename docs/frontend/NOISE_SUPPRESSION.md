@@ -25,20 +25,20 @@ flowchart LR
   limiter --> analyser[AnalyserNode]
 ```
 
-| Stage                  | Role                                                                                                                                                                                     |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Highpass 100 Hz, Q 0.7 | Desk rumble before the model                                                                                                                                                             |
-| RNNoise                | Non-stationary noise, including keyboard clicks under speech. Wasm from `@sapphi-red/web-noise-suppressor` (`assets/web-noise-suppressor`)                                               |
-| Expander               | Closes pauses. Adaptive noise floor over ~2 s (eight 250 ms windows): opens near floor + 14 dB, closes near floor + 8 dB, hold 150 ms, attack 5 ms, release 120 ms, max cut about −40 dB |
-| Compressor             | Gentle level ride: threshold −26 dB, knee 16 dB, ratio 2.5, attack 12 ms, release 250 ms                                                                                                 |
-| Makeup +5 dB           | Lifts speech the compressor did not touch                                                                                                                                                |
-| Limiter                | Lookahead 128 samples (~2.7 ms) tracked with a sliding maximum, ceiling −1 dBFS, release 50 ms                                                                                           |
+| Stage                  | Role                                                                                                                                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Highpass 100 Hz, Q 0.7 | Desk rumble before the model                                                                                                                                                                                            |
+| RNNoise                | Non-stationary noise, including keyboard clicks under speech. Wasm from `@sapphi-red/web-noise-suppressor` (`assets/web-noise-suppressor`)                                                                              |
+| Expander               | Closes pauses. Adaptive noise floor over ~2 s (eight 250 ms windows): opens near floor + 14 dB, closes near floor + 8 dB, hold 150 ms, attack 5 ms, release 120 ms, max cut about −40 dB, lookahead 240 samples (~5 ms) |
+| Compressor             | Gentle level ride: threshold −26 dB, knee 16 dB, ratio 2.5, attack 12 ms, release 250 ms                                                                                                                                |
+| Makeup +5 dB           | Lifts speech the compressor did not touch                                                                                                                                                                               |
+| Limiter                | Lookahead 128 samples (~2.7 ms) tracked with a sliding maximum, ceiling −1 dBFS, release 50 ms                                                                                                                          |
 
-The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track. `AudioActivityService` thresholds are unchanged.
+The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track; it measures the fully processed signal (after expander, compressor, makeup and limiter), and the `AudioActivityService` thresholds were not re-tuned for it.
 
-Added latency is about one RNNoise frame (10 ms) plus the limiter lookahead. `cleanupPipeline` calls `destroy()` on the denoiser node and posts `{ type: 'dispose' }` to the expander and limiter. `process()` then returns false, so those processors stop while the capture context is still open (device change, pipeline rebuild).
+Added latency is about one RNNoise frame (10 ms) plus the expander lookahead (240 samples, 5 ms) and the limiter lookahead (128 samples, ~2.7 ms). `cleanupPipeline` calls `destroy()` on the denoiser node and posts `{ type: 'dispose' }` to the expander and limiter. `process()` then returns false, so those processors stop while the capture context is still open (device change, pipeline rebuild).
 
-**Fallback.** RNNoise needs 48 kHz. Any other `AudioContext` rate, or a failed wasm/worklet load, keeps Speex and the call stays up. If `audio/voice-dynamics.worklet.js` fails to load, expander and limiter are skipped and makeup stays at unity so the boost cannot clip.
+**Fallback.** RNNoise needs 48 kHz, which `AudioContext` requests explicitly (browsers unable to provide 48 kHz throw on creation). If loading RNNoise wasm or worklet fails (or defensively if the context sample rate is not 48 kHz), the pipeline falls back to Speex and the call stays up. If `audio/voice-dynamics.worklet.js` fails to load, expander and limiter are skipped and makeup stays at unity so the boost cannot clip.
 
 ## Playback
 

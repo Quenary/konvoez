@@ -2,11 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
+  effect,
   inject,
+  untracked,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
@@ -32,9 +33,11 @@ import { TranslatePipe } from '@ngx-translate/core';
 })
 export class TextRoomComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly roomsStore = inject(RoomsStore);
   private readonly roomManageService = inject(RoomManageService);
-  private readonly destroyRef = inject(DestroyRef);
+
+  private lastNonNullRoomId: number | null = null;
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
@@ -45,6 +48,7 @@ export class TextRoomComponent {
         return Number.isFinite(id) && id > 0 ? id : null;
       }),
     ),
+    { initialValue: null },
   );
 
   protected readonly room = computed((): IRoom | null => {
@@ -62,19 +66,33 @@ export class TextRoomComponent {
   private readonly roomsDict = this.roomsStore.roomsDict;
 
   constructor() {
-    this.activatedRoute.paramMap
-      .pipe(takeUntilDestroyed())
-      .subscribe((params) => {
-        const id = Number(params.get('id'));
-        if (!id || !Number.isFinite(id)) {
-          return;
-        }
-        this.roomsStore.setSelectedRoomId(id);
-        this.roomsStore.loadOne(id);
-      });
+    effect(() => {
+      const room = this.room();
+      const routeId = this.roomId();
 
-    this.destroyRef.onDestroy(() => {
-      this.roomsStore.setSelectedRoomId(null);
+      if (room !== null) {
+        this.lastNonNullRoomId = room.id;
+        return;
+      }
+
+      if (
+        this.lastNonNullRoomId !== null &&
+        this.lastNonNullRoomId === routeId
+      ) {
+        this.lastNonNullRoomId = null;
+        untracked(() => {
+          void this.router.navigate(['/']);
+        });
+      }
+    });
+
+    effect(() => {
+      const id = this.roomId();
+      if (id !== null) {
+        untracked(() => {
+          this.roomsStore.loadOne(id);
+        });
+      }
     });
   }
 

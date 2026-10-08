@@ -14,15 +14,15 @@ import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { AuthActions } from '@features/auth/auth.actions';
+import { AuthActions } from '@core/auth/auth.actions';
 import {
   selectCurrentUser,
   selectIsAuthorized,
-} from '@features/auth/auth.selectors';
+} from '@core/auth/auth.selectors';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { VoiceSessionService } from './voice-session.service';
-import { EntitySyncService } from './entity-sync.service';
+import { EntitySyncService, lobbyResyncMutex } from './entity-sync.service';
 
 describe('EntitySyncService', () => {
   let store: MockStore;
@@ -539,6 +539,67 @@ describe('EntitySyncService', () => {
         revision: 0,
         rooms: {},
       });
+    });
+
+    it('releases the mutex without another delay after the third failed GET_ALL_PEERS', async () => {
+      vi.useFakeTimers();
+      voiceRoomSocket.connected = false;
+      const error = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const warn = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      voiceRoomAck.emitWithAck.mockReset();
+      voiceRoomAck.emitWithAck.mockRejectedValue(new Error('timeout'));
+
+      createService();
+      voiceRoomSocket.connected = true;
+
+      emitter.emit('connect');
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(1);
+      expect(lobbyResyncMutex.isLocked()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(2);
+      expect(lobbyResyncMutex.isLocked()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(3);
+      expect(lobbyResyncMutex.isLocked()).toBe(false);
+
+      warn.mockRestore();
+      error.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('aborts backoff delay and releases mutex when voice room socket disconnects', async () => {
+      vi.useFakeTimers();
+      voiceRoomSocket.connected = false;
+      const error = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      voiceRoomAck.emitWithAck.mockReset();
+      voiceRoomAck.emitWithAck.mockRejectedValue(new Error('timeout'));
+
+      createService();
+      voiceRoomSocket.connected = true;
+
+      emitter.emit('connect');
+      await vi.advanceTimersByTimeAsync(0);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(1);
+      expect(lobbyResyncMutex.isLocked()).toBe(true);
+
+      voiceRoomSocket.connected = false;
+      voiceRoomEmitter.emit('disconnect');
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(lobbyResyncMutex.isLocked()).toBe(false);
+
+      error.mockRestore();
+      vi.useRealTimers();
     });
   });
 });

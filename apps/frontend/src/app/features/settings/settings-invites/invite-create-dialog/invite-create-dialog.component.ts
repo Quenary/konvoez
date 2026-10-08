@@ -19,7 +19,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiCopy } from '@taiga-ui/kit';
 import { TuiForm } from '@taiga-ui/layout';
-import { InvitesApiService } from '../invites-api.service';
+import { InvitesApiService } from '@core/api/invites-api.service';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
   createZodError,

@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import {
   EMPTY,
   combineLatest,
@@ -88,6 +88,10 @@ export class LocalScreenPreviewService {
   public resume(): void {
     this._paused.set(false);
     this.resume$.next();
+  }
+
+  public pause(): void {
+    this._paused.set(true);
   }
 
   public setAutoPauseWhenHidden(enabled: boolean): void {

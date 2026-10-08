@@ -23,8 +23,12 @@ import type {
   TransportOptions,
 } from 'mediasoup-client/types';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
-import { emitVoiceRoomWithAck } from './voice-room-socket-ack';
-import { SettingsStore } from '@features/settings/settings.store';
+import {
+  emitVoiceRoomWithAck,
+  isVoiceSocketAckTimeout,
+  VOICE_JOIN_ACK_MS,
+} from './voice-room-socket-ack';
+import { SettingsStore } from '@core/stores/settings.store';
 import { MicrophoneService } from './microphone.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
@@ -427,6 +431,7 @@ export class MediasoupSessionService {
       {
         direction,
       } satisfies IVoiceRoomCreateTransport,
+      VOICE_JOIN_ACK_MS,
     );
 
     const iceServers = this.settingsStore.iceServers();
@@ -460,19 +465,38 @@ export class MediasoupSessionService {
       transport.on(
         'produce',
         async ({ kind, rtpParameters, appData }, callback, errback) => {
+          const producePayload: IVoiceRoomProduce = {
+            kind,
+            rtpParameters,
+            transportId: transport.id,
+            mediaTag: appData['mediaTag'] as TVoiceRoomMediaTag,
+          };
+
           try {
             const res: IVoiceRoomProduceResult = await emitVoiceRoomWithAck(
               this.socket,
               EVoiceRoomEvent.PRODUCE,
-              {
-                kind,
-                rtpParameters,
-                transportId: transport.id,
-                mediaTag: appData['mediaTag'] as TVoiceRoomMediaTag,
-              } satisfies IVoiceRoomProduce,
+              producePayload,
+              VOICE_JOIN_ACK_MS,
             );
             callback({ id: res.producerId });
           } catch (error) {
+            if (isVoiceSocketAckTimeout(error)) {
+              try {
+                const retryRes: IVoiceRoomProduceResult =
+                  await emitVoiceRoomWithAck(
+                    this.socket,
+                    EVoiceRoomEvent.PRODUCE,
+                    producePayload,
+                    VOICE_JOIN_ACK_MS,
+                  );
+                callback({ id: retryRes.producerId });
+                return;
+              } catch (retryError) {
+                errback(retryError as Error);
+                return;
+              }
+            }
             errback(error as Error);
           }
         },

@@ -5,7 +5,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { IInvite } from '@konvoez/shared';
 import { InviteCreateDialogComponent } from './invite-create-dialog.component';
-import { InvitesApiService } from '../invites-api.service';
+import { InvitesApiService } from '@core/api/invites-api.service';
 
 describe('InviteCreateDialogComponent', () => {
   let component: InviteCreateDialogComponent;

@@ -38,6 +38,7 @@ import {
   type ICallGetActiveResult,
   type TVoiceSessionIdentity,
   isDirectCallVoiceSession,
+  EVoiceRoomErrorCode,
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
@@ -412,7 +413,7 @@ export class VoiceRoomsGateway
       transport = peer.recvTransport;
     }
     if (!transport) {
-      throw new Error('Transport not found');
+      throw new WsException('Transport not found');
     }
 
     await transport.connect({
@@ -435,74 +436,76 @@ export class VoiceRoomsGateway
     assertKnownMediaTag(body.mediaTag, body.kind);
     assertKindMatchesMediaTag(body.kind, body.mediaTag);
 
-    const transport = peer.sendTransport;
-    if (!transport) {
-      throw new Error('Send transport not created');
-    }
+    return room.produceMutex.runExclusive(async () => {
+      const transport = peer.sendTransport;
+      if (!transport) {
+        throw new WsException('Send transport not created');
+      }
 
-    const hasScreen = [...peer.producers.values()].some(
-      (p) => p.appData.mediaTag === 'screen' && !p.closed,
-    );
-    assertScreenAudioAllowed(body.mediaTag, hasScreen);
+      const hasScreen = [...peer.producers.values()].some(
+        (p) => p.appData.mediaTag === 'screen' && !p.closed,
+      );
+      assertScreenAudioAllowed(body.mediaTag, hasScreen);
 
-    // Replace existing producer with the same mediaTag (one per tag per peer).
-    for (const existing of [...peer.producers.values()]) {
-      if (existing.appData.mediaTag === body.mediaTag && !existing.closed) {
-        this.closeProducerInternal(
+      // Replace existing producer with the same mediaTag (one per tag per peer).
+      for (const existing of [...peer.producers.values()]) {
+        if (existing.appData.mediaTag === body.mediaTag && !existing.closed) {
+          this.closeProducerInternal(
+            room,
+            peer,
+            existing,
+            sessionKey,
+            socket.data.roomId,
+          );
+        }
+      }
+
+      if (isVideoMediaTag(body.mediaTag)) {
+        const videoCount = [...room.producers.values()].filter(
+          (p) => !p.closed && p.kind === 'video',
+        ).length;
+        if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
+          throw new WsException(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+        }
+      }
+
+      const producer: Producer<VoiceRoomStateMediasoupAppData> =
+        await transport.produce({
+          kind: body.kind,
+          rtpParameters: body.rtpParameters as unknown as RtpParameters,
+          appData: {
+            peerId: peer.id,
+            mediaTag: body.mediaTag,
+          },
+        });
+
+      peer.producers.set(producer.id, producer);
+      room.producers.set(producer.id, producer);
+
+      const onClosed = () => {
+        this.finalizeProducerClosed(
           room,
           peer,
-          existing,
+          producer,
           sessionKey,
           socket.data.roomId,
         );
-      }
-    }
+      };
+      producer.observer.on('close', onClosed);
+      producer.on('transportclose', onClosed);
 
-    if (isVideoMediaTag(body.mediaTag)) {
-      const videoCount = [...room.producers.values()].filter(
-        (p) => !p.closed && p.kind === 'video',
-      ).length;
-      if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-        throw new WsException('Room video producer limit reached');
-      }
-    }
-
-    const producer: Producer<VoiceRoomStateMediasoupAppData> =
-      await transport.produce({
+      const result: IVoiceRoomProduceResult = {
+        producerId: producer.id,
+        userId: peer.user.id,
         kind: body.kind,
-        rtpParameters: body.rtpParameters as unknown as RtpParameters,
-        appData: {
-          peerId: peer.id,
-          mediaTag: body.mediaTag,
-        },
-      });
+        mediaTag: body.mediaTag,
+      };
 
-    peer.producers.set(producer.id, producer);
-    room.producers.set(producer.id, producer);
+      const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
+      socket.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
 
-    const onClosed = () => {
-      this.finalizeProducerClosed(
-        room,
-        peer,
-        producer,
-        sessionKey,
-        socket.data.roomId,
-      );
-    };
-    producer.observer.on('close', onClosed);
-    producer.on('transportclose', onClosed);
-
-    const result: IVoiceRoomProduceResult = {
-      producerId: producer.id,
-      userId: peer.user.id,
-      kind: body.kind,
-      mediaTag: body.mediaTag,
-    };
-
-    const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
-    socket.to(roomsToEmit).emit(EVoiceRoomEvent.PRODUCER_CREATED, result);
-
-    return result;
+      return result;
+    });
   }
 
   @SubscribeMessage(EVoiceRoomEvent.CLOSE_PRODUCER)
@@ -541,12 +544,14 @@ export class VoiceRoomsGateway
     );
 
     const consumer = peer.consumers.get(body.consumerId);
-    if (!consumer || consumer.closed) {
+    if (!consumer) {
       return {};
     }
 
     peer.consumers.delete(consumer.id);
-    consumer.close();
+    if (!consumer.closed) {
+      consumer.close();
+    }
     return {};
   }
 
@@ -562,13 +567,13 @@ export class VoiceRoomsGateway
 
     const transport = peer.recvTransport;
     if (!transport) {
-      throw new Error('Receive transport not created');
+      throw new WsException('Receive transport not created');
     }
 
     const producer = room.producers.get(body.producerId);
 
     if (!producer) {
-      throw new Error('Producer not found');
+      throw new WsException('Producer not found');
     }
 
     if (
@@ -577,7 +582,7 @@ export class VoiceRoomsGateway
         rtpCapabilities: body.rtpCapabilities as unknown as RtpCapabilities,
       })
     ) {
-      throw new Error('Cannot consume');
+      throw new WsException('Cannot consume');
     }
 
     const consumer: Consumer<VoiceRoomStateMediasoupAppData> =
@@ -703,10 +708,18 @@ export class VoiceRoomsGateway
 
   @SubscribeMessage(EDirectCallEvent.CALL_REJECT)
   handleCallReject(
-    @ConnectedSocket() _client: TSocket,
+    @ConnectedSocket() client: TSocket,
     @MessageBody() body: ICallRejectPayload,
   ) {
-    const call = this.directCallsStateService.cancel(body.callId);
+    const recipient = client.data.user;
+    if (!recipient) {
+      this.logger.warn(
+        `Call reject without user: socketId=${client.id}, callId=${body.callId}`,
+      );
+      return { error: 'Unauthorized' };
+    }
+
+    const call = this.directCallsStateService.reject(body.callId, recipient.id);
     if (call) {
       this.logger.debug(
         `Call rejected: callId=${body.callId}, callerId=${body.callerId}, reason=${body.reason ?? 'declined'}`,
@@ -802,7 +815,7 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
-      throw new Error('Socket missing session key');
+      throw new WsException('Socket missing session key');
     }
     return sessionKey;
   }
@@ -813,13 +826,13 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
-      throw new Error('Socket missing session key');
+      throw new WsException('Socket missing session key');
     }
     if (!socket.rooms.has(sessionKey)) {
       this.logger.warn(
         `Socket not in session: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
-      throw new Error('Socket not in session');
+      throw new WsException('Socket not in session');
     }
   }
 
@@ -832,7 +845,7 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Room not found: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
-      throw new Error(`Room not found for session: ${sessionKey}`);
+      throw new WsException(`Room not found for session: ${sessionKey}`);
     }
 
     const peer = room.peers.get(socket.id);
@@ -840,7 +853,9 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Peer not registered in room: socketId=${socket.id}, sessionKey=${sessionKey}, roomPeers=${Array.from(room.peers.keys())}`,
       );
-      throw new Error(`Socket peer not registered in session: ${sessionKey}`);
+      throw new WsException(
+        `Socket peer not registered in session: ${sessionKey}`,
+      );
     }
 
     return { room, peer, sessionKey };

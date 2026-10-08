@@ -3,7 +3,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { notifyError } from '@shared/functions/notify-error.function';
 import { VoiceRoomTilesService } from './voice-room-tiles.service';
 import { VoiceRoomViewService } from './voice-room-view.service';
@@ -25,7 +25,6 @@ export class VoiceRoomActionsService {
     try {
       await this.voiceSessionService.watchPeerScreen(userId);
     } catch (error) {
-      console.error('Failed to watch screen', error);
       notifyError(
         this.tuiNotificationsService,
         this.translateService,

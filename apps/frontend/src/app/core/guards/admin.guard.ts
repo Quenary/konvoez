@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { selectAuth } from '@features/auth/auth.selectors';
+import { selectAuth } from '@core/auth/auth.selectors';
 import { EUserRole } from '@konvoez/shared';
 import { first, map } from 'rxjs';
 

@@ -149,24 +149,26 @@ export class ChatMessageAttachmentsComponent {
     return { width: source.width, height: source.height };
   });
 
-  protected open(index: number): void {
-    const items: IMediaPreviewItem[] = this.media()
-      .filter(
-        (item): item is IAttachmentView & { fullSrc: string } =>
-          !!item.fullSrc &&
-          (item.kind === EAttachmentKind.IMAGE ||
-            item.kind === EAttachmentKind.VIDEO),
-      )
-      .map((item) => ({
-        kind: item.kind as EAttachmentKind.IMAGE | EAttachmentKind.VIDEO,
-        src: item.fullSrc,
-        name: item.name,
-        downloadUrl: item.downloadUrl,
-      }));
-    if (items.length === 0) {
+  protected open(target: IAttachmentView | number): void {
+    const validViews = this.media().filter(
+      (item): item is IAttachmentView & { fullSrc: string } =>
+        !!item.fullSrc &&
+        (item.kind === EAttachmentKind.IMAGE ||
+          item.kind === EAttachmentKind.VIDEO),
+    );
+    const targetKey =
+      typeof target === 'number' ? this.media()[target]?.key : target.key;
+    const targetIndex = validViews.findIndex((item) => item.key === targetKey);
+    if (targetIndex === -1) {
       return;
     }
-    this.mediaPreviewService.open(items, index).subscribe();
+    const items: IMediaPreviewItem[] = validViews.map((item) => ({
+      kind: item.kind as EAttachmentKind.IMAGE | EAttachmentKind.VIDEO,
+      src: item.fullSrc,
+      name: item.name,
+      downloadUrl: item.downloadUrl,
+    }));
+    this.mediaPreviewService.open(items, targetIndex).subscribe();
   }
 
   private toServerView(attachment: IAttachment): IAttachmentView {

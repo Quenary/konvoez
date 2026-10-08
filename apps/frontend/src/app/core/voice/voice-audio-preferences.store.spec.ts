@@ -121,4 +121,27 @@ describe('VoiceAudioPreferencesStore', () => {
 
     expect(localStorage.getItem('konvoez-microphone-muted')).toBe('true');
   });
+
+  it('persists peer gains through effects after state changes', () => {
+    const store = TestBed.inject(VoiceAudioPreferencesStore);
+
+    store.setPeerGain(42, 1.5);
+    store.setPeerScreenGain(42, 0.75);
+
+    expect(store.peerGainLevels()[42]).toBe(1.5);
+    expect(store.peerScreenGainLevels()[42]).toBe(0.75);
+    expect(playback.setPeerGain).toHaveBeenCalledWith(42, 1.5, false);
+    expect(screenAudio.setGain).toHaveBeenCalledWith(42, 0.75, false);
+
+    TestBed.flushEffects();
+
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.PEER_GAIN_LEVELS) ?? '{}'),
+    ).toEqual({ 42: 1.5 });
+    expect(
+      JSON.parse(
+        localStorage.getItem(EStorageKey.PEER_SCREEN_GAIN_LEVELS) ?? '{}',
+      ),
+    ).toEqual({ 42: 0.75 });
+  });
 });

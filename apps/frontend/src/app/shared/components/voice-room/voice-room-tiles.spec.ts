@@ -5,6 +5,7 @@ import {
   findVoiceRoomTile,
   pickDefaultTheatreTile,
   resolveTheatreTile,
+  showsLocalScreenPreviewPauseControl,
   showsRemoteScreenWatchControls,
   type TVoiceRoomTile,
 } from './voice-room-tiles';
@@ -77,6 +78,61 @@ describe('buildVoiceRoomTiles', () => {
     expect(localTiles).toHaveLength(2);
     expect(localTiles[0].streamKind).toBe('cam');
     expect(localTiles[1].streamKind).toBe('screen');
+  });
+
+  it('computes previewPaused as true only for local screen tile when localScreenPreviewPaused is true', () => {
+    const cam = track('cam');
+    const screen = track('scr');
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      localCamTrack: cam,
+      localScreenTrack: screen,
+      remoteCamTracks: { 2: cam },
+      remoteScreenTracks: { 2: screen },
+      availableScreens: { 2: { videoProducerId: 'p1' } },
+      watchingUserIds: new Set([2]),
+      localScreenPreviewPaused: true,
+    });
+
+    const localCam = tiles.find(
+      (t) => t.peerId === 1 && t.streamKind === 'cam',
+    );
+    const localScreen = tiles.find(
+      (t) => t.peerId === 1 && t.streamKind === 'screen',
+    );
+    const remoteCam = tiles.find(
+      (t) => t.peerId === 2 && t.streamKind === 'cam',
+    );
+    const remoteScreen = tiles.find(
+      (t) => t.peerId === 2 && t.streamKind === 'screen',
+    );
+
+    expect(localCam?.previewPaused).toBe(false);
+    expect(localScreen?.previewPaused).toBe(true);
+    expect(remoteCam?.previewPaused).toBe(false);
+    expect(remoteScreen?.previewPaused).toBe(false);
+  });
+
+  it('computes previewPaused as false for local screen tile when localScreenPreviewPaused is false or omitted', () => {
+    const screen = track('scr');
+    const tilesDefault = buildVoiceRoomTiles({
+      ...baseInput(),
+      localScreenTrack: screen,
+    });
+    const screenTileDefault = tilesDefault.find(
+      (t) => t.peerId === 1 && t.streamKind === 'screen',
+    );
+    expect(screenTileDefault?.previewPaused).toBe(false);
+
+    const tilesFalse = buildVoiceRoomTiles({
+      ...baseInput(),
+      localScreenTrack: screen,
+      localScreenPreviewPaused: false,
+    });
+    const screenTileFalse = tilesFalse.find(
+      (t) => t.peerId === 1 && t.streamKind === 'screen',
+    );
+    expect(screenTileFalse?.previewPaused).toBe(false);
   });
 
   it('shows remote screen track only when watching', () => {
@@ -287,5 +343,41 @@ describe('showsRemoteScreenWatchControls', () => {
     );
     expect(showsRemoteScreenWatchControls(tile(2, 'cam', true), 1)).toBe(false);
     expect(showsRemoteScreenWatchControls(null, 1)).toBe(false);
+  });
+});
+
+describe('showsLocalScreenPreviewPauseControl', () => {
+  const tile = (
+    peerId: number,
+    streamKind: 'cam' | 'screen' | null,
+    videoTrack: MediaStreamTrack | null,
+    previewPaused: boolean,
+  ): TVoiceRoomTile =>
+    ({
+      key: `${peerId}:${streamKind ?? 'voice'}`,
+      peerId,
+      streamKind,
+      videoTrack,
+      previewPaused,
+    }) as TVoiceRoomTile;
+
+  it('is true only for an active local screen preview', () => {
+    const scr = track('scr');
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'screen', scr, false), 1),
+    ).toBe(true);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'screen', scr, true), 1),
+    ).toBe(false);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'screen', null, false), 1),
+    ).toBe(false);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(2, 'screen', scr, false), 1),
+    ).toBe(false);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'cam', scr, false), 1),
+    ).toBe(false);
+    expect(showsLocalScreenPreviewPauseControl(null, 1)).toBe(false);
   });
 });

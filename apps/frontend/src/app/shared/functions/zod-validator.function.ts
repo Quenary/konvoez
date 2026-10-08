@@ -8,7 +8,7 @@ import {
 import { assertInInjectionContext, computed, type Signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { merge, startWith } from 'rxjs';
-import { z } from 'zod';
+import * as z from 'zod';
 import { SCHEMA_ERROR } from '@konvoez/shared';
 
 const ZOD_ERROR_KEY = 'zod';

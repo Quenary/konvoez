@@ -5,7 +5,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomsApiService } from '@core/api/rooms-api.service';
-import { RoomsStore } from '@core/stores/rooms.store';
+import { RoomsStore } from './rooms.store';
 
 describe('RoomsStore', () => {
   let store: InstanceType<typeof RoomsStore>;
@@ -75,9 +75,8 @@ describe('RoomsStore', () => {
     vi.clearAllMocks();
   });
 
-  it('should initialize with empty entities and no selection', () => {
+  it('should initialize with empty entities', () => {
     expect(store.entities()).toEqual([]);
-    expect(store.selectedRoomId()).toBeNull();
   });
 
   it('should load all rooms sorted by name within each type list', () => {
@@ -113,31 +112,33 @@ describe('RoomsStore', () => {
     expect(store.entityMap()[textRoom.id]?.name).toBe('renamed');
   });
 
-  it('should remove a room via API and clear selection when selected', () => {
+  it('should remove a room via API', () => {
     store.upsertOne(textRoom);
-    store.setSelectedRoomId(textRoom.id);
 
     store.remove(textRoom.id);
 
     expect(apiService.remove).toHaveBeenCalledWith(textRoom.id);
     expect(store.entityMap()[textRoom.id]).toBeUndefined();
-    expect(store.selectedRoomId()).toBeNull();
   });
 
-  it('should remove one entity without clearing unrelated selection', () => {
+  it('should remove one entity', () => {
     store.upsertOne(textRoom);
     store.upsertOne(voiceRoom);
-    store.setSelectedRoomId(voiceRoom.id);
 
     store.removeOne(textRoom.id);
 
     expect(store.entityMap()[textRoom.id]).toBeUndefined();
-    expect(store.selectedRoomId()).toBe(voiceRoom.id);
+    expect(store.entityMap()[voiceRoom.id]).toBeDefined();
   });
 
-  it('should set selected room id', () => {
-    store.setSelectedRoomId(textRoom.id);
-    expect(store.selectedRoomId()).toBe(textRoom.id);
+  it('should clear all entities on clear()', () => {
+    store.upsertOne(textRoom);
+    store.upsertOne(voiceRoom);
+
+    store.clear();
+
+    expect(store.entities()).toHaveLength(0);
+    expect(Object.keys(store.entityMap())).toHaveLength(0);
   });
 
   it('should show notification and keep entities on loadAll error', () => {
@@ -150,5 +151,45 @@ describe('RoomsStore', () => {
 
     expect(store.entities()).toHaveLength(1);
     expect(mockNotifications.open).toHaveBeenCalled();
+  });
+
+  it('handles concurrent removes and updates state for both', () => {
+    store.upsertOne(textRoom);
+    store.upsertOne(voiceRoom);
+
+    store.remove(textRoom.id);
+    store.remove(voiceRoom.id);
+
+    expect(apiService.remove).toHaveBeenCalledWith(textRoom.id);
+    expect(apiService.remove).toHaveBeenCalledWith(voiceRoom.id);
+    expect(store.entityMap()[textRoom.id]).toBeUndefined();
+    expect(store.entityMap()[voiceRoom.id]).toBeUndefined();
+  });
+
+  it('handles concurrent removes with errors and shows notifications for both', () => {
+    store.upsertOne(textRoom);
+    store.upsertOne(voiceRoom);
+
+    apiService.remove.mockReturnValue(
+      throwError(() => new Error('Delete failed')),
+    );
+
+    store.remove(textRoom.id);
+    store.remove(voiceRoom.id);
+
+    expect(mockNotifications.open).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles concurrent creates and upserts both entities', () => {
+    const anotherRoom: IRoom = { ...betaTextRoom, id: 99, name: 'other' };
+    apiService.create
+      .mockReturnValueOnce(of(betaTextRoom))
+      .mockReturnValueOnce(of(anotherRoom));
+
+    store.create({ name: 'beta', type: ERoomType.TEXT });
+    store.create({ name: 'other', type: ERoomType.TEXT });
+
+    expect(store.entityMap()[betaTextRoom.id]).toEqual(betaTextRoom);
+    expect(store.entityMap()[anotherRoom.id]).toEqual(anotherRoom);
   });
 });

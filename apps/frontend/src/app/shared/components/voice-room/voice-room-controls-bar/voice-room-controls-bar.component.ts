@@ -7,7 +7,7 @@ import {
   output,
 } from '@angular/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
@@ -61,6 +61,31 @@ export class VoiceRoomControlsBarComponent {
   protected readonly screenSupported = ScreenCaptureService.isSupported();
   protected readonly canProduce = this.voiceSessionService.canProduce;
 
+  protected readonly cameraDisabled = computed(
+    () => !this.canProduce() && !this.cameraOn(),
+  );
+  protected readonly screenDisabled = computed(
+    () => !this.canProduce() && !this.screenOn(),
+  );
+
+  protected readonly micHintKey = computed(() =>
+    this.micMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
+  );
+
+  protected readonly cameraHintKey = computed(() => {
+    if (this.canProduce() || this.cameraOn()) {
+      return this.cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON';
+    }
+    return 'CALL.WAITING_FOR_CONNECTION';
+  });
+
+  protected readonly screenHintKey = computed(() => {
+    if (this.canProduce() || this.screenOn()) {
+      return this.screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON';
+    }
+    return 'CALL.WAITING_FOR_CONNECTION';
+  });
+
   protected toggleMicrophone(): void {
     this.voiceAudioPreferencesStore.toggleMicrophoneMuted();
   }
@@ -110,7 +135,6 @@ export class VoiceRoomControlsBarComponent {
     try {
       await start.produce();
     } catch (error) {
-      console.error(start.failedLog, error);
       notifyError(
         this.tuiNotificationsService,
         this.translateService,
@@ -126,7 +150,6 @@ export class VoiceRoomControlsBarComponent {
       {
         labelKey: string;
         failedKey: string;
-        failedLog: string;
         active: () => boolean;
         settings: () => {
           height: TStreamQualityDialogResult['height'];
@@ -140,7 +163,6 @@ export class VoiceRoomControlsBarComponent {
       cam: {
         labelKey: 'CALL.CAMERA',
         failedKey: 'CALL.CAMERA_FAILED',
-        failedLog: 'Failed to start camera',
         active: () => this.cameraOn(),
         settings: () => ({
           height: this.settingsStore.streamHeight(),
@@ -156,7 +178,6 @@ export class VoiceRoomControlsBarComponent {
       screen: {
         labelKey: 'CALL.SCREEN',
         failedKey: 'CALL.SCREEN_FAILED',
-        failedLog: 'Failed to start screen share',
         active: () => this.screenOn(),
         settings: () => ({
           height: this.settingsStore.screenHeight(),

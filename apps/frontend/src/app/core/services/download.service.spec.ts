@@ -49,15 +49,13 @@ describe('DownloadService', () => {
     expect(link.remove).toHaveBeenCalled();
   });
 
-  it('revokes blob URLs after the download starts', () => {
+  it('does not revoke blob URLs after download starts', () => {
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { revokeObjectURL });
 
     service.downloadUrl('blob:https://example.com/abc', 'export.zip');
 
-    expect(revokeObjectURL).toHaveBeenCalledWith(
-      'blob:https://example.com/abc',
-    );
+    expect(revokeObjectURL).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 });

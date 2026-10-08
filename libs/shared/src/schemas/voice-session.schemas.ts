@@ -134,7 +134,7 @@ export interface ICallAcceptedPayload {
 export interface ICallRejectPayload {
   callId: string;
   callerId: number;
-  reason?: 'declined' | 'busy';
+  reason?: 'declined' | 'busy' | 'failed';
 }
 
 export interface ICallRejectedPayload {

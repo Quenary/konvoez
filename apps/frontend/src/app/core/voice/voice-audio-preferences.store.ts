@@ -54,13 +54,13 @@ export const VoiceAudioPreferencesStore = signalStore(
       peerScreenAudioService = inject(PeerScreenAudioService),
       mediasoupSessionService = inject(MediasoupSessionService),
       audioService = inject(AudioService),
-    ) => ({
-      setMicrophoneMuted(microphoneMuted: boolean): void {
+    ) => {
+      const setMic = (microphoneMuted: boolean): void => {
         patchState(store, { microphoneMuted });
         mediasoupSessionService.setMicrophoneMuted(microphoneMuted);
-      },
+      };
 
-      setSpeakerMuted(speakerMuted: boolean): void {
+      const setSpeaker = (speakerMuted: boolean): void => {
         patchState(store, { speakerMuted });
         peerPlaybackService.applySpeakerMuted(
           speakerMuted,
@@ -70,68 +70,64 @@ export const VoiceAudioPreferencesStore = signalStore(
           speakerMuted,
           store.peerScreenGainLevels(),
         );
-      },
+      };
 
-      toggleMicrophoneMuted(): void {
-        const microphoneMuted = !store.microphoneMuted();
-        patchState(store, { microphoneMuted });
-        mediasoupSessionService.setMicrophoneMuted(microphoneMuted);
-        if (!microphoneMuted) {
-          patchState(store, { speakerMuted: false });
-          peerPlaybackService.applySpeakerMuted(false, store.peerGainLevels());
-          peerScreenAudioService.applySpeakerMuted(
-            false,
-            store.peerScreenGainLevels(),
-          );
-        }
-        audioService.playMuteAudio();
-      },
+      return {
+        setMicrophoneMuted(microphoneMuted: boolean): void {
+          setMic(microphoneMuted);
+        },
 
-      toggleSpeakerMuted(): void {
-        const speakerMuted = !store.speakerMuted();
-        patchState(store, { speakerMuted });
-        peerPlaybackService.applySpeakerMuted(
-          speakerMuted,
-          store.peerGainLevels(),
-        );
-        peerScreenAudioService.applySpeakerMuted(
-          speakerMuted,
-          store.peerScreenGainLevels(),
-        );
-        if (speakerMuted) {
-          patchState(store, { microphoneMuted: true });
-          mediasoupSessionService.setMicrophoneMuted(true);
-        }
-        audioService.playMuteAudio();
-      },
+        setSpeakerMuted(speakerMuted: boolean): void {
+          setSpeaker(speakerMuted);
+        },
 
-      setPeerGain(userId: number, gain: number): void {
-        patchState(store, (state) => {
-          const peerGainLevels = {
-            ...state.peerGainLevels,
-            [userId]: gain,
-          };
-          storageSetItemJson(EStorageKey.PEER_GAIN_LEVELS, peerGainLevels);
-          return { peerGainLevels };
-        });
-        peerPlaybackService.setPeerGain(userId, gain, store.speakerMuted());
-      },
+        /**
+         * Toggles microphone mute state and un-deafens if unmuted.
+         * Plays mute/unmute audio SFX via {@link AudioService}.
+         */
+        toggleMicrophoneMuted(): void {
+          const microphoneMuted = !store.microphoneMuted();
+          setMic(microphoneMuted);
+          if (!microphoneMuted) {
+            setSpeaker(false);
+          }
+          audioService.playMuteAudio();
+        },
 
-      setPeerScreenGain(userId: number, gain: number): void {
-        patchState(store, (state) => {
-          const peerScreenGainLevels = {
-            ...state.peerScreenGainLevels,
-            [userId]: gain,
-          };
-          storageSetItemJson(
-            EStorageKey.PEER_SCREEN_GAIN_LEVELS,
-            peerScreenGainLevels,
-          );
-          return { peerScreenGainLevels };
-        });
-        peerScreenAudioService.setGain(userId, gain, store.speakerMuted());
-      },
-    }),
+        /**
+         * Toggles speaker mute state and mutes microphone if deafened.
+         * Plays mute/unmute audio SFX via {@link AudioService}.
+         */
+        toggleSpeakerMuted(): void {
+          const speakerMuted = !store.speakerMuted();
+          setSpeaker(speakerMuted);
+          if (speakerMuted) {
+            setMic(true);
+          }
+          audioService.playMuteAudio();
+        },
+
+        setPeerGain(userId: number, gain: number): void {
+          patchState(store, (state) => ({
+            peerGainLevels: {
+              ...state.peerGainLevels,
+              [userId]: gain,
+            },
+          }));
+          peerPlaybackService.setPeerGain(userId, gain, store.speakerMuted());
+        },
+
+        setPeerScreenGain(userId: number, gain: number): void {
+          patchState(store, (state) => ({
+            peerScreenGainLevels: {
+              ...state.peerScreenGainLevels,
+              [userId]: gain,
+            },
+          }));
+          peerScreenAudioService.setGain(userId, gain, store.speakerMuted());
+        },
+      };
+    },
   ),
   withHooks({
     onInit(store) {
@@ -143,6 +139,16 @@ export const VoiceAudioPreferencesStore = signalStore(
       effect(() => {
         const value = store.speakerMuted();
         storageSetItemJson(EStorageKey.SPEAKER_MUTED, value);
+      });
+
+      effect(() => {
+        const value = store.peerGainLevels();
+        storageSetItemJson(EStorageKey.PEER_GAIN_LEVELS, value);
+      });
+
+      effect(() => {
+        const value = store.peerScreenGainLevels();
+        storageSetItemJson(EStorageKey.PEER_SCREEN_GAIN_LEVELS, value);
       });
     },
   }),

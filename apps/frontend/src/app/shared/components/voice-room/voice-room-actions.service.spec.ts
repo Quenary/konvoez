@@ -28,6 +28,7 @@ const tile = (
   videoTrack,
   screenAvailable: false,
   watchingScreen: false,
+  previewPaused: false,
 });
 
 describe('VoiceRoomActionsService', () => {
@@ -132,7 +133,7 @@ describe('VoiceRoomActionsService', () => {
     });
 
     it('notifies the user when watching fails', async () => {
-      vi.spyOn(console, 'error').mockImplementation(() => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
         /* noop */
       });
       watchPeerScreen.mockRejectedValue(new Error('boom'));
@@ -140,6 +141,7 @@ describe('VoiceRoomActionsService', () => {
       await actions().watchPeerScreen(2);
 
       expect(notificationOpen).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

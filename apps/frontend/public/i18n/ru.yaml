@@ -72,14 +72,18 @@ CALL:
   HANGUP: Выйти из звонка
   BUSY: Пользователь занят другим звонком
   DECLINED: Звонок отклонен
+  CALL_FAILED: Не удалось установить звонок
   NO_ANSWER: Пользователь не отвечает
   ACCEPT_FAILED: Не удалось принять звонок
+  INITIATE_FAILED: Не удалось совершить звонок
   VIDEO_LIMIT_REACHED: Достигнут лимит видео в комнате
   WAITING_FOR_CONNECTION: Ожидание подключения…
   PARTICIPANTS: 'Участников: {{count}}'
   YOU: Вы
   VOLUME: Громкость
-  MUTE: Заглушить
+  MUTE_MICROPHONE: Выключить микрофон
+  UNMUTE_MICROPHONE: Включить микрофон
+  MICROPHONE_MUTED: Микрофон выключен
   SOUND: Звук
   SOUND_OFF: Звук выключен
   CAMERA: Камера
@@ -102,12 +106,13 @@ CALL:
   SCREEN_VOLUME: Громкость экрана
   YOUR_SCREEN: Ваш экран
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
+  PREVIEW_PAUSE: Приостановить
   PREVIEW_RESUME: Возобновить
   PREVIEW_AUTO_PAUSE: Автоматическая пауза
   SHOW_THEATRE: Режим театра
   SHOW_GRID: Режим сетки
   FULLSCREEN: На весь экран
-  EXIT_FULLSCREEN: Свернуть
+  EXIT_FULLSCREEN: Выйти из полноэкранного режима
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
   ROOM_CLOSED: Голосовая комната была закрыта

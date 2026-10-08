@@ -13,7 +13,7 @@ import { LocalScreenPreviewService } from '@core/services/local-screen-preview.s
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
   TuiButton,
   TuiCheckbox,
@@ -30,6 +30,7 @@ import { distinctFullname } from '../voice-peer-label';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
 @Component({
   selector: 'app-voice-room-tile',
@@ -47,6 +48,7 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
     TranslatePipe,
     TuiGroup,
     VideoTrackDirective,
+    VoiceRoomLocalScreenPreviewPauseButtonComponent,
   ],
   templateUrl: './voice-room-tile.component.html',
   styleUrl: './voice-room-tile.component.scss',
@@ -72,6 +74,7 @@ export class VoiceRoomTileComponent {
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);
   public readonly watchingScreen = input(false);
+  public readonly previewPaused = input(false);
 
   protected readonly autoPauseWhenHidden =
     this.localScreenPreviewService.autoPauseWhenHidden;
@@ -103,11 +106,6 @@ export class VoiceRoomTileComponent {
 
   protected readonly showingScreen = computed(
     () => this.streamKind() === 'screen' && this.videoTrack() !== null,
-  );
-
-  protected readonly previewPaused = computed(
-    () =>
-      this.isLocalScreenPreview() && this.localScreenPreviewService.paused(),
   );
 
   protected readonly isCalling = computed(() => {
@@ -173,6 +171,17 @@ export class VoiceRoomTileComponent {
 
   protected readonly videoClickable = computed(
     () => this.videoTrack() !== null && !this.previewPaused(),
+  );
+
+  protected readonly showPausePreviewButton = computed(
+    () =>
+      this.isLocalScreenPreview() &&
+      this.videoTrack() !== null &&
+      !this.previewPaused(),
+  );
+
+  protected readonly showInfoActions = computed(
+    () => this.showPausePreviewButton() || !this.isLocal(),
   );
 
   protected onVolumeChange(value: number): void {

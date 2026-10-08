@@ -138,10 +138,70 @@ describe('voice dynamics worklet', () => {
     expect(tailMean).toBeLessThan(0.0001);
   });
 
+  it('reaches at least -3 dB gain by the first output sample of the onset', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.001)),
+    );
+    const speech = render(
+      processor,
+      Array.from({ length: 3 }, () => constantBlock(0.25)),
+    );
+    expect(speech[0][0]).toBeLessThan(0.001);
+
+    const firstOnsetSample = speech[1][240 - 128];
+    const gainAtOnset = firstOnsetSample / 0.25;
+    const gainDb = 20 * Math.log10(gainAtOnset);
+    expect(gainDb).toBeGreaterThanOrEqual(-3);
+  });
+
+  it('does not open the gate on bursty low-level noise', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.0015)),
+    );
+
+    const burstyBlocks = Array.from({ length: 20 }, (_, i) => {
+      const b = constantBlock(0.0015);
+      if (i % 3 === 0) {
+        b.fill(0.0035);
+      }
+      return b;
+    });
+
+    const rendered = render(processor, burstyBlocks);
+    expect(peak(rendered)).toBeLessThan(0.001);
+  });
+
+  it('adapts the noise floor to a louder steady noise and keeps the gate closed', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_EXPANDER_OPTIONS,
+    });
+    render(
+      processor,
+      Array.from({ length: 20 }, () => constantBlock(0.001)),
+    );
+
+    const louderBlocks = Array.from({ length: 850 }, (_, i) => {
+      return constantBlock(i % 4 === 0 ? 0.0005 : 0.004);
+    });
+    const returnBlocks = Array.from({ length: 50 }, () => constantBlock(0.001));
+
+    const rendered = render(processor, [...louderBlocks, ...returnBlocks]);
+    expect(peak(rendered)).toBeLessThan(0.0005);
+  });
+
   it('holds a full-scale burst under the ceiling', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,
     });
+    const ceiling = 10 ** (-1 / 20);
     const spike = constantBlock(0);
     spike[0] = 1;
     const rendered = render(processor, [
@@ -152,15 +212,40 @@ describe('voice dynamics worklet', () => {
     ]);
     const limited = peak(rendered);
     expect(limited).toBeGreaterThan(0.5);
-    expect(limited).toBeLessThan(0.95);
+    expect(limited).toBeLessThanOrEqual(ceiling + 1e-6);
 
     const hot = render(
       processor,
       Array.from({ length: 6 }, () => constantBlock(1)),
     );
     const settled = hot.slice(2);
-    expect(peak(settled)).toBeLessThan(0.95);
+    expect(peak(settled)).toBeLessThanOrEqual(ceiling + 1e-6);
     expect(peak(settled)).toBeGreaterThan(0.5);
+  });
+
+  it('strictly clamps peaks at 2.0 and 4.0 to never exceed the ceiling', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_LIMITER_OPTIONS,
+    });
+    const ceiling = 10 ** (-1 / 20);
+
+    for (const amp of [2.0, 4.0]) {
+      const spike = constantBlock(0);
+      spike[0] = amp;
+      const rendered = render(processor, [
+        constantBlock(0),
+        spike,
+        constantBlock(0),
+        constantBlock(0),
+      ]);
+      expect(peak(rendered)).toBeLessThanOrEqual(ceiling + 1e-6);
+
+      const hot = render(
+        processor,
+        Array.from({ length: 6 }, () => constantBlock(amp)),
+      );
+      expect(peak(hot)).toBeLessThanOrEqual(ceiling + 1e-6);
+    }
   });
 
   it('passes a moderate level without limiting', () => {
@@ -176,6 +261,39 @@ describe('voice dynamics worklet', () => {
       last.reduce((sum, sample) => sum + Math.abs(sample), 0) / last.length;
     expect(mean).toBeGreaterThan(0.18);
     expect(mean).toBeLessThan(0.22);
+  });
+
+  it('handles stereo input correctly', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_LIMITER_OPTIONS,
+    });
+    const left = constantBlock(0.2);
+    const right = constantBlock(0.2);
+    const outLeft = new Float32Array(128);
+    const outRight = new Float32Array(128);
+
+    processor.process([[left, right]], [[outLeft, outRight]]);
+    processor.process([[left, right]], [[outLeft, outRight]]);
+
+    expect(outLeft[0]).toBeCloseTo(0.2, 2);
+    expect(outRight[0]).toBeCloseTo(0.2, 2);
+  });
+
+  it('handles mono input with stereo output by copying and zero-fills extra channels', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_LIMITER_OPTIONS,
+    });
+    const mono = constantBlock(0.2);
+    const outLeft = new Float32Array(128);
+    const outRight = new Float32Array(128);
+    const outSurround = new Float32Array(128).fill(999);
+
+    processor.process([[mono]], [[outLeft, outRight, outSurround]]);
+    processor.process([[mono]], [[outLeft, outRight, outSurround]]);
+
+    expect(outLeft[0]).toBeCloseTo(0.2, 2);
+    expect(outRight[0]).toBeCloseTo(0.2, 2);
+    expect(outSurround[0]).toBe(0);
   });
 
   it('stops after dispose so a disconnected node can be collected', () => {

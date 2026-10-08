@@ -162,6 +162,22 @@ describe('DirectCallService', () => {
     expect(service.isDirectCallContext()).toBe(true);
   });
 
+  it('initiateCall shows error notification and leaves active call null on failure', async () => {
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    socket.emitWithAck.mockRejectedValue(new Error('initiate failed'));
+
+    await service.initiateCall(recipient);
+
+    expect(service.activeCall()).toBeNull();
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.INITIATE_FAILED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    errorSpy.mockRestore();
+  });
+
   it('acceptCall clears the call when the server rejects accept', async () => {
     socket.emitWithAck.mockResolvedValue({
       error: 'Call not found or already ended',
@@ -181,7 +197,35 @@ describe('DirectCallService', () => {
       'CALL.ACCEPT_FAILED',
       expect.objectContaining({ appearance: 'negative' }),
     );
+    expect(socket.emit).not.toHaveBeenCalledWith(
+      EDirectCallEvent.CALL_REJECT,
+      expect.anything(),
+    );
     expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
+  });
+
+  it('guards acceptCall against re-entry while an accept is in flight', async () => {
+    let resolveAck!: (val: unknown) => void;
+    socket.emitWithAck.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAck = resolve;
+      }),
+    );
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    const first = service.acceptCall();
+    const second = service.acceptCall();
+
+    await second;
+    expect(socket.emitWithAck).toHaveBeenCalledTimes(1);
+
+    resolveAck(undefined);
+    await first;
   });
 
   it('acceptCall reports join failure and hangs up when media join fails', async () => {
@@ -201,6 +245,85 @@ describe('DirectCallService', () => {
       callId: 'c1',
       byUserId: caller.id,
     });
+    expect(service.activeCall()).toBeNull();
+  });
+
+  it('acceptCall on ack timeout rejoins call, navigates, and clears rejoinable call', async () => {
+    socket.emitWithAck
+      .mockRejectedValueOnce(new Error('timed out'))
+      .mockResolvedValueOnce({
+        callId: 'c1',
+        callerId: recipient.id,
+        recipientId: caller.id,
+      });
+
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    await service.acceptCall();
+
+    expect(voiceSessionService.joinSession).toHaveBeenCalledWith({
+      type: EVoiceSessionType.DIRECT_CALL,
+      callId: 'c1',
+      interlocutorId: recipient.id,
+    });
+    expect(router.navigate).toHaveBeenCalledWith(['/direct', recipient.id]);
+    expect(service.rejoinableCall()).toBeNull();
+    expect(service.activeCall()?.status).toBe(ECallStatus.CONNECTED);
+  });
+
+  it('acceptCall on ack timeout emits CALL_REJECT and shows toast when re-query returns null', async () => {
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    socket.emitWithAck
+      .mockRejectedValueOnce(new Error('timed out'))
+      .mockResolvedValueOnce(null);
+
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    await service.acceptCall();
+
+    expect(socket.emit).toHaveBeenCalledWith(EDirectCallEvent.CALL_REJECT, {
+      callId: 'c1',
+      callerId: recipient.id,
+      reason: 'failed',
+    });
+    expect(service.activeCall()).toBeNull();
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.ACCEPT_FAILED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('shows CALL_FAILED toast on CALL_REJECTED with reason failed', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CALLING,
+    });
+
+    handlers[EDirectCallEvent.CALL_REJECTED]({
+      callId: 'c1',
+      reason: 'failed',
+    });
+
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.CALL_FAILED',
+      expect.objectContaining({ appearance: 'warning' }),
+    );
     expect(service.activeCall()).toBeNull();
   });
 

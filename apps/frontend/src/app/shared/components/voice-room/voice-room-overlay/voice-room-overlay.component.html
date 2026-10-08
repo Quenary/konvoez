@@ -7,18 +7,18 @@
       tuiAvatar
       size="s"
       class="header-avatar">
-      @if (displayAvatarUrl()) {
+      @if (avatarUrl(); as url) {
         <img
-          [alt]="displayTitle()"
-          [ngSrc]="displayAvatarUrl()!"
+          [alt]="title()"
+          [ngSrc]="url"
           fill
           priority />
       } @else {
-        {{ displayTitle() | tuiInitials }}
+        {{ title() | tuiInitials }}
       }
     </div>
 
-    {{ displayTitle() }}
+    {{ title() }}
     <span tuiSubtitle>
       {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
     </span>
@@ -65,6 +65,9 @@
 <footer
   class="controls-dock"
   [class.vignette]="isFullscreen()">
+  @if (showLocalScreenPreviewPauseControl()) {
+    <app-voice-room-local-screen-preview-pause-button />
+  }
   @if (showRemoteScreenWatchControls()) {
     <app-voice-room-theatre-watch-controls [userId]="watchUserId()" />
   }

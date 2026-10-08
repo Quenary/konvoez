@@ -3,15 +3,15 @@ import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 import {
   ETextRoomEvent,
   EUserRole,
   ITextRoomMessage,
   IUser,
 } from '@konvoez/shared';
-import { TextRoomApiService } from './text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { UnreadCountsStore } from './unread-counts.store';
 
 class MockSocket {
@@ -91,7 +91,7 @@ describe('UnreadCountsStore', () => {
     TestBed.configureTestingModule({
       providers: [
         provideStore({ auth: authReducer }),
-        { provide: TextRoomApiService, useValue: apiService },
+        { provide: ChatApiService, useValue: apiService },
         { provide: TextRoomSocketToken, useValue: mockSocket },
       ],
     });

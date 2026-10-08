@@ -8,7 +8,7 @@ Guidelines for AI agents working in `apps/frontend` — the Angular client for K
 - **SCSS** for styles (not LESS/CSS)
 - **Taiga UI** for UI components
 - **NgRx Store + Effects** for cross-cutting app state (`auth`)
-- **NgRx Signal Stores** for feature/domain state (`*Store` under features)
+- **NgRx Signal Stores** for feature/domain state (root stores live in `core/stores`, `core/voice` and `core/chat`, plus feature stores where appropriate)
 - **ngx-translate** with YAML loaders
 - **Zod** schemas from `@konvoez/shared` for forms and shared contracts
 - **Socket.IO** + **mediasoup-client** for realtime voice/text
@@ -20,6 +20,7 @@ Use the workspace MCP servers when helpful: **angular-cli** (best practices, doc
 ```
 src/app/
   core/        # guards, interceptors, tokens, app-wide services, initializers
+               # (api, audio, chat, guards, initializers, interceptors, services, stores, voice)
   features/    # route-level features (auth, rooms, text-room, voice-room, …)
   shared/      # reusable components, pipes, directives, helpers
 ```
@@ -98,10 +99,12 @@ computed(() => {
 - Keep templates simple. Do not call ordinary methods or functions from templates (bindings, interpolations, `@if` / `@for` / `@switch`, or `host` property bindings). Change detection re-runs them on every cycle. Precompute derived values in `computed()` and read those signals in the template. Event bindings such as `(click)="save()"` are fine.
 - When a binding inside `@for` only compares each item to one shared signal (the active tile, the selection, and so on), read that signal once with `@let` before the loop and compare in the binding.
 
+<!-- prettier-ignore -->
 ```html
-// GOOD EXAMPLE @let focus = focusTile(); @for (tile of tiles(); track tile.key)
-{
-<button [class.active]="focus?.key === tile.key"></button>
+<!-- GOOD EXAMPLE -->
+@let focus = focusTile();
+@for (tile of tiles(); track tile.key) {
+  <button [class.active]="focus?.key === tile.key"></button>
 }
 ```
 

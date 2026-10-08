@@ -8,7 +8,7 @@ import { IUser } from '@konvoez/shared';
 import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
@@ -17,19 +17,23 @@ import { VoiceRoomOverlayComponent } from './voice-room-overlay.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 
 const stageTile = (
   peerId: number,
   streamKind: 'cam' | 'screen' | null,
   watchingScreen: boolean,
+  videoTrack: MediaStreamTrack | null = null,
+  previewPaused = false,
 ): TVoiceRoomTile => ({
   key: `${peerId}:${streamKind ?? 'voice'}`,
   peer: { id: peerId, username: `u${peerId}` } as IUser,
   peerId,
   streamKind,
-  videoTrack: null,
+  videoTrack,
   screenAvailable: streamKind === 'screen',
   watchingScreen,
+  previewPaused,
 });
 
 describe('VoiceRoomOverlayComponent', () => {
@@ -140,6 +144,16 @@ describe('VoiceRoomOverlayComponent', () => {
           provide: TuiNotificationService,
           useValue: { open: vi.fn(() => of(null)) },
         },
+        {
+          provide: LocalScreenPreviewService,
+          useValue: {
+            pause: vi.fn(),
+            resume: vi.fn(),
+            paused: signal(false).asReadonly(),
+            autoPauseWhenHidden: signal(true).asReadonly(),
+            setAutoPauseWhenHidden: vi.fn(),
+          },
+        },
       ],
     });
   });
@@ -201,6 +215,27 @@ describe('VoiceRoomOverlayComponent', () => {
         'app-voice-room-theatre-watch-controls',
       ),
     ).toBeTruthy();
+  });
+
+  it('shows local screen preview pause control on the local screen stage tile', () => {
+    layout.set('theatre');
+    theatreTile.set(
+      stageTile(1, 'screen', false, { id: 'scr' } as MediaStreamTrack),
+    );
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.detectChanges();
+
+    const pauseControl = () =>
+      fixture.nativeElement.querySelector(
+        'app-voice-room-local-screen-preview-pause-button',
+      );
+    expect(pauseControl()).toBeTruthy();
+
+    theatreTile.set(
+      stageTile(1, 'screen', false, { id: 'scr' } as MediaStreamTrack, true),
+    );
+    fixture.detectChanges();
+    expect(pauseControl()).toBeNull();
   });
 
   it('hides watch controls when the stage tile is not a watched remote screen', () => {
@@ -273,5 +308,32 @@ describe('VoiceRoomOverlayComponent', () => {
     expect(
       fixture.nativeElement.querySelector('.controls-dock.vignette'),
     ).toBeTruthy();
+  });
+
+  it('renders title and initials when avatarUrl is null', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.componentRef.setInput('title', 'Lobby');
+    fixture.componentRef.setInput('avatarUrl', null);
+    fixture.detectChanges();
+
+    const titleEl = fixture.nativeElement.querySelector('h2[tuiTitle]');
+    expect(titleEl?.textContent).toContain('Lobby');
+    expect(
+      fixture.nativeElement.querySelector('.header-avatar img'),
+    ).toBeNull();
+  });
+
+  it('renders avatar image with alt title when avatarUrl is provided', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.componentRef.setInput('title', 'Alice');
+    fixture.componentRef.setInput('avatarUrl', 'https://example.com/alice.png');
+    fixture.detectChanges();
+
+    const img = fixture.nativeElement.querySelector(
+      '.header-avatar img',
+    ) as HTMLImageElement | null;
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute('alt')).toBe('Alice');
+    expect(img?.getAttribute('src')).toBe('https://example.com/alice.png');
   });
 });

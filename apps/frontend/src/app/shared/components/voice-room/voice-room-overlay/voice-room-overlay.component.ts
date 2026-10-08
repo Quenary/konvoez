@@ -13,14 +13,18 @@ import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
 import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
-import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
+import {
+  showsLocalScreenPreviewPauseControl,
+  showsRemoteScreenWatchControls,
+} from '../voice-room-tiles';
+import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
 @Component({
   selector: 'app-voice-room-overlay',
@@ -40,6 +44,7 @@ import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
     TuiTitle,
     VoiceRoomControlsBarComponent,
     VoiceRoomTheatreWatchControlsComponent,
+    VoiceRoomLocalScreenPreviewPauseButtonComponent,
   ],
   templateUrl: './voice-room-overlay.component.html',
   styleUrl: './voice-room-overlay.component.scss',
@@ -70,6 +75,13 @@ export class VoiceRoomOverlayComponent {
     ),
   );
 
+  protected readonly showLocalScreenPreviewPauseControl = computed(() =>
+    showsLocalScreenPreviewPauseControl(
+      this.voiceRoomTilesService.theatreTile(),
+      this.currentUser()?.id ?? null,
+    ),
+  );
+
   protected readonly watchUserId = computed(
     () => this.voiceRoomTilesService.theatreTile()?.peerId ?? null,
   );
@@ -90,10 +102,6 @@ export class VoiceRoomOverlayComponent {
   protected readonly layoutToggleHintKey = computed(() =>
     this.layout() === 'theatre' ? 'CALL.SHOW_GRID' : 'CALL.SHOW_THEATRE',
   );
-
-  protected readonly displayTitle = computed(() => this.title());
-
-  protected readonly displayAvatarUrl = computed(() => this.avatarUrl() ?? '');
 
   protected onToggleFullscreen(): void {
     void this.voiceRoomViewService.toggleFullscreen(this.fullscreenTarget());

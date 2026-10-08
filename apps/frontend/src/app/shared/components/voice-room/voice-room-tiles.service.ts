@@ -1,7 +1,8 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PeerVideoService } from '@core/services/peer-video.service';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
 import { VoiceRoomViewService } from './voice-room-view.service';
 import { buildVoiceRoomTiles, resolveTheatreTile } from './voice-room-tiles';
@@ -13,6 +14,9 @@ export class VoiceRoomTilesService {
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
+  private readonly localScreenPreviewService = inject(
+    LocalScreenPreviewService,
+  );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -27,6 +31,7 @@ export class VoiceRoomTilesService {
       remoteScreenTracks: this.peerVideoService.remoteScreenTracks(),
       availableScreens: this.peerVideoService.availableScreens(),
       watchingUserIds: this.peerVideoService.watchingUserIds(),
+      localScreenPreviewPaused: this.localScreenPreviewService.paused(),
     });
   });
 

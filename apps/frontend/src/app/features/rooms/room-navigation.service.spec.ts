@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { ERoomType, EVoiceSessionType, IRoom } from '@konvoez/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,10 +8,7 @@ import { RoomNavigationService } from './room-navigation.service';
 
 describe('RoomNavigationService', () => {
   let service: RoomNavigationService;
-  let roomsStore: {
-    setSelectedRoomId: ReturnType<typeof vi.fn>;
-  };
-  let router: { navigate: ReturnType<typeof vi.fn>; url: string };
+  let router: { navigate: ReturnType<typeof vi.fn> };
   let voiceSessionService: {
     joinSession: ReturnType<typeof vi.fn>;
     reportJoinFailure: ReturnType<typeof vi.fn>;
@@ -42,12 +38,8 @@ describe('RoomNavigationService', () => {
   };
 
   beforeEach(() => {
-    roomsStore = {
-      setSelectedRoomId: vi.fn(),
-    };
     router = {
       navigate: vi.fn().mockResolvedValue(true),
-      url: '/',
     };
     voiceSessionService = {
       joinSession: vi.fn().mockResolvedValue(undefined),
@@ -58,7 +50,6 @@ describe('RoomNavigationService', () => {
     TestBed.configureTestingModule({
       providers: [
         RoomNavigationService,
-        { provide: RoomsStore, useValue: roomsStore },
         { provide: Router, useValue: router },
         { provide: VoiceSessionService, useValue: voiceSessionService },
         {
@@ -76,7 +67,6 @@ describe('RoomNavigationService', () => {
   it('selects a text room and navigates', () => {
     service.selectRoom(textRoom);
 
-    expect(roomsStore.setSelectedRoomId).toHaveBeenCalledWith(textRoom.id);
     expect(router.navigate).toHaveBeenCalledWith([`/text-room/${textRoom.id}`]);
     expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
   });
@@ -86,7 +76,6 @@ describe('RoomNavigationService', () => {
 
     service.selectRoom(voiceRoom);
 
-    expect(roomsStore.setSelectedRoomId).toHaveBeenCalledWith(voiceRoom.id);
     expect(voiceSessionService.joinSession).toHaveBeenCalledWith({
       type: EVoiceSessionType.GROUP_ROOM,
       roomId: voiceRoom.id,
@@ -110,7 +99,6 @@ describe('RoomNavigationService', () => {
   it('navigates home when room is null', () => {
     service.selectRoom(null);
 
-    expect(roomsStore.setSelectedRoomId).toHaveBeenCalledWith(null);
     expect(router.navigate).toHaveBeenCalledWith(['/']);
   });
 });

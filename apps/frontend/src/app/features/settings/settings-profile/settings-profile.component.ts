@@ -28,11 +28,11 @@ import {
   TuiButtonLoading,
 } from '@taiga-ui/kit';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { AuthActions } from '@features/auth/auth.actions';
+import { AuthActions } from '@core/auth/auth.actions';
 import {
   selectAuthLoading,
   selectCurrentUser,
-} from '@features/auth/auth.selectors';
+} from '@core/auth/auth.selectors';
 import {
   emailSchema,
   EUserRole,
@@ -43,7 +43,7 @@ import {
   usernameSchema,
 } from '@konvoez/shared';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { ProfileApiService } from './profile-api.service';
+import { ProfileApiService } from '@core/api/profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';

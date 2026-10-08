@@ -1,7 +1,7 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { resolveVoiceSessionPeers } from './voice-session-peers';
 

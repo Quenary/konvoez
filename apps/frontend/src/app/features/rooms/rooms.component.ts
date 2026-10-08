@@ -14,8 +14,7 @@ import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomCreate } from '@konvoez/shared';
-import { ERoomType, IUser } from '@konvoez/shared';
+import { ERoomType, IRoom, IRoomCreate, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
@@ -38,7 +37,7 @@ import {
 } from '@taiga-ui/kit';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UsersStore } from '@core/stores/users.store';
 import { Router, RouterLink } from '@angular/router';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
@@ -122,7 +121,8 @@ export class RoomsComponent implements OnInit {
     if (userId === null) {
       return null;
     }
-    return users[userId] ?? null;
+    const interlocutor = this.directCallService.interlocutor();
+    return users[userId] ?? (interlocutor?.id === userId ? interlocutor : null);
   });
 
   protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);

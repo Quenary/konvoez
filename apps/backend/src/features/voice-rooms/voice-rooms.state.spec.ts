@@ -7,6 +7,7 @@ import { EUserRole, type IUser } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 import { createWorker } from 'mediasoup';
+import { Mutex } from 'async-mutex';
 import { VoiceRoomsStateService } from './voice-rooms.state';
 
 const alice: IUser = {
@@ -130,6 +131,7 @@ describe('VoiceRoomsStateService lobby eviction', () => {
         ],
       ]),
       producers: new Map(),
+      produceMutex: new Mutex(),
     });
 
     await service.removeRoom(sessionKey);
@@ -178,6 +180,7 @@ describe('VoiceRoomsStateService lobby eviction', () => {
         ],
       ]),
       producers: new Map(),
+      produceMutex: new Mutex(),
     });
 
     await service.ensureRoom(target);

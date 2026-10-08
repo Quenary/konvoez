@@ -8,7 +8,8 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { DirectCallService } from '@core/services/direct-call.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
-import { SettingsStore } from '@features/settings/settings.store';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
+import { SettingsStore } from '@core/stores/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
@@ -95,6 +96,15 @@ describe('VoiceRoomTileComponent', () => {
           provide: VoiceRoomViewService,
           useValue: { openTheatre: vi.fn() },
         },
+        {
+          provide: LocalScreenPreviewService,
+          useValue: {
+            resume: vi.fn(),
+            pause: vi.fn(),
+            setAutoPauseWhenHidden: vi.fn(),
+            autoPauseWhenHidden: autoPauseWhenHidden.asReadonly(),
+          },
+        },
       ],
     });
   });
@@ -104,7 +114,10 @@ describe('VoiceRoomTileComponent', () => {
     vi.useRealTimers();
   });
 
-  const create = (streamKind: 'cam' | 'screen' | null = 'screen') => {
+  const create = (
+    streamKind: 'cam' | 'screen' | null = 'screen',
+    previewPaused = false,
+  ) => {
     if (streamKind === 'screen') {
       localScreenTrack.set({ id: 'scr' } as MediaStreamTrack);
     }
@@ -114,111 +127,65 @@ describe('VoiceRoomTileComponent', () => {
     fixture.componentRef.setInput('videoTrack', {
       id: 'scr',
     } as MediaStreamTrack);
+    fixture.componentRef.setInput('previewPaused', previewPaused);
     fixture.detectChanges();
     return fixture;
   };
 
-  it('pauses local screen preview after debounce when the tab is hidden', () => {
-    vi.useFakeTimers();
-    const fixture = create('screen');
+  it('renders video when preview is not paused', () => {
+    const fixture = create('screen', false);
     const cmp = fixture.componentInstance;
-
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(cmp['previewPaused']()).toBe(false);
-
-    vi.advanceTimersByTime(5000);
-    expect(cmp['previewPaused']()).toBe(true);
-  });
-
-  it('does not auto-pause local camera tile', () => {
-    vi.useFakeTimers();
-    const fixture = create('cam');
-    const cmp = fixture.componentInstance;
-
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-    vi.advanceTimersByTime(10_000);
-    expect(cmp['previewPaused']()).toBe(false);
+    expect(cmp.previewPaused()).toBe(false);
+    expect(fixture.nativeElement.querySelector('video')).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.preview-paused-overlay'),
+    ).toBeNull();
   });
 
   it('shows auto-pause checkbox under resume only when preview is paused', () => {
-    vi.useFakeTimers();
-    const fixture = create('screen');
-    expect(fixture.nativeElement.querySelector('.auto-pause-row')).toBeNull();
+    const unpausedFixture = create('screen', false);
+    expect(
+      unpausedFixture.nativeElement.querySelector('.auto-pause-row'),
+    ).toBeNull();
 
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-    vi.advanceTimersByTime(5000);
-    fixture.detectChanges();
-
-    const overlay = fixture.nativeElement.querySelector(
+    const pausedFixture = create('screen', true);
+    const overlay = pausedFixture.nativeElement.querySelector(
       '.preview-paused-overlay',
     ) as HTMLElement | null;
     expect(overlay).not.toBeNull();
     expect(overlay?.querySelector('button + .auto-pause-row')).not.toBeNull();
   });
 
-  it('resumes only when the user clicks resume', () => {
-    vi.useFakeTimers();
-    const fixture = create('screen');
-    const cmp = fixture.componentInstance;
+  it('shows a pause control on the local screen tile while preview is playing', () => {
+    const fixture = create('screen', false);
+    expect(
+      fixture.nativeElement.querySelector(
+        'app-voice-room-local-screen-preview-pause-button',
+      ),
+    ).not.toBeNull();
 
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-    vi.advanceTimersByTime(5000);
-    expect(cmp['previewPaused']()).toBe(true);
-
-    cmp['onResumePreview']();
-    expect(cmp['previewPaused']()).toBe(false);
+    fixture.componentRef.setInput('previewPaused', true);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector(
+        'app-voice-room-local-screen-preview-pause-button',
+      ),
+    ).toBeNull();
   });
 
-  it('does not auto-pause when disabled in local settings', () => {
-    vi.useFakeTimers();
-    autoPauseWhenHidden.set(false);
-    const fixture = create('screen');
-    const cmp = fixture.componentInstance;
+  it('resumes preview when the user clicks resume', () => {
+    const fixture = create('screen', true);
+    const previewService = TestBed.inject(LocalScreenPreviewService);
+    const resumeSpy = vi.spyOn(previewService, 'resume');
 
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-    vi.advanceTimersByTime(10_000);
-    expect(cmp['previewPaused']()).toBe(false);
+    fixture.componentInstance['onResumePreview']();
+    expect(resumeSpy).toHaveBeenCalled();
   });
 
-  it('persists opt-out via settings store', () => {
+  it('persists opt-out via local screen preview service', () => {
     const fixture = create('screen');
+    const previewService = TestBed.inject(LocalScreenPreviewService);
     fixture.componentInstance['onAutoPauseWhenHiddenChange'](false);
-    expect(setScreenPreviewAutoPauseWhenHidden).toHaveBeenCalledWith(false);
-  });
-
-  it('keeps the pause when the tile is created again', () => {
-    vi.useFakeTimers();
-    const fixture = create('screen');
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    });
-    document.dispatchEvent(new Event('visibilitychange'));
-    vi.advanceTimersByTime(5000);
-    expect(fixture.componentInstance['previewPaused']()).toBe(true);
-
-    fixture.destroy();
-    const again = create('screen');
-    expect(again.componentInstance['previewPaused']()).toBe(true);
+    expect(previewService.setAutoPauseWhenHidden).toHaveBeenCalledWith(false);
   });
 });

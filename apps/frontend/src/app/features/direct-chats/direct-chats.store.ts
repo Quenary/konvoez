@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { ETextRoomEvent, ITextRoomMessage, IUser } from '@konvoez/shared';
 import {
   patchState,
@@ -22,7 +22,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
-import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 
 type DirectChatsState = {
   loading: boolean;
@@ -39,7 +39,7 @@ export const DirectChatsStore = signalStore(
   withMethods(
     (
       store,
-      textRoomApiService = inject(TextRoomApiService),
+      chatApiService = inject(ChatApiService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
     ) => {
@@ -70,7 +70,7 @@ export const DirectChatsStore = signalStore(
           pipe(
             tap(() => patchState(store, { loading: true })),
             switchMap(() =>
-              textRoomApiService.direct().pipe(
+              chatApiService.direct().pipe(
                 tap((chats) => {
                   patchState(store, setAllEntities(chats), {
                     loading: false,

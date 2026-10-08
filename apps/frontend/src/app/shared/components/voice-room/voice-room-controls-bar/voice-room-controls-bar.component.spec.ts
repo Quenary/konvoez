@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { VoiceRoomControlsBarComponent } from './voice-room-controls-bar.component';
@@ -25,6 +25,7 @@ describe('VoiceRoomControlsBarComponent', () => {
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
+  let microphoneMuted: ReturnType<typeof signal<boolean>>;
   let canProduce: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
@@ -41,6 +42,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
+    microphoneMuted = signal(false);
     canProduce = signal(true);
 
     TestBed.configureTestingModule({
@@ -50,7 +52,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         {
           provide: VoiceAudioPreferencesStore,
           useValue: {
-            microphoneMuted: signal(false).asReadonly(),
+            microphoneMuted: microphoneMuted.asReadonly(),
             speakerMuted: signal(false).asReadonly(),
             toggleMicrophoneMuted,
             toggleSpeakerMuted: vi.fn(),
@@ -142,6 +144,9 @@ describe('VoiceRoomControlsBarComponent', () => {
   });
 
   it('notifies when starting the camera fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* noop */
+    });
     openDialog.mockReturnValue(of({ height: 720, fps: 30 }));
     produceCamera.mockRejectedValue(new Error('no camera'));
     const fixture = create();
@@ -153,6 +158,7 @@ describe('VoiceRoomControlsBarComponent', () => {
       'CALL.CAMERA_FAILED',
       expect.objectContaining({ appearance: 'negative' }),
     );
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
   });
 
   it('treats a dismissed start dialog as a no-op', async () => {
@@ -178,5 +184,53 @@ describe('VoiceRoomControlsBarComponent', () => {
     const fixture = create();
     button(fixture, 0).click();
     expect(toggleMicrophoneMuted).toHaveBeenCalledTimes(1);
+  });
+
+  it('precomputes micHintKey for muted and unmuted states', () => {
+    microphoneMuted.set(false);
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+    expect(cmp['micHintKey']()).toBe('CALL.MUTE_MICROPHONE');
+
+    microphoneMuted.set(true);
+    expect(cmp['micHintKey']()).toBe('CALL.UNMUTE_MICROPHONE');
+  });
+
+  it('precomputes cameraHintKey and cameraDisabled for all three states', () => {
+    canProduce.set(true);
+    localCamTrack.set(null);
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+
+    expect(cmp['cameraHintKey']()).toBe('CALL.CAMERA_ON');
+    expect(cmp['cameraDisabled']()).toBe(false);
+
+    localCamTrack.set({} as MediaStreamTrack);
+    expect(cmp['cameraHintKey']()).toBe('CALL.CAMERA_OFF');
+    expect(cmp['cameraDisabled']()).toBe(false);
+
+    localCamTrack.set(null);
+    canProduce.set(false);
+    expect(cmp['cameraHintKey']()).toBe('CALL.WAITING_FOR_CONNECTION');
+    expect(cmp['cameraDisabled']()).toBe(true);
+  });
+
+  it('precomputes screenHintKey and screenDisabled for all three states', () => {
+    canProduce.set(true);
+    localScreenTrack.set(null);
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+
+    expect(cmp['screenHintKey']()).toBe('CALL.SCREEN_ON');
+    expect(cmp['screenDisabled']()).toBe(false);
+
+    localScreenTrack.set({} as MediaStreamTrack);
+    expect(cmp['screenHintKey']()).toBe('CALL.SCREEN_OFF');
+    expect(cmp['screenDisabled']()).toBe(false);
+
+    localScreenTrack.set(null);
+    canProduce.set(false);
+    expect(cmp['screenHintKey']()).toBe('CALL.WAITING_FOR_CONNECTION');
+    expect(cmp['screenDisabled']()).toBe(true);
   });
 });

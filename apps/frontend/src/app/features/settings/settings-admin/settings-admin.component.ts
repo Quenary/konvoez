@@ -37,9 +37,9 @@ import {
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
-import { SettingsStore } from '../settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
-import { z } from 'zod';
+import * as z from 'zod';
 
 function iceServersJsonValidator(
   control: AbstractControl,

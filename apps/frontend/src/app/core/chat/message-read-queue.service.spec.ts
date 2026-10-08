@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageReadQueueService } from './message-read-queue.service';
-import { TextRoomApiService } from './text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 
 describe('MessageReadQueueService', () => {
   let service: MessageReadQueueService;
@@ -17,7 +17,7 @@ describe('MessageReadQueueService', () => {
     TestBed.configureTestingModule({
       providers: [
         MessageReadQueueService,
-        { provide: TextRoomApiService, useValue: apiService },
+        { provide: ChatApiService, useValue: apiService },
       ],
     });
 

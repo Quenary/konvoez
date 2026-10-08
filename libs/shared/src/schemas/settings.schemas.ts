@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { ESettingKey } from '../enums';
 import {

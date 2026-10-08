@@ -198,4 +198,76 @@ describe('ChatMessageAttachmentsComponent', () => {
       1,
     );
   });
+
+  it('opens correct item when earlier media has no fullSrc', () => {
+    const outgoing: IOutgoingMessage = {
+      tempId: 'temp',
+      data: {
+        content: '',
+        roomId: 1,
+        recipientId: null,
+        replyToId: null,
+        attachmentIds: [],
+      },
+      replyTo: null,
+      createdAt: new Date(),
+      state: { phase: 'uploading' },
+      files: [
+        {
+          localId: 'a',
+          file: new File(['a'], 'a.png', { type: 'image/png' }),
+          kind: EAttachmentKind.IMAGE,
+          previewUrl: null,
+          posterStatus: 'ready',
+          posterFile: null,
+          posterUrl: null,
+          videoWidth: null,
+          videoHeight: null,
+          videoDuration: null,
+          state: { status: 'uploading' },
+        },
+        {
+          localId: 'b',
+          file: new File(['b'], 'b.png', { type: 'image/png' }),
+          kind: EAttachmentKind.IMAGE,
+          previewUrl: '/b',
+          posterStatus: 'ready',
+          posterFile: null,
+          posterUrl: null,
+          videoWidth: null,
+          videoHeight: null,
+          videoDuration: null,
+          state: { status: 'uploading' },
+        },
+        {
+          localId: 'c',
+          file: new File(['c'], 'c.png', { type: 'image/png' }),
+          kind: EAttachmentKind.IMAGE,
+          previewUrl: '/c',
+          posterStatus: 'ready',
+          posterFile: null,
+          posterUrl: null,
+          videoWidth: null,
+          videoHeight: null,
+          videoDuration: null,
+          state: { status: 'uploading' },
+        },
+      ],
+    };
+    fixture.componentRef.setInput('outgoing', outgoing);
+    fixture.detectChanges();
+
+    const activate = fixture.nativeElement.querySelectorAll('.activate');
+    expect(activate).toHaveLength(3);
+
+    // Clicking C (index 2 in media()) should open index 1 in the filtered list [B, C]
+    (activate[2] as HTMLButtonElement).click();
+    expect(open).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ src: '/b' }),
+        expect.objectContaining({ src: '/c' }),
+      ],
+      1,
+    );
+  });
 });

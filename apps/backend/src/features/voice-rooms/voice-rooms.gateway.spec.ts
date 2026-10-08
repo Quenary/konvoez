@@ -32,11 +32,15 @@ import {
   EDirectCallEvent,
   EUserRole,
   EVoiceRoomEvent,
+  EVoiceRoomErrorCode,
   EVoiceSessionType,
   type IUser,
+  type IVoiceRoomProduce,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { WsException } from '@nestjs/websockets';
+import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
 
 const alice: IUser = {
@@ -63,6 +67,7 @@ function createRoom(peers: Map<string, unknown> = new Map()) {
     id: 'room:1',
     peers,
     producers: new Map(),
+    produceMutex: new Mutex(),
   };
 }
 
@@ -103,6 +108,7 @@ describe('VoiceRoomsGateway', () => {
     create: jest.Mock;
     get: jest.Mock;
     accept: jest.Mock;
+    reject: jest.Mock;
     cancel: jest.Mock;
     end: jest.Mock;
     isParticipant: jest.Mock;
@@ -147,6 +153,7 @@ describe('VoiceRoomsGateway', () => {
       create: jest.fn(),
       get: jest.fn(),
       accept: jest.fn(),
+      reject: jest.fn(),
       cancel: jest.fn(),
       end: jest.fn(),
       isParticipant: jest.fn(),
@@ -256,6 +263,28 @@ describe('VoiceRoomsGateway', () => {
         ],
       });
       expect(peer).toEqual({ id: 'socket-1', sendTransport: transport });
+    });
+
+    it('rejects connectTransport with WsException when transport is not found', async () => {
+      const room = createRoom(
+        new Map([['socket-1', { id: 'socket-1', user: alice }]]),
+      );
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.connectTransport(socket as never, {
+          transportId: 'unknown',
+          dtlsParameters: {} as never,
+        }),
+      ).rejects.toThrow(WsException);
     });
   });
 
@@ -585,7 +614,7 @@ describe('VoiceRoomsGateway', () => {
       return socket;
     }
 
-    it('rejects unknown mediaTag', async () => {
+    it('rejects unknown mediaTag with WsException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -595,10 +624,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'webcam' as never,
           rtpParameters: {},
         }),
-      ).rejects.toThrow(/Unknown mediaTag/);
+      ).rejects.toThrow(WsException);
     });
 
-    it('rejects kind/mediaTag mismatch', async () => {
+    it('rejects kind/mediaTag mismatch with WsException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -608,10 +637,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(/Invalid kind/);
+      ).rejects.toThrow(WsException);
     });
 
-    it('rejects screen-audio without screen', async () => {
+    it('rejects screen-audio without screen with WsException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -621,7 +650,20 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'screen-audio',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(/screen-audio requires/);
+      ).rejects.toThrow(WsException);
+    });
+
+    it('rejects produce with WsException when send transport is missing', async () => {
+      const { room } = readyPeer({ sendTransport: undefined });
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'mic',
+          rtpParameters: {},
+        }),
+      ).rejects.toThrow(WsException);
     });
 
     it('enforces room video producer limit of 4', async () => {
@@ -647,7 +689,7 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(/Room video producer limit reached/);
+      ).rejects.toThrow(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
       expect(sendTransport.produce).not.toHaveBeenCalled();
       expect(peer.producers.size).toBe(0);
     });
@@ -712,6 +754,150 @@ describe('VoiceRoomsGateway', () => {
         ).length,
       ).toBe(4);
       expect(sendTransport.produce).toHaveBeenCalled();
+    });
+
+    it('serializes concurrent video produces and rejects when limit is exceeded', async () => {
+      const room = createRoom();
+      const sendTransport = {
+        produce: jest
+          .fn()
+          .mockImplementation(
+            async ({
+              appData,
+              kind,
+            }: {
+              appData: { peerId: string; mediaTag: string };
+              kind: string;
+            }) => {
+              await new Promise((resolve) => setTimeout(resolve, 5));
+              const p = {
+                id: `prod-${appData.peerId}`,
+                kind,
+                closed: false,
+                appData,
+                close: jest.fn(),
+                observer: { on: jest.fn() },
+                on: jest.fn(),
+              };
+              return p;
+            },
+          ),
+      };
+
+      const sockets: Socket[] = [];
+      for (let i = 0; i < 5; i += 1) {
+        const user: IUser = { ...alice, id: 10 + i, username: `user-${i}` };
+        const peer = {
+          id: `socket-${i}`,
+          user,
+          producers: new Map(),
+          consumers: new Map(),
+          sendTransport,
+        };
+        room.peers.set(`socket-${i}`, peer);
+        const socket = createSocket({
+          id: `socket-${i}`,
+          data: {
+            user,
+            sessionKey: 'room:1',
+            roomId: 1,
+            sessionTarget: { type: EVoiceSessionType.GROUP_ROOM, roomId: 1 },
+          },
+        });
+        socket.rooms.add('room:1');
+        sockets.push(socket);
+      }
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const results = await Promise.allSettled(
+        sockets.map((s) =>
+          gateway.produce(s as never, {
+            transportId: 't',
+            kind: 'video',
+            mediaTag: 'cam',
+            rtpParameters: {},
+          }),
+        ),
+      );
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(4);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+        WsException,
+      );
+      expect(
+        (
+          (rejected[0] as PromiseRejectedResult).reason as WsException
+        ).getError(),
+      ).toBe(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+      expect(room.producers.size).toBe(4);
+    });
+
+    it('serializes overlapping PRODUCE calls with the same tag, leaving one open producer', async () => {
+      const { peer, room } = readyPeer();
+      let callCount = 0;
+      const producersCreated: Array<{
+        id: string;
+        kind: string;
+        closed: boolean;
+        appData: { peerId: string; mediaTag: string };
+        close: jest.Mock;
+        observer: { on: jest.Mock };
+        on: jest.Mock;
+      }> = [];
+
+      peer.sendTransport.produce.mockImplementation(
+        async ({
+          appData,
+          kind,
+        }: {
+          appData: { peerId: string; mediaTag: string };
+          kind: string;
+        }) => {
+          callCount += 1;
+          const currentCount = callCount;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          const p = {
+            id: `p-${currentCount}`,
+            kind,
+            closed: false,
+            appData,
+            close: jest.fn(function (this: { closed: boolean }) {
+              this.closed = true;
+            }),
+            observer: { on: jest.fn() },
+            on: jest.fn(),
+          };
+          producersCreated.push(p);
+          return p;
+        },
+      );
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = joinedSocket();
+      const producePayload: IVoiceRoomProduce = {
+        transportId: 't',
+        kind: 'video',
+        mediaTag: 'cam',
+        rtpParameters: {},
+      };
+
+      const [res1, res2] = await Promise.all([
+        gateway.produce(socket as never, producePayload),
+        gateway.produce(socket as never, producePayload),
+      ]);
+
+      expect(res1.producerId).toBe('p-1');
+      expect(res2.producerId).toBe('p-2');
+      expect(producersCreated[0].close).toHaveBeenCalled();
+      expect(producersCreated[0].closed).toBe(true);
+      expect(peer.producers.size).toBe(1);
+      expect(peer.producers.get('p-2')).toBeDefined();
+      expect(room.producers.size).toBe(1);
+      expect(room.producers.get('p-2')).toBeDefined();
     });
 
     it('produces camera and registers close observers', async () => {
@@ -872,7 +1058,7 @@ describe('VoiceRoomsGateway', () => {
       expect(peer.consumers.has('c1')).toBe(false);
     });
 
-    it('acknowledges closeConsumer when the consumer was already closed', async () => {
+    it('acknowledges closeConsumer and removes it when the consumer was already closed', async () => {
       const consumer = { id: 'c1', closed: true, close: jest.fn() };
       const peer = {
         id: 'socket-1',
@@ -895,7 +1081,231 @@ describe('VoiceRoomsGateway', () => {
         gateway.closeConsumer(socket as never, { consumerId: 'c1' }),
       ).resolves.toEqual({});
       expect(consumer.close).not.toHaveBeenCalled();
+      expect(peer.consumers.has('c1')).toBe(false);
+    });
+
+    it('acknowledges closeConsumer with no error when consumer id is unknown', async () => {
+      const consumer = { id: 'c1', closed: false, close: jest.fn() };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.closeConsumer(socket as never, { consumerId: 'unknown-id' }),
+      ).resolves.toEqual({});
+      expect(consumer.close).not.toHaveBeenCalled();
       expect(peer.consumers.has('c1')).toBe(true);
+      expect(peer.consumers.size).toBe(1);
+    });
+  });
+
+  describe('consume', () => {
+    it('rejects with WsException when receive transport is missing', async () => {
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        recvTransport: undefined,
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.consume(socket as never, {
+          transportId: 't',
+          producerId: 'p1',
+          rtpCapabilities: {} as never,
+        }),
+      ).rejects.toThrow(WsException);
+    });
+
+    it('rejects with WsException when producer is missing', async () => {
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        recvTransport: { consume: jest.fn() },
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.consume(socket as never, {
+          transportId: 't',
+          producerId: 'p1',
+          rtpCapabilities: {} as never,
+        }),
+      ).rejects.toThrow(WsException);
+    });
+
+    it('rejects with WsException when router cannot consume', async () => {
+      const producer = {
+        id: 'p1',
+        kind: 'audio',
+        appData: { mediaTag: 'mic' },
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        recvTransport: { consume: jest.fn() },
+      };
+      const room = {
+        ...createRoom(new Map([['socket-1', peer]])),
+        router: {
+          canConsume: jest.fn().mockReturnValue(false),
+        },
+      };
+      room.producers.set('p1', producer as never);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.consume(socket as never, {
+          transportId: 't',
+          producerId: 'p1',
+          rtpCapabilities: {} as never,
+        }),
+      ).rejects.toThrow(WsException);
+    });
+
+    it('creates consumer and stores in peer when valid', async () => {
+      const producer = {
+        id: 'p1',
+        kind: 'audio',
+        appData: { mediaTag: 'mic' },
+      };
+      const consumer = {
+        id: 'c1',
+        kind: 'audio',
+        appData: { mediaTag: 'mic' },
+        rtpParameters: {},
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const recvTransport = {
+        consume: jest.fn().mockResolvedValue(consumer),
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        recvTransport,
+      };
+      const room = {
+        ...createRoom(new Map([['socket-1', peer]])),
+        router: {
+          canConsume: jest.fn().mockReturnValue(true),
+        },
+      };
+      room.producers.set('p1', producer as never);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      const result = await gateway.consume(socket as never, {
+        transportId: 't',
+        producerId: 'p1',
+        rtpCapabilities: {} as never,
+      });
+
+      expect(result).toEqual({
+        id: 'c1',
+        producerId: 'p1',
+        kind: 'audio',
+        mediaTag: 'mic',
+        rtpParameters: {},
+      });
+      expect(peer.consumers.get('c1')).toBe(consumer);
+    });
+  });
+
+  describe('session validation', () => {
+    it('rejects with WsException when socket has no session key', async () => {
+      const socket = createSocket({ data: { user: alice } });
+      await expect(
+        gateway.handleGetRtpCapabilities(socket as never),
+      ).rejects.toThrow(WsException);
+    });
+
+    it('rejects with WsException when socket is not in the session room', async () => {
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      await expect(
+        gateway.handleGetRtpCapabilities(socket as never),
+      ).rejects.toThrow(WsException);
+    });
+
+    it('rejects with WsException when room is not found in state service', async () => {
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      socket.rooms.add('room:1');
+      voiceRoomsStateService.getRoom.mockReturnValue(undefined);
+
+      await expect(
+        gateway.handleGetRtpCapabilities(socket as never),
+      ).rejects.toThrow(WsException);
+    });
+
+    it('rejects with WsException when socket peer is not registered in the room', async () => {
+      const room = createRoom(new Map());
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.handleGetRtpCapabilities(socket as never),
+      ).rejects.toThrow(WsException);
     });
   });
 
@@ -983,7 +1393,7 @@ describe('VoiceRoomsGateway', () => {
     });
 
     it('rejects a ringing call and notifies the caller', () => {
-      directCallsStateService.cancel.mockReturnValue({
+      directCallsStateService.reject.mockReturnValue({
         callId: 'c1',
         status: 'ringing',
         callerId: alice.id,
@@ -996,11 +1406,32 @@ describe('VoiceRoomsGateway', () => {
         reason: 'busy',
       });
 
+      expect(directCallsStateService.reject).toHaveBeenCalledWith('c1', bob.id);
       expect(serverMock.to).toHaveBeenCalledWith('7');
       expect(serverMock.emit).toHaveBeenCalledWith(
         EDirectCallEvent.CALL_REJECTED,
         { callId: 'c1', reason: 'busy' },
       );
+    });
+
+    it('leaves the call untouched when reject returns undefined (active call or non-recipient)', () => {
+      directCallsStateService.reject.mockReturnValue(undefined);
+
+      gateway.handleCallReject(
+        createSocket({ data: { user: alice } }) as never,
+        {
+          callId: 'c1',
+          callerId: alice.id,
+          reason: 'declined',
+        },
+      );
+
+      expect(directCallsStateService.reject).toHaveBeenCalledWith(
+        'c1',
+        alice.id,
+      );
+      expect(serverMock.to).not.toHaveBeenCalled();
+      expect(serverMock.emit).not.toHaveBeenCalled();
     });
 
     it('hangs up only while ringing', () => {

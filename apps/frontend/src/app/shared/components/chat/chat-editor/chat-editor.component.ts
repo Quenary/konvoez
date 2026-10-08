@@ -26,7 +26,7 @@ import { createKeyBindingExtension } from '@core/tiptap/create-key-binding-exten
 import { createPasteFilesExtension } from '@core/tiptap/create-paste-files-extension';
 import { SCHEMA_ERROR, messageContentSchema } from '@konvoez/shared';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { ChatStore } from '../chat.store';
 import { chatTargetToApiIds } from '../chat-target';
 import { ComposerDraftsService, toChatKey } from '../composer-drafts';

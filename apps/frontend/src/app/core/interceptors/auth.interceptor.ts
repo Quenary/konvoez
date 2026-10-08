@@ -15,7 +15,7 @@ import {
   throwError,
   timeout,
 } from 'rxjs';
-import { AuthApiService } from '@features/auth/auth-api.service';
+import { AuthApiService } from '@core/api/auth-api.service';
 
 const ignoreList = ['/login', '/refresh', '/register'];
 

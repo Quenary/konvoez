@@ -4,7 +4,7 @@ import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import {
   selectCurrentUser,
   selectIsAuthorized,
-} from '@features/auth/auth.selectors';
+} from '@core/auth/auth.selectors';
 import { ETextRoomEvent, ITextRoomMessage } from '@konvoez/shared';
 import {
   patchState,
@@ -17,7 +17,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
-import { TextRoomApiService } from './text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 
 type UnreadCountsState = {
   rooms: Record<number, number>;
@@ -52,7 +52,7 @@ export const UnreadCountsStore = signalStore(
       Object.values(direct()).reduce((sum, count) => sum + count, 0),
     ),
   })),
-  withMethods((store, textRoomApiService = inject(TextRoomApiService)) => ({
+  withMethods((store, chatApiService = inject(ChatApiService)) => ({
     roomUnreadCount(roomId: number): number {
       return store.rooms()[roomId] ?? 0;
     },
@@ -123,7 +123,7 @@ export const UnreadCountsStore = signalStore(
     load: rxMethod<void>(
       pipe(
         switchMap(() =>
-          textRoomApiService.getUnreadCounts().pipe(
+          chatApiService.getUnreadCounts().pipe(
             tap(({ rooms, direct }) => {
               patchState(store, {
                 rooms: parseCountMap(rooms),

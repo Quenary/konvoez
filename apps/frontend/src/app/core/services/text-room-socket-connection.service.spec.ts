@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { selectIsAuthorized } from '@features/auth/auth.selectors';
+import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import { TextRoomSocketConnectionService } from './text-room-socket-connection.service';
 
 describe('TextRoomSocketConnectionService', () => {

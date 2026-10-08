@@ -71,6 +71,10 @@ export enum EVoiceRoomEvent {
   ERROR = 'error',
 }
 
+export enum EVoiceRoomErrorCode {
+  VIDEO_LIMIT_REACHED = 'Room video producer limit reached',
+}
+
 export enum EDirectCallEvent {
   CALL_INITIATE = 'call:initiate',
   CALL_INCOMING = 'call:incoming',

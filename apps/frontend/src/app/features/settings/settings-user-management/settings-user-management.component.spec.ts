@@ -6,7 +6,7 @@ import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { SettingsUserManagementComponent } from './settings-user-management.component';
-import { UserManagementApiService } from './user-management-api.service';
+import { UserManagementApiService } from '@core/api/user-management-api.service';
 
 describe('SettingsUserManagementComponent', () => {
   let fixture: ComponentFixture<SettingsUserManagementComponent>;

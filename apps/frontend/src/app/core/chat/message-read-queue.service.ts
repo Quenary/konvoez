@@ -1,13 +1,13 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
-import { TextRoomApiService } from './text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class MessageReadQueueService implements OnDestroy {
-  private readonly textRoomApiService = inject(TextRoomApiService);
+  private readonly chatApiService = inject(ChatApiService);
 
   private readonly pendingIds = new Set<string>();
   private readonly trigger$ = new Subject<void>();
@@ -32,7 +32,7 @@ export class MessageReadQueueService implements OnDestroy {
     if (this.pendingIds.size === 0) return;
     const ids = [...this.pendingIds];
     this.pendingIds.clear();
-    this.textRoomApiService.markRead(ids).subscribe();
+    this.chatApiService.markRead(ids).subscribe();
   }
 
   ngOnDestroy(): void {

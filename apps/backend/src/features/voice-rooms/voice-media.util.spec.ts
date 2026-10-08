@@ -1,3 +1,4 @@
+import { WsException } from '@nestjs/websockets';
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,
@@ -36,17 +37,25 @@ describe('voice-media.util', () => {
     expect(isVideoMediaTag('mic')).toBe(false);
   });
 
-  it('rejects unknown mediaTag and invalid kind', () => {
+  it('rejects unknown mediaTag and invalid kind with WsException', () => {
+    expect(() => assertKnownMediaTag('webcam', 'video')).toThrow(WsException);
     expect(() => assertKnownMediaTag('webcam', 'video')).toThrow(
       /Unknown mediaTag/,
     );
+    expect(() => assertKnownMediaTag('mic', 'text')).toThrow(WsException);
     expect(() => assertKnownMediaTag('mic', 'text')).toThrow(/Invalid kind/);
     expect(() => assertKnownMediaTag('mic', 'audio')).not.toThrow();
   });
 
-  it('rejects mismatched kind and mediaTag', () => {
+  it('rejects mismatched kind and mediaTag with WsException', () => {
+    expect(() => assertKindMatchesMediaTag('audio', 'cam')).toThrow(
+      WsException,
+    );
     expect(() => assertKindMatchesMediaTag('audio', 'cam')).toThrow(
       /Invalid kind/,
+    );
+    expect(() => assertKindMatchesMediaTag('video', 'mic')).toThrow(
+      WsException,
     );
     expect(() => assertKindMatchesMediaTag('video', 'mic')).toThrow(
       /Invalid kind/,
@@ -54,7 +63,10 @@ describe('voice-media.util', () => {
     expect(() => assertKindMatchesMediaTag('video', 'cam')).not.toThrow();
   });
 
-  it('requires screen producer for screen-audio', () => {
+  it('requires screen producer for screen-audio with WsException', () => {
+    expect(() => assertScreenAudioAllowed('screen-audio', false)).toThrow(
+      WsException,
+    );
     expect(() => assertScreenAudioAllowed('screen-audio', false)).toThrow(
       /screen-audio requires/,
     );

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const publicSettingsSchema = z.object({
   isOwnerSetupRequired: z.boolean(),

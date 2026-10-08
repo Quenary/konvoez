@@ -479,4 +479,22 @@ describe('VoiceSessionService', () => {
       );
     });
   });
+
+  describe('reportJoinFailure', () => {
+    it('notifies the user and logs the error once', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+        /* noop */
+      });
+      const error = new Error('join failed');
+
+      service.reportJoinFailure(error);
+
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.JOIN_FAILED',
+        expect.objectContaining({ appearance: 'negative' }),
+      );
+      expect(consoleSpy).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith('VOICE.JOIN_FAILED', error);
+    });
+  });
 });

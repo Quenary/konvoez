@@ -28,12 +28,12 @@ import {
   ITextRoomMessageReply,
   IUser,
 } from '@konvoez/shared';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
 import { MessageVisibilityDirective } from '@shared/directives/message-visibility.directive';
-import { TextRoomApiService } from '@core/chat/text-room-api.service';
+import { ChatApiService } from '@core/api/chat-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 import { mediaFrameLimit } from '@shared/components/media-grid/media-grid.layout';
@@ -75,7 +75,7 @@ export class ChatMessageComponent {
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly tuiDialogService = inject(TuiDialogService);
-  private readonly textRoomApiService = inject(TextRoomApiService);
+  private readonly chatApiService = inject(ChatApiService);
   private readonly outgoingStore = inject(OutgoingMessagesStore);
 
   public readonly message = input.required<IMessageEntity>();
@@ -305,7 +305,7 @@ export class ChatMessageComponent {
     this.readers.set([]);
     this.readersLoading.set(true);
 
-    this.textRoomApiService.getReaders(this.message().id).subscribe({
+    this.chatApiService.getReaders(this.message().id).subscribe({
       next: (users) => {
         this.readers.set(users);
         this.readersLoading.set(false);

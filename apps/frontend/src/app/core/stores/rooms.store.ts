@@ -5,9 +5,9 @@ import {
   signalStore,
   withComputed,
   withMethods,
-  withState,
 } from '@ngrx/signals';
 import {
+  removeAllEntities,
   removeEntity,
   setAllEntities,
   setEntity,
@@ -17,20 +17,13 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, mergeMap, pipe, switchMap, tap } from 'rxjs';
 import { RoomsApiService } from '@core/api/rooms-api.service';
-
-type RoomsStoreState = {
-  selectedRoomId: number | null;
-};
 
 const sortByName = (a: IRoom, b: IRoom): number => a.name.localeCompare(b.name);
 
 export const RoomsStore = signalStore(
   { providedIn: 'root' },
-  withState<RoomsStoreState>({
-    selectedRoomId: null,
-  }),
   withEntities<IRoom>(),
   withComputed(({ entities, entityMap }) => ({
     roomsDict: entityMap,
@@ -68,20 +61,17 @@ export const RoomsStore = signalStore(
       };
 
       const removeOne = (id: number): void => {
-        patchState(store, removeEntity(id), {
-          selectedRoomId:
-            store.selectedRoomId() === id ? null : store.selectedRoomId(),
-        });
+        patchState(store, removeEntity(id));
       };
 
-      const setSelectedRoomId = (id: number | null): void => {
-        patchState(store, { selectedRoomId: id });
+      const clear = (): void => {
+        patchState(store, removeAllEntities());
       };
 
       return {
         upsertOne,
         removeOne,
-        setSelectedRoomId,
+        clear,
 
         loadAll: rxMethod<void>(
           pipe(
@@ -117,7 +107,7 @@ export const RoomsStore = signalStore(
 
         create: rxMethod<IRoomCreate>(
           pipe(
-            switchMap((body) =>
+            mergeMap((body) =>
               roomsApiService.create(body).pipe(
                 tap((room) => {
                   upsertOne(room);
@@ -133,7 +123,7 @@ export const RoomsStore = signalStore(
 
         update: rxMethod<{ id: number; room: IRoomUpdate }>(
           pipe(
-            switchMap(({ id, room }) =>
+            mergeMap(({ id, room }) =>
               roomsApiService.update(id, room).pipe(
                 tap((updated) => {
                   upsertOne(updated);
@@ -149,7 +139,7 @@ export const RoomsStore = signalStore(
 
         remove: rxMethod<number>(
           pipe(
-            switchMap((id) =>
+            mergeMap((id) =>
               roomsApiService.remove(id).pipe(
                 tap(() => {
                   removeOne(id);

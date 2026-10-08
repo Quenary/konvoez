@@ -84,4 +84,70 @@ describe('PeerScreenAudioService', () => {
     expect(service.getConsumerId(5)).toBeNull();
     expect(close).toHaveBeenCalled();
   });
+
+  it('leaves no graph and connects nothing if detach is called while getOutput is pending', async () => {
+    let resolveOutput!: (val: AudioNode) => void;
+    const speakerService = TestBed.inject(SpeakerService);
+    vi.mocked(speakerService.getOutput).mockReturnValue(
+      new Promise((resolve) => {
+        resolveOutput = resolve;
+      }),
+    );
+
+    const close = vi.fn();
+    const consumer = {
+      id: 'c1',
+      producerId: 'p1',
+      track: {},
+      closed: false,
+      close,
+    };
+
+    const attachPromise = service.attach(5, consumer as never, {
+      gain: 0.5,
+      speakerMuted: false,
+    });
+
+    service.detach(5);
+
+    resolveOutput(output as unknown as AudioNode);
+    await attachPromise;
+
+    expect(service.getConsumerId(5)).toBeNull();
+    expect(gain.connect).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops nodes and does not connect if consumer closes while getOutput is pending', async () => {
+    let resolveOutput!: (val: AudioNode) => void;
+    const speakerService = TestBed.inject(SpeakerService);
+    vi.mocked(speakerService.getOutput).mockReturnValue(
+      new Promise((resolve) => {
+        resolveOutput = resolve;
+      }),
+    );
+
+    const close = vi.fn();
+    const consumer = {
+      id: 'c1',
+      producerId: 'p1',
+      track: {},
+      closed: false,
+      close,
+    };
+
+    const attachPromise = service.attach(5, consumer as never, {
+      gain: 0.5,
+      speakerMuted: false,
+    });
+
+    consumer.closed = true;
+
+    resolveOutput(output as unknown as AudioNode);
+    await attachPromise;
+
+    expect(service.getConsumerId(5)).toBeNull();
+    expect(gain.connect).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+  });
 });

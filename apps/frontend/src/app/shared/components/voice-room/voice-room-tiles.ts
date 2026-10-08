@@ -11,6 +11,7 @@ export type TVoiceRoomTile = {
   videoTrack: MediaStreamTrack | null;
   screenAvailable: boolean;
   watchingScreen: boolean;
+  previewPaused: boolean;
 };
 
 export type TBuildVoiceRoomTilesInput = {
@@ -22,6 +23,7 @@ export type TBuildVoiceRoomTilesInput = {
   remoteScreenTracks: Readonly<Record<number, MediaStreamTrack>>;
   availableScreens: Readonly<Record<number, TAvailableScreenShare>>;
   watchingUserIds: ReadonlySet<number>;
+  localScreenPreviewPaused?: boolean;
 };
 
 const voiceTile = (
@@ -30,6 +32,7 @@ const voiceTile = (
   videoTrack: MediaStreamTrack | null,
   screenAvailable: boolean,
   watchingScreen: boolean,
+  previewPaused = false,
 ): TVoiceRoomTile => {
   const kindKey = streamKind ?? 'voice';
   return {
@@ -40,6 +43,7 @@ const voiceTile = (
     videoTrack,
     screenAvailable,
     watchingScreen,
+    previewPaused,
   };
 };
 
@@ -59,6 +63,7 @@ export function buildVoiceRoomTiles(
   input: TBuildVoiceRoomTilesInput,
 ): TVoiceRoomTile[] {
   const tiles: TVoiceRoomTile[] = [];
+  const localScreenPaused = Boolean(input.localScreenPreviewPaused);
 
   for (const peer of input.peers) {
     const isLocal = input.localUserId !== null && peer.id === input.localUserId;
@@ -73,26 +78,46 @@ export function buildVoiceRoomTiles(
       : watchingScreen
         ? (input.remoteScreenTracks[peer.id] ?? null)
         : null;
+    const screenPreviewPaused = isLocal && localScreenPaused;
+
     if (!hasCam && !screenLive) {
-      tiles.push(voiceTile(peer, null, null, false, watchingScreen));
+      tiles.push(voiceTile(peer, null, null, false, watchingScreen, false));
       continue;
     }
 
     if (hasCam && screenLive) {
-      tiles.push(voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen));
       tiles.push(
-        voiceTile(peer, 'screen', screenTrack, screenLive, watchingScreen),
+        voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen, false),
+      );
+      tiles.push(
+        voiceTile(
+          peer,
+          'screen',
+          screenTrack,
+          screenLive,
+          watchingScreen,
+          screenPreviewPaused,
+        ),
       );
       continue;
     }
 
     if (hasCam) {
-      tiles.push(voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen));
+      tiles.push(
+        voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen, false),
+      );
       continue;
     }
 
     tiles.push(
-      voiceTile(peer, 'screen', screenTrack, screenLive, watchingScreen),
+      voiceTile(
+        peer,
+        'screen',
+        screenTrack,
+        screenLive,
+        watchingScreen,
+        screenPreviewPaused,
+      ),
     );
   }
 
@@ -186,4 +211,18 @@ export function showsRemoteScreenWatchControls(
     return false;
   }
   return tile.watchingScreen;
+}
+
+/** Whether the local screen preview can be paused manually. */
+export function showsLocalScreenPreviewPauseControl(
+  tile: TVoiceRoomTile | null,
+  localUserId: number | null,
+): boolean {
+  if (tile == null || tile.streamKind !== 'screen' || localUserId == null) {
+    return false;
+  }
+  if (tile.peerId !== localUserId) {
+    return false;
+  }
+  return tile.videoTrack != null && !tile.previewPaused;
 }

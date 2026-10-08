@@ -5,8 +5,7 @@
     [template]="tile" />
   <ng-template
     #tile
-    let-item
-    let-index="index">
+    let-item>
     <app-file-thumbnail
       fill
       interactive
@@ -20,7 +19,7 @@
       [size]="item.size"
       [src]="item.src"
       [status]="item.status"
-      (activate)="open(index)"
+      (activate)="open(item)"
       (remove)="removeFile.emit(item.key)" />
   </ng-template>
 }

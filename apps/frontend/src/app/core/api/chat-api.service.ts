@@ -15,7 +15,7 @@ import { environment } from '@environments/environment';
 @Injectable({
   providedIn: 'root',
 })
-export class TextRoomApiService {
+export class ChatApiService {
   private readonly httpClient = inject(HttpClient);
 
   direct(): Observable<IUser[]> {

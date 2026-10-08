@@ -7,7 +7,7 @@
       [iconStart]="micMuted() ? '@tui.mic-off' : '@tui.mic'"
       type="button"
       tuiHintAppearance="floating"
-      [tuiHint]="'CALL.MUTE' | translate"
+      [tuiHint]="micHintKey() | translate"
       (click)="toggleMicrophone()">
     </button>
 
@@ -30,13 +30,9 @@
       size="m"
       [iconStart]="cameraOn() ? '@tui.video' : '@tui.video-off'"
       type="button"
-      [disabled]="!canProduce() && !cameraOn()"
+      [disabled]="cameraDisabled()"
       tuiHintAppearance="floating"
-      [tuiHint]="
-        canProduce() || cameraOn()
-          ? ((cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON') | translate)
-          : ('CALL.WAITING_FOR_CONNECTION' | translate)
-      "
+      [tuiHint]="cameraHintKey() | translate"
       (click)="toggleStream('cam')">
     </button>
 
@@ -47,13 +43,9 @@
         size="m"
         [iconStart]="screenOn() ? '@tui.screen-share-off' : '@tui.screen-share'"
         type="button"
-        [disabled]="!canProduce() && !screenOn()"
+        [disabled]="screenDisabled()"
         tuiHintAppearance="floating"
-        [tuiHint]="
-          canProduce() || screenOn()
-            ? ((screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON') | translate)
-            : ('CALL.WAITING_FOR_CONNECTION' | translate)
-        "
+        [tuiHint]="screenHintKey() | translate"
         (click)="toggleStream('screen')">
       </button>
     }

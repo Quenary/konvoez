@@ -1,4 +1,5 @@
 import { APP_VERSION, withVersion } from '@core/asset-version';
+import { ensureWorkletModule } from './ensure-worklet-module';
 
 /** Classic worklet script served from `public/`. Version query busts the immutable nginx cache. */
 export const VOICE_DYNAMICS_WORKLET_URL = withVersion(
@@ -33,6 +34,7 @@ export const VOICE_EXPANDER_OPTIONS = {
   attackMs: 5,
   releaseMs: 120,
   maxReductionDb: 40,
+  expanderLookaheadSamples: 240,
 } as const;
 
 export const VOICE_LIMITER_OPTIONS = {
@@ -43,32 +45,23 @@ export const VOICE_LIMITER_OPTIONS = {
   limiterReleaseMs: 50,
 } as const;
 
-const workletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
-
 export function ensureVoiceDynamicsWorklet(
   context: BaseAudioContext,
 ): Promise<void> {
-  const pending = workletLoads.get(context);
-  if (pending) {
-    return pending;
-  }
-  const loading = context.audioWorklet
-    .addModule(VOICE_DYNAMICS_WORKLET_URL)
-    .catch((error: unknown) => {
-      workletLoads.delete(context);
-      throw error;
-    });
-  workletLoads.set(context, loading);
-  return loading;
+  return ensureWorkletModule(context, VOICE_DYNAMICS_WORKLET_URL);
 }
 
 export function createVoiceDynamicsNode(
   context: BaseAudioContext,
-  mode: 'expander' | 'limiter',
+  mode: 'expander' | 'limiter' | 'playback-limiter',
 ): AudioWorkletNode {
+  const isPlayback = mode === 'playback-limiter';
   return new AudioWorkletNode(context, VOICE_DYNAMICS_PROCESSOR, {
     numberOfInputs: 1,
     numberOfOutputs: 1,
+    channelCount: isPlayback ? 2 : 1,
+    channelCountMode: 'explicit',
+    ...(isPlayback ? { outputChannelCount: [2] } : {}),
     processorOptions:
       mode === 'expander' ? VOICE_EXPANDER_OPTIONS : VOICE_LIMITER_OPTIONS,
   });

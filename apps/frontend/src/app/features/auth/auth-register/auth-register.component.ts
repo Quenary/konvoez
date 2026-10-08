@@ -9,8 +9,8 @@ import {
 
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
-import { AuthActions } from '../auth.actions';
-import { selectAuthLoading } from '../auth.selectors';
+import { AuthActions } from '@core/auth/auth.actions';
+import { selectAuthLoading } from '@core/auth/auth.selectors';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,

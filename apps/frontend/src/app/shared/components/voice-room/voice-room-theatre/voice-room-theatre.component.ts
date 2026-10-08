@@ -7,9 +7,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { preferTheatreStripRight } from '../voice-peers-layout';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
@@ -32,14 +29,8 @@ import type { TVoiceRoomTile } from '../voice-room-tiles';
 export class VoiceRoomTheatreComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
-  private readonly store = inject(Store);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly voiceRoomTilesService = inject(VoiceRoomTilesService);
-  private readonly localScreenPreviewService = inject(
-    LocalScreenPreviewService,
-  );
-
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected readonly focusTile = this.voiceRoomTilesService.theatreTile;
   protected readonly stripTiles = this.voiceRoomTilesService.tiles;
@@ -51,34 +42,18 @@ export class VoiceRoomTheatreComponent {
 
   protected readonly videoTrack = computed(() => {
     const tile = this.focusTile();
-    const paused = this.localScreenPreviewService.paused();
-    const localId = this.currentUser()?.id ?? null;
-    if (
-      paused &&
-      tile?.streamKind === 'screen' &&
-      localId != null &&
-      tile.peerId === localId
-    ) {
+    if (tile?.previewPaused) {
       return null;
     }
     return tile?.videoTrack ?? null;
   });
 
   protected readonly stripItems = computed(() => {
-    const paused = this.localScreenPreviewService.paused();
-    const localId = this.currentUser()?.id ?? null;
-    return this.stripTiles().map((tile) => {
-      const previewPaused =
-        paused &&
-        tile.streamKind === 'screen' &&
-        localId != null &&
-        tile.peerId === localId;
-      return {
-        tile,
-        videoTrack: previewPaused ? null : tile.videoTrack,
-        previewPaused,
-      };
-    });
+    return this.stripTiles().map((tile) => ({
+      tile,
+      videoTrack: tile.previewPaused ? null : tile.videoTrack,
+      previewPaused: tile.previewPaused,
+    }));
   });
 
   constructor() {
