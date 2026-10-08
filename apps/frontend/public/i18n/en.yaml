@@ -74,6 +74,7 @@ CALL:
   DECLINED: Call declined
   NO_ANSWER: User is not answering
   ACCEPT_FAILED: Couldn't accept the call
+  INITIATE_FAILED: Couldn't start the call
   VIDEO_LIMIT_REACHED: Room video limit reached
   WAITING_FOR_CONNECTION: Waiting for connection…
   PARTICIPANTS: '{{count}} participants'

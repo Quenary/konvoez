@@ -74,6 +74,7 @@ CALL:
   DECLINED: Звонок отклонен
   NO_ANSWER: Пользователь не отвечает
   ACCEPT_FAILED: Не удалось принять звонок
+  INITIATE_FAILED: Не удалось совершить звонок
   VIDEO_LIMIT_REACHED: Достигнут лимит видео в комнате
   WAITING_FOR_CONNECTION: Ожидание подключения…
   PARTICIPANTS: 'Участников: {{count}}'

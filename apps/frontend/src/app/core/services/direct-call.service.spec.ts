@@ -162,6 +162,22 @@ describe('DirectCallService', () => {
     expect(service.isDirectCallContext()).toBe(true);
   });
 
+  it('initiateCall shows error notification and leaves active call null on failure', async () => {
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    socket.emitWithAck.mockRejectedValue(new Error('initiate failed'));
+
+    await service.initiateCall(recipient);
+
+    expect(service.activeCall()).toBeNull();
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.INITIATE_FAILED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    errorSpy.mockRestore();
+  });
+
   it('acceptCall clears the call when the server rejects accept', async () => {
     socket.emitWithAck.mockResolvedValue({
       error: 'Call not found or already ended',

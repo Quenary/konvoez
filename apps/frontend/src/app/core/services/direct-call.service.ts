@@ -26,6 +26,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { notifyError } from '@shared/functions/notify-error.function';
 
 export enum ECallStatus {
   IDLE = 'IDLE',
@@ -201,7 +202,12 @@ export class DirectCallService {
     } catch (err) {
       this.audioService.stopOutgoingDialing();
       this._activeCall.set(null);
-      console.error('Failed to initiate direct call', err);
+      notifyError(
+        this.notificationsService,
+        this.translateService,
+        'CALL.INITIATE_FAILED',
+        err,
+      );
     }
   }
 
