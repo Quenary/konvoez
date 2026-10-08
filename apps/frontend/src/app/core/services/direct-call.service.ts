@@ -222,28 +222,17 @@ export class DirectCallService {
       if (isVoiceSocketAckTimeout(error)) {
         const active = await this.refreshActiveCall(current.interlocutor.id);
         if (active?.callId === current.callId) {
-          this._activeCall.set({
-            ...current,
-            status: ECallStatus.CONNECTED,
-          });
-          try {
-            await this.voiceSessionService.joinSession({
-              type: EVoiceSessionType.DIRECT_CALL,
-              callId: current.callId,
-              interlocutorId: current.interlocutor.id,
-            });
-          } catch (joinError) {
-            this.voiceSessionService.reportJoinFailure(joinError);
-            this.socket.emit(EDirectCallEvent.CALL_HANGUP, {
-              callId: current.callId,
-              byUserId: this.currentUser()?.id ?? 0,
-            });
-            this._activeCall.set(null);
-          }
+          this._rejoinableCall.set(null);
+          await this.joinAcceptedCall(current);
           return;
         }
       }
 
+      this.socket.emit(EDirectCallEvent.CALL_REJECT, {
+        callId: current.callId,
+        callerId: current.interlocutor.id,
+        reason: 'declined',
+      });
       this._activeCall.set(null);
       this.notificationsService
         .open(this.translateService.instant('CALL.ACCEPT_FAILED'), {
@@ -255,6 +244,10 @@ export class DirectCallService {
       return;
     }
 
+    await this.joinAcceptedCall(current);
+  }
+
+  private async joinAcceptedCall(current: IActiveCall): Promise<void> {
     this._activeCall.set({
       ...current,
       status: ECallStatus.CONNECTED,
@@ -267,8 +260,8 @@ export class DirectCallService {
         interlocutorId: current.interlocutor.id,
       });
       await this.router.navigate(['/direct', current.interlocutor.id]);
-    } catch (error) {
-      this.voiceSessionService.reportJoinFailure(error);
+    } catch (joinError) {
+      this.voiceSessionService.reportJoinFailure(joinError);
       const me = this.currentUser();
       if (me) {
         this.socket.emit(EDirectCallEvent.CALL_HANGUP, {

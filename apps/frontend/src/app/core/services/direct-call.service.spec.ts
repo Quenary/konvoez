@@ -204,6 +204,65 @@ describe('DirectCallService', () => {
     expect(service.activeCall()).toBeNull();
   });
 
+  it('acceptCall on ack timeout rejoins call, navigates, and clears rejoinable call', async () => {
+    socket.emitWithAck
+      .mockRejectedValueOnce(new Error('timed out'))
+      .mockResolvedValueOnce({
+        callId: 'c1',
+        callerId: recipient.id,
+        recipientId: caller.id,
+      });
+
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    await service.acceptCall();
+
+    expect(voiceSessionService.joinSession).toHaveBeenCalledWith({
+      type: EVoiceSessionType.DIRECT_CALL,
+      callId: 'c1',
+      interlocutorId: recipient.id,
+    });
+    expect(router.navigate).toHaveBeenCalledWith(['/direct', recipient.id]);
+    expect(service.rejoinableCall()).toBeNull();
+    expect(service.activeCall()?.status).toBe(ECallStatus.CONNECTED);
+  });
+
+  it('acceptCall on ack timeout emits CALL_REJECT and shows toast when re-query returns null', async () => {
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    socket.emitWithAck
+      .mockRejectedValueOnce(new Error('timed out'))
+      .mockResolvedValueOnce(null);
+
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    await service.acceptCall();
+
+    expect(socket.emit).toHaveBeenCalledWith(EDirectCallEvent.CALL_REJECT, {
+      callId: 'c1',
+      callerId: recipient.id,
+      reason: 'declined',
+    });
+    expect(service.activeCall()).toBeNull();
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.ACCEPT_FAILED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it('callWithUserId prefers the media session interlocutor', () => {
     voiceSessionStore.activeSession.mockReturnValue({
       type: EVoiceSessionType.DIRECT_CALL,
