@@ -7,7 +7,8 @@ import {
   OnGatewayDisconnect,
   OnGatewayConnection,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, UseFilters } from '@nestjs/common';
+import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
 import {
   type IVoiceRoomConnectTransport,
@@ -39,7 +40,7 @@ import {
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
@@ -83,6 +84,7 @@ type TSocket = Socket<
   }
 >;
 
+@UseFilters(WsAckExceptionFilter)
 @WebSocketGateway({
   path: '/ws/v1/voice',
   cors: { origin: '*' },
@@ -102,6 +104,31 @@ export class VoiceRoomsGateway
     private readonly directCallsStateService: DirectCallsStateService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
+  handleRoomDeletedEvent({ id }: { id: number }): void {
+    const sessionKey = getVoiceSessionKey({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: id,
+    });
+    const room = this.voiceRoomsStateService.getRoom(sessionKey);
+    if (!room) {
+      return;
+    }
+
+    const peerSocketIds = [...room.peers.keys()];
+    for (const socketId of peerSocketIds) {
+      const socket = this.server.sockets.sockets.get(socketId) as
+        TSocket | undefined;
+      if (socket) {
+        this.handleLeaveRoom(socket);
+      }
+    }
+
+    if (this.voiceRoomsStateService.getRoom(sessionKey)) {
+      void this.voiceRoomsStateService.removeRoom(sessionKey);
+    }
+  }
 
   async handleConnection(client: TSocket) {
     try {
@@ -484,7 +511,7 @@ export class VoiceRoomsGateway
 
     const producer = peer.producers.get(body.producerId);
     if (!producer || producer.closed) {
-      throw new Error('Producer not found');
+      return {};
     }
 
     this.closeProducerInternal(

@@ -189,37 +189,4 @@ describe('VoiceRoomsStateService lobby eviction', () => {
     );
     expect(service.getRoom(sessionKey)?.peers.size).toBe(0);
   });
-
-  it('handles ROOM_DELETED by evicting the voice session', async () => {
-    const roomId = 12;
-    const sessionKey = 'room:12';
-    const target = service.createGroupIdentity(roomId);
-    service['rooms'].set(sessionKey, {
-      target,
-      id: sessionKey,
-      router: { closed: false, close: jest.fn() } as never,
-      peers: new Map([
-        [
-          's1',
-          {
-            id: 's1',
-            user: bob,
-            producers: new Map(),
-            consumers: new Map(),
-          },
-        ],
-      ]),
-      producers: new Map(),
-    });
-
-    service.handleRoomDeleted({ id: roomId });
-
-    await Promise.resolve();
-
-    expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
-      expect.objectContaining({ roomId, userId: bob.id, revision: 1 }),
-    );
-    expect(service.getRoom(sessionKey)).toBeUndefined();
-  });
 });

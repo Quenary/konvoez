@@ -5,7 +5,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   IVoiceRoomGetAllPeersSnapshot,
   IVoiceRoomLobbyPeerJoined,
@@ -139,12 +139,6 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       room.router.close();
     }
     this.rooms.delete(key);
-  }
-
-  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
-  public handleRoomDeleted(payload: { id: number }): void {
-    const sessionKey = getVoiceSessionKey(this.createGroupIdentity(payload.id));
-    void this.removeRoom(sessionKey);
   }
 
   public getPeersOnJoin(key: string): TVoiceRoomPeersOnJoin {

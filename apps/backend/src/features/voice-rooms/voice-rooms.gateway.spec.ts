@@ -818,6 +818,32 @@ describe('VoiceRoomsGateway', () => {
         userId: alice.id,
       });
     });
+
+    it('acknowledges closeProducer when the producer was already closed on the server', async () => {
+      const screenAudio = {
+        id: 'screen-audio-1',
+        kind: 'audio',
+        closed: true,
+        appData: { mediaTag: 'screen-audio', peerId: 'socket-1' },
+        close: jest.fn(),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const { peer, room } = readyPeer({
+        producers: new Map([['screen-audio-1', screenAudio]]),
+      });
+      room.producers.set('screen-audio-1', screenAudio);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+
+      await expect(
+        gateway.closeProducer(socket as never, {
+          producerId: 'screen-audio-1',
+        }),
+      ).resolves.toEqual({});
+      expect(screenAudio.close).not.toHaveBeenCalled();
+      expect(peer.producers.has('screen-audio-1')).toBe(true);
+    });
   });
 
   describe('closeConsumer', () => {
@@ -1035,6 +1061,47 @@ describe('VoiceRoomsGateway', () => {
       expect(
         gateway.handleCallGetActive(createSocket() as never, {}),
       ).toBeNull();
+    });
+  });
+
+  describe('handleRoomDeletedEvent', () => {
+    it('leaves every connected peer and removes the voice room', () => {
+      const roomId = 12;
+      const sessionKey = 'room:12';
+      const peer = {
+        id: 'socket-1',
+        user: bob,
+        producers: new Map(),
+        consumers: new Map(),
+        sendTransport: { close: jest.fn() },
+        recvTransport: { close: jest.fn() },
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockImplementation((key: string) =>
+        key === sessionKey ? room : undefined,
+      );
+
+      const socket = createSocket({
+        id: 'socket-1',
+        data: {
+          user: bob,
+          sessionKey,
+          roomId,
+          sessionTarget: { type: EVoiceSessionType.GROUP_ROOM, roomId },
+        },
+      });
+      serverMock.sockets.sockets.set('socket-1', socket);
+
+      gateway.handleRoomDeletedEvent({ id: roomId });
+
+      expect(room.peers.has('socket-1')).toBe(false);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        { roomId, userId: bob.id, epoch: 'epoch-1', revision: 1 },
+      );
+      expect(voiceRoomsStateService.removeRoom).toHaveBeenCalledWith(
+        sessionKey,
+      );
     });
   });
 });
