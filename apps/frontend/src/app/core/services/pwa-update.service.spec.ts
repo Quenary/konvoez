@@ -18,6 +18,7 @@ describe('PwaUpdateService', () => {
     unrecoverable: Subject<void>;
   };
   let activeSession: ReturnType<typeof signal<unknown>>;
+  let joiningTarget: ReturnType<typeof signal<unknown>>;
 
   beforeEach(() => {
     versionUpdates$ = new Subject<VersionEvent>();
@@ -30,6 +31,7 @@ describe('PwaUpdateService', () => {
       unrecoverable: new Subject<void>(),
     };
     activeSession = signal(null);
+    joiningTarget = signal(null);
 
     TestBed.configureTestingModule({
       providers: [
@@ -38,7 +40,10 @@ describe('PwaUpdateService', () => {
         { provide: TuiResponsiveDialogService, useValue: dialogService },
         {
           provide: VoiceSessionStore,
-          useValue: { activeSession: activeSession.asReadonly() },
+          useValue: {
+            activeSession: activeSession.asReadonly(),
+            joiningTarget: joiningTarget.asReadonly(),
+          },
         },
       ],
     });
@@ -72,6 +77,38 @@ describe('PwaUpdateService', () => {
     await vi.waitFor(() =>
       expect(service['pendingNormalUpdateReload']).toBe(false),
     );
+  });
+
+  it('does not reload while a voice join is in progress', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    dialogService.open.mockReturnValue(of(true));
+    activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
+    const service = TestBed.inject(PwaUpdateService);
+
+    versionUpdates$.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'a' },
+      latestVersion: { hash: 'b' },
+    });
+
+    await vi.waitFor(() => expect(dialogService.open).toHaveBeenCalled(), {
+      timeout: 2000,
+    });
+    service['applyAvailableUpdate']();
+    expect(service['pendingNormalUpdateReload']).toBe(true);
+
+    joiningTarget.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 2 });
+    activeSession.set(null);
+    await Promise.resolve();
+    expect(reload).not.toHaveBeenCalled();
+    expect(service['pendingNormalUpdateReload']).toBe(true);
+
+    joiningTarget.set(null);
+    await vi.waitFor(() =>
+      expect(service['pendingNormalUpdateReload']).toBe(false),
+    );
+    vi.unstubAllGlobals();
   });
 
   it('defers unrecoverable reload while a voice session is active', async () => {

@@ -46,7 +46,8 @@ export class PwaUpdateService {
 
     effect(() => {
       const session = this.voiceSessionStore.activeSession();
-      if (session !== null) {
+      const joining = this.voiceSessionStore.joiningTarget();
+      if (session !== null || joining !== null) {
         return;
       }
       if (this.pendingNormalUpdateReload) {
@@ -62,7 +63,10 @@ export class PwaUpdateService {
   }
 
   private handleUnrecoverableUpdate(): void {
-    if (this.voiceSessionStore.activeSession()) {
+    if (
+      this.voiceSessionStore.activeSession() ||
+      this.voiceSessionStore.joiningTarget()
+    ) {
       this.pendingUnrecoverableReload = true;
       return;
     }
@@ -143,7 +147,10 @@ export class PwaUpdateService {
   }
 
   private applyAvailableUpdate(): void {
-    if (this.voiceSessionStore.activeSession()) {
+    if (
+      this.voiceSessionStore.activeSession() ||
+      this.voiceSessionStore.joiningTarget()
+    ) {
       this.pendingNormalUpdateReload = true;
       return;
     }

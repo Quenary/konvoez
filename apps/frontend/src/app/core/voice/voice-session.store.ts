@@ -18,6 +18,7 @@ import { toPeerUser } from './voice-peer.helpers';
 
 type VoiceSessionState = {
   activeSession: TVoiceSessionTarget | null;
+  joiningTarget: TVoiceSessionTarget | null;
 };
 
 /**
@@ -26,7 +27,10 @@ type VoiceSessionState = {
  */
 export const VoiceSessionStore = signalStore(
   { providedIn: 'root' },
-  withState<VoiceSessionState>({ activeSession: null }),
+  withState<VoiceSessionState>({
+    activeSession: null,
+    joiningTarget: null,
+  }),
   withEntities<IUser>(),
   withComputed(({ activeSession, entities, entityMap }) => ({
     selectedRoomId: computed(() => {
@@ -45,6 +49,10 @@ export const VoiceSessionStore = signalStore(
   withMethods((store) => ({
     setActiveSession(activeSession: TVoiceSessionTarget | null): void {
       patchState(store, { activeSession });
+    },
+
+    setJoiningTarget(joiningTarget: TVoiceSessionTarget | null): void {
+      patchState(store, { joiningTarget });
     },
 
     setPeers(users: IUser[]): void {
