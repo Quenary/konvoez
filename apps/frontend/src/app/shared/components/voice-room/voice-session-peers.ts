@@ -34,8 +34,9 @@ export function resolveVoiceSessionPeers(
   }
 
   if (input.isRinging && input.interlocutor) {
-    if (!list.some((existing) => existing.id === input.interlocutor!.id)) {
-      list.push(input.interlocutor);
+    const interlocutor = input.interlocutor;
+    if (!list.some((existing) => existing.id === interlocutor.id)) {
+      list.push(interlocutor);
     }
   }
 

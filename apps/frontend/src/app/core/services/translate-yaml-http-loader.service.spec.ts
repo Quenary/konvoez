@@ -91,8 +91,14 @@ describe('i18n Translation Keys Consistency', () => {
       for (let j = i + 1; j < files.length; j++) {
         const fileA = files[i];
         const fileB = files[j];
-        const dataA = translations.get(fileA)!;
-        const dataB = translations.get(fileB)!;
+        const dataA = translations.get(fileA);
+        if (!dataA) {
+          throw new Error(`missing translation data for ${fileA}`);
+        }
+        const dataB = translations.get(fileB);
+        if (!dataB) {
+          throw new Error(`missing translation data for ${fileB}`);
+        }
 
         const missingInB = dataA.allKeys.filter((key) => !dataB.keys.has(key));
         const missingInA = dataB.allKeys.filter((key) => !dataA.keys.has(key));
