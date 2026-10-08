@@ -34,7 +34,7 @@ flowchart LR
 | Makeup +5 dB           | Lifts speech the compressor did not touch                                                                                                                                                                               |
 | Limiter                | Lookahead 128 samples (~2.7 ms) tracked with a sliding maximum, ceiling −1 dBFS, release 50 ms                                                                                                                          |
 
-The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track. `AudioActivityService` thresholds are unchanged.
+The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track; it measures the fully processed signal (after expander, compressor, makeup and limiter), and the `AudioActivityService` thresholds were not re-tuned for it.
 
 Added latency is about one RNNoise frame (10 ms) plus the expander lookahead (240 samples, 5 ms) and the limiter lookahead (128 samples, ~2.7 ms). `cleanupPipeline` calls `destroy()` on the denoiser node and posts `{ type: 'dispose' }` to the expander and limiter. `process()` then returns false, so those processors stop while the capture context is still open (device change, pipeline rebuild).
 
