@@ -2,7 +2,7 @@
 
 Mic capture and remote playback dynamics. Session flow: [VOICE.md](./VOICE.md).
 
-One noise suppressor on the mic. Browser `noiseSuppression` and `autoGainControl` stay off so they do not stack on RNNoise or fight the compressor. `echoCancellation` stays on. Constraints live in `get-stream.function.ts` (`channelCount: { ideal: 1 }`). If the browser rejects them, capture retries with looser constraints for the same device.
+One noise suppressor on the mic. Browser `noiseSuppression` stays off so it does not stack on RNNoise. `echoCancellation` and `autoGainControl` stay on at capture. Constraints live in `get-stream.function.ts` (`channelCount: { ideal: 1 }`). If the browser rejects them, capture retries with looser constraints for the same device.
 
 There is no settings UI. Thresholds are constants in `apps/frontend/src/app/core/audio/voice-dynamics.ts`.
 
