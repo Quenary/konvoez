@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { EVoiceRoomEvent, IVoiceRoomCloseConsumer } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
+import { emitVoiceRoomWithAck } from './voice-room-socket-ack';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { PeerVideoService } from './peer-video.service';
@@ -77,9 +78,13 @@ export class ScreenWatchService {
 
     for (const consumerId of consumerIds) {
       try {
-        await this.socket.emitWithAck(EVoiceRoomEvent.CLOSE_CONSUMER, {
-          consumerId,
-        } satisfies IVoiceRoomCloseConsumer);
+        await emitVoiceRoomWithAck(
+          this.socket,
+          EVoiceRoomEvent.CLOSE_CONSUMER,
+          {
+            consumerId,
+          } satisfies IVoiceRoomCloseConsumer,
+        );
       } catch (error) {
         console.warn('close-consumer ack failed', error);
       }

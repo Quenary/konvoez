@@ -1,4 +1,4 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -31,6 +31,10 @@ import { PeerVideoService } from './peer-video.service';
 import { ScreenWatchService } from './screen-watch.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
+import {
+  emitVoiceRoomWithAck,
+  VOICE_JOIN_ACK_MS,
+} from './voice-room-socket-ack';
 
 const voiceSessionMutex = new Mutex();
 const micControlsMutex = new Mutex();
@@ -70,17 +74,13 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   public readonly sessionWillChange$ =
     this.sessionWillChangeSubject.asObservable();
 
-  /** Target of an in-flight `joinSession` (before JOIN_ROOM ack). */
-  private readonly joiningTargetState = signal<TVoiceSessionTarget | null>(
-    null,
-  );
-  public readonly joiningTarget = this.joiningTargetState.asReadonly();
+  public readonly joiningTarget = this.voiceSessionStore.joiningTarget;
 
   /** Send transport is ready and join is not in flight. */
   public readonly canProduce = computed(
     () =>
       this.voiceSessionStore.activeSession() !== null &&
-      this.joiningTargetState() === null,
+      this.voiceSessionStore.joiningTarget() === null,
   );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
@@ -185,18 +185,18 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     if (!force && previous && getVoiceSessionKey(previous) === targetKey) {
       return;
     }
-    const pending = this.joiningTargetState();
+    const pending = this.voiceSessionStore.joiningTarget();
     if (!force && pending && getVoiceSessionKey(pending) === targetKey) {
       return;
     }
 
-    this.joiningTargetState.set(target);
+    this.voiceSessionStore.setJoiningTarget(target);
     try {
       await this.joinSessionLockedInner(target, previous);
     } finally {
-      const pending = this.joiningTargetState();
-      if (pending && getVoiceSessionKey(pending) === targetKey) {
-        this.joiningTargetState.set(null);
+      const pendingJoin = this.voiceSessionStore.joiningTarget();
+      if (pendingJoin && getVoiceSessionKey(pendingJoin) === targetKey) {
+        this.voiceSessionStore.setJoiningTarget(null);
       }
     }
   }
@@ -215,13 +215,18 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.addSocketListeners();
 
     try {
-      await this.socket.emitWithAck(EVoiceRoomEvent.JOIN_ROOM, {
-        sessionTarget: target,
-        roomId:
-          target.type === EVoiceSessionType.GROUP_ROOM
-            ? target.roomId
-            : undefined,
-      } satisfies IVoiceRoomJoin);
+      await emitVoiceRoomWithAck(
+        this.socket,
+        EVoiceRoomEvent.JOIN_ROOM,
+        {
+          sessionTarget: target,
+          roomId:
+            target.type === EVoiceSessionType.GROUP_ROOM
+              ? target.roomId
+              : undefined,
+        } satisfies IVoiceRoomJoin,
+        VOICE_JOIN_ACK_MS,
+      );
 
       this.voiceSessionStore.setActiveSession(target);
       await this.mediasoupSessionService.ensureDeviceLoaded();
@@ -324,6 +329,19 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       this.voiceSessionStore.removePeer(data.user.id);
     });
 
+    this.socket.on(EVoiceRoomEvent.ROOM_CLOSED, (data) => {
+      const session = this.voiceSessionStore.activeSession();
+      if (!session || getVoiceSessionKey(session) !== data.sessionKey) {
+        return;
+      }
+      notifyError(
+        this.tuiNotificationsService,
+        this.translateService,
+        'VOICE.ROOM_CLOSED',
+      );
+      void this.leaveSession();
+    });
+
     this.socket.on(EVoiceRoomEvent.PRODUCER_CREATED, async (data) => {
       await this.consume(data);
     });
@@ -350,6 +368,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.off(EVoiceRoomEvent.PEERS_ON_JOIN);
     this.socket.off(EVoiceRoomEvent.PEER_JOINED);
     this.socket.off(EVoiceRoomEvent.PEER_LEFT);
+    this.socket.off(EVoiceRoomEvent.ROOM_CLOSED);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CLOSED);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CREATED);
     this.socket.off(EVoiceRoomEvent.CONSUMER_CLOSED);

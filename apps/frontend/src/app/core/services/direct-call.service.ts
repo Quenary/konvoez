@@ -16,7 +16,10 @@ import {
 } from '@konvoez/shared';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
-import { emitVoiceRoomWithAck } from './voice-room-socket-ack';
+import {
+  emitVoiceRoomWithAck,
+  isVoiceSocketAckTimeout,
+} from './voice-room-socket-ack';
 import { AudioService } from './audio.service';
 import { VoiceSessionService } from './voice-session.service';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -155,7 +158,8 @@ export class DirectCallService {
     try {
       this.audioService.startOutgoingDialing();
 
-      const result: ICallInitiateResult = await this.socket.emitWithAck(
+      const result: ICallInitiateResult = await emitVoiceRoomWithAck(
+        this.socket,
         EDirectCallEvent.CALL_INITIATE,
         {
           recipientId: recipient.id,
@@ -215,8 +219,32 @@ export class DirectCallService {
         callerId: current.interlocutor.id,
       });
     } catch (error) {
-      this._activeCall.set({ ...current, status: ECallStatus.INCOMING });
-      this.audioService.startIncomingRingtone();
+      if (isVoiceSocketAckTimeout(error)) {
+        const active = await this.refreshActiveCall(current.interlocutor.id);
+        if (active?.callId === current.callId) {
+          this._activeCall.set({
+            ...current,
+            status: ECallStatus.CONNECTED,
+          });
+          try {
+            await this.voiceSessionService.joinSession({
+              type: EVoiceSessionType.DIRECT_CALL,
+              callId: current.callId,
+              interlocutorId: current.interlocutor.id,
+            });
+          } catch (joinError) {
+            this.voiceSessionService.reportJoinFailure(joinError);
+            this.socket.emit(EDirectCallEvent.CALL_HANGUP, {
+              callId: current.callId,
+              byUserId: this.currentUser()?.id ?? 0,
+            });
+            this._activeCall.set(null);
+          }
+          return;
+        }
+      }
+
+      this._activeCall.set(null);
       this.notificationsService
         .open(this.translateService.instant('CALL.ACCEPT_FAILED'), {
           appearance: 'negative',
@@ -356,7 +384,8 @@ export class DirectCallService {
     interlocutorId?: number,
   ): Promise<ICallGetActiveResult | null> {
     try {
-      const result: ICallGetActiveResult | null = await this.socket.emitWithAck(
+      const result: ICallGetActiveResult | null = await emitVoiceRoomWithAck(
+        this.socket,
         EDirectCallEvent.CALL_GET_ACTIVE,
         interlocutorId !== undefined ? { interlocutorId } : {},
       );
