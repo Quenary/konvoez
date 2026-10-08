@@ -74,6 +74,10 @@ export class DirectCallService {
   public readonly isConnected = computed(
     () => this.callStatus() === ECallStatus.CONNECTED,
   );
+  /** Outgoing or incoming ring before media is connected. */
+  public readonly isRinging = computed(
+    () => this.isCalling() || this.isIncoming(),
+  );
   public readonly interlocutor = computed(
     () => this._activeCall()?.interlocutor ?? null,
   );
@@ -116,14 +120,10 @@ export class DirectCallService {
       : rejoinable.callerId;
   });
 
+  /** Direct-call UI (shell/grid) for media or ringing signaling. */
   public readonly isDirectCallContext = computed(() => {
     const session = this.voiceSessionStore.activeSession();
-    const calling = this.isCalling();
-    const incoming = this.isIncoming();
-
-    return (
-      session?.type === EVoiceSessionType.DIRECT_CALL || calling || incoming
-    );
+    return session?.type === EVoiceSessionType.DIRECT_CALL || this.isRinging();
   });
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
@@ -208,23 +208,47 @@ export class DirectCallService {
 
     this.audioService.stopIncomingRingtone();
 
-    await this.socket.emitWithAck(EDirectCallEvent.CALL_ACCEPT, {
-      callId: current.callId,
-      callerId: current.interlocutor.id,
-    });
+    try {
+      await this.socket.emitWithAck(EDirectCallEvent.CALL_ACCEPT, {
+        callId: current.callId,
+        callerId: current.interlocutor.id,
+      });
+    } catch (error) {
+      this._activeCall.set({ ...current, status: ECallStatus.INCOMING });
+      this.audioService.startIncomingRingtone();
+      this.notificationsService
+        .open(this.translateService.instant('CALL.ACCEPT_FAILED'), {
+          appearance: 'negative',
+          autoClose: 5000,
+        })
+        .subscribe();
+      console.error('Failed to accept direct call', error);
+      return;
+    }
 
     this._activeCall.set({
       ...current,
       status: ECallStatus.CONNECTED,
     });
 
-    await this.voiceSessionService.joinSession({
-      type: EVoiceSessionType.DIRECT_CALL,
-      callId: current.callId,
-      interlocutorId: current.interlocutor.id,
-    });
-
-    await this.router.navigate(['/direct', current.interlocutor.id]);
+    try {
+      await this.voiceSessionService.joinSession({
+        type: EVoiceSessionType.DIRECT_CALL,
+        callId: current.callId,
+        interlocutorId: current.interlocutor.id,
+      });
+      await this.router.navigate(['/direct', current.interlocutor.id]);
+    } catch (error) {
+      this.voiceSessionService.reportJoinFailure(error);
+      const me = this.currentUser();
+      if (me) {
+        this.socket.emit(EDirectCallEvent.CALL_HANGUP, {
+          callId: current.callId,
+          byUserId: me.id,
+        });
+      }
+      this._activeCall.set(null);
+    }
   }
 
   public rejectCall(): void {

@@ -56,11 +56,13 @@ describe('DirectCallService', () => {
   let voiceSessionService: {
     joinSession: ReturnType<typeof vi.fn>;
     leaveSession: ReturnType<typeof vi.fn>;
+    reportJoinFailure: ReturnType<typeof vi.fn>;
     sessionWillChange$: Subject<{
       previous: unknown;
       next: unknown;
     }>;
   };
+  let notifications: { open: ReturnType<typeof vi.fn> };
   let voiceSessionStore: {
     directCallTarget: ReturnType<typeof vi.fn>;
     activeSession: ReturnType<typeof vi.fn>;
@@ -82,7 +84,11 @@ describe('DirectCallService', () => {
     voiceSessionService = {
       joinSession: vi.fn().mockResolvedValue(undefined),
       leaveSession: vi.fn().mockResolvedValue(undefined),
+      reportJoinFailure: vi.fn(),
       sessionWillChange$: new Subject(),
+    };
+    notifications = {
+      open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
     };
     voiceSessionStore = {
       directCallTarget: vi.fn().mockReturnValue(null),
@@ -110,10 +116,7 @@ describe('DirectCallService', () => {
         { provide: VoiceSessionService, useValue: voiceSessionService },
         { provide: VoiceSessionStore, useValue: voiceSessionStore },
         { provide: Router, useValue: router },
-        {
-          provide: TuiNotificationService,
-          useValue: { open: vi.fn().mockReturnValue({ subscribe: vi.fn() }) },
-        },
+        { provide: TuiNotificationService, useValue: notifications },
         {
           provide: TranslateService,
           useValue: { instant: vi.fn((key: string) => key) },
@@ -128,6 +131,64 @@ describe('DirectCallService', () => {
     });
 
     service = TestBed.inject(DirectCallService);
+  });
+
+  it('isRinging is true while calling or incoming', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CALLING,
+    });
+    expect(service.isRinging()).toBe(true);
+
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+    expect(service.isRinging()).toBe(true);
+    expect(service.isDirectCallContext()).toBe(true);
+  });
+
+  it('acceptCall restores ringing state when signaling fails', async () => {
+    socket.emitWithAck.mockRejectedValue(new Error('network'));
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    await service.acceptCall();
+
+    expect(service.activeCall()?.status).toBe(ECallStatus.INCOMING);
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.ACCEPT_FAILED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
+  });
+
+  it('acceptCall reports join failure and hangs up when media join fails', async () => {
+    socket.emitWithAck.mockResolvedValue(undefined);
+    voiceSessionService.joinSession.mockRejectedValue(new Error('join failed'));
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    await service.acceptCall();
+
+    expect(voiceSessionService.reportJoinFailure).toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith(EDirectCallEvent.CALL_HANGUP, {
+      callId: 'c1',
+      byUserId: caller.id,
+    });
+    expect(service.activeCall()).toBeNull();
   });
 
   it('callWithUserId prefers the media session interlocutor', () => {
