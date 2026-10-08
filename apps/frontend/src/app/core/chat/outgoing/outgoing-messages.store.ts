@@ -1,6 +1,6 @@
 import { DestroyRef, computed, effect, inject } from '@angular/core';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
   EAttachmentKind,
   EAttachmentUploadError,

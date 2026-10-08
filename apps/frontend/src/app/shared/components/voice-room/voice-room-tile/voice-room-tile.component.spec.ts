@@ -9,7 +9,7 @@ import { DirectCallService } from '@core/services/direct-call.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';

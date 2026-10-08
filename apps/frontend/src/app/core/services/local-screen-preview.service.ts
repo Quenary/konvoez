@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import {
   EMPTY,
   combineLatest,

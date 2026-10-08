@@ -7,7 +7,7 @@ import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomTheatreComponent } from './voice-room-theatre.component';

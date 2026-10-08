@@ -37,7 +37,7 @@ import {
 } from '@taiga-ui/kit';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UsersStore } from '@core/stores/users.store';
 import { Router, RouterLink } from '@angular/router';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';

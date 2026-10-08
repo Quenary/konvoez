@@ -24,7 +24,7 @@ import {
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { parseError } from '@shared/functions/parse-error.function';
-import { AuthApiService } from '../auth-api.service';
+import { AuthApiService } from '@core/api/auth-api.service';
 import { finalize } from 'rxjs';
 
 @Component({

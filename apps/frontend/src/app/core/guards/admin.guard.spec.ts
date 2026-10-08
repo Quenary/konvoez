@@ -7,7 +7,7 @@ import {
   UrlTree,
 } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { selectAuth } from '@features/auth/auth.selectors';
+import { selectAuth } from '@core/auth/auth.selectors';
 import { adminGuard } from './admin.guard';
 import { firstValueFrom, Observable } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';

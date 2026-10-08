@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -37,7 +37,7 @@ import {
 } from '@taiga-ui/kit';
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, of } from 'rxjs';
-import { UserManagementApiService } from '../user-management-api.service';
+import { UserManagementApiService } from '@core/api/user-management-api.service';
 
 export interface IUserManagementDialogData {
   readonly id: number;

@@ -3,7 +3,7 @@ import { Store } from '@ngrx/store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {

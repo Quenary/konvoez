@@ -18,7 +18,7 @@ import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 
 vi.hoisted(() => {
   (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =

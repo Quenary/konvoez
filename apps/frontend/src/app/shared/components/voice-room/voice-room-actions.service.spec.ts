@@ -28,6 +28,7 @@ const tile = (
   videoTrack,
   screenAvailable: false,
   watchingScreen: false,
+  previewPaused: false,
 });
 
 describe('VoiceRoomActionsService', () => {

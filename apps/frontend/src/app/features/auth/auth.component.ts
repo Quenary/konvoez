@@ -7,8 +7,11 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { authLoginSchema, IAuthLogin } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
-import { selectAuthLoading, selectIsAuthorized } from './auth.selectors';
-import { AuthActions } from './auth.actions';
+import {
+  selectAuthLoading,
+  selectIsAuthorized,
+} from '@core/auth/auth.selectors';
+import { AuthActions } from '@core/auth/auth.actions';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Router, RouterLink } from '@angular/router';
 import {

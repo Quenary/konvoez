@@ -7,7 +7,7 @@ import { TuiDialogService } from '@taiga-ui/core';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
 import { IRoom, IRoomUpdate } from '@konvoez/shared';
 

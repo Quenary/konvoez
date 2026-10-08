@@ -21,7 +21,7 @@ import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, finalize, of } from 'rxjs';
-import { UserManagementApiService } from './user-management-api.service';
+import { UserManagementApiService } from '@core/api/user-management-api.service';
 
 @Component({
   selector: 'app-settings-user-management',

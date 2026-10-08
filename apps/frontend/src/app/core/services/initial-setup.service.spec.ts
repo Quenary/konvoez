@@ -4,16 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 import { EUserRole } from '@konvoez/shared';
 import {
   AUDIO_DEVICE_HANDLER,
   IAudioDeviceHandler,
 } from '@core/tokens/audio-device-handler.token';
 import { InitialSetupService } from './initial-setup.service';
-import { SettingsApiService } from './settings-api.service';
-import { SettingsStore } from './settings.store';
+import { SettingsApiService } from '@core/api/settings-api.service';
+import { SettingsStore } from '@core/stores/settings.store';
 import { EStorageKey } from '../../app.enums';
 import { LOCAL_SETTINGS_VERSION } from '@shared/schemas/local-settings.schema';
 import { PushNotificationService } from '@core/services/push-notification.service';

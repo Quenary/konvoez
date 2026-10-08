@@ -20,11 +20,11 @@ import {
 } from '@core/voice/voice-lobby.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { AuthActions } from '@features/auth/auth.actions';
+import { AuthActions } from '@core/auth/auth.actions';
 import {
   selectCurrentUser,
   selectIsAuthorized,
-} from '@features/auth/auth.selectors';
+} from '@core/auth/auth.selectors';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { emitVoiceRoomWithAck } from '@core/services/voice-room-socket-ack';

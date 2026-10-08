@@ -2,7 +2,7 @@ import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { finalize } from 'rxjs';
-import { selectIsAuthorized } from '@features/auth/auth.selectors';
+import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 
 /**

@@ -24,9 +24,9 @@ import { TranslateYamlHttpLoader } from './core/services/translate-yaml-http-loa
 import { provideEffects } from '@ngrx/effects';
 import { provideStore, Store } from '@ngrx/store';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
-import { authReducer } from './features/auth/auth.reducer';
-import { AuthEffects } from './features/auth/auth.effects';
-import { AuthActions } from './features/auth/auth.actions';
+import { authReducer } from './core/auth/auth.reducer';
+import { AuthEffects } from './core/auth/auth.effects';
+import { AuthActions } from './core/auth/auth.actions';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';

@@ -18,8 +18,8 @@ import {
   ITextRoomMessage,
   IUser,
 } from '@konvoez/shared';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 
 class MockSocket {
   private readonly listeners = new Map<

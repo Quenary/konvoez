@@ -9,7 +9,7 @@ import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.sto
 import { Sanitizer, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { authReducer } from '@features/auth/auth.reducer';
+import { authReducer } from '@core/auth/auth.reducer';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 

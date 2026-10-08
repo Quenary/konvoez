@@ -25,7 +25,7 @@ import { VoiceSessionService } from './voice-session.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { notifyError } from '@shared/functions/notify-error.function';
 
 export enum ECallStatus {

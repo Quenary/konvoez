@@ -19,7 +19,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
-import { InvitesApiService } from './invites-api.service';
+import { InvitesApiService } from '@core/api/invites-api.service';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { parseError } from '@shared/functions/parse-error.function';
 

@@ -24,12 +24,12 @@ import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { UsersStore } from '@core/stores/users.store';
 import { RoomsStore } from '@core/stores/rooms.store';
-import { DirectChatsStore } from '../direct-chats/direct-chats.store';
-import { AuthApiService } from './auth-api.service';
+import { DirectChatsStore } from '../../features/direct-chats/direct-chats.store';
+import { AuthApiService } from '@core/api/auth-api.service';
 import { AuthEffects } from './auth.effects';
 import { authReducer } from './auth.reducer';
 import { AuthActions } from './auth.actions';
-import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
+import { ProfileApiService } from '@core/api/profile-api.service';
 
 describe('AuthEffects logout', () => {
   let store: Store;

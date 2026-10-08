@@ -8,7 +8,7 @@ import { PeerVideoService } from './peer-video.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { MediasoupSessionService } from './mediasoup-session.service';
 
 describe('MediasoupSessionService', () => {

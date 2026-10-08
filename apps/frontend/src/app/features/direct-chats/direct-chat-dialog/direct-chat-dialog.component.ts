@@ -17,7 +17,7 @@ import {
 } from '@taiga-ui/core';
 import { TuiAutoFocus } from '@taiga-ui/cdk';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
 import { toSignal } from '@angular/core/rxjs-interop';

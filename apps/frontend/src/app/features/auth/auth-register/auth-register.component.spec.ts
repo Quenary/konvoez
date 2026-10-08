@@ -5,8 +5,8 @@ import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AuthActions } from '../auth.actions';
-import { selectAuthLoading } from '../auth.selectors';
+import { AuthActions } from '@core/auth/auth.actions';
+import { selectAuthLoading } from '@core/auth/auth.selectors';
 import { provideTranslateService } from '@ngx-translate/core';
 
 describe('AuthRegisterComponent', () => {

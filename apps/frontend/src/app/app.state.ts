@@ -1,4 +1,4 @@
-import { IAuthState } from './features/auth/auth.reducer';
+import { IAuthState } from './core/auth/auth.reducer';
 
 export interface IAppState {
   auth: IAuthState;

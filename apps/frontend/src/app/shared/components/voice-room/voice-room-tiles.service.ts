@@ -2,7 +2,7 @@ import { Injectable, computed, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
 import { VoiceRoomViewService } from './voice-room-view.service';
 import { buildVoiceRoomTiles, resolveTheatreTile } from './voice-room-tiles';

@@ -1,12 +1,12 @@
 import { DestroyRef, inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { selectIsAuthorized } from '@features/auth/auth.selectors';
+import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiDialogService } from '@taiga-ui/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { take } from 'rxjs';
-import { SettingsStore } from './settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 
 @Injectable({ providedIn: 'root' })
 export class InitialSetupService {
@@ -42,7 +42,7 @@ export class InitialSetupService {
 
     try {
       const { InitialSetupDialogComponent } =
-        await import('./initial-setup-dialog/initial-setup-dialog.component');
+        await import('../../features/settings/initial-setup-dialog/initial-setup-dialog.component');
 
       this.dialogService
         .open<boolean>(

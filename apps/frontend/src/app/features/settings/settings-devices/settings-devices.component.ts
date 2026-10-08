@@ -37,7 +37,7 @@ import {
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
-import { SettingsStore } from '../settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 
 type DevicesLoadResult = {
   devices: MediaDeviceInfo[];

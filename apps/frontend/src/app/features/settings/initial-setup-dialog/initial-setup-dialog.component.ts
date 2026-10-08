@@ -5,7 +5,7 @@ import { TuiButton, TuiDialogContext } from '@taiga-ui/core';
 import { TuiForm } from '@taiga-ui/layout';
 import { SettingsDevicesComponent } from '../settings-devices/settings-devices.component';
 import { SettingsNotificationsComponent } from '../settings-notifications/settings-notifications.component';
-import { SettingsStore } from '../settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 
 @Component({
   selector: 'app-initial-setup-dialog',

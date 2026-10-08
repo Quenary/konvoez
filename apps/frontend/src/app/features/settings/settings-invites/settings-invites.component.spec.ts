@@ -5,7 +5,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { IInvite } from '@konvoez/shared';
 import { SettingsInvitesComponent } from './settings-invites.component';
-import { InvitesApiService } from './invites-api.service';
+import { InvitesApiService } from '@core/api/invites-api.service';
 
 describe('SettingsInvitesComponent', () => {
   let component: SettingsInvitesComponent;

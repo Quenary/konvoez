@@ -16,8 +16,8 @@ import {
   ITextRoomMessage,
   IUser,
 } from '@konvoez/shared';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 import { Observable, Subject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoPosterService } from '@core/services/video-poster.service';

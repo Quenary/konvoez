@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CameraService } from './camera.service';
 

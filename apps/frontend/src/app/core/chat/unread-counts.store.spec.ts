@@ -3,8 +3,8 @@ import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { authReducer } from '@features/auth/auth.reducer';
-import { AuthActions } from '@features/auth/auth.actions';
+import { authReducer } from '@core/auth/auth.reducer';
+import { AuthActions } from '@core/auth/auth.actions';
 import {
   ETextRoomEvent,
   EUserRole,

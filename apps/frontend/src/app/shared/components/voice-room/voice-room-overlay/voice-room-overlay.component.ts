@@ -13,7 +13,7 @@ import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceRoomControlsBarComponent } from '../voice-room-controls-bar/voice-room-controls-bar.component';
 import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-watch-controls/voice-room-theatre-watch-controls.component';

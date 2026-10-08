@@ -28,7 +28,7 @@ import {
   isVoiceSocketAckTimeout,
   VOICE_JOIN_ACK_MS,
 } from './voice-room-socket-ack';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { MicrophoneService } from './microphone.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';

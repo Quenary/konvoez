@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { ETextRoomEvent, ITextRoomMessage, IUser } from '@konvoez/shared';
 import {
   patchState,

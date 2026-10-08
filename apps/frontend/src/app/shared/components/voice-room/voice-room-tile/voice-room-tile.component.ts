@@ -13,7 +13,7 @@ import { LocalScreenPreviewService } from '@core/services/local-screen-preview.s
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
   TuiButton,
   TuiCheckbox,

@@ -10,7 +10,7 @@ import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { RoomManageService } from '@features/rooms/room-manage.service';
 import { AudioService } from '@core/services/audio.service';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';

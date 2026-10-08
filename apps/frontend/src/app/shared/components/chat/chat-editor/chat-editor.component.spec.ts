@@ -5,7 +5,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { EAttachmentKind, IAttachment } from '@konvoez/shared';
 import { createLocalFile } from '@core/chat/outgoing/outgoing.types';
 

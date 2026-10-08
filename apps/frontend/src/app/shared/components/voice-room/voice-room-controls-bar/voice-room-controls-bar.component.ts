@@ -7,7 +7,7 @@ import {
   output,
 } from '@angular/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { SettingsStore } from '@features/settings/settings.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';

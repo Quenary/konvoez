@@ -11,7 +11,7 @@ import { Store } from '@ngrx/store';
 import {
   selectCurrentUser,
   selectIsAuthorized,
-} from './features/auth/auth.selectors';
+} from '@core/auth/auth.selectors';
 import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';

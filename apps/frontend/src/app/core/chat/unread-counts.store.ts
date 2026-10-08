@@ -4,7 +4,7 @@ import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import {
   selectCurrentUser,
   selectIsAuthorized,
-} from '@features/auth/auth.selectors';
+} from '@core/auth/auth.selectors';
 import { ETextRoomEvent, ITextRoomMessage } from '@konvoez/shared';
 import {
   patchState,

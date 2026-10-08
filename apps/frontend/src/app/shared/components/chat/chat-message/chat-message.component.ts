@@ -28,7 +28,7 @@ import {
   ITextRoomMessageReply,
   IUser,
 } from '@konvoez/shared';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
