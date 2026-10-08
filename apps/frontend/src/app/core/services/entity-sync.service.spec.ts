@@ -19,8 +19,9 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@features/auth/auth.selectors';
-import { RoomsStore } from '@features/rooms/rooms.store';
-import { UsersStore } from '@features/users/users.store';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { UsersStore } from '@core/stores/users.store';
+import { VoiceSessionService } from './voice-session.service';
 import { EntitySyncService } from './entity-sync.service';
 
 describe('EntitySyncService', () => {
@@ -40,6 +41,8 @@ describe('EntitySyncService', () => {
   };
   let voiceSessionStore: {
     applyUserEntityUpdate: ReturnType<typeof vi.fn>;
+  };
+  let voiceSessionService: {
     applyUserEntityDeleted: ReturnType<typeof vi.fn>;
   };
   let voiceLobbyStore: {
@@ -109,6 +112,9 @@ describe('EntitySyncService', () => {
 
     voiceSessionStore = {
       applyUserEntityUpdate: vi.fn(),
+    };
+
+    voiceSessionService = {
       applyUserEntityDeleted: vi.fn(),
     };
 
@@ -148,6 +154,7 @@ describe('EntitySyncService', () => {
         { provide: UsersStore, useValue: usersStore },
         { provide: RoomsStore, useValue: roomsStore },
         { provide: VoiceSessionStore, useValue: voiceSessionStore },
+        { provide: VoiceSessionService, useValue: voiceSessionService },
         { provide: VoiceLobbyStore, useValue: voiceLobbyStore },
         EntitySyncService,
       ],
@@ -213,7 +220,7 @@ describe('EntitySyncService', () => {
     emitter.emit(EEntitySyncEvent.USER_DELETED, { id: me.id });
 
     expect(usersStore.removeOne).toHaveBeenCalledWith(me.id);
-    expect(voiceSessionStore.applyUserEntityDeleted).toHaveBeenCalledWith(
+    expect(voiceSessionService.applyUserEntityDeleted).toHaveBeenCalledWith(
       me.id,
     );
     expect(voiceLobbyStore.applyUserEntityDeleted).toHaveBeenCalledWith(me.id);

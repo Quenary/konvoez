@@ -14,15 +14,19 @@ import {
 } from '@konvoez/shared';
 import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
-import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import {
+  TVoiceLobbyIncrementalResult,
+  VoiceLobbyStore,
+} from '@core/voice/voice-lobby.store';
+import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { AuthActions } from '@features/auth/auth.actions';
 import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@features/auth/auth.selectors';
-import { RoomsStore } from '@features/rooms/rooms.store';
-import { UsersStore } from '@features/users/users.store';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { UsersStore } from '@core/stores/users.store';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import {
@@ -42,6 +46,12 @@ import {
 const lobbyResyncMutex = new Mutex();
 const LOBBY_RESYNC_MAX_ATTEMPTS = 3;
 const LOBBY_RESYNC_INTERVAL_MS = 60_000;
+const LOBBY_SNAPSHOT_BACKOFF_MS = [1000, 2000, 5000, 10000] as const;
+
+const delayMs = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 /**
  * Keeps the entity-sync socket connected for the app lifetime and mirrors
@@ -55,6 +65,7 @@ export class EntitySyncService {
   private readonly voiceRoomSocket = inject(VoiceRoomSocketToken);
   private readonly usersStore = inject(UsersStore);
   private readonly roomsStore = inject(RoomsStore);
+  private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly emitter = this.socket as never;
@@ -115,7 +126,7 @@ export class EntitySyncService {
         takeUntilDestroyed(this.destroyRef),
         tap(({ id }) => {
           this.usersStore.removeOne(id);
-          this.voiceSessionStore.applyUserEntityDeleted(id);
+          this.voiceSessionService.applyUserEntityDeleted(id);
           this.voiceLobbyStore.applyUserEntityDeleted(id);
         }),
         withLatestFrom(this.store.select(selectCurrentUser)),
@@ -208,9 +219,7 @@ export class EntitySyncService {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((payload) => {
         const result = this.voiceLobbyStore.applyVoicePeerJoined(payload);
-        if (result === 'gap') {
-          void this.resyncLobbyState();
-        }
+        this.handleLobbyIncrementalResult(result);
       });
 
     fromEvent<IVoiceRoomLobbyPeerLeft>(
@@ -220,10 +229,20 @@ export class EntitySyncService {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((payload) => {
         const result = this.voiceLobbyStore.applyVoicePeerLeft(payload);
-        if (result === 'gap') {
-          void this.resyncLobbyState();
-        }
+        this.handleLobbyIncrementalResult(result);
       });
+  }
+
+  private handleLobbyIncrementalResult(
+    result: TVoiceLobbyIncrementalResult,
+  ): void {
+    if (result === 'gap' || result === 'overflow') {
+      void this.resyncLobbyState();
+      return;
+    }
+    if (result === 'buffered' && !this.isLobbyResyncQueued) {
+      void this.resyncLobbyState();
+    }
   }
 
   /** Coalesces bursts: while one resync waits for the mutex, further requests are redundant. */
@@ -251,7 +270,12 @@ export class EntitySyncService {
         );
       } catch (error) {
         console.error('Failed to resync voice lobby state', error);
-        return;
+        const backoff =
+          LOBBY_SNAPSHOT_BACKOFF_MS[
+            Math.min(attempt, LOBBY_SNAPSHOT_BACKOFF_MS.length - 1)
+          ];
+        await delayMs(backoff);
+        continue;
       }
 
       const isStillOutdated = this.voiceLobbyStore.setRoomsSnapshot(snapshot);

@@ -19,7 +19,9 @@ type LobbyEvent =
  * - `gap`: events were missed (or the server restarted); a new snapshot is required.
  */
 export type TVoiceLobbyIncrementalResult =
-  'applied' | 'stale' | 'buffered' | 'gap';
+  'applied' | 'stale' | 'buffered' | 'gap' | 'overflow';
+
+const MAX_PENDING_LOBBY_EVENTS = 500;
 
 type VoiceLobbyState = {
   roomsState: TVoiceRoomGetAllPeersResult;
@@ -73,14 +75,39 @@ export const VoiceLobbyStore = signalStore(
       });
     };
 
+    const overflowPendingBuffer = (): TVoiceLobbyIncrementalResult => {
+      patchState(store, {
+        lobbyEpoch: null,
+        lobbyRevision: null,
+        pendingLobbyEvents: [],
+      });
+      return 'overflow';
+    };
+
+    const appendPendingEvent = (
+      event: LobbyEvent,
+    ): TVoiceLobbyIncrementalResult => {
+      const pending = store.pendingLobbyEvents();
+      if (pending.length >= MAX_PENDING_LOBBY_EVENTS) {
+        return overflowPendingBuffer();
+      }
+      patchState(store, {
+        pendingLobbyEvents: [...pending, event],
+      });
+      return 'buffered';
+    };
+
     const bufferForResync = (
       event: LobbyEvent,
     ): TVoiceLobbyIncrementalResult => {
-      patchState(store, (state) => ({
-        lobbyEpoch: null,
-        lobbyRevision: null,
-        pendingLobbyEvents: [...state.pendingLobbyEvents, event],
-      }));
+      patchState(store, { lobbyEpoch: null, lobbyRevision: null });
+      const pending = store.pendingLobbyEvents();
+      if (pending.length >= MAX_PENDING_LOBBY_EVENTS) {
+        return overflowPendingBuffer();
+      }
+      patchState(store, {
+        pendingLobbyEvents: [...pending, event],
+      });
       return 'gap';
     };
 
@@ -90,10 +117,7 @@ export const VoiceLobbyStore = signalStore(
       const epoch = store.lobbyEpoch();
       const revision = store.lobbyRevision();
       if (epoch === null || revision === null) {
-        patchState(store, (state) => ({
-          pendingLobbyEvents: [...state.pendingLobbyEvents, event],
-        }));
-        return 'buffered';
+        return appendPendingEvent(event);
       }
 
       if (event.payload.epoch !== epoch) {

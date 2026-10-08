@@ -222,6 +222,33 @@ describe('VoiceLobbyStore', () => {
     expect(store.roomsState()).toEqual({});
   });
 
+  it('returns overflow and clears the buffer when pending events exceed the cap', () => {
+    const store = TestBed.inject(VoiceLobbyStore);
+    store.markUnsynced();
+
+    for (let revision = 1; revision <= 500; revision++) {
+      expect(
+        store.applyVoicePeerJoined({
+          roomId: 1,
+          user: bob,
+          epoch,
+          revision,
+        }),
+      ).toBe('buffered');
+    }
+
+    expect(
+      store.applyVoicePeerJoined({
+        roomId: 1,
+        user: bob,
+        epoch,
+        revision: 501,
+      }),
+    ).toBe('overflow');
+    expect(store.pendingLobbyEvents()).toEqual([]);
+    expect(store.lobbyEpoch()).toBeNull();
+  });
+
   it('reset clears rooms, sync marker and buffered events', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.applyVoicePeerJoined({ roomId: 1, user: bob, epoch, revision: 1 });
