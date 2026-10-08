@@ -3,9 +3,10 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { RoomsStore } from '@core/stores/rooms.store';
@@ -45,6 +46,7 @@ export class TextRoomComponent {
         return Number.isFinite(id) && id > 0 ? id : null;
       }),
     ),
+    { initialValue: null },
   );
 
   protected readonly room = computed((): IRoom | null => {
@@ -62,16 +64,13 @@ export class TextRoomComponent {
   private readonly roomsDict = this.roomsStore.roomsDict;
 
   constructor() {
-    this.activatedRoute.paramMap
-      .pipe(takeUntilDestroyed())
-      .subscribe((params) => {
-        const id = Number(params.get('id'));
-        if (!id || !Number.isFinite(id)) {
-          return;
-        }
+    effect(() => {
+      const id = this.roomId();
+      if (id !== null) {
         this.roomsStore.setSelectedRoomId(id);
         this.roomsStore.loadOne(id);
-      });
+      }
+    });
 
     this.destroyRef.onDestroy(() => {
       this.roomsStore.setSelectedRoomId(null);

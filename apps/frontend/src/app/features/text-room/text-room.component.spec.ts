@@ -3,7 +3,7 @@ import { TextRoomComponent } from './text-room.component';
 import { ChatStore } from '@shared/components/chat/chat.store';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { Component, input, signal } from '@angular/core';
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { RoomManageService } from '@features/rooms/room-manage.service';
@@ -21,6 +21,7 @@ class MockChatComponent {
 describe('TextRoomComponent', () => {
   let component: TextRoomComponent;
   let fixture: ComponentFixture<TextRoomComponent>;
+  let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   const mockChatStore = {
     join: vi.fn(),
@@ -47,6 +48,7 @@ describe('TextRoomComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    paramMap$ = new BehaviorSubject(convertToParamMap({ id: '42' }));
 
     await TestBed.configureTestingModule({
       imports: [TextRoomComponent],
@@ -58,7 +60,7 @@ describe('TextRoomComponent', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            paramMap: of(convertToParamMap({ id: '42' })),
+            paramMap: paramMap$,
           },
         },
       ],
@@ -85,5 +87,23 @@ describe('TextRoomComponent', () => {
 
   it('should resolve room title from store', () => {
     expect(component['title']()).toBe('General');
+  });
+
+  it('should select room and load one on valid id', () => {
+    expect(mockRoomsStore.setSelectedRoomId).toHaveBeenCalledWith(42);
+    expect(mockRoomsStore.loadOne).toHaveBeenCalledWith(42);
+  });
+
+  it('does not select room or load one when id is negative or non-numeric', () => {
+    vi.clearAllMocks();
+    paramMap$.next(convertToParamMap({ id: '-1' }));
+    fixture.detectChanges();
+    expect(mockRoomsStore.setSelectedRoomId).not.toHaveBeenCalled();
+    expect(mockRoomsStore.loadOne).not.toHaveBeenCalled();
+
+    paramMap$.next(convertToParamMap({ id: 'invalid' }));
+    fixture.detectChanges();
+    expect(mockRoomsStore.setSelectedRoomId).not.toHaveBeenCalled();
+    expect(mockRoomsStore.loadOne).not.toHaveBeenCalled();
   });
 });

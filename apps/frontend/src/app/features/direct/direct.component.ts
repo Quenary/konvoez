@@ -4,10 +4,9 @@ import {
   computed,
   effect,
   inject,
-  signal,
-  untracked,
+  linkedSignal,
 } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -41,8 +40,6 @@ export class DirectComponent {
   private readonly usersStore = inject(UsersStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
 
-  protected readonly preferChat = signal(false);
-
   protected readonly recipientId = toSignal(
     this.activatedRoute.paramMap.pipe(
       map((params) => {
@@ -50,7 +47,34 @@ export class DirectComponent {
         return Number.isFinite(id) && id > 0 ? id : null;
       }),
     ),
+    { initialValue: null },
   );
+
+  /** True when the route recipient matches the active direct call target. */
+  protected readonly isCurrentDirectCallActive = computed(() => {
+    const recipientId = this.recipientId();
+    const callWithUserId = this.directCallService.callWithUserId();
+    return recipientId !== null && callWithUserId === recipientId;
+  });
+
+  protected readonly preferChat = linkedSignal<
+    { recipientId: number | null; isActive: boolean },
+    boolean
+  >({
+    source: () => ({
+      recipientId: this.recipientId(),
+      isActive: this.isCurrentDirectCallActive(),
+    }),
+    computation: (source, previous) => {
+      if (
+        !source.isActive ||
+        source.recipientId !== previous?.source.recipientId
+      ) {
+        return false;
+      }
+      return previous?.value ?? false;
+    },
+  });
 
   protected readonly user = computed(() => {
     const id = this.recipientId();
@@ -63,13 +87,6 @@ export class DirectComponent {
 
   protected readonly title = computed(() => this.user()?.username ?? '');
   protected readonly avatarUrl = computed(() => this.user()?.avatarUrl ?? null);
-
-  /** True when the route recipient matches the active direct call target. */
-  protected readonly isCurrentDirectCallActive = computed(() => {
-    const recipientId = this.recipientId();
-    const callWithUserId = this.directCallService.callWithUserId();
-    return recipientId !== null && callWithUserId === recipientId;
-  });
 
   protected readonly canRejoinCall = computed(() => {
     const isCurrentDirectCallActive = this.isCurrentDirectCallActive();
@@ -97,24 +114,11 @@ export class DirectComponent {
   constructor() {
     this.usersStore.loadAll();
 
-    this.activatedRoute.paramMap
-      .pipe(takeUntilDestroyed())
-      .subscribe((params) => {
-        const id = Number(params.get('id'));
-        if (!id || !Number.isFinite(id)) {
-          return;
-        }
-        this.preferChat.set(false);
-        void this.directCallService.refreshActiveCall(id);
-      });
-
     effect(() => {
-      const isActive = this.isCurrentDirectCallActive();
-      untracked(() => {
-        if (!isActive) {
-          this.preferChat.set(false);
-        }
-      });
+      const id = this.recipientId();
+      if (id !== null) {
+        void this.directCallService.refreshActiveCall(id);
+      }
     });
   }
 
@@ -123,10 +127,6 @@ export class DirectComponent {
   }
 
   protected showCall(): void {
-    this.preferChat.set(false);
-  }
-
-  protected onCallLeft(): void {
     this.preferChat.set(false);
   }
 

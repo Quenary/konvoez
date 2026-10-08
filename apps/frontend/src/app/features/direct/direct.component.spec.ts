@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { DirectCallService } from '@core/services/direct-call.service';
@@ -30,6 +30,7 @@ class MockVoiceRoomShellComponent {
 describe('DirectComponent', () => {
   let component: DirectComponent;
   let fixture: ComponentFixture<DirectComponent>;
+  let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   const user = {
     id: 99,
@@ -68,6 +69,7 @@ describe('DirectComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    paramMap$ = new BehaviorSubject(convertToParamMap({ id: '99' }));
     interlocutor.set(null);
     isCallActive.set(false);
     callWithUserId.set(null);
@@ -84,7 +86,7 @@ describe('DirectComponent', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            paramMap: of(convertToParamMap({ id: '99' })),
+            paramMap: paramMap$,
           },
         },
       ],
@@ -166,6 +168,48 @@ describe('DirectComponent', () => {
   it('starts a direct call', () => {
     component['startDirectCall'](user);
     expect(mockDirectCallService.initiateCall).toHaveBeenCalledWith(user);
+    expect(component['preferChat']()).toBe(false);
+  });
+
+  it('does not refresh active call when route id is negative or non-numeric', () => {
+    vi.clearAllMocks();
+    paramMap$.next(convertToParamMap({ id: '-5' }));
+    fixture.detectChanges();
+    expect(mockDirectCallService.refreshActiveCall).not.toHaveBeenCalled();
+
+    paramMap$.next(convertToParamMap({ id: 'invalid' }));
+    fixture.detectChanges();
+    expect(mockDirectCallService.refreshActiveCall).not.toHaveBeenCalled();
+  });
+
+  it('resets preferChat when active call ends', () => {
+    isCallActive.set(true);
+    interlocutor.set(user);
+    callWithUserId.set(99);
+    fixture.detectChanges();
+
+    component['showChat']();
+    fixture.detectChanges();
+    expect(component['preferChat']()).toBe(true);
+
+    isCallActive.set(false);
+    callWithUserId.set(null);
+    fixture.detectChanges();
+    expect(component['preferChat']()).toBe(false);
+  });
+
+  it('resets preferChat when recipient route id changes', () => {
+    isCallActive.set(true);
+    interlocutor.set(user);
+    callWithUserId.set(99);
+    fixture.detectChanges();
+
+    component['showChat']();
+    fixture.detectChanges();
+    expect(component['preferChat']()).toBe(true);
+
+    paramMap$.next(convertToParamMap({ id: '100' }));
+    fixture.detectChanges();
     expect(component['preferChat']()).toBe(false);
   });
 });

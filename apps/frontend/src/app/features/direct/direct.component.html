@@ -6,8 +6,7 @@
     <app-voice-room-shell
       [title]="_title"
       [avatarUrl]="_avatarUrl"
-      [headerActions]="toChatActions"
-      (left)="onCallLeft()" />
+      [headerActions]="toChatActions" />
   } @else {
     @if (recipientId(); as id) {
       <app-chat
