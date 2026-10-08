@@ -10,6 +10,7 @@ import {
   disposeVoiceDynamicsNode,
   ensureVoiceDynamicsWorklet,
 } from '@core/audio/voice-dynamics';
+import { ensureWorkletModule } from '@core/audio/ensure-worklet-module';
 import { NOISE_SUPPRESSOR_VERSION, withVersion } from '@core/asset-version';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
@@ -75,8 +76,6 @@ export class MicrophoneService implements OnDestroy {
 
   private rnnoiseWasmBinary: ArrayBuffer | null = null;
   private speexWasmBinary: ArrayBuffer | null = null;
-  private rnnoiseWorklet: Promise<void> | null = null;
-  private speexWorklet: Promise<void> | null = null;
   private denoiserKind: DenoiserKind | null = null;
   private dynamicsReady = false;
 
@@ -202,8 +201,6 @@ export class MicrophoneService implements OnDestroy {
 
     this.context = null;
     this._analyserNode.set(null);
-    this.rnnoiseWorklet = null;
-    this.speexWorklet = null;
     this.rnnoiseWasmBinary = null;
     this.speexWasmBinary = null;
     this.denoiserKind = null;
@@ -216,8 +213,6 @@ export class MicrophoneService implements OnDestroy {
         this.audioContextResumeService.unregister(this.context);
       }
       this.context = new AudioContext({ sampleRate: 48000 });
-      this.rnnoiseWorklet = null;
-      this.speexWorklet = null;
       this.dynamicsReady = false;
       this.audioContextResumeService.register(this.context);
     }
@@ -261,7 +256,7 @@ export class MicrophoneService implements OnDestroy {
         simdUrl: rnnoiseSimdWasmUrl,
       });
     }
-    await this.ensureWorklet(rnnoiseWorkletUrl, 'rnnoise');
+    await this.ensureWorklet(rnnoiseWorkletUrl);
   }
 
   private async ensureSpeex(): Promise<void> {
@@ -270,35 +265,14 @@ export class MicrophoneService implements OnDestroy {
         url: speexWasmUrl,
       });
     }
-    await this.ensureWorklet(speexWorkletUrl, 'speex');
+    await this.ensureWorklet(speexWorkletUrl);
   }
 
-  private async ensureWorklet(url: string, kind: DenoiserKind): Promise<void> {
+  private async ensureWorklet(url: string): Promise<void> {
     if (!this.context) {
       throw new Error('ensureWorklet(): missing context');
     }
-    const current =
-      kind === 'rnnoise' ? this.rnnoiseWorklet : this.speexWorklet;
-    if (current) {
-      await current;
-      return;
-    }
-    const loading = this.context.audioWorklet.addModule(url);
-    if (kind === 'rnnoise') {
-      this.rnnoiseWorklet = loading;
-    } else {
-      this.speexWorklet = loading;
-    }
-    try {
-      await loading;
-    } catch (error) {
-      if (kind === 'rnnoise') {
-        this.rnnoiseWorklet = null;
-      } else {
-        this.speexWorklet = null;
-      }
-      throw error;
-    }
+    await ensureWorkletModule(this.context, url);
   }
 
   private async ensureDynamics(): Promise<void> {

@@ -1,4 +1,5 @@
 import { APP_VERSION, withVersion } from '@core/asset-version';
+import { ensureWorkletModule } from './ensure-worklet-module';
 
 /** Classic worklet script served from `public/`. Version query busts the immutable nginx cache. */
 export const VOICE_DYNAMICS_WORKLET_URL = withVersion(
@@ -44,23 +45,10 @@ export const VOICE_LIMITER_OPTIONS = {
   limiterReleaseMs: 50,
 } as const;
 
-const workletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
-
 export function ensureVoiceDynamicsWorklet(
   context: BaseAudioContext,
 ): Promise<void> {
-  const pending = workletLoads.get(context);
-  if (pending) {
-    return pending;
-  }
-  const loading = context.audioWorklet
-    .addModule(VOICE_DYNAMICS_WORKLET_URL)
-    .catch((error: unknown) => {
-      workletLoads.delete(context);
-      throw error;
-    });
-  workletLoads.set(context, loading);
-  return loading;
+  return ensureWorkletModule(context, VOICE_DYNAMICS_WORKLET_URL);
 }
 
 export function createVoiceDynamicsNode(
