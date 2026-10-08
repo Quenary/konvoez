@@ -5,10 +5,7 @@ import { SpeakerService } from './speaker.service';
 
 describe('PeerScreenAudioService', () => {
   let service: PeerScreenAudioService;
-  let limiter: {
-    connect: ReturnType<typeof vi.fn>;
-    disconnect: ReturnType<typeof vi.fn>;
-  };
+  let output: { disconnect: ReturnType<typeof vi.fn> };
   let gain: {
     gain: { value: number };
     connect: ReturnType<typeof vi.fn>;
@@ -34,10 +31,7 @@ describe('PeerScreenAudioService', () => {
       },
     );
 
-    limiter = {
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    };
+    output = { disconnect: vi.fn() };
     gain = {
       gain: { value: 1 },
       connect: vi.fn(),
@@ -58,7 +52,7 @@ describe('PeerScreenAudioService', () => {
           provide: SpeakerService,
           useValue: {
             getContext: vi.fn().mockResolvedValue(context),
-            createPlaybackLimiter: vi.fn().mockResolvedValue(limiter),
+            getOutput: vi.fn().mockResolvedValue(output),
           },
         },
       ],
@@ -84,9 +78,9 @@ describe('PeerScreenAudioService', () => {
       speakerMuted: false,
     });
     expect(service.getConsumerId(5)).toBe('c1');
-    expect(gain.connect).toHaveBeenCalledWith(limiter);
-    expect(limiter.connect).toHaveBeenCalledWith(context.destination);
+    expect(gain.connect).toHaveBeenCalledWith(output);
     service.detach(5);
+    expect(output.disconnect).not.toHaveBeenCalled();
     expect(service.getConsumerId(5)).toBeNull();
     expect(close).toHaveBeenCalled();
   });

@@ -68,3 +68,13 @@ export function createVoiceDynamicsNode(
       mode === 'expander' ? VOICE_EXPANDER_OPTIONS : VOICE_LIMITER_OPTIONS,
   });
 }
+
+/** Ask the processor to stop. Disconnect alone leaves process() running. */
+export function disposeVoiceDynamicsNode(node: AudioWorkletNode): void {
+  try {
+    node.port.postMessage({ type: 'dispose' });
+  } catch (error) {
+    console.warn('Voice dynamics dispose failed', error);
+  }
+  node.disconnect();
+}

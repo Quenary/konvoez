@@ -9,14 +9,14 @@ describe('PeerPlaybackService', () => {
   let service: PeerPlaybackService;
   let resolveContext: (context: AudioContext) => void = () => undefined;
   let getContext: ReturnType<typeof vi.fn>;
-  let createPlaybackLimiter: ReturnType<typeof vi.fn>;
+  let getOutput: ReturnType<typeof vi.fn>;
   let sourceDisconnect: ReturnType<typeof vi.fn>;
   let register: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     sourceDisconnect = vi.fn();
     register = vi.fn();
-    createPlaybackLimiter = vi.fn().mockResolvedValue(null);
+    getOutput = vi.fn().mockResolvedValue({ disconnect: vi.fn() });
     getContext = vi.fn(
       () =>
         new Promise<AudioContext>((resolve) => {
@@ -35,7 +35,7 @@ describe('PeerPlaybackService', () => {
         PeerPlaybackService,
         {
           provide: SpeakerService,
-          useValue: { getContext, createPlaybackLimiter },
+          useValue: { getContext, getOutput },
         },
         {
           provide: AudioActivityService,
@@ -108,17 +108,18 @@ describe('PeerPlaybackService', () => {
     expect(service['graphs'].has(7)).toBe(false);
   });
 
-  it('places the playback limiter between gain and the speakers', async () => {
-    const limiterConnect = vi.fn();
+  it('sums the peer onto the shared speaker bus and leaves that bus connected', async () => {
+    const outputDisconnect = vi.fn();
+    const output = { disconnect: outputDisconnect };
     const gainConnect = vi.fn();
-    const destination = { kind: 'speakers' };
-    const limiter = {
-      connect: limiterConnect,
+    const analyser = {
+      connect: vi.fn(),
       disconnect: vi.fn(),
+      fftSize: 0,
+      smoothingTimeConstant: 0,
     };
-    createPlaybackLimiter.mockResolvedValue(limiter);
+    getOutput = vi.fn().mockResolvedValue(output);
     getContext = vi.fn().mockResolvedValue({
-      destination,
       createMediaStreamSource: () => ({
         connect: vi.fn(),
         disconnect: vi.fn(),
@@ -128,12 +129,7 @@ describe('PeerPlaybackService', () => {
         disconnect: vi.fn(),
         gain: { value: 1 },
       }),
-      createAnalyser: () => ({
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-        fftSize: 0,
-        smoothingTimeConstant: 0,
-      }),
+      createAnalyser: () => analyser,
     });
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -141,7 +137,7 @@ describe('PeerPlaybackService', () => {
         PeerPlaybackService,
         {
           provide: SpeakerService,
-          useValue: { getContext, createPlaybackLimiter },
+          useValue: { getContext, getOutput },
         },
         {
           provide: AudioActivityService,
@@ -153,7 +149,9 @@ describe('PeerPlaybackService', () => {
 
     await service.attach(7, consumer(), { gain: 1.5, speakerMuted: false });
 
-    expect(gainConnect).toHaveBeenCalledWith(limiter);
-    expect(limiterConnect).toHaveBeenCalledWith(destination);
+    expect(gainConnect).toHaveBeenCalledWith(analyser);
+    expect(gainConnect).toHaveBeenCalledWith(output);
+    service.detach(7);
+    expect(outputDisconnect).not.toHaveBeenCalled();
   });
 });

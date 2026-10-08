@@ -6,7 +6,6 @@ interface IScreenAudioGraph {
   consumer: Consumer;
   sourceNode: MediaStreamAudioSourceNode | null;
   gainNode: GainNode | null;
-  limiterNode: AudioWorkletNode | null;
   audioEl: HTMLAudioElement | null;
 }
 
@@ -32,24 +31,18 @@ export class PeerScreenAudioService {
     audioEl.muted = true;
 
     const context = await this.speakerService.getContext();
-    const limiterNode = await this.speakerService.createPlaybackLimiter();
+    const output = await this.speakerService.getOutput();
     const sourceNode = context.createMediaStreamSource(stream);
     const gainNode = context.createGain();
     gainNode.gain.value = options.speakerMuted ? 0 : options.gain;
 
     sourceNode.connect(gainNode);
-    if (limiterNode) {
-      gainNode.connect(limiterNode);
-      limiterNode.connect(context.destination);
-    } else {
-      gainNode.connect(context.destination);
-    }
+    gainNode.connect(output);
 
     this.graphs.set(userId, {
       consumer,
       sourceNode,
       gainNode,
-      limiterNode,
       audioEl,
     });
   }
@@ -84,7 +77,6 @@ export class PeerScreenAudioService {
     try {
       graph.sourceNode?.disconnect();
       graph.gainNode?.disconnect();
-      graph.limiterNode?.disconnect();
     } catch {
       // ignore
     }

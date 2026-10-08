@@ -176,10 +176,15 @@ describe('MicrophoneService', () => {
   });
 
   it('connects expander, compressor, makeup and limiter after RNNoise', async () => {
-    const dynamics: Array<{ connect: ReturnType<typeof vi.fn> }> = [];
+    const dynamics: Array<{
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+      port: { postMessage: ReturnType<typeof vi.fn> };
+    }> = [];
     (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode = class {
       connect = vi.fn();
       disconnect = vi.fn();
+      port = { postMessage: vi.fn() };
       constructor() {
         dynamics.push(this);
       }
@@ -226,6 +231,12 @@ describe('MicrophoneService', () => {
     expect(compressor.ratio.value).toBe(VOICE_CAPTURE.compressor.ratio);
     expect(makeup.gain.value).toBe(VOICE_MAKEUP_GAIN);
     expect(service.processedStream()).toBe(destination.stream);
+
+    service['cleanupPipeline']();
+    expect(expander.port.postMessage).toHaveBeenCalledWith({ type: 'dispose' });
+    expect(limiter.port.postMessage).toHaveBeenCalledWith({ type: 'dispose' });
+    expect(expander.disconnect).toHaveBeenCalled();
+    expect(limiter.disconnect).toHaveBeenCalled();
   });
 });
 

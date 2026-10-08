@@ -1,6 +1,7 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import {
   createVoiceDynamicsNode,
+  disposeVoiceDynamicsNode,
   ensureVoiceDynamicsWorklet,
 } from '@core/audio/voice-dynamics';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
@@ -19,6 +20,8 @@ export class SpeakerService implements OnDestroy {
   );
   private context: AudioContext | null = null;
   private device: MediaDeviceInfo | null = null;
+  private busNode: GainNode | null = null;
+  private limiterNode: AudioWorkletNode | null = null;
   private dynamicsContext: AudioContext | null = null;
   private dynamicsReady: Promise<boolean> | null = null;
 
@@ -44,23 +47,47 @@ export class SpeakerService implements OnDestroy {
     return await this.ensureContext();
   }
 
-  /** Peak limiter for remote playback. Null when the worklet failed to load. */
+  /**
+   * Mix bus for remote playback. One limiter sits after it for the whole
+   * speaker context, so peer attach does not add another worklet.
+   */
   @Mutexed(publicMethodsMutex)
-  public async createPlaybackLimiter(): Promise<AudioWorkletNode | null> {
+  public async getOutput(): Promise<AudioNode> {
     const context = await this.ensureContext();
-    if (!(await this.prepareDynamics(context))) {
-      return null;
+    if (this.busNode) {
+      return this.busNode;
     }
-    try {
-      return createVoiceDynamicsNode(context, 'limiter');
-    } catch (error) {
-      console.warn('Playback limiter unavailable', error);
-      return null;
+    const bus = context.createGain();
+    const ready = await this.prepareDynamics(context);
+    if (ready) {
+      let limiter: AudioWorkletNode | null = null;
+      try {
+        limiter = createVoiceDynamicsNode(context, 'limiter');
+        bus.connect(limiter);
+        limiter.connect(context.destination);
+        this.limiterNode = limiter;
+        this.busNode = bus;
+        return bus;
+      } catch (error) {
+        console.warn('Playback limiter unavailable', error);
+        try {
+          bus.disconnect();
+        } catch {
+          // The bus may not be connected yet.
+        }
+        if (limiter) {
+          disposeVoiceDynamicsNode(limiter);
+        }
+      }
     }
+    bus.connect(context.destination);
+    this.busNode = bus;
+    return bus;
   }
 
   @Mutexed(publicMethodsMutex)
   public async release(): Promise<void> {
+    this.clearOutput();
     if (this.context && this.context.state !== 'closed') {
       try {
         if (
@@ -94,6 +121,7 @@ export class SpeakerService implements OnDestroy {
       if (this.context) {
         this.audioContextResumeService.unregister(this.context);
       }
+      this.clearOutput();
       this.context = new AudioContext({ sampleRate: 48000 });
       this.dynamicsContext = null;
       this.dynamicsReady = null;
@@ -120,6 +148,21 @@ export class SpeakerService implements OnDestroy {
       },
     );
     return this.dynamicsReady;
+  }
+
+  private clearOutput(): void {
+    const limiter = this.limiterNode;
+    const bus = this.busNode;
+    this.limiterNode = null;
+    this.busNode = null;
+    try {
+      if (limiter) {
+        disposeVoiceDynamicsNode(limiter);
+      }
+      bus?.disconnect();
+    } catch (error) {
+      console.warn('Failed to disconnect speaker bus', error);
+    }
   }
 
   private async setSinkId(device: MediaDeviceInfo | null) {

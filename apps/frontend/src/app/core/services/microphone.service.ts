@@ -9,6 +9,7 @@ import {
   VOICE_CAPTURE,
   VOICE_MAKEUP_GAIN,
   createVoiceDynamicsNode,
+  disposeVoiceDynamicsNode,
   ensureVoiceDynamicsWorklet,
 } from '@core/audio/voice-dynamics';
 import { getStream } from '@shared/functions/get-stream.function';
@@ -359,8 +360,12 @@ export class MicrophoneService implements OnDestroy {
           this.limiterNode = createVoiceDynamicsNode(this.context, 'limiter');
         } catch (error) {
           console.warn('Voice dynamics nodes unavailable', error);
-          this.expanderNode?.disconnect();
-          this.limiterNode?.disconnect();
+          if (this.expanderNode) {
+            disposeVoiceDynamicsNode(this.expanderNode);
+          }
+          if (this.limiterNode) {
+            disposeVoiceDynamicsNode(this.limiterNode);
+          }
           this.expanderNode = null;
           this.limiterNode = null;
           this.makeupNode.gain.value = 1;
@@ -446,10 +451,14 @@ export class MicrophoneService implements OnDestroy {
       this.biquadNode?.disconnect();
       this.denoiserNode?.disconnect();
       this.denoiserNode?.destroy();
-      this.expanderNode?.disconnect();
+      if (this.expanderNode) {
+        disposeVoiceDynamicsNode(this.expanderNode);
+      }
       this.compressorNode?.disconnect();
       this.makeupNode?.disconnect();
-      this.limiterNode?.disconnect();
+      if (this.limiterNode) {
+        disposeVoiceDynamicsNode(this.limiterNode);
+      }
       this._analyserNode()?.disconnect();
       this.destinationNode?.disconnect();
     } catch (error) {

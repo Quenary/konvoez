@@ -1,7 +1,9 @@
 /**
  * Soft expander and lookahead peak limiter for the voice graph.
  * Capture uses two nodes (expander, then limiter) so a DynamicsCompressor
- * can sit between them. Playback uses the limiter only.
+ * can sit between them. Playback uses one limiter on the speaker mix bus.
+ * `{ type: 'dispose' }` on the port makes process() return false so a
+ * disconnected node can be collected while the AudioContext stays open.
  */
 const PROCESSOR_NAME = 'konvoez/voice-dynamics';
 const SILENCE_DB = -100;
@@ -64,6 +66,12 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
     this.delayed = new Float32Array(0);
     this.writeIndex = 0;
     this.limiterGain = 1;
+    this.disposed = false;
+    this.port.onmessage = (event) => {
+      if (event.data && event.data.type === 'dispose') {
+        this.disposed = true;
+      }
+    };
   }
 
   ensureDelay(channelCount) {
@@ -163,6 +171,9 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs) {
+    if (this.disposed) {
+      return false;
+    }
     const output = outputs[0];
     if (!output || output.length === 0) {
       return true;

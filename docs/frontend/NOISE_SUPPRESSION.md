@@ -34,13 +34,21 @@ flowchart LR
 
 The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track. `AudioActivityService` thresholds are unchanged.
 
-Added latency is about one RNNoise frame (10 ms) plus the limiter lookahead. `cleanupPipeline` calls `destroy()` on the denoiser node.
+Added latency is about one RNNoise frame (10 ms) plus the limiter lookahead. `cleanupPipeline` calls `destroy()` on the denoiser node and posts `{ type: 'dispose' }` to the expander and limiter. `process()` then returns false, so those processors stop while the capture context is still open (device change, pipeline rebuild).
 
 **Fallback.** RNNoise needs 48 kHz. Any other `AudioContext` rate, or a failed wasm/worklet load, keeps Speex and the call stays up. If `audio/voice-dynamics.worklet.js` fails to load, expander and limiter are skipped and makeup stays at unity so the boost cannot clip.
 
 ## Playback
 
-Loud remote audio and per-peer gain above 1 clip in the speakers. `SpeakerService` loads the same worklet once. `PeerPlaybackService` and `PeerScreenAudioService` insert a limiter-only node (`expander: false`) after gain: `gain → peakLimiter → destination`. Already-clipped audio from the sender cannot be repaired.
+Loud remote audio and per-peer gain above 1 clip in the speakers. Several peers near full scale also clip when summed. `SpeakerService` keeps one mix bus and one limiter for the life of the speaker context. `PeerPlaybackService` and `PeerScreenAudioService` connect each gain into that bus: `gain → mixBus → peakLimiter → destination`. Detach disconnects only that peer. The speaking-indicator analyser stays on the peer gain, before the bus. Already-clipped audio from the sender cannot be repaired. If the worklet fails to load, the bus connects straight to the destination.
+
+```mermaid
+flowchart LR
+  peer[peerGain] --> bus[mixBus]
+  screen[screenGain] --> bus
+  bus --> limiter[peakLimiter]
+  limiter --> dest[speakers]
+```
 
 The worklet is a classic script in `apps/frontend/public/audio/voice-dynamics.worklet.js` (`konvoez/voice-dynamics`), loaded with `audioWorklet.addModule`. Capture uses two nodes of that processor so the `DynamicsCompressorNode` can sit between the expander and the limiter. Playback uses the limiter node only. The stock `NoiseGateWorkletNode` is not used: it hard-mutes a 128-sample block and clicks on word edges.
 
