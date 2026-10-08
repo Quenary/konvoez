@@ -52,6 +52,7 @@ describe('VoiceSessionService', () => {
     upsertPeer: ReturnType<typeof vi.fn>;
     removePeer: ReturnType<typeof vi.fn>;
     clearSessionPeers: ReturnType<typeof vi.fn>;
+    applyUserEntityDeleted: ReturnType<typeof vi.fn>;
   };
   let voiceAudioPreferencesStore: {
     microphoneMuted: ReturnType<typeof signal<boolean>>;
@@ -82,6 +83,8 @@ describe('VoiceSessionService', () => {
     release: ReturnType<typeof vi.fn>;
     onRemoteProducerClosed: ReturnType<typeof vi.fn>;
   };
+  let peerPlayback: { detach: ReturnType<typeof vi.fn> };
+  let peerVideo: { removeUser: ReturnType<typeof vi.fn> };
   let notifications: {
     open: ReturnType<typeof vi.fn>;
   };
@@ -118,6 +121,7 @@ describe('VoiceSessionService', () => {
       upsertPeer: vi.fn(),
       removePeer: vi.fn(),
       clearSessionPeers: vi.fn(),
+      applyUserEntityDeleted: vi.fn(),
     };
     voiceAudioPreferencesStore = {
       microphoneMuted: signal(false),
@@ -150,6 +154,8 @@ describe('VoiceSessionService', () => {
       release: vi.fn(),
       onRemoteProducerClosed: vi.fn(),
     };
+    peerPlayback = { detach: vi.fn() };
+    peerVideo = { removeUser: vi.fn() };
     notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
     };
@@ -191,13 +197,17 @@ describe('VoiceSessionService', () => {
           provide: PeerPlaybackService,
           useValue: {
             removeConsumer: vi.fn(),
-            detach: vi.fn(),
+            detach: peerPlayback.detach,
             detachAll: vi.fn(),
           },
         },
         {
           provide: PeerVideoService,
-          useValue: { remove: vi.fn(), removeUser: vi.fn(), clear: vi.fn() },
+          useValue: {
+            remove: vi.fn(),
+            removeUser: peerVideo.removeUser,
+            clear: vi.fn(),
+          },
         },
         { provide: ScreenWakeLockService, useValue: wakeLock },
         {
@@ -294,6 +304,14 @@ describe('VoiceSessionService', () => {
 
     expect(voiceSessionStore.upsertPeer).toHaveBeenCalledWith(bob);
     expect(mediasoup.consumePending).toHaveBeenCalled();
+  });
+
+  it('releases audio, video, and screen media when a user entity is deleted', () => {
+    service.applyUserEntityDeleted(bob.id);
+
+    expect(peerPlayback.detach).toHaveBeenCalledWith(bob.id);
+    expect(peerVideo.removeUser).toHaveBeenCalledWith(bob.id);
+    expect(screenWatch.release).toHaveBeenCalledWith(bob.id);
   });
 
   it('removes a peer when PEER_LEFT arrives', () => {

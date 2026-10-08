@@ -125,57 +125,78 @@ describe('voice DI graph', () => {
     });
   });
 
-  it('constructs the voice/settings graph without NG0200 circular dependency', () => {
-    let error: unknown;
-    try {
-      TestBed.inject(SettingsStore);
-      TestBed.inject(EntitySyncService);
-      TestBed.inject(VoiceSessionService);
-      TestBed.inject(CameraService);
-      TestBed.inject(ScreenCaptureService);
-      TestBed.inject(MediasoupSessionService);
-      TestBed.inject(LocalScreenPreviewService);
-      TestBed.inject(VoiceSessionPeersService);
-      TestBed.inject(VoiceRoomTilesService);
-      TestBed.inject(VoiceRoomActionsService);
-      TestBed.inject(MicrophoneService);
-      TestBed.inject(SpeakerService);
-      TestBed.inject(PeerPlaybackService);
-      TestBed.inject(PeerScreenAudioService);
-      TestBed.inject(VoiceSessionStore);
-      TestBed.inject(RoomsStore);
-      TestBed.inject(VoiceLobbyStore);
-      TestBed.inject(VoiceAudioPreferencesStore);
-      TestBed.inject(DirectCallService);
-      TestBed.inject(VoiceLeaveService);
-      TestBed.inject(VoiceRoomViewService);
-      TestBed.inject(ConsumerRegistry);
-      TestBed.inject(ScreenWatchService);
-    } catch (e) {
-      error = e;
+  const injectVoiceGraph = (
+    first: 'settings' | 'entitySync' | 'voiceSession',
+  ) => {
+    const injectors: Record<string, () => void> = {
+      settings: () => TestBed.inject(SettingsStore),
+      entitySync: () => TestBed.inject(EntitySyncService),
+      voiceSession: () => TestBed.inject(VoiceSessionService),
+    };
+    injectors[first]();
+    if (first !== 'settings') {
+      injectors['settings']();
     }
-    if (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      expect(message).not.toMatch(/NG0200|Circular dependency/i);
-      throw error;
+    if (first !== 'entitySync') {
+      injectors['entitySync']();
     }
-    expect(TestBed.inject(CameraService)).toBeTruthy();
-    expect(TestBed.inject(ScreenCaptureService)).toBeTruthy();
-    expect(TestBed.inject(LocalScreenPreviewService)).toBeTruthy();
-    expect(TestBed.inject(VoiceSessionPeersService)).toBeTruthy();
-    expect(TestBed.inject(VoiceRoomTilesService)).toBeTruthy();
-    expect(TestBed.inject(VoiceRoomActionsService)).toBeTruthy();
-    expect(TestBed.inject(MicrophoneService)).toBeTruthy();
-    expect(TestBed.inject(SpeakerService)).toBeTruthy();
-    expect(TestBed.inject(PeerPlaybackService)).toBeTruthy();
-    expect(TestBed.inject(PeerScreenAudioService)).toBeTruthy();
-    expect(TestBed.inject(VoiceSessionStore)).toBeTruthy();
-    expect(TestBed.inject(VoiceLobbyStore)).toBeTruthy();
-    expect(TestBed.inject(VoiceAudioPreferencesStore)).toBeTruthy();
-    expect(TestBed.inject(DirectCallService)).toBeTruthy();
-    expect(TestBed.inject(VoiceLeaveService)).toBeTruthy();
-    expect(TestBed.inject(VoiceRoomViewService)).toBeTruthy();
-    expect(TestBed.inject(ConsumerRegistry)).toBeTruthy();
-    expect(TestBed.inject(ScreenWatchService)).toBeTruthy();
-  });
+    if (first !== 'voiceSession') {
+      injectors['voiceSession']();
+    }
+  };
+
+  it.each(['settings', 'entitySync', 'voiceSession'] as const)(
+    'constructs the voice/settings graph when %s is injected first',
+    (first) => {
+      let error: unknown;
+      try {
+        injectVoiceGraph(first);
+        TestBed.inject(CameraService);
+        TestBed.inject(ScreenCaptureService);
+        TestBed.inject(MediasoupSessionService);
+        TestBed.inject(LocalScreenPreviewService);
+        TestBed.inject(VoiceSessionPeersService);
+        TestBed.inject(VoiceRoomTilesService);
+        TestBed.inject(VoiceRoomActionsService);
+        TestBed.inject(MicrophoneService);
+        TestBed.inject(SpeakerService);
+        TestBed.inject(PeerPlaybackService);
+        TestBed.inject(PeerScreenAudioService);
+        TestBed.inject(VoiceSessionStore);
+        TestBed.inject(RoomsStore);
+        TestBed.inject(VoiceLobbyStore);
+        TestBed.inject(VoiceAudioPreferencesStore);
+        TestBed.inject(DirectCallService);
+        TestBed.inject(VoiceLeaveService);
+        TestBed.inject(VoiceRoomViewService);
+        TestBed.inject(ConsumerRegistry);
+        TestBed.inject(ScreenWatchService);
+      } catch (e) {
+        error = e;
+      }
+      if (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        expect(message).not.toMatch(/NG0200|Circular dependency/i);
+        throw error;
+      }
+      expect(TestBed.inject(CameraService)).toBeTruthy();
+      expect(TestBed.inject(ScreenCaptureService)).toBeTruthy();
+      expect(TestBed.inject(LocalScreenPreviewService)).toBeTruthy();
+      expect(TestBed.inject(VoiceSessionPeersService)).toBeTruthy();
+      expect(TestBed.inject(VoiceRoomTilesService)).toBeTruthy();
+      expect(TestBed.inject(VoiceRoomActionsService)).toBeTruthy();
+      expect(TestBed.inject(MicrophoneService)).toBeTruthy();
+      expect(TestBed.inject(SpeakerService)).toBeTruthy();
+      expect(TestBed.inject(PeerPlaybackService)).toBeTruthy();
+      expect(TestBed.inject(PeerScreenAudioService)).toBeTruthy();
+      expect(TestBed.inject(VoiceSessionStore)).toBeTruthy();
+      expect(TestBed.inject(VoiceLobbyStore)).toBeTruthy();
+      expect(TestBed.inject(VoiceAudioPreferencesStore)).toBeTruthy();
+      expect(TestBed.inject(DirectCallService)).toBeTruthy();
+      expect(TestBed.inject(VoiceLeaveService)).toBeTruthy();
+      expect(TestBed.inject(VoiceRoomViewService)).toBeTruthy();
+      expect(TestBed.inject(ConsumerRegistry)).toBeTruthy();
+      expect(TestBed.inject(ScreenWatchService)).toBeTruthy();
+    },
+  );
 });
