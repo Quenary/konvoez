@@ -344,13 +344,12 @@ export class MicrophoneService implements OnDestroy {
       this.compressorNode.attack.value = VOICE_CAPTURE.compressor.attack;
       this.compressorNode.release.value = VOICE_CAPTURE.compressor.release;
 
-      this.makeupNode = this.context.createGain();
-      this.makeupNode.gain.value = this.dynamicsReady ? VOICE_MAKEUP_GAIN : 1;
-
       if (this.dynamicsReady) {
         try {
           this.expanderNode = createVoiceDynamicsNode(this.context, 'expander');
           this.limiterNode = createVoiceDynamicsNode(this.context, 'limiter');
+          this.makeupNode = this.context.createGain();
+          this.makeupNode.gain.value = VOICE_MAKEUP_GAIN;
         } catch (error) {
           console.warn('Voice dynamics nodes unavailable', error);
           if (this.expanderNode) {
@@ -361,7 +360,7 @@ export class MicrophoneService implements OnDestroy {
           }
           this.expanderNode = null;
           this.limiterNode = null;
-          this.makeupNode.gain.value = 1;
+          this.makeupNode = null;
         }
       }
 
@@ -380,7 +379,10 @@ export class MicrophoneService implements OnDestroy {
       if (this.expanderNode) {
         chain.push(this.expanderNode);
       }
-      chain.push(this.compressorNode, this.makeupNode);
+      chain.push(this.compressorNode);
+      if (this.makeupNode) {
+        chain.push(this.makeupNode);
+      }
       if (this.limiterNode) {
         chain.push(this.limiterNode);
       }

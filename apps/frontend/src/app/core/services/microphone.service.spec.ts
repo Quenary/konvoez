@@ -251,6 +251,46 @@ describe('MicrophoneService', () => {
       previousWorkletNode;
   });
 
+  it('omits expander, makeup and limiter when dynamics are not ready', async () => {
+    const source = node('source');
+    const gain = node('gain');
+    const biquad = node('biquad');
+    const compressor = node('compressor');
+    const analyser = node('analyser');
+    const destination = node('destination');
+
+    let gainCalls = 0;
+    service['context'] = {
+      createMediaStreamSource: () => source,
+      createGain: () => {
+        gainCalls++;
+        return gain;
+      },
+      createBiquadFilter: () => biquad,
+      createDynamicsCompressor: () => compressor,
+      createAnalyser: () => analyser,
+      createMediaStreamDestination: () => destination,
+    } as unknown as AudioContext;
+    service['inputStream'] = {} as MediaStream;
+    service['denoiserKind'] = 'rnnoise';
+    service['rnnoiseWasmBinary'] = new ArrayBuffer(8);
+    service['dynamicsReady'] = false;
+
+    await service['ensurePipeline']();
+
+    const rnnoise = workletNodes.rnnoise[0];
+    expect(source.connect).toHaveBeenCalledWith(gain);
+    expect(gain.connect).toHaveBeenCalledWith(biquad);
+    expect(biquad.connect).toHaveBeenCalledWith(rnnoise);
+    expect(rnnoise.connect).toHaveBeenCalledWith(compressor);
+    expect(compressor.connect).toHaveBeenCalledWith(analyser);
+    expect(compressor.connect).toHaveBeenCalledWith(destination);
+    expect(gainCalls).toBe(1);
+    expect(service['makeupNode']).toBeNull();
+    expect(service['expanderNode']).toBeNull();
+    expect(service['limiterNode']).toBeNull();
+  });
+
   it('drops nodes built before ensurePipeline throws', async () => {
     const source = {
       connect: vi.fn(),
