@@ -44,15 +44,14 @@ import {
   withLatestFrom,
 } from 'rxjs';
 
-const lobbyResyncMutex = new Mutex();
+/**
+ * Process-wide mutex protecting lobby snapshot loading against concurrent fetches.
+ * Required at module level by `@Mutexed`; shared across all instances (including test instances).
+ */
+export const lobbyResyncMutex = new Mutex();
 const LOBBY_RESYNC_MAX_ATTEMPTS = 3;
 const LOBBY_RESYNC_INTERVAL_MS = 60_000;
-const LOBBY_SNAPSHOT_BACKOFF_MS = [1000, 2000, 5000, 10000] as const;
-
-const delayMs = (ms: number): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+const LOBBY_SNAPSHOT_BACKOFF_MS = [1000, 2000] as const;
 
 /**
  * Keeps the entity-sync socket connected for the app lifetime and mirrors
@@ -272,11 +271,13 @@ export class EntitySyncService {
         );
       } catch (error) {
         console.error('Failed to resync voice lobby state', error);
-        const backoff =
-          LOBBY_SNAPSHOT_BACKOFF_MS[
-            Math.min(attempt, LOBBY_SNAPSHOT_BACKOFF_MS.length - 1)
-          ];
-        await delayMs(backoff);
+        if (attempt < LOBBY_RESYNC_MAX_ATTEMPTS - 1) {
+          const backoff =
+            LOBBY_SNAPSHOT_BACKOFF_MS[
+              Math.min(attempt, LOBBY_SNAPSHOT_BACKOFF_MS.length - 1)
+            ];
+          await this.delayWithDisconnectAbort(backoff);
+        }
         continue;
       }
 
@@ -286,5 +287,29 @@ export class EntitySyncService {
       }
     }
     console.warn('Voice lobby is still out of sync after resync attempts');
+  }
+
+  private delayWithDisconnectAbort(ms: number): Promise<void> {
+    if (!this.voiceRoomSocket.connected) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const sub = fromEvent(this.voiceRoomEmitter, 'disconnect')
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(() => {
+          if (timeoutId !== undefined) {
+            clearTimeout(timeoutId);
+            timeoutId = undefined;
+          }
+          sub.unsubscribe();
+          resolve();
+        });
+
+      timeoutId = setTimeout(() => {
+        sub.unsubscribe();
+        resolve();
+      }, ms);
+    });
   }
 }
