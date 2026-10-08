@@ -12,6 +12,8 @@ flowchart TB
   VSS[VoiceSessionStore]
   VLS[VoiceLobbyStore]
   VAP[VoiceAudioPreferencesStore]
+  Nav[RoomNavigationService]
+  Sync[EntitySyncService]
   Session[VoiceSessionService]
   Ms[MediasoupSessionService]
   DC[DirectCallService]
@@ -21,10 +23,14 @@ flowchart TB
   UI --> VSS
   UI --> VLS
   UI --> VAP
+  UI --> Nav
   UI --> Session
   UI --> DC
   UI --> Leave
   UI --> View
+  Nav --> Session
+  Sync --> VLS
+  Sync --> Session
   DC --> Session
   Session --> VSS
   Session --> VLS
@@ -38,7 +44,7 @@ flowchart TB
 
 ## Flow (short)
 
-1. **Join** — `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`) from room UI, effects, or `DirectCallService`. `JOIN_ROOM`, `CREATE_TRANSPORT`, and `PRODUCE` use a 10 s timeout (`VOICE_JOIN_ACK_MS`); `PRODUCE` retries once on ack timeout to replace any orphan producer by tag. Other ack-based voice events (except `LEAVE_ROOM`) use the same helper with the default 5 s timeout and `{ error }` handling. `LEAVE_ROOM` uses a raw `socket.timeout(3000).emitWithAck` on leave. While a join is in flight, `VoiceSessionStore.joiningTarget` is set (used by UI and by `canProduce`). Join/leave SFX, transports, mic produce, wake lock; reconnect rejoins stored session. Lobby peers: `EntitySyncService` loads an initial `GET_ALL_PEERS` snapshot when the voice socket connects (with ack timeout + retry), then applies `VOICE_ROOM_PEER_JOINED` / `VOICE_ROOM_PEER_LEFT` from entity-sync (`VoiceLobbyStore`; direct calls excluded). Events carry the server `epoch` + monotonic `revision`; a gap, an epoch change, or a reconnect of either the voice or the entity-sync socket triggers a (serialized) snapshot resync, and events are buffered while the lobby is unsynced. On each snapshot, buffered events from another epoch (or at or below the snapshot revision) are dropped so a server restart cannot poison the buffer. Deleting a group room emits `ROOM_CLOSED` on the voice socket to participants (then server eviction and lobby revision); the client shows a toast, emits `roomClosed$` with the room id, leaves the session, and `VoiceRoomComponent` navigates home when the closed id matches its route. Clients also resync the lobby on tab visibility, `online`, and a 60 s timer while visible.
+1. **Join** — `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`) via `RoomNavigationService.selectRoom` and the `VoiceRoomComponent` route effect for group rooms, or `DirectCallService` (`callWithUserId`, accept, rejoin) for direct calls. `JOIN_ROOM`, `CREATE_TRANSPORT`, and `PRODUCE` use a 10 s timeout (`VOICE_JOIN_ACK_MS`); `PRODUCE` retries once on ack timeout to replace any orphan producer by tag. Other ack-based voice events (except `LEAVE_ROOM`) use the same helper with the default 5 s timeout and `{ error }` handling. `LEAVE_ROOM` uses a raw `socket.timeout(3000).emitWithAck` on leave. While a join is in flight, `VoiceSessionStore.joiningTarget` is set (used by UI and by `canProduce`). Join/leave SFX, transports, mic produce, wake lock; reconnect rejoins stored session. Lobby peers: `EntitySyncService` loads an initial `GET_ALL_PEERS` snapshot when the voice socket connects (with ack timeout + retry), then applies `VOICE_ROOM_PEER_JOINED` / `VOICE_ROOM_PEER_LEFT` from entity-sync (`VoiceLobbyStore`; direct calls excluded). Events carry the server `epoch` + monotonic `revision`; a gap, an epoch change, or a reconnect of either the voice or the entity-sync socket triggers a (serialized) snapshot resync, and events are buffered while the lobby is unsynced. On each snapshot, buffered events from another epoch (or at or below the snapshot revision) are dropped so a server restart cannot poison the buffer. Deleting a group room emits `ROOM_CLOSED` on the voice socket to participants (then server eviction and lobby revision); the client shows a toast, emits `roomClosed$` with the room id, leaves the session, and `VoiceRoomComponent` navigates home when the closed id matches its route. Clients also resync the lobby on tab visibility, `online`, and a 60 s timer while visible.
 2. **Mic** — `MicrophoneService` pipeline; mute via producer track + `VoiceAudioPreferencesStore`.
 3. **Remote audio** — consume → `PeerPlaybackService` (deafen × per-peer gain).
 4. **Speaking** — `AudioActivityService` polls registered analysers for tiles/avatars. `VoiceSessionService` registers the local analyser from `MicrophoneService` for the current user when there is an active session, an analyser exists, and `VoiceAudioPreferencesStore` reports the mic unmuted (mute state only comes from the prefs store).
@@ -50,6 +56,8 @@ flowchart TB
 | ---------------------------------------- | ---------------------------------------------- |
 | Active session + session peers           | `VoiceSessionStore`                            |
 | Who is in which group voice room         | `VoiceLobbyStore`                              |
+| Lobby sync (peers snapshot & revisions)  | `EntitySyncService`                            |
+| Room navigation & selection              | `RoomNavigationService`                        |
 | Mute, deafen, peer / screen-audio gain   | `VoiceAudioPreferencesStore`                   |
 | Join / leave media                       | `VoiceSessionService`                          |
 | Call signaling, `callWithUserId`, rejoin | `DirectCallService`                            |
@@ -60,7 +68,9 @@ flowchart TB
 
 ## Code map
 
-- Stores: `apps/frontend/src/app/core/voice/`
-- Session / mediasoup / devices: `apps/frontend/src/app/core/services/voice-*.ts`, `mediasoup-session.service.ts`, `peer-*.service.ts`, `direct-call.service.ts`, `voice-leave.service.ts`
+- Stores: `apps/frontend/src/app/core/stores/`, `apps/frontend/src/app/core/voice/`, `apps/frontend/src/app/core/chat/`
+- API services: `apps/frontend/src/app/core/api/`
+- Session / mediasoup / devices: `apps/frontend/src/app/core/services/voice-*.ts`, `mediasoup-session.service.ts`, `peer-*.service.ts`, `direct-call.service.ts`, `voice-leave.service.ts`, `entity-sync.service.ts`
+- Navigation: `apps/frontend/src/app/features/rooms/room-navigation.service.ts`
 - Shared UI: `apps/frontend/src/app/shared/components/voice-room/`
 - Routes: `features/voice-room/`, `features/direct/`
