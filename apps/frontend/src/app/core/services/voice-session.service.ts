@@ -188,10 +188,6 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     if (!force && previous && getVoiceSessionKey(previous) === targetKey) {
       return;
     }
-    const pending = this.voiceSessionStore.joiningTarget();
-    if (!force && pending && getVoiceSessionKey(pending) === targetKey) {
-      return;
-    }
 
     this.voiceSessionStore.setJoiningTarget(target);
     try {
