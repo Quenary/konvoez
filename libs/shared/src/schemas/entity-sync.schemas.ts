@@ -1,6 +1,10 @@
 import { EEntitySyncEvent } from '../enums';
 import { IRoom, IRoomDeleted } from './room.schemas';
 import { IUser, IUserDeleted } from './user.schemas';
+import {
+  IVoiceRoomLobbyPeerJoined,
+  IVoiceRoomLobbyPeerLeft,
+} from './voice-room.schemas';
 
 export type TEntitySyncEventPayloadMap = {
   [EEntitySyncEvent.USER_CREATED]: IUser;
@@ -9,6 +13,8 @@ export type TEntitySyncEventPayloadMap = {
   [EEntitySyncEvent.ROOM_CREATED]: IRoom;
   [EEntitySyncEvent.ROOM_UPDATED]: IRoom;
   [EEntitySyncEvent.ROOM_DELETED]: IRoomDeleted;
+  [EEntitySyncEvent.VOICE_ROOM_PEER_JOINED]: IVoiceRoomLobbyPeerJoined;
+  [EEntitySyncEvent.VOICE_ROOM_PEER_LEFT]: IVoiceRoomLobbyPeerLeft;
   [EEntitySyncEvent.ERROR]: { message: string };
 };
 

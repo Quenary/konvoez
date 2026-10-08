@@ -88,5 +88,7 @@ export enum EEntitySyncEvent {
   ROOM_CREATED = 'room-created',
   ROOM_UPDATED = 'room-updated',
   ROOM_DELETED = 'room-deleted',
+  VOICE_ROOM_PEER_JOINED = 'voice-room-peer-joined',
+  VOICE_ROOM_PEER_LEFT = 'voice-room-peer-left',
   ERROR = 'error',
 }

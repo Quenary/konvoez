@@ -93,4 +93,30 @@ describe('EntitySyncGateway', () => {
       { id: 10 },
     );
   });
+
+  it('should emit VOICE_ROOM_PEER_JOINED', () => {
+    gateway.onVoiceRoomPeerJoined({
+      roomId: 3,
+      user,
+      epoch: 'e1',
+      revision: 4,
+    });
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      EEntitySyncEvent.VOICE_ROOM_PEER_JOINED,
+      { roomId: 3, user, epoch: 'e1', revision: 4 },
+    );
+  });
+
+  it('should emit VOICE_ROOM_PEER_LEFT', () => {
+    gateway.onVoiceRoomPeerLeft({
+      roomId: 3,
+      userId: 8,
+      epoch: 'e1',
+      revision: 5,
+    });
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      EEntitySyncEvent.VOICE_ROOM_PEER_LEFT,
+      { roomId: 3, userId: 8, epoch: 'e1', revision: 5 },
+    );
+  });
 });

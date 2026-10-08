@@ -8,11 +8,9 @@ import {
   EVoiceRoomEvent,
   EVoiceSessionType,
   IUser,
-  TVoiceRoomGetAllPeersResult,
 } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { AudioService } from './audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
@@ -45,7 +43,6 @@ describe('VoiceSessionService', () => {
     connected: boolean;
   };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
-  let roomsSnapshot: TVoiceRoomGetAllPeersResult;
   let voiceSessionStore: {
     activeSession: ReturnType<typeof signal>;
     peersDict: ReturnType<typeof signal<Record<number, IUser>>>;
@@ -54,11 +51,6 @@ describe('VoiceSessionService', () => {
     upsertPeer: ReturnType<typeof vi.fn>;
     removePeer: ReturnType<typeof vi.fn>;
     clearSessionPeers: ReturnType<typeof vi.fn>;
-  };
-  let voiceLobbyStore: {
-    setRoomsState: ReturnType<typeof vi.fn>;
-    addPeerToRoom: ReturnType<typeof vi.fn>;
-    removePeerFromRoom: ReturnType<typeof vi.fn>;
   };
   let voiceAudioPreferencesStore: {
     microphoneMuted: ReturnType<typeof signal<boolean>>;
@@ -99,20 +91,12 @@ describe('VoiceSessionService', () => {
 
   beforeEach(() => {
     handlers = {};
-    roomsSnapshot = {
-      1: { [bob.id]: bob },
-    };
     socket = {
       on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
         handlers[event] = handler;
       }),
       off: vi.fn(),
-      emitWithAck: vi.fn((event: string) => {
-        if (event === EVoiceRoomEvent.GET_ALL_PEERS) {
-          return Promise.resolve(roomsSnapshot);
-        }
-        return Promise.resolve(undefined);
-      }),
+      emitWithAck: vi.fn().mockResolvedValue(undefined),
       timeout: vi.fn(),
       connected: true,
     };
@@ -129,11 +113,6 @@ describe('VoiceSessionService', () => {
       upsertPeer: vi.fn(),
       removePeer: vi.fn(),
       clearSessionPeers: vi.fn(),
-    };
-    voiceLobbyStore = {
-      setRoomsState: vi.fn(),
-      addPeerToRoom: vi.fn(),
-      removePeerFromRoom: vi.fn(),
     };
     voiceAudioPreferencesStore = {
       microphoneMuted: signal(false),
@@ -180,7 +159,6 @@ describe('VoiceSessionService', () => {
         VoiceSessionService,
         { provide: VoiceRoomSocketToken, useValue: socket },
         { provide: VoiceSessionStore, useValue: voiceSessionStore },
-        { provide: VoiceLobbyStore, useValue: voiceLobbyStore },
         {
           provide: VoiceAudioPreferencesStore,
           useValue: voiceAudioPreferencesStore,
@@ -213,33 +191,6 @@ describe('VoiceSessionService', () => {
     service = TestBed.inject(VoiceSessionService);
   });
 
-  it('loads rooms state immediately when the socket is already connected', async () => {
-    await Promise.resolve();
-
-    expect(socket.emitWithAck).toHaveBeenCalledWith(
-      EVoiceRoomEvent.GET_ALL_PEERS,
-    );
-    expect(voiceLobbyStore.setRoomsState).toHaveBeenCalledWith(roomsSnapshot);
-  });
-
-  it('refreshes rooms state when the socket connects', async () => {
-    await Promise.resolve();
-    const nextSnapshot: TVoiceRoomGetAllPeersResult = {
-      3: { [bob.id]: bob },
-    };
-    roomsSnapshot = nextSnapshot;
-    socket.emitWithAck.mockClear();
-    voiceLobbyStore.setRoomsState.mockClear();
-
-    handlers['connect']();
-    await Promise.resolve();
-
-    expect(socket.emitWithAck).toHaveBeenCalledWith(
-      EVoiceRoomEvent.GET_ALL_PEERS,
-    );
-    expect(voiceLobbyStore.setRoomsState).toHaveBeenCalledWith(nextSnapshot);
-  });
-
   it('releases the microphone when the leave ack rejects or times out', async () => {
     const errorSpy = vi
       .spyOn(console, 'error')
@@ -258,9 +209,6 @@ describe('VoiceSessionService', () => {
         socket.emitWithAck.mockImplementation((event: string) => {
           if (event === EVoiceRoomEvent.LEAVE_ROOM) {
             return new Promise(() => undefined);
-          }
-          if (event === EVoiceRoomEvent.GET_ALL_PEERS) {
-            return Promise.resolve(roomsSnapshot);
           }
           return Promise.resolve(undefined);
         });
@@ -342,7 +290,6 @@ describe('VoiceSessionService', () => {
     });
 
     expect(voiceSessionStore.removePeer).toHaveBeenCalledWith(bob.id);
-    expect(voiceLobbyStore.removePeerFromRoom).toHaveBeenCalledWith(1, bob.id);
     expect(screenWatch.release).toHaveBeenCalledWith(bob.id);
   });
 
@@ -373,9 +320,6 @@ describe('VoiceSessionService', () => {
     socket.emitWithAck.mockImplementation((event: string) => {
       if (event === EVoiceRoomEvent.JOIN_ROOM) {
         return Promise.reject(new Error('join failed'));
-      }
-      if (event === EVoiceRoomEvent.GET_ALL_PEERS) {
-        return Promise.resolve(roomsSnapshot);
       }
       return Promise.resolve(undefined);
     });

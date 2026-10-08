@@ -38,7 +38,7 @@ flowchart TB
 
 ## Flow (short)
 
-1. **Join** — `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`) from room UI, effects, or `DirectCallService`. Join/leave SFX, transports, mic produce, wake lock; reconnect rejoins stored session. Lobby peers: `GET_ALL_PEERS` poll + socket events (`VoiceLobbyStore`; direct calls excluded).
+1. **Join** — `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`) from room UI, effects, or `DirectCallService`. Join/leave SFX, transports, mic produce, wake lock; reconnect rejoins stored session. Lobby peers: `EntitySyncService` loads an initial `GET_ALL_PEERS` snapshot when the voice socket connects, then applies `VOICE_ROOM_PEER_JOINED` / `VOICE_ROOM_PEER_LEFT` from entity-sync (`VoiceLobbyStore`; direct calls excluded). Events carry the server `epoch` + monotonic `revision`; a gap, an epoch change, or a reconnect of either the voice or the entity-sync socket triggers a (serialized) snapshot resync, and events are buffered while the lobby is unsynced.
 2. **Mic** — `MicrophoneService` pipeline; mute via producer track + `VoiceAudioPreferencesStore`.
 3. **Remote audio** — consume → `PeerPlaybackService` (deafen × per-peer gain).
 4. **Speaking** — `AudioActivityService`; local registration from `VoiceAudioPreferencesStore` when session + analyser + unmuted mic.

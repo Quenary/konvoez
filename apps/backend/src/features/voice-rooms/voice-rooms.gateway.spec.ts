@@ -36,6 +36,7 @@ import {
   type IUser,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 import { Server, Socket } from 'socket.io';
 
 const alice: IUser = {
@@ -95,6 +96,8 @@ describe('VoiceRoomsGateway', () => {
     removeRoom: jest.Mock;
     resolveIdentityFromKey: jest.Mock;
     createGroupIdentity: jest.Mock;
+    createLobbyPeerJoined: jest.Mock;
+    createLobbyPeerLeft: jest.Mock;
   };
   let directCallsStateService: {
     create: jest.Mock;
@@ -126,6 +129,18 @@ describe('VoiceRoomsGateway', () => {
       createGroupIdentity: jest.fn((roomId: number) => ({
         type: EVoiceSessionType.GROUP_ROOM,
         roomId,
+      })),
+      createLobbyPeerJoined: jest.fn((roomId: number, user: IUser) => ({
+        roomId,
+        user,
+        epoch: 'epoch-1',
+        revision: 1,
+      })),
+      createLobbyPeerLeft: jest.fn((roomId: number, userId: number) => ({
+        roomId,
+        userId,
+        epoch: 'epoch-1',
+        revision: 1,
       })),
     };
     directCallsStateService = {
@@ -262,6 +277,10 @@ describe('VoiceRoomsGateway', () => {
       expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.PEERS_ON_JOIN, {
         peers: [],
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        { roomId: 1, user: alice, epoch: 'epoch-1', revision: 1 },
+      );
     });
 
     it('rejects join without room or session', async () => {
@@ -318,6 +337,10 @@ describe('VoiceRoomsGateway', () => {
       expect(socket.data.sessionKey).toBe('call:c1');
       expect(socket.join).toHaveBeenCalledWith('call:c1');
       expect(room.peers.has('socket-1')).toBe(true);
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        expect.anything(),
+      );
     });
 
     it('evicts an existing same-user peer before joining so PEER_LEFT precedes PEER_JOINED', async () => {
@@ -380,6 +403,14 @@ describe('VoiceRoomsGateway', () => {
           roomId: 1,
           sessionKey: 'room:1',
         }),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        expect.anything(),
       );
     });
 
@@ -471,6 +502,10 @@ describe('VoiceRoomsGateway', () => {
           roomId: 1,
           sessionKey: 'room:1',
         }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        { roomId: 1, userId: alice.id, epoch: 'epoch-1', revision: 1 },
       );
     });
 

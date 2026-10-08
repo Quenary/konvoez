@@ -15,7 +15,7 @@ import {
   type IVoiceRoomConsumeResult,
   type IVoiceRoomCreateTransport,
   type IVoiceRoomCreateTransportResult,
-  type TVoiceRoomGetAllPeersResult,
+  type IVoiceRoomGetAllPeersSnapshot,
   type IVoiceRoomJoin,
   type IVoiceRoomProduce,
   type IVoiceRoomProduceResult,
@@ -44,6 +44,10 @@ import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
 } from '@shared/events/notifications.events';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
@@ -204,6 +208,8 @@ export class VoiceRoomsGateway
     // (e.g. while createRouter is still awaiting).
     const room = await this.voiceRoomsStateService.ensureRoom(identity);
 
+    const userAlreadyInRoom = this.isUserInRoom(room, user.id);
+
     // Reconnect can race: new socket joins before the old socket's disconnect
     // is processed. Clients key peers by userId, so a late PEER_LEFT from the
     // old socket would wipe consumers already attached to the new peer.
@@ -219,6 +225,14 @@ export class VoiceRoomsGateway
     socket.data.sessionKey = sessionKey;
     socket.data.sessionTarget = identity;
     socket.data.roomId = roomId;
+
+    if (roomId !== undefined && !userAlreadyInRoom) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        this.voiceRoomsStateService.createLobbyPeerJoined(roomId, user),
+      );
+    }
 
     const peerJoinedPayload = {
       user,
@@ -266,6 +280,14 @@ export class VoiceRoomsGateway
       this.removePeerMedia(room, peer, sessionKey, roomId, socket);
       room.peers.delete(socket.id);
 
+      if (roomId !== undefined && !this.isUserInRoom(room, peer.user.id)) {
+        emitEntitySyncDomainEvent(
+          this.eventEmitter,
+          EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+          this.voiceRoomsStateService.createLobbyPeerLeft(roomId, peer.user.id),
+        );
+      }
+
       if (!room.peers.size) {
         this.voiceRoomsStateService.removeRoom(sessionKey);
         if (identity) {
@@ -297,8 +319,8 @@ export class VoiceRoomsGateway
   }
 
   @SubscribeMessage(EVoiceRoomEvent.GET_ALL_PEERS)
-  handleGetAllPeers(): TVoiceRoomGetAllPeersResult {
-    return this.voiceRoomsStateService.getAllPeers();
+  handleGetAllPeers(): IVoiceRoomGetAllPeersSnapshot {
+    return this.voiceRoomsStateService.getLobbySnapshot();
   }
 
   @SubscribeMessage(EVoiceRoomEvent.GET_RTP_CAPABILITIES)
@@ -787,6 +809,18 @@ export class VoiceRoomsGateway
     }
 
     return { room, peer, sessionKey };
+  }
+
+  private isUserInRoom(
+    room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
+    userId: number,
+  ): boolean {
+    for (const peer of room.peers.values()) {
+      if (peer.user.id === userId) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private getRoomEmitTargets(sessionKey: string, roomId?: number): string[] {

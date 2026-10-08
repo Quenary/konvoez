@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   Injectable,
   Logger,
@@ -5,6 +6,9 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import {
+  IVoiceRoomGetAllPeersSnapshot,
+  IVoiceRoomLobbyPeerJoined,
+  IVoiceRoomLobbyPeerLeft,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
   IUser,
@@ -74,6 +78,8 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   private worker!: MediasoupWorker;
   private readonly rooms = new Map<string, VoiceRoomState>();
   private readonly roomInitByKey = new Map<string, Promise<VoiceRoomState>>();
+  private readonly lobbyEpoch = randomUUID();
+  private lobbyRevision = 0;
 
   constructor(private readonly appService: AppService) {}
 
@@ -165,6 +171,28 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     return result;
   }
 
+  public getLobbySnapshot(): IVoiceRoomGetAllPeersSnapshot {
+    return {
+      epoch: this.lobbyEpoch,
+      revision: this.lobbyRevision,
+      rooms: this.getAllPeers(),
+    };
+  }
+
+  public createLobbyPeerJoined(
+    roomId: number,
+    user: IUser,
+  ): IVoiceRoomLobbyPeerJoined {
+    return { roomId, user, ...this.nextLobbyVersion() };
+  }
+
+  public createLobbyPeerLeft(
+    roomId: number,
+    userId: number,
+  ): IVoiceRoomLobbyPeerLeft {
+    return { roomId, userId, ...this.nextLobbyVersion() };
+  }
+
   public resolveIdentityFromKey(key: string): TVoiceSessionIdentity | null {
     return parseVoiceSessionKey(key);
   }
@@ -175,6 +203,11 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
 
   public createDirectCallIdentity(callId: string): TVoiceSessionIdentity {
     return { type: EVoiceSessionType.DIRECT_CALL, callId };
+  }
+
+  private nextLobbyVersion(): { epoch: string; revision: number } {
+    this.lobbyRevision += 1;
+    return { epoch: this.lobbyEpoch, revision: this.lobbyRevision };
   }
 
   private async createRoom(

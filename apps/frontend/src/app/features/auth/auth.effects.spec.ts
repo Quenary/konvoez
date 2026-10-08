@@ -20,7 +20,6 @@ import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { UsersStore } from '@features/users/users.store';
@@ -117,14 +116,6 @@ describe('AuthEffects logout', () => {
             setActiveSession,
             clearSessionPeers: vi.fn(),
             peersDict: signal({}),
-          },
-        },
-        {
-          provide: VoiceLobbyStore,
-          useValue: {
-            setRoomsState: vi.fn(),
-            addPeerToRoom: vi.fn(),
-            removePeerFromRoom: vi.fn(),
           },
         },
         {
