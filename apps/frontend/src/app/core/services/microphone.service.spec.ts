@@ -53,9 +53,9 @@ describe('MicrophoneService', () => {
     workletNodes.speex.length = 0;
     loadRnnoise = vi.mocked(noiseSuppressorPort.loadRnnoise);
     loadSpeex = vi.mocked(noiseSuppressorPort.loadSpeex);
-    loadRnnoise.mockClear();
+    loadRnnoise.mockReset();
     loadRnnoise.mockResolvedValue(new ArrayBuffer(8));
-    loadSpeex.mockClear();
+    loadSpeex.mockReset();
     loadSpeex.mockResolvedValue(new ArrayBuffer(8));
     enumerateDevices = vi.fn().mockResolvedValue([]);
     Object.defineProperty(navigator, 'mediaDevices', {
