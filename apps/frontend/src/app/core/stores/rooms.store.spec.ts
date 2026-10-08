@@ -5,7 +5,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomsApiService } from '@core/api/rooms-api.service';
-import { RoomsStore } from '@core/stores/rooms.store';
+import { RoomsStore } from './rooms.store';
 
 describe('RoomsStore', () => {
   let store: InstanceType<typeof RoomsStore>;
