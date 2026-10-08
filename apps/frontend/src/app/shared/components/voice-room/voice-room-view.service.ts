@@ -1,17 +1,12 @@
-import {
-  DestroyRef,
-  Injectable,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core';
+import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { getVoiceSessionKey } from '@konvoez/shared';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { fromEvent } from 'rxjs';
 import { VoiceChromeReveal } from './voice-chrome-reveal';
 import type { TVoiceStreamKind } from './voice-room-tiles';
+
+export type TVoiceRoomLayout = 'grid' | 'theatre';
 
 export type TTheatreFocus = {
   peerId: number;
@@ -24,14 +19,15 @@ export class VoiceRoomViewService {
   private readonly voiceSessionStore = inject(VoiceSessionStore);
 
   private readonly chrome = new VoiceChromeReveal(true);
+  private readonly layoutMode = signal<TVoiceRoomLayout>('grid');
   private readonly focus = signal<TTheatreFocus | null>(null);
   private readonly fullscreen = signal(false);
   /** Undefined until the first session read, so construction does not count as a change. */
   private sessionKey: string | null | undefined = undefined;
 
   public readonly chromeVisible = this.chrome.visible.asReadonly();
+  public readonly layout = this.layoutMode.asReadonly();
   public readonly theatreFocus = this.focus.asReadonly();
-  public readonly theatreOpen = computed(() => this.focus() != null);
   public readonly isFullscreen = this.fullscreen.asReadonly();
 
   constructor() {
@@ -48,7 +44,7 @@ export class VoiceRoomViewService {
         return;
       }
       this.sessionKey = key;
-      this.closeTheatre();
+      this.resetView();
     });
 
     fromEvent(document, 'fullscreenchange')
@@ -64,11 +60,13 @@ export class VoiceRoomViewService {
 
   public openTheatre(peerId: number, stream: TVoiceStreamKind | null): void {
     this.focus.set({ peerId, stream });
+    this.layoutMode.set('theatre');
     this.revealChrome();
   }
 
-  public closeTheatre(): void {
-    this.focus.set(null);
+  /** Switches to the grid. The theatre focus is kept for the next visit. */
+  public showGrid(): void {
+    this.layoutMode.set('grid');
   }
 
   public async toggleFullscreen(target: HTMLElement | null): Promise<void> {
@@ -84,5 +82,10 @@ export class VoiceRoomViewService {
     } catch (error) {
       console.warn('Fullscreen failed', error);
     }
+  }
+
+  private resetView(): void {
+    this.layoutMode.set('grid');
+    this.focus.set(null);
   }
 }

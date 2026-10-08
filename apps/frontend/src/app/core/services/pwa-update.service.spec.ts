@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { SwUpdate, VersionEvent } from '@angular/service-worker';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { EVoiceSessionType } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { EMPTY, Subject, of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PwaUpdateService } from './pwa-update.service';
 
@@ -12,8 +15,10 @@ describe('PwaUpdateService', () => {
   let swUpdate: {
     isEnabled: boolean;
     versionUpdates: ReturnType<Subject<VersionEvent>['asObservable']>;
-    unrecoverable: typeof EMPTY;
+    unrecoverable: Subject<void>;
   };
+  let activeSession: ReturnType<typeof signal<unknown>>;
+  let joiningTarget: ReturnType<typeof signal<unknown>>;
 
   beforeEach(() => {
     versionUpdates$ = new Subject<VersionEvent>();
@@ -23,21 +28,101 @@ describe('PwaUpdateService', () => {
     swUpdate = {
       isEnabled: true,
       versionUpdates: versionUpdates$.asObservable(),
-      unrecoverable: EMPTY,
+      unrecoverable: new Subject<void>(),
     };
+    activeSession = signal(null);
+    joiningTarget = signal(null);
 
     TestBed.configureTestingModule({
       providers: [
         provideTranslateService(),
         { provide: SwUpdate, useValue: swUpdate },
         { provide: TuiResponsiveDialogService, useValue: dialogService },
+        {
+          provide: VoiceSessionStore,
+          useValue: {
+            activeSession: activeSession.asReadonly(),
+            joiningTarget: joiningTarget.asReadonly(),
+          },
+        },
       ],
     });
   });
 
   afterEach(() => {
     versionUpdates$.complete();
+    swUpdate.unrecoverable.complete();
+    vi.unstubAllGlobals();
     TestBed.resetTestingModule();
+  });
+
+  it('defers a confirmed update reload until the voice session ends', async () => {
+    dialogService.open.mockReturnValue(of(true));
+    activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
+    const service = TestBed.inject(PwaUpdateService);
+
+    versionUpdates$.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'a' },
+      latestVersion: { hash: 'b' },
+    });
+
+    await vi.waitFor(() => expect(dialogService.open).toHaveBeenCalled(), {
+      timeout: 2000,
+    });
+    service['applyAvailableUpdate']();
+    expect(service['pendingNormalUpdateReload']).toBe(true);
+
+    activeSession.set(null);
+    await vi.waitFor(() =>
+      expect(service['pendingNormalUpdateReload']).toBe(false),
+    );
+  });
+
+  it('does not reload while a voice join is in progress', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    dialogService.open.mockReturnValue(of(true));
+    activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
+    const service = TestBed.inject(PwaUpdateService);
+
+    versionUpdates$.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'a' },
+      latestVersion: { hash: 'b' },
+    });
+
+    await vi.waitFor(() => expect(dialogService.open).toHaveBeenCalled(), {
+      timeout: 2000,
+    });
+    service['applyAvailableUpdate']();
+    expect(service['pendingNormalUpdateReload']).toBe(true);
+
+    joiningTarget.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 2 });
+    activeSession.set(null);
+    await Promise.resolve();
+    expect(reload).not.toHaveBeenCalled();
+    expect(service['pendingNormalUpdateReload']).toBe(true);
+
+    joiningTarget.set(null);
+    await vi.waitFor(() =>
+      expect(service['pendingNormalUpdateReload']).toBe(false),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('defers unrecoverable reload while a voice session is active', async () => {
+    activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
+    TestBed.inject(PwaUpdateService);
+
+    swUpdate.unrecoverable.next();
+
+    expect(dialogService.open).not.toHaveBeenCalled();
+
+    activeSession.set(null);
+    await vi.waitFor(() => {
+      expect(dialogService.open).toHaveBeenCalled();
+    });
   });
 
   it('should not subscribe when service worker is disabled', async () => {

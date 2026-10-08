@@ -1,13 +1,4 @@
 :host {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  overflow: hidden;
-}
-
-.peers-grid-root {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -65,13 +56,6 @@
     grid-auto-rows: auto;
     place-items: center;
   }
-}
-
-.view-chrome {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  pointer-events: none;
 }
 
 .grid-item {

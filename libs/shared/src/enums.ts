@@ -47,6 +47,8 @@ export enum EVoiceRoomEvent {
   LEAVE_ROOM = 'leave-room',
   PEER_JOINED = 'peer-joined',
   PEER_LEFT = 'peer-left',
+  /** Server ended the session (e.g. group room deleted). */
+  ROOM_CLOSED = 'room-closed',
   /**
    * Get existing peers of all rooms to sync frontend state
    */
@@ -88,5 +90,7 @@ export enum EEntitySyncEvent {
   ROOM_CREATED = 'room-created',
   ROOM_UPDATED = 'room-updated',
   ROOM_DELETED = 'room-deleted',
+  VOICE_ROOM_PEER_JOINED = 'voice-room-peer-joined',
+  VOICE_ROOM_PEER_LEFT = 'voice-room-peer-left',
   ERROR = 'error',
 }

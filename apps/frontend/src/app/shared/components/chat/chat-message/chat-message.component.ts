@@ -29,7 +29,7 @@ import {
   IUser,
 } from '@konvoez/shared';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
 import { MessageVisibilityDirective } from '@shared/directives/message-visibility.directive';

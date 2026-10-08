@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
@@ -12,6 +12,8 @@ import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/l
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomTheatreComponent } from './voice-room-theatre.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceRoomActionsService } from '../voice-room-actions.service';
+import { VoiceRoomTilesService } from '../voice-room-tiles.service';
 import { buildVoiceRoomTiles, type TVoiceRoomTile } from '../voice-room-tiles';
 
 const peer = (id: number, username = `u${id}`): IUser =>
@@ -37,13 +39,20 @@ const stripTiles = () =>
 
 describe('VoiceRoomTheatreComponent', () => {
   let openTheatre: ReturnType<typeof vi.fn>;
-  let revealChrome: ReturnType<typeof vi.fn>;
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
+  let tiles: ReturnType<typeof signal<TVoiceRoomTile[]>>;
+  let theatreTile: ReturnType<typeof signal<TVoiceRoomTile | null>>;
 
   beforeEach(() => {
     openTheatre = vi.fn();
-    revealChrome = vi.fn();
     localScreenTrack = signal<MediaStreamTrack | null>(null);
+    const initialTiles = stripTiles();
+    tiles = signal(initialTiles);
+    theatreTile = signal(
+      initialTiles.find(
+        (tile) => tile.peerId === 2 && tile.streamKind === 'screen',
+      ) ?? null,
+    );
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -104,16 +113,22 @@ describe('VoiceRoomTheatreComponent', () => {
           provide: VoiceRoomViewService,
           useValue: {
             chromeVisible: signal(true).asReadonly(),
-            theatreFocusId: signal<number | null>(2).asReadonly(),
-            theatreFocusStream: signal<'screen' | 'cam' | null>(
-              'screen',
-            ).asReadonly(),
-            theatreOpen: signal(true).asReadonly(),
-            isFullscreen: signal(false).asReadonly(),
-            revealChrome,
-            openTheatre,
-            closeTheatre: vi.fn(),
             toggleFullscreen: vi.fn(),
+            openTheatre,
+          },
+        },
+        {
+          provide: VoiceRoomActionsService,
+          useValue: {
+            watchPeerScreen: vi.fn(),
+            stopWatchingPeerScreen: vi.fn(),
+          },
+        },
+        {
+          provide: VoiceRoomTilesService,
+          useValue: {
+            tiles: tiles.asReadonly(),
+            theatreTile: computed(() => theatreTile()),
           },
         },
       ],
@@ -125,43 +140,16 @@ describe('VoiceRoomTheatreComponent', () => {
     vi.useRealTimers();
   });
 
-  const create = (
-    overrides: Partial<{ focusTile: TVoiceRoomTile | null }> = {},
-  ) => {
-    const tiles = stripTiles();
+  const create = () => {
     const fixture = TestBed.createComponent(VoiceRoomTheatreComponent);
-    const focusTile =
-      overrides.focusTile === undefined
-        ? (tiles.find(
-            (tile) => tile.peerId === 2 && tile.streamKind === 'screen',
-          ) ?? null)
-        : overrides.focusTile;
-    fixture.componentRef.setInput('focusTile', focusTile);
-    fixture.componentRef.setInput('stripTiles', tiles);
     fixture.detectChanges();
     return fixture;
   };
 
-  it('forwards pointer activity to the room view chrome reveal', () => {
+  it('opens another watching screen tile from the strip via the tiles service', () => {
     const fixture = create();
-    const cmp = fixture.componentInstance;
-    const stage = fixture.nativeElement.querySelector('.stage') as HTMLElement;
-    stage.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }));
-    expect(revealChrome).toHaveBeenCalled();
-
-    revealChrome.mockClear();
-    stage.click();
-    expect(revealChrome).toHaveBeenCalled();
-
-    revealChrome.mockClear();
-    cmp['revealOverlay']();
-    expect(revealChrome).toHaveBeenCalled();
-  });
-
-  it('opens another watching screen tile from the strip via the view service', () => {
-    const fixture = create();
-    const tiles = stripTiles();
-    const otherScreen = tiles.find(
+    const allTiles = stripTiles();
+    const otherScreen = allTiles.find(
       (t) => t.peerId === 3 && t.streamKind === 'screen',
     );
     expect(otherScreen).toBeDefined();
@@ -173,8 +161,8 @@ describe('VoiceRoomTheatreComponent', () => {
   });
 
   it('shows a large tile without video and opens a voice strip tile', () => {
-    const tiles = stripTiles();
-    const voice = tiles.find(
+    const allTiles = stripTiles();
+    const voice = allTiles.find(
       (tile) => tile.peerId === 1 && tile.streamKind == null,
     );
     expect(voice).toBeDefined();
@@ -182,7 +170,8 @@ describe('VoiceRoomTheatreComponent', () => {
       return;
     }
 
-    const fixture = create({ focusTile: voice });
+    theatreTile.set(voice);
+    const fixture = create();
     expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
     expect(
       fixture.nativeElement.querySelector('app-voice-room-tile'),
@@ -191,13 +180,14 @@ describe('VoiceRoomTheatreComponent', () => {
     fixture.componentInstance['onStripTileClick'](voice);
     expect(openTheatre).not.toHaveBeenCalled();
 
-    const screen = tiles.find(
+    const screen = allTiles.find(
       (tile) => tile.peerId === 2 && tile.streamKind === 'screen',
     );
     expect(screen).toBeDefined();
     if (screen == null) {
       return;
     }
+    theatreTile.set(screen);
     const watching = create();
     watching.componentInstance['onStripTileClick'](voice);
     expect(openTheatre).toHaveBeenCalledWith(1, null);
@@ -213,7 +203,7 @@ describe('VoiceRoomTheatreComponent', () => {
     });
 
     const local = peer(1);
-    const tiles = buildVoiceRoomTiles({
+    const built = buildVoiceRoomTiles({
       peers: [local, peer(2)],
       localUserId: 1,
       localCamTrack: null,
@@ -223,15 +213,14 @@ describe('VoiceRoomTheatreComponent', () => {
       availableScreens: {},
       watchingUserIds: new Set(),
     });
-    const localScreen = tiles.find(
+    const localScreen = built.find(
       (tile) => tile.peerId === 1 && tile.streamKind === 'screen',
     );
     expect(localScreen).toBeDefined();
 
-    const fixture = TestBed.createComponent(VoiceRoomTheatreComponent);
-    fixture.componentRef.setInput('focusTile', localScreen ?? null);
-    fixture.componentRef.setInput('stripTiles', tiles);
-    fixture.detectChanges();
+    tiles.set(built);
+    theatreTile.set(localScreen ?? null);
+    const fixture = create();
 
     document.dispatchEvent(new Event('visibilitychange'));
     vi.advanceTimersByTime(5000);

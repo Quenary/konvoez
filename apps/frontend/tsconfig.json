@@ -13,6 +13,7 @@
     "target": "es2022",
     "moduleResolution": "bundler",
     "module": "preserve",
+    "resolveJsonModule": true,
     "paths": {
       "@konvoez/shared": ["../../libs/shared/src/index.ts"],
       "@environments/*": ["./src/environments/*"],

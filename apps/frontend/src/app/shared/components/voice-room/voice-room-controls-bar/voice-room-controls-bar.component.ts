@@ -59,6 +59,7 @@ export class VoiceRoomControlsBarComponent {
     () => this.peerVideoService.localScreenTrack() !== null,
   );
   protected readonly screenSupported = ScreenCaptureService.isSupported();
+  protected readonly canProduce = this.voiceSessionService.canProduce;
 
   protected toggleMicrophone(): void {
     this.voiceAudioPreferencesStore.toggleMicrophoneMuted();

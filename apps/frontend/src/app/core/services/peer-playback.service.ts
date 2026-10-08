@@ -13,7 +13,7 @@ interface IPeerPlaybackGraph {
 
 /**
  * Per-peer Web Audio playback graph (gain, analyser, Chrome dummy audio element).
- * Graphs are keyed by user id and are not stored on peer entities.
+ * Peers sum on the speaker mix bus. Graphs are keyed by user id and are not stored on peer entities.
  */
 @Injectable({
   providedIn: 'root',
@@ -51,6 +51,7 @@ export class PeerPlaybackService {
     });
 
     const context = await this.speakerService.getContext();
+    const output = await this.speakerService.getOutput();
     const sourceNode = context.createMediaStreamSource(stream);
     const gainNode = context.createGain();
     const analyserNode = context.createAnalyser();
@@ -81,7 +82,7 @@ export class PeerPlaybackService {
 
     sourceNode.connect(gainNode);
     gainNode.connect(analyserNode);
-    gainNode.connect(context.destination);
+    gainNode.connect(output);
 
     this.audioActivityService.register(userId, analyserNode);
 

@@ -3,20 +3,16 @@ import {
   Component,
   DestroyRef,
   ElementRef,
-  TemplateRef,
   computed,
   inject,
-  input,
-  output,
   signal,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { preferTheatreStripRight } from '../voice-peers-layout';
-import type { TVoiceOverlayContext } from '../voice-overlay-slot.directive';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceRoomTilesService } from '../voice-room-tiles.service';
 import { VoiceRoomTileComponent } from '../voice-room-tile/voice-room-tile.component';
 import { VoiceRoomTileMiniComponent } from '../voice-room-tile-mini/voice-room-tile-mini.component';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
@@ -25,7 +21,6 @@ import type { TVoiceRoomTile } from '../voice-room-tiles';
 @Component({
   selector: 'app-voice-room-theatre',
   imports: [
-    NgTemplateOutlet,
     VoiceRoomTileComponent,
     VoiceRoomTileMiniComponent,
     VideoTrackDirective,
@@ -39,19 +34,15 @@ export class VoiceRoomTheatreComponent {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly store = inject(Store);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
+  private readonly voiceRoomTilesService = inject(VoiceRoomTilesService);
   private readonly localScreenPreviewService = inject(
     LocalScreenPreviewService,
   );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  public readonly focusTile = input<TVoiceRoomTile | null>(null);
-  public readonly stripTiles = input.required<readonly TVoiceRoomTile[]>();
-  public readonly overlay = input<TemplateRef<TVoiceOverlayContext> | null>(
-    null,
-  );
-  public readonly watchScreen = output<number>();
-  public readonly stopWatchScreen = output<number>();
+  protected readonly focusTile = this.voiceRoomTilesService.theatreTile;
+  protected readonly stripTiles = this.voiceRoomTilesService.tiles;
 
   protected readonly stripRight = signal(false);
 
@@ -107,22 +98,10 @@ export class VoiceRoomTheatreComponent {
     }
   }
 
-  protected revealOverlay(): void {
-    this.voiceRoomViewService.revealChrome();
-  }
-
-  protected onStageActivate(): void {
-    this.revealOverlay();
-  }
-
   protected onStripTileClick(tile: TVoiceRoomTile): void {
     if (this.focusTile()?.key === tile.key) {
       return;
     }
-    this.voiceRoomViewService.openTheatre(tile.peerId, tile.streamKind);
-  }
-
-  protected onStageTileOpen(tile: TVoiceRoomTile): void {
     this.voiceRoomViewService.openTheatre(tile.peerId, tile.streamKind);
   }
 

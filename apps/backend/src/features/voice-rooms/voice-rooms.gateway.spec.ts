@@ -36,6 +36,7 @@ import {
   type IUser,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 import { Server, Socket } from 'socket.io';
 
 const alice: IUser = {
@@ -95,6 +96,8 @@ describe('VoiceRoomsGateway', () => {
     removeRoom: jest.Mock;
     resolveIdentityFromKey: jest.Mock;
     createGroupIdentity: jest.Mock;
+    createLobbyPeerJoined: jest.Mock;
+    createLobbyPeerLeft: jest.Mock;
   };
   let directCallsStateService: {
     create: jest.Mock;
@@ -126,6 +129,18 @@ describe('VoiceRoomsGateway', () => {
       createGroupIdentity: jest.fn((roomId: number) => ({
         type: EVoiceSessionType.GROUP_ROOM,
         roomId,
+      })),
+      createLobbyPeerJoined: jest.fn((roomId: number, user: IUser) => ({
+        roomId,
+        user,
+        epoch: 'epoch-1',
+        revision: 1,
+      })),
+      createLobbyPeerLeft: jest.fn((roomId: number, userId: number) => ({
+        roomId,
+        userId,
+        epoch: 'epoch-1',
+        revision: 1,
       })),
     };
     directCallsStateService = {
@@ -262,6 +277,10 @@ describe('VoiceRoomsGateway', () => {
       expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.PEERS_ON_JOIN, {
         peers: [],
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        { roomId: 1, user: alice, epoch: 'epoch-1', revision: 1 },
+      );
     });
 
     it('rejects join without room or session', async () => {
@@ -318,6 +337,10 @@ describe('VoiceRoomsGateway', () => {
       expect(socket.data.sessionKey).toBe('call:c1');
       expect(socket.join).toHaveBeenCalledWith('call:c1');
       expect(room.peers.has('socket-1')).toBe(true);
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        expect.anything(),
+      );
     });
 
     it('evicts an existing same-user peer before joining so PEER_LEFT precedes PEER_JOINED', async () => {
@@ -380,6 +403,14 @@ describe('VoiceRoomsGateway', () => {
           roomId: 1,
           sessionKey: 'room:1',
         }),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        expect.anything(),
       );
     });
 
@@ -472,6 +503,10 @@ describe('VoiceRoomsGateway', () => {
           sessionKey: 'room:1',
         }),
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        { roomId: 1, userId: alice.id, epoch: 'epoch-1', revision: 1 },
+      );
     });
 
     it('removes an empty direct-call room and emits CALL_ENDED', () => {
@@ -549,6 +584,19 @@ describe('VoiceRoomsGateway', () => {
       socket.rooms.add('room:1');
       return socket;
     }
+
+    it('rejects unknown mediaTag', async () => {
+      const { room } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'webcam' as never,
+          rtpParameters: {},
+        }),
+      ).rejects.toThrow(/Unknown mediaTag/);
+    });
 
     it('rejects kind/mediaTag mismatch', async () => {
       const { room } = readyPeer();
@@ -718,6 +766,84 @@ describe('VoiceRoomsGateway', () => {
         userId: alice.id,
       });
     });
+
+    it('closing screen also closes screen-audio and emits PRODUCER_CLOSED for both', async () => {
+      const screenAudio = {
+        id: 'screen-audio-1',
+        kind: 'audio',
+        closed: false,
+        appData: { mediaTag: 'screen-audio', peerId: 'socket-1' },
+        close: jest.fn(function (this: { closed: boolean }) {
+          this.closed = true;
+        }),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const screen = {
+        id: 'screen-1',
+        kind: 'video',
+        closed: false,
+        appData: { mediaTag: 'screen', peerId: 'socket-1' },
+        close: jest.fn(function (this: { closed: boolean }) {
+          this.closed = true;
+        }),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const { peer, room } = readyPeer({
+        producers: new Map([
+          ['screen-1', screen],
+          ['screen-audio-1', screenAudio],
+        ]),
+      });
+      room.producers.set('screen-1', screen);
+      room.producers.set('screen-audio-1', screenAudio);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+      const serverEmit = jest.fn();
+      serverMock.to.mockReturnValue({ emit: serverEmit });
+
+      await gateway.closeProducer(socket as never, { producerId: 'screen-1' });
+
+      expect(screen.close).toHaveBeenCalled();
+      expect(screenAudio.close).toHaveBeenCalled();
+      expect(peer.producers.has('screen-1')).toBe(false);
+      expect(peer.producers.has('screen-audio-1')).toBe(false);
+      expect(serverEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_CLOSED, {
+        producerId: 'screen-audio-1',
+        userId: alice.id,
+      });
+      expect(serverEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_CLOSED, {
+        producerId: 'screen-1',
+        userId: alice.id,
+      });
+    });
+
+    it('acknowledges closeProducer when the producer was already closed on the server', async () => {
+      const screenAudio = {
+        id: 'screen-audio-1',
+        kind: 'audio',
+        closed: true,
+        appData: { mediaTag: 'screen-audio', peerId: 'socket-1' },
+        close: jest.fn(),
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      };
+      const { peer, room } = readyPeer({
+        producers: new Map([['screen-audio-1', screenAudio]]),
+      });
+      room.producers.set('screen-audio-1', screenAudio);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+
+      await expect(
+        gateway.closeProducer(socket as never, {
+          producerId: 'screen-audio-1',
+        }),
+      ).resolves.toEqual({});
+      expect(screenAudio.close).not.toHaveBeenCalled();
+      expect(peer.producers.has('screen-audio-1')).toBe(true);
+    });
   });
 
   describe('closeConsumer', () => {
@@ -744,6 +870,32 @@ describe('VoiceRoomsGateway', () => {
 
       expect(consumer.close).toHaveBeenCalled();
       expect(peer.consumers.has('c1')).toBe(false);
+    });
+
+    it('acknowledges closeConsumer when the consumer was already closed', async () => {
+      const consumer = { id: 'c1', closed: true, close: jest.fn() };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = createSocket({
+        data: {
+          user: alice,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.closeConsumer(socket as never, { consumerId: 'c1' }),
+      ).resolves.toEqual({});
+      expect(consumer.close).not.toHaveBeenCalled();
+      expect(peer.consumers.has('c1')).toBe(true);
     });
   });
 
@@ -935,6 +1087,52 @@ describe('VoiceRoomsGateway', () => {
       expect(
         gateway.handleCallGetActive(createSocket() as never, {}),
       ).toBeNull();
+    });
+  });
+
+  describe('handleRoomDeletedEvent', () => {
+    it('leaves every connected peer and removes the voice room', () => {
+      const roomId = 12;
+      const sessionKey = 'room:12';
+      const peer = {
+        id: 'socket-1',
+        user: bob,
+        producers: new Map(),
+        consumers: new Map(),
+        sendTransport: { close: jest.fn() },
+        recvTransport: { close: jest.fn() },
+      };
+      const room = createRoom(new Map([['socket-1', peer]]));
+      voiceRoomsStateService.getRoom.mockImplementation((key: string) =>
+        key === sessionKey ? room : undefined,
+      );
+
+      const socket = createSocket({
+        id: 'socket-1',
+        data: {
+          user: bob,
+          sessionKey,
+          roomId,
+          sessionTarget: { type: EVoiceSessionType.GROUP_ROOM, roomId },
+        },
+      });
+      serverMock.sockets.sockets.set('socket-1', socket);
+
+      gateway.handleRoomDeletedEvent({ id: roomId });
+
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.ROOM_CLOSED, {
+        roomId,
+        sessionKey,
+        reason: 'deleted',
+      });
+      expect(room.peers.has('socket-1')).toBe(false);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        { roomId, userId: bob.id, epoch: 'epoch-1', revision: 1 },
+      );
+      expect(voiceRoomsStateService.removeRoom).toHaveBeenCalledWith(
+        sessionKey,
+      );
     });
   });
 });

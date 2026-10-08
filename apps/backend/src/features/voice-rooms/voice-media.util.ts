@@ -52,6 +52,30 @@ export const VOICE_ROOM_MEDIA_CODECS: RtpCodecCapability[] = [
   },
 ];
 
+const KNOWN_MEDIA_TAGS: readonly TVoiceRoomMediaTag[] = [
+  'mic',
+  'cam',
+  'screen',
+  'screen-audio',
+];
+
+export function assertKnownMediaTag(
+  mediaTag: unknown,
+  kind: unknown,
+): asserts mediaTag is TVoiceRoomMediaTag {
+  if (kind !== 'audio' && kind !== 'video') {
+    throw new Error(
+      `Invalid kind "${String(kind)}" (expected "audio" or "video")`,
+    );
+  }
+  if (
+    typeof mediaTag !== 'string' ||
+    !(KNOWN_MEDIA_TAGS as readonly string[]).includes(mediaTag)
+  ) {
+    throw new Error(`Unknown mediaTag "${String(mediaTag)}"`);
+  }
+}
+
 export function isVideoMediaTag(mediaTag: TVoiceRoomMediaTag): boolean {
   return mediaTag === 'cam' || mediaTag === 'screen';
 }

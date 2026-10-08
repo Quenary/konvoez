@@ -30,16 +30,14 @@ describe('VoiceSessionPeersService', () => {
     | null
   >(null);
   const interlocutor = signal<IUser | null>(null);
-  const isCalling = signal(false);
-  const isIncoming = signal(false);
+  const isRinging = signal(false);
 
   beforeEach(() => {
     me.set(user(1, 'me'));
     remotePeers.set([]);
     activeSession.set(null);
     interlocutor.set(null);
-    isCalling.set(false);
-    isIncoming.set(false);
+    isRinging.set(false);
 
     TestBed.configureTestingModule({
       providers: [
@@ -59,8 +57,7 @@ describe('VoiceSessionPeersService', () => {
           provide: DirectCallService,
           useValue: {
             interlocutor: interlocutor.asReadonly(),
-            isCalling: isCalling.asReadonly(),
-            isIncoming: isIncoming.asReadonly(),
+            isRinging: isRinging.asReadonly(),
           },
         },
       ],
@@ -83,7 +80,7 @@ describe('VoiceSessionPeersService', () => {
 
   it('includes a ringing interlocutor before a session exists', () => {
     interlocutor.set(user(2, 'other'));
-    isCalling.set(true);
+    isRinging.set(true);
 
     expect(
       service()

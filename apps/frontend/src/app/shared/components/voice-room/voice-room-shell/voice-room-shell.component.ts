@@ -8,23 +8,24 @@ import {
   output,
   TemplateRef,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { VoiceRoomGridComponent } from '../voice-room-grid/voice-room-grid.component';
+import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-theatre.component';
 import { VoiceRoomOverlayComponent } from '../voice-room-overlay/voice-room-overlay.component';
 import { VoiceSessionPeersService } from '../voice-session-peers.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-import { VoiceOverlaySlotDirective } from '../voice-overlay-slot.directive';
-import { IRoom } from '@features/rooms/rooms.interface';
-
 @Component({
   selector: 'app-voice-room-shell',
   host: {
     '(pointermove)': 'revealChrome()',
     '(pointerdown)': 'revealChrome()',
+    '(document:keydown.escape)': 'onEscape($event)',
   },
   imports: [
+    NgTemplateOutlet,
     VoiceRoomGridComponent,
+    VoiceRoomTheatreComponent,
     VoiceRoomOverlayComponent,
-    VoiceOverlaySlotDirective,
   ],
   templateUrl: './voice-room-shell.component.html',
   styleUrl: './voice-room-shell.component.scss',
@@ -36,7 +37,6 @@ export class VoiceRoomShellComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject(ElementRef<HTMLElement>);
 
-  public readonly room = input<IRoom | null>(null);
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
@@ -44,6 +44,7 @@ export class VoiceRoomShellComponent {
 
   protected readonly fullscreenHost = this.host.nativeElement;
   protected readonly participantsCount = this.voiceSessionPeersService.count;
+  protected readonly layout = this.voiceRoomViewService.layout;
 
   constructor() {
     this.voiceRoomViewService.revealChrome();
@@ -60,5 +61,25 @@ export class VoiceRoomShellComponent {
 
   protected onLeft(): void {
     this.left.emit();
+  }
+
+  protected onEscape(event: Event): void {
+    if (this.layout() !== 'theatre' || document.fullscreenElement) {
+      return;
+    }
+    const overlayOpen = document.querySelector(
+      'tui-dialog, tui-dropdown, tui-sheet-dialog',
+    );
+    queueMicrotask(() => {
+      if (
+        event.defaultPrevented ||
+        overlayOpen ||
+        document.fullscreenElement ||
+        this.layout() !== 'theatre'
+      ) {
+        return;
+      }
+      this.voiceRoomViewService.showGrid();
+    });
   }
 }

@@ -3,16 +3,9 @@
 <div
   class="theatre"
   [class.strip-right]="stripRight()"
-  [class.strip-bottom]="!stripRight()"
-  (pointermove)="revealOverlay()"
-  (pointerdown)="revealOverlay()">
+  [class.strip-bottom]="!stripRight()">
   <div class="stage-cell">
-    <div
-      class="stage"
-      (click)="onStageActivate()"
-      tabindex="-1"
-      (keypress)="onStageActivate()"
-      (touchstart)="revealOverlay()">
+    <div class="stage">
       @if (videoTrack()) {
         <video
           class="stage-video"
@@ -28,20 +21,12 @@
             [streamKind]="tile.streamKind"
             [videoTrack]="tile.videoTrack"
             [screenAvailable]="tile.screenAvailable"
-            [watchingScreen]="tile.watchingScreen"
-            (watchScreen)="watchScreen.emit(tile.peerId)"
-            (stopWatchScreen)="stopWatchScreen.emit(tile.peerId)"
-            (openTheatre)="onStageTileOpen(tile)" />
+            [watchingScreen]="tile.watchingScreen" />
         </div>
       }
     </div>
 
-    @if (overlay(); as overlayTpl) {
-      <div class="view-chrome">
-        <ng-container
-          *ngTemplateOutlet="overlayTpl; context: { $implicit: focus }" />
-      </div>
-    }
+    <ng-content />
   </div>
 
   <aside class="strip">

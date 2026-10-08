@@ -73,6 +73,9 @@ CALL:
   BUSY: Пользователь занят другим звонком
   DECLINED: Звонок отклонен
   NO_ANSWER: Пользователь не отвечает
+  ACCEPT_FAILED: Не удалось принять звонок
+  VIDEO_LIMIT_REACHED: Достигнут лимит видео в комнате
+  WAITING_FOR_CONNECTION: Ожидание подключения…
   PARTICIPANTS: 'Участников: {{count}}'
   YOU: Вы
   VOLUME: Громкость
@@ -101,11 +104,13 @@ CALL:
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
   PREVIEW_RESUME: Возобновить
   PREVIEW_AUTO_PAUSE: Автоматическая пауза
-  EXIT_THEATRE: Закрыть театр
+  SHOW_THEATRE: Режим театра
+  SHOW_GRID: Режим сетки
   FULLSCREEN: На весь экран
   EXIT_FULLSCREEN: Свернуть
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
+  ROOM_CLOSED: Голосовая комната была закрыта
 ROOMS:
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
@@ -284,3 +289,7 @@ PWA:
     TITLE: Доступно обновление
     CONTENT: Готова новая версия приложения. Перезагрузите страницу, чтобы применить обновление.
     ACTION: Обновить
+  UNRECOVERABLE:
+    TITLE: Требуется обновление
+    CONTENT: Эта версия больше не может работать. Перезагрузите страницу.
+    ACTION: Перезагрузить

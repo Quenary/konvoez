@@ -11,6 +11,8 @@ import { PeerVideoService } from '@core/services/peer-video.service';
 import { SettingsStore } from '@features/settings/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
+import { VoiceRoomActionsService } from '../voice-room-actions.service';
+import { VoiceRoomViewService } from '../voice-room-view.service';
 
 const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
 
@@ -81,6 +83,17 @@ describe('VoiceRoomTileComponent', () => {
           useValue: {
             localScreenTrack: localScreenTrack.asReadonly(),
           },
+        },
+        {
+          provide: VoiceRoomActionsService,
+          useValue: {
+            watchPeerScreen: vi.fn(),
+            stopWatchingPeerScreen: vi.fn(),
+          },
+        },
+        {
+          provide: VoiceRoomViewService,
+          useValue: { openTheatre: vi.fn() },
         },
       ],
     });

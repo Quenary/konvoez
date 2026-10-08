@@ -3,8 +3,10 @@ import { IUser } from '@konvoez/shared';
 import {
   buildVoiceRoomTiles,
   findVoiceRoomTile,
+  pickDefaultTheatreTile,
   resolveTheatreTile,
   showsRemoteScreenWatchControls,
+  type TVoiceRoomTile,
 } from './voice-room-tiles';
 
 const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
@@ -124,6 +126,19 @@ describe('findVoiceRoomTile', () => {
     });
     const found = findVoiceRoomTile(tiles, 1, 'screen');
     expect(found?.streamKind).toBe('screen');
+  });
+});
+
+describe('pickDefaultTheatreTile', () => {
+  it('prefers a watched remote screen with video', () => {
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      remoteScreenTracks: { 2: { id: 'scr' } as MediaStreamTrack },
+      availableScreens: { 2: { videoProducerId: 'p1' } },
+      watchingUserIds: new Set([2]),
+    });
+    const picked = pickDefaultTheatreTile(tiles, 1);
+    expect(picked).toMatchObject({ peerId: 2, streamKind: 'screen' });
   });
 });
 
@@ -248,34 +263,29 @@ describe('resolveTheatreTile', () => {
 });
 
 describe('showsRemoteScreenWatchControls', () => {
+  const tile = (
+    peerId: number,
+    streamKind: 'cam' | 'screen' | null,
+    watchingScreen: boolean,
+  ): TVoiceRoomTile =>
+    ({
+      key: `${peerId}:${streamKind ?? 'voice'}`,
+      peerId,
+      streamKind,
+      watchingScreen,
+    }) as TVoiceRoomTile;
+
   it('is true only while a remote screen is being watched', () => {
-    expect(
-      showsRemoteScreenWatchControls(
-        { peerId: 2, stream: 'screen' },
-        1,
-        new Set([2]),
-      ),
-    ).toBe(true);
-    expect(
-      showsRemoteScreenWatchControls(
-        { peerId: 2, stream: 'screen' },
-        1,
-        new Set(),
-      ),
-    ).toBe(false);
-    expect(
-      showsRemoteScreenWatchControls(
-        { peerId: 1, stream: 'screen' },
-        1,
-        new Set([1]),
-      ),
-    ).toBe(false);
-    expect(
-      showsRemoteScreenWatchControls(
-        { peerId: 2, stream: 'cam' },
-        1,
-        new Set([2]),
-      ),
-    ).toBe(false);
+    expect(showsRemoteScreenWatchControls(tile(2, 'screen', true), 1)).toBe(
+      true,
+    );
+    expect(showsRemoteScreenWatchControls(tile(2, 'screen', false), 1)).toBe(
+      false,
+    );
+    expect(showsRemoteScreenWatchControls(tile(1, 'screen', true), 1)).toBe(
+      false,
+    );
+    expect(showsRemoteScreenWatchControls(tile(2, 'cam', true), 1)).toBe(false);
+    expect(showsRemoteScreenWatchControls(null, 1)).toBe(false);
   });
 });

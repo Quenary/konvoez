@@ -116,26 +116,10 @@ const isRemoteTile = (
   localUserId: number | null,
 ): boolean => localUserId == null || tile.peerId !== localUserId;
 
-/**
- * Theatre display target. Keeps the focused tile when it still exists.
- * When that stream is gone, switches to an active remote stream: a watched
- * screen first, then any other remote tile that has video. A regular tile
- * is used only when nothing is streaming, and a remote one comes before
- * yourself. Returns null only when the room has no tiles; the caller keeps
- * theatre open. This does not change the stored focus.
- */
-export function resolveTheatreTile(
-  focus: { peerId: number; stream: TVoiceStreamKind | null } | null,
+const fallbackTheatreTile = (
   tiles: readonly TVoiceRoomTile[],
   localUserId: number | null,
-): TVoiceRoomTile | null {
-  if (focus == null) {
-    return null;
-  }
-  const exact = findVoiceRoomTile(tiles, focus.peerId, focus.stream);
-  if (exact) {
-    return exact;
-  }
+): TVoiceRoomTile | null => {
   const watchedScreen = tiles.find(
     (tile) =>
       isRemoteTile(tile, localUserId) &&
@@ -157,18 +141,49 @@ export function resolveTheatreTile(
     return remote;
   }
   return tiles[0] ?? null;
+};
+
+/** First theatre target when the user has not chosen a tile yet. */
+export function pickDefaultTheatreTile(
+  tiles: readonly TVoiceRoomTile[],
+  localUserId: number | null,
+): TVoiceRoomTile | null {
+  return fallbackTheatreTile(tiles, localUserId);
 }
 
-export function showsRemoteScreenWatchControls(
+/**
+ * Theatre display target. Keeps the focused tile when it still exists.
+ * When that stream is gone, switches to an active remote stream: a watched
+ * screen first, then any other remote tile that has video. A regular tile
+ * is used only when nothing is streaming, and a remote one comes before
+ * yourself. Returns null only when the room has no tiles; the caller keeps
+ * theatre open. This does not change the stored focus.
+ */
+export function resolveTheatreTile(
   focus: { peerId: number; stream: TVoiceStreamKind | null } | null,
+  tiles: readonly TVoiceRoomTile[],
   localUserId: number | null,
-  watchingUserIds: ReadonlySet<number>,
+): TVoiceRoomTile | null {
+  if (focus == null) {
+    return null;
+  }
+  const exact = findVoiceRoomTile(tiles, focus.peerId, focus.stream);
+  if (exact) {
+    return exact;
+  }
+  return fallbackTheatreTile(tiles, localUserId);
+}
+
+/** Whether the stage tile is a remote screen the local user is watching. */
+export function showsRemoteScreenWatchControls(
+  tile: TVoiceRoomTile | null,
+  localUserId: number | null,
 ): boolean {
-  if (focus == null || focus.stream !== 'screen') {
+  if (tile == null || tile.streamKind !== 'screen') {
     return false;
   }
-  if (localUserId != null && focus.peerId === localUserId) {
+  if (localUserId != null && tile.peerId === localUserId) {
     return false;
   }
-  return watchingUserIds.has(focus.peerId);
+  return tile.watchingScreen;
 }

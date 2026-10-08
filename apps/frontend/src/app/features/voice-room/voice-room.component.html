@@ -1,9 +1,38 @@
 @if (room(); as currentRoom) {
   <app-voice-room-shell
-    [room]="currentRoom"
     [title]="currentRoom.name"
     [avatarUrl]="currentRoom.avatarUrl ?? null"
+    [headerActions]="roomHeaderActions"
     (left)="onLeft()" />
 } @else {
   <app-voice-room-shell (left)="onLeft()" />
 }
+
+<ng-template #roomHeaderActions>
+  @if (room(); as manageRoom) {
+    @if (canManageRooms()) {
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="s"
+        iconStart="@tui.ellipsis-vertical"
+        type="button"
+        tuiDropdownAuto
+        [tuiDropdown]="roomContextMenu"
+        [tuiDropdownSided]="true"
+        tuiHintAppearance="floating"
+        [tuiHint]="'GENERAL.MORE' | translate">
+        {{ 'GENERAL.MORE' | translate }}
+      </button>
+
+      <ng-template
+        #roomContextMenu
+        let-close>
+        <app-room-context-menu
+          [roomName]="manageRoom.name"
+          (edit)="editRoom(manageRoom); close()"
+          (delete)="deleteRoom(manageRoom); close()" />
+      </ng-template>
+    }
+  }
+</ng-template>

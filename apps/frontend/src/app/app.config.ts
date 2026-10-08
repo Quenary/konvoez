@@ -23,8 +23,6 @@ import {
 import { TranslateYamlHttpLoader } from './core/services/translate-yaml-http-loader.service';
 import { provideEffects } from '@ngrx/effects';
 import { provideStore, Store } from '@ngrx/store';
-import { RoomsEffects } from './features/rooms/rooms.effects';
-import { roomsReducer } from './features/rooms/rooms.reducer';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { authReducer } from './features/auth/auth.reducer';
 import { AuthEffects } from './features/auth/auth.effects';
@@ -34,7 +32,7 @@ import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
 import { EntitySyncSocketToken } from './core/tokens/entity-sync-socket.token';
-import { EntitySyncEffects } from './features/entity-sync/entity-sync.effects';
+import { EntitySyncService } from './core/services/entity-sync.service';
 import { initialSetupInitializer } from './core/initializers/initial-setup-initializer';
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { pwaUpdateInitializer } from './core/initializers/pwa-update-initializer';
@@ -67,10 +65,9 @@ export const appConfig: ApplicationConfig = {
       },
       fallbackLang: 'en',
     }),
-    provideEffects(AuthEffects, RoomsEffects, EntitySyncEffects),
+    provideEffects(AuthEffects),
     provideStore({
       auth: authReducer,
-      rooms: roomsReducer,
     }),
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
     {
@@ -118,6 +115,9 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => pwaUpdateInitializer()),
     provideAppInitializer(() => {
       inject(TextRoomSocketConnectionService);
+    }),
+    provideAppInitializer(() => {
+      inject(EntitySyncService);
     }),
     provideTaiga(),
     {

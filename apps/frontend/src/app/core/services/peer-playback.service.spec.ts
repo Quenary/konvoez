@@ -9,12 +9,14 @@ describe('PeerPlaybackService', () => {
   let service: PeerPlaybackService;
   let resolveContext: (context: AudioContext) => void = () => undefined;
   let getContext: ReturnType<typeof vi.fn>;
+  let getOutput: ReturnType<typeof vi.fn>;
   let sourceDisconnect: ReturnType<typeof vi.fn>;
   let register: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     sourceDisconnect = vi.fn();
     register = vi.fn();
+    getOutput = vi.fn().mockResolvedValue({ disconnect: vi.fn() });
     getContext = vi.fn(
       () =>
         new Promise<AudioContext>((resolve) => {
@@ -31,7 +33,10 @@ describe('PeerPlaybackService', () => {
     TestBed.configureTestingModule({
       providers: [
         PeerPlaybackService,
-        { provide: SpeakerService, useValue: { getContext } },
+        {
+          provide: SpeakerService,
+          useValue: { getContext, getOutput },
+        },
         {
           provide: AudioActivityService,
           useValue: { register, unregister: vi.fn() },
@@ -101,5 +106,52 @@ describe('PeerPlaybackService', () => {
     expect(sourceDisconnect).toHaveBeenCalled();
     expect(remote.close).not.toHaveBeenCalled();
     expect(service['graphs'].has(7)).toBe(false);
+  });
+
+  it('sums the peer onto the shared speaker bus and leaves that bus connected', async () => {
+    const outputDisconnect = vi.fn();
+    const output = { disconnect: outputDisconnect };
+    const gainConnect = vi.fn();
+    const analyser = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      fftSize: 0,
+      smoothingTimeConstant: 0,
+    };
+    getOutput = vi.fn().mockResolvedValue(output);
+    getContext = vi.fn().mockResolvedValue({
+      createMediaStreamSource: () => ({
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      }),
+      createGain: () => ({
+        connect: gainConnect,
+        disconnect: vi.fn(),
+        gain: { value: 1 },
+      }),
+      createAnalyser: () => analyser,
+    });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        PeerPlaybackService,
+        {
+          provide: SpeakerService,
+          useValue: { getContext, getOutput },
+        },
+        {
+          provide: AudioActivityService,
+          useValue: { register, unregister: vi.fn() },
+        },
+      ],
+    });
+    service = TestBed.inject(PeerPlaybackService);
+
+    await service.attach(7, consumer(), { gain: 1.5, speakerMuted: false });
+
+    expect(gainConnect).toHaveBeenCalledWith(analyser);
+    expect(gainConnect).toHaveBeenCalledWith(output);
+    service.detach(7);
+    expect(outputDisconnect).not.toHaveBeenCalled();
   });
 });

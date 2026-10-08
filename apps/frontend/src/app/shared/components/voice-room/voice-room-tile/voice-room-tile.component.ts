@@ -4,7 +4,6 @@ import {
   computed,
   inject,
   input,
-  output,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IUser } from '@konvoez/shared';
@@ -29,6 +28,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
 import { distinctFullname } from '../voice-peer-label';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
+import { VoiceRoomActionsService } from '../voice-room-actions.service';
+import { VoiceRoomViewService } from '../voice-room-view.service';
 
 @Component({
   selector: 'app-voice-room-tile',
@@ -61,6 +62,8 @@ export class VoiceRoomTileComponent {
   private readonly localScreenPreviewService = inject(
     LocalScreenPreviewService,
   );
+  private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
+  private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -69,10 +72,6 @@ export class VoiceRoomTileComponent {
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);
   public readonly watchingScreen = input(false);
-
-  public readonly watchScreen = output<void>();
-  public readonly stopWatchScreen = output<void>();
-  public readonly openTheatre = output<void>();
 
   protected readonly autoPauseWhenHidden =
     this.localScreenPreviewService.autoPauseWhenHidden;
@@ -188,20 +187,20 @@ export class VoiceRoomTileComponent {
   }
 
   protected onWatchClick(): void {
-    this.watchScreen.emit();
+    void this.voiceRoomActionsService.watchPeerScreen(this.peer().id);
   }
 
   protected onStopWatchClick(): void {
-    this.stopWatchScreen.emit();
+    void this.voiceRoomActionsService.stopWatchingPeerScreen(this.peer().id);
   }
 
   protected onOpenTheatreClick(): void {
-    this.openTheatre.emit();
+    this.voiceRoomViewService.openTheatre(this.peer().id, this.streamKind());
   }
 
   protected onVideoActivate(): void {
     if (this.videoTrack() && !this.previewPaused()) {
-      this.openTheatre.emit();
+      this.voiceRoomViewService.openTheatre(this.peer().id, this.streamKind());
     }
   }
 

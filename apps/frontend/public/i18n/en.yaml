@@ -73,6 +73,9 @@ CALL:
   BUSY: User is busy with another call
   DECLINED: Call declined
   NO_ANSWER: User is not answering
+  ACCEPT_FAILED: Couldn't accept the call
+  VIDEO_LIMIT_REACHED: Room video limit reached
+  WAITING_FOR_CONNECTION: Waiting for connection…
   PARTICIPANTS: '{{count}} participants'
   YOU: You
   VOLUME: Volume
@@ -101,11 +104,13 @@ CALL:
   PREVIEW_PAUSED: Preview paused to save resources
   PREVIEW_RESUME: Resume
   PREVIEW_AUTO_PAUSE: Auto-pause
-  EXIT_THEATRE: Exit theatre
+  SHOW_THEATRE: Theatre mode
+  SHOW_GRID: Grid mode
   FULLSCREEN: Fullscreen
   EXIT_FULLSCREEN: Exit fullscreen
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
+  ROOM_CLOSED: This voice room was closed
 ROOMS:
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
@@ -284,3 +289,7 @@ PWA:
     TITLE: Update available
     CONTENT: A new version of the app is ready. Reload to apply the update.
     ACTION: Update
+  UNRECOVERABLE:
+    TITLE: App update required
+    CONTENT: This version can no longer run. Reload to continue.
+    ACTION: Reload

@@ -29,33 +29,36 @@
       <ng-container *ngTemplateOutlet="actions" />
     }
 
-    @if (canManageRooms() && room(); as manageRoom) {
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        iconStart="@tui.ellipsis-vertical"
-        type="button"
-        tuiDropdownAuto
-        [tuiDropdown]="roomContextMenu"
-        tuiHintAppearance="floating"
-        [tuiHint]="'GENERAL.MORE' | translate">
-        {{ 'GENERAL.MORE' | translate }}
-      </button>
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      [iconStart]="layoutToggleIcon()"
+      [disabled]="!canToggleLayout()"
+      [attr.aria-label]="layoutToggleHintKey() | translate"
+      tuiHintAppearance="floating"
+      [tuiHint]="layoutToggleHintKey() | translate"
+      (click)="onToggleLayout()">
+    </button>
 
-      <ng-template
-        #roomContextMenu
-        let-close>
-        <app-room-context-menu
-          [roomName]="manageRoom.name"
-          (edit)="editRoom(manageRoom); close()"
-          (delete)="deleteRoom(manageRoom); close()" />
-      </ng-template>
-    }
-
-    <app-voice-room-theatre-actions
-      [showClose]="theatreOpen()"
-      [fullscreenTarget]="fullscreenTarget()" />
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      [iconStart]="isFullscreen() ? '@tui.minimize' : '@tui.maximize'"
+      [attr.aria-label]="
+        (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
+          | translate
+      "
+      tuiHintAppearance="floating"
+      [tuiHint]="
+        (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
+          | translate
+      "
+      (click)="onToggleFullscreen()">
+    </button>
   </aside>
 </header>
 

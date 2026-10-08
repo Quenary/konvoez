@@ -23,6 +23,7 @@ import type {
   TransportOptions,
 } from 'mediasoup-client/types';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
+import { emitVoiceRoomWithAck } from './voice-room-socket-ack';
 import { SettingsStore } from '@features/settings/settings.store';
 import { MicrophoneService } from './microphone.service';
 import { CameraService } from './camera.service';
@@ -364,7 +365,7 @@ export class MediasoupSessionService {
 
   private async closeProducerRemote(producer: Producer): Promise<void> {
     try {
-      await this.socket.emitWithAck(EVoiceRoomEvent.CLOSE_PRODUCER, {
+      await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.CLOSE_PRODUCER, {
         producerId: producer.id,
       } satisfies IVoiceRoomCloseProducer);
     } catch (error) {
@@ -420,10 +421,13 @@ export class MediasoupSessionService {
       throw new Error('mediasoup Device is not loaded');
     }
 
-    const result: IVoiceRoomCreateTransportResult =
-      await this.socket.emitWithAck(EVoiceRoomEvent.CREATE_TRANSPORT, {
+    const result: IVoiceRoomCreateTransportResult = await emitVoiceRoomWithAck(
+      this.socket,
+      EVoiceRoomEvent.CREATE_TRANSPORT,
+      {
         direction,
-      } satisfies IVoiceRoomCreateTransport);
+      } satisfies IVoiceRoomCreateTransport,
+    );
 
     const iceServers = this.settingsStore.iceServers();
     const options = {
@@ -438,10 +442,14 @@ export class MediasoupSessionService {
 
     transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
       try {
-        await this.socket.emitWithAck(EVoiceRoomEvent.CONNECT_TRANSPORT, {
-          transportId: transport.id,
-          dtlsParameters,
-        } satisfies IVoiceRoomConnectTransport);
+        await emitVoiceRoomWithAck(
+          this.socket,
+          EVoiceRoomEvent.CONNECT_TRANSPORT,
+          {
+            transportId: transport.id,
+            dtlsParameters,
+          } satisfies IVoiceRoomConnectTransport,
+        );
         callback();
       } catch (err) {
         errback(err as Error);
@@ -453,7 +461,8 @@ export class MediasoupSessionService {
         'produce',
         async ({ kind, rtpParameters, appData }, callback, errback) => {
           try {
-            const res: IVoiceRoomProduceResult = await this.socket.emitWithAck(
+            const res: IVoiceRoomProduceResult = await emitVoiceRoomWithAck(
+              this.socket,
               EVoiceRoomEvent.PRODUCE,
               {
                 kind,
@@ -562,7 +571,8 @@ export class MediasoupSessionService {
         throw new Error('Recv transport is not ready');
       }
 
-      const result: IVoiceRoomConsumeResult = await this.socket.emitWithAck(
+      const result: IVoiceRoomConsumeResult = await emitVoiceRoomWithAck(
+        this.socket,
         EVoiceRoomEvent.CONSUME,
         {
           producerId: data.producerId,
@@ -642,7 +652,8 @@ export class MediasoupSessionService {
     if (this.device.loaded) {
       return;
     }
-    const routerRtpCapabilities = await this.socket.emitWithAck(
+    const routerRtpCapabilities = await emitVoiceRoomWithAck(
+      this.socket,
       EVoiceRoomEvent.GET_RTP_CAPABILITIES,
     );
     await this.device.load({

@@ -1,5 +1,4 @@
-import { computed, inject } from '@angular/core';
-import { PeerPlaybackService } from '@core/services/peer-playback.service';
+import { computed } from '@angular/core';
 import { EVoiceSessionType, IUser, TVoiceSessionTarget } from '@konvoez/shared';
 import {
   patchState,
@@ -19,15 +18,19 @@ import { toPeerUser } from './voice-peer.helpers';
 
 type VoiceSessionState = {
   activeSession: TVoiceSessionTarget | null;
+  joiningTarget: TVoiceSessionTarget | null;
 };
 
 /**
  * Active voice session and its peers. App-lifetime; one session at a time.
- * Does not own lobby presence, mute prefs, or mediasoup objects.
+ * Does not own lobby presence, mute prefs, mediasoup objects, or playback.
  */
 export const VoiceSessionStore = signalStore(
   { providedIn: 'root' },
-  withState<VoiceSessionState>({ activeSession: null }),
+  withState<VoiceSessionState>({
+    activeSession: null,
+    joiningTarget: null,
+  }),
   withEntities<IUser>(),
   withComputed(({ activeSession, entities, entityMap }) => ({
     selectedRoomId: computed(() => {
@@ -43,9 +46,13 @@ export const VoiceSessionStore = signalStore(
     peersList: entities,
     peersDict: entityMap,
   })),
-  withMethods((store, peerPlaybackService = inject(PeerPlaybackService)) => ({
+  withMethods((store) => ({
     setActiveSession(activeSession: TVoiceSessionTarget | null): void {
       patchState(store, { activeSession });
+    },
+
+    setJoiningTarget(joiningTarget: TVoiceSessionTarget | null): void {
+      patchState(store, { joiningTarget });
     },
 
     setPeers(users: IUser[]): void {
@@ -57,12 +64,10 @@ export const VoiceSessionStore = signalStore(
     },
 
     removePeer(userId: number): void {
-      peerPlaybackService.detach(userId);
       patchState(store, removeEntity(userId));
     },
 
     clearSessionPeers(): void {
-      peerPlaybackService.detachAll();
       patchState(store, removeAllEntities());
     },
 
@@ -75,7 +80,6 @@ export const VoiceSessionStore = signalStore(
 
     applyUserEntityDeleted(userId: number): void {
       if (store.entityMap()[userId]) {
-        peerPlaybackService.detach(userId);
         patchState(store, removeEntity(userId));
       }
     },

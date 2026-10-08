@@ -7,8 +7,6 @@ import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
 import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { IRoom } from '@features/rooms/rooms.interface';
-import { RoomManageService } from '@features/rooms/room-manage.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from '@core/services/audio.service';
@@ -17,30 +15,40 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { VoiceRoomOverlayComponent } from './voice-room-overlay.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceRoomActionsService } from '../voice-room-actions.service';
+import { VoiceRoomTilesService } from '../voice-room-tiles.service';
 
-const room = {
-  id: 4,
-  name: 'VIP',
-  avatarUrl: '',
-} as IRoom;
+const stageTile = (
+  peerId: number,
+  streamKind: 'cam' | 'screen' | null,
+  watchingScreen: boolean,
+): TVoiceRoomTile => ({
+  key: `${peerId}:${streamKind ?? 'voice'}`,
+  peer: { id: peerId, username: `u${peerId}` } as IUser,
+  peerId,
+  streamKind,
+  videoTrack: null,
+  screenAvailable: streamKind === 'screen',
+  watchingScreen,
+});
 
 describe('VoiceRoomOverlayComponent', () => {
-  let theatreOpen: ReturnType<typeof signal<boolean>>;
+  let layout: ReturnType<typeof signal<'grid' | 'theatre'>>;
   let chromeVisible: ReturnType<typeof signal<boolean>>;
   let isFullscreen: ReturnType<typeof signal<boolean>>;
-  let theatreFocus: ReturnType<
-    typeof signal<{ peerId: number; stream: 'cam' | 'screen' | null } | null>
-  >;
-  let watchingUserIds: ReturnType<typeof signal<ReadonlySet<number>>>;
+  let theatreTile: ReturnType<typeof signal<TVoiceRoomTile | null>>;
+  let tiles: ReturnType<typeof signal<TVoiceRoomTile[]>>;
   let leaveActiveVoice: ReturnType<typeof vi.fn>;
+  let toggleLayout: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    theatreOpen = signal(false);
+    layout = signal('grid');
     chromeVisible = signal(true);
     isFullscreen = signal(false);
-    theatreFocus = signal(null);
-    watchingUserIds = signal(new Set<number>());
+    theatreTile = signal(null);
+    tiles = signal([stageTile(1, null, false)]);
     leaveActiveVoice = vi.fn().mockResolvedValue(undefined);
+    toggleLayout = vi.fn();
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomOverlayComponent],
@@ -57,22 +65,22 @@ describe('VoiceRoomOverlayComponent', () => {
           provide: VoiceRoomViewService,
           useValue: {
             chromeVisible: chromeVisible.asReadonly(),
-            theatreOpen: theatreOpen.asReadonly(),
-            theatreFocus: theatreFocus.asReadonly(),
-            theatreFocusId: signal<number | null>(null).asReadonly(),
+            layout: layout.asReadonly(),
             isFullscreen: isFullscreen.asReadonly(),
-            closeTheatre: vi.fn(),
             revealChrome: vi.fn(),
             toggleFullscreen: vi.fn(),
           },
         },
         {
-          provide: RoomManageService,
+          provide: VoiceRoomTilesService,
           useValue: {
-            canManageRooms: signal(true).asReadonly(),
-            editRoom: vi.fn(),
-            deleteRoom: vi.fn(),
+            tiles: tiles.asReadonly(),
+            theatreTile: theatreTile.asReadonly(),
           },
+        },
+        {
+          provide: VoiceRoomActionsService,
+          useValue: { toggleLayout },
         },
         {
           provide: VoiceLeaveService,
@@ -111,7 +119,6 @@ describe('VoiceRoomOverlayComponent', () => {
           useValue: {
             localCamTrack: signal(null).asReadonly(),
             localScreenTrack: signal(null).asReadonly(),
-            watchingUserIds: watchingUserIds.asReadonly(),
           },
         },
         {
@@ -122,6 +129,7 @@ describe('VoiceRoomOverlayComponent', () => {
             produceScreen: vi.fn(),
             stopScreen: vi.fn(),
             stopWatchingPeerScreen: vi.fn().mockResolvedValue(undefined),
+            canProduce: signal(true).asReadonly(),
           },
         },
         {
@@ -149,7 +157,6 @@ describe('VoiceRoomOverlayComponent', () => {
     );
 
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
-    fixture.componentRef.setInput('room', room);
     fixture.detectChanges();
 
     let left = false;
@@ -165,47 +172,28 @@ describe('VoiceRoomOverlayComponent', () => {
     await hangup;
   });
 
-  it('keeps fullscreen in the header for grid and theatre', () => {
+  it('shows layout toggle and fullscreen in both layouts', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
-    fixture.componentRef.setInput('room', room);
     fixture.componentRef.setInput('participantsCount', 2);
     fixture.detectChanges();
 
     const accessories = fixture.nativeElement.querySelector(
       '[tuiAccessories]',
     ) as HTMLElement | null;
-    const actions = accessories?.querySelector(
-      'app-voice-room-theatre-actions',
-    ) as HTMLElement | null;
     expect(accessories).toBeTruthy();
-    expect(actions).toBeTruthy();
-    expect(actions?.querySelectorAll('button').length).toBe(1);
-    expect(
-      fixture.nativeElement.querySelector(
-        'app-voice-room-theatre-watch-controls',
-      ),
-    ).toBeNull();
+    expect(accessories?.querySelectorAll('button').length).toBe(2);
 
-    theatreOpen.set(true);
+    layout.set('theatre');
     fixture.detectChanges();
 
-    expect(actions?.querySelectorAll('button').length).toBe(2);
+    expect(accessories?.querySelectorAll('button').length).toBe(2);
     expect(
       fixture.nativeElement.querySelector(
         'app-voice-room-theatre-watch-controls',
       ),
     ).toBeNull();
 
-    watchingUserIds.set(new Set([2]));
-    fixture.componentRef.setInput('theatreTile', {
-      key: '2:screen',
-      peer: { id: 2, username: 'u2' } as IUser,
-      peerId: 2,
-      streamKind: 'screen',
-      videoTrack: null,
-      screenAvailable: true,
-      watchingScreen: true,
-    } satisfies TVoiceRoomTile);
+    theatreTile.set(stageTile(2, 'screen', true));
     fixture.detectChanges();
 
     expect(
@@ -215,9 +203,58 @@ describe('VoiceRoomOverlayComponent', () => {
     ).toBeTruthy();
   });
 
+  it('hides watch controls when the stage tile is not a watched remote screen', () => {
+    layout.set('theatre');
+    theatreTile.set(stageTile(2, 'screen', false));
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.detectChanges();
+
+    const controls = () =>
+      fixture.nativeElement.querySelector(
+        'app-voice-room-theatre-watch-controls',
+      );
+    expect(controls()).toBeNull();
+
+    theatreTile.set(stageTile(1, 'screen', true));
+    fixture.detectChanges();
+    expect(controls()).toBeNull();
+  });
+
+  it('toggles the layout from the header button and labels it by target mode', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.detectChanges();
+
+    const toggle = () =>
+      fixture.nativeElement.querySelector(
+        '[tuiAccessories] button[aria-label]',
+      ) as HTMLButtonElement;
+    expect(toggle().getAttribute('aria-label')).toBe('CALL.SHOW_THEATRE');
+
+    toggle().click();
+    expect(toggleLayout).toHaveBeenCalledTimes(1);
+
+    layout.set('theatre');
+    fixture.detectChanges();
+    expect(toggle().getAttribute('aria-label')).toBe('CALL.SHOW_GRID');
+  });
+
+  it('disables the layout toggle in grid when there is no tile for the stage', () => {
+    tiles.set([]);
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.detectChanges();
+
+    const toggle = fixture.nativeElement.querySelector(
+      '[tuiAccessories] button[aria-label]',
+    ) as HTMLButtonElement;
+    expect(toggle.disabled).toBe(true);
+
+    layout.set('theatre');
+    fixture.detectChanges();
+    expect(toggle.disabled).toBe(false);
+  });
+
   it('applies vignette classes only in fullscreen', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
-    fixture.componentRef.setInput('room', room);
     fixture.detectChanges();
 
     expect(

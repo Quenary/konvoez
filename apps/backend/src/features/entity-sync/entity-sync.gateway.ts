@@ -91,4 +91,18 @@ export class EntitySyncGateway implements OnGatewayConnection {
   ) {
     this.server.emit(EEntitySyncEvent.ROOM_DELETED, payload);
   }
+
+  @OnEvent(EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED)
+  onVoiceRoomPeerJoined(
+    payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED],
+  ) {
+    this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_JOINED, payload);
+  }
+
+  @OnEvent(EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT)
+  onVoiceRoomPeerLeft(
+    payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT],
+  ) {
+    this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_LEFT, payload);
+  }
 }

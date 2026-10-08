@@ -15,7 +15,7 @@ import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { IUser } from '@konvoez/shared';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
@@ -64,13 +64,11 @@ export class DirectComponent {
   protected readonly title = computed(() => this.user()?.username ?? '');
   protected readonly avatarUrl = computed(() => this.user()?.avatarUrl ?? null);
 
+  /** True when the route recipient matches the active direct call target. */
   protected readonly isCurrentDirectCallActive = computed(() => {
-    const directUser = this.user();
+    const recipientId = this.recipientId();
     const callWithUserId = this.directCallService.callWithUserId();
-    if (directUser === null || callWithUserId === null) {
-      return false;
-    }
-    return callWithUserId === directUser.id;
+    return recipientId !== null && callWithUserId === recipientId;
   });
 
   protected readonly canRejoinCall = computed(() => {

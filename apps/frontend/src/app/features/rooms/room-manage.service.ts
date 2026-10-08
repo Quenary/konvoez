@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslateService } from '@ngx-translate/core';
 import { EUserRole } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
@@ -7,13 +8,16 @@ import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { RoomsActions } from './rooms.actions';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomUpdate } from './rooms.interface';
+import { IRoom, IRoomUpdate } from '@konvoez/shared';
 
+/**
+ * Facade service for managing rooms.
+ */
 @Injectable({ providedIn: 'root' })
 export class RoomManageService {
-  private readonly store = inject(Store);
+  private readonly ngrxStore = inject(Store);
+  private readonly roomsStore = inject(RoomsStore);
   private readonly translateService = inject(TranslateService);
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly tuiResponsiveDialogService = inject(
@@ -21,7 +25,7 @@ export class RoomManageService {
   );
   private readonly injector = inject(Injector);
 
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
 
   public readonly canManageRooms = computed(() => {
     const role = this.currentUser()?.role;
@@ -50,12 +54,7 @@ export class RoomManageService {
             ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
           };
 
-          this.store.dispatch(
-            RoomsActions.requestUpdateRoom({
-              id: data.id,
-              room: body,
-            }),
-          );
+          this.roomsStore.update({ id: data.id, room: body });
         },
       });
   }
@@ -73,7 +72,7 @@ export class RoomManageService {
       .subscribe((res) => {
         if (!res) return;
 
-        this.store.dispatch(RoomsActions.requestDeleteRoom({ id: room.id }));
+        this.roomsStore.remove(room.id);
       });
   }
 }

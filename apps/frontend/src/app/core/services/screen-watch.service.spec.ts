@@ -27,6 +27,7 @@ describe('ScreenWatchService', () => {
   beforeEach(() => {
     consumeProducer = vi.fn().mockResolvedValue(undefined);
     emitWithAck = vi.fn().mockResolvedValue(undefined);
+    const timeout = vi.fn().mockReturnValue({ emitWithAck });
     stopWatchingLocal = vi.fn();
     detach = vi.fn();
     removeScreenAudio = vi.fn();
@@ -40,7 +41,7 @@ describe('ScreenWatchService', () => {
         ScreenWatchService,
         {
           provide: VoiceRoomSocketToken,
-          useValue: { emitWithAck },
+          useValue: { emitWithAck, timeout },
         },
         {
           provide: MediasoupSessionService,

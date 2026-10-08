@@ -7,7 +7,7 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ERoomType, maxAvatarSize } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { IRoom } from '../rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import {
   TuiButton,
@@ -31,7 +31,7 @@ import {
   TuiSelect,
 } from '@taiga-ui/kit';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RoomsApiService } from '../rooms-api.service';
+import { RoomsApiService } from '@core/api/rooms-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { parseError } from '@shared/functions/parse-error.function';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';

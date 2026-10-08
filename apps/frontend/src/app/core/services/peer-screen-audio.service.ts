@@ -31,12 +31,13 @@ export class PeerScreenAudioService {
     audioEl.muted = true;
 
     const context = await this.speakerService.getContext();
+    const output = await this.speakerService.getOutput();
     const sourceNode = context.createMediaStreamSource(stream);
     const gainNode = context.createGain();
     gainNode.gain.value = options.speakerMuted ? 0 : options.gain;
 
     sourceNode.connect(gainNode);
-    gainNode.connect(context.destination);
+    gainNode.connect(output);
 
     this.graphs.set(userId, {
       consumer,

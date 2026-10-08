@@ -10,22 +10,17 @@ import {
   signal,
 } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { RoomsActions } from './rooms.actions';
-import {
-  selectSelectedRoomId,
-  selectTextRoomsList,
-  selectVoiceRoomsList,
-} from './rooms.selectors';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomCreate } from './rooms.interface';
+import { IRoom, IRoomCreate } from '@konvoez/shared';
 import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
+import { RoomNavigationService } from './room-navigation.service';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
   TuiButton,
@@ -44,7 +39,7 @@ import {
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { Router, RouterLink } from '@angular/router';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
@@ -86,10 +81,10 @@ interface IRoomWithPeers extends IRoom {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomsComponent implements OnInit {
-  private readonly store = inject(Store);
+  private readonly ngrxStore = inject(Store);
+  private readonly roomsStore = inject(RoomsStore);
   private readonly usersStore = inject(UsersStore);
   private readonly translateService = inject(TranslateService);
-  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly directCallService = inject(DirectCallService);
   private readonly router = inject(Router);
@@ -98,15 +93,12 @@ export class RoomsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly isTouch = inject(WA_IS_TOUCH);
   private readonly roomManageService = inject(RoomManageService);
+  private readonly roomNavigationService = inject(RoomNavigationService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   public readonly collapsed = input.required<boolean>();
 
-  protected readonly selectedRoomId =
-    this.store.selectSignal(selectSelectedRoomId);
-  protected readonly activeVoiceRoomId = this.voiceSessionStore.selectedRoomId;
-
-  protected readonly textRooms = this.store.selectSignal(selectTextRoomsList);
+  protected readonly textRooms = this.roomsStore.textRooms;
 
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
     const voiceRooms = this._voiceRooms();
@@ -139,15 +131,15 @@ export class RoomsComponent implements OnInit {
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-  private readonly _voiceRooms = this.store.selectSignal(selectVoiceRoomsList);
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
+  private readonly _voiceRooms = this.roomsStore.voiceRooms;
 
   /** Suppresses the synthetic click that can follow a long-press on touch devices. */
   private suppressNextRoomClick = false;
   private suppressRoomClickTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
-    this.store.dispatch(RoomsActions.requestRooms());
+    this.roomsStore.loadAll();
     this.usersStore.loadAll();
     this.destroyRef.onDestroy(() => this.clearRoomClickSuppression());
   }
@@ -179,7 +171,7 @@ export class RoomsComponent implements OnInit {
             ...(room.avatar ? { avatar: room.avatar } : {}),
           };
 
-          this.store.dispatch(RoomsActions.requestCreateRoom({ room: body }));
+          this.roomsStore.create(body);
         },
       });
   }
@@ -193,7 +185,7 @@ export class RoomsComponent implements OnInit {
   }
 
   protected selectRoom(room: IRoom): void {
-    this.store.dispatch(RoomsActions.selectRoom({ room }));
+    this.roomNavigationService.selectRoom(room);
   }
 
   /**

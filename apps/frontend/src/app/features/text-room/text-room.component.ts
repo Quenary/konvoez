@@ -8,12 +8,10 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
-import { Store } from '@ngrx/store';
-import { RoomsActions } from '../rooms/rooms.actions';
-import { selectRoomsDict } from '../rooms/rooms.selectors';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
 import { RoomManageService } from '../rooms/room-manage.service';
-import { IRoom } from '../rooms/rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -34,7 +32,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 })
 export class TextRoomComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
-  private readonly ngrxStore = inject(Store);
+  private readonly roomsStore = inject(RoomsStore);
   private readonly roomManageService = inject(RoomManageService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -61,7 +59,7 @@ export class TextRoomComponent {
   protected readonly title = computed(() => this.room()?.name ?? '');
   protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? null);
 
-  private readonly roomsDict = this.ngrxStore.selectSignal(selectRoomsDict);
+  private readonly roomsDict = this.roomsStore.roomsDict;
 
   constructor() {
     this.activatedRoute.paramMap
@@ -71,12 +69,12 @@ export class TextRoomComponent {
         if (!id || !Number.isFinite(id)) {
           return;
         }
-        this.ngrxStore.dispatch(RoomsActions.setSelectedRoomId({ id }));
-        this.ngrxStore.dispatch(RoomsActions.requestRoom({ id }));
+        this.roomsStore.setSelectedRoomId(id);
+        this.roomsStore.loadOne(id);
       });
 
     this.destroyRef.onDestroy(() => {
-      this.ngrxStore.dispatch(RoomsActions.setSelectedRoomId({ id: null }));
+      this.roomsStore.setSelectedRoomId(null);
     });
   }
 

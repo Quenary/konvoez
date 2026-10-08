@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, type Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { provideEffects } from '@ngrx/effects';
@@ -20,10 +20,9 @@ import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { AuthApiService } from './auth-api.service';
 import { AuthEffects } from './auth.effects';
 import { authReducer } from './auth.reducer';
@@ -36,6 +35,7 @@ describe('AuthEffects logout', () => {
   let microphoneService: {
     release: ReturnType<typeof vi.fn>;
     processedStream: ReturnType<typeof signal<MediaStream | null>>;
+    analyserNode: Signal<AnalyserNode | null>;
   };
   let socket: {
     on: ReturnType<typeof vi.fn>;
@@ -74,6 +74,7 @@ describe('AuthEffects logout', () => {
     microphoneService = {
       release: vi.fn().mockResolvedValue(undefined),
       processedStream: signal<MediaStream | null>(null),
+      analyserNode: signal<AnalyserNode | null>(null).asReadonly(),
     };
 
     TestBed.configureTestingModule({
@@ -120,14 +121,6 @@ describe('AuthEffects logout', () => {
           },
         },
         {
-          provide: VoiceLobbyStore,
-          useValue: {
-            setRoomsState: vi.fn(),
-            addPeerToRoom: vi.fn(),
-            removePeerFromRoom: vi.fn(),
-          },
-        },
-        {
           provide: VoiceAudioPreferencesStore,
           useValue: {
             microphoneMuted: signal(false),
@@ -153,7 +146,14 @@ describe('AuthEffects logout', () => {
             replaceMicrophoneTrack: vi.fn(),
           },
         },
-        { provide: PeerPlaybackService, useValue: {} },
+        {
+          provide: PeerPlaybackService,
+          useValue: {
+            detach: vi.fn(),
+            detachAll: vi.fn(),
+            removeConsumer: vi.fn(),
+          },
+        },
         {
           provide: ScreenWakeLockService,
           useValue: { acquire: vi.fn(), release: vi.fn() },

@@ -13,6 +13,7 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.LEAVE_ROOM]: void;
   [EVoiceRoomEvent.PEER_JOINED]: IVoiceRoomPeerJoined;
   [EVoiceRoomEvent.PEER_LEFT]: IVoiceRoomPeerLeft;
+  [EVoiceRoomEvent.ROOM_CLOSED]: IVoiceRoomClosed;
   [EVoiceRoomEvent.GET_ALL_PEERS]: void;
   [EVoiceRoomEvent.PEERS_ON_JOIN]: TVoiceRoomPeersOnJoin;
   [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: void;
@@ -33,7 +34,8 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.LEAVE_ROOM]: object;
   [EVoiceRoomEvent.PEER_JOINED]: void;
   [EVoiceRoomEvent.PEER_LEFT]: void;
-  [EVoiceRoomEvent.GET_ALL_PEERS]: TVoiceRoomGetAllPeersResult;
+  [EVoiceRoomEvent.ROOM_CLOSED]: void;
+  [EVoiceRoomEvent.GET_ALL_PEERS]: IVoiceRoomGetAllPeersSnapshot;
   [EVoiceRoomEvent.PEERS_ON_JOIN]: void;
   /** Opaque mediasoup RtpCapabilities JSON */
   [EVoiceRoomEvent.GET_RTP_CAPABILITIES]: unknown;
@@ -85,11 +87,41 @@ export interface IVoiceRoomPeerLeft {
   sessionKey: string;
 }
 
+export interface IVoiceRoomClosed {
+  roomId: number;
+  sessionKey: string;
+  reason: 'deleted';
+}
+
 /**
  * Map group room id to map of users currently in that voice room.
  * Direct-call sessions are intentionally excluded.
  */
 export type TVoiceRoomGetAllPeersResult = Record<number, Record<number, IUser>>;
+
+/**
+ * `epoch` identifies the server process that owns `revision`;
+ * the revision counter restarts from 0 whenever the epoch changes.
+ */
+export interface IVoiceRoomGetAllPeersSnapshot {
+  epoch: string;
+  revision: number;
+  rooms: TVoiceRoomGetAllPeersResult;
+}
+
+export interface IVoiceRoomLobbyPeerJoined {
+  roomId: number;
+  user: IUser;
+  epoch: string;
+  revision: number;
+}
+
+export interface IVoiceRoomLobbyPeerLeft {
+  roomId: number;
+  userId: number;
+  epoch: string;
+  revision: number;
+}
 
 /**
  * Map user id to info with producers

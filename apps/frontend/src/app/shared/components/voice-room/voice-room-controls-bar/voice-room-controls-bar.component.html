@@ -30,9 +30,12 @@
       size="m"
       [iconStart]="cameraOn() ? '@tui.video' : '@tui.video-off'"
       type="button"
+      [disabled]="!canProduce() && !cameraOn()"
       tuiHintAppearance="floating"
       [tuiHint]="
-        (cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON') | translate
+        canProduce() || cameraOn()
+          ? ((cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON') | translate)
+          : ('CALL.WAITING_FOR_CONNECTION' | translate)
       "
       (click)="toggleStream('cam')">
     </button>
@@ -44,9 +47,12 @@
         size="m"
         [iconStart]="screenOn() ? '@tui.screen-share-off' : '@tui.screen-share'"
         type="button"
+        [disabled]="!canProduce() && !screenOn()"
         tuiHintAppearance="floating"
         [tuiHint]="
-          (screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON') | translate
+          canProduce() || screenOn()
+            ? ((screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON') | translate)
+            : ('CALL.WAITING_FOR_CONNECTION' | translate)
         "
         (click)="toggleStream('screen')">
       </button>

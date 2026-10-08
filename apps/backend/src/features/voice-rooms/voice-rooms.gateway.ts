@@ -6,8 +6,10 @@ import {
   ConnectedSocket,
   OnGatewayDisconnect,
   OnGatewayConnection,
+  WsException,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, UseFilters } from '@nestjs/common';
+import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
 import {
   type IVoiceRoomConnectTransport,
@@ -15,7 +17,7 @@ import {
   type IVoiceRoomConsumeResult,
   type IVoiceRoomCreateTransport,
   type IVoiceRoomCreateTransportResult,
-  type TVoiceRoomGetAllPeersResult,
+  type IVoiceRoomGetAllPeersSnapshot,
   type IVoiceRoomJoin,
   type IVoiceRoomProduce,
   type IVoiceRoomProduceResult,
@@ -39,11 +41,15 @@ import {
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { AppService } from '@shared/services/app.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
 } from '@shared/events/notifications.events';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
@@ -55,6 +61,7 @@ import {
 } from './webrtc-listen-infos';
 import {
   assertKindMatchesMediaTag,
+  assertKnownMediaTag,
   assertScreenAudioAllowed,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
@@ -78,6 +85,7 @@ type TSocket = Socket<
   }
 >;
 
+@UseFilters(WsAckExceptionFilter)
 @WebSocketGateway({
   path: '/ws/v1/voice',
   cors: { origin: '*' },
@@ -97,6 +105,36 @@ export class VoiceRoomsGateway
     private readonly directCallsStateService: DirectCallsStateService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
+  handleRoomDeletedEvent({ id }: { id: number }): void {
+    const sessionKey = getVoiceSessionKey({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: id,
+    });
+    const room = this.voiceRoomsStateService.getRoom(sessionKey);
+    if (!room) {
+      return;
+    }
+
+    const peerSocketIds = [...room.peers.keys()];
+    for (const socketId of peerSocketIds) {
+      const socket = this.server.sockets.sockets.get(socketId) as
+        TSocket | undefined;
+      if (socket) {
+        socket.emit(EVoiceRoomEvent.ROOM_CLOSED, {
+          roomId: id,
+          sessionKey,
+          reason: 'deleted',
+        });
+        this.handleLeaveRoom(socket);
+      }
+    }
+
+    if (this.voiceRoomsStateService.getRoom(sessionKey)) {
+      void this.voiceRoomsStateService.removeRoom(sessionKey);
+    }
+  }
 
   async handleConnection(client: TSocket) {
     try {
@@ -161,7 +199,7 @@ export class VoiceRoomsGateway
           this.logger.warn(
             `Direct call is not available to join: socketId=${socket.id}, callId=${body.sessionTarget.callId}, userId=${socket.data.user.id}`,
           );
-          throw new Error('Direct call is not available to join');
+          throw new WsException('Direct call is not available to join');
         }
       }
     } else if (body.sessionKey) {
@@ -176,7 +214,7 @@ export class VoiceRoomsGateway
             .slice(0, 64)
             .replace(/[\r\n]/g, ' ')}`,
         );
-        throw new Error('Invalid session key');
+        throw new WsException('Invalid session key');
       }
       identity = parsed;
       if (parsed.type === EVoiceSessionType.GROUP_ROOM) {
@@ -189,7 +227,7 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `No room or session provided to join: socketId=${socket.id}, userId=${socket.data.user?.id}`,
       );
-      throw new Error('No room or session provided to join');
+      throw new WsException('No room or session provided to join');
     }
 
     const sessionKey = getVoiceSessionKey(identity);
@@ -203,6 +241,8 @@ export class VoiceRoomsGateway
     // Otherwise concurrent GET_RTP_CAPABILITIES can see sessionKey without a peer
     // (e.g. while createRouter is still awaiting).
     const room = await this.voiceRoomsStateService.ensureRoom(identity);
+
+    const userAlreadyInRoom = this.isUserInRoom(room, user.id);
 
     // Reconnect can race: new socket joins before the old socket's disconnect
     // is processed. Clients key peers by userId, so a late PEER_LEFT from the
@@ -219,6 +259,14 @@ export class VoiceRoomsGateway
     socket.data.sessionKey = sessionKey;
     socket.data.sessionTarget = identity;
     socket.data.roomId = roomId;
+
+    if (roomId !== undefined && !userAlreadyInRoom) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        this.voiceRoomsStateService.createLobbyPeerJoined(roomId, user),
+      );
+    }
 
     const peerJoinedPayload = {
       user,
@@ -266,6 +314,14 @@ export class VoiceRoomsGateway
       this.removePeerMedia(room, peer, sessionKey, roomId, socket);
       room.peers.delete(socket.id);
 
+      if (roomId !== undefined && !this.isUserInRoom(room, peer.user.id)) {
+        emitEntitySyncDomainEvent(
+          this.eventEmitter,
+          EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+          this.voiceRoomsStateService.createLobbyPeerLeft(roomId, peer.user.id),
+        );
+      }
+
       if (!room.peers.size) {
         this.voiceRoomsStateService.removeRoom(sessionKey);
         if (identity) {
@@ -297,8 +353,8 @@ export class VoiceRoomsGateway
   }
 
   @SubscribeMessage(EVoiceRoomEvent.GET_ALL_PEERS)
-  handleGetAllPeers(): TVoiceRoomGetAllPeersResult {
-    return this.voiceRoomsStateService.getAllPeers();
+  handleGetAllPeers(): IVoiceRoomGetAllPeersSnapshot {
+    return this.voiceRoomsStateService.getLobbySnapshot();
   }
 
   @SubscribeMessage(EVoiceRoomEvent.GET_RTP_CAPABILITIES)
@@ -376,6 +432,7 @@ export class VoiceRoomsGateway
       `produce: socketId=${socket.id}, sessionKey=${sessionKey}, kind=${body.kind}, mediaTag=${body.mediaTag}`,
     );
 
+    assertKnownMediaTag(body.mediaTag, body.kind);
     assertKindMatchesMediaTag(body.kind, body.mediaTag);
 
     const transport = peer.sendTransport;
@@ -406,7 +463,7 @@ export class VoiceRoomsGateway
         (p) => !p.closed && p.kind === 'video',
       ).length;
       if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-        throw new Error('Room video producer limit reached');
+        throw new WsException('Room video producer limit reached');
       }
     }
 
@@ -460,7 +517,7 @@ export class VoiceRoomsGateway
 
     const producer = peer.producers.get(body.producerId);
     if (!producer || producer.closed) {
-      throw new Error('Producer not found');
+      return {};
     }
 
     this.closeProducerInternal(
@@ -485,7 +542,7 @@ export class VoiceRoomsGateway
 
     const consumer = peer.consumers.get(body.consumerId);
     if (!consumer || consumer.closed) {
-      throw new Error('Consumer not found');
+      return {};
     }
 
     peer.consumers.delete(consumer.id);
@@ -789,6 +846,18 @@ export class VoiceRoomsGateway
     return { room, peer, sessionKey };
   }
 
+  private isUserInRoom(
+    room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
+    userId: number,
+  ): boolean {
+    for (const peer of room.peers.values()) {
+      if (peer.user.id === userId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private getRoomEmitTargets(sessionKey: string, roomId?: number): string[] {
     const targets = [sessionKey];
     if (roomId !== undefined) {
@@ -891,6 +960,25 @@ export class VoiceRoomsGateway
     roomId: number | undefined,
     exceptSocket?: TSocket,
   ): void {
+    if (producer.appData?.mediaTag === 'screen' && !producer.closed) {
+      for (const other of [...peer.producers.values()]) {
+        if (
+          other.appData?.mediaTag === 'screen-audio' &&
+          !other.closed &&
+          other.id !== producer.id
+        ) {
+          this.closeProducerInternal(
+            room,
+            peer,
+            other,
+            sessionKey,
+            roomId,
+            exceptSocket,
+          );
+        }
+      }
+    }
+
     this.finalizeProducerClosed(
       room,
       peer,

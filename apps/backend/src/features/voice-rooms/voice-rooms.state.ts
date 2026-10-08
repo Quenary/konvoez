@@ -1,10 +1,15 @@
+import { randomUUID } from 'node:crypto';
 import {
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  IVoiceRoomGetAllPeersSnapshot,
+  IVoiceRoomLobbyPeerJoined,
+  IVoiceRoomLobbyPeerLeft,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
   IUser,
@@ -26,6 +31,10 @@ import {
 import { createWorker } from 'mediasoup';
 import { announcedAddressKey } from '@shared/utils/mediasoup-addresses.util';
 import { AppService } from '@shared/services/app.service';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { VOICE_ROOM_MEDIA_CODECS } from './voice-media.util';
 
 type VoiceRoomState = {
@@ -74,8 +83,13 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   private worker!: MediasoupWorker;
   private readonly rooms = new Map<string, VoiceRoomState>();
   private readonly roomInitByKey = new Map<string, Promise<VoiceRoomState>>();
+  private readonly lobbyEpoch = randomUUID();
+  private lobbyRevision = 0;
 
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   public async onModuleInit(): Promise<void> {
     this.worker = await createWorker();
@@ -115,12 +129,16 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   }
 
   public async removeRoom(key: string): Promise<void> {
-    if (this.rooms.has(key)) {
-      const room = this.rooms.get(key) as VoiceRoomState;
-      this.logger.debug(`Removing voice room: sessionKey=${key}`);
-      room.router.close();
-      this.rooms.delete(key);
+    const room = this.rooms.get(key);
+    if (!room) {
+      return;
     }
+    this.logger.debug(`Removing voice room: sessionKey=${key}`);
+    this.emitLobbyPeerLeftForEvictedPeers(room);
+    if (!room.router.closed) {
+      room.router.close();
+    }
+    this.rooms.delete(key);
   }
 
   public getPeersOnJoin(key: string): TVoiceRoomPeersOnJoin {
@@ -165,6 +183,28 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     return result;
   }
 
+  public getLobbySnapshot(): IVoiceRoomGetAllPeersSnapshot {
+    return {
+      epoch: this.lobbyEpoch,
+      revision: this.lobbyRevision,
+      rooms: this.getAllPeers(),
+    };
+  }
+
+  public createLobbyPeerJoined(
+    roomId: number,
+    user: IUser,
+  ): IVoiceRoomLobbyPeerJoined {
+    return { roomId, user, ...this.nextLobbyVersion() };
+  }
+
+  public createLobbyPeerLeft(
+    roomId: number,
+    userId: number,
+  ): IVoiceRoomLobbyPeerLeft {
+    return { roomId, userId, ...this.nextLobbyVersion() };
+  }
+
   public resolveIdentityFromKey(key: string): TVoiceSessionIdentity | null {
     return parseVoiceSessionKey(key);
   }
@@ -177,6 +217,11 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     return { type: EVoiceSessionType.DIRECT_CALL, callId };
   }
 
+  private nextLobbyVersion(): { epoch: string; revision: number } {
+    this.lobbyRevision += 1;
+    return { epoch: this.lobbyEpoch, revision: this.lobbyRevision };
+  }
+
   private async createRoom(
     target: TVoiceSessionIdentity,
     sessionKey: string,
@@ -187,6 +232,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (existing?.router.closed) {
+      this.emitLobbyPeerLeftForEvictedPeers(existing);
       this.rooms.delete(sessionKey);
     }
 
@@ -201,5 +247,24 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     };
     this.rooms.set(sessionKey, room);
     return room;
+  }
+
+  private emitLobbyPeerLeftForEvictedPeers(room: VoiceRoomState): void {
+    if (!isGroupVoiceSession(room.target)) {
+      return;
+    }
+    const roomId = room.target.roomId;
+    const notifiedUserIds = new Set<number>();
+    for (const peer of room.peers.values()) {
+      if (notifiedUserIds.has(peer.user.id)) {
+        continue;
+      }
+      notifiedUserIds.add(peer.user.id);
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        this.createLobbyPeerLeft(roomId, peer.user.id),
+      );
+    }
   }
 }

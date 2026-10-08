@@ -5,6 +5,7 @@ import { of, throwError, firstValueFrom } from 'rxjs';
 import { parse } from 'yaml';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { APP_VERSION } from '@core/asset-version';
 import { TranslateYamlHttpLoader } from './translate-yaml-http-loader.service';
 
 function getI18nDir(): string {
@@ -149,9 +150,12 @@ describe('TranslateYamlHttpLoader Service', () => {
 
     const result = await firstValueFrom(loader.getTranslation('en'));
 
-    expect(httpClientMock.get).toHaveBeenCalledWith('i18n/en.yaml', {
-      responseType: 'text',
-    });
+    expect(httpClientMock.get).toHaveBeenCalledWith(
+      `i18n/en.yaml?v=${APP_VERSION}`,
+      {
+        responseType: 'text',
+      },
+    );
     expect(result).toEqual({
       GREETING: 'Hello',
       USER: {

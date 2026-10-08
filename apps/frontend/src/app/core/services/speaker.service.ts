@@ -1,9 +1,37 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
+import {
+  createVoiceDynamicsNode,
+  disposeVoiceDynamicsNode,
+  ensureVoiceDynamicsWorklet,
+} from '@core/audio/voice-dynamics';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import { AudioContextResumeService } from './audio-context-resume.service';
 
 const publicMethodsMutex = new Mutex();
+
+/** Hung worklet script must not hold the speaker mutex for the whole session. */
+export const SPEAKER_WORKLET_LOAD_TIMEOUT_MS = 2000;
+
+function withTimeout(promise: Promise<void>, ms: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error('worklet load timed out'));
+    }, ms);
+    promise.then(
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(
+          error instanceof Error ? error : new Error('worklet load failed'),
+        );
+      },
+    );
+  });
+}
 
 /** Playback AudioContext and output sink (`setSinkId`) for remote peer audio. */
 @Injectable({
@@ -15,6 +43,9 @@ export class SpeakerService implements OnDestroy {
   );
   private context: AudioContext | null = null;
   private device: MediaDeviceInfo | null = null;
+  private busNode: GainNode | null = null;
+  private limiterNode: AudioWorkletNode | null = null;
+  private limiterLoad: Promise<void> | null = null;
 
   private readonly onDeviceChange = async () => {
     await this.ensureContext();
@@ -38,8 +69,34 @@ export class SpeakerService implements OnDestroy {
     return await this.ensureContext();
   }
 
+  /**
+   * Mix bus for remote playback. One limiter sits after it for the whole
+   * speaker context, so peer attach does not add another worklet.
+   */
+  @Mutexed(publicMethodsMutex)
+  public async getOutput(): Promise<AudioNode> {
+    const context = await this.ensureContext();
+    if (!this.busNode) {
+      const bus = context.createGain();
+      bus.connect(context.destination);
+      this.busNode = bus;
+    }
+    if (!this.limiterNode) {
+      try {
+        await withTimeout(
+          this.startLimiterLoad(context),
+          SPEAKER_WORKLET_LOAD_TIMEOUT_MS,
+        );
+      } catch (error) {
+        console.warn('Playback limiter load timed out', error);
+      }
+    }
+    return this.busNode;
+  }
+
   @Mutexed(publicMethodsMutex)
   public async release(): Promise<void> {
+    this.clearOutput();
     if (this.context && this.context.state !== 'closed') {
       try {
         if (
@@ -71,6 +128,7 @@ export class SpeakerService implements OnDestroy {
       if (this.context) {
         this.audioContextResumeService.unregister(this.context);
       }
+      this.clearOutput();
       this.context = new AudioContext({ sampleRate: 48000 });
       this.audioContextResumeService.register(this.context);
     }
@@ -79,6 +137,57 @@ export class SpeakerService implements OnDestroy {
     }
     await this.setSinkId(this.device);
     return this.context;
+  }
+
+  private startLimiterLoad(context: AudioContext): Promise<void> {
+    if (this.limiterLoad) {
+      return this.limiterLoad;
+    }
+    const loading = this.attachLimiter(context).catch((error: unknown) => {
+      console.warn('Playback limiter unavailable', error);
+    });
+    this.limiterLoad = loading;
+    void loading.finally(() => {
+      if (this.limiterLoad === loading) {
+        this.limiterLoad = null;
+      }
+    });
+    return loading;
+  }
+
+  private async attachLimiter(context: AudioContext): Promise<void> {
+    await ensureVoiceDynamicsWorklet(context);
+    const bus = this.busNode;
+    if (this.context !== context || !bus || this.limiterNode) {
+      return;
+    }
+    const limiter = createVoiceDynamicsNode(context, 'limiter');
+    try {
+      bus.disconnect();
+      bus.connect(limiter);
+      limiter.connect(context.destination);
+      this.limiterNode = limiter;
+    } catch (error) {
+      disposeVoiceDynamicsNode(limiter);
+      bus.connect(context.destination);
+      throw error;
+    }
+  }
+
+  private clearOutput(): void {
+    const limiter = this.limiterNode;
+    const bus = this.busNode;
+    this.limiterLoad = null;
+    this.limiterNode = null;
+    this.busNode = null;
+    try {
+      if (limiter) {
+        disposeVoiceDynamicsNode(limiter);
+      }
+      bus?.disconnect();
+    } catch (error) {
+      console.warn('Failed to disconnect speaker bus', error);
+    }
   }
 
   private async setSinkId(device: MediaDeviceInfo | null) {

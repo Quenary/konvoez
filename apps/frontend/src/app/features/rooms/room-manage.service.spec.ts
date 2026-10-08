@@ -7,13 +7,16 @@ import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { RoomsActions } from './rooms.actions';
-import { IRoom } from './rooms.interface';
+import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from './room-manage.service';
+import { RoomsStore } from '@core/stores/rooms.store';
 
 describe('RoomManageService', () => {
   let service: RoomManageService;
-  let store: MockStore;
+  let roomsStore: {
+    update: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
+  };
 
   const me: IUser = {
     id: 1,
@@ -48,6 +51,11 @@ describe('RoomManageService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    roomsStore = {
+      update: vi.fn(),
+      remove: vi.fn(),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         RoomManageService,
@@ -55,6 +63,7 @@ describe('RoomManageService', () => {
         provideMockStore({
           selectors: [{ selector: selectCurrentUser, value: me }],
         }),
+        { provide: RoomsStore, useValue: roomsStore },
         { provide: TuiDialogService, useValue: dialogService },
         {
           provide: TuiResponsiveDialogService,
@@ -64,15 +73,14 @@ describe('RoomManageService', () => {
     });
 
     service = TestBed.inject(RoomManageService);
-    store = TestBed.inject(MockStore);
-    vi.spyOn(store, 'dispatch');
+    TestBed.inject(MockStore);
   });
 
   it('should allow room management for admin', () => {
     expect(service.canManageRooms()).toBe(true);
   });
 
-  it('should dispatch update room after dialog confirms', async () => {
+  it('should update room after dialog confirms', async () => {
     dialogService.open.mockReturnValue(
       of({
         id: room.id,
@@ -83,33 +91,25 @@ describe('RoomManageService', () => {
 
     await service.editRoom(room);
 
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.requestUpdateRoom({
-        id: room.id,
-        room: { name: 'renamed', avatar: null },
-      }),
-    );
+    expect(roomsStore.update).toHaveBeenCalledWith({
+      id: room.id,
+      room: { name: 'renamed', avatar: null },
+    });
   });
 
-  it('should dispatch delete room when confirmed', () => {
+  it('should remove room when confirmed', () => {
     responsiveDialogService.open.mockReturnValue(of(true));
 
     service.deleteRoom(room);
 
-    expect(store.dispatch).toHaveBeenCalledWith(
-      RoomsActions.requestDeleteRoom({ id: room.id }),
-    );
+    expect(roomsStore.remove).toHaveBeenCalledWith(room.id);
   });
 
-  it('should not dispatch delete room when confirmation is cancelled', () => {
+  it('should not remove room when confirmation is cancelled', () => {
     responsiveDialogService.open.mockReturnValue(of(false));
 
     service.deleteRoom(room);
 
-    expect(store.dispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: RoomsActions.requestDeleteRoom.type,
-      }),
-    );
+    expect(roomsStore.remove).not.toHaveBeenCalled();
   });
 });

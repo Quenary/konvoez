@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VoiceSessionService } from '@core/services/voice-session.service';
+import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceRoomTheatreWatchControlsComponent } from './voice-room-theatre-watch-controls.component';
 
@@ -21,7 +21,7 @@ describe('VoiceRoomTheatreWatchControlsComponent', () => {
       providers: [
         provideTranslateService(),
         {
-          provide: VoiceSessionService,
+          provide: VoiceRoomActionsService,
           useValue: { stopWatchingPeerScreen },
         },
         {

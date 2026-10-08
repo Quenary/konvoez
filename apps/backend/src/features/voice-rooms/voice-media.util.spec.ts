@@ -1,5 +1,6 @@
 import {
   assertKindMatchesMediaTag,
+  assertKnownMediaTag,
   assertScreenAudioAllowed,
   expectedKindForMediaTag,
   isVideoMediaTag,
@@ -33,6 +34,14 @@ describe('voice-media.util', () => {
     expect(expectedKindForMediaTag('screen')).toBe('video');
     expect(isVideoMediaTag('cam')).toBe(true);
     expect(isVideoMediaTag('mic')).toBe(false);
+  });
+
+  it('rejects unknown mediaTag and invalid kind', () => {
+    expect(() => assertKnownMediaTag('webcam', 'video')).toThrow(
+      /Unknown mediaTag/,
+    );
+    expect(() => assertKnownMediaTag('mic', 'text')).toThrow(/Invalid kind/);
+    expect(() => assertKnownMediaTag('mic', 'audio')).not.toThrow();
   });
 
   it('rejects mismatched kind and mediaTag', () => {

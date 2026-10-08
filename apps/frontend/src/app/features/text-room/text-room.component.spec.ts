@@ -5,9 +5,9 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { Component, input, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { provideMockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { RoomManageService } from '@features/rooms/room-manage.service';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 
 @Component({ selector: 'app-chat', template: '<ng-content />' })
@@ -37,24 +37,22 @@ describe('TextRoomComponent', () => {
     deleteRoom: vi.fn(),
   };
 
+  const mockRoomsStore = {
+    setSelectedRoomId: vi.fn(),
+    loadOne: vi.fn(),
+    roomsDict: signal({
+      42: { id: 42, name: 'General', avatarUrl: null },
+    }),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
 
     await TestBed.configureTestingModule({
       imports: [TextRoomComponent],
       providers: [
-        provideMockStore({
-          initialState: {
-            rooms: {
-              selectedRoomId: 42,
-              entities: {
-                42: { id: 42, name: 'General', avatarUrl: null },
-              },
-              ids: [42],
-            },
-          },
-        }),
         provideTranslateService(),
+        { provide: RoomsStore, useValue: mockRoomsStore },
         { provide: ChatStore, useValue: mockChatStore },
         { provide: RoomManageService, useValue: mockRoomManageService },
         {
