@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { PeerVideoService } from '@core/services/peer-video.service';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { VoiceRoomTilesService } from './voice-room-tiles.service';
@@ -18,6 +19,10 @@ describe('VoiceRoomTilesService', () => {
       providers: [
         VoiceRoomViewService,
         VoiceRoomTilesService,
+        {
+          provide: LocalScreenPreviewService,
+          useValue: { paused: signal(false).asReadonly() },
+        },
         {
           provide: Store,
           useValue: { selectSignal: () => signal(user(1)).asReadonly() },

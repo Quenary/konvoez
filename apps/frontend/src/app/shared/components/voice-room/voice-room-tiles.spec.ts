@@ -79,6 +79,61 @@ describe('buildVoiceRoomTiles', () => {
     expect(localTiles[1].streamKind).toBe('screen');
   });
 
+  it('computes previewPaused as true only for local screen tile when localScreenPreviewPaused is true', () => {
+    const cam = track('cam');
+    const screen = track('scr');
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      localCamTrack: cam,
+      localScreenTrack: screen,
+      remoteCamTracks: { 2: cam },
+      remoteScreenTracks: { 2: screen },
+      availableScreens: { 2: { videoProducerId: 'p1' } },
+      watchingUserIds: new Set([2]),
+      localScreenPreviewPaused: true,
+    });
+
+    const localCam = tiles.find(
+      (t) => t.peerId === 1 && t.streamKind === 'cam',
+    );
+    const localScreen = tiles.find(
+      (t) => t.peerId === 1 && t.streamKind === 'screen',
+    );
+    const remoteCam = tiles.find(
+      (t) => t.peerId === 2 && t.streamKind === 'cam',
+    );
+    const remoteScreen = tiles.find(
+      (t) => t.peerId === 2 && t.streamKind === 'screen',
+    );
+
+    expect(localCam?.previewPaused).toBe(false);
+    expect(localScreen?.previewPaused).toBe(true);
+    expect(remoteCam?.previewPaused).toBe(false);
+    expect(remoteScreen?.previewPaused).toBe(false);
+  });
+
+  it('computes previewPaused as false for local screen tile when localScreenPreviewPaused is false or omitted', () => {
+    const screen = track('scr');
+    const tilesDefault = buildVoiceRoomTiles({
+      ...baseInput(),
+      localScreenTrack: screen,
+    });
+    const screenTileDefault = tilesDefault.find(
+      (t) => t.peerId === 1 && t.streamKind === 'screen',
+    );
+    expect(screenTileDefault?.previewPaused).toBe(false);
+
+    const tilesFalse = buildVoiceRoomTiles({
+      ...baseInput(),
+      localScreenTrack: screen,
+      localScreenPreviewPaused: false,
+    });
+    const screenTileFalse = tilesFalse.find(
+      (t) => t.peerId === 1 && t.streamKind === 'screen',
+    );
+    expect(screenTileFalse?.previewPaused).toBe(false);
+  });
+
   it('shows remote screen track only when watching', () => {
     const cam = track('cam');
     const screen = track('scr');

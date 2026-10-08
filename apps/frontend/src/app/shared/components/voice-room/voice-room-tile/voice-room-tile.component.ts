@@ -72,6 +72,7 @@ export class VoiceRoomTileComponent {
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);
   public readonly watchingScreen = input(false);
+  public readonly previewPaused = input(false);
 
   protected readonly autoPauseWhenHidden =
     this.localScreenPreviewService.autoPauseWhenHidden;
@@ -103,11 +104,6 @@ export class VoiceRoomTileComponent {
 
   protected readonly showingScreen = computed(
     () => this.streamKind() === 'screen' && this.videoTrack() !== null,
-  );
-
-  protected readonly previewPaused = computed(
-    () =>
-      this.isLocalScreenPreview() && this.localScreenPreviewService.paused(),
   );
 
   protected readonly isCalling = computed(() => {

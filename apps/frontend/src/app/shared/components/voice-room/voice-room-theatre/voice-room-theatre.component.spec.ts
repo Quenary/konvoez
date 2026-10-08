@@ -203,16 +203,19 @@ describe('VoiceRoomTheatreComponent', () => {
     });
 
     const local = peer(1);
-    const built = buildVoiceRoomTiles({
-      peers: [local, peer(2)],
-      localUserId: 1,
-      localCamTrack: null,
-      localScreenTrack: screenTrack,
-      remoteCamTracks: {},
-      remoteScreenTracks: {},
-      availableScreens: {},
-      watchingUserIds: new Set(),
-    });
+    const buildTiles = (paused = false) =>
+      buildVoiceRoomTiles({
+        peers: [local, peer(2)],
+        localUserId: 1,
+        localCamTrack: null,
+        localScreenTrack: screenTrack,
+        remoteCamTracks: {},
+        remoteScreenTracks: {},
+        availableScreens: {},
+        watchingUserIds: new Set(),
+        localScreenPreviewPaused: paused,
+      });
+    const built = buildTiles(false);
     const localScreen = built.find(
       (tile) => tile.peerId === 1 && tile.streamKind === 'screen',
     );
@@ -224,6 +227,13 @@ describe('VoiceRoomTheatreComponent', () => {
 
     document.dispatchEvent(new Event('visibilitychange'));
     vi.advanceTimersByTime(5000);
+    const pausedTiles = buildTiles(true);
+    tiles.set(pausedTiles);
+    theatreTile.set(
+      pausedTiles.find(
+        (tile) => tile.peerId === 1 && tile.streamKind === 'screen',
+      ) ?? null,
+    );
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
