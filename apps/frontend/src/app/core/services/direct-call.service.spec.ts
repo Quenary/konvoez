@@ -70,6 +70,10 @@ describe('DirectCallService', () => {
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
   let handlers: Record<string, (...args: unknown[]) => unknown>;
+  let audioService: {
+    startIncomingRingtone: ReturnType<typeof vi.fn>;
+    stopIncomingRingtone: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     handlers = {};
@@ -101,6 +105,10 @@ describe('DirectCallService', () => {
     router = {
       navigate: vi.fn().mockResolvedValue(true),
     };
+    audioService = {
+      startIncomingRingtone: vi.fn(),
+      stopIncomingRingtone: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -111,9 +119,8 @@ describe('DirectCallService', () => {
           useValue: {
             startOutgoingDialing: vi.fn(),
             stopOutgoingDialing: vi.fn(),
-            startIncomingRingtone: vi.fn(),
-            stopIncomingRingtone: vi.fn(),
             playCallEndSound: vi.fn(),
+            ...audioService,
           },
         },
         { provide: VoiceSessionService, useValue: voiceSessionService },
@@ -155,8 +162,10 @@ describe('DirectCallService', () => {
     expect(service.isDirectCallContext()).toBe(true);
   });
 
-  it('acceptCall restores ringing state when signaling fails', async () => {
-    socket.emitWithAck.mockRejectedValue(new Error('network'));
+  it('acceptCall clears the call when the server rejects accept', async () => {
+    socket.emitWithAck.mockResolvedValue({
+      error: 'Call not found or already ended',
+    });
     service['_activeCall'].set({
       callId: 'c1',
       interlocutor: caller,
@@ -166,7 +175,8 @@ describe('DirectCallService', () => {
 
     await service.acceptCall();
 
-    expect(service.activeCall()?.status).toBe(ECallStatus.INCOMING);
+    expect(service.activeCall()).toBeNull();
+    expect(audioService.startIncomingRingtone).not.toHaveBeenCalled();
     expect(notifications.open).toHaveBeenCalledWith(
       'CALL.ACCEPT_FAILED',
       expect.objectContaining({ appearance: 'negative' }),
