@@ -1094,6 +1094,11 @@ describe('VoiceRoomsGateway', () => {
 
       gateway.handleRoomDeletedEvent({ id: roomId });
 
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.ROOM_CLOSED, {
+        roomId,
+        sessionKey,
+        reason: 'deleted',
+      });
       expect(room.peers.has('socket-1')).toBe(false);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
