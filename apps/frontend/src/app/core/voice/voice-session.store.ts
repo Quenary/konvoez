@@ -1,5 +1,4 @@
-import { computed, inject } from '@angular/core';
-import { PeerPlaybackService } from '@core/services/peer-playback.service';
+import { computed } from '@angular/core';
 import { EVoiceSessionType, IUser, TVoiceSessionTarget } from '@konvoez/shared';
 import {
   patchState,
@@ -23,7 +22,7 @@ type VoiceSessionState = {
 
 /**
  * Active voice session and its peers. App-lifetime; one session at a time.
- * Does not own lobby presence, mute prefs, or mediasoup objects.
+ * Does not own lobby presence, mute prefs, mediasoup objects, or playback.
  */
 export const VoiceSessionStore = signalStore(
   { providedIn: 'root' },
@@ -43,7 +42,7 @@ export const VoiceSessionStore = signalStore(
     peersList: entities,
     peersDict: entityMap,
   })),
-  withMethods((store, peerPlaybackService = inject(PeerPlaybackService)) => ({
+  withMethods((store) => ({
     setActiveSession(activeSession: TVoiceSessionTarget | null): void {
       patchState(store, { activeSession });
     },
@@ -57,12 +56,10 @@ export const VoiceSessionStore = signalStore(
     },
 
     removePeer(userId: number): void {
-      peerPlaybackService.detach(userId);
       patchState(store, removeEntity(userId));
     },
 
     clearSessionPeers(): void {
-      peerPlaybackService.detachAll();
       patchState(store, removeAllEntities());
     },
 
@@ -75,7 +72,6 @@ export const VoiceSessionStore = signalStore(
 
     applyUserEntityDeleted(userId: number): void {
       if (store.entityMap()[userId]) {
-        peerPlaybackService.detach(userId);
         patchState(store, removeEntity(userId));
       }
     },

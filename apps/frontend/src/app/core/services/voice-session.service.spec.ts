@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -171,12 +172,29 @@ describe('VoiceSessionService', () => {
           provide: VoiceAudioPreferencesStore,
           useValue: voiceAudioPreferencesStore,
         },
-        { provide: MicrophoneService, useValue: microphoneService },
+        {
+          provide: MicrophoneService,
+          useValue: {
+            ...microphoneService,
+            analyserNode: signal<AnalyserNode | null>(null).asReadonly(),
+          },
+        },
+        {
+          provide: Store,
+          useValue: { selectSignal: () => () => null },
+        },
         { provide: SpeakerService, useValue: { setDevice: vi.fn() } },
         { provide: AudioService, useValue: audioService },
         { provide: MediasoupSessionService, useValue: mediasoup },
         { provide: ScreenWatchService, useValue: screenWatch },
-        { provide: PeerPlaybackService, useValue: { removeConsumer: vi.fn() } },
+        {
+          provide: PeerPlaybackService,
+          useValue: {
+            removeConsumer: vi.fn(),
+            detach: vi.fn(),
+            detachAll: vi.fn(),
+          },
+        },
         {
           provide: PeerVideoService,
           useValue: { remove: vi.fn(), removeUser: vi.fn(), clear: vi.fn() },
