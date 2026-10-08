@@ -36,7 +36,7 @@ export class MediaPreviewComponent {
     () => this.items[this.index()] ?? this.items[0],
   );
   protected readonly isImage = computed(
-    () => this.current()?.kind === EAttachmentKind.IMAGE,
+    () => this.current().kind === EAttachmentKind.IMAGE,
   );
 
   protected close(): void {
@@ -45,7 +45,7 @@ export class MediaPreviewComponent {
 
   protected download(): void {
     const item = this.current();
-    if (!item?.downloadUrl) {
+    if (!item.downloadUrl) {
       return;
     }
 

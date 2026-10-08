@@ -8,7 +8,7 @@
       [length]="items.length"
       (indexChange)="onIndex($event)" />
   }
-  @if (current()?.downloadUrl && !broken()) {
+  @if (current().downloadUrl && !broken()) {
     <button
       iconStart="@tui.download"
       tuiIconButton
