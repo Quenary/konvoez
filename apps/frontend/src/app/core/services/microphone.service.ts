@@ -223,7 +223,8 @@ export class MicrophoneService implements OnDestroy {
   }
 
   /**
-   * RNNoise needs 48 kHz. Anything else, or a failed wasm load, stays on Speex.
+   * RNNoise requires 48 kHz (our AudioContext is requested at 48 kHz; unsupported browsers throw).
+   * Speex is used as a fallback if RNNoise wasm/worklet fails to load, or defensively if sampleRate differs.
    */
   private async resolveDenoiser(): Promise<void> {
     if (!this.context) {

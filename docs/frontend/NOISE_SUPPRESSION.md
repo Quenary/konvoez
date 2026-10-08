@@ -38,7 +38,7 @@ The expander does not remove clicks while someone is talking; those stay above t
 
 Added latency is about one RNNoise frame (10 ms) plus the expander lookahead (240 samples, 5 ms) and the limiter lookahead (128 samples, ~2.7 ms). `cleanupPipeline` calls `destroy()` on the denoiser node and posts `{ type: 'dispose' }` to the expander and limiter. `process()` then returns false, so those processors stop while the capture context is still open (device change, pipeline rebuild).
 
-**Fallback.** RNNoise needs 48 kHz. Any other `AudioContext` rate, or a failed wasm/worklet load, keeps Speex and the call stays up. If `audio/voice-dynamics.worklet.js` fails to load, expander and limiter are skipped and makeup stays at unity so the boost cannot clip.
+**Fallback.** RNNoise needs 48 kHz, which `AudioContext` requests explicitly (browsers unable to provide 48 kHz throw on creation). If loading RNNoise wasm or worklet fails (or defensively if the context sample rate is not 48 kHz), the pipeline falls back to Speex and the call stays up. If `audio/voice-dynamics.worklet.js` fails to load, expander and limiter are skipped and makeup stays at unity so the boost cannot clip.
 
 ## Playback
 
