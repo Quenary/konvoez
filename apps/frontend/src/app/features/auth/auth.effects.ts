@@ -15,7 +15,7 @@ import {
 } from 'rxjs';
 import { AuthApiService } from './auth-api.service';
 import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
-import { UsersStore } from '../users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';

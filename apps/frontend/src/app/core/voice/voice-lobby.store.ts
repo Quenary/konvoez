@@ -19,7 +19,9 @@ type LobbyEvent =
  * - `gap`: events were missed (or the server restarted); a new snapshot is required.
  */
 export type TVoiceLobbyIncrementalResult =
-  'applied' | 'stale' | 'buffered' | 'gap';
+  'applied' | 'stale' | 'buffered' | 'gap' | 'overflow';
+
+const MAX_PENDING_LOBBY_EVENTS = 500;
 
 type VoiceLobbyState = {
   roomsState: TVoiceRoomGetAllPeersResult;
@@ -73,26 +75,59 @@ export const VoiceLobbyStore = signalStore(
       });
     };
 
+    const overflowPendingBuffer = (): TVoiceLobbyIncrementalResult => {
+      patchState(store, {
+        lobbyEpoch: null,
+        lobbyRevision: null,
+        pendingLobbyEvents: [],
+      });
+      return 'overflow';
+    };
+
+    const appendPendingEvent = (
+      event: LobbyEvent,
+    ): TVoiceLobbyIncrementalResult => {
+      const pending = store.pendingLobbyEvents();
+      if (pending.length >= MAX_PENDING_LOBBY_EVENTS) {
+        return overflowPendingBuffer();
+      }
+      patchState(store, {
+        pendingLobbyEvents: [...pending, event],
+      });
+      return 'buffered';
+    };
+
+    const bufferForResync = (
+      event: LobbyEvent,
+    ): TVoiceLobbyIncrementalResult => {
+      patchState(store, { lobbyEpoch: null, lobbyRevision: null });
+      const pending = store.pendingLobbyEvents();
+      if (pending.length >= MAX_PENDING_LOBBY_EVENTS) {
+        return overflowPendingBuffer();
+      }
+      patchState(store, {
+        pendingLobbyEvents: [...pending, event],
+      });
+      return 'gap';
+    };
+
     const applyIncremental = (
       event: LobbyEvent,
     ): TVoiceLobbyIncrementalResult => {
       const epoch = store.lobbyEpoch();
       const revision = store.lobbyRevision();
       if (epoch === null || revision === null) {
-        patchState(store, (state) => ({
-          pendingLobbyEvents: [...state.pendingLobbyEvents, event],
-        }));
-        return 'buffered';
+        return appendPendingEvent(event);
       }
 
       if (event.payload.epoch !== epoch) {
-        return 'gap';
+        return bufferForResync(event);
       }
       if (event.payload.revision <= revision) {
         return 'stale';
       }
       if (event.payload.revision > revision + 1) {
-        return 'gap';
+        return bufferForResync(event);
       }
 
       if (event.kind === 'joined') {
@@ -105,13 +140,27 @@ export const VoiceLobbyStore = signalStore(
     };
 
     /** Applies events buffered before the snapshot; returns whether a new snapshot is needed. */
-    const flushPendingEvents = (): boolean => {
-      const sorted = [...store.pendingLobbyEvents()].sort(
-        (a, b) => a.payload.revision - b.payload.revision,
-      );
+    const flushPendingEvents = (
+      snapshot: IVoiceRoomGetAllPeersSnapshot,
+    ): boolean => {
+      const sorted = [...store.pendingLobbyEvents()]
+        .filter(
+          (event) =>
+            event.payload.epoch === snapshot.epoch &&
+            event.payload.revision > snapshot.revision,
+        )
+        .sort((a, b) => a.payload.revision - b.payload.revision);
       patchState(store, { pendingLobbyEvents: [] });
 
-      return sorted.some((event) => applyIncremental(event) === 'gap');
+      let needsResync = false;
+      for (const event of sorted) {
+        const result = applyIncremental(event);
+        if (result === 'gap') {
+          needsResync = true;
+          break;
+        }
+      }
+      return needsResync;
     };
 
     return {
@@ -132,7 +181,7 @@ export const VoiceLobbyStore = signalStore(
           lobbyEpoch: snapshot.epoch,
           lobbyRevision: snapshot.revision,
         });
-        return flushPendingEvents();
+        return flushPendingEvents(snapshot);
       },
 
       applyVoicePeerJoined(

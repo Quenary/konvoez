@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { RoomsStore } from './rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslateService } from '@ngx-translate/core';
 import { EUserRole } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';

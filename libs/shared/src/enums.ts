@@ -47,6 +47,8 @@ export enum EVoiceRoomEvent {
   LEAVE_ROOM = 'leave-room',
   PEER_JOINED = 'peer-joined',
   PEER_LEFT = 'peer-left',
+  /** Server ended the session (e.g. group room deleted). */
+  ROOM_CLOSED = 'room-closed',
   /**
    * Get existing peers of all rooms to sync frontend state
    */

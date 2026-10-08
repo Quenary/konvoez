@@ -10,7 +10,7 @@ Camera and screen on the voice stack ([VOICE.md](./VOICE.md)).
 | Camera                           | User toggle      | Auto                     | Video only → `PeerVideoService`                                     |
 | Screen (+ optional screen-audio) | User toggle      | Opt-in `watchPeerScreen` | Video → `PeerVideoService`; screen-audio → `PeerScreenAudioService` |
 
-One cam and one screen per user; room cap 4 video producers (backend). VP8 for senders. Mic gain and screen-audio gain live in `VoiceAudioPreferencesStore`. Height/FPS from settings + shared start dialog. Screen button hidden if `getDisplayMedia` is unavailable.
+One cam and one screen per user; room cap 4 video producers (backend). VP8 for senders. Mic gain and screen-audio gain live in `VoiceAudioPreferencesStore`. Height/FPS from settings + shared start dialog. Screen button hidden if `getDisplayMedia` is unavailable. Stopping screen share closes the screen video producer; the server also closes the paired `screen-audio` producer. The client still sends close acks for both tracks (with timeout); duplicate closes are treated as success so `stopScreen` cannot hang on an already-closed producer.
 
 ## Pipeline
 

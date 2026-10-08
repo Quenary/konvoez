@@ -2,59 +2,61 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOISE_SUPPRESSOR_VERSION } from '@core/asset-version';
 import { VOICE_CAPTURE, VOICE_MAKEUP_GAIN } from '@core/audio/voice-dynamics';
-
-const workletNodes = vi.hoisted(() => ({
-  rnnoise: [] as Array<{
-    connect: ReturnType<typeof vi.fn>;
-    disconnect: ReturnType<typeof vi.fn>;
-    destroy: ReturnType<typeof vi.fn>;
-  }>,
-  speex: [] as Array<{
-    connect: ReturnType<typeof vi.fn>;
-    disconnect: ReturnType<typeof vi.fn>;
-    destroy: ReturnType<typeof vi.fn>;
-  }>,
-}));
-
-vi.hoisted(() => {
-  (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
-    class AudioWorkletNode {};
-});
-
-vi.mock('@sapphi-red/web-noise-suppressor', () => ({
-  SpeexWorkletNode: class SpeexWorkletNode {
-    connect = vi.fn();
-    disconnect = vi.fn();
-    destroy = vi.fn();
-    constructor() {
-      workletNodes.speex.push(this);
-    }
-  },
-  RnnoiseWorkletNode: class RnnoiseWorkletNode {
-    connect = vi.fn();
-    disconnect = vi.fn();
-    destroy = vi.fn();
-    constructor() {
-      workletNodes.rnnoise.push(this);
-    }
-  },
-  loadSpeex: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-  loadRnnoise: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-}));
+import {
+  NOISE_SUPPRESSOR_PORT,
+  type NoiseSuppressorPort,
+} from '@core/audio/noise-suppressor.port';
 
 import { MicrophoneService } from './microphone.service';
-import { loadRnnoise, loadSpeex } from '@sapphi-red/web-noise-suppressor';
-import type { SpeexWorkletNode } from '@sapphi-red/web-noise-suppressor';
 
 describe('MicrophoneService', () => {
   let service: MicrophoneService;
   let enumerateDevices: ReturnType<typeof vi.fn>;
+  let loadRnnoise: ReturnType<typeof vi.fn>;
+  let loadSpeex: ReturnType<typeof vi.fn>;
+  const workletNodes = {
+    rnnoise: [] as Array<{
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+      destroy: ReturnType<typeof vi.fn>;
+    }>,
+    speex: [] as Array<{
+      connect: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+      destroy: ReturnType<typeof vi.fn>;
+    }>,
+  };
+
+  const noiseSuppressorPort = {
+    loadRnnoise: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+    loadSpeex: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+    RnnoiseWorkletNode: class RnnoiseWorkletNode {
+      connect = vi.fn();
+      disconnect = vi.fn();
+      destroy = vi.fn();
+      constructor() {
+        workletNodes.rnnoise.push(this);
+      }
+    },
+    SpeexWorkletNode: class SpeexWorkletNode {
+      connect = vi.fn();
+      disconnect = vi.fn();
+      destroy = vi.fn();
+      constructor() {
+        workletNodes.speex.push(this);
+      }
+    },
+  } as unknown as NoiseSuppressorPort;
 
   beforeEach(() => {
     workletNodes.rnnoise.length = 0;
     workletNodes.speex.length = 0;
-    vi.mocked(loadRnnoise).mockClear();
-    vi.mocked(loadSpeex).mockClear();
+    loadRnnoise = vi.mocked(noiseSuppressorPort.loadRnnoise);
+    loadSpeex = vi.mocked(noiseSuppressorPort.loadSpeex);
+    loadRnnoise.mockClear();
+    loadRnnoise.mockResolvedValue(new ArrayBuffer(8));
+    loadSpeex.mockClear();
+    loadSpeex.mockResolvedValue(new ArrayBuffer(8));
     enumerateDevices = vi.fn().mockResolvedValue([]);
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -66,7 +68,10 @@ describe('MicrophoneService', () => {
     });
 
     TestBed.configureTestingModule({
-      providers: [MicrophoneService],
+      providers: [
+        MicrophoneService,
+        { provide: NOISE_SUPPRESSOR_PORT, useValue: noiseSuppressorPort },
+      ],
     });
 
     service = TestBed.inject(MicrophoneService);
@@ -100,7 +105,9 @@ describe('MicrophoneService', () => {
     service['sourceNode'] = sourceNode as unknown as MediaStreamAudioSourceNode;
     service['gainNode'] = gainNode as unknown as GainNode;
     service['biquadNode'] = biquadNode as unknown as BiquadFilterNode;
-    service['denoiserNode'] = denoiserNode as unknown as SpeexWorkletNode;
+    service['denoiserNode'] = denoiserNode as unknown as InstanceType<
+      NoiseSuppressorPort['SpeexWorkletNode']
+    >;
     service['destinationNode'] =
       destinationNode as unknown as MediaStreamAudioDestinationNode;
     service['_processedStream'].set(stream);
@@ -163,7 +170,7 @@ describe('MicrophoneService', () => {
   });
 
   it('falls back to Speex when RNNoise fails to load', async () => {
-    vi.mocked(loadRnnoise).mockRejectedValueOnce(new Error('wasm'));
+    loadRnnoise.mockRejectedValueOnce(new Error('wasm'));
     const addModule = vi.fn().mockResolvedValue(undefined);
     service['context'] = {
       sampleRate: 48000,
@@ -182,6 +189,7 @@ describe('MicrophoneService', () => {
       disconnect: ReturnType<typeof vi.fn>;
       port: { postMessage: ReturnType<typeof vi.fn> };
     }> = [];
+    const previousWorkletNode = globalThis.AudioWorkletNode;
     (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode = class {
       connect = vi.fn();
       disconnect = vi.fn();
@@ -198,11 +206,11 @@ describe('MicrophoneService', () => {
     const compressor = node('compressor');
     const analyser = node('analyser');
     const destination = node('destination');
-    const gains = [gain, makeup];
 
+    let gainCalls = 0;
     service['context'] = {
       createMediaStreamSource: () => source,
-      createGain: () => gains.shift(),
+      createGain: () => (gainCalls++ === 0 ? gain : makeup),
       createBiquadFilter: () => biquad,
       createDynamicsCompressor: () => compressor,
       createAnalyser: () => analyser,
@@ -238,6 +246,9 @@ describe('MicrophoneService', () => {
     expect(limiter.port.postMessage).toHaveBeenCalledWith({ type: 'dispose' });
     expect(expander.disconnect).toHaveBeenCalled();
     expect(limiter.disconnect).toHaveBeenCalled();
+
+    (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
+      previousWorkletNode;
   });
 
   it('drops nodes built before ensurePipeline throws', async () => {

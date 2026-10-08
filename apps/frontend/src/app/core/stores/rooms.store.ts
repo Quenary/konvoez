@@ -1,14 +1,5 @@
 import { computed, inject } from '@angular/core';
-import { Router } from '@angular/router';
-import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import {
-  ERoomType,
-  EVoiceSessionType,
-  IRoom,
-  IRoomCreate,
-  IRoomUpdate,
-} from '@konvoez/shared';
+import { ERoomType, IRoom, IRoomCreate, IRoomUpdate } from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -27,7 +18,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
-import { RoomsApiService } from './rooms-api.service';
+import { RoomsApiService } from '@core/api/rooms-api.service';
 
 type RoomsStoreState = {
   selectedRoomId: number | null;
@@ -60,9 +51,6 @@ export const RoomsStore = signalStore(
       roomsApiService = inject(RoomsApiService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
-      router = inject(Router),
-      voiceSessionService = inject(VoiceSessionService),
-      voiceSessionStore = inject(VoiceSessionStore),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
@@ -90,39 +78,10 @@ export const RoomsStore = signalStore(
         patchState(store, { selectedRoomId: id });
       };
 
-      const selectRoom = (room: IRoom | null): void => {
-        setSelectedRoomId(room?.id ?? null);
-
-        switch (room?.type) {
-          case ERoomType.VOICE: {
-            const selectedVoiceRoomId = voiceSessionStore.selectedRoomId();
-            if (selectedVoiceRoomId !== room.id) {
-              void voiceSessionService
-                .joinSession({
-                  type: EVoiceSessionType.GROUP_ROOM,
-                  roomId: room.id,
-                })
-                .catch((error: unknown) => {
-                  voiceSessionService.reportJoinFailure(error);
-                });
-            }
-            void router.navigate([`/voice-room/${room.id}`]);
-            break;
-          }
-          case ERoomType.TEXT: {
-            void router.navigate([`/text-room/${room.id}`]);
-            break;
-          }
-          default:
-            void router.navigate(['/']);
-        }
-      };
-
       return {
         upsertOne,
         removeOne,
         setSelectedRoomId,
-        selectRoom,
 
         loadAll: rxMethod<void>(
           pipe(

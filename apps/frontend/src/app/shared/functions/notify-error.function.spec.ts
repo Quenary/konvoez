@@ -1,0 +1,44 @@
+import { describe, expect, it, vi } from 'vitest';
+import { notifyError } from './notify-error.function';
+
+describe('notifyError', () => {
+  it('maps known server errors to translation keys', () => {
+    const notifications = {
+      open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
+    };
+    const translate = {
+      instant: vi.fn((key: string) => key),
+    };
+
+    notifyError(
+      notifications as never,
+      translate as never,
+      'CALL.CAMERA_FAILED',
+      new Error('Room video producer limit reached'),
+    );
+
+    expect(translate.instant).toHaveBeenCalledWith('CALL.VIDEO_LIMIT_REACHED');
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.VIDEO_LIMIT_REACHED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
+  });
+
+  it('uses the fallback key when the error is unknown', () => {
+    const notifications = {
+      open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
+    };
+    const translate = {
+      instant: vi.fn((key: string) => key),
+    };
+
+    notifyError(
+      notifications as never,
+      translate as never,
+      'CALL.CAMERA_FAILED',
+      new Error('other'),
+    );
+
+    expect(translate.instant).toHaveBeenCalledWith('CALL.CAMERA_FAILED');
+  });
+});

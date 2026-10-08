@@ -4,8 +4,8 @@
  * - или возвращает стрим с устройства с похожим именем
  * - или возвращает стрим со стандартного устройства
  *
- * Browser noise suppression and AGC stay off: RNNoise plus the capture
- * compressor own those jobs. Echo cancellation stays on.
+ * Browser noise suppression stays off (RNNoise owns that job). Echo
+ * cancellation and auto gain control stay on at the browser layer.
  * Looser constraints are retried only after OverconstrainedError or TypeError.
  * NotAllowedError stops the search so Firefox does not prompt again.
  * @param device
@@ -14,7 +14,7 @@
 const captureProcessing: MediaTrackConstraints = {
   echoCancellation: true,
   noiseSuppression: false,
-  autoGainControl: false,
+  autoGainControl: true,
   channelCount: { ideal: 1 },
 };
 

@@ -6,7 +6,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogService } from '@taiga-ui/core';
 import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { EUserRole, IUser } from '@konvoez/shared';
 

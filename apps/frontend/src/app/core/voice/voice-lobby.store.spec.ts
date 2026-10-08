@@ -77,7 +77,7 @@ describe('VoiceLobbyStore', () => {
     expect(store.roomsState()).toEqual({});
   });
 
-  it('reports a gap without applying the event when a revision is missed', () => {
+  it('buffers a gap event and marks the lobby unsynced when a revision is missed', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.setRoomsSnapshot({ epoch, revision: 1, rooms: {} });
 
@@ -85,9 +85,12 @@ describe('VoiceLobbyStore', () => {
       store.applyVoicePeerJoined({ roomId: 1, user: bob, epoch, revision: 3 }),
     ).toBe('gap');
     expect(store.roomsState()).toEqual({});
+    expect(store.lobbyEpoch()).toBeNull();
+    expect(store.lobbyRevision()).toBeNull();
+    expect(store.pendingLobbyEvents()).toHaveLength(1);
   });
 
-  it('reports a gap when the event belongs to another server epoch', () => {
+  it('buffers a gap event when the event belongs to another server epoch', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.setRoomsSnapshot({ epoch, revision: 50, rooms: {} });
 
@@ -99,6 +102,23 @@ describe('VoiceLobbyStore', () => {
         revision: 1,
       }),
     ).toBe('gap');
+    expect(store.lobbyEpoch()).toBeNull();
+    expect(store.pendingLobbyEvents()).toHaveLength(1);
+  });
+
+  it('replays a gap-buffered event after a newer snapshot arrives', () => {
+    const store = TestBed.inject(VoiceLobbyStore);
+    store.setRoomsSnapshot({ epoch, revision: 1, rooms: {} });
+
+    expect(
+      store.applyVoicePeerJoined({ roomId: 1, user: bob, epoch, revision: 3 }),
+    ).toBe('gap');
+
+    expect(store.setRoomsSnapshot({ epoch, revision: 2, rooms: {} })).toBe(
+      false,
+    );
+    expect(store.roomsState()[1]?.[bob.id]).toEqual(bob);
+    expect(store.lobbyRevision()).toBe(3);
   });
 
   it('buffers events until the snapshot and replays the newer ones in order', () => {
@@ -146,7 +166,7 @@ describe('VoiceLobbyStore', () => {
     expect(store.roomsState()).toEqual({});
   });
 
-  it('asks for another snapshot when buffered events come from another epoch', () => {
+  it('drops buffered events from another epoch when a new snapshot is applied', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.applyVoicePeerJoined({
       roomId: 1,
@@ -156,8 +176,39 @@ describe('VoiceLobbyStore', () => {
     });
 
     expect(store.setRoomsSnapshot({ epoch, revision: 7, rooms: {} })).toBe(
-      true,
+      false,
     );
+    expect(store.roomsState()).toEqual({});
+    expect(store.pendingLobbyEvents()).toEqual([]);
+    expect(store.lobbyEpoch()).toBe(epoch);
+    expect(store.lobbyRevision()).toBe(7);
+  });
+
+  it('drops poisoned epoch events after markUnsynced when the server restarts', () => {
+    const store = TestBed.inject(VoiceLobbyStore);
+    store.setRoomsSnapshot({ epoch, revision: 1, rooms: {} });
+    store.markUnsynced();
+
+    expect(
+      store.applyVoicePeerJoined({
+        roomId: 1,
+        user: bob,
+        epoch: 'epoch-before-restart',
+        revision: 2,
+      }),
+    ).toBe('buffered');
+
+    expect(
+      store.setRoomsSnapshot({
+        epoch: 'epoch-after-restart',
+        revision: 0,
+        rooms: {},
+      }),
+    ).toBe(false);
+    expect(store.lobbyEpoch()).toBe('epoch-after-restart');
+    expect(store.lobbyRevision()).toBe(0);
+    expect(store.pendingLobbyEvents()).toEqual([]);
+    expect(store.roomsState()[1]?.[bob.id]).toBeUndefined();
   });
 
   it('ignores an older snapshot of the same epoch', () => {
@@ -200,6 +251,33 @@ describe('VoiceLobbyStore', () => {
       store.applyVoicePeerJoined({ roomId: 1, user: bob, epoch, revision: 2 }),
     ).toBe('buffered');
     expect(store.roomsState()).toEqual({});
+  });
+
+  it('returns overflow and clears the buffer when pending events exceed the cap', () => {
+    const store = TestBed.inject(VoiceLobbyStore);
+    store.markUnsynced();
+
+    for (let revision = 1; revision <= 500; revision++) {
+      expect(
+        store.applyVoicePeerJoined({
+          roomId: 1,
+          user: bob,
+          epoch,
+          revision,
+        }),
+      ).toBe('buffered');
+    }
+
+    expect(
+      store.applyVoicePeerJoined({
+        roomId: 1,
+        user: bob,
+        epoch,
+        revision: 501,
+      }),
+    ).toBe('overflow');
+    expect(store.pendingLobbyEvents()).toEqual([]);
+    expect(store.lobbyEpoch()).toBeNull();
   });
 
   it('reset clears rooms, sync marker and buffered events', () => {

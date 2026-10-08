@@ -12,7 +12,7 @@ describe('getStream', () => {
     vi.unstubAllGlobals();
   });
 
-  it('asks for echo cancellation without browser noise suppression or AGC', async () => {
+  it('asks for echo cancellation and AGC without browser noise suppression', async () => {
     const getUserMedia = vi.fn().mockResolvedValue({ id: 'stream' });
     vi.stubGlobal('navigator', {
       mediaDevices: { getUserMedia },
@@ -30,7 +30,7 @@ describe('getStream', () => {
       audio: {
         echoCancellation: true,
         noiseSuppression: false,
-        autoGainControl: false,
+        autoGainControl: true,
         channelCount: { ideal: 1 },
         deviceId: { exact: 'mic-1' },
       },
@@ -49,7 +49,7 @@ describe('getStream', () => {
       audio: {
         echoCancellation: true,
         noiseSuppression: false,
-        autoGainControl: false,
+        autoGainControl: true,
         channelCount: { ideal: 1 },
       },
     });
@@ -122,7 +122,7 @@ describe('getStream', () => {
       audio: {
         echoCancellation: true,
         noiseSuppression: false,
-        autoGainControl: false,
+        autoGainControl: true,
         channelCount: { ideal: 1 },
       },
     });

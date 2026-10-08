@@ -1,8 +1,6 @@
 import { effect, inject } from '@angular/core';
-import { AudioActivityService } from '@core/services/audio-activity.service';
 import { AudioService } from '@core/services/audio.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
-import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerPlaybackService } from '@core/services/peer-playback.service';
 import { PeerScreenAudioService } from '@core/services/peer-screen-audio.service';
 import {
@@ -10,7 +8,6 @@ import {
   storageSetItemJson,
 } from '../../../extentions/local-storage-json';
 import { EStorageKey } from '../../app.enums';
-import { selectCurrentUser } from '@features/auth/auth.selectors';
 import {
   patchState,
   signalStore,
@@ -18,8 +15,6 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { Store } from '@ngrx/store';
-import { VoiceSessionStore } from './voice-session.store';
 
 type VoiceAudioPreferencesState = {
   microphoneMuted: boolean;
@@ -47,8 +42,7 @@ function createInitialState(): VoiceAudioPreferencesState {
 
 /**
  * Mute and per-peer gain preferences with localStorage persistence.
- * Syncs mute into mediasoup / playback; registers local audio activity
- * when an active session has an unmuted mic analyser.
+ * Syncs mute into mediasoup / playback.
  */
 export const VoiceAudioPreferencesStore = signalStore(
   { providedIn: 'root' },
@@ -141,12 +135,6 @@ export const VoiceAudioPreferencesStore = signalStore(
   ),
   withHooks({
     onInit(store) {
-      const microphoneService = inject(MicrophoneService);
-      const audioActivityService = inject(AudioActivityService);
-      const voiceSessionStore = inject(VoiceSessionStore);
-      const ngrxStore = inject(Store);
-      const currentUser = ngrxStore.selectSignal(selectCurrentUser);
-
       effect(() => {
         const value = store.microphoneMuted();
         storageSetItemJson(EStorageKey.MICROPHONE_MUTED, value);
@@ -155,24 +143,6 @@ export const VoiceAudioPreferencesStore = signalStore(
       effect(() => {
         const value = store.speakerMuted();
         storageSetItemJson(EStorageKey.SPEAKER_MUTED, value);
-      });
-
-      let registeredUserId: number | null = null;
-      effect(() => {
-        const session = voiceSessionStore.activeSession();
-        const user = currentUser();
-        const microphoneMuted = store.microphoneMuted();
-        const analyserNode = microphoneService.analyserNode();
-        const nextUserId =
-          session && user && analyserNode && !microphoneMuted ? user.id : null;
-
-        if (registeredUserId !== null && registeredUserId !== nextUserId) {
-          audioActivityService.unregister(registeredUserId);
-        }
-        if (nextUserId !== null && analyserNode) {
-          audioActivityService.register(nextUserId, analyserNode);
-        }
-        registeredUserId = nextUserId;
       });
     },
   }),

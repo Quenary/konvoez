@@ -7,8 +7,6 @@ import { Store } from '@ngrx/store';
 import { IUser } from '@konvoez/shared';
 import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { IRoom } from '@konvoez/shared';
-import { RoomManageService } from '@features/rooms/room-manage.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { SettingsStore } from '@features/settings/settings.store';
 import { AudioService } from '@core/services/audio.service';
@@ -19,12 +17,6 @@ import { VoiceRoomOverlayComponent } from './voice-room-overlay.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
-
-const room = {
-  id: 4,
-  name: 'VIP',
-  avatarUrl: '',
-} as IRoom;
 
 const stageTile = (
   peerId: number,
@@ -91,14 +83,6 @@ describe('VoiceRoomOverlayComponent', () => {
           useValue: { toggleLayout },
         },
         {
-          provide: RoomManageService,
-          useValue: {
-            canManageRooms: signal(true).asReadonly(),
-            editRoom: vi.fn(),
-            deleteRoom: vi.fn(),
-          },
-        },
-        {
           provide: VoiceLeaveService,
           useValue: { leaveActiveVoice },
         },
@@ -145,6 +129,7 @@ describe('VoiceRoomOverlayComponent', () => {
             produceScreen: vi.fn(),
             stopScreen: vi.fn(),
             stopWatchingPeerScreen: vi.fn().mockResolvedValue(undefined),
+            canProduce: signal(true).asReadonly(),
           },
         },
         {
@@ -172,7 +157,6 @@ describe('VoiceRoomOverlayComponent', () => {
     );
 
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
-    fixture.componentRef.setInput('room', room);
     fixture.detectChanges();
 
     let left = false;
@@ -190,7 +174,6 @@ describe('VoiceRoomOverlayComponent', () => {
 
   it('shows layout toggle and fullscreen in both layouts', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
-    fixture.componentRef.setInput('room', room);
     fixture.componentRef.setInput('participantsCount', 2);
     fixture.detectChanges();
 
@@ -198,12 +181,12 @@ describe('VoiceRoomOverlayComponent', () => {
       '[tuiAccessories]',
     ) as HTMLElement | null;
     expect(accessories).toBeTruthy();
-    expect(accessories?.querySelectorAll('button').length).toBe(3);
+    expect(accessories?.querySelectorAll('button').length).toBe(2);
 
     layout.set('theatre');
     fixture.detectChanges();
 
-    expect(accessories?.querySelectorAll('button').length).toBe(3);
+    expect(accessories?.querySelectorAll('button').length).toBe(2);
     expect(
       fixture.nativeElement.querySelector(
         'app-voice-room-theatre-watch-controls',
@@ -272,7 +255,6 @@ describe('VoiceRoomOverlayComponent', () => {
 
   it('applies vignette classes only in fullscreen', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
-    fixture.componentRef.setInput('room', room);
     fixture.detectChanges();
 
     expect(

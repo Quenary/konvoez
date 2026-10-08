@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { RoomManageService } from '@features/rooms/room-manage.service';
-import { RoomsStore } from '@features/rooms/rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 
 @Component({ selector: 'app-chat', template: '<ng-content />' })

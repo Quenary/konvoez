@@ -20,13 +20,12 @@ export class VoiceSessionPeersService {
     const remotePeers = this.voiceSessionStore.peersList();
     const session = this.voiceSessionStore.activeSession();
     const interlocutor = this.directCallService.interlocutor();
-    const isCalling = this.directCallService.isCalling();
-    const isIncoming = this.directCallService.isIncoming();
+    const isRinging = this.directCallService.isRinging();
     return resolveVoiceSessionPeers({
       me,
       remotePeers,
       session,
-      isRinging: isCalling || isIncoming,
+      isRinging,
       interlocutor,
     });
   });

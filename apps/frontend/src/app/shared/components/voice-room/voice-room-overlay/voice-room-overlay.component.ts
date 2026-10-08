@@ -9,12 +9,9 @@ import {
 } from '@angular/core';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiButton, TuiDropdown, TuiHint, TuiTitle } from '@taiga-ui/core';
+import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
-import { IRoom } from '@konvoez/shared';
-import { RoomContextMenuComponent } from '@features/rooms/room-context-menu/room-context-menu.component';
-import { RoomManageService } from '@features/rooms/room-manage.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -37,12 +34,10 @@ import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
     TranslatePipe,
     TuiAvatar,
     TuiButton,
-    TuiDropdown,
     TuiHeader,
     TuiHint,
     TuiInitialsPipe,
     TuiTitle,
-    RoomContextMenuComponent,
     VoiceRoomControlsBarComponent,
     VoiceRoomTheatreWatchControlsComponent,
   ],
@@ -55,12 +50,10 @@ export class VoiceRoomOverlayComponent {
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly voiceRoomTilesService = inject(VoiceRoomTilesService);
   private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
-  private readonly roomManageService = inject(RoomManageService);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  public readonly room = input<IRoom | null>(null);
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly participantsCount = input(0);
@@ -68,7 +61,6 @@ export class VoiceRoomOverlayComponent {
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
   public readonly left = output<void>();
 
-  protected readonly canManageRooms = this.roomManageService.canManageRooms;
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly layout = this.voiceRoomViewService.layout;
   protected readonly showRemoteScreenWatchControls = computed(() =>
@@ -99,25 +91,9 @@ export class VoiceRoomOverlayComponent {
     this.layout() === 'theatre' ? 'CALL.SHOW_GRID' : 'CALL.SHOW_THEATRE',
   );
 
-  protected readonly displayTitle = computed(() => {
-    const title = this.title();
-    const roomName = this.room()?.name ?? '';
-    return title || roomName;
-  });
+  protected readonly displayTitle = computed(() => this.title());
 
-  protected readonly displayAvatarUrl = computed(() => {
-    const avatarUrl = this.avatarUrl();
-    const roomAvatar = this.room()?.avatarUrl ?? null;
-    return avatarUrl ?? roomAvatar ?? '';
-  });
-
-  protected editRoom(room: IRoom): Promise<void> {
-    return this.roomManageService.editRoom(room);
-  }
-
-  protected deleteRoom(room: IRoom): void {
-    this.roomManageService.deleteRoom(room);
-  }
+  protected readonly displayAvatarUrl = computed(() => this.avatarUrl() ?? '');
 
   protected onToggleFullscreen(): void {
     void this.voiceRoomViewService.toggleFullscreen(this.fullscreenTarget());

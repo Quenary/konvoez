@@ -9,7 +9,7 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
 import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from './room-manage.service';
-import { RoomsStore } from './rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 
 describe('RoomManageService', () => {
   let service: RoomManageService;

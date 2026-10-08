@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { RoomsStore } from './rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
@@ -19,6 +19,7 @@ import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
+import { RoomNavigationService } from './room-navigation.service';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
@@ -38,7 +39,7 @@ import {
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { Router, RouterLink } from '@angular/router';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
@@ -92,6 +93,7 @@ export class RoomsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly isTouch = inject(WA_IS_TOUCH);
   private readonly roomManageService = inject(RoomManageService);
+  private readonly roomNavigationService = inject(RoomNavigationService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   public readonly collapsed = input.required<boolean>();
@@ -183,7 +185,7 @@ export class RoomsComponent implements OnInit {
   }
 
   protected selectRoom(room: IRoom): void {
-    this.roomsStore.selectRoom(room);
+    this.roomNavigationService.selectRoom(room);
   }
 
   /**

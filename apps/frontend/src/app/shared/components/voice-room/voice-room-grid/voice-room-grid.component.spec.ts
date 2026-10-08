@@ -103,6 +103,7 @@ describe('VoiceRoomGridComponent', () => {
           provide: DirectCallService,
           useValue: {
             interlocutor: signal(null).asReadonly(),
+            isRinging: signal(false).asReadonly(),
             isCalling: signal(false).asReadonly(),
             isIncoming: signal(false).asReadonly(),
           },
@@ -116,6 +117,11 @@ describe('VoiceRoomGridComponent', () => {
           useValue: {
             watchPeerScreen: vi.fn().mockResolvedValue(undefined),
             stopWatchingPeerScreen: vi.fn().mockResolvedValue(undefined),
+            produceCamera: vi.fn(),
+            stopCamera: vi.fn(),
+            produceScreen: vi.fn(),
+            stopScreen: vi.fn(),
+            canProduce: signal(true).asReadonly(),
           },
         },
         {

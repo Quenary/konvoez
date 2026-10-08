@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
-import { PeerPlaybackService } from '@core/services/peer-playback.service';
 import { VoiceSessionStore } from './voice-session.store';
 
 const bob = {
@@ -16,25 +15,8 @@ const bob = {
 } as IUser;
 
 describe('VoiceSessionStore', () => {
-  let playback: {
-    detach: ReturnType<typeof vi.fn>;
-    detachAll: ReturnType<typeof vi.fn>;
-  };
-
   beforeEach(() => {
-    playback = {
-      detach: vi.fn(),
-      detachAll: vi.fn(),
-    };
-
-    TestBed.configureTestingModule({
-      providers: [
-        {
-          provide: PeerPlaybackService,
-          useValue: playback,
-        },
-      ],
-    });
+    TestBed.configureTestingModule({});
   });
 
   it('computes selectedRoomId only for group sessions', () => {
@@ -62,15 +44,13 @@ describe('VoiceSessionStore', () => {
     expect(store.peersDict()[bob.id]?.fullname).toBe('Robert');
 
     store.applyUserEntityDeleted(bob.id);
-    expect(playback.detach).toHaveBeenCalledWith(bob.id);
     expect(store.peersDict()[bob.id]).toBeUndefined();
   });
 
-  it('clears session peers and detaches playback', () => {
+  it('clears session peers without side effects', () => {
     const store = TestBed.inject(VoiceSessionStore);
     store.setPeers([bob]);
     store.clearSessionPeers();
-    expect(playback.detachAll).toHaveBeenCalled();
     expect(store.peersList()).toEqual([]);
   });
 });

@@ -18,7 +18,7 @@ import {
 import { TuiCard, TuiHeader } from '@taiga-ui/layout';
 import { DirectChatsStore } from './direct-chats.store';
 import { DirectChatItemComponent } from './direct-chat-item/direct-chat-item.component';
-import { UsersStore } from '@features/users/users.store';
+import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
 
 @Component({

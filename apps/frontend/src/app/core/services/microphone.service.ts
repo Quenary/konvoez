@@ -1,10 +1,8 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
 import {
-  RnnoiseWorkletNode,
-  SpeexWorkletNode,
-  loadRnnoise,
-  loadSpeex,
-} from '@sapphi-red/web-noise-suppressor';
+  NOISE_SUPPRESSOR_PORT,
+  type NoiseSuppressorPort,
+} from '@core/audio/noise-suppressor.port';
 import {
   VOICE_CAPTURE,
   VOICE_MAKEUP_GAIN,
@@ -42,7 +40,9 @@ const rnnoiseSimdWasmUrl = withVersion(
 const publicMethodsMutex = new Mutex();
 
 type DenoiserKind = 'rnnoise' | 'speex';
-type DenoiserNode = RnnoiseWorkletNode | SpeexWorkletNode;
+type DenoiserNode =
+  | InstanceType<NoiseSuppressorPort['RnnoiseWorkletNode']>
+  | InstanceType<NoiseSuppressorPort['SpeexWorkletNode']>;
 
 /**
  * Local capture pipeline: device stream, gain, highpass, RNNoise (Speex fallback),
@@ -50,6 +50,7 @@ type DenoiserNode = RnnoiseWorkletNode | SpeexWorkletNode;
  */
 @Injectable({ providedIn: 'root' })
 export class MicrophoneService implements OnDestroy {
+  private readonly noiseSuppressor = inject(NOISE_SUPPRESSOR_PORT);
   private readonly audioContextResumeService = inject(
     AudioContextResumeService,
   );
@@ -255,7 +256,7 @@ export class MicrophoneService implements OnDestroy {
 
   private async ensureRnnoise(): Promise<void> {
     if (!this.rnnoiseWasmBinary) {
-      this.rnnoiseWasmBinary = await loadRnnoise({
+      this.rnnoiseWasmBinary = await this.noiseSuppressor.loadRnnoise({
         url: rnnoiseWasmUrl,
         simdUrl: rnnoiseSimdWasmUrl,
       });
@@ -265,7 +266,9 @@ export class MicrophoneService implements OnDestroy {
 
   private async ensureSpeex(): Promise<void> {
     if (!this.speexWasmBinary) {
-      this.speexWasmBinary = await loadSpeex({ url: speexWasmUrl });
+      this.speexWasmBinary = await this.noiseSuppressor.loadSpeex({
+        url: speexWasmUrl,
+      });
     }
     await this.ensureWorklet(speexWorkletUrl, 'speex');
   }
@@ -428,7 +431,7 @@ export class MicrophoneService implements OnDestroy {
       if (!this.rnnoiseWasmBinary) {
         throw new Error('createDenoiser(): missing RNNoise wasm');
       }
-      return new RnnoiseWorkletNode(this.context, {
+      return new this.noiseSuppressor.RnnoiseWorkletNode(this.context, {
         wasmBinary: this.rnnoiseWasmBinary,
         maxChannels: 1,
       });
@@ -436,7 +439,7 @@ export class MicrophoneService implements OnDestroy {
     if (!this.speexWasmBinary) {
       throw new Error('createDenoiser(): missing Speex wasm');
     }
-    return new SpeexWorkletNode(this.context, {
+    return new this.noiseSuppressor.SpeexWorkletNode(this.context, {
       wasmBinary: this.speexWasmBinary,
       maxChannels: 1,
     });
