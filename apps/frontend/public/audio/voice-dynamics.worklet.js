@@ -322,8 +322,19 @@ class VoiceDynamicsProcessor extends AudioWorkletProcessor {
           ? this.limiterAttackCoef
           : this.limiterReleaseCoef;
       this.limiterGain += (desired - this.limiterGain) * coef;
+      let maxDelayed = 0;
       for (let channel = 0; channel < channelCount; channel++) {
-        output[channel][index] = this.delayed[channel] * this.limiterGain;
+        const abs = Math.abs(this.delayed[channel]);
+        if (abs > maxDelayed) {
+          maxDelayed = abs;
+        }
+      }
+      const g = Math.min(
+        this.limiterGain,
+        this.ceiling / Math.max(maxDelayed, 1e-9),
+      );
+      for (let channel = 0; channel < channelCount; channel++) {
+        output[channel][index] = this.delayed[channel] * g;
       }
       this.writeIndex += 1;
       if (this.writeIndex >= this.lookahead) {

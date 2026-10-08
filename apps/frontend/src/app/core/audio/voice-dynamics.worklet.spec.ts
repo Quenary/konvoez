@@ -183,6 +183,7 @@ describe('voice dynamics worklet', () => {
     const processor = new Processor({
       processorOptions: VOICE_LIMITER_OPTIONS,
     });
+    const ceiling = 10 ** (-1 / 20);
     const spike = constantBlock(0);
     spike[0] = 1;
     const rendered = render(processor, [
@@ -193,15 +194,40 @@ describe('voice dynamics worklet', () => {
     ]);
     const limited = peak(rendered);
     expect(limited).toBeGreaterThan(0.5);
-    expect(limited).toBeLessThan(0.95);
+    expect(limited).toBeLessThanOrEqual(ceiling + 1e-6);
 
     const hot = render(
       processor,
       Array.from({ length: 6 }, () => constantBlock(1)),
     );
     const settled = hot.slice(2);
-    expect(peak(settled)).toBeLessThan(0.95);
+    expect(peak(settled)).toBeLessThanOrEqual(ceiling + 1e-6);
     expect(peak(settled)).toBeGreaterThan(0.5);
+  });
+
+  it('strictly clamps peaks at 2.0 and 4.0 to never exceed the ceiling', () => {
+    const processor = new Processor({
+      processorOptions: VOICE_LIMITER_OPTIONS,
+    });
+    const ceiling = 10 ** (-1 / 20);
+
+    for (const amp of [2.0, 4.0]) {
+      const spike = constantBlock(0);
+      spike[0] = amp;
+      const rendered = render(processor, [
+        constantBlock(0),
+        spike,
+        constantBlock(0),
+        constantBlock(0),
+      ]);
+      expect(peak(rendered)).toBeLessThanOrEqual(ceiling + 1e-6);
+
+      const hot = render(
+        processor,
+        Array.from({ length: 6 }, () => constantBlock(amp)),
+      );
+      expect(peak(hot)).toBeLessThanOrEqual(ceiling + 1e-6);
+    }
   });
 
   it('passes a moderate level without limiting', () => {
