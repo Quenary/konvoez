@@ -1,3 +1,21 @@
+# [1.12.0](https://github.com/Quenary/konvoez/compare/v1.11.0...v1.12.0) (2026-10-08)
+
+### Bug Fixes
+
+- **frontend:** attachment preview download ([2dba5a8](https://github.com/Quenary/konvoez/commit/2dba5a8fccbb8f1aea248455d19c234cf5cd7b4a))
+- **frontend:** cheapen the voice limiter and avoid extra mic prompts ([4c92d52](https://github.com/Quenary/konvoez/commit/4c92d529564ddbf42e78484e303f0d684c7f023c))
+- **frontend:** voice dynamics limiter leak ([d066f4f](https://github.com/Quenary/konvoez/commit/d066f4f05e5a2671ae348e6e0bb883660fcdba6d))
+- KON-01–KON-16 high/medium issues ([#20](https://github.com/Quenary/konvoez/issues/20)) ([bccfa47](https://github.com/Quenary/konvoez/commit/bccfa475305db2b2ee3f60839e085ef5714bec73))
+
+### Features
+
+- **frontend:** add versioning for assets and implement cache-busting for noise suppression worklets ([0612ad3](https://github.com/Quenary/konvoez/commit/0612ad397a4f11bd476a55a45edb5d534f58155a))
+- **frontend:** direct chat items with fade for smaller screens ([4cd8eab](https://github.com/Quenary/konvoez/commit/4cd8eabbb90fdf5cf9e6ba4439d0be68ec216700))
+- **frontend:** enable dropdown side alignment in text and voice room menus ([894e88f](https://github.com/Quenary/konvoez/commit/894e88f032796e5af802257bf8213dbd7e54af9f))
+- **frontend:** implement voice dynamics worklet for noise suppression and dynamics processing ([34af452](https://github.com/Quenary/konvoez/commit/34af452c16808052284ebaaaa8a9ac561db72bdf))
+- **frontend:** update volume slider step for finer control ([d900198](https://github.com/Quenary/konvoez/commit/d9001985bbc47de058f2276f0edc4f9ac9e7c3b0))
+- **voice:** lobby with reactive state ([0857a2f](https://github.com/Quenary/konvoez/commit/0857a2fd38dcdf13aee215d875b15a31e1f64ad2))
+
 # [1.11.0](https://github.com/Quenary/konvoez/compare/v1.10.0...v1.11.0) (2026-10-06)
 
 ### Features
