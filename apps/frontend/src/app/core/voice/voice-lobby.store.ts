@@ -73,6 +73,17 @@ export const VoiceLobbyStore = signalStore(
       });
     };
 
+    const bufferForResync = (
+      event: LobbyEvent,
+    ): TVoiceLobbyIncrementalResult => {
+      patchState(store, (state) => ({
+        lobbyEpoch: null,
+        lobbyRevision: null,
+        pendingLobbyEvents: [...state.pendingLobbyEvents, event],
+      }));
+      return 'gap';
+    };
+
     const applyIncremental = (
       event: LobbyEvent,
     ): TVoiceLobbyIncrementalResult => {
@@ -86,13 +97,13 @@ export const VoiceLobbyStore = signalStore(
       }
 
       if (event.payload.epoch !== epoch) {
-        return 'gap';
+        return bufferForResync(event);
       }
       if (event.payload.revision <= revision) {
         return 'stale';
       }
       if (event.payload.revision > revision + 1) {
-        return 'gap';
+        return bufferForResync(event);
       }
 
       if (event.kind === 'joined') {
