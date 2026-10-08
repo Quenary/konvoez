@@ -1,9 +1,10 @@
-import { computed, effect, inject, Injectable } from '@angular/core';
+import { computed, effect, inject, Injector, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { selectCurrentUser } from '@features/auth/auth.selectors';
+import { RoomNavigationService } from '@features/rooms/room-navigation.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
@@ -66,6 +67,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly injector = inject(Injector);
 
   private readonly sessionWillChangeSubject = new Subject<{
     previous: TVoiceSessionTarget | null;
@@ -339,6 +341,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
         this.translateService,
         'VOICE.ROOM_CLOSED',
       );
+      this.injector
+        .get(RoomNavigationService)
+        .leaveVoiceRoomPageIfViewing(data.roomId);
       void this.leaveSession();
     });
 

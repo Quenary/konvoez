@@ -21,6 +21,7 @@ import { PeerPlaybackService } from './peer-playback.service';
 import { PeerVideoService } from './peer-video.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
+import { RoomNavigationService } from '@features/rooms/room-navigation.service';
 import { VoiceSessionService } from './voice-session.service';
 
 const bob = {
@@ -97,6 +98,9 @@ describe('VoiceSessionService', () => {
   let audioService: {
     playPeerJoinAudio: ReturnType<typeof vi.fn>;
     playPeerLeaveAudio: ReturnType<typeof vi.fn>;
+  };
+  let roomNavigation: {
+    leaveVoiceRoomPageIfViewing: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -175,10 +179,14 @@ describe('VoiceSessionService', () => {
       playPeerJoinAudio: vi.fn(),
       playPeerLeaveAudio: vi.fn(),
     };
+    roomNavigation = {
+      leaveVoiceRoomPageIfViewing: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       providers: [
         VoiceSessionService,
+        { provide: RoomNavigationService, useValue: roomNavigation },
         { provide: VoiceRoomSocketToken, useValue: socket },
         { provide: VoiceSessionStore, useValue: voiceSessionStore },
         {
@@ -410,6 +418,7 @@ describe('VoiceSessionService', () => {
     });
 
     expect(leaveSpy).toHaveBeenCalled();
+    expect(roomNavigation.leaveVoiceRoomPageIfViewing).toHaveBeenCalledWith(5);
     expect(notifications.open).toHaveBeenCalledWith(
       'VOICE.ROOM_CLOSED',
       expect.objectContaining({ appearance: 'negative' }),

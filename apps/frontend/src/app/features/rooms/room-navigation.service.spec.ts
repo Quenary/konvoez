@@ -12,7 +12,7 @@ describe('RoomNavigationService', () => {
   let roomsStore: {
     setSelectedRoomId: ReturnType<typeof vi.fn>;
   };
-  let router: { navigate: ReturnType<typeof vi.fn> };
+  let router: { navigate: ReturnType<typeof vi.fn>; url: string };
   let voiceSessionService: {
     joinSession: ReturnType<typeof vi.fn>;
     reportJoinFailure: ReturnType<typeof vi.fn>;
@@ -47,6 +47,7 @@ describe('RoomNavigationService', () => {
     };
     router = {
       navigate: vi.fn().mockResolvedValue(true),
+      url: '/',
     };
     voiceSessionService = {
       joinSession: vi.fn().mockResolvedValue(undefined),
@@ -104,6 +105,30 @@ describe('RoomNavigationService', () => {
     expect(router.navigate).toHaveBeenCalledWith([
       `/voice-room/${voiceRoom.id}`,
     ]);
+  });
+
+  it('navigates home when viewing a voice room page that was closed', () => {
+    router.url = `/voice-room/${voiceRoom.id}`;
+
+    service.leaveVoiceRoomPageIfViewing(voiceRoom.id);
+
+    expect(router.navigate).toHaveBeenCalledWith(['/']);
+  });
+
+  it('does not navigate when the closed room is not the current voice page', () => {
+    router.url = `/voice-room/${voiceRoom.id}`;
+
+    service.leaveVoiceRoomPageIfViewing(99);
+
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate away from non-voice routes when a room closes', () => {
+    router.url = '/settings';
+
+    service.leaveVoiceRoomPageIfViewing(voiceRoom.id);
+
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 
   it('navigates home when room is null', () => {

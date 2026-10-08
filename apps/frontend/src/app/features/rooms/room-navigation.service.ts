@@ -15,6 +15,15 @@ export class RoomNavigationService {
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
 
+  /** When the voice room was closed server-side, leave its page if the user is still on it. */
+  public leaveVoiceRoomPageIfViewing(roomId: number): void {
+    const match = this.router.url.match(/^\/voice-room\/(\d+)(?:\?.*)?$/);
+    if (!match || Number(match[1]) !== roomId) {
+      return;
+    }
+    void this.router.navigate(['/']);
+  }
+
   public selectRoom(room: IRoom | null): void {
     this.roomsStore.setSelectedRoomId(room?.id ?? null);
 
