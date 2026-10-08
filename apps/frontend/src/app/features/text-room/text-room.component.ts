@@ -5,6 +5,7 @@ import {
   DestroyRef,
   effect,
   inject,
+  untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -67,8 +68,10 @@ export class TextRoomComponent {
     effect(() => {
       const id = this.roomId();
       if (id !== null) {
-        this.roomsStore.setSelectedRoomId(id);
-        this.roomsStore.loadOne(id);
+        untracked(() => {
+          this.roomsStore.setSelectedRoomId(id);
+          this.roomsStore.loadOne(id);
+        });
       }
     });
 

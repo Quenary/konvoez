@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   linkedSignal,
+  untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -57,23 +58,10 @@ export class DirectComponent {
     return recipientId !== null && callWithUserId === recipientId;
   });
 
-  protected readonly preferChat = linkedSignal<
-    { recipientId: number | null; isActive: boolean },
-    boolean
-  >({
-    source: () => ({
-      recipientId: this.recipientId(),
-      isActive: this.isCurrentDirectCallActive(),
-    }),
-    computation: (source, previous) => {
-      if (
-        !source.isActive ||
-        source.recipientId !== previous?.source.recipientId
-      ) {
-        return false;
-      }
-      return previous?.value ?? false;
-    },
+  protected readonly preferChat = linkedSignal({
+    source: () => this.isCurrentDirectCallActive(),
+    computation: (isActive, previous) =>
+      isActive ? (previous?.value ?? false) : false,
   });
 
   protected readonly user = computed(() => {
@@ -117,7 +105,9 @@ export class DirectComponent {
     effect(() => {
       const id = this.recipientId();
       if (id !== null) {
-        void this.directCallService.refreshActiveCall(id);
+        untracked(() => {
+          void this.directCallService.refreshActiveCall(id);
+        });
       }
     });
   }

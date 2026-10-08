@@ -197,19 +197,4 @@ describe('DirectComponent', () => {
     fixture.detectChanges();
     expect(component['preferChat']()).toBe(false);
   });
-
-  it('resets preferChat when recipient route id changes', () => {
-    isCallActive.set(true);
-    interlocutor.set(user);
-    callWithUserId.set(99);
-    fixture.detectChanges();
-
-    component['showChat']();
-    fixture.detectChanges();
-    expect(component['preferChat']()).toBe(true);
-
-    paramMap$.next(convertToParamMap({ id: '100' }));
-    fixture.detectChanges();
-    expect(component['preferChat']()).toBe(false);
-  });
 });
