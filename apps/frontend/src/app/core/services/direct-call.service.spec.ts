@@ -51,6 +51,7 @@ describe('DirectCallService', () => {
     on: ReturnType<typeof vi.fn>;
     emit: ReturnType<typeof vi.fn>;
     emitWithAck: ReturnType<typeof vi.fn>;
+    timeout: ReturnType<typeof vi.fn>;
     connected: boolean;
   };
   let voiceSessionService: {
@@ -78,8 +79,10 @@ describe('DirectCallService', () => {
       }),
       emit: vi.fn(),
       emitWithAck: vi.fn().mockResolvedValue(null),
+      timeout: vi.fn(),
       connected: false,
     };
+    socket.timeout.mockReturnValue(socket);
 
     voiceSessionService = {
       joinSession: vi.fn().mockResolvedValue(undefined),

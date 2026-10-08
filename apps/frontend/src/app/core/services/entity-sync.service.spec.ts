@@ -55,9 +55,10 @@ describe('EntitySyncService', () => {
     reset: ReturnType<typeof vi.fn>;
   };
   let voiceRoomEmitter: EventEmitter;
+  let voiceRoomAck: { emitWithAck: ReturnType<typeof vi.fn> };
   let voiceRoomSocket: EventEmitter & {
     connected: boolean;
-    emitWithAck: ReturnType<typeof vi.fn>;
+    timeout: ReturnType<typeof vi.fn>;
   };
 
   const me: IUser = {
@@ -129,16 +130,20 @@ describe('EntitySyncService', () => {
     };
 
     voiceRoomEmitter = new EventEmitter();
-    voiceRoomSocket = Object.assign(voiceRoomEmitter, {
-      connected: true,
+    voiceRoomAck = {
       emitWithAck: vi.fn().mockResolvedValue({
         epoch: 'epoch-1',
         revision: 0,
         rooms: {},
       }),
+    };
+    const timeout = vi.fn().mockReturnValue(voiceRoomAck);
+    voiceRoomSocket = Object.assign(voiceRoomEmitter, {
+      connected: true,
+      timeout,
     }) as EventEmitter & {
       connected: boolean;
-      emitWithAck: ReturnType<typeof vi.fn>;
+      timeout: ReturnType<typeof vi.fn>;
     };
 
     TestBed.configureTestingModule({
@@ -166,6 +171,7 @@ describe('EntitySyncService', () => {
 
   afterEach(() => {
     store.resetSelectors();
+    TestBed.resetTestingModule();
   });
 
   const createService = (): EntitySyncService =>
@@ -272,8 +278,9 @@ describe('EntitySyncService', () => {
 
     const expectSnapshotRequested = async (): Promise<void> => {
       await vi.waitFor(() => {
-        expect(voiceRoomSocket.emitWithAck).toHaveBeenCalledWith(
+        expect(voiceRoomAck.emitWithAck).toHaveBeenCalledWith(
           EVoiceRoomEvent.GET_ALL_PEERS,
+          undefined,
         );
         expect(voiceLobbyStore.setRoomsSnapshot).toHaveBeenCalledWith(snapshot);
       });
@@ -317,7 +324,7 @@ describe('EntitySyncService', () => {
       emitter.emit('connect');
       await Promise.resolve();
 
-      expect(voiceRoomSocket.emitWithAck).not.toHaveBeenCalled();
+      expect(voiceRoomAck.emitWithAck).not.toHaveBeenCalled();
     });
 
     it('loads the snapshot when the voice socket connects', async () => {
@@ -326,6 +333,22 @@ describe('EntitySyncService', () => {
 
       voiceRoomSocket.connected = true;
       voiceRoomEmitter.emit('connect');
+
+      await expectSnapshotRequested();
+    });
+
+    it('resyncs when a lobby event is buffered before the first snapshot', async () => {
+      voiceRoomSocket.connected = false;
+      voiceLobbyStore.applyVoicePeerJoined.mockReturnValue('buffered');
+      createService();
+      voiceRoomSocket.connected = true;
+
+      emitter.emit(EEntitySyncEvent.VOICE_ROOM_PEER_JOINED, {
+        roomId: 5,
+        user: otherUser,
+        epoch: 'epoch-1',
+        revision: 1,
+      });
 
       await expectSnapshotRequested();
     });
@@ -375,7 +398,7 @@ describe('EntitySyncService', () => {
       voiceRoomSocket.connected = true;
 
       const resolvers: Array<(value: typeof snapshot) => void> = [];
-      voiceRoomSocket.emitWithAck.mockImplementation(
+      voiceRoomAck.emitWithAck.mockImplementation(
         () =>
           new Promise<typeof snapshot>((resolve) => {
             resolvers.push(resolve);
@@ -395,7 +418,7 @@ describe('EntitySyncService', () => {
 
       emitGap(5);
       emitGap(6);
-      expect(voiceRoomSocket.emitWithAck).toHaveBeenCalledTimes(1);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(1);
 
       resolvers[0](snapshot);
       await vi.waitFor(() => expect(resolvers).toHaveLength(2));
@@ -403,7 +426,7 @@ describe('EntitySyncService', () => {
       await vi.waitFor(() =>
         expect(voiceLobbyStore.setRoomsSnapshot).toHaveBeenCalledTimes(2),
       );
-      expect(voiceRoomSocket.emitWithAck).toHaveBeenCalledTimes(2);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(2);
     });
 
     it('stops re-requesting after a bounded number of outdated snapshots', async () => {
@@ -415,7 +438,7 @@ describe('EntitySyncService', () => {
       createService();
 
       await vi.waitFor(() => expect(warn).toHaveBeenCalled());
-      expect(voiceRoomSocket.emitWithAck).toHaveBeenCalledTimes(3);
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(3);
       warn.mockRestore();
     });
 
@@ -427,7 +450,7 @@ describe('EntitySyncService', () => {
       voiceRoomSocket.connected = false;
       createService();
       voiceRoomSocket.connected = true;
-      voiceRoomSocket.emitWithAck.mockClear();
+      voiceRoomAck.emitWithAck.mockClear();
       voiceLobbyStore.setRoomsSnapshot.mockClear();
 
       document.dispatchEvent(new Event('visibilitychange'));
@@ -439,7 +462,7 @@ describe('EntitySyncService', () => {
       voiceRoomSocket.connected = false;
       createService();
       voiceRoomSocket.connected = true;
-      voiceRoomSocket.emitWithAck.mockClear();
+      voiceRoomAck.emitWithAck.mockClear();
       voiceLobbyStore.setRoomsSnapshot.mockClear();
 
       window.dispatchEvent(new Event('online'));
@@ -456,18 +479,19 @@ describe('EntitySyncService', () => {
       voiceRoomSocket.connected = true;
       createService();
       await Promise.resolve();
-      voiceRoomSocket.emitWithAck.mockClear();
+      voiceRoomAck.emitWithAck.mockClear();
 
       await vi.advanceTimersByTimeAsync(60_000);
 
-      expect(voiceRoomSocket.emitWithAck).toHaveBeenCalledWith(
+      expect(voiceRoomAck.emitWithAck).toHaveBeenCalledWith(
         EVoiceRoomEvent.GET_ALL_PEERS,
+        undefined,
       );
       vi.useRealTimers();
     });
 
     it('keeps the lobby untouched when the snapshot request fails', async () => {
-      voiceRoomSocket.emitWithAck.mockRejectedValue(new Error('timeout'));
+      voiceRoomAck.emitWithAck.mockRejectedValue(new Error('timeout'));
       const error = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
@@ -477,6 +501,44 @@ describe('EntitySyncService', () => {
       await vi.waitFor(() => expect(error).toHaveBeenCalled());
       expect(voiceLobbyStore.setRoomsSnapshot).not.toHaveBeenCalled();
       error.mockRestore();
+      voiceRoomAck.emitWithAck.mockReset();
+      voiceRoomAck.emitWithAck.mockResolvedValue({
+        epoch: 'epoch-1',
+        revision: 0,
+        rooms: {},
+      });
+    });
+
+    it('retries after a failed snapshot request and then applies the snapshot', async () => {
+      voiceRoomSocket.connected = false;
+      voiceLobbyStore.applyVoicePeerJoined.mockReturnValue('gap');
+      voiceRoomAck.emitWithAck.mockReset();
+      voiceRoomAck.emitWithAck
+        .mockRejectedValueOnce(new Error('timeout'))
+        .mockResolvedValue({
+          epoch: 'epoch-1',
+          revision: 0,
+          rooms: {},
+        });
+      createService();
+      voiceRoomSocket.connected = true;
+
+      emitter.emit(EEntitySyncEvent.VOICE_ROOM_PEER_JOINED, {
+        roomId: 5,
+        user: otherUser,
+        epoch: 'epoch-1',
+        revision: 4,
+      });
+
+      await vi.waitFor(
+        () => expect(voiceRoomAck.emitWithAck).toHaveBeenCalledTimes(2),
+        { timeout: 3000 },
+      );
+      expect(voiceLobbyStore.setRoomsSnapshot).toHaveBeenCalledWith({
+        epoch: 'epoch-1',
+        revision: 0,
+        rooms: {},
+      });
     });
   });
 });

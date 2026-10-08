@@ -16,19 +16,24 @@ describe('MediasoupSessionService', () => {
   let releaseCamera: ReturnType<typeof vi.fn>;
   let setLocalCamTrack: ReturnType<typeof vi.fn>;
   let deviceLost$: Subject<void>;
+  let emitWithAck: ReturnType<typeof vi.fn>;
+  let releaseScreen: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     getStream = vi.fn();
     releaseCamera = vi.fn();
     setLocalCamTrack = vi.fn();
     deviceLost$ = new Subject<void>();
+    emitWithAck = vi.fn().mockResolvedValue({});
+    releaseScreen = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         MediasoupSessionService,
         {
           provide: VoiceRoomSocketToken,
           useValue: {
-            emitWithAck: vi.fn(),
+            emitWithAck,
+            timeout: vi.fn().mockReturnValue({ emitWithAck }),
           },
         },
         {
@@ -69,7 +74,7 @@ describe('MediasoupSessionService', () => {
           provide: ScreenCaptureService,
           useValue: {
             getTracks: vi.fn(),
-            release: vi.fn(),
+            release: releaseScreen,
           },
         },
         {
@@ -404,5 +409,27 @@ describe('MediasoupSessionService', () => {
     await expect(
       service.consumeProducer(data, resolvePeer),
     ).resolves.toBeUndefined();
+  });
+
+  it('finishes stop screen when the server already closed screen-audio', async () => {
+    const videoClose = vi.fn();
+    const audioClose = vi.fn();
+    service['screenVideoProducer'] = {
+      id: 'screen-1',
+      closed: false,
+      close: videoClose,
+    } as never;
+    service['screenAudioProducer'] = {
+      id: 'screen-audio-1',
+      closed: false,
+      close: audioClose,
+    } as never;
+
+    await service.stopScreen();
+
+    expect(emitWithAck).toHaveBeenCalledTimes(2);
+    expect(videoClose).toHaveBeenCalled();
+    expect(audioClose).toHaveBeenCalled();
+    expect(releaseScreen).toHaveBeenCalled();
   });
 });

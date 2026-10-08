@@ -16,6 +16,7 @@ import {
 } from '@konvoez/shared';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
+import { emitVoiceRoomWithAck } from './voice-room-socket-ack';
 import { AudioService } from './audio.service';
 import { VoiceSessionService } from './voice-session.service';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -209,7 +210,7 @@ export class DirectCallService {
     this.audioService.stopIncomingRingtone();
 
     try {
-      await this.socket.emitWithAck(EDirectCallEvent.CALL_ACCEPT, {
+      await emitVoiceRoomWithAck(this.socket, EDirectCallEvent.CALL_ACCEPT, {
         callId: current.callId,
         callerId: current.interlocutor.id,
       });

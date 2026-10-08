@@ -27,6 +27,7 @@ import {
 } from '@features/auth/auth.selectors';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
+import { emitVoiceRoomWithAck } from '@core/services/voice-room-socket-ack';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import {
@@ -265,7 +266,8 @@ export class EntitySyncService {
 
       let snapshot: IVoiceRoomGetAllPeersSnapshot;
       try {
-        snapshot = await this.voiceRoomSocket.emitWithAck(
+        snapshot = await emitVoiceRoomWithAck(
+          this.voiceRoomSocket,
           EVoiceRoomEvent.GET_ALL_PEERS,
         );
       } catch (error) {
