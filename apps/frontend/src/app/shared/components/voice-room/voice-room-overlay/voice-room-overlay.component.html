@@ -7,18 +7,18 @@
       tuiAvatar
       size="s"
       class="header-avatar">
-      @if (displayAvatarUrl()) {
+      @if (avatarUrl(); as url) {
         <img
-          [alt]="displayTitle()"
-          [ngSrc]="displayAvatarUrl()!"
+          [alt]="title()"
+          [ngSrc]="url"
           fill
           priority />
       } @else {
-        {{ displayTitle() | tuiInitials }}
+        {{ title() | tuiInitials }}
       }
     </div>
 
-    {{ displayTitle() }}
+    {{ title() }}
     <span tuiSubtitle>
       {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
     </span>

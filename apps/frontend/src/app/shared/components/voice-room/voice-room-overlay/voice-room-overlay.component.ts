@@ -91,10 +91,6 @@ export class VoiceRoomOverlayComponent {
     this.layout() === 'theatre' ? 'CALL.SHOW_GRID' : 'CALL.SHOW_THEATRE',
   );
 
-  protected readonly displayTitle = computed(() => this.title());
-
-  protected readonly displayAvatarUrl = computed(() => this.avatarUrl() ?? '');
-
   protected onToggleFullscreen(): void {
     void this.voiceRoomViewService.toggleFullscreen(this.fullscreenTarget());
   }

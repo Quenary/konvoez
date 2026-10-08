@@ -274,4 +274,31 @@ describe('VoiceRoomOverlayComponent', () => {
       fixture.nativeElement.querySelector('.controls-dock.vignette'),
     ).toBeTruthy();
   });
+
+  it('renders title and initials when avatarUrl is null', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.componentRef.setInput('title', 'Lobby');
+    fixture.componentRef.setInput('avatarUrl', null);
+    fixture.detectChanges();
+
+    const titleEl = fixture.nativeElement.querySelector('h2[tuiTitle]');
+    expect(titleEl?.textContent).toContain('Lobby');
+    expect(
+      fixture.nativeElement.querySelector('.header-avatar img'),
+    ).toBeNull();
+  });
+
+  it('renders avatar image with alt title when avatarUrl is provided', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.componentRef.setInput('title', 'Alice');
+    fixture.componentRef.setInput('avatarUrl', 'https://example.com/alice.png');
+    fixture.detectChanges();
+
+    const img = fixture.nativeElement.querySelector(
+      '.header-avatar img',
+    ) as HTMLImageElement | null;
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute('alt')).toBe('Alice');
+    expect(img?.getAttribute('src')).toBe('https://example.com/alice.png');
+  });
 });
