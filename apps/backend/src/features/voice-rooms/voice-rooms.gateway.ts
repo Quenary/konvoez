@@ -6,6 +6,7 @@ import {
   ConnectedSocket,
   OnGatewayDisconnect,
   OnGatewayConnection,
+  WsException,
 } from '@nestjs/websockets';
 import { Logger, UseFilters } from '@nestjs/common';
 import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
@@ -121,6 +122,11 @@ export class VoiceRoomsGateway
       const socket = this.server.sockets.sockets.get(socketId) as
         TSocket | undefined;
       if (socket) {
+        socket.emit(EVoiceRoomEvent.ROOM_CLOSED, {
+          roomId: id,
+          sessionKey,
+          reason: 'deleted',
+        });
         this.handleLeaveRoom(socket);
       }
     }
@@ -193,7 +199,7 @@ export class VoiceRoomsGateway
           this.logger.warn(
             `Direct call is not available to join: socketId=${socket.id}, callId=${body.sessionTarget.callId}, userId=${socket.data.user.id}`,
           );
-          throw new Error('Direct call is not available to join');
+          throw new WsException('Direct call is not available to join');
         }
       }
     } else if (body.sessionKey) {
@@ -208,7 +214,7 @@ export class VoiceRoomsGateway
             .slice(0, 64)
             .replace(/[\r\n]/g, ' ')}`,
         );
-        throw new Error('Invalid session key');
+        throw new WsException('Invalid session key');
       }
       identity = parsed;
       if (parsed.type === EVoiceSessionType.GROUP_ROOM) {
@@ -221,7 +227,7 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `No room or session provided to join: socketId=${socket.id}, userId=${socket.data.user?.id}`,
       );
-      throw new Error('No room or session provided to join');
+      throw new WsException('No room or session provided to join');
     }
 
     const sessionKey = getVoiceSessionKey(identity);
@@ -457,7 +463,7 @@ export class VoiceRoomsGateway
         (p) => !p.closed && p.kind === 'video',
       ).length;
       if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-        throw new Error('Room video producer limit reached');
+        throw new WsException('Room video producer limit reached');
       }
     }
 
