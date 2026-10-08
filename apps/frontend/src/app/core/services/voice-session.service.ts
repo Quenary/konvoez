@@ -142,11 +142,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   }
 
   public reportJoinFailure(error: unknown): void {
-    console.error('Failed to join voice session', error);
     notifyError(
       this.tuiNotificationsService,
       this.translateService,
       'VOICE.JOIN_FAILED',
+      error,
     );
   }
 

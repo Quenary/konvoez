@@ -142,6 +142,9 @@ describe('VoiceRoomControlsBarComponent', () => {
   });
 
   it('notifies when starting the camera fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* noop */
+    });
     openDialog.mockReturnValue(of({ height: 720, fps: 30 }));
     produceCamera.mockRejectedValue(new Error('no camera'));
     const fixture = create();
@@ -153,6 +156,7 @@ describe('VoiceRoomControlsBarComponent', () => {
       'CALL.CAMERA_FAILED',
       expect.objectContaining({ appearance: 'negative' }),
     );
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
   });
 
   it('treats a dismissed start dialog as a no-op', async () => {

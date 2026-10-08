@@ -110,7 +110,6 @@ export class VoiceRoomControlsBarComponent {
     try {
       await start.produce();
     } catch (error) {
-      console.error(start.failedLog, error);
       notifyError(
         this.tuiNotificationsService,
         this.translateService,
@@ -126,7 +125,6 @@ export class VoiceRoomControlsBarComponent {
       {
         labelKey: string;
         failedKey: string;
-        failedLog: string;
         active: () => boolean;
         settings: () => {
           height: TStreamQualityDialogResult['height'];
@@ -140,7 +138,6 @@ export class VoiceRoomControlsBarComponent {
       cam: {
         labelKey: 'CALL.CAMERA',
         failedKey: 'CALL.CAMERA_FAILED',
-        failedLog: 'Failed to start camera',
         active: () => this.cameraOn(),
         settings: () => ({
           height: this.settingsStore.streamHeight(),
@@ -156,7 +153,6 @@ export class VoiceRoomControlsBarComponent {
       screen: {
         labelKey: 'CALL.SCREEN',
         failedKey: 'CALL.SCREEN_FAILED',
-        failedLog: 'Failed to start screen share',
         active: () => this.screenOn(),
         settings: () => ({
           height: this.settingsStore.screenHeight(),

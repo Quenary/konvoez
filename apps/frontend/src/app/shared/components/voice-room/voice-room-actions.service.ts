@@ -25,7 +25,6 @@ export class VoiceRoomActionsService {
     try {
       await this.voiceSessionService.watchPeerScreen(userId);
     } catch (error) {
-      console.error('Failed to watch screen', error);
       notifyError(
         this.tuiNotificationsService,
         this.translateService,
