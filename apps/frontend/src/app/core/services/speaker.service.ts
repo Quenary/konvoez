@@ -46,6 +46,8 @@ export class SpeakerService implements OnDestroy {
   private busNode: GainNode | null = null;
   private limiterNode: AudioWorkletNode | null = null;
   private limiterLoad: Promise<void> | null = null;
+  private limiterWaitDone = false;
+  private limiterFailed = false;
 
   private readonly onDeviceChange = async () => {
     await this.ensureContext();
@@ -81,14 +83,19 @@ export class SpeakerService implements OnDestroy {
       bus.connect(context.destination);
       this.busNode = bus;
     }
-    if (!this.limiterNode) {
-      try {
-        await withTimeout(
-          this.startLimiterLoad(context),
-          SPEAKER_WORKLET_LOAD_TIMEOUT_MS,
-        );
-      } catch (error) {
-        console.warn('Playback limiter load timed out', error);
+    if (!this.limiterNode && !this.limiterFailed) {
+      if (!this.limiterWaitDone) {
+        this.limiterWaitDone = true;
+        try {
+          await withTimeout(
+            this.startLimiterLoad(context),
+            SPEAKER_WORKLET_LOAD_TIMEOUT_MS,
+          );
+        } catch (error) {
+          console.warn('Playback limiter load timed out', error);
+        }
+      } else {
+        void this.startLimiterLoad(context);
       }
     }
     return this.busNode;
@@ -140,10 +147,14 @@ export class SpeakerService implements OnDestroy {
   }
 
   private startLimiterLoad(context: AudioContext): Promise<void> {
+    if (this.limiterFailed) {
+      return Promise.resolve();
+    }
     if (this.limiterLoad) {
       return this.limiterLoad;
     }
     const loading = this.attachLimiter(context).catch((error: unknown) => {
+      this.limiterFailed = true;
       console.warn('Playback limiter unavailable', error);
     });
     this.limiterLoad = loading;
@@ -180,6 +191,8 @@ export class SpeakerService implements OnDestroy {
     this.limiterLoad = null;
     this.limiterNode = null;
     this.busNode = null;
+    this.limiterWaitDone = false;
+    this.limiterFailed = false;
     try {
       if (limiter) {
         disposeVoiceDynamicsNode(limiter);

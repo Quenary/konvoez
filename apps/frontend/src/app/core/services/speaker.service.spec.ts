@@ -61,7 +61,7 @@ describe('SpeakerService', () => {
     expect(audio.limiters[0].connect).toHaveBeenCalledWith(audio.destination);
   });
 
-  it('plays without a limiter when the worklet fails, then retries', async () => {
+  it('plays without a limiter when the worklet fails and does not retry', async () => {
     const addModule = vi
       .fn()
       .mockRejectedValueOnce(new Error('load failed'))
@@ -75,12 +75,11 @@ describe('SpeakerService', () => {
 
     const second = await service.getOutput();
     expect(second).toBe(first);
-    expect(audio.limiters).toHaveLength(1);
-    expect(audio.bus.connect).toHaveBeenLastCalledWith(audio.limiters[0]);
-    expect(addModule).toHaveBeenCalledTimes(2);
+    expect(audio.limiters).toHaveLength(0);
+    expect(addModule).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the bus when the worklet load hangs', async () => {
+  it('returns the bus when the worklet load hangs and subsequent calls resolve without waiting', async () => {
     vi.useFakeTimers();
     const audio = stubSpeaker(vi.fn(() => new Promise<void>(() => undefined)));
 
@@ -91,6 +90,12 @@ describe('SpeakerService', () => {
     expect(output).toBe(audio.bus);
     expect(audio.limiters).toHaveLength(0);
     expect(audio.bus.connect).toHaveBeenCalledWith(audio.destination);
+
+    const second = await service.getOutput();
+    const third = await service.getOutput();
+    expect(second).toBe(audio.bus);
+    expect(third).toBe(audio.bus);
+    expect(audio.limiters).toHaveLength(0);
   });
 });
 
@@ -111,6 +116,7 @@ function stubSpeaker(addModule: ReturnType<typeof vi.fn>) {
     destination = destination;
     audioWorklet = { addModule };
     resume = vi.fn();
+    close = vi.fn();
     createGain() {
       return bus;
     }
