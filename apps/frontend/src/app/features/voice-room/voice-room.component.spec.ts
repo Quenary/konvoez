@@ -31,6 +31,7 @@ describe('VoiceRoomComponent', () => {
   let navigate: ReturnType<typeof vi.fn>;
   let joiningTarget: ReturnType<typeof signal<unknown>>;
   let roomClosed$: Subject<{ roomId: number }>;
+  let roomsDict: ReturnType<typeof signal<Record<number, IRoom>>>;
 
   beforeEach(() => {
     paramMap = new BehaviorSubject(convertToParamMap({ id: '4' }));
@@ -40,6 +41,9 @@ describe('VoiceRoomComponent', () => {
     navigate = vi.fn().mockResolvedValue(true);
     joiningTarget = signal(null);
     roomClosed$ = new Subject();
+    roomsDict = signal<Record<number, IRoom>>({
+      4: { id: 4, name: 'VIP', avatarUrl: '' } as IRoom,
+    });
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomComponent],
@@ -55,9 +59,7 @@ describe('VoiceRoomComponent', () => {
         {
           provide: RoomsStore,
           useValue: {
-            roomsDict: signal<Record<number, IRoom>>({
-              4: { id: 4, name: 'VIP', avatarUrl: '' } as IRoom,
-            }),
+            roomsDict,
           },
         },
         {
@@ -154,6 +156,24 @@ describe('VoiceRoomComponent', () => {
     create();
     navigate.mockClear();
     roomClosed$.next({ roomId: 99 });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates home when the currently viewed room is removed from RoomsStore', () => {
+    const fixture = create();
+    navigate.mockClear();
+
+    roomsDict.set({});
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    expect(navigate).toHaveBeenCalledWith(['/']);
+  });
+
+  it('does not navigate home when room starts as null and is still loading', () => {
+    roomsDict.set({});
+    create();
+
     expect(navigate).not.toHaveBeenCalled();
   });
 

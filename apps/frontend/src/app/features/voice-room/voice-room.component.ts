@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -49,6 +50,7 @@ export class VoiceRoomComponent {
    * while staying on the page does not immediately re-join.
    */
   private readonly joinedForRoomId = signal<number | null>(null);
+  private lastNonNullRoomId: number | null = null;
 
   protected readonly room = computed((): IRoom | null => {
     const id = this.roomId();
@@ -70,6 +72,26 @@ export class VoiceRoomComponent {
   );
 
   constructor() {
+    effect(() => {
+      const room = this.room();
+      const routeId = this.roomId();
+
+      if (room !== null) {
+        this.lastNonNullRoomId = room.id;
+        return;
+      }
+
+      if (
+        this.lastNonNullRoomId !== null &&
+        this.lastNonNullRoomId === routeId
+      ) {
+        this.lastNonNullRoomId = null;
+        untracked(() => {
+          void this.router.navigate(['/']);
+        });
+      }
+    });
+
     effect(() => {
       const id = this.roomId();
       const alreadyJoinedFor = this.joinedForRoomId();

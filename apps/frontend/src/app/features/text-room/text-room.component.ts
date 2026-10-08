@@ -7,7 +7,7 @@ import {
   untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomContextMenuComponent } from '../rooms/room-context-menu/room-context-menu.component';
@@ -33,8 +33,11 @@ import { TranslatePipe } from '@ngx-translate/core';
 })
 export class TextRoomComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly roomsStore = inject(RoomsStore);
   private readonly roomManageService = inject(RoomManageService);
+
+  private lastNonNullRoomId: number | null = null;
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
 
@@ -63,6 +66,26 @@ export class TextRoomComponent {
   private readonly roomsDict = this.roomsStore.roomsDict;
 
   constructor() {
+    effect(() => {
+      const room = this.room();
+      const routeId = this.roomId();
+
+      if (room !== null) {
+        this.lastNonNullRoomId = room.id;
+        return;
+      }
+
+      if (
+        this.lastNonNullRoomId !== null &&
+        this.lastNonNullRoomId === routeId
+      ) {
+        this.lastNonNullRoomId = null;
+        untracked(() => {
+          void this.router.navigate(['/']);
+        });
+      }
+    });
+
     effect(() => {
       const id = this.roomId();
       if (id !== null) {
