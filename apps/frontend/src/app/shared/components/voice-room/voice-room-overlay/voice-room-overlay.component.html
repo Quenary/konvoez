@@ -65,6 +65,9 @@
 <footer
   class="controls-dock"
   [class.vignette]="isFullscreen()">
+  @if (showLocalScreenPreviewPauseControl()) {
+    <app-voice-room-local-screen-preview-pause-button />
+  }
   @if (showRemoteScreenWatchControls()) {
     <app-voice-room-theatre-watch-controls [userId]="watchUserId()" />
   }

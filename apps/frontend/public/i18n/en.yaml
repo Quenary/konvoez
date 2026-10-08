@@ -106,6 +106,7 @@ CALL:
   SCREEN_VOLUME: Screen volume
   YOUR_SCREEN: Your screen
   PREVIEW_PAUSED: Preview paused to save resources
+  PREVIEW_PAUSE: Pause
   PREVIEW_RESUME: Resume
   PREVIEW_AUTO_PAUSE: Auto-pause
   SHOW_THEATRE: Theatre mode

@@ -106,6 +106,7 @@ CALL:
   SCREEN_VOLUME: Громкость экрана
   YOUR_SCREEN: Ваш экран
   PREVIEW_PAUSED: Превью на паузе для экономии ресурсов
+  PREVIEW_PAUSE: Приостановить
   PREVIEW_RESUME: Возобновить
   PREVIEW_AUTO_PAUSE: Автоматическая пауза
   SHOW_THEATRE: Режим театра

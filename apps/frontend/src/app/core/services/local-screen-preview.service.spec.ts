@@ -101,6 +101,13 @@ describe('LocalScreenPreviewService', () => {
     expect(preview.paused()).toBe(false);
   });
 
+  it('pauses immediately when the user requests it', () => {
+    const preview = service();
+    expect(preview.paused()).toBe(false);
+    preview.pause();
+    expect(preview.paused()).toBe(true);
+  });
+
   it('clears a pause when sharing stops and when the user resumes', () => {
     const preview = service();
     visibilityState = 'hidden';

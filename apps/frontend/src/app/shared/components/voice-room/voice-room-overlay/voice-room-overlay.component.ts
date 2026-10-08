@@ -20,7 +20,11 @@ import { VoiceRoomTheatreWatchControlsComponent } from '../voice-room-theatre-wa
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
-import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
+import {
+  showsLocalScreenPreviewPauseControl,
+  showsRemoteScreenWatchControls,
+} from '../voice-room-tiles';
+import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
 @Component({
   selector: 'app-voice-room-overlay',
@@ -40,6 +44,7 @@ import { showsRemoteScreenWatchControls } from '../voice-room-tiles';
     TuiTitle,
     VoiceRoomControlsBarComponent,
     VoiceRoomTheatreWatchControlsComponent,
+    VoiceRoomLocalScreenPreviewPauseButtonComponent,
   ],
   templateUrl: './voice-room-overlay.component.html',
   styleUrl: './voice-room-overlay.component.scss',
@@ -65,6 +70,13 @@ export class VoiceRoomOverlayComponent {
   protected readonly layout = this.voiceRoomViewService.layout;
   protected readonly showRemoteScreenWatchControls = computed(() =>
     showsRemoteScreenWatchControls(
+      this.voiceRoomTilesService.theatreTile(),
+      this.currentUser()?.id ?? null,
+    ),
+  );
+
+  protected readonly showLocalScreenPreviewPauseControl = computed(() =>
+    showsLocalScreenPreviewPauseControl(
       this.voiceRoomTilesService.theatreTile(),
       this.currentUser()?.id ?? null,
     ),

@@ -30,6 +30,7 @@ import { distinctFullname } from '../voice-peer-label';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
+import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
 @Component({
   selector: 'app-voice-room-tile',
@@ -47,6 +48,7 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
     TranslatePipe,
     TuiGroup,
     VideoTrackDirective,
+    VoiceRoomLocalScreenPreviewPauseButtonComponent,
   ],
   templateUrl: './voice-room-tile.component.html',
   styleUrl: './voice-room-tile.component.scss',
@@ -169,6 +171,17 @@ export class VoiceRoomTileComponent {
 
   protected readonly videoClickable = computed(
     () => this.videoTrack() !== null && !this.previewPaused(),
+  );
+
+  protected readonly showPausePreviewButton = computed(
+    () =>
+      this.isLocalScreenPreview() &&
+      this.videoTrack() !== null &&
+      !this.previewPaused(),
+  );
+
+  protected readonly showInfoActions = computed(
+    () => this.showPausePreviewButton() || !this.isLocal(),
   );
 
   protected onVolumeChange(value: number): void {

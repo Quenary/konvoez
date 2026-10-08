@@ -100,6 +100,7 @@ describe('VoiceRoomTileComponent', () => {
           provide: LocalScreenPreviewService,
           useValue: {
             resume: vi.fn(),
+            pause: vi.fn(),
             setAutoPauseWhenHidden: vi.fn(),
             autoPauseWhenHidden: autoPauseWhenHidden.asReadonly(),
           },
@@ -153,6 +154,23 @@ describe('VoiceRoomTileComponent', () => {
     ) as HTMLElement | null;
     expect(overlay).not.toBeNull();
     expect(overlay?.querySelector('button + .auto-pause-row')).not.toBeNull();
+  });
+
+  it('shows a pause control on the local screen tile while preview is playing', () => {
+    const fixture = create('screen', false);
+    expect(
+      fixture.nativeElement.querySelector(
+        'app-voice-room-local-screen-preview-pause-button',
+      ),
+    ).not.toBeNull();
+
+    fixture.componentRef.setInput('previewPaused', true);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector(
+        'app-voice-room-local-screen-preview-pause-button',
+      ),
+    ).toBeNull();
   });
 
   it('resumes preview when the user clicks resume', () => {

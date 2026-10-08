@@ -5,6 +5,7 @@ import {
   findVoiceRoomTile,
   pickDefaultTheatreTile,
   resolveTheatreTile,
+  showsLocalScreenPreviewPauseControl,
   showsRemoteScreenWatchControls,
   type TVoiceRoomTile,
 } from './voice-room-tiles';
@@ -342,5 +343,41 @@ describe('showsRemoteScreenWatchControls', () => {
     );
     expect(showsRemoteScreenWatchControls(tile(2, 'cam', true), 1)).toBe(false);
     expect(showsRemoteScreenWatchControls(null, 1)).toBe(false);
+  });
+});
+
+describe('showsLocalScreenPreviewPauseControl', () => {
+  const tile = (
+    peerId: number,
+    streamKind: 'cam' | 'screen' | null,
+    videoTrack: MediaStreamTrack | null,
+    previewPaused: boolean,
+  ): TVoiceRoomTile =>
+    ({
+      key: `${peerId}:${streamKind ?? 'voice'}`,
+      peerId,
+      streamKind,
+      videoTrack,
+      previewPaused,
+    }) as TVoiceRoomTile;
+
+  it('is true only for an active local screen preview', () => {
+    const scr = track('scr');
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'screen', scr, false), 1),
+    ).toBe(true);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'screen', scr, true), 1),
+    ).toBe(false);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'screen', null, false), 1),
+    ).toBe(false);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(2, 'screen', scr, false), 1),
+    ).toBe(false);
+    expect(
+      showsLocalScreenPreviewPauseControl(tile(1, 'cam', scr, false), 1),
+    ).toBe(false);
+    expect(showsLocalScreenPreviewPauseControl(null, 1)).toBe(false);
   });
 });

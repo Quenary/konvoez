@@ -90,6 +90,10 @@ export class LocalScreenPreviewService {
     this.resume$.next();
   }
 
+  public pause(): void {
+    this._paused.set(true);
+  }
+
   public setAutoPauseWhenHidden(enabled: boolean): void {
     this.settingsStore.setScreenPreviewAutoPauseWhenHidden(enabled);
   }

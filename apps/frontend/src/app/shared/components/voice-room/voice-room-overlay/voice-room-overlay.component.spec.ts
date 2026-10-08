@@ -17,20 +17,23 @@ import { VoiceRoomOverlayComponent } from './voice-room-overlay.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
+import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 
 const stageTile = (
   peerId: number,
   streamKind: 'cam' | 'screen' | null,
   watchingScreen: boolean,
+  videoTrack: MediaStreamTrack | null = null,
+  previewPaused = false,
 ): TVoiceRoomTile => ({
   key: `${peerId}:${streamKind ?? 'voice'}`,
   peer: { id: peerId, username: `u${peerId}` } as IUser,
   peerId,
   streamKind,
-  videoTrack: null,
+  videoTrack,
   screenAvailable: streamKind === 'screen',
   watchingScreen,
-  previewPaused: false,
+  previewPaused,
 });
 
 describe('VoiceRoomOverlayComponent', () => {
@@ -141,6 +144,16 @@ describe('VoiceRoomOverlayComponent', () => {
           provide: TuiNotificationService,
           useValue: { open: vi.fn(() => of(null)) },
         },
+        {
+          provide: LocalScreenPreviewService,
+          useValue: {
+            pause: vi.fn(),
+            resume: vi.fn(),
+            paused: signal(false).asReadonly(),
+            autoPauseWhenHidden: signal(true).asReadonly(),
+            setAutoPauseWhenHidden: vi.fn(),
+          },
+        },
       ],
     });
   });
@@ -202,6 +215,27 @@ describe('VoiceRoomOverlayComponent', () => {
         'app-voice-room-theatre-watch-controls',
       ),
     ).toBeTruthy();
+  });
+
+  it('shows local screen preview pause control on the local screen stage tile', () => {
+    layout.set('theatre');
+    theatreTile.set(
+      stageTile(1, 'screen', false, { id: 'scr' } as MediaStreamTrack),
+    );
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.detectChanges();
+
+    const pauseControl = () =>
+      fixture.nativeElement.querySelector(
+        'app-voice-room-local-screen-preview-pause-button',
+      );
+    expect(pauseControl()).toBeTruthy();
+
+    theatreTile.set(
+      stageTile(1, 'screen', false, { id: 'scr' } as MediaStreamTrack, true),
+    );
+    fixture.detectChanges();
+    expect(pauseControl()).toBeNull();
   });
 
   it('hides watch controls when the stage tile is not a watched remote screen', () => {

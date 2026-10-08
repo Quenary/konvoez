@@ -212,3 +212,17 @@ export function showsRemoteScreenWatchControls(
   }
   return tile.watchingScreen;
 }
+
+/** Whether the local screen preview can be paused manually. */
+export function showsLocalScreenPreviewPauseControl(
+  tile: TVoiceRoomTile | null,
+  localUserId: number | null,
+): boolean {
+  if (tile == null || tile.streamKind !== 'screen' || localUserId == null) {
+    return false;
+  }
+  if (tile.peerId !== localUserId) {
+    return false;
+  }
+  return tile.videoTrack != null && !tile.previewPaused;
+}
