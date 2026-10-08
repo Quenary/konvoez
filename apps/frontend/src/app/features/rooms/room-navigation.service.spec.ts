@@ -8,7 +8,7 @@ import { RoomNavigationService } from './room-navigation.service';
 
 describe('RoomNavigationService', () => {
   let service: RoomNavigationService;
-  let router: { navigate: ReturnType<typeof vi.fn>; url: string };
+  let router: { navigate: ReturnType<typeof vi.fn> };
   let voiceSessionService: {
     joinSession: ReturnType<typeof vi.fn>;
     reportJoinFailure: ReturnType<typeof vi.fn>;
@@ -40,7 +40,6 @@ describe('RoomNavigationService', () => {
   beforeEach(() => {
     router = {
       navigate: vi.fn().mockResolvedValue(true),
-      url: '/',
     };
     voiceSessionService = {
       joinSession: vi.fn().mockResolvedValue(undefined),
