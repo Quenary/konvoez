@@ -544,12 +544,14 @@ export class VoiceRoomsGateway
     );
 
     const consumer = peer.consumers.get(body.consumerId);
-    if (!consumer || consumer.closed) {
+    if (!consumer) {
       return {};
     }
 
     peer.consumers.delete(consumer.id);
-    consumer.close();
+    if (!consumer.closed) {
+      consumer.close();
+    }
     return {};
   }
 
