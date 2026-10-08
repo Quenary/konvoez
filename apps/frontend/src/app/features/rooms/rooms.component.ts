@@ -122,7 +122,8 @@ export class RoomsComponent implements OnInit {
     if (userId === null) {
       return null;
     }
-    return users[userId] ?? null;
+    const interlocutor = this.directCallService.interlocutor();
+    return users[userId] ?? (interlocutor?.id === userId ? interlocutor : null);
   });
 
   protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);

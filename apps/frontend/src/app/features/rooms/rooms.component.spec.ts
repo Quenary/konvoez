@@ -151,6 +151,7 @@ describe('RoomsComponent', () => {
           useValue: {
             activeCall,
             rejoinableCall,
+            interlocutor: computed(() => activeCall()?.interlocutor ?? null),
             hangingCallUserId: computed(() => {
               const active = activeCall();
               const rejoinable = rejoinableCall();
@@ -336,6 +337,19 @@ describe('RoomsComponent', () => {
       fixture.detectChanges();
 
       expect(component['hangingCallPeer']()).toBeNull();
+    });
+
+    it('should return interlocutor when users store has not loaded yet', () => {
+      entityMap.set({});
+      activeCall.set({
+        callId: 'c1',
+        interlocutor: bob,
+        isCaller: true,
+        status: ECallStatus.CONNECTED,
+      });
+      fixture.detectChanges();
+
+      expect(component['hangingCallPeer']()).toEqual(bob);
     });
 
     it('should return null when there is no active or rejoinable call', () => {
