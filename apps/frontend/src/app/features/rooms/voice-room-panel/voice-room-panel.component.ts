@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomNavigationService } from '../room-navigation.service';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -35,7 +35,6 @@ export class VoiceRoomPanelComponent {
   );
   private readonly voiceLeaveService = inject(VoiceLeaveService);
   private readonly directCallService = inject(DirectCallService);
-  private readonly translateService = inject(TranslateService);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
 
@@ -45,6 +44,10 @@ export class VoiceRoomPanelComponent {
     this.voiceAudioPreferencesStore.microphoneMuted;
   protected readonly speakerMuted =
     this.voiceAudioPreferencesStore.speakerMuted;
+
+  protected readonly micHintKey = computed(() =>
+    this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
+  );
 
   protected readonly cameraOn = computed(
     () => this.peerVideoService.localCamTrack() !== null,
@@ -67,7 +70,7 @@ export class VoiceRoomPanelComponent {
     const rooms = this.rooms();
 
     if (isDirectCall) {
-      return this.translateService.instant('CALL.DIRECT_CALL');
+      return 'CALL.DIRECT_CALL';
     }
     if (session?.type === EVoiceSessionType.GROUP_ROOM) {
       return rooms[session.roomId]?.name ?? '';

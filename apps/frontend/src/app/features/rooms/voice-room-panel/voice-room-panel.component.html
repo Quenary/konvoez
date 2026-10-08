@@ -8,11 +8,11 @@
       appearance="positive"
       type="button"
       tuiHintAppearance="floating"
-      [tuiHint]="sessionTitle()"
-      [style.justify-content]="'space-between'"
+      [tuiHint]="collapsed() ? (sessionTitle() | translate) : null"
+      class="panel-button-spaced"
       (click)="clickSession()">
       @if (!collapsed()) {
-        {{ sessionTitle() }}
+        {{ sessionTitle() | translate }}
       }
     </button>
     <button
@@ -22,7 +22,7 @@
       type="button"
       tuiHintAppearance="floating"
       [tuiHint]="'CALL.HANGUP' | translate"
-      [style.flex]="'0 0 auto'"
+      class="panel-button-fixed"
       (click)="leaveSession()">
     </button>
   </div>
@@ -35,19 +35,13 @@
     tuiButton
     type="button"
     tuiHintAppearance="floating"
-    [tuiHint]="
-      (microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE')
-        | translate
-    "
+    [tuiHint]="collapsed() ? (micHintKey() | translate) : null"
     [iconEnd]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
-    [style.justify-content]="'space-between'"
+    class="panel-button-spaced"
     [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
     (click)="toggleMicrophoneMuted()">
     @if (!collapsed()) {
-      {{
-        (microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE')
-          | translate
-      }}
+      {{ micHintKey() | translate }}
     }
   </button>
   <button
@@ -56,7 +50,7 @@
     tuiHintAppearance="floating"
     [tuiHint]="'CALL.SOUND' | translate"
     [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
-    [style.flex]="'0 0 auto'"
+    class="panel-button-fixed"
     [appearance]="speakerMuted() ? 'negative' : 'neutral'"
     (click)="toggleSpeakerMuted()">
   </button>
@@ -64,7 +58,7 @@
     <button
       tuiIconButton
       iconStart="@tui.video"
-      [style.flex]="'0 0 auto'"
+      class="panel-button-fixed"
       appearance="primary"
       type="button"
       tuiHintAppearance="floating"
@@ -76,7 +70,7 @@
     <button
       tuiIconButton
       iconStart="@tui.screen-share-off"
-      [style.flex]="'0 0 auto'"
+      class="panel-button-fixed"
       appearance="primary"
       type="button"
       tuiHintAppearance="floating"

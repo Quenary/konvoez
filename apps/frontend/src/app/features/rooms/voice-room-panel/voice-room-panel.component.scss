@@ -5,3 +5,11 @@
   padding-bottom: 0.5rem;
   margin-bottom: 0.25rem;
 }
+
+.panel-button-spaced {
+  justify-content: space-between;
+}
+
+.panel-button-fixed {
+  flex: 0 0 auto;
+}
