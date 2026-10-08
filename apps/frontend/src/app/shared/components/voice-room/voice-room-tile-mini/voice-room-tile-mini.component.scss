@@ -30,7 +30,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: #000;
+  background: var(--tui-background-elevation-2);
 }
 
 .avatar-backdrop {
