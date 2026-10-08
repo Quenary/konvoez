@@ -412,6 +412,53 @@ describe('EntitySyncService', () => {
       warn.mockRestore();
     });
 
+    it('resyncs when the document becomes visible', async () => {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'visible',
+      });
+      voiceRoomSocket.connected = false;
+      createService();
+      voiceRoomSocket.connected = true;
+      voiceRoomSocket.emitWithAck.mockClear();
+      voiceLobbyStore.setRoomsSnapshot.mockClear();
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      await expectSnapshotRequested();
+    });
+
+    it('resyncs when the browser comes back online', async () => {
+      voiceRoomSocket.connected = false;
+      createService();
+      voiceRoomSocket.connected = true;
+      voiceRoomSocket.emitWithAck.mockClear();
+      voiceLobbyStore.setRoomsSnapshot.mockClear();
+
+      window.dispatchEvent(new Event('online'));
+
+      await expectSnapshotRequested();
+    });
+
+    it('resyncs periodically while the document stays visible', async () => {
+      vi.useFakeTimers();
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'visible',
+      });
+      voiceRoomSocket.connected = true;
+      createService();
+      await Promise.resolve();
+      voiceRoomSocket.emitWithAck.mockClear();
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(voiceRoomSocket.emitWithAck).toHaveBeenCalledWith(
+        EVoiceRoomEvent.GET_ALL_PEERS,
+      );
+      vi.useRealTimers();
+    });
+
     it('keeps the lobby untouched when the snapshot request fails', async () => {
       voiceRoomSocket.emitWithAck.mockRejectedValue(new Error('timeout'));
       const error = vi

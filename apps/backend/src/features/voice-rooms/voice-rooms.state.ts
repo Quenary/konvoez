@@ -5,6 +5,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   IVoiceRoomGetAllPeersSnapshot,
   IVoiceRoomLobbyPeerJoined,
@@ -30,6 +31,10 @@ import {
 import { createWorker } from 'mediasoup';
 import { announcedAddressKey } from '@shared/utils/mediasoup-addresses.util';
 import { AppService } from '@shared/services/app.service';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { VOICE_ROOM_MEDIA_CODECS } from './voice-media.util';
 
 type VoiceRoomState = {
@@ -81,7 +86,10 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   private readonly lobbyEpoch = randomUUID();
   private lobbyRevision = 0;
 
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   public async onModuleInit(): Promise<void> {
     this.worker = await createWorker();
@@ -121,12 +129,22 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   }
 
   public async removeRoom(key: string): Promise<void> {
-    if (this.rooms.has(key)) {
-      const room = this.rooms.get(key) as VoiceRoomState;
-      this.logger.debug(`Removing voice room: sessionKey=${key}`);
-      room.router.close();
-      this.rooms.delete(key);
+    const room = this.rooms.get(key);
+    if (!room) {
+      return;
     }
+    this.logger.debug(`Removing voice room: sessionKey=${key}`);
+    this.emitLobbyPeerLeftForEvictedPeers(room);
+    if (!room.router.closed) {
+      room.router.close();
+    }
+    this.rooms.delete(key);
+  }
+
+  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
+  public handleRoomDeleted(payload: { id: number }): void {
+    const sessionKey = getVoiceSessionKey(this.createGroupIdentity(payload.id));
+    void this.removeRoom(sessionKey);
   }
 
   public getPeersOnJoin(key: string): TVoiceRoomPeersOnJoin {
@@ -220,6 +238,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (existing?.router.closed) {
+      this.emitLobbyPeerLeftForEvictedPeers(existing);
       this.rooms.delete(sessionKey);
     }
 
@@ -234,5 +253,24 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     };
     this.rooms.set(sessionKey, room);
     return room;
+  }
+
+  private emitLobbyPeerLeftForEvictedPeers(room: VoiceRoomState): void {
+    if (!isGroupVoiceSession(room.target)) {
+      return;
+    }
+    const roomId = room.target.roomId;
+    const notifiedUserIds = new Set<number>();
+    for (const peer of room.peers.values()) {
+      if (notifiedUserIds.has(peer.user.id)) {
+        continue;
+      }
+      notifiedUserIds.add(peer.user.id);
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        this.createLobbyPeerLeft(roomId, peer.user.id),
+      );
+    }
   }
 }

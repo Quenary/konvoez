@@ -25,10 +25,23 @@ import { RoomsStore } from '@features/rooms/rooms.store';
 import { UsersStore } from '@features/users/users.store';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
-import { filter, finalize, fromEvent, merge, tap, withLatestFrom } from 'rxjs';
+import {
+  EMPTY,
+  filter,
+  finalize,
+  fromEvent,
+  map,
+  merge,
+  startWith,
+  switchMap,
+  tap,
+  timer,
+  withLatestFrom,
+} from 'rxjs';
 
 const lobbyResyncMutex = new Mutex();
 const LOBBY_RESYNC_MAX_ATTEMPTS = 3;
+const LOBBY_RESYNC_INTERVAL_MS = 60_000;
 
 /**
  * Keeps the entity-sync socket connected for the app lifetime and mirrors
@@ -155,6 +168,36 @@ export class EntitySyncService {
     if (this.voiceRoomSocket.connected) {
       void this.resyncLobbyState();
     }
+
+    fromEvent(document, 'visibilitychange')
+      .pipe(
+        filter(() => document.visibilityState === 'visible'),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        void this.resyncLobbyState();
+      });
+
+    fromEvent(window, 'online')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        void this.resyncLobbyState();
+      });
+
+    fromEvent(document, 'visibilitychange')
+      .pipe(
+        startWith(undefined),
+        map(() => document.visibilityState === 'visible'),
+        switchMap((visible) =>
+          visible
+            ? timer(LOBBY_RESYNC_INTERVAL_MS, LOBBY_RESYNC_INTERVAL_MS)
+            : EMPTY,
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        void this.resyncLobbyState();
+      });
   }
 
   private bindVoiceLobbyEvents(): void {
