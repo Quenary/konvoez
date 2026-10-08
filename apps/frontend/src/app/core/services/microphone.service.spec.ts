@@ -2,45 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOISE_SUPPRESSOR_VERSION } from '@core/asset-version';
 import { VOICE_CAPTURE, VOICE_MAKEUP_GAIN } from '@core/audio/voice-dynamics';
-
-const workletNodes = vi.hoisted(() => ({
-  rnnoise: [] as Array<{
-    connect: ReturnType<typeof vi.fn>;
-    disconnect: ReturnType<typeof vi.fn>;
-    destroy: ReturnType<typeof vi.fn>;
-  }>,
-  speex: [] as Array<{
-    connect: ReturnType<typeof vi.fn>;
-    disconnect: ReturnType<typeof vi.fn>;
-    destroy: ReturnType<typeof vi.fn>;
-  }>,
-}));
-
-vi.hoisted(() => {
-  (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
-    class AudioWorkletNode {};
-});
-
-vi.mock('@sapphi-red/web-noise-suppressor', () => ({
-  SpeexWorkletNode: class SpeexWorkletNode {
-    connect = vi.fn();
-    disconnect = vi.fn();
-    destroy = vi.fn();
-    constructor() {
-      workletNodes.speex.push(this);
-    }
-  },
-  RnnoiseWorkletNode: class RnnoiseWorkletNode {
-    connect = vi.fn();
-    disconnect = vi.fn();
-    destroy = vi.fn();
-    constructor() {
-      workletNodes.rnnoise.push(this);
-    }
-  },
-  loadSpeex: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-  loadRnnoise: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-}));
+import { noiseSuppressorWorkletNodes as workletNodes } from '../../../testing/web-noise-suppressor.mock';
 
 import { MicrophoneService } from './microphone.service';
 import { loadRnnoise, loadSpeex } from '@sapphi-red/web-noise-suppressor';
@@ -53,8 +15,10 @@ describe('MicrophoneService', () => {
   beforeEach(() => {
     workletNodes.rnnoise.length = 0;
     workletNodes.speex.length = 0;
-    vi.mocked(loadRnnoise).mockClear();
-    vi.mocked(loadSpeex).mockClear();
+    vi.mocked(loadRnnoise).mockReset();
+    vi.mocked(loadRnnoise).mockResolvedValue(new ArrayBuffer(8));
+    vi.mocked(loadSpeex).mockReset();
+    vi.mocked(loadSpeex).mockResolvedValue(new ArrayBuffer(8));
     enumerateDevices = vi.fn().mockResolvedValue([]);
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -182,6 +146,7 @@ describe('MicrophoneService', () => {
       disconnect: ReturnType<typeof vi.fn>;
       port: { postMessage: ReturnType<typeof vi.fn> };
     }> = [];
+    const previousWorkletNode = globalThis.AudioWorkletNode;
     (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode = class {
       connect = vi.fn();
       disconnect = vi.fn();
@@ -198,11 +163,11 @@ describe('MicrophoneService', () => {
     const compressor = node('compressor');
     const analyser = node('analyser');
     const destination = node('destination');
-    const gains = [gain, makeup];
 
+    let gainCalls = 0;
     service['context'] = {
       createMediaStreamSource: () => source,
-      createGain: () => gains.shift(),
+      createGain: () => (gainCalls++ === 0 ? gain : makeup),
       createBiquadFilter: () => biquad,
       createDynamicsCompressor: () => compressor,
       createAnalyser: () => analyser,
@@ -238,6 +203,9 @@ describe('MicrophoneService', () => {
     expect(limiter.port.postMessage).toHaveBeenCalledWith({ type: 'dispose' });
     expect(expander.disconnect).toHaveBeenCalled();
     expect(limiter.disconnect).toHaveBeenCalled();
+
+    (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
+      previousWorkletNode;
   });
 
   it('drops nodes built before ensurePipeline throws', async () => {
