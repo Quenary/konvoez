@@ -180,15 +180,6 @@ export class EntitySyncService {
       void this.resyncLobbyState();
     }
 
-    fromEvent(document, 'visibilitychange')
-      .pipe(
-        filter(() => document.visibilityState === 'visible'),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(() => {
-        void this.resyncLobbyState();
-      });
-
     fromEvent(window, 'online')
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -199,9 +190,12 @@ export class EntitySyncService {
       .pipe(
         startWith(undefined),
         map(() => document.visibilityState === 'visible'),
-        switchMap((visible) =>
+        switchMap((visible, index) =>
           visible
-            ? timer(LOBBY_RESYNC_INTERVAL_MS, LOBBY_RESYNC_INTERVAL_MS)
+            ? timer(
+                index === 0 ? LOBBY_RESYNC_INTERVAL_MS : 0,
+                LOBBY_RESYNC_INTERVAL_MS,
+              )
             : EMPTY,
         ),
         takeUntilDestroyed(this.destroyRef),
