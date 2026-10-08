@@ -31,7 +31,7 @@ import {
 import { parseError } from '@shared/functions/parse-error.function';
 import { AuthApiService } from '../auth-api.service';
 import { finalize } from 'rxjs';
-import { z } from 'zod';
+import * as z from 'zod';
 
 const confirmFormSchema = passwordRecoveryConfirmSchema
   .extend({

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
