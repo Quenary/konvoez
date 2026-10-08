@@ -111,7 +111,7 @@ CALL:
   SHOW_THEATRE: Режим театра
   SHOW_GRID: Режим сетки
   FULLSCREEN: На весь экран
-  EXIT_FULLSCREEN: Свернуть
+  EXIT_FULLSCREEN: Выйти из полноэкранного режима
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
   ROOM_CLOSED: Голосовая комната была закрыта
