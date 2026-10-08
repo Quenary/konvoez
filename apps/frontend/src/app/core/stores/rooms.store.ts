@@ -7,6 +7,7 @@ import {
   withMethods,
 } from '@ngrx/signals';
 import {
+  removeAllEntities,
   removeEntity,
   setAllEntities,
   setEntity,
@@ -63,9 +64,14 @@ export const RoomsStore = signalStore(
         patchState(store, removeEntity(id));
       };
 
+      const clear = (): void => {
+        patchState(store, removeAllEntities());
+      };
+
       return {
         upsertOne,
         removeOne,
+        clear,
 
         loadAll: rxMethod<void>(
           pipe(

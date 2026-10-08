@@ -17,6 +17,8 @@ import { AuthApiService } from './auth-api.service';
 import { ProfileApiService } from '../settings/settings-profile/profile-api.service';
 import { UsersStore } from '@core/stores/users.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { DirectChatsStore } from '../direct-chats/direct-chats.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
@@ -37,6 +39,8 @@ export class AuthEffects {
   private readonly profileApiService = inject(ProfileApiService);
   private readonly usersStore = inject(UsersStore);
   private readonly outgoingMessagesStore = inject(OutgoingMessagesStore);
+  private readonly roomsStore = inject(RoomsStore);
+  private readonly directChatsStore = inject(DirectChatsStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
   private readonly socket = inject(VoiceRoomSocketToken);
@@ -151,6 +155,8 @@ export class AuthEffects {
             tap(() => {
               this.outgoingMessagesStore.cancelAll();
               this.usersStore.clear();
+              this.roomsStore.clear();
+              this.directChatsStore.clear();
               this.router.navigate(['/auth']);
             }),
           ),

@@ -131,6 +131,16 @@ describe('RoomsStore', () => {
     expect(store.entityMap()[voiceRoom.id]).toBeDefined();
   });
 
+  it('should clear all entities on clear()', () => {
+    store.upsertOne(textRoom);
+    store.upsertOne(voiceRoom);
+
+    store.clear();
+
+    expect(store.entities()).toHaveLength(0);
+    expect(Object.keys(store.entityMap())).toHaveLength(0);
+  });
+
   it('should show notification and keep entities on loadAll error', () => {
     store.upsertOne(textRoom);
     apiService.list.mockReturnValue(

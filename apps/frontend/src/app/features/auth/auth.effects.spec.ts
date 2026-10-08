@@ -23,6 +23,8 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { UsersStore } from '@core/stores/users.store';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { DirectChatsStore } from '../direct-chats/direct-chats.store';
 import { AuthApiService } from './auth-api.service';
 import { AuthEffects } from './auth.effects';
 import { authReducer } from './auth.reducer';
@@ -47,8 +49,12 @@ describe('AuthEffects logout', () => {
     connected: boolean;
   };
   let setActiveSession: (session: unknown) => void;
+  let roomsStore: { clear: ReturnType<typeof vi.fn> };
+  let directChatsStore: { clear: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
+    roomsStore = { clear: vi.fn() };
+    directChatsStore = { clear: vi.fn() };
     const hanging = () => new Promise(() => undefined);
     socket = {
       on: vi.fn(),
@@ -92,6 +98,8 @@ describe('AuthEffects logout', () => {
           provide: OutgoingMessagesStore,
           useValue: { cancelAll: vi.fn() },
         },
+        { provide: RoomsStore, useValue: roomsStore },
+        { provide: DirectChatsStore, useValue: directChatsStore },
         {
           provide: TranslateService,
           useValue: { instant: (key: string) => key },
@@ -177,5 +185,16 @@ describe('AuthEffects logout', () => {
     });
     expect(microphoneService.release).toHaveBeenCalled();
     expect(socket.emitWithAck).not.toHaveBeenCalled();
+    expect(roomsStore.clear).toHaveBeenCalled();
+    expect(directChatsStore.clear).toHaveBeenCalled();
+  });
+
+  it('clears roomsStore and directChatsStore on logout success', async () => {
+    store.dispatch(AuthActions.requestLogoutSuccess());
+
+    await vi.waitFor(() => {
+      expect(roomsStore.clear).toHaveBeenCalled();
+      expect(directChatsStore.clear).toHaveBeenCalled();
+    });
   });
 });
