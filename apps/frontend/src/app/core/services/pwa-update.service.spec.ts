@@ -47,7 +47,31 @@ describe('PwaUpdateService', () => {
   afterEach(() => {
     versionUpdates$.complete();
     swUpdate.unrecoverable.complete();
+    vi.unstubAllGlobals();
     TestBed.resetTestingModule();
+  });
+
+  it('defers a confirmed update reload until the voice session ends', async () => {
+    dialogService.open.mockReturnValue(of(true));
+    activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
+    const service = TestBed.inject(PwaUpdateService);
+
+    versionUpdates$.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'a' },
+      latestVersion: { hash: 'b' },
+    });
+
+    await vi.waitFor(() => expect(dialogService.open).toHaveBeenCalled(), {
+      timeout: 2000,
+    });
+    service['applyAvailableUpdate']();
+    expect(service['pendingNormalUpdateReload']).toBe(true);
+
+    activeSession.set(null);
+    await vi.waitFor(() =>
+      expect(service['pendingNormalUpdateReload']).toBe(false),
+    );
   });
 
   it('defers unrecoverable reload while a voice session is active', async () => {

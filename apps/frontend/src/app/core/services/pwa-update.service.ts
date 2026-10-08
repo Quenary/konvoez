@@ -19,6 +19,7 @@ export class PwaUpdateService {
 
   private dialogOpen = false;
   private pendingUnrecoverableReload = false;
+  private pendingNormalUpdateReload = false;
 
   constructor() {
     if (!this.swUpdate.isEnabled) {
@@ -45,11 +46,18 @@ export class PwaUpdateService {
 
     effect(() => {
       const session = this.voiceSessionStore.activeSession();
-      if (session !== null || !this.pendingUnrecoverableReload) {
+      if (session !== null) {
         return;
       }
-      this.pendingUnrecoverableReload = false;
-      this.openUnrecoverableDialog();
+      if (this.pendingNormalUpdateReload) {
+        this.pendingNormalUpdateReload = false;
+        document.location.reload();
+        return;
+      }
+      if (this.pendingUnrecoverableReload) {
+        this.pendingUnrecoverableReload = false;
+        this.openUnrecoverableDialog();
+      }
     });
   }
 
@@ -136,7 +144,7 @@ export class PwaUpdateService {
 
   private applyAvailableUpdate(): void {
     if (this.voiceSessionStore.activeSession()) {
-      this.pendingUnrecoverableReload = true;
+      this.pendingNormalUpdateReload = true;
       return;
     }
     document.location.reload();
