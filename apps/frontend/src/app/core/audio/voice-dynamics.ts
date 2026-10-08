@@ -1,5 +1,10 @@
-/** Classic worklet script served from `public/`. */
-export const VOICE_DYNAMICS_WORKLET_URL = 'audio/voice-dynamics.worklet.js';
+import { APP_VERSION, withVersion } from '@core/asset-version';
+
+/** Classic worklet script served from `public/`. Version query busts the immutable nginx cache. */
+export const VOICE_DYNAMICS_WORKLET_URL = withVersion(
+  'audio/voice-dynamics.worklet.js',
+  APP_VERSION,
+);
 
 export const VOICE_DYNAMICS_PROCESSOR = 'konvoez/voice-dynamics';
 

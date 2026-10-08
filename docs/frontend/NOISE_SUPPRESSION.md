@@ -50,7 +50,7 @@ flowchart LR
   limiter --> dest[speakers]
 ```
 
-The worklet is a classic script in `apps/frontend/public/audio/voice-dynamics.worklet.js` (`konvoez/voice-dynamics`), loaded with `audioWorklet.addModule`. Capture uses two nodes of that processor so the `DynamicsCompressorNode` can sit between the expander and the limiter. Playback uses the limiter node only. The stock `NoiseGateWorkletNode` is not used: it hard-mutes a 128-sample block and clicks on word edges.
+The worklet is a classic script in `apps/frontend/public/audio/voice-dynamics.worklet.js` (`konvoez/voice-dynamics`), loaded with `audioWorklet.addModule` as `audio/voice-dynamics.worklet.js?v=<app version>`. Nginx caches every `.js` and `.wasm` as immutable for a year, and these files have no content hash, so the query is the cache buster. RNNoise and Speex use `?v=<package version>` on the same rule. The app version comes from the repo `package.json` at bundle time; the suppressor version comes from `@sapphi-red/web-noise-suppressor`. Capture uses two nodes of that processor so the `DynamicsCompressorNode` can sit between the expander and the limiter. Playback uses the limiter node only. The stock `NoiseGateWorkletNode` is not used: it hard-mutes a 128-sample block and clicks on word edges.
 
 ## Tests
 

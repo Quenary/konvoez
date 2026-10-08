@@ -12,17 +12,32 @@ import {
   disposeVoiceDynamicsNode,
   ensureVoiceDynamicsWorklet,
 } from '@core/audio/voice-dynamics';
+import { NOISE_SUPPRESSOR_VERSION, withVersion } from '@core/asset-version';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { AudioContextResumeService } from './audio-context-resume.service';
 
-const speexWorkletUrl = 'assets/web-noise-suppressor/speex/workletProcessor.js';
-const speexWasmUrl = 'assets/web-noise-suppressor/speex.wasm';
-const rnnoiseWorkletUrl =
-  'assets/web-noise-suppressor/rnnoise/workletProcessor.js';
-const rnnoiseWasmUrl = 'assets/web-noise-suppressor/rnnoise.wasm';
-const rnnoiseSimdWasmUrl = 'assets/web-noise-suppressor/rnnoise_simd.wasm';
+const speexWorkletUrl = withVersion(
+  'assets/web-noise-suppressor/speex/workletProcessor.js',
+  NOISE_SUPPRESSOR_VERSION,
+);
+const speexWasmUrl = withVersion(
+  'assets/web-noise-suppressor/speex.wasm',
+  NOISE_SUPPRESSOR_VERSION,
+);
+const rnnoiseWorkletUrl = withVersion(
+  'assets/web-noise-suppressor/rnnoise/workletProcessor.js',
+  NOISE_SUPPRESSOR_VERSION,
+);
+const rnnoiseWasmUrl = withVersion(
+  'assets/web-noise-suppressor/rnnoise.wasm',
+  NOISE_SUPPRESSOR_VERSION,
+);
+const rnnoiseSimdWasmUrl = withVersion(
+  'assets/web-noise-suppressor/rnnoise_simd.wasm',
+  NOISE_SUPPRESSOR_VERSION,
+);
 
 const publicMethodsMutex = new Mutex();
 

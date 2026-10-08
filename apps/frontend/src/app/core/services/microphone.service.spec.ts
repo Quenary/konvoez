@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NOISE_SUPPRESSOR_VERSION } from '@core/asset-version';
 import { VOICE_CAPTURE, VOICE_MAKEUP_GAIN } from '@core/audio/voice-dynamics';
 
 const workletNodes = vi.hoisted(() => ({
@@ -147,7 +148,7 @@ describe('MicrophoneService', () => {
     expect(service['denoiserKind']).toBe('rnnoise');
     expect(loadRnnoise).toHaveBeenCalled();
     expect(addModule).toHaveBeenCalledWith(
-      'assets/web-noise-suppressor/rnnoise/workletProcessor.js',
+      `assets/web-noise-suppressor/rnnoise/workletProcessor.js?v=${NOISE_SUPPRESSOR_VERSION}`,
     );
 
     service['context'] = {
