@@ -1,6 +1,7 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TUI_CONFIRM, type TuiConfirmData } from '@taiga-ui/kit';
@@ -13,9 +14,11 @@ export class PwaUpdateService {
     TuiResponsiveDialogService,
   );
   private readonly translateService = inject(TranslateService);
+  private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly destroyRef = inject(DestroyRef);
 
   private dialogOpen = false;
+  private pendingUnrecoverableReload = false;
 
   constructor() {
     if (!this.swUpdate.isEnabled) {
@@ -25,7 +28,7 @@ export class PwaUpdateService {
     this.swUpdate.unrecoverable
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
-        document.location.reload();
+        this.handleUnrecoverableUpdate();
       });
 
     this.swUpdate.versionUpdates
@@ -38,6 +41,59 @@ export class PwaUpdateService {
       )
       .subscribe(() => {
         this.openUpdateDialog();
+      });
+
+    effect(() => {
+      const session = this.voiceSessionStore.activeSession();
+      if (session !== null || !this.pendingUnrecoverableReload) {
+        return;
+      }
+      this.pendingUnrecoverableReload = false;
+      this.openUnrecoverableDialog();
+    });
+  }
+
+  private handleUnrecoverableUpdate(): void {
+    if (this.voiceSessionStore.activeSession()) {
+      this.pendingUnrecoverableReload = true;
+      return;
+    }
+    this.openUnrecoverableDialog();
+  }
+
+  private openUnrecoverableDialog(): void {
+    if (this.dialogOpen) {
+      return;
+    }
+    this.dialogOpen = true;
+
+    this.tuiResponsiveDialogService
+      .open<boolean>(TUI_CONFIRM, {
+        label: this.translateService.instant('PWA.UNRECOVERABLE.TITLE'),
+        size: 's',
+        closable: false,
+        dismissible: false,
+        required: true,
+        data: {
+          content: this.translateService.instant('PWA.UNRECOVERABLE.CONTENT'),
+          yes: this.translateService.instant('PWA.UNRECOVERABLE.ACTION'),
+          no: this.translateService.instant('GENERAL.CANCEL'),
+        } satisfies TuiConfirmData,
+      })
+      .pipe(take(1))
+      .subscribe({
+        next: (shouldReload) => {
+          this.dialogOpen = false;
+          if (shouldReload) {
+            document.location.reload();
+          }
+        },
+        error: () => {
+          this.dialogOpen = false;
+        },
+        complete: () => {
+          this.dialogOpen = false;
+        },
       });
   }
 
@@ -79,6 +135,10 @@ export class PwaUpdateService {
   }
 
   private applyAvailableUpdate(): void {
+    if (this.voiceSessionStore.activeSession()) {
+      this.pendingUnrecoverableReload = true;
+      return;
+    }
     document.location.reload();
   }
 }
