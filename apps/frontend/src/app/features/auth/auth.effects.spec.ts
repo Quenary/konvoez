@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, type Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { provideEffects } from '@ngrx/effects';
@@ -35,6 +35,7 @@ describe('AuthEffects logout', () => {
   let microphoneService: {
     release: ReturnType<typeof vi.fn>;
     processedStream: ReturnType<typeof signal<MediaStream | null>>;
+    analyserNode: Signal<AnalyserNode | null>;
   };
   let socket: {
     on: ReturnType<typeof vi.fn>;
@@ -73,6 +74,7 @@ describe('AuthEffects logout', () => {
     microphoneService = {
       release: vi.fn().mockResolvedValue(undefined),
       processedStream: signal<MediaStream | null>(null),
+      analyserNode: signal<AnalyserNode | null>(null).asReadonly(),
     };
 
     TestBed.configureTestingModule({
@@ -144,7 +146,14 @@ describe('AuthEffects logout', () => {
             replaceMicrophoneTrack: vi.fn(),
           },
         },
-        { provide: PeerPlaybackService, useValue: {} },
+        {
+          provide: PeerPlaybackService,
+          useValue: {
+            detach: vi.fn(),
+            detachAll: vi.fn(),
+            removeConsumer: vi.fn(),
+          },
+        },
         {
           provide: ScreenWakeLockService,
           useValue: { acquire: vi.fn(), release: vi.fn() },

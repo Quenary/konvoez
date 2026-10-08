@@ -1,14 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
-import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { ERoomType, EVoiceSessionType, IRoom } from '@konvoez/shared';
+import { ERoomType, IRoom } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomsApiService } from './rooms-api.service';
-import { RoomsStore } from './rooms.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 
 describe('RoomsStore', () => {
   let store: InstanceType<typeof RoomsStore>;
@@ -19,12 +16,6 @@ describe('RoomsStore', () => {
     update: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
   };
-  let router: { navigate: ReturnType<typeof vi.fn> };
-  let voiceSessionService: {
-    joinSession: ReturnType<typeof vi.fn>;
-    reportJoinFailure: ReturnType<typeof vi.fn>;
-  };
-  let voiceSessionSelectedRoomId: ReturnType<typeof vi.fn>;
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
 
   const textRoom: IRoom = {
@@ -64,17 +55,6 @@ describe('RoomsStore', () => {
       remove: vi.fn().mockReturnValue(of(undefined)),
     };
 
-    router = {
-      navigate: vi.fn().mockResolvedValue(true),
-    };
-
-    voiceSessionService = {
-      joinSession: vi.fn().mockResolvedValue(undefined),
-      reportJoinFailure: vi.fn(),
-    };
-
-    voiceSessionSelectedRoomId = vi.fn().mockReturnValue(null);
-
     mockNotifications = {
       open: vi.fn().mockReturnValue(of(null)),
     };
@@ -83,14 +63,6 @@ describe('RoomsStore', () => {
       providers: [
         provideTranslateService(),
         { provide: RoomsApiService, useValue: apiService },
-        { provide: Router, useValue: router },
-        { provide: VoiceSessionService, useValue: voiceSessionService },
-        {
-          provide: VoiceSessionStore,
-          useValue: {
-            selectedRoomId: voiceSessionSelectedRoomId,
-          },
-        },
         { provide: TuiNotificationService, useValue: mockNotifications },
         RoomsStore,
       ],
@@ -163,52 +135,9 @@ describe('RoomsStore', () => {
     expect(store.selectedRoomId()).toBe(voiceRoom.id);
   });
 
-  it('should set selected room id without navigation', () => {
+  it('should set selected room id', () => {
     store.setSelectedRoomId(textRoom.id);
     expect(store.selectedRoomId()).toBe(textRoom.id);
-    expect(router.navigate).not.toHaveBeenCalled();
-    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
-  });
-
-  it('should select text room and navigate', () => {
-    store.selectRoom(textRoom);
-
-    expect(store.selectedRoomId()).toBe(textRoom.id);
-    expect(router.navigate).toHaveBeenCalledWith([`/text-room/${textRoom.id}`]);
-    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
-  });
-
-  it('should join and navigate when selecting a different voice room', () => {
-    voiceSessionSelectedRoomId.mockReturnValue(99);
-
-    store.selectRoom(voiceRoom);
-
-    expect(store.selectedRoomId()).toBe(voiceRoom.id);
-    expect(voiceSessionService.joinSession).toHaveBeenCalledWith({
-      type: EVoiceSessionType.GROUP_ROOM,
-      roomId: voiceRoom.id,
-    });
-    expect(router.navigate).toHaveBeenCalledWith([
-      `/voice-room/${voiceRoom.id}`,
-    ]);
-  });
-
-  it('should not rejoin when voice session is already in the room', () => {
-    voiceSessionSelectedRoomId.mockReturnValue(voiceRoom.id);
-
-    store.selectRoom(voiceRoom);
-
-    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith([
-      `/voice-room/${voiceRoom.id}`,
-    ]);
-  });
-
-  it('should navigate home when room is null', () => {
-    store.selectRoom(null);
-
-    expect(store.selectedRoomId()).toBeNull();
-    expect(router.navigate).toHaveBeenCalledWith(['/']);
   });
 
   it('should show notification and keep entities on loadAll error', () => {

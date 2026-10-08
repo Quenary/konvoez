@@ -12,6 +12,7 @@ import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
 import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from './room-manage.service';
+import { RoomNavigationService } from './room-navigation.service';
 import { RoomsStore } from './rooms.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import {
@@ -108,9 +109,12 @@ describe('RoomsComponent', () => {
   const roomsStore = {
     loadAll: vi.fn(),
     create: vi.fn(),
-    selectRoom: vi.fn(),
     textRooms: signal([textRoom]),
     voiceRooms: signal([voiceRoom]),
+  };
+
+  const roomNavigationService = {
+    selectRoom: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -135,6 +139,7 @@ describe('RoomsComponent', () => {
           selectors: [{ selector: selectCurrentUser, value: me }],
         }),
         { provide: RoomsStore, useValue: roomsStore },
+        { provide: RoomNavigationService, useValue: roomNavigationService },
         {
           provide: VoiceLobbyStore,
           useValue: {
@@ -343,9 +348,9 @@ describe('RoomsComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/direct', bob.id]);
   });
 
-  it('should call roomsStore selectRoom', () => {
+  it('should call room navigation selectRoom', () => {
     component['selectRoom'](voiceRoom);
-    expect(roomsStore.selectRoom).toHaveBeenCalledWith(voiceRoom);
+    expect(roomNavigationService.selectRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
   it('should remember room for context menu on longtap', () => {
@@ -355,26 +360,26 @@ describe('RoomsComponent', () => {
 
   it('should select room on click', () => {
     component['onRoomClick'](voiceRoom);
-    expect(roomsStore.selectRoom).toHaveBeenCalledWith(voiceRoom);
+    expect(roomNavigationService.selectRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
   it('should not select room on the click that follows a touch longtap', () => {
     isTouch.set(true);
     component['onRoomLongtap'](textRoom);
-    vi.mocked(roomsStore.selectRoom).mockClear();
+    vi.mocked(roomNavigationService.selectRoom).mockClear();
 
     component['onRoomClick'](textRoom);
 
-    expect(roomsStore.selectRoom).not.toHaveBeenCalled();
+    expect(roomNavigationService.selectRoom).not.toHaveBeenCalled();
   });
 
   it('should select room on click after desktop right-click longtap', () => {
     component['onRoomLongtap'](textRoom);
-    vi.mocked(roomsStore.selectRoom).mockClear();
+    vi.mocked(roomNavigationService.selectRoom).mockClear();
 
     component['onRoomClick'](textRoom);
 
-    expect(roomsStore.selectRoom).toHaveBeenCalledWith(textRoom);
+    expect(roomNavigationService.selectRoom).toHaveBeenCalledWith(textRoom);
   });
 
   it('should dispatch create room after dialog confirms', async () => {

@@ -19,6 +19,7 @@ import { ERoomType, IUser } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
+import { RoomNavigationService } from './room-navigation.service';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
@@ -92,6 +93,7 @@ export class RoomsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly isTouch = inject(WA_IS_TOUCH);
   private readonly roomManageService = inject(RoomManageService);
+  private readonly roomNavigationService = inject(RoomNavigationService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   public readonly collapsed = input.required<boolean>();
@@ -183,7 +185,7 @@ export class RoomsComponent implements OnInit {
   }
 
   protected selectRoom(room: IRoom): void {
-    this.roomsStore.selectRoom(room);
+    this.roomNavigationService.selectRoom(room);
   }
 
   /**
