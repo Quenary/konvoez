@@ -34,6 +34,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { authReducer } from '@features/auth/auth.reducer';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
+import { RoomNavigationService } from '@features/rooms/room-navigation.service';
 
 /**
  * Guards against NG0200 circular DI:
@@ -171,6 +172,7 @@ describe('voice DI graph', () => {
         TestBed.inject(VoiceRoomViewService);
         TestBed.inject(ConsumerRegistry);
         TestBed.inject(ScreenWatchService);
+        TestBed.inject(RoomNavigationService);
       } catch (e) {
         error = e;
       }
@@ -197,6 +199,7 @@ describe('voice DI graph', () => {
       expect(TestBed.inject(VoiceRoomViewService)).toBeTruthy();
       expect(TestBed.inject(ConsumerRegistry)).toBeTruthy();
       expect(TestBed.inject(ScreenWatchService)).toBeTruthy();
+      expect(TestBed.inject(RoomNavigationService)).toBeTruthy();
     },
   );
 });

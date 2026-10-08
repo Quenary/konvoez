@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { EVoiceSessionType } from '@konvoez/shared';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -18,6 +18,7 @@ describe('VoiceRoomComponent', () => {
   let reportJoinFailure: ReturnType<typeof vi.fn>;
   let navigate: ReturnType<typeof vi.fn>;
   let joiningTarget: ReturnType<typeof signal<unknown>>;
+  let roomClosed$: Subject<{ roomId: number }>;
 
   beforeEach(() => {
     paramMap = new BehaviorSubject(convertToParamMap({ id: '4' }));
@@ -26,6 +27,7 @@ describe('VoiceRoomComponent', () => {
     reportJoinFailure = vi.fn();
     navigate = vi.fn().mockResolvedValue(true);
     joiningTarget = signal(null);
+    roomClosed$ = new Subject();
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomComponent],
@@ -58,6 +60,7 @@ describe('VoiceRoomComponent', () => {
             joinSession,
             reportJoinFailure,
             joiningTarget: joiningTarget.asReadonly(),
+            roomClosed$: roomClosed$.asObservable(),
           },
         },
         {
@@ -126,5 +129,19 @@ describe('VoiceRoomComponent', () => {
     await vi.waitFor(() => {
       expect(reportJoinFailure).toHaveBeenCalledWith(error);
     });
+  });
+
+  it('navigates home when the closed room matches the route', () => {
+    create();
+    navigate.mockClear();
+    roomClosed$.next({ roomId: 4 });
+    expect(navigate).toHaveBeenCalledWith(['/']);
+  });
+
+  it('does not navigate when a different room was closed', () => {
+    create();
+    navigate.mockClear();
+    roomClosed$.next({ roomId: 99 });
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

@@ -107,30 +107,6 @@ describe('RoomNavigationService', () => {
     ]);
   });
 
-  it('navigates home when viewing a voice room page that was closed', () => {
-    router.url = `/voice-room/${voiceRoom.id}`;
-
-    service.leaveVoiceRoomPageIfViewing(voiceRoom.id);
-
-    expect(router.navigate).toHaveBeenCalledWith(['/']);
-  });
-
-  it('does not navigate when the closed room is not the current voice page', () => {
-    router.url = `/voice-room/${voiceRoom.id}`;
-
-    service.leaveVoiceRoomPageIfViewing(99);
-
-    expect(router.navigate).not.toHaveBeenCalled();
-  });
-
-  it('does not navigate away from non-voice routes when a room closes', () => {
-    router.url = '/settings';
-
-    service.leaveVoiceRoomPageIfViewing(voiceRoom.id);
-
-    expect(router.navigate).not.toHaveBeenCalled();
-  });
-
   it('navigates home when room is null', () => {
     service.selectRoom(null);
 

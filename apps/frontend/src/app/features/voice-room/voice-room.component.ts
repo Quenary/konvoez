@@ -2,11 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { RoomsStore } from '@core/stores/rooms.store';
@@ -40,6 +41,7 @@ export class VoiceRoomComponent {
   private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly roomManageService = inject(RoomManageService);
 
   /**
@@ -98,6 +100,14 @@ export class VoiceRoomComponent {
           this.voiceSessionService.reportJoinFailure(error);
         });
     });
+
+    this.voiceSessionService.roomClosed$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ roomId }) => {
+        if (roomId === this.roomId()) {
+          void this.router.navigate(['/']);
+        }
+      });
   }
 
   protected editRoom(room: IRoom): Promise<void> {
