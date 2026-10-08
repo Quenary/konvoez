@@ -16,6 +16,7 @@ interface IScreenAudioGraph {
 export class PeerScreenAudioService {
   private readonly speakerService = inject(SpeakerService);
   private readonly graphs = new Map<number, IScreenAudioGraph>();
+  private readonly generations = new Map<number, number>();
 
   public async attach(
     userId: number,
@@ -23,6 +24,7 @@ export class PeerScreenAudioService {
     options: { gain: number; speakerMuted: boolean },
   ): Promise<void> {
     this.detach(userId);
+    const generation = this.generations.get(userId) ?? 0;
 
     const stream = new MediaStream([consumer.track]);
     const audioEl = new Audio();
@@ -30,10 +32,31 @@ export class PeerScreenAudioService {
     audioEl.autoplay = false;
     audioEl.muted = true;
 
+    consumer.on?.('trackended', () => {
+      audioEl.srcObject = null;
+      audioEl.remove();
+    });
+
     const context = await this.speakerService.getContext();
     const output = await this.speakerService.getOutput();
     const sourceNode = context.createMediaStreamSource(stream);
     const gainNode = context.createGain();
+
+    if (consumer.closed || (this.generations.get(userId) ?? 0) !== generation) {
+      try {
+        sourceNode.disconnect();
+        gainNode.disconnect();
+      } catch {
+        // ignore
+      }
+      audioEl.srcObject = null;
+      audioEl.remove();
+      if (!consumer.closed) {
+        consumer.close();
+      }
+      return;
+    }
+
     gainNode.gain.value = options.speakerMuted ? 0 : options.gain;
 
     sourceNode.connect(gainNode);
@@ -69,6 +92,7 @@ export class PeerScreenAudioService {
   }
 
   public detach(userId: number): void {
+    this.generations.set(userId, (this.generations.get(userId) ?? 0) + 1);
     const graph = this.graphs.get(userId);
     if (!graph) {
       return;
@@ -108,7 +132,10 @@ export class PeerScreenAudioService {
   }
 
   public clear(): void {
-    for (const userId of [...this.graphs.keys()]) {
+    for (const userId of new Set<number>([
+      ...this.graphs.keys(),
+      ...this.generations.keys(),
+    ])) {
       this.detach(userId);
     }
   }
