@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, type Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -46,8 +46,10 @@ describe('VoiceSessionService', () => {
   let handlers: Record<string, (...args: unknown[]) => unknown>;
   let voiceSessionStore: {
     activeSession: ReturnType<typeof signal>;
+    joiningTarget: Signal<unknown>;
     peersDict: ReturnType<typeof signal<Record<number, IUser>>>;
     setActiveSession: (session: unknown) => void;
+    setJoiningTarget: ReturnType<typeof vi.fn>;
     setPeers: ReturnType<typeof vi.fn>;
     upsertPeer: ReturnType<typeof vi.fn>;
     removePeer: ReturnType<typeof vi.fn>;
@@ -111,11 +113,16 @@ describe('VoiceSessionService', () => {
     socket.timeout.mockReturnValue(socket);
 
     const activeSession = signal<unknown>(null);
+    const joiningTarget = signal<unknown>(null);
     voiceSessionStore = {
       activeSession: activeSession as never,
+      joiningTarget: joiningTarget.asReadonly(),
       peersDict: signal({}),
       setActiveSession: vi.fn((session: unknown) => {
         activeSession.set(session);
+      }),
+      setJoiningTarget: vi.fn((target: unknown) => {
+        joiningTarget.set(target);
       }),
       setPeers: vi.fn(),
       upsertPeer: vi.fn(),
@@ -369,6 +376,44 @@ describe('VoiceSessionService', () => {
       expect.anything(),
     );
     expect(audioService.playPeerJoinAudio).not.toHaveBeenCalled();
+  });
+
+  it('rejects join when the server returns an ack error', async () => {
+    socket.emitWithAck.mockResolvedValue({ error: 'Invalid session key' });
+    const target: {
+      type: EVoiceSessionType.GROUP_ROOM;
+      roomId: number;
+    } = {
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 9,
+    };
+
+    await expect(service.joinSession(target)).rejects.toThrow(
+      'Invalid session key',
+    );
+    expect(voiceSessionStore.setActiveSession).not.toHaveBeenCalledWith(target);
+    expect(mediasoup.ensureDeviceLoaded).not.toHaveBeenCalled();
+  });
+
+  it('leaves the session when the server closes the room', async () => {
+    const leaveSpy = vi.spyOn(service, 'leaveSession').mockResolvedValue();
+    voiceSessionStore.setActiveSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 5,
+    });
+    service['addSocketListeners']();
+
+    handlers['room-closed']({
+      roomId: 5,
+      sessionKey: 'room:5',
+      reason: 'deleted',
+    });
+
+    expect(leaveSpy).toHaveBeenCalled();
+    expect(notifications.open).toHaveBeenCalledWith(
+      'VOICE.ROOM_CLOSED',
+      expect.objectContaining({ appearance: 'negative' }),
+    );
   });
 
   it('emits JOIN_ROOM once for two consecutive joins to the same room', async () => {
