@@ -99,10 +99,12 @@ computed(() => {
 - Keep templates simple. Do not call ordinary methods or functions from templates (bindings, interpolations, `@if` / `@for` / `@switch`, or `host` property bindings). Change detection re-runs them on every cycle. Precompute derived values in `computed()` and read those signals in the template. Event bindings such as `(click)="save()"` are fine.
 - When a binding inside `@for` only compares each item to one shared signal (the active tile, the selection, and so on), read that signal once with `@let` before the loop and compare in the binding.
 
+<!-- prettier-ignore -->
 ```html
-// GOOD EXAMPLE @let focus = focusTile(); @for (tile of tiles(); track tile.key)
-{
-<button [class.active]="focus?.key === tile.key"></button>
+<!-- GOOD EXAMPLE -->
+@let focus = focusTile();
+@for (tile of tiles(); track tile.key) {
+  <button [class.active]="focus?.key === tile.key"></button>
 }
 ```
 
