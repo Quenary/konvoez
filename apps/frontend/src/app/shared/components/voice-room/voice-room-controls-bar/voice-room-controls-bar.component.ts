@@ -61,6 +61,31 @@ export class VoiceRoomControlsBarComponent {
   protected readonly screenSupported = ScreenCaptureService.isSupported();
   protected readonly canProduce = this.voiceSessionService.canProduce;
 
+  protected readonly cameraDisabled = computed(
+    () => !this.canProduce() && !this.cameraOn(),
+  );
+  protected readonly screenDisabled = computed(
+    () => !this.canProduce() && !this.screenOn(),
+  );
+
+  protected readonly micHintKey = computed(() =>
+    this.micMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
+  );
+
+  protected readonly cameraHintKey = computed(() => {
+    if (this.canProduce() || this.cameraOn()) {
+      return this.cameraOn() ? 'CALL.CAMERA_OFF' : 'CALL.CAMERA_ON';
+    }
+    return 'CALL.WAITING_FOR_CONNECTION';
+  });
+
+  protected readonly screenHintKey = computed(() => {
+    if (this.canProduce() || this.screenOn()) {
+      return this.screenOn() ? 'CALL.SCREEN_OFF' : 'CALL.SCREEN_ON';
+    }
+    return 'CALL.WAITING_FOR_CONNECTION';
+  });
+
   protected toggleMicrophone(): void {
     this.voiceAudioPreferencesStore.toggleMicrophoneMuted();
   }
