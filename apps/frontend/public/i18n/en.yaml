@@ -303,6 +303,7 @@ REACTIONS:
   EXPAND: Expand
   COLLAPSE: Collapse
   YOU: You
+  UNKNOWN_USER: 'User #{{ id }}'
   CAT_SMILEYS: Smileys & Emotion
   CAT_GESTURES: Gestures & People
   CAT_HEARTS: Hearts & Symbols

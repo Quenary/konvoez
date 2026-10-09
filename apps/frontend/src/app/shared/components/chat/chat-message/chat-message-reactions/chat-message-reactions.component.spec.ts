@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageReactionsComponent } from './chat-message-reactions.component';
-import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { UsersStore } from '@core/stores/users.store';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 describe('ChatMessageReactionsComponent', () => {
   let component: ChatMessageReactionsComponent;
   let fixture: ComponentFixture<ChatMessageReactionsComponent>;
+  let translateService: TranslateService;
 
   const mockUsersStore = {
     entityMap: signal({
@@ -24,6 +25,21 @@ describe('ChatMessageReactionsComponent', () => {
         { provide: UsersStore, useValue: mockUsersStore },
       ],
     }).compileComponents();
+
+    translateService = TestBed.inject(TranslateService);
+    translateService.setTranslation('en', {
+      REACTIONS: {
+        YOU: 'You',
+        UNKNOWN_USER: 'User #{{ id }}',
+      },
+    });
+    translateService.setTranslation('ru', {
+      REACTIONS: {
+        YOU: 'Вы',
+        UNKNOWN_USER: 'Пользователь #{{ id }}',
+      },
+    });
+    translateService.use('en');
 
     fixture = TestBed.createComponent(ChatMessageReactionsComponent);
     component = fixture.componentInstance;
@@ -73,5 +89,25 @@ describe('ChatMessageReactionsComponent', () => {
     expect(vms[0].isReactedByMe).toBe(true);
     expect(vms[0].tooltip).toContain('bob');
     expect(vms[1].isReactedByMe).toBe(false);
+  });
+
+  it('should format unknown user using translation template', () => {
+    fixture.componentRef.setInput('reactions', [
+      { emoji: '👍', count: 1, userIds: [99] },
+    ]);
+    fixture.componentRef.setInput('currentUserId', 1);
+    fixture.detectChanges();
+
+    const vms = component['reactionViewModels']();
+    expect(vms[0].tooltip).toBe('User #99');
+  });
+
+  it('should react to language changes in tooltip', () => {
+    expect(component['reactionViewModels']()[0].tooltip).toContain('You');
+
+    translateService.use('ru');
+    fixture.detectChanges();
+
+    expect(component['reactionViewModels']()[0].tooltip).toContain('Вы');
   });
 });

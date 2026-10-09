@@ -303,6 +303,7 @@ REACTIONS:
   EXPAND: Развернуть
   COLLAPSE: Свернуть
   YOU: Вы
+  UNKNOWN_USER: 'Пользователь #{{ id }}'
   CAT_SMILEYS: Смайлы и эмоции
   CAT_GESTURES: Жесты и люди
   CAT_HEARTS: Сердца и символы

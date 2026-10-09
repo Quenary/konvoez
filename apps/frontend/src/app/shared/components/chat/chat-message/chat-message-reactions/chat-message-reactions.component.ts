@@ -6,6 +6,7 @@ import {
   input,
   output,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiHint } from '@taiga-ui/core';
 import { ITextRoomReactionGroup } from '@konvoez/shared';
@@ -36,6 +37,10 @@ export class ChatMessageReactionsComponent {
 
   public readonly react = output<string>();
 
+  protected readonly translateLabels = toSignal(
+    this.translateService.stream(['REACTIONS.YOU', 'REACTIONS.UNKNOWN_USER']),
+  );
+
   protected readonly reactionViewModels = computed<
     readonly IReactionViewModel[]
   >(() => {
@@ -43,7 +48,10 @@ export class ChatMessageReactionsComponent {
     const reactions = this.reactions();
     const currentUserId = this.currentUserId();
     const entityMap = this.usersStore.entityMap();
-    const youText = this.translateService.instant('REACTIONS.YOU');
+    const labels = this.translateLabels();
+    const youText = labels?.['REACTIONS.YOU'] ?? 'You';
+    const unknownUserTemplate =
+      labels?.['REACTIONS.UNKNOWN_USER'] ?? 'User #{{ id }}';
 
     return reactions.map((group) => {
       const isReactedByMe =
@@ -56,7 +64,9 @@ export class ChatMessageReactionsComponent {
 
       for (const id of group.userIds) {
         if (id !== currentUserId) {
-          const username = entityMap[id]?.username ?? `User #${id}`;
+          const username =
+            entityMap[id]?.username ??
+            unknownUserTemplate.replace(/\{\{\s*id\s*\}\}/g, String(id));
           names.push(username);
         }
       }
