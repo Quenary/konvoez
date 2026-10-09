@@ -1218,15 +1218,14 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(message);
-      messageReactionRepository.find
-        .mockResolvedValueOnce([]) // userReactions
-        .mockResolvedValueOnce([
-          {
-            message: { id: rawId },
-            emoji: '👍',
-            user: { id: mockUser.id },
-          } as unknown as MessageReactionEntity,
-        ]); // loadReactions
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '👍',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]); // loadReactions
 
       const result = await service.toggleReaction(mockUser, msgId, '👍');
 
@@ -1263,9 +1262,8 @@ describe('TextRoomsService', () => {
       } as unknown as MessageReactionEntity;
 
       messageRepository.findOne.mockResolvedValue(message);
-      messageReactionRepository.find
-        .mockResolvedValueOnce([existingReaction]) // userReactions
-        .mockResolvedValueOnce([]); // loadReactions after removal
+      messageReactionRepository.findOne.mockResolvedValueOnce(existingReaction);
+      messageReactionRepository.find.mockResolvedValueOnce([]); // loadReactions after removal
 
       const result = await service.toggleReaction(mockUser, msgId, '👍');
 
@@ -1300,15 +1298,14 @@ describe('TextRoomsService', () => {
       } as unknown as MessageReactionEntity;
 
       messageRepository.findOne.mockResolvedValue(message);
-      messageReactionRepository.find
-        .mockResolvedValueOnce([oldReaction]) // userReactions
-        .mockResolvedValueOnce([
-          {
-            message: { id: rawId },
-            emoji: '❤️',
-            user: { id: mockUser.id },
-          } as unknown as MessageReactionEntity,
-        ]); // loadReactions after replace
+      messageReactionRepository.findOne.mockResolvedValueOnce(oldReaction);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '❤️',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]); // loadReactions after replace
 
       const result = await service.toggleReaction(mockUser, msgId, '❤️');
 

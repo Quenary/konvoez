@@ -903,19 +903,16 @@ export class TextRoomsService {
       throw new ForbiddenException('Access denied');
     }
 
-    const userReactions = await this.messageReactionRepository.find({
+    const existingReaction = await this.messageReactionRepository.findOne({
       message: message.id,
       user: user.id,
     });
 
-    const existingSameEmoji = userReactions.find((r) => r.emoji === emoji);
-
-    if (existingSameEmoji) {
-      this.em.remove(existingSameEmoji);
-    } else if (userReactions.length > 0) {
-      userReactions[0].emoji = emoji;
-      for (let i = 1; i < userReactions.length; i++) {
-        this.em.remove(userReactions[i]);
+    if (existingReaction) {
+      if (existingReaction.emoji === emoji) {
+        this.em.remove(existingReaction);
+      } else {
+        existingReaction.emoji = emoji;
       }
     } else {
       const newReaction = this.messageReactionRepository.create({

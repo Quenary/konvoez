@@ -16,6 +16,7 @@ import {
   EUserRole,
   ITextRoomListResponse,
   ITextRoomMessage,
+  ITextRoomReactionGroup,
   IUser,
 } from '@konvoez/shared';
 import { authReducer } from '@core/auth/auth.reducer';
@@ -906,6 +907,37 @@ describe('ChatStore', () => {
 
       expect(apiService.toggleReaction).toHaveBeenCalledWith('msg-1', '👍');
       expect(store.entityMap()['msg-1'].reactions).toEqual([]);
+    });
+
+    it('should queue rapid successive clicks sequentially with concatMap', () => {
+      store.join({ kind: 'room', id: 10 });
+      const calls: string[] = [];
+      const first$ = new Subject<ITextRoomReactionGroup[]>();
+      const second$ = new Subject<ITextRoomReactionGroup[]>();
+
+      apiService.toggleReaction.mockImplementation(
+        (_msgId: string, emoji: string) => {
+          calls.push(emoji);
+          return emoji === '👍' ? first$ : second$;
+        },
+      );
+
+      store.toggleReaction({ messageId: 'msg-1', emoji: '👍' });
+      store.toggleReaction({ messageId: 'msg-1', emoji: '❤️' });
+
+      expect(calls).toEqual(['👍']);
+
+      first$.next([{ emoji: '👍', count: 1, userIds: [1] }]);
+      first$.complete();
+
+      expect(calls).toEqual(['👍', '❤️']);
+
+      second$.next([{ emoji: '❤️', count: 1, userIds: [1] }]);
+      second$.complete();
+
+      expect(store.entityMap()['msg-1'].reactions).toEqual([
+        { emoji: '❤️', count: 1, userIds: [1] },
+      ]);
     });
 
     it('should update reactions when MESSAGE_REACTION_UPDATED event is received', () => {

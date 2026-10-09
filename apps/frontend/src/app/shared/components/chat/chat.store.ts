@@ -35,9 +35,9 @@ import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
   catchError,
+  concatMap,
   EMPTY,
   fromEvent,
-  mergeMap,
   pipe,
   switchMap,
   tap,
@@ -220,6 +220,7 @@ export const ChatStore = signalStore(
       outgoingStore = inject(OutgoingMessagesStore),
       ngrxStore = inject(Store),
     ) => {
+      const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const showError = (error: unknown): void => {
         tuiNotificationsService
           .open(parseError(error), {
@@ -547,14 +548,14 @@ export const ChatStore = signalStore(
 
         toggleReaction: rxMethod<{ messageId: string; emoji: string }>(
           pipe(
-            mergeMap(({ messageId, emoji }) => {
+            concatMap(({ messageId, emoji }) => {
               const currentMessage = store.entityMap()[messageId];
-              const currentUser = ngrxStore.selectSignal(selectCurrentUser)();
-              if (!currentMessage || !currentUser) {
+              const user = currentUser();
+              if (!currentMessage || !user) {
                 return EMPTY;
               }
               const previousReactions = currentMessage.reactions ?? [];
-              const currentUserId = currentUser.id;
+              const currentUserId = user.id;
               const userExistingGroup = previousReactions.find((g) =>
                 g.userIds.includes(currentUserId),
               );
