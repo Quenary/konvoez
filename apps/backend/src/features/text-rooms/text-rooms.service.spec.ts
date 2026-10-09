@@ -1341,5 +1341,40 @@ describe('TextRoomsService', () => {
         service.toggleReaction(mockUser, msgId, '👍'),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
+
+    it('should normalize uppercase message id for reaction lookup and domain event', async () => {
+      const msgId = v7().toUpperCase();
+      const rawId = parse(msgId);
+      const normalizedMsgId = msgId.toLowerCase();
+      const message = {
+        id: rawId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        room: { id: 10 },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '👍',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]);
+
+      const result = await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        expect.objectContaining({
+          messageId: normalizedMsgId,
+          reactions: [{ emoji: '👍', count: 1, userIds: [mockUser.id] }],
+        }),
+      );
+      expect(result).toEqual([
+        { emoji: '👍', count: 1, userIds: [mockUser.id] },
+      ]);
+    });
   });
 });

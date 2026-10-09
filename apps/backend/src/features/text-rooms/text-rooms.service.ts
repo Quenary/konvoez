@@ -148,10 +148,9 @@ export class TextRoomsService {
       return new Map();
     }
     const messageIds = messages.map((message) => message.id);
-    const rows = await this.messageReactionRepository.find(
-      { message: { $in: messageIds } },
-      { populate: ['user'] },
-    );
+    const rows = await this.messageReactionRepository.find({
+      message: { $in: messageIds },
+    });
 
     const map = new Map<string, Map<string, number[]>>();
     for (const row of rows) {
@@ -925,14 +924,15 @@ export class TextRoomsService {
 
     await this.em.flush();
 
+    const normalizedMessageId = uuidStringify(message.id);
     const reactionsMap = await this.loadReactions([message]);
-    const updatedReactions = reactionsMap.get(messageId) ?? [];
+    const updatedReactions = reactionsMap.get(normalizedMessageId) ?? [];
 
     emitTextRoomDomainEvent(
       this.eventEmitter,
       TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
       {
-        messageId,
+        messageId: normalizedMessageId,
         roomId: message.room?.id ?? null,
         recipientId: message.recipient?.id ?? null,
         senderId: message.sender.id,
