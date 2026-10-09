@@ -1,8 +1,12 @@
 name: Prod Image
 
 on:
-  repository_dispatch:
-    types: [release-event]
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version without v prefix, e.g. 1.14.0'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:
@@ -27,7 +31,7 @@ jobs:
       - name: Get Tags
         id: get-tags
         run: |
-          VERSION="${{ github.event.client_payload.version || github.event.inputs.version }}"
+          VERSION="${{ inputs.version }}"
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           PREFIXED=v$VERSION
 
@@ -39,6 +43,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: v${{ steps.get-tags.outputs.full }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4

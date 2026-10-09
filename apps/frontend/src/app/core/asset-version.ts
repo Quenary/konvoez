@@ -1,6 +1,6 @@
 /* eslint-disable @nx/enforce-module-boundaries */
 // Versions are read from package.json at bundle time. A static `define` in
-// project.json would drift from semantic-release, which only bumps package.json.
+// project.json would drift from nx release, which only bumps package.json.
 import { version as appVersion } from '../../../../../package.json';
 import { version as noiseSuppressorVersion } from '../../../../../node_modules/@sapphi-red/web-noise-suppressor/package.json';
 
