@@ -1,0 +1,16 @@
+@let viewModels = reactionViewModels();
+@if (viewModels.length > 0) {
+  <div class="reactions-row">
+    @for (item of viewModels; track item.emoji) {
+      <button
+        type="button"
+        class="reaction-pill"
+        [class.reaction-pill--active]="item.isReactedByMe"
+        [tuiHint]="item.tooltip"
+        (click)="onPillClick(item.emoji, $event)">
+        <span class="reaction-pill-emoji">{{ item.emoji }}</span>
+        <span class="reaction-pill-count">{{ item.count }}</span>
+      </button>
+    }
+  </div>
+}

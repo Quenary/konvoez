@@ -8,6 +8,8 @@ import {
   ITextRoomEditMessage,
   ITextRoomListRequest,
   ITextRoomMessage,
+  ITextRoomReactionGroup,
+  ITextRoomReactionUpdated,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -31,7 +33,15 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  fromEvent,
+  mergeMap,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
@@ -78,6 +88,7 @@ function toMessageEntity(
     ...message,
     createdAt: new Date(message.createdAt),
     updatedAt: message.updatedAt ? new Date(message.updatedAt) : null,
+    reactions: message.reactions ?? [],
     status,
   };
 }
@@ -106,6 +117,7 @@ function toOutgoingMessageEntity(
     status: failed ? EMessageStatus.ERROR : EMessageStatus.LOADING,
     isPendingCreate: true,
     outgoing: message,
+    reactions: [],
   };
 }
 
@@ -206,6 +218,7 @@ export const ChatStore = signalStore(
       messageReadQueueService = inject(MessageReadQueueService),
       unreadCountsStore = inject(UnreadCountsStore),
       outgoingStore = inject(OutgoingMessagesStore),
+      ngrxStore = inject(Store),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
@@ -531,6 +544,115 @@ export const ChatStore = signalStore(
             ),
           ),
         ),
+
+        toggleReaction: rxMethod<{ messageId: string; emoji: string }>(
+          pipe(
+            mergeMap(({ messageId, emoji }) => {
+              const currentMessage = store.entityMap()[messageId];
+              const currentUser = ngrxStore.selectSignal(selectCurrentUser)();
+              if (!currentMessage || !currentUser) {
+                return EMPTY;
+              }
+              const previousReactions = currentMessage.reactions ?? [];
+              const currentUserId = currentUser.id;
+              const userExistingGroup = previousReactions.find((g) =>
+                g.userIds.includes(currentUserId),
+              );
+
+              let nextReactions: ITextRoomReactionGroup[];
+              if (userExistingGroup?.emoji === emoji) {
+                // Remove reaction (toggle off)
+                nextReactions = previousReactions
+                  .map((g) => {
+                    if (g.emoji === emoji) {
+                      const nextUserIds = g.userIds.filter(
+                        (id) => id !== currentUserId,
+                      );
+                      return {
+                        emoji: g.emoji,
+                        count: nextUserIds.length,
+                        userIds: nextUserIds,
+                      };
+                    }
+                    return g;
+                  })
+                  .filter((g) => g.count > 0);
+              } else {
+                // Telegram mode: single reaction per user per message
+                const cleaned = previousReactions
+                  .map((g) => {
+                    if (g.userIds.includes(currentUserId)) {
+                      const nextUserIds = g.userIds.filter(
+                        (id) => id !== currentUserId,
+                      );
+                      return {
+                        emoji: g.emoji,
+                        count: nextUserIds.length,
+                        userIds: nextUserIds,
+                      };
+                    }
+                    return g;
+                  })
+                  .filter((g) => g.count > 0);
+
+                const targetGroup = cleaned.find((g) => g.emoji === emoji);
+                if (targetGroup) {
+                  nextReactions = cleaned.map((g) =>
+                    g.emoji === emoji
+                      ? {
+                          emoji: g.emoji,
+                          count: g.count + 1,
+                          userIds: [...g.userIds, currentUserId],
+                        }
+                      : g,
+                  );
+                } else {
+                  nextReactions = [
+                    ...cleaned,
+                    {
+                      emoji,
+                      count: 1,
+                      userIds: [currentUserId],
+                    },
+                  ];
+                }
+              }
+
+              // Optimistic update
+              patchState(
+                store,
+                updateEntity({
+                  id: messageId,
+                  changes: { reactions: nextReactions },
+                }),
+              );
+
+              return chatApiService.toggleReaction(messageId, emoji).pipe(
+                tap((reactions) => {
+                  patchState(
+                    store,
+                    updateEntity({
+                      id: messageId,
+                      changes: { reactions },
+                    }),
+                  );
+                }),
+                catchError((error) => {
+                  // Roll back optimistic state on error
+                  patchState(
+                    store,
+                    updateEntity({
+                      id: messageId,
+                      changes: { reactions: previousReactions },
+                    }),
+                  );
+                  showError(error);
+                  return EMPTY;
+                }),
+              );
+            }),
+          ),
+        ),
       };
     },
   ),
@@ -577,6 +699,24 @@ export const ChatStore = signalStore(
             return;
           }
           patchState(store, setEntity(toMessageEntity(message)));
+        });
+
+      fromEvent<ITextRoomReactionUpdated>(
+        emitter,
+        ETextRoomEvent.MESSAGE_REACTION_UPDATED,
+      )
+        .pipe(takeUntilDestroyed())
+        .subscribe(({ messageId, reactions }) => {
+          if (!store.entityMap()[messageId]) {
+            return;
+          }
+          patchState(
+            store,
+            updateEntity({
+              id: messageId,
+              changes: { reactions },
+            }),
+          );
         });
 
       fromEvent<{ id: string }>(emitter, ETextRoomEvent.MESSAGE_DELETED)

@@ -38,6 +38,7 @@ export enum ETextRoomEvent {
   MESSAGE_CREATED = 'message-created',
   MESSAGE_EDITED = 'message-edited',
   MESSAGE_DELETED = 'message-deleted',
+  MESSAGE_REACTION_UPDATED = 'message-reaction-updated',
   USER_TYPING = 'user-typing',
   ERROR = 'error',
 }

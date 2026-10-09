@@ -80,6 +80,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
+- Swipe to reply
 - Add notification click navigation
 - Add common user dialog with short info direct chat/call buttons
 - Add emojis or/and customizable smile/sticker packs

@@ -69,6 +69,7 @@ describe('TextRoomsGateway', () => {
       attachments: [],
       clientId: null,
       replyTo: null,
+      reactions: [],
     };
 
     gateway.onMessageCreated(body);
@@ -94,6 +95,7 @@ describe('TextRoomsGateway', () => {
       attachments: [],
       clientId: null,
       replyTo: null,
+      reactions: [],
     };
 
     gateway.onMessageCreated(body);
@@ -120,6 +122,7 @@ describe('TextRoomsGateway', () => {
       attachments: [],
       clientId: null,
       replyTo: null,
+      reactions: [],
     };
 
     gateway.onMessageUpdated(body);
@@ -145,6 +148,7 @@ describe('TextRoomsGateway', () => {
       attachments: [],
       clientId: null,
       replyTo: null,
+      reactions: [],
     };
 
     gateway.onMessageUpdated(body);
@@ -165,6 +169,43 @@ describe('TextRoomsGateway', () => {
     expect(serverMock.emit).toHaveBeenCalledWith(
       ETextRoomEvent.MESSAGE_DELETED,
       { id },
+    );
+  });
+
+  it('should emit MESSAGE_REACTION_UPDATED to room in onMessageReactionUpdated', () => {
+    const payload = {
+      messageId: v7(),
+      roomId: 42,
+      recipientId: null,
+      senderId: 1,
+      reactions: [{ emoji: '👍', count: 1, userIds: [1] }],
+    };
+
+    gateway.onMessageReactionUpdated(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('42');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGE_REACTION_UPDATED,
+      payload,
+    );
+  });
+
+  it('should emit MESSAGE_REACTION_UPDATED to recipient and sender in onMessageReactionUpdated', () => {
+    const payload = {
+      messageId: v7(),
+      roomId: null,
+      recipientId: 2,
+      senderId: 1,
+      reactions: [{ emoji: '❤️', count: 1, userIds: [2] }],
+    };
+
+    gateway.onMessageReactionUpdated(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('2');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGE_REACTION_UPDATED,
+      payload,
     );
   });
 });

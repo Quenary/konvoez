@@ -6,6 +6,7 @@ import {
   ITextRoomListRequest,
   ITextRoomListResponse,
   ITextRoomMessage,
+  ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
   IUser,
 } from '@konvoez/shared';
@@ -84,6 +85,19 @@ export class ChatApiService {
   getUnreadCounts(): Observable<ITextRoomUnreadCounts> {
     return this.httpClient.get<ITextRoomUnreadCounts>(
       `${environment.apiPath}/text-rooms/unread-counts`,
+      {
+        withCredentials: true,
+      },
+    );
+  }
+
+  toggleReaction(
+    messageId: string,
+    emoji: string,
+  ): Observable<ITextRoomReactionGroup[]> {
+    return this.httpClient.put<ITextRoomReactionGroup[]>(
+      `${environment.apiPath}/text-rooms/${messageId}/reactions`,
+      { emoji },
       {
         withCredentials: true,
       },

@@ -7,6 +7,7 @@ import { SettingsEntitySchema } from './features/settings/settings.entity';
 import {
   MessageEntitySchema,
   MessageReadEntitySchema,
+  MessageReactionEntitySchema,
   MessageSearchTokenEntitySchema,
 } from './features/text-rooms/text-rooms.entity';
 import { InviteEntitySchema } from './features/invites/invites.entity';
@@ -26,6 +27,7 @@ import { Migration20260929152327_PasswordRecoveryCodes } from './migrations/Migr
 import { Migration20260930120000_NormalizeEmails } from './migrations/Migration20260930120000_NormalizeEmails';
 import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
 import { Migration20261003224050_MessageAttachments } from './migrations/Migration20261003224050_MessageAttachments';
+import { Migration20261009130000_MessageReactions } from './migrations/Migration20261009130000_MessageReactions';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -43,6 +45,7 @@ export async function createMikroOrmConfig() {
       PushSubscriptionEntitySchema,
       PasswordRecoveryCodeEntitySchema,
       MessageAttachmentEntitySchema,
+      MessageReactionEntitySchema,
     ],
     extensions: [Migrator],
     migrations: {
@@ -62,6 +65,7 @@ export async function createMikroOrmConfig() {
         Migration20260930120000_NormalizeEmails,
         Migration20260930092254_UserSoftDelete,
         Migration20261003224050_MessageAttachments,
+        Migration20261009130000_MessageReactions,
       ],
     },
   } satisfies Partial<Options>;

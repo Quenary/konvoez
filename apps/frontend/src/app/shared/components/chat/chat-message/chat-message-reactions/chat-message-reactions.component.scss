@@ -1,0 +1,60 @@
+:host {
+  display: block;
+}
+
+.reactions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  user-select: none;
+}
+
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  height: 1.5rem;
+  background: var(--tui-background-neutral-2, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--tui-border-normal, rgba(255, 255, 255, 0.1));
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
+  color: var(--tui-text-primary);
+  font-size: 0.75rem;
+  line-height: 1;
+
+  &:hover {
+    background: var(
+      --tui-background-neutral-2-hover,
+      rgba(255, 255, 255, 0.16)
+    );
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &--active {
+    background: var(--tui-status-positive-pale, rgba(34, 197, 94, 0.2));
+    border-color: var(--tui-status-positive, #22c55e);
+    color: var(--tui-status-positive, #22c55e);
+    font-weight: 600;
+  }
+}
+
+.reaction-pill-emoji {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.reaction-pill-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}

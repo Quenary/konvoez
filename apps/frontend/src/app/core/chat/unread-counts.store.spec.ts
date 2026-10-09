@@ -72,6 +72,7 @@ describe('UnreadCountsStore', () => {
     attachments: [],
     clientId: null,
     replyTo: null,
+    reactions: [],
     ...overrides,
   });
 

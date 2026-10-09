@@ -298,3 +298,14 @@ PWA:
     TITLE: Требуется обновление
     CONTENT: Эта версия больше не может работать. Перезагрузите страницу.
     ACTION: Перезагрузить
+REACTIONS:
+  TOOLBAR: Реакции
+  EXPAND: Развернуть
+  COLLAPSE: Свернуть
+  YOU: Вы
+  CAT_SMILEYS: Смайлы и эмоции
+  CAT_GESTURES: Жесты и люди
+  CAT_HEARTS: Сердца и символы
+  CAT_CELEBRATION: Праздник и предметы
+  CAT_FOOD: Еда и напитки
+  CAT_ANIMALS: Животные и природа

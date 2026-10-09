@@ -92,6 +92,11 @@
           </tui-editor-socket>
         }
 
+        <app-chat-message-reactions
+          [reactions]="m.reactions"
+          [currentUserId]="currentUserId()"
+          (react)="onReactionSelect($event)" />
+
         <span class="message-bubble-footer">
           <span class="message-date">{{ m.createdAt | todayDayjs }}</span>
           @switch (readStatus()) {
@@ -137,6 +142,12 @@
   <ng-template
     #contextMenu
     let-close>
+    @if (!outgoing()) {
+      <app-chat-message-reactions-bar
+        [reactions]="m.reactions"
+        [currentUserId]="currentUserId()"
+        (react)="onReactionSelect($event); close()" />
+    }
     <tui-data-list>
       @if (outgoing()) {
         @if (canCancelSending()) {

@@ -298,3 +298,14 @@ PWA:
     TITLE: App update required
     CONTENT: This version can no longer run. Reload to continue.
     ACTION: Reload
+REACTIONS:
+  TOOLBAR: Reactions
+  EXPAND: Expand
+  COLLAPSE: Collapse
+  YOU: You
+  CAT_SMILEYS: Smileys & Emotion
+  CAT_GESTURES: Gestures & People
+  CAT_HEARTS: Hearts & Symbols
+  CAT_CELEBRATION: Celebration & Objects
+  CAT_FOOD: Food & Drink
+  CAT_ANIMALS: Animals & Nature

@@ -23,6 +23,8 @@ import {
   MessageListRequestDto,
   EditMessageDto,
   UnreadCountsResponseDto,
+  ToggleReactionDto,
+  ReactionGroupDto,
 } from './text-rooms.dto';
 
 @Controller('text-rooms')
@@ -109,6 +111,20 @@ export class TextRoomsController {
   ) {
     const message = await this.textRoomsService.updateMessage(author, id, body);
     return message;
+  }
+
+  @Put(':id/reactions')
+  @ApiOkResponse({
+    type: ReactionGroupDto,
+    isArray: true,
+    description: 'Toggle emoji reaction on message',
+  })
+  async toggleReaction(
+    @Author() author: GetUserDto,
+    @Param('id') id: string,
+    @Body() body: ToggleReactionDto,
+  ): Promise<ReactionGroupDto[]> {
+    return await this.textRoomsService.toggleReaction(author, id, body.emoji);
   }
 
   @Delete(':id')

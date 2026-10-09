@@ -100,6 +100,7 @@ describe('OutgoingMessagesStore', () => {
       attachments: [],
       clientId,
       replyTo: null,
+      reactions: [],
     };
   }
 

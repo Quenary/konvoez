@@ -202,4 +202,30 @@ export class TextRoomsGateway
     this.logger.debug(`Fan-out message deleted: messageId=${payload.id}`);
     return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, payload);
   }
+
+  @OnEvent(TextRoomDomainEvents.MESSAGE_REACTION_UPDATED)
+  onMessageReactionUpdated(
+    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_REACTION_UPDATED],
+  ) {
+    if (body.roomId) {
+      this.logger.debug(
+        `Fan-out message reaction updated: messageId=${body.messageId}, roomId=${body.roomId}`,
+      );
+      return this.server
+        .to(body.roomId.toString())
+        .emit(ETextRoomEvent.MESSAGE_REACTION_UPDATED, body);
+    }
+    if (body.recipientId && body.senderId) {
+      this.logger.debug(
+        `Fan-out message reaction updated: messageId=${body.messageId}, recipientId=${body.recipientId}, senderId=${body.senderId}`,
+      );
+      return this.server
+        .to(body.recipientId.toString())
+        .to(body.senderId.toString())
+        .emit(ETextRoomEvent.MESSAGE_REACTION_UPDATED, body);
+    }
+    this.logger.warn(
+      `Dropped message reaction updated without target: messageId=${body.messageId}`,
+    );
+  }
 }

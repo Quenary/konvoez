@@ -60,6 +60,7 @@ describe('ChatStore', () => {
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
+    toggleReaction: ReturnType<typeof vi.fn>;
   };
   let mockSocket: MockSocket;
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
@@ -98,6 +99,7 @@ describe('ChatStore', () => {
     attachments: [],
     clientId: null,
     replyTo: null,
+    reactions: [],
   };
 
   const message2WithReply: ITextRoomMessage = {
@@ -112,6 +114,7 @@ describe('ChatStore', () => {
     isRead: false,
     attachments: [],
     clientId: null,
+    reactions: [],
     replyTo: {
       id: 'msg-1',
       senderId: 1,
@@ -137,6 +140,7 @@ describe('ChatStore', () => {
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(() => of(null)),
+      toggleReaction: vi.fn(() => of([])),
     };
     unreadCountsStore = {
       setActiveChat: vi.fn(),
@@ -262,6 +266,7 @@ describe('ChatStore', () => {
       attachments: [],
       clientId: null,
       replyTo: null,
+      reactions: [],
     };
 
     apiService.list.mockReturnValue(
@@ -312,6 +317,7 @@ describe('ChatStore', () => {
       isRead: false,
       attachments: [],
       clientId: 'temp-123',
+      reactions: [],
       replyTo: {
         id: 'msg-1',
         senderId: 1,
@@ -421,6 +427,7 @@ describe('ChatStore', () => {
       attachments: [],
       clientId: 'temp-retry',
       replyTo: null,
+      reactions: [],
     });
     retry$.complete();
 
@@ -558,6 +565,7 @@ describe('ChatStore', () => {
         attachments: [],
         clientId: null,
         replyTo: null,
+        reactions: [],
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, newSocketMessage);
@@ -581,6 +589,7 @@ describe('ChatStore', () => {
         attachments: [],
         clientId: null,
         replyTo: null,
+        reactions: [],
       };
 
       mockSocket.emit(
@@ -625,6 +634,7 @@ describe('ChatStore', () => {
         attachments: [],
         clientId: null,
         replyTo: null,
+        reactions: [],
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);
@@ -644,6 +654,7 @@ describe('ChatStore', () => {
         attachments: [],
         clientId: null,
         replyTo: null,
+        reactions: [],
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, otherRoomMessage);
@@ -667,6 +678,7 @@ describe('ChatStore', () => {
         attachments: [],
         clientId: null,
         replyTo: null,
+        reactions: [],
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);
@@ -866,6 +878,49 @@ describe('ChatStore', () => {
       expect(resolve).toHaveBeenCalledWith(
         expect.objectContaining({ clientId: 'temp-elsewhere' }),
       );
+    });
+  });
+
+  describe('Reactions', () => {
+    it('should optimistically update reactions and call apiService.toggleReaction', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.toggleReaction.mockReturnValue(
+        of([{ emoji: '👍', count: 1, userIds: [1] }]),
+      );
+
+      store.toggleReaction({ messageId: 'msg-1', emoji: '👍' });
+
+      expect(apiService.toggleReaction).toHaveBeenCalledWith('msg-1', '👍');
+      expect(store.entityMap()['msg-1'].reactions).toEqual([
+        { emoji: '👍', count: 1, userIds: [1] },
+      ]);
+    });
+
+    it('should roll back reactions when apiService.toggleReaction fails', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.toggleReaction.mockReturnValue(
+        throwError(() => new Error('Server error')),
+      );
+
+      store.toggleReaction({ messageId: 'msg-1', emoji: '👍' });
+
+      expect(apiService.toggleReaction).toHaveBeenCalledWith('msg-1', '👍');
+      expect(store.entityMap()['msg-1'].reactions).toEqual([]);
+    });
+
+    it('should update reactions when MESSAGE_REACTION_UPDATED event is received', () => {
+      store.join({ kind: 'room', id: 10 });
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_REACTION_UPDATED, {
+        messageId: 'msg-1',
+        roomId: 10,
+        recipientId: null,
+        reactions: [{ emoji: '🔥', count: 2, userIds: [1, 2] }],
+      });
+
+      expect(store.entityMap()['msg-1'].reactions).toEqual([
+        { emoji: '🔥', count: 2, userIds: [1, 2] },
+      ]);
     });
   });
 });
