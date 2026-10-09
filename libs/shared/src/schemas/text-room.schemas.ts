@@ -46,6 +46,9 @@ export type TTextRoomEvent = {
   };
 }[ETextRoomEvent];
 
+export const emojiRegex =
+  /^(?:(?=.*\p{Extended_Pictographic})(?:[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]+)|\p{Regional_Indicator}{2})$/u;
+
 export const messageReactionGroupSchema = z.object({
   emoji: stringSchema,
   count: z.number().int().positive(),
@@ -53,7 +56,7 @@ export const messageReactionGroupSchema = z.object({
 });
 
 export const messageReactionToggleSchema = z.object({
-  emoji: stringSchema.min(1).max(32),
+  emoji: stringSchema.min(1).max(32).regex(emojiRegex),
 });
 
 export const messageReplyToSchema = z.object({
