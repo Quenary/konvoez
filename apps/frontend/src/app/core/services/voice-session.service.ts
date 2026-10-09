@@ -366,7 +366,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
         data.producerId,
       );
 
-      if (isStream) {
+      if (isStream && data.reason !== 'peer-left') {
         this.audioService.playStreamStopAudio();
       }
     });

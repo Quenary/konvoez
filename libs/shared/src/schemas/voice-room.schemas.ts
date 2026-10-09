@@ -172,6 +172,7 @@ export interface IVoiceRoomProduceResult {
 export interface IVoiceRoomProducerClosed {
   producerId: string;
   userId: number;
+  reason?: 'peer-left';
 }
 
 export interface IVoiceRoomCloseProducer {

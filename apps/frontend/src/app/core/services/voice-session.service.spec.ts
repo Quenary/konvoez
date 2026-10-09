@@ -559,5 +559,17 @@ describe('VoiceSessionService', () => {
       onProducerClosed({ userId: 2, producerId: 'p-mic' });
       expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
     });
+
+    it('does not play stream stop audio on PRODUCER_CLOSED when reason is peer-left', () => {
+      const onProducerClosed = handlers[EVoiceRoomEvent.PRODUCER_CLOSED];
+
+      peerVideo.isStreamProducer.mockReturnValue(true);
+      onProducerClosed({
+        userId: 2,
+        producerId: 'p-cam',
+        reason: 'peer-left',
+      });
+      expect(audioService.playStreamStopAudio).not.toHaveBeenCalled();
+    });
   });
 });
