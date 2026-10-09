@@ -1,3 +1,23 @@
+## 1.14.0 (2026-10-09)
+
+### Features
+
+- message reactions ([4cb64a2](https://github.com/Quenary/konvoez/commit/4cb64a2))
+- **frontend:** stream start/stop audio notification ([1c83c50](https://github.com/Quenary/konvoez/commit/1c83c50))
+
+### Bug Fixes
+
+- **backend:** normalize message id for reaction lookup and drop user populate ([c950bec](https://github.com/Quenary/konvoez/commit/c950bec))
+- **chat:** prevent concurrent reaction race condition on double click ([392ce05](https://github.com/Quenary/konvoez/commit/392ce05))
+- **ci:** update release workflow to use environment variable for specifier ([cfea23f](https://github.com/Quenary/konvoez/commit/cfea23f))
+- **frontend:** make reaction tooltips reactive to language changes ([032f4e9](https://github.com/Quenary/konvoez/commit/032f4e9))
+- **shared:** validate emoji with extended pictographic regex ([a854fe7](https://github.com/Quenary/konvoez/commit/a854fe7))
+- **voice:** suppress stream stop sound when peer leaves room ([3e48a8e](https://github.com/Quenary/konvoez/commit/3e48a8e))
+
+### ❤️ Thank You
+
+- Quenary
+
 # [1.13.0](https://github.com/Quenary/konvoez/compare/v1.12.0...v1.13.0) (2026-10-08)
 
 ### Bug Fixes
