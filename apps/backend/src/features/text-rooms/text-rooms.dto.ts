@@ -5,6 +5,8 @@ import {
   messageEditSchema,
   messageListRequestSchema,
   messageListResponseSchema,
+  messageReactionGroupSchema,
+  messageReactionToggleSchema,
   messageSchema,
   unreadCountsSchema,
 } from '@konvoez/shared';
@@ -26,3 +28,11 @@ export class MessageListResponseDto extends createZodDto(
 export class MarkReadDto extends createZodDto(markReadSchema) {}
 
 export class UnreadCountsResponseDto extends createZodDto(unreadCountsSchema) {}
+
+export class ToggleReactionDto extends createZodDto(
+  messageReactionToggleSchema,
+) {}
+
+export class ReactionGroupDto extends createZodDto(
+  messageReactionGroupSchema,
+) {}

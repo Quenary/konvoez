@@ -1,0 +1,79 @@
+@if (!isExpanded()) {
+  <div
+    class="reactions-bar"
+    role="toolbar"
+    [attr.aria-label]="'REACTIONS.TOOLBAR' | translate">
+    <div class="reactions-quick-list">
+      @let activeEmoji = userActiveEmoji();
+      @for (emoji of quickEmojis(); track emoji) {
+        <button
+          type="button"
+          class="reaction-item"
+          [class.reaction-item--active]="activeEmoji === emoji"
+          (click)="onEmojiSelect(emoji)">
+          {{ emoji }}
+        </button>
+      }
+    </div>
+
+    <button
+      type="button"
+      class="reaction-expand-btn"
+      [tuiHint]="'REACTIONS.EXPAND' | translate"
+      (click)="toggleExpand()">
+      <tui-icon
+        icon="@tui.chevron-down"
+        class="expand-icon" />
+    </button>
+  </div>
+} @else {
+  <div class="reactions-picker">
+    <div class="picker-header">
+      <div class="picker-categories">
+        @for (cat of categories; track cat.id) {
+          <button
+            type="button"
+            class="picker-cat-btn"
+            [tuiHint]="cat.nameKey | translate"
+            (click)="scrollToCategory(cat.id)">
+            {{ cat.icon }}
+          </button>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="reaction-collapse-btn"
+        [tuiHint]="'REACTIONS.COLLAPSE' | translate"
+        (click)="toggleExpand()">
+        <tui-icon
+          icon="@tui.chevron-up"
+          class="collapse-icon" />
+      </button>
+    </div>
+
+    <div class="picker-scroll-container">
+      @let activeEmoji = userActiveEmoji();
+      @for (cat of categories; track cat.id) {
+        <div
+          [attr.id]="'emoji-cat-' + cat.id"
+          class="picker-section">
+          <div class="picker-section-title">
+            {{ cat.nameKey | translate }}
+          </div>
+          <div class="picker-grid">
+            @for (emoji of cat.emojis; track emoji) {
+              <button
+                type="button"
+                class="emoji-grid-btn"
+                [class.emoji-grid-btn--active]="activeEmoji === emoji"
+                (click)="onEmojiSelect(emoji)">
+                {{ emoji }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -343,10 +343,18 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PRODUCER_CREATED, async (data) => {
+      if (data.mediaTag === 'cam' || data.mediaTag === 'screen') {
+        this.audioService.playStreamStartAudio();
+      }
       await this.consume(data);
     });
 
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
+      const isStream = this.peerVideoService.isStreamProducer(
+        data.userId,
+        data.producerId,
+      );
+
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
       this.peerVideoService.remove(data.userId, data.producerId);
       this.screenWatchService.onRemoteProducerClosed(
@@ -357,6 +365,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
         data.userId,
         data.producerId,
       );
+
+      if (isStream && data.reason !== 'peer-left') {
+        this.audioService.playStreamStopAudio();
+      }
     });
 
     this.socket.on(EVoiceRoomEvent.CONSUMER_CLOSED, (data) => {

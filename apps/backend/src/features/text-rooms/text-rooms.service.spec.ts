@@ -23,6 +23,7 @@ import { TextRoomsService } from './text-rooms.service';
 import {
   MessageEntity,
   MessageReadEntity,
+  MessageReactionEntity,
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
 import { UsersService } from '../users/users.service';
@@ -59,6 +60,9 @@ describe('TextRoomsService', () => {
   let service: TextRoomsService;
   let messageRepository: jest.Mocked<EntityRepository<MessageEntity>>;
   let messageReadRepository: jest.Mocked<EntityRepository<MessageReadEntity>>;
+  let messageReactionRepository: jest.Mocked<
+    EntityRepository<MessageReactionEntity>
+  >;
   let usersService: jest.Mocked<UsersService>;
   let roomsService: jest.Mocked<RoomsService>;
   let encryptionService: jest.Mocked<EncryptionService>;
@@ -118,6 +122,14 @@ describe('TextRoomsService', () => {
       }),
     } as unknown as jest.Mocked<EntityRepository<MessageReadEntity>>;
 
+    messageReactionRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((data) => data),
+      assign: jest.fn(),
+      remove: jest.fn(),
+    } as unknown as jest.Mocked<EntityRepository<MessageReactionEntity>>;
+
     usersService = {
       findOne: jest.fn(),
       toDto: jest.fn(),
@@ -160,6 +172,7 @@ describe('TextRoomsService', () => {
     service = new TextRoomsService(
       messageRepository,
       messageReadRepository,
+      messageReactionRepository,
       usersService,
       roomsService,
       encryptionService,
@@ -1169,6 +1182,199 @@ describe('TextRoomsService', () => {
       const result = await service.getReaders(mockUser, msgId);
 
       expect(result).toEqual([{ id: 2, username: 'bob' }]);
+    });
+  });
+
+  describe('toggleReaction', () => {
+    it('should throw NotFoundException if message does not exist', async () => {
+      messageRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.toggleReaction(mockUser, v7(), '👍'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException if user is not participant', async () => {
+      messageRepository.findOne.mockResolvedValue({
+        id: parse(v7()),
+        sender: { id: 99, username: 'stranger' },
+        recipient: { id: 88, username: 'other' },
+        room: null,
+      } as unknown as MessageEntity);
+
+      await expect(
+        service.toggleReaction(mockUser, v7(), '👍'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should add reaction when user has no reaction on message', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const message = {
+        id: rawId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        room: { id: 10 },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '👍',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]); // loadReactions
+
+      const result = await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(em.persist).toHaveBeenCalled();
+      expect(em.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        expect.objectContaining({
+          messageId: msgId,
+          roomId: 10,
+          reactions: [{ emoji: '👍', count: 1, userIds: [mockUser.id] }],
+        }),
+      );
+      expect(result).toEqual([
+        { emoji: '👍', count: 1, userIds: [mockUser.id] },
+      ]);
+    });
+
+    it('should remove reaction when same emoji is clicked (toggle off)', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const message = {
+        id: rawId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        room: { id: 10 },
+      } as unknown as MessageEntity;
+
+      const existingReaction = {
+        id: 1,
+        message: { id: rawId },
+        emoji: '👍',
+        user: { id: mockUser.id },
+      } as unknown as MessageReactionEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(existingReaction);
+      messageReactionRepository.find.mockResolvedValueOnce([]); // loadReactions after removal
+
+      const result = await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(em.remove).toHaveBeenCalledWith(existingReaction);
+      expect(em.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        expect.objectContaining({
+          messageId: msgId,
+          roomId: 10,
+          reactions: [],
+        }),
+      );
+      expect(result).toEqual([]);
+    });
+
+    it('should replace previous reaction when different emoji is clicked (Telegram style)', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const message = {
+        id: rawId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        room: { id: 10 },
+      } as unknown as MessageEntity;
+
+      const oldReaction = {
+        id: 1,
+        message: { id: rawId },
+        emoji: '👍',
+        user: { id: mockUser.id },
+      } as unknown as MessageReactionEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(oldReaction);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '❤️',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]); // loadReactions after replace
+
+      const result = await service.toggleReaction(mockUser, msgId, '❤️');
+
+      expect(oldReaction.emoji).toBe('❤️');
+      expect(em.flush).toHaveBeenCalled();
+      expect(result).toEqual([
+        { emoji: '❤️', count: 1, userIds: [mockUser.id] },
+      ]);
+    });
+
+    it('should throw NotFoundException when message is not found', async () => {
+      const msgId = v7();
+      messageRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.toggleReaction(mockUser, msgId, '👍'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user is not a participant in DM', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const foreignMessage = {
+        id: rawId,
+        sender: { id: 99, username: 'stranger1' },
+        recipient: { id: 100, username: 'stranger2' },
+        room: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(foreignMessage);
+
+      await expect(
+        service.toggleReaction(mockUser, msgId, '👍'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should normalize uppercase message id for reaction lookup and domain event', async () => {
+      const msgId = v7().toUpperCase();
+      const rawId = parse(msgId);
+      const normalizedMsgId = msgId.toLowerCase();
+      const message = {
+        id: rawId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        room: { id: 10 },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '👍',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]);
+
+      const result = await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        expect.objectContaining({
+          messageId: normalizedMsgId,
+          reactions: [{ emoji: '👍', count: 1, userIds: [mockUser.id] }],
+        }),
+      );
+      expect(result).toEqual([
+        { emoji: '👍', count: 1, userIds: [mockUser.id] },
+      ]);
     });
   });
 });

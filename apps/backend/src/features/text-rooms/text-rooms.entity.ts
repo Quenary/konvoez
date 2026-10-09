@@ -99,6 +99,28 @@ export const MessageReadEntitySchema = defineEntity({
   },
 });
 
+export const MessageReactionEntitySchema = defineEntity({
+  name: 'MessageReactionEntity',
+  tableName: 'message_reactions',
+  indexes: [
+    { properties: ['message'] },
+    { properties: ['user'] },
+    { properties: ['message', 'emoji'] },
+  ],
+  uniques: [{ properties: ['message', 'user'] }],
+  properties: {
+    id: p.integer().primary().autoincrement(),
+    message: () =>
+      p
+        .manyToOne(MessageEntitySchema)
+        .updateRule('cascade')
+        .deleteRule('cascade'),
+    user: () => p.manyToOne(UserEntitySchema).deleteRule('cascade'),
+    emoji: p.string().length(32),
+    createdAt: p.datetime().defaultRaw('CURRENT_TIMESTAMP'),
+  },
+});
+
 export class MessageEntity extends MessageEntitySchema.class {
   declare replyTo: MessageEntity | null;
 }
@@ -108,6 +130,9 @@ export class MessageSearchTokenEntity
 
 export class MessageReadEntity extends MessageReadEntitySchema.class {}
 
+export class MessageReactionEntity extends MessageReactionEntitySchema.class {}
+
 MessageEntitySchema.setClass(MessageEntity);
 MessageSearchTokenEntitySchema.setClass(MessageSearchTokenEntity);
 MessageReadEntitySchema.setClass(MessageReadEntity);
+MessageReactionEntitySchema.setClass(MessageReactionEntity);

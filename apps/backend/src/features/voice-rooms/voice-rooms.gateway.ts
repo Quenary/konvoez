@@ -21,6 +21,7 @@ import {
   type IVoiceRoomJoin,
   type IVoiceRoomProduce,
   type IVoiceRoomProduceResult,
+  type IVoiceRoomProducerClosed,
   type IVoiceRoomCloseProducer,
   type IVoiceRoomCloseConsumer,
   type IUser,
@@ -955,6 +956,7 @@ export class VoiceRoomsGateway
         sessionKey,
         roomId,
         exceptSocket,
+        'peer-left',
       );
     }
     peer.sendTransport?.close?.();
@@ -974,6 +976,7 @@ export class VoiceRoomsGateway
     sessionKey: string,
     roomId: number | undefined,
     exceptSocket?: TSocket,
+    reason?: 'peer-left',
   ): void {
     if (producer.appData?.mediaTag === 'screen' && !producer.closed) {
       for (const other of [...peer.producers.values()]) {
@@ -989,6 +992,7 @@ export class VoiceRoomsGateway
             sessionKey,
             roomId,
             exceptSocket,
+            reason,
           );
         }
       }
@@ -1001,6 +1005,7 @@ export class VoiceRoomsGateway
       sessionKey,
       roomId,
       exceptSocket,
+      reason,
     );
     if (!producer.closed) {
       producer.close();
@@ -1017,6 +1022,7 @@ export class VoiceRoomsGateway
     sessionKey: string,
     roomId: number | undefined,
     exceptSocket?: TSocket,
+    reason?: 'peer-left',
   ): void {
     const hadPeer = peer.producers.delete(producer.id);
     const hadRoom = room.producers.delete(producer.id);
@@ -1028,9 +1034,10 @@ export class VoiceRoomsGateway
       `Producer closed: producerId=${producer.id}, userId=${peer.user.id}, sessionKey=${sessionKey}`,
     );
 
-    const payload = {
+    const payload: IVoiceRoomProducerClosed = {
       producerId: producer.id,
       userId: peer.user.id,
+      ...(reason ? { reason } : {}),
     };
     const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
     if (exceptSocket) {

@@ -412,7 +412,7 @@ describe('VoiceRoomsGateway', () => {
 
       expect(serverMock.emit).toHaveBeenCalledWith(
         EVoiceRoomEvent.PRODUCER_CLOSED,
-        { producerId: 'old-producer', userId: alice.id },
+        { producerId: 'old-producer', userId: alice.id, reason: 'peer-left' },
       );
       expect(serverMock.emit).toHaveBeenCalledWith(
         EVoiceRoomEvent.PEER_LEFT,
@@ -523,6 +523,7 @@ describe('VoiceRoomsGateway', () => {
       expect(toEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_CLOSED, {
         producerId: 'p1',
         userId: alice.id,
+        reason: 'peer-left',
       });
       expect(toEmit).toHaveBeenCalledWith(
         EVoiceRoomEvent.PEER_LEFT,

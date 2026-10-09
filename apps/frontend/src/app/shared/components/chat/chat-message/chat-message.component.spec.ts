@@ -30,6 +30,7 @@ describe('ChatMessageComponent', () => {
     retryMessage: vi.fn(),
     cancelOutgoing: vi.fn(),
     removeOutgoingFile: vi.fn(),
+    toggleReaction: vi.fn(),
   };
 
   const mockUsersStore = {
@@ -72,6 +73,7 @@ describe('ChatMessageComponent', () => {
     clientId: null,
     status: EMessageStatus.SUCCESS,
     replyTo: null,
+    reactions: [],
   };
 
   beforeEach(async () => {
@@ -496,6 +498,29 @@ describe('ChatMessageComponent', () => {
 
       expect(component['senderUsername']()).toBe('bob');
       expect(component['senderFullnameHint']()).toBeNull();
+    });
+  });
+
+  describe('reactions', () => {
+    it('should invoke toggleReaction on chatStore when onReactionSelect is called', () => {
+      component['onReactionSelect']('👍');
+
+      expect(mockChatStore.toggleReaction).toHaveBeenCalledWith({
+        messageId: 'msg-1',
+        emoji: '👍',
+      });
+    });
+
+    it('should render reactions component with message reactions', () => {
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        reactions: [{ emoji: '👍', count: 1, userIds: [1] }],
+      });
+      fixture.detectChanges();
+
+      const el: HTMLElement = fixture.nativeElement;
+      const reactionsEl = el.querySelector('app-chat-message-reactions');
+      expect(reactionsEl).not.toBeNull();
     });
   });
 });

@@ -27,6 +27,7 @@ describe('ChatEditorComponent', () => {
     clientId: null,
     status: EMessageStatus.SUCCESS,
     replyTo: null,
+    reactions: [],
   };
 
   const mockChatStore = {

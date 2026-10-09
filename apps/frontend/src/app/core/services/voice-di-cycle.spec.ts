@@ -87,6 +87,8 @@ describe('voice DI graph', () => {
             playMuteAudio: vi.fn(),
             playPeerJoinAudio: vi.fn(),
             playPeerLeaveAudio: vi.fn(),
+            playStreamStartAudio: vi.fn(),
+            playStreamStopAudio: vi.fn(),
           },
         },
         {

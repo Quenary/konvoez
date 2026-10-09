@@ -29,6 +29,8 @@ const F = {
   joinLow: 648,
   joinHigh: 864,
   chord: [523.25, 659.25, 783.99] as const, // C5 E5 G5
+  streamStart: [587.33, 739.99, 880] as const, // D5 F#5 A5
+  streamStop: [880, 739.99, 587.33] as const, // A5 F#5 D5
 } as const;
 
 /** UI/telephony cue tones (join/leave, mute, dial, ringtone). Not peer media playback. */
@@ -42,6 +44,34 @@ export class AudioService {
   private audioContext: AudioContext | null = null;
   private dialingInterval: ReturnType<typeof setInterval> | null = null;
   private ringtoneInterval: ReturnType<typeof setInterval> | null = null;
+  private lastStreamStartAt = 0;
+  private lastStreamStopAt = 0;
+
+  public playStreamStartAudio(): void {
+    const now = performance.now();
+    if (now - this.lastStreamStartAt < 100) {
+      return;
+    }
+    this.lastStreamStartAt = now;
+    this.playNotes([
+      { frequency: F.streamStart[0], when: 0, duration: 0.08, peak: 0.09 },
+      { frequency: F.streamStart[1], when: 0.07, duration: 0.08, peak: 0.1 },
+      { frequency: F.streamStart[2], when: 0.14, duration: 0.16, peak: 0.11 },
+    ]);
+  }
+
+  public playStreamStopAudio(): void {
+    const now = performance.now();
+    if (now - this.lastStreamStopAt < 100) {
+      return;
+    }
+    this.lastStreamStopAt = now;
+    this.playNotes([
+      { frequency: F.streamStop[0], when: 0, duration: 0.08, peak: 0.1 },
+      { frequency: F.streamStop[1], when: 0.07, duration: 0.08, peak: 0.08 },
+      { frequency: F.streamStop[2], when: 0.14, duration: 0.16, peak: 0.07 },
+    ]);
+  }
 
   public playPeerJoinAudio(): void {
     this.playNotes([

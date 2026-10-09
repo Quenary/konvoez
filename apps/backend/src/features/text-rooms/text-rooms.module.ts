@@ -6,6 +6,7 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
   MessageReadEntity,
+  MessageReactionEntity,
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
 import { AttachmentsModule } from '../attachments/attachments.module';
@@ -16,6 +17,7 @@ import { SettingsModule } from '../settings/settings.module';
     MikroOrmModule.forFeature([
       MessageEntity,
       MessageReadEntity,
+      MessageReactionEntity,
       MessageSearchTokenEntity,
     ]),
     AttachmentsModule,

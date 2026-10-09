@@ -39,6 +39,8 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 import { mediaFrameLimit } from '@shared/components/media-grid/media-grid.layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { ChatMessageAttachmentsComponent } from '../chat-message-attachments/chat-message-attachments.component';
+import { ChatMessageReactionsBarComponent } from './chat-message-reactions-bar/chat-message-reactions-bar.component';
+import { ChatMessageReactionsComponent } from './chat-message-reactions/chat-message-reactions.component';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { EAttachmentKind } from '@konvoez/shared';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
@@ -60,6 +62,8 @@ import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
     TextContentPipe,
     MessageVisibilityDirective,
     ChatMessageAttachmentsComponent,
+    ChatMessageReactionsBarComponent,
+    ChatMessageReactionsComponent,
     TuiList,
     TodayDayjsPipe,
   ],
@@ -263,6 +267,16 @@ export class ChatMessageComponent {
   protected readonly readersLoading = signal(false);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  protected readonly currentUserId = computed(
+    () => this.currentUser()?.id ?? null,
+  );
+
+  protected onReactionSelect(emoji: string): void {
+    if (this.outgoing()) {
+      return;
+    }
+    this.chatStore.toggleReaction({ messageId: this.message().id, emoji });
+  }
 
   protected replyMessage(): void {
     this.chatStore.setReplyToMessageId(this.message().id);

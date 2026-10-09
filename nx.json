@@ -77,5 +77,58 @@
         "targetName": "test"
       }
     }
-  ]
+  ],
+  "release": {
+    "projects": ["backend", "frontend", "shared"],
+    "projectsRelationship": "fixed",
+    "releaseTag": {
+      "pattern": "v{version}",
+      "requireSemver": true,
+      "checkAllBranchesWhen": false
+    },
+    "version": {
+      "currentVersionResolver": "git-tag",
+      "specifierSource": "conventional-commits",
+      "versionActions": "./tools/release/root-package-version-actions.cjs",
+      "updateDependents": "never",
+      "logUnchangedProjects": false
+    },
+    "conventionalCommits": {
+      "useCommitScope": false,
+      "types": {
+        "feat": { "semverBump": "minor", "changelog": { "title": "Features" } },
+        "fix": { "semverBump": "patch", "changelog": { "title": "Bug Fixes" } },
+        "perf": {
+          "semverBump": "patch",
+          "changelog": { "title": "Performance Improvements" }
+        },
+        "refactor": {
+          "semverBump": "patch",
+          "changelog": { "title": "Code Refactoring" }
+        },
+        "docs": { "semverBump": "none", "changelog": false },
+        "style": { "semverBump": "patch", "changelog": { "title": "Styles" } },
+        "test": { "semverBump": "none", "changelog": false },
+        "build": { "semverBump": "none", "changelog": false },
+        "ci": { "semverBump": "none", "changelog": false },
+        "chore": { "semverBump": "none", "changelog": false },
+        "revert": { "semverBump": "patch", "changelog": { "title": "Reverts" } }
+      }
+    },
+    "changelog": {
+      "workspaceChangelog": {
+        "file": "{workspaceRoot}/CHANGELOG.md",
+        "createRelease": "github",
+        "renderOptions": {
+          "authors": true,
+          "commitReferences": true,
+          "versionTitleDate": true
+        }
+      },
+      "projectChangelogs": false
+    },
+    "git": {
+      "commitMessage": "chore(release): {version} [skip ci]"
+    }
+  }
 }

@@ -32,6 +32,7 @@ describe('ChatMessagesListComponent', () => {
       clientId: null,
       status: EMessageStatus.SUCCESS,
       replyTo: null,
+      reactions: [],
     },
     {
       id: 'msg-2',
@@ -46,6 +47,7 @@ describe('ChatMessagesListComponent', () => {
       attachments: [],
       clientId: null,
       status: EMessageStatus.SUCCESS,
+      reactions: [],
       replyTo: {
         id: 'msg-1',
         senderId: 1,

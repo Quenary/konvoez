@@ -36,6 +36,7 @@ import { PeerPlaybackService } from './peer-playback.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { ConsumerRegistry } from './consumer-registry';
 import { PeerVideoService } from './peer-video.service';
+import { AudioService } from './audio.service';
 
 export interface IConsumePeerContext {
   gain: number;
@@ -52,6 +53,7 @@ export interface IConsumePeerContext {
 export class MediasoupSessionService {
   private readonly socket = inject(VoiceRoomSocketToken);
   private readonly injector = inject(Injector);
+  private readonly audioService = inject(AudioService);
   private readonly microphoneService = inject(MicrophoneService);
   private readonly cameraService = inject(CameraService);
   private readonly screenCaptureService = inject(ScreenCaptureService);
@@ -228,13 +230,14 @@ export class MediasoupSessionService {
   private async produceCameraLocked(): Promise<void> {
     this.requireSendTransport();
     await this.loadDevice();
-    await this.stopCameraLocked();
+    await this.stopCameraLocked({ silent: true });
 
     try {
       const track = await this.cameraService.getTrack();
       this.peerVideoService.setLocalCamTrack(track);
       const producer = await this.produceVideo('cam', track);
       this.cameraProducer = producer;
+      this.audioService.playStreamStartAudio();
       producer.on('trackended', () => {
         if (this.cameraProducer !== producer) {
           return;
@@ -249,7 +252,9 @@ export class MediasoupSessionService {
     }
   }
 
-  private async stopCameraLocked(): Promise<void> {
+  private async stopCameraLocked(options?: {
+    silent?: boolean;
+  }): Promise<void> {
     const producer = this.cameraProducer;
     this.cameraProducer = null;
     this.peerVideoService.setLocalCamTrack(null);
@@ -257,12 +262,15 @@ export class MediasoupSessionService {
       await this.closeProducerRemote(producer);
     }
     this.cameraService.release();
+    if (producer && !options?.silent) {
+      this.audioService.playStreamStopAudio();
+    }
   }
 
   private async produceScreenLocked(): Promise<void> {
     const sendTransport = this.requireSendTransport();
     await this.loadDevice();
-    await this.stopScreenLocked();
+    await this.stopScreenLocked({ silent: true });
 
     try {
       const { videoTrack, audioTrack } =
@@ -271,6 +279,7 @@ export class MediasoupSessionService {
 
       const videoProducer = await this.produceVideo('screen', videoTrack);
       this.screenVideoProducer = videoProducer;
+      this.audioService.playStreamStartAudio();
       videoProducer.on('trackended', () => {
         if (this.screenVideoProducer !== videoProducer) {
           return;
@@ -297,7 +306,7 @@ export class MediasoupSessionService {
         });
       }
     } catch (error) {
-      await this.stopScreenLocked();
+      await this.stopScreenLocked({ silent: true });
       console.error('Failed to produce screen\n', error);
       throw error;
     }
@@ -352,7 +361,9 @@ export class MediasoupSessionService {
     return sendTransport;
   }
 
-  private async stopScreenLocked(): Promise<void> {
+  private async stopScreenLocked(options?: {
+    silent?: boolean;
+  }): Promise<void> {
     const video = this.screenVideoProducer;
     const audio = this.screenAudioProducer;
     this.screenVideoProducer = null;
@@ -365,6 +376,9 @@ export class MediasoupSessionService {
       await this.closeProducerRemote(audio);
     }
     this.screenCaptureService.release();
+    if ((video || audio) && !options?.silent) {
+      this.audioService.playStreamStopAudio();
+    }
   }
 
   private async closeProducerRemote(producer: Producer): Promise<void> {

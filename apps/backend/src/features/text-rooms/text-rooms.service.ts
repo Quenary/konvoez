@@ -17,6 +17,7 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
   MessageReadEntity,
+  MessageReactionEntity,
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
 import {
@@ -51,6 +52,7 @@ import {
   IAttachment,
   ITextRoomMessage,
   ITextRoomMessageReply,
+  ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
   SCHEMA_ERROR,
 } from '@konvoez/shared';
@@ -69,6 +71,8 @@ export class TextRoomsService {
     private readonly messageRepository: EntityRepository<MessageEntity>,
     @InjectRepository(MessageReadEntity)
     private readonly messageReadRepository: EntityRepository<MessageReadEntity>,
+    @InjectRepository(MessageReactionEntity)
+    private readonly messageReactionRepository: EntityRepository<MessageReactionEntity>,
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
     private readonly encryptionService: EncryptionService,
@@ -81,6 +85,7 @@ export class TextRoomsService {
     data: MessageEntity,
     isRead: boolean,
     attachments: readonly IAttachment[] = [],
+    reactions: readonly ITextRoomReactionGroup[] = [],
   ): ITextRoomMessage {
     const content = this.encryptionService.decrypt(
       data.contentEncrypted,
@@ -124,6 +129,7 @@ export class TextRoomsService {
       isRead,
       attachments: [...attachments],
       clientId: data.clientId ? uuidStringify(data.clientId) : null,
+      reactions: [...reactions],
     };
   }
 
@@ -133,6 +139,48 @@ export class TextRoomsService {
     return this.attachmentsService.findAttachedByMessageIds(
       messages.map((message) => message.id),
     );
+  }
+
+  private async loadReactions(
+    messages: readonly MessageEntity[],
+  ): Promise<Map<string, ITextRoomReactionGroup[]>> {
+    if (messages.length === 0) {
+      return new Map();
+    }
+    const messageIds = messages.map((message) => message.id);
+    const rows = await this.messageReactionRepository.find({
+      message: { $in: messageIds },
+    });
+
+    const map = new Map<string, Map<string, number[]>>();
+    for (const row of rows) {
+      const msgId = uuidStringify(row.message.id);
+      let emojiMap = map.get(msgId);
+      if (!emojiMap) {
+        emojiMap = new Map();
+        map.set(msgId, emojiMap);
+      }
+      let userIds = emojiMap.get(row.emoji);
+      if (!userIds) {
+        userIds = [];
+        emojiMap.set(row.emoji, userIds);
+      }
+      userIds.push(row.user.id);
+    }
+
+    const result = new Map<string, ITextRoomReactionGroup[]>();
+    for (const [msgId, emojiMap] of map.entries()) {
+      const groups: ITextRoomReactionGroup[] = [];
+      for (const [emoji, userIds] of emojiMap.entries()) {
+        groups.push({
+          emoji,
+          count: userIds.length,
+          userIds,
+        });
+      }
+      result.set(msgId, groups);
+    }
+    return result;
   }
 
   private isEmptyContent(content: string): boolean {
@@ -164,13 +212,17 @@ export class TextRoomsService {
     user: GetUserDto,
     message: MessageEntity,
   ): Promise<ITextRoomMessage> {
-    const attachments = await this.loadAttachments([message]);
-    const isReadMap = await this.buildIsReadMap([message], user.id);
+    const [attachments, reactions, isReadMap] = await Promise.all([
+      this.loadAttachments([message]),
+      this.loadReactions([message]),
+      this.buildIsReadMap([message], user.id),
+    ]);
     const id = uuidStringify(message.id);
     return this.entityToDto(
       message,
       isReadMap.get(id) ?? false,
       attachments.get(id) ?? [],
+      reactions.get(id) ?? [],
     );
   }
 
@@ -395,8 +447,11 @@ export class TextRoomsService {
       ]);
 
       const combined = [...beforeItems.reverse(), target, ...afterItems];
-      const isReadMap = await this.buildIsReadMap(combined, user.id);
-      const attachments = await this.loadAttachments(combined);
+      const [isReadMap, attachments, reactions] = await Promise.all([
+        this.buildIsReadMap(combined, user.id),
+        this.loadAttachments(combined),
+        this.loadReactions(combined),
+      ]);
       return {
         items: combined.map((m) => {
           const id = uuidStringify(m.id);
@@ -404,6 +459,7 @@ export class TextRoomsService {
             m,
             isReadMap.get(id) ?? false,
             attachments.get(id) ?? [],
+            reactions.get(id) ?? [],
           );
         }),
       };
@@ -427,8 +483,11 @@ export class TextRoomsService {
       populate,
     });
 
-    const isReadMap = await this.buildIsReadMap(messages, user.id);
-    const attachments = await this.loadAttachments(messages);
+    const [isReadMap, attachments, reactions] = await Promise.all([
+      this.buildIsReadMap(messages, user.id),
+      this.loadAttachments(messages),
+      this.loadReactions(messages),
+    ]);
     return {
       items: messages.map((m) => {
         const id = uuidStringify(m.id);
@@ -436,6 +495,7 @@ export class TextRoomsService {
           m,
           isReadMap.get(id) ?? false,
           attachments.get(id) ?? [],
+          reactions.get(id) ?? [],
         );
       }),
     };
@@ -668,13 +728,17 @@ export class TextRoomsService {
     this.em.persist(message);
     await this.em.flush();
 
-    const isReadMap = await this.buildIsReadMap([message], user.id);
-    const updatedAttachments = await this.loadAttachments([message]);
+    const [isReadMap, updatedAttachments, reactions] = await Promise.all([
+      this.buildIsReadMap([message], user.id),
+      this.loadAttachments([message]),
+      this.loadReactions([message]),
+    ]);
     const id = uuidStringify(message.id);
     const messageDto = this.entityToDto(
       message,
       isReadMap.get(id) ?? false,
       updatedAttachments.get(id) ?? currentAttachments,
+      reactions.get(id) ?? [],
     );
     emitTextRoomDomainEvent(
       this.eventEmitter,
@@ -768,13 +832,21 @@ export class TextRoomsService {
 
     await this.em.flush();
 
-    const attachments = await this.loadAttachments(othersMessages);
+    const [attachments, reactions] = await Promise.all([
+      this.loadAttachments(othersMessages),
+      this.loadReactions(othersMessages),
+    ]);
     for (const msg of othersMessages) {
       const id = uuidStringify(msg.id);
       emitTextRoomDomainEvent(
         this.eventEmitter,
         TextRoomDomainEvents.MESSAGE_UPDATED,
-        this.entityToDto(msg, true, attachments.get(id) ?? []),
+        this.entityToDto(
+          msg,
+          true,
+          attachments.get(id) ?? [],
+          reactions.get(id) ?? [],
+        ),
       );
     }
   }
@@ -805,5 +877,69 @@ export class TextRoomsService {
     );
 
     return reads.map((r) => this.usersService.toDto(r.reader));
+  }
+
+  async toggleReaction(
+    user: GetUserDto,
+    messageId: string,
+    emoji: string,
+  ): Promise<ITextRoomReactionGroup[]> {
+    const message = await this.messageRepository.findOne(
+      { id: parse(messageId) },
+      { populate: ['sender', 'recipient', 'room'] },
+    );
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const isParticipant =
+      message.sender.id === user.id ||
+      message.recipient?.id === user.id ||
+      message.room != null;
+
+    if (!isParticipant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const existingReaction = await this.messageReactionRepository.findOne({
+      message: message.id,
+      user: user.id,
+    });
+
+    if (existingReaction) {
+      if (existingReaction.emoji === emoji) {
+        this.em.remove(existingReaction);
+      } else {
+        existingReaction.emoji = emoji;
+      }
+    } else {
+      const newReaction = this.messageReactionRepository.create({
+        message,
+        user: this.em.getReference(UserEntity, user.id),
+        emoji,
+      });
+      this.em.persist(newReaction);
+    }
+
+    await this.em.flush();
+
+    const normalizedMessageId = uuidStringify(message.id);
+    const reactionsMap = await this.loadReactions([message]);
+    const updatedReactions = reactionsMap.get(normalizedMessageId) ?? [];
+
+    emitTextRoomDomainEvent(
+      this.eventEmitter,
+      TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+      {
+        messageId: normalizedMessageId,
+        roomId: message.room?.id ?? null,
+        recipientId: message.recipient?.id ?? null,
+        senderId: message.sender.id,
+        reactions: updatedReactions,
+      },
+    );
+
+    return updatedReactions;
   }
 }
