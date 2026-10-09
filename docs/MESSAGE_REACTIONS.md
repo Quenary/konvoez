@@ -24,6 +24,7 @@ Users can react to text messages in group rooms and direct messages with emojis.
 ```
 
 Validation rules:
+
 - Non-empty string up to 32 characters.
 - Must match Unicode emoji regex (`\p{Extended_Pictographic}`, `\p{Emoji_Modifier}`, variation selectors `\uFE0F`, ZWJ `\u200D`, and regional indicator flag pairs). Arbitrary text or raw strings without pictographic characters are rejected with `400 Bad Request`.
 
