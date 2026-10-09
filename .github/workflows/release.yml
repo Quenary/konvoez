@@ -60,7 +60,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NX_DAEMON: 'false'
           NX_NO_CLOUD: 'true'
-        run: node tools/release.mjs --specifier "${{ github.event.inputs.specifier }}"
+          SPECIFIER: ${{ github.event.inputs.specifier }}
+        run: node tools/release.mjs --specifier "$SPECIFIER"
 
   image:
     name: Build and push prod image
