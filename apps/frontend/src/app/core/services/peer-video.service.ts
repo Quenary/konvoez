@@ -146,6 +146,22 @@ export class PeerVideoService {
     return this._watching().has(userId);
   }
 
+  public isStreamProducer(userId: number, producerId: string): boolean {
+    const cam = this._remoteCam()[userId];
+    if (cam && cam.producerId === producerId) {
+      return true;
+    }
+    const screen = this._remoteScreen()[userId];
+    if (screen && screen.producerId === producerId) {
+      return true;
+    }
+    const available = this._availableScreens()[userId];
+    if (available && available.videoProducerId === producerId) {
+      return true;
+    }
+    return false;
+  }
+
   public attach(userId: number, entry: TRemoteVideoAttach): void {
     const target =
       entry.mediaTag === 'screen' ? this._remoteScreen : this._remoteCam;

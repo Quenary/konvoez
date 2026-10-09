@@ -86,7 +86,13 @@ describe('VoiceSessionService', () => {
     onRemoteProducerClosed: ReturnType<typeof vi.fn>;
   };
   let peerPlayback: { detach: ReturnType<typeof vi.fn> };
-  let peerVideo: { removeUser: ReturnType<typeof vi.fn> };
+  let peerVideo: {
+    removeUser: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+    unregisterAvailableScreenProducer: ReturnType<typeof vi.fn>;
+    isStreamProducer: ReturnType<typeof vi.fn>;
+  };
   let notifications: {
     open: ReturnType<typeof vi.fn>;
   };
@@ -97,6 +103,8 @@ describe('VoiceSessionService', () => {
   let audioService: {
     playPeerJoinAudio: ReturnType<typeof vi.fn>;
     playPeerLeaveAudio: ReturnType<typeof vi.fn>;
+    playStreamStartAudio: ReturnType<typeof vi.fn>;
+    playStreamStopAudio: ReturnType<typeof vi.fn>;
   };
   beforeEach(() => {
     handlers = {};
@@ -161,7 +169,13 @@ describe('VoiceSessionService', () => {
       onRemoteProducerClosed: vi.fn(),
     };
     peerPlayback = { detach: vi.fn() };
-    peerVideo = { removeUser: vi.fn() };
+    peerVideo = {
+      removeUser: vi.fn(),
+      remove: vi.fn(),
+      clear: vi.fn(),
+      unregisterAvailableScreenProducer: vi.fn(),
+      isStreamProducer: vi.fn().mockReturnValue(false),
+    };
     notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
     };
@@ -173,6 +187,8 @@ describe('VoiceSessionService', () => {
     audioService = {
       playPeerJoinAudio: vi.fn(),
       playPeerLeaveAudio: vi.fn(),
+      playStreamStartAudio: vi.fn(),
+      playStreamStopAudio: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -208,11 +224,7 @@ describe('VoiceSessionService', () => {
         },
         {
           provide: PeerVideoService,
-          useValue: {
-            remove: vi.fn(),
-            removeUser: peerVideo.removeUser,
-            clear: vi.fn(),
-          },
+          useValue: peerVideo,
         },
         { provide: ScreenWakeLockService, useValue: wakeLock },
         {
@@ -495,6 +507,57 @@ describe('VoiceSessionService', () => {
       );
       expect(consoleSpy).toHaveBeenCalledTimes(1);
       expect(consoleSpy).toHaveBeenCalledWith('VOICE.JOIN_FAILED', error);
+    });
+  });
+
+  describe('remote stream audio cues', () => {
+    beforeEach(async () => {
+      await service.joinSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      audioService.playStreamStartAudio.mockClear();
+      audioService.playStreamStopAudio.mockClear();
+    });
+
+    it('plays stream start audio on PRODUCER_CREATED for cam and screen', async () => {
+      const onProducerCreated = handlers[EVoiceRoomEvent.PRODUCER_CREATED];
+
+      await onProducerCreated({
+        userId: 2,
+        producerId: 'p-cam',
+        kind: 'video',
+        mediaTag: 'cam',
+      });
+      expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(1);
+
+      await onProducerCreated({
+        userId: 2,
+        producerId: 'p-screen',
+        kind: 'video',
+        mediaTag: 'screen',
+      });
+      expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(2);
+
+      await onProducerCreated({
+        userId: 2,
+        producerId: 'p-mic',
+        kind: 'audio',
+        mediaTag: 'mic',
+      });
+      expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(2);
+    });
+
+    it('plays stream stop audio on PRODUCER_CLOSED when isStreamProducer is true', () => {
+      const onProducerClosed = handlers[EVoiceRoomEvent.PRODUCER_CLOSED];
+
+      peerVideo.isStreamProducer.mockReturnValue(true);
+      onProducerClosed({ userId: 2, producerId: 'p-cam' });
+      expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
+
+      peerVideo.isStreamProducer.mockReturnValue(false);
+      onProducerClosed({ userId: 2, producerId: 'p-mic' });
+      expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
     });
   });
 });

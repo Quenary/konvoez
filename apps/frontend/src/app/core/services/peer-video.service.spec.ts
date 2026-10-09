@@ -107,4 +107,22 @@ describe('PeerVideoService', () => {
     expect(close).toHaveBeenCalledTimes(1);
     expect(registry.get('c-old')).toBeUndefined();
   });
+
+  it('correctly identifies stream producers with isStreamProducer', () => {
+    expect(service.isStreamProducer(10, 'prod1')).toBe(false);
+
+    service.attach(10, {
+      producerId: 'cam-prod',
+      consumerId: 'c-cam',
+      track: { id: 'cam' } as MediaStreamTrack,
+      mediaTag: 'cam',
+    });
+    expect(service.isStreamProducer(10, 'cam-prod')).toBe(true);
+    expect(service.isStreamProducer(10, 'other')).toBe(false);
+
+    service.registerAvailableScreen(11, 'screen-vid', 'video');
+    service.registerAvailableScreen(11, 'screen-aud', 'audio');
+    expect(service.isStreamProducer(11, 'screen-vid')).toBe(true);
+    expect(service.isStreamProducer(11, 'screen-aud')).toBe(false);
+  });
 });

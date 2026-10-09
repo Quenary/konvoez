@@ -10,6 +10,7 @@ import { ScreenCaptureService } from './screen-capture.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MediasoupSessionService } from './mediasoup-session.service';
+import { AudioService } from './audio.service';
 
 describe('MediasoupSessionService', () => {
   let service: MediasoupSessionService;
@@ -20,6 +21,10 @@ describe('MediasoupSessionService', () => {
   let emitWithAck: ReturnType<typeof vi.fn>;
   let socketTimeout: ReturnType<typeof vi.fn>;
   let releaseScreen: ReturnType<typeof vi.fn>;
+  let audioService: {
+    playStreamStartAudio: ReturnType<typeof vi.fn>;
+    playStreamStopAudio: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     getStream = vi.fn();
@@ -29,9 +34,17 @@ describe('MediasoupSessionService', () => {
     emitWithAck = vi.fn().mockResolvedValue({});
     socketTimeout = vi.fn().mockReturnValue({ emitWithAck });
     releaseScreen = vi.fn();
+    audioService = {
+      playStreamStartAudio: vi.fn(),
+      playStreamStopAudio: vi.fn(),
+    };
     TestBed.configureTestingModule({
       providers: [
         MediasoupSessionService,
+        {
+          provide: AudioService,
+          useValue: audioService,
+        },
         {
           provide: VoiceRoomSocketToken,
           useValue: {
@@ -492,5 +505,64 @@ describe('MediasoupSessionService', () => {
     expect(socketTimeout).toHaveBeenCalledWith(10000);
     expect(callback).toHaveBeenCalledWith({ id: 'prod-retry' });
     expect(errback).not.toHaveBeenCalled();
+  });
+
+  it('plays stream start and stop audio cues for camera produce and stop', async () => {
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/VP8' }],
+      },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    TestBed.inject(CameraService).getTrack = vi
+      .fn()
+      .mockResolvedValue({ id: 'cam-track' } as MediaStreamTrack);
+
+    await service.produceCamera();
+    expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(1);
+    expect(audioService.playStreamStopAudio).not.toHaveBeenCalled();
+
+    await service.stopCamera();
+    expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
+  });
+
+  it('plays stream start audio on produceScreen and stop audio on trackended', async () => {
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/VP8' }],
+      },
+    } as never;
+    let trackEndedHandler: (() => void) | undefined;
+    const videoProducer = {
+      id: 'scr-prod',
+      closed: false,
+      close: vi.fn(),
+      on: (event: string, handler: () => void) => {
+        if (event === 'trackended') {
+          trackEndedHandler = handler;
+        }
+      },
+    };
+    const produce = vi.fn().mockResolvedValue(videoProducer);
+    service['sendTransport'] = { produce, closed: false } as never;
+    TestBed.inject(ScreenCaptureService).getTracks = vi.fn().mockResolvedValue({
+      videoTrack: { id: 'scr-track' } as MediaStreamTrack,
+    });
+
+    await service.produceScreen();
+    expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(1);
+
+    trackEndedHandler?.();
+    await vi.waitFor(() => {
+      expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
+    });
   });
 });
