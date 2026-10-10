@@ -14,10 +14,16 @@ Konvoez is an Nx monorepo:
 ### Getting Started
 
 1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH`, or `ffmpeg` on `PATH`). Posters are skipped when that binary is missing. The browser can still send a poster.
+   On Windows VS Build Tools is required if all dependencies is needed:
+   `winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"`
 
 2. **Install dependencies**:
    ```bash
-   npm install
+   npm ci
+
+   # For Windows desktop build without VS Build Tools
+   npm ci --ignore-scripts
+   node node_modules/electron/install.js
    ```
 3. **Environment setup**:
    Copy `.env.example` to `.env` and configure required variables:
@@ -40,8 +46,15 @@ Konvoez is an Nx monorepo:
    ```
    Use `localhost` or HTTPS — browsers require a secure context for the Push API.
 5. **Build**:
+
    ```bash
    npm run build
+   ```
+
+6. **Desktop**:
+   ```bash
+   npx nx run desktop:serve
+   npx nx run desktop:package
    ```
 
 ## Commits
