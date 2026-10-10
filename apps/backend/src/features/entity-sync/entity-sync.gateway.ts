@@ -12,10 +12,6 @@ import {
   EntitySyncDomainEvents,
   type TEntitySyncDomainPayloadMap,
 } from '@shared/events/entity-sync.events';
-import {
-  NotificationsDomainEvents,
-  type INotificationDeliverPayload,
-} from '@shared/events/notifications.events';
 
 type TSocket = Socket<
   TEntitySyncEventMap,
@@ -109,12 +105,5 @@ export class EntitySyncGateway implements OnGatewayConnection {
     payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT],
   ) {
     this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_LEFT, payload);
-  }
-
-  @OnEvent(NotificationsDomainEvents.DELIVER)
-  onNotificationDeliver({ userId, payload }: INotificationDeliverPayload) {
-    this.server
-      .to(`user:${userId}`)
-      .emit(EEntitySyncEvent.NOTIFICATION, payload);
   }
 }

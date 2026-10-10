@@ -1,5 +1,4 @@
 import { EEntitySyncEvent } from '../enums';
-import { TPushNotificationPayload } from './notification.schemas';
 import { IRoom, IRoomDeleted } from './room.schemas';
 import { IUser, IUserDeleted } from './user.schemas';
 import {
@@ -17,7 +16,6 @@ export type TEntitySyncEventPayloadMap = {
   [EEntitySyncEvent.VOICE_ROOM_PEER_JOINED]: IVoiceRoomLobbyPeerJoined;
   [EEntitySyncEvent.VOICE_ROOM_PEER_LEFT]: IVoiceRoomLobbyPeerLeft;
   [EEntitySyncEvent.ERROR]: { message: string };
-  [EEntitySyncEvent.NOTIFICATION]: TPushNotificationPayload;
 };
 
 export type TEntitySyncEventMap = {

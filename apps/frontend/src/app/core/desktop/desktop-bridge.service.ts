@@ -5,12 +5,15 @@ import {
   Injectable,
   Injector,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Store } from '@ngrx/store';
 import {
   EDesktopCommand,
-  EEntitySyncEvent,
+  ENotificationsEvent,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
-import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
+import { selectIsAuthorized } from '@core/auth/auth.selectors';
+import { NotificationsSocketToken } from '@core/tokens/notifications-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -24,7 +27,7 @@ export class DesktopBridgeService {
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Called from an app initializer only. Resolves voice deps lazily to stay a DI leaf. */
+  /** Called from an app initializer only. Resolves voice and socket deps lazily to stay a DI leaf. */
   public init(): void {
     const bridge = this.bridge;
     if (!bridge) {
@@ -33,7 +36,8 @@ export class DesktopBridgeService {
     const prefs = this.injector.get(VoiceAudioPreferencesStore);
     const session = this.injector.get(VoiceSessionStore);
     const voiceLeave = this.injector.get(VoiceLeaveService);
-    const socket = this.injector.get(EntitySyncSocketToken);
+    const socket = this.injector.get(NotificationsSocketToken);
+    const store = this.injector.get(Store);
 
     effect(
       () => {
@@ -46,10 +50,21 @@ export class DesktopBridgeService {
       { injector: this.injector },
     );
 
+    store
+      .select(selectIsAuthorized)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((isAuthorized) => {
+        if (isAuthorized) {
+          socket.connect();
+        } else {
+          socket.disconnect();
+        }
+      });
+
     const onNotification = (payload: TPushNotificationPayload) => {
       bridge.notify(payload);
     };
-    socket.on(EEntitySyncEvent.NOTIFICATION, onNotification);
+    socket.on(ENotificationsEvent.NOTIFICATION, onNotification);
 
     const off = bridge.onCommand(async (command) => {
       switch (command) {
@@ -75,7 +90,8 @@ export class DesktopBridgeService {
 
     this.destroyRef.onDestroy(() => {
       off();
-      socket.off(EEntitySyncEvent.NOTIFICATION, onNotification);
+      socket.off(ENotificationsEvent.NOTIFICATION, onNotification);
+      socket.disconnect();
     });
   }
 }

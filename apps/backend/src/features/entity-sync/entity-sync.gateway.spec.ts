@@ -145,21 +145,4 @@ describe('EntitySyncGateway', () => {
     expect(client.join).toHaveBeenCalledWith(`user:${user.id}`);
     expect(client.disconnect).not.toHaveBeenCalled();
   });
-
-  it('should emit NOTIFICATION event to user room on DELIVER event', () => {
-    const roomEmit = jest.fn();
-    toMock.mockReturnValue({ emit: roomEmit });
-    const payload = {
-      title: 'Alice',
-      body: 'Hello',
-    };
-
-    gateway.onNotificationDeliver({ userId: 1, payload });
-
-    expect(serverMock.to).toHaveBeenCalledWith('user:1');
-    expect(roomEmit).toHaveBeenCalledWith(
-      EEntitySyncEvent.NOTIFICATION,
-      payload,
-    );
-  });
 });

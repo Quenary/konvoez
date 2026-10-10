@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_DEVICE_HANDLER } from '../tokens/audio-device-handler.token';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { EntitySyncSocketToken } from '../tokens/entity-sync-socket.token';
+import { NotificationsSocketToken } from '../tokens/notifications-socket.token';
 import { VoiceSessionService } from './voice-session.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
@@ -110,6 +111,16 @@ describe('voice DI graph', () => {
         },
         {
           provide: EntitySyncSocketToken,
+          useValue: {
+            connected: false,
+            on: vi.fn(),
+            off: vi.fn(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+          },
+        },
+        {
+          provide: NotificationsSocketToken,
           useValue: {
             connected: false,
             on: vi.fn(),

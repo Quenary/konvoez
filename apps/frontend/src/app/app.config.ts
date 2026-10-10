@@ -32,6 +32,7 @@ import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
 import { EntitySyncSocketToken } from './core/tokens/entity-sync-socket.token';
+import { NotificationsSocketToken } from './core/tokens/notifications-socket.token';
 import { EntitySyncService } from './core/services/entity-sync.service';
 import { initialSetupInitializer } from './core/initializers/initial-setup-initializer';
 import { localeInitializer } from './core/initializers/locale-initializer';
@@ -90,6 +91,13 @@ export const appConfig: ApplicationConfig = {
       useValue: io(window.location.origin, {
         autoConnect: false,
         path: `${environment.wsPath}/sync`,
+      }),
+    },
+    {
+      provide: NotificationsSocketToken,
+      useValue: io(window.location.origin, {
+        autoConnect: false,
+        path: `${environment.wsPath}/notifications`,
       }),
     },
     {
