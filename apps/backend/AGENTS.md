@@ -12,7 +12,7 @@ Guidelines for AI agents working in `apps/backend` — the NestJS API for Konvoe
 - **JWT** in HTTP-only cookies; passwords via Argon2
 - **AES-256-GCM** message encryption at rest (`EncryptionService` + `MASTER_KEY`)
 
-HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`.
+HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`, `/ws/v1/notifications`.
 
 ## Layout
 
@@ -104,7 +104,7 @@ Path aliases (prefer these over deep relative imports):
 
 - Text: `TextRoomsGateway` + `TextRoomsService`. Voice: `VoiceRoomsGateway` + mediasoup state services.
 - Entity metadata sync: `EntitySyncGateway` (`/ws/v1/sync`). Feature services publish domain events via `EventEmitter2` (`@nestjs/event-emitter`); the gateway listens with `@OnEvent` and fans out to Socket.IO. Do **not** inject the gateway into feature services.
-- Text message fan-out and push side effects follow the same pattern: emit from services/gateways via `@shared/events` (`text-room.events.ts`, `notifications.events.ts`); `TextRoomsGateway` / `NotificationsService` subscribe with `@OnEvent`. Do **not** inject `TextRoomsGateway` or `NotificationsService` into other features for notify-only work.
+- Text message fan-out and push side effects follow the same pattern: emit from services/gateways via `@shared/events` (`text-room.events.ts`, `notifications.events.ts`); `TextRoomsGateway` / `NotificationsService` subscribe with `@OnEvent`. Do **not** inject `TextRoomsGateway` or `NotificationsService` into other features for notify-only work. Notification socket delivery is handled by `NotificationsGateway` (`/ws/v1/notifications`).
 - Domain event names/payloads for entity-sync live under `src/shared/events/` (e.g. `entity-sync.events.ts`). Wire event enums/payloads for clients live in `@konvoez/shared` (`EEntitySyncEvent`).
 - Keep signaling contracts and event enums in `@konvoez/shared`; do not diverge payload shapes between client and server.
 - Gateways handle connection lifecycle and fan-out; heavy persistence/encryption stays in services.

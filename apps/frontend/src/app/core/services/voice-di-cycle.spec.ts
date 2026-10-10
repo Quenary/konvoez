@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_DEVICE_HANDLER } from '../tokens/audio-device-handler.token';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { EntitySyncSocketToken } from '../tokens/entity-sync-socket.token';
+import { NotificationsSocketToken } from '../tokens/notifications-socket.token';
 import { VoiceSessionService } from './voice-session.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
@@ -35,6 +36,7 @@ import { authReducer } from '@core/auth/auth.reducer';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { RoomNavigationService } from '@features/rooms/room-navigation.service';
+import { DesktopBridgeService } from '@core/desktop/desktop-bridge.service';
 
 /**
  * Guards against NG0200 circular DI:
@@ -70,6 +72,7 @@ describe('voice DI graph', () => {
         VoiceSessionStore,
         VoiceLobbyStore,
         VoiceAudioPreferencesStore,
+        DesktopBridgeService,
         ConsumerRegistry,
         ScreenWatchService,
         MicrophoneService,
@@ -108,6 +111,16 @@ describe('voice DI graph', () => {
         },
         {
           provide: EntitySyncSocketToken,
+          useValue: {
+            connected: false,
+            on: vi.fn(),
+            off: vi.fn(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+          },
+        },
+        {
+          provide: NotificationsSocketToken,
           useValue: {
             connected: false,
             on: vi.fn(),
@@ -175,6 +188,7 @@ describe('voice DI graph', () => {
         TestBed.inject(ConsumerRegistry);
         TestBed.inject(ScreenWatchService);
         TestBed.inject(RoomNavigationService);
+        TestBed.inject(DesktopBridgeService);
       } catch (e) {
         error = e;
       }
@@ -202,6 +216,29 @@ describe('voice DI graph', () => {
       expect(TestBed.inject(ConsumerRegistry)).toBeTruthy();
       expect(TestBed.inject(ScreenWatchService)).toBeTruthy();
       expect(TestBed.inject(RoomNavigationService)).toBeTruthy();
+      expect(TestBed.inject(DesktopBridgeService)).toBeTruthy();
     },
   );
+
+  it('initializes DesktopBridgeService with window.konvoezDesktop without NG0200', () => {
+    const fakeBridge = {
+      apiVersion: 1,
+      platform: 'linux',
+      appVersion: '0.1.0',
+      notify: vi.fn(),
+      setVoiceState: vi.fn(),
+      onCommand: vi.fn(() => () => undefined),
+      quitReady: vi.fn(),
+    };
+    (window as unknown as { konvoezDesktop?: unknown }).konvoezDesktop =
+      fakeBridge;
+    try {
+      const bridgeService = TestBed.inject(DesktopBridgeService);
+      expect(() => bridgeService.init()).not.toThrow();
+      TestBed.flushEffects();
+      expect(fakeBridge.setVoiceState).toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as { konvoezDesktop?: unknown }).konvoezDesktop;
+    }
+  });
 });

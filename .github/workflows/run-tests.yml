@@ -24,6 +24,7 @@ jobs:
       - name: Install dependencies
         env:
           MEDIASOUP_WORKER_BIN: /bin/true
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: npm ci
 
       - name: Run tests
@@ -58,6 +59,7 @@ jobs:
       - name: Install dependencies
         env:
           MEDIASOUP_WORKER_BIN: /bin/true
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: npm ci
 
       - name: Install ffmpeg
@@ -79,3 +81,33 @@ jobs:
       - name: Run build
         if: always()
         run: npx nx run backend:build:production
+
+  desktop-tests:
+    name: Run Desktop Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          MEDIASOUP_WORKER_BIN: /bin/true
+        run: npm ci
+
+      - name: Run tests
+        run: npx nx run desktop:test
+
+      - name: Run lint
+        if: always()
+        run: npx nx run desktop:eslint:lint
+
+      - name: Run build
+        if: always()
+        run: npx nx run desktop:build

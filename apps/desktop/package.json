@@ -1,0 +1,8 @@
+{
+  "name": "konvoez-desktop",
+  "version": "0.0.0",
+  "description": "Konvoez desktop client",
+  "author": "Quenary <evgeny.savin.nord@gmail.com>",
+  "main": "dist/main.js",
+  "desktopName": "konvoez.desktop"
+}

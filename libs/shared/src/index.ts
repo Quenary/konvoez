@@ -18,3 +18,4 @@ export * from './schemas/notification.schemas';
 export * from './schemas/voice-session.schemas';
 export * from './schemas/entity-sync.schemas';
 export * from './schemas/attachment.schemas';
+export * from './desktop';

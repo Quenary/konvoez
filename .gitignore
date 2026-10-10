@@ -132,6 +132,7 @@ vite.config.ts.timestamp-*
 
 # Project specific
 .konvoez_data/
+apps/desktop/package-lock.json
 
 
 .nx/cache

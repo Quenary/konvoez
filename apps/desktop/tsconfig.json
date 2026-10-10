@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ],
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "types": ["node"],
+    "paths": {
+      "@konvoez/shared": ["../../libs/shared/src/index.ts"]
+    }
+  }
+}

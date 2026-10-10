@@ -14,7 +14,9 @@ import { Server } from 'socket.io';
 
 describe('EntitySyncGateway', () => {
   let gateway: EntitySyncGateway;
-  let serverMock: { emit: jest.Mock };
+  let serverMock: { emit: jest.Mock; to: jest.Mock };
+  let authServiceMock: { getUserFromRawCookies: jest.Mock };
+  let toMock: jest.Mock;
 
   const user: IUser = {
     id: 1,
@@ -42,8 +44,13 @@ describe('EntitySyncGateway', () => {
 
   beforeEach(() => {
     gateway = new EntitySyncGateway();
-    serverMock = { emit: jest.fn() };
-    Object.assign(gateway, { server: serverMock as unknown as Server });
+    toMock = jest.fn().mockReturnValue({ emit: jest.fn() });
+    serverMock = { emit: jest.fn(), to: toMock };
+    authServiceMock = { getUserFromRawCookies: jest.fn() };
+    Object.assign(gateway, {
+      server: serverMock as unknown as Server,
+      authService: authServiceMock,
+    });
   });
 
   it('should emit USER_CREATED', () => {
@@ -118,5 +125,22 @@ describe('EntitySyncGateway', () => {
       EEntitySyncEvent.VOICE_ROOM_PEER_LEFT,
       { roomId: 3, userId: 8, epoch: 'e1', revision: 5 },
     );
+  });
+
+  it('should authenticate user and store userId on successful connection', async () => {
+    authServiceMock.getUserFromRawCookies.mockResolvedValue(user);
+    const client = {
+      handshake: { headers: { cookie: 'session=123' } },
+      data: {} as { userId?: number },
+      emit: jest.fn(),
+      disconnect: jest.fn(),
+    };
+
+    await gateway.handleConnection(
+      client as unknown as Parameters<typeof gateway.handleConnection>[0],
+    );
+
+    expect(client.data.userId).toBe(user.id);
+    expect(client.disconnect).not.toHaveBeenCalled();
   });
 });

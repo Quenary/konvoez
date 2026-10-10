@@ -99,3 +99,7 @@ export enum EEntitySyncEvent {
   VOICE_ROOM_PEER_LEFT = 'voice-room-peer-left',
   ERROR = 'error',
 }
+
+export enum ENotificationsEvent {
+  NOTIFICATION = 'notification',
+}

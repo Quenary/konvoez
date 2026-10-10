@@ -78,21 +78,10 @@
       }
     }
   ],
+  "pluginsConfig": {
+    "@nx/js": { "projectsAffectedByDependencyUpdates": "auto" }
+  },
   "release": {
-    "projects": ["backend", "frontend", "shared"],
-    "projectsRelationship": "fixed",
-    "releaseTag": {
-      "pattern": "v{version}",
-      "requireSemver": true,
-      "checkAllBranchesWhen": false
-    },
-    "version": {
-      "currentVersionResolver": "git-tag",
-      "specifierSource": "conventional-commits",
-      "versionActions": "./tools/release/root-package-version-actions.cjs",
-      "updateDependents": "never",
-      "logUnchangedProjects": false
-    },
     "conventionalCommits": {
       "useCommitScope": false,
       "types": {
@@ -115,20 +104,63 @@
         "revert": { "semverBump": "patch", "changelog": { "title": "Reverts" } }
       }
     },
+    "git": {
+      "commitMessage": "chore(release): publish [skip ci]"
+    },
     "changelog": {
-      "workspaceChangelog": {
-        "file": "{workspaceRoot}/CHANGELOG.md",
-        "createRelease": "github",
-        "renderOptions": {
-          "authors": true,
-          "commitReferences": true,
-          "versionTitleDate": true
+      "automaticFromRef": true
+    },
+    "groups": {
+      "server": {
+        "projects": ["backend", "frontend", "shared"],
+        "projectsRelationship": "fixed",
+        "releaseTag": {
+          "pattern": "v{version}",
+          "requireSemver": true,
+          "checkAllBranchesWhen": false
+        },
+        "version": {
+          "currentVersionResolver": "git-tag",
+          "specifierSource": "conventional-commits",
+          "versionActions": "./tools/release/root-package-version-actions.cjs",
+          "updateDependents": "never"
+        },
+        "changelog": {
+          "file": "{workspaceRoot}/CHANGELOG.md",
+          "createRelease": "github",
+          "renderer": "{workspaceRoot}/tools/release/server-changelog-renderer.cjs",
+          "renderOptions": {
+            "authors": false,
+            "commitReferences": true,
+            "versionTitleDate": true
+          }
         }
       },
-      "projectChangelogs": false
-    },
-    "git": {
-      "commitMessage": "chore(release): {version} [skip ci]"
+      "desktop": {
+        "projects": ["desktop"],
+        "projectsRelationship": "fixed",
+        "releaseTag": {
+          "pattern": "desktop-v{version}",
+          "requireSemver": true,
+          "checkAllBranchesWhen": false
+        },
+        "version": {
+          "currentVersionResolver": "git-tag",
+          "fallbackCurrentVersionResolver": "disk",
+          "specifierSource": "conventional-commits",
+          "adjustSemverBumpsForZeroMajorVersion": false
+        },
+        "changelog": {
+          "file": "{projectRoot}/CHANGELOG.md",
+          "createRelease": false,
+          "renderer": "{workspaceRoot}/tools/release/desktop-changelog-renderer.cjs",
+          "renderOptions": {
+            "authors": false,
+            "commitReferences": true,
+            "versionTitleDate": true
+          }
+        }
+      }
     }
   }
 }

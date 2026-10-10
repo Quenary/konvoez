@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import webPush from 'web-push';
@@ -8,6 +8,7 @@ import { htmlToPlainText } from '../../shared/utils/html-text.util';
 import { AppService } from '../../shared/services/app.service';
 import {
   NotificationsDomainEvents,
+  emitNotificationsDomainEvent,
   type IDirectCallNotificationPayload,
   type IDirectMessageNotificationPayload,
 } from '@shared/events/notifications.events';
@@ -37,6 +38,7 @@ export class NotificationsService {
     private readonly subscriptionRepository: EntityRepository<PushSubscriptionEntity>,
     private readonly appService: AppService,
     private readonly vapidKeyStorageService: VapidKeyStorageService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.configureVapid();
   }
@@ -124,7 +126,19 @@ export class NotificationsService {
     });
   }
 
-  public async sendNotification(
+  public async deliver(
+    userId: number,
+    payload: PushNotificationPayloadDto,
+  ): Promise<void> {
+    emitNotificationsDomainEvent(
+      this.eventEmitter,
+      NotificationsDomainEvents.DELIVER,
+      { userId, payload },
+    );
+    await this.sendWebPush(userId, payload);
+  }
+
+  private async sendWebPush(
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
@@ -189,7 +203,7 @@ export class NotificationsService {
       return;
     }
 
-    await this.sendNotification(recipientId, {
+    await this.deliver(recipientId, {
       title: senderUsername,
       body,
       tag: `direct:${senderId}`,
@@ -207,7 +221,7 @@ export class NotificationsService {
     callerUsername: string,
     callId: string,
   ): Promise<void> {
-    await this.sendNotification(recipientId, {
+    await this.deliver(recipientId, {
       title: callerUsername,
       body: 'Входящий голосовой звонок...',
       tag: `call:${callId}`,

@@ -32,11 +32,13 @@ import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
 import { EntitySyncSocketToken } from './core/tokens/entity-sync-socket.token';
+import { NotificationsSocketToken } from './core/tokens/notifications-socket.token';
 import { EntitySyncService } from './core/services/entity-sync.service';
 import { initialSetupInitializer } from './core/initializers/initial-setup-initializer';
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { pwaUpdateInitializer } from './core/initializers/pwa-update-initializer';
 import { TextRoomSocketConnectionService } from './core/services/text-room-socket-connection.service';
+import { DesktopBridgeService } from './core/desktop/desktop-bridge.service';
 import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
@@ -92,6 +94,13 @@ export const appConfig: ApplicationConfig = {
       }),
     },
     {
+      provide: NotificationsSocketToken,
+      useValue: io(window.location.origin, {
+        autoConnect: false,
+        path: `${environment.wsPath}/notifications`,
+      }),
+    },
+    {
       provide: LOCALE_ID,
       useFactory: () => {
         const locale = navigator.language
@@ -118,6 +127,9 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       inject(EntitySyncService);
+    }),
+    provideAppInitializer(() => {
+      inject(DesktopBridgeService).init();
     }),
     provideTaiga(),
     {

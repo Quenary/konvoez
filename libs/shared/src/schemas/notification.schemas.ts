@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { pushNotificationBodyMaxLength } from '../const';
+import { ENotificationsEvent } from '../enums';
 
 export const vapidPublicKeySchema = z.object({
   publicKey: z.string().min(1),
@@ -42,3 +43,13 @@ export type TPushSubscriptionEndpoint = z.infer<
 export type TPushNotificationPayload = z.infer<
   typeof pushNotificationPayloadSchema
 >;
+
+export type TNotificationsEventPayloadMap = {
+  [ENotificationsEvent.NOTIFICATION]: TPushNotificationPayload;
+};
+
+export type TNotificationsEventMap = {
+  [K in keyof TNotificationsEventPayloadMap]: (
+    payload: TNotificationsEventPayloadMap[K],
+  ) => void;
+};
