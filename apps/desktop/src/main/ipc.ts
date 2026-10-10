@@ -171,8 +171,10 @@ export function registerIpc(
       configStore.set({ serverOrigin: origin });
       const win = getMainWindow();
       if (win) {
-        win.loadURL(origin);
+        void win.loadURL(origin);
+        showMainWindow(win);
       }
+      BrowserWindow.fromWebContents(event.sender)?.close();
       return { success: true, origin };
     },
   );

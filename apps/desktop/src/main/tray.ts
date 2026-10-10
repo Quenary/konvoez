@@ -109,7 +109,11 @@ export function updateTrayUI(
     onAction: (action) => {
       switch (action) {
         case 'open':
-          showMainWindow(win);
+          if (!configStore.get().serverOrigin) {
+            openLocalModal('server', null, { width: 500, height: 400 });
+          } else {
+            showMainWindow(win);
+          }
           break;
         case 'toggle-mic':
           if (win && !win.isDestroyed()) {
@@ -192,7 +196,13 @@ export function createTray(
       return null;
     }
     tray = new Tray(icon);
-    tray.on('click', () => showMainWindow(win));
+    tray.on('click', () => {
+      if (!configStore.get().serverOrigin) {
+        openLocalModal('server', null, { width: 500, height: 400 });
+      } else {
+        showMainWindow(win);
+      }
+    });
     updateTrayUI(win, configStore);
     setHasTray(true);
     return tray;

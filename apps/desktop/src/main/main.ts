@@ -3,7 +3,7 @@ import { ConfigStore } from './config-store';
 import {
   createMainWindow,
   getExistingMainWindow,
-  getLocalPagePath,
+  openLocalModal,
   showMainWindow,
 } from './window';
 import { installSecurityHandlers } from './security';
@@ -68,7 +68,7 @@ if (!gotSingleInstanceLock) {
     if (config.serverOrigin) {
       void win.loadURL(config.serverOrigin);
     } else {
-      void win.loadFile(getLocalPagePath('server'));
+      openLocalModal('server', null, { width: 500, height: 400 });
     }
 
     createTray(win, configStore);
