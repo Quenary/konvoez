@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import type { DesktopCapturerSource } from 'electron';
-import { getScreenShareAudio, serializeCapturerSources } from './display-media';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DesktopCapturerSource, Session } from 'electron';
+import {
+  getScreenShareAudio,
+  installDisplayMediaHandler,
+  isPickerOpen,
+  openSourcePicker,
+  resetPickerOpenForTests,
+  serializeCapturerSources,
+  setPickerOpenForTests,
+} from './display-media';
 
 describe('display-media helpers', () => {
   describe('getScreenShareAudio', () => {
@@ -46,6 +54,80 @@ describe('display-media helpers', () => {
           appIconUrl: 'data:image/png;base64,app-icon',
         },
       ]);
+    });
+  });
+
+  describe('concurrent picker guard', () => {
+    beforeEach(() => {
+      resetPickerOpenForTests();
+    });
+
+    afterEach(() => {
+      resetPickerOpenForTests();
+    });
+
+    it('defaults to picker closed', () => {
+      expect(isPickerOpen()).toBe(false);
+    });
+
+    it('openSourcePicker returns null immediately when picker is already open', async () => {
+      setPickerOpenForTests(true);
+      const result = await openSourcePicker([], null);
+      expect(result).toBeNull();
+    });
+
+    type DisplayMediaHandler = (
+      request: { securityOrigin: string },
+      callback: (response: Record<string, unknown>) => void,
+    ) => Promise<void>;
+
+    it('installDisplayMediaHandler rejects origin mismatch with callback({})', async () => {
+      let registeredHandler: DisplayMediaHandler | null = null;
+      const fakeSession = {
+        setDisplayMediaRequestHandler: vi.fn((handler: DisplayMediaHandler) => {
+          registeredHandler = handler;
+        }),
+      } as unknown as Session;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+      );
+
+      expect(registeredHandler).toBeTypeOf('function');
+      if (!registeredHandler) return;
+
+      const callback = vi.fn();
+      await registeredHandler({ securityOrigin: 'https://evil.com' }, callback);
+      expect(callback).toHaveBeenCalledWith({});
+    });
+
+    it('installDisplayMediaHandler rejects immediately when picker is open', async () => {
+      let registeredHandler: DisplayMediaHandler | null = null;
+      const fakeSession = {
+        setDisplayMediaRequestHandler: vi.fn((handler: DisplayMediaHandler) => {
+          registeredHandler = handler;
+        }),
+      } as unknown as Session;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+      );
+
+      setPickerOpenForTests(true);
+
+      expect(registeredHandler).toBeTypeOf('function');
+      if (!registeredHandler) return;
+
+      const callback = vi.fn();
+      await registeredHandler(
+        { securityOrigin: 'https://konvoez.example.com' },
+        callback,
+      );
+      expect(callback).toHaveBeenCalledWith({});
     });
   });
 });

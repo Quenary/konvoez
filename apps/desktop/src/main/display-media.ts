@@ -32,33 +32,66 @@ export function serializeCapturerSources(
   }));
 }
 
+let pickerOpen = false;
+
+export function isPickerOpen(): boolean {
+  return pickerOpen;
+}
+
+export function resetPickerOpenForTests(): void {
+  pickerOpen = false;
+}
+
+export function setPickerOpenForTests(val: boolean): void {
+  pickerOpen = val;
+}
+
 export async function openSourcePicker(
   sources: DesktopCapturerSource[],
   parentWindow?: BrowserWindow | null,
 ): Promise<DesktopCapturerSource | null> {
+  if (pickerOpen) {
+    return null;
+  }
+  pickerOpen = true;
   const serializable = serializeCapturerSources(sources);
 
   return new Promise((resolve) => {
     let resolved = false;
 
-    const pickerWin = new BrowserWindow({
-      width: 720,
-      height: 520,
-      parent:
-        parentWindow && !parentWindow.isDestroyed() ? parentWindow : undefined,
-      modal: Boolean(parentWindow && !parentWindow.isDestroyed()),
-      show: false,
-      resizable: true,
-      icon: getAppIcon(),
-      webPreferences: {
-        preload: `${__dirname}/preload/local-preload.js`,
-        contextIsolation: true,
-        sandbox: true,
-        nodeIntegration: false,
-        webSecurity: true,
-        spellcheck: false,
-      },
-    });
+    const cleanup = () => {
+      pickerOpen = false;
+      ipcMain.removeHandler(EDesktopIpc.LOCAL_PICKER_SOURCES);
+      ipcMain.removeListener(EDesktopIpc.LOCAL_PICK_SOURCE, handlePick);
+    };
+
+    let pickerWin: BrowserWindow;
+    try {
+      pickerWin = new BrowserWindow({
+        width: 720,
+        height: 520,
+        parent:
+          parentWindow && !parentWindow.isDestroyed()
+            ? parentWindow
+            : undefined,
+        modal: Boolean(parentWindow && !parentWindow.isDestroyed()),
+        show: false,
+        resizable: true,
+        icon: getAppIcon(),
+        webPreferences: {
+          preload: `${__dirname}/preload/local-preload.js`,
+          contextIsolation: true,
+          sandbox: true,
+          nodeIntegration: false,
+          webSecurity: true,
+          spellcheck: false,
+        },
+      });
+    } catch {
+      cleanup();
+      resolve(null);
+      return;
+    }
 
     pickerWin.removeMenu();
     pickerWin.loadFile(getLocalPagePath('picker'));
@@ -66,8 +99,7 @@ export async function openSourcePicker(
     const handlePick = (_: unknown, pickedId: string | null) => {
       if (!resolved) {
         resolved = true;
-        ipcMain.removeHandler(EDesktopIpc.LOCAL_PICKER_SOURCES);
-        ipcMain.removeListener(EDesktopIpc.LOCAL_PICK_SOURCE, handlePick);
+        cleanup();
         if (!pickerWin.isDestroyed()) {
           pickerWin.close();
         }
@@ -82,8 +114,7 @@ export async function openSourcePicker(
     pickerWin.on('closed', () => {
       if (!resolved) {
         resolved = true;
-        ipcMain.removeHandler(EDesktopIpc.LOCAL_PICKER_SOURCES);
-        ipcMain.removeListener(EDesktopIpc.LOCAL_PICK_SOURCE, handlePick);
+        cleanup();
         resolve(null);
       }
     });
@@ -101,6 +132,11 @@ export function installDisplayMediaHandler(
     async (request, callback) => {
       const serverOrigin = getServerOrigin();
       if (!serverOrigin || request.securityOrigin !== serverOrigin) {
+        callback({});
+        return;
+      }
+
+      if (pickerOpen) {
         callback({});
         return;
       }
