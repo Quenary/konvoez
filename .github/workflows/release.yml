@@ -64,6 +64,7 @@ jobs:
       - name: Install dependencies
         env:
           MEDIASOUP_WORKER_BIN: /bin/true
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: npm ci
 
       - name: Git identity
