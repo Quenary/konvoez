@@ -47,9 +47,16 @@ const released = Object.fromEntries(
 );
 const releasedGroups = groups.filter((g) => released[g]);
 
+const changelogVersionData = Object.fromEntries(
+  Object.entries(projectsVersionData).map(([p, data]) => [
+    p,
+    ['backend', 'desktop'].includes(p) ? data : { ...data, newVersion: null },
+  ]),
+);
+
 if (releasedGroups.length) {
   await releaseChangelog({
-    versionData: projectsVersionData,
+    versionData: changelogVersionData,
     groups: releasedGroups,
     dryRun,
     verbose: values.verbose,

@@ -107,6 +107,9 @@
     "git": {
       "commitMessage": "chore(release): publish [skip ci]"
     },
+    "changelog": {
+      "automaticFromRef": true
+    },
     "groups": {
       "server": {
         "projects": ["backend", "frontend", "shared"],
@@ -144,7 +147,8 @@
         "version": {
           "currentVersionResolver": "git-tag",
           "fallbackCurrentVersionResolver": "disk",
-          "specifierSource": "conventional-commits"
+          "specifierSource": "conventional-commits",
+          "adjustSemverBumpsForZeroMajorVersion": false
         },
         "changelog": {
           "file": "{projectRoot}/CHANGELOG.md",

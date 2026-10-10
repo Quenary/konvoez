@@ -3,7 +3,14 @@ const DefaultChangelogRenderer =
 
 class ServerChangelogRenderer extends DefaultChangelogRenderer {
   filterChanges(changes) {
-    return changes; // fixed group: one entry for backend+frontend+shared
+    return changes.filter(
+      (c) =>
+        c.scope !== 'desktop' &&
+        (c.affectedProjects === '*' ||
+          c.affectedProjects?.some((p) =>
+            ['backend', 'frontend', 'shared'].includes(p),
+          )),
+    );
   }
 }
 
