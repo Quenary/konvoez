@@ -31,7 +31,9 @@ jest.mock('web-push', () => ({
 import webPush from 'web-push';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EUserRole } from '@konvoez/shared';
+import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { PushSubscriptionEntity } from './notifications.entity';
 import { NotificationsService } from './notifications.service';
@@ -50,6 +52,7 @@ describe('NotificationsService', () => {
     >
   >;
   let em: jest.Mocked<EntityManager>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockUser: GetUserDto = {
     id: 1,
@@ -97,10 +100,15 @@ describe('NotificationsService', () => {
       saveVapidKeysToDisk: jest.fn(),
     };
 
+    eventEmitter = {
+      emit: jest.fn(),
+    } as unknown as jest.Mocked<EventEmitter2>;
+
     service = new NotificationsService(
       subscriptionRepository,
       { VAPID_EMAIL: 'konvoez@invalid.email' } as AppService,
       vapidKeyStorageService as unknown as VapidKeyStorageService,
+      eventEmitter,
     );
   });
 
@@ -157,8 +165,8 @@ describe('NotificationsService', () => {
     });
   });
 
-  describe('sendNotification', () => {
-    it('should send to every active subscription and flush once', async () => {
+  describe('deliver', () => {
+    it('should emit DELIVER domain event and send to every active subscription', async () => {
       const first = {
         endpoint: 'https://push.example/1',
         auth: 'a1',
@@ -175,11 +183,17 @@ describe('NotificationsService', () => {
       } as unknown as PushSubscriptionEntity;
       subscriptionRepository.find.mockResolvedValue([first, second]);
 
-      await service.sendNotification(2, {
+      const payload = {
         title: 'Alice',
         body: 'Hello',
-      });
+      };
 
+      await service.deliver(2, payload);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.DELIVER,
+        { userId: 2, payload },
+      );
       expect(webPush.sendNotification).toHaveBeenCalledTimes(2);
       expect(webPush.sendNotification).toHaveBeenCalledWith(
         {
@@ -191,6 +205,19 @@ describe('NotificationsService', () => {
       expect(em.flush).toHaveBeenCalledTimes(1);
       expect(first.lastUsedAt).toBeInstanceOf(Date);
       expect(second.lastUsedAt).toBeInstanceOf(Date);
+    });
+
+    it('should emit DELIVER event even when user has no active push subscriptions', async () => {
+      subscriptionRepository.find.mockResolvedValue([]);
+      const payload = { title: 'Alice', body: 'Hello' };
+
+      await service.deliver(2, payload);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.DELIVER,
+        { userId: 2, payload },
+      );
+      expect(webPush.sendNotification).not.toHaveBeenCalled();
     });
 
     it('should deactivate gone subscriptions and still flush once', async () => {
@@ -205,7 +232,7 @@ describe('NotificationsService', () => {
         statusCode: 410,
       });
 
-      await service.sendNotification(2, {
+      await service.deliver(2, {
         title: 'Alice',
         body: 'Hello',
       });
@@ -285,6 +312,7 @@ describe('NotificationsService', () => {
       );
 
       expect(webPush.sendNotification).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
 
     it('should group notifications by sender', async () => {

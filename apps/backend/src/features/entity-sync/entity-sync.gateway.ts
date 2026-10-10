@@ -12,6 +12,10 @@ import {
   EntitySyncDomainEvents,
   type TEntitySyncDomainPayloadMap,
 } from '@shared/events/entity-sync.events';
+import {
+  NotificationsDomainEvents,
+  type INotificationDeliverPayload,
+} from '@shared/events/notifications.events';
 
 type TSocket = Socket<
   TEntitySyncEventMap,
@@ -44,6 +48,7 @@ export class EntitySyncGateway implements OnGatewayConnection {
       }
 
       client.data.userId = user.id;
+      await client.join(`user:${user.id}`);
     } catch {
       client.emit(EEntitySyncEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
@@ -104,5 +109,12 @@ export class EntitySyncGateway implements OnGatewayConnection {
     payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT],
   ) {
     this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_LEFT, payload);
+  }
+
+  @OnEvent(NotificationsDomainEvents.DELIVER)
+  onNotificationDeliver({ userId, payload }: INotificationDeliverPayload) {
+    this.server
+      .to(`user:${userId}`)
+      .emit(EEntitySyncEvent.NOTIFICATION, payload);
   }
 }

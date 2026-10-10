@@ -108,6 +108,24 @@ describe('PushNotificationService', () => {
     expect(service.isSupported()).toBe(false);
   });
 
+  it('should return false for isSupported when desktop bridge is present', () => {
+    (window as unknown as { konvoezDesktop?: unknown }).konvoezDesktop = {
+      apiVersion: 1,
+      platform: 'linux',
+      appVersion: '0.1.0',
+      notify: vi.fn(),
+      setVoiceState: vi.fn(),
+      onCommand: vi.fn(() => () => undefined),
+      quitReady: vi.fn(),
+    };
+    try {
+      const service = TestBed.inject(PushNotificationService);
+      expect(service.isSupported()).toBe(false);
+    } finally {
+      delete (window as unknown as { konvoezDesktop?: unknown }).konvoezDesktop;
+    }
+  });
+
   it('should enable via SwPush with the raw VAPID public key', async () => {
     const service = TestBed.inject(PushNotificationService);
 

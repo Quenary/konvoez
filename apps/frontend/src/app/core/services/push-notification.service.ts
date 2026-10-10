@@ -16,6 +16,7 @@ import {
   throwError,
 } from 'rxjs';
 import { NotificationsApiService } from './notifications-api.service';
+import { DesktopBridgeService } from '@core/desktop/desktop-bridge.service';
 
 export type PushToggleResult =
   'enabled' | 'disabled' | 'unsupported' | 'permission-denied' | 'failed';
@@ -26,6 +27,7 @@ export class PushNotificationService {
   private readonly notificationsApiService = inject(NotificationsApiService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly desktopBridgeService = inject(DesktopBridgeService);
   private readonly subscriptionState = signal<PushSubscription | null>(null);
   private readonly permissionState = signal<NotificationPermission>(
     this.readPermission(),
@@ -52,6 +54,9 @@ export class PushNotificationService {
   }
 
   public isSupported(): boolean {
+    if (this.desktopBridgeService.isDesktop) {
+      return false;
+    }
     return (
       this.swPush.isEnabled &&
       window.isSecureContext &&

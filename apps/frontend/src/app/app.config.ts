@@ -37,6 +37,7 @@ import { initialSetupInitializer } from './core/initializers/initial-setup-initi
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { pwaUpdateInitializer } from './core/initializers/pwa-update-initializer';
 import { TextRoomSocketConnectionService } from './core/services/text-room-socket-connection.service';
+import { DesktopBridgeService } from './core/desktop/desktop-bridge.service';
 import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
@@ -118,6 +119,9 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       inject(EntitySyncService);
+    }),
+    provideAppInitializer(() => {
+      inject(DesktopBridgeService).init();
     }),
     provideTaiga(),
     {
