@@ -6,10 +6,24 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      specifier:
-        description: 'Force bump: patch | minor | major | x.y.z (empty = conventional commits)'
+      group:
+        description: 'Release group: server | desktop (empty = both)'
         required: false
         default: ''
+        type: choice
+        options:
+          - ''
+          - server
+          - desktop
+      specifier:
+        description: 'Force bump: patch | minor | major | x.y.z (empty = conventional commits; requires group)'
+        required: false
+        default: ''
+      first_release:
+        description: 'First release for desktop (sets 0.1.0 without previous desktop tag)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -22,10 +36,13 @@ concurrency:
 jobs:
   release:
     name: Version, changelog, tag, GitHub release
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      released: ${{ steps.release.outputs.released }}
-      version: ${{ steps.release.outputs.version }}
+      server_released: ${{ steps.release.outputs.server_released }}
+      server_version: ${{ steps.release.outputs.server_version }}
+      desktop_released: ${{ steps.release.outputs.desktop_released }}
+      desktop_version: ${{ steps.release.outputs.desktop_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -60,14 +77,80 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NX_DAEMON: 'false'
           NX_NO_CLOUD: 'true'
-          SPECIFIER: ${{ github.event.inputs.specifier }}
-        run: node tools/release.mjs --specifier "$SPECIFIER"
+          GROUP: ${{ inputs.group }}
+          SPECIFIER: ${{ inputs.specifier }}
+          FIRST_RELEASE: ${{ inputs.first_release }}
+        run: |
+          ARGS=()
+          [ -n "$GROUP" ] && ARGS+=(--group "$GROUP")
+          [ -n "$SPECIFIER" ] && ARGS+=(--specifier "$SPECIFIER")
+          [ "$FIRST_RELEASE" = "true" ] && ARGS+=(--first-release)
+          node tools/release.mjs "${ARGS[@]}"
 
   image:
     name: Build and push prod image
     needs: release
-    if: needs.release.outputs.released == 'true'
+    if: needs.release.outputs.server_released == 'true'
     uses: ./.github/workflows/prod-image.yml
     with:
-      version: ${{ needs.release.outputs.version }}
+      version: ${{ needs.release.outputs.server_version }}
     secrets: inherit
+
+  desktop-release-page:
+    name: Create desktop GitHub release
+    needs: release
+    if: needs.release.outputs.desktop_released == 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: desktop-v${{ needs.release.outputs.desktop_version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: desktop-v${{ needs.release.outputs.desktop_version }}
+          fetch-depth: 1
+      - name: Create release (never latest)
+        run: |
+          awk '/^## /{n++} n==1' apps/desktop/CHANGELOG.md > notes.md
+          gh release create "$TAG" --title "Konvoez Desktop ${TAG#desktop-v}" --notes-file notes.md --latest=false
+          gh release view desktop-latest >/dev/null 2>&1 || \
+            gh release create desktop-latest --title "Konvoez Desktop (latest build)" \
+              --notes "Rolling channel for the desktop auto-updater. Download installers from here." --latest=false
+
+  desktop-build:
+    name: Build desktop (${{ matrix.os }})
+    needs: [release, desktop-release-page]
+    if: needs.release.outputs.desktop_released == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: desktop-v${{ needs.release.outputs.desktop_version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: desktop-v${{ needs.release.outputs.desktop_version }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Package
+        run: npx nx run desktop:package
+      - name: Upload to desktop-v release and rolling desktop-latest
+        shell: bash
+        run: |
+          cd dist/apps/desktop/release
+          if [ -f Konvoez-Setup-${{ needs.release.outputs.desktop_version }}.exe ]; then
+            cp Konvoez-Setup-${{ needs.release.outputs.desktop_version }}.exe Konvoez-Setup-x64.exe
+          fi
+          if [ -f Konvoez-${{ needs.release.outputs.desktop_version }}-x86_64.AppImage ]; then
+            cp Konvoez-${{ needs.release.outputs.desktop_version }}-x86_64.AppImage Konvoez-x86_64.AppImage
+          fi
+          FILES=$(ls *.exe *.AppImage *.blockmap latest*.yml 2>/dev/null)
+          gh release upload "$TAG" $FILES --clobber
+          gh release upload desktop-latest $FILES --clobber
