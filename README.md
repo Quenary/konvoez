@@ -2,8 +2,16 @@
 
 Konvoez is a self-hosted, single-server voice and text communication platform (Discord-like alternative where the deployed application instance acts as the server itself). Designed for friends to hang out, not for production use.
 
+## Desktop App
+
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D6?logo=windows)](https://github.com/Quenary/konvoez/releases/download/desktop-latest/Konvoez-Setup-x64.exe)
+[![Download for Linux](https://img.shields.io/badge/Download-Linux%20AppImage-FCC624?logo=linux&logoColor=black)](https://github.com/Quenary/konvoez/releases/download/desktop-latest/Konvoez-x86_64.AppImage)
+
+All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=desktop-v&expanded=true). Builds are unsigned (click "More info → Run anyway" on Windows); the AppImage requires `chmod +x`. See the [Desktop Guide](docs/DESKTOP.md).
+
 ## Table of Contents
 
+- [Desktop App](#desktop-app)
 - [Key Features](#key-features)
 - [Deployment](#deployment)
 - [Documentation](#documentation)
@@ -56,6 +64,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ## Documentation
 
+- [Desktop Client](docs/DESKTOP.md)
 - [Networking & Deployment Guide](docs/NETWORKING.md)
 - [Contributing Guidelines](docs/CONTRIBUTING.md)
 - [Security Policy](docs/SECURITY.md)

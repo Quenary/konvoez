@@ -8,6 +8,7 @@ Konvoez is an Nx monorepo:
 
 - **Frontend** (`apps/frontend`): Built with modern Angular (v19+, Signals, Standalone components, SCSS, Taiga UI).
 - **Backend** (`apps/backend`): Built with NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, and AES-256-GCM message encryption.
+- **Desktop** (`apps/desktop`): Lightweight Electron client wrapping the frontend, built with esbuild and packaged via electron-builder.
 - **Shared Library** (`libs/shared`): Shared TypeScript interfaces, enums, DTOs, and Zod validation schemas.
 
 ### Getting Started
@@ -50,6 +51,20 @@ Konvoez is an Nx monorepo:
   Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
 - Keep commits focused; avoid mixing unrelated changes.
 - Husky and lint-staged are configured to run linters and formatters on staged files before commit.
+
+### Release Groups & Scope Isolation
+
+Releases are managed by Nx across two independent release groups:
+
+- **`server`**: covers `backend`, `frontend`, and `shared`. Produces semantic tags `v{version}` and root `CHANGELOG.md`.
+- **`desktop`**: covers `desktop`. Produces semantic tags `desktop-v{version}` and `apps/desktop/CHANGELOG.md`.
+
+To maintain clean version bumps:
+
+- Commits touching only `apps/desktop/**` bump only `desktop`.
+- Commits touching only `apps/backend/**` or `apps/frontend/**` bump only `server`.
+- Commits touching `libs/shared/**` bump both `server` and `desktop` (since desktop imports shared).
+- Keep dependency updates (`fix(deps)`) isolated to their respective areas.
 
 ## Code Changes
 
