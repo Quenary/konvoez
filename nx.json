@@ -153,6 +153,7 @@
         "changelog": {
           "file": "{projectRoot}/CHANGELOG.md",
           "createRelease": false,
+          "renderer": "{workspaceRoot}/tools/release/desktop-changelog-renderer.cjs",
           "renderOptions": {
             "authors": false,
             "commitReferences": true,
