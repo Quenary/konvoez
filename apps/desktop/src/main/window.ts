@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { app, BrowserWindow, nativeImage } from 'electron';
+import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
 import type { ConfigStore } from './config-store';
 import { isQuitting } from './quit';
 
@@ -10,7 +10,7 @@ export function setHasTray(value: boolean): void {
   hasTray = value;
 }
 
-export function getAppIcon(): nativeImage | undefined {
+export function getAppIcon(): NativeImage | undefined {
   if (!nativeImage || typeof nativeImage.createFromPath !== 'function') {
     return undefined;
   }

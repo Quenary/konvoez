@@ -1,4 +1,7 @@
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { app, shell, type Session } from 'electron';
+import { getLocalPagePath } from './window';
 
 export const ALLOWED_PERMISSIONS = [
   'media',
@@ -11,11 +14,17 @@ export const ALLOWED_PERMISSIONS = [
 export function isAllowedNavigation(
   targetUrl: string,
   serverOrigin: string | null,
+  allowedPagesDir = path.dirname(getLocalPagePath('server')),
 ): boolean {
   try {
     const url = new URL(targetUrl);
     if (url.protocol === 'file:') {
-      return true;
+      const filePath = path.resolve(fileURLToPath(url));
+      const normalizedAllowedDir = path.resolve(allowedPagesDir);
+      return (
+        filePath.startsWith(normalizedAllowedDir + path.sep) ||
+        filePath === normalizedAllowedDir
+      );
     }
     if (serverOrigin && url.origin === serverOrigin) {
       return true;

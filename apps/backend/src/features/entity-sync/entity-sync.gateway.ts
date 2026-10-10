@@ -44,7 +44,6 @@ export class EntitySyncGateway implements OnGatewayConnection {
       }
 
       client.data.userId = user.id;
-      await client.join(`user:${user.id}`);
     } catch {
       client.emit(EEntitySyncEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);

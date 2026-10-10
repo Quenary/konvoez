@@ -22,6 +22,7 @@ import { applyHotkeys } from './hotkeys';
 import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
 import { resolveLanguage } from './i18n';
+import { showMainWindow } from './window';
 
 export function isTrustedAppSender(
   frameUrl: string | undefined,

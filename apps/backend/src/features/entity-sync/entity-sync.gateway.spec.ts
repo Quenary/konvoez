@@ -127,14 +127,13 @@ describe('EntitySyncGateway', () => {
     );
   });
 
-  it('should join user room on successful connection', async () => {
+  it('should authenticate user and store userId on successful connection', async () => {
     authServiceMock.getUserFromRawCookies.mockResolvedValue(user);
     const client = {
       handshake: { headers: { cookie: 'session=123' } },
       data: {} as { userId?: number },
       emit: jest.fn(),
       disconnect: jest.fn(),
-      join: jest.fn().mockResolvedValue(undefined),
     };
 
     await gateway.handleConnection(
@@ -142,7 +141,6 @@ describe('EntitySyncGateway', () => {
     );
 
     expect(client.data.userId).toBe(user.id);
-    expect(client.join).toHaveBeenCalledWith(`user:${user.id}`);
     expect(client.disconnect).not.toHaveBeenCalled();
   });
 });

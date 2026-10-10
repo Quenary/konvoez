@@ -1,17 +1,19 @@
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { isAllowedNavigation, isAllowedPermission } from './security';
+import { getLocalPagePath } from './window';
 
 describe('security policies', () => {
   describe('isAllowedNavigation', () => {
     const server = 'https://konvoez.example.com';
 
-    it('allows file:// URLs for local pages', () => {
-      expect(isAllowedNavigation('file:///path/to/server.html', server)).toBe(
-        true,
-      );
-      expect(isAllowedNavigation('file:///path/to/server.html', null)).toBe(
-        true,
-      );
+    it('allows file:// URLs only within local pages directory', () => {
+      const serverPage = pathToFileURL(getLocalPagePath('server')).href;
+      expect(isAllowedNavigation(serverPage, server)).toBe(true);
+      expect(isAllowedNavigation(serverPage, null)).toBe(true);
+
+      const outsideFile = pathToFileURL('/etc/passwd').href;
+      expect(isAllowedNavigation(outsideFile, server)).toBe(false);
     });
 
     it('allows navigation within the configured server origin', () => {

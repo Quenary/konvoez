@@ -154,4 +154,22 @@ jobs:
           fi
           FILES=$(ls *.exe *.AppImage *.blockmap latest*.yml 2>/dev/null)
           gh release upload "$TAG" $FILES --clobber
+
+          # Clean up old versioned assets of the current platform from desktop-latest
+          CURRENT_ASSETS=$(gh release view desktop-latest --json assets -q '.assets[].name' 2>/dev/null || true)
+          for asset in $CURRENT_ASSETS; do
+            case "$RUNNER_OS" in
+              Windows)
+                if [[ "$asset" == *.exe || "$asset" == *.blockmap ]] && [[ ! " $FILES " =~ " $asset " ]]; then
+                  gh release delete-asset desktop-latest "$asset" --yes || true
+                fi
+                ;;
+              Linux)
+                if [[ "$asset" == *.AppImage ]] && [[ ! " $FILES " =~ " $asset " ]]; then
+                  gh release delete-asset desktop-latest "$asset" --yes || true
+                fi
+                ;;
+            esac
+          done
+
           gh release upload desktop-latest $FILES --clobber

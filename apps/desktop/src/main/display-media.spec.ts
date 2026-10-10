@@ -82,11 +82,9 @@ describe('display-media helpers', () => {
     ) => Promise<void>;
 
     it('installDisplayMediaHandler rejects origin mismatch with callback({})', async () => {
-      let registeredHandler: DisplayMediaHandler | null = null;
+      const setDisplayMediaRequestHandler = vi.fn();
       const fakeSession = {
-        setDisplayMediaRequestHandler: vi.fn((handler: DisplayMediaHandler) => {
-          registeredHandler = handler;
-        }),
+        setDisplayMediaRequestHandler,
       } as unknown as Session;
 
       installDisplayMediaHandler(
@@ -95,20 +93,19 @@ describe('display-media helpers', () => {
         () => null,
       );
 
-      expect(registeredHandler).toBeTypeOf('function');
-      if (!registeredHandler) return;
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      expect(handler).toBeDefined();
 
       const callback = vi.fn();
-      await registeredHandler({ securityOrigin: 'https://evil.com' }, callback);
+      await handler({ securityOrigin: 'https://evil.com' }, callback);
       expect(callback).toHaveBeenCalledWith({});
     });
 
     it('installDisplayMediaHandler rejects immediately when picker is open', async () => {
-      let registeredHandler: DisplayMediaHandler | null = null;
+      const setDisplayMediaRequestHandler = vi.fn();
       const fakeSession = {
-        setDisplayMediaRequestHandler: vi.fn((handler: DisplayMediaHandler) => {
-          registeredHandler = handler;
-        }),
+        setDisplayMediaRequestHandler,
       } as unknown as Session;
 
       installDisplayMediaHandler(
@@ -119,11 +116,12 @@ describe('display-media helpers', () => {
 
       setPickerOpenForTests(true);
 
-      expect(registeredHandler).toBeTypeOf('function');
-      if (!registeredHandler) return;
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      expect(handler).toBeDefined();
 
       const callback = vi.fn();
-      await registeredHandler(
+      await handler(
         { securityOrigin: 'https://konvoez.example.com' },
         callback,
       );
