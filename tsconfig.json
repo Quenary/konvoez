@@ -9,6 +9,9 @@
     },
     {
       "path": "./apps/backend"
+    },
+    {
+      "path": "./apps/desktop"
     }
   ],
   "compilerOptions": {

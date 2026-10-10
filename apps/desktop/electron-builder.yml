@@ -1,0 +1,35 @@
+appId: com.quenary.konvoez
+productName: Konvoez
+electronVersion: 44.7.0
+directories:
+  output: ../../dist/apps/desktop/release
+  buildResources: build
+files:
+  - dist/**
+  - package.json
+extraMetadata:
+  main: dist/main.js
+asar: true
+publish:
+  provider: generic
+  url: https://github.com/Quenary/konvoez/releases/download/desktop-latest/
+  channel: latest
+win:
+  target: [{ target: nsis, arch: [x64] }]
+  icon: build/icons/icon.ico
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  deleteAppDataOnUninstall: false
+  artifactName: Konvoez-Setup-${version}.${ext}
+linux:
+  target: [{ target: AppImage, arch: [x64] }]
+  category: Network
+  icon: build/icons/icon.png
+  desktop:
+    entry:
+      Name: Konvoez
+      StartupWMClass: Konvoez
+  artifactName: Konvoez-${version}-x86_64.${ext}
+  executableName: konvoez

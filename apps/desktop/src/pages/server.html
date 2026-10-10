@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>Konvoez</title>
+    <link
+      rel="stylesheet"
+      href="pages.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1 id="title">Connect to Konvoez</h1>
+      <p
+        class="subtitle"
+        id="subtitle"
+        >Enter the address of your Konvoez server</p
+      >
+
+      <div class="form-group">
+        <label for="server-input">Server URL</label>
+        <input
+          type="text"
+          id="server-input"
+          placeholder="https://konvoez.example.com"
+          autofocus />
+        <div
+          class="status-message"
+          id="status-message"></div>
+      </div>
+
+      <div class="buttons">
+        <button
+          type="button"
+          class="primary"
+          id="connect-btn"
+          >Connect</button
+        >
+      </div>
+    </div>
+    <script src="server.js"></script>
+  </body>
+</html>
