@@ -152,24 +152,25 @@ jobs:
           if [ -f Konvoez-${{ needs.release.outputs.desktop_version }}-x86_64.AppImage ]; then
             cp Konvoez-${{ needs.release.outputs.desktop_version }}-x86_64.AppImage Konvoez-x86_64.AppImage
           fi
-          FILES=$(ls *.exe *.AppImage *.blockmap latest*.yml 2>/dev/null)
-          gh release upload "$TAG" $FILES --clobber
+          shopt -s nullglob
+          FILES=(*.exe *.AppImage *.blockmap latest*.yml)
+          if [ ${#FILES[@]} -eq 0 ]; then echo 'No desktop artifacts found' >&2; exit 1; fi
+          gh release upload "$TAG" "${FILES[@]}" --clobber
 
           # Clean up old versioned assets of the current platform from desktop-latest
-          CURRENT_ASSETS=$(gh release view desktop-latest --json assets -q '.assets[].name' 2>/dev/null || true)
-          for asset in $CURRENT_ASSETS; do
+          while IFS= read -r asset; do
             case "$RUNNER_OS" in
               Windows)
-                if [[ "$asset" == *.exe || "$asset" == *.blockmap ]] && [[ ! " $FILES " =~ " $asset " ]]; then
+                if [[ "$asset" == *.exe || "$asset" == *.blockmap ]] && [[ ! " ${FILES[*]} " =~ " $asset " ]]; then
                   gh release delete-asset desktop-latest "$asset" --yes || true
                 fi
                 ;;
               Linux)
-                if [[ "$asset" == *.AppImage ]] && [[ ! " $FILES " =~ " $asset " ]]; then
+                if [[ "$asset" == *.AppImage ]] && [[ ! " ${FILES[*]} " =~ " $asset " ]]; then
                   gh release delete-asset desktop-latest "$asset" --yes || true
                 fi
                 ;;
             esac
-          done
+          done < <(gh release view desktop-latest --json assets -q '.assets[].name' 2>/dev/null || true)
 
-          gh release upload desktop-latest $FILES --clobber
+          gh release upload desktop-latest "${FILES[@]}" --clobber
