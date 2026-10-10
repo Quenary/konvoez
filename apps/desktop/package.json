@@ -4,8 +4,5 @@
   "description": "Konvoez desktop client",
   "author": "Quenary <evgeny.savin.nord@gmail.com>",
   "main": "dist/main.js",
-  "desktopName": "konvoez.desktop",
-  "dependencies": {
-    "electron-updater": "6.8.9"
-  }
+  "desktopName": "konvoez.desktop"
 }

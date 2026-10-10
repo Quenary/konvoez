@@ -33,7 +33,7 @@ async function build() {
     target: 'node22',
     format: 'cjs',
     outfile: path.resolve(distDir, 'main.js'),
-    external: ['electron', 'electron-updater'],
+    external: ['electron'],
     sourcemap: isDev,
     minify: !isDev,
     alias: {
