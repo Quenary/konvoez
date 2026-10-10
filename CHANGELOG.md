@@ -1,3 +1,9 @@
+## 1.15.0 (2026-10-10)
+
+### Features
+
+- add desktop client ([#23](https://github.com/Quenary/konvoez/pull/23))
+
 ## 1.14.0 (2026-10-09)
 
 ### Features
