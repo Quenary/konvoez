@@ -7,8 +7,35 @@ import {
   openSourcePicker,
   resetPickerOpenForTests,
   serializeCapturerSources,
-  setPickerOpenForTests,
 } from './display-media';
+
+vi.mock('electron', () => {
+  class MockBrowserWindow {
+    removeMenu = vi.fn();
+    loadFile = vi.fn();
+    isDestroyed = vi.fn().mockReturnValue(false);
+    close = vi.fn();
+    on = vi.fn();
+    once = vi.fn();
+    show = vi.fn();
+  }
+
+  return {
+    BrowserWindow: MockBrowserWindow,
+    desktopCapturer: {
+      getSources: vi.fn(),
+    },
+    ipcMain: {
+      handle: vi.fn(),
+      removeHandler: vi.fn(),
+      once: vi.fn(),
+      removeListener: vi.fn(),
+    },
+    nativeImage: {
+      createFromPath: vi.fn(),
+    },
+  };
+});
 
 describe('display-media helpers', () => {
   describe('getScreenShareAudio', () => {
@@ -71,7 +98,9 @@ describe('display-media helpers', () => {
     });
 
     it('openSourcePicker returns null immediately when picker is already open', async () => {
-      setPickerOpenForTests(true);
+      void openSourcePicker([], null);
+      expect(isPickerOpen()).toBe(true);
+
       const result = await openSourcePicker([], null);
       expect(result).toBeNull();
     });
@@ -114,7 +143,8 @@ describe('display-media helpers', () => {
         () => null,
       );
 
-      setPickerOpenForTests(true);
+      void openSourcePicker([], null);
+      expect(isPickerOpen()).toBe(true);
 
       const handler = setDisplayMediaRequestHandler.mock
         .calls[0]?.[0] as DisplayMediaHandler;

@@ -42,10 +42,6 @@ export function resetPickerOpenForTests(): void {
   pickerOpen = false;
 }
 
-export function setPickerOpenForTests(val: boolean): void {
-  pickerOpen = val;
-}
-
 export async function openSourcePicker(
   sources: DesktopCapturerSource[],
   parentWindow?: BrowserWindow | null,
@@ -59,13 +55,26 @@ export async function openSourcePicker(
   return new Promise((resolve) => {
     let resolved = false;
 
+    let pickerWin: BrowserWindow;
+
+    const handlePick = (_: unknown, pickedId: string | null) => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        if (pickerWin && !pickerWin.isDestroyed()) {
+          pickerWin.close();
+        }
+        const found = sources.find((s) => s.id === pickedId) ?? null;
+        resolve(found);
+      }
+    };
+
     const cleanup = () => {
       pickerOpen = false;
       ipcMain.removeHandler(EDesktopIpc.LOCAL_PICKER_SOURCES);
       ipcMain.removeListener(EDesktopIpc.LOCAL_PICK_SOURCE, handlePick);
     };
 
-    let pickerWin: BrowserWindow;
     try {
       pickerWin = new BrowserWindow({
         width: 720,
@@ -95,18 +104,6 @@ export async function openSourcePicker(
 
     pickerWin.removeMenu();
     pickerWin.loadFile(getLocalPagePath('picker'));
-
-    const handlePick = (_: unknown, pickedId: string | null) => {
-      if (!resolved) {
-        resolved = true;
-        cleanup();
-        if (!pickerWin.isDestroyed()) {
-          pickerWin.close();
-        }
-        const found = sources.find((s) => s.id === pickedId) ?? null;
-        resolve(found);
-      }
-    };
 
     ipcMain.handle(EDesktopIpc.LOCAL_PICKER_SOURCES, () => serializable);
     ipcMain.once(EDesktopIpc.LOCAL_PICK_SOURCE, handlePick);
