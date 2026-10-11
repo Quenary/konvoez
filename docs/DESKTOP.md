@@ -72,6 +72,20 @@ Prebuilt installers are published under GitHub Releases:
 
 ---
 
+## Local Dialogs (Lit)
+
+Desktop client utility dialogs (Server URL prompt, Settings dialog, Screen share source picker) are implemented with Lit web components and styled to follow the Taiga UI design system:
+
+- **Library Architecture**: The UI logic is hosted across three platform-independent packages:
+  - `@konvoez/client-shell`: Platform-agnostic contracts (`IServerDialogAdapter`, `ISettingsDialogAdapter`, `ISourcePickerDialogAdapter`), settings schemas, URL validation, accelerator parsing, and an i18n translator.
+  - `@konvoez/ui-kit`: Reusable Lit primitives (`k-button`, `k-input`, `k-checkbox`, `k-hotkey-input`, `k-tabs`, `k-source-card`, `k-source-grid`, `k-dialog-layout`, etc.) with CSS custom properties aligned to Taiga UI tokens.
+  - `@konvoez/client-dialogs`: Domain dialog web components (`k-server-dialog`, `k-settings-dialog`, `k-source-picker-dialog`).
+- **Adapter Decoupling**: Components are decoupled from Electron IPC and communicate strictly through adapter interfaces defined in `@konvoez/client-shell`.
+- **Mounting & Bridging**: In the desktop renderer process, `preload.ts` exposes `window.konvoezLocal` (implementing `IKonvoezLocalBridge`). Dedicated HTML entry points (`server.html`, `settings.html`, `picker.html`) bootstrap their dialogs using `mountDialog` from `apps/desktop/src/pages/mount.ts`, binding the adapter and dictionary.
+- **Security & Bundling**: Dialog pages enforce a strict Content Security Policy (`default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src *`). Bundles are built with esbuild, which verifies during build that no Node globals (`process`, `require`, `__dirname`) leak into local dialog bundles.
+
+---
+
 ## Known Limitations
 
 - **Screen share system audio**: Loopback audio capture during screen sharing is supported on Windows only. On Linux (X11 and Wayland), screen sharing captures video only.
