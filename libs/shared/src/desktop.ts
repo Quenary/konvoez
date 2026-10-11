@@ -21,6 +21,8 @@ export enum EDesktopIpc {
   LOCAL_SAVE_SETTINGS = 'konvoez-local:save-settings',
   LOCAL_PICK_SOURCE = 'konvoez-local:pick-source',
   LOCAL_PICKER_SOURCES = 'konvoez-local:picker-sources',
+  LOCAL_HOTKEYS_SUSPEND = 'konvoez-local:hotkeys-suspend',
+  LOCAL_HOTKEYS_RESUME = 'konvoez-local:hotkeys-resume',
 }
 
 export const desktopVoiceStateSchema = z.object({

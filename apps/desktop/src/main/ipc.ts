@@ -18,7 +18,7 @@ import type { ConfigStore } from './config-store';
 import { normalizeServerOrigin, probeServer } from './server-url';
 import { showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
-import { applyHotkeys } from './hotkeys';
+import { applyHotkeys, resumeHotkeys, suspendHotkeys } from './hotkeys';
 import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
 import { resolveLanguage } from './i18n';
@@ -183,6 +183,20 @@ export function registerIpc(
       return { success: true, origin };
     },
   );
+
+  ipcMain.on(EDesktopIpc.LOCAL_HOTKEYS_SUSPEND, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    suspendHotkeys();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_HOTKEYS_RESUME, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    resumeHotkeys();
+  });
 
   ipcMain.handle(
     EDesktopIpc.LOCAL_SAVE_SETTINGS,

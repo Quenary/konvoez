@@ -15,6 +15,14 @@ export interface IDesktopHotkeyStatuses {
 
 export { formatKeyboardEventToAccelerator } from './accelerator';
 
+let storedHotkeys: TDesktopHotkeys | null = null;
+let suspendDepth = 0;
+
+export function resetHotkeyStateForTests(): void {
+  storedHotkeys = null;
+  suspendDepth = 0;
+}
+
 function sendDesktopCommand(
   command: EDesktopCommand,
   win?: BrowserWindow | null,
@@ -30,6 +38,7 @@ export function applyHotkeys(
   shortcutManager: typeof globalShortcut = globalShortcut,
   onCommand: (command: EDesktopCommand) => void = sendDesktopCommand,
 ): IDesktopHotkeyStatuses {
+  storedHotkeys = hotkeys;
   shortcutManager.unregisterAll();
 
   const registerKey = (
@@ -55,7 +64,44 @@ export function applyHotkeys(
     EDesktopCommand.TOGGLE_SPEAKER,
   );
 
+  if (suspendDepth > 0) {
+    shortcutManager.unregisterAll();
+  }
+
   return { toggleMic, toggleSpeaker };
+}
+
+export function suspendHotkeys(
+  shortcutManager: typeof globalShortcut = globalShortcut,
+): void {
+  suspendDepth += 1;
+  if (suspendDepth === 1) {
+    shortcutManager.unregisterAll();
+  }
+}
+
+export function resumeHotkeysAfterSettingsClosed(): void {
+  resumeHotkeys(globalShortcut, sendDesktopCommand, {
+    resetSuspendDepth: true,
+  });
+}
+
+export function resumeHotkeys(
+  shortcutManager: typeof globalShortcut = globalShortcut,
+  onCommand: (command: EDesktopCommand) => void = sendDesktopCommand,
+  options?: { resetSuspendDepth?: boolean },
+): void {
+  if (options?.resetSuspendDepth) {
+    suspendDepth = 0;
+  } else if (suspendDepth > 0) {
+    suspendDepth -= 1;
+  } else {
+    return;
+  }
+
+  if (suspendDepth === 0 && storedHotkeys) {
+    applyHotkeys(storedHotkeys, shortcutManager, onCommand);
+  }
 }
 
 export function initHotkeys(): void {

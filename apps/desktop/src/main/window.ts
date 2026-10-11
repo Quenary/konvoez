@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
 import { getIconPath } from './assets';
+import { resumeHotkeysAfterSettingsClosed } from './hotkeys';
 import type { ConfigStore } from './config-store';
 import { isQuitting } from './quit';
 
@@ -134,6 +135,12 @@ export function openLocalModal(
   modal.removeMenu();
   modal.loadFile(getLocalPagePath(pageName));
   modal.once('ready-to-show', () => modal.show());
+
+  if (pageName === 'settings') {
+    modal.once('closed', () => {
+      resumeHotkeysAfterSettingsClosed();
+    });
+  }
 
   return modal;
 }

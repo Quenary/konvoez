@@ -88,15 +88,23 @@ async function initSettingsPage(): Promise<void> {
     let recording = false;
 
     const startRecording = () => {
+      if (recording) {
+        return;
+      }
       recording = true;
       input.classList.add('recording');
       input.placeholder = t('settings.pressKey', locale);
+      window.konvoezLocal.suspendHotkeys();
     };
 
     const stopRecording = (restore = false) => {
+      if (!recording) {
+        return;
+      }
       recording = false;
       input.classList.remove('recording');
       input.placeholder = t('settings.pressKey', locale);
+      window.konvoezLocal.resumeHotkeys();
       if (restore) {
         input.value = getKey() ?? '';
       }
