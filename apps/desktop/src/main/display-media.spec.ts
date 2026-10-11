@@ -32,7 +32,7 @@ vi.mock('electron', () => {
       removeListener: vi.fn(),
     },
     nativeImage: {
-      createFromPath: vi.fn(),
+      createFromPath: vi.fn(() => ({ isEmpty: () => false })),
     },
   };
 });
