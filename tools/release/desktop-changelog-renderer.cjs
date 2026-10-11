@@ -1,13 +1,26 @@
 const DefaultChangelogRenderer =
   require('nx/release/changelog-renderer').default;
 
+const DESKTOP_GROUP_PROJECTS = [
+  'desktop',
+  'client-shell',
+  'ui-kit',
+  'client-dialogs',
+];
+const DESKTOP_GROUP_SCOPES = [
+  'desktop',
+  'client-shell',
+  'ui-kit',
+  'client-dialogs',
+];
+
 class DesktopChangelogRenderer extends DefaultChangelogRenderer {
   filterChanges(changes) {
     return changes.filter(
       (c) =>
-        c.scope === 'desktop' ||
+        DESKTOP_GROUP_SCOPES.includes(c.scope) ||
         (Array.isArray(c.affectedProjects) &&
-          c.affectedProjects.includes('desktop')),
+          c.affectedProjects.some((p) => DESKTOP_GROUP_PROJECTS.includes(p))),
     );
   }
 }
