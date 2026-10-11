@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
 import { getIconPath } from './assets';
-import { resumeHotkeysAfterSettingsClosed } from './hotkeys';
 import type { ConfigStore } from './config-store';
 import { isQuitting } from './quit';
 
@@ -111,7 +110,12 @@ export function createMainWindow(configStore: ConfigStore): BrowserWindow {
 export function openLocalModal(
   pageName: string,
   parentWindow?: BrowserWindow | null,
-  options?: { width?: number; height?: number; resizable?: boolean },
+  options?: {
+    width?: number;
+    height?: number;
+    resizable?: boolean;
+    onClosed?: () => void;
+  },
 ): BrowserWindow {
   const parent = parentWindow ?? mainWindow ?? undefined;
   const modal = new BrowserWindow({
@@ -136,10 +140,8 @@ export function openLocalModal(
   modal.loadFile(getLocalPagePath(pageName));
   modal.once('ready-to-show', () => modal.show());
 
-  if (pageName === 'settings') {
-    modal.once('closed', () => {
-      resumeHotkeysAfterSettingsClosed();
-    });
+  if (options?.onClosed) {
+    modal.once('closed', options.onClosed);
   }
 
   return modal;

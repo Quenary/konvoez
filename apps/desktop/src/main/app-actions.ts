@@ -6,6 +6,7 @@ import {
   type TDesktopVoiceState,
 } from '@konvoez/shared';
 import type { ConfigStore } from './config-store';
+import { resumeHotkeysAfterSettingsClosed } from './hotkeys';
 import { t } from './i18n';
 import { performQuitFlow } from './quit';
 import { checkForUpdatesManual } from './updater';
@@ -48,7 +49,11 @@ export function runAppAction(
       }
       break;
     case 'settings':
-      openLocalModal('settings', win, { width: 640, height: 640 });
+      openLocalModal('settings', win, {
+        width: 640,
+        height: 640,
+        onClosed: resumeHotkeysAfterSettingsClosed,
+      });
       break;
     case 'change-server':
       openLocalModal('server', win, { width: 640, height: 640 });
