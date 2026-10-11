@@ -25,7 +25,6 @@ async function initSettingsPage(): Promise<void> {
     'autostart-checkbox',
   ) as HTMLInputElement | null;
   const lblAutostart = document.getElementById('lbl-autostart');
-  const changeServerLink = document.getElementById('change-server-link');
   const settingsStatus = document.getElementById('settings-status');
   const saveBtn = document.getElementById(
     'save-btn',
@@ -64,9 +63,6 @@ async function initSettingsPage(): Promise<void> {
     }
     if (lblAutostart) {
       lblAutostart.textContent = t('settings.autostart', locale);
-    }
-    if (changeServerLink) {
-      changeServerLink.textContent = t('settings.changeServer', locale);
     }
     saveBtn.textContent = t('settings.save', locale);
 
@@ -175,13 +171,6 @@ async function initSettingsPage(): Promise<void> {
       speakerKey = val;
     },
   );
-
-  if (changeServerLink) {
-    changeServerLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.location.href = 'server.html';
-    });
-  }
 
   const renderHotkeyStatus = (
     el: HTMLElement,

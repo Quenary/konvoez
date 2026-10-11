@@ -54,6 +54,32 @@ body {
   padding-right: 4px;
 }
 
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-page .settings-subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.settings-page .hotkey-block label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.settings-page .checkbox-group {
+  margin: 0;
+}
+
+.settings-page h1 {
+  margin-bottom: 0;
+}
+
 .settings-footer {
   flex-shrink: 0;
   padding-top: 8px;

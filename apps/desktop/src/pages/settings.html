@@ -13,77 +13,73 @@
   <body>
     <div class="container settings-page">
       <div class="settings-scroll">
-      <h1 id="title">Desktop Settings</h1>
+        <div class="settings-stack">
+          <h1 id="title">Desktop Settings</h1>
 
-      <div class="form-group">
-        <label id="lbl-hotkeys">Global Hotkeys</label>
+          <p
+            class="settings-subtitle"
+            id="lbl-hotkeys">
+            Global Hotkeys
+          </p>
 
-        <div style="margin-bottom: 12px">
+          <div class="hotkey-block">
+            <label
+              id="lbl-toggle-mic"
+              for="mic-hotkey-input"
+              >Toggle microphone</label
+            >
+            <input
+              type="text"
+              id="mic-hotkey-input"
+              class="hotkey-input"
+              readonly
+              placeholder="" />
+            <div
+              class="status-message"
+              id="mic-status"></div>
+          </div>
+
+          <div class="hotkey-block">
+            <label
+              id="lbl-toggle-speaker"
+              for="speaker-hotkey-input"
+              >Toggle speaker / deafen</label
+            >
+            <input
+              type="text"
+              id="speaker-hotkey-input"
+              class="hotkey-input"
+              readonly
+              placeholder="" />
+            <div
+              class="status-message"
+              id="speaker-status"></div>
+          </div>
+
           <label
-            id="lbl-toggle-mic"
-            for="mic-hotkey-input"
-            >Toggle microphone</label
-          >
-          <input
-            type="text"
-            id="mic-hotkey-input"
-            class="hotkey-input"
-            readonly
-            placeholder="" />
-          <div
-            class="status-message"
-            id="mic-status"></div>
+            class="checkbox-group"
+            for="autostart-checkbox">
+            <input
+              type="checkbox"
+              id="autostart-checkbox" />
+            <span id="lbl-autostart">Start on system boot</span>
+          </label>
         </div>
-
-        <div style="margin-bottom: 12px">
-          <label
-            id="lbl-toggle-speaker"
-            for="speaker-hotkey-input"
-            >Toggle speaker / deafen</label
-          >
-          <input
-            type="text"
-            id="speaker-hotkey-input"
-            class="hotkey-input"
-            readonly
-            placeholder="" />
-          <div
-            class="status-message"
-            id="speaker-status"></div>
-        </div>
-      </div>
-
-      <label
-        class="checkbox-group"
-        for="autostart-checkbox">
-        <input
-          type="checkbox"
-          id="autostart-checkbox" />
-        <span id="lbl-autostart">Start on system boot</span>
-      </label>
-
-      <div style="margin-top: 8px; margin-bottom: 16px">
-        <a
-          id="change-server-link"
-          class="link"
-          >Change server…</a
-        >
-      </div>
       </div>
 
       <div class="settings-footer">
-      <div
-        class="status-message"
-        id="settings-status"></div>
+        <div
+          class="status-message"
+          id="settings-status"></div>
 
-      <div class="buttons">
-        <button
-          type="button"
-          class="primary"
-          id="save-btn"
-          >Save</button
-        >
-      </div>
+        <div class="buttons">
+          <button
+            type="button"
+            class="primary"
+            id="save-btn"
+            >Save</button
+          >
+        </div>
       </div>
     </div>
     <script src="settings.js"></script>
