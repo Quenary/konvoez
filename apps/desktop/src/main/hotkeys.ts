@@ -4,9 +4,8 @@ import {
   EDesktopIpc,
   type TDesktopHotkeys,
 } from '@konvoez/shared';
+import type { THotkeyStatus } from '@konvoez/client-shell';
 import { getExistingMainWindow } from './window';
-
-export type THotkeyStatus = 'ok' | 'conflict' | 'invalid' | 'unset';
 
 export interface IDesktopHotkeyStatuses {
   [key: string]: THotkeyStatus;

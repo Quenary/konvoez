@@ -7,15 +7,9 @@ import {
   type Session,
 } from 'electron';
 import { EDesktopIpc } from '@konvoez/shared';
+import type { ISerializableSource } from '@konvoez/client-shell';
 import type { ConfigStore } from './config-store';
 import { getAppIcon, getLocalPagePath } from './window';
-
-export interface ISerializableSource {
-  id: string;
-  name: string;
-  thumbnailUrl: string;
-  appIconUrl: string | null;
-}
 
 export interface IPickedSourceResult {
   source: DesktopCapturerSource | null;

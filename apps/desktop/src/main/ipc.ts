@@ -18,6 +18,7 @@ import type { ConfigStore, TDesktopConfig } from './config-store';
 import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
 import { showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
+import { getScreenShareAudio } from './display-media';
 import {
   applyHotkeys,
   resumeHotkeys,
@@ -150,6 +151,7 @@ export function registerIpc(
       autostart: config.autostart,
       locale: resolveLanguage(app.getLocale()),
       shareAudio: config.shareAudio,
+      audioSupported: getScreenShareAudio() !== undefined,
     };
   });
 
