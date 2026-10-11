@@ -132,7 +132,7 @@ export function openLocalModal(
     },
   });
 
-  modal.removeMenu();
+  modal.setMenu(null);
   modal.loadFile(getLocalPagePath(pageName));
   modal.once('ready-to-show', () => modal.show());
 

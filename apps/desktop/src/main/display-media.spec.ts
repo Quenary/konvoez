@@ -11,7 +11,7 @@ import {
 
 vi.mock('electron', () => {
   class MockBrowserWindow {
-    removeMenu = vi.fn();
+    setMenu = vi.fn();
     loadFile = vi.fn();
     isDestroyed = vi.fn().mockReturnValue(false);
     close = vi.fn();
