@@ -14,7 +14,7 @@ export interface IDesktopHotkeyStatuses {
   toggleSpeaker: THotkeyStatus;
 }
 
-export { formatKeyboardEventToAccelerator } from './accelerator';
+export { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
 
 let storedHotkeys: TDesktopHotkeys | null = null;
 let suspendDepth = 0;

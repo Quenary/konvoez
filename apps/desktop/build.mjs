@@ -76,6 +76,7 @@ async function build() {
     minify: !isDev,
     alias: {
       '@konvoez/shared': sharedIndexPath,
+      '@konvoez/client-shell': clientShellIndexPath,
     },
   });
 
@@ -96,6 +97,7 @@ async function build() {
     minify: !isDev,
     alias: {
       '@konvoez/shared': sharedIndexPath,
+      '@konvoez/client-shell': clientShellIndexPath,
     },
   });
 

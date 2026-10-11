@@ -1,6 +1,6 @@
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { formatKeyboardEventToAccelerator } from './hotkeys';
+import { formatKeyboardEventToAccelerator } from './accelerator';
 
 describe('formatKeyboardEventToAccelerator', () => {
   it('formats modifier + physical key combinations', () => {

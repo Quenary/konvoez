@@ -1,5 +1,5 @@
 import { t, type TI18nKey } from '../main/i18n';
-import { formatKeyboardEventToAccelerator } from '../main/accelerator';
+import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
 import type { IKonvoezLocalBridge } from '../preload/local-preload';
 
 declare global {
