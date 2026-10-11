@@ -8,6 +8,9 @@
       "path": "./libs/client-shell"
     },
     {
+      "path": "./libs/ui-kit"
+    },
+    {
       "path": "./apps/frontend"
     },
     {
@@ -20,7 +23,12 @@
   "compilerOptions": {
     "paths": {
       "@konvoez/shared": ["./libs/shared/src/index.ts"],
-      "@konvoez/client-shell": ["./libs/client-shell/src/index.ts"]
+      "@konvoez/client-shell": ["./libs/client-shell/src/index.ts"],
+      "@konvoez/ui-kit/theme": ["./libs/ui-kit/src/theme/tokens.ts"],
+      "@konvoez/ui-kit/i18n-controller": [
+        "./libs/ui-kit/src/i18n-controller/i18n-controller.ts"
+      ],
+      "@konvoez/ui-kit/*": ["./libs/ui-kit/src/*"]
     }
   }
 }
