@@ -70,6 +70,9 @@ async function initSettingsPage(): Promise<void> {
     }
     saveBtn.textContent = t('settings.save', locale);
 
+    micInput.placeholder = t('settings.pressKey', locale);
+    speakerInput.placeholder = t('settings.pressKey', locale);
+
     micKey = config.hotkeys.toggleMic;
     speakerKey = config.hotkeys.toggleSpeaker;
 
@@ -77,7 +80,8 @@ async function initSettingsPage(): Promise<void> {
     speakerInput.value = speakerKey ?? '';
     autostartCheckbox.checked = config.autostart;
   } catch {
-    // default fallbacks
+    micInput.placeholder = t('settings.pressKey', locale);
+    speakerInput.placeholder = t('settings.pressKey', locale);
   }
 
   function setupHotkeyRecording(

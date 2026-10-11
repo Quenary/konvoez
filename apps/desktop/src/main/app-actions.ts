@@ -48,10 +48,10 @@ export function runAppAction(
       }
       break;
     case 'settings':
-      openLocalModal('settings', win, { width: 550, height: 480 });
+      openLocalModal('settings', win, { width: 640, height: 640 });
       break;
     case 'change-server':
-      openLocalModal('server', win, { width: 500, height: 400 });
+      openLocalModal('server', win, { width: 640, height: 640 });
       break;
     case 'check-updates':
       checkForUpdatesManual();
