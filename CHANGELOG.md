@@ -1,3 +1,13 @@
+## 1.16.0 (2026-10-11)
+
+### Features
+
+- **frontend:** external link handler ([7080653](https://github.com/Quenary/konvoez/commit/7080653))
+
+### Bug Fixes
+
+- **frontend:** link paste ([84fb2af](https://github.com/Quenary/konvoez/commit/84fb2af))
+
 ## 1.15.0 (2026-10-10)
 
 ### Features
