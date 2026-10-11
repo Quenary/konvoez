@@ -81,6 +81,19 @@ async function build() {
     },
   });
 
+  console.log('[Desktop Build] Verifying dialog pages have no Node globals...');
+  for (const file of fs.readdirSync(distPagesDir)) {
+    if (!file.endsWith('.js')) {
+      continue;
+    }
+    const code = fs.readFileSync(path.resolve(distPagesDir, file), 'utf8');
+    if (/\bprocess\./.test(code)) {
+      throw new Error(
+        `[Desktop Build] ${file} references process.* — dialog pages must not use Node globals`,
+      );
+    }
+  }
+
   // 5. Copy Static Page Assets
   console.log('[Desktop Build] Copying static assets (HTML & CSS)...');
   const pagesSourceDir = path.resolve(__dirname, 'src/pages');
