@@ -1,144 +1,12 @@
-export type TLanguage = 'en' | 'ru';
+import { resolveLanguage, type TLanguage } from '@konvoez/client-shell';
+import {
+  desktopTranslator,
+  translations,
+  type TI18nKey,
+} from '../i18n/dictionary';
 
-export const translations = {
-  en: {
-    'server.title': 'Connect to Konvoez',
-    'server.subtitle': 'Enter the address of your Konvoez server',
-    'server.placeholder': 'https://konvoez.example.com',
-    'server.connect': 'Connect',
-    'server.connecting': 'Connecting',
-    'server.errorInvalid': 'Invalid server address',
-    'server.errorInsecure':
-      'HTTPS is required (HTTP allowed for localhost only)',
-    'server.errorUnreachable': 'Unable to connect to server',
-    'tray.open': 'Open Konvoez',
-    'tray.muteMic': 'Mute microphone',
-    'tray.deafen': 'Deafen',
-    'tray.settings': 'Settings…',
-    'tray.changeServer': 'Change server…',
-    'tray.checkUpdates': 'Check for updates',
-    'tray.quit': 'Quit',
-    'tray.micMuted': '(mic muted)',
-    'tray.deafened': '(deafened)',
-    'menu.file': 'File',
-    'menu.edit': 'Edit',
-    'menu.voice': 'Voice',
-    'menu.view': 'View',
-    'menu.window': 'Window',
-    'menu.close': 'Close window',
-    'settings.title': 'Desktop Settings',
-    'settings.hotkeys': 'Global Hotkeys',
-    'settings.hotkeysHint':
-      'Hotkeys work system-wide, even when the app is in the background. A key bound without a modifier (Ctrl, Alt, Shift) is captured in all apps and can no longer be typed elsewhere.',
-    'settings.toggleMic': 'Toggle microphone',
-    'settings.toggleSpeaker': 'Toggle speaker / deafen',
-    'settings.pressKey': 'Press keys',
-    'settings.clear': 'Backspace to clear',
-    'settings.autostart': 'Start on system boot',
-    'settings.server': 'Server Connection',
-    'settings.save': 'Save',
-    'settings.saved': 'Settings saved',
-    'settings.saveFailed': 'Failed to save settings',
-    'hotkeys.ok': 'Registered',
-    'hotkeys.conflict': 'Shortcut conflict with another app',
-    'hotkeys.invalid': 'Invalid shortcut',
-    'hotkeys.unset': 'Unset',
-    'hotkeys.unavailable': 'Hotkeys unavailable on this desktop session',
-    'picker.title': 'Share your screen',
-    'picker.screens': 'Screens',
-    'picker.windows': 'Windows',
-    'picker.cancel': 'Cancel',
-    'picker.share': 'Share',
-    'picker.noScreens': 'No screens available',
-    'picker.noWindows': 'No windows available',
-    'picker.shareAudio': 'Share system audio',
-    'picker.shareAudioHint':
-      'Broadcasts all system audio, including other participants (may cause echo)',
-    'updater.updateAvailable': 'Update available',
-    'updater.downloadPrompt':
-      'A new version of Konvoez ({version}) is available. Download now?',
-    'updater.download': 'Download',
-    'updater.later': 'Later',
-    'updater.downloaded': 'Update ready',
-    'updater.restartPrompt':
-      'Update has been downloaded. Restart Konvoez to apply?',
-    'updater.restart': 'Restart',
-    'updater.upToDate': 'Konvoez is up to date',
-    'updater.checkFailed': 'Failed to check for updates',
-  },
-  ru: {
-    'server.title': 'Подключение к Konvoez',
-    'server.subtitle': 'Введите адрес вашего сервера Konvoez',
-    'server.placeholder': 'https://konvoez.example.com',
-    'server.connect': 'Подключиться',
-    'server.connecting': 'Подключение',
-    'server.errorInvalid': 'Неверный адрес сервера',
-    'server.errorInsecure':
-      'Требуется HTTPS (HTTP разрешён только для localhost)',
-    'server.errorUnreachable': 'Не удалось подключиться к серверу',
-    'tray.open': 'Открыть Konvoez',
-    'tray.muteMic': 'Отключить микрофон',
-    'tray.deafen': 'Заглушить звук',
-    'tray.settings': 'Настройки…',
-    'tray.changeServer': 'Сменить сервер…',
-    'tray.checkUpdates': 'Проверить обновления',
-    'tray.quit': 'Выход',
-    'tray.micMuted': '(микрофон отключен)',
-    'tray.deafened': '(звук заглушен)',
-    'menu.file': 'Файл',
-    'menu.edit': 'Правка',
-    'menu.voice': 'Голос',
-    'menu.view': 'Вид',
-    'menu.window': 'Окно',
-    'menu.close': 'Закрыть окно',
-    'settings.title': 'Настройки приложения',
-    'settings.hotkeys': 'Глобальные горячие клавиши',
-    'settings.hotkeysHint':
-      'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Клавиша без модификатора (Ctrl, Alt, Shift) перехватывается во всех приложениях, и печатать её в других программах будет нельзя.',
-    'settings.toggleMic': 'Вкл/выкл микрофон',
-    'settings.toggleSpeaker': 'Вкл/выкл звук наушников',
-    'settings.pressKey': 'Нажмите клавиши',
-    'settings.clear': 'Backspace для очистки',
-    'settings.autostart': 'Запускать при старте системы',
-    'settings.server': 'Подключение к серверу',
-    'settings.save': 'Сохранить',
-    'settings.saved': 'Настройки сохранены',
-    'settings.saveFailed': 'Не удалось сохранить настройки',
-    'hotkeys.ok': 'Зарегистрировано',
-    'hotkeys.conflict': 'Конфликт с другим приложением',
-    'hotkeys.invalid': 'Недопустимое сочетание клавиш',
-    'hotkeys.unset': 'Не задано',
-    'hotkeys.unavailable': 'Горячие клавиши недоступны в этой сессии',
-    'picker.title': 'Демонстрация экрана',
-    'picker.screens': 'Экраны',
-    'picker.windows': 'Окна',
-    'picker.cancel': 'Отмена',
-    'picker.share': 'Поделиться',
-    'picker.noScreens': 'Нет доступных экранов',
-    'picker.noWindows': 'Нет доступных окон',
-    'picker.shareAudio': 'Транслировать системный звук',
-    'picker.shareAudioHint':
-      'Транслируется весь звук системы, включая собеседников (может вызывать эхо)',
-    'updater.updateAvailable': 'Доступно обновление',
-    'updater.downloadPrompt':
-      'Доступна новая версия Konvoez ({version}). Скачать сейчас?',
-    'updater.download': 'Скачать',
-    'updater.later': 'Позже',
-    'updater.downloaded': 'Обновление готово',
-    'updater.restartPrompt':
-      'Обновление скачано. Перезапустить Konvoez для применения?',
-    'updater.restart': 'Перезапустить',
-    'updater.upToDate': 'У вас установлена последняя версия Konvoez',
-    'updater.checkFailed': 'Не удалось проверить обновления',
-  },
-} as const;
-
-export type TI18nKey = keyof (typeof translations)['en'];
-
-export function resolveLanguage(locale?: string): TLanguage {
-  const raw = (locale ?? '').toLowerCase();
-  return raw.startsWith('ru') ? 'ru' : 'en';
-}
+export { desktopTranslator, translations, type TI18nKey };
+export { resolveLanguage, type TLanguage };
 
 export function getDictionary(locale?: string): Record<string, string> {
   const lang = resolveLanguage(locale);
@@ -150,12 +18,15 @@ export function t(
   locale?: string,
   params?: Record<string, string>,
 ): string {
-  const lang = resolveLanguage(locale);
-  let text: string = translations[lang][key] ?? translations.en[key] ?? key;
-  if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+  if (locale) {
+    const lang = resolveLanguage(locale);
+    let text: string = translations[lang][key] ?? translations.en[key] ?? key;
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+      }
     }
+    return text;
   }
-  return text;
+  return desktopTranslator.t(key, params);
 }
