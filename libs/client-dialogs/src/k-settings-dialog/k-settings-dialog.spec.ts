@@ -14,7 +14,6 @@ import {
 describe('k-settings-dialog', () => {
   const createMockTranslator = (): TTranslator => ({
     language: 'en',
-    languages: ['en', 'ru'],
     t: vi.fn((key: string) => key),
     setLanguage: vi.fn(),
     subscribe: vi.fn(() => () => undefined),

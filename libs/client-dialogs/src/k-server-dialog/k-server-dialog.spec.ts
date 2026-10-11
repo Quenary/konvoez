@@ -8,7 +8,6 @@ import { KServerDialog, SERVER_DIALOG_I18N_KEYS } from './k-server-dialog';
 describe('k-server-dialog', () => {
   const createMockTranslator = (): TTranslator => ({
     language: 'en',
-    languages: ['en', 'ru'],
     t: vi.fn((key: string) => key),
     setLanguage: vi.fn(),
     subscribe: vi.fn(() => () => undefined),

@@ -1,11 +1,10 @@
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getIconPath } from './assets';
 
-const specDir = path.dirname(fileURLToPath(import.meta.url));
+const specDir = __dirname;
 const desktopRoot = path.resolve(specDir, '../..');
 const distIconsDir = path.resolve(desktopRoot, 'dist/icons');
 
