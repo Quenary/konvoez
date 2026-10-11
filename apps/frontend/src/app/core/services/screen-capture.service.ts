@@ -6,6 +6,7 @@ import {
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
 import { SettingsStore } from '@core/stores/settings.store';
+import { MediaDevicesService } from './media-devices.service';
 
 export type TScreenCaptureResult = {
   videoTrack: MediaStreamTrack;
@@ -18,6 +19,7 @@ export type TScreenCaptureResult = {
  */
 @Injectable({ providedIn: 'root' })
 export class ScreenCaptureService implements OnDestroy {
+  private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly injector = inject(Injector);
 
   /** Lazy: SettingsStore → AUDIO_DEVICE_HANDLER → VoiceSessionService. */
@@ -29,11 +31,8 @@ export class ScreenCaptureService implements OnDestroy {
   private videoTrack: MediaStreamTrack | null = null;
   private audioTrack: MediaStreamTrack | null = null;
 
-  public static isSupported(): boolean {
-    return (
-      typeof navigator !== 'undefined' &&
-      !!navigator.mediaDevices?.getDisplayMedia
-    );
+  public isSupported(): boolean {
+    return this.mediaDevicesService.isDisplayMediaSupported();
   }
 
   ngOnDestroy(): void {
@@ -44,10 +43,6 @@ export class ScreenCaptureService implements OnDestroy {
     height?: TStreamHeight;
     fps?: TStreamFps;
   }): Promise<TScreenCaptureResult> {
-    if (!ScreenCaptureService.isSupported()) {
-      throw new Error('Screen sharing is not supported in this browser');
-    }
-
     const height =
       options?.height ??
       this.settingsStore.screenHeight() ??
@@ -57,7 +52,7 @@ export class ScreenCaptureService implements OnDestroy {
 
     this.release();
 
-    const stream = await navigator.mediaDevices.getDisplayMedia({
+    const stream = await this.mediaDevicesService.getDisplayMedia({
       video: {
         height: { ideal: height },
         frameRate: { ideal: fps },

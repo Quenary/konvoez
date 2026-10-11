@@ -42,6 +42,7 @@ export class VoiceRoomControlsBarComponent {
   private readonly settingsStore = inject(SettingsStore);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly screenCaptureService = inject(ScreenCaptureService);
   private readonly dialogService = inject(TuiDialogService);
   private readonly injector = inject(Injector);
   private readonly translateService = inject(TranslateService);
@@ -58,7 +59,7 @@ export class VoiceRoomControlsBarComponent {
   protected readonly screenOn = computed(
     () => this.peerVideoService.localScreenTrack() !== null,
   );
-  protected readonly screenSupported = ScreenCaptureService.isSupported();
+  protected readonly screenSupported = this.screenCaptureService.isSupported();
   protected readonly canProduce = this.voiceSessionService.canProduce;
 
   protected readonly cameraDisabled = computed(

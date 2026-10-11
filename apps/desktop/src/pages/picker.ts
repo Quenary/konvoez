@@ -34,9 +34,11 @@ async function initPickerPage(): Promise<void> {
     return;
   }
 
+  let locale = 'en';
   try {
     const config = await window.konvoezLocal.getConfig();
-    const locale = config.locale;
+    locale = config.locale;
+    document.title = t('picker.title', locale);
     if (titleEl) {
       titleEl.textContent = t('picker.title', locale);
     }
@@ -62,9 +64,25 @@ async function initPickerPage(): Promise<void> {
     gridEl.innerHTML = '';
     const currentSources = allSources.filter((s) =>
       activeTab === 'screens'
-        ? s.id.startsWith('screen:')
+        ? !s.id.startsWith('window:')
         : s.id.startsWith('window:'),
     );
+
+    if (currentSources.length === 0) {
+      selectedId = null;
+      shareBtn.disabled = true;
+      const emptyMsg = document.createElement('div');
+      emptyMsg.className = 'empty-sources';
+      emptyMsg.style.gridColumn = '1 / -1';
+      emptyMsg.style.textAlign = 'center';
+      emptyMsg.style.color = 'var(--text-secondary)';
+      emptyMsg.textContent =
+        activeTab === 'screens'
+          ? t('picker.noScreens', locale)
+          : t('picker.noWindows', locale);
+      gridEl.appendChild(emptyMsg);
+      return;
+    }
 
     if (currentSources.length > 0 && !selectedId) {
       selectedId = currentSources[0].id;

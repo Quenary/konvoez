@@ -49,6 +49,8 @@ export const translations = {
     'picker.windows': 'Windows',
     'picker.cancel': 'Cancel',
     'picker.share': 'Share',
+    'picker.noScreens': 'No screens available',
+    'picker.noWindows': 'No windows available',
     'updater.updateAvailable': 'Update available',
     'updater.downloadPrompt':
       'A new version of Konvoez ({version}) is available. Download now?',
@@ -109,6 +111,8 @@ export const translations = {
     'picker.windows': 'Окна',
     'picker.cancel': 'Отмена',
     'picker.share': 'Поделиться',
+    'picker.noScreens': 'Нет доступных экранов',
+    'picker.noWindows': 'Нет доступных окон',
     'updater.updateAvailable': 'Доступно обновление',
     'updater.downloadPrompt':
       'Доступна новая версия Konvoez ({version}). Скачать сейчас?',
