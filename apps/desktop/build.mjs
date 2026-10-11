@@ -23,6 +23,19 @@ async function build() {
   fs.mkdirSync(distDir, { recursive: true });
   fs.mkdirSync(path.resolve(distDir, 'preload'), { recursive: true });
   fs.mkdirSync(distPagesDir, { recursive: true });
+  const iconsDistDir = path.resolve(distDir, 'icons');
+
+  console.log('[Desktop Build] Copying icons...');
+  fs.mkdirSync(iconsDistDir, { recursive: true });
+  const iconsSourceDir = path.resolve(__dirname, 'build/icons');
+  for (const iconFile of ['icon.ico', 'icon.png']) {
+    const src = path.resolve(iconsSourceDir, iconFile);
+    const dest = path.resolve(iconsDistDir, iconFile);
+    if (!fs.existsSync(src)) {
+      throw new Error(`[Desktop Build] Missing icon source: ${src}`);
+    }
+    fs.copyFileSync(src, dest);
+  }
 
   // 2. Build Main Process
   console.log('[Desktop Build] Bundling main process...');
