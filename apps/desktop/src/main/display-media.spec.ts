@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopCapturerSource, Session } from 'electron';
+import type { ConfigStore } from './config-store';
 import {
   getScreenShareAudio,
   installDisplayMediaHandler,
@@ -283,7 +284,50 @@ describe('display-media helpers', () => {
       expect(callback).toHaveBeenCalledWith({ video: mockSource });
     });
 
-    it('only attaches loopback audio when source is screen and audio was requested', async () => {
+    it('attaches loopback audio on win32 for screen when audioRequested and shareAudio are true', async () => {
+      const { desktopCapturer } = await import('electron');
+      const screenSource = {
+        id: 'screen:1:0',
+        name: 'Screen 1',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValueOnce([
+        screenSource,
+      ]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const fakeConfigStore = {
+        get: vi.fn(() => ({ shareAudio: true })),
+        set: vi.fn(),
+      } as unknown as ConfigStore;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+        fakeConfigStore,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({
+        video: screenSource,
+        audio: 'loopback',
+      });
+    });
+
+    it('attaches loopback audio on win32 for window when audioRequested and shareAudio are true', async () => {
       const { desktopCapturer } = await import('electron');
       const windowSource = {
         id: 'window:1:0',
@@ -298,10 +342,60 @@ describe('display-media helpers', () => {
         setDisplayMediaRequestHandler,
       } as unknown as Session;
 
+      const fakeConfigStore = {
+        get: vi.fn(() => ({ shareAudio: true })),
+        set: vi.fn(),
+      } as unknown as ConfigStore;
+
       installDisplayMediaHandler(
         fakeSession,
         () => 'https://konvoez.example.com',
         () => null,
+        fakeConfigStore,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({
+        video: windowSource,
+        audio: 'loopback',
+      });
+    });
+
+    it('does not attach loopback audio when shareAudio is false', async () => {
+      const { desktopCapturer } = await import('electron');
+      const windowSource = {
+        id: 'window:1:0',
+        name: 'Window 1',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValueOnce([
+        windowSource,
+      ]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const fakeConfigStore = {
+        get: vi.fn(() => ({ shareAudio: false })),
+        set: vi.fn(),
+      } as unknown as ConfigStore;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+        fakeConfigStore,
+        'win32',
       );
 
       const handler = setDisplayMediaRequestHandler.mock
@@ -314,6 +408,83 @@ describe('display-media helpers', () => {
       );
 
       expect(callback).toHaveBeenCalledWith({ video: windowSource });
+    });
+
+    it('does not attach loopback audio when platform is not win32', async () => {
+      const { desktopCapturer } = await import('electron');
+      const windowSource = {
+        id: 'window:1:0',
+        name: 'Window 1',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValueOnce([
+        windowSource,
+      ]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const fakeConfigStore = {
+        get: vi.fn(() => ({ shareAudio: true })),
+        set: vi.fn(),
+      } as unknown as ConfigStore;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+        fakeConfigStore,
+        'linux',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({ video: windowSource });
+    });
+
+    it('openSourcePicker saves shareAudio preference to configStore', async () => {
+      const { ipcMain } = await import('electron');
+      const fakeConfigStore = {
+        get: vi.fn(() => ({ shareAudio: true })),
+        set: vi.fn(),
+      } as unknown as ConfigStore;
+
+      const mockSources = [
+        {
+          id: 'screen:0',
+          name: 'Screen 0',
+          thumbnail: { toDataURL: () => '' },
+          appIcon: null,
+        },
+      ] as unknown as DesktopCapturerSource[];
+
+      const promise = openSourcePicker(mockSources, null, fakeConfigStore);
+
+      const handlePick = vi
+        .mocked(ipcMain.once)
+        .mock.calls.find(
+          (call) => call[0] === 'konvoez-local:pick-source',
+        )?.[1] as
+        | ((event: unknown, id: string | null, withAudio?: boolean) => void)
+        | undefined;
+
+      expect(handlePick).toBeDefined();
+      handlePick?.({}, 'screen:0', false);
+
+      const result = await promise;
+      expect(result).toEqual({
+        source: mockSources[0],
+        withAudio: false,
+      });
+      expect(fakeConfigStore.set).toHaveBeenCalledWith({ shareAudio: false });
     });
   });
 });

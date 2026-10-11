@@ -29,6 +29,11 @@ async function initPickerPage(): Promise<void> {
   const shareBtn = document.getElementById(
     'share-btn',
   ) as HTMLButtonElement | null;
+  const audioCheckbox = document.getElementById(
+    'audio-checkbox',
+  ) as HTMLInputElement | null;
+  const audioCheckboxLabel = document.getElementById('audio-checkbox-label');
+  const audioHint = document.getElementById('audio-hint');
 
   if (!tabScreens || !tabWindows || !gridEl || !cancelBtn || !shareBtn) {
     return;
@@ -46,6 +51,15 @@ async function initPickerPage(): Promise<void> {
     tabWindows.textContent = t('picker.windows', locale);
     cancelBtn.textContent = t('picker.cancel', locale);
     shareBtn.textContent = t('picker.share', locale);
+    if (audioCheckboxLabel) {
+      audioCheckboxLabel.textContent = t('picker.shareAudio', locale);
+    }
+    if (audioHint) {
+      audioHint.textContent = t('picker.shareAudioHint', locale);
+    }
+    if (audioCheckbox && typeof config.shareAudio === 'boolean') {
+      audioCheckbox.checked = config.shareAudio;
+    }
   } catch {
     // default fallbacks in HTML
   }
@@ -130,12 +144,23 @@ async function initPickerPage(): Promise<void> {
 
       card.addEventListener('dblclick', () => {
         selectedId = source.id;
-        window.konvoezLocal.pickSource(selectedId);
+        window.konvoezLocal.pickSource(
+          selectedId,
+          audioCheckbox ? audioCheckbox.checked : true,
+        );
       });
 
       gridEl.appendChild(card);
     }
   };
+
+  if (audioCheckbox) {
+    audioCheckbox.addEventListener('change', () => {
+      void window.konvoezLocal.saveSettings({
+        shareAudio: audioCheckbox.checked,
+      });
+    });
+  }
 
   tabScreens.addEventListener('click', () => {
     if (activeTab !== 'screens') {
@@ -156,12 +181,18 @@ async function initPickerPage(): Promise<void> {
   });
 
   cancelBtn.addEventListener('click', () => {
-    window.konvoezLocal.pickSource(null);
+    window.konvoezLocal.pickSource(
+      null,
+      audioCheckbox ? audioCheckbox.checked : true,
+    );
   });
 
   shareBtn.addEventListener('click', () => {
     if (selectedId) {
-      window.konvoezLocal.pickSource(selectedId);
+      window.konvoezLocal.pickSource(
+        selectedId,
+        audioCheckbox ? audioCheckbox.checked : true,
+      );
     }
   });
 

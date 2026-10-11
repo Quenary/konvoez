@@ -321,3 +321,34 @@ a.link:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.picker-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 16px;
+  gap: 16px;
+}
+
+.picker-audio-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.picker-audio-option .checkbox-group {
+  margin: 0;
+}
+
+.picker-audio-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.picker-footer .buttons {
+  margin-top: 0;
+  padding-top: 0;
+  flex-shrink: 0;
+}

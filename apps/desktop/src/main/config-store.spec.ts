@@ -47,7 +47,19 @@ describe('ConfigStore', () => {
         toggleMic: 'CommandOrControl+Shift+M',
         toggleSpeaker: null,
       },
+      shareAudio: true,
     });
+  });
+
+  it('saves and reloads shareAudio preference', () => {
+    const store = new ConfigStore(configPath);
+    expect(store.get().shareAudio).toBe(true);
+
+    store.set({ shareAudio: false });
+    expect(store.get().shareAudio).toBe(false);
+
+    const reloaded = new ConfigStore(configPath);
+    expect(reloaded.get().shareAudio).toBe(false);
   });
 
   it('creates backup and restores defaults on corrupted JSON', () => {

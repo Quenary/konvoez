@@ -63,6 +63,7 @@ if (!gotSingleInstanceLock) {
       session.defaultSession,
       () => configStore.get().serverOrigin,
       () => getExistingMainWindow(),
+      configStore,
     );
     registerIpc(configStore, () => getExistingMainWindow());
 

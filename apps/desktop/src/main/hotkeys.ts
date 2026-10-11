@@ -9,6 +9,7 @@ import { getExistingMainWindow } from './window';
 export type THotkeyStatus = 'ok' | 'conflict' | 'invalid' | 'unset';
 
 export interface IDesktopHotkeyStatuses {
+  [key: string]: THotkeyStatus;
   toggleMic: THotkeyStatus;
   toggleSpeaker: THotkeyStatus;
 }

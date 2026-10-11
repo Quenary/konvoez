@@ -51,6 +51,9 @@ export const translations = {
     'picker.share': 'Share',
     'picker.noScreens': 'No screens available',
     'picker.noWindows': 'No windows available',
+    'picker.shareAudio': 'Share system audio',
+    'picker.shareAudioHint':
+      'Broadcasts all system audio, including other participants (may cause echo)',
     'updater.updateAvailable': 'Update available',
     'updater.downloadPrompt':
       'A new version of Konvoez ({version}) is available. Download now?',
@@ -113,6 +116,9 @@ export const translations = {
     'picker.share': 'Поделиться',
     'picker.noScreens': 'Нет доступных экранов',
     'picker.noWindows': 'Нет доступных окон',
+    'picker.shareAudio': 'Транслировать системный звук',
+    'picker.shareAudioHint':
+      'Транслируется весь звук системы, включая собеседников (может вызывать эхо)',
     'updater.updateAvailable': 'Доступно обновление',
     'updater.downloadPrompt':
       'Доступна новая версия Konvoez ({version}). Скачать сейчас?',

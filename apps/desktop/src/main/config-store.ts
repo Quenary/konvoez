@@ -16,6 +16,7 @@ export const desktopConfigSchema = z.object({
   hotkeys: desktopHotkeysSchema,
   autostart: z.boolean(),
   windowBounds: windowBoundsSchema.optional(),
+  shareAudio: z.boolean().default(true),
 });
 
 export type TDesktopConfig = z.infer<typeof desktopConfigSchema>;
@@ -27,6 +28,7 @@ export const DEFAULT_DESKTOP_CONFIG: TDesktopConfig = {
     toggleSpeaker: null,
   },
   autostart: false,
+  shareAudio: true,
 };
 
 export class ConfigStore {

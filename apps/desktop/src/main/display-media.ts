@@ -7,6 +7,7 @@ import {
   type Session,
 } from 'electron';
 import { EDesktopIpc } from '@konvoez/shared';
+import type { ConfigStore } from './config-store';
 import { getAppIcon, getLocalPagePath } from './window';
 
 export interface ISerializableSource {
@@ -14,6 +15,11 @@ export interface ISerializableSource {
   name: string;
   thumbnailUrl: string;
   appIconUrl: string | null;
+}
+
+export interface IPickedSourceResult {
+  source: DesktopCapturerSource | null;
+  withAudio: boolean;
 }
 
 export function getScreenShareAudio(
@@ -60,7 +66,8 @@ export function resetPickerOpenForTests(): void {
 export async function openSourcePicker(
   sources: DesktopCapturerSource[],
   parentWindow?: BrowserWindow | null,
-): Promise<DesktopCapturerSource | null> {
+  configStore?: ConfigStore | null,
+): Promise<IPickedSourceResult | null> {
   if (pickerOpen) {
     return null;
   }
@@ -72,7 +79,11 @@ export async function openSourcePicker(
 
     let pickerWin: BrowserWindow;
 
-    const handlePick = (_: unknown, pickedId: string | null) => {
+    const handlePick = (
+      _: unknown,
+      pickedId: string | null,
+      withAudio = configStore?.get().shareAudio ?? true,
+    ) => {
       if (!resolved) {
         resolved = true;
         cleanup();
@@ -80,7 +91,10 @@ export async function openSourcePicker(
           pickerWin.close();
         }
         const found = sources.find((s) => s.id === pickedId) ?? null;
-        resolve(found);
+        if (configStore) {
+          configStore.set({ shareAudio: withAudio });
+        }
+        resolve({ source: found, withAudio });
       }
     };
 
@@ -99,7 +113,7 @@ export async function openSourcePicker(
     try {
       pickerWin = new BrowserWindow({
         width: 720,
-        height: 520,
+        height: 560,
         parent:
           parentWindow && !parentWindow.isDestroyed()
             ? parentWindow
@@ -167,6 +181,8 @@ export function installDisplayMediaHandler(
   sess: Session,
   getServerOrigin: () => string | null,
   getMainWindow: () => BrowserWindow | null,
+  configStore?: ConfigStore | null,
+  platform: NodeJS.Platform = process.platform,
 ): void {
   sess.setDisplayMediaRequestHandler(
     async (request, callback) => {
@@ -217,24 +233,38 @@ export function installDisplayMediaHandler(
           return;
         }
 
-        const picked =
-          sources.length === 1
-            ? sources[0]
-            : await openSourcePicker(sources, getMainWindow());
+        let pickedSource: DesktopCapturerSource | null = null;
+        let withAudio = configStore ? configStore.get().shareAudio : true;
 
-        if (!picked) {
+        if (sources.length === 1) {
+          pickedSource = sources[0];
+        } else {
+          const picked = await openSourcePicker(
+            sources,
+            getMainWindow(),
+            configStore,
+          );
+
+          if (!picked || !picked.source) {
+            callback(null);
+            return;
+          }
+          pickedSource = picked.source;
+          withAudio = picked.withAudio;
+        }
+
+        if (!pickedSource) {
           callback(null);
           return;
         }
 
-        const isScreen = picked.id.startsWith('screen:');
         const audio =
-          request.audioRequested && isScreen
-            ? getScreenShareAudio()
+          request.audioRequested && withAudio
+            ? getScreenShareAudio(platform)
             : undefined;
 
         const response: { video: DesktopCapturerSource; audio?: 'loopback' } = {
-          video: picked,
+          video: pickedSource,
         };
         if (audio) {
           response.audio = audio;

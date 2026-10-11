@@ -7,16 +7,19 @@ export interface IKonvoezLocalBridge {
     hotkeys: TDesktopHotkeys;
     autostart: boolean;
     locale: string;
+    shareAudio: boolean;
   }>;
   testServer: (url: string) => Promise<{ origin: string; version: string }>;
   saveServer: (url: string) => Promise<{ success: boolean; origin: string }>;
   saveSettings: (params: {
-    hotkeys: TDesktopHotkeys;
-    autostart: boolean;
+    hotkeys?: TDesktopHotkeys;
+    autostart?: boolean;
+    shareAudio?: boolean;
   }) => Promise<{
     success: boolean;
     hotkeys: Record<string, string>;
     autostart: boolean;
+    shareAudio: boolean;
   }>;
   getPickerSources: () => Promise<
     Array<{
@@ -26,7 +29,7 @@ export interface IKonvoezLocalBridge {
       appIconUrl: string | null;
     }>
   >;
-  pickSource: (sourceId: string | null) => void;
+  pickSource: (sourceId: string | null, withAudio?: boolean) => void;
   suspendHotkeys: () => void;
   resumeHotkeys: () => void;
 }
@@ -40,8 +43,8 @@ const localBridge: IKonvoezLocalBridge = {
   saveSettings: (params) =>
     ipcRenderer.invoke(EDesktopIpc.LOCAL_SAVE_SETTINGS, params),
   getPickerSources: () => ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
-  pickSource: (sourceId: string | null) =>
-    ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId),
+  pickSource: (sourceId: string | null, withAudio?: boolean) =>
+    ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId, withAudio),
   suspendHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_SUSPEND),
   resumeHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_RESUME),
 };

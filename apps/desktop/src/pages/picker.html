@@ -33,20 +33,40 @@
         class="sources-grid"
         id="sources-grid"></div>
 
-      <div class="buttons">
-        <button
-          type="button"
-          class="secondary"
-          id="cancel-btn"
-          >Cancel</button
-        >
-        <button
-          type="button"
-          class="primary"
-          id="share-btn"
-          disabled
-          >Share</button
-        >
+      <div class="picker-footer">
+        <div class="picker-audio-option">
+          <label
+            class="checkbox-group"
+            id="audio-checkbox-group">
+            <input
+              type="checkbox"
+              id="audio-checkbox"
+              checked />
+            <span id="audio-checkbox-label">Share system audio</span>
+          </label>
+          <span
+            class="picker-audio-hint"
+            id="audio-hint"
+            >Broadcasts all system audio, including other participants (may
+            cause echo)</span
+          >
+        </div>
+
+        <div class="buttons">
+          <button
+            type="button"
+            class="secondary"
+            id="cancel-btn"
+            >Cancel</button
+          >
+          <button
+            type="button"
+            class="primary"
+            id="share-btn"
+            disabled
+            >Share</button
+          >
+        </div>
       </div>
     </div>
     <script src="picker.js"></script>
