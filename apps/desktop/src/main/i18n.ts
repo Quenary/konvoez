@@ -28,6 +28,8 @@ export const translations = {
     'menu.close': 'Close window',
     'settings.title': 'Desktop Settings',
     'settings.hotkeys': 'Global Hotkeys',
+    'settings.hotkeysHint':
+      'Hotkeys work system-wide, even when the app is in the background. A key bound without a modifier (Ctrl, Alt, Shift) is captured in all apps and can no longer be typed elsewhere.',
     'settings.toggleMic': 'Toggle microphone',
     'settings.toggleSpeaker': 'Toggle speaker / deafen',
     'settings.pressKey': 'Press keys',
@@ -87,6 +89,8 @@ export const translations = {
     'menu.close': 'Закрыть окно',
     'settings.title': 'Настройки приложения',
     'settings.hotkeys': 'Глобальные горячие клавиши',
+    'settings.hotkeysHint':
+      'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Клавиша без модификатора (Ctrl, Alt, Shift) перехватывается во всех приложениях, и печатать её в других программах будет нельзя.',
     'settings.toggleMic': 'Вкл/выкл микрофон',
     'settings.toggleSpeaker': 'Вкл/выкл звук наушников',
     'settings.pressKey': 'Нажмите клавиши',

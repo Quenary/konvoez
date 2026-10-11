@@ -67,6 +67,14 @@ body {
   margin: 0;
 }
 
+.settings-page .settings-hint {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin: -8px 0 0;
+}
+
 .settings-page .hotkey-block label {
   display: block;
   margin-bottom: 6px;

@@ -11,6 +11,7 @@ declare global {
 async function initSettingsPage(): Promise<void> {
   const titleEl = document.getElementById('title');
   const lblHotkeys = document.getElementById('lbl-hotkeys');
+  const hotkeysHint = document.getElementById('hotkeys-hint');
   const lblToggleMic = document.getElementById('lbl-toggle-mic');
   const lblToggleSpeaker = document.getElementById('lbl-toggle-speaker');
   const micInput = document.getElementById(
@@ -54,6 +55,9 @@ async function initSettingsPage(): Promise<void> {
     }
     if (lblHotkeys) {
       lblHotkeys.textContent = t('settings.hotkeys', locale);
+    }
+    if (hotkeysHint) {
+      hotkeysHint.textContent = t('settings.hotkeysHint', locale);
     }
     if (lblToggleMic) {
       lblToggleMic.textContent = t('settings.toggleMic', locale);
