@@ -99,7 +99,6 @@ export function refreshMenus(
   }
 
   const appMenuTemplate = buildAppMenuTemplate(items, locale, {
-    isPackaged: app.isPackaged,
     onCloseWindow: () => {
       if (targetWin && !targetWin.isDestroyed()) {
         targetWin.close();
