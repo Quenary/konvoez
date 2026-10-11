@@ -82,7 +82,7 @@ export class KInput extends LitElement {
   readonly hintId = `k-input-${this.idSuffix}-hint`;
   readonly errorId = `k-input-${this.idSuffix}-error`;
 
-  @query('input') accessor inputEl?: HTMLInputElement;
+  @query('input') accessor inputEl!: HTMLInputElement | null;
 
   @property() accessor value = '';
   @property() accessor label = '';

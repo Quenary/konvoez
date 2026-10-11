@@ -1,4 +1,4 @@
-import { LitElement, css, html } from 'lit';
+import { LitElement, css, html, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type {
   ISourcePickerDialogAdapter,
@@ -25,6 +25,7 @@ export const PICKER_DIALOG_I18N_KEYS = [
   'picker.shareAudio',
   'picker.shareAudioHint',
 ] as const;
+export const SOURCE_PICKER_DIALOG_I18N_KEYS = PICKER_DIALOG_I18N_KEYS;
 
 @customElement('k-source-picker-dialog')
 export class KSourcePickerDialog extends LitElement {
@@ -64,6 +65,7 @@ export class KSourcePickerDialog extends LitElement {
   @state() accessor audioSupported = true;
 
   private readonly i18n = new I18nController(this);
+  private initialLoaded = false;
 
   override willUpdate(): void {
     this.i18n.setTranslator(this.translator ?? undefined);
@@ -72,7 +74,16 @@ export class KSourcePickerDialog extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     window.addEventListener('keydown', this.handleWindowKeyDown);
-    void this.loadInitial();
+    if (this.adapter) {
+      void this.loadInitial();
+    }
+  }
+
+  override updated(changedProperties: PropertyValues<this>): void {
+    super.updated(changedProperties);
+    if (changedProperties.has('adapter') && this.adapter) {
+      void this.loadInitial();
+    }
   }
 
   override disconnectedCallback(): void {
@@ -81,7 +92,8 @@ export class KSourcePickerDialog extends LitElement {
   }
 
   private async loadInitial(): Promise<void> {
-    if (!this.adapter) return;
+    if (!this.adapter || this.initialLoaded) return;
+    this.initialLoaded = true;
     try {
       const initial = await this.adapter.getInitial();
       if (initial.locale && this.translator) {
@@ -98,7 +110,7 @@ export class KSourcePickerDialog extends LitElement {
     }
   }
 
-  private t(key: string, params?: Record<string, string | number>): string {
+  private t(key: string, params?: Record<string, string>): string {
     return this.translator ? this.translator.t(key, params) : key;
   }
 
