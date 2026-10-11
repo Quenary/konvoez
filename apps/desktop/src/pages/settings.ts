@@ -227,7 +227,7 @@ async function initSettingsPage(): Promise<void> {
       }
     } catch {
       if (settingsStatus) {
-        settingsStatus.textContent = 'Failed to save settings';
+        settingsStatus.textContent = t('settings.saveFailed', locale);
         settingsStatus.className = 'status-message error';
       }
     } finally {
