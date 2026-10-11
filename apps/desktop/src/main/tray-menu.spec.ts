@@ -75,7 +75,6 @@ describe('buildTrayMenuTemplate', () => {
     const trayTemplate = buildTrayMenuTemplate(opts);
     const items = buildActionItems(opts);
     const appTemplate = buildAppMenuTemplate(items, 'en', {
-      isPackaged: true,
       onCloseWindow: vi.fn(),
     });
 
