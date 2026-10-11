@@ -56,7 +56,7 @@ export function createPasteLinkExtension(): Extension {
                 return false;
               }
 
-              const linkType = view.state.schema.marks.link;
+              const linkType = view.state.schema.marks['link'];
               if (!linkType) {
                 return false;
               }
