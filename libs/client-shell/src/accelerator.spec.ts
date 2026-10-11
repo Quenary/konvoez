@@ -1,4 +1,3 @@
-import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { formatKeyboardEventToAccelerator } from './accelerator';
 
@@ -66,12 +65,16 @@ describe('formatKeyboardEventToAccelerator', () => {
     );
   });
 
-  it('does not access Node process globals', () => {
+  it('does not access Node process globals', async () => {
     const e = { code: 'KeyM', ctrlKey: true };
+    const vm = await import('vm');
     expect(
-      runInNewContext(`(${formatKeyboardEventToAccelerator.toString()})(e)`, {
-        e,
-      }),
+      vm.runInNewContext(
+        `(${formatKeyboardEventToAccelerator.toString()})(e)`,
+        {
+          e,
+        },
+      ),
     ).toBe('CommandOrControl+M');
   });
 });
