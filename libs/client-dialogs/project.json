@@ -18,6 +18,18 @@
         "command": "eslint .",
         "cwd": "libs/client-dialogs"
       }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check \"{projectRoot}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"{projectRoot}\""
+      }
     }
   }
 }

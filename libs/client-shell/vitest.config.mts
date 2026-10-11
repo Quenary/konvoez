@@ -17,10 +17,7 @@ export default defineConfig({
         __dirname,
         '../../libs/shared/src/index.ts',
       ),
-      '@konvoez/client-shell': path.resolve(
-        __dirname,
-        'src/index.ts',
-      ),
+      '@konvoez/client-shell': path.resolve(__dirname, 'src/index.ts'),
     },
   },
 });
