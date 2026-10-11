@@ -1,0 +1,23 @@
+{
+  "name": "client-dialogs",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/client-dialogs/src",
+  "projectType": "library",
+  "tags": ["type:feature", "scope:client"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run",
+        "cwd": "libs/client-dialogs"
+      }
+    },
+    "eslint:lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint .",
+        "cwd": "libs/client-dialogs"
+      }
+    }
+  }
+}

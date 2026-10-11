@@ -20,7 +20,8 @@
       "@konvoez/ui-kit/i18n-controller": [
         "../../libs/ui-kit/src/i18n-controller/i18n-controller.ts"
       ],
-      "@konvoez/ui-kit/*": ["../../libs/ui-kit/src/*"]
+      "@konvoez/ui-kit/*": ["../../libs/ui-kit/src/*"],
+      "@konvoez/client-dialogs/*": ["../../libs/client-dialogs/src/*"]
     }
   }
 }

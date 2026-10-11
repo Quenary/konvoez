@@ -1,0 +1,8 @@
+{
+  "name": "@konvoez/client-dialogs",
+  "version": "0.0.0",
+  "private": true,
+  "sideEffects": [
+    "./src/**/k-*.ts"
+  ]
+}
