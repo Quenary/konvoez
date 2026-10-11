@@ -12,6 +12,18 @@
     "lint": {
       "cache": true
     },
+    "format:check": {
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/.prettierrc",
+        "{workspaceRoot}/.prettierignore",
+        { "externalDependencies": ["prettier"] }
+      ]
+    },
+    "format:write": {
+      "cache": false
+    },
     "dev": {
       "cache": false
     },

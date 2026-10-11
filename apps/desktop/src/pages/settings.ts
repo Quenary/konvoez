@@ -11,6 +11,7 @@ declare global {
 async function initSettingsPage(): Promise<void> {
   const titleEl = document.getElementById('title');
   const lblHotkeys = document.getElementById('lbl-hotkeys');
+  const hotkeysHint = document.getElementById('hotkeys-hint');
   const lblToggleMic = document.getElementById('lbl-toggle-mic');
   const lblToggleSpeaker = document.getElementById('lbl-toggle-speaker');
   const micInput = document.getElementById(
@@ -25,7 +26,6 @@ async function initSettingsPage(): Promise<void> {
     'autostart-checkbox',
   ) as HTMLInputElement | null;
   const lblAutostart = document.getElementById('lbl-autostart');
-  const changeServerLink = document.getElementById('change-server-link');
   const settingsStatus = document.getElementById('settings-status');
   const saveBtn = document.getElementById(
     'save-btn',
@@ -56,6 +56,9 @@ async function initSettingsPage(): Promise<void> {
     if (lblHotkeys) {
       lblHotkeys.textContent = t('settings.hotkeys', locale);
     }
+    if (hotkeysHint) {
+      hotkeysHint.textContent = t('settings.hotkeysHint', locale);
+    }
     if (lblToggleMic) {
       lblToggleMic.textContent = t('settings.toggleMic', locale);
     }
@@ -65,10 +68,10 @@ async function initSettingsPage(): Promise<void> {
     if (lblAutostart) {
       lblAutostart.textContent = t('settings.autostart', locale);
     }
-    if (changeServerLink) {
-      changeServerLink.textContent = t('settings.changeServer', locale);
-    }
     saveBtn.textContent = t('settings.save', locale);
+
+    micInput.placeholder = t('settings.pressKey', locale);
+    speakerInput.placeholder = t('settings.pressKey', locale);
 
     micKey = config.hotkeys.toggleMic;
     speakerKey = config.hotkeys.toggleSpeaker;
@@ -77,7 +80,8 @@ async function initSettingsPage(): Promise<void> {
     speakerInput.value = speakerKey ?? '';
     autostartCheckbox.checked = config.autostart;
   } catch {
-    // default fallbacks
+    micInput.placeholder = t('settings.pressKey', locale);
+    speakerInput.placeholder = t('settings.pressKey', locale);
   }
 
   function setupHotkeyRecording(
@@ -88,15 +92,23 @@ async function initSettingsPage(): Promise<void> {
     let recording = false;
 
     const startRecording = () => {
+      if (recording) {
+        return;
+      }
       recording = true;
       input.classList.add('recording');
       input.placeholder = t('settings.pressKey', locale);
+      window.konvoezLocal.suspendHotkeys();
     };
 
     const stopRecording = (restore = false) => {
+      if (!recording) {
+        return;
+      }
       recording = false;
       input.classList.remove('recording');
       input.placeholder = t('settings.pressKey', locale);
+      window.konvoezLocal.resumeHotkeys();
       if (restore) {
         input.value = getKey() ?? '';
       }
@@ -164,13 +176,6 @@ async function initSettingsPage(): Promise<void> {
     },
   );
 
-  if (changeServerLink) {
-    changeServerLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.location.href = 'server.html';
-    });
-  }
-
   const renderHotkeyStatus = (
     el: HTMLElement,
     status: string | undefined,
@@ -219,7 +224,7 @@ async function initSettingsPage(): Promise<void> {
       }
     } catch {
       if (settingsStatus) {
-        settingsStatus.textContent = 'Failed to save settings';
+        settingsStatus.textContent = t('settings.saveFailed', locale);
         settingsStatus.className = 'status-message error';
       }
     } finally {

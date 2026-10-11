@@ -24,6 +24,7 @@ import { firstValueFrom } from 'rxjs';
 import { VideoPosterService } from '@core/services/video-poster.service';
 import { createKeyBindingExtension } from '@core/tiptap/create-key-binding-extension';
 import { createPasteFilesExtension } from '@core/tiptap/create-paste-files-extension';
+import { createPasteLinkExtension } from '@core/tiptap/create-paste-link-extension';
 import { SCHEMA_ERROR, messageContentSchema } from '@konvoez/shared';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { SettingsStore } from '@core/stores/settings.store';
@@ -70,6 +71,10 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
         subscript: false,
         superscript: false,
         fontColor: true,
+        link: {
+          autolink: true,
+          linkOnPaste: true,
+        },
         backgroundColor: false,
         fontSize: false,
         jumpAnchor: false,
@@ -124,6 +129,7 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
           createPasteFilesExtension((files) => component.addFiles(files)),
         );
       },
+      () => Promise.resolve(createPasteLinkExtension()),
     ),
   ],
   templateUrl: './chat-editor.component.html',

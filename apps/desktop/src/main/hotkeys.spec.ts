@@ -1,9 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDesktopCommand } from '@konvoez/shared';
-import { applyHotkeys } from './hotkeys';
+import {
+  applyHotkeys,
+  resetHotkeyStateForTests,
+  resumeHotkeys,
+  suspendHotkeys,
+} from './hotkeys';
 import type { globalShortcut } from 'electron';
 
 describe('applyHotkeys', () => {
+  beforeEach(() => {
+    resetHotkeyStateForTests();
+  });
   it('registers accelerators and returns ok on success', () => {
     const unregisterAll = vi.fn();
     const register = vi.fn().mockReturnValue(true);
@@ -73,5 +81,29 @@ describe('applyHotkeys', () => {
       toggleMic: 'invalid',
       toggleSpeaker: 'unset',
     });
+  });
+
+  it('suspend unregisters and resume re-registers stored hotkeys', () => {
+    const unregisterAll = vi.fn();
+    const register = vi.fn().mockReturnValue(true);
+    const mockManager = {
+      unregisterAll,
+      register,
+    } as unknown as typeof globalShortcut;
+
+    applyHotkeys(
+      {
+        toggleMic: 'CommandOrControl+Shift+M',
+        toggleSpeaker: 'CommandOrControl+Shift+D',
+      },
+      mockManager,
+    );
+    expect(register).toHaveBeenCalledTimes(2);
+
+    suspendHotkeys(mockManager);
+    expect(unregisterAll.mock.calls.length).toBeGreaterThan(0);
+
+    resumeHotkeys(mockManager);
+    expect(register).toHaveBeenCalledTimes(4);
   });
 });

@@ -36,7 +36,16 @@ jobs:
 
       - name: Run Prettier Check
         if: always()
-        run: npx nx format:check
+        run: npx nx run frontend:format:check
+
+      - name: Run root Prettier Check
+        if: always()
+        run: |
+          printf '%s\n' 'apps' 'libs' > "${RUNNER_TEMP:-/tmp}/prettier-root-ignore"
+          npx prettier --check . \
+            --ignore-path .gitignore \
+            --ignore-path .prettierignore \
+            --ignore-path "${RUNNER_TEMP:-/tmp}/prettier-root-ignore"
 
       - name: Run build
         if: always()
@@ -78,6 +87,14 @@ jobs:
         if: always()
         run: npx nx run shared:eslint:lint
 
+      - name: Run Prettier Check
+        if: always()
+        run: npx nx run backend:format:check
+
+      - name: Run shared library Prettier Check
+        if: always()
+        run: npx nx run shared:format:check
+
       - name: Run build
         if: always()
         run: npx nx run backend:build:production
@@ -107,6 +124,10 @@ jobs:
       - name: Run lint
         if: always()
         run: npx nx run desktop:eslint:lint
+
+      - name: Run Prettier Check
+        if: always()
+        run: npx nx run desktop:format:check
 
       - name: Run build
         if: always()

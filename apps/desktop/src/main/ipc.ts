@@ -17,8 +17,8 @@ import {
 import type { ConfigStore } from './config-store';
 import { normalizeServerOrigin, probeServer } from './server-url';
 import { showNotification } from './notifications';
-import { setVoiceState } from './tray';
-import { applyHotkeys } from './hotkeys';
+import { refreshMenus, setVoiceState } from './tray';
+import { applyHotkeys, resumeHotkeys, suspendHotkeys } from './hotkeys';
 import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
 import { resolveLanguage } from './i18n';
@@ -118,7 +118,11 @@ export function registerIpc(
         console.warn('[IPC] Invalid voice state payload:', parsed.error);
         return;
       }
-      setVoiceState(parsed.data as TDesktopVoiceState);
+      setVoiceState(
+        parsed.data as TDesktopVoiceState,
+        getMainWindow(),
+        configStore,
+      );
     },
   );
 
@@ -180,6 +184,20 @@ export function registerIpc(
     },
   );
 
+  ipcMain.on(EDesktopIpc.LOCAL_HOTKEYS_SUSPEND, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    suspendHotkeys();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_HOTKEYS_RESUME, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    resumeHotkeys();
+  });
+
   ipcMain.handle(
     EDesktopIpc.LOCAL_SAVE_SETTINGS,
     (
@@ -203,6 +221,8 @@ export function registerIpc(
         hotkeys: hotkeysParsed.data as TDesktopHotkeys,
         autostart,
       });
+
+      refreshMenus(getMainWindow(), configStore);
 
       return {
         success: true,

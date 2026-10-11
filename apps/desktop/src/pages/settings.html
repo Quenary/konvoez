@@ -11,75 +11,83 @@
       href="pages.css" />
   </head>
   <body>
-    <div class="container">
-      <h1 id="title">Desktop Settings</h1>
+    <div class="container settings-page">
+      <div class="settings-scroll">
+        <div class="settings-stack">
+          <h1 id="title">Desktop Settings</h1>
 
-      <div class="form-group">
-        <label id="lbl-hotkeys">Global Hotkeys</label>
+          <p
+            class="settings-subtitle"
+            id="lbl-hotkeys">
+            Global Hotkeys
+          </p>
 
-        <div style="margin-bottom: 12px">
+          <p
+            class="settings-hint"
+            id="hotkeys-hint">
+            Hotkeys work system-wide, even when the app is in the background. A
+            key bound without a modifier (Ctrl, Alt, Shift) is captured in all
+            apps and can no longer be typed elsewhere.
+          </p>
+
+          <div class="hotkey-block">
+            <label
+              id="lbl-toggle-mic"
+              for="mic-hotkey-input"
+              >Toggle microphone</label
+            >
+            <input
+              type="text"
+              id="mic-hotkey-input"
+              class="hotkey-input"
+              readonly
+              placeholder="" />
+            <div
+              class="status-message"
+              id="mic-status"></div>
+          </div>
+
+          <div class="hotkey-block">
+            <label
+              id="lbl-toggle-speaker"
+              for="speaker-hotkey-input"
+              >Toggle speaker / deafen</label
+            >
+            <input
+              type="text"
+              id="speaker-hotkey-input"
+              class="hotkey-input"
+              readonly
+              placeholder="" />
+            <div
+              class="status-message"
+              id="speaker-status"></div>
+          </div>
+
           <label
-            id="lbl-toggle-mic"
-            for="mic-hotkey-input"
-            >Toggle microphone</label
-          >
-          <input
-            type="text"
-            id="mic-hotkey-input"
-            class="hotkey-input"
-            readonly
-            placeholder="Click to record..." />
-          <div
-            class="status-message"
-            id="mic-status"></div>
-        </div>
-
-        <div style="margin-bottom: 12px">
-          <label
-            id="lbl-toggle-speaker"
-            for="speaker-hotkey-input"
-            >Toggle speaker / deafen</label
-          >
-          <input
-            type="text"
-            id="speaker-hotkey-input"
-            class="hotkey-input"
-            readonly
-            placeholder="Click to record..." />
-          <div
-            class="status-message"
-            id="speaker-status"></div>
+            class="checkbox-group"
+            for="autostart-checkbox">
+            <input
+              type="checkbox"
+              id="autostart-checkbox" />
+            <span id="lbl-autostart">Start on system boot</span>
+          </label>
         </div>
       </div>
 
-      <label
-        class="checkbox-group"
-        for="autostart-checkbox">
-        <input
-          type="checkbox"
-          id="autostart-checkbox" />
-        <span id="lbl-autostart">Start on system boot</span>
-      </label>
+      <div class="settings-footer">
+        <div
+          class="status-message"
+          id="settings-status"></div>
 
-      <div style="margin-top: 8px; margin-bottom: 16px">
-        <a
-          id="change-server-link"
-          class="link"
-          >Change server…</a
-        >
-      </div>
-
-      <div
-        class="status-message"
-        id="settings-status"></div>
-
-      <div class="buttons">
-        <button
-          type="button"
-          class="primary"
-          id="save-btn"
-          >Save</button
-        >
+        <div class="buttons">
+          <button
+            type="button"
+            class="primary"
+            id="save-btn"
+            >Save</button
+          >
+        </div>
       </div>
     </div>
     <script src="settings.js"></script>

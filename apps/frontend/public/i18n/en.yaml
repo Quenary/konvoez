@@ -289,6 +289,10 @@ AUTH:
     BACK: Back
     CODE_SENT: If an account exists for this email, a recovery code has been sent
     SUCCESS: Password updated. You can sign in now
+EXTERNAL_LINK:
+  TITLE: External link
+  CONTENT: 'You are about to open an external link: {{ url }}'
+  ACTION: Open link
 PWA:
   UPDATE:
     TITLE: Update available

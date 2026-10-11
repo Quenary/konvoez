@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
+import { getIconPath } from './assets';
 import type { ConfigStore } from './config-store';
 import { isQuitting } from './quit';
 
@@ -14,9 +15,13 @@ export function getAppIcon(): NativeImage | undefined {
   if (!nativeImage || typeof nativeImage.createFromPath !== 'function') {
     return undefined;
   }
-  const iconExt = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
-  const iconPath = path.resolve(__dirname, '../build/icons', iconExt);
-  return nativeImage.createFromPath(iconPath);
+  const iconPath = getIconPath();
+  const image = nativeImage.createFromPath(iconPath);
+  if (image.isEmpty()) {
+    console.error('[Icon] not found', iconPath);
+    return undefined;
+  }
+  return image;
 }
 
 export function getLocalPagePath(pageName: string): string {
@@ -105,7 +110,12 @@ export function createMainWindow(configStore: ConfigStore): BrowserWindow {
 export function openLocalModal(
   pageName: string,
   parentWindow?: BrowserWindow | null,
-  options?: { width?: number; height?: number; resizable?: boolean },
+  options?: {
+    width?: number;
+    height?: number;
+    resizable?: boolean;
+    onClosed?: () => void;
+  },
 ): BrowserWindow {
   const parent = parentWindow ?? mainWindow ?? undefined;
   const modal = new BrowserWindow({
@@ -126,9 +136,13 @@ export function openLocalModal(
     },
   });
 
-  modal.removeMenu();
+  modal.setMenu(null);
   modal.loadFile(getLocalPagePath(pageName));
   modal.once('ready-to-show', () => modal.show());
+
+  if (options?.onClosed) {
+    modal.once('closed', options.onClosed);
+  }
 
   return modal;
 }

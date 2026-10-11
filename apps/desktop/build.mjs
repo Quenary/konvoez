@@ -23,6 +23,19 @@ async function build() {
   fs.mkdirSync(distDir, { recursive: true });
   fs.mkdirSync(path.resolve(distDir, 'preload'), { recursive: true });
   fs.mkdirSync(distPagesDir, { recursive: true });
+  const iconsDistDir = path.resolve(distDir, 'icons');
+
+  console.log('[Desktop Build] Copying icons...');
+  fs.mkdirSync(iconsDistDir, { recursive: true });
+  const iconsSourceDir = path.resolve(__dirname, 'build/icons');
+  for (const iconFile of ['icon.ico', 'icon.png']) {
+    const src = path.resolve(iconsSourceDir, iconFile);
+    const dest = path.resolve(iconsDistDir, iconFile);
+    if (!fs.existsSync(src)) {
+      throw new Error(`[Desktop Build] Missing icon source: ${src}`);
+    }
+    fs.copyFileSync(src, dest);
+  }
 
   // 2. Build Main Process
   console.log('[Desktop Build] Bundling main process...');
@@ -80,6 +93,19 @@ async function build() {
       '@konvoez/shared': sharedIndexPath,
     },
   });
+
+  console.log('[Desktop Build] Verifying dialog pages have no Node globals...');
+  for (const file of fs.readdirSync(distPagesDir)) {
+    if (!file.endsWith('.js')) {
+      continue;
+    }
+    const code = fs.readFileSync(path.resolve(distPagesDir, file), 'utf8');
+    if (/\bprocess\./.test(code)) {
+      throw new Error(
+        `[Desktop Build] ${file} references process.* — dialog pages must not use Node globals`,
+      );
+    }
+  }
 
   // 5. Copy Static Page Assets
   console.log('[Desktop Build] Copying static assets (HTML & CSS)...');

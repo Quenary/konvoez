@@ -1,49 +1,77 @@
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { formatKeyboardEventToAccelerator } from './hotkeys';
 
 describe('formatKeyboardEventToAccelerator', () => {
-  it('returns null when only modifier keys are pressed', () => {
-    expect(
-      formatKeyboardEventToAccelerator({ key: 'Control', ctrlKey: true }),
-    ).toBe(null);
-    expect(
-      formatKeyboardEventToAccelerator({ key: 'Shift', shiftKey: true }),
-    ).toBe(null);
-    expect(formatKeyboardEventToAccelerator({ key: 'Alt', altKey: true })).toBe(
-      null,
-    );
-  });
-
-  it('formats modifier + character key combinations', () => {
+  it('formats modifier + physical key combinations', () => {
     expect(
       formatKeyboardEventToAccelerator({
-        key: 'm',
+        code: 'KeyM',
         ctrlKey: true,
         shiftKey: true,
       }),
     ).toBe('CommandOrControl+Shift+M');
-
-    expect(
-      formatKeyboardEventToAccelerator({
-        key: 'd',
-        ctrlKey: true,
-        altKey: true,
-      }),
-    ).toBe('CommandOrControl+Alt+D');
   });
 
-  it('formats space and functional keys', () => {
+  it('uses physical code on Cyrillic layouts', () => {
     expect(
       formatKeyboardEventToAccelerator({
-        key: ' ',
+        code: 'KeyM',
+        ctrlKey: true,
+        shiftKey: true,
+      }),
+    ).toBe('CommandOrControl+Shift+M');
+  });
+
+  it('maps digit keys by code', () => {
+    expect(
+      formatKeyboardEventToAccelerator({
+        code: 'Digit1',
+        altKey: true,
+      }),
+    ).toBe('Alt+1');
+  });
+
+  it('allows function keys without modifiers', () => {
+    expect(formatKeyboardEventToAccelerator({ code: 'F9' })).toBe('F9');
+  });
+
+  it('allows bare letter and punctuation keys', () => {
+    expect(formatKeyboardEventToAccelerator({ code: 'KeyM' })).toBe('M');
+    expect(formatKeyboardEventToAccelerator({ code: 'KeyZ' })).toBe('Z');
+    expect(formatKeyboardEventToAccelerator({ code: 'BracketLeft' })).toBe('[');
+  });
+
+  it('rejects modifier-only key events', () => {
+    expect(
+      formatKeyboardEventToAccelerator({
+        code: 'ShiftLeft',
+        shiftKey: true,
+      }),
+    ).toBe(null);
+  });
+
+  it('maps numpad digits', () => {
+    expect(
+      formatKeyboardEventToAccelerator({
+        code: 'Numpad5',
         ctrlKey: true,
       }),
-    ).toBe('CommandOrControl+Space');
+    ).toBe('CommandOrControl+num5');
+  });
 
+  it('allows media keys without modifiers', () => {
+    expect(formatKeyboardEventToAccelerator({ code: 'MediaPlayPause' })).toBe(
+      'MediaPlayPause',
+    );
+  });
+
+  it('does not access Node process globals', () => {
+    const e = { code: 'KeyM', ctrlKey: true };
     expect(
-      formatKeyboardEventToAccelerator({
-        key: 'F9',
+      runInNewContext(`(${formatKeyboardEventToAccelerator.toString()})(e)`, {
+        e,
       }),
-    ).toBe('F9');
+    ).toBe('CommandOrControl+M');
   });
 });

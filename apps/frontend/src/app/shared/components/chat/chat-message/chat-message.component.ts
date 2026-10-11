@@ -44,6 +44,7 @@ import { ChatMessageReactionsComponent } from './chat-message-reactions/chat-mes
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { EAttachmentKind } from '@konvoez/shared';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
+import { ExternalLinkClickDirective } from '@shared/directives/external-link-click.directive';
 
 @Component({
   selector: 'app-chat-message',
@@ -66,6 +67,7 @@ import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
     ChatMessageReactionsComponent,
     TuiList,
     TodayDayjsPipe,
+    ExternalLinkClickDirective,
   ],
   templateUrl: './chat-message.component.html',
   styleUrl: './chat-message.component.scss',
@@ -81,7 +83,6 @@ export class ChatMessageComponent {
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly chatApiService = inject(ChatApiService);
   private readonly outgoingStore = inject(OutgoingMessagesStore);
-
   public readonly message = input.required<IMessageEntity>();
 
   private readonly emptyProgress: Record<string, number> = {};

@@ -27,6 +27,8 @@ export interface IKonvoezLocalBridge {
     }>
   >;
   pickSource: (sourceId: string | null) => void;
+  suspendHotkeys: () => void;
+  resumeHotkeys: () => void;
 }
 
 const localBridge: IKonvoezLocalBridge = {
@@ -40,6 +42,8 @@ const localBridge: IKonvoezLocalBridge = {
   getPickerSources: () => ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
   pickSource: (sourceId: string | null) =>
     ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId),
+  suspendHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_SUSPEND),
+  resumeHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_RESUME),
 };
 
 contextBridge.exposeInMainWorld('konvoezLocal', localBridge);

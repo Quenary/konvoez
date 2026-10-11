@@ -87,6 +87,7 @@
 
         @if (hasText()) {
           <tui-editor-socket
+            appExternalLinkClick
             class="message-body-content"
             [content]="sanitizedContent()">
           </tui-editor-socket>

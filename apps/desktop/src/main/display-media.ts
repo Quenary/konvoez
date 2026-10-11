@@ -102,7 +102,7 @@ export async function openSourcePicker(
       return;
     }
 
-    pickerWin.removeMenu();
+    pickerWin.setMenu(null);
     pickerWin.loadFile(getLocalPagePath('picker'));
 
     ipcMain.handle(EDesktopIpc.LOCAL_PICKER_SOURCES, () => serializable);
