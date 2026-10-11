@@ -14,7 +14,8 @@
     "esModuleInterop": true,
     "types": ["node"],
     "paths": {
-      "@konvoez/shared": ["../../libs/shared/src/index.ts"]
+      "@konvoez/shared": ["../../libs/shared/src/index.ts"],
+      "@konvoez/client-shell": ["../../libs/client-shell/src/index.ts"]
     }
   }
 }

@@ -5,6 +5,9 @@
       "path": "./libs/shared"
     },
     {
+      "path": "./libs/client-shell"
+    },
+    {
       "path": "./apps/frontend"
     },
     {
@@ -16,7 +19,8 @@
   ],
   "compilerOptions": {
     "paths": {
-      "@konvoez/shared": ["./libs/shared/src/index.ts"]
+      "@konvoez/shared": ["./libs/shared/src/index.ts"],
+      "@konvoez/client-shell": ["./libs/client-shell/src/index.ts"]
     }
   }
 }
