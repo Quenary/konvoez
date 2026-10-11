@@ -4,7 +4,7 @@
   "sourceRoot": "apps/desktop/src",
   "projectType": "application",
   "tags": ["type:app", "platform:desktop"],
-  "implicitDependencies": [],
+  "implicitDependencies": ["ui-kit", "client-dialogs", "client-shell"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",

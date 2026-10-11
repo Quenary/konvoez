@@ -17,6 +17,49 @@ const clientShellIndexPath = path.resolve(
 const distDir = path.resolve(__dirname, 'dist');
 const distPagesDir = path.resolve(distDir, 'pages');
 
+const libAliases = {
+  '@konvoez/shared': sharedIndexPath,
+  '@konvoez/client-shell': clientShellIndexPath,
+};
+
+const subpathAliasPlugin = {
+  name: 'subpath-alias',
+  setup(build) {
+    build.onResolve(
+      { filter: /^@konvoez\/(ui-kit|client-dialogs)\/(.+)$/ },
+      (args) => {
+        const match = args.path.match(
+          /^@konvoez\/(ui-kit|client-dialogs)\/(.+)$/,
+        );
+        if (!match) return null;
+        const [, lib, subpath] = match;
+        if (lib === 'ui-kit' && subpath === 'theme') {
+          return {
+            path: path.resolve(
+              __dirname,
+              '../../libs/ui-kit/src/theme/tokens.ts',
+            ),
+          };
+        }
+        if (lib === 'ui-kit' && subpath === 'i18n-controller') {
+          return {
+            path: path.resolve(
+              __dirname,
+              '../../libs/ui-kit/src/i18n-controller/i18n-controller.ts',
+            ),
+          };
+        }
+        return {
+          path: path.resolve(
+            __dirname,
+            `../../libs/${lib}/src/${subpath}/${subpath}.ts`,
+          ),
+        };
+      },
+    );
+  },
+};
+
 async function build() {
   const isDev = process.argv.includes('--dev');
   console.log(
@@ -53,10 +96,8 @@ async function build() {
     external: ['electron'],
     sourcemap: isDev,
     minify: !isDev,
-    alias: {
-      '@konvoez/shared': sharedIndexPath,
-      '@konvoez/client-shell': clientShellIndexPath,
-    },
+    alias: libAliases,
+    plugins: [subpathAliasPlugin],
   });
 
   // 3. Build Preload Scripts
@@ -74,10 +115,8 @@ async function build() {
     external: ['electron'],
     sourcemap: isDev,
     minify: !isDev,
-    alias: {
-      '@konvoez/shared': sharedIndexPath,
-      '@konvoez/client-shell': clientShellIndexPath,
-    },
+    alias: libAliases,
+    plugins: [subpathAliasPlugin],
   });
 
   // 4. Build Dialog Pages Scripts
@@ -95,21 +134,29 @@ async function build() {
     outdir: distPagesDir,
     sourcemap: isDev,
     minify: !isDev,
-    alias: {
-      '@konvoez/shared': sharedIndexPath,
-      '@konvoez/client-shell': clientShellIndexPath,
+    treeShaking: true,
+    legalComments: 'none',
+    conditions: ['production'],
+    tsconfigRaw: {
+      compilerOptions: {
+        experimentalDecorators: false,
+        useDefineForClassFields: true,
+      },
     },
+    alias: libAliases,
+    plugins: [subpathAliasPlugin],
   });
 
   console.log('[Desktop Build] Verifying dialog pages have no Node globals...');
+  const nodeGlobalsRegex = /\b(process\.|require\(|__dirname)/;
   for (const file of fs.readdirSync(distPagesDir)) {
     if (!file.endsWith('.js')) {
       continue;
     }
     const code = fs.readFileSync(path.resolve(distPagesDir, file), 'utf8');
-    if (/\bprocess\./.test(code)) {
+    if (nodeGlobalsRegex.test(code)) {
       throw new Error(
-        `[Desktop Build] ${file} references process.* — dialog pages must not use Node globals`,
+        `[Desktop Build] ${file} references Node globals (process.*, require, __dirname) — dialog pages must not use Node globals`,
       );
     }
   }
@@ -118,7 +165,10 @@ async function build() {
   console.log('[Desktop Build] Copying static assets (HTML & CSS)...');
   const pagesSourceDir = path.resolve(__dirname, 'src/pages');
   const staticFiles = [
-    'pages.css',
+    'host.css',
+    ...(fs.existsSync(path.resolve(pagesSourceDir, 'pages.css'))
+      ? ['pages.css']
+      : []),
     'server.html',
     'settings.html',
     'picker.html',
