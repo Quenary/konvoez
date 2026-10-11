@@ -28,6 +28,18 @@
         "cwd": "apps/desktop"
       }
     },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check \"{projectRoot}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"{projectRoot}\""
+      }
+    },
     "package": {
       "executor": "nx:run-commands",
       "dependsOn": ["build"],

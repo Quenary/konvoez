@@ -99,6 +99,10 @@ To maintain clean version bumps:
   ```bash
   npm run lint
   ```
+- Ensure formatting checks pass:
+  ```bash
+  npx nx run <project>:format:check
+  ```
 
 ## Pull Requests
 
