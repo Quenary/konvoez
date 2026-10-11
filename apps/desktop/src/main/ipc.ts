@@ -15,7 +15,7 @@ import {
   type IpcMainInvokeEvent,
 } from 'electron';
 import type { ConfigStore, TDesktopConfig } from './config-store';
-import { normalizeServerOrigin, probeServer } from './server-url';
+import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
 import { showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
 import {

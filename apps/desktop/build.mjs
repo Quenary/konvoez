@@ -10,6 +10,10 @@ const sharedIndexPath = path.resolve(
   __dirname,
   '../../libs/shared/src/index.ts',
 );
+const clientShellIndexPath = path.resolve(
+  __dirname,
+  '../../libs/client-shell/src/index.ts',
+);
 const distDir = path.resolve(__dirname, 'dist');
 const distPagesDir = path.resolve(distDir, 'pages');
 
@@ -51,6 +55,7 @@ async function build() {
     minify: !isDev,
     alias: {
       '@konvoez/shared': sharedIndexPath,
+      '@konvoez/client-shell': clientShellIndexPath,
     },
   });
 
