@@ -22,20 +22,18 @@ export class MediaDevicesService {
     const hasAudioRequested = Boolean(options?.audio);
 
     return navigator.mediaDevices.getDisplayMedia(options).catch((error) => {
-      // If the user explicitly cancelled or denied permission (NotAllowedError),
-      // or if audio was not requested, reject immediately without retrying.
-      const isPermissionDenied =
-        (error as { name?: string } | null | undefined)?.name ===
-        'NotAllowedError';
-
-      if (!hasAudioRequested || isPermissionDenied) {
-        return Promise.reject(error);
-      }
-
       // On platforms where system audio capture is unsupported, restricted, or failing
       // (e.g. Windows desktop wrapper where loopback audio is not provided and Chromium
       // throws AbortError: Invalid capture constraints), fall back to capturing screen video
       // without audio so the user can still share their screen.
+      //
+      // Only retry on AbortError with "capture constraints" in the message. Other errors
+      // (including user cancellation / NotAllowedError or desktop picker cancellation)
+      // must reject immediately without retrying getDisplayMedia.
+      if (!hasAudioRequested || !this.isCaptureConstraintsAbortError(error)) {
+        return Promise.reject(error);
+      }
+
       return navigator.mediaDevices.getDisplayMedia({
         ...options,
         audio: false,
@@ -55,5 +53,22 @@ export class MediaDevicesService {
       return navigator.mediaDevices.enumerateDevices();
     }
     return Promise.reject();
+  }
+
+  private isCaptureConstraintsAbortError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+    const name =
+      'name' in error && typeof error.name === 'string' ? error.name : '';
+    const message =
+      'message' in error && typeof error.message === 'string'
+        ? error.message
+        : '';
+
+    return (
+      name === 'AbortError' &&
+      message.toLowerCase().includes('capture constraints')
+    );
   }
 }

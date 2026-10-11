@@ -60,7 +60,7 @@ describe('MediaDevicesService', () => {
       expect(getDisplayMedia).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back to audio: false when audio capture fails with non-permission error', async () => {
+    it('falls back to audio: false when audio capture fails with capture constraints AbortError', async () => {
       const mockStreamWithoutAudio = {
         id: 'stream-no-audio',
       } as unknown as MediaStream;
@@ -104,6 +104,36 @@ describe('MediaDevicesService', () => {
       await expect(
         service.getDisplayMedia({ video: true, audio: true }),
       ).rejects.toThrow('Permission denied');
+      expect(getDisplayMedia).toHaveBeenCalledTimes(1);
+    });
+
+    it('rethrows AbortError without capture constraints in message immediately without fallback', async () => {
+      const getDisplayMedia = vi
+        .fn()
+        .mockRejectedValue(new DOMException('User cancelled', 'AbortError'));
+      vi.stubGlobal('navigator', {
+        mediaDevices: { getDisplayMedia },
+      });
+
+      await expect(
+        service.getDisplayMedia({ video: true, audio: true }),
+      ).rejects.toThrow('User cancelled');
+      expect(getDisplayMedia).toHaveBeenCalledTimes(1);
+    });
+
+    it('rethrows non-AbortError errors immediately without fallback', async () => {
+      const getDisplayMedia = vi
+        .fn()
+        .mockRejectedValue(
+          new DOMException('Could not start video source', 'NotReadableError'),
+        );
+      vi.stubGlobal('navigator', {
+        mediaDevices: { getDisplayMedia },
+      });
+
+      await expect(
+        service.getDisplayMedia({ video: true, audio: true }),
+      ).rejects.toThrow('Could not start video source');
       expect(getDisplayMedia).toHaveBeenCalledTimes(1);
     });
 
