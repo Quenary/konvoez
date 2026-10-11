@@ -6,20 +6,16 @@ import {
   powerSaveBlocker,
   Tray,
 } from 'electron';
-import {
-  EDesktopCommand,
-  EDesktopIpc,
-  type TDesktopVoiceState,
-} from '@konvoez/shared';
+import type { TDesktopVoiceState } from '@konvoez/shared';
 import type { ConfigStore } from './config-store';
+import { buildActionItems, runAppAction, type TAppAction } from './app-actions';
+import { buildAppMenuTemplate } from './app-menu';
 import {
   getAppIcon,
   openLocalModal,
   setHasTray,
   showMainWindow,
 } from './window';
-import { performQuitFlow } from './quit';
-import { checkForUpdatesManual } from './updater';
 import { resolveLanguage, t } from './i18n';
 
 let tray: Tray | null = null;
@@ -29,130 +25,98 @@ let currentVoiceState: TDesktopVoiceState = {
   speakerMuted: false,
 };
 let powerSaveId: number | null = null;
+let trayWindow: BrowserWindow | null = null;
+let trayConfigStore: ConfigStore | null = null;
 
-export function buildTrayMenuTemplate(options: {
-  state: TDesktopVoiceState;
-  isPwaLoaded: boolean;
-  locale: string;
-  onAction: (action: string) => void;
-}): MenuItemConstructorOptions[] {
-  const { state, isPwaLoaded, locale, onAction } = options;
-
+export function buildTrayMenuTemplate(
+  options: Parameters<typeof buildActionItems>[0],
+): MenuItemConstructorOptions[] {
+  const items = buildActionItems(options);
   return [
-    {
-      label: t('tray.open', locale),
-      click: () => onAction('open'),
-    },
-    {
-      label: t('tray.muteMic', locale),
-      type: 'checkbox',
-      checked: state.micMuted,
-      enabled: isPwaLoaded,
-      click: () => onAction('toggle-mic'),
-    },
-    {
-      label: t('tray.deafen', locale),
-      type: 'checkbox',
-      checked: state.speakerMuted,
-      enabled: isPwaLoaded,
-      click: () => onAction('toggle-speaker'),
-    },
+    items.open,
+    items['toggle-mic'],
+    items['toggle-speaker'],
     { type: 'separator' },
-    {
-      label: t('tray.settings', locale),
-      click: () => onAction('settings'),
-    },
-    {
-      label: t('tray.changeServer', locale),
-      click: () => onAction('change-server'),
-    },
-    {
-      label: t('tray.checkUpdates', locale),
-      click: () => onAction('check-updates'),
-    },
+    items.settings,
+    items['change-server'],
+    items['check-updates'],
     { type: 'separator' },
-    {
-      label: t('tray.quit', locale),
-      click: () => onAction('quit'),
-    },
+    items.quit,
   ];
 }
 
-export function updateTrayUI(
+export function refreshMenus(
   win: BrowserWindow | null,
   configStore: ConfigStore,
 ): void {
-  if (!tray) {
-    return;
-  }
+  trayWindow = win ?? trayWindow;
+  trayConfigStore = configStore;
 
+  const targetWin = win ?? trayWindow;
   const locale = resolveLanguage(app.getLocale());
-  let tooltip = 'Konvoez';
-  if (currentVoiceState.micMuted) {
-    tooltip += ` ${t('tray.micMuted', locale)}`;
-  }
-  if (currentVoiceState.speakerMuted) {
-    tooltip += ` ${t('tray.deafened', locale)}`;
-  }
-  tray.setToolTip(tooltip);
 
-  const serverOrigin = configStore.get().serverOrigin;
-  const currentUrl = win && !win.isDestroyed() ? win.webContents.getURL() : '';
+  if (tray) {
+    let tooltip = 'Konvoez';
+    if (currentVoiceState.micMuted) {
+      tooltip += ` ${t('tray.micMuted', locale)}`;
+    }
+    if (currentVoiceState.speakerMuted) {
+      tooltip += ` ${t('tray.deafened', locale)}`;
+    }
+    tray.setToolTip(tooltip);
+  }
+
+  const config = configStore.get();
+  const serverOrigin = config.serverOrigin;
+  const currentUrl =
+    targetWin && !targetWin.isDestroyed() ? targetWin.webContents.getURL() : '';
   const isPwaLoaded = Boolean(
     serverOrigin && currentUrl.startsWith(serverOrigin),
   );
 
-  const template = buildTrayMenuTemplate({
+  const ctx = { win: targetWin, configStore };
+  const run = (action: TAppAction) => runAppAction(action, ctx);
+
+  const items = buildActionItems({
     state: currentVoiceState,
     isPwaLoaded,
     locale,
-    onAction: (action) => {
-      switch (action) {
-        case 'open':
-          if (!configStore.get().serverOrigin) {
-            openLocalModal('server', null, { width: 500, height: 400 });
-          } else {
-            showMainWindow(win);
-          }
-          break;
-        case 'toggle-mic':
-          if (win && !win.isDestroyed()) {
-            win.webContents.send(
-              EDesktopIpc.COMMAND,
-              EDesktopCommand.TOGGLE_MIC,
-            );
-          }
-          break;
-        case 'toggle-speaker':
-          if (win && !win.isDestroyed()) {
-            win.webContents.send(
-              EDesktopIpc.COMMAND,
-              EDesktopCommand.TOGGLE_SPEAKER,
-            );
-          }
-          break;
-        case 'settings':
-          openLocalModal('settings', win, { width: 550, height: 480 });
-          break;
-        case 'changeServer':
-        case 'change-server':
-          openLocalModal('server', win, { width: 500, height: 400 });
-          break;
-        case 'check-updates':
-          checkForUpdatesManual();
-          break;
-        case 'quit':
-          performQuitFlow(win);
-          break;
+    run,
+    withAccelerators: true,
+    hotkeys: config.hotkeys,
+  });
+
+  if (tray) {
+    const trayTemplate = buildTrayMenuTemplate({
+      state: currentVoiceState,
+      isPwaLoaded,
+      locale,
+      run,
+      withAccelerators: true,
+      hotkeys: config.hotkeys,
+    });
+    tray.setContextMenu(Menu.buildFromTemplate(trayTemplate));
+  }
+
+  const appMenuTemplate = buildAppMenuTemplate(items, locale, {
+    isPackaged: app.isPackaged,
+    onCloseWindow: () => {
+      if (targetWin && !targetWin.isDestroyed()) {
+        targetWin.close();
       }
     },
   });
-
-  tray.setContextMenu(Menu.buildFromTemplate(template));
+  Menu.setApplicationMenu(Menu.buildFromTemplate(appMenuTemplate));
 }
 
-let trayWindow: BrowserWindow | null = null;
-let trayConfigStore: ConfigStore | null = null;
+export function bindMenuRefresh(
+  win: BrowserWindow,
+  configStore: ConfigStore,
+): void {
+  const refresh = () => refreshMenus(win, configStore);
+  win.webContents.on('did-finish-load', refresh);
+  win.webContents.on('did-navigate-in-page', refresh);
+}
 
 export function setVoiceState(
   newState: TDesktopVoiceState,
@@ -177,8 +141,8 @@ export function setVoiceState(
 
   const targetWin = win ?? trayWindow;
   const targetConfig = configStore ?? trayConfigStore;
-  if (targetWin && targetConfig) {
-    updateTrayUI(targetWin, targetConfig);
+  if (targetConfig) {
+    refreshMenus(targetWin, targetConfig);
   }
 }
 
@@ -203,7 +167,6 @@ export function createTray(
         showMainWindow(win);
       }
     });
-    updateTrayUI(win, configStore);
     setHasTray(true);
     return tray;
   } catch (err) {

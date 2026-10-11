@@ -17,7 +17,7 @@ import {
 import type { ConfigStore } from './config-store';
 import { normalizeServerOrigin, probeServer } from './server-url';
 import { showNotification } from './notifications';
-import { setVoiceState } from './tray';
+import { refreshMenus, setVoiceState } from './tray';
 import { applyHotkeys } from './hotkeys';
 import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
@@ -118,7 +118,11 @@ export function registerIpc(
         console.warn('[IPC] Invalid voice state payload:', parsed.error);
         return;
       }
-      setVoiceState(parsed.data as TDesktopVoiceState);
+      setVoiceState(
+        parsed.data as TDesktopVoiceState,
+        getMainWindow(),
+        configStore,
+      );
     },
   );
 
@@ -203,6 +207,8 @@ export function registerIpc(
         hotkeys: hotkeysParsed.data as TDesktopHotkeys,
         autostart,
       });
+
+      refreshMenus(getMainWindow(), configStore);
 
       return {
         success: true,

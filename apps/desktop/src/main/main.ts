@@ -9,7 +9,7 @@ import {
 import { installSecurityHandlers } from './security';
 import { installDisplayMediaHandler } from './display-media';
 import { registerIpc } from './ipc';
-import { createTray } from './tray';
+import { bindMenuRefresh, createTray, refreshMenus } from './tray';
 import { applyHotkeys, initHotkeys } from './hotkeys';
 import { isQuitting, performQuitFlow } from './quit';
 import { initUpdater } from './updater';
@@ -72,6 +72,8 @@ if (!gotSingleInstanceLock) {
     }
 
     createTray(win, configStore);
+    bindMenuRefresh(win, configStore);
+    refreshMenus(win, configStore);
     applyHotkeys(config.hotkeys);
     initHotkeys();
     initUpdater();
