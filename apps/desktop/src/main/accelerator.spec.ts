@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { runInNewContext } from 'node:vm';
+import { describe, expect, it } from 'vitest';
 import { formatKeyboardEventToAccelerator } from './hotkeys';
 
 describe('formatKeyboardEventToAccelerator', () => {
@@ -66,16 +67,11 @@ describe('formatKeyboardEventToAccelerator', () => {
   });
 
   it('does not access Node process globals', () => {
-    vi.stubGlobal('process', undefined);
-    try {
-      expect(
-        formatKeyboardEventToAccelerator({
-          code: 'KeyM',
-          ctrlKey: true,
-        }),
-      ).toBe('CommandOrControl+M');
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    const e = { code: 'KeyM', ctrlKey: true };
+    expect(
+      runInNewContext(`(${formatKeyboardEventToAccelerator.toString()})(e)`, {
+        e,
+      }),
+    ).toBe('CommandOrControl+M');
   });
 });
