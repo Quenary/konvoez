@@ -166,9 +166,6 @@ async function build() {
   const pagesSourceDir = path.resolve(__dirname, 'src/pages');
   const staticFiles = [
     'host.css',
-    ...(fs.existsSync(path.resolve(pagesSourceDir, 'pages.css'))
-      ? ['pages.css']
-      : []),
     'server.html',
     'settings.html',
     'picker.html',
