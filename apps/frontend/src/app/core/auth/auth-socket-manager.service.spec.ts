@@ -17,7 +17,7 @@ import { NotificationsSocketToken } from '@core/tokens/notifications-socket.toke
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { AuthApiService } from '@core/api/auth-api.service';
-import { of, throwError } from 'rxjs';
+import { delay, of, throwError } from 'rxjs';
 import { TokenRefreshService } from './token-refresh.service';
 import { AuthSocketManager } from './auth-socket-manager.service';
 
@@ -184,10 +184,14 @@ describe('AuthSocketManager', () => {
     expect(authApi.refresh).not.toHaveBeenCalled();
   });
 
-  it('refreshes for each socket when two drop together', async () => {
+  it('single-flights refresh when two sockets drop together', async () => {
+    authApi.refresh.mockReturnValue(of(undefined).pipe(delay(100)));
+
     startAuthorized();
     voice.connected = true;
     text.connected = true;
+    const voiceConnectsBefore = voice.connect.mock.calls.length;
+    const textConnectsBefore = text.connect.mock.calls.length;
 
     voice.emit('disconnect', 'io server disconnect');
     text.emit('disconnect', 'io server disconnect');
@@ -195,7 +199,11 @@ describe('AuthSocketManager', () => {
     text.connected = false;
 
     await vi.advanceTimersByTimeAsync(1000);
-    expect(authApi.refresh).toHaveBeenCalledTimes(2);
+    expect(authApi.refresh).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(voice.connect.mock.calls.length).toBe(voiceConnectsBefore + 1);
+    expect(text.connect.mock.calls.length).toBe(textConnectsBefore + 1);
   });
 
   it('does not reconnect when refresh fails', async () => {
