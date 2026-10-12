@@ -54,7 +54,7 @@ Konvoez is an Nx monorepo:
    npm run build
    ```
 
-6. **Desktop**:
+6. **Desktop** ([guide](../apps/desktop/README.md)):
    ```bash
    npx nx run desktop:serve
    npx nx run desktop:package
