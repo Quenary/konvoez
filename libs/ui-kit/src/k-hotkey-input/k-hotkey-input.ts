@@ -1,32 +1,28 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
-import { tokens } from '../theme/tokens';
 import '../k-input/k-input';
 import type { KInput } from '../k-input/k-input';
 
 @customElement('k-hotkey-input')
 export class KHotkeyInput extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: block;
-        outline: none;
-      }
-      .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: block;
+      outline: none;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  `;
 
   @property() accessor value: string | null = null;
   @property() accessor label = '';

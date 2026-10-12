@@ -49,10 +49,6 @@ export default defineConfig({
         ),
       },
       {
-        find: /^@konvoez\/ui-kit\/theme$/,
-        replacement: path.resolve(__dirname, '../ui-kit/src/theme/tokens.ts'),
-      },
-      {
         find: /^@konvoez\/ui-kit\/i18n-controller$/,
         replacement: path.resolve(
           __dirname,

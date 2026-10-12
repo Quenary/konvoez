@@ -131,7 +131,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Project specific
-libs/ui-kit/src/theme/generated/
 .konvoez_data/
 apps/desktop/package-lock.json
 

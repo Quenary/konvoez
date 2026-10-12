@@ -7,7 +7,6 @@
   "targets": {
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["ui-kit:generate-tokens"],
       "options": {
         "command": "vitest run",
         "cwd": "libs/client-dialogs"

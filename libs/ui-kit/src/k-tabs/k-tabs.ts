@@ -1,6 +1,5 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { tokens } from '../theme/tokens';
 
 export interface ITabItem {
   id: string;
@@ -9,55 +8,52 @@ export interface ITabItem {
 
 @customElement('k-tabs')
 export class KTabs extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: block;
-      }
-      .tablist {
-        display: flex;
-        gap: 0.25rem;
-        background-color: var(--tui-background-neutral-1);
-        padding: 0.25rem;
-        border-radius: var(--tui-radius-m, 0.75rem);
-        box-sizing: border-box;
-      }
-      button {
-        flex: 1;
-        border: none;
-        background: transparent;
-        padding: 0.5rem 1rem;
-        border-radius: var(--tui-radius-s, 0.5rem);
-        font-family: inherit;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--tui-text-secondary);
-        cursor: pointer;
-        transition:
-          background-color 0.15s ease,
-          color 0.15s ease,
-          box-shadow 0.15s ease;
-        outline: none;
-        text-align: center;
-        user-select: none;
-      }
-      button:hover:not(.active) {
-        color: var(--tui-text-primary);
-        background-color: var(--tui-background-neutral-1-hover);
-      }
-      button.active {
-        background-color: var(--tui-background-base, #ffffff);
-        color: var(--tui-text-action);
-        font-weight: 600;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      }
-      button:focus-visible {
-        outline: 2px solid var(--tui-border-focus);
-        outline-offset: 1px;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: block;
+    }
+    .tablist {
+      display: flex;
+      gap: 0.25rem;
+      background-color: var(--tui-background-neutral-1);
+      padding: 0.25rem;
+      border-radius: var(--tui-radius-m, 0.75rem);
+      box-sizing: border-box;
+    }
+    button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 0.5rem 1rem;
+      border-radius: var(--tui-radius-s, 0.5rem);
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--tui-text-secondary);
+      cursor: pointer;
+      transition:
+        background-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease;
+      outline: none;
+      text-align: center;
+      user-select: none;
+    }
+    button:hover:not(.active) {
+      color: var(--tui-text-primary);
+      background-color: var(--tui-background-neutral-1-hover);
+    }
+    button.active {
+      background-color: var(--tui-background-base, #ffffff);
+      color: var(--tui-text-action);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    button:focus-visible {
+      outline: 2px solid var(--tui-border-focus);
+      outline-offset: 1px;
+    }
+  `;
 
   @property({ type: Array }) accessor tabs: ITabItem[] = [];
   @property({ reflect: true }) accessor value = '';

@@ -1,46 +1,41 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { tokens } from '../theme/tokens';
-
 @customElement('k-spinner')
 export class KSpinner extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--k-spinner-color, currentColor);
-        vertical-align: middle;
+  static override styles = css`
+    :host {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--k-spinner-color, currentColor);
+      vertical-align: middle;
+    }
+    :host([size='s']) svg {
+      width: 1rem;
+      height: 1rem;
+    }
+    :host([size='m']) svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+    svg {
+      animation: k-spinner-rotate 0.8s linear infinite;
+    }
+    circle {
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-dasharray: 40;
+      stroke-dashoffset: 20;
+    }
+    @keyframes k-spinner-rotate {
+      from {
+        transform: rotate(0deg);
       }
-      :host([size='s']) svg {
-        width: 1rem;
-        height: 1rem;
+      to {
+        transform: rotate(360deg);
       }
-      :host([size='m']) svg {
-        width: 1.5rem;
-        height: 1.5rem;
-      }
-      svg {
-        animation: k-spinner-rotate 0.8s linear infinite;
-      }
-      circle {
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-dasharray: 40;
-        stroke-dashoffset: 20;
-      }
-      @keyframes k-spinner-rotate {
-        from {
-          transform: rotate(0deg);
-        }
-        to {
-          transform: rotate(360deg);
-        }
-      }
-    `,
-  ];
+    }
+  `;
 
   @property({ reflect: true }) accessor size: 's' | 'm' = 'm';
   @property() accessor label = '';

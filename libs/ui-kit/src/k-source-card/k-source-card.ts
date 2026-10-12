@@ -1,76 +1,71 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { tokens } from '../theme/tokens';
-
 @customElement('k-source-card')
 export class KSourceCard extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        cursor: pointer;
-        border-radius: var(--tui-radius-m, 0.75rem);
-        border: 2px solid var(--tui-border-normal);
-        padding: 0.5rem;
-        transition:
-          border-color 0.15s ease,
-          box-shadow 0.15s ease;
-        background-color: var(--tui-background-neutral-1);
-        outline: none;
-        box-sizing: border-box;
-        position: relative;
-        user-select: none;
-      }
-      :host([selected]) {
-        border-color: var(--tui-background-accent-1);
-        box-shadow: 0 0 0 1px var(--tui-background-accent-1);
-      }
-      :host(:focus-visible) {
-        outline: 2px solid var(--tui-border-focus);
-        outline-offset: 2px;
-      }
-      .thumb-wrapper {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        background-color: #1a1a1a;
-        border-radius: var(--tui-radius-s, 0.375rem);
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      img.thumb {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-      img.app-icon {
-        position: absolute;
-        bottom: 0.375rem;
-        left: 0.375rem;
-        width: 1.25rem;
-        height: 1.25rem;
-        border-radius: 0.25rem;
-        background: #ffffff;
-        padding: 2px;
-        box-sizing: border-box;
-      }
-      .name {
-        font-size: 0.8125rem;
-        font-weight: 500;
-        color: var(--tui-text-primary);
-        margin-top: 0.5rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        text-align: center;
-        width: 100%;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      border-radius: var(--tui-radius-m, 0.75rem);
+      border: 2px solid var(--tui-border-normal);
+      padding: 0.5rem;
+      transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+      background-color: var(--tui-background-neutral-1);
+      outline: none;
+      box-sizing: border-box;
+      position: relative;
+      user-select: none;
+    }
+    :host([selected]) {
+      border-color: var(--tui-background-accent-1);
+      box-shadow: 0 0 0 1px var(--tui-background-accent-1);
+    }
+    :host(:focus-visible) {
+      outline: 2px solid var(--tui-border-focus);
+      outline-offset: 2px;
+    }
+    .thumb-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #1a1a1a;
+      border-radius: var(--tui-radius-s, 0.375rem);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    img.thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    img.app-icon {
+      position: absolute;
+      bottom: 0.375rem;
+      left: 0.375rem;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 0.25rem;
+      background: #ffffff;
+      padding: 2px;
+      box-sizing: border-box;
+    }
+    .name {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--tui-text-primary);
+      margin-top: 0.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+      width: 100%;
+    }
+  `;
 
   @property() accessor sourceId = '';
   @property() accessor name = '';

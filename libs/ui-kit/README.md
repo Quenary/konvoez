@@ -1,6 +1,6 @@
 # @konvoez/ui-kit
 
-Lit UI primitives and theme tokens for Konvoez. Components use standard TC39 decorators, Shadow DOM, and Taiga UI design tokens.
+Lit UI primitives for Konvoez. Components use standard TC39 decorators, Shadow DOM, and Taiga UI design tokens inherited from the document.
 
 ## Components
 
@@ -10,25 +10,14 @@ Lit UI primitives and theme tokens for Konvoez. Components use standard TC39 dec
 - **Navigation & Layout**: `k-dialog-layout`, `k-dialog-actions`, `k-tabs`
 - **Media**: `k-source-card`, `k-source-grid`
 
-## Theme tokens
+## Theme
 
-Color tokens are **not** duplicated in this repo. They are generated from the same Taiga theme as the Angular frontend: `@taiga-ui/styles/mixins/theme/palette.less` (`.tui-theme-light()` / `.tui-theme-dark()`).
+Taiga UI variables are **not** duplicated in component styles. The desktop app compiles `src/theme/theme.less` (from `@taiga-ui/styles`) at build time into `dist/pages/host.css`. Dialog pages link that stylesheet so Lit components inherit `--tui-*` tokens through the shadow DOM.
 
-```bash
-npm run tokens:ui-kit
-```
+- Dark mode follows the OS (`prefers-color-scheme: dark`).
+- Typography uses system UI fonts (`--tui-typography-family-text` / `--tui-typography-family-display`).
 
-This writes (gitignored):
-
-- `src/theme/generated/tokens.ts` — Lit `:host` variables for Shadow DOM components
-- `src/theme/generated/root-tokens.css` — `:root` variables for document-level styling
-
-Committed helpers:
-
-- `src/theme/tokens.ts` — re-exports `generated/tokens` for `@konvoez/ui-kit/theme`
-- `src/theme/host-base.css` — dialog page layout only (`html` / `body`); desktop build concatenates it with `root-tokens.css` into `dist/pages/host.css`
-
-After upgrading `@taiga-ui/*`, regenerate tokens. `prepare` and Nx targets `ui-kit:generate-tokens`, `ui-kit:test`, `desktop:build`, and `desktop:serve` run generation automatically.
+After upgrading `@taiga-ui/styles`, re-run `npx nx run desktop:build` to refresh `host.css`.
 
 ## Import Rules
 

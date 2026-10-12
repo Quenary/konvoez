@@ -1,28 +1,23 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { tokens } from '../theme/tokens';
-
 @customElement('k-dialog-actions')
 export class KDialogActions extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: block;
-      }
-      .actions {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-      :host([align='end']) .actions {
-        justify-content: flex-end;
-      }
-      :host([align='between']) .actions {
-        justify-content: space-between;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: block;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    :host([align='end']) .actions {
+      justify-content: flex-end;
+    }
+    :host([align='between']) .actions {
+      justify-content: space-between;
+    }
+  `;
 
   @property({ reflect: true }) accessor align: 'end' | 'between' = 'end';
 

@@ -5,15 +5,8 @@
   "projectType": "library",
   "tags": ["scope:client", "type:ui"],
   "targets": {
-    "generate-tokens": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node libs/ui-kit/scripts/generate-tokens.mjs"
-      }
-    },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["generate-tokens"],
       "options": {
         "command": "vitest run",
         "cwd": "libs/ui-kit"

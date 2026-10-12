@@ -1,46 +1,42 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { tokens } from '../theme/tokens';
 
 @customElement('k-dialog-layout')
 export class KDialogLayout extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-        height: 100%;
-        min-height: 100%;
-        padding: 1.5rem;
-        background-color: var(--tui-background-base);
-        color: var(--tui-text-primary);
-      }
-      header {
-        margin-bottom: 1.25rem;
-      }
-      h1 {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 700;
-        line-height: 1.3;
-        color: var(--tui-text-primary);
-      }
-      main {
-        flex: 1 1 auto;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-      footer {
-        flex-shrink: 0;
-        margin-top: auto;
-        padding-top: 1.5rem;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      height: 100%;
+      min-height: 100%;
+      padding: 1.5rem;
+      background-color: var(--tui-background-base);
+      color: var(--tui-text-primary);
+    }
+    header {
+      margin-bottom: 1.25rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--tui-text-primary);
+    }
+    main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    footer {
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: 1.5rem;
+    }
+  `;
 
   @property() accessor heading = '';
 

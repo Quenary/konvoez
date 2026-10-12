@@ -6,7 +6,6 @@ import type {
   ISerializableSource,
   TTranslator,
 } from '@konvoez/client-shell';
-import { tokens } from '@konvoez/ui-kit/theme';
 import { I18nController } from '@konvoez/ui-kit/i18n-controller';
 import '@konvoez/ui-kit/k-dialog-layout';
 import '@konvoez/ui-kit/k-dialog-actions';
@@ -30,35 +29,32 @@ export const SOURCE_PICKER_DIALOG_I18N_KEYS = PICKER_DIALOG_I18N_KEYS;
 
 @customElement('k-source-picker-dialog')
 export class KSourcePickerDialog extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 100%;
-      }
-      k-dialog-layout {
-        flex: 1;
-        min-height: 0;
-      }
-      .audio-section {
-        flex: 1;
-      }
-      .audio-hint {
-        margin: 0;
-        font-size: 0.75rem;
-        color: var(--tui-text-tertiary);
-        line-height: 1.35;
-      }
-      .button-group {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 100%;
+    }
+    k-dialog-layout {
+      flex: 1;
+      min-height: 0;
+    }
+    .audio-section {
+      flex: 1;
+    }
+    .audio-hint {
+      margin: 0;
+      font-size: 0.75rem;
+      color: var(--tui-text-tertiary);
+      line-height: 1.35;
+    }
+    .button-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+  `;
 
   @property({ attribute: false })
   accessor adapter: ISourcePickerDialogAdapter | null = null;

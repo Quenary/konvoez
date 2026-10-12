@@ -5,7 +5,6 @@ import type {
   IServerDialogInitial,
   TTranslator,
 } from '@konvoez/client-shell';
-import { tokens } from '@konvoez/ui-kit/theme';
 import { I18nController } from '@konvoez/ui-kit/i18n-controller';
 import '@konvoez/ui-kit/k-dialog-layout';
 import '@konvoez/ui-kit/k-dialog-actions';
@@ -25,27 +24,24 @@ export const SERVER_DIALOG_I18N_KEYS = [
 
 @customElement('k-server-dialog')
 export class KServerDialog extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 100%;
-      }
-      k-dialog-layout {
-        flex: 1;
-        min-height: 0;
-      }
-      p.subtitle {
-        margin: 0 0 0.5rem 0;
-        font-size: 0.875rem;
-        color: var(--tui-text-secondary);
-        line-height: 1.4;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 100%;
+    }
+    k-dialog-layout {
+      flex: 1;
+      min-height: 0;
+    }
+    p.subtitle {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.875rem;
+      color: var(--tui-text-secondary);
+      line-height: 1.4;
+    }
+  `;
 
   @property({ attribute: false })
   accessor adapter: IServerDialogAdapter | null = null;

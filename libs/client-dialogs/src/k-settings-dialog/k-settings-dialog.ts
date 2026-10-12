@@ -7,7 +7,6 @@ import type {
   THotkeyStatus,
 } from '@konvoez/client-shell';
 import type { TDesktopHotkeys } from '@konvoez/shared';
-import { tokens } from '@konvoez/ui-kit/theme';
 import { I18nController } from '@konvoez/ui-kit/i18n-controller';
 import '@konvoez/ui-kit/k-dialog-layout';
 import '@konvoez/ui-kit/k-dialog-actions';
@@ -36,44 +35,41 @@ export const SETTINGS_DIALOG_I18N_KEYS = [
 
 @customElement('k-settings-dialog')
 export class KSettingsDialog extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 100%;
-      }
-      k-dialog-layout {
-        flex: 1;
-        min-height: 0;
-      }
-      .section {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      h2.section-title {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--tui-text-primary);
-      }
-      p.hint-paragraph {
-        margin: 0;
-        font-size: 0.8125rem;
-        color: var(--tui-text-tertiary);
-        line-height: 1.4;
-      }
-      .hotkeys-group {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin-top: 0.5rem;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 100%;
+    }
+    k-dialog-layout {
+      flex: 1;
+      min-height: 0;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    h2.section-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--tui-text-primary);
+    }
+    p.hint-paragraph {
+      margin: 0;
+      font-size: 0.8125rem;
+      color: var(--tui-text-tertiary);
+      line-height: 1.4;
+    }
+    .hotkeys-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+  `;
 
   @property({ attribute: false })
   accessor adapter: ISettingsDialogAdapter | null = null;

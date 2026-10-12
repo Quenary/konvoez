@@ -4,6 +4,7 @@ export default [
   ...baseConfig,
   {
     files: ['**/*.ts'],
+    ignores: ['**/*.spec.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

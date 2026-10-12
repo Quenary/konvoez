@@ -33,6 +33,8 @@ Release tags `desktop-v*` publish installers via GitHub Actions; `electron-updat
 
 Server, Settings, and source-picker UIs are Lit web components in `@konvoez/client-dialogs`, with primitives in `@konvoez/ui-kit` and adapter contracts in `@konvoez/client-shell`. The renderer exposes `window.konvoezLocal` (`IKonvoezLocalBridge`) from preload; entry pages `server.html`, `settings.html`, and `picker.html` mount via `src/pages/mount.ts`. Dialog bundles use a strict CSP and esbuild checks that Node globals do not leak.
 
+Dialog pages load `host.css`, produced at build time by compiling Taiga UI LESS (`libs/ui-kit/src/theme/theme.less`) with system UI fonts. Dark mode follows the OS; components inherit `--tui-*` variables from the document (no per-component token sheets).
+
 See also: [client-shell](../../libs/client-shell/README.md), [ui-kit](../../libs/ui-kit/README.md), [client-dialogs](../../libs/client-dialogs/README.md).
 
 ## Security

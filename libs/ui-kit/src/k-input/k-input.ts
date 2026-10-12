@@ -1,81 +1,76 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property, query } from 'lit/decorators.js';
-import { tokens } from '../theme/tokens';
-
 let nextInputId = 0;
 
 @customElement('k-input')
 export class KInput extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: block;
-      }
-      .label-wrapper {
-        display: block;
-        font-size: 0.8125rem;
-        font-weight: 500;
-        color: var(--tui-text-secondary);
-        margin-bottom: 0.375rem;
-      }
-      .input-wrapper {
-        display: flex;
-        align-items: center;
-        background-color: var(--tui-background-neutral-1);
-        border: 1px solid var(--tui-border-normal);
-        border-radius: var(--tui-radius-m, 0.75rem);
-        height: var(--tui-height-m, 2.75rem);
-        padding: 0 0.875rem;
-        transition:
-          border-color 0.15s ease,
-          box-shadow 0.15s ease;
-        box-sizing: border-box;
-      }
-      .input-wrapper:focus-within {
-        border-color: var(--tui-border-focus);
-      }
-      :host([error]:not([error=''])) .input-wrapper {
-        border-color: var(--tui-text-negative);
-      }
-      input {
-        flex: 1;
-        width: 100%;
-        background: transparent;
-        border: none;
-        outline: none;
-        font-family: inherit;
-        font-size: 0.9375rem;
-        color: var(--tui-text-primary);
-        line-height: 1;
-        padding: 0;
-      }
-      input::placeholder {
-        color: var(--tui-text-tertiary);
-      }
-      input:disabled {
-        cursor: not-allowed;
-        color: var(--tui-text-tertiary);
-      }
-      .suffix {
-        display: inline-flex;
-        align-items: center;
-        margin-left: 0.5rem;
-      }
-      .hint {
-        font-size: 0.75rem;
-        color: var(--tui-text-tertiary);
-        margin-top: 0.375rem;
-        line-height: 1.35;
-      }
-      .error {
-        font-size: 0.75rem;
-        color: var(--tui-text-negative);
-        margin-top: 0.375rem;
-        line-height: 1.35;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: block;
+    }
+    .label-wrapper {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--tui-text-secondary);
+      margin-bottom: 0.375rem;
+    }
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      background-color: var(--tui-background-neutral-1);
+      border: 1px solid var(--tui-border-normal);
+      border-radius: var(--tui-radius-m, 0.75rem);
+      height: var(--tui-height-m, 2.75rem);
+      padding: 0 0.875rem;
+      transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+      box-sizing: border-box;
+    }
+    .input-wrapper:focus-within {
+      border-color: var(--tui-border-focus);
+    }
+    :host([error]:not([error=''])) .input-wrapper {
+      border-color: var(--tui-text-negative);
+    }
+    input {
+      flex: 1;
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      color: var(--tui-text-primary);
+      line-height: 1;
+      padding: 0;
+    }
+    input::placeholder {
+      color: var(--tui-text-tertiary);
+    }
+    input:disabled {
+      cursor: not-allowed;
+      color: var(--tui-text-tertiary);
+    }
+    .suffix {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0.5rem;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--tui-text-tertiary);
+      margin-top: 0.375rem;
+      line-height: 1.35;
+    }
+    .error {
+      font-size: 0.75rem;
+      color: var(--tui-text-negative);
+      margin-top: 0.375rem;
+      line-height: 1.35;
+    }
+  `;
 
   private readonly idSuffix = ++nextInputId;
   readonly inputId = `k-input-${this.idSuffix}`;

@@ -13,8 +13,7 @@
     "release": "node tools/release.mjs",
     "release:dry": "node tools/release.mjs --dry-run",
     "migration:create": "nx run backend:migration-create",
-    "tokens:ui-kit": "node libs/ui-kit/scripts/generate-tokens.mjs",
-    "prepare": "npm run tokens:ui-kit && husky"
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -88,7 +87,9 @@
     "jest-environment-node": "~30.5.2",
     "jest-util": "~30.5.1",
     "jsdom": "^30.1.1",
+    "@taiga-ui/styles": "5.26.0",
     "jsonc-eslint-parser": "^3.3.0",
+    "less": "4.8.1",
     "lint-staged": "^17.6.0",
     "lit": "^3.3.3",
     "nx": "23.2.1",

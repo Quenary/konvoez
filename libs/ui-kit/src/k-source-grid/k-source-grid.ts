@@ -1,44 +1,40 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { ISerializableSource } from '@konvoez/client-shell';
-import { tokens } from '../theme/tokens';
 import '../k-source-card/k-source-card';
 import type { KSourceCard } from '../k-source-card/k-source-card';
 
 @customElement('k-source-grid')
 export class KSourceGrid extends LitElement {
-  static override styles = [
-    tokens,
-    css`
-      :host {
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        min-height: 0;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-        gap: 0.75rem;
-        flex: 1 1 auto;
-        min-height: 0;
-        max-height: none;
-        overflow-y: auto;
-        padding: 0.25rem;
-        box-sizing: border-box;
-      }
-      .empty {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex: 1 1 auto;
-        min-height: 10rem;
-        color: var(--tui-text-tertiary);
-        font-size: 0.875rem;
-        text-align: center;
-      }
-    `,
-  ];
+  static override styles = css`
+    :host {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+      gap: 0.75rem;
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+      overflow-y: auto;
+      padding: 0.25rem;
+      box-sizing: border-box;
+    }
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1 1 auto;
+      min-height: 10rem;
+      color: var(--tui-text-tertiary);
+      font-size: 0.875rem;
+      text-align: center;
+    }
+  `;
 
   @property({ type: Array }) accessor sources: ISerializableSource[] = [];
   @property({ reflect: true }) accessor value: string | null = null;
