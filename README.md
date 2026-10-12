@@ -20,10 +20,16 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 ## Key Features
 
 - **Single-Server Model**: An application instance is a complete standalone server with custom text and voice rooms.
+- **Voice Rooms**: Low-latency voice powered by WebRTC and the Mediasoup SFU, with noise suppression.
+- **Camera & Screen Sharing**: Stream your camera or screen in voice rooms and calls.
+- **Direct Messages & Calls**: Private one-to-one chats and calls.
+- **Text Chat**: Rich-text messages with replies, reactions and file attachments.
 - **Encrypted Messages**: Text messages are encrypted server-side at rest using AES-256-GCM.
-- **Real-Time Voice Channels**: Low-latency voice communication powered by WebRTC and Mediasoup SFU.
-- **Three-Tier User Roles**: Built-in permission hierarchy with `OWNER`, `ADMIN`, and `USER` (`MEMBER`) roles.
-- **Modern Monorepo**: Built with Angular (v19+, Signals) on the frontend, NestJS on the backend, and shared TypeScript schemas.
+- **Notifications**: Web Push and native desktop notifications.
+- **PWA & Desktop Client**: Installable web app, plus a desktop app for Windows and Linux.
+- **Roles & Administration**: `OWNER`, `ADMIN` and `USER` (`MEMBER`) roles, user management and invite-only registration.
+- **Localization**: English and Russian.
+- **Modern Monorepo**: Built with Angular (v22, Signals) and Taiga UI on the frontend, NestJS on the backend, Electron for desktop, and shared TypeScript schemas (Nx).
 
 ## Deployment
 
@@ -72,8 +78,10 @@ docker compose -f docker-compose.build.yml up -d --build
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Rooms](docs/ROOMS.md)
 - [Message attachments](docs/ATTACHMENTS.md)
+- [Message reactions](docs/MESSAGE_REACTIONS.md)
 - [Frontend voice](docs/frontend/VOICE.md)
 - [Frontend streaming](docs/frontend/STREAMING.md)
+- [Frontend noise suppression](docs/frontend/NOISE_SUPPRESSION.md)
 
 ## TODO
 
@@ -91,7 +99,7 @@ docker compose -f docker-compose.build.yml up -d --build
 
 - Swipe to reply
 - Add notification click navigation
-- Add common user dialog with short info direct chat/call buttons
+- Add common user dialog with short info and direct chat/call buttons
 - Add emojis or/and customizable smile/sticker packs
 - Add connection state indication
 - Add mute indication for other peers
