@@ -10,6 +10,9 @@ Konvoez is an Nx monorepo:
 - **Backend** (`apps/backend`): Built with NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, and AES-256-GCM message encryption.
 - **Desktop** (`apps/desktop`): Lightweight Electron client wrapping the frontend, built with esbuild and packaged via electron-builder.
 - **Shared Library** (`libs/shared`): Shared TypeScript interfaces, enums, DTOs, and Zod validation schemas.
+- **Client Shell Library** (`libs/client-shell`): Framework-free client utilities, validation, adapter contracts, and i18n core for desktop and client shells.
+- **Client UI Kit** (`libs/ui-kit`): Electron-free and Angular-free Lit web component primitives styled with Taiga UI design tokens.
+- **Client Dialogs** (`libs/client-dialogs`): Framework-free Lit dialog components for desktop dialogs (`k-server-dialog`, `k-settings-dialog`, `k-source-picker-dialog`).
 
 ### Getting Started
 
@@ -51,7 +54,7 @@ Konvoez is an Nx monorepo:
    npm run build
    ```
 
-6. **Desktop**:
+6. **Desktop** ([guide](../apps/desktop/README.md)):
    ```bash
    npx nx run desktop:serve
    npx nx run desktop:package
@@ -70,13 +73,13 @@ Konvoez is an Nx monorepo:
 Releases are managed by Nx across two independent release groups:
 
 - **`server`**: covers `backend`, `frontend`, and `shared`. Produces semantic tags `v{version}` and root `CHANGELOG.md`.
-- **`desktop`**: covers `desktop`. Produces semantic tags `desktop-v{version}` and `apps/desktop/CHANGELOG.md`.
+- **`desktop`**: covers `desktop`, `client-shell`, `ui-kit`, and `client-dialogs`. Produces semantic tags `desktop-v{version}` and `apps/desktop/CHANGELOG.md`.
 
 To maintain clean version bumps:
 
-- Commits touching only `apps/desktop/**` bump only `desktop`.
+- Commits touching only `apps/desktop/**`, `libs/client-shell/**`, `libs/ui-kit/**`, or `libs/client-dialogs/**` bump only `desktop`.
 - Commits touching only `apps/backend/**` or `apps/frontend/**` bump only `server`.
-- Commits touching `libs/shared/**` bump both `server` and `desktop` (since desktop imports shared).
+- Commits touching `libs/shared/**` bump both `server` and `desktop` (since desktop and client-shell import shared).
 - Keep dependency updates (`fix(deps)`) isolated to their respective areas.
 
 ## Code Changes
@@ -86,6 +89,18 @@ To maintain clean version bumps:
 - Maintain strict typing: use shared types and Zod schemas from `@konvoez/shared`.
 - Avoid introducing heavy or unnecessary dependencies.
 - Ensure code is formatted with Prettier (`npm run fmt`) and complies with ESLint rules (`npm run lint`).
+
+### Client Libraries Rules
+
+The client libraries (`libs/client-shell`, `libs/ui-kit`, `libs/client-dialogs`) are designed to be environment-agnostic:
+
+- **Zero Platform Coupling**: Never import `electron`, Node built-in modules, `@angular/*`, or `@taiga-ui/*` in client libraries.
+- **Adapter Contracts**: Dialog components interact with host environments solely through adapter contracts declared in `@konvoez/client-shell`.
+- **Module Boundaries**: Nx lint enforces strict architectural boundaries:
+  - `libs/client-shell` can only depend on `libs/shared`.
+  - `libs/ui-kit` can only depend on `libs/client-shell`.
+  - `libs/client-dialogs` can only depend on `libs/client-shell`, `libs/ui-kit`, and `libs/shared`.
+  - `apps/frontend` cannot import `@konvoez/ui-kit` or `@konvoez/client-dialogs`.
 
 ## Tests
 

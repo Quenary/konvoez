@@ -121,7 +121,6 @@ export class DirectComponent {
   }
 
   protected startDirectCall(recipient: IUser): void {
-    this.preferChat.set(false);
     void this.directCallService.initiateCall(recipient);
   }
 

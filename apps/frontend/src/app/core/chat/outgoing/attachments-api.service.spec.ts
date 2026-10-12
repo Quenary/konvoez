@@ -2,12 +2,20 @@ import { HttpBackend, HttpClient, HttpXhrBackend } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { provideMockStore } from '@ngrx/store/testing';
+import { AuthApiService } from '@core/api/auth-api.service';
 import { provideAppHttpClient } from '../../../app.config';
 import { AttachmentsApiService } from './attachments-api.service';
 
 describe('attachment upload transport', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideAppHttpClient()] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideAppHttpClient(),
+        provideMockStore(),
+        { provide: AuthApiService, useValue: { refresh: () => of(undefined) } },
+      ],
+    });
   });
 
   it('uses XHR so upload progress does not throw before the request', () => {

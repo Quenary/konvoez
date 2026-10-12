@@ -177,17 +177,19 @@ describe('EntitySyncService', () => {
   const createService = (): EntitySyncService =>
     TestBed.inject(EntitySyncService);
 
-  it('connects when authorized and disconnects when not', () => {
+  it('resets voice lobby when authorization is lost', () => {
     createService();
-    expect(socket.connect).not.toHaveBeenCalled();
+    voiceLobbyStore.reset.mockClear();
 
     store.overrideSelector(selectIsAuthorized, true);
     store.refreshState();
-    expect(socket.connect).toHaveBeenCalledTimes(1);
+    expect(voiceLobbyStore.reset).not.toHaveBeenCalled();
 
     store.overrideSelector(selectIsAuthorized, false);
     store.refreshState();
-    expect(socket.disconnect).toHaveBeenCalled();
+    expect(voiceLobbyStore.reset).toHaveBeenCalledTimes(1);
+    expect(socket.connect).not.toHaveBeenCalled();
+    expect(socket.disconnect).not.toHaveBeenCalled();
   });
 
   it('upserts user on USER_CREATED', () => {

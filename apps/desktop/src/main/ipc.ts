@@ -14,11 +14,17 @@ import {
   type IpcMainEvent,
   type IpcMainInvokeEvent,
 } from 'electron';
-import type { ConfigStore } from './config-store';
-import { normalizeServerOrigin, probeServer } from './server-url';
+import type { ConfigStore, TDesktopConfig } from './config-store';
+import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
 import { showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
-import { applyHotkeys, resumeHotkeys, suspendHotkeys } from './hotkeys';
+import { getScreenShareAudio } from './display-media';
+import {
+  applyHotkeys,
+  resumeHotkeys,
+  suspendHotkeys,
+  type IDesktopHotkeyStatuses,
+} from './hotkeys';
 import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
 import { resolveLanguage } from './i18n';
@@ -144,23 +150,10 @@ export function registerIpc(
       hotkeys: config.hotkeys,
       autostart: config.autostart,
       locale: resolveLanguage(app.getLocale()),
+      shareAudio: config.shareAudio,
+      audioSupported: getScreenShareAudio() !== undefined,
     };
   });
-
-  ipcMain.handle(
-    EDesktopIpc.LOCAL_TEST_SERVER,
-    async (event: IpcMainInvokeEvent, rawUrl: unknown) => {
-      if (!validateLocalSender(event)) {
-        throw new Error('UNAUTHORIZED');
-      }
-      if (typeof rawUrl !== 'string') {
-        throw new Error('INVALID_URL');
-      }
-      const origin = normalizeServerOrigin(rawUrl);
-      const { version } = await probeServer(origin);
-      return { origin, version };
-    },
-  );
 
   ipcMain.handle(
     EDesktopIpc.LOCAL_SAVE_SERVER,
@@ -202,32 +195,47 @@ export function registerIpc(
     EDesktopIpc.LOCAL_SAVE_SETTINGS,
     (
       event: IpcMainInvokeEvent,
-      params: { hotkeys?: unknown; autostart?: unknown },
+      params: {
+        hotkeys?: unknown;
+        autostart?: unknown;
+        shareAudio?: unknown;
+      },
     ) => {
       if (!validateLocalSender(event)) {
         throw new Error('UNAUTHORIZED');
       }
-      const hotkeysParsed = desktopHotkeysSchema.safeParse(params.hotkeys);
-      if (!hotkeysParsed.success) {
-        throw new Error('INVALID_HOTKEYS');
-      }
-      const autostart = Boolean(params.autostart);
+      const partial: Partial<TDesktopConfig> = {};
+      let hotkeyStatuses: IDesktopHotkeyStatuses | Record<string, string> = {};
 
-      const hotkeyStatuses = applyHotkeys(
-        hotkeysParsed.data as TDesktopHotkeys,
-      );
-      setAutostart(autostart);
-      configStore.set({
-        hotkeys: hotkeysParsed.data as TDesktopHotkeys,
-        autostart,
-      });
+      if (params.hotkeys !== undefined) {
+        const hotkeysParsed = desktopHotkeysSchema.safeParse(params.hotkeys);
+        if (!hotkeysParsed.success) {
+          throw new Error('INVALID_HOTKEYS');
+        }
+        hotkeyStatuses = applyHotkeys(hotkeysParsed.data as TDesktopHotkeys);
+        partial.hotkeys = hotkeysParsed.data as TDesktopHotkeys;
+      }
+
+      if (params.autostart !== undefined) {
+        const autostart = Boolean(params.autostart);
+        setAutostart(autostart);
+        partial.autostart = autostart;
+      }
+
+      if (params.shareAudio !== undefined) {
+        partial.shareAudio = Boolean(params.shareAudio);
+      }
+
+      configStore.set(partial);
 
       refreshMenus(getMainWindow(), configStore);
 
+      const updated = configStore.get();
       return {
         success: true,
         hotkeys: hotkeyStatuses,
-        autostart,
+        autostart: updated.autostart,
+        shareAudio: updated.shareAudio,
       };
     },
   );

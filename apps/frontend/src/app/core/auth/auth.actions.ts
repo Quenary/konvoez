@@ -18,6 +18,7 @@ export const AuthActions = createActionGroup({
     requestLogout: emptyProps(),
     requestLogoutSuccess: emptyProps(),
     requestLogoutError: props<{ error: HttpErrorResponse }>(),
+    sessionExpired: emptyProps(),
     requestRegister: props<{ body: IAuthRegister }>(),
     requestRegisterSuccess: emptyProps(),
     requestRegisterError: props<{ error: HttpErrorResponse }>(),

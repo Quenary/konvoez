@@ -4,16 +4,16 @@ import {
   EDesktopIpc,
   type TDesktopHotkeys,
 } from '@konvoez/shared';
+import type { THotkeyStatus } from '@konvoez/client-shell';
 import { getExistingMainWindow } from './window';
 
-export type THotkeyStatus = 'ok' | 'conflict' | 'invalid' | 'unset';
-
 export interface IDesktopHotkeyStatuses {
+  [key: string]: THotkeyStatus;
   toggleMic: THotkeyStatus;
   toggleSpeaker: THotkeyStatus;
 }
 
-export { formatKeyboardEventToAccelerator } from './accelerator';
+export { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
 
 let storedHotkeys: TDesktopHotkeys | null = null;
 let suspendDepth = 0;

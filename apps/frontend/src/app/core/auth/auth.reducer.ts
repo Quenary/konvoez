@@ -44,6 +44,7 @@ export const authReducer = createReducer(
   on(
     AuthActions.requestLogoutSuccess,
     AuthActions.requestLogoutError,
+    AuthActions.sessionExpired,
     (state) => ({
       ...state,
       loading: false,

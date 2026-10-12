@@ -23,6 +23,9 @@ if (!gotSingleInstanceLock) {
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer');
+  }
 
   app.on('second-instance', () => {
     const win = getExistingMainWindow();
@@ -60,6 +63,7 @@ if (!gotSingleInstanceLock) {
       session.defaultSession,
       () => configStore.get().serverOrigin,
       () => getExistingMainWindow(),
+      configStore,
     );
     registerIpc(configStore, () => getExistingMainWindow());
 

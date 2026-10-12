@@ -95,4 +95,13 @@ describe('DirectCallsStateService', () => {
     service.create(1, 2);
     expect(service.findActiveForUser(1)).toBeUndefined();
   });
+
+  it('finds ringing calls by caller', () => {
+    const call = service.create(1, 2);
+    service.create(3, 4);
+
+    const ringing = service.findRingingByCaller(1);
+    expect(ringing).toHaveLength(1);
+    expect(ringing[0]?.callId).toBe(call.callId);
+  });
 });

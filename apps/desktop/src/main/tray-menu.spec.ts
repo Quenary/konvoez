@@ -75,8 +75,8 @@ describe('buildTrayMenuTemplate', () => {
     const trayTemplate = buildTrayMenuTemplate(opts);
     const items = buildActionItems(opts);
     const appTemplate = buildAppMenuTemplate(items, 'en', {
-      isPackaged: true,
       onCloseWindow: vi.fn(),
+      appVersion: '1.2.3',
     });
 
     const voiceTop = appTemplate.find((item) => item.label === 'Voice');

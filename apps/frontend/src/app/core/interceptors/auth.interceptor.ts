@@ -4,18 +4,8 @@ import {
   HttpRequest,
 } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
-import {
-  BehaviorSubject,
-  catchError,
-  first,
-  of,
-  switchMap,
-  tap,
-  throwError,
-  timeout,
-} from 'rxjs';
-import { AuthApiService } from '@core/api/auth-api.service';
+import { catchError, from, switchMap, throwError } from 'rxjs';
+import { TokenRefreshService } from '@core/auth/token-refresh.service';
 
 const ignoreList = ['/login', '/refresh', '/register'];
 
@@ -32,51 +22,23 @@ const isRefreshable = (req: HttpRequest<unknown>, error: unknown): boolean => {
   );
 };
 
-const isRefreshing$ = new BehaviorSubject<boolean>(false);
-
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authApiService = inject(AuthApiService);
-  const router = inject(Router);
+  const tokenRefreshService = inject(TokenRefreshService);
 
   return next(req).pipe(
     catchError((error) => {
-      if (isRefreshable(req, error)) {
-        if (!isRefreshing$.getValue()) {
-          isRefreshing$.next(true);
-          authApiService
-            .refresh()
-            .pipe(
-              catchError(() => of(null)),
-              tap(() => isRefreshing$.next(false)),
-            )
-            .subscribe();
-        }
-
-        return isRefreshing$.pipe(
-          first((flag) => !flag),
-          timeout(10000),
-          catchError(() => of(null)),
-          switchMap(() => {
-            return next(req.clone()).pipe(
-              catchError((error) => {
-                if (isRefreshable(req, error)) {
-                  const isAuthMe = req.url.includes('/auth/me');
-                  const isOnAuthPage =
-                    router.url.startsWith('/auth') ||
-                    window.location.pathname.startsWith('/auth');
-
-                  if (!isAuthMe && !isOnAuthPage) {
-                    router.navigate(['/auth']);
-                  }
-                }
-                return throwError(() => error);
-              }),
-            );
-          }),
-        );
+      if (!isRefreshable(req, error)) {
+        return throwError(() => error);
       }
 
-      return throwError(() => error);
+      return from(tokenRefreshService.refresh()).pipe(
+        switchMap((ok) => {
+          if (!ok) {
+            return throwError(() => error);
+          }
+          return next(req.clone());
+        }),
+      );
     }),
   );
 };

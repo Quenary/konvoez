@@ -107,6 +107,16 @@ export class DirectCallsStateService {
     return undefined;
   }
 
+  public findRingingByCaller(userId: number): TDirectCallRecord[] {
+    const result: TDirectCallRecord[] = [];
+    for (const call of this.calls.values()) {
+      if (call.callerId === userId && call.status === 'ringing') {
+        result.push(call);
+      }
+    }
+    return result;
+  }
+
   public isParticipant(call: TDirectCallRecord, userId: number): boolean {
     return call.callerId === userId || call.recipientId === userId;
   }

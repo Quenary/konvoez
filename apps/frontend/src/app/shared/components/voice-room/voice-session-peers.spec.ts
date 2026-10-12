@@ -30,13 +30,11 @@ const groupPeer = {
 } as IUser;
 
 describe('resolveVoiceSessionPeers', () => {
-  it('uses real peers for group session even if interlocutor is set', () => {
+  it('uses real peers for group session', () => {
     const peers = resolveVoiceSessionPeers({
       me,
       remotePeers: [groupPeer],
       session: { type: EVoiceSessionType.GROUP_ROOM, roomId: 10 },
-      isRinging: false,
-      interlocutor,
     });
 
     expect(peers.map((p) => p.id)).toEqual([me.id, groupPeer.id]);
@@ -51,22 +49,18 @@ describe('resolveVoiceSessionPeers', () => {
         callId: 'c1',
         interlocutorId: interlocutor.id,
       },
-      isRinging: false,
-      interlocutor,
     });
 
     expect(peers.map((p) => p.id)).toEqual([me.id]);
   });
 
-  it('shows interlocutor placeholder while ringing without media session', () => {
+  it('returns only the local user when there is no media session', () => {
     const peers = resolveVoiceSessionPeers({
       me,
       remotePeers: [],
       session: null,
-      isRinging: true,
-      interlocutor,
     });
 
-    expect(peers.map((p) => p.id)).toEqual([me.id, interlocutor.id]);
+    expect(peers.map((p) => p.id)).toEqual([me.id]);
   });
 });

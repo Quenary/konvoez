@@ -3,52 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+    <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0" />
     <title>Share your screen</title>
     <link
       rel="stylesheet"
-      href="pages.css" />
+      href="host.css" />
   </head>
   <body>
-    <div class="container">
-      <h1 id="title">Share your screen</h1>
-
-      <div class="tabs">
-        <button
-          type="button"
-          class="tab-btn active"
-          id="tab-screens"
-          >Screens</button
-        >
-        <button
-          type="button"
-          class="tab-btn"
-          id="tab-windows"
-          >Windows</button
-        >
-      </div>
-
-      <div
-        class="sources-grid"
-        id="sources-grid"></div>
-
-      <div class="buttons">
-        <button
-          type="button"
-          class="secondary"
-          id="cancel-btn"
-          >Cancel</button
-        >
-        <button
-          type="button"
-          class="primary"
-          id="share-btn"
-          disabled
-          >Share</button
-        >
-      </div>
-    </div>
+    <k-source-picker-dialog></k-source-picker-dialog>
     <script src="picker.js"></script>
   </body>
 </html>

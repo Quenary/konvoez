@@ -11,6 +11,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
+import { isDisplayMediaUserCancellation } from '@shared/functions/display-media-error.utils';
 import { notifyError } from '@shared/functions/notify-error.function';
 import {
   TuiButton,
@@ -42,6 +43,7 @@ export class VoiceRoomControlsBarComponent {
   private readonly settingsStore = inject(SettingsStore);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly screenCaptureService = inject(ScreenCaptureService);
   private readonly dialogService = inject(TuiDialogService);
   private readonly injector = inject(Injector);
   private readonly translateService = inject(TranslateService);
@@ -58,7 +60,7 @@ export class VoiceRoomControlsBarComponent {
   protected readonly screenOn = computed(
     () => this.peerVideoService.localScreenTrack() !== null,
   );
-  protected readonly screenSupported = ScreenCaptureService.isSupported();
+  protected readonly screenSupported = this.screenCaptureService.isSupported();
   protected readonly canProduce = this.voiceSessionService.canProduce;
 
   protected readonly cameraDisabled = computed(
@@ -135,6 +137,9 @@ export class VoiceRoomControlsBarComponent {
     try {
       await start.produce();
     } catch (error) {
+      if (kind === 'screen' && isDisplayMediaUserCancellation(error)) {
+        return;
+      }
       notifyError(
         this.tuiNotificationsService,
         this.translateService,

@@ -1,49 +1,61 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { EDesktopIpc, type TDesktopHotkeys } from '@konvoez/shared';
+import type { IKonvoezLocalBridge, TLanguage } from '@konvoez/client-shell';
 
-export interface IKonvoezLocalBridge {
-  getConfig: () => Promise<{
-    serverOrigin: string | null;
-    hotkeys: TDesktopHotkeys;
-    autostart: boolean;
-    locale: string;
-  }>;
-  testServer: (url: string) => Promise<{ origin: string; version: string }>;
-  saveServer: (url: string) => Promise<{ success: boolean; origin: string }>;
-  saveSettings: (params: {
-    hotkeys: TDesktopHotkeys;
-    autostart: boolean;
-  }) => Promise<{
-    success: boolean;
-    hotkeys: Record<string, string>;
-    autostart: boolean;
-  }>;
-  getPickerSources: () => Promise<
-    Array<{
-      id: string;
-      name: string;
-      thumbnailUrl: string;
-      appIconUrl: string | null;
-    }>
-  >;
-  pickSource: (sourceId: string | null) => void;
-  suspendHotkeys: () => void;
-  resumeHotkeys: () => void;
-}
+export type { IKonvoezLocalBridge };
 
 const localBridge: IKonvoezLocalBridge = {
-  getConfig: () => ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
-  testServer: (url: string) =>
-    ipcRenderer.invoke(EDesktopIpc.LOCAL_TEST_SERVER, url),
-  saveServer: (url: string) =>
-    ipcRenderer.invoke(EDesktopIpc.LOCAL_SAVE_SERVER, url),
-  saveSettings: (params) =>
-    ipcRenderer.invoke(EDesktopIpc.LOCAL_SAVE_SETTINGS, params),
-  getPickerSources: () => ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
-  pickSource: (sourceId: string | null) =>
-    ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId),
-  suspendHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_SUSPEND),
-  resumeHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_RESUME),
+  server: {
+    async getInitial() {
+      const config = await ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG);
+      return {
+        serverOrigin: config.serverOrigin,
+        locale: config.locale as TLanguage,
+      };
+    },
+    async saveServer(url: string) {
+      const res = await ipcRenderer.invoke(EDesktopIpc.LOCAL_SAVE_SERVER, url);
+      return { origin: res.origin };
+    },
+  },
+  settings: {
+    async getInitial() {
+      const config = await ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG);
+      return {
+        hotkeys: config.hotkeys,
+        autostart: config.autostart,
+        locale: config.locale as TLanguage,
+      };
+    },
+    async save(p: { hotkeys: TDesktopHotkeys; autostart: boolean }) {
+      const res = await ipcRenderer.invoke(EDesktopIpc.LOCAL_SAVE_SETTINGS, p);
+      return { hotkeys: res.hotkeys };
+    },
+    suspendHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_SUSPEND),
+    resumeHotkeys: () => ipcRenderer.send(EDesktopIpc.LOCAL_HOTKEYS_RESUME),
+  },
+  picker: {
+    async getInitial() {
+      const [config, sources] = await Promise.all([
+        ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
+        ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
+      ]);
+      return {
+        sources,
+        shareAudio: config.shareAudio,
+        audioSupported: Boolean(config.audioSupported),
+        locale: config.locale as TLanguage,
+      };
+    },
+    setShareAudio: (value: boolean) => {
+      void ipcRenderer.invoke(EDesktopIpc.LOCAL_SAVE_SETTINGS, {
+        shareAudio: value,
+      });
+    },
+    pick: (sourceId: string | null, withAudio: boolean) => {
+      ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId, withAudio);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('konvoezLocal', localBridge);

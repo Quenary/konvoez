@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
@@ -29,15 +28,11 @@ describe('VoiceSessionPeersService', () => {
       }
     | null
   >(null);
-  const interlocutor = signal<IUser | null>(null);
-  const isRinging = signal(false);
 
   beforeEach(() => {
     me.set(user(1, 'me'));
     remotePeers.set([]);
     activeSession.set(null);
-    interlocutor.set(null);
-    isRinging.set(false);
 
     TestBed.configureTestingModule({
       providers: [
@@ -51,13 +46,6 @@ describe('VoiceSessionPeersService', () => {
           useValue: {
             peersList: remotePeers.asReadonly(),
             activeSession: activeSession.asReadonly(),
-          },
-        },
-        {
-          provide: DirectCallService,
-          useValue: {
-            interlocutor: interlocutor.asReadonly(),
-            isRinging: isRinging.asReadonly(),
           },
         },
       ],
@@ -78,15 +66,12 @@ describe('VoiceSessionPeersService', () => {
     expect(service().count()).toBe(2);
   });
 
-  it('includes a ringing interlocutor before a session exists', () => {
-    interlocutor.set(user(2, 'other'));
-    isRinging.set(true);
-
+  it('lists only the local user while ringing without a session', () => {
     expect(
       service()
         .peers()
         .map((peer) => peer.id),
-    ).toEqual([1, 2]);
-    expect(service().count()).toBe(2);
+    ).toEqual([1]);
+    expect(service().count()).toBe(1);
   });
 });

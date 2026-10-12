@@ -3,8 +3,8 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/desktop/src",
   "projectType": "application",
-  "tags": ["type:app", "platform:desktop"],
-  "implicitDependencies": [],
+  "tags": ["scope:client", "type:app", "platform:desktop"],
+  "implicitDependencies": ["ui-kit", "client-dialogs", "client-shell"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",

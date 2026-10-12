@@ -33,7 +33,6 @@ import { Mutex } from 'async-mutex';
 import {
   EMPTY,
   filter,
-  finalize,
   fromEvent,
   map,
   merge,
@@ -73,27 +72,19 @@ export class EntitySyncService {
   private isLobbyResyncQueued = false;
 
   constructor() {
-    this.bindAuthConnection();
+    this.bindAuthLobbyReset();
     this.bindUserEvents();
     this.bindRoomEvents();
     this.bindVoiceLobbyEvents();
     this.bindVoiceLobbySync();
   }
 
-  private bindAuthConnection(): void {
+  private bindAuthLobbyReset(): void {
     this.store
       .select(selectIsAuthorized)
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        finalize(() => {
-          this.socket.disconnect();
-        }),
-      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((isAuthorized) => {
-        if (isAuthorized) {
-          this.socket.connect();
-        } else {
-          this.socket.disconnect();
+        if (!isAuthorized) {
           this.voiceLobbyStore.reset();
         }
       });

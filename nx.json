@@ -149,7 +149,7 @@
         }
       },
       "desktop": {
-        "projects": ["desktop"],
+        "projects": ["desktop", "client-shell", "ui-kit", "client-dialogs"],
         "projectsRelationship": "fixed",
         "releaseTag": {
           "pattern": "desktop-v{version}",

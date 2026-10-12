@@ -16,7 +16,6 @@ export enum EDesktopIpc {
   COMMAND = 'konvoez:command', // main -> renderer
   // local pages only
   LOCAL_GET_CONFIG = 'konvoez-local:get-config',
-  LOCAL_TEST_SERVER = 'konvoez-local:test-server',
   LOCAL_SAVE_SERVER = 'konvoez-local:save-server',
   LOCAL_SAVE_SETTINGS = 'konvoez-local:save-settings',
   LOCAL_PICK_SOURCE = 'konvoez-local:pick-source',
