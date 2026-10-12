@@ -11,11 +11,14 @@ import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { selectIsAuthorized } from './auth.selectors';
 import { TokenRefreshService } from './token-refresh.service';
 
+const STABLE_CONNECTION_MS = 5_000;
+
 interface SocketEntry {
   socket: Socket;
   enabled: boolean;
   attempt: number;
   reconnectTimer?: ReturnType<typeof setTimeout>;
+  stableTimer?: ReturnType<typeof setTimeout>;
   handlersBound: boolean;
 }
 
@@ -33,7 +36,6 @@ export class AuthSocketManager {
   private authorized = false;
   private stopped = false;
   private started = false;
-  private reconnectRefresh: Promise<boolean> | null = null;
 
   private readonly entries: SocketEntry[];
 
@@ -107,7 +109,6 @@ export class AuthSocketManager {
           }
         } else {
           this.stopped = true;
-          this.reconnectRefresh = null;
           this.clearAllTimers();
           for (const entry of this.entries) {
             if (entry.enabled) {
@@ -127,6 +128,7 @@ export class AuthSocketManager {
     const { socket } = entry;
 
     socket.on('disconnect', (reason: string) => {
+      this.clearStableTimer(entry);
       if (reason === 'io server disconnect' && this.authorized) {
         this.scheduleReconnect(entry);
       }
@@ -139,7 +141,11 @@ export class AuthSocketManager {
     });
 
     socket.on('connect', () => {
-      entry.attempt = 0;
+      this.clearStableTimer(entry);
+      entry.stableTimer = setTimeout(() => {
+        entry.stableTimer = undefined;
+        entry.attempt = 0;
+      }, STABLE_CONNECTION_MS);
     });
   }
 
@@ -164,7 +170,7 @@ export class AuthSocketManager {
       return;
     }
 
-    void this.getReconnectRefresh().then((ok) => {
+    void this.tokenRefreshService.refresh().then((ok) => {
       if (!ok || this.stopped || !this.authorized || entry.socket.connected) {
         return;
       }
@@ -172,19 +178,11 @@ export class AuthSocketManager {
     });
   }
 
-  private getReconnectRefresh(): Promise<boolean> {
-    if (!this.reconnectRefresh) {
-      const flight = this.tokenRefreshService.refresh();
-      this.reconnectRefresh = flight;
-      void flight.finally(() => {
-        setTimeout(() => {
-          if (this.reconnectRefresh === flight) {
-            this.reconnectRefresh = null;
-          }
-        }, 0);
-      });
+  private clearStableTimer(entry: SocketEntry): void {
+    if (entry.stableTimer !== undefined) {
+      clearTimeout(entry.stableTimer);
+      entry.stableTimer = undefined;
     }
-    return this.reconnectRefresh;
   }
 
   private clearAllTimers(): void {
@@ -193,6 +191,7 @@ export class AuthSocketManager {
         clearTimeout(entry.reconnectTimer);
         entry.reconnectTimer = undefined;
       }
+      this.clearStableTimer(entry);
     }
   }
 }

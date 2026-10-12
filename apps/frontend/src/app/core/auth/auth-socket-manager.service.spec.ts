@@ -136,34 +136,55 @@ describe('AuthSocketManager', () => {
     expect(voice.connect).toHaveBeenCalledTimes(2);
   });
 
-  it('backs off reconnect delays and resets on connect', async () => {
+  it('backs off when the server accepts then immediately disconnects', async () => {
     startAuthorized();
     voice.connected = true;
+    authApi.refresh.mockClear();
+
     voice.connect.mockImplementation(() => {
       voice.connected = true;
+      voice.emit('connect');
+      voice.connected = false;
+      voice.emit('disconnect', 'io server disconnect');
     });
 
     voice.emit('disconnect', 'io server disconnect');
     voice.connected = false;
+
     await vi.advanceTimersByTimeAsync(1000);
     expect(authApi.refresh).toHaveBeenCalledTimes(1);
 
-    voice.emit('disconnect', 'io server disconnect');
-    voice.connected = false;
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(authApi.refresh).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(authApi.refresh).toHaveBeenCalledTimes(2);
 
-    voice.emit('connect');
-    voice.emit('disconnect', 'io server disconnect');
-    voice.connected = false;
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(4000);
     expect(authApi.refresh).toHaveBeenCalledTimes(3);
   });
 
-  it('single-flights refresh when two sockets drop together', async () => {
+  it('resets backoff after a stable connection', async () => {
+    startAuthorized();
+    voice.connected = true;
+    authApi.refresh.mockClear();
+
+    voice.emit('disconnect', 'io server disconnect');
+    voice.connected = false;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(authApi.refresh).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5000);
+
+    voice.emit('disconnect', 'io server disconnect');
+    voice.connected = false;
+    authApi.refresh.mockClear();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(authApi.refresh).toHaveBeenCalledTimes(1);
+
+    authApi.refresh.mockClear();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(authApi.refresh).not.toHaveBeenCalled();
+  });
+
+  it('refreshes for each socket when two drop together', async () => {
     startAuthorized();
     voice.connected = true;
     text.connected = true;
@@ -174,7 +195,7 @@ describe('AuthSocketManager', () => {
     text.connected = false;
 
     await vi.advanceTimersByTimeAsync(1000);
-    expect(authApi.refresh).toHaveBeenCalledTimes(1);
+    expect(authApi.refresh).toHaveBeenCalledTimes(2);
   });
 
   it('does not reconnect when refresh fails', async () => {
