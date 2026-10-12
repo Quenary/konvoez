@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_DEVICE_HANDLER } from '../tokens/audio-device-handler.token';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { EntitySyncSocketToken } from '../tokens/entity-sync-socket.token';
+import { TextRoomSocketToken } from '../tokens/text-room-socket.token';
 import { NotificationsSocketToken } from '../tokens/notifications-socket.token';
 import { VoiceSessionService } from './voice-session.service';
 import { CameraService } from './camera.service';
@@ -37,6 +38,8 @@ import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { RoomNavigationService } from '@features/rooms/room-navigation.service';
 import { DesktopBridgeService } from '@core/desktop/desktop-bridge.service';
+import { TokenRefreshService } from '@core/auth/token-refresh.service';
+import { AuthSocketManager } from '@core/auth/auth-socket-manager.service';
 
 /**
  * Guards against NG0200 circular DI:
@@ -73,6 +76,8 @@ describe('voice DI graph', () => {
         VoiceLobbyStore,
         VoiceAudioPreferencesStore,
         DesktopBridgeService,
+        TokenRefreshService,
+        AuthSocketManager,
         ConsumerRegistry,
         ScreenWatchService,
         MicrophoneService,
@@ -121,6 +126,16 @@ describe('voice DI graph', () => {
         },
         {
           provide: NotificationsSocketToken,
+          useValue: {
+            connected: false,
+            on: vi.fn(),
+            off: vi.fn(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+          },
+        },
+        {
+          provide: TextRoomSocketToken,
           useValue: {
             connected: false,
             on: vi.fn(),

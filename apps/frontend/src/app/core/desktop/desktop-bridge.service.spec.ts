@@ -160,18 +160,6 @@ describe('DesktopBridgeService', () => {
       );
     });
 
-    it('manages socket connection according to auth state', () => {
-      service.init();
-
-      expect(socketMock.connect).toHaveBeenCalledTimes(1);
-
-      isAuthorized$.next(false);
-      expect(socketMock.disconnect).toHaveBeenCalledTimes(1);
-
-      isAuthorized$.next(true);
-      expect(socketMock.connect).toHaveBeenCalledTimes(2);
-    });
-
     it('handles TOGGLE_MIC and TOGGLE_SPEAKER commands', () => {
       service.init();
       expect(fakeBridge.onCommand).toHaveBeenCalled();

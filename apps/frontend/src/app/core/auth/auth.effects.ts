@@ -4,7 +4,6 @@ import { AuthActions } from './auth.actions';
 import {
   catchError,
   filter,
-  finalize,
   from,
   map,
   of,
@@ -22,18 +21,13 @@ import { DirectChatsStore } from '../../features/direct-chats/direct-chats.store
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
-import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { Store } from '@ngrx/store';
-import { selectIsAuthorized } from './auth.selectors';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { IUser } from '@konvoez/shared';
 
 @Injectable()
 export class AuthEffects {
-  private readonly store = inject(Store);
   private readonly actions$ = inject(Actions);
   private readonly authApiService = inject(AuthApiService);
   private readonly profileApiService = inject(ProfileApiService);
@@ -43,28 +37,9 @@ export class AuthEffects {
   private readonly directChatsStore = inject(DirectChatsStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
-  private readonly socket = inject(VoiceRoomSocketToken);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly pushNotificationService = inject(PushNotificationService);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
-
-  constructor() {
-    this.store
-      .select(selectIsAuthorized)
-      .pipe(
-        takeUntilDestroyed(),
-        finalize(() => {
-          this.socket.disconnect();
-        }),
-      )
-      .subscribe((auth) => {
-        if (auth) {
-          this.socket.connect();
-        } else {
-          this.socket.disconnect();
-        }
-      });
-  }
 
   readonly init$ = createEffect(() =>
     this.actions$.pipe(
@@ -144,6 +119,7 @@ export class AuthEffects {
         ofType(
           AuthActions.requestLogoutSuccess,
           AuthActions.requestLogoutError,
+          AuthActions.sessionExpired,
         ),
         switchMap(() =>
           from(this.voiceLeaveService.leaveActiveVoice()).pipe(

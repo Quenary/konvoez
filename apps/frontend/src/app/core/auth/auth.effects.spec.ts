@@ -184,7 +184,6 @@ describe('AuthEffects logout', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/auth']);
     });
     expect(microphoneService.release).toHaveBeenCalled();
-    expect(socket.emitWithAck).not.toHaveBeenCalled();
     expect(roomsStore.clear).toHaveBeenCalled();
     expect(directChatsStore.clear).toHaveBeenCalled();
   });
@@ -193,6 +192,16 @@ describe('AuthEffects logout', () => {
     store.dispatch(AuthActions.requestLogoutSuccess());
 
     await vi.waitFor(() => {
+      expect(roomsStore.clear).toHaveBeenCalled();
+      expect(directChatsStore.clear).toHaveBeenCalled();
+    });
+  });
+
+  it('clears stores and navigates to /auth on sessionExpired', async () => {
+    store.dispatch(AuthActions.sessionExpired());
+
+    await vi.waitFor(() => {
+      expect(router.navigate).toHaveBeenCalledWith(['/auth']);
       expect(roomsStore.clear).toHaveBeenCalled();
       expect(directChatsStore.clear).toHaveBeenCalled();
     });

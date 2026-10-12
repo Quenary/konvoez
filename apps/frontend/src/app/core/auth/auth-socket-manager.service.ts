@@ -1,0 +1,198 @@
+import { DestroyRef, inject, Injectable } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Store } from '@ngrx/store';
+import { distinctUntilChanged, finalize } from 'rxjs';
+import type { Socket } from 'socket.io-client';
+import { DesktopBridgeService } from '@core/desktop/desktop-bridge.service';
+import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
+import { NotificationsSocketToken } from '@core/tokens/notifications-socket.token';
+import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
+import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
+import { selectIsAuthorized } from './auth.selectors';
+import { TokenRefreshService } from './token-refresh.service';
+
+interface SocketEntry {
+  socket: Socket;
+  enabled: boolean;
+  attempt: number;
+  reconnectTimer?: ReturnType<typeof setTimeout>;
+  handlersBound: boolean;
+}
+
+@Injectable({ providedIn: 'root' })
+export class AuthSocketManager {
+  private readonly store = inject(Store);
+  private readonly tokenRefreshService = inject(TokenRefreshService);
+  private readonly voiceRoomSocket = inject(VoiceRoomSocketToken);
+  private readonly textRoomSocket = inject(TextRoomSocketToken);
+  private readonly entitySyncSocket = inject(EntitySyncSocketToken);
+  private readonly notificationsSocket = inject(NotificationsSocketToken);
+  private readonly desktopBridgeService = inject(DesktopBridgeService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private authorized = false;
+  private stopped = false;
+  private started = false;
+  private reconnectRefresh: Promise<boolean> | null = null;
+
+  private readonly entries: SocketEntry[];
+
+  constructor() {
+    const isDesktop = this.desktopBridgeService.isDesktop;
+    this.entries = [
+      {
+        socket: this.voiceRoomSocket,
+        enabled: true,
+        attempt: 0,
+        handlersBound: false,
+      },
+      {
+        socket: this.textRoomSocket,
+        enabled: true,
+        attempt: 0,
+        handlersBound: false,
+      },
+      {
+        socket: this.entitySyncSocket,
+        enabled: true,
+        attempt: 0,
+        handlersBound: false,
+      },
+      {
+        socket: this.notificationsSocket,
+        enabled: isDesktop,
+        attempt: 0,
+        handlersBound: false,
+      },
+    ];
+  }
+
+  start(): void {
+    if (this.started) {
+      return;
+    }
+    this.started = true;
+
+    for (const entry of this.entries) {
+      if (entry.enabled) {
+        this.bindHandlers(entry);
+      }
+    }
+
+    this.store
+      .select(selectIsAuthorized)
+      .pipe(
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          this.stopped = true;
+          this.clearAllTimers();
+          for (const entry of this.entries) {
+            if (entry.enabled) {
+              entry.socket.disconnect();
+            }
+          }
+        }),
+      )
+      .subscribe((isAuthorized) => {
+        this.authorized = isAuthorized;
+        if (isAuthorized) {
+          this.stopped = false;
+          this.clearAllTimers();
+          for (const entry of this.entries) {
+            entry.attempt = 0;
+            if (entry.enabled) {
+              entry.socket.connect();
+            }
+          }
+        } else {
+          this.stopped = true;
+          this.reconnectRefresh = null;
+          this.clearAllTimers();
+          for (const entry of this.entries) {
+            if (entry.enabled) {
+              entry.socket.disconnect();
+            }
+          }
+        }
+      });
+  }
+
+  private bindHandlers(entry: SocketEntry): void {
+    if (entry.handlersBound) {
+      return;
+    }
+    entry.handlersBound = true;
+
+    const { socket } = entry;
+
+    socket.on('disconnect', (reason: string) => {
+      if (reason === 'io server disconnect' && this.authorized) {
+        this.scheduleReconnect(entry);
+      }
+    });
+
+    socket.on('connect_error', (err: Error) => {
+      if (err.message === 'Unauthorized' && this.authorized) {
+        this.scheduleReconnect(entry);
+      }
+    });
+
+    socket.on('connect', () => {
+      entry.attempt = 0;
+    });
+  }
+
+  private scheduleReconnect(entry: SocketEntry): void {
+    if (this.stopped || !this.authorized) {
+      return;
+    }
+
+    if (entry.reconnectTimer !== undefined) {
+      clearTimeout(entry.reconnectTimer);
+    }
+
+    const delay = Math.min(1000 * 2 ** entry.attempt++, 30_000);
+    entry.reconnectTimer = setTimeout(() => {
+      entry.reconnectTimer = undefined;
+      this.onReconnectTimer(entry);
+    }, delay);
+  }
+
+  private onReconnectTimer(entry: SocketEntry): void {
+    if (this.stopped || !this.authorized || entry.socket.connected) {
+      return;
+    }
+
+    void this.getReconnectRefresh().then((ok) => {
+      if (!ok || this.stopped || !this.authorized || entry.socket.connected) {
+        return;
+      }
+      entry.socket.connect();
+    });
+  }
+
+  private getReconnectRefresh(): Promise<boolean> {
+    if (!this.reconnectRefresh) {
+      const flight = this.tokenRefreshService.refresh();
+      this.reconnectRefresh = flight;
+      void flight.finally(() => {
+        setTimeout(() => {
+          if (this.reconnectRefresh === flight) {
+            this.reconnectRefresh = null;
+          }
+        }, 0);
+      });
+    }
+    return this.reconnectRefresh;
+  }
+
+  private clearAllTimers(): void {
+    for (const entry of this.entries) {
+      if (entry.reconnectTimer !== undefined) {
+        clearTimeout(entry.reconnectTimer);
+        entry.reconnectTimer = undefined;
+      }
+    }
+  }
+}

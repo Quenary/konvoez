@@ -5,14 +5,11 @@ import {
   Injectable,
   Injector,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Store } from '@ngrx/store';
 import {
   EDesktopCommand,
   ENotificationsEvent,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
-import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import { NotificationsSocketToken } from '@core/tokens/notifications-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -37,7 +34,6 @@ export class DesktopBridgeService {
     const session = this.injector.get(VoiceSessionStore);
     const voiceLeave = this.injector.get(VoiceLeaveService);
     const socket = this.injector.get(NotificationsSocketToken);
-    const store = this.injector.get(Store);
 
     effect(
       () => {
@@ -49,17 +45,6 @@ export class DesktopBridgeService {
       },
       { injector: this.injector },
     );
-
-    store
-      .select(selectIsAuthorized)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((isAuthorized) => {
-        if (isAuthorized) {
-          socket.connect();
-        } else {
-          socket.disconnect();
-        }
-      });
 
     const onNotification = (payload: TPushNotificationPayload) => {
       bridge.notify(payload);
@@ -91,7 +76,6 @@ export class DesktopBridgeService {
     this.destroyRef.onDestroy(() => {
       off();
       socket.off(ENotificationsEvent.NOTIFICATION, onNotification);
-      socket.disconnect();
     });
   }
 }
