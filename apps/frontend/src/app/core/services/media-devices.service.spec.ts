@@ -121,6 +121,22 @@ describe('MediaDevicesService', () => {
       expect(getDisplayMedia).toHaveBeenCalledTimes(1);
     });
 
+    it('rethrows picker dismissal AbortError immediately without fallback', async () => {
+      const getDisplayMedia = vi
+        .fn()
+        .mockRejectedValue(
+          new DOMException('Permission dismissed', 'AbortError'),
+        );
+      vi.stubGlobal('navigator', {
+        mediaDevices: { getDisplayMedia },
+      });
+
+      await expect(
+        service.getDisplayMedia({ video: true, audio: true }),
+      ).rejects.toThrow('Permission dismissed');
+      expect(getDisplayMedia).toHaveBeenCalledTimes(1);
+    });
+
     it('rethrows non-AbortError errors immediately without fallback', async () => {
       const getDisplayMedia = vi
         .fn()

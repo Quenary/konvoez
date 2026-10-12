@@ -49,12 +49,38 @@ export function serializeCapturerSources(
 
 let pickerOpen = false;
 
+/** Reuse last video source when the renderer retries getDisplayMedia without audio. */
+let reuseVideoSourceId: string | null = null;
+
+/** Suppress a follow-up audio:false retry right after the user dismissed the picker. */
+let displayMediaCancelledAt = 0;
+
+const DISPLAY_MEDIA_CANCEL_SUPPRESS_MS = 10_000;
+
+function markDisplayMediaCancelled(): void {
+  displayMediaCancelledAt = Date.now();
+}
+
+function shouldSuppressAudioFallbackRetry(): boolean {
+  if (!displayMediaCancelledAt) {
+    return false;
+  }
+  if (Date.now() - displayMediaCancelledAt > DISPLAY_MEDIA_CANCEL_SUPPRESS_MS) {
+    displayMediaCancelledAt = 0;
+    return false;
+  }
+  displayMediaCancelledAt = 0;
+  return true;
+}
+
 export function isPickerOpen(): boolean {
   return pickerOpen;
 }
 
 export function resetPickerOpenForTests(): void {
   pickerOpen = false;
+  reuseVideoSourceId = null;
+  displayMediaCancelledAt = 0;
 }
 
 export async function openSourcePicker(
@@ -85,6 +111,9 @@ export async function openSourcePicker(
           pickerWin.close();
         }
         const found = sources.find((s) => s.id === pickedId) ?? null;
+        if (!found) {
+          markDisplayMediaCancelled();
+        }
         if (configStore) {
           configStore.set({ shareAudio: withAudio });
         }
@@ -140,6 +169,7 @@ export async function openSourcePicker(
     pickerWin.on('closed', () => {
       if (!resolved) {
         resolved = true;
+        markDisplayMediaCancelled();
         cleanup();
         resolve(null);
       }
@@ -201,6 +231,16 @@ export function installDisplayMediaHandler(
         return;
       }
 
+      if (request.audioRequested) {
+        reuseVideoSourceId = null;
+        displayMediaCancelledAt = 0;
+      }
+
+      if (!request.audioRequested && shouldSuppressAudioFallbackRetry()) {
+        callback(null);
+        return;
+      }
+
       try {
         let sources: DesktopCapturerSource[] = [];
         try {
@@ -225,6 +265,16 @@ export function installDisplayMediaHandler(
           console.warn('[DisplayMedia] No capturable sources found');
           callback(null);
           return;
+        }
+
+        if (!request.audioRequested && reuseVideoSourceId) {
+          const reuseId = reuseVideoSourceId;
+          reuseVideoSourceId = null;
+          const reused = sources.find((source) => source.id === reuseId);
+          if (reused) {
+            callback({ video: reused });
+            return;
+          }
         }
 
         let pickedSource: DesktopCapturerSource | null = null;
@@ -262,6 +312,7 @@ export function installDisplayMediaHandler(
         };
         if (audio) {
           response.audio = audio;
+          reuseVideoSourceId = pickedSource.id;
         }
 
         callback(response);

@@ -11,6 +11,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
+import { isDisplayMediaUserCancellation } from '@shared/functions/display-media-error.utils';
 import { notifyError } from '@shared/functions/notify-error.function';
 import {
   TuiButton,
@@ -136,6 +137,9 @@ export class VoiceRoomControlsBarComponent {
     try {
       await start.produce();
     } catch (error) {
+      if (kind === 'screen' && isDisplayMediaUserCancellation(error)) {
+        return;
+      }
       notifyError(
         this.tuiNotificationsService,
         this.translateService,

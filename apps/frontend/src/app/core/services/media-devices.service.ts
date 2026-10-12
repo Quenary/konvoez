@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { isDisplayMediaAudioConstraintsAbortError } from '@shared/functions/display-media-error.utils';
 
 /**
  * Wrapper for navigator media devices api.
@@ -30,7 +31,10 @@ export class MediaDevicesService {
       // Only retry on AbortError with "capture constraints" in the message. Other errors
       // (including user cancellation / NotAllowedError or desktop picker cancellation)
       // must reject immediately without retrying getDisplayMedia.
-      if (!hasAudioRequested || !this.isCaptureConstraintsAbortError(error)) {
+      if (
+        !hasAudioRequested ||
+        !isDisplayMediaAudioConstraintsAbortError(error)
+      ) {
         return Promise.reject(error);
       }
 
@@ -53,22 +57,5 @@ export class MediaDevicesService {
       return navigator.mediaDevices.enumerateDevices();
     }
     return Promise.reject();
-  }
-
-  private isCaptureConstraintsAbortError(error: unknown): boolean {
-    if (typeof error !== 'object' || error === null) {
-      return false;
-    }
-    const name =
-      'name' in error && typeof error.name === 'string' ? error.name : '';
-    const message =
-      'message' in error && typeof error.message === 'string'
-        ? error.message
-        : '';
-
-    return (
-      name === 'AbortError' &&
-      message.toLowerCase().includes('capture constraints')
-    );
   }
 }

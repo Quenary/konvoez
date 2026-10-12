@@ -15,6 +15,7 @@ vi.mock('electron', () => {
     setMenu = vi.fn();
     loadFile = vi.fn();
     isDestroyed = vi.fn().mockReturnValue(false);
+    isVisible = vi.fn().mockReturnValue(false);
     close = vi.fn();
     on = vi.fn();
     once = vi.fn();
@@ -448,6 +449,137 @@ describe('display-media helpers', () => {
       );
 
       expect(callback).toHaveBeenCalledWith({ video: windowSource });
+    });
+
+    it('denies an immediate audio:false retry after the user cancelled the picker', async () => {
+      resetPickerOpenForTests();
+      const { desktopCapturer, ipcMain } = await import('electron');
+      const screenA = {
+        id: 'screen:1:0',
+        name: 'Screen 1',
+      } as DesktopCapturerSource;
+      const screenB = {
+        id: 'screen:2:0',
+        name: 'Screen 2',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([
+        screenA,
+        screenB,
+      ]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      void handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      await vi.waitFor(() => {
+        expect(
+          vi
+            .mocked(ipcMain.once)
+            .mock.calls.some((call) => call[0] === 'konvoez-local:pick-source'),
+        ).toBe(true);
+      });
+
+      const handlePick = vi
+        .mocked(ipcMain.once)
+        .mock.calls.find(
+          (call) => call[0] === 'konvoez-local:pick-source',
+        )?.[1] as (
+        event: unknown,
+        id: string | null,
+        withAudio?: boolean,
+      ) => void;
+
+      handlePick({}, null, true);
+
+      await vi.waitFor(() => {
+        expect(callback).toHaveBeenCalledWith(null);
+      });
+
+      callback.mockClear();
+      vi.mocked(desktopCapturer.getSources).mockClear();
+
+      await handler(
+        {
+          securityOrigin: 'https://konvoez.example.com',
+          audioRequested: false,
+        },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith(null);
+      expect(desktopCapturer.getSources).not.toHaveBeenCalled();
+    });
+
+    it('reuses the last picked video source when audio is not requested (audio fallback retry)', async () => {
+      const { desktopCapturer } = await import('electron');
+      const screenA = {
+        id: 'screen:1:0',
+        name: 'Screen 1',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([screenA]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const fakeConfigStore = {
+        get: vi.fn(() => ({ shareAudio: true })),
+        set: vi.fn(),
+      } as unknown as ConfigStore;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+        fakeConfigStore,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({
+        video: screenA,
+        audio: 'loopback',
+      });
+
+      callback.mockClear();
+
+      await handler(
+        {
+          securityOrigin: 'https://konvoez.example.com',
+          audioRequested: false,
+        },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({ video: screenA });
+      expect(callback).not.toHaveBeenCalledWith(
+        expect.objectContaining({ audio: 'loopback' }),
+      );
     });
 
     it('openSourcePicker saves shareAudio preference to configStore', async () => {
