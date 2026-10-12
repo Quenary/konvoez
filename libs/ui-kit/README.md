@@ -5,7 +5,7 @@ Lit UI primitives and theme tokens for Konvoez. Components use standard TC39 dec
 ## Components
 
 - **Buttons & Spinners**: `k-button`, `k-spinner`
-- **Form Controls**: `k-input`, `k-field`, `k-checkbox`, `k-hotkey-input`
+- **Form Controls**: `k-input`, `k-checkbox`, `k-hotkey-input`
 - **Feedback**: `k-message`
 - **Navigation & Layout**: `k-tabs`, `k-dialog-layout`, `k-dialog-actions`
 - **Media**: `k-source-card`, `k-source-grid`
