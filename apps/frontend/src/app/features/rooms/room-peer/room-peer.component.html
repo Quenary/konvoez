@@ -9,8 +9,27 @@
   [talking]="isSpeaking()" />
 
 <span
+  class="peer-name"
+  tuiFade
   tuiHintAppearance="floating"
   [style.color]="p.username | tuiAutoColor"
   [tuiHint]="hintValue">
   {{ p.username }}
 </span>
+
+@if (isMuted() || isDeafened()) {
+  <span class="status-icons">
+    @if (isMuted()) {
+      <tui-icon
+        iconStart="@tui.mic-off"
+        [tuiHint]="'CALL.MICROPHONE_MUTED' | translate"
+        tuiHintAppearance="floating" />
+    }
+    @if (isDeafened()) {
+      <tui-icon
+        iconStart="@tui.headphone-off"
+        [tuiHint]="'CALL.SOUND_OFF' | translate"
+        tuiHintAppearance="floating" />
+    }
+  </span>
+}

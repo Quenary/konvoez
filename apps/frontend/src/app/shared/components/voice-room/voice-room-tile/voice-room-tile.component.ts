@@ -6,7 +6,7 @@ import {
   input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { IUser } from '@konvoez/shared';
+import { IVoiceRoomPeerUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
@@ -69,7 +69,7 @@ export class VoiceRoomTileComponent {
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  public readonly peer = input.required<IUser>();
+  public readonly peer = input.required<IVoiceRoomPeerUser>();
   public readonly streamKind = input<TVoiceStreamKind | null>(null);
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);
@@ -122,13 +122,13 @@ export class VoiceRoomTileComponent {
   protected readonly isMuted = computed(() => {
     const isLocal = this.isLocal();
     const microphoneMuted = this.voiceAudioPreferencesStore.microphoneMuted();
-    return isLocal ? microphoneMuted : false;
+    return isLocal ? microphoneMuted : Boolean(this.peer().muted);
   });
 
   protected readonly isDeafened = computed(() => {
     const isLocal = this.isLocal();
     const speakerMuted = this.voiceAudioPreferencesStore.speakerMuted();
-    return isLocal ? speakerMuted : false;
+    return isLocal ? speakerMuted : Boolean(this.peer().deafened);
   });
 
   protected readonly volume = computed(() => {

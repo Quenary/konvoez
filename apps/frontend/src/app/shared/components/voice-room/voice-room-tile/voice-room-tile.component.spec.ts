@@ -15,7 +15,8 @@ import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 
-const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
+const user = (id: number): IUser =>
+  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
 
 describe('VoiceRoomTileComponent', () => {
   let currentUser: ReturnType<typeof signal<IUser | null>>;
@@ -187,5 +188,49 @@ describe('VoiceRoomTileComponent', () => {
     const previewService = TestBed.inject(LocalScreenPreviewService);
     fixture.componentInstance['onAutoPauseWhenHiddenChange'](false);
     expect(previewService.setAutoPauseWhenHidden).toHaveBeenCalledWith(false);
+  });
+
+  it('displays mute and deafen badges for remote peer when peer is muted and deafened', () => {
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+    fixture.componentRef.setInput('peer', {
+      ...user(2),
+      muted: true,
+      deafened: true,
+    });
+    fixture.componentRef.setInput('streamKind', null);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance['isMuted']()).toBe(true);
+    expect(fixture.componentInstance['isDeafened']()).toBe(true);
+    expect(
+      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        'tui-icon[iconStart="@tui.headphone-off"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('does not display mute and deafen badges for remote peer when peer is active', () => {
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+    fixture.componentRef.setInput('peer', {
+      ...user(2),
+      muted: false,
+      deafened: false,
+    });
+    fixture.componentRef.setInput('streamKind', null);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance['isMuted']()).toBe(false);
+    expect(fixture.componentInstance['isDeafened']()).toBe(false);
+    expect(
+      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        'tui-icon[iconStart="@tui.headphone-off"]',
+      ),
+    ).toBeNull();
   });
 });

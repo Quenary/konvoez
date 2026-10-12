@@ -1,0 +1,20 @@
+:host {
+  .peer-name {
+    min-width: 0;
+  }
+
+  .status-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-inline-start: auto;
+    flex-shrink: 0;
+    color: var(--tui-text-secondary);
+
+    tui-icon {
+      font-size: 1rem;
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+}
