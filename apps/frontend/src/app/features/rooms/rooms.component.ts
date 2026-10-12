@@ -33,6 +33,7 @@ import {
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
+  TuiFade,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
@@ -74,6 +75,7 @@ interface IRoomWithPeers extends IRoom {
     TuiDropdown,
     NgOptimizedImage,
     NgTemplateOutlet,
+    TuiFade,
   ],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',
