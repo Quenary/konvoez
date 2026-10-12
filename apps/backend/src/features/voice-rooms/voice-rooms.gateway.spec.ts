@@ -104,6 +104,7 @@ describe('VoiceRoomsGateway', () => {
     createGroupIdentity: jest.Mock;
     createLobbyPeerJoined: jest.Mock;
     createLobbyPeerLeft: jest.Mock;
+    createLobbyPeerMuted: jest.Mock;
   };
   let directCallsStateService: {
     create: jest.Mock;
@@ -152,6 +153,21 @@ describe('VoiceRoomsGateway', () => {
         epoch: 'epoch-1',
         revision: 1,
       })),
+      createLobbyPeerMuted: jest.fn(
+        (
+          roomId: number,
+          userId: number,
+          muted: boolean,
+          deafened: boolean,
+        ) => ({
+          roomId,
+          userId,
+          muted,
+          deafened,
+          epoch: 'epoch-1',
+          revision: 1,
+        }),
+      ),
     };
     directCallsStateService = {
       create: jest.fn(),
@@ -1117,6 +1133,107 @@ describe('VoiceRoomsGateway', () => {
       expect(consumer.close).not.toHaveBeenCalled();
       expect(peer.consumers.has('c1')).toBe(true);
       expect(peer.consumers.size).toBe(1);
+    });
+  });
+
+  describe('SET_MUTE_STATE', () => {
+    it('updates peer mute state and broadcasts to session and entity sync', async () => {
+      const room = createRoom();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        muted: false,
+        deafened: false,
+      };
+      room.peers.set('socket-1', peer);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = createSocket({
+        data: {
+          sessionKey: 'room:1',
+          roomId: 1,
+          user: alice,
+        },
+      });
+      socket.rooms.add('room:1');
+      const roomBroadcastEmit = jest.fn();
+      (socket.to as jest.Mock).mockReturnValue({ emit: roomBroadcastEmit });
+
+      const result = await gateway.handleSetMuteState(socket as never, {
+        muted: true,
+        deafened: true,
+      });
+
+      expect(result).toEqual({});
+      expect(peer.muted).toBe(true);
+      expect(peer.deafened).toBe(true);
+      expect(roomBroadcastEmit).toHaveBeenCalledWith(
+        EVoiceRoomEvent.PEER_MUTE_CHANGED,
+        {
+          userId: alice.id,
+          muted: true,
+          deafened: true,
+          sessionKey: 'room:1',
+          roomId: 1,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED,
+        {
+          roomId: 1,
+          userId: alice.id,
+          muted: true,
+          deafened: true,
+          epoch: 'epoch-1',
+          revision: 1,
+        },
+      );
+    });
+
+    it('does not emit entity sync when room is a direct call', async () => {
+      const room = createRoom();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        muted: false,
+        deafened: false,
+      };
+      room.peers.set('socket-1', peer);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = createSocket({
+        data: {
+          sessionKey: 'call:c1',
+          user: alice,
+        },
+      });
+      socket.rooms.add('call:c1');
+      const roomBroadcastEmit = jest.fn();
+      (socket.to as jest.Mock).mockReturnValue({ emit: roomBroadcastEmit });
+
+      const result = await gateway.handleSetMuteState(socket as never, {
+        muted: true,
+        deafened: false,
+      });
+
+      expect(result).toEqual({});
+      expect(peer.muted).toBe(true);
+      expect(peer.deafened).toBe(false);
+      expect(roomBroadcastEmit).toHaveBeenCalledWith(
+        EVoiceRoomEvent.PEER_MUTE_CHANGED,
+        {
+          userId: alice.id,
+          muted: true,
+          deafened: false,
+          sessionKey: 'call:c1',
+          roomId: undefined,
+        },
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });
 

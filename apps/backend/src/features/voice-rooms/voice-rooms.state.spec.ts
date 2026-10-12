@@ -54,10 +54,26 @@ describe('VoiceRoomsStateService lobby revision', () => {
 
     const joined = service.createLobbyPeerJoined(5, alice);
     const left = service.createLobbyPeerLeft(5, alice.id);
+    const muted = service.createLobbyPeerMuted(5, alice.id, true, false);
 
-    expect(joined).toEqual({ roomId: 5, user: alice, epoch, revision: 1 });
+    expect(joined).toEqual({
+      roomId: 5,
+      user: alice,
+      muted: false,
+      deafened: false,
+      epoch,
+      revision: 1,
+    });
     expect(left).toEqual({ roomId: 5, userId: alice.id, epoch, revision: 2 });
-    expect(service.getLobbySnapshot().revision).toBe(2);
+    expect(muted).toEqual({
+      roomId: 5,
+      userId: alice.id,
+      muted: true,
+      deafened: false,
+      epoch,
+      revision: 3,
+    });
+    expect(service.getLobbySnapshot().revision).toBe(3);
   });
 
   it('uses a different epoch for every service instance', () => {
@@ -118,6 +134,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: alice,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
         [
@@ -127,6 +145,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: bob,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
       ]),
@@ -167,6 +187,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: alice,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
         [
@@ -176,6 +198,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: alice,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
       ]),

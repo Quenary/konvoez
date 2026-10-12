@@ -10,6 +10,7 @@ import {
   IVoiceRoomGetAllPeersSnapshot,
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
+  IVoiceRoomLobbyPeerMuted,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
   IUser,
@@ -76,6 +77,8 @@ type VoiceRoomStatePeer = {
   recvTransport?: WebRtcTransport;
   producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
   consumers: Map<string, Consumer<VoiceRoomStateMediasoupAppData>>;
+  muted: boolean;
+  deafened: boolean;
 };
 
 export type VoiceRoomStateMediasoupAppData = {
@@ -157,6 +160,8 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
         ...prev,
         [curr.user.id]: {
           ...curr.user,
+          muted: curr.muted,
+          deafened: curr.deafened,
           producers: Array.from(curr.producers.values()).map((p) => ({
             userId: curr.user.id,
             producerId: p.id,
@@ -181,6 +186,8 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
           ...prev,
           [curr.user.id]: {
             ...curr.user,
+            muted: curr.muted,
+            deafened: curr.deafened,
           },
         }),
         {},
@@ -200,8 +207,10 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   public createLobbyPeerJoined(
     roomId: number,
     user: IUser,
+    muted = false,
+    deafened = false,
   ): IVoiceRoomLobbyPeerJoined {
-    return { roomId, user, ...this.nextLobbyVersion() };
+    return { roomId, user, muted, deafened, ...this.nextLobbyVersion() };
   }
 
   public createLobbyPeerLeft(
@@ -209,6 +218,15 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     userId: number,
   ): IVoiceRoomLobbyPeerLeft {
     return { roomId, userId, ...this.nextLobbyVersion() };
+  }
+
+  public createLobbyPeerMuted(
+    roomId: number,
+    userId: number,
+    muted: boolean,
+    deafened: boolean,
+  ): IVoiceRoomLobbyPeerMuted {
+    return { roomId, userId, muted, deafened, ...this.nextLobbyVersion() };
   }
 
   public resolveIdentityFromKey(key: string): TVoiceSessionIdentity | null {

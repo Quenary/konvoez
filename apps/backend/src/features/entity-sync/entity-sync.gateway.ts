@@ -105,4 +105,11 @@ export class EntitySyncGateway implements OnGatewayConnection {
   ) {
     this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_LEFT, payload);
   }
+
+  @OnEvent(EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED)
+  onVoiceRoomPeerMuted(
+    payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED],
+  ) {
+    this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_MUTED, payload);
+  }
 }
