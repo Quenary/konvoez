@@ -9,6 +9,7 @@
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{projectRoot}/dist"],
+      "dependsOn": ["ui-kit:generate-tokens"],
       "options": {
         "command": "node build.mjs",
         "cwd": "apps/desktop"
@@ -16,6 +17,7 @@
     },
     "serve": {
       "executor": "nx:run-commands",
+      "dependsOn": ["ui-kit:generate-tokens"],
       "options": {
         "command": "node build.mjs && electron .",
         "cwd": "apps/desktop"

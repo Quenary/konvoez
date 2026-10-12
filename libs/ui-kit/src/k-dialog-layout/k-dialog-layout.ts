@@ -11,6 +11,7 @@ export class KDialogLayout extends LitElement {
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
+        height: 100%;
         min-height: 100%;
         padding: 1.5rem;
         background-color: var(--tui-background-base);
@@ -27,13 +28,16 @@ export class KDialogLayout extends LitElement {
         color: var(--tui-text-primary);
       }
       main {
-        flex: 1;
+        flex: 1 1 auto;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: 1rem;
       }
       footer {
-        margin-top: 1.5rem;
+        flex-shrink: 0;
+        margin-top: auto;
+        padding-top: 1.5rem;
       }
     `,
   ];

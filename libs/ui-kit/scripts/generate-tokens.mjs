@@ -6,13 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '../../..');
 
-const lightCssPath = path.resolve(
+const taigaPaletteLessPath = path.resolve(
   rootDir,
-  'node_modules/@taiga-ui/design-tokens/palette/light.css',
-);
-const darkCssPath = path.resolve(
-  rootDir,
-  'node_modules/@taiga-ui/design-tokens/palette/dark.css',
+  'node_modules/@taiga-ui/styles/mixins/theme/palette.less',
 );
 
 const TOKEN_SUBSET = [
@@ -27,6 +23,7 @@ const TOKEN_SUBSET = [
   '--tui-text-secondary',
   '--tui-text-tertiary',
   '--tui-text-primary-on-accent-1',
+  '--tui-text-action',
   '--tui-text-negative',
   '--tui-text-positive',
   '--tui-status-negative',
@@ -41,11 +38,31 @@ const SHAPE_TOKENS = [
   ['--tui-font-text', "'Manrope', system-ui, sans-serif"],
 ];
 
-function parseCss(css) {
+function extractMixinBody(less, mixinName) {
+  const marker = `.${mixinName}() {`;
+  const start = less.indexOf(marker);
+  if (start === -1) {
+    throw new Error(`Missing mixin ${mixinName} in ${taigaPaletteLessPath}`);
+  }
+  let depth = 0;
+  const openBrace = less.indexOf('{', start);
+  for (let i = openBrace; i < less.length; i++) {
+    if (less[i] === '{') depth++;
+    if (less[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        return less.slice(openBrace + 1, i);
+      }
+    }
+  }
+  throw new Error(`Unclosed mixin ${mixinName}`);
+}
+
+function parseMixinVariables(mixinBody) {
   const map = new Map();
   const regex = /(--[a-zA-Z0-9_-]+)\s*:\s*([^;]+);/g;
   let match;
-  while ((match = regex.exec(css)) !== null) {
+  while ((match = regex.exec(mixinBody)) !== null) {
     let val = match[2].trim();
     val = val.replace(/\/\*.*?\*\//g, '').trim();
     map.set(match[1], val);
@@ -53,29 +70,23 @@ function parseCss(css) {
   return map;
 }
 
-function resolveVal(val, map) {
-  return val.replace(/var\((--[a-zA-Z0-9_-]+)\)/g, (m, varName) => {
-    const target = map.get(varName);
-    return target ? resolveVal(target, map) : m;
-  });
-}
-
-function extractTokens(filePath) {
-  const css = fs.readFileSync(filePath, 'utf8');
-  const map = parseCss(css);
+function pickTokens(sourceMap, fallbackMap) {
   const result = new Map();
   for (const name of TOKEN_SUBSET) {
-    const raw = map.get(name);
+    const raw = sourceMap.get(name) ?? fallbackMap?.get(name);
     if (!raw) {
-      throw new Error(`Missing token ${name} in ${filePath}`);
+      throw new Error(`Missing token ${name} in Taiga palette mixins`);
     }
-    result.set(name, resolveVal(raw, map));
+    result.set(name, raw);
   }
   return result;
 }
 
-const lightTokens = extractTokens(lightCssPath);
-const darkTokens = extractTokens(darkCssPath);
+const less = fs.readFileSync(taigaPaletteLessPath, 'utf8');
+const lightMap = parseMixinVariables(extractMixinBody(less, 'tui-theme-light'));
+const darkMap = parseMixinVariables(extractMixinBody(less, 'tui-theme-dark'));
+const lightTokens = pickTokens(lightMap);
+const darkTokens = pickTokens(darkMap, lightMap);
 
 function formatBlock(tokensMap, selector, includeShape = false, indent = '  ') {
   const lines = [`${selector} {`];
@@ -91,7 +102,9 @@ function formatBlock(tokensMap, selector, includeShape = false, indent = '  ') {
   return lines.join('\n');
 }
 
-// 1. Generate libs/ui-kit/src/theme/tokens.ts
+const generatedDir = path.resolve(rootDir, 'libs/ui-kit/src/theme/generated');
+fs.mkdirSync(generatedDir, { recursive: true });
+
 const tokensTsContent = `import { css } from 'lit';
 
 export const tokens = css\`
@@ -103,38 +116,16 @@ ${formatBlock(darkTokens, '    :host', false, '  ')}
 \`;
 `;
 
-const tokensOutPath = path.resolve(rootDir, 'libs/ui-kit/src/theme/tokens.ts');
-fs.mkdirSync(path.dirname(tokensOutPath), { recursive: true });
-fs.writeFileSync(tokensOutPath, tokensTsContent, 'utf8');
-console.log(`[generate-tokens] Wrote ${tokensOutPath}`);
-
-// 2. Generate apps/desktop/src/pages/host.css
-const hostCssContent = `${formatBlock(lightTokens, ':root', true, '')}
+const rootTokensCss = `${formatBlock(lightTokens, ':root', true, '')}
 
 @media (prefers-color-scheme: dark) {
 ${formatBlock(darkTokens, '  :root', false, '')}
 }
-
-html,
-body {
-  margin: 0;
-  height: 100%;
-  background: var(--tui-background-base);
-  color: var(--tui-text-primary);
-  font-family: var(--tui-font-text);
-  user-select: none;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: inherit;
-}
 `;
 
-const hostCssOutPath = path.resolve(rootDir, 'apps/desktop/src/pages/host.css');
-fs.mkdirSync(path.dirname(hostCssOutPath), { recursive: true });
-fs.writeFileSync(hostCssOutPath, hostCssContent, 'utf8');
-console.log(`[generate-tokens] Wrote ${hostCssOutPath}`);
+const tokensOutPath = path.resolve(generatedDir, 'tokens.ts');
+const rootTokensOutPath = path.resolve(generatedDir, 'root-tokens.css');
+fs.writeFileSync(tokensOutPath, tokensTsContent, 'utf8');
+fs.writeFileSync(rootTokensOutPath, rootTokensCss, 'utf8');
+console.log(`[generate-tokens] Wrote ${tokensOutPath}`);
+console.log(`[generate-tokens] Wrote ${rootTokensOutPath}`);

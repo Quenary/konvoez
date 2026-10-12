@@ -29,8 +29,14 @@ export class KServerDialog extends LitElement {
     tokens,
     css`
       :host {
-        display: block;
-        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 100%;
+      }
+      k-dialog-layout {
+        flex: 1;
+        min-height: 0;
       }
       p.subtitle {
         margin: 0 0 0.5rem 0;

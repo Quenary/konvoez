@@ -48,7 +48,7 @@ export class KTabs extends LitElement {
       }
       button.active {
         background-color: var(--tui-background-base, #ffffff);
-        color: var(--tui-text-primary);
+        color: var(--tui-text-action);
         font-weight: 600;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       }

@@ -14,6 +14,7 @@ describe('theme tokens', () => {
     '--tui-text-secondary',
     '--tui-text-tertiary',
     '--tui-text-primary-on-accent-1',
+    '--tui-text-action',
     '--tui-text-negative',
     '--tui-text-positive',
     '--tui-status-negative',

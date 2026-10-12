@@ -14,7 +14,7 @@
     "release:dry": "node tools/release.mjs --dry-run",
     "migration:create": "nx run backend:migration-create",
     "tokens:ui-kit": "node libs/ui-kit/scripts/generate-tokens.mjs",
-    "prepare": "husky"
+    "prepare": "npm run tokens:ui-kit && husky"
   },
   "repository": {
     "type": "git",

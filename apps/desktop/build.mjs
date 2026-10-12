@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import * as esbuild from 'esbuild';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -65,6 +66,14 @@ async function build() {
   console.log(
     `[Desktop Build] Starting build (mode: ${isDev ? 'development' : 'production'})...`,
   );
+
+  console.log('[Desktop Build] Generating ui-kit theme tokens...');
+  execSync('node ../../libs/ui-kit/scripts/generate-tokens.mjs', {
+    cwd: __dirname,
+    stdio: 'inherit',
+  });
+
+  const uiKitThemeDir = path.resolve(__dirname, '../../libs/ui-kit/src/theme');
 
   // 1. Ensure output directories exist
   fs.mkdirSync(distDir, { recursive: true });
@@ -164,14 +173,16 @@ async function build() {
   // 5. Copy Static Page Assets
   console.log('[Desktop Build] Copying static assets (HTML & CSS)...');
   const pagesSourceDir = path.resolve(__dirname, 'src/pages');
-  const staticFiles = [
-    'host.css',
-    'server.html',
-    'settings.html',
-    'picker.html',
-  ];
+  const hostCss = [
+    fs.readFileSync(
+      path.resolve(uiKitThemeDir, 'generated/root-tokens.css'),
+      'utf8',
+    ),
+    fs.readFileSync(path.resolve(uiKitThemeDir, 'host-base.css'), 'utf8'),
+  ].join('\n\n');
+  fs.writeFileSync(path.resolve(distPagesDir, 'host.css'), hostCss, 'utf8');
 
-  for (const file of staticFiles) {
+  for (const file of ['server.html', 'settings.html', 'picker.html']) {
     const src = path.resolve(pagesSourceDir, file);
     const dest = path.resolve(distPagesDir, file);
     if (fs.existsSync(src)) {

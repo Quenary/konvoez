@@ -65,7 +65,7 @@ export class KButton extends LitElement {
       }
       :host([variant='secondary']) button {
         background-color: var(--tui-background-neutral-1);
-        color: var(--tui-text-primary);
+        color: var(--tui-text-action);
       }
       :host([variant='secondary']:not([disabled]):not([loading])) button:hover {
         background-color: var(--tui-background-neutral-1-hover);

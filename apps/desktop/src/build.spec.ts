@@ -53,8 +53,12 @@ describe('desktop build', () => {
     }
   });
 
-  it('ensures dist/pages/host.css exists', () => {
+  it('ensures dist/pages/host.css exists with Taiga theme tokens', () => {
     const hostCssPath = path.resolve(distPagesDir, 'host.css');
     expect(fs.existsSync(hostCssPath)).toBe(true);
+    const css = fs.readFileSync(hostCssPath, 'utf8');
+    expect(css).toContain('--tui-background-accent-1: #526ed3');
+    expect(css).toContain('html,');
+    expect(css).toContain('body {');
   });
 });

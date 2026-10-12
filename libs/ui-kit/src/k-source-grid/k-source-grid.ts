@@ -11,13 +11,18 @@ export class KSourceGrid extends LitElement {
     tokens,
     css`
       :host {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
       }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
         gap: 0.75rem;
-        max-height: 20rem;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
         overflow-y: auto;
         padding: 0.25rem;
         box-sizing: border-box;
@@ -26,6 +31,7 @@ export class KSourceGrid extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
+        flex: 1 1 auto;
         min-height: 10rem;
         color: var(--tui-text-tertiary);
         font-size: 0.875rem;
