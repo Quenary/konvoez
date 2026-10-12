@@ -1,3 +1,18 @@
+## 1.18.0 (2026-10-12)
+
+### Features
+
+- **frontend:** add connection state notification ([c6e96ac](https://github.com/Quenary/konvoez/commit/c6e96ac))
+- **frontend:** implement file sharing dialog for iOS standalone PWA ([8f9b38b](https://github.com/Quenary/konvoez/commit/8f9b38b))
+
+### Bug Fixes
+
+- **frontend:** wrap room name in tuiFade span for improved styling ([fae5ded](https://github.com/Quenary/konvoez/commit/fae5ded))
+
+### Styles
+
+- **frontend:** chat message menu and reactions styles for smaller screens ([18ba98b](https://github.com/Quenary/konvoez/commit/18ba98b))
+
 ## 1.17.0 (2026-10-12)
 
 ### Features
