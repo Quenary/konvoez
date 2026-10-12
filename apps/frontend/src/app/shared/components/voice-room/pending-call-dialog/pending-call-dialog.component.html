@@ -18,18 +18,20 @@
 
       @let hintValue =
         user.fullname && user.fullname !== user.username ? user.fullname : null;
-      <span
-        tuiTitle
-        tuiHintAppearance="floating"
-        [style.color]="user.username | tuiAutoColor"
-        [tuiHint]="hintValue">
-        {{ user.username }}
-      </span>
+      <div tuiTitle>
+        <span
+          tuiHintAppearance="floating"
+          [style.color]="user.username | tuiAutoColor"
+          [tuiHint]="hintValue">
+          {{ user.username }}
+        </span>
+        @if (isInGroupRoom()) {
+          <span tuiSubtitle>
+            {{ 'CALL.PENDING.LEAVE_ROOM_HINT' | translate }}
+          </span>
+        }
+      </div>
     </div>
-
-    @if (isInGroupRoom()) {
-      <p tuiSubtitle>{{ 'CALL.PENDING.LEAVE_ROOM_HINT' | translate }}</p>
-    }
 
     @let _direction = direction();
 
