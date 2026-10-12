@@ -1,3 +1,23 @@
+## 1.17.0 (2026-10-12)
+
+### Features
+
+- **server:** implement ringing call handling and add pending call dialog for incoming and outgoing calls ([01ada5d](https://github.com/Quenary/konvoez/commit/01ada5d))
+- **frontend:** add TokenRefreshService, sessionExpired, and AuthSocketManager ([e028ba8](https://github.com/Quenary/konvoez/commit/e028ba8))
+
+### Bug Fixes
+
+- **frontend:** nest pending-call room hint under tuiTitle subtitle ([4956050](https://github.com/Quenary/konvoez/commit/4956050))
+- **backend:** grace period before canceling call on caller disconnect ([74ce87d](https://github.com/Quenary/konvoez/commit/74ce87d))
+- **frontend:** improve reconnection logic and backoff strategy in AuthSocketManager tests ([de4bb67](https://github.com/Quenary/konvoez/commit/de4bb67))
+- **frontend:** dont re-open desktop stream dialog after cancel ([6aa94fb](https://github.com/Quenary/konvoez/commit/6aa94fb))
+- desktop screen share ([d34d836](https://github.com/Quenary/konvoez/commit/d34d836))
+
+### Styles
+
+- **frontend:** chat message readers list layout ([3eeafa7](https://github.com/Quenary/konvoez/commit/3eeafa7))
+- **frontend:** new direct chat dialog on smaller screens ([a7d6caa](https://github.com/Quenary/konvoez/commit/a7d6caa))
+
 ## 1.16.0 (2026-10-11)
 
 ### Features
