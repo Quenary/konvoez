@@ -26,6 +26,8 @@ export const translations = {
     'menu.view': 'View',
     'menu.window': 'Window',
     'menu.close': 'Close window',
+    'menu.help': 'Help',
+    'menu.help.appVersion': 'App version {version}',
     'settings.title': 'Desktop Settings',
     'settings.hotkeys': 'Global Hotkeys',
     'settings.hotkeysHint':
@@ -91,6 +93,8 @@ export const translations = {
     'menu.view': 'Вид',
     'menu.window': 'Окно',
     'menu.close': 'Закрыть окно',
+    'menu.help': 'Помощь',
+    'menu.help.appVersion': 'Версия приложения {version}',
     'settings.title': 'Настройки приложения',
     'settings.hotkeys': 'Глобальные горячие клавиши',
     'settings.hotkeysHint':

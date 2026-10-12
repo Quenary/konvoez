@@ -5,7 +5,7 @@ import { t } from './i18n';
 export function buildAppMenuTemplate(
   items: Record<TAppAction, MenuItemConstructorOptions>,
   locale: string,
-  options: { onCloseWindow: () => void },
+  options: { onCloseWindow: () => void; appVersion: string },
 ): MenuItemConstructorOptions[] {
   const viewSubmenu: MenuItemConstructorOptions[] = [
     { role: 'reload' },
@@ -59,6 +59,17 @@ export function buildAppMenuTemplate(
         {
           label: t('menu.close', locale),
           click: () => options.onCloseWindow(),
+        },
+      ],
+    },
+    {
+      label: t('menu.help', locale),
+      submenu: [
+        {
+          label: t('menu.help.appVersion', locale, {
+            version: options.appVersion,
+          }),
+          enabled: false,
         },
       ],
     },

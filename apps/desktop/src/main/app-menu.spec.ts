@@ -26,6 +26,7 @@ function buildMenus(locale: string) {
   const items = buildActionItems(itemOpts);
   const template = buildAppMenuTemplate(items, locale, {
     onCloseWindow: vi.fn(),
+    appVersion: '1.2.3',
   });
   return { template, run, items };
 }
@@ -39,6 +40,7 @@ describe('buildAppMenuTemplate', () => {
       'Voice',
       'View',
       'Window',
+      'Help',
     ]);
   });
 
@@ -50,7 +52,26 @@ describe('buildAppMenuTemplate', () => {
       'Голос',
       'Вид',
       'Окно',
+      'Помощь',
     ]);
+  });
+
+  it('shows the app version in the Help submenu', () => {
+    const { template } = buildMenus('en');
+    const helpItems = submenuItems(template, 'Help');
+    const appVersion = helpItems.find(
+      (item) => item.label === 'App version 1.2.3',
+    );
+
+    expect(appVersion).toBeDefined();
+    expect(appVersion?.enabled).toBe(false);
+  });
+
+  it('localizes the app version item in the Help submenu', () => {
+    const { template } = buildMenus('ru');
+    const helpItems = submenuItems(template, 'Помощь');
+
+    expect(helpItems[0]?.label).toBe('Версия приложения 1.2.3');
   });
 
   it('reflects mic/speaker checkbox state in Voice menu', () => {
