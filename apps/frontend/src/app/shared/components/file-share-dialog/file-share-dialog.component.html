@@ -1,0 +1,20 @@
+@switch (state()) {
+  @case ('ready') {
+    <button
+      tuiButton
+      type="button"
+      (click)="save()">
+      {{ 'ROOMS.DOWNLOAD' | translate }}
+    </button>
+  }
+  @case ('failed') {
+    <p class="error">{{ 'ROOMS.DOWNLOAD_FAILED' | translate }}</p>
+  }
+  @default {
+    <progress
+      size="m"
+      tuiProgressBar
+      [max]="100"
+      [attr.value]="progress()"></progress>
+  }
+}

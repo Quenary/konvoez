@@ -135,6 +135,7 @@ ROOMS:
   VIDEO_DURATION: Duration {{duration}}
   CANCEL_SENDING: Cancel sending
   DOWNLOAD: Download
+  DOWNLOAD_FAILED: Couldn't download the file
   PREVIEW_UNSUPPORTED: This file can't be played in your browser
   TOO_MANY_FILES: You can attach up to {{max}} files
   UPLOAD_ERROR:

@@ -31,12 +31,12 @@
       <div class="unsupported">
         <p>{{ 'ROOMS.PREVIEW_UNSUPPORTED' | translate }}</p>
         @if (item.downloadUrl) {
-          <a
+          <button
             tuiButton
-            [href]="item.downloadUrl"
-            download>
+            type="button"
+            (click)="download()">
             {{ 'ROOMS.DOWNLOAD' | translate }}
-          </a>
+          </button>
         }
       </div>
     } @else if (item.kind === kinds.IMAGE) {
