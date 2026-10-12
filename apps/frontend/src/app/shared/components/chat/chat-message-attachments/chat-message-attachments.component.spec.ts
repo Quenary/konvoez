@@ -9,6 +9,7 @@ import {
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DownloadService } from '@core/services/download.service';
 import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
 import { ChatMessageAttachmentsComponent } from './chat-message-attachments.component';
 
@@ -31,14 +32,19 @@ function attachment(
 describe('ChatMessageAttachmentsComponent', () => {
   let fixture: ComponentFixture<ChatMessageAttachmentsComponent>;
   const open = vi.fn(() => of(undefined));
+  const downloadUrl = vi.fn();
+  const downloads = { usesShareDialog: false, downloadUrl };
 
   beforeEach(async () => {
     open.mockClear();
+    downloadUrl.mockClear();
+    downloads.usesShareDialog = false;
     await TestBed.configureTestingModule({
       imports: [ChatMessageAttachmentsComponent],
       providers: [
         provideTranslateService(),
         { provide: MediaPreviewService, useValue: { open } },
+        { provide: DownloadService, useValue: downloads },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ChatMessageAttachmentsComponent);
@@ -269,5 +275,44 @@ describe('ChatMessageAttachmentsComponent', () => {
       ],
       1,
     );
+  });
+
+  describe('file download link', () => {
+    function clickFileLink(): MouseEvent {
+      fixture.componentRef.setInput('attachments', [
+        attachment({
+          id: 'doc',
+          kind: EAttachmentKind.FILE,
+          mime: 'text/plain',
+          name: 'doc.txt',
+        }),
+      ]);
+      fixture.detectChanges();
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      });
+      fixture.nativeElement.querySelector('a[tuiFile]').dispatchEvent(event);
+      return event;
+    }
+
+    it('uses the share dialog instead of navigating on iOS standalone', () => {
+      downloads.usesShareDialog = true;
+
+      const event = clickFileLink();
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(downloadUrl).toHaveBeenCalledWith(
+        '/api/v1/attachments/doc/content?download=1',
+        'doc.txt',
+      );
+    });
+
+    it('keeps the native link elsewhere', () => {
+      const event = clickFileLink();
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(downloadUrl).not.toHaveBeenCalled();
+    });
   });
 });

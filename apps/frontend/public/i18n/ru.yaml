@@ -22,6 +22,8 @@ GENERAL:
   DROP_IT: Бросай его сюда!
   CLOSE: Закрыть
   MORE: Ещё
+CONNECTION:
+  PROBLEMS: Проблемы с подключением
 PROFILE:
   USERNAME: Имя пользователя
   PASSWORD: Пароль
@@ -135,6 +137,7 @@ ROOMS:
   VIDEO_DURATION: Длительность {{duration}}
   CANCEL_SENDING: Отменить отправку
   DOWNLOAD: Скачать
+  DOWNLOAD_FAILED: Не удалось скачать файл
   PREVIEW_UNSUPPORTED: Этот файл нельзя воспроизвести в браузере
   TOO_MANY_FILES: Можно прикрепить не больше {{max}} файлов
   UPLOAD_ERROR:

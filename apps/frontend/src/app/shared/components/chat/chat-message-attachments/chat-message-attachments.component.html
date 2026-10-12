@@ -42,7 +42,8 @@
       tuiFile
       [file]="{ name: item.name, size: item.size, type: '' }"
       [href]="item.downloadUrl"
-      [state]="item.fileState">
+      [state]="item.fileState"
+      (click)="onDownload($event, item)">
     </a>
   } @else {
     <tui-file

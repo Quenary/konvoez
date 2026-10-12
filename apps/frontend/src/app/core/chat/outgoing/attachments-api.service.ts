@@ -51,4 +51,13 @@ export class AttachmentsApiService {
       `${environment.apiPath}/attachments/${id}`,
     );
   }
+
+  download(url: string): Observable<HttpEvent<Blob>> {
+    return this.httpClient.get(url, {
+      responseType: 'blob',
+      observe: 'events',
+      reportProgress: true,
+      withCredentials: true,
+    });
+  }
 }

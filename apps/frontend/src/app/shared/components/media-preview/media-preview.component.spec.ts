@@ -3,19 +3,23 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { EAttachmentKind } from '@konvoez/shared';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DownloadService } from '@core/services/download.service';
 import { MEDIA_PREVIEW_DATA } from './media-preview';
 import { MediaPreviewComponent } from './media-preview.component';
 
 describe('MediaPreviewComponent', () => {
   let fixture: ComponentFixture<MediaPreviewComponent>;
   const complete = vi.fn();
+  const downloadUrl = vi.fn();
 
   beforeEach(async () => {
     complete.mockClear();
+    downloadUrl.mockClear();
     await TestBed.configureTestingModule({
       imports: [MediaPreviewComponent],
       providers: [
         provideTranslateService(),
+        { provide: DownloadService, useValue: { downloadUrl } },
         {
           provide: MEDIA_PREVIEW_DATA,
           useValue: {
@@ -66,16 +70,20 @@ describe('MediaPreviewComponent', () => {
     expect(complete).toHaveBeenCalled();
   });
 
-  it('shows an unsupported video state with a download link', () => {
+  it('shows an unsupported video state with a download button', () => {
     fixture.componentInstance['onIndex'](1);
     fixture.componentInstance['onBroken']();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain(
       'ROOMS.PREVIEW_UNSUPPORTED',
     );
-    const link = fixture.nativeElement.querySelector(
-      'a[href="/file?download=1"]',
-    ) as HTMLAnchorElement | null;
-    expect(link?.textContent).toContain('ROOMS.DOWNLOAD');
+    const button = fixture.nativeElement.querySelector(
+      '.unsupported button',
+    ) as HTMLButtonElement | null;
+    expect(button?.textContent).toContain('ROOMS.DOWNLOAD');
+
+    button?.click();
+
+    expect(downloadUrl).toHaveBeenCalledWith('/file?download=1', 'two.mp4');
   });
 });

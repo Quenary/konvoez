@@ -101,7 +101,6 @@ docker compose -f docker-compose.build.yml up -d --build
 - Add notification click navigation
 - Add common user dialog with short info and direct chat/call buttons
 - Add emojis or/and customizable smile/sticker packs
-- Add connection state indication
 - Add mute indication for other peers
 - Add customizable roles (functions access) and groups (rooms access)
 - Add invite emails (if email set), 2FA via email codes

@@ -89,3 +89,5 @@ The 50 MiB default fits Cloudflare Free/Pro (100 MB request-body cap) and typica
 ## Client
 
 Choosing files does not upload them. For a video, the browser starts a poster immediately and shows it in the composer. Upload starts when the message is sent and waits for that poster attempt to finish. Retry sends the same poster. Reloading the page drops unsent messages; uploaded files that were never attached expire after 24 hours.
+
+Downloading a file in an iOS home-screen app (standalone PWA) does not navigate to it: iOS would open a full-screen preview with no way back. The client opens a small dialog instead, loads the file with the session cookie (with a progress bar), and the Download button hands it to the share sheet (Save to Files, Save Image). The file is held in memory, so very large files may fail on iOS. Browsers, Android and the desktop app keep the normal download.

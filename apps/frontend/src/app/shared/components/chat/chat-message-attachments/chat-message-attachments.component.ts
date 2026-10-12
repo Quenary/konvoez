@@ -17,6 +17,7 @@ import { FileThumbnailComponent } from '@shared/components/file-thumbnail/file-t
 import { MediaGridComponent } from '@shared/components/media-grid/media-grid.component';
 import { IMediaPreviewItem } from '@shared/components/media-preview/media-preview';
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
+import { DownloadService } from '@core/services/download.service';
 import {
   IOutgoingMessage,
   uploadErrorKey,
@@ -48,6 +49,7 @@ export interface IAttachmentView {
 })
 export class ChatMessageAttachmentsComponent {
   private readonly mediaPreviewService = inject(MediaPreviewService);
+  private readonly downloadService = inject(DownloadService);
 
   public readonly attachments = input<readonly IAttachment[]>([]);
   public readonly outgoing = input<IOutgoingMessage | null>(null);
@@ -148,6 +150,14 @@ export class ChatMessageAttachmentsComponent {
     }
     return { width: source.width, height: source.height };
   });
+
+  protected onDownload(event: MouseEvent, item: IAttachmentView): void {
+    if (!this.downloadService.usesShareDialog || !item.downloadUrl) {
+      return;
+    }
+    event.preventDefault();
+    this.downloadService.downloadUrl(item.downloadUrl, item.name);
+  }
 
   protected open(target: IAttachmentView | number): void {
     const validViews = this.media().filter(
