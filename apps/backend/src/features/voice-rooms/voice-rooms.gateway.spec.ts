@@ -1620,11 +1620,20 @@ describe('VoiceRoomsGateway', () => {
       expect(gateway['ringTimers'].get(call.callId)).toBe(firstTimer);
     });
 
-    it('cancels ringing calls when the caller last socket disconnects', async () => {
+    it('cancels ringing calls after the caller reconnect grace elapses', async () => {
       const call = realState.create(alice.id, bob.id);
       fetchSockets.mockResolvedValue([]);
 
       await gateway.handleDisconnect(createSocket({ data: { user: alice } }));
+
+      expect(realState.get(call.callId)).toBeDefined();
+      expect(serverMock.emit).not.toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_HANGUP,
+        expect.anything(),
+      );
+
+      jest.advanceTimersByTime(5_000);
+      await Promise.resolve();
 
       expect(realState.get(call.callId)).toBeUndefined();
       expect(serverMock.to).toHaveBeenCalledWith('8');
@@ -1634,6 +1643,25 @@ describe('VoiceRoomsGateway', () => {
           callId: call.callId,
           byUserId: alice.id,
         },
+      );
+    });
+
+    it('keeps ringing when the caller reconnects within the grace window', async () => {
+      const call = realState.create(alice.id, bob.id);
+      fetchSockets.mockResolvedValue([]);
+
+      await gateway.handleDisconnect(createSocket({ data: { user: alice } }));
+
+      authService.getUserFromRawCookies.mockResolvedValue(alice);
+      await gateway.handleConnection(createSocket({ data: {} }) as never);
+
+      jest.advanceTimersByTime(5_000);
+      await Promise.resolve();
+
+      expect(realState.get(call.callId)).toBeDefined();
+      expect(serverMock.emit).not.toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_HANGUP,
+        expect.anything(),
       );
     });
 

@@ -88,6 +88,8 @@ type TSocket = Socket<
   }
 >;
 
+const DIRECT_CALL_CALLER_RECONNECT_GRACE_MS = 5_000;
+
 @UseFilters(WsAckExceptionFilter)
 @WebSocketGateway({
   path: '/ws/v1/voice',
@@ -98,6 +100,7 @@ export class VoiceRoomsGateway
 {
   private readonly logger = new Logger(VoiceRoomsGateway.name);
   private readonly ringTimers = new Map<string, NodeJS.Timeout>();
+  private readonly callerDisconnectTimers = new Map<string, NodeJS.Timeout>();
 
   @WebSocketServer()
   private readonly server!: Server<TVoiceRoomEventMap>;
@@ -159,6 +162,11 @@ export class VoiceRoomsGateway
 
       client.data.user = user;
       client.join(user.id.toString());
+      for (const call of this.directCallsStateService.findRingingByCaller(
+        user.id,
+      )) {
+        this.clearCallerDisconnectTimer(call.callId);
+      }
       this.logger.debug(
         `Socket connected: socketId=${client.id}, userId=${user.id}`,
       );
@@ -192,14 +200,7 @@ export class VoiceRoomsGateway
     for (const call of this.directCallsStateService.findRingingByCaller(
       user.id,
     )) {
-      this.directCallsStateService.cancel(call.callId);
-      this.clearRingTimer(call.callId);
-      this.server
-        .to(call.recipientId.toString())
-        .emit(EDirectCallEvent.CALL_HANGUP, {
-          callId: call.callId,
-          byUserId: user.id,
-        });
+      this.scheduleCallerDisconnectCancel(call.callId, user.id);
     }
   }
 
@@ -208,6 +209,10 @@ export class VoiceRoomsGateway
       clearTimeout(timer);
     }
     this.ringTimers.clear();
+    for (const timer of this.callerDisconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.callerDisconnectTimers.clear();
   }
 
   @SubscribeMessage(EVoiceRoomEvent.JOIN_ROOM)
@@ -735,6 +740,7 @@ export class VoiceRoomsGateway
     );
 
     this.clearRingTimer(body.callId);
+    this.clearCallerDisconnectTimer(body.callId);
 
     this.server
       .to(body.callerId.toString())
@@ -769,6 +775,7 @@ export class VoiceRoomsGateway
     const call = this.directCallsStateService.reject(body.callId, recipient.id);
     if (call) {
       this.clearRingTimer(body.callId);
+      this.clearCallerDisconnectTimer(body.callId);
       this.logger.debug(
         `Call rejected: callId=${body.callId}, callerId=${body.callerId}, reason=${body.reason ?? 'declined'}`,
       );
@@ -806,6 +813,7 @@ export class VoiceRoomsGateway
     }
 
     this.clearRingTimer(body.callId);
+    this.clearCallerDisconnectTimer(body.callId);
 
     this.logger.debug(
       `Call hangup: callId=${body.callId}, byUserId=${body.byUserId}`,
@@ -1136,12 +1144,60 @@ export class VoiceRoomsGateway
 
   private onRingTimeout(callId: string): void {
     this.ringTimers.delete(callId);
+    this.clearCallerDisconnectTimer(callId);
     const call = this.directCallsStateService.get(callId);
     if (!call || call.status !== 'ringing') {
       return;
     }
     this.directCallsStateService.cancel(callId);
     this.emitCallEnded(callId, call.callerId, call.recipientId, 'timeout');
+  }
+
+  private scheduleCallerDisconnectCancel(
+    callId: string,
+    callerId: number,
+  ): void {
+    if (this.callerDisconnectTimers.has(callId)) {
+      return;
+    }
+    this.callerDisconnectTimers.set(
+      callId,
+      setTimeout(
+        () => void this.onCallerDisconnectGraceElapsed(callId, callerId),
+        DIRECT_CALL_CALLER_RECONNECT_GRACE_MS,
+      ),
+    );
+  }
+
+  private clearCallerDisconnectTimer(callId: string): void {
+    const timer = this.callerDisconnectTimers.get(callId);
+    if (timer) {
+      clearTimeout(timer);
+      this.callerDisconnectTimers.delete(callId);
+    }
+  }
+
+  private async onCallerDisconnectGraceElapsed(
+    callId: string,
+    callerId: number,
+  ): Promise<void> {
+    this.callerDisconnectTimers.delete(callId);
+    const remaining = await this.server.in(callerId.toString()).fetchSockets();
+    if (remaining.length > 0) {
+      return;
+    }
+    const call = this.directCallsStateService.get(callId);
+    if (!call || call.status !== 'ringing' || call.callerId !== callerId) {
+      return;
+    }
+    this.directCallsStateService.cancel(callId);
+    this.clearRingTimer(callId);
+    this.server
+      .to(call.recipientId.toString())
+      .emit(EDirectCallEvent.CALL_HANGUP, {
+        callId,
+        byUserId: callerId,
+      });
   }
 
   private endDirectCallIfEmpty(
@@ -1158,6 +1214,7 @@ export class VoiceRoomsGateway
     const ended = this.directCallsStateService.end(identity.callId);
     if (ended) {
       this.clearRingTimer(ended.callId);
+      this.clearCallerDisconnectTimer(ended.callId);
       this.logger.debug(
         `Call ended: callId=${ended.callId}, callerId=${ended.callerId}, recipientId=${ended.recipientId}`,
       );
