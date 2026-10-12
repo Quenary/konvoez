@@ -2,6 +2,7 @@ import { LitElement, css, html, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type {
   ISourcePickerDialogAdapter,
+  ISourcePickerDialogInitial,
   ISerializableSource,
   TTranslator,
 } from '@konvoez/client-shell';
@@ -57,6 +58,8 @@ export class KSourcePickerDialog extends LitElement {
   accessor adapter: ISourcePickerDialogAdapter | null = null;
   @property({ attribute: false }) accessor translator: TTranslator | null =
     null;
+  @property({ attribute: false })
+  accessor initial: ISourcePickerDialogInitial | null = null;
 
   @state() accessor activeTab: 'screens' | 'windows' = 'screens';
   @state() accessor sources: ISerializableSource[] = [];
@@ -95,7 +98,7 @@ export class KSourcePickerDialog extends LitElement {
     if (!this.adapter || this.initialLoaded) return;
     this.initialLoaded = true;
     try {
-      const initial = await this.adapter.getInitial();
+      const initial = this.initial ?? (await this.adapter.getInitial());
       if (initial.locale && this.translator) {
         this.translator.setLanguage(initial.locale);
       }

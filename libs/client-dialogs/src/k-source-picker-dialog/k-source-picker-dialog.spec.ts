@@ -79,6 +79,31 @@ describe('k-source-picker-dialog', () => {
     expect(el.selectedId).toBe('screen:0:0');
   });
 
+  it('uses provided initial state without requesting it from the adapter', async () => {
+    const adapter = createMockAdapter();
+    const translator = createMockTranslator();
+    const initial = {
+      sources: mockSources,
+      shareAudio: false,
+      audioSupported: true,
+      locale: 'en' as const,
+    };
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"
+        .initial="${initial}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    expect(adapter.getInitial).not.toHaveBeenCalled();
+    expect(el.currentSources).toHaveLength(1);
+    expect(el.selectedId).toBe('screen:0:0');
+    expect(el.shareAudio).toBe(false);
+  });
+
   it('windows tab shows empty text when there are none', async () => {
     const adapter = createMockAdapter({
       getInitial: vi.fn().mockResolvedValue({

@@ -13,10 +13,6 @@ async function initPickerPage(): Promise<void> {
   await mountDialog<KSourcePickerDialog>(
     'k-source-picker-dialog',
     window.konvoezLocal.picker,
-    async () => {
-      const initial = await window.konvoezLocal.picker.getInitial();
-      return initial.locale;
-    },
   );
 }
 

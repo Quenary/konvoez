@@ -1,6 +1,10 @@
 import { LitElement, css, html, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { IServerDialogAdapter, TTranslator } from '@konvoez/client-shell';
+import type {
+  IServerDialogAdapter,
+  IServerDialogInitial,
+  TTranslator,
+} from '@konvoez/client-shell';
 import { tokens } from '@konvoez/ui-kit/theme';
 import { I18nController } from '@konvoez/ui-kit/i18n-controller';
 import '@konvoez/ui-kit/k-dialog-layout';
@@ -41,6 +45,8 @@ export class KServerDialog extends LitElement {
   accessor adapter: IServerDialogAdapter | null = null;
   @property({ attribute: false }) accessor translator: TTranslator | null =
     null;
+  @property({ attribute: false })
+  accessor initial: IServerDialogInitial | null = null;
 
   @state() accessor serverUrl = '';
   @state() accessor loading = false;
@@ -71,7 +77,7 @@ export class KServerDialog extends LitElement {
     if (!this.adapter || this.initialLoaded) return;
     this.initialLoaded = true;
     try {
-      const initial = await this.adapter.getInitial();
+      const initial = this.initial ?? (await this.adapter.getInitial());
       if (initial.locale && this.translator) {
         this.translator.setLanguage(initial.locale);
       }

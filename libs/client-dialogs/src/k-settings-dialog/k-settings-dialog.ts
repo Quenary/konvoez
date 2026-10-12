@@ -2,6 +2,7 @@ import { LitElement, css, html, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type {
   ISettingsDialogAdapter,
+  ISettingsDialogInitial,
   TTranslator,
   THotkeyStatus,
 } from '@konvoez/client-shell';
@@ -72,6 +73,8 @@ export class KSettingsDialog extends LitElement {
   accessor adapter: ISettingsDialogAdapter | null = null;
   @property({ attribute: false }) accessor translator: TTranslator | null =
     null;
+  @property({ attribute: false })
+  accessor initial: ISettingsDialogInitial | null = null;
 
   @state() accessor micKey: string | null = null;
   @state() accessor speakerKey: string | null = null;
@@ -113,7 +116,7 @@ export class KSettingsDialog extends LitElement {
     if (!this.adapter || this.initialLoaded) return;
     this.initialLoaded = true;
     try {
-      const initial = await this.adapter.getInitial();
+      const initial = this.initial ?? (await this.adapter.getInitial());
       if (initial.locale && this.translator) {
         this.translator.setLanguage(initial.locale);
       }

@@ -13,10 +13,6 @@ async function initServerPage(): Promise<void> {
   const el = await mountDialog<KServerDialog>(
     'k-server-dialog',
     window.konvoezLocal.server,
-    async () => {
-      const initial = await window.konvoezLocal.server.getInitial();
-      return initial.locale;
-    },
   );
   el.addEventListener('k-done', () => {
     // main closes the window after save (existing behaviour)

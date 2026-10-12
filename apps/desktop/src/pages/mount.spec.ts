@@ -4,36 +4,46 @@ import { mountDialog } from './mount';
 import { desktopTranslator } from '../i18n/dictionary';
 
 describe('mountDialog', () => {
+  type TInitial = { locale: 'en' | 'ru'; value: string };
+  type TAdapter = { getInitial: () => Promise<TInitial> };
+  type TTestDialog = HTMLElement & {
+    adapter: TAdapter;
+    translator: typeof desktopTranslator | null;
+    initial: TInitial;
+  };
+
   beforeEach(() => {
     document.body.innerHTML = '';
   });
 
-  it('sets translator language and assigns adapter to matched element', async () => {
-    const el = document.createElement('div') as unknown as HTMLElement & {
-      adapter: unknown;
-      translator: typeof desktopTranslator;
-    };
+  it('loads initial state once and assigns it with translator and adapter', async () => {
+    const el = document.createElement('div') as unknown as TTestDialog;
     el.id = 'test-dialog';
     document.body.appendChild(el);
 
-    const mockAdapter = { foo: 'bar' };
-    const getLocale = vi.fn().mockResolvedValue('ru');
+    const initial: TInitial = { locale: 'ru', value: 'test' };
+    const mockAdapter: TAdapter = {
+      getInitial: vi.fn().mockResolvedValue(initial),
+    };
 
-    const mounted = await mountDialog('#test-dialog', mockAdapter, getLocale);
+    const mounted = await mountDialog<TTestDialog>('#test-dialog', mockAdapter);
 
     expect(mounted).toBe(el);
     expect(mounted.adapter).toBe(mockAdapter);
+    expect(mounted.initial).toBe(initial);
     expect(mounted.translator).toBe(desktopTranslator);
     expect(desktopTranslator.language).toBe('ru');
-    expect(getLocale).toHaveBeenCalledTimes(1);
+    expect(mockAdapter.getInitial).toHaveBeenCalledTimes(1);
   });
 
   it('throws error if selector does not match any element', async () => {
-    const mockAdapter = {};
-    const getLocale = vi.fn().mockResolvedValue('en');
+    const mockAdapter: TAdapter = {
+      getInitial: vi.fn().mockResolvedValue({ locale: 'en', value: 'test' }),
+    };
 
     await expect(
-      mountDialog('#non-existent', mockAdapter, getLocale),
+      mountDialog<TTestDialog>('#non-existent', mockAdapter),
     ).rejects.toThrow('Element matching selector "#non-existent" not found');
+    expect(mockAdapter.getInitial).not.toHaveBeenCalled();
   });
 });

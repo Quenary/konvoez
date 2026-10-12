@@ -13,10 +13,6 @@ async function initSettingsPage(): Promise<void> {
   const el = await mountDialog<KSettingsDialog>(
     'k-settings-dialog',
     window.konvoezLocal.settings,
-    async () => {
-      const initial = await window.konvoezLocal.settings.getInitial();
-      return initial.locale;
-    },
   );
   el.addEventListener('k-saved', () => {
     // settings saved
