@@ -22,6 +22,8 @@ GENERAL:
   DROP_IT: Drop it here!
   CLOSE: Close
   MORE: More
+CONNECTION:
+  PROBLEMS: Connection problems
 PROFILE:
   USERNAME: Username
   PASSWORD: Password
