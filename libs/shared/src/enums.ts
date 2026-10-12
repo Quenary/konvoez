@@ -69,6 +69,8 @@ export enum EVoiceRoomEvent {
   CONSUME = 'consume',
   CLOSE_CONSUMER = 'close-consumer',
   CONSUMER_CLOSED = 'consumer-closed',
+  SET_MUTE_STATE = 'set-mute-state',
+  PEER_MUTE_CHANGED = 'peer-mute-changed',
   ERROR = 'error',
 }
 
@@ -98,6 +100,7 @@ export enum EEntitySyncEvent {
   ROOM_DELETED = 'room-deleted',
   VOICE_ROOM_PEER_JOINED = 'voice-room-peer-joined',
   VOICE_ROOM_PEER_LEFT = 'voice-room-peer-left',
+  VOICE_ROOM_PEER_MUTED = 'voice-room-peer-muted',
   ERROR = 'error',
 }
 
