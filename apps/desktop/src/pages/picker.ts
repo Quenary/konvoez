@@ -12,9 +12,9 @@ declare global {
 async function initPickerPage(): Promise<void> {
   await mountDialog<KSourcePickerDialog>(
     'k-source-picker-dialog',
-    window.konvoezLocal,
+    window.konvoezLocal.picker,
     async () => {
-      const initial = await window.konvoezLocal.getInitial();
+      const initial = await window.konvoezLocal.picker.getInitial();
       return initial.locale;
     },
   );

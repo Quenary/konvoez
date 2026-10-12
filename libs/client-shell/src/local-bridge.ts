@@ -49,33 +49,8 @@ export interface ISourcePickerDialogAdapter {
   pick(sourceId: string | null, withAudio: boolean): void;
 }
 
-export interface IKonvoezLocalBridge
-  extends
-    IServerDialogAdapter,
-    ISettingsDialogAdapter,
-    ISourcePickerDialogAdapter {
-  getInitial(): Promise<
-    IServerDialogInitial & ISettingsDialogInitial & ISourcePickerDialogInitial
-  >;
-  getConfig(): Promise<{
-    serverOrigin: string | null;
-    hotkeys: TDesktopHotkeys;
-    autostart: boolean;
-    locale: string;
-    shareAudio: boolean;
-    audioSupported: boolean;
-  }>;
-  testServer(url: string): Promise<{ origin: string; version: string }>;
-  saveSettings(params: {
-    hotkeys?: TDesktopHotkeys;
-    autostart?: boolean;
-    shareAudio?: boolean;
-  }): Promise<{
-    success: boolean;
-    hotkeys: Record<string, string>;
-    autostart: boolean;
-    shareAudio: boolean;
-  }>;
-  getPickerSources(): Promise<ISerializableSource[]>;
-  pickSource(sourceId: string | null, withAudio?: boolean): void;
+export interface IKonvoezLocalBridge {
+  server: IServerDialogAdapter;
+  settings: ISettingsDialogAdapter;
+  picker: ISourcePickerDialogAdapter;
 }

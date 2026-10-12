@@ -156,21 +156,6 @@ export function registerIpc(
   });
 
   ipcMain.handle(
-    EDesktopIpc.LOCAL_TEST_SERVER,
-    async (event: IpcMainInvokeEvent, rawUrl: unknown) => {
-      if (!validateLocalSender(event)) {
-        throw new Error('UNAUTHORIZED');
-      }
-      if (typeof rawUrl !== 'string') {
-        throw new Error('INVALID_URL');
-      }
-      const origin = normalizeServerOrigin(rawUrl);
-      const { version } = await probeServer(origin);
-      return { origin, version };
-    },
-  );
-
-  ipcMain.handle(
     EDesktopIpc.LOCAL_SAVE_SERVER,
     async (event: IpcMainInvokeEvent, rawUrl: unknown) => {
       if (!validateLocalSender(event)) {

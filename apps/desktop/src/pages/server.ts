@@ -12,9 +12,9 @@ declare global {
 async function initServerPage(): Promise<void> {
   const el = await mountDialog<KServerDialog>(
     'k-server-dialog',
-    window.konvoezLocal,
+    window.konvoezLocal.server,
     async () => {
-      const initial = await window.konvoezLocal.getInitial();
+      const initial = await window.konvoezLocal.server.getInitial();
       return initial.locale;
     },
   );
