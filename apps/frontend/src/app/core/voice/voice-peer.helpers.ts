@@ -1,6 +1,12 @@
-import { IUser, TVoiceRoomGetAllPeersResult } from '@konvoez/shared';
+import {
+  IUser,
+  IVoiceRoomPeerUser,
+  TVoiceRoomGetAllPeersResult,
+} from '@konvoez/shared';
 
-export function toPeerUser(user: IUser & { producers?: unknown }): IUser {
+export function toPeerUser(
+  user: IUser & { producers?: unknown; muted?: boolean; deafened?: boolean },
+): IVoiceRoomPeerUser {
   const { producers: _producers, ...rest } = user;
   return rest;
 }

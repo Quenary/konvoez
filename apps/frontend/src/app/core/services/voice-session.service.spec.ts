@@ -39,6 +39,7 @@ describe('VoiceSessionService', () => {
   let socket: {
     on: ReturnType<typeof vi.fn>;
     off: ReturnType<typeof vi.fn>;
+    emit: ReturnType<typeof vi.fn>;
     emitWithAck: ReturnType<typeof vi.fn>;
     timeout: ReturnType<typeof vi.fn>;
     connected: boolean;
@@ -53,6 +54,7 @@ describe('VoiceSessionService', () => {
     setPeers: ReturnType<typeof vi.fn>;
     upsertPeer: ReturnType<typeof vi.fn>;
     removePeer: ReturnType<typeof vi.fn>;
+    updatePeerMuteState: ReturnType<typeof vi.fn>;
     clearSessionPeers: ReturnType<typeof vi.fn>;
     applyUserEntityDeleted: ReturnType<typeof vi.fn>;
   };
@@ -113,6 +115,7 @@ describe('VoiceSessionService', () => {
         handlers[event] = handler;
       }),
       off: vi.fn(),
+      emit: vi.fn(),
       emitWithAck: vi.fn().mockResolvedValue(undefined),
       timeout: vi.fn(),
       connected: true,
@@ -134,6 +137,7 @@ describe('VoiceSessionService', () => {
       setPeers: vi.fn(),
       upsertPeer: vi.fn(),
       removePeer: vi.fn(),
+      updatePeerMuteState: vi.fn(),
       clearSessionPeers: vi.fn(),
       applyUserEntityDeleted: vi.fn(),
     };
@@ -570,6 +574,73 @@ describe('VoiceSessionService', () => {
         reason: 'peer-left',
       });
       expect(audioService.playStreamStopAudio).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('peer mute synchronization', () => {
+    it('sends current mute and deafen state on JOIN_ROOM', async () => {
+      voiceAudioPreferencesStore.microphoneMuted.set(true);
+      voiceAudioPreferencesStore.speakerMuted.set(true);
+
+      await service.joinSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+
+      expect(socket.emitWithAck).toHaveBeenCalledWith(
+        EVoiceRoomEvent.JOIN_ROOM,
+        expect.objectContaining({
+          sessionTarget: {
+            type: EVoiceSessionType.GROUP_ROOM,
+            roomId: 5,
+          },
+          roomId: 5,
+          muted: true,
+          deafened: true,
+        }),
+      );
+    });
+
+    it('updates peer mute state on PEER_MUTE_CHANGED', () => {
+      service['addSocketListeners']();
+
+      handlers[EVoiceRoomEvent.PEER_MUTE_CHANGED]({
+        userId: 42,
+        muted: true,
+        deafened: false,
+      });
+
+      expect(voiceSessionStore.updatePeerMuteState).toHaveBeenCalledWith(
+        42,
+        true,
+        false,
+      );
+    });
+
+    it('emits SET_MUTE_STATE when microphone or speaker mute changes in an active session', () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      TestBed.flushEffects();
+
+      expect(socket.emit).not.toHaveBeenCalled();
+
+      voiceAudioPreferencesStore.microphoneMuted.set(true);
+      TestBed.flushEffects();
+
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.SET_MUTE_STATE, {
+        muted: true,
+        deafened: false,
+      });
+
+      voiceAudioPreferencesStore.speakerMuted.set(true);
+      TestBed.flushEffects();
+
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.SET_MUTE_STATE, {
+        muted: true,
+        deafened: true,
+      });
     });
   });
 });

@@ -11,6 +11,7 @@ import {
   type IVoiceRoomGetAllPeersSnapshot,
   type IVoiceRoomLobbyPeerJoined,
   type IVoiceRoomLobbyPeerLeft,
+  type IVoiceRoomLobbyPeerMuted,
 } from '@konvoez/shared';
 import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
@@ -214,6 +215,16 @@ export class EntitySyncService {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((payload) => {
         const result = this.voiceLobbyStore.applyVoicePeerLeft(payload);
+        this.handleLobbyIncrementalResult(result);
+      });
+
+    fromEvent<IVoiceRoomLobbyPeerMuted>(
+      this.emitter,
+      EEntitySyncEvent.VOICE_ROOM_PEER_MUTED,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((payload) => {
+        const result = this.voiceLobbyStore.applyVoicePeerMuted(payload);
         this.handleLobbyIncrementalResult(result);
       });
   }

@@ -53,4 +53,13 @@ describe('VoiceSessionStore', () => {
     store.clearSessionPeers();
     expect(store.peersList()).toEqual([]);
   });
+
+  it('updates peer mute and deafen state', () => {
+    const store = TestBed.inject(VoiceSessionStore);
+    store.setPeers([bob]);
+
+    store.updatePeerMuteState(bob.id, true, true);
+    expect(store.peersDict()[bob.id]?.muted).toBe(true);
+    expect(store.peersDict()[bob.id]?.deafened).toBe(true);
+  });
 });

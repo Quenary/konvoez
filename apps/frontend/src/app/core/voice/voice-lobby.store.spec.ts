@@ -67,6 +67,29 @@ describe('VoiceLobbyStore', () => {
     expect(store.roomsState()[1]?.[bob.id]).toBeUndefined();
   });
 
+  it('applies peer muted event to an existing peer in lobby', () => {
+    const store = TestBed.inject(VoiceLobbyStore);
+    store.setRoomsSnapshot({
+      epoch,
+      revision: 1,
+      rooms: { 1: { [bob.id]: bob } },
+    });
+
+    expect(
+      store.applyVoicePeerMuted({
+        roomId: 1,
+        userId: bob.id,
+        muted: true,
+        deafened: true,
+        epoch,
+        revision: 2,
+      }),
+    ).toBe('applied');
+
+    expect(store.roomsState()[1]?.[bob.id]?.muted).toBe(true);
+    expect(store.roomsState()[1]?.[bob.id]?.deafened).toBe(true);
+  });
+
   it('ignores events already covered by the snapshot', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.setRoomsSnapshot({ epoch, revision: 5, rooms: {} });

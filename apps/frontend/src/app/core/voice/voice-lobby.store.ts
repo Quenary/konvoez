@@ -3,6 +3,8 @@ import {
   IVoiceRoomGetAllPeersSnapshot,
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
+  IVoiceRoomLobbyPeerMuted,
+  IVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
 } from '@konvoez/shared';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
@@ -10,7 +12,8 @@ import { mapRoomsUser, omitRoomsUser, toPeerUser } from './voice-peer.helpers';
 
 type LobbyEvent =
   | { kind: 'joined'; payload: IVoiceRoomLobbyPeerJoined }
-  | { kind: 'left'; payload: IVoiceRoomLobbyPeerLeft };
+  | { kind: 'left'; payload: IVoiceRoomLobbyPeerLeft }
+  | { kind: 'muted'; payload: IVoiceRoomLobbyPeerMuted };
 
 /**
  * - `applied`: the event was applied to `roomsState`.
@@ -47,7 +50,11 @@ export const VoiceLobbyStore = signalStore(
   withState<VoiceLobbyState>(initialState),
   withMethods((store) => {
     const applyJoined = (payload: IVoiceRoomLobbyPeerJoined): void => {
-      const peer = toPeerUser(payload.user);
+      const peer: IVoiceRoomPeerUser = {
+        ...toPeerUser(payload.user),
+        muted: payload.muted,
+        deafened: payload.deafened,
+      };
       patchState(store, (state) => ({
         roomsState: {
           ...state.roomsState,
@@ -57,6 +64,29 @@ export const VoiceLobbyStore = signalStore(
           },
         },
       }));
+    };
+
+    const applyMuted = (payload: IVoiceRoomLobbyPeerMuted): void => {
+      patchState(store, (state) => {
+        const room = state.roomsState[payload.roomId];
+        const peer = room?.[payload.userId];
+        if (!room || !peer) {
+          return {};
+        }
+        return {
+          roomsState: {
+            ...state.roomsState,
+            [payload.roomId]: {
+              ...room,
+              [payload.userId]: {
+                ...peer,
+                muted: payload.muted,
+                deafened: payload.deafened,
+              },
+            },
+          },
+        };
+      });
     };
 
     const applyLeft = (payload: IVoiceRoomLobbyPeerLeft): void => {
@@ -132,8 +162,10 @@ export const VoiceLobbyStore = signalStore(
 
       if (event.kind === 'joined') {
         applyJoined(event.payload);
-      } else {
+      } else if (event.kind === 'left') {
         applyLeft(event.payload);
+      } else {
+        applyMuted(event.payload);
       }
       patchState(store, { lobbyRevision: event.payload.revision });
       return 'applied';
@@ -194,6 +226,12 @@ export const VoiceLobbyStore = signalStore(
         payload: IVoiceRoomLobbyPeerLeft,
       ): TVoiceLobbyIncrementalResult {
         return applyIncremental({ kind: 'left', payload });
+      },
+
+      applyVoicePeerMuted(
+        payload: IVoiceRoomLobbyPeerMuted,
+      ): TVoiceLobbyIncrementalResult {
+        return applyIncremental({ kind: 'muted', payload });
       },
 
       /** Buffers incoming events until the next snapshot (e.g. after a socket disconnect). */
