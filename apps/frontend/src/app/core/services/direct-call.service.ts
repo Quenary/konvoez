@@ -4,6 +4,7 @@ import {
   EDirectCallEvent,
   EVoiceSessionType,
   ICallAcceptedPayload,
+  ICallAnsweredElsewherePayload,
   ICallEndedPayload,
   ICallGetActiveResult,
   ICallHangupPayload,
@@ -13,6 +14,7 @@ import {
   ICallRejectedPayload,
   IUser,
   TVoiceSessionTarget,
+  DIRECT_CALL_RING_TIMEOUT_MS,
 } from '@konvoez/shared';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
@@ -90,13 +92,12 @@ export class DirectCallService {
   /** User id for an in-progress or connected direct call (media session or signaling). */
   public readonly callWithUserId = computed(() => {
     const session = this.voiceSessionStore.activeSession();
-    const callActive = this.isCallActive();
     const signalingInterlocutorId = this.interlocutor()?.id ?? null;
 
     if (session?.type === EVoiceSessionType.DIRECT_CALL) {
       return session.interlocutorId;
     }
-    if (!callActive) {
+    if (!this.isConnected()) {
       return null;
     }
     return signalingInterlocutorId;
@@ -128,8 +129,16 @@ export class DirectCallService {
   /** Direct-call UI (shell/grid) for media or ringing signaling. */
   public readonly isDirectCallContext = computed(() => {
     const session = this.voiceSessionStore.activeSession();
-    return session?.type === EVoiceSessionType.DIRECT_CALL || this.isRinging();
+    return (
+      session?.type === EVoiceSessionType.DIRECT_CALL || this.isConnected()
+    );
   });
+
+  public readonly isInGroupRoom = computed(
+    () =>
+      this.voiceSessionStore.activeSession()?.type ===
+      EVoiceSessionType.GROUP_ROOM,
+  );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private timeoutRef: ReturnType<typeof setTimeout> | null = null;
@@ -199,7 +208,7 @@ export class DirectCallService {
             })
             .subscribe();
         }
-      }, 45000);
+      }, DIRECT_CALL_RING_TIMEOUT_MS + 5_000);
     } catch (err) {
       this.audioService.stopOutgoingDialing();
       this._activeCall.set(null);
@@ -583,14 +592,45 @@ export class DirectCallService {
       this._rejoinableCall.set(null);
     });
 
+    this.socket.on(
+      EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
+      (data: ICallAnsweredElsewherePayload) => {
+        const current = this._activeCall();
+        if (
+          !current ||
+          current.callId !== data.callId ||
+          current.status !== ECallStatus.INCOMING
+        ) {
+          return;
+        }
+
+        this.audioService.stopIncomingRingtone();
+        this._activeCall.set(null);
+      },
+    );
+
     this.socket.on(EDirectCallEvent.CALL_ENDED, (data: ICallEndedPayload) => {
       const current = this._activeCall();
 
       if (current?.callId === data.callId) {
+        if (
+          data.reason === 'timeout' &&
+          current.status === ECallStatus.CALLING
+        ) {
+          this.notificationsService
+            .open(this.translateService.instant('CALL.NO_ANSWER'), {
+              appearance: 'warning',
+              autoClose: 4000,
+            })
+            .subscribe();
+        }
+
         this.clearCallTimeout();
         this.audioService.stopOutgoingDialing();
         this.audioService.stopIncomingRingtone();
-        this.audioService.playCallEndSound();
+        if (current.status !== ECallStatus.INCOMING) {
+          this.audioService.playCallEndSound();
+        }
         this._activeCall.set(null);
 
         if (this.voiceSessionStore.directCallTarget()?.callId === data.callId) {

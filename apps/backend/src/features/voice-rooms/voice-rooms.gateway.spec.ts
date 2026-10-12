@@ -29,6 +29,7 @@ import { VoiceRoomsStateService } from './voice-rooms.state';
 import { DirectCallsStateService } from './direct-calls.state';
 import { AuthService } from '../auth/auth.service';
 import {
+  DIRECT_CALL_RING_TIMEOUT_MS,
   EDirectCallEvent,
   EUserRole,
   EVoiceRoomEvent,
@@ -114,12 +115,15 @@ describe('VoiceRoomsGateway', () => {
     isParticipant: jest.Mock;
     findActiveBetween: jest.Mock;
     findActiveForUser: jest.Mock;
+    findRingingByCaller: jest.Mock;
   };
   let serverMock: {
     to: jest.Mock;
     emit: jest.Mock;
+    in: jest.Mock;
     sockets: { sockets: Map<string, Socket> };
   };
+  let fetchSockets: jest.Mock;
 
   beforeEach(() => {
     authService = {
@@ -159,6 +163,7 @@ describe('VoiceRoomsGateway', () => {
       isParticipant: jest.fn(),
       findActiveBetween: jest.fn(),
       findActiveForUser: jest.fn(),
+      findRingingByCaller: jest.fn().mockReturnValue([]),
     };
 
     gateway = new VoiceRoomsGateway(
@@ -169,9 +174,11 @@ describe('VoiceRoomsGateway', () => {
       eventEmitter as never,
     );
 
+    fetchSockets = jest.fn().mockResolvedValue([]);
     serverMock = {
       to: jest.fn().mockReturnThis(),
       emit: jest.fn(),
+      in: jest.fn().mockReturnValue({ fetchSockets }),
       sockets: { sockets: new Map() },
     };
     Object.assign(gateway, { server: serverMock as unknown as Server });
@@ -1365,6 +1372,10 @@ describe('VoiceRoomsGateway', () => {
         recipientId: bob.id,
       });
       const socket = createSocket({ data: { user: bob } });
+      const elsewhereEmit = jest.fn();
+      jest
+        .spyOn(socket, 'to')
+        .mockReturnValue({ emit: elsewhereEmit } as never);
 
       const result = gateway.handleCallAccept(socket as never, {
         callId: 'c1',
@@ -1376,6 +1387,11 @@ describe('VoiceRoomsGateway', () => {
       expect(serverMock.emit).toHaveBeenCalledWith(
         EDirectCallEvent.CALL_ACCEPTED,
         { callId: 'c1', recipient: bob },
+      );
+      expect(socket.to).toHaveBeenCalledWith('8');
+      expect(elsewhereEmit).toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
+        { callId: 'c1', outcome: 'accepted' },
       );
     });
 
@@ -1400,8 +1416,13 @@ describe('VoiceRoomsGateway', () => {
         callerId: alice.id,
         recipientId: bob.id,
       });
+      const socket = createSocket({ data: { user: bob } });
+      const elsewhereEmit = jest.fn();
+      jest
+        .spyOn(socket, 'to')
+        .mockReturnValue({ emit: elsewhereEmit } as never);
 
-      gateway.handleCallReject(createSocket({ data: { user: bob } }) as never, {
+      gateway.handleCallReject(socket as never, {
         callId: 'c1',
         callerId: alice.id,
         reason: 'busy',
@@ -1412,6 +1433,11 @@ describe('VoiceRoomsGateway', () => {
       expect(serverMock.emit).toHaveBeenCalledWith(
         EDirectCallEvent.CALL_REJECTED,
         { callId: 'c1', reason: 'busy' },
+      );
+      expect(socket.to).toHaveBeenCalledWith('8');
+      expect(elsewhereEmit).toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
+        { callId: 'c1', outcome: 'rejected' },
       );
     });
 
@@ -1519,6 +1545,118 @@ describe('VoiceRoomsGateway', () => {
       expect(
         gateway.handleCallGetActive(createSocket() as never, {}),
       ).toBeNull();
+    });
+  });
+
+  describe('direct call ring timer and disconnect', () => {
+    let realState: DirectCallsStateService;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      realState = new DirectCallsStateService();
+      gateway = new VoiceRoomsGateway(
+        authService as unknown as AuthService,
+        {} as never,
+        voiceRoomsStateService as unknown as VoiceRoomsStateService,
+        realState,
+        eventEmitter as never,
+      );
+      fetchSockets = jest.fn().mockResolvedValue([]);
+      serverMock = {
+        to: jest.fn().mockReturnThis(),
+        emit: jest.fn(),
+        in: jest.fn().mockReturnValue({ fetchSockets }),
+        sockets: { sockets: new Map() },
+      };
+      Object.assign(gateway, { server: serverMock as unknown as Server });
+    });
+
+    afterEach(() => {
+      gateway.onModuleDestroy();
+      jest.useRealTimers();
+    });
+
+    it('ends a ringing call after the server timeout', () => {
+      const result = gateway.handleCallInitiate(createSocket() as never, {
+        recipientId: bob.id,
+      }) as { callId: string };
+
+      jest.advanceTimersByTime(DIRECT_CALL_RING_TIMEOUT_MS);
+
+      expect(realState.get(result.callId)).toBeUndefined();
+      expect(serverMock.emit).toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_ENDED,
+        expect.objectContaining({ callId: result.callId, reason: 'timeout' }),
+      );
+    });
+
+    it('does not emit CALL_ENDED after accept before the timeout', () => {
+      const call = realState.create(alice.id, bob.id);
+      gateway['startRingTimer'](call.callId);
+
+      gateway.handleCallAccept(createSocket({ data: { user: bob } }) as never, {
+        callId: call.callId,
+        callerId: alice.id,
+      });
+
+      jest.advanceTimersByTime(DIRECT_CALL_RING_TIMEOUT_MS);
+      expect(serverMock.emit).not.toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_ENDED,
+        expect.anything(),
+      );
+    });
+
+    it('does not restart the ring timer for an existing ringing call', () => {
+      const call = realState.create(alice.id, bob.id);
+      gateway.handleCallInitiate(createSocket() as never, {
+        recipientId: bob.id,
+      });
+      const firstTimer = gateway['ringTimers'].get(call.callId);
+
+      gateway.handleCallInitiate(createSocket() as never, {
+        recipientId: bob.id,
+      });
+
+      expect(gateway['ringTimers'].get(call.callId)).toBe(firstTimer);
+    });
+
+    it('cancels ringing calls when the caller last socket disconnects', async () => {
+      const call = realState.create(alice.id, bob.id);
+      fetchSockets.mockResolvedValue([]);
+
+      await gateway.handleDisconnect(createSocket({ data: { user: alice } }));
+
+      expect(realState.get(call.callId)).toBeUndefined();
+      expect(serverMock.to).toHaveBeenCalledWith('8');
+      expect(serverMock.emit).toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_HANGUP,
+        {
+          callId: call.callId,
+          byUserId: alice.id,
+        },
+      );
+    });
+
+    it('keeps ringing when the caller still has another socket', async () => {
+      const call = realState.create(alice.id, bob.id);
+      fetchSockets.mockResolvedValue([{ id: 'other' }]);
+
+      await gateway.handleDisconnect(createSocket({ data: { user: alice } }));
+
+      expect(realState.get(call.callId)).toBeDefined();
+      expect(serverMock.emit).not.toHaveBeenCalledWith(
+        EDirectCallEvent.CALL_HANGUP,
+        expect.anything(),
+      );
+    });
+
+    it('keeps ringing when the callee disconnects', async () => {
+      const call = realState.create(alice.id, bob.id);
+      fetchSockets.mockResolvedValue([]);
+
+      await gateway.handleDisconnect(createSocket({ data: { user: bob } }));
+
+      expect(realState.get(call.callId)).toBeDefined();
     });
   });
 

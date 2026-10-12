@@ -149,7 +149,16 @@ export interface ICallHangupPayload {
 
 export interface ICallEndedPayload {
   callId: string;
+  reason?: 'timeout';
 }
+
+export interface ICallAnsweredElsewherePayload {
+  callId: string;
+  outcome: 'accepted' | 'rejected';
+}
+
+/** Server-side ring timeout and client fallback offset share this value. */
+export const DIRECT_CALL_RING_TIMEOUT_MS = 45_000;
 
 export interface ICallGetActivePayload {
   /** When omitted, returns any active call the current user participates in. */
@@ -171,6 +180,7 @@ export type TDirectCallEventPayloadMap = {
   [EDirectCallEvent.CALL_REJECTED]: ICallRejectedPayload;
   [EDirectCallEvent.CALL_HANGUP]: ICallHangupPayload;
   [EDirectCallEvent.CALL_ENDED]: ICallEndedPayload;
+  [EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]: ICallAnsweredElsewherePayload;
   [EDirectCallEvent.CALL_GET_ACTIVE]: ICallGetActivePayload;
 };
 
@@ -183,5 +193,6 @@ export type TDirectCallEventResultMap = {
   [EDirectCallEvent.CALL_REJECTED]: void;
   [EDirectCallEvent.CALL_HANGUP]: void;
   [EDirectCallEvent.CALL_ENDED]: void;
+  [EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]: void;
   [EDirectCallEvent.CALL_GET_ACTIVE]: ICallGetActiveResult | null;
 };

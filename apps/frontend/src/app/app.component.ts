@@ -22,7 +22,7 @@ import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-
 import { RoomsComponent } from '@features/rooms/rooms.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EUserRole } from '@konvoez/shared';
-import { IncomingCallDialogComponent } from '@shared/components/voice-room/incoming-call-dialog/incoming-call-dialog.component';
+import { PendingCallDialogComponent } from '@shared/components/voice-room/pending-call-dialog/pending-call-dialog.component';
 import { PublicApiService } from '@core/services/public-api.service';
 
 const DEFAULT_VERSION_INFO = {
@@ -45,7 +45,7 @@ const DEFAULT_VERSION_INFO = {
     TuiNavigation,
     TuiChevron,
     LogoComponent,
-    IncomingCallDialogComponent,
+    PendingCallDialogComponent,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',

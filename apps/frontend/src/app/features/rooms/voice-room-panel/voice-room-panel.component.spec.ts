@@ -31,7 +31,7 @@ describe('VoiceRoomPanelComponent', () => {
   let toggleSpeakerMuted: ReturnType<typeof vi.fn>;
 
   let isDirectCallContext: ReturnType<typeof signal<boolean>>;
-  let isCallActive: ReturnType<typeof signal<boolean>>;
+  let isConnected: ReturnType<typeof signal<boolean>>;
   let callWithUserId: ReturnType<typeof signal<number | null>>;
 
   let localCamTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
@@ -57,7 +57,7 @@ describe('VoiceRoomPanelComponent', () => {
     toggleSpeakerMuted = vi.fn();
 
     isDirectCallContext = signal(false);
-    isCallActive = signal(false);
+    isConnected = signal(false);
     callWithUserId = signal(null);
 
     localCamTrack = signal(null);
@@ -92,7 +92,7 @@ describe('VoiceRoomPanelComponent', () => {
           provide: DirectCallService,
           useValue: {
             isDirectCallContext: isDirectCallContext.asReadonly(),
-            isCallActive: isCallActive.asReadonly(),
+            isConnected: isConnected.asReadonly(),
             callWithUserId: callWithUserId.asReadonly(),
           },
         },
@@ -143,7 +143,7 @@ describe('VoiceRoomPanelComponent', () => {
 
   it('computes sessionTitle as translation key for direct call and updates with language changes', () => {
     isDirectCallContext.set(true);
-    isCallActive.set(true);
+    isConnected.set(true);
     const { fixture, instance } = createComponent();
 
     expect(instance['sessionTitle']()).toBe('CALL.DIRECT_CALL');
@@ -180,7 +180,7 @@ describe('VoiceRoomPanelComponent', () => {
     expect(instance['sessionTitle']()).toBe('');
   });
 
-  it('evaluates isSessionActive when activeSession exists or direct call is active', () => {
+  it('evaluates isSessionActive when activeSession exists or direct call is connected', () => {
     const { instance } = createComponent();
     expect(instance['isSessionActive']()).toBe(false);
 
@@ -191,7 +191,7 @@ describe('VoiceRoomPanelComponent', () => {
     expect(instance['isSessionActive']()).toBe(true);
 
     activeSession.set(null);
-    isCallActive.set(true);
+    isConnected.set(true);
     expect(instance['isSessionActive']()).toBe(true);
   });
 

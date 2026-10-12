@@ -4,13 +4,10 @@ export type TResolveVoiceSessionPeersInput = {
   me: IUser | null | undefined;
   remotePeers: readonly IUser[];
   session: TVoiceSessionTarget | null;
-  isRinging: boolean;
-  interlocutor: IUser | null;
 };
 
 /**
- * Builds the participant list for voice UI.
- * Media sessions use real peers only; ringing may include an interlocutor placeholder.
+ * Builds the participant list for voice UI from the active media session only.
  */
 export function resolveVoiceSessionPeers(
   input: TResolveVoiceSessionPeersInput,
@@ -29,14 +26,6 @@ export function resolveVoiceSessionPeers(
       if (!list.some((existing) => existing.id === peer.id)) {
         list.push(peer);
       }
-    }
-    return list;
-  }
-
-  if (input.isRinging && input.interlocutor) {
-    const interlocutor = input.interlocutor;
-    if (!list.some((existing) => existing.id === interlocutor.id)) {
-      list.push(interlocutor);
     }
   }
 

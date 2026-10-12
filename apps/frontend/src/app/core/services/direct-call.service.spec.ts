@@ -8,6 +8,7 @@ vi.hoisted(() => {
 });
 
 import {
+  DIRECT_CALL_RING_TIMEOUT_MS,
   EDirectCallEvent,
   EUserRole,
   EVoiceSessionType,
@@ -159,7 +160,7 @@ describe('DirectCallService', () => {
       status: ECallStatus.INCOMING,
     });
     expect(service.isRinging()).toBe(true);
-    expect(service.isDirectCallContext()).toBe(true);
+    expect(service.isDirectCallContext()).toBe(false);
   });
 
   it('initiateCall shows error notification and leaves active call null on failure', async () => {
@@ -337,7 +338,7 @@ describe('DirectCallService', () => {
     expect(service.callWithUserId()).toBe(recipient.id);
   });
 
-  it('callWithUserId falls back to signaling interlocutor', () => {
+  it('callWithUserId ignores signaling while ringing', () => {
     service['_activeCall'].set({
       callId: 'c1',
       interlocutor: recipient,
@@ -345,7 +346,126 @@ describe('DirectCallService', () => {
       status: ECallStatus.CALLING,
     });
 
-    expect(service.callWithUserId()).toBe(recipient.id);
+    expect(service.callWithUserId()).toBeNull();
+  });
+
+  it('initiateCall does not join media or navigate', async () => {
+    socket.emitWithAck.mockResolvedValue({ callId: 'c1' });
+
+    await service.initiateCall(recipient);
+
+    expect(service.isDirectCallContext()).toBe(false);
+    expect(voiceSessionService.joinSession).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('CALL_ACCEPTED joins media and navigates', async () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CALLING,
+    });
+
+    await handlers[EDirectCallEvent.CALL_ACCEPTED]({
+      callId: 'c1',
+      recipient,
+    });
+
+    expect(voiceSessionService.joinSession).toHaveBeenCalledWith({
+      type: EVoiceSessionType.DIRECT_CALL,
+      callId: 'c1',
+      interlocutorId: recipient.id,
+    });
+    expect(router.navigate).toHaveBeenCalledWith(['/direct', recipient.id]);
+  });
+
+  it('CALL_ANSWERED_ELSEWHERE clears incoming state and stops ringtone', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    handlers[EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]({
+      callId: 'c1',
+      outcome: 'accepted',
+    });
+
+    expect(audioService.stopIncomingRingtone).toHaveBeenCalled();
+    expect(service.activeCall()).toBeNull();
+
+    service['_activeCall'].set({
+      callId: 'c2',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    handlers[EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]({
+      callId: 'other',
+      outcome: 'accepted',
+    });
+
+    expect(service.activeCall()?.callId).toBe('c2');
+  });
+
+  it('CALL_ENDED with timeout shows NO_ANSWER for caller only', () => {
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: recipient,
+      isCaller: true,
+      status: ECallStatus.CALLING,
+    });
+
+    handlers[EDirectCallEvent.CALL_ENDED]({ callId: 'c1', reason: 'timeout' });
+
+    expect(notifications.open).toHaveBeenCalledWith(
+      'CALL.NO_ANSWER',
+      expect.objectContaining({ appearance: 'warning' }),
+    );
+    expect(service.activeCall()).toBeNull();
+
+    notifications.open.mockClear();
+    service['_activeCall'].set({
+      callId: 'c1',
+      interlocutor: caller,
+      isCaller: false,
+      status: ECallStatus.INCOMING,
+    });
+
+    handlers[EDirectCallEvent.CALL_ENDED]({ callId: 'c1', reason: 'timeout' });
+
+    expect(notifications.open).not.toHaveBeenCalled();
+    expect(service.activeCall()).toBeNull();
+  });
+
+  it('fallback ring timer fires only after timeout plus grace', async () => {
+    vi.useFakeTimers();
+    try {
+      socket.emitWithAck.mockResolvedValue({ callId: 'c1' });
+      const cancelSpy = vi.spyOn(service, 'cancelCall');
+
+      await service.initiateCall(recipient);
+
+      vi.advanceTimersByTime(DIRECT_CALL_RING_TIMEOUT_MS + 4_999);
+      expect(cancelSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(cancelSpy).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('isInGroupRoom reflects an active group session', () => {
+    voiceSessionStore.activeSession.mockReturnValue({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 3,
+    });
+
+    expect(service.isInGroupRoom()).toBe(true);
   });
 
   it('hangingCallUserId ignores incoming calls and uses rejoinable peer', () => {

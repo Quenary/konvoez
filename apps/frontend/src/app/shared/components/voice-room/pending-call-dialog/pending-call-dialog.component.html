@@ -1,0 +1,68 @@
+@if (isRinging() && interlocutor(); as user) {
+  <tui-push
+    *tuiPush="true"
+    [type]="pendingTitleKey() | translate"
+    [lines]="3">
+    <tui-icon icon="@tui.phone" />
+
+    <div
+      tuiCell="m"
+      [style.padding-left]="0">
+      <app-pulse-indicator variant="ring">
+        <app-user-avatar
+          size="m"
+          [avatarUrl]="user.avatarUrl"
+          [fullname]="user.fullname"
+          [username]="user.username" />
+      </app-pulse-indicator>
+
+      @let hintValue =
+        user.fullname && user.fullname !== user.username ? user.fullname : null;
+      <span
+        tuiTitle
+        tuiHintAppearance="floating"
+        [style.color]="user.username | tuiAutoColor"
+        [tuiHint]="hintValue">
+        {{ user.username }}
+      </span>
+    </div>
+
+    @if (isInGroupRoom()) {
+      <p tuiSubtitle>{{ 'CALL.PENDING.LEAVE_ROOM_HINT' | translate }}</p>
+    }
+
+    @let _direction = direction();
+
+    @if (_direction === 'outgoing') {
+      <button
+        tuiButton
+        type="button"
+        appearance="negative"
+        iconStart="@tui.phone-off"
+        (click)="cancel()">
+        {{ 'GENERAL.CANCEL' | translate }}
+      </button>
+    }
+    @if (_direction === 'incoming') {
+      <button
+        [style.margin-right.rem]="0.5"
+        tuiButton
+        type="button"
+        appearance="negative"
+        iconStart="@tui.phone-off"
+        (click)="reject()">
+        {{ 'CALL.DECLINE' | translate }}
+      </button>
+    }
+    @if (_direction === 'incoming') {
+      <button
+        tuiButton
+        type="button"
+        appearance="positive"
+        iconStart="@tui.phone"
+        (click)="accept()">
+        {{ 'CALL.ACCEPT' | translate }}
+      </button>
+    }
+  </tui-push>
+}

@@ -60,8 +60,8 @@ export class VoiceRoomPanelComponent {
 
   protected readonly isSessionActive = computed(() => {
     const session = this.activeSession();
-    const isCallActive = this.directCallService.isCallActive();
-    return session !== null || isCallActive;
+    const isConnected = this.directCallService.isConnected();
+    return session !== null || isConnected;
   });
 
   protected readonly sessionTitle = computed(() => {

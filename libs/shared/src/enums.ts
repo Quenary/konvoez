@@ -85,6 +85,7 @@ export enum EDirectCallEvent {
   CALL_REJECTED = 'call:rejected',
   CALL_HANGUP = 'call:hangup',
   CALL_ENDED = 'call:ended',
+  CALL_ANSWERED_ELSEWHERE = 'call:answered-elsewhere',
   CALL_GET_ACTIVE = 'call:get-active',
 }
 
