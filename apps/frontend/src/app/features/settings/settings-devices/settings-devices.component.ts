@@ -115,14 +115,25 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
             },
           ),
           identityMatcher: signal(
-            (a: SelectableItem, b: SelectableItem): boolean => {
+            (
+              a: SelectableItem | null | undefined,
+              b: SelectableItem | null | undefined,
+            ): boolean => {
+              if (a === b) {
+                return true;
+              }
+              if (!a || !b) {
+                return false;
+              }
               if (typeof a === 'string' || typeof b === 'string') {
                 return a === b;
               }
               return a.deviceId === b.deviceId;
             },
           ),
-          disabledItemHandler: (item: SelectableItem): boolean => {
+          disabledItemHandler: (
+            item: SelectableItem | null | undefined,
+          ): boolean => {
             if (item === ENoiseProcessor.DEEPFILTER && !isSimdSupported()) {
               return true;
             }

@@ -1,16 +1,17 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsDevicesComponent } from './settings-devices.component';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
 import { MediaDevicesService } from '@core/services/media-devices.service';
-import { TuiNotificationService } from '@taiga-ui/core';
+import { TUI_ITEMS_HANDLERS, TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { signal } from '@angular/core';
 import { ENoiseProcessor } from '../../../app.enums';
 import { of } from 'rxjs';
 
 describe('SettingsDevicesComponent', () => {
+  let fixture: ComponentFixture<SettingsDevicesComponent>;
   let component: SettingsDevicesComponent;
   let micTestService: {
     isRunning: ReturnType<typeof signal<boolean>>;
@@ -88,7 +89,7 @@ describe('SettingsDevicesComponent', () => {
       ],
     });
 
-    const fixture = TestBed.createComponent(SettingsDevicesComponent);
+    fixture = TestBed.createComponent(SettingsDevicesComponent);
     component = fixture.componentInstance;
   });
 
@@ -96,6 +97,35 @@ describe('SettingsDevicesComponent', () => {
     expect(component).toBeTruthy();
     expect(component['inputGainPercent']()).toBe(120);
     expect(component['outputVolumePercent']()).toBe(90);
+  });
+
+  it('safely handles null and undefined in identityMatcher', () => {
+    const handlers = fixture.debugElement.injector.get(TUI_ITEMS_HANDLERS);
+    const matcher = handlers.identityMatcher();
+
+    expect(matcher(null, null)).toBe(true);
+    expect(matcher(undefined, undefined)).toBe(true);
+    expect(matcher(null, undefined)).toBe(false);
+    expect(matcher({ deviceId: '1' } as unknown as MediaDeviceInfo, null)).toBe(
+      false,
+    );
+    expect(matcher(null, { deviceId: '1' } as unknown as MediaDeviceInfo)).toBe(
+      false,
+    );
+    expect(matcher('a', 'a')).toBe(true);
+    expect(matcher('a', 'b')).toBe(false);
+    expect(
+      matcher(
+        { deviceId: '1' } as unknown as MediaDeviceInfo,
+        { deviceId: '1' } as unknown as MediaDeviceInfo,
+      ),
+    ).toBe(true);
+    expect(
+      matcher(
+        { deviceId: '1' } as unknown as MediaDeviceInfo,
+        { deviceId: '2' } as unknown as MediaDeviceInfo,
+      ),
+    ).toBe(false);
   });
 
   it('toggles mic test start and stop', async () => {
