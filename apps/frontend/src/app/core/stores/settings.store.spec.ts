@@ -10,6 +10,8 @@ import {
   AUDIO_DEVICE_HANDLER,
   IAudioDeviceHandler,
 } from '@core/tokens/audio-device-handler.token';
+import { MicrophoneService } from '@core/services/microphone.service';
+import { SpeakerService } from '@core/services/speaker.service';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
@@ -19,8 +21,12 @@ import {
   EUserRole,
   TSetting,
 } from '@konvoez/shared';
-import { EStorageKey } from '../../app.enums';
+import { ENoiseProcessor, EStorageKey } from '../../app.enums';
 import {
+  DEFAULT_ECHO_CANCELLATION,
+  DEFAULT_INPUT_GAIN,
+  DEFAULT_NOISE_PROCESSOR,
+  DEFAULT_OUTPUT_VOLUME,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
   LOCAL_SETTINGS_VERSION,
@@ -33,8 +39,31 @@ describe('SettingsStore', () => {
     update: ReturnType<typeof vi.fn>;
   };
   let audioDeviceHandler: IAudioDeviceHandler;
+  let microphone: {
+    setGain: ReturnType<typeof vi.fn>;
+    setProcessor: ReturnType<typeof vi.fn>;
+    setEchoCancellation: ReturnType<typeof vi.fn>;
+  };
+  let speaker: {
+    setMasterVolume: ReturnType<typeof vi.fn>;
+  };
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
   let ngrxStore: Store;
+
+  const configureTestBed = () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideStore({ auth: authReducer }),
+        provideTranslateService(),
+        { provide: SettingsApiService, useValue: apiService },
+        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
+        { provide: MicrophoneService, useValue: microphone },
+        { provide: SpeakerService, useValue: speaker },
+        { provide: TuiNotificationService, useValue: mockNotifications },
+        SettingsStore,
+      ],
+    });
+  };
 
   const mockDevice = (overrides: Partial<MediaDeviceInfo>): MediaDeviceInfo =>
     ({
@@ -70,20 +99,21 @@ describe('SettingsStore', () => {
       setAudioOutput: vi.fn(),
     };
 
+    microphone = {
+      setGain: vi.fn(),
+      setProcessor: vi.fn().mockResolvedValue(undefined),
+      setEchoCancellation: vi.fn().mockResolvedValue(undefined),
+    };
+
+    speaker = {
+      setMasterVolume: vi.fn(),
+    };
+
     mockNotifications = {
       open: vi.fn().mockReturnValue(of(null)),
     };
 
-    TestBed.configureTestingModule({
-      providers: [
-        provideStore({ auth: authReducer }),
-        provideTranslateService(),
-        { provide: SettingsApiService, useValue: apiService },
-        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
-        { provide: TuiNotificationService, useValue: mockNotifications },
-        SettingsStore,
-      ],
-    });
+    configureTestBed();
 
     ngrxStore = TestBed.inject(Store);
     store = TestBed.inject(SettingsStore);
@@ -99,6 +129,10 @@ describe('SettingsStore', () => {
     expect(store.loading()).toBe(false);
     expect(store.audioInput()).toBeNull();
     expect(store.audioOutput()).toBeNull();
+    expect(store.noiseProcessor()).toBe(DEFAULT_NOISE_PROCESSOR);
+    expect(store.inputGain()).toBe(DEFAULT_INPUT_GAIN);
+    expect(store.outputVolume()).toBe(DEFAULT_OUTPUT_VOLUME);
+    expect(store.echoCancellation()).toBe(DEFAULT_ECHO_CANCELLATION);
     expect(store.iceServers()).toEqual([]);
     expect(store.attachmentsEnabled()).toBe(true);
     expect(store.attachmentsMaxFileSize()).toBe(attachmentsDefaultMaxFileSize);
@@ -123,16 +157,7 @@ describe('SettingsStore', () => {
     );
 
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      providers: [
-        provideStore({ auth: authReducer }),
-        provideTranslateService(),
-        { provide: SettingsApiService, useValue: apiService },
-        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
-        { provide: TuiNotificationService, useValue: mockNotifications },
-        SettingsStore,
-      ],
-    });
+    configureTestBed();
 
     const hydrated = TestBed.inject(SettingsStore);
     expect(hydrated.audioInput()).toEqual(audioInput);
@@ -148,16 +173,7 @@ describe('SettingsStore', () => {
     );
 
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      providers: [
-        provideStore({ auth: authReducer }),
-        provideTranslateService(),
-        { provide: SettingsApiService, useValue: apiService },
-        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
-        { provide: TuiNotificationService, useValue: mockNotifications },
-        SettingsStore,
-      ],
-    });
+    configureTestBed();
 
     expect(TestBed.inject(SettingsStore).needsInitialSetup()).toBe(true);
   });
@@ -174,16 +190,7 @@ describe('SettingsStore', () => {
     );
 
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      providers: [
-        provideStore({ auth: authReducer }),
-        provideTranslateService(),
-        { provide: SettingsApiService, useValue: apiService },
-        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
-        { provide: TuiNotificationService, useValue: mockNotifications },
-        SettingsStore,
-      ],
-    });
+    configureTestBed();
 
     const hydrated = TestBed.inject(SettingsStore);
     expect(hydrated.audioInput()).toBeNull();
@@ -214,6 +221,10 @@ describe('SettingsStore', () => {
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenPreviewAutoPauseWhenHidden: true,
+      noiseProcessor: DEFAULT_NOISE_PROCESSOR,
+      inputGain: DEFAULT_INPUT_GAIN,
+      outputVolume: DEFAULT_OUTPUT_VOLUME,
+      echoCancellation: DEFAULT_ECHO_CANCELLATION,
     });
     expect(store.needsInitialSetup()).toBe(true);
   });
@@ -231,6 +242,10 @@ describe('SettingsStore', () => {
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenPreviewAutoPauseWhenHidden: true,
+      noiseProcessor: DEFAULT_NOISE_PROCESSOR,
+      inputGain: DEFAULT_INPUT_GAIN,
+      outputVolume: DEFAULT_OUTPUT_VOLUME,
+      echoCancellation: DEFAULT_ECHO_CANCELLATION,
     });
   });
 
@@ -259,6 +274,10 @@ describe('SettingsStore', () => {
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenPreviewAutoPauseWhenHidden: true,
+      noiseProcessor: DEFAULT_NOISE_PROCESSOR,
+      inputGain: DEFAULT_INPUT_GAIN,
+      outputVolume: DEFAULT_OUTPUT_VOLUME,
+      echoCancellation: DEFAULT_ECHO_CANCELLATION,
     });
     expect(store.needsInitialSetup()).toBe(false);
   });
@@ -288,7 +307,67 @@ describe('SettingsStore', () => {
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenPreviewAutoPauseWhenHidden: true,
+      noiseProcessor: DEFAULT_NOISE_PROCESSOR,
+      inputGain: DEFAULT_INPUT_GAIN,
+      outputVolume: DEFAULT_OUTPUT_VOLUME,
+      echoCancellation: DEFAULT_ECHO_CANCELLATION,
     });
+  });
+
+  it('should update and persist audio preferences and call audio services', () => {
+    store.setNoiseProcessor(ENoiseProcessor.RNNOISE);
+    store.setInputGain(1.5);
+    store.setOutputVolume(0.5);
+    store.setEchoCancellation(false);
+
+    expect(store.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
+    expect(store.inputGain()).toBe(1.5);
+    expect(store.outputVolume()).toBe(0.5);
+    expect(store.echoCancellation()).toBe(false);
+
+    expect(microphone.setProcessor).toHaveBeenCalledWith(
+      ENoiseProcessor.RNNOISE,
+    );
+    expect(microphone.setGain).toHaveBeenCalledWith(1.5);
+    expect(microphone.setEchoCancellation).toHaveBeenCalledWith(false);
+    expect(speaker.setMasterVolume).toHaveBeenCalledWith(0.5);
+
+    const saved = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    );
+    expect(saved.noiseProcessor).toBe(ENoiseProcessor.RNNOISE);
+    expect(saved.inputGain).toBe(1.5);
+    expect(saved.outputVolume).toBe(0.5);
+    expect(saved.echoCancellation).toBe(false);
+  });
+
+  it('should hydrate audio preferences from LOCAL_SETTINGS', () => {
+    localStorage.clear();
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({
+        version: LOCAL_SETTINGS_VERSION,
+        noiseProcessor: ENoiseProcessor.BROWSER,
+        inputGain: 0.8,
+        outputVolume: 1.2,
+        echoCancellation: false,
+      }),
+    );
+
+    TestBed.resetTestingModule();
+    configureTestBed();
+
+    const hydrated = TestBed.inject(SettingsStore);
+    expect(hydrated.noiseProcessor()).toBe(ENoiseProcessor.BROWSER);
+    expect(hydrated.inputGain()).toBe(0.8);
+    expect(hydrated.outputVolume()).toBe(1.2);
+    expect(hydrated.echoCancellation()).toBe(false);
+    expect(microphone.setProcessor).toHaveBeenCalledWith(
+      ENoiseProcessor.BROWSER,
+    );
+    expect(microphone.setGain).toHaveBeenCalledWith(0.8);
+    expect(microphone.setEchoCancellation).toHaveBeenCalledWith(false);
+    expect(speaker.setMasterVolume).toHaveBeenCalledWith(1.2);
   });
 
   it('should fetch settings, populate entities and compute iceServers on loadAll', () => {

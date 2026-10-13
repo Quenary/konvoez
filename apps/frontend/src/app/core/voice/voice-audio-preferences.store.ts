@@ -42,7 +42,6 @@ function createInitialState(): VoiceAudioPreferencesState {
 
 /**
  * Mute and per-peer gain preferences with localStorage persistence.
- * Syncs mute into mediasoup / playback.
  */
 export const VoiceAudioPreferencesStore = signalStore(
   { providedIn: 'root' },

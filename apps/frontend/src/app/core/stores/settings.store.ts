@@ -29,6 +29,10 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
+  DEFAULT_ECHO_CANCELLATION,
+  DEFAULT_INPUT_GAIN,
+  DEFAULT_NOISE_PROCESSOR,
+  DEFAULT_OUTPUT_VOLUME,
   DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
@@ -36,6 +40,9 @@ import {
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
+import { ENoiseProcessor } from '../../app.enums';
+import { MicrophoneService } from '@core/services/microphone.service';
+import { SpeakerService } from '@core/services/speaker.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import {
@@ -59,6 +66,10 @@ export type SettingsStoreState = {
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
   screenPreviewAutoPauseWhenHidden: boolean;
+  noiseProcessor: ENoiseProcessor;
+  inputGain: number;
+  outputVolume: number;
+  echoCancellation: boolean;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -76,6 +87,10 @@ export const SettingsStore = signalStore(
     screenFps: DEFAULT_STREAM_FPS,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+    noiseProcessor: DEFAULT_NOISE_PROCESSOR,
+    inputGain: DEFAULT_INPUT_GAIN,
+    outputVolume: DEFAULT_OUTPUT_VOLUME,
+    echoCancellation: DEFAULT_ECHO_CANCELLATION,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
@@ -140,6 +155,8 @@ export const SettingsStore = signalStore(
       store,
       settingsApiService = inject(SettingsApiService),
       audioDeviceHandler = inject(AUDIO_DEVICE_HANDLER),
+      microphoneService = inject(MicrophoneService),
+      speakerService = inject(SpeakerService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
     ) => {
@@ -165,6 +182,10 @@ export const SettingsStore = signalStore(
           screenFps: store.screenFps(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
+          noiseProcessor: store.noiseProcessor(),
+          inputGain: store.inputGain(),
+          outputVolume: store.outputVolume(),
+          echoCancellation: store.echoCancellation(),
         });
       };
 
@@ -184,6 +205,10 @@ export const SettingsStore = signalStore(
               screenFps: store.screenFps(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
+              noiseProcessor: store.noiseProcessor(),
+              inputGain: store.inputGain(),
+              outputVolume: store.outputVolume(),
+              echoCancellation: store.echoCancellation(),
             },
             { stampVersion: true },
           );
@@ -232,6 +257,30 @@ export const SettingsStore = signalStore(
         ): void {
           patchState(store, { screenPreviewAutoPauseWhenHidden });
           persistLocal();
+        },
+
+        setNoiseProcessor(noiseProcessor: ENoiseProcessor): void {
+          patchState(store, { noiseProcessor });
+          persistLocal();
+          void microphoneService.setProcessor(noiseProcessor);
+        },
+
+        setInputGain(inputGain: number): void {
+          patchState(store, { inputGain });
+          persistLocal();
+          microphoneService.setGain(inputGain);
+        },
+
+        setOutputVolume(outputVolume: number): void {
+          patchState(store, { outputVolume });
+          persistLocal();
+          speakerService.setMasterVolume(outputVolume);
+        },
+
+        setEchoCancellation(echoCancellation: boolean): void {
+          patchState(store, { echoCancellation });
+          persistLocal();
+          void microphoneService.setEchoCancellation(echoCancellation);
         },
 
         loadAll: rxMethod<void>(
@@ -289,6 +338,8 @@ export const SettingsStore = signalStore(
     onInit(store) {
       const ngrxStore = inject(Store);
       const audioDeviceHandler = inject(AUDIO_DEVICE_HANDLER);
+      const microphoneService = inject(MicrophoneService);
+      const speakerService = inject(SpeakerService);
 
       const partial = readLocalSettings();
       const audioInput =
@@ -297,6 +348,11 @@ export const SettingsStore = signalStore(
         (partial.audioOutput as MediaDeviceInfo | undefined) ?? null;
       const videoInput =
         (partial.videoInput as MediaDeviceInfo | undefined) ?? null;
+      const noiseProcessor = partial.noiseProcessor ?? DEFAULT_NOISE_PROCESSOR;
+      const inputGain = partial.inputGain ?? DEFAULT_INPUT_GAIN;
+      const outputVolume = partial.outputVolume ?? DEFAULT_OUTPUT_VOLUME;
+      const echoCancellation =
+        partial.echoCancellation ?? DEFAULT_ECHO_CANCELLATION;
 
       patchState(store, {
         audioInput,
@@ -309,6 +365,10 @@ export const SettingsStore = signalStore(
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+        noiseProcessor,
+        inputGain,
+        outputVolume,
+        echoCancellation,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });
@@ -319,6 +379,11 @@ export const SettingsStore = signalStore(
       if (audioOutput) {
         audioDeviceHandler.setAudioOutput(audioOutput);
       }
+
+      microphoneService.setGain(inputGain);
+      void microphoneService.setProcessor(noiseProcessor);
+      void microphoneService.setEchoCancellation(echoCancellation);
+      speakerService.setMasterVolume(outputVolume);
 
       ngrxStore
         .select(selectIsAuthorized)
