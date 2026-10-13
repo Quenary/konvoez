@@ -57,13 +57,14 @@ describe('Notification Schemas', () => {
 
       const parsed = pushNotificationDataSchema.safeParse(validData);
       expect(parsed.success).toBe(true);
-      if (parsed.success) {
-        expect(parsed.data.url).toBe('/direct/1');
-        expect(parsed.data.senderId).toBe(1);
-        expect(parsed.data.onActionClick?.['default']?.operation).toBe(
-          'focusLastFocusedOrOpen',
-        );
+      if (!parsed.success) {
+        return;
       }
+      expect(parsed.data.url).toBe('/direct/1');
+      expect(parsed.data.senderId).toBe(1);
+      expect(parsed.data.onActionClick?.['default']?.operation).toBe(
+        'focusLastFocusedOrOpen',
+      );
     });
 
     it('validates direct call data with url and onActionClick', () => {

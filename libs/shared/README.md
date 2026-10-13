@@ -7,8 +7,9 @@ Cross-app contracts for Konvoez: Zod schemas, inferred TypeScript types, domain 
 - **Zod schemas & types** (`src/schemas/`): auth, user, profile, user management, rooms, text rooms, voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync, public API, and custom fields
 - **Domain enums** (`src/enums.ts`): roles, room types, setting keys, attachment kinds, text/voice room and direct-call events, entity-sync events, and related error codes
 - **Constants** (`src/const.ts`): username/password/message limits, attachment defaults and TTLs, invite and password-recovery bounds
-- **Desktop bridge** (`src/desktop.ts`): IPC channel names, desktop commands, and Zod schemas for renderer ↔ main payloads
+- **Desktop bridge** (`src/desktop.ts`): IPC channel names (`EDesktopIpc`: commands, notifications, voice state), desktop commands, and Zod schemas for renderer ↔ main payloads
 - **Helpers** (`src/text-room.ts`): shared permission and session utilities (e.g. message delete rules, voice session keys)
+- **Tests** (`src/schemas/*.spec.ts`): Vitest contract suites for Zod validation schemas and desktop payloads via `nx test shared`
 
 ## Import Rules
 
