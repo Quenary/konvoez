@@ -1,3 +1,16 @@
+## 1.19.0 (2026-10-13)
+
+### Features
+
+- notifications click navigation ([f67f2ec](https://github.com/Quenary/konvoez/commit/f67f2ec))
+- **frontend:** play audio cues on peer join leave and stream events ([02b9cd1](https://github.com/Quenary/konvoez/commit/02b9cd1))
+- **frontend:** add 4-sound audio cues for mute and deafen ([55aa039](https://github.com/Quenary/konvoez/commit/55aa039))
+- interlocutors mute indication ([#28](https://github.com/Quenary/konvoez/pull/28))
+
+### Code Refactoring
+
+- **frontend:** refine audio feedback throttling and edge-case tests ([9fc3fc0](https://github.com/Quenary/konvoez/commit/9fc3fc0))
+
 ## 1.18.0 (2026-10-12)
 
 ### Features
