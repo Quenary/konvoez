@@ -128,6 +128,14 @@ export class MicTestService implements OnDestroy {
       }
     });
 
+    effect(() => {
+      const gain = this.settingsStore.inputGain();
+      const isRunning = this._isRunning();
+      if (isRunning && this.gainNode) {
+        this.gainNode.gain.value = gain;
+      }
+    });
+
     this.destroyRef.onDestroy(() => {
       if (typeof document !== 'undefined') {
         document.removeEventListener(
@@ -161,14 +169,20 @@ export class MicTestService implements OnDestroy {
 
   @Mutexed(testMutex)
   public async restart(
-    inputDevice: MediaDeviceInfo | null,
-    outputDevice: MediaDeviceInfo | null,
+    inputDevice: MediaDeviceInfo | null = this.currentInputDevice,
+    outputDevice: MediaDeviceInfo | null = this.currentOutputDevice,
   ): Promise<void> {
     if (!this._isRunning()) {
       return;
     }
     await this.stopInternal();
     await this.startInternal(inputDevice, outputDevice);
+  }
+
+  public setGain(value: number): void {
+    if (this.gainNode) {
+      this.gainNode.gain.value = value;
+    }
   }
 
   private async startInternal(

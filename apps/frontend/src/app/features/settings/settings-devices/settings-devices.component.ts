@@ -295,10 +295,15 @@ export class SettingsDevicesComponent {
 
   protected onSelectNoiseProcessor(processor: ENoiseProcessor): void {
     this.settingsStore.setNoiseProcessor(processor);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart();
+    }
   }
 
   protected onInputGainChange(percent: number): void {
-    this.settingsStore.setInputGain(percent / 100);
+    const gain = percent / 100;
+    this.settingsStore.setInputGain(gain);
+    this.micTestService.setGain(gain);
   }
 
   protected onOutputVolumeChange(percent: number): void {
@@ -307,6 +312,9 @@ export class SettingsDevicesComponent {
 
   protected onEchoCancellationChange(enabled: boolean): void {
     this.settingsStore.setEchoCancellation(enabled);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart();
+    }
   }
 
   protected async toggleMicTest(): Promise<void> {

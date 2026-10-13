@@ -20,6 +20,7 @@ describe('SettingsDevicesComponent', () => {
     start: ReturnType<typeof vi.fn>;
     stop: ReturnType<typeof vi.fn>;
     restart: ReturnType<typeof vi.fn>;
+    setGain: ReturnType<typeof vi.fn>;
   };
   let settingsStore: {
     audioInput: ReturnType<typeof signal<MediaDeviceInfo | null>>;
@@ -44,6 +45,7 @@ describe('SettingsDevicesComponent', () => {
       start: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn().mockResolvedValue(undefined),
       restart: vi.fn().mockResolvedValue(undefined),
+      setGain: vi.fn(),
     };
     settingsStore = {
       audioInput: signal(null),
@@ -137,21 +139,36 @@ describe('SettingsDevicesComponent', () => {
     expect(micTestService.stop).toHaveBeenCalled();
   });
 
-  it('delegates noise processor change to store', () => {
+  it('delegates noise processor change to store and restarts test if running', () => {
     component['onSelectNoiseProcessor'](ENoiseProcessor.RNNOISE);
     expect(settingsStore.setNoiseProcessor).toHaveBeenCalledWith(
       ENoiseProcessor.RNNOISE,
     );
+    expect(micTestService.restart).not.toHaveBeenCalled();
+
+    micTestService.isRunning.set(true);
+    component['onSelectNoiseProcessor'](ENoiseProcessor.BROWSER);
+    expect(settingsStore.setNoiseProcessor).toHaveBeenCalledWith(
+      ENoiseProcessor.BROWSER,
+    );
+    expect(micTestService.restart).toHaveBeenCalled();
   });
 
-  it('delegates gain, volume and echo cancellation changes to store', () => {
+  it('delegates gain, volume and echo cancellation changes to store and updates mic test', () => {
     component['onInputGainChange'](150);
     expect(settingsStore.setInputGain).toHaveBeenCalledWith(1.5);
+    expect(micTestService.setGain).toHaveBeenCalledWith(1.5);
 
     component['onOutputVolumeChange'](80);
     expect(settingsStore.setOutputVolume).toHaveBeenCalledWith(0.8);
 
     component['onEchoCancellationChange'](false);
     expect(settingsStore.setEchoCancellation).toHaveBeenCalledWith(false);
+    expect(micTestService.restart).not.toHaveBeenCalled();
+
+    micTestService.isRunning.set(true);
+    component['onEchoCancellationChange'](true);
+    expect(settingsStore.setEchoCancellation).toHaveBeenCalledWith(true);
+    expect(micTestService.restart).toHaveBeenCalled();
   });
 });
