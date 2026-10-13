@@ -1,3 +1,10 @@
+export enum ENoiseProcessor {
+  DEEPFILTER = 'deepfilter',
+  RNNOISE = 'rnnoise',
+  BROWSER = 'browser',
+  OFF = 'off',
+}
+
 export enum EStorageKey {
   LOCAL_SETTINGS = 'konvoez-local-settings',
   PEER_GAIN_LEVELS = 'konvoez-peer-gain-levels',

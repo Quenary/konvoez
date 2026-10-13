@@ -4,26 +4,33 @@
  * - или возвращает стрим с устройства с похожим именем
  * - или возвращает стрим со стандартного устройства
  *
- * Browser noise suppression stays off (RNNoise owns that job). Echo
- * cancellation and auto gain control stay on at the browser layer.
+ * Browser noise suppression stays off by default (WASM denoisers own that job).
+ * Echo cancellation and auto gain control stay on at the browser layer by default.
  * Looser constraints are retried only after OverconstrainedError or TypeError.
  * NotAllowedError stops the search so Firefox does not prompt again.
- * @param device
- * @returns
  */
-const captureProcessing: MediaTrackConstraints = {
-  echoCancellation: true,
-  noiseSuppression: false,
-  autoGainControl: true,
-  channelCount: { ideal: 1 },
-};
+export interface GetStreamAudioOptions {
+  echoCancellation?: boolean;
+  noiseSuppression?: boolean;
+  autoGainControl?: boolean;
+}
 
-function captureConstraints(deviceId?: string): MediaTrackConstraints {
+function captureConstraints(
+  deviceId?: string,
+  options?: GetStreamAudioOptions,
+): MediaTrackConstraints {
+  const base: MediaTrackConstraints = {
+    echoCancellation: options?.echoCancellation ?? true,
+    noiseSuppression: options?.noiseSuppression ?? false,
+    autoGainControl: options?.autoGainControl ?? true,
+    channelCount: { ideal: 1 },
+  };
+
   if (!deviceId) {
-    return { ...captureProcessing };
+    return base;
   }
   return {
-    ...captureProcessing,
+    ...base,
     deviceId: { exact: deviceId },
   };
 }
@@ -58,9 +65,12 @@ async function openAudio(
   return navigator.mediaDevices.getUserMedia({ audio: constraints });
 }
 
-async function openDevice(deviceId?: string): Promise<MediaStream> {
+async function openDevice(
+  deviceId?: string,
+  options?: GetStreamAudioOptions,
+): Promise<MediaStream> {
   try {
-    return await openAudio(captureConstraints(deviceId));
+    return await openAudio(captureConstraints(deviceId, options));
   } catch (error) {
     if (!isConstraintRejection(error)) {
       throw error;
@@ -101,6 +111,7 @@ async function fuzzyDevice(
 
 export async function getStream(
   device: MediaDeviceInfo | null,
+  options?: GetStreamAudioOptions,
 ): Promise<MediaStream> {
   if (!navigator?.mediaDevices?.getUserMedia) {
     throw new Error(
@@ -109,11 +120,11 @@ export async function getStream(
   }
 
   if (!device) {
-    return openDevice();
+    return openDevice(undefined, options);
   }
 
   try {
-    return await openDevice(device.deviceId);
+    return await openDevice(device.deviceId, options);
   } catch (error) {
     if (isPermissionDenied(error)) {
       throw error;
@@ -124,7 +135,7 @@ export async function getStream(
   const fuzzy = await fuzzyDevice(device);
   if (fuzzy) {
     try {
-      return await openDevice(fuzzy.deviceId);
+      return await openDevice(fuzzy.deviceId, options);
     } catch (error) {
       if (isPermissionDenied(error)) {
         throw error;
@@ -134,7 +145,7 @@ export async function getStream(
   }
 
   try {
-    return await openDevice();
+    return await openDevice(undefined, options);
   } catch (error) {
     if (isPermissionDenied(error)) {
       throw error;

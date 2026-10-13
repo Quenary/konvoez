@@ -189,6 +189,22 @@ SETTINGS:
     API_NOT_AVAILABLE: |
       Данная функция может быть недоступна.
       В таком случае будет использовано устройство по умолчанию.
+    INPUT_GAIN: Громкость микрофона
+    OUTPUT_VOLUME: Громкость динамиков
+    NOISE_SUPPRESSION: Шумоподавление
+    NOISE_SUPPRESSION_HINT: DeepFilterNet3 использует нейросетевое улучшение речи. При перегрузке CPU произойдёт переключение на RNNoise.
+    PROCESSOR_DEEPFILTER: DeepFilterNet3 (ИИ)
+    PROCESSOR_RNNOISE: RNNoise (Классический)
+    PROCESSOR_BROWSER: Встроенное в браузер
+    PROCESSOR_OFF: Отключено
+    PROCESSOR_UNSUPPORTED: Не поддерживается на этом устройстве (требуется WebAssembly SIMD)
+    PROCESSOR_OVERLOAD_NOTIFICATION: Обнаружена высокая нагрузка на процессор; шумоподавление переключено на RNNoise для текущей сессии.
+    ECHO_CANCELLATION: Эхоподавление
+    ECHO_CANCELLATION_HINT: Рекомендуется при использовании динамиков. Можно отключить при использовании наушников или прослушивании музыки.
+    MIC_TEST_START: Проверить микрофон
+    MIC_TEST_STOP: Остановить проверку
+    MIC_TEST_FEEDBACK_WARNING: Используйте наушники во время проверки во избежание акустической обратной связи.
+    MIC_TEST_OUTPUT_HINT: Воспроизведение через стандартный вывод (браузер не поддерживает выбор выходного устройства).
   INVITES:
     TITLE: Приглашения
     SUBTITLE: Управление одноразовыми приглашениями для регистрации
