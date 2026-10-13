@@ -577,6 +577,39 @@ describe('VoiceSessionService', () => {
     });
   });
 
+  describe('peer join and leave audio cues', () => {
+    beforeEach(async () => {
+      await service.joinSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      audioService.playPeerJoinAudio.mockClear();
+      audioService.playPeerLeaveAudio.mockClear();
+    });
+
+    it('plays join audio when a peer joins the active room', async () => {
+      const onPeerJoined = handlers[EVoiceRoomEvent.PEER_JOINED];
+
+      await onPeerJoined({
+        user: { id: 2, username: 'bob', email: 'bob@example.com' },
+        epoch: 'epoch-1',
+        revision: 1,
+      });
+
+      expect(audioService.playPeerJoinAudio).toHaveBeenCalledTimes(1);
+    });
+
+    it('plays leave audio when a peer leaves the active room', () => {
+      const onPeerLeft = handlers[EVoiceRoomEvent.PEER_LEFT];
+
+      onPeerLeft({
+        user: { id: 2, username: 'bob', email: 'bob@example.com' },
+      });
+
+      expect(audioService.playPeerLeaveAudio).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('peer mute synchronization', () => {
     it('sends current mute and deafen state on JOIN_ROOM', async () => {
       voiceAudioPreferencesStore.microphoneMuted.set(true);
