@@ -119,10 +119,10 @@ describe('RoomPeerComponent', () => {
       expect(fixture.componentInstance['isDeafened']()).toBe(expectDeafened);
 
       const micIcon = fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.mic-off"]',
+        'tui-icon[icon="@tui.mic-off"]',
       );
       const headphoneIcon = fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.headphone-off"]',
+        'tui-icon[icon="@tui.headphone-off"]',
       );
 
       if (expectMicOff) {
@@ -159,7 +159,7 @@ describe('RoomPeerComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance['isMuted']()).toBe(true);
     expect(
-      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
+      fixture.nativeElement.querySelector('tui-icon[icon="@tui.mic-off"]'),
     ).not.toBeNull();
 
     speakerMuted.set(true);
@@ -167,7 +167,7 @@ describe('RoomPeerComponent', () => {
     expect(fixture.componentInstance['isDeafened']()).toBe(true);
     expect(
       fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.headphone-off"]',
+        'tui-icon[icon="@tui.headphone-off"]',
       ),
     ).not.toBeNull();
   });
