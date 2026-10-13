@@ -7,7 +7,6 @@ import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { SettingsStore } from '@core/stores/settings.store';
@@ -97,15 +96,6 @@ describe('VoiceRoomGridComponent', () => {
             remoteScreenTracks: signal({}).asReadonly(),
             availableScreens: availableScreens.asReadonly(),
             watchingUserIds: signal(new Set<number>()).asReadonly(),
-          },
-        },
-        {
-          provide: DirectCallService,
-          useValue: {
-            interlocutor: signal(null).asReadonly(),
-            isRinging: signal(false).asReadonly(),
-            isCalling: signal(false).asReadonly(),
-            isIncoming: signal(false).asReadonly(),
           },
         },
         {

@@ -11,7 +11,6 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
@@ -60,7 +59,6 @@ export class VoiceRoomTileComponent {
     VoiceAudioPreferencesStore,
   );
   private readonly audioActivityService = inject(AudioActivityService);
-  private readonly directCallService = inject(DirectCallService);
   private readonly localScreenPreviewService = inject(
     LocalScreenPreviewService,
   );
@@ -107,12 +105,6 @@ export class VoiceRoomTileComponent {
   protected readonly showingScreen = computed(
     () => this.streamKind() === 'screen' && this.videoTrack() !== null,
   );
-
-  protected readonly isCalling = computed(() => {
-    const isLocal = this.isLocal();
-    const isCalling = this.directCallService.isCalling();
-    return !isLocal && isCalling;
-  });
 
   protected readonly isSpeaking = computed(() => {
     const speakingMap = this.audioActivityService.speakingMap();

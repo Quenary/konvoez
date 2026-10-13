@@ -117,7 +117,6 @@ describe('VoiceRoomShellComponent', () => {
           useValue: {
             interlocutor: signal(null).asReadonly(),
             isRinging: signal(false).asReadonly(),
-            isCalling: signal(false).asReadonly(),
             isIncoming: signal(false).asReadonly(),
           },
         },

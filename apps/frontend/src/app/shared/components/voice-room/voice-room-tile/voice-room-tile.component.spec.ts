@@ -5,7 +5,6 @@ import { Store } from '@ngrx/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IUser } from '@konvoez/shared';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
@@ -59,12 +58,6 @@ describe('VoiceRoomTileComponent', () => {
             speakerMuted: signal(false).asReadonly(),
             peerGainLevels: signal({}).asReadonly(),
             peerScreenGainLevels: signal({}).asReadonly(),
-          },
-        },
-        {
-          provide: DirectCallService,
-          useValue: {
-            isCalling: signal(false).asReadonly(),
           },
         },
         {
@@ -138,6 +131,7 @@ describe('VoiceRoomTileComponent', () => {
     const cmp = fixture.componentInstance;
     expect(cmp.previewPaused()).toBe(false);
     expect(fixture.nativeElement.querySelector('video')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.badge-calling')).toBeNull();
     expect(
       fixture.nativeElement.querySelector('.preview-paused-overlay'),
     ).toBeNull();

@@ -71,16 +71,6 @@
   }
 
   <div class="badges">
-    @if (isCalling()) {
-      <tui-icon
-        appearance="info"
-        iconStart="@tui.phone-call"
-        size="l"
-        tuiBadge
-        class="badge-calling"
-        tuiHintAppearance="floating"
-        [tuiHint]="'CALL.CALLING' | translate" />
-    }
     @if (isMuted()) {
       <tui-icon
         appearance="neutral"
