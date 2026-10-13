@@ -22,6 +22,9 @@ describe('VoiceAudioPreferencesStore', () => {
     setMicrophoneMuted: ReturnType<typeof vi.fn>;
   };
   let playMuteAudio: ReturnType<typeof vi.fn>;
+  let playUnmuteAudio: ReturnType<typeof vi.fn>;
+  let playDeafenAudio: ReturnType<typeof vi.fn>;
+  let playUndeafenAudio: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -42,12 +45,20 @@ describe('VoiceAudioPreferencesStore', () => {
       setMicrophoneMuted: vi.fn(),
     };
     playMuteAudio = vi.fn();
+    playUnmuteAudio = vi.fn();
+    playDeafenAudio = vi.fn();
+    playUndeafenAudio = vi.fn();
 
     TestBed.configureTestingModule({
       providers: [
         {
           provide: AudioService,
-          useValue: { playMuteAudio },
+          useValue: {
+            playMuteAudio,
+            playUnmuteAudio,
+            playDeafenAudio,
+            playUndeafenAudio,
+          },
         },
         {
           provide: PeerPlaybackService,
@@ -65,26 +76,56 @@ describe('VoiceAudioPreferencesStore', () => {
     });
   });
 
-  it('toggleMicrophoneMuted unmutes speaker when the mic is enabled', () => {
-    const store = TestBed.inject(VoiceAudioPreferencesStore);
-    store.setMicrophoneMuted(true);
-    store.setSpeakerMuted(true);
+  describe('toggleMicrophoneMuted audio feedback', () => {
+    it('unmutes speaker and plays playUnmuteAudio when mic is enabled', () => {
+      const store = TestBed.inject(VoiceAudioPreferencesStore);
+      store.setMicrophoneMuted(true);
+      store.setSpeakerMuted(true);
 
-    store.toggleMicrophoneMuted();
+      store.toggleMicrophoneMuted();
 
-    expect(store.microphoneMuted()).toBe(false);
-    expect(store.speakerMuted()).toBe(false);
-    expect(playMuteAudio).toHaveBeenCalledTimes(1);
+      expect(store.microphoneMuted()).toBe(false);
+      expect(store.speakerMuted()).toBe(false);
+      expect(playUnmuteAudio).toHaveBeenCalledTimes(1);
+      expect(playMuteAudio).not.toHaveBeenCalled();
+    });
+
+    it('plays playMuteAudio when mic is disabled', () => {
+      const store = TestBed.inject(VoiceAudioPreferencesStore);
+      store.setMicrophoneMuted(false);
+
+      store.toggleMicrophoneMuted();
+
+      expect(store.microphoneMuted()).toBe(true);
+      expect(playMuteAudio).toHaveBeenCalledTimes(1);
+      expect(playUnmuteAudio).not.toHaveBeenCalled();
+    });
   });
 
-  it('toggleSpeakerMuted mutes the microphone when deafened', () => {
-    const store = TestBed.inject(VoiceAudioPreferencesStore);
+  describe('toggleSpeakerMuted audio feedback', () => {
+    it('mutes microphone and plays playDeafenAudio when deafened', () => {
+      const store = TestBed.inject(VoiceAudioPreferencesStore);
+      store.setSpeakerMuted(false);
+      store.setMicrophoneMuted(false);
 
-    store.toggleSpeakerMuted();
+      store.toggleSpeakerMuted();
 
-    expect(store.speakerMuted()).toBe(true);
-    expect(store.microphoneMuted()).toBe(true);
-    expect(playMuteAudio).toHaveBeenCalledTimes(1);
+      expect(store.speakerMuted()).toBe(true);
+      expect(store.microphoneMuted()).toBe(true);
+      expect(playDeafenAudio).toHaveBeenCalledTimes(1);
+      expect(playUndeafenAudio).not.toHaveBeenCalled();
+    });
+
+    it('plays playUndeafenAudio when undeafened', () => {
+      const store = TestBed.inject(VoiceAudioPreferencesStore);
+      store.setSpeakerMuted(true);
+
+      store.toggleSpeakerMuted();
+
+      expect(store.speakerMuted()).toBe(false);
+      expect(playUndeafenAudio).toHaveBeenCalledTimes(1);
+      expect(playDeafenAudio).not.toHaveBeenCalled();
+    });
   });
 
   it('persists mute flags and applies them to mediasoup and playback', () => {
