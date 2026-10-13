@@ -357,6 +357,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_JOINED, async (data) => {
+      this.audioService.playPeerJoinAudio();
       this.voiceSessionStore.upsertPeer(data.user);
       this.voiceSessionStore.updatePeerMuteState(
         data.user.id,
@@ -367,8 +368,14 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
+      const wasInSession = Boolean(
+        this.voiceSessionStore.peersDict()[data.user.id],
+      );
       this.releasePeerMedia(data.user.id);
       this.voiceSessionStore.removePeer(data.user.id);
+      if (wasInSession) {
+        this.audioService.playPeerLeaveAudio();
+      }
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_MUTE_CHANGED, (data) => {

@@ -23,7 +23,10 @@ interface IToneOptions {
 /** Shared harmonic palette for UI cues. */
 const F = {
   dial: 425,
-  mute: 560,
+  muteLow: 659.25, // E5
+  muteHigh: 880, // A5
+  deafenLow: 440, // A4
+  deafenHigh: 659.25, // E5
   leaveLow: 523.25, // C5
   leaveHigh: 659.25, // E5
   joinLow: 648,
@@ -32,6 +35,9 @@ const F = {
   streamStart: [587.33, 739.99, 880] as const, // D5 F#5 A5
   streamStop: [880, 739.99, 587.33] as const, // A5 F#5 D5
 } as const;
+
+const STREAM_THROTTLE_MS = 100;
+const CUE_THROTTLE_MS = 80;
 
 /** UI/telephony cue tones (join/leave, mute, dial, ringtone). Not peer media playback. */
 @Injectable({
@@ -46,10 +52,14 @@ export class AudioService {
   private ringtoneInterval: ReturnType<typeof setInterval> | null = null;
   private lastStreamStartAt = 0;
   private lastStreamStopAt = 0;
+  private lastMuteAt = 0;
+  private lastDeafenAt = 0;
+  private lastPeerJoinAt = 0;
+  private lastPeerLeaveAt = 0;
 
   public playStreamStartAudio(): void {
     const now = performance.now();
-    if (now - this.lastStreamStartAt < 100) {
+    if (now - this.lastStreamStartAt < STREAM_THROTTLE_MS) {
       return;
     }
     this.lastStreamStartAt = now;
@@ -62,7 +72,7 @@ export class AudioService {
 
   public playStreamStopAudio(): void {
     const now = performance.now();
-    if (now - this.lastStreamStopAt < 100) {
+    if (now - this.lastStreamStopAt < STREAM_THROTTLE_MS) {
       return;
     }
     this.lastStreamStopAt = now;
@@ -74,6 +84,11 @@ export class AudioService {
   }
 
   public playPeerJoinAudio(): void {
+    const now = performance.now();
+    if (now - this.lastPeerJoinAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastPeerJoinAt = now;
     this.playNotes([
       { frequency: F.joinLow, when: 0, duration: 0.12, peak: 0.12 },
       { frequency: F.joinHigh, when: 0.1, duration: 0.16, peak: 0.11 },
@@ -81,6 +96,11 @@ export class AudioService {
   }
 
   public playPeerLeaveAudio(): void {
+    const now = performance.now();
+    if (now - this.lastPeerLeaveAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastPeerLeaveAt = now;
     this.playNotes([
       { frequency: F.leaveHigh, when: 0, duration: 0.12, peak: 0.1 },
       { frequency: F.leaveLow, when: 0.1, duration: 0.16, peak: 0.09 },
@@ -88,12 +108,99 @@ export class AudioService {
   }
 
   public playMuteAudio(): void {
-    this.playTone({
-      frequency: F.mute,
-      duration: 0.05,
-      peak: 0.16,
-      attack: 0.005,
-    });
+    const now = performance.now();
+    if (now - this.lastMuteAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastMuteAt = now;
+    this.playNotes([
+      {
+        frequency: F.muteHigh,
+        when: 0,
+        duration: 0.05,
+        peak: 0.13,
+        attack: 0.005,
+      },
+      {
+        frequency: F.muteLow,
+        when: 0.05,
+        duration: 0.07,
+        peak: 0.11,
+        attack: 0.005,
+      },
+    ]);
+  }
+
+  public playUnmuteAudio(): void {
+    const now = performance.now();
+    if (now - this.lastMuteAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastMuteAt = now;
+    this.playNotes([
+      {
+        frequency: F.muteLow,
+        when: 0,
+        duration: 0.05,
+        peak: 0.12,
+        attack: 0.005,
+      },
+      {
+        frequency: F.muteHigh,
+        when: 0.05,
+        duration: 0.07,
+        peak: 0.14,
+        attack: 0.005,
+      },
+    ]);
+  }
+
+  public playDeafenAudio(): void {
+    const now = performance.now();
+    if (now - this.lastDeafenAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastDeafenAt = now;
+    this.playNotes([
+      {
+        frequency: F.deafenHigh,
+        when: 0,
+        duration: 0.06,
+        peak: 0.13,
+        attack: 0.006,
+      },
+      {
+        frequency: F.deafenLow,
+        when: 0.06,
+        duration: 0.09,
+        peak: 0.11,
+        attack: 0.006,
+      },
+    ]);
+  }
+
+  public playUndeafenAudio(): void {
+    const now = performance.now();
+    if (now - this.lastDeafenAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastDeafenAt = now;
+    this.playNotes([
+      {
+        frequency: F.deafenLow,
+        when: 0,
+        duration: 0.06,
+        peak: 0.11,
+        attack: 0.006,
+      },
+      {
+        frequency: F.deafenHigh,
+        when: 0.06,
+        duration: 0.09,
+        peak: 0.14,
+        attack: 0.006,
+      },
+    ]);
   }
 
   public startOutgoingDialing(): void {

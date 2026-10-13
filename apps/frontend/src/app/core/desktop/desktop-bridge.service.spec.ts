@@ -113,7 +113,15 @@ describe('DesktopBridgeService', () => {
               }),
             },
           },
-          { provide: AudioService, useValue: { playMuteAudio: vi.fn() } },
+          {
+            provide: AudioService,
+            useValue: {
+              playMuteAudio: vi.fn(),
+              playUnmuteAudio: vi.fn(),
+              playDeafenAudio: vi.fn(),
+              playUndeafenAudio: vi.fn(),
+            },
+          },
           {
             provide: PeerPlaybackService,
             useValue: { applySpeakerMuted: vi.fn() },

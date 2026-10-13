@@ -91,12 +91,16 @@ export const VoiceAudioPreferencesStore = signalStore(
           if (!microphoneMuted) {
             setSpeaker(false);
           }
-          audioService.playMuteAudio();
+          if (microphoneMuted) {
+            audioService.playMuteAudio();
+          } else {
+            audioService.playUnmuteAudio();
+          }
         },
 
         /**
          * Toggles speaker mute state and mutes microphone if deafened.
-         * Plays mute/unmute audio SFX via {@link AudioService}.
+         * Plays deafen/undeafen audio SFX via {@link AudioService}.
          */
         toggleSpeakerMuted(): void {
           const speakerMuted = !store.speakerMuted();
@@ -104,7 +108,11 @@ export const VoiceAudioPreferencesStore = signalStore(
           if (speakerMuted) {
             setMic(true);
           }
-          audioService.playMuteAudio();
+          if (speakerMuted) {
+            audioService.playDeafenAudio();
+          } else {
+            audioService.playUndeafenAudio();
+          }
         },
 
         setPeerGain(userId: number, gain: number): void {

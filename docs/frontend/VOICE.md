@@ -40,7 +40,11 @@ flowchart TB
 ```
 
 - **Hangup:** `VoiceLeaveService.leaveActiveVoice()` — direct call via `DirectCallService.leaveCall()`, else `VoiceSessionService.leaveSession()`. `VoiceSessionService` does not import `DirectCallService`; switching sessions uses `sessionWillChange$` and `detachFromCallWithoutHangup()`.
-- **Audio contexts:** capture, playback, and UI SFX are separate; resume after gesture is centralized in `AudioContextResumeService`.
+- **Audio contexts & UI SFX:** capture, playback, and UI SFX are separate; resume after gesture is centralized in `AudioContextResumeService`. UI SFX (`AudioService`) use Web Audio API synthesizers following harmonic conventions (ascending positive cues, descending negative cues):
+  - **Join / Leave:** 2-tone cues on local join/leave and remote peer events (`PEER_JOINED` / `PEER_LEFT`).
+  - **Mute / Unmute:** 2-tone cues in high register (`E5 ↔ A5`).
+  - **Deafen / Undeafen:** 2-tone cues in lower register (`A4 ↔ E5`).
+  - **Stream Start / Stop:** 3-tone cues on screen/camera publish and stop (local and remote peers via `PRODUCER_CREATED` and `PRODUCER_CLOSED`, suppressed on `peer-left`).
 
 ## Flow (short)
 

@@ -22,6 +22,9 @@ describe('VoiceAudioPreferencesStore', () => {
     setMicrophoneMuted: ReturnType<typeof vi.fn>;
   };
   let playMuteAudio: ReturnType<typeof vi.fn>;
+  let playUnmuteAudio: ReturnType<typeof vi.fn>;
+  let playDeafenAudio: ReturnType<typeof vi.fn>;
+  let playUndeafenAudio: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localStorage.clear();
@@ -42,12 +45,20 @@ describe('VoiceAudioPreferencesStore', () => {
       setMicrophoneMuted: vi.fn(),
     };
     playMuteAudio = vi.fn();
+    playUnmuteAudio = vi.fn();
+    playDeafenAudio = vi.fn();
+    playUndeafenAudio = vi.fn();
 
     TestBed.configureTestingModule({
       providers: [
         {
           provide: AudioService,
-          useValue: { playMuteAudio },
+          useValue: {
+            playMuteAudio,
+            playUnmuteAudio,
+            playDeafenAudio,
+            playUndeafenAudio,
+          },
         },
         {
           provide: PeerPlaybackService,
@@ -65,26 +76,92 @@ describe('VoiceAudioPreferencesStore', () => {
     });
   });
 
-  it('toggleMicrophoneMuted unmutes speaker when the mic is enabled', () => {
-    const store = TestBed.inject(VoiceAudioPreferencesStore);
-    store.setMicrophoneMuted(true);
-    store.setSpeakerMuted(true);
+  describe('toggleMicrophoneMuted audio feedback', () => {
+    it.each([
+      {
+        initialMic: true,
+        initialSpeaker: true,
+        expectedMic: false,
+        expectedSpeaker: false,
+        expectedCalled: 'unmute',
+      },
+      {
+        initialMic: false,
+        initialSpeaker: false,
+        expectedMic: true,
+        expectedSpeaker: false,
+        expectedCalled: 'mute',
+      },
+    ])(
+      'when mic is initially $initialMic, toggles to $expectedMic and plays $expectedCalled cue',
+      ({
+        initialMic,
+        initialSpeaker,
+        expectedMic,
+        expectedSpeaker,
+        expectedCalled,
+      }) => {
+        const store = TestBed.inject(VoiceAudioPreferencesStore);
+        store.setMicrophoneMuted(initialMic);
+        store.setSpeakerMuted(initialSpeaker);
 
-    store.toggleMicrophoneMuted();
+        store.toggleMicrophoneMuted();
 
-    expect(store.microphoneMuted()).toBe(false);
-    expect(store.speakerMuted()).toBe(false);
-    expect(playMuteAudio).toHaveBeenCalledTimes(1);
+        expect(store.microphoneMuted()).toBe(expectedMic);
+        expect(store.speakerMuted()).toBe(expectedSpeaker);
+        if (expectedCalled === 'unmute') {
+          expect(playUnmuteAudio).toHaveBeenCalledTimes(1);
+          expect(playMuteAudio).not.toHaveBeenCalled();
+        } else {
+          expect(playMuteAudio).toHaveBeenCalledTimes(1);
+          expect(playUnmuteAudio).not.toHaveBeenCalled();
+        }
+      },
+    );
   });
 
-  it('toggleSpeakerMuted mutes the microphone when deafened', () => {
-    const store = TestBed.inject(VoiceAudioPreferencesStore);
+  describe('toggleSpeakerMuted audio feedback', () => {
+    it.each([
+      {
+        initialSpeaker: false,
+        initialMic: false,
+        expectedSpeaker: true,
+        expectedMic: true,
+        expectedCalled: 'deafen',
+      },
+      {
+        initialSpeaker: true,
+        initialMic: false,
+        expectedSpeaker: false,
+        expectedMic: false,
+        expectedCalled: 'undeafen',
+      },
+    ])(
+      'when speaker is initially $initialSpeaker, toggles to $expectedSpeaker and plays $expectedCalled cue',
+      ({
+        initialSpeaker,
+        initialMic,
+        expectedSpeaker,
+        expectedMic,
+        expectedCalled,
+      }) => {
+        const store = TestBed.inject(VoiceAudioPreferencesStore);
+        store.setSpeakerMuted(initialSpeaker);
+        store.setMicrophoneMuted(initialMic);
 
-    store.toggleSpeakerMuted();
+        store.toggleSpeakerMuted();
 
-    expect(store.speakerMuted()).toBe(true);
-    expect(store.microphoneMuted()).toBe(true);
-    expect(playMuteAudio).toHaveBeenCalledTimes(1);
+        expect(store.speakerMuted()).toBe(expectedSpeaker);
+        expect(store.microphoneMuted()).toBe(expectedMic);
+        if (expectedCalled === 'deafen') {
+          expect(playDeafenAudio).toHaveBeenCalledTimes(1);
+          expect(playUndeafenAudio).not.toHaveBeenCalled();
+        } else {
+          expect(playUndeafenAudio).toHaveBeenCalledTimes(1);
+          expect(playDeafenAudio).not.toHaveBeenCalled();
+        }
+      },
+    );
   });
 
   it('persists mute flags and applies them to mediasoup and playback', () => {
