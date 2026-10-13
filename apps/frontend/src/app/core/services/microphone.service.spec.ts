@@ -1,35 +1,49 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NOISE_SUPPRESSOR_VERSION } from '@core/asset-version';
+import {
+  DEEP_FILTER_VERSION,
+  NOISE_SUPPRESSOR_VERSION,
+} from '@core/asset-version';
 import { VOICE_CAPTURE, VOICE_MAKEUP_GAIN } from '@core/audio/voice-dynamics';
 import {
   NOISE_SUPPRESSOR_PORT,
   type NoiseSuppressorPort,
 } from '@core/audio/noise-suppressor.port';
-
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
+import { ENoiseProcessor } from '../../app.enums';
 import { MicrophoneService } from './microphone.service';
 
 describe('MicrophoneService', () => {
   let service: MicrophoneService;
   let enumerateDevices: ReturnType<typeof vi.fn>;
   let loadRnnoise: ReturnType<typeof vi.fn>;
-  let loadSpeex: ReturnType<typeof vi.fn>;
+  let loadDeepFilter: ReturnType<typeof vi.fn>;
+  let isSimdSupported: ReturnType<typeof vi.fn>;
+  let notificationOpen: ReturnType<typeof vi.fn>;
+
   const workletNodes = {
     rnnoise: [] as Array<{
       connect: ReturnType<typeof vi.fn>;
       disconnect: ReturnType<typeof vi.fn>;
       destroy: ReturnType<typeof vi.fn>;
     }>,
-    speex: [] as Array<{
+    deepfilter: [] as Array<{
       connect: ReturnType<typeof vi.fn>;
       disconnect: ReturnType<typeof vi.fn>;
       destroy: ReturnType<typeof vi.fn>;
+      port: {
+        postMessage: ReturnType<typeof vi.fn>;
+        onmessage?: ((event: MessageEvent) => void) | null;
+      };
     }>,
   };
 
   const noiseSuppressorPort = {
     loadRnnoise: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
-    loadSpeex: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+    loadDeepFilter: vi.fn().mockResolvedValue({} as WebAssembly.Module),
+    isSimdSupported: vi.fn().mockReturnValue(true),
     RnnoiseWorkletNode: class RnnoiseWorkletNode {
       connect = vi.fn();
       disconnect = vi.fn();
@@ -38,25 +52,35 @@ describe('MicrophoneService', () => {
         workletNodes.rnnoise.push(this);
       }
     },
-    SpeexWorkletNode: class SpeexWorkletNode {
+    DeepFilterWorkletNode: class DeepFilterWorkletNode {
       connect = vi.fn();
       disconnect = vi.fn();
       destroy = vi.fn();
+      port = {
+        postMessage: vi.fn(),
+        onmessage: null,
+      };
       constructor() {
-        workletNodes.speex.push(this);
+        workletNodes.deepfilter.push(this);
       }
     },
   } as unknown as NoiseSuppressorPort;
 
   beforeEach(() => {
     workletNodes.rnnoise.length = 0;
-    workletNodes.speex.length = 0;
+    workletNodes.deepfilter.length = 0;
     loadRnnoise = vi.mocked(noiseSuppressorPort.loadRnnoise);
-    loadSpeex = vi.mocked(noiseSuppressorPort.loadSpeex);
+    loadDeepFilter = vi.mocked(noiseSuppressorPort.loadDeepFilter);
+    isSimdSupported = vi.mocked(noiseSuppressorPort.isSimdSupported);
+
     loadRnnoise.mockReset();
     loadRnnoise.mockResolvedValue(new ArrayBuffer(8));
-    loadSpeex.mockReset();
-    loadSpeex.mockResolvedValue(new ArrayBuffer(8));
+    loadDeepFilter.mockReset();
+    loadDeepFilter.mockResolvedValue({} as WebAssembly.Module);
+    isSimdSupported.mockReset();
+    isSimdSupported.mockReturnValue(true);
+
+    notificationOpen = vi.fn().mockReturnValue(of(null));
     enumerateDevices = vi.fn().mockResolvedValue([]);
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -71,6 +95,14 @@ describe('MicrophoneService', () => {
       providers: [
         MicrophoneService,
         { provide: NOISE_SUPPRESSOR_PORT, useValue: noiseSuppressorPort },
+        {
+          provide: TuiNotificationService,
+          useValue: { open: notificationOpen },
+        },
+        {
+          provide: TranslateService,
+          useValue: { instant: (key: string) => key },
+        },
       ],
     });
 
@@ -106,7 +138,7 @@ describe('MicrophoneService', () => {
     service['gainNode'] = gainNode as unknown as GainNode;
     service['biquadNode'] = biquadNode as unknown as BiquadFilterNode;
     service['denoiserNode'] = denoiserNode as unknown as InstanceType<
-      NoiseSuppressorPort['SpeexWorkletNode']
+      NoiseSuppressorPort['DeepFilterWorkletNode']
     >;
     service['destinationNode'] =
       destinationNode as unknown as MediaStreamAudioDestinationNode;
@@ -143,44 +175,121 @@ describe('MicrophoneService', () => {
     expect(setDevice).toHaveBeenCalledWith(null);
   });
 
-  it('selects RNNoise at 48 kHz and Speex otherwise', async () => {
+  it('selects DeepFilterNet at 48 kHz when SIMD is supported', async () => {
     const addModule = vi.fn().mockResolvedValue(undefined);
     service['context'] = {
       sampleRate: 48000,
       audioWorklet: { addModule },
     } as unknown as AudioContext;
 
-    await service['resolveDenoiser']();
+    const resolved = await service['resolveDenoiserKind'](
+      ENoiseProcessor.DEEPFILTER,
+    );
 
-    expect(service['denoiserKind']).toBe('rnnoise');
+    expect(resolved).toBe(ENoiseProcessor.DEEPFILTER);
+    expect(loadDeepFilter).toHaveBeenCalled();
+    expect(addModule).toHaveBeenCalledWith(
+      `assets/deepfilternet/worklet.js?v=${DEEP_FILTER_VERSION}`,
+    );
+  });
+
+  it('falls back to RNNoise when SIMD is unsupported', async () => {
+    isSimdSupported.mockReturnValue(false);
+    const addModule = vi.fn().mockResolvedValue(undefined);
+    service['context'] = {
+      sampleRate: 48000,
+      audioWorklet: { addModule },
+    } as unknown as AudioContext;
+
+    const resolved = await service['resolveDenoiserKind'](
+      ENoiseProcessor.DEEPFILTER,
+    );
+
+    expect(resolved).toBe(ENoiseProcessor.RNNOISE);
     expect(loadRnnoise).toHaveBeenCalled();
     expect(addModule).toHaveBeenCalledWith(
       `assets/web-noise-suppressor/rnnoise/workletProcessor.js?v=${NOISE_SUPPRESSOR_VERSION}`,
     );
-
-    service['context'] = {
-      sampleRate: 44100,
-      audioWorklet: { addModule },
-    } as unknown as AudioContext;
-    service['denoiserKind'] = null;
-    await service['resolveDenoiser']();
-
-    expect(service['denoiserKind']).toBe('speex');
-    expect(loadSpeex).toHaveBeenCalled();
   });
 
-  it('falls back to Speex when RNNoise fails to load', async () => {
-    loadRnnoise.mockRejectedValueOnce(new Error('wasm'));
+  it('falls back to RNNoise when DeepFilterNet fails to load', async () => {
+    loadDeepFilter.mockRejectedValueOnce(new Error('deepfilter wasm failed'));
     const addModule = vi.fn().mockResolvedValue(undefined);
     service['context'] = {
       sampleRate: 48000,
       audioWorklet: { addModule },
     } as unknown as AudioContext;
 
-    await service['resolveDenoiser']();
+    const resolved = await service['resolveDenoiserKind'](
+      ENoiseProcessor.DEEPFILTER,
+    );
 
-    expect(service['denoiserKind']).toBe('speex');
-    expect(loadSpeex).toHaveBeenCalled();
+    expect(resolved).toBe(ENoiseProcessor.RNNOISE);
+    expect(loadRnnoise).toHaveBeenCalled();
+  });
+
+  it('falls back to off when both DeepFilterNet and RNNoise fail to load', async () => {
+    loadDeepFilter.mockRejectedValueOnce(new Error('deepfilter failed'));
+    loadRnnoise.mockRejectedValueOnce(new Error('rnnoise failed'));
+    service['context'] = {
+      sampleRate: 48000,
+      audioWorklet: { addModule: vi.fn() },
+    } as unknown as AudioContext;
+
+    const resolved = await service['resolveDenoiserKind'](
+      ENoiseProcessor.DEEPFILTER,
+    );
+
+    expect(resolved).toBe(ENoiseProcessor.OFF);
+  });
+
+  it('switches processor at runtime preserving MediaStreamDestination track', async () => {
+    const destinationStream = { id: 'dest-stream' } as unknown as MediaStream;
+    service['_processedStream'].set(destinationStream);
+
+    const biquad = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    } as unknown as BiquadFilterNode;
+    const compressor = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    } as unknown as DynamicsCompressorNode;
+
+    service['context'] = {
+      sampleRate: 48000,
+      audioWorklet: { addModule: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as AudioContext;
+    service['biquadNode'] = biquad;
+    service['compressorNode'] = compressor;
+    service['activeProcessor'] = ENoiseProcessor.RNNOISE;
+    service['rnnoiseWasmBinary'] = new ArrayBuffer(8);
+
+    await service.setProcessor(ENoiseProcessor.OFF);
+
+    expect(service.processedStream()).toBe(destinationStream);
+    expect(service['activeProcessor']).toBe(ENoiseProcessor.OFF);
+    expect(biquad.connect).toHaveBeenCalledWith(compressor);
+  });
+
+  it('handles CPU overload fallback with fake worklet message and notification', async () => {
+    service['activeProcessor'] = ENoiseProcessor.DEEPFILTER;
+    service['processorPreference'] = ENoiseProcessor.DEEPFILTER;
+
+    const applyProcessorSpy = vi
+      .spyOn(
+        service as unknown as {
+          applyProcessor: (p: ENoiseProcessor) => Promise<void>;
+        },
+        'applyProcessor',
+      )
+      .mockResolvedValue();
+
+    await service['handleCpuOverload']();
+
+    expect(applyProcessorSpy).toHaveBeenCalledWith(ENoiseProcessor.RNNOISE);
+    expect(notificationOpen).toHaveBeenCalledTimes(1);
+    expect(service['processorPreference']).toBe(ENoiseProcessor.DEEPFILTER);
   });
 
   it('connects expander, compressor, makeup and limiter after RNNoise', async () => {
@@ -217,7 +326,7 @@ describe('MicrophoneService', () => {
       createMediaStreamDestination: () => destination,
     } as unknown as AudioContext;
     service['inputStream'] = {} as MediaStream;
-    service['denoiserKind'] = 'rnnoise';
+    service['activeProcessor'] = ENoiseProcessor.RNNOISE;
     service['rnnoiseWasmBinary'] = new ArrayBuffer(8);
     service['dynamicsReady'] = true;
 
@@ -272,7 +381,7 @@ describe('MicrophoneService', () => {
       createMediaStreamDestination: () => destination,
     } as unknown as AudioContext;
     service['inputStream'] = {} as MediaStream;
-    service['denoiserKind'] = 'rnnoise';
+    service['activeProcessor'] = ENoiseProcessor.RNNOISE;
     service['rnnoiseWasmBinary'] = new ArrayBuffer(8);
     service['dynamicsReady'] = false;
 
@@ -315,7 +424,7 @@ describe('MicrophoneService', () => {
       },
     } as unknown as AudioContext;
     service['inputStream'] = {} as MediaStream;
-    service['denoiserKind'] = 'rnnoise';
+    service['activeProcessor'] = ENoiseProcessor.RNNOISE;
     service['rnnoiseWasmBinary'] = new ArrayBuffer(8);
     service['dynamicsReady'] = false;
 
