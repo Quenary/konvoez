@@ -20,7 +20,7 @@ If the preferred processor cannot run:
 
 1. **DeepFilterNet 3** checks for WASM SIMD capability and 48 kHz sample rate. If SIMD is unsupported, loading fails, or sample rate differs, it falls back to **RNNoise**.
 2. **RNNoise** requires 48 kHz. If initialization fails or context is not 48 kHz, it falls back to **Off**.
-3. **Runtime CPU overload protection**: If DeepFilterNet worklet experiences consecutive audio processing glitches (frame time > 20 ms), `MicrophoneService` automatically downgrades the active processor to **RNNoise** and alerts the user with a notification.
+3. **Runtime CPU overload protection**: When running DeepFilterNet 3 on supported browsers, `MicrophoneService` monitors real-time audio thread capacity via `AudioContext.renderCapacity`. If average render load exceeds 85% across consecutive measurement windows, `MicrophoneService` automatically downgrades the active processor to **RNNoise** and alerts the user with a notification.
 
 ## CSP Requirements
 

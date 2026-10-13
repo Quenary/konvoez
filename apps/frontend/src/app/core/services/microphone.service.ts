@@ -475,24 +475,10 @@ export class MicrophoneService implements OnDestroy {
       resolved === ENoiseProcessor.RNNOISE
     ) {
       this.denoiserNode = this.createDenoiserNode(resolved);
-      this.attachOverloadHandler(this.denoiserNode);
       this.biquadNode.connect(this.denoiserNode);
       this.denoiserNode.connect(nextNode);
     } else {
       this.biquadNode.connect(nextNode);
-    }
-  }
-
-  private attachOverloadHandler(node: DenoiserNode | null): void {
-    if (node instanceof this.noiseSuppressor.DeepFilterWorkletNode) {
-      node.port.onmessage = (event: MessageEvent) => {
-        if (
-          event.data?.type === 'overload' ||
-          event.data?.type === 'frameTimeOverBudget'
-        ) {
-          void this.handleCpuOverload();
-        }
-      };
     }
   }
 
@@ -527,7 +513,6 @@ export class MicrophoneService implements OnDestroy {
         this.activeProcessor === ENoiseProcessor.RNNOISE
       ) {
         this.denoiserNode = this.createDenoiserNode(this.activeProcessor);
-        this.attachOverloadHandler(this.denoiserNode);
       }
 
       this.compressorNode = this.context.createDynamicsCompressor();

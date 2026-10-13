@@ -272,7 +272,7 @@ describe('MicrophoneService', () => {
     expect(biquad.connect).toHaveBeenCalledWith(compressor);
   });
 
-  it('handles CPU overload fallback with fake worklet message and notification', async () => {
+  it('handles CPU overload fallback with notification', async () => {
     service['activeProcessor'] = ENoiseProcessor.DEEPFILTER;
     service['processorPreference'] = ENoiseProcessor.DEEPFILTER;
 
@@ -290,6 +290,39 @@ describe('MicrophoneService', () => {
     expect(applyProcessorSpy).toHaveBeenCalledWith(ENoiseProcessor.RNNOISE);
     expect(notificationOpen).toHaveBeenCalledTimes(1);
     expect(service['processorPreference']).toBe(ENoiseProcessor.DEEPFILTER);
+  });
+
+  it('triggers CPU overload fallback when renderCapacity reports sustained high load', () => {
+    service['activeProcessor'] = ENoiseProcessor.DEEPFILTER;
+    const overloadSpy = vi
+      .spyOn(
+        service as unknown as { handleCpuOverload: () => Promise<void> },
+        'handleCpuOverload',
+      )
+      .mockResolvedValue();
+
+    let updateCallback: ((ev: { averageLoad: number }) => void) | null = null;
+    service['context'] = {
+      renderCapacity: {
+        start: vi.fn(),
+        addEventListener: vi.fn(
+          (_type: string, cb: (ev: { averageLoad: number }) => void) => {
+            updateCallback = cb;
+          },
+        ),
+      },
+    } as unknown as AudioContext;
+
+    service['setupRenderCapacityListener']();
+    expect(updateCallback).toBeTruthy();
+
+    updateCallback!({ averageLoad: 0.9 });
+    updateCallback!({ averageLoad: 0.9 });
+    updateCallback!({ averageLoad: 0.9 });
+    expect(overloadSpy).not.toHaveBeenCalled();
+
+    updateCallback!({ averageLoad: 0.9 });
+    expect(overloadSpy).toHaveBeenCalledTimes(1);
   });
 
   it('connects expander, compressor, makeup and limiter after RNNoise', async () => {
