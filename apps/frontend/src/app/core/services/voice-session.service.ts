@@ -11,6 +11,7 @@ import {
   EVoiceSessionType,
   IVoiceRoomJoin,
   IVoiceRoomProduceResult,
+  IVoiceRoomSetMuteState,
   TVoiceSessionTarget,
   getVoiceSessionKey,
 } from '@konvoez/shared';
@@ -128,6 +129,41 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       }
       registeredUserId = nextUserId;
     });
+
+    let previousSessionKey: string | null = null;
+    let previousMuteState: { muted: boolean; deafened: boolean } | null = null;
+    effect(() => {
+      const session = this.voiceSessionStore.activeSession();
+      const currentSessionKey = session ? getVoiceSessionKey(session) : null;
+      const muted = this.voiceAudioPreferencesStore.microphoneMuted();
+      const deafened = this.voiceAudioPreferencesStore.speakerMuted();
+
+      if (!currentSessionKey) {
+        previousSessionKey = null;
+        previousMuteState = null;
+        return;
+      }
+
+      if (previousSessionKey !== currentSessionKey) {
+        previousSessionKey = currentSessionKey;
+        previousMuteState = { muted, deafened };
+        return;
+      }
+
+      if (
+        previousMuteState &&
+        (previousMuteState.muted !== muted ||
+          previousMuteState.deafened !== deafened)
+      ) {
+        previousMuteState = { muted, deafened };
+        if (this.socket.connected) {
+          this.socket.emit(EVoiceRoomEvent.SET_MUTE_STATE, {
+            muted,
+            deafened,
+          } satisfies IVoiceRoomSetMuteState);
+        }
+      }
+    });
   }
 
   public applyUserEntityDeleted(userId: number): void {
@@ -223,6 +259,8 @@ export class VoiceSessionService implements IAudioDeviceHandler {
             target.type === EVoiceSessionType.GROUP_ROOM
               ? target.roomId
               : undefined,
+          muted: this.voiceAudioPreferencesStore.microphoneMuted(),
+          deafened: this.voiceAudioPreferencesStore.speakerMuted(),
         } satisfies IVoiceRoomJoin,
         VOICE_JOIN_ACK_MS,
       );
@@ -319,13 +357,33 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_JOINED, async (data) => {
+      this.audioService.playPeerJoinAudio();
       this.voiceSessionStore.upsertPeer(data.user);
+      this.voiceSessionStore.updatePeerMuteState(
+        data.user.id,
+        data.muted ?? false,
+        data.deafened ?? false,
+      );
       await this.consumePending();
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
+      const wasInSession = Boolean(
+        this.voiceSessionStore.peersDict()[data.user.id],
+      );
       this.releasePeerMedia(data.user.id);
       this.voiceSessionStore.removePeer(data.user.id);
+      if (wasInSession) {
+        this.audioService.playPeerLeaveAudio();
+      }
+    });
+
+    this.socket.on(EVoiceRoomEvent.PEER_MUTE_CHANGED, (data) => {
+      this.voiceSessionStore.updatePeerMuteState(
+        data.userId,
+        data.muted,
+        data.deafened,
+      );
     });
 
     this.socket.on(EVoiceRoomEvent.ROOM_CLOSED, (data) => {
@@ -380,6 +438,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.off(EVoiceRoomEvent.PEERS_ON_JOIN);
     this.socket.off(EVoiceRoomEvent.PEER_JOINED);
     this.socket.off(EVoiceRoomEvent.PEER_LEFT);
+    this.socket.off(EVoiceRoomEvent.PEER_MUTE_CHANGED);
     this.socket.off(EVoiceRoomEvent.ROOM_CLOSED);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CLOSED);
     this.socket.off(EVoiceRoomEvent.PRODUCER_CREATED);

@@ -83,6 +83,7 @@ describe('DesktopBridgeService', () => {
 
     const service = TestBed.inject(DesktopBridgeService);
     expect(service.isDesktop).toBe(false);
+    expect(service.onNotificationClick(vi.fn())).toBeUndefined();
     service.init();
     expect(socketMock.on).not.toHaveBeenCalled();
     expect(socketMock.connect).not.toHaveBeenCalled();
@@ -113,7 +114,15 @@ describe('DesktopBridgeService', () => {
               }),
             },
           },
-          { provide: AudioService, useValue: { playMuteAudio: vi.fn() } },
+          {
+            provide: AudioService,
+            useValue: {
+              playMuteAudio: vi.fn(),
+              playUnmuteAudio: vi.fn(),
+              playDeafenAudio: vi.fn(),
+              playUndeafenAudio: vi.fn(),
+            },
+          },
           {
             provide: PeerPlaybackService,
             useValue: { applySpeakerMuted: vi.fn() },
@@ -225,6 +234,17 @@ describe('DesktopBridgeService', () => {
       expect(notificationHandler).toBeDefined();
       notificationHandler?.(payload);
       expect(fakeBridge.notify).toHaveBeenCalledWith(payload);
+    });
+
+    it('delegates onNotificationClick to bridge and returns unregister callback', () => {
+      const offMock = vi.fn();
+      fakeBridge.onNotificationClick = vi.fn().mockReturnValue(offMock);
+
+      const listener = vi.fn();
+      const off = service.onNotificationClick(listener);
+
+      expect(fakeBridge.onNotificationClick).toHaveBeenCalledWith(listener);
+      expect(off).toBe(offMock);
     });
   });
 });

@@ -39,6 +39,7 @@ describe('VoiceSessionService', () => {
   let socket: {
     on: ReturnType<typeof vi.fn>;
     off: ReturnType<typeof vi.fn>;
+    emit: ReturnType<typeof vi.fn>;
     emitWithAck: ReturnType<typeof vi.fn>;
     timeout: ReturnType<typeof vi.fn>;
     connected: boolean;
@@ -53,6 +54,7 @@ describe('VoiceSessionService', () => {
     setPeers: ReturnType<typeof vi.fn>;
     upsertPeer: ReturnType<typeof vi.fn>;
     removePeer: ReturnType<typeof vi.fn>;
+    updatePeerMuteState: ReturnType<typeof vi.fn>;
     clearSessionPeers: ReturnType<typeof vi.fn>;
     applyUserEntityDeleted: ReturnType<typeof vi.fn>;
   };
@@ -113,6 +115,7 @@ describe('VoiceSessionService', () => {
         handlers[event] = handler;
       }),
       off: vi.fn(),
+      emit: vi.fn(),
       emitWithAck: vi.fn().mockResolvedValue(undefined),
       timeout: vi.fn(),
       connected: true,
@@ -121,20 +124,38 @@ describe('VoiceSessionService', () => {
 
     const activeSession = signal<unknown>(null);
     const joiningTarget = signal<unknown>(null);
+    const peersDict = signal<Record<number, IUser>>({});
     voiceSessionStore = {
       activeSession: activeSession as never,
       joiningTarget: joiningTarget.asReadonly(),
-      peersDict: signal({}),
+      peersDict,
       setActiveSession: vi.fn((session: unknown) => {
         activeSession.set(session);
       }),
       setJoiningTarget: vi.fn((target: unknown) => {
         joiningTarget.set(target);
       }),
-      setPeers: vi.fn(),
-      upsertPeer: vi.fn(),
-      removePeer: vi.fn(),
-      clearSessionPeers: vi.fn(),
+      setPeers: vi.fn((users: IUser[]) => {
+        const next: Record<number, IUser> = {};
+        for (const u of users) {
+          next[u.id] = u;
+        }
+        peersDict.set(next);
+      }),
+      upsertPeer: vi.fn((user: IUser) => {
+        peersDict.update((dict) => ({ ...dict, [user.id]: user }));
+      }),
+      removePeer: vi.fn((userId: number) => {
+        peersDict.update((dict) => {
+          const next = { ...dict };
+          delete next[userId];
+          return next;
+        });
+      }),
+      updatePeerMuteState: vi.fn(),
+      clearSessionPeers: vi.fn(() => {
+        peersDict.set({});
+      }),
       applyUserEntityDeleted: vi.fn(),
     };
     voiceAudioPreferencesStore = {
@@ -546,6 +567,14 @@ describe('VoiceSessionService', () => {
         mediaTag: 'mic',
       });
       expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(2);
+
+      await onProducerCreated({
+        userId: 2,
+        producerId: 'p-screen-audio',
+        kind: 'audio',
+        mediaTag: 'screen-audio',
+      });
+      expect(audioService.playStreamStartAudio).toHaveBeenCalledTimes(2);
     });
 
     it('plays stream stop audio on PRODUCER_CLOSED when isStreamProducer is true', () => {
@@ -570,6 +599,156 @@ describe('VoiceSessionService', () => {
         reason: 'peer-left',
       });
       expect(audioService.playStreamStopAudio).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('peer join and leave audio cues', () => {
+    beforeEach(async () => {
+      await service.joinSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      audioService.playPeerJoinAudio.mockClear();
+      audioService.playPeerLeaveAudio.mockClear();
+    });
+
+    it('plays join audio when a peer joins the active room', async () => {
+      const onPeerJoined = handlers[EVoiceRoomEvent.PEER_JOINED];
+
+      await onPeerJoined({
+        user: { id: 2, username: 'bob', email: 'bob@example.com' },
+        epoch: 'epoch-1',
+        revision: 1,
+      });
+
+      expect(audioService.playPeerJoinAudio).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not play join audio for existing peers on PEERS_ON_JOIN snapshot', async () => {
+      const onPeersOnJoin = handlers[EVoiceRoomEvent.PEERS_ON_JOIN];
+
+      await onPeersOnJoin({
+        2: { id: 2, username: 'bob', email: 'bob@example.com', producers: [] },
+        3: {
+          id: 3,
+          username: 'alice',
+          email: 'alice@example.com',
+          producers: [],
+        },
+      });
+
+      expect(audioService.playPeerJoinAudio).not.toHaveBeenCalled();
+    });
+
+    it('plays leave audio when an active peer leaves the room', async () => {
+      const onPeerJoined = handlers[EVoiceRoomEvent.PEER_JOINED];
+      const onPeerLeft = handlers[EVoiceRoomEvent.PEER_LEFT];
+
+      await onPeerJoined({
+        user: { ...bob, id: 2 },
+        epoch: 'epoch-1',
+        revision: 1,
+      });
+
+      onPeerLeft({
+        user: { ...bob, id: 2 },
+      });
+
+      expect(audioService.playPeerLeaveAudio).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not play leave audio when an unknown peer leaves', () => {
+      const onPeerLeft = handlers[EVoiceRoomEvent.PEER_LEFT];
+
+      onPeerLeft({
+        user: { id: 999, username: 'ghost', email: 'ghost@example.com' },
+      });
+
+      expect(audioService.playPeerLeaveAudio).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('peer mute synchronization', () => {
+    it('sends current mute and deafen state on JOIN_ROOM', async () => {
+      voiceAudioPreferencesStore.microphoneMuted.set(true);
+      voiceAudioPreferencesStore.speakerMuted.set(true);
+
+      await service.joinSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+
+      expect(socket.emitWithAck).toHaveBeenCalledWith(
+        EVoiceRoomEvent.JOIN_ROOM,
+        expect.objectContaining({
+          sessionTarget: {
+            type: EVoiceSessionType.GROUP_ROOM,
+            roomId: 5,
+          },
+          roomId: 5,
+          muted: true,
+          deafened: true,
+        }),
+      );
+    });
+
+    it('updates peer mute state on PEER_MUTE_CHANGED', () => {
+      service['addSocketListeners']();
+
+      handlers[EVoiceRoomEvent.PEER_MUTE_CHANGED]({
+        userId: 42,
+        muted: true,
+        deafened: false,
+      });
+
+      expect(voiceSessionStore.updatePeerMuteState).toHaveBeenCalledWith(
+        42,
+        true,
+        false,
+      );
+    });
+
+    it('applies initial mute and deafen state on PEER_JOINED', async () => {
+      service['addSocketListeners']();
+
+      await handlers[EVoiceRoomEvent.PEER_JOINED]({
+        user: bob,
+        muted: true,
+        deafened: false,
+      });
+
+      expect(voiceSessionStore.upsertPeer).toHaveBeenCalledWith(bob);
+      expect(voiceSessionStore.updatePeerMuteState).toHaveBeenCalledWith(
+        bob.id,
+        true,
+        false,
+      );
+    });
+
+    it('emits SET_MUTE_STATE when microphone or speaker mute changes in an active session', () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      TestBed.flushEffects();
+
+      expect(socket.emit).not.toHaveBeenCalled();
+
+      voiceAudioPreferencesStore.microphoneMuted.set(true);
+      TestBed.flushEffects();
+
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.SET_MUTE_STATE, {
+        muted: true,
+        deafened: false,
+      });
+
+      voiceAudioPreferencesStore.speakerMuted.set(true);
+      TestBed.flushEffects();
+
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.SET_MUTE_STATE, {
+        muted: true,
+        deafened: true,
+      });
     });
   });
 });

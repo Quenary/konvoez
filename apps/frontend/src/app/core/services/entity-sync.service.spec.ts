@@ -50,6 +50,7 @@ describe('EntitySyncService', () => {
     applyUserEntityDeleted: ReturnType<typeof vi.fn>;
     applyVoicePeerJoined: ReturnType<typeof vi.fn>;
     applyVoicePeerLeft: ReturnType<typeof vi.fn>;
+    applyVoicePeerMuted: ReturnType<typeof vi.fn>;
     setRoomsSnapshot: ReturnType<typeof vi.fn>;
     markUnsynced: ReturnType<typeof vi.fn>;
     reset: ReturnType<typeof vi.fn>;
@@ -124,6 +125,7 @@ describe('EntitySyncService', () => {
       applyUserEntityDeleted: vi.fn(),
       applyVoicePeerJoined: vi.fn().mockReturnValue('applied'),
       applyVoicePeerLeft: vi.fn().mockReturnValue('applied'),
+      applyVoicePeerMuted: vi.fn().mockReturnValue('applied'),
       setRoomsSnapshot: vi.fn().mockReturnValue(false),
       markUnsynced: vi.fn(),
       reset: vi.fn(),
@@ -312,6 +314,20 @@ describe('EntitySyncService', () => {
       };
       emitter.emit(EEntitySyncEvent.VOICE_ROOM_PEER_LEFT, payload);
       expect(voiceLobbyStore.applyVoicePeerLeft).toHaveBeenCalledWith(payload);
+    });
+
+    it('updates the lobby on VOICE_ROOM_PEER_MUTED', () => {
+      createService();
+      const payload = {
+        roomId: 5,
+        userId: otherUser.id,
+        muted: true,
+        deafened: false,
+        epoch: 'epoch-1',
+        revision: 3,
+      };
+      emitter.emit(EEntitySyncEvent.VOICE_ROOM_PEER_MUTED, payload);
+      expect(voiceLobbyStore.applyVoicePeerMuted).toHaveBeenCalledWith(payload);
     });
 
     it('loads the snapshot when the voice socket is already connected', async () => {

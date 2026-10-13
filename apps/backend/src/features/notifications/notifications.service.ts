@@ -149,13 +149,23 @@ export class NotificationsService {
 
     this.ensureVapidKeys();
 
+    const data = payload.data ? { ...payload.data } : {};
+    if (data.url && !data.onActionClick) {
+      data.onActionClick = {
+        default: {
+          operation: 'focusLastFocusedOrOpen',
+          url: data.url,
+        },
+      };
+    }
+
     const notificationPayload = JSON.stringify({
       notification: {
         title: payload.title,
         body: payload.body,
         icon: payload.icon ?? '/icons/icon-192x192.png',
         tag: payload.tag ?? 'konvoez-message',
-        data: payload.data ?? {},
+        data,
       },
     });
 
@@ -203,6 +213,7 @@ export class NotificationsService {
       return;
     }
 
+    const url = `/direct/${senderId}`;
     await this.deliver(recipientId, {
       title: senderUsername,
       body,
@@ -211,6 +222,14 @@ export class NotificationsService {
         type: 'direct-message',
         messageId,
         recipientId,
+        senderId,
+        url,
+        onActionClick: {
+          default: {
+            operation: 'focusLastFocusedOrOpen',
+            url,
+          },
+        },
       },
     });
   }
@@ -221,6 +240,7 @@ export class NotificationsService {
     callerUsername: string,
     callId: string,
   ): Promise<void> {
+    const url = `/direct/${callerId}`;
     await this.deliver(recipientId, {
       title: callerUsername,
       body: 'Входящий голосовой звонок...',
@@ -229,6 +249,14 @@ export class NotificationsService {
         type: 'direct-call',
         callId,
         callerId,
+        recipientId,
+        url,
+        onActionClick: {
+          default: {
+            operation: 'focusLastFocusedOrOpen',
+            url,
+          },
+        },
       },
     });
   }

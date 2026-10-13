@@ -72,23 +72,6 @@
   align-items: center;
 }
 
-.badge-calling {
-  animation: pulse-calling 1.2s infinite ease-in-out;
-}
-
-@keyframes pulse-calling {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.12);
-    opacity: 0.85;
-  }
-}
-
 .footer {
   position: absolute;
   inset-inline: 0.75rem;

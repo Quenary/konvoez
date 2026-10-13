@@ -6,12 +6,11 @@ import {
   input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { IUser } from '@konvoez/shared';
+import { IVoiceRoomPeerUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { DirectCallService } from '@core/services/direct-call.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
@@ -60,7 +59,6 @@ export class VoiceRoomTileComponent {
     VoiceAudioPreferencesStore,
   );
   private readonly audioActivityService = inject(AudioActivityService);
-  private readonly directCallService = inject(DirectCallService);
   private readonly localScreenPreviewService = inject(
     LocalScreenPreviewService,
   );
@@ -69,7 +67,7 @@ export class VoiceRoomTileComponent {
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  public readonly peer = input.required<IUser>();
+  public readonly peer = input.required<IVoiceRoomPeerUser>();
   public readonly streamKind = input<TVoiceStreamKind | null>(null);
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);
@@ -108,12 +106,6 @@ export class VoiceRoomTileComponent {
     () => this.streamKind() === 'screen' && this.videoTrack() !== null,
   );
 
-  protected readonly isCalling = computed(() => {
-    const isLocal = this.isLocal();
-    const isCalling = this.directCallService.isCalling();
-    return !isLocal && isCalling;
-  });
-
   protected readonly isSpeaking = computed(() => {
     const speakingMap = this.audioActivityService.speakingMap();
     return Boolean(speakingMap[this.peer().id]);
@@ -122,13 +114,15 @@ export class VoiceRoomTileComponent {
   protected readonly isMuted = computed(() => {
     const isLocal = this.isLocal();
     const microphoneMuted = this.voiceAudioPreferencesStore.microphoneMuted();
-    return isLocal ? microphoneMuted : false;
+    const peerMuted = Boolean(this.peer().muted);
+    return isLocal ? microphoneMuted : peerMuted;
   });
 
   protected readonly isDeafened = computed(() => {
     const isLocal = this.isLocal();
     const speakerMuted = this.voiceAudioPreferencesStore.speakerMuted();
-    return isLocal ? speakerMuted : false;
+    const peerDeafened = Boolean(this.peer().deafened);
+    return isLocal ? speakerMuted : peerDeafened;
   });
 
   protected readonly volume = computed(() => {

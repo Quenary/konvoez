@@ -14,7 +14,13 @@ import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { ERoomType, IRoom, IRoomCreate, IUser } from '@konvoez/shared';
+import {
+  ERoomType,
+  IRoom,
+  IRoomCreate,
+  IUser,
+  IVoiceRoomPeerUser,
+} from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
 import { RoomManageService } from './room-manage.service';
@@ -47,7 +53,7 @@ import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/puls
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 
 interface IRoomWithPeers extends IRoom {
-  peers: IUser[];
+  peers: IVoiceRoomPeerUser[];
   isUserInRoom: boolean;
 }
 

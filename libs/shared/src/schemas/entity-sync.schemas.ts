@@ -4,6 +4,7 @@ import { IUser, IUserDeleted } from './user.schemas';
 import {
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
+  IVoiceRoomLobbyPeerMuted,
 } from './voice-room.schemas';
 
 export type TEntitySyncEventPayloadMap = {
@@ -15,6 +16,7 @@ export type TEntitySyncEventPayloadMap = {
   [EEntitySyncEvent.ROOM_DELETED]: IRoomDeleted;
   [EEntitySyncEvent.VOICE_ROOM_PEER_JOINED]: IVoiceRoomLobbyPeerJoined;
   [EEntitySyncEvent.VOICE_ROOM_PEER_LEFT]: IVoiceRoomLobbyPeerLeft;
+  [EEntitySyncEvent.VOICE_ROOM_PEER_MUTED]: IVoiceRoomLobbyPeerMuted;
   [EEntitySyncEvent.ERROR]: { message: string };
 };
 

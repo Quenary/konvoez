@@ -26,7 +26,7 @@ Release tags `desktop-v*` publish installers via GitHub Actions; `electron-updat
 - **Server URL**: Required on first launch; validated via `/api/v1/public/version`. Production URLs must use `https://` (`http://` only for `localhost` / `127.0.0.1`). Change via tray **Change server…** or Settings.
 - **Tray**: Closing the window hides to tray (`--hidden`); voice stays active. Tray shows mute/deafen state; menu: open, mute mic, deafen, settings, change server, check updates, quit (leaves voice first). Power suspend is blocked while in a voice channel or direct call.
 - **Hotkeys**: Global toggle mic / deafen in Settings. On Linux Wayland, requires XDG Portal `GlobalShortcuts`; otherwise registration is skipped gracefully.
-- **Notifications**: DM/call alerts over the app WebSocket as native OS notifications; Web Push is disabled in the desktop shell to avoid duplicates. Click focuses the window.
+- **Notifications**: DM/call alerts over the app WebSocket as native OS notifications; Web Push is disabled in the desktop shell to avoid duplicates. Click focuses the window and navigates to the corresponding chat.
 - **Screen share**: Native picker for displays and windows (thumbnails/icons). System audio loopback: **Windows only** (Linux is video-only).
 
 ## Local dialogs (Lit)

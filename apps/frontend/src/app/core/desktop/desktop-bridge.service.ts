@@ -78,4 +78,10 @@ export class DesktopBridgeService {
       socket.off(ENotificationsEvent.NOTIFICATION, onNotification);
     });
   }
+
+  public onNotificationClick(
+    listener: (payload: TPushNotificationPayload) => void,
+  ): (() => void) | undefined {
+    return this.bridge?.onNotificationClick?.(listener);
+  }
 }

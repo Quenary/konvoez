@@ -1,11 +1,11 @@
-import { IUser } from '@konvoez/shared';
+import { IVoiceRoomPeerUser } from '@konvoez/shared';
 import type { TAvailableScreenShare } from '@core/services/peer-video.service';
 
 export type TVoiceStreamKind = 'cam' | 'screen';
 
 export type TVoiceRoomTile = {
   key: string;
-  peer: IUser;
+  peer: IVoiceRoomPeerUser;
   peerId: number;
   streamKind: TVoiceStreamKind | null;
   videoTrack: MediaStreamTrack | null;
@@ -15,7 +15,7 @@ export type TVoiceRoomTile = {
 };
 
 export type TBuildVoiceRoomTilesInput = {
-  peers: readonly IUser[];
+  peers: readonly IVoiceRoomPeerUser[];
   localUserId: number | null;
   localCamTrack: MediaStreamTrack | null;
   localScreenTrack: MediaStreamTrack | null;
@@ -27,7 +27,7 @@ export type TBuildVoiceRoomTilesInput = {
 };
 
 const voiceTile = (
-  peer: IUser,
+  peer: IVoiceRoomPeerUser,
   streamKind: TVoiceStreamKind | null,
   videoTrack: MediaStreamTrack | null,
   screenAvailable: boolean,

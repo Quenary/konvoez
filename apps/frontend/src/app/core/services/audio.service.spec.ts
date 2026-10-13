@@ -133,7 +133,48 @@ describe('AudioService', () => {
     );
   });
 
-  it('throttles rapid consecutive calls to playStreamStartAudio and playStreamStopAudio', () => {
+  describe('audio management cues', () => {
+    it.each([
+      {
+        name: 'playUnmuteAudio',
+        method: (s: AudioService) => s.playUnmuteAudio(),
+        expectedFreqs: [659.25, 880],
+        direction: 'ascending',
+      },
+      {
+        name: 'playMuteAudio',
+        method: (s: AudioService) => s.playMuteAudio(),
+        expectedFreqs: [880, 659.25],
+        direction: 'descending',
+      },
+      {
+        name: 'playUndeafenAudio',
+        method: (s: AudioService) => s.playUndeafenAudio(),
+        expectedFreqs: [440, 659.25],
+        direction: 'ascending',
+      },
+      {
+        name: 'playDeafenAudio',
+        method: (s: AudioService) => s.playDeafenAudio(),
+        expectedFreqs: [659.25, 440],
+        direction: 'descending',
+      },
+    ])(
+      'plays $direction 2-tone sequence for $name',
+      ({ method, expectedFreqs }) => {
+        method(service);
+        expect(createdOscillators).toHaveLength(2);
+        expect(
+          createdOscillators[0].frequency.setValueAtTime,
+        ).toHaveBeenCalledWith(expectedFreqs[0], expect.any(Number));
+        expect(
+          createdOscillators[1].frequency.setValueAtTime,
+        ).toHaveBeenCalledWith(expectedFreqs[1], expect.any(Number));
+      },
+    );
+  });
+
+  it('throttles rapid consecutive calls to audio cues', () => {
     service.playStreamStartAudio();
     expect(createdOscillators).toHaveLength(3);
 
@@ -148,5 +189,29 @@ describe('AudioService', () => {
     // Call immediately again — should be throttled
     service.playStreamStopAudio();
     expect(createdOscillators).toHaveLength(3);
+
+    createdOscillators = [];
+    service.playMuteAudio();
+    expect(createdOscillators).toHaveLength(2);
+    service.playMuteAudio();
+    expect(createdOscillators).toHaveLength(2);
+
+    createdOscillators = [];
+    service.playDeafenAudio();
+    expect(createdOscillators).toHaveLength(2);
+    service.playDeafenAudio();
+    expect(createdOscillators).toHaveLength(2);
+
+    createdOscillators = [];
+    service.playPeerJoinAudio();
+    expect(createdOscillators).toHaveLength(2);
+    service.playPeerJoinAudio();
+    expect(createdOscillators).toHaveLength(2);
+
+    createdOscillators = [];
+    service.playPeerLeaveAudio();
+    expect(createdOscillators).toHaveLength(2);
+    service.playPeerLeaveAudio();
+    expect(createdOscillators).toHaveLength(2);
   });
 });

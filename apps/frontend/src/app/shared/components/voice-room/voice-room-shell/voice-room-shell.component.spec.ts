@@ -117,7 +117,6 @@ describe('VoiceRoomShellComponent', () => {
           useValue: {
             interlocutor: signal(null).asReadonly(),
             isRinging: signal(false).asReadonly(),
-            isCalling: signal(false).asReadonly(),
             isIncoming: signal(false).asReadonly(),
           },
         },
@@ -155,7 +154,12 @@ describe('VoiceRoomShellComponent', () => {
         },
         {
           provide: AudioService,
-          useValue: { playMuteAudio: vi.fn() },
+          useValue: {
+            playMuteAudio: vi.fn(),
+            playUnmuteAudio: vi.fn(),
+            playDeafenAudio: vi.fn(),
+            playUndeafenAudio: vi.fn(),
+          },
         },
         {
           provide: SettingsStore,

@@ -1,5 +1,10 @@
 import { computed } from '@angular/core';
-import { EVoiceSessionType, IUser, TVoiceSessionTarget } from '@konvoez/shared';
+import {
+  EVoiceSessionType,
+  IUser,
+  IVoiceRoomPeerUser,
+  TVoiceSessionTarget,
+} from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -12,6 +17,7 @@ import {
   removeEntity,
   setAllEntities,
   setEntity,
+  updateEntity,
   withEntities,
 } from '@ngrx/signals/entities';
 import { toPeerUser } from './voice-peer.helpers';
@@ -31,7 +37,7 @@ export const VoiceSessionStore = signalStore(
     activeSession: null,
     joiningTarget: null,
   }),
-  withEntities<IUser>(),
+  withEntities<IVoiceRoomPeerUser>(),
   withComputed(({ activeSession, entities, entityMap }) => ({
     selectedRoomId: computed(() => {
       const session = activeSession();
@@ -67,15 +73,23 @@ export const VoiceSessionStore = signalStore(
       patchState(store, removeEntity(userId));
     },
 
+    updatePeerMuteState(
+      userId: number,
+      muted: boolean,
+      deafened: boolean,
+    ): void {
+      patchState(
+        store,
+        updateEntity({ id: userId, changes: { muted, deafened } }),
+      );
+    },
+
     clearSessionPeers(): void {
       patchState(store, removeAllEntities());
     },
 
     applyUserEntityUpdate(user: IUser): void {
-      const existing = store.entityMap()[user.id];
-      if (existing) {
-        patchState(store, setEntity({ ...existing, ...user }));
-      }
+      patchState(store, updateEntity({ id: user.id, changes: user }));
     },
 
     applyUserEntityDeleted(userId: number): void {

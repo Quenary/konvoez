@@ -73,7 +73,12 @@ describe('VoiceRoomControlsBarComponent', () => {
         },
         {
           provide: AudioService,
-          useValue: { playMuteAudio: vi.fn() },
+          useValue: {
+            playMuteAudio: vi.fn(),
+            playUnmuteAudio: vi.fn(),
+            playDeafenAudio: vi.fn(),
+            playUndeafenAudio: vi.fn(),
+          },
         },
         {
           provide: PeerVideoService,
