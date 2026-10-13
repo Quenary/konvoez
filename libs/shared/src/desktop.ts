@@ -14,6 +14,7 @@ export enum EDesktopIpc {
   SET_VOICE_STATE = 'konvoez:set-voice-state',
   QUIT_READY = 'konvoez:quit-ready',
   COMMAND = 'konvoez:command', // main -> renderer
+  NOTIFICATION_CLICK = 'konvoez:notification-click', // main -> renderer
   // local pages only
   LOCAL_GET_CONFIG = 'konvoez-local:get-config',
   LOCAL_SAVE_SERVER = 'konvoez-local:save-server',
@@ -47,5 +48,8 @@ export interface IKonvoezDesktopBridge {
   notify(payload: z.infer<typeof desktopNotificationSchema>): void;
   setVoiceState(state: TDesktopVoiceState): void;
   onCommand(listener: (command: EDesktopCommand) => void): () => void;
+  onNotificationClick?(
+    listener: (payload: z.infer<typeof desktopNotificationSchema>) => void,
+  ): () => void;
   quitReady(): void;
 }
