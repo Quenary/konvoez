@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   NOISE_SUPPRESSOR_PORT,
@@ -30,7 +31,7 @@ describe('MicTestService', () => {
     },
   } as unknown as NoiseSuppressorPort;
 
-  let activeSessionVal: unknown = null;
+  const activeSessionSignal = signal<unknown>(null);
 
   beforeEach(() => {
     (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode = class {
@@ -39,7 +40,7 @@ describe('MicTestService', () => {
       port = { postMessage: vi.fn() };
     };
 
-    activeSessionVal = null;
+    activeSessionSignal.set(null);
 
     TestBed.configureTestingModule({
       providers: [
@@ -56,7 +57,7 @@ describe('MicTestService', () => {
         {
           provide: VoiceSessionStore,
           useValue: {
-            activeSession: () => activeSessionVal,
+            activeSession: activeSessionSignal,
           },
         },
       ],
@@ -76,10 +77,20 @@ describe('MicTestService', () => {
   });
 
   it('does not start when an active voice session is present', async () => {
-    activeSessionVal = { id: 'call-1' };
+    activeSessionSignal.set({ id: 'call-1' });
     await service.start(null, null);
 
     expect(service.isRunning()).toBe(false);
+  });
+
+  it('automatically stops running mic test when voice session becomes active', () => {
+    service['_isRunning'].set(true);
+    const stopSpy = vi.spyOn(service, 'stop').mockResolvedValue();
+
+    activeSessionSignal.set({ id: 'call-1' });
+    TestBed.flushEffects();
+
+    expect(stopSpy).toHaveBeenCalled();
   });
 
   it('starts isolated capture pipeline and stops cleanly', async () => {

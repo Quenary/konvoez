@@ -2,6 +2,7 @@ import {
   DestroyRef,
   Injectable,
   OnDestroy,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -118,6 +119,14 @@ export class MicTestService implements OnDestroy {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
     }
+
+    effect(() => {
+      const activeSession = this.voiceSessionStore.activeSession();
+      const isRunning = this._isRunning();
+      if (activeSession && isRunning) {
+        void this.stop();
+      }
+    });
 
     this.destroyRef.onDestroy(() => {
       if (typeof document !== 'undefined') {
