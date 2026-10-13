@@ -368,9 +368,14 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
+      const wasInSession = Boolean(
+        this.voiceSessionStore.peersDict()[data.user.id],
+      );
       this.releasePeerMedia(data.user.id);
       this.voiceSessionStore.removePeer(data.user.id);
-      this.audioService.playPeerLeaveAudio();
+      if (wasInSession) {
+        this.audioService.playPeerLeaveAudio();
+      }
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_MUTE_CHANGED, (data) => {

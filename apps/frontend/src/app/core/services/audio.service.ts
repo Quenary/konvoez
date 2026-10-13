@@ -36,6 +36,9 @@ const F = {
   streamStop: [880, 739.99, 587.33] as const, // A5 F#5 D5
 } as const;
 
+const STREAM_THROTTLE_MS = 100;
+const CUE_THROTTLE_MS = 80;
+
 /** UI/telephony cue tones (join/leave, mute, dial, ringtone). Not peer media playback. */
 @Injectable({
   providedIn: 'root',
@@ -56,7 +59,7 @@ export class AudioService {
 
   public playStreamStartAudio(): void {
     const now = performance.now();
-    if (now - this.lastStreamStartAt < 100) {
+    if (now - this.lastStreamStartAt < STREAM_THROTTLE_MS) {
       return;
     }
     this.lastStreamStartAt = now;
@@ -69,7 +72,7 @@ export class AudioService {
 
   public playStreamStopAudio(): void {
     const now = performance.now();
-    if (now - this.lastStreamStopAt < 100) {
+    if (now - this.lastStreamStopAt < STREAM_THROTTLE_MS) {
       return;
     }
     this.lastStreamStopAt = now;
@@ -82,7 +85,7 @@ export class AudioService {
 
   public playPeerJoinAudio(): void {
     const now = performance.now();
-    if (now - this.lastPeerJoinAt < 80) {
+    if (now - this.lastPeerJoinAt < CUE_THROTTLE_MS) {
       return;
     }
     this.lastPeerJoinAt = now;
@@ -94,7 +97,7 @@ export class AudioService {
 
   public playPeerLeaveAudio(): void {
     const now = performance.now();
-    if (now - this.lastPeerLeaveAt < 80) {
+    if (now - this.lastPeerLeaveAt < CUE_THROTTLE_MS) {
       return;
     }
     this.lastPeerLeaveAt = now;
@@ -106,7 +109,7 @@ export class AudioService {
 
   public playMuteAudio(): void {
     const now = performance.now();
-    if (now - this.lastMuteAt < 80) {
+    if (now - this.lastMuteAt < CUE_THROTTLE_MS) {
       return;
     }
     this.lastMuteAt = now;
@@ -130,7 +133,7 @@ export class AudioService {
 
   public playUnmuteAudio(): void {
     const now = performance.now();
-    if (now - this.lastMuteAt < 80) {
+    if (now - this.lastMuteAt < CUE_THROTTLE_MS) {
       return;
     }
     this.lastMuteAt = now;
@@ -154,7 +157,7 @@ export class AudioService {
 
   public playDeafenAudio(): void {
     const now = performance.now();
-    if (now - this.lastDeafenAt < 80) {
+    if (now - this.lastDeafenAt < CUE_THROTTLE_MS) {
       return;
     }
     this.lastDeafenAt = now;
@@ -178,7 +181,7 @@ export class AudioService {
 
   public playUndeafenAudio(): void {
     const now = performance.now();
-    if (now - this.lastDeafenAt < 80) {
+    if (now - this.lastDeafenAt < CUE_THROTTLE_MS) {
       return;
     }
     this.lastDeafenAt = now;
