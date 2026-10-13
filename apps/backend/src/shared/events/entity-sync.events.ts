@@ -5,6 +5,7 @@ import type {
   IUserDeleted,
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
+  IVoiceRoomLobbyPeerMuted,
 } from '@konvoez/shared';
 import type { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -17,6 +18,7 @@ export const EntitySyncDomainEvents = {
   ROOM_DELETED: 'entity-sync.room.deleted',
   VOICE_ROOM_PEER_JOINED: 'entity-sync.voice-room.peer-joined',
   VOICE_ROOM_PEER_LEFT: 'entity-sync.voice-room.peer-left',
+  VOICE_ROOM_PEER_MUTED: 'entity-sync.voice-room.peer-muted',
 } as const;
 
 export type TEntitySyncDomainEvent =
@@ -31,6 +33,7 @@ export type TEntitySyncDomainPayloadMap = {
   [EntitySyncDomainEvents.ROOM_DELETED]: IRoomDeleted;
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED]: IVoiceRoomLobbyPeerJoined;
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT]: IVoiceRoomLobbyPeerLeft;
+  [EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED]: IVoiceRoomLobbyPeerMuted;
 };
 
 export function emitEntitySyncDomainEvent<K extends TEntitySyncDomainEvent>(

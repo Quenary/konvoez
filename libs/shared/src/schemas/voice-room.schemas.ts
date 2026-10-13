@@ -26,6 +26,8 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsume;
   [EVoiceRoomEvent.CLOSE_CONSUMER]: IVoiceRoomCloseConsumer;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: IVoiceRoomConsumerClosed;
+  [EVoiceRoomEvent.SET_MUTE_STATE]: IVoiceRoomSetMuteState;
+  [EVoiceRoomEvent.PEER_MUTE_CHANGED]: IVoiceRoomPeerMuted;
   [EVoiceRoomEvent.ERROR]: { message: string };
 } & TDirectCallEventPayloadMap;
 
@@ -48,6 +50,8 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.CONSUME]: IVoiceRoomConsumeResult;
   [EVoiceRoomEvent.CLOSE_CONSUMER]: object;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: void;
+  [EVoiceRoomEvent.SET_MUTE_STATE]: object;
+  [EVoiceRoomEvent.PEER_MUTE_CHANGED]: void;
   [EVoiceRoomEvent.ERROR]: void;
 } & TDirectCallEventResultMap;
 
@@ -73,12 +77,16 @@ export interface IVoiceRoomJoin {
   roomId?: number;
   sessionTarget?: TVoiceSessionTarget;
   sessionKey?: string;
+  muted?: boolean;
+  deafened?: boolean;
 }
 
 export interface IVoiceRoomPeerJoined {
   user: IUser;
   roomId?: number;
   sessionKey: string;
+  muted?: boolean;
+  deafened?: boolean;
 }
 
 export interface IVoiceRoomPeerLeft {
@@ -93,11 +101,19 @@ export interface IVoiceRoomClosed {
   reason: 'deleted';
 }
 
+export interface IVoiceRoomPeerUser extends IUser {
+  muted?: boolean;
+  deafened?: boolean;
+}
+
 /**
  * Map group room id to map of users currently in that voice room.
  * Direct-call sessions are intentionally excluded.
  */
-export type TVoiceRoomGetAllPeersResult = Record<number, Record<number, IUser>>;
+export type TVoiceRoomGetAllPeersResult = Record<
+  number,
+  Record<number, IVoiceRoomPeerUser>
+>;
 
 /**
  * `epoch` identifies the server process that owns `revision`;
@@ -112,6 +128,8 @@ export interface IVoiceRoomGetAllPeersSnapshot {
 export interface IVoiceRoomLobbyPeerJoined {
   roomId: number;
   user: IUser;
+  muted?: boolean;
+  deafened?: boolean;
   epoch: string;
   revision: number;
 }
@@ -123,6 +141,15 @@ export interface IVoiceRoomLobbyPeerLeft {
   revision: number;
 }
 
+export interface IVoiceRoomLobbyPeerMuted {
+  roomId: number;
+  userId: number;
+  muted: boolean;
+  deafened: boolean;
+  epoch: string;
+  revision: number;
+}
+
 /**
  * Map user id to info with producers
  */
@@ -130,6 +157,21 @@ export type TVoiceRoomPeersOnJoin = Record<number, IVoiceRoomUserWithProducers>;
 
 export interface IVoiceRoomUserWithProducers extends IUser {
   producers: IVoiceRoomProduceResult[];
+  muted?: boolean;
+  deafened?: boolean;
+}
+
+export interface IVoiceRoomSetMuteState {
+  muted: boolean;
+  deafened: boolean;
+}
+
+export interface IVoiceRoomPeerMuted {
+  userId: number;
+  muted: boolean;
+  deafened: boolean;
+  sessionKey: string;
+  roomId?: number;
 }
 
 export interface IVoiceRoomCreateTransport {

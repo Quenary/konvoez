@@ -10,10 +10,11 @@ import {
   IVoiceRoomGetAllPeersSnapshot,
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
+  IVoiceRoomLobbyPeerMuted,
+  IVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
   IUser,
-  IVoiceRoomUserWithProducers,
   TVoiceRoomMediaTag,
   TVoiceSessionIdentity,
   getVoiceSessionKey,
@@ -76,6 +77,8 @@ type VoiceRoomStatePeer = {
   recvTransport?: WebRtcTransport;
   producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
   consumers: Map<string, Consumer<VoiceRoomStateMediasoupAppData>>;
+  muted: boolean;
+  deafened: boolean;
 };
 
 export type VoiceRoomStateMediasoupAppData = {
@@ -152,22 +155,22 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     if (!room) {
       return {};
     }
-    return Array.from(room.peers.values()).reduce(
-      (prev, curr) => ({
-        ...prev,
-        [curr.user.id]: {
-          ...curr.user,
-          producers: Array.from(curr.producers.values()).map((p) => ({
-            userId: curr.user.id,
-            producerId: p.id,
-            peerId: p.id,
-            kind: p.kind,
-            mediaTag: p.appData.mediaTag,
-          })),
-        } satisfies IVoiceRoomUserWithProducers,
-      }),
-      {},
-    );
+    const result: TVoiceRoomPeersOnJoin = {};
+    for (const curr of room.peers.values()) {
+      result[curr.user.id] = {
+        ...curr.user,
+        muted: curr.muted,
+        deafened: curr.deafened,
+        producers: Array.from(curr.producers.values()).map((p) => ({
+          userId: curr.user.id,
+          producerId: p.id,
+          peerId: p.id,
+          kind: p.kind,
+          mediaTag: p.appData.mediaTag,
+        })),
+      };
+    }
+    return result;
   }
 
   public getAllPeers(): TVoiceRoomGetAllPeersResult {
@@ -176,15 +179,15 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       if (!isGroupVoiceSession(room.target)) {
         continue;
       }
-      result[room.target.roomId] = Array.from(room.peers.values()).reduce(
-        (prev, curr) => ({
-          ...prev,
-          [curr.user.id]: {
-            ...curr.user,
-          },
-        }),
-        {},
-      );
+      const roomPeers: Record<number, IVoiceRoomPeerUser> = {};
+      for (const curr of room.peers.values()) {
+        roomPeers[curr.user.id] = {
+          ...curr.user,
+          muted: curr.muted,
+          deafened: curr.deafened,
+        };
+      }
+      result[room.target.roomId] = roomPeers;
     }
     return result;
   }
@@ -200,8 +203,10 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
   public createLobbyPeerJoined(
     roomId: number,
     user: IUser,
+    muted = false,
+    deafened = false,
   ): IVoiceRoomLobbyPeerJoined {
-    return { roomId, user, ...this.nextLobbyVersion() };
+    return { roomId, user, muted, deafened, ...this.nextLobbyVersion() };
   }
 
   public createLobbyPeerLeft(
@@ -209,6 +214,15 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     userId: number,
   ): IVoiceRoomLobbyPeerLeft {
     return { roomId, userId, ...this.nextLobbyVersion() };
+  }
+
+  public createLobbyPeerMuted(
+    roomId: number,
+    userId: number,
+    muted: boolean,
+    deafened: boolean,
+  ): IVoiceRoomLobbyPeerMuted {
+    return { roomId, userId, muted, deafened, ...this.nextLobbyVersion() };
   }
 
   public resolveIdentityFromKey(key: string): TVoiceSessionIdentity | null {

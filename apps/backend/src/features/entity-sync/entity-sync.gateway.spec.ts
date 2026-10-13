@@ -127,6 +127,28 @@ describe('EntitySyncGateway', () => {
     );
   });
 
+  it('should emit VOICE_ROOM_PEER_MUTED', () => {
+    gateway.onVoiceRoomPeerMuted({
+      roomId: 3,
+      userId: 8,
+      muted: true,
+      deafened: true,
+      epoch: 'e1',
+      revision: 6,
+    });
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      EEntitySyncEvent.VOICE_ROOM_PEER_MUTED,
+      {
+        roomId: 3,
+        userId: 8,
+        muted: true,
+        deafened: true,
+        epoch: 'e1',
+        revision: 6,
+      },
+    );
+  });
+
   it('should authenticate user and store userId on successful connection', async () => {
     authServiceMock.getUserFromRawCookies.mockResolvedValue(user);
     const client = {

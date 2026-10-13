@@ -21,17 +21,19 @@ describe('VoiceLobbyStore', () => {
     TestBed.configureTestingModule({});
   });
 
-  it('updates lobby peers when a user entity changes', () => {
+  it('updates lobby peers when a user entity changes and preserves mute state', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.setRoomsSnapshot({
       epoch,
       revision: 0,
-      rooms: { 1: { [bob.id]: bob } },
+      rooms: { 1: { [bob.id]: { ...bob, muted: true, deafened: true } } },
     });
 
     store.applyUserEntityUpdate({ ...bob, fullname: 'Robert' });
 
     expect(store.roomsState()[1]?.[bob.id]?.fullname).toBe('Robert');
+    expect(store.roomsState()[1]?.[bob.id]?.muted).toBe(true);
+    expect(store.roomsState()[1]?.[bob.id]?.deafened).toBe(true);
   });
 
   it('removes a deleted user from the lobby', () => {
@@ -65,6 +67,29 @@ describe('VoiceLobbyStore', () => {
       }),
     ).toBe('applied');
     expect(store.roomsState()[1]?.[bob.id]).toBeUndefined();
+  });
+
+  it('applies peer muted event to an existing peer in lobby', () => {
+    const store = TestBed.inject(VoiceLobbyStore);
+    store.setRoomsSnapshot({
+      epoch,
+      revision: 1,
+      rooms: { 1: { [bob.id]: bob } },
+    });
+
+    expect(
+      store.applyVoicePeerMuted({
+        roomId: 1,
+        userId: bob.id,
+        muted: true,
+        deafened: true,
+        epoch,
+        revision: 2,
+      }),
+    ).toBe('applied');
+
+    expect(store.roomsState()[1]?.[bob.id]?.muted).toBe(true);
+    expect(store.roomsState()[1]?.[bob.id]?.deafened).toBe(true);
   });
 
   it('ignores events already covered by the snapshot', () => {

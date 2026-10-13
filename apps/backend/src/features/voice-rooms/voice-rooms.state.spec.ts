@@ -54,10 +54,26 @@ describe('VoiceRoomsStateService lobby revision', () => {
 
     const joined = service.createLobbyPeerJoined(5, alice);
     const left = service.createLobbyPeerLeft(5, alice.id);
+    const muted = service.createLobbyPeerMuted(5, alice.id, true, false);
 
-    expect(joined).toEqual({ roomId: 5, user: alice, epoch, revision: 1 });
+    expect(joined).toEqual({
+      roomId: 5,
+      user: alice,
+      muted: false,
+      deafened: false,
+      epoch,
+      revision: 1,
+    });
     expect(left).toEqual({ roomId: 5, userId: alice.id, epoch, revision: 2 });
-    expect(service.getLobbySnapshot().revision).toBe(2);
+    expect(muted).toEqual({
+      roomId: 5,
+      userId: alice.id,
+      muted: true,
+      deafened: false,
+      epoch,
+      revision: 3,
+    });
+    expect(service.getLobbySnapshot().revision).toBe(3);
   });
 
   it('uses a different epoch for every service instance', () => {
@@ -118,6 +134,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: alice,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
         [
@@ -127,6 +145,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: bob,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
       ]),
@@ -167,6 +187,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: alice,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
         [
@@ -176,6 +198,8 @@ describe('VoiceRoomsStateService lobby eviction', () => {
             user: alice,
             producers: new Map(),
             consumers: new Map(),
+            muted: false,
+            deafened: false,
           },
         ],
       ]),
@@ -191,5 +215,98 @@ describe('VoiceRoomsStateService lobby eviction', () => {
       expect.objectContaining({ roomId: 3, userId: alice.id, revision: 1 }),
     );
     expect(service.getRoom(sessionKey)?.peers.size).toBe(0);
+  });
+});
+
+describe('VoiceRoomsStateService snapshots and peers', () => {
+  let service: VoiceRoomsStateService;
+  let eventEmitter: { emit: jest.Mock };
+
+  beforeEach(() => {
+    eventEmitter = { emit: jest.fn() };
+    service = new VoiceRoomsStateService(appServiceStub, eventEmitter as never);
+  });
+
+  it('returns muted and deafened peer state in getAllPeers and getPeersOnJoin', () => {
+    const target = service.createGroupIdentity(42);
+    const sessionKey = 'room:42';
+    const peer = {
+      id: 'socket-alice',
+      user: alice,
+      producers: new Map([
+        [
+          'prod-1',
+          {
+            id: 'prod-1',
+            kind: 'audio',
+            appData: { mediaTag: 'mic', peerId: 'socket-alice' },
+          },
+        ],
+      ]),
+      consumers: new Map(),
+      muted: true,
+      deafened: false,
+    };
+
+    service['rooms'].set(sessionKey, {
+      target,
+      id: sessionKey,
+      router: {} as never,
+      peers: new Map([['socket-alice', peer as never]]),
+      producers: new Map(),
+      produceMutex: new Mutex(),
+    });
+
+    const allPeers = service.getAllPeers();
+    expect(allPeers[42]).toEqual({
+      [alice.id]: {
+        ...alice,
+        muted: true,
+        deafened: false,
+      },
+    });
+
+    const peersOnJoin = service.getPeersOnJoin(sessionKey);
+    expect(peersOnJoin[alice.id]).toEqual({
+      ...alice,
+      muted: true,
+      deafened: false,
+      producers: [
+        {
+          userId: alice.id,
+          producerId: 'prod-1',
+          peerId: 'prod-1',
+          kind: 'audio',
+          mediaTag: 'mic',
+        },
+      ],
+    });
+  });
+
+  it('ignores non-group sessions in getAllPeers', () => {
+    const directCallTarget = service.createDirectCallIdentity('call-123');
+    const sessionKey = 'call:call-123';
+    service['rooms'].set(sessionKey, {
+      target: directCallTarget,
+      id: sessionKey,
+      router: {} as never,
+      peers: new Map([
+        [
+          'socket-alice',
+          {
+            id: 'socket-alice',
+            user: alice,
+            producers: new Map(),
+            consumers: new Map(),
+            muted: false,
+            deafened: false,
+          } as never,
+        ],
+      ]),
+      producers: new Map(),
+      produceMutex: new Mutex(),
+    });
+
+    expect(service.getAllPeers()).toEqual({});
   });
 });

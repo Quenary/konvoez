@@ -24,6 +24,8 @@ import {
   type IVoiceRoomProducerClosed,
   type IVoiceRoomCloseProducer,
   type IVoiceRoomCloseConsumer,
+  type IVoiceRoomSetMuteState,
+  type IVoiceRoomPeerMuted,
   type IUser,
   EVoiceRoomEvent,
   EDirectCallEvent,
@@ -289,11 +291,16 @@ export class VoiceRoomsGateway
     // old socket would wipe consumers already attached to the new peer.
     this.evictExistingUserPeers(room, socket, sessionKey, roomId, user.id);
 
+    const muted = Boolean(body.muted);
+    const deafened = Boolean(body.deafened);
+
     room.peers.set(socket.id, {
       id: socket.id,
       user,
       producers: new Map(),
       consumers: new Map(),
+      muted,
+      deafened,
     });
 
     socket.data.sessionKey = sessionKey;
@@ -304,7 +311,12 @@ export class VoiceRoomsGateway
       emitEntitySyncDomainEvent(
         this.eventEmitter,
         EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
-        this.voiceRoomsStateService.createLobbyPeerJoined(roomId, user),
+        this.voiceRoomsStateService.createLobbyPeerJoined(
+          roomId,
+          user,
+          muted,
+          deafened,
+        ),
       );
     }
 
@@ -312,6 +324,8 @@ export class VoiceRoomsGateway
       user,
       roomId,
       sessionKey,
+      muted,
+      deafened,
     };
     const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
     socket.to(roomsToEmit).emit(EVoiceRoomEvent.PEER_JOINED, peerJoinedPayload);
@@ -591,6 +605,48 @@ export class VoiceRoomsGateway
     if (!consumer.closed) {
       consumer.close();
     }
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.SET_MUTE_STATE)
+  handleSetMuteState(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: IVoiceRoomSetMuteState,
+  ) {
+    const { peer, sessionKey } = this.getSocketRoomPeer(socket);
+    const muted = Boolean(body?.muted);
+    const deafened = Boolean(body?.deafened);
+
+    if (peer.muted === muted && peer.deafened === deafened) {
+      return {};
+    }
+
+    peer.muted = muted;
+    peer.deafened = deafened;
+
+    const payload: IVoiceRoomPeerMuted = {
+      userId: peer.user.id,
+      muted,
+      deafened,
+      sessionKey,
+      roomId: socket.data.roomId,
+    };
+    const roomsToEmit = this.getRoomEmitTargets(sessionKey, socket.data.roomId);
+    socket.to(roomsToEmit).emit(EVoiceRoomEvent.PEER_MUTE_CHANGED, payload);
+
+    if (socket.data.roomId !== undefined) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED,
+        this.voiceRoomsStateService.createLobbyPeerMuted(
+          socket.data.roomId,
+          peer.user.id,
+          muted,
+          deafened,
+        ),
+      );
+    }
+
     return {};
   }
 
