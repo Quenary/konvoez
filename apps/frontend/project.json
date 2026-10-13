@@ -46,6 +46,11 @@
             "glob": "**/*",
             "input": "node_modules/@sapphi-red/web-noise-suppressor/dist",
             "output": "assets/web-noise-suppressor"
+          },
+          {
+            "glob": "**/*",
+            "input": "node_modules/@lofcz/deepfilternet-web/dist",
+            "output": "assets/deepfilternet"
           }
         ],
         "stylePreprocessorOptions": {
