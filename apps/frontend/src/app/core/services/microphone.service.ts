@@ -100,17 +100,21 @@ export class MicrophoneService implements OnDestroy {
   };
 
   constructor() {
-    navigator.mediaDevices?.addEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
+    if (typeof navigator.mediaDevices?.addEventListener === 'function') {
+      navigator.mediaDevices.addEventListener(
+        'devicechange',
+        this.onDeviceChange,
+      );
+    }
   }
 
   ngOnDestroy(): void {
-    navigator.mediaDevices?.removeEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
+    if (typeof navigator.mediaDevices?.removeEventListener === 'function') {
+      navigator.mediaDevices.removeEventListener(
+        'devicechange',
+        this.onDeviceChange,
+      );
+    }
   }
 
   /**

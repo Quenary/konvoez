@@ -56,10 +56,12 @@ export class SpeakerService implements OnDestroy {
   };
 
   constructor() {
-    navigator.mediaDevices?.addEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
+    if (typeof navigator.mediaDevices?.addEventListener === 'function') {
+      navigator.mediaDevices.addEventListener(
+        'devicechange',
+        this.onDeviceChange,
+      );
+    }
   }
 
   @Mutexed(publicMethodsMutex)
@@ -136,10 +138,12 @@ export class SpeakerService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    navigator.mediaDevices?.removeEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
+    if (typeof navigator.mediaDevices?.removeEventListener === 'function') {
+      navigator.mediaDevices.removeEventListener(
+        'devicechange',
+        this.onDeviceChange,
+      );
+    }
     void this.release();
   }
 
