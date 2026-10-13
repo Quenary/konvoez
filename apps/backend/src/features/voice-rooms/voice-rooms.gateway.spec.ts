@@ -1235,6 +1235,40 @@ describe('VoiceRoomsGateway', () => {
       );
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
+
+    it('returns empty object and does not broadcast when mute state is unchanged', async () => {
+      const room = createRoom();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+        muted: true,
+        deafened: false,
+      };
+      room.peers.set('socket-1', peer);
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = createSocket({
+        data: {
+          sessionKey: 'room:1',
+          roomId: 1,
+          user: alice,
+        },
+      });
+      socket.rooms.add('room:1');
+      const roomBroadcastEmit = jest.fn();
+      (socket.to as jest.Mock).mockReturnValue({ emit: roomBroadcastEmit });
+
+      const result = await gateway.handleSetMuteState(socket as never, {
+        muted: true,
+        deafened: false,
+      });
+
+      expect(result).toEqual({});
+      expect(roomBroadcastEmit).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
   });
 
   describe('consume', () => {

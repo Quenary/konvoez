@@ -38,8 +38,6 @@ export class RoomPeerComponent {
   );
   private readonly audioActivityService = inject(AudioActivityService);
 
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-
   public readonly peer = input.required<IVoiceRoomPeerUser>();
 
   protected readonly isLocal = computed(() => {
@@ -54,16 +52,18 @@ export class RoomPeerComponent {
   });
 
   protected readonly isMuted = computed(() => {
-    if (this.isLocal()) {
-      return this.voiceAudioPreferencesStore.microphoneMuted();
-    }
-    return Boolean(this.peer().muted);
+    const isLocal = this.isLocal();
+    const localMuted = this.voiceAudioPreferencesStore.microphoneMuted();
+    const peerMuted = Boolean(this.peer().muted);
+    return isLocal ? localMuted : peerMuted;
   });
 
   protected readonly isDeafened = computed(() => {
-    if (this.isLocal()) {
-      return this.voiceAudioPreferencesStore.speakerMuted();
-    }
-    return Boolean(this.peer().deafened);
+    const isLocal = this.isLocal();
+    const localDeafened = this.voiceAudioPreferencesStore.speakerMuted();
+    const peerDeafened = Boolean(this.peer().deafened);
+    return isLocal ? localDeafened : peerDeafened;
   });
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 }

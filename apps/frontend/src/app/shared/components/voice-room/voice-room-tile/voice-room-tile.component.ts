@@ -122,13 +122,15 @@ export class VoiceRoomTileComponent {
   protected readonly isMuted = computed(() => {
     const isLocal = this.isLocal();
     const microphoneMuted = this.voiceAudioPreferencesStore.microphoneMuted();
-    return isLocal ? microphoneMuted : Boolean(this.peer().muted);
+    const peerMuted = Boolean(this.peer().muted);
+    return isLocal ? microphoneMuted : peerMuted;
   });
 
   protected readonly isDeafened = computed(() => {
     const isLocal = this.isLocal();
     const speakerMuted = this.voiceAudioPreferencesStore.speakerMuted();
-    return isLocal ? speakerMuted : Boolean(this.peer().deafened);
+    const peerDeafened = Boolean(this.peer().deafened);
+    return isLocal ? speakerMuted : peerDeafened;
   });
 
   protected readonly volume = computed(() => {

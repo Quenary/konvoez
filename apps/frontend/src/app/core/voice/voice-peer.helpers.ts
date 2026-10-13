@@ -16,14 +16,18 @@ export function mapRoomsUser(
   user: IUser,
 ): TVoiceRoomGetAllPeersResult {
   let changed = false;
-  const next: Record<number, Record<number, IUser>> = {};
+  const next: Record<number, Record<number, IVoiceRoomPeerUser>> = {};
   for (const [roomId, peers] of Object.entries(rooms)) {
     const roomPeers = peers;
-    if (roomPeers[user.id]) {
+    const existing = roomPeers[user.id];
+    if (existing) {
       changed = true;
       next[Number(roomId)] = {
         ...roomPeers,
-        [user.id]: user,
+        [user.id]: {
+          ...existing,
+          ...user,
+        },
       };
     } else {
       next[Number(roomId)] = roomPeers;
@@ -37,7 +41,7 @@ export function omitRoomsUser(
   userId: number,
 ): TVoiceRoomGetAllPeersResult {
   let changed = false;
-  const next: Record<number, Record<number, IUser>> = {};
+  const next: Record<number, Record<number, IVoiceRoomPeerUser>> = {};
   for (const [roomId, peers] of Object.entries(rooms)) {
     if (peers[userId]) {
       changed = true;

@@ -11,10 +11,10 @@ import {
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
   IVoiceRoomLobbyPeerMuted,
+  IVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
   IUser,
-  IVoiceRoomUserWithProducers,
   TVoiceRoomMediaTag,
   TVoiceSessionIdentity,
   getVoiceSessionKey,
@@ -155,24 +155,22 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     if (!room) {
       return {};
     }
-    return Array.from(room.peers.values()).reduce(
-      (prev, curr) => ({
-        ...prev,
-        [curr.user.id]: {
-          ...curr.user,
-          muted: curr.muted,
-          deafened: curr.deafened,
-          producers: Array.from(curr.producers.values()).map((p) => ({
-            userId: curr.user.id,
-            producerId: p.id,
-            peerId: p.id,
-            kind: p.kind,
-            mediaTag: p.appData.mediaTag,
-          })),
-        } satisfies IVoiceRoomUserWithProducers,
-      }),
-      {},
-    );
+    const result: TVoiceRoomPeersOnJoin = {};
+    for (const curr of room.peers.values()) {
+      result[curr.user.id] = {
+        ...curr.user,
+        muted: curr.muted,
+        deafened: curr.deafened,
+        producers: Array.from(curr.producers.values()).map((p) => ({
+          userId: curr.user.id,
+          producerId: p.id,
+          peerId: p.id,
+          kind: p.kind,
+          mediaTag: p.appData.mediaTag,
+        })),
+      };
+    }
+    return result;
   }
 
   public getAllPeers(): TVoiceRoomGetAllPeersResult {
@@ -181,17 +179,15 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
       if (!isGroupVoiceSession(room.target)) {
         continue;
       }
-      result[room.target.roomId] = Array.from(room.peers.values()).reduce(
-        (prev, curr) => ({
-          ...prev,
-          [curr.user.id]: {
-            ...curr.user,
-            muted: curr.muted,
-            deafened: curr.deafened,
-          },
-        }),
-        {},
-      );
+      const roomPeers: Record<number, IVoiceRoomPeerUser> = {};
+      for (const curr of room.peers.values()) {
+        roomPeers[curr.user.id] = {
+          ...curr.user,
+          muted: curr.muted,
+          deafened: curr.deafened,
+        };
+      }
+      result[room.target.roomId] = roomPeers;
     }
     return result;
   }

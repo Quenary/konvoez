@@ -614,8 +614,12 @@ export class VoiceRoomsGateway
     @MessageBody() body: IVoiceRoomSetMuteState,
   ) {
     const { peer, sessionKey } = this.getSocketRoomPeer(socket);
-    const muted = Boolean(body.muted);
-    const deafened = Boolean(body.deafened);
+    const muted = Boolean(body?.muted);
+    const deafened = Boolean(body?.deafened);
+
+    if (peer.muted === muted && peer.deafened === deafened) {
+      return {};
+    }
 
     peer.muted = muted;
     peer.deafened = deafened;

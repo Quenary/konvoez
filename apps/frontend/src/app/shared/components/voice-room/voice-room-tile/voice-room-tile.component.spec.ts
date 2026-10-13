@@ -190,47 +190,63 @@ describe('VoiceRoomTileComponent', () => {
     expect(previewService.setAutoPauseWhenHidden).toHaveBeenCalledWith(false);
   });
 
-  it('displays mute and deafen badges for remote peer when peer is muted and deafened', () => {
-    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
-    fixture.componentRef.setInput('peer', {
-      ...user(2),
-      muted: true,
-      deafened: true,
-    });
-    fixture.componentRef.setInput('streamKind', null);
-    fixture.detectChanges();
+  it.each([
+    {
+      label: 'muted and deafened',
+      state: { muted: true, deafened: true },
+      expectMic: true,
+      expectHeadphone: true,
+    },
+    {
+      label: 'muted only',
+      state: { muted: true, deafened: false },
+      expectMic: true,
+      expectHeadphone: false,
+    },
+    {
+      label: 'deafened only',
+      state: { muted: false, deafened: true },
+      expectMic: false,
+      expectHeadphone: true,
+    },
+    {
+      label: 'active (unmuted and undeafened)',
+      state: { muted: false, deafened: false },
+      expectMic: false,
+      expectHeadphone: false,
+    },
+  ])(
+    'displays expected badges for remote peer when $label',
+    ({ state, expectMic, expectHeadphone }) => {
+      const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+      fixture.componentRef.setInput('peer', {
+        ...user(2),
+        ...state,
+      });
+      fixture.componentRef.setInput('streamKind', null);
+      fixture.detectChanges();
 
-    expect(fixture.componentInstance['isMuted']()).toBe(true);
-    expect(fixture.componentInstance['isDeafened']()).toBe(true);
-    expect(
-      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector(
+      expect(fixture.componentInstance['isMuted']()).toBe(state.muted);
+      expect(fixture.componentInstance['isDeafened']()).toBe(state.deafened);
+
+      const micBadge = fixture.nativeElement.querySelector(
+        'tui-icon[iconStart="@tui.mic-off"]',
+      );
+      const headphoneBadge = fixture.nativeElement.querySelector(
         'tui-icon[iconStart="@tui.headphone-off"]',
-      ),
-    ).not.toBeNull();
-  });
+      );
 
-  it('does not display mute and deafen badges for remote peer when peer is active', () => {
-    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
-    fixture.componentRef.setInput('peer', {
-      ...user(2),
-      muted: false,
-      deafened: false,
-    });
-    fixture.componentRef.setInput('streamKind', null);
-    fixture.detectChanges();
+      if (expectMic) {
+        expect(micBadge).not.toBeNull();
+      } else {
+        expect(micBadge).toBeNull();
+      }
 
-    expect(fixture.componentInstance['isMuted']()).toBe(false);
-    expect(fixture.componentInstance['isDeafened']()).toBe(false);
-    expect(
-      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
-    ).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.headphone-off"]',
-      ),
-    ).toBeNull();
-  });
+      if (expectHeadphone) {
+        expect(headphoneBadge).not.toBeNull();
+      } else {
+        expect(headphoneBadge).toBeNull();
+      }
+    },
+  );
 });

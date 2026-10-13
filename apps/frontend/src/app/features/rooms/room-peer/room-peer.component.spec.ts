@@ -69,65 +69,79 @@ describe('RoomPeerComponent', () => {
     });
   });
 
-  it('renders username and no status icons when peer is active', () => {
-    const fixture = TestBed.createComponent(RoomPeerComponent);
-    fixture.componentRef.setInput('peer', makePeer(2));
-    fixture.detectChanges();
+  it.each([
+    {
+      description: 'active (unmuted and undeafened)',
+      peerOverrides: {},
+      expectMuted: false,
+      expectDeafened: false,
+      expectMicOff: false,
+      expectHeadphoneOff: false,
+    },
+    {
+      description: 'muted only',
+      peerOverrides: { muted: true },
+      expectMuted: true,
+      expectDeafened: false,
+      expectMicOff: true,
+      expectHeadphoneOff: false,
+    },
+    {
+      description: 'deafened only',
+      peerOverrides: { deafened: true },
+      expectMuted: false,
+      expectDeafened: true,
+      expectMicOff: false,
+      expectHeadphoneOff: true,
+    },
+    {
+      description: 'both muted and deafened',
+      peerOverrides: { muted: true, deafened: true },
+      expectMuted: true,
+      expectDeafened: true,
+      expectMicOff: true,
+      expectHeadphoneOff: true,
+    },
+  ])(
+    'displays expected status icons when remote peer is $description',
+    ({
+      peerOverrides,
+      expectMuted,
+      expectDeafened,
+      expectMicOff,
+      expectHeadphoneOff,
+    }) => {
+      const fixture = TestBed.createComponent(RoomPeerComponent);
+      fixture.componentRef.setInput('peer', makePeer(2, peerOverrides));
+      fixture.detectChanges();
 
-    const nameEl = fixture.nativeElement.querySelector('.peer-name');
-    expect(nameEl?.textContent?.trim()).toBe('user2');
-    expect(fixture.nativeElement.querySelector('.status-icons')).toBeNull();
-  });
+      expect(fixture.componentInstance['isMuted']()).toBe(expectMuted);
+      expect(fixture.componentInstance['isDeafened']()).toBe(expectDeafened);
 
-  it('displays mic-off icon when remote peer is muted', () => {
-    const fixture = TestBed.createComponent(RoomPeerComponent);
-    fixture.componentRef.setInput('peer', makePeer(2, { muted: true }));
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['isMuted']()).toBe(true);
-    expect(fixture.componentInstance['isDeafened']()).toBe(false);
-    expect(
-      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector(
+      const micIcon = fixture.nativeElement.querySelector(
+        'tui-icon[iconStart="@tui.mic-off"]',
+      );
+      const headphoneIcon = fixture.nativeElement.querySelector(
         'tui-icon[iconStart="@tui.headphone-off"]',
-      ),
-    ).toBeNull();
-  });
+      );
 
-  it('displays headphone-off icon when remote peer is deafened', () => {
-    const fixture = TestBed.createComponent(RoomPeerComponent);
-    fixture.componentRef.setInput('peer', makePeer(2, { deafened: true }));
-    fixture.detectChanges();
+      if (expectMicOff) {
+        expect(micIcon).not.toBeNull();
+      } else {
+        expect(micIcon).toBeNull();
+      }
 
-    expect(fixture.componentInstance['isDeafened']()).toBe(true);
-    expect(
-      fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.headphone-off"]',
-      ),
-    ).not.toBeNull();
-  });
+      if (expectHeadphoneOff) {
+        expect(headphoneIcon).not.toBeNull();
+      } else {
+        expect(headphoneIcon).toBeNull();
+      }
 
-  it('displays both mic-off and headphone-off icons when remote peer is muted and deafened', () => {
-    const fixture = TestBed.createComponent(RoomPeerComponent);
-    fixture.componentRef.setInput(
-      'peer',
-      makePeer(2, { muted: true, deafened: true }),
-    );
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['isMuted']()).toBe(true);
-    expect(fixture.componentInstance['isDeafened']()).toBe(true);
-    expect(
-      fixture.nativeElement.querySelector('tui-icon[iconStart="@tui.mic-off"]'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.headphone-off"]',
-      ),
-    ).not.toBeNull();
-  });
+      if (!expectMicOff && !expectHeadphoneOff) {
+        expect(fixture.nativeElement.querySelector('.status-icons')).toBeNull();
+      }
+    },
+  );
 
   it('uses local audio preferences for local peer', () => {
     const fixture = TestBed.createComponent(RoomPeerComponent);

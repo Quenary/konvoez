@@ -21,17 +21,19 @@ describe('VoiceLobbyStore', () => {
     TestBed.configureTestingModule({});
   });
 
-  it('updates lobby peers when a user entity changes', () => {
+  it('updates lobby peers when a user entity changes and preserves mute state', () => {
     const store = TestBed.inject(VoiceLobbyStore);
     store.setRoomsSnapshot({
       epoch,
       revision: 0,
-      rooms: { 1: { [bob.id]: bob } },
+      rooms: { 1: { [bob.id]: { ...bob, muted: true, deafened: true } } },
     });
 
     store.applyUserEntityUpdate({ ...bob, fullname: 'Robert' });
 
     expect(store.roomsState()[1]?.[bob.id]?.fullname).toBe('Robert');
+    expect(store.roomsState()[1]?.[bob.id]?.muted).toBe(true);
+    expect(store.roomsState()[1]?.[bob.id]?.deafened).toBe(true);
   });
 
   it('removes a deleted user from the lobby', () => {
