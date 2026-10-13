@@ -44,6 +44,8 @@ export class SpeakerService implements OnDestroy {
   private context: AudioContext | null = null;
   private device: MediaDeviceInfo | null = null;
   private busNode: GainNode | null = null;
+  private masterGainNode: GainNode | null = null;
+  private masterVolume = 1;
   private limiterNode: AudioWorkletNode | null = null;
   private limiterLoad: Promise<void> | null = null;
   private limiterWaitDone = false;
@@ -66,6 +68,13 @@ export class SpeakerService implements OnDestroy {
     await this.setSinkId(this.device);
   }
 
+  public setMasterVolume(volume: number): void {
+    this.masterVolume = volume;
+    if (this.masterGainNode) {
+      this.masterGainNode.gain.value = volume;
+    }
+  }
+
   @Mutexed(publicMethodsMutex)
   public async getContext(): Promise<AudioContext> {
     return await this.ensureContext();
@@ -80,8 +89,12 @@ export class SpeakerService implements OnDestroy {
     const context = await this.ensureContext();
     if (!this.busNode) {
       const bus = context.createGain();
-      bus.connect(context.destination);
+      const masterGain = context.createGain();
+      masterGain.gain.value = this.masterVolume;
+      bus.connect(masterGain);
+      masterGain.connect(context.destination);
       this.busNode = bus;
+      this.masterGainNode = masterGain;
     }
     if (!this.limiterNode && !this.limiterFailed) {
       if (!this.limiterWaitDone) {
@@ -168,19 +181,19 @@ export class SpeakerService implements OnDestroy {
 
   private async attachLimiter(context: AudioContext): Promise<void> {
     await ensureVoiceDynamicsWorklet(context);
-    const bus = this.busNode;
-    if (this.context !== context || !bus || this.limiterNode) {
+    const masterGain = this.masterGainNode;
+    if (this.context !== context || !masterGain || this.limiterNode) {
       return;
     }
     const limiter = createVoiceDynamicsNode(context, 'playback-limiter');
     try {
-      bus.disconnect();
-      bus.connect(limiter);
+      masterGain.disconnect();
+      masterGain.connect(limiter);
       limiter.connect(context.destination);
       this.limiterNode = limiter;
     } catch (error) {
       disposeVoiceDynamicsNode(limiter);
-      bus.connect(context.destination);
+      masterGain.connect(context.destination);
       throw error;
     }
   }
@@ -188,15 +201,18 @@ export class SpeakerService implements OnDestroy {
   private clearOutput(): void {
     const limiter = this.limiterNode;
     const bus = this.busNode;
+    const masterGain = this.masterGainNode;
     this.limiterLoad = null;
     this.limiterNode = null;
     this.busNode = null;
+    this.masterGainNode = null;
     this.limiterWaitDone = false;
     this.limiterFailed = false;
     try {
       if (limiter) {
         disposeVoiceDynamicsNode(limiter);
       }
+      masterGain?.disconnect();
       bus?.disconnect();
     } catch (error) {
       console.warn('Failed to disconnect speaker bus', error);
