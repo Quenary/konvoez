@@ -1,4 +1,4 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import { DestroyRef, inject, Injectable, NgZone } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { SwPush } from '@angular/service-worker';
@@ -12,6 +12,7 @@ export class NotificationNavigationService {
   private readonly swPush = inject(SwPush);
   private readonly desktopBridgeService = inject(DesktopBridgeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly ngZone = inject(NgZone);
 
   private initialized = false;
 
@@ -24,9 +25,10 @@ export class NotificationNavigationService {
     if (this.swPush.isEnabled) {
       this.swPush.notificationClicks
         .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe(({ notification }) => {
+        .subscribe(({ action, notification }) => {
           this.handleNotificationData(
             notification?.data as TPushNotificationData | undefined,
+            action,
           );
         });
     }
@@ -41,10 +43,15 @@ export class NotificationNavigationService {
     }
   }
 
-  private handleNotificationData(data?: TPushNotificationData | null): void {
-    const url = resolveNotificationUrl(data);
+  private handleNotificationData(
+    data?: TPushNotificationData | null,
+    action?: string,
+  ): void {
+    const url = resolveNotificationUrl(data, action);
     if (url) {
-      void this.router.navigateByUrl(url);
+      this.ngZone.run(() => {
+        void this.router.navigateByUrl(url).catch(() => undefined);
+      });
     }
   }
 }

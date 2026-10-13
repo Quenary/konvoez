@@ -107,4 +107,50 @@ describe('resolveNotificationUrl', () => {
       }),
     ).toBeNull();
   });
+
+  it('resolves specific action url when action matches onActionClick', () => {
+    const url = resolveNotificationUrl(
+      {
+        url: '/direct/1',
+        onActionClick: {
+          default: {
+            operation: 'focusLastFocusedOrOpen',
+            url: '/direct/1',
+          },
+          call: {
+            operation: 'focusLastFocusedOrOpen',
+            url: '/direct/1?call=incoming',
+          },
+        },
+      },
+      'call',
+    );
+    expect(url).toBe('/direct/1?call=incoming');
+  });
+
+  it('rejects invalid or non-positive IDs in fallbacks', () => {
+    expect(
+      resolveNotificationUrl({
+        senderId: -1,
+      }),
+    ).toBeNull();
+
+    expect(
+      resolveNotificationUrl({
+        senderId: 0,
+      }),
+    ).toBeNull();
+
+    expect(
+      resolveNotificationUrl({
+        roomId: -5,
+      }),
+    ).toBeNull();
+
+    expect(
+      resolveNotificationUrl({
+        callerId: Number.NaN,
+      }),
+    ).toBeNull();
+  });
 });

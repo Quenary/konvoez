@@ -1,24 +1,34 @@
 import type { TPushNotificationData } from '@konvoez/shared';
 
+function isPositiveInt(id: unknown): id is number {
+  return typeof id === 'number' && Number.isInteger(id) && id > 0;
+}
+
 /**
- * Resolves and sanitizes the target router URL from notification data.
+ * Resolves and sanitizes the target router URL from notification data and optional action.
  * Only internal, relative paths (starting with '/' without protocol-relative '//')
  * are accepted to prevent open-redirect vulnerabilities.
  */
 export function resolveNotificationUrl(
   data?: TPushNotificationData | null,
+  action?: string,
 ): string | null {
   if (!data) {
     return null;
   }
 
+  const specificActionUrl =
+    action && action !== 'default' ? data.onActionClick?.[action]?.url : null;
+  const defaultActionUrl = data.onActionClick?.['default']?.url;
+
   const raw =
+    specificActionUrl ||
     data.url ||
-    data.onActionClick?.['default']?.url ||
-    (data.senderId ? `/direct/${data.senderId}` : null) ||
-    (data.callerId ? `/direct/${data.callerId}` : null) ||
-    (data.roomId ? `/text-room/${data.roomId}` : null) ||
-    (data.type === 'direct-message' && data.recipientId
+    defaultActionUrl ||
+    (isPositiveInt(data.senderId) ? `/direct/${data.senderId}` : null) ||
+    (isPositiveInt(data.callerId) ? `/direct/${data.callerId}` : null) ||
+    (isPositiveInt(data.roomId) ? `/text-room/${data.roomId}` : null) ||
+    (data.type === 'direct-message' && isPositiveInt(data.recipientId)
       ? `/direct/${data.recipientId}`
       : null);
 

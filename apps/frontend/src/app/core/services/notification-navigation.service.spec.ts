@@ -98,6 +98,35 @@ describe('NotificationNavigationService', () => {
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith('/direct/77');
     });
 
+    it('navigates to action-specific url when a specific action button was clicked', () => {
+      const service = setupTestBed();
+      service.init();
+
+      notificationClicks$.next({
+        action: 'call',
+        notification: {
+          title: 'Alice',
+          data: {
+            url: '/direct/42',
+            onActionClick: {
+              default: {
+                operation: 'focusLastFocusedOrOpen',
+                url: '/direct/42',
+              },
+              call: {
+                operation: 'focusLastFocusedOrOpen',
+                url: '/direct/42?action=call',
+              },
+            },
+          },
+        },
+      });
+
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(
+        '/direct/42?action=call',
+      );
+    });
+
     it('does not navigate when notification has no resolvable url', () => {
       const service = setupTestBed();
       service.init();
