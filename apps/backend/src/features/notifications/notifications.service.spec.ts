@@ -339,6 +339,44 @@ describe('NotificationsService', () => {
       expect(payload.notification.tag).toBe('direct:1');
       expect(payload.notification.title).toBe('alice');
       expect(payload.notification.body).toBe('Hello there');
+      expect(payload.notification.data.senderId).toBe(1);
+      expect(payload.notification.data.recipientId).toBe(2);
+      expect(payload.notification.data.url).toBe('/direct/1');
+      expect(payload.notification.data.onActionClick?.default).toEqual({
+        operation: 'focusLastFocusedOrOpen',
+        url: '/direct/1',
+      });
+    });
+  });
+
+  describe('sendDirectCallNotification', () => {
+    it('should send incoming call notification with url and onActionClick', async () => {
+      subscriptionRepository.find.mockResolvedValue([
+        {
+          endpoint: 'https://push.example/1',
+          auth: 'a1',
+          p256dh: 'p1',
+          isActive: true,
+        } as unknown as PushSubscriptionEntity,
+      ]);
+
+      await service.sendDirectCallNotification(2, 1, 'alice', 'call-123-abc');
+
+      const payload = JSON.parse(
+        (webPush.sendNotification as jest.Mock).mock.calls[0][1],
+      );
+      expect(payload.notification.tag).toBe('call:call-123-abc');
+      expect(payload.notification.title).toBe('alice');
+      expect(payload.notification.body).toBe('Входящий голосовой звонок...');
+      expect(payload.notification.data.type).toBe('direct-call');
+      expect(payload.notification.data.callId).toBe('call-123-abc');
+      expect(payload.notification.data.callerId).toBe(1);
+      expect(payload.notification.data.recipientId).toBe(2);
+      expect(payload.notification.data.url).toBe('/direct/1');
+      expect(payload.notification.data.onActionClick?.default).toEqual({
+        operation: 'focusLastFocusedOrOpen',
+        url: '/direct/1',
+      });
     });
   });
 });

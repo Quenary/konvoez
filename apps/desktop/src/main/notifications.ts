@@ -1,5 +1,5 @@
 import { Notification, type BrowserWindow } from 'electron';
-import type { TPushNotificationPayload } from '@konvoez/shared';
+import { EDesktopIpc, type TPushNotificationPayload } from '@konvoez/shared';
 import { getAppIcon, showMainWindow } from './window';
 
 export class NotificationManager {
@@ -36,6 +36,9 @@ export class NotificationManager {
 
     notification.on('click', () => {
       showMainWindow(win);
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(EDesktopIpc.NOTIFICATION_CLICK, payload);
+      }
     });
 
     if (tag) {

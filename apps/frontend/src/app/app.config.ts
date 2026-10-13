@@ -38,6 +38,7 @@ import { initialSetupInitializer } from './core/initializers/initial-setup-initi
 import { localeInitializer } from './core/initializers/locale-initializer';
 import { pwaUpdateInitializer } from './core/initializers/pwa-update-initializer';
 import { DesktopBridgeService } from './core/desktop/desktop-bridge.service';
+import { NotificationNavigationService } from './core/services/notification-navigation.service';
 import { AuthSocketManager } from './core/auth/auth-socket-manager.service';
 import { supportedLocales } from './app.constants';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
@@ -130,6 +131,9 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       inject(DesktopBridgeService).init();
+    }),
+    provideAppInitializer(() => {
+      inject(NotificationNavigationService).init();
     }),
     provideTaiga(),
     {

@@ -34,6 +34,16 @@ const bridge: IKonvoezDesktopBridge = {
       ipcRenderer.removeListener(EDesktopIpc.COMMAND, handler);
     };
   },
+  onNotificationClick: (
+    listener: (payload: TPushNotificationPayload) => void,
+  ) => {
+    const handler = (_: unknown, payload: TPushNotificationPayload) =>
+      listener(payload);
+    ipcRenderer.on(EDesktopIpc.NOTIFICATION_CLICK, handler);
+    return () => {
+      ipcRenderer.removeListener(EDesktopIpc.NOTIFICATION_CLICK, handler);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld('konvoezDesktop', bridge);
