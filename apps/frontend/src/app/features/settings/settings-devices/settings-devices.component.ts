@@ -16,17 +16,17 @@ import {
   pickDefaultAudioOutput,
 } from '@shared/functions/default-audio-devices.function';
 import {
-  TuiError,
+  TUI_ITEMS_HANDLERS,
   TuiIcon,
   TuiInput,
   TuiNotification,
   TuiLabel,
   TuiDataList,
   TuiDropdown,
-  tuiItemsHandlersProvider,
   TuiNotificationService,
   TuiTitle,
   TuiButton,
+  TuiSlider,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
@@ -34,10 +34,15 @@ import {
   TuiChevron,
   TuiTooltip,
   TuiButtonLoading,
+  TuiSwitch,
+  TuiProgressBar,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '@core/stores/settings.store';
+import { MicTestService } from '@core/services/mic-test.service';
+import { isSimdSupported } from '@core/audio/noise-suppressor.port';
+import { ENoiseProcessor } from '../../../app.enums';
 
 type DevicesLoadResult = {
   devices: MediaDeviceInfo[];
@@ -49,13 +54,7 @@ const EMPTY_DEVICES: DevicesLoadResult = {
   streamInputDeviceId: null,
 };
 
-function stringifyDevice(item: MediaDeviceInfo | null | undefined): string {
-  return item?.label ?? '';
-}
-
-function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
-  return a.deviceId === b.deviceId;
-}
+type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
 
 @Component({
   selector: 'app-settings-devices',
@@ -63,7 +62,6 @@ function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
     FormsModule,
     TranslatePipe,
     TuiCardLarge,
-    TuiError,
     TuiForm,
     TuiHeader,
     TuiIcon,
@@ -80,12 +78,59 @@ function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
     TuiTooltip,
     TuiButton,
     TuiButtonLoading,
+    TuiSwitch,
+    TuiSlider,
+    TuiProgressBar,
   ],
   providers: [
-    tuiItemsHandlersProvider({
-      stringify: signal(stringifyDevice),
-      identityMatcher: signal(identityMatchDevice),
-    }),
+    {
+      provide: TUI_ITEMS_HANDLERS,
+      useFactory: () => {
+        const translateService = inject(TranslateService);
+        return {
+          stringify: signal(
+            (item: SelectableItem | null | undefined): string => {
+              if (!item) return '';
+              if (typeof item === 'string') {
+                switch (item) {
+                  case ENoiseProcessor.DEEPFILTER:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_DEEPFILTER',
+                    );
+                  case ENoiseProcessor.RNNOISE:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_RNNOISE',
+                    );
+                  case ENoiseProcessor.BROWSER:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_BROWSER',
+                    );
+                  case ENoiseProcessor.OFF:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_OFF',
+                    );
+                }
+              }
+              return item.label ?? '';
+            },
+          ),
+          identityMatcher: signal(
+            (a: SelectableItem, b: SelectableItem): boolean => {
+              if (typeof a === 'string' || typeof b === 'string') {
+                return a === b;
+              }
+              return a.deviceId === b.deviceId;
+            },
+          ),
+          disabledItemHandler: (item: SelectableItem): boolean => {
+            if (item === ENoiseProcessor.DEEPFILTER && !isSimdSupported()) {
+              return true;
+            }
+            return false;
+          },
+        };
+      },
+    },
   ],
   templateUrl: './settings-devices.component.html',
   styleUrl: './settings-devices.component.scss',
@@ -93,6 +138,7 @@ function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
 })
 export class SettingsDevicesComponent {
   private readonly settingsStore = inject(SettingsStore);
+  private readonly micTestService = inject(MicTestService);
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
@@ -117,12 +163,42 @@ export class SettingsDevicesComponent {
   });
   protected readonly audioInputList = computed(() => {
     const devices = this.devicesLoad.value().devices;
-    return devices.filter((d) => d.kind == 'audioinput');
+    return devices.filter((d) => d.kind === 'audioinput');
   });
   protected readonly audioOutputList = computed(() => {
     const devices = this.devicesLoad.value().devices;
-    return devices.filter((d) => d.kind == 'audiooutput');
+    return devices.filter((d) => d.kind === 'audiooutput');
   });
+
+  protected readonly noiseProcessor = this.settingsStore.noiseProcessor;
+  protected readonly inputGainPercent = computed(() =>
+    Math.round(this.settingsStore.inputGain() * 100),
+  );
+  protected readonly outputVolumePercent = computed(() =>
+    Math.round(this.settingsStore.outputVolume() * 100),
+  );
+  protected readonly echoCancellation = this.settingsStore.echoCancellation;
+
+  protected readonly isMicTesting = this.micTestService.isRunning;
+  protected readonly micTestLevel = this.micTestService.level;
+  protected readonly isSinkIdSupported = this.micTestService.isSinkIdSupported;
+  protected readonly isSimdSupported = isSimdSupported();
+
+  protected readonly processorOptions: ENoiseProcessor[] = [
+    ENoiseProcessor.DEEPFILTER,
+    ENoiseProcessor.RNNOISE,
+    ENoiseProcessor.BROWSER,
+    ENoiseProcessor.OFF,
+  ];
+
+  protected readonly disabledProcessorHandler = (
+    item: ENoiseProcessor,
+  ): boolean => {
+    if (item === ENoiseProcessor.DEEPFILTER && !this.isSimdSupported) {
+      return true;
+    }
+    return false;
+  };
 
   protected readonly devicesLoad = rxResource({
     stream: () =>
@@ -186,11 +262,50 @@ export class SettingsDevicesComponent {
     });
   }
 
-  protected onSelectAudioInput(audioInput: MediaDeviceInfo) {
+  protected onSelectAudioInput(audioInput: MediaDeviceInfo): void {
     this.settingsStore.setAudioInput(audioInput);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart(
+        audioInput,
+        this.settingsStore.audioOutput(),
+      );
+    }
   }
 
-  protected onSelectAudioOutput(audioOutput: MediaDeviceInfo) {
+  protected onSelectAudioOutput(audioOutput: MediaDeviceInfo): void {
     this.settingsStore.setAudioOutput(audioOutput);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart(
+        this.settingsStore.audioInput(),
+        audioOutput,
+      );
+    }
+  }
+
+  protected onSelectNoiseProcessor(processor: ENoiseProcessor): void {
+    this.settingsStore.setNoiseProcessor(processor);
+  }
+
+  protected onInputGainChange(percent: number): void {
+    this.settingsStore.setInputGain(percent / 100);
+  }
+
+  protected onOutputVolumeChange(percent: number): void {
+    this.settingsStore.setOutputVolume(percent / 100);
+  }
+
+  protected onEchoCancellationChange(enabled: boolean): void {
+    this.settingsStore.setEchoCancellation(enabled);
+  }
+
+  protected async toggleMicTest(): Promise<void> {
+    if (this.micTestService.isRunning()) {
+      await this.micTestService.stop();
+    } else {
+      await this.micTestService.start(
+        this.settingsStore.audioInput(),
+        this.settingsStore.audioOutput(),
+      );
+    }
   }
 }

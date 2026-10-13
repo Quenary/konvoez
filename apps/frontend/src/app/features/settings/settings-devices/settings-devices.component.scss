@@ -1,0 +1,22 @@
+.setting-description {
+  margin: 0.25rem 0 0.75rem;
+  font-size: var(--tui-font-text-s-font-size);
+  color: var(--tui-text-tertiary);
+}
+
+.mic-test-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.mic-test-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mic-level-bar {
+  flex: 1;
+}
