@@ -358,6 +358,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
     this.socket.on(EVoiceRoomEvent.PEER_JOINED, async (data) => {
       this.voiceSessionStore.upsertPeer(data.user);
+      this.voiceSessionStore.updatePeerMuteState(
+        data.user.id,
+        data.muted ?? false,
+        data.deafened ?? false,
+      );
       await this.consumePending();
     });
 

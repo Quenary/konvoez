@@ -62,4 +62,16 @@ describe('VoiceSessionStore', () => {
     expect(store.peersDict()[bob.id]?.muted).toBe(true);
     expect(store.peersDict()[bob.id]?.deafened).toBe(true);
   });
+
+  it('applyUserEntityUpdate does not overwrite muted/deafened state', () => {
+    const store = TestBed.inject(VoiceSessionStore);
+    store.setPeers([bob]);
+    store.updatePeerMuteState(bob.id, true, true);
+
+    store.applyUserEntityUpdate({ ...bob, fullname: 'Robert' });
+
+    expect(store.peersDict()[bob.id]?.fullname).toBe('Robert');
+    expect(store.peersDict()[bob.id]?.muted).toBe(true);
+    expect(store.peersDict()[bob.id]?.deafened).toBe(true);
+  });
 });

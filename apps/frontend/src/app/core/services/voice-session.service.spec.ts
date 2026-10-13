@@ -617,6 +617,23 @@ describe('VoiceSessionService', () => {
       );
     });
 
+    it('applies initial mute and deafen state on PEER_JOINED', async () => {
+      service['addSocketListeners']();
+
+      await handlers[EVoiceRoomEvent.PEER_JOINED]({
+        user: bob,
+        muted: true,
+        deafened: false,
+      });
+
+      expect(voiceSessionStore.upsertPeer).toHaveBeenCalledWith(bob);
+      expect(voiceSessionStore.updatePeerMuteState).toHaveBeenCalledWith(
+        bob.id,
+        true,
+        false,
+      );
+    });
+
     it('emits SET_MUTE_STATE when microphone or speaker mute changes in an active session', () => {
       voiceSessionStore.setActiveSession({
         type: EVoiceSessionType.GROUP_ROOM,
