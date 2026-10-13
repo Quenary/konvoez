@@ -97,9 +97,8 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
-- Swipe to reply
-- Add notification click navigation
 - Add common user dialog with short info and direct chat/call buttons
-- Add emojis or/and customizable smile/sticker packs
-- Add customizable roles (functions access) and groups (rooms access)
 - Add invite emails (if email set), 2FA via email codes
+- Add customizable roles (functions access) and groups (rooms access)
+- Add emojis or/and customizable smile/sticker packs
+- Swipe to reply
