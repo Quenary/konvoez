@@ -142,6 +142,30 @@ export class MicTestService implements OnDestroy {
     inputDevice: MediaDeviceInfo | null,
     outputDevice: MediaDeviceInfo | null,
   ): Promise<void> {
+    await this.startInternal(inputDevice, outputDevice);
+  }
+
+  @Mutexed(testMutex)
+  public async stop(): Promise<void> {
+    await this.stopInternal();
+  }
+
+  @Mutexed(testMutex)
+  public async restart(
+    inputDevice: MediaDeviceInfo | null,
+    outputDevice: MediaDeviceInfo | null,
+  ): Promise<void> {
+    if (!this._isRunning()) {
+      return;
+    }
+    await this.stopInternal();
+    await this.startInternal(inputDevice, outputDevice);
+  }
+
+  private async startInternal(
+    inputDevice: MediaDeviceInfo | null,
+    outputDevice: MediaDeviceInfo | null,
+  ): Promise<void> {
     if (this.voiceSessionStore.activeSession()) {
       return;
     }
@@ -157,8 +181,7 @@ export class MicTestService implements OnDestroy {
     this.startMetering();
   }
 
-  @Mutexed(testMutex)
-  public async stop(): Promise<void> {
+  private async stopInternal(): Promise<void> {
     this.stopMetering();
     this.cleanupPipeline();
     this.cleanupInputStream();
@@ -178,18 +201,6 @@ export class MicTestService implements OnDestroy {
     this.dynamicsReady = false;
     this._isRunning.set(false);
     this._level.set(0);
-  }
-
-  @Mutexed(testMutex)
-  public async restart(
-    inputDevice: MediaDeviceInfo | null,
-    outputDevice: MediaDeviceInfo | null,
-  ): Promise<void> {
-    if (!this._isRunning()) {
-      return;
-    }
-    await this.stop();
-    await this.start(inputDevice, outputDevice);
   }
 
   private async ensureContext(): Promise<void> {
