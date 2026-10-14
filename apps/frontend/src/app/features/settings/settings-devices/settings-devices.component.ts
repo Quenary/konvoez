@@ -296,7 +296,6 @@ export class SettingsDevicesComponent {
   protected onInputGainChange(percent: number): void {
     const gain = percent / 100;
     this.settingsStore.setInputGain(gain);
-    this.micTestService.setGain(gain);
   }
 
   protected onOutputVolumeChange(percent: number): void {

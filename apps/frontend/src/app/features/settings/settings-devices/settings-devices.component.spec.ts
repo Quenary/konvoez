@@ -172,7 +172,6 @@ describe('SettingsDevicesComponent', () => {
   it('delegates gain, volume and echo cancellation changes to store and updates mic test', () => {
     component['onInputGainChange'](150);
     expect(settingsStore.setInputGain).toHaveBeenCalledWith(1.5);
-    expect(micTestService.setGain).toHaveBeenCalledWith(1.5);
 
     component['onOutputVolumeChange'](80);
     expect(settingsStore.setOutputVolume).toHaveBeenCalledWith(0.8);
