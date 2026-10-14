@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -155,6 +156,7 @@ export class SettingsDevicesComponent {
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly audioInput = this.settingsStore.audioInput;
   protected readonly audioInputAvailable = computed(() => {
@@ -241,6 +243,8 @@ export class SettingsDevicesComponent {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(() => void this.micTestService.stop());
+
     effect(() => {
       const { devices, streamInputDeviceId } = this.devicesLoad.value();
       const audioInput = this.settingsStore.audioInput();

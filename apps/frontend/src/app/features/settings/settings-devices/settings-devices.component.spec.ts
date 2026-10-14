@@ -185,4 +185,9 @@ describe('SettingsDevicesComponent', () => {
     expect(settingsStore.setEchoCancellation).toHaveBeenCalledWith(true);
     expect(micTestService.restart).toHaveBeenCalled();
   });
+
+  it('stops mic test when component is destroyed', () => {
+    fixture.destroy();
+    expect(micTestService.stop).toHaveBeenCalledTimes(1);
+  });
 });
