@@ -289,6 +289,7 @@ export class MicrophoneService implements OnDestroy {
             if (ev.averageLoad > 0.85) {
               highLoadCount++;
               if (highLoadCount >= 4) {
+                highLoadCount = 0;
                 void this.handleCpuOverload();
               }
             } else {
@@ -303,28 +304,30 @@ export class MicrophoneService implements OnDestroy {
   }
 
   private async handleCpuOverload(): Promise<void> {
-    if (this.activeProcessor !== ENoiseProcessor.DEEPFILTER) {
-      return;
-    }
-    console.warn(
-      'DeepFilterNet CPU overload detected; falling back to RNNoise for session',
-    );
-    await this.applyProcessor(ENoiseProcessor.RNNOISE);
-    if (!this.hasNotifiedCpuOverload) {
-      this.hasNotifiedCpuOverload = true;
-      this.tuiNotificationService
-        .open(
-          this.translateService.instant(
-            'SETTINGS.DEVICES.PROCESSOR_OVERLOAD_NOTIFICATION',
-          ),
-          {
-            appearance: 'warning',
-            autoClose: 5000,
-            closable: true,
-          },
-        )
-        .subscribe();
-    }
+    await publicMethodsMutex.runExclusive(async () => {
+      if (this.activeProcessor !== ENoiseProcessor.DEEPFILTER) {
+        return;
+      }
+      console.warn(
+        'DeepFilterNet CPU overload detected; falling back to RNNoise for session',
+      );
+      await this.applyProcessor(ENoiseProcessor.RNNOISE);
+      if (!this.hasNotifiedCpuOverload) {
+        this.hasNotifiedCpuOverload = true;
+        this.tuiNotificationService
+          .open(
+            this.translateService.instant(
+              'SETTINGS.DEVICES.PROCESSOR_OVERLOAD_NOTIFICATION',
+            ),
+            {
+              appearance: 'warning',
+              autoClose: 5000,
+              closable: true,
+            },
+          )
+          .subscribe();
+      }
+    });
   }
 
   /**

@@ -326,6 +326,9 @@ describe('MicrophoneService', () => {
 
     triggerCallback({ averageLoad: 0.9 });
     expect(overloadSpy).toHaveBeenCalledTimes(1);
+
+    triggerCallback({ averageLoad: 0.9 });
+    expect(overloadSpy).toHaveBeenCalledTimes(1);
   });
 
   it('connects expander, compressor, makeup and limiter after RNNoise', async () => {
