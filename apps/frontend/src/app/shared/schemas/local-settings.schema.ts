@@ -45,7 +45,7 @@ export const outputVolumeSchema = z.number().min(0).max(2);
 export const DEFAULT_OUTPUT_VOLUME = 1;
 
 export const echoCancellationSchema = z.boolean();
-export const DEFAULT_ECHO_CANCELLATION = true;
+export const DEFAULT_ECHO_CANCELLATION = false;
 
 /**
  * Current local settings document. Devices are optional — browsers may lack

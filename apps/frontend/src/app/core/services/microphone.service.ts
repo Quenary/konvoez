@@ -17,6 +17,7 @@ import {
   withVersion,
 } from '@core/asset-version';
 import { getStream } from '@shared/functions/get-stream.function';
+import { DEFAULT_ECHO_CANCELLATION } from '@shared/schemas/local-settings.schema';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { AudioContextResumeService } from './audio-context-resume.service';
@@ -88,7 +89,7 @@ export class MicrophoneService implements OnDestroy {
   private rnnoiseWasmBinary: ArrayBuffer | null = null;
   private processorPreference: ENoiseProcessor = ENoiseProcessor.DEEPFILTER;
   private activeProcessor: ENoiseProcessor = ENoiseProcessor.DEEPFILTER;
-  private echoCancellationPreference = true;
+  private echoCancellationPreference = DEFAULT_ECHO_CANCELLATION;
   private dynamicsReady = false;
   private hasNotifiedCpuOverload = false;
 

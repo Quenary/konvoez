@@ -319,18 +319,18 @@ describe('SettingsStore', () => {
     store.setNoiseProcessor(ENoiseProcessor.RNNOISE);
     store.setInputGain(1.5);
     store.setOutputVolume(0.5);
-    store.setEchoCancellation(false);
+    store.setEchoCancellation(true);
 
     expect(store.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
     expect(store.inputGain()).toBe(1.5);
     expect(store.outputVolume()).toBe(0.5);
-    expect(store.echoCancellation()).toBe(false);
+    expect(store.echoCancellation()).toBe(true);
 
     expect(microphone.setProcessor).toHaveBeenCalledWith(
       ENoiseProcessor.RNNOISE,
     );
     expect(microphone.setGain).toHaveBeenCalledWith(1.5);
-    expect(microphone.setEchoCancellation).toHaveBeenCalledWith(false);
+    expect(microphone.setEchoCancellation).toHaveBeenCalledWith(true);
     expect(speaker.setMasterVolume).toHaveBeenCalledWith(0.5);
 
     const saved = JSON.parse(
@@ -339,7 +339,7 @@ describe('SettingsStore', () => {
     expect(saved.noiseProcessor).toBe(ENoiseProcessor.RNNOISE);
     expect(saved.inputGain).toBe(1.5);
     expect(saved.outputVolume).toBe(0.5);
-    expect(saved.echoCancellation).toBe(false);
+    expect(saved.echoCancellation).toBe(true);
   });
 
   it('should hydrate audio preferences from LOCAL_SETTINGS', () => {
@@ -351,7 +351,7 @@ describe('SettingsStore', () => {
         noiseProcessor: ENoiseProcessor.BROWSER,
         inputGain: 0.8,
         outputVolume: 1.2,
-        echoCancellation: false,
+        echoCancellation: true,
       }),
     );
 
@@ -362,12 +362,12 @@ describe('SettingsStore', () => {
     expect(hydrated.noiseProcessor()).toBe(ENoiseProcessor.BROWSER);
     expect(hydrated.inputGain()).toBe(0.8);
     expect(hydrated.outputVolume()).toBe(1.2);
-    expect(hydrated.echoCancellation()).toBe(false);
+    expect(hydrated.echoCancellation()).toBe(true);
     expect(microphone.setProcessor).toHaveBeenCalledWith(
       ENoiseProcessor.BROWSER,
     );
     expect(microphone.setGain).toHaveBeenCalledWith(0.8);
-    expect(microphone.setEchoCancellation).toHaveBeenCalledWith(false);
+    expect(microphone.setEchoCancellation).toHaveBeenCalledWith(true);
     expect(speaker.setMasterVolume).toHaveBeenCalledWith(1.2);
   });
 

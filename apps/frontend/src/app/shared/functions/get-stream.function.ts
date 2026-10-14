@@ -5,10 +5,13 @@
  * - или возвращает стрим со стандартного устройства
  *
  * Browser noise suppression stays off by default (WASM denoisers own that job).
- * Echo cancellation and auto gain control stay on at the browser layer by default.
+ * Echo cancellation stays off by default for clean voice capture (enabled manually for speakers).
+ * Auto gain control stays on at the browser layer by default.
  * Looser constraints are retried only after OverconstrainedError or TypeError.
  * NotAllowedError stops the search so Firefox does not prompt again.
  */
+import { DEFAULT_ECHO_CANCELLATION } from '../schemas/local-settings.schema';
+
 export interface GetStreamAudioOptions {
   echoCancellation?: boolean;
   noiseSuppression?: boolean;
@@ -20,7 +23,7 @@ function captureConstraints(
   options?: GetStreamAudioOptions,
 ): MediaTrackConstraints {
   const base: MediaTrackConstraints = {
-    echoCancellation: options?.echoCancellation ?? true,
+    echoCancellation: options?.echoCancellation ?? DEFAULT_ECHO_CANCELLATION,
     noiseSuppression: options?.noiseSuppression ?? false,
     autoGainControl: options?.autoGainControl ?? true,
     channelCount: { ideal: 1 },
