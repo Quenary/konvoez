@@ -26,6 +26,7 @@ import { MicrophoneService } from './microphone.service';
 import { SpeakerService } from './speaker.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
+import { MicTestService } from './mic-test.service';
 import { EntitySyncService } from './entity-sync.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
@@ -45,8 +46,8 @@ import { AuthSocketManager } from '@core/auth/auth-socket-manager.service';
  * Guards against NG0200 circular DI:
  * SettingsStore → AUDIO_DEVICE_HANDLER → VoiceSessionService → Mediasoup →
  * Camera/ScreenCapture → SettingsStore (must be lazy via Injector).
- * Also covers voice stores, DirectCallService, VoiceLeaveService, and
- * VoiceRoomViewService used by the shared voice-room UI.
+ * Also covers voice stores, DirectCallService, VoiceLeaveService,
+ * MicTestService, and VoiceRoomViewService used by the shared voice-room UI.
  */
 describe('voice DI graph', () => {
   beforeEach(() => {
@@ -84,6 +85,7 @@ describe('voice DI graph', () => {
         SpeakerService,
         PeerPlaybackService,
         PeerScreenAudioService,
+        MicTestService,
         {
           provide: AudioService,
           useValue: {
@@ -157,12 +159,13 @@ describe('voice DI graph', () => {
   });
 
   const injectVoiceGraph = (
-    first: 'settings' | 'entitySync' | 'voiceSession',
+    first: 'settings' | 'entitySync' | 'voiceSession' | 'micTest',
   ) => {
     const injectors: Record<string, () => void> = {
       settings: () => TestBed.inject(SettingsStore),
       entitySync: () => TestBed.inject(EntitySyncService),
       voiceSession: () => TestBed.inject(VoiceSessionService),
+      micTest: () => TestBed.inject(MicTestService),
     };
     injectors[first]();
     if (first !== 'settings') {
@@ -174,9 +177,12 @@ describe('voice DI graph', () => {
     if (first !== 'voiceSession') {
       injectors['voiceSession']();
     }
+    if (first !== 'micTest') {
+      injectors['micTest']();
+    }
   };
 
-  it.each(['settings', 'entitySync', 'voiceSession'] as const)(
+  it.each(['settings', 'entitySync', 'voiceSession', 'micTest'] as const)(
     'constructs the voice/settings graph when %s is injected first',
     (first) => {
       let error: unknown;
@@ -193,6 +199,7 @@ describe('voice DI graph', () => {
         TestBed.inject(SpeakerService);
         TestBed.inject(PeerPlaybackService);
         TestBed.inject(PeerScreenAudioService);
+        TestBed.inject(MicTestService);
         TestBed.inject(VoiceSessionStore);
         TestBed.inject(RoomsStore);
         TestBed.inject(VoiceLobbyStore);
@@ -222,6 +229,7 @@ describe('voice DI graph', () => {
       expect(TestBed.inject(SpeakerService)).toBeTruthy();
       expect(TestBed.inject(PeerPlaybackService)).toBeTruthy();
       expect(TestBed.inject(PeerScreenAudioService)).toBeTruthy();
+      expect(TestBed.inject(MicTestService)).toBeTruthy();
       expect(TestBed.inject(VoiceSessionStore)).toBeTruthy();
       expect(TestBed.inject(VoiceLobbyStore)).toBeTruthy();
       expect(TestBed.inject(VoiceAudioPreferencesStore)).toBeTruthy();
