@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  DeepFilterWorkletNode,
-  isSimdSupported,
-} from './noise-suppressor.port';
+import { isSimdSupported } from './audio-capabilities';
+import { DeepFilterWorkletNode } from './noise-suppressor.port';
 
 describe('noise-suppressor.port', () => {
   describe('DeepFilterWorkletNode', () => {

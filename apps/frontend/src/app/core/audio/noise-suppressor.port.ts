@@ -3,6 +3,7 @@ import {
   RnnoiseWorkletNode,
   loadRnnoise,
 } from '@sapphi-red/web-noise-suppressor';
+import { isSimdSupported } from './audio-capabilities';
 
 export type DeepFilterOptions = {
   wasmModule: WebAssembly.Module;
@@ -44,9 +45,6 @@ export async function loadDeepFilter({
   const bytes = await response.arrayBuffer();
   return await WebAssembly.compile(bytes);
 }
-
-export { isSimdSupported } from './audio-capabilities';
-import { isSimdSupported } from './audio-capabilities';
 
 export type NoiseSuppressorPort = {
   loadRnnoise: typeof loadRnnoise;

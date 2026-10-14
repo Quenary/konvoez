@@ -43,7 +43,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
-import { isSimdSupported } from '@core/audio/noise-suppressor.port';
+import { isSimdSupported } from '@core/audio/audio-capabilities';
 import { ENoiseProcessor } from '../../../app.enums';
 
 type DevicesLoadResult = {

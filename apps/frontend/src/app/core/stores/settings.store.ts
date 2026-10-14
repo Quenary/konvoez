@@ -361,7 +361,6 @@ export const SettingsStore = signalStore(
         (isMobileOrIos()
           ? ENoiseProcessor.RNNOISE
           : ENoiseProcessor.DEEPFILTER);
-      const noiseProcessor = preferredProcessor;
       const inputGain = partial.inputGain ?? DEFAULT_INPUT_GAIN;
       const outputVolume = partial.outputVolume ?? DEFAULT_OUTPUT_VOLUME;
       const echoCancellation =
@@ -378,7 +377,7 @@ export const SettingsStore = signalStore(
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
-        noiseProcessor,
+        noiseProcessor: preferredProcessor,
         inputGain,
         outputVolume,
         echoCancellation,
