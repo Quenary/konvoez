@@ -505,6 +505,10 @@ export class TextRoomsService {
     user: GetUserDto,
     dto: CreateMessageDto,
   ): Promise<ITextRoomMessage> {
+    if (dto.recipientId === user.id) {
+      throw new BadRequestException('VALIDATION.MESSAGE_TO_SELF');
+    }
+
     if (dto.clientId) {
       const existing = await this.messageRepository.findOne(
         { sender: user.id, clientId: parse(dto.clientId) },
