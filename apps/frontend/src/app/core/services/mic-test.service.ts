@@ -1,21 +1,13 @@
 import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
+import { NOISE_SUPPRESSOR_PORT } from '@core/audio/noise-suppressor.port';
+import { ensureVoiceDynamicsWorklet } from '@core/audio/voice-dynamics';
 import {
-  NOISE_SUPPRESSOR_PORT,
-  type NoiseSuppressorPort,
-} from '@core/audio/noise-suppressor.port';
-import {
-  VOICE_CAPTURE,
-  VOICE_MAKEUP_GAIN,
-  createVoiceDynamicsNode,
-  disposeVoiceDynamicsNode,
-  ensureVoiceDynamicsWorklet,
-} from '@core/audio/voice-dynamics';
-import { ensureWorkletModule } from '@core/audio/ensure-worklet-module';
-import {
-  DEEP_FILTER_VERSION,
-  NOISE_SUPPRESSOR_VERSION,
-  withVersion,
-} from '@core/asset-version';
+  type TCaptureGraph,
+  type TCaptureWasmCache,
+  buildCaptureGraph,
+  disposeCaptureGraph,
+  resolveDenoiser,
+} from '@core/audio/capture-graph';
 import { getStream } from '@shared/functions/get-stream.function';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
@@ -24,32 +16,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { ENoiseProcessor } from '../../app.enums';
 
-const deepFilterWorkletUrl = withVersion(
-  'assets/deepfilternet/worklet.js',
-  DEEP_FILTER_VERSION,
-);
-const deepFilterWasmUrl = withVersion(
-  'assets/deepfilternet/df_bg.wasm',
-  DEEP_FILTER_VERSION,
-);
-const rnnoiseWorkletUrl = withVersion(
-  'assets/web-noise-suppressor/rnnoise/workletProcessor.js',
-  NOISE_SUPPRESSOR_VERSION,
-);
-const rnnoiseWasmUrl = withVersion(
-  'assets/web-noise-suppressor/rnnoise.wasm',
-  NOISE_SUPPRESSOR_VERSION,
-);
-const rnnoiseSimdWasmUrl = withVersion(
-  'assets/web-noise-suppressor/rnnoise_simd.wasm',
-  NOISE_SUPPRESSOR_VERSION,
-);
-
 const testMutex = new Mutex();
-
-type DenoiserNode =
-  | InstanceType<NoiseSuppressorPort['RnnoiseWorkletNode']>
-  | InstanceType<NoiseSuppressorPort['DeepFilterWorkletNode']>;
 
 /**
  * Isolated microphone test pipeline for settings/preview.
@@ -81,18 +48,10 @@ export class MicTestService {
 
   private context: AudioContext | null = null;
   private inputStream: MediaStream | null = null;
-  private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private gainNode: GainNode | null = null;
-  private biquadNode: BiquadFilterNode | null = null;
-  private denoiserNode: DenoiserNode | null = null;
-  private expanderNode: AudioWorkletNode | null = null;
-  private compressorNode: DynamicsCompressorNode | null = null;
-  private makeupNode: GainNode | null = null;
-  private limiterNode: AudioWorkletNode | null = null;
+  private captureGraph: TCaptureGraph | null = null;
   private analyserNode: AnalyserNode | null = null;
 
-  private deepFilterModule: WebAssembly.Module | null = null;
-  private rnnoiseWasmBinary: ArrayBuffer | null = null;
+  private readonly wasmCache: TCaptureWasmCache = {};
   private dynamicsReady = false;
   private rafId: number | null = null;
   private currentInputDevice: MediaDeviceInfo | null = null;
@@ -111,48 +70,56 @@ export class MicTestService {
   constructor() {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
+      this.destroyRef.onDestroy(() => {
+        document.removeEventListener(
+          'visibilitychange',
+          this.onVisibilityChange,
+        );
+        void this.stop();
+      });
     }
 
     effect(() => {
       const activeSession = this.voiceSessionStore.activeSession();
-      const isRunning = this._isRunning();
-      if (activeSession && isRunning) {
+      if (activeSession && this._isRunning()) {
         void this.stop();
       }
     });
 
     effect(() => {
       const gain = this.settingsStore.inputGain();
-      const isRunning = this._isRunning();
-      if (isRunning && this.gainNode) {
-        this.gainNode.gain.value = gain;
+      if (this.captureGraph?.gain) {
+        this.captureGraph.gain.gain.value = gain;
       }
-    });
-
-    this.destroyRef.onDestroy(() => {
-      if (typeof document !== 'undefined') {
-        document.removeEventListener(
-          'visibilitychange',
-          this.onVisibilityChange,
-        );
-      }
-      void this.stop();
     });
   }
 
+  /**
+   * Start mic test with selected input and output devices.
+   */
   @Mutexed(testMutex)
   public async start(
     inputDevice: MediaDeviceInfo | null,
     outputDevice: MediaDeviceInfo | null,
   ): Promise<void> {
+    if (this._isRunning()) {
+      return;
+    }
     await this.startInternal(inputDevice, outputDevice);
   }
 
+  /**
+   * Stop mic test and tear down audio graph.
+   */
   @Mutexed(testMutex)
   public async stop(): Promise<void> {
     await this.stopInternal();
   }
 
+  /**
+   * Restart mic test (e.g., when changing input device or processor).
+   * No-op if not running.
+   */
   @Mutexed(testMutex)
   public async restart(
     inputDevice: MediaDeviceInfo | null = this.currentInputDevice,
@@ -165,9 +132,20 @@ export class MicTestService {
     await this.startInternal(inputDevice, outputDevice);
   }
 
+  /**
+   * Set output audio sink device dynamically without restarting pipeline if supported.
+   */
+  @Mutexed(testMutex)
+  public async setOutputDevice(device: MediaDeviceInfo | null): Promise<void> {
+    this.currentOutputDevice = device;
+    if (this.context && this._isRunning()) {
+      await this.applySink(device);
+    }
+  }
+
   public setGain(value: number): void {
-    if (this.gainNode) {
-      this.gainNode.gain.value = value;
+    if (this.captureGraph?.gain) {
+      this.captureGraph.gain.gain.value = value;
     }
   }
 
@@ -273,150 +251,31 @@ export class MicTestService {
       noiseSuppression: preferredProcessor === ENoiseProcessor.BROWSER,
     });
 
-    this.sourceNode = this.context.createMediaStreamSource(this.inputStream);
+    const resolvedProcessor = await resolveDenoiser(
+      this.context,
+      preferredProcessor,
+      this.noiseSuppressor,
+      this.wasmCache,
+    );
 
-    this.gainNode = this.context.createGain();
-    this.gainNode.gain.value = inputGain;
-
-    this.biquadNode = this.context.createBiquadFilter();
-    this.biquadNode.type = 'highpass';
-    this.biquadNode.frequency.value = VOICE_CAPTURE.highpassHz;
-    this.biquadNode.Q.value = VOICE_CAPTURE.highpassQ;
-
-    const resolvedProcessor = await this.resolveProcessor(preferredProcessor);
-    if (
-      resolvedProcessor === ENoiseProcessor.DEEPFILTER ||
-      resolvedProcessor === ENoiseProcessor.RNNOISE
-    ) {
-      try {
-        this.denoiserNode = await this.createDenoiser(resolvedProcessor);
-      } catch (error) {
-        console.warn('Failed to construct mic test denoiser node', error);
-        this.denoiserNode = null;
-      }
-    }
-
-    this.compressorNode = this.context.createDynamicsCompressor();
-    this.compressorNode.threshold.value = VOICE_CAPTURE.compressor.threshold;
-    this.compressorNode.knee.value = VOICE_CAPTURE.compressor.knee;
-    this.compressorNode.ratio.value = VOICE_CAPTURE.compressor.ratio;
-    this.compressorNode.attack.value = VOICE_CAPTURE.compressor.attack;
-    this.compressorNode.release.value = VOICE_CAPTURE.compressor.release;
-
-    if (this.dynamicsReady) {
-      try {
-        this.expanderNode = createVoiceDynamicsNode(this.context, 'expander');
-        this.limiterNode = createVoiceDynamicsNode(this.context, 'limiter');
-        this.makeupNode = this.context.createGain();
-        this.makeupNode.gain.value = VOICE_MAKEUP_GAIN;
-      } catch {
-        if (this.expanderNode) disposeVoiceDynamicsNode(this.expanderNode);
-        if (this.limiterNode) disposeVoiceDynamicsNode(this.limiterNode);
-        this.expanderNode = null;
-        this.limiterNode = null;
-        this.makeupNode = null;
-      }
-    }
+    this.captureGraph = buildCaptureGraph(
+      this.context,
+      this.inputStream,
+      {
+        gain: inputGain,
+        processor: resolvedProcessor,
+        dynamicsReady: this.dynamicsReady,
+      },
+      this.noiseSuppressor,
+      this.wasmCache,
+    );
 
     this.analyserNode = this.context.createAnalyser();
     this.analyserNode.fftSize = 128;
     this.analyserNode.smoothingTimeConstant = 0.2;
 
-    const chain: AudioNode[] = [
-      this.sourceNode,
-      this.gainNode,
-      this.biquadNode,
-    ];
-    if (this.denoiserNode) {
-      chain.push(this.denoiserNode);
-    }
-    if (this.expanderNode) {
-      chain.push(this.expanderNode);
-    }
-    chain.push(this.compressorNode);
-    if (this.makeupNode) {
-      chain.push(this.makeupNode);
-    }
-    if (this.limiterNode) {
-      chain.push(this.limiterNode);
-    }
-
-    for (let i = 0; i < chain.length - 1; i++) {
-      chain[i].connect(chain[i + 1]);
-    }
-
-    const tail = chain[chain.length - 1];
-    tail.connect(this.analyserNode);
-    tail.connect(this.context.destination);
-  }
-
-  private async resolveProcessor(
-    preferred: ENoiseProcessor,
-  ): Promise<ENoiseProcessor> {
-    if (
-      preferred === ENoiseProcessor.BROWSER ||
-      preferred === ENoiseProcessor.OFF
-    ) {
-      return preferred;
-    }
-
-    if (preferred === ENoiseProcessor.DEEPFILTER) {
-      const isSimd = this.noiseSuppressor.isSimdSupported();
-      const is48k = this.context?.sampleRate === 48000;
-      if (isSimd && is48k) {
-        if (!this.context) {
-          return ENoiseProcessor.OFF;
-        }
-        try {
-          if (!this.deepFilterModule) {
-            this.deepFilterModule = await this.noiseSuppressor.loadDeepFilter({
-              url: deepFilterWasmUrl,
-            });
-          }
-          await ensureWorkletModule(this.context, deepFilterWorkletUrl);
-          return ENoiseProcessor.DEEPFILTER;
-        } catch {
-          // Fall back to RNNoise
-        }
-      }
-    }
-
-    if (this.context && this.context.sampleRate === 48000) {
-      try {
-        if (!this.rnnoiseWasmBinary) {
-          this.rnnoiseWasmBinary = await this.noiseSuppressor.loadRnnoise({
-            url: rnnoiseWasmUrl,
-            simdUrl: rnnoiseSimdWasmUrl,
-          });
-        }
-        await ensureWorkletModule(this.context, rnnoiseWorkletUrl);
-        return ENoiseProcessor.RNNOISE;
-      } catch {
-        return ENoiseProcessor.OFF;
-      }
-    }
-
-    return ENoiseProcessor.OFF;
-  }
-
-  private async createDenoiser(
-    processor: ENoiseProcessor,
-  ): Promise<DenoiserNode> {
-    if (!this.context) {
-      throw new Error('missing context');
-    }
-    if (processor === ENoiseProcessor.DEEPFILTER && this.deepFilterModule) {
-      return new this.noiseSuppressor.DeepFilterWorkletNode(this.context, {
-        wasmModule: this.deepFilterModule,
-      });
-    }
-    if (!this.rnnoiseWasmBinary) {
-      throw new Error('missing rnnoise binary');
-    }
-    return new this.noiseSuppressor.RnnoiseWorkletNode(this.context, {
-      wasmBinary: this.rnnoiseWasmBinary,
-      maxChannels: 1,
-    });
+    this.captureGraph.tail.connect(this.analyserNode);
+    this.captureGraph.tail.connect(this.context.destination);
   }
 
   private startMetering(): void {
@@ -460,31 +319,12 @@ export class MicTestService {
 
   private cleanupPipeline(): void {
     try {
-      this.sourceNode?.disconnect();
-      this.gainNode?.disconnect();
-      this.biquadNode?.disconnect();
-      this.denoiserNode?.disconnect();
-      this.denoiserNode?.destroy();
-      if (this.expanderNode) {
-        disposeVoiceDynamicsNode(this.expanderNode);
-      }
-      this.compressorNode?.disconnect();
-      this.makeupNode?.disconnect();
-      if (this.limiterNode) {
-        disposeVoiceDynamicsNode(this.limiterNode);
-      }
+      disposeCaptureGraph(this.captureGraph);
       this.analyserNode?.disconnect();
     } catch {
       // Disconnect error ignored
     } finally {
-      this.sourceNode = null;
-      this.gainNode = null;
-      this.biquadNode = null;
-      this.denoiserNode = null;
-      this.expanderNode = null;
-      this.compressorNode = null;
-      this.makeupNode = null;
-      this.limiterNode = null;
+      this.captureGraph = null;
       this.analyserNode = null;
     }
   }
