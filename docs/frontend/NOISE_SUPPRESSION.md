@@ -22,6 +22,14 @@ If the preferred processor cannot run:
 2. **RNNoise** requires 48 kHz. If initialization fails or context is not 48 kHz, it falls back to **Off**.
 3. **Runtime CPU overload protection**: When running DeepFilterNet 3 on supported browsers, `MicrophoneService` monitors real-time audio thread capacity via `AudioContext.renderCapacity`. If average render load exceeds 85% across consecutive measurement windows, `MicrophoneService` automatically downgrades the active processor to **RNNoise** and alerts the user with a notification.
 
+### Cache-Busting & Vendored Assets
+
+WebAssembly binaries and worklets served statically from `/assets/` are versioned with query parameters via `withVersion(path, version)`:
+
+- **`df_bg.wasm`**: Cache-busted with `DEEP_FILTER_VERSION` (`@lofcz/deepfilternet-web`).
+- **`worklet.js`**: Cache-busted with `APP_VERSION`. The DeepFilterNet worklet script is vendored and patched in `public/assets/deepfilternet/worklet.js` with a custom `{ type: 'dispose' }` lifecycle protocol to safely free native WASM state, so its cache-busting follows frontend application releases rather than package version bumps.
+- **RNNoise assets**: Cache-busted with `NOISE_SUPPRESSOR_VERSION` (`@sapphi-red/web-noise-suppressor`).
+
 ## CSP Requirements
 
 Running WebAssembly noise suppression worklets requires the following Content Security Policy:

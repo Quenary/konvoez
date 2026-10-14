@@ -1,4 +1,5 @@
 import {
+  APP_VERSION,
   DEEP_FILTER_VERSION,
   NOISE_SUPPRESSOR_VERSION,
   withVersion,
@@ -13,9 +14,11 @@ import {
 import { ensureWorkletModule } from './ensure-worklet-module';
 import { ENoiseProcessor } from '../../app.enums';
 
+// The DeepFilterNet worklet is vendored and patched with a custom dispose protocol,
+// so its cache-buster follows the app version rather than the upstream package version.
 export const deepFilterWorkletUrl = withVersion(
   'assets/deepfilternet/worklet.js',
-  DEEP_FILTER_VERSION,
+  APP_VERSION,
 );
 export const deepFilterWasmUrl = withVersion(
   'assets/deepfilternet/df_bg.wasm',

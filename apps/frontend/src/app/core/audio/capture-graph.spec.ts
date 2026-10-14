@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENoiseProcessor } from '../../app.enums';
+import { APP_VERSION, DEEP_FILTER_VERSION } from '@core/asset-version';
 import {
   type TCaptureGraph,
   type TCaptureWasmCache,
   buildCaptureGraph,
   createDenoiserNode,
+  deepFilterWasmUrl,
+  deepFilterWorkletUrl,
   disposeCaptureGraph,
   resolveDenoiser,
   swapDenoiser,
@@ -77,6 +80,17 @@ describe('capture-graph', () => {
         }
       },
     } as unknown as NoiseSuppressorPort;
+  });
+
+  describe('asset URLs', () => {
+    it('cache-busts DeepFilterNet worklet with APP_VERSION and wasm with DEEP_FILTER_VERSION', () => {
+      expect(deepFilterWorkletUrl).toBe(
+        `assets/deepfilternet/worklet.js?v=${encodeURIComponent(APP_VERSION)}`,
+      );
+      expect(deepFilterWasmUrl).toBe(
+        `assets/deepfilternet/df_bg.wasm?v=${encodeURIComponent(DEEP_FILTER_VERSION)}`,
+      );
+    });
   });
 
   describe('fallback chain (resolveDenoiser)', () => {
