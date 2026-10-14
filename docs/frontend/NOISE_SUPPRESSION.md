@@ -1,23 +1,55 @@
-# Frontend noise suppression
+# Frontend noise suppression and audio controls
 
-Mic capture and remote playback dynamics. Session flow: [VOICE.md](./VOICE.md).
+Mic capture, noise suppression engines, playback dynamics, and device test pipeline. Session flow: [VOICE.md](./VOICE.md).
 
-One noise suppressor on the mic. Browser `noiseSuppression` stays off so it does not stack on RNNoise. `echoCancellation` and `autoGainControl` stay on at capture. Constraints live in `get-stream.function.ts` (`channelCount: { ideal: 1 }`). If the browser rejects them, capture retries with looser constraints for the same device.
+## Processors & Capabilities
 
-After enabling browser AGC again, verify level on quiet built-in laptop mics manually (hardware varies; there is no automated check in CI).
+Konvoez supports 4 selectable noise suppression modes:
 
-There is no settings UI. Thresholds are constants in `apps/frontend/src/app/core/audio/voice-dynamics.ts`.
+- **`deepfilter` (DeepFilterNet 3)**: State-of-the-art deep learning model running in WebAssembly. Requires WASM SIMD support (`isSimdSupported()`) and 48 kHz sample rate. Wasm binary (`df_bg.wasm`) and worklet (`worklet.js`) come from `@lofcz/deepfilternet-web` and are served from `/assets/deepfilternet/`.
+- **`rnnoise` (RNNoise)**: Recurrent neural network suppressor for stationary and non-stationary noises (e.g. keyboard clicks). Runs via `@sapphi-red/web-noise-suppressor` with SIMD or standard fallback.
+- **`browser`**: Standard browser `MediaTrackConstraints` `noiseSuppression: true`.
+- **`off`**: No noise suppression applied.
 
-## Capture
+> [!NOTE]
+> Speex DSP has been dropped completely in favor of DeepFilterNet 3 and RNNoise.
 
-`MicrophoneService`, `AudioContext` at 48 kHz. `setGain` is the first node; the limiter is last, so that gain cannot clip the track sent to mediasoup.
+### Fallback Hierarchy
+
+If the preferred processor cannot run:
+
+1. **DeepFilterNet 3** checks for WASM SIMD capability and 48 kHz sample rate. If SIMD is unsupported, loading fails, or sample rate differs, it falls back to **RNNoise**.
+2. **RNNoise** requires 48 kHz. If initialization fails or context is not 48 kHz, it falls back to **Off**.
+3. **Runtime CPU overload protection**: When running DeepFilterNet 3 on supported browsers, `MicrophoneService` monitors real-time audio thread capacity via `AudioContext.renderCapacity`. If average render load exceeds 85% across consecutive measurement windows, `MicrophoneService` automatically downgrades the active processor to **RNNoise** and alerts the user with a notification.
+
+### Cache-Busting & Vendored Assets
+
+WebAssembly binaries and worklets served statically from `/assets/` are versioned with query parameters via `withVersion(path, version)`:
+
+- **`df_bg.wasm`**: Cache-busted with `DEEP_FILTER_VERSION` (`@lofcz/deepfilternet-web`).
+- **`worklet.js`**: Cache-busted with `APP_VERSION`. The DeepFilterNet worklet script is vendored and patched in `public/assets/deepfilternet/worklet.js` with a custom `{ type: 'dispose' }` lifecycle protocol to safely free native WASM state, so its cache-busting follows frontend application releases rather than package version bumps.
+- **RNNoise assets**: Cache-busted with `NOISE_SUPPRESSOR_VERSION` (`@sapphi-red/web-noise-suppressor`).
+
+## CSP Requirements
+
+Running WebAssembly noise suppression worklets requires the following Content Security Policy:
+
+```http
+script-src 'self' 'wasm-unsafe-eval';
+```
+
+`'wasm-unsafe-eval'` enables compilation of WebAssembly modules inside web workers/worklets without permitting arbitrary JavaScript `eval()`.
+
+## Capture Pipeline
+
+`MicrophoneService` operates an `AudioContext` at 48 kHz. Changing the active denoiser or echo cancellation recreates the denoiser node in-place without resetting the `MediaStreamDestination` track sent to mediasoup, avoiding stream renegotiation or audio dropouts.
 
 ```mermaid
 flowchart LR
-  mic[getUserMedia] --> gain[inputGain]
+  mic[getUserMedia] --> gain[inputGain 0-200%]
   gain --> hpf[highpass 100 Hz]
-  hpf --> rnnoise[RNNoise]
-  rnnoise --> expander[softExpander]
+  hpf --> denoiser["Denoiser (DeepFilter / RNNoise / Pass)"]
+  denoiser --> expander[softExpander]
   expander --> comp[compressor]
   comp --> makeup[makeup plus 5 dB]
   makeup --> limiter[peakLimiter]
@@ -27,33 +59,53 @@ flowchart LR
 
 | Stage                  | Role                                                                                                                                                                                                                    |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Highpass 100 Hz, Q 0.7 | Desk rumble before the model                                                                                                                                                                                            |
-| RNNoise                | Non-stationary noise, including keyboard clicks under speech. Wasm from `@sapphi-red/web-noise-suppressor` (`assets/web-noise-suppressor`)                                                                              |
+| `inputGain`            | Digital microphone preamp gain from 0% to 200% (default 100%). Sits before any filtering so low-gain mics are boosted before noise gating.                                                                              |
+| Highpass 100 Hz, Q 0.7 | Desk rumble and low-frequency HVAC attenuation before the model.                                                                                                                                                        |
+| Denoiser               | Active noise suppressor (`DeepFilterWorkletNode` or `RnnoiseWorkletNode`). When `browser` or `off` is selected, audio passes straight to the dynamics processor.                                                        |
 | Expander               | Closes pauses. Adaptive noise floor over ~2 s (eight 250 ms windows): opens near floor + 14 dB, closes near floor + 8 dB, hold 150 ms, attack 5 ms, release 120 ms, max cut about −40 dB, lookahead 240 samples (~5 ms) |
-| Compressor             | Gentle level ride: threshold −26 dB, knee 16 dB, ratio 2.5, attack 12 ms, release 250 ms                                                                                                                                |
-| Makeup +5 dB           | Lifts speech the compressor did not touch                                                                                                                                                                               |
-| Limiter                | Lookahead 128 samples (~2.7 ms) tracked with a sliding maximum, ceiling −1 dBFS, release 50 ms                                                                                                                          |
+| Compressor             | Gentle level ride: threshold −26 dB, knee 16 dB, ratio 2.5, attack 12 ms, release 250 ms.                                                                                                                               |
+| Makeup +5 dB           | Lifts speech the compressor did not touch.                                                                                                                                                                              |
+| Limiter                | Lookahead 128 samples (~2.7 ms) tracked with a sliding maximum, ceiling −1 dBFS, release 50 ms.                                                                                                                         |
 
-The expander does not remove clicks while someone is talking; those stay above the open threshold. RNNoise is what attenuates them. The analyser sits on the limiter output (the signal that is actually sent) so the speaking indicator follows the gated track; it measures the fully processed signal (after expander, compressor, makeup and limiter), and the `AudioActivityService` thresholds were not re-tuned for it.
+## Playback Pipeline
 
-Added latency is about one RNNoise frame (10 ms) plus the expander lookahead (240 samples, 5 ms) and the limiter lookahead (128 samples, ~2.7 ms). `cleanupPipeline` calls `destroy()` on the denoiser node and posts `{ type: 'dispose' }` to the expander and limiter. `process()` then returns false, so those processors stop while the capture context is still open (device change, pipeline rebuild).
-
-**Fallback.** RNNoise needs 48 kHz, which `AudioContext` requests explicitly (browsers unable to provide 48 kHz throw on creation). If loading RNNoise wasm or worklet fails (or defensively if the context sample rate is not 48 kHz), the pipeline falls back to Speex and the call stays up. If `audio/voice-dynamics.worklet.js` fails to load, expander and limiter are skipped and makeup stays at unity so the boost cannot clip.
-
-## Playback
-
-Loud remote audio and per-peer gain above 1 clip in the speakers. Several peers near full scale also clip when summed. `SpeakerService` keeps one mix bus and one limiter for the life of the speaker context. `getContext()` does not wait for the worklet. `getOutput()` loads it, and stops waiting after 2 s so a hung script cannot block playback. A failed load is not remembered: the next `getOutput()` tries again. Until the limiter attaches, the bus goes straight to the speakers. `PeerPlaybackService` and `PeerScreenAudioService` connect each gain into that bus: `gain → mixBus → peakLimiter → destination`. Detach disconnects only that peer. The speaking-indicator analyser stays on the peer gain, before the bus. Already-clipped audio from the sender cannot be repaired.
+`SpeakerService` manages remote audio mixing and output. `masterGainNode` allows adjusting master output volume from 0% to 200%. It is positioned before the playback limiter so boosting master volume cannot hard-clip the audio output.
 
 ```mermaid
 flowchart LR
   peer[peerGain] --> bus[mixBus]
   screen[screenGain] --> bus
-  bus --> limiter[peakLimiter]
-  limiter --> dest[speakers]
+  bus --> masterGain[masterGain 0-200%]
+  masterGain --> limiter[peakLimiter]
+  limiter --> dest[speakers / destination]
 ```
 
-The worklet is a classic script in `apps/frontend/public/audio/voice-dynamics.worklet.js` (`konvoez/voice-dynamics`), loaded with `audioWorklet.addModule` as `audio/voice-dynamics.worklet.js?v=<app version>`. Nginx caches every `.js` and `.wasm` as immutable for a year, and these files have no content hash, so the query is the cache buster. RNNoise and Speex use `?v=<package version>` on the same rule. The app version comes from the repo `package.json` at bundle time; the suppressor version comes from `@sapphi-red/web-noise-suppressor`. Capture uses two nodes of that processor so the `DynamicsCompressorNode` can sit between the expander and the limiter. Playback uses the limiter node only. The stock `NoiseGateWorkletNode` is not used: it hard-mutes a 128-sample block and clicks on word edges.
+## Microphone Test Pipeline
+
+`MicTestService` provides an isolated test pipeline used in Settings:
+
+- Own isolated `AudioContext` and dynamic pipeline that mimics `MicrophoneService`.
+- Real-time RMS audio metering (0–100%) via `requestAnimationFrame` and `AnalyserNode`.
+- Supports speaker sink routing via `HTMLAudioElement.setSinkId` (where supported).
+- Automatically halts when the page hides, the test is unmounted, or the user joins a voice room.
+
+## Settings Persistence
+
+All hardware and audio capture/playback preferences are stored in `LOCAL_SETTINGS` (`konvoez-local-settings`) and managed via `SettingsStore` (`localSettingsSchema`):
+
+- `audioInput` & `audioOutput` (device IDs and labels)
+- `noiseProcessor`: `'deepfilter' | 'rnnoise' | 'browser' | 'off'` (default `'deepfilter'`)
+- `inputGain`: `0.0..2.0` (default `1.0`)
+- `outputVolume`: `0.0..2.0` (default `1.0`)
+- `echoCancellation`: `boolean` (default `true`)
+
+Session-specific mute state (`microphoneMuted`, `speakerMuted`) and per-user gain levels (`peerGainLevels`, `peerScreenGainLevels`) remain in `VoiceAudioPreferencesStore`.
 
 ## Tests
 
-`microphone.service.spec.ts` (graph and Speex fallback), `get-stream.function.spec.ts`, `voice-dynamics.worklet.spec.ts` (quiet noise stays down, speech passes, full-scale peaks stay under the ceiling), `peer-playback.service.spec.ts`, `peer-screen-audio.service.spec.ts`.
+- `microphone.service.spec.ts`: graph initialization, switching processors, fallback to RNNoise on error and CPU overload, echo cancellation updates.
+- `speaker.service.spec.ts`: master output gain (0–200%), limiter integration, sink routing.
+- `mic-test.service.spec.ts`: isolated test start/stop/restart, sink routing, auto-stop on session start.
+- `settings.store.spec.ts`: hydration, persistence, and service routing for audio preferences.
+- `settings-devices.component.spec.ts`: UI bindings, sliders, SIMD capability disables.
+- `voice-di-cycle.spec.ts`: guards against circular dependency regressions.

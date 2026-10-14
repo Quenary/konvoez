@@ -1,52 +1,27 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
+import { NOISE_SUPPRESSOR_PORT } from '@core/audio/noise-suppressor.port';
+import { ensureVoiceDynamicsWorklet } from '@core/audio/voice-dynamics';
 import {
-  NOISE_SUPPRESSOR_PORT,
-  type NoiseSuppressorPort,
-} from '@core/audio/noise-suppressor.port';
-import {
-  VOICE_CAPTURE,
-  VOICE_MAKEUP_GAIN,
-  createVoiceDynamicsNode,
-  disposeVoiceDynamicsNode,
-  ensureVoiceDynamicsWorklet,
-} from '@core/audio/voice-dynamics';
-import { ensureWorkletModule } from '@core/audio/ensure-worklet-module';
-import { NOISE_SUPPRESSOR_VERSION, withVersion } from '@core/asset-version';
+  type TCaptureGraph,
+  type TCaptureWasmCache,
+  buildCaptureGraph,
+  disposeCaptureGraph,
+  resolveDenoiser,
+  swapDenoiser,
+} from '@core/audio/capture-graph';
 import { getStream } from '@shared/functions/get-stream.function';
+import { DEFAULT_ECHO_CANCELLATION } from '@shared/schemas/local-settings.schema';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { AudioContextResumeService } from './audio-context-resume.service';
-
-const speexWorkletUrl = withVersion(
-  'assets/web-noise-suppressor/speex/workletProcessor.js',
-  NOISE_SUPPRESSOR_VERSION,
-);
-const speexWasmUrl = withVersion(
-  'assets/web-noise-suppressor/speex.wasm',
-  NOISE_SUPPRESSOR_VERSION,
-);
-const rnnoiseWorkletUrl = withVersion(
-  'assets/web-noise-suppressor/rnnoise/workletProcessor.js',
-  NOISE_SUPPRESSOR_VERSION,
-);
-const rnnoiseWasmUrl = withVersion(
-  'assets/web-noise-suppressor/rnnoise.wasm',
-  NOISE_SUPPRESSOR_VERSION,
-);
-const rnnoiseSimdWasmUrl = withVersion(
-  'assets/web-noise-suppressor/rnnoise_simd.wasm',
-  NOISE_SUPPRESSOR_VERSION,
-);
+import { ENoiseProcessor } from '../../app.enums';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TranslateService } from '@ngx-translate/core';
 
 const publicMethodsMutex = new Mutex();
 
-type DenoiserKind = 'rnnoise' | 'speex';
-type DenoiserNode =
-  | InstanceType<NoiseSuppressorPort['RnnoiseWorkletNode']>
-  | InstanceType<NoiseSuppressorPort['SpeexWorkletNode']>;
-
 /**
- * Local capture pipeline: device stream, gain, highpass, RNNoise (Speex fallback),
+ * Local capture pipeline: device stream, gain, highpass, denoiser (DeepFilterNet3 / RNNoise / pass-through),
  * expander, compressor, makeup, limiter, analyser, processed MediaStream.
  */
 @Injectable({ providedIn: 'root' })
@@ -55,52 +30,164 @@ export class MicrophoneService implements OnDestroy {
   private readonly audioContextResumeService = inject(
     AudioContextResumeService,
   );
-  private context: AudioContext | null = null;
+  private readonly tuiNotificationService = inject(TuiNotificationService);
+  private readonly translateService = inject(TranslateService);
 
-  private inputStream: MediaStream | null = null;
-
-  private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private gainNode: GainNode | null = null;
-  private biquadNode: BiquadFilterNode | null = null;
-  private denoiserNode: DenoiserNode | null = null;
-  private expanderNode: AudioWorkletNode | null = null;
-  private compressorNode: DynamicsCompressorNode | null = null;
-  private makeupNode: GainNode | null = null;
-  private limiterNode: AudioWorkletNode | null = null;
   private readonly _analyserNode = signal<AnalyserNode | null>(null);
-  /**
-   * Microphone analyser node
-   */
+  /** Microphone analyser node */
   public readonly analyserNode = this._analyserNode.asReadonly();
-  private destinationNode: MediaStreamAudioDestinationNode | null = null;
-
-  private rnnoiseWasmBinary: ArrayBuffer | null = null;
-  private speexWasmBinary: ArrayBuffer | null = null;
-  private denoiserKind: DenoiserKind | null = null;
-  private dynamicsReady = false;
-
-  private device: MediaDeviceInfo | null = null;
-  private gain = 1;
 
   private readonly _processedStream = signal<MediaStream | null>(null);
   public readonly processedStream = this._processedStream.asReadonly();
+
+  private context: AudioContext | null = null;
+  private inputStream: MediaStream | null = null;
+
+  private captureGraph: TCaptureGraph | null = null;
+  private destinationNode: MediaStreamAudioDestinationNode | null = null;
+
+  private readonly wasmCache: TCaptureWasmCache = {};
+  private processorPreference: ENoiseProcessor = ENoiseProcessor.DEEPFILTER;
+  private activeProcessor: ENoiseProcessor = ENoiseProcessor.DEEPFILTER;
+  private echoCancellationPreference = DEFAULT_ECHO_CANCELLATION;
+  private dynamicsReady = false;
+  private hasNotifiedCpuOverload = false;
+
+  private device: MediaDeviceInfo | null = null;
+  private gain = 1;
 
   private readonly onDeviceChange = (): void => {
     void this.handleDeviceChange();
   };
 
   constructor() {
-    navigator.mediaDevices?.addEventListener(
-      'devicechange',
-      this.onDeviceChange,
-    );
+    if (typeof navigator.mediaDevices?.addEventListener === 'function') {
+      navigator.mediaDevices.addEventListener(
+        'devicechange',
+        this.onDeviceChange,
+      );
+    }
   }
 
   ngOnDestroy(): void {
-    navigator.mediaDevices?.removeEventListener(
-      'devicechange',
-      this.onDeviceChange,
+    if (typeof navigator.mediaDevices?.removeEventListener === 'function') {
+      navigator.mediaDevices.removeEventListener(
+        'devicechange',
+        this.onDeviceChange,
+      );
+    }
+  }
+
+  /**
+   * Set input device (microphone)
+   *
+   * If pipeline active, recreate it
+   * @param device
+   */
+  @Mutexed(publicMethodsMutex)
+  public async setDevice(device: MediaDeviceInfo | null) {
+    this.device = device;
+
+    const recreate = !!this.processedStream();
+
+    this.cleanupPipeline();
+    this.cleanupInputStream();
+
+    if (recreate) {
+      await this.ensureInputStream(device);
+      this.ensurePipeline();
+    }
+  }
+
+  /**
+   * Set microphone gain (volume)
+   * @param value
+   */
+  public setGain(value: number): void {
+    this.gain = value;
+    if (this.captureGraph?.gain) {
+      this.captureGraph.gain.gain.value = value;
+    }
+  }
+
+  /**
+   * Set active noise processor preference.
+   * If capture pipeline is running, dynamically switches denoiser without recreating destination track.
+   */
+  @Mutexed(publicMethodsMutex)
+  public async setProcessor(processor: ENoiseProcessor): Promise<void> {
+    this.processorPreference = processor;
+    if (!this.processedStream()) {
+      return;
+    }
+    await this.applyProcessor(processor);
+  }
+
+  /**
+   * Set echo cancellation toggle.
+   * If capture pipeline is running, re-acquires device stream without recreating destination track.
+   */
+  @Mutexed(publicMethodsMutex)
+  public async setEchoCancellation(enabled: boolean): Promise<void> {
+    this.echoCancellationPreference = enabled;
+    if (!this.processedStream()) {
+      return;
+    }
+    await this.reacquireInputStream();
+  }
+
+  /**
+   * Get stream processed with the audio context
+   * @returns
+   */
+  @Mutexed(publicMethodsMutex)
+  public async getStream(): Promise<MediaStream> {
+    const processedStream = this.processedStream();
+    if (processedStream) {
+      const track = processedStream.getAudioTracks()[0];
+      if (track && track.readyState === 'live') {
+        return processedStream;
+      }
+
+      console.warn('Processed stream dead, recreating...');
+      this.cleanupPipeline();
+      this.cleanupInputStream();
+    }
+
+    await this.ensureContext();
+    this.activeProcessor = await resolveDenoiser(
+      this.context,
+      this.processorPreference,
+      this.noiseSuppressor,
+      this.wasmCache,
     );
+    await this.ensureDynamics();
+    await this.ensureInputStream(this.device);
+    this.ensurePipeline();
+    return this.processedStream() as MediaStream;
+  }
+
+  @Mutexed(publicMethodsMutex)
+  public async release(): Promise<void> {
+    this.cleanupPipeline();
+    this.cleanupInputStream();
+
+    if (this.context && this.context.state !== 'closed') {
+      try {
+        this.audioContextResumeService.unregister(this.context);
+        await this.context.close();
+      } catch (error) {
+        console.warn('Failed to close microphone context', error);
+      }
+    }
+
+    this.context = null;
+    this._analyserNode.set(null);
+    this.wasmCache.dfModule = null;
+    this.wasmCache.rnnoiseWasm = null;
+    this.activeProcessor = this.processorPreference;
+    this.dynamicsReady = false;
+    this.hasNotifiedCpuOverload = false;
   }
 
   /**
@@ -127,86 +214,6 @@ export class MicrophoneService implements OnDestroy {
     }
   }
 
-  /**
-   * Set input device (microphone)
-   *
-   * If pipeline active, recreate it
-   * @param device
-   */
-  @Mutexed(publicMethodsMutex)
-  public async setDevice(device: MediaDeviceInfo | null) {
-    this.device = device;
-
-    const recreate = !!this.processedStream();
-
-    this.cleanupPipeline();
-    this.cleanupInputStream();
-
-    if (recreate) {
-      await this.ensureInputStream(device);
-      await this.ensurePipeline();
-    }
-  }
-
-  /**
-   * Set microphone gain (volume)
-   * @param value
-   */
-  public setGain(value: number): void {
-    this.gain = value;
-    if (this.gainNode) {
-      this.gainNode.gain.value = value;
-    }
-  }
-
-  /**
-   * Get stream processed with the audio context
-   * @returns
-   */
-  @Mutexed(publicMethodsMutex)
-  public async getStream(): Promise<MediaStream> {
-    const processedStream = this.processedStream();
-    if (processedStream) {
-      const track = processedStream.getAudioTracks()[0];
-      if (track && track.readyState === 'live') {
-        return processedStream;
-      }
-
-      console.warn('Processed stream dead, recreating...');
-      this.cleanupPipeline();
-      this.cleanupInputStream();
-    }
-
-    await this.ensureContext();
-    await this.resolveDenoiser();
-    await this.ensureDynamics();
-    await this.ensureInputStream(this.device);
-    await this.ensurePipeline();
-    return this.processedStream() as MediaStream;
-  }
-
-  @Mutexed(publicMethodsMutex)
-  public async release(): Promise<void> {
-    this.cleanupPipeline();
-    this.cleanupInputStream();
-
-    if (this.context && this.context.state !== 'closed') {
-      try {
-        this.audioContextResumeService.unregister(this.context);
-        await this.context.close();
-      } catch (error) {
-        console.warn('Failed to close microphone context', error);
-      }
-    }
-
-    this.context = null;
-    this._analyserNode.set(null);
-    this.rnnoiseWasmBinary = null;
-    this.speexWasmBinary = null;
-    this.denoiserKind = null;
-    this.dynamicsReady = false;
-  }
-
   private async ensureContext() {
     if (!this.context || this.context.state === 'closed') {
       if (this.context) {
@@ -215,6 +222,7 @@ export class MicrophoneService implements OnDestroy {
       this.context = new AudioContext({ sampleRate: 48000 });
       this.dynamicsReady = false;
       this.audioContextResumeService.register(this.context);
+      this.setupRenderCapacityListener();
     }
 
     if (this.context.state === 'suspended') {
@@ -222,58 +230,67 @@ export class MicrophoneService implements OnDestroy {
     }
   }
 
-  /**
-   * RNNoise requires 48 kHz (our AudioContext is requested at 48 kHz; unsupported browsers throw).
-   * Speex is used as a fallback if RNNoise wasm/worklet fails to load, or defensively if sampleRate differs.
-   */
-  private async resolveDenoiser(): Promise<void> {
-    if (!this.context) {
-      console.warn('resolveDenoiser(): missing context');
-      return;
-    }
+  private setupRenderCapacityListener(): void {
+    const ctx = this.context as
+      | (AudioContext & {
+          renderCapacity?: {
+            start: (options?: { updateInterval?: number }) => void;
+            addEventListener: (
+              type: string,
+              listener: (ev: { averageLoad: number }) => void,
+            ) => void;
+          };
+        })
+      | null;
 
-    if (this.context.sampleRate === 48000) {
+    if (ctx && 'renderCapacity' in ctx && ctx.renderCapacity) {
       try {
-        await this.ensureRnnoise();
-        this.denoiserKind = 'rnnoise';
-        return;
-      } catch (error) {
-        console.warn('RNNoise unavailable, using Speex', error);
+        ctx.renderCapacity.start({ updateInterval: 0.5 });
+        let highLoadCount = 0;
+        ctx.renderCapacity.addEventListener('update', (ev) => {
+          if (this.activeProcessor === ENoiseProcessor.DEEPFILTER) {
+            if (ev.averageLoad > 0.85) {
+              highLoadCount++;
+              if (highLoadCount >= 4) {
+                highLoadCount = 0;
+                void this.handleCpuOverload();
+              }
+            } else {
+              highLoadCount = 0;
+            }
+          }
+        });
+      } catch {
+        // renderCapacity optional
       }
-    } else {
+    }
+  }
+
+  private async handleCpuOverload(): Promise<void> {
+    await publicMethodsMutex.runExclusive(async () => {
+      if (this.activeProcessor !== ENoiseProcessor.DEEPFILTER) {
+        return;
+      }
       console.warn(
-        `AudioContext sample rate is ${this.context.sampleRate}, using Speex`,
+        'DeepFilterNet CPU overload detected; falling back to RNNoise for session',
       );
-    }
-
-    await this.ensureSpeex();
-    this.denoiserKind = 'speex';
-  }
-
-  private async ensureRnnoise(): Promise<void> {
-    if (!this.rnnoiseWasmBinary) {
-      this.rnnoiseWasmBinary = await this.noiseSuppressor.loadRnnoise({
-        url: rnnoiseWasmUrl,
-        simdUrl: rnnoiseSimdWasmUrl,
-      });
-    }
-    await this.ensureWorklet(rnnoiseWorkletUrl);
-  }
-
-  private async ensureSpeex(): Promise<void> {
-    if (!this.speexWasmBinary) {
-      this.speexWasmBinary = await this.noiseSuppressor.loadSpeex({
-        url: speexWasmUrl,
-      });
-    }
-    await this.ensureWorklet(speexWorkletUrl);
-  }
-
-  private async ensureWorklet(url: string): Promise<void> {
-    if (!this.context) {
-      throw new Error('ensureWorklet(): missing context');
-    }
-    await ensureWorkletModule(this.context, url);
+      await this.applyProcessor(ENoiseProcessor.RNNOISE);
+      if (!this.hasNotifiedCpuOverload) {
+        this.hasNotifiedCpuOverload = true;
+        this.tuiNotificationService
+          .open(
+            this.translateService.instant(
+              'SETTINGS.DEVICES.PROCESSOR_OVERLOAD_NOTIFICATION',
+            ),
+            {
+              appearance: 'warning',
+              autoClose: 5000,
+              closable: true,
+            },
+          )
+          .subscribe();
+      }
+    });
   }
 
   private async ensureDynamics(): Promise<void> {
@@ -290,25 +307,67 @@ export class MicrophoneService implements OnDestroy {
     }
   }
 
-  /**
-   * Ensure input stream ready
-   * @param device
-   * @returns
-   */
   private async ensureInputStream(device: MediaDeviceInfo | null) {
     const track = this.inputStream?.getAudioTracks()?.[0];
     if (track && track.readyState === 'live') {
       return;
     }
 
-    this.inputStream = await getStream(device);
+    this.inputStream = await getStream(device, {
+      echoCancellation: this.echoCancellationPreference,
+      noiseSuppression: this.activeProcessor === ENoiseProcessor.BROWSER,
+    });
+  }
+
+  private async reacquireInputStream(): Promise<void> {
+    if (!this.context || !this.captureGraph) {
+      return;
+    }
+
+    const previousStream = this.inputStream;
+    this.inputStream = await getStream(this.device, {
+      echoCancellation: this.echoCancellationPreference,
+      noiseSuppression: this.activeProcessor === ENoiseProcessor.BROWSER,
+    });
+    previousStream?.getTracks().forEach((track) => track.stop());
+
+    this.captureGraph.source.disconnect();
+    this.captureGraph.source = this.context.createMediaStreamSource(
+      this.inputStream,
+    );
+    this.captureGraph.source.connect(this.captureGraph.gain);
+  }
+
+  private async applyProcessor(target: ENoiseProcessor): Promise<void> {
+    if (!this.context || !this.captureGraph) {
+      return;
+    }
+
+    const prevProcessor = this.activeProcessor;
+    const resolved = await swapDenoiser(
+      this.captureGraph,
+      this.context,
+      target,
+      this.noiseSuppressor,
+      this.wasmCache,
+    );
+    this.activeProcessor = resolved;
+
+    const needsReacquire =
+      (prevProcessor === ENoiseProcessor.BROWSER &&
+        resolved !== ENoiseProcessor.BROWSER) ||
+      (prevProcessor !== ENoiseProcessor.BROWSER &&
+        resolved === ENoiseProcessor.BROWSER);
+
+    if (needsReacquire) {
+      await this.reacquireInputStream();
+    }
   }
 
   /**
    * Ensure audio context nodes ready
-   * @returns
    */
-  private async ensurePipeline() {
+  private ensurePipeline(): void {
     this.cleanupPipeline();
 
     if (!this.context) {
@@ -319,50 +378,19 @@ export class MicrophoneService implements OnDestroy {
       console.warn('ensureNodes(): inputStream is not ready');
       return;
     }
-    if (!this.denoiserKind) {
-      console.warn('ensureNodes(): denoiser is not ready');
-      return;
-    }
 
     try {
-      this.sourceNode = this.context.createMediaStreamSource(this.inputStream);
-
-      this.gainNode = this.context.createGain();
-      this.gainNode.gain.value = this.gain;
-
-      this.biquadNode = this.context.createBiquadFilter();
-      this.biquadNode.type = 'highpass';
-      this.biquadNode.frequency.value = VOICE_CAPTURE.highpassHz;
-      this.biquadNode.Q.value = VOICE_CAPTURE.highpassQ;
-
-      this.denoiserNode = this.createDenoiser();
-
-      this.compressorNode = this.context.createDynamicsCompressor();
-      this.compressorNode.threshold.value = VOICE_CAPTURE.compressor.threshold;
-      this.compressorNode.knee.value = VOICE_CAPTURE.compressor.knee;
-      this.compressorNode.ratio.value = VOICE_CAPTURE.compressor.ratio;
-      this.compressorNode.attack.value = VOICE_CAPTURE.compressor.attack;
-      this.compressorNode.release.value = VOICE_CAPTURE.compressor.release;
-
-      if (this.dynamicsReady) {
-        try {
-          this.expanderNode = createVoiceDynamicsNode(this.context, 'expander');
-          this.limiterNode = createVoiceDynamicsNode(this.context, 'limiter');
-          this.makeupNode = this.context.createGain();
-          this.makeupNode.gain.value = VOICE_MAKEUP_GAIN;
-        } catch (error) {
-          console.warn('Voice dynamics nodes unavailable', error);
-          if (this.expanderNode) {
-            disposeVoiceDynamicsNode(this.expanderNode);
-          }
-          if (this.limiterNode) {
-            disposeVoiceDynamicsNode(this.limiterNode);
-          }
-          this.expanderNode = null;
-          this.limiterNode = null;
-          this.makeupNode = null;
-        }
-      }
+      this.captureGraph = buildCaptureGraph(
+        this.context,
+        this.inputStream,
+        {
+          gain: this.gain,
+          processor: this.activeProcessor,
+          dynamicsReady: this.dynamicsReady,
+        },
+        this.noiseSuppressor,
+        this.wasmCache,
+      );
 
       const analyserNode = this.context.createAnalyser();
       analyserNode.fftSize = 128;
@@ -370,61 +398,14 @@ export class MicrophoneService implements OnDestroy {
 
       this.destinationNode = this.context.createMediaStreamDestination();
 
-      const chain: AudioNode[] = [
-        this.sourceNode,
-        this.gainNode,
-        this.biquadNode,
-        this.denoiserNode,
-      ];
-      if (this.expanderNode) {
-        chain.push(this.expanderNode);
-      }
-      chain.push(this.compressorNode);
-      if (this.makeupNode) {
-        chain.push(this.makeupNode);
-      }
-      if (this.limiterNode) {
-        chain.push(this.limiterNode);
-      }
-      this.connectSeries(chain);
-
-      const tail = chain[chain.length - 1];
-      tail.connect(analyserNode);
-      tail.connect(this.destinationNode);
+      this.captureGraph.tail.connect(analyserNode);
+      this.captureGraph.tail.connect(this.destinationNode);
 
       this._analyserNode.set(analyserNode);
       this._processedStream.set(this.destinationNode.stream);
     } catch (error) {
       this.cleanupPipeline();
       throw error;
-    }
-  }
-
-  private createDenoiser(): DenoiserNode {
-    if (!this.context) {
-      throw new Error('createDenoiser(): missing context');
-    }
-    if (this.denoiserKind === 'rnnoise') {
-      if (!this.rnnoiseWasmBinary) {
-        throw new Error('createDenoiser(): missing RNNoise wasm');
-      }
-      return new this.noiseSuppressor.RnnoiseWorkletNode(this.context, {
-        wasmBinary: this.rnnoiseWasmBinary,
-        maxChannels: 1,
-      });
-    }
-    if (!this.speexWasmBinary) {
-      throw new Error('createDenoiser(): missing Speex wasm');
-    }
-    return new this.noiseSuppressor.SpeexWorkletNode(this.context, {
-      wasmBinary: this.speexWasmBinary,
-      maxChannels: 1,
-    });
-  }
-
-  private connectSeries(nodes: AudioNode[]): void {
-    for (let index = 0; index < nodes.length - 1; index++) {
-      nodes[index].connect(nodes[index + 1]);
     }
   }
 
@@ -439,34 +420,15 @@ export class MicrophoneService implements OnDestroy {
     this.inputStream = null;
   }
 
-  private cleanupPipeline() {
+  private cleanupPipeline(): void {
     try {
-      this.sourceNode?.disconnect();
-      this.gainNode?.disconnect();
-      this.biquadNode?.disconnect();
-      this.denoiserNode?.disconnect();
-      this.denoiserNode?.destroy();
-      if (this.expanderNode) {
-        disposeVoiceDynamicsNode(this.expanderNode);
-      }
-      this.compressorNode?.disconnect();
-      this.makeupNode?.disconnect();
-      if (this.limiterNode) {
-        disposeVoiceDynamicsNode(this.limiterNode);
-      }
+      disposeCaptureGraph(this.captureGraph);
       this._analyserNode()?.disconnect();
       this.destinationNode?.disconnect();
     } catch (error) {
       console.error(error);
     } finally {
-      this.sourceNode = null;
-      this.gainNode = null;
-      this.biquadNode = null;
-      this.denoiserNode = null;
-      this.expanderNode = null;
-      this.compressorNode = null;
-      this.makeupNode = null;
-      this.limiterNode = null;
+      this.captureGraph = null;
       this.destinationNode = null;
       this._analyserNode.set(null);
       this._processedStream.set(null);

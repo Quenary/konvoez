@@ -55,10 +55,22 @@ describe('SpeakerService', () => {
     expect(second).toBe(first);
     expect(audio.limiters).toHaveLength(1);
     expect(audio.addModule).toHaveBeenCalledTimes(1);
-    expect(audio.bus.connect).toHaveBeenNthCalledWith(1, audio.destination);
-    expect(audio.bus.disconnect).toHaveBeenCalledTimes(1);
-    expect(audio.bus.connect).toHaveBeenNthCalledWith(2, audio.limiters[0]);
+    expect(audio.bus.connect).toHaveBeenCalledWith(audio.master);
+    expect(audio.master.connect).toHaveBeenNthCalledWith(1, audio.destination);
+    expect(audio.master.disconnect).toHaveBeenCalledTimes(1);
+    expect(audio.master.connect).toHaveBeenNthCalledWith(2, audio.limiters[0]);
     expect(audio.limiters[0].connect).toHaveBeenCalledWith(audio.destination);
+  });
+
+  it('applies master volume gain before the limiter', async () => {
+    const audio = stubSpeaker(vi.fn().mockResolvedValue(undefined));
+
+    service.setMasterVolume(1.5);
+    await service.getOutput();
+
+    expect(audio.master.gain.value).toBe(1.5);
+    expect(audio.bus.connect).toHaveBeenCalledWith(audio.master);
+    expect(audio.master.connect).toHaveBeenCalledWith(audio.limiters[0]);
   });
 
   it('plays without a limiter when the worklet fails and does not retry', async () => {
@@ -70,8 +82,8 @@ describe('SpeakerService', () => {
 
     const first = await service.getOutput();
     expect(audio.limiters).toHaveLength(0);
-    expect(audio.bus.connect).toHaveBeenCalledTimes(1);
-    expect(audio.bus.connect).toHaveBeenCalledWith(audio.destination);
+    expect(audio.bus.connect).toHaveBeenCalledWith(audio.master);
+    expect(audio.master.connect).toHaveBeenCalledWith(audio.destination);
 
     const second = await service.getOutput();
     expect(second).toBe(first);
@@ -89,7 +101,7 @@ describe('SpeakerService', () => {
 
     expect(output).toBe(audio.bus);
     expect(audio.limiters).toHaveLength(0);
-    expect(audio.bus.connect).toHaveBeenCalledWith(audio.destination);
+    expect(audio.master.connect).toHaveBeenCalledWith(audio.destination);
 
     const second = await service.getOutput();
     const third = await service.getOutput();
@@ -111,6 +123,12 @@ function stubSpeaker(addModule: ReturnType<typeof vi.fn>) {
     disconnect: vi.fn(),
     gain: { value: 1 },
   };
+  const master = {
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    gain: { value: 1 },
+  };
+  let gainCalls = 0;
   class FakeContext {
     state = 'running';
     destination = destination;
@@ -118,7 +136,7 @@ function stubSpeaker(addModule: ReturnType<typeof vi.fn>) {
     resume = vi.fn();
     close = vi.fn();
     createGain() {
-      return bus;
+      return gainCalls++ === 0 ? bus : master;
     }
   }
   vi.stubGlobal('AudioContext', FakeContext);
@@ -133,5 +151,5 @@ function stubSpeaker(addModule: ReturnType<typeof vi.fn>) {
       }
     },
   );
-  return { addModule, limiters, destination, bus };
+  return { addModule, limiters, destination, bus, master };
 }

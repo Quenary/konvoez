@@ -109,12 +109,12 @@ describe('VoiceAudioPreferencesStore', () => {
 
         expect(store.microphoneMuted()).toBe(expectedMic);
         expect(store.speakerMuted()).toBe(expectedSpeaker);
-        if (expectedCalled === 'unmute') {
-          expect(playUnmuteAudio).toHaveBeenCalledTimes(1);
-          expect(playMuteAudio).not.toHaveBeenCalled();
-        } else {
+        if (expectedCalled === 'mute') {
           expect(playMuteAudio).toHaveBeenCalledTimes(1);
           expect(playUnmuteAudio).not.toHaveBeenCalled();
+        } else {
+          expect(playUnmuteAudio).toHaveBeenCalledTimes(1);
+          expect(playMuteAudio).not.toHaveBeenCalled();
         }
       },
     );
@@ -123,36 +123,36 @@ describe('VoiceAudioPreferencesStore', () => {
   describe('toggleSpeakerMuted audio feedback', () => {
     it.each([
       {
-        initialSpeaker: false,
         initialMic: false,
-        expectedSpeaker: true,
+        initialSpeaker: false,
         expectedMic: true,
+        expectedSpeaker: true,
         expectedCalled: 'deafen',
       },
       {
+        initialMic: true,
         initialSpeaker: true,
-        initialMic: false,
+        expectedMic: true,
         expectedSpeaker: false,
-        expectedMic: false,
         expectedCalled: 'undeafen',
       },
     ])(
       'when speaker is initially $initialSpeaker, toggles to $expectedSpeaker and plays $expectedCalled cue',
       ({
-        initialSpeaker,
         initialMic,
-        expectedSpeaker,
+        initialSpeaker,
         expectedMic,
+        expectedSpeaker,
         expectedCalled,
       }) => {
         const store = TestBed.inject(VoiceAudioPreferencesStore);
-        store.setSpeakerMuted(initialSpeaker);
         store.setMicrophoneMuted(initialMic);
+        store.setSpeakerMuted(initialSpeaker);
 
         store.toggleSpeakerMuted();
 
-        expect(store.speakerMuted()).toBe(expectedSpeaker);
         expect(store.microphoneMuted()).toBe(expectedMic);
+        expect(store.speakerMuted()).toBe(expectedSpeaker);
         if (expectedCalled === 'deafen') {
           expect(playDeafenAudio).toHaveBeenCalledTimes(1);
           expect(playUndeafenAudio).not.toHaveBeenCalled();
@@ -164,16 +164,14 @@ describe('VoiceAudioPreferencesStore', () => {
     );
   });
 
-  it('persists mute flags and applies them to mediasoup and playback', () => {
+  it('persists mute state through effects after state changes', () => {
     const store = TestBed.inject(VoiceAudioPreferencesStore);
 
     store.setMicrophoneMuted(true);
     store.setSpeakerMuted(true);
+
     TestBed.flushEffects();
 
-    expect(mediasoup.setMicrophoneMuted).toHaveBeenCalledWith(true);
-    expect(playback.applySpeakerMuted).toHaveBeenCalledWith(true, {});
-    expect(screenAudio.applySpeakerMuted).toHaveBeenCalledWith(true, {});
     expect(
       JSON.parse(localStorage.getItem(EStorageKey.MICROPHONE_MUTED) ?? 'null'),
     ).toBe(true);

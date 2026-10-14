@@ -28,7 +28,7 @@ describe('getStream', () => {
     expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(getUserMedia).toHaveBeenCalledWith({
       audio: {
-        echoCancellation: true,
+        echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: true,
         channelCount: { ideal: 1 },
@@ -47,7 +47,7 @@ describe('getStream', () => {
 
     expect(getUserMedia).toHaveBeenCalledWith({
       audio: {
-        echoCancellation: true,
+        echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: true,
         channelCount: { ideal: 1 },
@@ -120,7 +120,7 @@ describe('getStream', () => {
     expect(getUserMedia).toHaveBeenCalledTimes(2);
     expect(getUserMedia).toHaveBeenNthCalledWith(2, {
       audio: {
-        echoCancellation: true,
+        echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: true,
         channelCount: { ideal: 1 },

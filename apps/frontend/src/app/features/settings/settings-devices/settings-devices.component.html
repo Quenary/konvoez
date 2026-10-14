@@ -34,6 +34,7 @@
     }
   </ng-template>
 
+  <!-- Audio Input -->
   <label tuiLabel>
     {{ 'SETTINGS.DEVICES.AUDIO_INPUT' | translate }}
     <tui-textfield
@@ -59,6 +60,138 @@
     </tui-textfield>
   </label>
 
+  <!-- Mic Test -->
+  <div class="mic-test-container">
+    <div class="mic-test-header">
+      <button
+        tuiButton
+        type="button"
+        [appearance]="isMicTesting() ? 'negative' : 'primary'"
+        [iconStart]="isMicTesting() ? '@tui.square' : '@tui.mic'"
+        (click)="toggleMicTest()">
+        {{
+          (isMicTesting()
+            ? 'SETTINGS.DEVICES.MIC_TEST_STOP'
+            : 'SETTINGS.DEVICES.MIC_TEST_START'
+          ) | translate
+        }}
+      </button>
+
+      @if (isMicTesting()) {
+        <progress
+          tuiProgressBar
+          size="m"
+          [value]="micTestLevel()"
+          [max]="100"
+          class="mic-level-bar"></progress>
+      }
+    </div>
+
+    @if (isMicTesting()) {
+      <aside
+        tuiNotification
+        appearance="warning">
+        {{ 'SETTINGS.DEVICES.MIC_TEST_FEEDBACK_WARNING' | translate }}
+      </aside>
+
+      @if (!isSinkIdSupported()) {
+        <aside
+          tuiNotification
+          appearance="info">
+          {{ 'SETTINGS.DEVICES.MIC_TEST_OUTPUT_HINT' | translate }}
+        </aside>
+      }
+    }
+  </div>
+
+  <!-- Input Gain -->
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="input-gain">
+      {{ 'SETTINGS.DEVICES.INPUT_GAIN' | translate }}
+    </label>
+
+    <input
+      id="input-gain"
+      tuiInputSlider
+      [max]="200"
+      [min]="0"
+      [ngModel]="inputGainPercent()"
+      (ngModelChange)="onInputGainChange($event)" />
+
+    <input
+      tuiSlider
+      type="range"
+      [segments]="20"
+      [step]="1" />
+  </tui-textfield>
+
+  <!-- Noise Suppression -->
+  <label tuiLabel>
+    {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION' | translate }}
+    <tui-textfield
+      iconStart="@tui.sparkles"
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        [ngModel]="noiseProcessor()"
+        (ngModelChange)="onSelectNoiseProcessor($event)" />
+
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="processorOptions"
+        [itemContent]="processorLabel" />
+    </tui-textfield>
+
+    <span tuiSubtitle>
+      {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION_HINT' | translate }}
+    </span>
+  </label>
+
+  <ng-template
+    #processorLabel
+    let-item>
+    @switch (item) {
+      @case ('deepfilter') {
+        {{ 'SETTINGS.DEVICES.PROCESSOR_DEEPFILTER' | translate }}
+        @if (!isSimdSupported) {
+          ({{ 'SETTINGS.DEVICES.PROCESSOR_UNSUPPORTED' | translate }})
+        }
+      }
+      @case ('rnnoise') {
+        {{ 'SETTINGS.DEVICES.PROCESSOR_RNNOISE' | translate }}
+      }
+      @case ('browser') {
+        {{ 'SETTINGS.DEVICES.PROCESSOR_BROWSER' | translate }}
+      }
+      @case ('off') {
+        {{ 'SETTINGS.DEVICES.PROCESSOR_OFF' | translate }}
+      }
+    }
+  </ng-template>
+
+  <!-- Echo Cancellation -->
+  <label
+    tuiLabel
+    style="align-items: center">
+    <input
+      tuiSwitch
+      type="checkbox"
+      [ngModel]="echoCancellation()"
+      (ngModelChange)="onEchoCancellationChange($event)" />
+
+    {{ 'SETTINGS.DEVICES.ECHO_CANCELLATION' | translate }}
+
+    <tui-icon
+      icon="@tui.message-circle-question-mark"
+      [tuiTooltip]="'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate">
+    </tui-icon>
+  </label>
+
+  <!-- Audio Output -->
   <label tuiLabel>
     {{ 'SETTINGS.DEVICES.AUDIO_OUTPUT' | translate }}
     <tui-textfield
@@ -88,4 +221,27 @@
       </tui-icon>
     </tui-textfield>
   </label>
+
+  <!-- Master Output Volume -->
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="output-volume">
+      {{ 'SETTINGS.DEVICES.OUTPUT_VOLUME' | translate }}
+    </label>
+
+    <input
+      id="output-volume"
+      tuiInputSlider
+      [max]="200"
+      [min]="0"
+      [ngModel]="outputVolumePercent()"
+      (ngModelChange)="onOutputVolumeChange($event)" />
+
+    <input
+      tuiSlider
+      type="range"
+      [segments]="20"
+      [step]="1" />
+  </tui-textfield>
 </div>

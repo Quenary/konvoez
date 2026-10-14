@@ -86,6 +86,7 @@ To maintain clean version bumps:
 
 - Follow the existing code style and architectural patterns in the codebase.
 - Prefer clear, readable, and idiomatic solutions over unnecessary cleverness.
+- Apply SOLID, KISS, DRY, and YAGNI when applicable. Follow the existing design instead of adding an abstraction or unused behavior only to satisfy a principle.
 - Maintain strict typing: use shared types and Zod schemas from `@konvoez/shared`.
 - Avoid introducing heavy or unnecessary dependencies.
 - Ensure code is formatted with Prettier (`npm run fmt`) and complies with ESLint rules (`npm run lint`).
@@ -105,6 +106,8 @@ The client libraries (`libs/client-shell`, `libs/ui-kit`, `libs/client-dialogs`)
 ## Tests
 
 - All new features and bug fixes should include corresponding automated tests.
+- Cover the important behavior of the change. The test must lock that behavior, not only call the code.
+- When cases differ only by inputs and expected results, parameterize them instead of duplicating the test.
 - If you modify existing functionality, update or extend the related tests.
 - Ensure all tests pass before submitting changes:
   ```bash

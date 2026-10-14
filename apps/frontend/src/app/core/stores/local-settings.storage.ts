@@ -1,7 +1,11 @@
 import {
+  echoCancellationSchema,
+  inputGainSchema,
   LOCAL_SETTINGS_VERSION,
   localSettingsLooseSchema,
   mediaDeviceInfoSchema,
+  noiseProcessorSchema,
+  outputVolumeSchema,
   streamFpsSchema,
   streamHeightSchema,
   TLocalSettingsPartial,
@@ -13,7 +17,7 @@ import {
   storageGetItemJson,
   storageSetItemJson,
 } from '../../../extentions/local-storage-json';
-import { EStorageKey } from '../../app.enums';
+import { ENoiseProcessor, EStorageKey } from '../../app.enums';
 
 const parseDevice = (value: unknown): TMediaDeviceInfo | null => {
   const result = mediaDeviceInfoSchema.safeParse(value);
@@ -27,6 +31,26 @@ const parseHeight = (value: unknown): TStreamHeight | undefined => {
 
 const parseFps = (value: unknown): TStreamFps | undefined => {
   const result = streamFpsSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseNoiseProcessor = (value: unknown): ENoiseProcessor | undefined => {
+  const result = noiseProcessorSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseInputGain = (value: unknown): number | undefined => {
+  const result = inputGainSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseOutputVolume = (value: unknown): number | undefined => {
+  const result = outputVolumeSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseEchoCancellation = (value: unknown): boolean | undefined => {
+  const result = echoCancellationSchema.safeParse(value);
   return result.success ? result.data : undefined;
 };
 
@@ -57,6 +81,10 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
       typeof parsed.data.screenPreviewAutoPauseWhenHidden === 'boolean'
         ? parsed.data.screenPreviewAutoPauseWhenHidden
         : undefined,
+    noiseProcessor: parseNoiseProcessor(parsed.data.noiseProcessor),
+    inputGain: parseInputGain(parsed.data.inputGain),
+    outputVolume: parseOutputVolume(parsed.data.outputVolume),
+    echoCancellation: parseEchoCancellation(parsed.data.echoCancellation),
   };
 };
 
@@ -90,6 +118,10 @@ export type TLocalSettingsWrite = {
   screenHeight?: TStreamHeight | null;
   screenFps?: TStreamFps | null;
   screenPreviewAutoPauseWhenHidden?: boolean;
+  noiseProcessor?: ENoiseProcessor | null;
+  inputGain?: number | null;
+  outputVolume?: number | null;
+  echoCancellation?: boolean | null;
 };
 
 export const writeLocalSettings = (
@@ -139,6 +171,22 @@ export const writeLocalSettings = (
     settings.screenPreviewAutoPauseWhenHidden === undefined
       ? existing.screenPreviewAutoPauseWhenHidden
       : settings.screenPreviewAutoPauseWhenHidden;
+  const nextNoiseProcessor =
+    settings.noiseProcessor === undefined
+      ? existing.noiseProcessor
+      : (settings.noiseProcessor ?? undefined);
+  const nextInputGain =
+    settings.inputGain === undefined
+      ? existing.inputGain
+      : (settings.inputGain ?? undefined);
+  const nextOutputVolume =
+    settings.outputVolume === undefined
+      ? existing.outputVolume
+      : (settings.outputVolume ?? undefined);
+  const nextEchoCancellation =
+    settings.echoCancellation === undefined
+      ? existing.echoCancellation
+      : (settings.echoCancellation ?? undefined);
 
   const payload = {
     ...(typeof version === 'number' ? { version } : {}),
@@ -153,6 +201,16 @@ export const writeLocalSettings = (
     ...(nextScreenFps !== undefined ? { screenFps: nextScreenFps } : {}),
     ...(nextScreenPreviewAutoPause !== undefined
       ? { screenPreviewAutoPauseWhenHidden: nextScreenPreviewAutoPause }
+      : {}),
+    ...(nextNoiseProcessor !== undefined
+      ? { noiseProcessor: nextNoiseProcessor }
+      : {}),
+    ...(nextInputGain !== undefined ? { inputGain: nextInputGain } : {}),
+    ...(nextOutputVolume !== undefined
+      ? { outputVolume: nextOutputVolume }
+      : {}),
+    ...(nextEchoCancellation !== undefined
+      ? { echoCancellation: nextEchoCancellation }
       : {}),
   };
 
