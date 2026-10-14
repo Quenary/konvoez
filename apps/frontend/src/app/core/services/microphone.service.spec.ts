@@ -315,13 +315,16 @@ describe('MicrophoneService', () => {
 
     service['setupRenderCapacityListener']();
     expect(updateCallback).toBeTruthy();
+    const triggerCallback = updateCallback as unknown as (ev: {
+      averageLoad: number;
+    }) => void;
 
-    updateCallback!({ averageLoad: 0.9 });
-    updateCallback!({ averageLoad: 0.9 });
-    updateCallback!({ averageLoad: 0.9 });
+    triggerCallback({ averageLoad: 0.9 });
+    triggerCallback({ averageLoad: 0.9 });
+    triggerCallback({ averageLoad: 0.9 });
     expect(overloadSpy).not.toHaveBeenCalled();
 
-    updateCallback!({ averageLoad: 0.9 });
+    triggerCallback({ averageLoad: 0.9 });
     expect(overloadSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -467,6 +470,50 @@ describe('MicrophoneService', () => {
     expect(source.disconnect).toHaveBeenCalled();
     expect(workletNodes.rnnoise[0]?.destroy).toHaveBeenCalled();
     expect(service.processedStream()).toBeNull();
+  });
+
+  it('falls back to RNNoise if DeepFilterWorkletNode construction fails in ensurePipeline', async () => {
+    const source = node('source');
+    const gain = node('gain');
+    const biquad = node('biquad');
+    const compressor = node('compressor');
+    const analyser = node('analyser');
+    const destination = node('destination');
+
+    service['context'] = {
+      createMediaStreamSource: () => source,
+      createGain: () => gain,
+      createBiquadFilter: () => biquad,
+      createDynamicsCompressor: () => compressor,
+      createAnalyser: () => analyser,
+      createMediaStreamDestination: () => destination,
+      audioWorklet: { addModule: vi.fn().mockResolvedValue(undefined) },
+    } as unknown as AudioContext;
+    service['inputStream'] = {} as MediaStream;
+    service['activeProcessor'] = ENoiseProcessor.DEEPFILTER;
+    service['deepFilterModule'] = {} as WebAssembly.Module;
+    service['dynamicsReady'] = false;
+
+    const originalDeepFilterNode = noiseSuppressorPort.DeepFilterWorkletNode;
+    (
+      noiseSuppressorPort as unknown as { DeepFilterWorkletNode: unknown }
+    ).DeepFilterWorkletNode = class ThrowingDeepFilterNode {
+      constructor() {
+        throw new Error(
+          "The node name 'deepfilternet-processor' is not defined",
+        );
+      }
+    };
+
+    try {
+      await service['ensurePipeline']();
+      expect(service['activeProcessor']).toBe(ENoiseProcessor.RNNOISE);
+      expect(service.processedStream()).toBe(destination.stream);
+    } finally {
+      (
+        noiseSuppressorPort as unknown as { DeepFilterWorkletNode: unknown }
+      ).DeepFilterWorkletNode = originalDeepFilterNode;
+    }
   });
 });
 

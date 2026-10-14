@@ -48,7 +48,7 @@
             "output": "assets/web-noise-suppressor"
           },
           {
-            "glob": "**/*",
+            "glob": "df_bg.wasm",
             "input": "node_modules/@lofcz/deepfilternet-web/dist",
             "output": "assets/deepfilternet"
           }

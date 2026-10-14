@@ -478,9 +478,19 @@ export class MicrophoneService implements OnDestroy {
       resolved === ENoiseProcessor.DEEPFILTER ||
       resolved === ENoiseProcessor.RNNOISE
     ) {
-      this.denoiserNode = this.createDenoiserNode(resolved);
-      this.biquadNode.connect(this.denoiserNode);
-      this.denoiserNode.connect(nextNode);
+      try {
+        this.denoiserNode = this.createDenoiserNode(resolved);
+        this.biquadNode.connect(this.denoiserNode);
+        this.denoiserNode.connect(nextNode);
+      } catch (error) {
+        console.warn(
+          'Failed to construct denoiser node during applyProcessor',
+          error,
+        );
+        this.denoiserNode = null;
+        this.activeProcessor = ENoiseProcessor.OFF;
+        this.biquadNode.connect(nextNode);
+      }
     } else {
       this.biquadNode.connect(nextNode);
     }
@@ -516,7 +526,33 @@ export class MicrophoneService implements OnDestroy {
         this.activeProcessor === ENoiseProcessor.DEEPFILTER ||
         this.activeProcessor === ENoiseProcessor.RNNOISE
       ) {
-        this.denoiserNode = this.createDenoiserNode(this.activeProcessor);
+        try {
+          this.denoiserNode = this.createDenoiserNode(this.activeProcessor);
+        } catch (error) {
+          console.warn(
+            'Failed to construct denoiser node, falling back',
+            error,
+          );
+          if (this.activeProcessor === ENoiseProcessor.DEEPFILTER) {
+            try {
+              await this.ensureRnnoise();
+              this.activeProcessor = ENoiseProcessor.RNNOISE;
+              this.denoiserNode = this.createDenoiserNode(
+                ENoiseProcessor.RNNOISE,
+              );
+            } catch (fallbackError) {
+              console.warn(
+                'RNNoise fallback failed, disabling noise suppression',
+                fallbackError,
+              );
+              this.activeProcessor = ENoiseProcessor.OFF;
+              this.denoiserNode = null;
+            }
+          } else {
+            this.activeProcessor = ENoiseProcessor.OFF;
+            this.denoiserNode = null;
+          }
+        }
       }
 
       this.compressorNode = this.context.createDynamicsCompressor();

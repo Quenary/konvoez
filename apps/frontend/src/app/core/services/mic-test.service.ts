@@ -302,7 +302,12 @@ export class MicTestService implements OnDestroy {
       resolvedProcessor === ENoiseProcessor.DEEPFILTER ||
       resolvedProcessor === ENoiseProcessor.RNNOISE
     ) {
-      this.denoiserNode = await this.createDenoiser(resolvedProcessor);
+      try {
+        this.denoiserNode = await this.createDenoiser(resolvedProcessor);
+      } catch (error) {
+        console.warn('Failed to construct mic test denoiser node', error);
+        this.denoiserNode = null;
+      }
     }
 
     this.compressorNode = this.context.createDynamicsCompressor();
