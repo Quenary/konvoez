@@ -18,7 +18,6 @@ import {
 import {
   TUI_ITEMS_HANDLERS,
   TuiIcon,
-  TuiInput,
   TuiNotification,
   TuiLabel,
   TuiDataList,
@@ -66,7 +65,6 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
     TuiHeader,
     TuiIcon,
     TuiTitle,
-    TuiInput,
     TuiNotification,
     TuiSelect,
     TuiLabel,
@@ -201,15 +199,6 @@ export class SettingsDevicesComponent {
     ENoiseProcessor.BROWSER,
     ENoiseProcessor.OFF,
   ];
-
-  protected readonly disabledProcessorHandler = (
-    item: ENoiseProcessor,
-  ): boolean => {
-    if (item === ENoiseProcessor.DEEPFILTER && !this.isSimdSupported) {
-      return true;
-    }
-    return false;
-  };
 
   protected readonly devicesLoad = rxResource({
     stream: () =>
