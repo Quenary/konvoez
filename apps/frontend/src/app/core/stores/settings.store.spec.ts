@@ -121,6 +121,7 @@ describe('SettingsStore', () => {
 
   afterEach(() => {
     localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it('should initialize with empty settings and need initial setup', () => {
@@ -368,6 +369,36 @@ describe('SettingsStore', () => {
     expect(microphone.setGain).toHaveBeenCalledWith(0.8);
     expect(microphone.setEchoCancellation).toHaveBeenCalledWith(false);
     expect(speaker.setMasterVolume).toHaveBeenCalledWith(1.2);
+  });
+
+  it('should fallback to RNNOISE when SIMD is unsupported on default init', () => {
+    vi.spyOn(WebAssembly, 'validate').mockReturnValue(false);
+
+    TestBed.resetTestingModule();
+    configureTestBed();
+
+    const fallbackStore = TestBed.inject(SettingsStore);
+    expect(fallbackStore.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
+  });
+
+  it('should fallback to RNNOISE when SIMD is unsupported on hydrated DEEPFILTER', () => {
+    vi.spyOn(WebAssembly, 'validate').mockReturnValue(false);
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({
+        version: LOCAL_SETTINGS_VERSION,
+        noiseProcessor: ENoiseProcessor.DEEPFILTER,
+      }),
+    );
+
+    TestBed.resetTestingModule();
+    configureTestBed();
+
+    const fallbackStore = TestBed.inject(SettingsStore);
+    expect(fallbackStore.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
+    expect(microphone.setProcessor).toHaveBeenCalledWith(
+      ENoiseProcessor.RNNOISE,
+    );
   });
 
   it('should fetch settings, populate entities and compute iceServers on loadAll', () => {

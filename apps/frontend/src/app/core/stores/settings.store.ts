@@ -41,6 +41,7 @@ import {
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
+import { isSimdSupported } from '@core/audio/noise-suppressor.port';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { SpeakerService } from '@core/services/speaker.service';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -348,7 +349,12 @@ export const SettingsStore = signalStore(
         (partial.audioOutput as MediaDeviceInfo | undefined) ?? null;
       const videoInput =
         (partial.videoInput as MediaDeviceInfo | undefined) ?? null;
-      const noiseProcessor = partial.noiseProcessor ?? DEFAULT_NOISE_PROCESSOR;
+      const preferredProcessor =
+        partial.noiseProcessor ?? DEFAULT_NOISE_PROCESSOR;
+      const noiseProcessor =
+        preferredProcessor === ENoiseProcessor.DEEPFILTER && !isSimdSupported()
+          ? ENoiseProcessor.RNNOISE
+          : preferredProcessor;
       const inputGain = partial.inputGain ?? DEFAULT_INPUT_GAIN;
       const outputVolume = partial.outputVolume ?? DEFAULT_OUTPUT_VOLUME;
       const echoCancellation =
