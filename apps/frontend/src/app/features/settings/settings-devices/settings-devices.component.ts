@@ -131,14 +131,14 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
               return a.deviceId === b.deviceId;
             },
           ),
-          disabledItemHandler: (
-            item: SelectableItem | null | undefined,
-          ): boolean => {
-            if (item === ENoiseProcessor.DEEPFILTER && !isSimdSupported()) {
-              return true;
-            }
-            return false;
-          },
+          disabledItemHandler: signal(
+            (item: SelectableItem | null | undefined): boolean => {
+              if (item === ENoiseProcessor.DEEPFILTER && !isSimdSupported()) {
+                return true;
+              }
+              return false;
+            },
+          ),
         };
       },
     },

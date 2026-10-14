@@ -128,6 +128,11 @@ describe('SettingsDevicesComponent', () => {
         { deviceId: '2' } as unknown as MediaDeviceInfo,
       ),
     ).toBe(false);
+
+    const disabledHandler = handlers.disabledItemHandler();
+    expect(typeof disabledHandler).toBe('function');
+    expect(disabledHandler(null)).toBe(false);
+    expect(disabledHandler(ENoiseProcessor.RNNOISE)).toBe(false);
   });
 
   it('toggles mic test start and stop', async () => {
