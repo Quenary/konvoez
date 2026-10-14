@@ -52,6 +52,7 @@ describe('MicTestService', () => {
           provide: SettingsStore,
           useValue: {
             noiseProcessor: () => ENoiseProcessor.DEEPFILTER,
+            effectiveNoiseProcessor: () => ENoiseProcessor.DEEPFILTER,
             echoCancellation: () => true,
             inputGain: inputGainSignal,
           },

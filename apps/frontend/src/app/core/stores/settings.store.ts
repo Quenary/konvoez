@@ -41,7 +41,7 @@ import {
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
-import { isSimdSupported } from '@core/audio/noise-suppressor.port';
+import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { SpeakerService } from '@core/services/speaker.service';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -95,62 +95,69 @@ export const SettingsStore = signalStore(
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
-  withComputed(({ entities, entityMap, localSettingsVersion }) => ({
-    settings: entities,
-    settingsMap: computed(() => {
-      const map = new Map<ESettingKey, TSetting['value']>();
-      for (const item of entities()) {
-        map.set(item.key, item.value);
-      }
-      return map;
+  withComputed(
+    ({ entities, entityMap, localSettingsVersion, noiseProcessor }) => ({
+      settings: entities,
+      effectiveNoiseProcessor: computed(() =>
+        noiseProcessor() === ENoiseProcessor.DEEPFILTER && !isSimdSupported()
+          ? ENoiseProcessor.RNNOISE
+          : noiseProcessor(),
+      ),
+      settingsMap: computed(() => {
+        const map = new Map<ESettingKey, TSetting['value']>();
+        for (const item of entities()) {
+          map.set(item.key, item.value);
+        }
+        return map;
+      }),
+      iceServers: computed(() => {
+        const item = entityMap()[ESettingKey.ICE_SERVERS];
+        return (item?.value as TIceServersSettingValue | undefined) ?? [];
+      }),
+      inviteOnlySignUp: computed(() => {
+        const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
+        return (item?.value as boolean | undefined) ?? true;
+      }),
+      passwordRecoveryCodeTtl: computed(() => {
+        const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.PASSWORD_RECOVERY_CODE_TTL]
+        );
+      }),
+      attachmentsEnabled: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_ENABLED];
+        return (
+          (item?.value as boolean | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_ENABLED]
+        );
+      }),
+      attachmentsMaxFileSize: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]
+        );
+      }),
+      attachmentsMaxFilesPerMessage: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]
+        );
+      }),
+      attachmentsStripImageMetadata: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA];
+        return (
+          (item?.value as boolean | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
+        );
+      }),
+      needsInitialSetup: computed(
+        () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
+      ),
     }),
-    iceServers: computed(() => {
-      const item = entityMap()[ESettingKey.ICE_SERVERS];
-      return (item?.value as TIceServersSettingValue | undefined) ?? [];
-    }),
-    inviteOnlySignUp: computed(() => {
-      const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
-      return (item?.value as boolean | undefined) ?? true;
-    }),
-    passwordRecoveryCodeTtl: computed(() => {
-      const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
-      return (
-        (item?.value as number | undefined) ??
-        defaultSettingValues[ESettingKey.PASSWORD_RECOVERY_CODE_TTL]
-      );
-    }),
-    attachmentsEnabled: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_ENABLED];
-      return (
-        (item?.value as boolean | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_ENABLED]
-      );
-    }),
-    attachmentsMaxFileSize: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE];
-      return (
-        (item?.value as number | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]
-      );
-    }),
-    attachmentsMaxFilesPerMessage: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE];
-      return (
-        (item?.value as number | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]
-      );
-    }),
-    attachmentsStripImageMetadata: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA];
-      return (
-        (item?.value as boolean | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
-      );
-    }),
-    needsInitialSetup: computed(
-      () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
-    ),
-  })),
+  ),
   withMethods(
     (
       store,
@@ -263,7 +270,7 @@ export const SettingsStore = signalStore(
         setNoiseProcessor(noiseProcessor: ENoiseProcessor): void {
           patchState(store, { noiseProcessor });
           persistLocal();
-          void microphoneService.setProcessor(noiseProcessor);
+          void microphoneService.setProcessor(store.effectiveNoiseProcessor());
         },
 
         setInputGain(inputGain: number): void {
@@ -350,11 +357,11 @@ export const SettingsStore = signalStore(
       const videoInput =
         (partial.videoInput as MediaDeviceInfo | undefined) ?? null;
       const preferredProcessor =
-        partial.noiseProcessor ?? DEFAULT_NOISE_PROCESSOR;
-      const noiseProcessor =
-        preferredProcessor === ENoiseProcessor.DEEPFILTER && !isSimdSupported()
+        partial.noiseProcessor ??
+        (isMobileOrIos()
           ? ENoiseProcessor.RNNOISE
-          : preferredProcessor;
+          : ENoiseProcessor.DEEPFILTER);
+      const noiseProcessor = preferredProcessor;
       const inputGain = partial.inputGain ?? DEFAULT_INPUT_GAIN;
       const outputVolume = partial.outputVolume ?? DEFAULT_OUTPUT_VOLUME;
       const echoCancellation =
@@ -387,7 +394,7 @@ export const SettingsStore = signalStore(
       }
 
       microphoneService.setGain(inputGain);
-      void microphoneService.setProcessor(noiseProcessor);
+      void microphoneService.setProcessor(store.effectiveNoiseProcessor());
       void microphoneService.setEchoCancellation(echoCancellation);
       speakerService.setMasterVolume(outputVolume);
 

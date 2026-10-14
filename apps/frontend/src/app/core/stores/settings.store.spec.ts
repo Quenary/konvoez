@@ -119,9 +119,16 @@ describe('SettingsStore', () => {
     store = TestBed.inject(SettingsStore);
   });
 
+  const originalNavigator = globalThis.navigator;
+
   afterEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: originalNavigator,
+    });
   });
 
   it('should initialize with empty settings and need initial setup', () => {
@@ -371,18 +378,33 @@ describe('SettingsStore', () => {
     expect(speaker.setMasterVolume).toHaveBeenCalledWith(1.2);
   });
 
-  it('should fallback to RNNOISE when SIMD is unsupported on default init', () => {
-    vi.spyOn(WebAssembly, 'validate').mockReturnValue(false);
+  it('defaults to RNNoise on mobile when no preference is saved', () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        userAgentData: { mobile: true },
+        userAgent: 'Mobile',
+        maxTouchPoints: 5,
+      },
+    });
 
     TestBed.resetTestingModule();
     configureTestBed();
 
-    const fallbackStore = TestBed.inject(SettingsStore);
-    expect(fallbackStore.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
+    const mobileStore = TestBed.inject(SettingsStore);
+    expect(mobileStore.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
+    expect(mobileStore.effectiveNoiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
   });
 
-  it('should fallback to RNNOISE when SIMD is unsupported on hydrated DEEPFILTER', () => {
-    vi.spyOn(WebAssembly, 'validate').mockReturnValue(false);
+  it('preserves saved deepfilter preference on mobile', () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        userAgentData: { mobile: true },
+        userAgent: 'Mobile',
+        maxTouchPoints: 5,
+      },
+    });
     localStorage.setItem(
       EStorageKey.LOCAL_SETTINGS,
       JSON.stringify({
@@ -394,11 +416,31 @@ describe('SettingsStore', () => {
     TestBed.resetTestingModule();
     configureTestBed();
 
+    const mobileStore = TestBed.inject(SettingsStore);
+    expect(mobileStore.noiseProcessor()).toBe(ENoiseProcessor.DEEPFILTER);
+  });
+
+  it('keeps state as deepfilter when SIMD is unsupported, but computes effective as RNNoise and persists deepfilter', () => {
+    vi.spyOn(WebAssembly, 'validate').mockReturnValue(false);
+
+    TestBed.resetTestingModule();
+    configureTestBed();
+
     const fallbackStore = TestBed.inject(SettingsStore);
-    expect(fallbackStore.noiseProcessor()).toBe(ENoiseProcessor.RNNOISE);
+    expect(fallbackStore.noiseProcessor()).toBe(ENoiseProcessor.DEEPFILTER);
+    expect(fallbackStore.effectiveNoiseProcessor()).toBe(
+      ENoiseProcessor.RNNOISE,
+    );
     expect(microphone.setProcessor).toHaveBeenCalledWith(
       ENoiseProcessor.RNNOISE,
     );
+
+    fallbackStore.setInputGain(1.2);
+    const saved = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    );
+    expect(saved.noiseProcessor).toBe(ENoiseProcessor.DEEPFILTER);
+    expect(saved.inputGain).toBe(1.2);
   });
 
   it('should fetch settings, populate entities and compute iceServers on loadAll', () => {

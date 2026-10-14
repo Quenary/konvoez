@@ -242,7 +242,7 @@ export class MicTestService {
       return;
     }
 
-    const preferredProcessor = this.settingsStore.noiseProcessor();
+    const preferredProcessor = this.settingsStore.effectiveNoiseProcessor();
     const echoCancellation = this.settingsStore.echoCancellation();
     const inputGain = this.settingsStore.inputGain();
 
