@@ -65,7 +65,6 @@
     <div class="mic-test-header">
       <button
         tuiButton
-        size="m"
         type="button"
         [appearance]="isMicTesting() ? 'negative' : 'primary'"
         [iconStart]="isMicTesting() ? '@tui.square' : '@tui.mic'"
@@ -96,25 +95,37 @@
       </aside>
 
       @if (!isSinkIdSupported()) {
-        <p class="setting-description">
+        <aside
+          tuiNotification
+          appearance="warning">
           {{ 'SETTINGS.DEVICES.MIC_TEST_OUTPUT_HINT' | translate }}
-        </p>
+        </aside>
       }
     }
   </div>
 
   <!-- Input Gain -->
-  <label tuiLabel>
-    {{ 'SETTINGS.DEVICES.INPUT_GAIN' | translate }}: {{ inputGainPercent() }}%
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="input-gain">
+      {{ 'SETTINGS.DEVICES.INPUT_GAIN' | translate }}
+    </label>
+
+    <input
+      id="input-gain"
+      tuiInputSlider
+      [max]="200"
+      [min]="0"
+      [ngModel]="inputGainPercent()"
+      (ngModelChange)="onInputGainChange($event)" />
+
     <input
       tuiSlider
       type="range"
-      [min]="0"
-      [max]="200"
-      [step]="1"
-      [ngModel]="inputGainPercent()"
-      (ngModelChange)="onInputGainChange($event)" />
-  </label>
+      [segments]="20"
+      [step]="1" />
+  </tui-textfield>
 
   <!-- Noise Suppression -->
   <label tuiLabel>
@@ -134,10 +145,11 @@
         [items]="processorOptions"
         [itemContent]="processorLabel" />
     </tui-textfield>
+
+    <span tuiSubtitle>
+      {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION_HINT' | translate }}
+    </span>
   </label>
-  <p class="setting-description">
-    {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION_HINT' | translate }}
-  </p>
 
   <ng-template
     #processorLabel
@@ -162,17 +174,22 @@
   </ng-template>
 
   <!-- Echo Cancellation -->
-  <label tuiLabel>
+  <label
+    tuiLabel
+    style="align-items: center">
     <input
       tuiSwitch
       type="checkbox"
       [ngModel]="echoCancellation()"
       (ngModelChange)="onEchoCancellationChange($event)" />
+
     {{ 'SETTINGS.DEVICES.ECHO_CANCELLATION' | translate }}
+
+    <tui-icon
+      icon="@tui.message-circle-question-mark"
+      [tuiTooltip]="'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate">
+    </tui-icon>
   </label>
-  <p class="setting-description">
-    {{ 'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate }}
-  </p>
 
   <!-- Audio Output -->
   <label tuiLabel>
@@ -206,16 +223,25 @@
   </label>
 
   <!-- Master Output Volume -->
-  <label tuiLabel>
-    {{ 'SETTINGS.DEVICES.OUTPUT_VOLUME' | translate }}:
-    {{ outputVolumePercent() }}%
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="output-volume">
+      {{ 'SETTINGS.DEVICES.OUTPUT_VOLUME' | translate }}
+    </label>
+
+    <input
+      id="output-volume"
+      tuiInputSlider
+      [max]="200"
+      [min]="0"
+      [ngModel]="outputVolumePercent()"
+      (ngModelChange)="onOutputVolumeChange($event)" />
+
     <input
       tuiSlider
       type="range"
-      [min]="0"
-      [max]="200"
-      [step]="1"
-      [ngModel]="outputVolumePercent()"
-      (ngModelChange)="onOutputVolumeChange($event)" />
-  </label>
+      [segments]="20"
+      [step]="1" />
+  </tui-textfield>
 </div>

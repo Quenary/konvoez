@@ -26,6 +26,7 @@ import {
   TuiTitle,
   TuiButton,
   TuiSlider,
+  TuiTextfield,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
@@ -35,6 +36,7 @@ import {
   TuiButtonLoading,
   TuiSwitch,
   TuiProgressBar,
+  TuiInputSlider,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
@@ -79,6 +81,8 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
     TuiSwitch,
     TuiSlider,
     TuiProgressBar,
+    TuiTextfield,
+    TuiInputSlider,
   ],
   providers: [
     {
