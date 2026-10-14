@@ -43,7 +43,12 @@
             "output": "assets/taiga-ui/icons"
           },
           {
-            "glob": "**/*",
+            "glob": "rnnoise*.wasm",
+            "input": "node_modules/@sapphi-red/web-noise-suppressor/dist",
+            "output": "assets/web-noise-suppressor"
+          },
+          {
+            "glob": "rnnoise/workletProcessor.js",
             "input": "node_modules/@sapphi-red/web-noise-suppressor/dist",
             "output": "assets/web-noise-suppressor"
           },
