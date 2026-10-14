@@ -156,19 +156,11 @@
               </div>
 
               <ng-template #screenVolumeDropdown>
-                <label
-                  tuiLabel
-                  class="volume">
-                  {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
-                  <input
-                    tuiSlider
-                    type="range"
-                    min="0"
-                    max="200"
-                    step="1"
-                    [ngModel]="screenVolume()"
-                    (ngModelChange)="onScreenVolumeChange($event)" />
-                </label>
+                <app-volume-control
+                  [id]="'screen-volume-' + p.id"
+                  [value]="screenVolume()"
+                  [label]="'CALL.SCREEN_VOLUME' | translate"
+                  (valueChange)="onScreenVolumeChange($event)" />
               </ng-template>
             }
 
@@ -186,19 +178,11 @@
             </button>
 
             <ng-template #volumeDropdown>
-              <label
-                tuiLabel
-                class="volume">
-                {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
-                <input
-                  tuiSlider
-                  type="range"
-                  min="0"
-                  max="200"
-                  step="1"
-                  [ngModel]="volume()"
-                  (ngModelChange)="onVolumeChange($event)" />
-              </label>
+              <app-volume-control
+                [id]="'peer-volume-' + p.id"
+                [value]="volume()"
+                [label]="'CALL.VOLUME' | translate"
+                (valueChange)="onVolumeChange($event)" />
             </ng-template>
           }
         </div>

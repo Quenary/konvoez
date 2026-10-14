@@ -6,6 +6,7 @@ GENERAL:
   NO: No
   SAVE: Save
   CANCEL: Cancel
+  RETRY: Retry
   CREATE: Create
   GO_BACK: Go back
   REQ_ERR: Request error
@@ -52,6 +53,12 @@ MENU:
     INVITES: Invites
     USERS: Users
     ADMIN: Administration
+USER_DIALOG:
+  FULLNAME: Full name
+  OPEN_CHAT: Open chat
+  CALL: Call
+  MESSAGE_SENT: Message sent
+  QUICK_MESSAGE: Quick message
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
@@ -128,7 +135,6 @@ ROOMS:
   DELETE_CONFIRM: Are you sure you want to delete this room?
   READ_BY: Read by
   NO_READERS: The message has not yet been read
-  RESEND: Resend
   ATTACH_FILES: Attach files
   ATTACHMENT: Attachment
   DROP_FILES_HERE: Drop files here
@@ -180,7 +186,7 @@ SETTINGS:
     DISABLE_ERROR: Could not disable notifications. Please try again.
   DEVICES:
     TITLE: Device settings
-    AUDIO_INPUT: Audio input
+    AUDIO_INPUT: Microphone
     AUDIO_OUTPUT: Audio output
     DEVICE_UNAVAILABLE: Device unavailable
     PERMISSION_ERROR: |
@@ -189,6 +195,22 @@ SETTINGS:
     API_NOT_AVAILABLE: |
       This feature may not be available.
       In this case, the default device will be used.
+    INPUT_GAIN: Input volume
+    OUTPUT_VOLUME: Output volume
+    NOISE_SUPPRESSION: Noise suppression
+    NOISE_SUPPRESSION_HINT: DeepFilterNet3 uses AI and consumes more resources. In case of CPU overload on low-end devices, it will switch to RNNoise.
+    PROCESSOR_DEEPFILTER: DeepFilterNet3 (AI)
+    PROCESSOR_RNNOISE: RNNoise (Classic)
+    PROCESSOR_BROWSER: Browser built-in
+    PROCESSOR_OFF: Disabled
+    PROCESSOR_UNSUPPORTED: Unsupported on this device (requires WebAssembly SIMD)
+    PROCESSOR_OVERLOAD_NOTIFICATION: High CPU load detected; noise suppression switched to RNNoise for this session.
+    ECHO_CANCELLATION: Echo cancellation
+    ECHO_CANCELLATION_HINT: Recommended when using speakers. Can be turned off with headphones.
+    MIC_TEST_START: Check microphone
+    MIC_TEST_STOP: Stop checking
+    MIC_TEST_FEEDBACK_WARNING: Headphones are recommended during testing.
+    MIC_TEST_OUTPUT_HINT: Playing to default output (browser does not support selecting output device).
   INVITES:
     TITLE: Invites
     SUBTITLE: Manage single-use invites for registration
@@ -271,6 +293,7 @@ VALIDATION:
   ROOM_TYPE: Select a room type
   MESSAGE_LENGTH: Message must be 1–5000 characters
   MESSAGE_EMPTY: Message must contain text or a file
+  MESSAGE_TO_SELF: You can't send a message to yourself
   ATTACHMENTS_MAX_FILE_SIZE_RANGE: File size limit must be between 1 MiB and 1 GiB
   ATTACHMENTS_MAX_FILES_RANGE: File count must be between 1 and 10
   SETUP_TOKEN_REQUIRED: Setup token is required for initial registration

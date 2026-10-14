@@ -183,6 +183,22 @@ describe('TextRoomsService', () => {
   });
 
   describe('create', () => {
+    it('rejects a direct message addressed to the sender', async () => {
+      await expect(
+        service.create(mockUser, {
+          attachmentIds: [],
+          content: 'Hello',
+          roomId: null,
+          recipientId: mockUser.id,
+        }),
+      ).rejects.toThrow('VALIDATION.MESSAGE_TO_SELF');
+
+      expect(messageRepository.findOne).not.toHaveBeenCalled();
+      expect(usersService.findOne).not.toHaveBeenCalled();
+      expect(messageRepository.create).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
     it('should create a room message successfully', async () => {
       const roomId = 10;
       roomsService.findOne.mockResolvedValue({

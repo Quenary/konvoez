@@ -142,7 +142,8 @@
     @for (peer of room.peers; track peer.id) {
       <app-room-peer
         class="room-peer-item"
-        [peer]="peer"></app-room-peer>
+        [peer]="peer"
+        [appWithUserDialog]="peer"></app-room-peer>
     }
   }
 }

@@ -5,6 +5,8 @@
     [class.message-own]="isOwnMessage()"
     [style.--author-color]="senderUsername() | tuiAutoColor"
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
+    @let _sender = senderUser();
+
     <div
       class="message-row"
       [class.message-row-media]="hasMedia()"
@@ -16,8 +18,9 @@
           size="s"
           class="message-sender"
           [username]="senderUsername()"
-          [fullname]="senderUser()?.fullname ?? senderUsername()"
-          [avatarUrl]="avatarUrl()" />
+          [fullname]="_sender?.fullname ?? senderUsername()"
+          [avatarUrl]="avatarUrl()"
+          [appWithUserDialog]="_sender" />
       }
 
       <span
@@ -31,7 +34,8 @@
             class="message-body-header-username"
             tuiHintAppearance="floating"
             [style.color]="senderUsername() | tuiAutoColor"
-            [tuiHint]="senderFullnameHint()">
+            [tuiHint]="senderFullnameHint()"
+            [appWithUserDialog]="_sender">
             {{ senderUsername() }}
           </span>
         </span>
@@ -136,7 +140,7 @@
         size="xs"
         appearance="flat"
         (click)="resendMessage()">
-        {{ 'ROOMS.RESEND' | translate }}
+        {{ 'GENERAL.RETRY' | translate }}
       </button>
     }
   </div>

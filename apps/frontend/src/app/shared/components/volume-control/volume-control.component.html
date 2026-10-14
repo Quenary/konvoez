@@ -1,0 +1,24 @@
+<div class="dropdown">
+  <tui-textfield class="volume-field">
+    <label
+      tuiLabel
+      [for]="id()">
+      {{ label() }}
+    </label>
+
+    <input
+      [id]="id()"
+      tuiInputSlider
+      [min]="min()"
+      [max]="max()"
+      [step]="1"
+      [ngModel]="value()"
+      (ngModelChange)="valueChange.emit($event)" />
+
+    <input
+      tuiSlider
+      type="range"
+      [segments]="20"
+      [step]="1" />
+  </tui-textfield>
+</div>

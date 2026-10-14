@@ -1,0 +1,16 @@
+.mic-test-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.mic-test-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mic-level-bar {
+  flex: 1;
+}

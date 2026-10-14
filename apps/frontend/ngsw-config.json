@@ -41,6 +41,14 @@
       "resources": {
         "files": ["/i18n/*.yaml"]
       }
+    },
+    {
+      "name": "deepfilternet",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/assets/deepfilternet/**/*"]
+      }
     }
   ]
 }

@@ -147,6 +147,7 @@ describe('OutgoingMessagesStore', () => {
     const created$ = new Subject<ITextRoomMessage>();
     create.mockReturnValue(created$.asObservable());
     const received: ITextRoomMessage[] = [];
+    const onSuccess = vi.fn();
     store.messageCreated$.subscribe((message) => received.push(message));
 
     store.send({
@@ -160,6 +161,7 @@ describe('OutgoingMessagesStore', () => {
       },
       replyTo: null,
       files: [],
+      onSuccess,
     });
 
     expect(store.entityMap()['temp-1']?.state).toEqual({ phase: 'creating' });
@@ -169,6 +171,7 @@ describe('OutgoingMessagesStore', () => {
     const message = serverMessage('temp-1');
     created$.next(message);
     expect(received).toEqual([message]);
+    expect(onSuccess).toHaveBeenCalledExactlyOnceWith(message);
     expect(store.entityMap()['temp-1']).toBeUndefined();
     created$.error(new Error('late'));
     expect(store.entityMap()['temp-1']).toBeUndefined();
@@ -220,6 +223,7 @@ describe('OutgoingMessagesStore', () => {
           subscriber.error(new Error('sync'));
         }),
     );
+    const onError = vi.fn();
     store.send({
       tempId: 'temp-sync',
       data: {
@@ -231,6 +235,7 @@ describe('OutgoingMessagesStore', () => {
       },
       replyTo: null,
       files: ['a.txt', 'b.txt', 'c.txt', 'd.txt'].map(localFile),
+      onError,
     });
     expect(upload).toHaveBeenCalledTimes(4);
     const message = store.entityMap()['temp-sync'];
@@ -241,6 +246,8 @@ describe('OutgoingMessagesStore', () => {
       'failed',
     ]);
     expect(message?.state).toEqual({ phase: 'failed', reason: 'upload' });
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(Error);
   });
 
   it('keeps the message failed when one upload fails and retries only that file', () => {

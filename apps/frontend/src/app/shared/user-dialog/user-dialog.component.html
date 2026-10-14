@@ -1,0 +1,75 @@
+@let hint = user.fullname !== user.username ? user.fullname : null;
+
+<div class="identity">
+  <app-user-avatar
+    size="m"
+    [avatarUrl]="user.avatarUrl"
+    [fullname]="user.fullname"
+    [username]="user.username" />
+  <span
+    tuiHintAppearance="floating"
+    [style.color]="user.username | tuiAutoColor"
+    [tuiHint]="hint">
+    {{ user.username }}
+  </span>
+</div>
+
+<dl class="fields">
+  <div class="field">
+    <dt>{{ 'USER_DIALOG.FULLNAME' | translate }}</dt>
+    <dd>{{ user.fullname }}</dd>
+  </div>
+</dl>
+
+<footer class="footer">
+  <div class="footer-actions">
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      tuiDropdownAuto
+      tuiDropdownDirection="top"
+      [iconStart]="volumeIcon()"
+      [tuiDropdown]="volumeDropdown"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.VOLUME' | translate">
+    </button>
+    <button
+      tuiIconButton
+      iconStart="@tui.message-circle"
+      type="button"
+      size="s"
+      tuiHintAppearance="floating"
+      [attr.aria-label]="'USER_DIALOG.OPEN_CHAT' | translate"
+      [tuiHint]="'USER_DIALOG.OPEN_CHAT' | translate"
+      (click)="onChatClick()">
+    </button>
+    <button
+      tuiIconButton
+      iconStart="@tui.phone"
+      type="button"
+      size="s"
+      tuiHintAppearance="floating"
+      [attr.aria-label]="'USER_DIALOG.CALL' | translate"
+      [tuiHint]="'USER_DIALOG.CALL' | translate"
+      (click)="onCallClick()">
+    </button>
+  </div>
+
+  <ng-template #volumeDropdown>
+    <app-volume-control
+      [id]="'user-dialog-volume-' + user.id"
+      [value]="volume()"
+      [label]="'CALL.VOLUME' | translate"
+      (valueChange)="onVolumeChange($event)" />
+  </ng-template>
+
+  <span tuiTitle>
+    {{ 'USER_DIALOG.QUICK_MESSAGE' | translate }}
+  </span>
+  <app-chat-editor
+    class="footer-editor"
+    [loading]="sending()"
+    (submitted)="onMessageSubmitted($event)" />
+</footer>

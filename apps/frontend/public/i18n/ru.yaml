@@ -6,6 +6,7 @@ GENERAL:
   NO: Нет
   SAVE: Сохранить
   CANCEL: Отмена
+  RETRY: Повторить
   CREATE: Создать
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
@@ -52,6 +53,12 @@ MENU:
     INVITES: Приглашения
     USERS: Пользователи
     ADMIN: Администрирование
+USER_DIALOG:
+  FULLNAME: Полное имя
+  OPEN_CHAT: Открыть чат
+  CALL: Позвонить
+  MESSAGE_SENT: Сообщение отправлено
+  QUICK_MESSAGE: Быстрое сообщение
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
@@ -128,7 +135,6 @@ ROOMS:
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
   READ_BY: Прочитано
   NO_READERS: Сообщение еще не прочитано
-  RESEND: Отправить повторно
   ATTACH_FILES: Прикрепить файлы
   ATTACHMENT: Вложение
   DROP_FILES_HERE: Перетащите файлы сюда
@@ -180,7 +186,7 @@ SETTINGS:
     DISABLE_ERROR: Не удалось отключить уведомления. Попробуйте ещё раз.
   DEVICES:
     TITLE: Настройки устройств
-    AUDIO_INPUT: Входное устройство
+    AUDIO_INPUT: Микрофон
     AUDIO_OUTPUT: Выходное устройство
     DEVICE_UNAVAILABLE: Устройство недоступно
     PERMISSION_ERROR: |
@@ -189,6 +195,22 @@ SETTINGS:
     API_NOT_AVAILABLE: |
       Данная функция может быть недоступна.
       В таком случае будет использовано устройство по умолчанию.
+    INPUT_GAIN: Громкость микрофона
+    OUTPUT_VOLUME: Громкость выходного устройства
+    NOISE_SUPPRESSION: Шумоподавление
+    NOISE_SUPPRESSION_HINT: DeepFilterNet3 использует ИИ и потребляет больше ресурсов. В случае перегрузки CPU на слабых устройствах произойдет переключение на RNNoise.
+    PROCESSOR_DEEPFILTER: DeepFilterNet3 (ИИ)
+    PROCESSOR_RNNOISE: RNNoise (Классический)
+    PROCESSOR_BROWSER: Встроенное в браузер
+    PROCESSOR_OFF: Отключено
+    PROCESSOR_UNSUPPORTED: Не поддерживается на этом устройстве (требуется WebAssembly SIMD)
+    PROCESSOR_OVERLOAD_NOTIFICATION: Обнаружена высокая нагрузка на процессор; шумоподавление переключено на RNNoise для текущей сессии.
+    ECHO_CANCELLATION: Эхоподавление
+    ECHO_CANCELLATION_HINT: Рекомендуется при использовании динамиков. Можно отключить при использовании наушников.
+    MIC_TEST_START: Проверить микрофон
+    MIC_TEST_STOP: Остановить проверку
+    MIC_TEST_FEEDBACK_WARNING: Рекомендуется использовать наушники во время проверки.
+    MIC_TEST_OUTPUT_HINT: Воспроизведение через стандартный вывод (браузер не поддерживает выбор выходного устройства).
   INVITES:
     TITLE: Приглашения
     SUBTITLE: Управление одноразовыми приглашениями для регистрации
@@ -271,6 +293,7 @@ VALIDATION:
   ROOM_TYPE: Выберите тип комнаты
   MESSAGE_LENGTH: Сообщение должно содержать 1–5000 символов
   MESSAGE_EMPTY: Сообщение должно содержать текст или файл
+  MESSAGE_TO_SELF: Нельзя отправить сообщение самому себе
   ATTACHMENTS_MAX_FILE_SIZE_RANGE: Лимит размера файла должен быть от 1 МиБ до 1 ГиБ
   ATTACHMENTS_MAX_FILES_RANGE: Количество файлов должно быть от 1 до 10
   SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации

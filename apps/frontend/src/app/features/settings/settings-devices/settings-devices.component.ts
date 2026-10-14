@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -16,17 +17,17 @@ import {
   pickDefaultAudioOutput,
 } from '@shared/functions/default-audio-devices.function';
 import {
-  TuiError,
+  TUI_ITEMS_HANDLERS,
   TuiIcon,
-  TuiInput,
   TuiNotification,
   TuiLabel,
   TuiDataList,
   TuiDropdown,
-  tuiItemsHandlersProvider,
   TuiNotificationService,
   TuiTitle,
   TuiButton,
+  TuiSlider,
+  TuiTextfield,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
@@ -34,10 +35,16 @@ import {
   TuiChevron,
   TuiTooltip,
   TuiButtonLoading,
+  TuiSwitch,
+  TuiProgressBar,
+  TuiInputSlider,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '@core/stores/settings.store';
+import { MicTestService } from '@core/services/mic-test.service';
+import { isSimdSupported } from '@core/audio/audio-capabilities';
+import { ENoiseProcessor } from '../../../app.enums';
 
 type DevicesLoadResult = {
   devices: MediaDeviceInfo[];
@@ -49,13 +56,7 @@ const EMPTY_DEVICES: DevicesLoadResult = {
   streamInputDeviceId: null,
 };
 
-function stringifyDevice(item: MediaDeviceInfo | null | undefined): string {
-  return item?.label ?? '';
-}
-
-function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
-  return a.deviceId === b.deviceId;
-}
+type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
 
 @Component({
   selector: 'app-settings-devices',
@@ -63,12 +64,10 @@ function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
     FormsModule,
     TranslatePipe,
     TuiCardLarge,
-    TuiError,
     TuiForm,
     TuiHeader,
     TuiIcon,
     TuiTitle,
-    TuiInput,
     TuiNotification,
     TuiSelect,
     TuiLabel,
@@ -80,12 +79,72 @@ function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
     TuiTooltip,
     TuiButton,
     TuiButtonLoading,
+    TuiSwitch,
+    TuiSlider,
+    TuiProgressBar,
+    TuiTextfield,
+    TuiInputSlider,
   ],
   providers: [
-    tuiItemsHandlersProvider({
-      stringify: signal(stringifyDevice),
-      identityMatcher: signal(identityMatchDevice),
-    }),
+    {
+      provide: TUI_ITEMS_HANDLERS,
+      useFactory: () => {
+        const translateService = inject(TranslateService);
+        return {
+          stringify: signal(
+            (item: SelectableItem | null | undefined): string => {
+              if (!item) return '';
+              if (typeof item === 'string') {
+                switch (item) {
+                  case ENoiseProcessor.DEEPFILTER:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_DEEPFILTER',
+                    );
+                  case ENoiseProcessor.RNNOISE:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_RNNOISE',
+                    );
+                  case ENoiseProcessor.BROWSER:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_BROWSER',
+                    );
+                  case ENoiseProcessor.OFF:
+                    return translateService.instant(
+                      'SETTINGS.DEVICES.PROCESSOR_OFF',
+                    );
+                }
+              }
+              return item.label ?? '';
+            },
+          ),
+          identityMatcher: signal(
+            (
+              a: SelectableItem | null | undefined,
+              b: SelectableItem | null | undefined,
+            ): boolean => {
+              if (a === b) {
+                return true;
+              }
+              if (!a || !b) {
+                return false;
+              }
+              if (typeof a === 'string' || typeof b === 'string') {
+                return a === b;
+              }
+              return a.deviceId === b.deviceId;
+            },
+          ),
+          disabledItemHandler: signal(
+            (item: SelectableItem | null | undefined): boolean => {
+              if (item === ENoiseProcessor.DEEPFILTER && !isSimdSupported()) {
+                return true;
+              }
+              return false;
+            },
+          ),
+        };
+      },
+    },
   ],
   templateUrl: './settings-devices.component.html',
   styleUrl: './settings-devices.component.scss',
@@ -93,9 +152,11 @@ function identityMatchDevice(a: MediaDeviceInfo, b: MediaDeviceInfo): boolean {
 })
 export class SettingsDevicesComponent {
   private readonly settingsStore = inject(SettingsStore);
+  private readonly micTestService = inject(MicTestService);
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly audioInput = this.settingsStore.audioInput;
   protected readonly audioInputAvailable = computed(() => {
@@ -117,12 +178,33 @@ export class SettingsDevicesComponent {
   });
   protected readonly audioInputList = computed(() => {
     const devices = this.devicesLoad.value().devices;
-    return devices.filter((d) => d.kind == 'audioinput');
+    return devices.filter((d) => d.kind === 'audioinput');
   });
   protected readonly audioOutputList = computed(() => {
     const devices = this.devicesLoad.value().devices;
-    return devices.filter((d) => d.kind == 'audiooutput');
+    return devices.filter((d) => d.kind === 'audiooutput');
   });
+
+  protected readonly noiseProcessor = this.settingsStore.noiseProcessor;
+  protected readonly inputGainPercent = computed(() =>
+    Math.round(this.settingsStore.inputGain() * 100),
+  );
+  protected readonly outputVolumePercent = computed(() =>
+    Math.round(this.settingsStore.outputVolume() * 100),
+  );
+  protected readonly echoCancellation = this.settingsStore.echoCancellation;
+
+  protected readonly isMicTesting = this.micTestService.isRunning;
+  protected readonly micTestLevel = this.micTestService.level;
+  protected readonly isSinkIdSupported = this.micTestService.isSinkIdSupported;
+  protected readonly isSimdSupported = isSimdSupported();
+
+  protected readonly processorOptions: ENoiseProcessor[] = [
+    ENoiseProcessor.DEEPFILTER,
+    ENoiseProcessor.RNNOISE,
+    ENoiseProcessor.BROWSER,
+    ENoiseProcessor.OFF,
+  ];
 
   protected readonly devicesLoad = rxResource({
     stream: () =>
@@ -161,6 +243,8 @@ export class SettingsDevicesComponent {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(() => void this.micTestService.stop());
+
     effect(() => {
       const { devices, streamInputDeviceId } = this.devicesLoad.value();
       const audioInput = this.settingsStore.audioInput();
@@ -186,11 +270,71 @@ export class SettingsDevicesComponent {
     });
   }
 
-  protected onSelectAudioInput(audioInput: MediaDeviceInfo) {
+  protected onSelectAudioInput(audioInput: MediaDeviceInfo): void {
     this.settingsStore.setAudioInput(audioInput);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart(
+        audioInput,
+        this.settingsStore.audioOutput(),
+      );
+    }
   }
 
-  protected onSelectAudioOutput(audioOutput: MediaDeviceInfo) {
+  protected onSelectAudioOutput(audioOutput: MediaDeviceInfo): void {
     this.settingsStore.setAudioOutput(audioOutput);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart(
+        this.settingsStore.audioInput(),
+        audioOutput,
+      );
+    }
+  }
+
+  protected onSelectNoiseProcessor(processor: ENoiseProcessor): void {
+    this.settingsStore.setNoiseProcessor(processor);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart();
+    }
+  }
+
+  protected onInputGainChange(percent: number): void {
+    const gain = percent / 100;
+    this.settingsStore.setInputGain(gain);
+  }
+
+  protected onOutputVolumeChange(percent: number): void {
+    this.settingsStore.setOutputVolume(percent / 100);
+  }
+
+  protected onEchoCancellationChange(enabled: boolean): void {
+    this.settingsStore.setEchoCancellation(enabled);
+    if (this.micTestService.isRunning()) {
+      void this.micTestService.restart();
+    }
+  }
+
+  protected async toggleMicTest(): Promise<void> {
+    if (this.micTestService.isRunning()) {
+      await this.micTestService.stop();
+    } else {
+      try {
+        await this.micTestService.start(
+          this.settingsStore.audioInput(),
+          this.settingsStore.audioOutput(),
+        );
+      } catch (error) {
+        console.warn('Failed to start mic test', error);
+        this.tuiNotificationsService
+          .open(
+            this.translateService.instant('SETTINGS.DEVICES.PERMISSION_ERROR'),
+            {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+            },
+          )
+          .subscribe();
+      }
+    }
   }
 }

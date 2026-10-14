@@ -51,6 +51,7 @@
       iconStart="@tui.paperclip"
       size="s"
       [attr.aria-label]="'ROOMS.ATTACH_FILES' | translate"
+      [disabled]="loading()"
       (click)="fileInput.click()">
       {{ 'ROOMS.ATTACH_FILES' | translate }}
     </button>
@@ -59,6 +60,7 @@
       type="file"
       multiple
       hidden
+      [disabled]="loading()"
       (change)="onPick($event)" />
   }
   <tui-editor
@@ -72,6 +74,7 @@
     tuiIconButton
     iconStart="@tui.send"
     size="s"
+    [loading]="loading()"
     (click)="onSubmit()">
   </button>
 </section>

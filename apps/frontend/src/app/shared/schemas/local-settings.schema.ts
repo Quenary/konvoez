@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { ENoiseProcessor } from '../../app.enums';
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
@@ -32,6 +33,20 @@ export const streamFpsSchema = z.union([
   z.literal(60),
 ]);
 
+export const noiseProcessorSchema = z.enum(ENoiseProcessor);
+export type TNoiseProcessor = z.infer<typeof noiseProcessorSchema>;
+export const DEFAULT_NOISE_PROCESSOR: ENoiseProcessor =
+  ENoiseProcessor.DEEPFILTER;
+
+export const inputGainSchema = z.number().min(0).max(2);
+export const DEFAULT_INPUT_GAIN = 1;
+
+export const outputVolumeSchema = z.number().min(0).max(2);
+export const DEFAULT_OUTPUT_VOLUME = 1;
+
+export const echoCancellationSchema = z.boolean();
+export const DEFAULT_ECHO_CANCELLATION = false;
+
 /**
  * Current local settings document. Devices are optional — browsers may lack
  * MediaDevices API; voice flow falls back to defaults when unset.
@@ -46,6 +61,10 @@ export const localSettingsSchema = z.object({
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
+  noiseProcessor: noiseProcessorSchema.optional(),
+  inputGain: inputGainSchema.optional(),
+  outputVolume: outputVolumeSchema.optional(),
+  echoCancellation: echoCancellationSchema.optional(),
 });
 
 export type TLocalSettings = z.infer<typeof localSettingsSchema>;
@@ -60,6 +79,10 @@ export const localSettingsLooseSchema = z.looseObject({
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
+  noiseProcessor: noiseProcessorSchema.optional(),
+  inputGain: inputGainSchema.optional(),
+  outputVolume: outputVolumeSchema.optional(),
+  echoCancellation: echoCancellationSchema.optional(),
 });
 
 export type TLocalSettingsPartial = z.infer<typeof localSettingsLooseSchema>;

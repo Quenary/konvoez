@@ -29,6 +29,10 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { parseError } from '@shared/functions/parse-error.function';
 import {
+  DEFAULT_ECHO_CANCELLATION,
+  DEFAULT_INPUT_GAIN,
+  DEFAULT_NOISE_PROCESSOR,
+  DEFAULT_OUTPUT_VOLUME,
   DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
@@ -36,6 +40,10 @@ import {
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
+import { ENoiseProcessor } from '../../app.enums';
+import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
+import { MicrophoneService } from '@core/services/microphone.service';
+import { SpeakerService } from '@core/services/speaker.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import {
@@ -59,6 +67,10 @@ export type SettingsStoreState = {
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
   screenPreviewAutoPauseWhenHidden: boolean;
+  noiseProcessor: ENoiseProcessor;
+  inputGain: number;
+  outputVolume: number;
+  echoCancellation: boolean;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -76,70 +88,83 @@ export const SettingsStore = signalStore(
     screenFps: DEFAULT_STREAM_FPS,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+    noiseProcessor: DEFAULT_NOISE_PROCESSOR,
+    inputGain: DEFAULT_INPUT_GAIN,
+    outputVolume: DEFAULT_OUTPUT_VOLUME,
+    echoCancellation: DEFAULT_ECHO_CANCELLATION,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
-  withComputed(({ entities, entityMap, localSettingsVersion }) => ({
-    settings: entities,
-    settingsMap: computed(() => {
-      const map = new Map<ESettingKey, TSetting['value']>();
-      for (const item of entities()) {
-        map.set(item.key, item.value);
-      }
-      return map;
+  withComputed(
+    ({ entities, entityMap, localSettingsVersion, noiseProcessor }) => ({
+      settings: entities,
+      effectiveNoiseProcessor: computed(() =>
+        noiseProcessor() === ENoiseProcessor.DEEPFILTER && !isSimdSupported()
+          ? ENoiseProcessor.RNNOISE
+          : noiseProcessor(),
+      ),
+      settingsMap: computed(() => {
+        const map = new Map<ESettingKey, TSetting['value']>();
+        for (const item of entities()) {
+          map.set(item.key, item.value);
+        }
+        return map;
+      }),
+      iceServers: computed(() => {
+        const item = entityMap()[ESettingKey.ICE_SERVERS];
+        return (item?.value as TIceServersSettingValue | undefined) ?? [];
+      }),
+      inviteOnlySignUp: computed(() => {
+        const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
+        return (item?.value as boolean | undefined) ?? true;
+      }),
+      passwordRecoveryCodeTtl: computed(() => {
+        const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.PASSWORD_RECOVERY_CODE_TTL]
+        );
+      }),
+      attachmentsEnabled: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_ENABLED];
+        return (
+          (item?.value as boolean | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_ENABLED]
+        );
+      }),
+      attachmentsMaxFileSize: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]
+        );
+      }),
+      attachmentsMaxFilesPerMessage: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]
+        );
+      }),
+      attachmentsStripImageMetadata: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA];
+        return (
+          (item?.value as boolean | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
+        );
+      }),
+      needsInitialSetup: computed(
+        () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
+      ),
     }),
-    iceServers: computed(() => {
-      const item = entityMap()[ESettingKey.ICE_SERVERS];
-      return (item?.value as TIceServersSettingValue | undefined) ?? [];
-    }),
-    inviteOnlySignUp: computed(() => {
-      const item = entityMap()[ESettingKey.INVITE_ONLY_SIGN_UP];
-      return (item?.value as boolean | undefined) ?? true;
-    }),
-    passwordRecoveryCodeTtl: computed(() => {
-      const item = entityMap()[ESettingKey.PASSWORD_RECOVERY_CODE_TTL];
-      return (
-        (item?.value as number | undefined) ??
-        defaultSettingValues[ESettingKey.PASSWORD_RECOVERY_CODE_TTL]
-      );
-    }),
-    attachmentsEnabled: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_ENABLED];
-      return (
-        (item?.value as boolean | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_ENABLED]
-      );
-    }),
-    attachmentsMaxFileSize: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE];
-      return (
-        (item?.value as number | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]
-      );
-    }),
-    attachmentsMaxFilesPerMessage: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE];
-      return (
-        (item?.value as number | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]
-      );
-    }),
-    attachmentsStripImageMetadata: computed(() => {
-      const item = entityMap()[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA];
-      return (
-        (item?.value as boolean | undefined) ??
-        defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
-      );
-    }),
-    needsInitialSetup: computed(
-      () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
-    ),
-  })),
+  ),
   withMethods(
     (
       store,
       settingsApiService = inject(SettingsApiService),
       audioDeviceHandler = inject(AUDIO_DEVICE_HANDLER),
+      microphoneService = inject(MicrophoneService),
+      speakerService = inject(SpeakerService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
     ) => {
@@ -165,6 +190,10 @@ export const SettingsStore = signalStore(
           screenFps: store.screenFps(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
+          noiseProcessor: store.noiseProcessor(),
+          inputGain: store.inputGain(),
+          outputVolume: store.outputVolume(),
+          echoCancellation: store.echoCancellation(),
         });
       };
 
@@ -184,6 +213,10 @@ export const SettingsStore = signalStore(
               screenFps: store.screenFps(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
+              noiseProcessor: store.noiseProcessor(),
+              inputGain: store.inputGain(),
+              outputVolume: store.outputVolume(),
+              echoCancellation: store.echoCancellation(),
             },
             { stampVersion: true },
           );
@@ -232,6 +265,30 @@ export const SettingsStore = signalStore(
         ): void {
           patchState(store, { screenPreviewAutoPauseWhenHidden });
           persistLocal();
+        },
+
+        setNoiseProcessor(noiseProcessor: ENoiseProcessor): void {
+          patchState(store, { noiseProcessor });
+          persistLocal();
+          void microphoneService.setProcessor(store.effectiveNoiseProcessor());
+        },
+
+        setInputGain(inputGain: number): void {
+          patchState(store, { inputGain });
+          persistLocal();
+          microphoneService.setGain(inputGain);
+        },
+
+        setOutputVolume(outputVolume: number): void {
+          patchState(store, { outputVolume });
+          persistLocal();
+          speakerService.setMasterVolume(outputVolume);
+        },
+
+        setEchoCancellation(echoCancellation: boolean): void {
+          patchState(store, { echoCancellation });
+          persistLocal();
+          void microphoneService.setEchoCancellation(echoCancellation);
         },
 
         loadAll: rxMethod<void>(
@@ -289,6 +346,8 @@ export const SettingsStore = signalStore(
     onInit(store) {
       const ngrxStore = inject(Store);
       const audioDeviceHandler = inject(AUDIO_DEVICE_HANDLER);
+      const microphoneService = inject(MicrophoneService);
+      const speakerService = inject(SpeakerService);
 
       const partial = readLocalSettings();
       const audioInput =
@@ -297,6 +356,15 @@ export const SettingsStore = signalStore(
         (partial.audioOutput as MediaDeviceInfo | undefined) ?? null;
       const videoInput =
         (partial.videoInput as MediaDeviceInfo | undefined) ?? null;
+      const preferredProcessor =
+        partial.noiseProcessor ??
+        (isMobileOrIos()
+          ? ENoiseProcessor.RNNOISE
+          : ENoiseProcessor.DEEPFILTER);
+      const inputGain = partial.inputGain ?? DEFAULT_INPUT_GAIN;
+      const outputVolume = partial.outputVolume ?? DEFAULT_OUTPUT_VOLUME;
+      const echoCancellation =
+        partial.echoCancellation ?? DEFAULT_ECHO_CANCELLATION;
 
       patchState(store, {
         audioInput,
@@ -309,6 +377,10 @@ export const SettingsStore = signalStore(
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+        noiseProcessor: preferredProcessor,
+        inputGain,
+        outputVolume,
+        echoCancellation,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });
@@ -319,6 +391,11 @@ export const SettingsStore = signalStore(
       if (audioOutput) {
         audioDeviceHandler.setAudioOutput(audioOutput);
       }
+
+      microphoneService.setGain(inputGain);
+      void microphoneService.setProcessor(store.effectiveNoiseProcessor());
+      void microphoneService.setEchoCancellation(echoCancellation);
+      speakerService.setMasterVolume(outputVolume);
 
       ngrxStore
         .select(selectIsAuthorized)

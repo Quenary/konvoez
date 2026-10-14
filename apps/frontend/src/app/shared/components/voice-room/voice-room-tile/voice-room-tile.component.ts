@@ -20,7 +20,6 @@ import {
   TuiGroup,
   TuiHint,
   TuiLabel,
-  TuiSlider,
 } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -30,6 +29,7 @@ import type { TVoiceStreamKind } from '../voice-room-tiles';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
+import { VolumeControlComponent } from '../../volume-control/volume-control.component';
 
 @Component({
   selector: 'app-voice-room-tile',
@@ -42,12 +42,12 @@ import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-l
     TuiDropdown,
     TuiHint,
     TuiLabel,
-    TuiSlider,
     TuiAutoColorPipe,
     TranslatePipe,
     TuiGroup,
     VideoTrackDirective,
     VoiceRoomLocalScreenPreviewPauseButtonComponent,
+    VolumeControlComponent,
   ],
   templateUrl: './voice-room-tile.component.html',
   styleUrl: './voice-room-tile.component.scss',

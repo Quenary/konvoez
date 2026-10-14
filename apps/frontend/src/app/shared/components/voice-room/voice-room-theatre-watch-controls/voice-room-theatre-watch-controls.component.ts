@@ -5,30 +5,21 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-  TuiButton,
-  TuiDropdown,
-  TuiGroup,
-  TuiHint,
-  TuiLabel,
-  TuiSlider,
-} from '@taiga-ui/core';
+import { TuiButton, TuiDropdown, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
+import { VolumeControlComponent } from '../../volume-control/volume-control.component';
 
 @Component({
   selector: 'app-voice-room-theatre-watch-controls',
   imports: [
-    FormsModule,
     TuiButton,
     TuiDropdown,
     TuiGroup,
     TuiHint,
-    TuiLabel,
-    TuiSlider,
     TranslatePipe,
+    VolumeControlComponent,
   ],
   templateUrl: './voice-room-theatre-watch-controls.component.html',
   styleUrl: './voice-room-theatre-watch-controls.component.scss',

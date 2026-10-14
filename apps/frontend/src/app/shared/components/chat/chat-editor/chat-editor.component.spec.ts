@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatEditorComponent } from './chat-editor.component';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
+import { EMessageStatus, IMessageEntity } from '../chat.store';
 import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsStore } from '@core/stores/settings.store';
@@ -30,19 +30,6 @@ describe('ChatEditorComponent', () => {
     reactions: [],
   };
 
-  const mockChatStore = {
-    editableMessage: signal<IMessageEntity | null>(null),
-    replyToMessage: signal<IMessageEntity | null>(null),
-    target: signal<{ kind: 'room'; id: number } | null>({
-      kind: 'room',
-      id: 1,
-    }),
-    createMessage: vi.fn(),
-    updateMessage: vi.fn(),
-    setEditableMessageId: vi.fn(),
-    setReplyToMessageId: vi.fn(),
-  };
-
   const mockNotificationService = {
     open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
   };
@@ -55,14 +42,11 @@ describe('ChatEditorComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockChatStore.editableMessage.set(null);
-    mockChatStore.replyToMessage.set(null);
 
     await TestBed.configureTestingModule({
       imports: [ChatEditorComponent],
       providers: [
         provideTranslateService(),
-        { provide: ChatStore, useValue: mockChatStore },
         { provide: SettingsStore, useValue: mockSettingsStore },
         { provide: TuiNotificationService, useValue: mockNotificationService },
       ],
@@ -85,13 +69,17 @@ describe('ChatEditorComponent', () => {
   });
 
   it('should cancel reply', () => {
+    const cancelled = vi.fn();
+    component.replyCancelled.subscribe(cancelled);
     component['cancelReply']();
-    expect(mockChatStore.setReplyToMessageId).toHaveBeenCalledWith(null);
+    expect(cancelled).toHaveBeenCalledOnce();
   });
 
   it('should cancel edit', () => {
+    const cancelled = vi.fn();
+    component.editCancelled.subscribe(cancelled);
     component['cancelEdit']();
-    expect(mockChatStore.setEditableMessageId).toHaveBeenCalledWith(null);
+    expect(cancelled).toHaveBeenCalledOnce();
   });
 
   it('should not attach a validator to the control and should notify on submit validation failure', () => {
@@ -109,8 +97,6 @@ describe('ChatEditorComponent', () => {
         appearance: 'negative',
       }),
     );
-    expect(mockChatStore.createMessage).not.toHaveBeenCalled();
-
     mockNotificationService.open.mockClear();
     control.setValue('<p></p>');
     component['onSubmit']();
@@ -120,51 +106,52 @@ describe('ChatEditorComponent', () => {
         appearance: 'negative',
       }),
     );
-    expect(mockChatStore.createMessage).not.toHaveBeenCalled();
   });
 
   it('should create message with replyToId when replyToMessage is active', () => {
-    mockChatStore.replyToMessage.set(mockReplyMessage);
+    const submitted = vi.fn();
+    component.submitted.subscribe(submitted);
+    fixture.componentRef.setInput('replyToMessage', mockReplyMessage);
     const control = component['control'];
     control.setValue('<p>This is a reply</p>');
 
     component['onSubmit']();
 
-    expect(mockChatStore.createMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          content: '<p>This is a reply</p>',
-          roomId: 1,
-          recipientId: null,
-          replyToId: 'reply-target-1',
-        }),
-      }),
-    );
+    expect(submitted).toHaveBeenCalledWith({
+      content: '<p>This is a reply</p>',
+      files: [],
+      replyToMessage: mockReplyMessage,
+    });
     expect(control.value).toBe('');
   });
 
   it('should update message when editableMessage is active', () => {
-    mockChatStore.editableMessage.set(mockReplyMessage);
+    const edited = vi.fn();
+    component.edited.subscribe(edited);
+    fixture.componentRef.setInput('editableMessage', mockReplyMessage);
+    fixture.detectChanges();
     const control = component['control'];
     control.setValue('<p>Edited content</p>');
 
     component['onSubmit']();
 
-    expect(mockChatStore.updateMessage).toHaveBeenCalledWith({
+    expect(edited).toHaveBeenCalledWith({
       messageId: 'reply-target-1',
-      data: { content: '<p>Edited content</p>' },
+      content: '<p>Edited content</p>',
     });
     expect(control.value).toBe('');
   });
 
   it('should send a files-only message and keep object urls for the outgoing store', () => {
     const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const submitted = vi.fn();
+    component.submitted.subscribe(submitted);
     const file = new File(['hi'], 'note.txt', { type: 'text/plain' });
     component.addFiles([file]);
     component['onSubmit']();
-    expect(mockChatStore.createMessage).toHaveBeenCalledWith(
+    expect(submitted).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ content: '' }),
+        content: '',
         files: [
           expect.objectContaining({
             kind: EAttachmentKind.FILE,
@@ -224,13 +211,14 @@ describe('ChatEditorComponent', () => {
     expect(component['files']()).toEqual([]);
 
     mockSettingsStore.attachmentsEnabled.set(true);
-    mockChatStore.editableMessage.set(mockReplyMessage);
+    fixture.componentRef.setInput('editableMessage', mockReplyMessage);
+    fixture.detectChanges();
     expect(
       component.addFiles([new File(['a'], 'a.txt', { type: 'text/plain' })]),
     ).toBe(false);
     expect(component['files']()).toEqual([]);
     mockSettingsStore.attachmentsEnabled.set(true);
-    mockChatStore.editableMessage.set(null);
+    fixture.componentRef.setInput('editableMessage', null);
   });
 
   it('sends empty content when an edited message keeps its attachments', () => {
@@ -246,17 +234,20 @@ describe('ChatEditorComponent', () => {
       url: '/api/v1/attachments/att-1/content',
       thumbnailUrl: null,
     };
-    mockChatStore.editableMessage.set({
+    fixture.componentRef.setInput('editableMessage', {
       ...mockReplyMessage,
       attachments: [attachment],
     });
+    fixture.detectChanges();
     component['control'].setValue('');
+    const edited = vi.fn();
+    component.edited.subscribe(edited);
     component['onSubmit']();
-    expect(mockChatStore.updateMessage).toHaveBeenCalledWith({
+    expect(edited).toHaveBeenCalledWith({
       messageId: mockReplyMessage.id,
-      data: { content: '' },
+      content: '',
     });
-    mockChatStore.editableMessage.set(null);
+    fixture.componentRef.setInput('editableMessage', null);
   });
 
   it('stashes composer files when the chat changes', () => {
@@ -265,10 +256,11 @@ describe('ChatEditorComponent', () => {
     component['files'].set([
       createLocalFile(new File(['a'], 'a.png', { type: 'image/png' })),
     ]);
-    mockChatStore.target.set({ kind: 'room', id: 2 });
+    fixture.componentRef.setInput('draftKey', 'room:1');
+    fixture.detectChanges();
+    fixture.componentRef.setInput('draftKey', 'room:2');
     TestBed.flushEffects();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:draft');
-    mockChatStore.target.set({ kind: 'room', id: 1 });
   });
 
   it('uses a keyboard button and a file input without accept', async () => {
@@ -277,7 +269,6 @@ describe('ChatEditorComponent', () => {
       imports: [ChatEditorComponent],
       providers: [
         provideTranslateService(),
-        { provide: ChatStore, useValue: mockChatStore },
         { provide: SettingsStore, useValue: mockSettingsStore },
         { provide: TuiNotificationService, useValue: mockNotificationService },
       ],
