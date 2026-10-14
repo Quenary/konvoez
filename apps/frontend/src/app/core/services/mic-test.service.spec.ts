@@ -290,6 +290,88 @@ describe('MicTestService', () => {
     expect(service.isRunning()).toBe(false);
   });
 
+  it('preserves loaded wasm module across start, restart, and stop cycles', async () => {
+    (
+      noiseSuppressorPort.loadDeepFilter as ReturnType<typeof vi.fn>
+    ).mockClear();
+
+    const trackStop = vi.fn();
+    const fakeTrack = { stop: trackStop };
+    const fakeStream = {
+      getTracks: () => [fakeTrack],
+      getAudioTracks: () => [fakeTrack],
+    } as unknown as MediaStream;
+
+    const source = { connect: vi.fn(), disconnect: vi.fn() };
+    const gain = { connect: vi.fn(), disconnect: vi.fn(), gain: { value: 1 } };
+    const makeup = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      gain: { value: 1 },
+    };
+    const biquad = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      frequency: { value: 0 },
+      Q: { value: 0 },
+      type: '',
+    };
+    const compressor = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      threshold: { value: 0 },
+      knee: { value: 0 },
+      ratio: { value: 0 },
+      attack: { value: 0 },
+      release: { value: 0 },
+    };
+    const analyser = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      fftSize: 0,
+      smoothingTimeConstant: 0,
+      frequencyBinCount: 64,
+      getByteFrequencyData: vi.fn(),
+    };
+    const destination = { connect: vi.fn() };
+
+    let gainCalls = 0;
+    class FakeContext {
+      sampleRate = 48000;
+      state = 'running';
+      destination = destination;
+      audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+      resume = vi.fn();
+      close = vi.fn().mockResolvedValue(undefined);
+      createMediaStreamSource = () => source;
+      createGain = () => (gainCalls++ % 2 === 0 ? gain : makeup);
+      createBiquadFilter = () => biquad;
+      createDynamicsCompressor = () => compressor;
+      createAnalyser = () => analyser;
+      setSinkId = vi.fn().mockResolvedValue(undefined);
+    }
+    vi.stubGlobal('AudioContext', FakeContext);
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(fakeStream),
+      },
+    });
+
+    await service.start(null, null);
+    expect(noiseSuppressorPort.loadDeepFilter).toHaveBeenCalledTimes(1);
+
+    await service.restart(null, null);
+    expect(noiseSuppressorPort.loadDeepFilter).toHaveBeenCalledTimes(1);
+
+    await service.stop();
+    await service.start(null, null);
+    expect(noiseSuppressorPort.loadDeepFilter).toHaveBeenCalledTimes(1);
+
+    await service.stop();
+  });
+
   it('updates gain dynamically both via setGain and via settingsStore signal', async () => {
     const trackStop = vi.fn();
     const fakeTrack = { stop: trackStop };

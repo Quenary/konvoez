@@ -224,8 +224,6 @@ export class MicTestService implements OnDestroy {
     }
 
     this.context = null;
-    this.deepFilterModule = null;
-    this.rnnoiseWasmBinary = null;
     this.dynamicsReady = false;
     this._isRunning.set(false);
     this._level.set(0);
