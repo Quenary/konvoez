@@ -196,12 +196,17 @@ export class MicTestService implements OnDestroy {
     this.currentInputDevice = inputDevice;
     this.currentOutputDevice = outputDevice;
 
-    await this.ensureContext();
-    await this.applySink(outputDevice);
-    await this.ensureDynamics();
-    await this.buildPipeline(inputDevice);
-    this._isRunning.set(true);
-    this.startMetering();
+    try {
+      await this.ensureContext();
+      await this.applySink(outputDevice);
+      await this.ensureDynamics();
+      await this.buildPipeline(inputDevice);
+      this._isRunning.set(true);
+      this.startMetering();
+    } catch (error) {
+      await this.stopInternal();
+      throw error;
+    }
   }
 
   private async stopInternal(): Promise<void> {

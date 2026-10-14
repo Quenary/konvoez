@@ -321,10 +321,24 @@ export class SettingsDevicesComponent {
     if (this.micTestService.isRunning()) {
       await this.micTestService.stop();
     } else {
-      await this.micTestService.start(
-        this.settingsStore.audioInput(),
-        this.settingsStore.audioOutput(),
-      );
+      try {
+        await this.micTestService.start(
+          this.settingsStore.audioInput(),
+          this.settingsStore.audioOutput(),
+        );
+      } catch (error) {
+        console.warn('Failed to start mic test', error);
+        this.tuiNotificationsService
+          .open(
+            this.translateService.instant('SETTINGS.DEVICES.PERMISSION_ERROR'),
+            {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+            },
+          )
+          .subscribe();
+      }
     }
   }
 }

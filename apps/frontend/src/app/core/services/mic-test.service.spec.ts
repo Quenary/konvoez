@@ -95,6 +95,35 @@ describe('MicTestService', () => {
     expect(stopSpy).toHaveBeenCalled();
   });
 
+  it('cleans up pipeline and context if start fails', async () => {
+    class FakeContext {
+      sampleRate = 48000;
+      state = 'running';
+      resume = vi.fn();
+      close = vi.fn().mockResolvedValue(undefined);
+      audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+    }
+    vi.stubGlobal('AudioContext', FakeContext);
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockRejectedValue(new Error('Permission denied')),
+      },
+    });
+
+    const stopInternalSpy = vi.spyOn(
+      service as unknown as { stopInternal: () => Promise<void> },
+      'stopInternal',
+    );
+
+    await expect(service.start(null, null)).rejects.toThrow(
+      'Permission denied',
+    );
+    expect(stopInternalSpy).toHaveBeenCalled();
+    expect(service.isRunning()).toBe(false);
+  });
+
   it('starts isolated capture pipeline and stops cleanly', async () => {
     const trackStop = vi.fn();
     const fakeTrack = { stop: trackStop };

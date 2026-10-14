@@ -37,7 +37,10 @@ describe('SettingsDevicesComponent', () => {
     setEchoCancellation: ReturnType<typeof vi.fn>;
   };
 
+  let notificationOpen: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
+    notificationOpen = vi.fn().mockReturnValue(of(null));
     micTestService = {
       isRunning: signal(false),
       level: signal(0),
@@ -79,7 +82,7 @@ describe('SettingsDevicesComponent', () => {
         },
         {
           provide: TuiNotificationService,
-          useValue: { open: vi.fn().mockReturnValue(of(null)) },
+          useValue: { open: notificationOpen },
         },
         {
           provide: TranslateService,
@@ -142,6 +145,13 @@ describe('SettingsDevicesComponent', () => {
     micTestService.isRunning.set(true);
     await component['toggleMicTest']();
     expect(micTestService.stop).toHaveBeenCalled();
+  });
+
+  it('shows error notification when mic test start fails', async () => {
+    micTestService.start.mockRejectedValueOnce(new Error('Permission denied'));
+    await component['toggleMicTest']();
+
+    expect(notificationOpen).toHaveBeenCalled();
   });
 
   it('delegates noise processor change to store and restarts test if running', () => {
