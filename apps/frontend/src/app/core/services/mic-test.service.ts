@@ -1,11 +1,4 @@
-import {
-  DestroyRef,
-  Injectable,
-  OnDestroy,
-  effect,
-  inject,
-  signal,
-} from '@angular/core';
+import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import {
   NOISE_SUPPRESSOR_PORT,
   type NoiseSuppressorPort,
@@ -63,7 +56,7 @@ type DenoiserNode =
  * Creates its own AudioContext and streams to the selected output sink.
  */
 @Injectable({ providedIn: 'root' })
-export class MicTestService implements OnDestroy {
+export class MicTestService {
   private readonly noiseSuppressor = inject(NOISE_SUPPRESSOR_PORT);
   private readonly audioContextResumeService = inject(
     AudioContextResumeService,
@@ -145,13 +138,6 @@ export class MicTestService implements OnDestroy {
       }
       void this.stop();
     });
-  }
-
-  ngOnDestroy(): void {
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', this.onVisibilityChange);
-    }
-    void this.stop();
   }
 
   @Mutexed(testMutex)
