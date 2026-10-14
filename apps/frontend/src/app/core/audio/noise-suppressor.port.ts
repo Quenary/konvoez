@@ -24,7 +24,7 @@ export class DeepFilterWorkletNode extends AudioWorkletNode {
 
   public destroy(): void {
     try {
-      this.port.postMessage({ type: 'setEnabled', value: false });
+      this.port.postMessage({ type: 'dispose' });
     } catch {
       // Port may already be closed or disconnected
     }

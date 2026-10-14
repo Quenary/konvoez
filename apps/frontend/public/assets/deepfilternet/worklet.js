@@ -1,7 +1,9 @@
 'use strict';
 
 /**
- * Polyfill TextDecoder for AudioWorkletGlobalScope.
+ * Polyfill TextDecoder for AudioWorkletGlobalScope and DeepFilterNet processor.
+ * `{ type: 'dispose' }` on the port frees the native WASM DFState and makes process() return false
+ * so a disconnected node can be collected while the AudioContext stays open.
  *
  * AudioWorkletGlobalScope runs in a specialized real-time audio thread where standard
  * Web APIs (such as TextDecoder, XMLHttpRequest, Blob, timers) are not provided by default.
@@ -259,6 +261,7 @@ if (typeof TextDecoder === 'undefined') {
     #readOut = 0;
     #ready = false;
     #bypass = false;
+    #disposed = false;
     constructor(options) {
       super();
       const opts = options.processorOptions;
@@ -275,6 +278,15 @@ if (typeof TextDecoder === 'undefined') {
         this.#ready = false;
       }
       this.port.onmessage = (event) => {
+        if (event.data?.type === 'dispose') {
+          if (this.#ready) {
+            wasm.__wbg_dfstate_free(this.#handle >>> 0, 0);
+          }
+          this.#ready = false;
+          this.#disposed = true;
+          this.port.onmessage = null;
+          return;
+        }
         if (
           event.data.type === 'setAttenuationLimit' &&
           typeof event.data.value === 'number'
@@ -290,6 +302,7 @@ if (typeof TextDecoder === 'undefined') {
       return (write - read + this.#input.length) % this.#input.length;
     }
     process(inputs, outputs) {
+      if (this.#disposed) return false;
       const input = inputs[0]?.[0];
       const output = outputs[0]?.[0];
       if (!input || !output) return true;

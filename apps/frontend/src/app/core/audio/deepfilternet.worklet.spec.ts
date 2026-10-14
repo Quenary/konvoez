@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const workletPath = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -205,6 +205,69 @@ describe('deepfilternet worklet', () => {
       processor.port.onmessage?.({
         data: { type: 'setAttenuationLimit', value: 30 },
       });
+    });
+
+    it('disposes native state and causes process() to return false', () => {
+      const freeFn = vi.fn();
+      const mockWasmExports = {
+        __wbindgen_start: vi.fn(),
+        df_create_default: vi.fn().mockReturnValue(42),
+        df_get_frame_length: vi.fn().mockReturnValue(480),
+        __wbg_dfstate_free: freeFn,
+      };
+
+      const { registeredCtor: Processor } = loadWorklet({
+        WebAssembly: {
+          Module: class MockModule {},
+          Instance: class MockInstance {
+            exports = mockWasmExports;
+          },
+        },
+      });
+
+      const processor = new Processor({
+        processorOptions: {
+          wasmModule: {} as WebAssembly.Module,
+        },
+      });
+
+      expect(processor.port.onmessage).toBeDefined();
+
+      const input = new Float32Array([0.1, 0.2]);
+      const output = new Float32Array(2);
+      expect(processor.process([[input]], [[output]])).toBe(true);
+
+      processor.port.onmessage?.({
+        data: { type: 'dispose' },
+      });
+
+      expect(freeFn).toHaveBeenCalledTimes(1);
+      expect(freeFn).toHaveBeenCalledWith(42, 0);
+      expect(processor.process([[input]], [[output]])).toBe(false);
+      expect(processor.port.onmessage).toBeNull();
+    });
+
+    it('handles dispose safely when uninitialized and does not throw on second call', () => {
+      const { registeredCtor: Processor } = loadWorklet();
+      const processor = new Processor({ processorOptions: {} });
+
+      const onmessage = processor.port.onmessage;
+      expect(onmessage).toBeDefined();
+
+      onmessage?.({
+        data: { type: 'dispose' },
+      });
+
+      const input = new Float32Array([0.1, 0.2]);
+      const output = new Float32Array(2);
+      expect(processor.process([[input]], [[output]])).toBe(false);
+      expect(processor.port.onmessage).toBeNull();
+
+      expect(() => {
+        onmessage?.({
+          data: { type: 'dispose' },
+        });
+      }).not.toThrow();
     });
   });
 });
