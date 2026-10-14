@@ -1,3 +1,20 @@
+## 1.20.0 (2026-10-14)
+
+### Features
+
+- **frontend:** add quick message feature and volume control in user dialog ([bcfed09](https://github.com/Quenary/konvoez/commit/bcfed09))
+- **frontend:** quick message in user dialog ([5b34db5](https://github.com/Quenary/konvoez/commit/5b34db5))
+- **frontend:** shared user dialog ([5d7a845](https://github.com/Quenary/konvoez/commit/5d7a845))
+- **frontend:** add deepfilternet3 noise suppression, mic test and audio settings ([#32](https://github.com/Quenary/konvoez/pull/32))
+
+### Bug Fixes
+
+- **backend:** throw 400 on self message ([a351960](https://github.com/Quenary/konvoez/commit/a351960))
+
+### Code Refactoring
+
+- **frontend:** shared volume control comp ([b23f7c9](https://github.com/Quenary/konvoez/commit/b23f7c9))
+
 ## 1.19.0 (2026-10-13)
 
 ### Features
