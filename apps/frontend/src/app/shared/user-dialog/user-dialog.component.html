@@ -58,19 +58,11 @@
   </div>
 
   <ng-template #volumeDropdown>
-    <label
-      tuiLabel
-      class="volume">
-      {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
-      <input
-        tuiSlider
-        type="range"
-        min="0"
-        max="200"
-        step="1"
-        [ngModel]="volume()"
-        (ngModelChange)="onVolumeChange($event)" />
-    </label>
+    <app-volume-control
+      [id]="'user-dialog-volume-' + user.id"
+      [value]="volume()"
+      [label]="'CALL.VOLUME' | translate"
+      (valueChange)="onVolumeChange($event)" />
   </ng-template>
 
   <span tuiTitle>

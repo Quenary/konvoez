@@ -25,17 +25,9 @@
 </div>
 
 <ng-template #screenVolumeDropdown>
-  <label
-    tuiLabel
-    class="volume">
-    {{ 'CALL.SCREEN_VOLUME' | translate }}: {{ screenVolume() }}%
-    <input
-      tuiSlider
-      type="range"
-      min="0"
-      max="200"
-      step="1"
-      [ngModel]="screenVolume()"
-      (ngModelChange)="onScreenVolumeChange($event)" />
-  </label>
+  <app-volume-control
+    [id]="'theatre-screen-volume-' + userId()"
+    [value]="screenVolume()"
+    [label]="'CALL.SCREEN_VOLUME' | translate"
+    (valueChange)="onScreenVolumeChange($event)" />
 </ng-template>

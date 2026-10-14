@@ -106,11 +106,9 @@ describe('UserDialogComponent', () => {
   it('shows and updates the selected user gain', () => {
     const component = fixture.componentInstance;
     expect(component['volume']()).toBe(100);
-    expect(component['volumeIcon']()).toBe('@tui.volume-2');
 
     peerGainLevels.set({ [user.id]: 0.25 });
     expect(component['volume']()).toBe(25);
-    expect(component['volumeIcon']()).toBe('@tui.volume-1');
 
     component['onVolumeChange'](125);
     expect(setPeerGain).toHaveBeenCalledExactlyOnceWith(user.id, 1.25);

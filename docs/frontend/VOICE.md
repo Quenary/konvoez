@@ -52,7 +52,7 @@ flowchart TB
 2. **Mic** — `MicrophoneService` pipeline; mute via producer track + `VoiceAudioPreferencesStore`. Active sessions broadcast mute/deafen state changes to session peers via `SET_MUTE_STATE` (`PEER_MUTE_CHANGED`) and to lobby via entity-sync (`VOICE_ROOM_PEER_MUTED`).
 3. **Remote audio** — consume → `PeerPlaybackService` (deafen × per-peer gain).
 4. **Speaking** — `AudioActivityService` polls registered analysers for tiles/avatars. `VoiceSessionService` registers the local analyser from `MicrophoneService` for the current user when there is an active session, an analyser exists, and `VoiceAudioPreferencesStore` reports the mic unmuted (mute state only comes from the prefs store).
-5. **Direct calls** — signaling in `DirectCallService`; the user dialog (opened by `WithUserDialogDirective` through lazy `UserDialogService`) provides direct-message navigation, call initiation, and per-user playback gain control. UI on `/direct/:id` (`DirectComponent` + `app-voice-room-shell`) and sidebar (`voice-room-panel`, hanging call in rooms aside). Shared grid/overlay: `shared/components/voice-room/`.
+5. **Direct calls** — signaling in `DirectCallService`; the user dialog (opened by `WithUserDialogDirective` through lazy `UserDialogService`) provides direct-message navigation, call initiation, and per-user playback gain control. Peer and screen-stream playback gain controls share `shared/components/volume-control/`. UI on `/direct/:id` (`DirectComponent` + `app-voice-room-shell`) and sidebar (`voice-room-panel`, hanging call in rooms aside). Shared grid/overlay: `shared/components/voice-room/`.
 
 ## Ownership
 

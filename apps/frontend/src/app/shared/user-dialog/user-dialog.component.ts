@@ -6,7 +6,6 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
   IOutgoingMessageCallbacks,
@@ -19,9 +18,7 @@ import {
   TuiDialogContext,
   TuiDropdown,
   TuiHint,
-  TuiLabel,
   TuiNotificationService,
-  TuiSlider,
   TuiTitle,
 } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -31,6 +28,7 @@ import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { ChatEditorComponent } from '../components/chat/chat-editor/chat-editor.component';
 import { v4 } from 'uuid';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { VolumeControlComponent } from '../components/volume-control/volume-control.component';
 
 export interface IUserDialogData {
   readonly user: IUser;
@@ -42,17 +40,15 @@ export interface IUserDialogData {
   styleUrl: './user-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule,
     UserAvatarComponent,
     TranslatePipe,
     TuiAutoColorPipe,
     TuiButton,
     TuiDropdown,
     TuiHint,
-    TuiLabel,
-    TuiSlider,
     ChatEditorComponent,
     TuiTitle,
+    VolumeControlComponent,
   ],
 })
 export class UserDialogComponent {
