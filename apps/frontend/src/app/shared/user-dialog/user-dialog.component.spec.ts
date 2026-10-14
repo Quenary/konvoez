@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import {
@@ -11,6 +11,7 @@ import { EUserRole, IUser } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideRouter, Router } from '@angular/router';
 import { TuiNotificationService } from '@taiga-ui/core';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -32,6 +33,8 @@ describe('UserDialogComponent', () => {
   let completeWith: ReturnType<typeof vi.fn>;
   let send: ReturnType<typeof vi.fn>;
   let notifications: { open: ReturnType<typeof vi.fn> };
+  let peerGainLevels: ReturnType<typeof signal<Record<number, number>>>;
+  let setPeerGain: ReturnType<typeof vi.fn>;
 
   const user: IUser = {
     id: 42,
@@ -51,6 +54,8 @@ describe('UserDialogComponent', () => {
     notifications = {
       open: vi.fn(() => ({ subscribe: vi.fn() })),
     };
+    peerGainLevels = signal<Record<number, number>>({});
+    setPeerGain = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [UserDialogComponent],
@@ -69,6 +74,10 @@ describe('UserDialogComponent', () => {
           },
         },
         { provide: TuiNotificationService, useValue: notifications },
+        {
+          provide: VoiceAudioPreferencesStore,
+          useValue: { peerGainLevels, setPeerGain },
+        },
       ],
     })
       .overrideComponent(UserDialogComponent, {
@@ -94,8 +103,21 @@ describe('UserDialogComponent', () => {
     expect(text).toContain(user.fullname);
   });
 
+  it('shows and updates the selected user gain', () => {
+    const component = fixture.componentInstance;
+    expect(component['volume']()).toBe(100);
+    expect(component['volumeIcon']()).toBe('@tui.volume-2');
+
+    peerGainLevels.set({ [user.id]: 0.25 });
+    expect(component['volume']()).toBe(25);
+    expect(component['volumeIcon']()).toBe('@tui.volume-1');
+
+    component['onVolumeChange'](125);
+    expect(setPeerGain).toHaveBeenCalledExactlyOnceWith(user.id, 1.25);
+  });
+
   it('navigates to the direct chat and closes the dialog', () => {
-    const [chatButton] = fixture.nativeElement.querySelectorAll('button');
+    const [, chatButton] = fixture.nativeElement.querySelectorAll('button');
 
     chatButton.click();
 
@@ -177,7 +199,7 @@ describe('UserDialogComponent', () => {
   });
 
   it('starts a direct call with the selected user', () => {
-    const [, callButton] = fixture.nativeElement.querySelectorAll('button');
+    const [, , callButton] = fixture.nativeElement.querySelectorAll('button');
 
     callButton.click();
 

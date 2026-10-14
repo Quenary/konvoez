@@ -1,10 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
   IOutgoingMessageCallbacks,
@@ -15,8 +17,12 @@ import { IUser } from '@konvoez/shared';
 import {
   TuiButton,
   TuiDialogContext,
+  TuiDropdown,
   TuiHint,
+  TuiLabel,
   TuiNotificationService,
+  TuiSlider,
+  TuiTitle,
 } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import { UserAvatarComponent } from '../components/user-avatar/user-avatar.component';
@@ -24,6 +30,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { ChatEditorComponent } from '../components/chat/chat-editor/chat-editor.component';
 import { v4 } from 'uuid';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 
 export interface IUserDialogData {
   readonly user: IUser;
@@ -35,12 +42,17 @@ export interface IUserDialogData {
   styleUrl: './user-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
     UserAvatarComponent,
     TranslatePipe,
     TuiAutoColorPipe,
     TuiButton,
+    TuiDropdown,
     TuiHint,
+    TuiLabel,
+    TuiSlider,
     ChatEditorComponent,
+    TuiTitle,
   ],
 })
 export class UserDialogComponent {
@@ -51,9 +63,28 @@ export class UserDialogComponent {
   private readonly outgoingMessagesStore = inject(OutgoingMessagesStore);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly voiceAudioPreferencesStore = inject(
+    VoiceAudioPreferencesStore,
+  );
 
   protected readonly user = this.context.data.user;
   protected readonly sending = signal(false);
+  protected readonly volume = computed(() =>
+    Math.round(
+      (this.voiceAudioPreferencesStore.peerGainLevels()[this.user.id] ?? 1) *
+        100,
+    ),
+  );
+  protected readonly volumeIcon = computed(() => {
+    const volume = this.volume();
+    if (volume === 0) {
+      return '@tui.volume-off';
+    }
+    if (volume < 50) {
+      return '@tui.volume-1';
+    }
+    return '@tui.volume-2';
+  });
 
   private readonly sendCallbacks: IOutgoingMessageCallbacks = {
     onSuccess: () => {
@@ -105,5 +136,9 @@ export class UserDialogComponent {
       files,
       ...this.sendCallbacks,
     });
+  }
+
+  protected onVolumeChange(value: number): void {
+    this.voiceAudioPreferencesStore.setPeerGain(this.user.id, value / 100);
   }
 }

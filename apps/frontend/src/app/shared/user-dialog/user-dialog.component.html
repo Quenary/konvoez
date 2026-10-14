@@ -25,6 +25,18 @@
   <div class="footer-actions">
     <button
       tuiIconButton
+      appearance="flat"
+      size="s"
+      type="button"
+      tuiDropdownAuto
+      tuiDropdownDirection="top"
+      [iconStart]="volumeIcon()"
+      [tuiDropdown]="volumeDropdown"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.VOLUME' | translate">
+    </button>
+    <button
+      tuiIconButton
       iconStart="@tui.message-circle"
       type="button"
       size="s"
@@ -45,6 +57,25 @@
     </button>
   </div>
 
+  <ng-template #volumeDropdown>
+    <label
+      tuiLabel
+      class="volume">
+      {{ 'CALL.VOLUME' | translate }}: {{ volume() }}%
+      <input
+        tuiSlider
+        type="range"
+        min="0"
+        max="200"
+        step="1"
+        [ngModel]="volume()"
+        (ngModelChange)="onVolumeChange($event)" />
+    </label>
+  </ng-template>
+
+  <span tuiTitle>
+    {{ 'USER_DIALOG.QUICK_MESSAGE' | translate }}
+  </span>
   <app-chat-editor
     class="footer-editor"
     [loading]="sending()"

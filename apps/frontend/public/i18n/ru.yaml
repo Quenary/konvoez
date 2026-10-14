@@ -58,6 +58,7 @@ USER_DIALOG:
   OPEN_CHAT: Открыть чат
   CALL: Позвонить
   MESSAGE_SENT: Сообщение отправлено
+  QUICK_MESSAGE: Быстрое сообщение
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат

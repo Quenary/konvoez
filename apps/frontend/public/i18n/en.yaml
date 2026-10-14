@@ -58,6 +58,7 @@ USER_DIALOG:
   OPEN_CHAT: Open chat
   CALL: Call
   MESSAGE_SENT: Message sent
+  QUICK_MESSAGE: Quick message
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
