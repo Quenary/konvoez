@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
   input,
@@ -26,7 +27,14 @@ import { FileDropDirective } from '@shared/directives/file-drop.directive';
 import { ChatEditorComponent } from './chat-editor/chat-editor.component';
 import { ChatMessagesListComponent } from './chat-messages-list/chat-messages-list.component';
 import { ChatStore } from './chat.store';
-import { ChatTarget, chatTargetsEqual } from './chat-target';
+import {
+  ChatTarget,
+  chatTargetToApiIds,
+  chatTargetsEqual,
+} from './chat-target';
+import type { IChatEditorSubmission } from './chat-editor/chat-editor.component';
+import { toChatKey } from './composer-drafts';
+import { v4 } from 'uuid';
 
 @Component({
   selector: 'app-chat',
@@ -59,6 +67,9 @@ export class ChatComponent {
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
+  protected readonly draftKey = computed(() =>
+    toChatKey(this.roomId(), this.recipientId()),
+  );
 
   protected readonly searchControl = new FormControl<string>('', {
     nonNullable: true,
@@ -98,6 +109,46 @@ export class ChatComponent {
 
   protected onFilesDropped(files: File[]): void {
     this.editor()?.addFiles(files);
+  }
+
+  protected onMessageSubmitted({
+    content,
+    files,
+    replyToMessage,
+  }: IChatEditorSubmission): void {
+    const { roomId, recipientId } = chatTargetToApiIds(this.chatStore.target());
+    this.chatStore.createMessage({
+      tempId: v4(),
+      data: {
+        content,
+        roomId,
+        recipientId,
+        replyToId: replyToMessage?.id ?? null,
+        attachmentIds: [],
+      },
+      files,
+    });
+  }
+
+  protected onMessageEdited({
+    messageId,
+    content,
+  }: {
+    messageId: string;
+    content: string;
+  }): void {
+    this.chatStore.updateMessage({
+      messageId,
+      data: { content },
+    });
+  }
+
+  protected onReplyCancelled(): void {
+    this.chatStore.setReplyToMessageId(null);
+  }
+
+  protected onEditCancelled(): void {
+    this.chatStore.setEditableMessageId(null);
   }
 
   protected toggleSearch(): void {

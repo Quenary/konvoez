@@ -97,6 +97,8 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
+- Is online
+- Refactor backend errors, use i18n keys and unified handling on frontend
 - Add saved messages (self messages)
 - Add invite emails (if email set), 2FA via email codes
 - Add customizable roles (functions access) and groups (rooms access)

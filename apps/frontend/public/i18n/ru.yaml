@@ -6,6 +6,7 @@ GENERAL:
   NO: Нет
   SAVE: Сохранить
   CANCEL: Отмена
+  RETRY: Повторить
   CREATE: Создать
   GO_BACK: Назад
   REQ_ERR: Ошибка запроса
@@ -56,6 +57,7 @@ USER_DIALOG:
   FULLNAME: Полное имя
   OPEN_CHAT: Открыть чат
   CALL: Позвонить
+  MESSAGE_SENT: Сообщение отправлено
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
@@ -132,7 +134,6 @@ ROOMS:
   DELETE_CONFIRM: Вы уверены, что хотите удалить эту комнату?
   READ_BY: Прочитано
   NO_READERS: Сообщение еще не прочитано
-  RESEND: Отправить повторно
   ATTACH_FILES: Прикрепить файлы
   ATTACHMENT: Вложение
   DROP_FILES_HERE: Перетащите файлы сюда

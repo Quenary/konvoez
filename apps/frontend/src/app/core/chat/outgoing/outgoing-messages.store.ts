@@ -43,6 +43,11 @@ import {
 const uploadConcurrency = 3;
 const outgoingId = (message: IOutgoingMessage) => message.tempId;
 
+export interface IOutgoingMessageCallbacks {
+  readonly onSuccess?: (message: ITextRoomMessage) => void;
+  readonly onError?: (error: unknown) => void;
+}
+
 type OutgoingState = {
   uploadProgress: Record<string, number>;
 };
@@ -84,6 +89,7 @@ export const OutgoingMessagesStore = signalStore(
       notifications = inject(TuiNotificationService),
     ) => {
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
+      const callbacksByMessage = new Map<string, IOutgoingMessageCallbacks>();
 
       const showError = (error: unknown): void => {
         notifications
@@ -94,6 +100,12 @@ export const OutgoingMessagesStore = signalStore(
             label: translateService.instant('GENERAL.REQ_ERR'),
           })
           .subscribe();
+      };
+
+      const failCallback = (tempId: string, error: unknown): void => {
+        const callback = callbacksByMessage.get(tempId)?.onError;
+        callbacksByMessage.delete(tempId);
+        callback?.(error);
       };
 
       const replace = (message: IOutgoingMessage): void => {
@@ -220,7 +232,10 @@ export const OutgoingMessagesStore = signalStore(
         store.creatingSubscriptions.set(tempId, subscription);
       };
 
-      const applySettled = (message: IOutgoingMessage): void => {
+      const applySettled = (
+        message: IOutgoingMessage,
+        error?: unknown,
+      ): void => {
         const next = settle(message);
         if (next === 'remove') {
           revokeLocalFiles(message.files);
@@ -231,6 +246,8 @@ export const OutgoingMessagesStore = signalStore(
         replace(next);
         if (next.state.phase === 'creating') {
           startCreate(next.tempId);
+        } else if (next.state.phase === 'failed') {
+          failCallback(next.tempId, error);
         }
       };
 
@@ -344,7 +361,7 @@ export const OutgoingMessagesStore = signalStore(
                 });
                 const updated = store.entityMap()[tempId];
                 if (updated) {
-                  applySettled(updated);
+                  applySettled(updated, error);
                 }
                 pump();
               },
@@ -385,9 +402,11 @@ export const OutgoingMessagesStore = signalStore(
                 : file,
             ),
           });
+          failCallback(tempId, error);
           return;
         }
         replace({ ...current, state: { phase: 'failed', reason: 'create' } });
+        failCallback(tempId, error);
         showError(error);
       };
 
@@ -429,6 +448,9 @@ export const OutgoingMessagesStore = signalStore(
         dropProgress(outgoing.files.map((file) => file.localId));
         patchState(store, removeEntity(clientId));
         store.created$.next(message);
+        const callback = callbacksByMessage.get(clientId)?.onSuccess;
+        callbacksByMessage.delete(clientId);
+        callback?.(message);
         return true;
       };
 
@@ -472,12 +494,19 @@ export const OutgoingMessagesStore = signalStore(
           data,
           replyTo,
           files,
+          onSuccess,
+          onError,
         }: {
           tempId: string;
           data: IOutgoingMessage['data'];
           replyTo: IOutgoingMessage['replyTo'];
           files: readonly ILocalFile[];
+          onSuccess?: IOutgoingMessageCallbacks['onSuccess'];
+          onError?: IOutgoingMessageCallbacks['onError'];
         }): void {
+          if (onSuccess || onError) {
+            callbacksByMessage.set(tempId, { onSuccess, onError });
+          }
           const outgoingFiles: IOutgoingFile[] = files.map((file) => ({
             ...file,
             state: { status: 'queued' },
@@ -530,10 +559,13 @@ export const OutgoingMessagesStore = signalStore(
           pump();
         },
 
-        retry(tempId: string): void {
+        retry(tempId: string, callbacks?: IOutgoingMessageCallbacks): void {
           const message = store.entityMap()[tempId];
           if (!message || message.state.phase !== 'failed') {
             return;
+          }
+          if (callbacks) {
+            callbacksByMessage.set(tempId, callbacks);
           }
           const files = message.files.map((file) =>
             file.state.status === 'failed'
@@ -571,6 +603,7 @@ export const OutgoingMessagesStore = signalStore(
           }
           revokeLocalFiles(message.files);
           dropProgress(message.files.map((file) => file.localId));
+          callbacksByMessage.delete(tempId);
           store.creating.delete(tempId);
           patchState(store, removeEntity(tempId));
           pump();
@@ -582,6 +615,7 @@ export const OutgoingMessagesStore = signalStore(
           }
           store.creatingSubscriptions.clear();
           store.creating.clear();
+          callbacksByMessage.clear();
           store.waiting = [];
           for (const message of [...store.entities()]) {
             for (const file of message.files) {

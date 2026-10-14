@@ -1,18 +1,37 @@
 /** @vitest-environment jsdom */
+import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { By } from '@angular/platform-browser';
+import {
+  IOutgoingMessageCallbacks,
+  OutgoingMessagesStore,
+} from '@core/chat/outgoing/outgoing-messages.store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
+import { provideRouter, Router } from '@angular/router';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ChatEditorComponent,
+  IChatEditorSubmission,
+} from '../components/chat/chat-editor/chat-editor.component';
 import { UserDialogComponent } from './user-dialog.component';
+
+@Component({ selector: 'app-chat-editor', template: '' })
+class MockChatEditorComponent {
+  public readonly loading = input(false);
+  public readonly submitted = output<IChatEditorSubmission>();
+}
 
 describe('UserDialogComponent', () => {
   let fixture: ComponentFixture<UserDialogComponent>;
   let router: Router;
   let initiateCall: ReturnType<typeof vi.fn>;
   let completeWith: ReturnType<typeof vi.fn>;
+  let send: ReturnType<typeof vi.fn>;
+  let notifications: { open: ReturnType<typeof vi.fn> };
 
   const user: IUser = {
     id: 42,
@@ -28,6 +47,10 @@ describe('UserDialogComponent', () => {
   beforeEach(async () => {
     initiateCall = vi.fn().mockResolvedValue(undefined);
     completeWith = vi.fn();
+    send = vi.fn();
+    notifications = {
+      open: vi.fn(() => ({ subscribe: vi.fn() })),
+    };
 
     await TestBed.configureTestingModule({
       imports: [UserDialogComponent],
@@ -39,13 +62,24 @@ describe('UserDialogComponent', () => {
           useValue: { data: { user }, completeWith },
         },
         { provide: DirectCallService, useValue: { initiateCall } },
+        {
+          provide: OutgoingMessagesStore,
+          useValue: {
+            send,
+          },
+        },
+        { provide: TuiNotificationService, useValue: notifications },
       ],
-    }).compileComponents();
-
-    router = TestBed.inject(Router);
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    })
+      .overrideComponent(UserDialogComponent, {
+        remove: { imports: [ChatEditorComponent] },
+        add: { imports: [MockChatEditorComponent] },
+      })
+      .compileComponents();
 
     fixture = TestBed.createComponent(UserDialogComponent);
+    router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
     fixture.detectChanges();
   });
 
@@ -70,6 +104,76 @@ describe('UserDialogComponent', () => {
       user.id,
     ]);
     expect(completeWith).toHaveBeenCalledOnce();
+  });
+
+  it('sends a direct message with attachments, notifies success, and closes', () => {
+    const editor = fixture.debugElement.query(
+      By.directive(MockChatEditorComponent),
+    ).componentInstance as MockChatEditorComponent;
+    const files: IChatEditorSubmission['files'] = [];
+
+    editor.submitted.emit({
+      content: '<p>Hello</p>',
+      files,
+      replyToMessage: null,
+    });
+
+    const request = send.mock.calls[0]?.[0] as {
+      tempId: string;
+      onSuccess: IOutgoingMessageCallbacks['onSuccess'];
+      data: {
+        content: string;
+        roomId: number | null;
+        recipientId: number | null;
+      };
+      files: IChatEditorSubmission['files'];
+    };
+    expect(request.data).toMatchObject({
+      content: '<p>Hello</p>',
+      roomId: null,
+      recipientId: user.id,
+    });
+    expect(request.files).toBe(files);
+    expect(completeWith).not.toHaveBeenCalled();
+
+    request.onSuccess?.({
+      id: 'message-1',
+      senderId: 1,
+      senderUsername: 'sender',
+      roomId: null,
+      recipientId: user.id,
+      content: '<p>Hello</p>',
+      createdAt: new Date(),
+      updatedAt: null,
+      isRead: false,
+      attachments: [],
+      clientId: request.tempId,
+      replyTo: null,
+      reactions: [],
+    });
+    expect(completeWith).toHaveBeenCalledOnce();
+    expect(notifications.open).toHaveBeenCalledWith(
+      'USER_DIALOG.MESSAGE_SENT',
+      expect.objectContaining({ appearance: 'positive' }),
+    );
+  });
+
+  it('closes the dialog on failure without showing a duplicate notification', () => {
+    const editor = fixture.debugElement.query(
+      By.directive(MockChatEditorComponent),
+    ).componentInstance as MockChatEditorComponent;
+    editor.submitted.emit({
+      content: '<p>Hello</p>',
+      files: [],
+      replyToMessage: null,
+    });
+    const sentRequest = send.mock.calls[0]?.[0] as {
+      onError: IOutgoingMessageCallbacks['onError'];
+    };
+
+    sentRequest.onError?.(new Error('send failed'));
+    expect(completeWith).toHaveBeenCalledOnce();
+    expect(notifications.open).not.toHaveBeenCalled();
   });
 
   it('starts a direct call with the selected user', () => {

@@ -21,25 +21,32 @@
   </div>
 </dl>
 
-<footer class="actions">
-  <button
-    tuiIconButton
-    iconStart="@tui.message-circle"
-    type="button"
-    size="s"
-    tuiHintAppearance="floating"
-    [attr.aria-label]="'USER_DIALOG.OPEN_CHAT' | translate"
-    [tuiHint]="'USER_DIALOG.OPEN_CHAT' | translate"
-    (click)="onChatClick()">
-  </button>
-  <button
-    tuiIconButton
-    iconStart="@tui.phone"
-    type="button"
-    size="s"
-    tuiHintAppearance="floating"
-    [attr.aria-label]="'USER_DIALOG.CALL' | translate"
-    [tuiHint]="'USER_DIALOG.CALL' | translate"
-    (click)="onCallClick()">
-  </button>
+<footer class="footer">
+  <div class="footer-actions">
+    <button
+      tuiIconButton
+      iconStart="@tui.message-circle"
+      type="button"
+      size="s"
+      tuiHintAppearance="floating"
+      [attr.aria-label]="'USER_DIALOG.OPEN_CHAT' | translate"
+      [tuiHint]="'USER_DIALOG.OPEN_CHAT' | translate"
+      (click)="onChatClick()">
+    </button>
+    <button
+      tuiIconButton
+      iconStart="@tui.phone"
+      type="button"
+      size="s"
+      tuiHintAppearance="floating"
+      [attr.aria-label]="'USER_DIALOG.CALL' | translate"
+      [tuiHint]="'USER_DIALOG.CALL' | translate"
+      (click)="onCallClick()">
+    </button>
+  </div>
+
+  <app-chat-editor
+    class="footer-editor"
+    [loading]="sending()"
+    (submitted)="onMessageSubmitted($event)" />
 </footer>

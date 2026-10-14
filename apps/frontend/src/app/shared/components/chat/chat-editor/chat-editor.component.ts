@@ -4,6 +4,8 @@ import {
   DestroyRef,
   effect,
   inject,
+  input,
+  output,
   signal,
   untracked,
 } from '@angular/core';
@@ -18,19 +20,20 @@ import {
   TuiEditorTool,
   type TuiEditorToolType,
 } from '@taiga-ui/editor';
-import { TuiAutoColorPipe } from '@taiga-ui/kit';
-import { v4 } from 'uuid';
+import { TuiAutoColorPipe, TuiButtonLoading } from '@taiga-ui/kit';
 import { firstValueFrom } from 'rxjs';
 import { VideoPosterService } from '@core/services/video-poster.service';
 import { createKeyBindingExtension } from '@core/tiptap/create-key-binding-extension';
 import { createPasteFilesExtension } from '@core/tiptap/create-paste-files-extension';
 import { createPasteLinkExtension } from '@core/tiptap/create-paste-link-extension';
-import { SCHEMA_ERROR, messageContentSchema } from '@konvoez/shared';
+import {
+  ITextRoomMessage,
+  SCHEMA_ERROR,
+  messageContentSchema,
+} from '@konvoez/shared';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { SettingsStore } from '@core/stores/settings.store';
-import { ChatStore } from '../chat.store';
-import { chatTargetToApiIds } from '../chat-target';
-import { ComposerDraftsService, toChatKey } from '../composer-drafts';
+import { ComposerDraftsService, TChatKey } from '../composer-drafts';
 import { ChatComposerAttachmentsComponent } from '../chat-composer-attachments/chat-composer-attachments.component';
 import {
   createLocalFile,
@@ -41,6 +44,12 @@ import {
 
 const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
 
+export interface IChatEditorSubmission {
+  readonly content: string;
+  readonly files: readonly ILocalFile[];
+  readonly replyToMessage: ITextRoomMessage | null;
+}
+
 @Component({
   selector: 'app-chat-editor',
   imports: [
@@ -48,6 +57,7 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
     TranslatePipe,
     TuiButton,
     TuiButtonX,
+    TuiButtonLoading,
     TuiEditor,
     TuiAutoColorPipe,
     TextContentPipe,
@@ -137,7 +147,6 @@ const EMPTY_HTML_PATTERN = /^(\s*<p>(\s|<br\s*\/?>)*<\/p>\s*)*$/i;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatEditorComponent {
-  private readonly chatStore = inject(ChatStore);
   private readonly settingsStore = inject(SettingsStore);
   private readonly drafts = inject(ComposerDraftsService);
   private readonly videoPosterService = inject(VideoPosterService);
@@ -145,7 +154,14 @@ export class ChatEditorComponent {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
 
-  public readonly replyToMessage = this.chatStore.replyToMessage;
+  public readonly editableMessage = input<ITextRoomMessage | null>(null);
+  public readonly replyToMessage = input<ITextRoomMessage | null>(null);
+  public readonly draftKey = input<TChatKey | null>(null);
+  public readonly loading = input(false);
+  public readonly submitted = output<IChatEditorSubmission>();
+  public readonly edited = output<{ messageId: string; content: string }>();
+  public readonly replyCancelled = output<void>();
+  public readonly editCancelled = output<void>();
 
   protected readonly control = new FormControl('', {
     nonNullable: true,
@@ -164,12 +180,7 @@ export class ChatEditorComponent {
     TuiEditorTool.Link,
     TuiEditorTool.Clear,
   ];
-  protected readonly editableMessage = this.chatStore.editableMessage;
-
-  private chatKey = (() => {
-    const { roomId, recipientId } = chatTargetToApiIds(this.chatStore.target());
-    return toChatKey(roomId, recipientId);
-  })();
+  private chatKey = this.draftKey();
 
   constructor() {
     effect(() => {
@@ -180,10 +191,15 @@ export class ChatEditorComponent {
     });
 
     effect(() => {
-      const { roomId, recipientId } = chatTargetToApiIds(
-        this.chatStore.target(),
-      );
-      const nextKey = toChatKey(roomId, recipientId);
+      if (this.loading()) {
+        this.control.disable({ emitEvent: false });
+      } else {
+        this.control.enable({ emitEvent: false });
+      }
+    });
+
+    effect(() => {
+      const nextKey = this.draftKey();
       const previous = this.chatKey;
       if (previous === nextKey) {
         return;
@@ -210,7 +226,11 @@ export class ChatEditorComponent {
   }
 
   addFiles(list: readonly File[]): boolean {
-    if (!this.attachmentsEnabled() || this.editableMessage()) {
+    if (
+      this.loading() ||
+      !this.attachmentsEnabled() ||
+      this.editableMessage()
+    ) {
       if (!this.attachmentsEnabled()) {
         this.notify('ROOMS.UPLOAD_ERROR.DISABLED');
       }
@@ -272,6 +292,9 @@ export class ChatEditorComponent {
   }
 
   protected onSubmit(): void {
+    if (this.loading()) {
+      return;
+    }
     const content = this.control.value.trim();
     const editableMessage = this.editableMessage();
     const hasText = !!content && !EMPTY_HTML_PATTERN.test(content);
@@ -303,38 +326,30 @@ export class ChatEditorComponent {
     }
 
     this.control.reset();
-    const replyTo = this.replyToMessage();
 
     if (editableMessage) {
-      this.chatStore.updateMessage({
+      this.edited.emit({
         messageId: editableMessage.id,
-        data: { content: payload },
+        content: payload,
       });
       return;
     }
 
     const files = this.files();
     this.files.set([]);
-    const { roomId, recipientId } = chatTargetToApiIds(this.chatStore.target());
-    this.chatStore.createMessage({
-      tempId: v4(),
-      data: {
-        content: payload,
-        roomId,
-        recipientId,
-        replyToId: replyTo?.id ?? null,
-        attachmentIds: [],
-      },
+    this.submitted.emit({
+      content: payload,
       files,
+      replyToMessage: this.replyToMessage(),
     });
   }
 
   protected cancelEdit(): void {
-    this.chatStore.setEditableMessageId(null);
+    this.editCancelled.emit();
   }
 
   protected cancelReply(): void {
-    this.chatStore.setReplyToMessageId(null);
+    this.replyCancelled.emit();
   }
 
   private async trackPoster(localId: string, file: File): Promise<void> {

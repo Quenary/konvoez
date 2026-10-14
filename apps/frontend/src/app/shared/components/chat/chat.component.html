@@ -79,7 +79,14 @@
   appFileDrop
   (filesDropped)="onFilesDropped($event)">
   <app-chat-messages-list />
-  <app-chat-editor />
+  <app-chat-editor
+    [draftKey]="draftKey()"
+    [editableMessage]="chatStore.editableMessage()"
+    [replyToMessage]="chatStore.replyToMessage()"
+    (submitted)="onMessageSubmitted($event)"
+    (edited)="onMessageEdited($event)"
+    (replyCancelled)="onReplyCancelled()"
+    (editCancelled)="onEditCancelled()" />
   <div class="drop-overlay">
     {{ 'ROOMS.DROP_FILES_HERE' | translate }}
   </div>
