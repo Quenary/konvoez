@@ -45,6 +45,7 @@ import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.sto
 import { EAttachmentKind } from '@konvoez/shared';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
 import { ExternalLinkClickDirective } from '@shared/directives/external-link-click.directive';
+import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
 
 @Component({
   selector: 'app-chat-message',
@@ -68,6 +69,7 @@ import { ExternalLinkClickDirective } from '@shared/directives/external-link-cli
     TuiList,
     TodayDayjsPipe,
     ExternalLinkClickDirective,
+    WithUserDialogDirective,
   ],
   templateUrl: './chat-message.component.html',
   styleUrl: './chat-message.component.scss',

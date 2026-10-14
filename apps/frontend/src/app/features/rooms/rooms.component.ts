@@ -51,6 +51,7 @@ import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
+import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
 
 interface IRoomWithPeers extends IRoom {
   peers: IVoiceRoomPeerUser[];
@@ -82,6 +83,7 @@ interface IRoomWithPeers extends IRoom {
     NgOptimizedImage,
     NgTemplateOutlet,
     TuiFade,
+    WithUserDialogDirective,
   ],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',

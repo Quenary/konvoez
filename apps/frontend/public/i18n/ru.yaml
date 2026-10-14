@@ -52,6 +52,10 @@ MENU:
     INVITES: Приглашения
     USERS: Пользователи
     ADMIN: Администрирование
+USER_DIALOG:
+  FULLNAME: Полное имя
+  OPEN_CHAT: Открыть чат
+  CALL: Позвонить
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
@@ -287,6 +291,7 @@ VALIDATION:
   ROOM_TYPE: Выберите тип комнаты
   MESSAGE_LENGTH: Сообщение должно содержать 1–5000 символов
   MESSAGE_EMPTY: Сообщение должно содержать текст или файл
+  MESSAGE_TO_SELF: Нельзя отправить сообщение самому себе
   ATTACHMENTS_MAX_FILE_SIZE_RANGE: Лимит размера файла должен быть от 1 МиБ до 1 ГиБ
   ATTACHMENTS_MAX_FILES_RANGE: Количество файлов должно быть от 1 до 10
   SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации

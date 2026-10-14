@@ -52,6 +52,10 @@ MENU:
     INVITES: Invites
     USERS: Users
     ADMIN: Administration
+USER_DIALOG:
+  FULLNAME: Full name
+  OPEN_CHAT: Open chat
+  CALL: Call
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
@@ -287,6 +291,7 @@ VALIDATION:
   ROOM_TYPE: Select a room type
   MESSAGE_LENGTH: Message must be 1–5000 characters
   MESSAGE_EMPTY: Message must contain text or a file
+  MESSAGE_TO_SELF: You can't send a message to yourself
   ATTACHMENTS_MAX_FILE_SIZE_RANGE: File size limit must be between 1 MiB and 1 GiB
   ATTACHMENTS_MAX_FILES_RANGE: File count must be between 1 and 10
   SETUP_TOKEN_REQUIRED: Setup token is required for initial registration
