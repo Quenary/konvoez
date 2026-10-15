@@ -1,6 +1,6 @@
 import { ApiErrorCode, TVoiceRoomMediaTag } from '@konvoez/shared';
 import type { RtpCodecCapability } from 'mediasoup/types';
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 
 export const MAX_ROOM_VIDEO_PRODUCERS = 4;
 

@@ -23,7 +23,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthGuardRoles, AuthRefreshFallback } from './auth.decorator';

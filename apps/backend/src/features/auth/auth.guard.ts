@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from './auth.service';
 import { AuthGuardRoles, AuthRefreshFallback } from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';

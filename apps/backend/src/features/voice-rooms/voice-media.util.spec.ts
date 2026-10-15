@@ -1,4 +1,4 @@
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,

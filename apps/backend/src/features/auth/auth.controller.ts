@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ApiErrorCode } from '@konvoez/shared';
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from './auth.service';
 import {
   AuthLoginDto,

@@ -18,7 +18,7 @@ import {
   TSettingValueMap,
 } from '@konvoez/shared';
 import { SettingsEntity } from './settings.entity';
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 
 @Injectable()
 export class SettingsService implements OnApplicationBootstrap {

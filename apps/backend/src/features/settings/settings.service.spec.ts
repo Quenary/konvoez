@@ -29,7 +29,7 @@ import {
   defaultSettingValues,
   ESettingKey,
 } from '@konvoez/shared';
-import { AppException } from '../../shared/errors/app.exception';
+import { AppException } from '@shared/errors/app.exception';
 
 describe('SettingsService', () => {
   let service: SettingsService;
