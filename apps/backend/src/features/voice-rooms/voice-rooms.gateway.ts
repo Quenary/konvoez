@@ -533,7 +533,10 @@ export class VoiceRoomsGateway
           (p) => !p.closed && p.kind === 'video',
         ).length;
         if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-          throw AppException.badRequest(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
+          throw AppException.badRequest(
+            ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+            'Room video producer limit reached',
+          );
         }
       }
 

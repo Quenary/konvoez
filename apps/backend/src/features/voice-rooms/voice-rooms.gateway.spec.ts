@@ -713,7 +713,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+        message: 'Room video producer limit reached',
+      });
       expect(sendTransport.produce).not.toHaveBeenCalled();
       expect(peer.producers.size).toBe(0);
     });
