@@ -21,6 +21,7 @@ import { SettingsService } from './settings.service';
 import { SettingsEntity } from './settings.entity';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import {
+  ApiErrorCode,
   attachmentsDefaultMaxFileSize,
   attachmentsDefaultMaxFilesPerMessage,
   DEFAULT_ICE_SERVERS,
@@ -28,7 +29,7 @@ import {
   defaultSettingValues,
   ESettingKey,
 } from '@konvoez/shared';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { AppException } from '../../shared/errors/app.exception';
 
 describe('SettingsService', () => {
   let service: SettingsService;
@@ -329,12 +330,17 @@ describe('SettingsService', () => {
       });
     });
 
-    it('should throw NotFoundException when setting not found', async () => {
+    it('should throw AppException when setting not found', async () => {
       repo.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(ESettingKey.ICE_SERVERS)).rejects.toThrow(
-        NotFoundException,
+        AppException,
       );
+      await expect(
+        service.findOne(ESettingKey.ICE_SERVERS),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.SETTING_NOT_FOUND,
+      });
     });
 
     it('should return value directly in getValue', async () => {
@@ -384,12 +390,19 @@ describe('SettingsService', () => {
       expect(result).toBe(existingSetting);
     });
 
-    it('should throw BadRequestException if update value fails validation', async () => {
+    it('should throw AppException if update value fails validation', async () => {
       await expect(
         service.update(ESettingKey.ICE_SERVERS, {
           value: 'not-an-array',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(AppException);
+      await expect(
+        service.update(ESettingKey.ICE_SERVERS, {
+          value: 'not-an-array',
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VALIDATION_FAILED,
+      });
     });
   });
 

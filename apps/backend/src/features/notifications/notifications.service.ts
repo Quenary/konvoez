@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import webPush from 'web-push';
-import { pushNotificationBodyMaxLength } from '@konvoez/shared';
+import { ApiErrorCode, pushNotificationBodyMaxLength } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { htmlToPlainText } from '../../shared/utils/html-text.util';
 import { AppService } from '../../shared/services/app.service';
 import {
@@ -110,7 +111,10 @@ export class NotificationsService {
     });
 
     if (!subscription) {
-      throw new NotFoundException('Subscription not found');
+      throw AppException.notFound(
+        ApiErrorCode.PUSH_SUBSCRIPTION_NOT_FOUND,
+        'Subscription not found',
+      );
     }
 
     this.em.remove(subscription);

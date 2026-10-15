@@ -30,9 +30,8 @@ jest.mock('web-push', () => ({
 
 import webPush from 'web-push';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { PushSubscriptionEntity } from './notifications.entity';
@@ -161,7 +160,9 @@ describe('NotificationsService', () => {
 
       await expect(
         service.removeSubscription(mockUser, dto.endpoint),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.PUSH_SUBSCRIPTION_NOT_FOUND,
+      });
     });
   });
 
