@@ -40,7 +40,12 @@ import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
-import { ApiErrorCode, ESettingKey, EUserRole } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  ESettingKey,
+  EUserRole,
+  passwordRecoveryRequestCooldownMs,
+} from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
@@ -830,6 +835,26 @@ describe('AuthService', () => {
       expect(recoveryCodeRepo.create).not.toHaveBeenCalled();
       expect(cacheManager.set).toHaveBeenCalled();
     });
+
+    it('should return ok and set cooldown when user is not found', async () => {
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findOneBy.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      const result = await service.requestPasswordRecovery({
+        email: 'missing@example.com',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+      expect(recoveryCodeRepo.create).not.toHaveBeenCalled();
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        'auth:password_recovery_cooldown:missing@example.com',
+        true,
+        passwordRecoveryRequestCooldownMs,
+      );
+    });
   });
 
   describe('confirmPasswordRecovery', () => {
@@ -904,6 +929,24 @@ describe('AuthService', () => {
       await expect(
         service.confirmPasswordRecovery({
           email: 'test@example.com',
+          code: '123456',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+      });
+      expect(usersService.setPassword).not.toHaveBeenCalled();
+      expect(recoveryCodeRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('should reject with AUTH_RECOVERY_CODE_INVALID when user is not found', async () => {
+      usersService.findOneBy.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'missing@example.com',
           code: '123456',
           password: 'Password1234ab',
         }),

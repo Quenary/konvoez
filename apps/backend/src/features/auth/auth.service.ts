@@ -236,7 +236,11 @@ export class AuthService implements OnApplicationBootstrap {
     try {
       user = await this.usersService.findOneBy({ email });
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        (error instanceof AppException &&
+          error.code === ApiErrorCode.USER_NOT_FOUND) ||
+        error instanceof NotFoundException
+      ) {
         // Same response shape; still apply cooldown to limit probing.
         await this.cacheManager.set(
           cooldownKey,
@@ -314,7 +318,11 @@ export class AuthService implements OnApplicationBootstrap {
     try {
       user = await this.usersService.findOneBy({ email });
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        (error instanceof AppException &&
+          error.code === ApiErrorCode.USER_NOT_FOUND) ||
+        error instanceof NotFoundException
+      ) {
         throw AppException.badRequest(
           ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
           'Invalid or expired recovery code',
