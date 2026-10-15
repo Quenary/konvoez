@@ -66,7 +66,7 @@ Path aliases (prefer these over deep relative imports):
 - Providers are singletons by default; do not put request-mutable state on singleton services.
 - Export only what other modules need. Prefer extracting shared logic over `forwardRef()` / circular modules.
 - `@Global()` is already used for true cross-cutting modules (`SharedModule`, `AuthModule`, …); do not make every new module global.
-- Throw Nest `HttpException` subclasses (`NotFoundException`, `ForbiddenException`, …) from services when appropriate; do not return ad-hoc `{ error }` objects for control flow.
+- Throw `AppException` with `ApiErrorCode` from services when appropriate (e.g. `AppException.notFound(ApiErrorCode.USER_NOT_FOUND, '...')`); do not return ad-hoc `{ error }` objects for control flow.
 - Use lifecycle hooks (`onModuleInit`, `onApplicationShutdown`, …) for async setup/cleanup; keep constructors fast. Shutdown hooks are enabled in `main.ts`.
 
 ### Modules & DI
