@@ -25,7 +25,9 @@ describe('VoiceRoomControlsBarComponent', () => {
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
+  let toggleSpeakerMuted: ReturnType<typeof vi.fn>;
   let microphoneMuted: ReturnType<typeof signal<boolean>>;
+  let speakerMuted: ReturnType<typeof signal<boolean>>;
   let canProduce: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
@@ -42,7 +44,9 @@ describe('VoiceRoomControlsBarComponent', () => {
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
+    toggleSpeakerMuted = vi.fn();
     microphoneMuted = signal(false);
+    speakerMuted = signal(false);
     canProduce = signal(true);
 
     TestBed.configureTestingModule({
@@ -53,9 +57,9 @@ describe('VoiceRoomControlsBarComponent', () => {
           provide: VoiceAudioPreferencesStore,
           useValue: {
             microphoneMuted: microphoneMuted.asReadonly(),
-            speakerMuted: signal(false).asReadonly(),
+            speakerMuted: speakerMuted.asReadonly(),
             toggleMicrophoneMuted,
-            toggleSpeakerMuted: vi.fn(),
+            toggleSpeakerMuted,
           },
         },
         {
@@ -191,6 +195,12 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(toggleMicrophoneMuted).toHaveBeenCalledTimes(1);
   });
 
+  it('toggles the speaker', () => {
+    const fixture = create();
+    button(fixture, 1).click();
+    expect(toggleSpeakerMuted).toHaveBeenCalledTimes(1);
+  });
+
   it('precomputes micHintKey for muted and unmuted states', () => {
     microphoneMuted.set(false);
     const fixture = create();
@@ -199,6 +209,16 @@ describe('VoiceRoomControlsBarComponent', () => {
 
     microphoneMuted.set(true);
     expect(cmp['micHintKey']()).toBe('CALL.UNMUTE_MICROPHONE');
+  });
+
+  it('precomputes speakerHintKey for muted and unmuted states', () => {
+    speakerMuted.set(false);
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+    expect(cmp['speakerHintKey']()).toBe('CALL.MUTE_SPEAKER');
+
+    speakerMuted.set(true);
+    expect(cmp['speakerHintKey']()).toBe('CALL.UNMUTE_SPEAKER');
   });
 
   it('precomputes cameraHintKey and cameraDisabled for all three states', () => {

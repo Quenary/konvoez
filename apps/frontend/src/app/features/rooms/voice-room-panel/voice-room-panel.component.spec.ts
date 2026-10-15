@@ -113,9 +113,11 @@ describe('VoiceRoomPanelComponent', () => {
         HANGUP: 'Hang up',
         MUTE_MICROPHONE: 'Mute',
         UNMUTE_MICROPHONE: 'Unmute',
-        SOUND: 'Sound',
+        MUTE_SPEAKER: 'Turn off sound',
+        UNMUTE_SPEAKER: 'Turn on sound',
         CAMERA_OFF: 'Stop camera',
         SCREEN_OFF: 'Stop screen',
+        OPEN_DEVICES_SETTINGS: 'Open device settings',
       },
     });
     translate.setTranslation('ru', {
@@ -124,9 +126,11 @@ describe('VoiceRoomPanelComponent', () => {
         HANGUP: 'Положить трубку',
         MUTE_MICROPHONE: 'Выключить микрофон',
         UNMUTE_MICROPHONE: 'Включить микрофон',
-        SOUND: 'Звук',
+        MUTE_SPEAKER: 'Выключить звук',
+        UNMUTE_SPEAKER: 'Включить звук',
         CAMERA_OFF: 'Выключить камеру',
         SCREEN_OFF: 'Остановить демонстрацию',
+        OPEN_DEVICES_SETTINGS: 'Открыть настройки устройств',
       },
     });
     translate.use('en');
@@ -203,6 +207,14 @@ describe('VoiceRoomPanelComponent', () => {
     expect(instance['micHintKey']()).toBe('CALL.UNMUTE_MICROPHONE');
   });
 
+  it('precomputes speakerHintKey based on speakerMuted state', () => {
+    const { instance } = createComponent();
+    expect(instance['speakerHintKey']()).toBe('CALL.MUTE_SPEAKER');
+
+    speakerMuted.set(true);
+    expect(instance['speakerHintKey']()).toBe('CALL.UNMUTE_SPEAKER');
+  });
+
   it('navigates to direct chat on clickSession when in direct call', () => {
     isDirectCallContext.set(true);
     callWithUserId.set(42);
@@ -242,6 +254,13 @@ describe('VoiceRoomPanelComponent', () => {
 
     instance['stopScreen']();
     expect(voiceSessionService.stopScreen).toHaveBeenCalledTimes(1);
+  });
+
+  it('navigates to device settings on openDevicesSettings', () => {
+    const { instance } = createComponent();
+
+    instance['openDevicesSettings']();
+    expect(router.navigate).toHaveBeenCalledWith(['/settings/devices']);
   });
 
   it('renders camera and screen stop buttons only when tracks exist', () => {

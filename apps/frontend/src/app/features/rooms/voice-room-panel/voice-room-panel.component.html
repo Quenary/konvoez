@@ -12,7 +12,7 @@
       class="panel-button-spaced"
       (click)="clickSession()">
       @if (!collapsed()) {
-        {{ sessionTitle() | translate }}
+        <span tuiFade>{{ sessionTitle() | translate }}</span>
       }
     </button>
     <button
@@ -32,25 +32,20 @@
   tuiGroup
   [orientation]="collapsed() ? 'vertical' : 'horizontal'">
   <button
-    tuiButton
+    tuiIconButton
     type="button"
     tuiHintAppearance="floating"
-    [tuiHint]="collapsed() ? (micHintKey() | translate) : null"
-    [iconEnd]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
-    class="panel-button-spaced"
+    [tuiHint]="micHintKey() | translate"
+    [iconStart]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
     [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
     (click)="toggleMicrophoneMuted()">
-    @if (!collapsed()) {
-      {{ micHintKey() | translate }}
-    }
   </button>
   <button
     tuiIconButton
     type="button"
     tuiHintAppearance="floating"
-    [tuiHint]="'CALL.SOUND' | translate"
+    [tuiHint]="speakerHintKey() | translate"
     [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
-    class="panel-button-fixed"
     [appearance]="speakerMuted() ? 'negative' : 'neutral'"
     (click)="toggleSpeakerMuted()">
   </button>
@@ -58,7 +53,6 @@
     <button
       tuiIconButton
       iconStart="@tui.video"
-      class="panel-button-fixed"
       appearance="primary"
       type="button"
       tuiHintAppearance="floating"
@@ -70,7 +64,6 @@
     <button
       tuiIconButton
       iconStart="@tui.screen-share-off"
-      class="panel-button-fixed"
       appearance="primary"
       type="button"
       tuiHintAppearance="floating"
@@ -78,4 +71,13 @@
       (click)="stopScreen()">
     </button>
   }
+  <button
+    tuiIconButton
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.OPEN_DEVICES_SETTINGS' | translate"
+    iconStart="@tui.settings"
+    appearance="neutral"
+    (click)="openDevicesSettings()">
+  </button>
 </div>

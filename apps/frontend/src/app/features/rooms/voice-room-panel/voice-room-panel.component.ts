@@ -17,10 +17,11 @@ import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { EVoiceSessionType } from '@konvoez/shared';
+import { TuiFade } from '@taiga-ui/kit';
 
 @Component({
   selector: 'app-voice-room-panel',
-  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint],
+  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint, TuiFade],
   templateUrl: './voice-room-panel.component.html',
   styleUrl: './voice-room-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +48,9 @@ export class VoiceRoomPanelComponent {
 
   protected readonly micHintKey = computed(() =>
     this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
+  );
+  protected readonly speakerHintKey = computed(() =>
+    this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
   );
 
   protected readonly cameraOn = computed(
@@ -117,5 +121,9 @@ export class VoiceRoomPanelComponent {
 
   protected stopScreen(): void {
     void this.voiceSessionService.stopScreen();
+  }
+
+  protected openDevicesSettings(): void {
+    void this.router.navigate(['/settings/devices']);
   }
 }

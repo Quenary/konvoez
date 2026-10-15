@@ -73,6 +73,9 @@ export class VoiceRoomControlsBarComponent {
   protected readonly micHintKey = computed(() =>
     this.micMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
   );
+  protected readonly speakerHintKey = computed(() =>
+    this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
+  );
 
   protected readonly cameraHintKey = computed(() => {
     if (this.canProduce() || this.cameraOn()) {
