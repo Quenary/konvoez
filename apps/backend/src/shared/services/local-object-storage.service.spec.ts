@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -76,13 +76,17 @@ describe('LocalObjectStorageService', () => {
   it('should throw NotFoundException when file does not exist', async () => {
     await expect(
       service.getStream('rooms-avatars/non-existent.png'),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.FILE_NOT_FOUND,
+    });
   });
 
   it('should throw BadRequestException on path traversal attempt', async () => {
     await expect(
       service.getStream('../../etc/passwd', 'rooms-avatars'),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
   });
 
   it('should list and delete files in a bucket', async () => {
@@ -173,8 +177,8 @@ describe('LocalObjectStorageService', () => {
   });
 
   it('should throw BadRequestException when deleting outside storage', async () => {
-    await expect(service.delete('../../etc/passwd')).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(service.delete('../../etc/passwd')).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
   });
 });

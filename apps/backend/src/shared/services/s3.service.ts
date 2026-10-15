@@ -10,7 +10,9 @@ import {
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import fs from 'fs';
 import { Readable } from 'stream';
 import { S3ClientInjectionToken } from '../tokens/s3-client.token';
@@ -139,7 +141,10 @@ export class S3Service implements FileService {
       return { size: response.ContentLength ?? 0 };
     } catch (error) {
       if (this.isMissingObject(error)) {
-        throw new NotFoundException('File not found in S3');
+        throw AppException.notFound(
+          ApiErrorCode.FILE_NOT_FOUND,
+          'File not found in S3',
+        );
       }
       throw error;
     }
@@ -162,7 +167,10 @@ export class S3Service implements FileService {
       const response = await this.s3Client.send(command);
 
       if (!response.Body) {
-        throw new NotFoundException('File is empty or missing');
+        throw AppException.notFound(
+          ApiErrorCode.FILE_NOT_FOUND,
+          'File is empty or missing',
+        );
       }
 
       return {
@@ -172,7 +180,10 @@ export class S3Service implements FileService {
       };
     } catch (error) {
       if (this.isMissingObject(error)) {
-        throw new NotFoundException('File not found in S3');
+        throw AppException.notFound(
+          ApiErrorCode.FILE_NOT_FOUND,
+          'File not found in S3',
+        );
       }
       throw error;
     }

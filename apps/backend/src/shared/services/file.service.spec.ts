@@ -1,5 +1,5 @@
-import { PayloadTooLargeException } from '@nestjs/common';
-import { maxAvatarSize } from '@konvoez/shared';
+import { ApiErrorCode, maxAvatarSize } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import {
   assertAvatarFileSize,
   FILE_BUCKETS,
@@ -18,7 +18,12 @@ describe('assertAvatarFileSize', () => {
       assertAvatarFileSize({
         size: maxAvatarSize + 1,
       } as Express.Multer.File),
-    ).toThrow(PayloadTooLargeException);
+    ).toThrow(AppException);
+    try {
+      assertAvatarFileSize({ size: maxAvatarSize + 1 } as Express.Multer.File);
+    } catch (e) {
+      expect(e).toMatchObject({ code: ApiErrorCode.AVATAR_TOO_BIG });
+    }
   });
 
   it('ignores a missing file', () => {

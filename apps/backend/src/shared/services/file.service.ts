@@ -1,5 +1,5 @@
-import { PayloadTooLargeException } from '@nestjs/common';
-import { maxAvatarSize } from '@konvoez/shared';
+import { ApiErrorCode, maxAvatarSize } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { Readable } from 'stream';
 
 export const USER_AVATARS_BUCKET = 'users-avatars';
@@ -14,7 +14,10 @@ export function assertAvatarFileSize(
   file: Express.Multer.File | undefined,
 ): void {
   if (file && file.size > maxAvatarSize) {
-    throw new PayloadTooLargeException('Avatar file is too large');
+    throw AppException.payloadTooLarge(
+      ApiErrorCode.AVATAR_TOO_BIG,
+      'Avatar file is too large',
+    );
   }
 }
 

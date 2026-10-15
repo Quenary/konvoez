@@ -1,12 +1,14 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import {
+  ApiErrorCode,
   attachmentsMaxImagePixels,
   attachmentsMaxPosterPixels,
   attachmentsThumbnailMaxSide,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { isEnospc } from '@shared/utils/is-enospc';
 
 export interface ImageProcessingOptions {
@@ -44,7 +46,10 @@ export class ImageProcessingService {
     };
 
     if (!file?.buffer) {
-      throw new BadRequestException('File buffer is missing');
+      throw AppException.badRequest(
+        ApiErrorCode.IMAGE_INVALID,
+        'File buffer is missing',
+      );
     }
 
     try {
@@ -71,7 +76,10 @@ export class ImageProcessingService {
       this.logger.warn(
         `Failed to process image ${file.originalname}: ${error instanceof Error ? error.message : error}`,
       );
-      throw new BadRequestException('Invalid or corrupted image file');
+      throw AppException.badRequest(
+        ApiErrorCode.IMAGE_INVALID,
+        'Invalid or corrupted image file',
+      );
     }
   }
 

@@ -54,13 +54,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import multer, { MulterError } from 'multer';
-import {
-  ForbiddenException,
-  HttpException,
-  Logger,
-  PayloadTooLargeException,
-  type ExecutionContext,
-} from '@nestjs/common';
+import { Logger, type ExecutionContext } from '@nestjs/common';
 import {
   ApiErrorCode,
   ESettingKey,
@@ -142,7 +136,9 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.ATTACHMENTS_DISABLED,
+    });
     expect(multerMock).not.toHaveBeenCalled();
   });
 
@@ -151,11 +147,8 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toBeInstanceOf(HttpException);
-    await expect(
-      interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toMatchObject({
-      message: 'ATTACHMENTS_PENDING_LIMIT',
+      code: ApiErrorCode.ATTACHMENTS_PENDING_LIMIT,
       status: 429,
     });
     expect(repo.count).toHaveBeenCalledWith({
@@ -172,7 +165,9 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toBeInstanceOf(PayloadTooLargeException);
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.FILE_TOO_BIG,
+    });
     expect(multerMock).not.toHaveBeenCalled();
   });
 
@@ -186,7 +181,7 @@ describe('AttachmentUploadInterceptor', () => {
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toMatchObject({
-      message: ApiErrorCode.UPLOAD_EMPTY,
+      code: ApiErrorCode.UPLOAD_EMPTY,
       status: 400,
     });
     expect(multerMock).not.toHaveBeenCalled();
@@ -258,7 +253,7 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toMatchObject({ message: 'STORAGE_FULL', status: 507 });
+    ).rejects.toMatchObject({ code: ApiErrorCode.STORAGE_FULL, status: 507 });
   });
 
   it('forwards MulterError when the request is already destroyed', async () => {
@@ -294,7 +289,7 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED' });
+    ).rejects.toMatchObject({ code: ApiErrorCode.UPLOAD_ABORTED });
   });
 
   it('maps a closed request to a bad request', async () => {
@@ -306,7 +301,7 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toMatchObject({ message: 'UPLOAD_ABORTED', status: 400 });
+    ).rejects.toMatchObject({ code: ApiErrorCode.UPLOAD_ABORTED, status: 400 });
   });
 
   it.each([
@@ -329,7 +324,7 @@ describe('AttachmentUploadInterceptor', () => {
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toMatchObject({
-      message: ApiErrorCode.UPLOAD_MALFORMED,
+      code: ApiErrorCode.UPLOAD_MALFORMED,
       status: 400,
     });
     expect(warn).toHaveBeenCalledWith(
@@ -364,7 +359,7 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toMatchObject({ message: ApiErrorCode.UPLOAD_MALFORMED });
+    ).rejects.toMatchObject({ code: ApiErrorCode.UPLOAD_MALFORMED });
     await Promise.all(rm.mock.results.map((r) => r.value));
 
     expect(tempPath).not.toBe('');
