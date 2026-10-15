@@ -53,24 +53,22 @@ export const DirectStore = signalStore(
       });
 
       const isCurrentDirectCallActive = computed(() => {
-        if (isSelf()) {
-          return false;
-        }
+        const self = isSelf();
         const recipientId = store.recipientId();
         const callWithUserId = directCallService.callWithUserId();
+        if (self) {
+          return false;
+        }
         return recipientId !== null && callWithUserId === recipientId;
       });
 
       const canRejoinCall = computed(() => {
-        const directUser = user();
+        const self = isSelf();
+        const active = isCurrentDirectCallActive();
         const rejoinable = directCallService.rejoinableCall();
+        const directUser = user();
 
-        if (
-          isSelf() ||
-          isCurrentDirectCallActive() ||
-          !rejoinable ||
-          !directUser
-        ) {
+        if (self || active || !rejoinable || !directUser) {
           return false;
         }
         return (
@@ -80,20 +78,26 @@ export const DirectStore = signalStore(
       });
 
       const title = computed(() => {
-        if (isSelf()) {
+        const self = isSelf();
+        const directUser = user();
+        if (self) {
           return translateService.instant('DIRECT.SAVED_MESSAGES');
         }
-        return user()?.username ?? '';
+        return directUser?.username ?? '';
       });
 
-      const avatarUrl = computed(() =>
-        isSelf() ? null : (user()?.avatarUrl ?? null),
-      );
+      const avatarUrl = computed(() => {
+        const self = isSelf();
+        const directUser = user();
+        return self ? null : (directUser?.avatarUrl ?? null);
+      });
 
       const avatarIcon = computed(() => (isSelf() ? '@tui.bookmark' : null));
 
       const view = computed((): 'call' | 'chat' => {
-        if (isCurrentDirectCallActive() && !store.preferChat()) {
+        const active = isCurrentDirectCallActive();
+        const preferChat = store.preferChat();
+        if (active && !preferChat) {
           return 'call';
         }
         return 'chat';

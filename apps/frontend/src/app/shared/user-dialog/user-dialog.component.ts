@@ -67,7 +67,6 @@ export class UserDialogComponent {
   private readonly ngrxStore = inject(Store);
 
   protected readonly user = this.context.data.user;
-  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
   protected readonly isSelf = computed(
     () => this.currentUser()?.id === this.user.id,
   );
@@ -95,6 +94,7 @@ export class UserDialogComponent {
     return '@tui.volume-2';
   });
 
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
   private readonly sendCallbacks: IOutgoingMessageCallbacks = {
     onSuccess: () => {
       this.tuiNotificationsService
