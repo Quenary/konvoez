@@ -154,7 +154,8 @@ function normalizeHelperOpts(
   if (
     'params' in optsOrParams ||
     'fields' in optsOrParams ||
-    'attachmentIds' in optsOrParams
+    'attachmentIds' in optsOrParams ||
+    'message' in optsOrParams
   ) {
     const opts = optsOrParams as AppExceptionOptions;
     return { ...opts, message: message ?? opts.message };
