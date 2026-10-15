@@ -59,9 +59,13 @@ USER_DIALOG:
   CALL: Позвонить
   MESSAGE_SENT: Сообщение отправлено
   QUICK_MESSAGE: Быстрое сообщение
+  SAVED_MESSAGES: Сохраненные сообщения
+  OPEN_PROFILE: Открыть профиль
+  OPEN_DEVICES_SETTINGS: Открыть настройки устройств
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
+  SAVED_MESSAGES: Сохраненные сообщения
   SEARCH_PLACEHOLDER: Поиск собеседника...
   EMPTY_TITLE: У вас пока нет личных сообщений
   EMPTY_DESC: Нажмите кнопку, чтобы начать диалог с пользователем
@@ -95,9 +99,10 @@ CALL:
   VOLUME: Громкость
   MUTE_MICROPHONE: Выключить микрофон
   UNMUTE_MICROPHONE: Включить микрофон
+  MUTE_SPEAKER: Выключить звук
+  UNMUTE_SPEAKER: Включить звук
   MICROPHONE_MUTED: Микрофон выключен
-  SOUND: Звук
-  SOUND_OFF: Звук выключен
+  SPEAKER_OFF: Звук выключен
   CAMERA: Камера
   CAMERA_ON: Включить камеру
   CAMERA_OFF: Выключить камеру
@@ -125,6 +130,7 @@ CALL:
   SHOW_GRID: Режим сетки
   FULLSCREEN: На весь экран
   EXIT_FULLSCREEN: Выйти из полноэкранного режима
+  OPEN_DEVICES_SETTINGS: Открыть настройки устройств
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
   ROOM_CLOSED: Голосовая комната была закрыта

@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
+import { provideStore } from '@ngrx/store';
 import { TuiDialogService } from '@taiga-ui/core';
 import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
@@ -50,6 +51,9 @@ describe('DirectChatsComponent', () => {
       imports: [DirectChatsComponent],
       providers: [
         provideTranslateService(),
+        provideStore({
+          auth: () => ({ user: mockUser }),
+        }),
         { provide: DirectChatsStore, useValue: mockDirectChatsStore },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: TuiDialogService, useValue: mockDialogService },

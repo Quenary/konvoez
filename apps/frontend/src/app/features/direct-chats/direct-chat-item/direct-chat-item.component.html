@@ -5,32 +5,47 @@
   type="button"
   (click)="selected.emit(user())">
   <tui-badged-content class="chat-badge">
-    @if (unreadCountsStore.directUnreadCount(user().id); as count) {
+    @if (
+      !isSelf() && unreadCountsStore.directUnreadCount(user().id);
+      as count
+    ) {
       <tui-badge-notification
         size="s"
         tuiSlot="top">
         {{ count > 99 ? '99+' : count }}
       </tui-badge-notification>
     }
-    <app-user-avatar
-      size="m"
-      [username]="user().username"
-      [fullname]="user().fullname"
-      [avatarUrl]="user().avatarUrl" />
+    @if (isSelf()) {
+      <div
+        tuiAvatar="@tui.bookmark"
+        size="m"></div>
+    } @else {
+      <app-user-avatar
+        size="m"
+        [username]="user().username"
+        [fullname]="user().fullname"
+        [avatarUrl]="user().avatarUrl" />
+    }
   </tui-badged-content>
 
   <div tuiTitle>
-    @let u = user();
-    <span
-      [style.color]="u.username | tuiAutoColor"
-      tuiFade>
-      {{ u.username }}
-    </span>
-    <div
-      tuiSubtitle
-      tuiFade>
-      {{ u.fullname }}
-    </div>
+    @if (isSelf()) {
+      <span tuiFade>
+        {{ 'DIRECT.SAVED_MESSAGES' | translate }}
+      </span>
+    } @else {
+      @let u = user();
+      <span
+        [style.color]="u.username | tuiAutoColor"
+        tuiFade>
+        {{ u.username }}
+      </span>
+      <div
+        tuiSubtitle
+        tuiFade>
+        {{ u.fullname }}
+      </div>
+    }
   </div>
 
   <tui-icon

@@ -59,9 +59,13 @@ USER_DIALOG:
   CALL: Call
   MESSAGE_SENT: Message sent
   QUICK_MESSAGE: Quick message
+  SAVED_MESSAGES: Saved messages
+  OPEN_PROFILE: Open profile
+  OPEN_DEVICES_SETTINGS: Open device settings
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
+  SAVED_MESSAGES: Saved messages
   SEARCH_PLACEHOLDER: Search user...
   EMPTY_TITLE: No direct messages yet
   EMPTY_DESC: Click the button to start a conversation with a user
@@ -95,9 +99,10 @@ CALL:
   VOLUME: Volume
   MUTE_MICROPHONE: Mute microphone
   UNMUTE_MICROPHONE: Unmute microphone
+  MUTE_SPEAKER: Turn off sound
+  UNMUTE_SPEAKER: Turn on sound
   MICROPHONE_MUTED: Microphone muted
-  SOUND: Sound
-  SOUND_OFF: Sound off
+  SPEAKER_OFF: Sound off
   CAMERA: Camera
   CAMERA_ON: Turn on camera
   CAMERA_OFF: Turn off camera
@@ -125,6 +130,7 @@ CALL:
   SHOW_GRID: Grid mode
   FULLSCREEN: Fullscreen
   EXIT_FULLSCREEN: Exit fullscreen
+  OPEN_DEVICES_SETTINGS: Open device settings
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
   ROOM_CLOSED: This voice room was closed

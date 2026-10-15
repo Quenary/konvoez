@@ -257,8 +257,11 @@ export class TextRoomsService {
     for (const msg of messages) {
       const key = uuidStringify(msg.id);
       const readers = readersByMsg.get(key) ?? new Set<number>();
-      const isOwnMessage = msg.sender.id === currentUserId;
-      if (isOwnMessage) {
+      const isSelfMessage =
+        msg.recipient != null && msg.sender.id === msg.recipient.id;
+      if (isSelfMessage) {
+        map.set(key, true);
+      } else if (msg.sender.id === currentUserId) {
         // isRead = at least one OTHER user has read it
         const othersRead = [...readers].some((id) => id !== currentUserId);
         map.set(key, othersRead);
@@ -309,6 +312,7 @@ export class TextRoomsService {
         .where({
           id: { $nin: this.createUnreadMessageIdsSubquery(userId) },
           recipient: userId,
+          sender: { $ne: userId },
           room: null,
         })
         .groupBy('m.sender')
@@ -370,10 +374,15 @@ export class TextRoomsService {
     const baseWhere: FilterQuery<MessageEntity> = {};
 
     if (recipientId) {
-      baseWhere.$or = [
-        { sender: user.id, recipient: recipientId },
-        { sender: recipientId, recipient: user.id },
-      ];
+      if (recipientId === user.id) {
+        baseWhere.sender = user.id;
+        baseWhere.recipient = user.id;
+      } else {
+        baseWhere.$or = [
+          { sender: user.id, recipient: recipientId },
+          { sender: recipientId, recipient: user.id },
+        ];
+      }
     } else if (roomId) {
       baseWhere.room = roomId;
     } else {
@@ -505,10 +514,6 @@ export class TextRoomsService {
     user: GetUserDto,
     dto: CreateMessageDto,
   ): Promise<ITextRoomMessage> {
-    if (dto.recipientId === user.id) {
-      throw new BadRequestException('VALIDATION.MESSAGE_TO_SELF');
-    }
-
     if (dto.clientId) {
       const existing = await this.messageRepository.findOne(
         { sender: user.id, clientId: parse(dto.clientId) },
@@ -655,9 +660,10 @@ export class TextRoomsService {
       message.replyTo = replyTarget;
     }
     const attachments = await this.loadAttachments([message]);
+    const isSelfMessage = message.recipient?.id === message.sender.id;
     const messageDto = this.entityToDto(
       message,
-      false,
+      isSelfMessage,
       attachments.get(uuidStringify(message.id)) ?? [],
     );
     emitTextRoomDomainEvent(
