@@ -30,13 +30,6 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
@@ -47,7 +40,8 @@ import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
-import { ESettingKey, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, ESettingKey, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthJWTData } from './auth.dto';
 import { Request, Response } from 'express';
@@ -288,27 +282,31 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw UnauthorizedException when findOneByUsernameOrEmail throws', async () => {
+    it('should throw AppException when findOneByUsernameOrEmail throws', async () => {
       usersService.findOneByUsernameOrEmail.mockRejectedValueOnce(
         new Error('DB error'),
       );
 
       await expect(
         service.validateUser('test_user', 'password123'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+      });
     });
 
-    it('should throw UnauthorizedException when user is not found', async () => {
+    it('should throw AppException when user is not found', async () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         null as unknown as UserEntity,
       );
 
       await expect(
         service.validateUser('not_found', 'password123'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+      });
     });
 
-    it('should throw UnauthorizedException when password does not match', async () => {
+    it('should throw AppException when password does not match', async () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
       );
@@ -316,10 +314,12 @@ describe('AuthService', () => {
 
       await expect(
         service.validateUser('test_user', 'wrong_password'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+      });
     });
 
-    it('should throw UnauthorizedException when the account is deleted', async () => {
+    it('should throw AppException when the account is deleted', async () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce({
         ...mockUserEntity,
         deletedAt: new Date(),
@@ -328,7 +328,9 @@ describe('AuthService', () => {
 
       await expect(
         service.validateUser('test_user', 'password123'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+      });
       expect(usersService.toDto).not.toHaveBeenCalled();
     });
   });
@@ -400,7 +402,7 @@ describe('AuthService', () => {
       jwtService.verify.mockReturnValueOnce({ type: 'refresh', userId: 1 });
 
       expect(() => service.verifyToken('refresh_token', 'access')).toThrow(
-        new UnauthorizedException('Unauthorized'),
+        AppException,
       );
     });
 
@@ -410,7 +412,7 @@ describe('AuthService', () => {
       });
 
       expect(() => service.verifyToken('garbage', 'access')).toThrow(
-        new UnauthorizedException('Unauthorized'),
+        AppException,
       );
     });
   });
@@ -440,7 +442,9 @@ describe('AuthService', () => {
 
       await expect(
         service.getUserFromAccessToken('valid_token'),
-      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('should reject a refresh token presented as an access token', async () => {
@@ -448,7 +452,9 @@ describe('AuthService', () => {
 
       await expect(
         service.getUserFromAccessToken('refresh_token'),
-      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
       expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
     });
   });
@@ -457,17 +463,17 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException when cookies are missing in request', async () => {
       const req = {} as Request;
 
-      await expect(service.getMe(req)).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(service.getMe(req)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('should throw UnauthorizedException when access token is not in cookies', async () => {
       const req = { cookies: {} } as unknown as Request;
 
-      await expect(service.getMe(req)).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(service.getMe(req)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('should return user DTO when valid access token is in cookies', async () => {
@@ -569,11 +575,9 @@ describe('AuthService', () => {
 
       await expect(
         service.register({ ...createDto, setupToken: 'any-token' }),
-      ).rejects.toThrow(
-        new ForbiddenException(
-          'Owner setup token has expired. Please restart the instance.',
-        ),
-      );
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_SETUP_TOKEN_EXPIRED,
+      });
     });
 
     it('should throw ForbiddenException when registering owner with wrong or missing token', async () => {
@@ -582,15 +586,15 @@ describe('AuthService', () => {
 
       await expect(
         service.register({ ...createDto, setupToken: 'wrong-token' }),
-      ).rejects.toThrow(
-        new ForbiddenException('Invalid or missing owner setup token'),
-      );
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_SETUP_TOKEN_INVALID,
+      });
 
       await expect(
         service.register({ ...createDto, setupToken: undefined }),
-      ).rejects.toThrow(
-        new ForbiddenException('Invalid or missing owner setup token'),
-      );
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_SETUP_TOKEN_INVALID,
+      });
     });
 
     it('should create OWNER user and delete token from cache when registering with valid token on empty DB', async () => {
@@ -654,9 +658,9 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(1);
       userRepo.findOne.mockResolvedValueOnce(mockUserEntity);
 
-      await expect(service.register(createDto)).rejects.toThrow(
-        new ConflictException('Username already taken'),
-      );
+      await expect(service.register(createDto)).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_USERNAME_TAKEN,
+      });
       expect(userRepo.create).not.toHaveBeenCalled();
     });
 
@@ -666,9 +670,9 @@ describe('AuthService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(mockUserEntity);
 
-      await expect(service.register(createDto)).rejects.toThrow(
-        new ConflictException('Email already taken'),
-      );
+      await expect(service.register(createDto)).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_EMAIL_TAKEN,
+      });
       expect(userRepo.create).not.toHaveBeenCalled();
     });
 
@@ -676,11 +680,9 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(1);
       settingsService.getValue.mockResolvedValue(true);
 
-      await expect(service.register(createDto)).rejects.toThrow(
-        new ForbiddenException(
-          'Registration is only allowed with a valid invite code',
-        ),
-      );
+      await expect(service.register(createDto)).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_INVITE_REQUIRED,
+      });
     });
 
     it('should validate and consume invite when INVITE_ONLY_SIGN_UP is true and invite code is provided', async () => {
@@ -726,14 +728,17 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(1);
       settingsService.getValue.mockResolvedValue(true);
       invitesService.validate.mockRejectedValueOnce(
-        new ForbiddenException('Invalid invite code'),
+        AppException.forbidden(
+          ApiErrorCode.INVITE_INVALID,
+          'Invalid invite code',
+        ),
       );
 
       const dtoWithCode = { ...createDto, inviteCode: 'invalid-code' };
 
-      await expect(service.register(dtoWithCode)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.register(dtoWithCode)).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_INVALID,
+      });
       expect(userRepo.create).not.toHaveBeenCalled();
       expect(invitesService.consume).not.toHaveBeenCalled();
     });
@@ -745,7 +750,9 @@ describe('AuthService', () => {
 
       await expect(
         service.requestPasswordRecovery({ email: 'test@example.com' }),
-      ).rejects.toThrow(ServiceUnavailableException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.EMAIL_NOT_CONFIGURED,
+      });
     });
 
     it('should return ok for unknown email without sending mail', async () => {
@@ -842,7 +849,9 @@ describe('AuthService', () => {
           code: '123456',
           password: 'Password1234ab',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+      });
       expect(usersService.setPassword).not.toHaveBeenCalled();
     });
 
@@ -898,7 +907,9 @@ describe('AuthService', () => {
           code: '123456',
           password: 'Password1234ab',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+      });
       expect(usersService.setPassword).not.toHaveBeenCalled();
       expect(recoveryCodeRepo.find).not.toHaveBeenCalled();
     });
@@ -925,15 +936,19 @@ describe('AuthService', () => {
 
       await expect(
         service.resolveRefreshToken('refresh_token'),
-      ).rejects.toThrow(new UnauthorizedException('Unauthorized'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('should reject an access token presented as a refresh token', async () => {
       jwtService.verify.mockReturnValueOnce({ type: 'access', userId: 1 });
 
-      await expect(service.resolveRefreshToken('access_token')).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(
+        service.resolveRefreshToken('access_token'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
       expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
     });
   });

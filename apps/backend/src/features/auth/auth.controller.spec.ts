@@ -19,13 +19,12 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthLoginDto } from './auth.dto';
 import { GetUserDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import type { Request, Response } from 'express';
 
 describe('AuthController', () => {
@@ -102,12 +101,14 @@ describe('AuthController', () => {
   });
 
   describe('refresh', () => {
-    it('should throw UnauthorizedException when refresh token cookie is missing', async () => {
+    it('should throw AppException when refresh token cookie is missing', async () => {
       const req = { cookies: {} } as unknown as Request;
 
       await expect(
         controller.refresh(req, mockResponse as unknown as Response),
-      ).rejects.toThrow(new UnauthorizedException('No refresh token'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_NO_REFRESH_TOKEN,
+      });
       expect(mockResponse.cookie).not.toHaveBeenCalled();
     });
 

@@ -59,4 +59,104 @@ export class AppException extends HttpException {
     this.fields = effectiveFields;
     this.attachmentIds = effectiveAttachmentIds;
   }
+
+  static badRequest(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.BAD_REQUEST,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+
+  static unauthorized(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.UNAUTHORIZED,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+
+  static forbidden(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.FORBIDDEN,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+
+  static notFound(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.NOT_FOUND,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+
+  static conflict(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.CONFLICT,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+
+  static payloadTooLarge(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.PAYLOAD_TOO_LARGE,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+
+  static serviceUnavailable(
+    code: ApiErrorCode,
+    message?: string,
+    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.SERVICE_UNAVAILABLE,
+      normalizeHelperOpts(message, optsOrParams),
+    );
+  }
+}
+
+function normalizeHelperOpts(
+  message?: string,
+  optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+): AppExceptionOptions {
+  if (!optsOrParams) return { message };
+  if (
+    'params' in optsOrParams ||
+    'fields' in optsOrParams ||
+    'attachmentIds' in optsOrParams
+  ) {
+    const opts = optsOrParams as AppExceptionOptions;
+    return { ...opts, message: message ?? opts.message };
+  }
+  return { params: optsOrParams as Record<string, string | number>, message };
 }
