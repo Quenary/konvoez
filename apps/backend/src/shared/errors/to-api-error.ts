@@ -3,11 +3,31 @@ import { ApiErrorCode, type ApiErrorResponse } from '@konvoez/shared';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
 import { MulterError } from 'multer';
-import {
-  NotFoundError,
-  UniqueConstraintViolationException,
-} from '@mikro-orm/core';
+import { WsException } from '@nestjs/websockets';
 import { AppException } from './app.exception';
+
+function isUniqueConstraintViolation(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const ctorName = err.constructor?.name;
+  const errName =
+    'name' in err && typeof (err as { name: unknown }).name === 'string'
+      ? (err as { name: string }).name
+      : undefined;
+  return (
+    ctorName === 'UniqueConstraintViolationException' ||
+    errName === 'UniqueConstraintViolationException'
+  );
+}
+
+function isNotFoundError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const ctorName = err.constructor?.name;
+  const errName =
+    'name' in err && typeof (err as { name: unknown }).name === 'string'
+      ? (err as { name: string }).name
+      : undefined;
+  return ctorName === 'NotFoundError' || errName === 'NotFoundError';
+}
 
 export interface ResolvedApiError {
   status: number;
@@ -82,7 +102,7 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
     };
   }
 
-  if (exception instanceof UniqueConstraintViolationException) {
+  if (isUniqueConstraintViolation(exception)) {
     return {
       status: HttpStatus.CONFLICT,
       body: {
@@ -93,12 +113,56 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
     };
   }
 
-  if (exception instanceof NotFoundError) {
+  if (isNotFoundError(exception)) {
+    const message =
+      exception instanceof Error && exception.message
+        ? exception.message
+        : 'Entity not found';
     return {
       status: HttpStatus.NOT_FOUND,
       body: {
         code: ApiErrorCode.NOT_FOUND,
-        message: exception.message,
+        message,
+      },
+      logLevel: 'warn',
+    };
+  }
+
+  if (exception instanceof WsException) {
+    const error = exception.getError();
+    if (typeof error === 'string' && error in ApiErrorCode) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        body: {
+          code: error as ApiErrorCode,
+          message: error,
+        },
+        logLevel: 'warn',
+      };
+    }
+    if (typeof error === 'object' && error !== null && 'code' in error) {
+      const errObj = error as Record<string, unknown>;
+      const codeVal = errObj.code;
+      if (typeof codeVal === 'string' && codeVal in ApiErrorCode) {
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          body: {
+            code: codeVal as ApiErrorCode,
+            message:
+              typeof errObj.message === 'string' ? errObj.message : codeVal,
+            ...(errObj.params && typeof errObj.params === 'object'
+              ? { params: errObj.params as Record<string, string | number> }
+              : {}),
+          },
+          logLevel: 'warn',
+        };
+      }
+    }
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      body: {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
       },
       logLevel: 'warn',
     };
