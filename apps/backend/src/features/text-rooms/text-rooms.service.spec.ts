@@ -183,20 +183,51 @@ describe('TextRoomsService', () => {
   });
 
   describe('create', () => {
-    it('rejects a direct message addressed to the sender', async () => {
-      await expect(
-        service.create(mockUser, {
-          attachmentIds: [],
-          content: 'Hello',
-          roomId: null,
-          recipientId: mockUser.id,
-        }),
-      ).rejects.toThrow('VALIDATION.MESSAGE_TO_SELF');
+    it('creates a direct message addressed to the sender (self message) with isRead=true and without push notification', async () => {
+      usersService.findOne.mockResolvedValue({
+        id: mockUser.id,
+        username: mockUser.username,
+      } as unknown as UserEntity);
 
-      expect(messageRepository.findOne).not.toHaveBeenCalled();
-      expect(usersService.findOne).not.toHaveBeenCalled();
-      expect(messageRepository.create).not.toHaveBeenCalled();
-      expect(eventEmitter.emit).not.toHaveBeenCalled();
+      const msgId = parse(v7());
+      const mockCreated = {
+        id: msgId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: null,
+        recipient: { id: mockUser.id },
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.create.mockReturnValue(mockCreated);
+
+      const result = await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'Note to self',
+        roomId: null,
+        recipientId: mockUser.id,
+      });
+
+      expect(result.content).toBe('Decrypted content');
+      expect(result.senderId).toBe(mockUser.id);
+      expect(result.recipientId).toBe(mockUser.id);
+      expect(result.isRead).toBe(true);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomDomainEvents.MESSAGE_CREATED,
+        expect.objectContaining({
+          recipientId: mockUser.id,
+          senderId: mockUser.id,
+          isRead: true,
+        }),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        NotificationsDomainEvents.DIRECT_MESSAGE,
+        expect.anything(),
+      );
     });
 
     it('should create a room message successfully', async () => {
@@ -695,6 +726,41 @@ describe('TextRoomsService', () => {
       expect(result.items[0].isRead).toBe(true);
     });
 
+    it('should mark self messages as read without needing other readers', async () => {
+      const msgId = parse(v7());
+      const mockItem = {
+        id: msgId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: null,
+        recipient: { id: mockUser.id },
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([mockItem]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      const result = await service.list(mockUser, {
+        roomId: null,
+        recipientId: mockUser.id,
+        limit: 20,
+        beforeId: null,
+        afterId: null,
+      });
+
+      expect(result.items[0].isRead).toBe(true);
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sender: mockUser.id,
+          recipient: mockUser.id,
+        }),
+        expect.anything(),
+      );
+    });
+
     it('should list messages around a target id', async () => {
       const targetUuid = v7();
       const targetItem = {
@@ -1055,6 +1121,14 @@ describe('TextRoomsService', () => {
       expect(roomQb.where).toHaveBeenCalledWith(
         expect.objectContaining({
           id: { $nin: 'raw-read-subquery' },
+        }),
+      );
+      expect(directQb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: { $nin: 'raw-read-subquery' },
+          recipient: mockUser.id,
+          sender: { $ne: mockUser.id },
+          room: null,
         }),
       );
     });
