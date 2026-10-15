@@ -6,10 +6,10 @@ import {
   ConnectedSocket,
   OnGatewayDisconnect,
   OnGatewayConnection,
-  WsException,
 } from '@nestjs/websockets';
 import { Logger, OnModuleDestroy, UseFilters } from '@nestjs/common';
 import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
+import { AppException } from '@shared/errors/app.exception';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
 import {
   type IVoiceRoomConnectTransport,
@@ -241,7 +241,10 @@ export class VoiceRoomsGateway
           this.logger.warn(
             `Direct call is not available to join: socketId=${socket.id}, callId=${body.sessionTarget.callId}, userId=${socket.data.user.id}`,
           );
-          throw new WsException('Direct call is not available to join');
+          throw AppException.badRequest(
+            ApiErrorCode.CALL_NOT_JOINABLE,
+            'Direct call is not available to join',
+          );
         }
       }
     } else if (body.sessionKey) {
@@ -256,7 +259,10 @@ export class VoiceRoomsGateway
             .slice(0, 64)
             .replace(/[\r\n]/g, ' ')}`,
         );
-        throw new WsException('Invalid session key');
+        throw AppException.badRequest(
+          ApiErrorCode.VOICE_SESSION_INVALID,
+          'Invalid session key',
+        );
       }
       identity = parsed;
       if (parsed.type === EVoiceSessionType.GROUP_ROOM) {
@@ -269,7 +275,10 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `No room or session provided to join: socketId=${socket.id}, userId=${socket.data.user?.id}`,
       );
-      throw new WsException('No room or session provided to join');
+      throw AppException.badRequest(
+        ApiErrorCode.VOICE_SESSION_INVALID,
+        'No room or session provided to join',
+      );
     }
 
     const sessionKey = getVoiceSessionKey(identity);
@@ -466,7 +475,10 @@ export class VoiceRoomsGateway
       transport = peer.recvTransport;
     }
     if (!transport) {
-      throw new WsException('Transport not found');
+      throw AppException.notFound(
+        ApiErrorCode.VOICE_TRANSPORT_NOT_FOUND,
+        'Transport not found',
+      );
     }
 
     await transport.connect({
@@ -492,7 +504,10 @@ export class VoiceRoomsGateway
     return room.produceMutex.runExclusive(async () => {
       const transport = peer.sendTransport;
       if (!transport) {
-        throw new WsException('Send transport not created');
+        throw AppException.notFound(
+          ApiErrorCode.VOICE_TRANSPORT_NOT_FOUND,
+          'Send transport not created',
+        );
       }
 
       const hasScreen = [...peer.producers.values()].some(
@@ -518,7 +533,7 @@ export class VoiceRoomsGateway
           (p) => !p.closed && p.kind === 'video',
         ).length;
         if (videoCount >= MAX_ROOM_VIDEO_PRODUCERS) {
-          throw new WsException(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
+          throw AppException.badRequest(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
         }
       }
 
@@ -662,13 +677,19 @@ export class VoiceRoomsGateway
 
     const transport = peer.recvTransport;
     if (!transport) {
-      throw new WsException('Receive transport not created');
+      throw AppException.notFound(
+        ApiErrorCode.VOICE_TRANSPORT_NOT_FOUND,
+        'Receive transport not created',
+      );
     }
 
     const producer = room.producers.get(body.producerId);
 
     if (!producer) {
-      throw new WsException('Producer not found');
+      throw AppException.notFound(
+        ApiErrorCode.VOICE_PRODUCER_NOT_FOUND,
+        'Producer not found',
+      );
     }
 
     if (
@@ -677,7 +698,10 @@ export class VoiceRoomsGateway
         rtpCapabilities: body.rtpCapabilities as unknown as RtpCapabilities,
       })
     ) {
-      throw new WsException('Cannot consume');
+      throw AppException.badRequest(
+        ApiErrorCode.VOICE_CANNOT_CONSUME,
+        'Cannot consume',
+      );
     }
 
     const consumer: Consumer<VoiceRoomStateMediasoupAppData> =
@@ -935,7 +959,10 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
-      throw new WsException('Socket missing session key');
+      throw AppException.badRequest(
+        ApiErrorCode.VOICE_SESSION_INVALID,
+        'Socket missing session key',
+      );
     }
     return sessionKey;
   }
@@ -946,13 +973,19 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Socket without session: socketId=${socket.id}, rooms=${Array.from(socket.rooms)}`,
       );
-      throw new WsException('Socket missing session key');
+      throw AppException.badRequest(
+        ApiErrorCode.VOICE_SESSION_INVALID,
+        'Socket missing session key',
+      );
     }
     if (!socket.rooms.has(sessionKey)) {
       this.logger.warn(
         `Socket not in session: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
-      throw new WsException('Socket not in session');
+      throw AppException.badRequest(
+        ApiErrorCode.VOICE_SESSION_INVALID,
+        'Socket not in session',
+      );
     }
   }
 
@@ -965,7 +998,10 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Room not found: socketId=${socket.id}, sessionKey=${sessionKey}`,
       );
-      throw new WsException(`Room not found for session: ${sessionKey}`);
+      throw AppException.notFound(
+        ApiErrorCode.ROOM_NOT_FOUND,
+        `Room not found for session: ${sessionKey}`,
+      );
     }
 
     const peer = room.peers.get(socket.id);
@@ -973,7 +1009,8 @@ export class VoiceRoomsGateway
       this.logger.warn(
         `Peer not registered in room: socketId=${socket.id}, sessionKey=${sessionKey}, roomPeers=${Array.from(room.peers.keys())}`,
       );
-      throw new WsException(
+      throw AppException.badRequest(
+        ApiErrorCode.VOICE_SESSION_INVALID,
         `Socket peer not registered in session: ${sessionKey}`,
       );
     }

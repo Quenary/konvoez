@@ -55,6 +55,7 @@ export class AppException extends HttpException {
       status,
     );
 
+    this.message = effectiveMessage;
     this.params = params;
     this.fields = effectiveFields;
     this.attachmentIds = effectiveAttachmentIds;

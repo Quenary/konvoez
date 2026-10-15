@@ -1,4 +1,4 @@
-import { WsException } from '@nestjs/websockets';
+import { AppException } from '../../shared/errors/app.exception';
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,
@@ -37,25 +37,25 @@ describe('voice-media.util', () => {
     expect(isVideoMediaTag('mic')).toBe(false);
   });
 
-  it('rejects unknown mediaTag and invalid kind with WsException', () => {
-    expect(() => assertKnownMediaTag('webcam', 'video')).toThrow(WsException);
+  it('rejects unknown mediaTag and invalid kind with AppException', () => {
+    expect(() => assertKnownMediaTag('webcam', 'video')).toThrow(AppException);
     expect(() => assertKnownMediaTag('webcam', 'video')).toThrow(
       /Unknown mediaTag/,
     );
-    expect(() => assertKnownMediaTag('mic', 'text')).toThrow(WsException);
+    expect(() => assertKnownMediaTag('mic', 'text')).toThrow(AppException);
     expect(() => assertKnownMediaTag('mic', 'text')).toThrow(/Invalid kind/);
     expect(() => assertKnownMediaTag('mic', 'audio')).not.toThrow();
   });
 
-  it('rejects mismatched kind and mediaTag with WsException', () => {
+  it('rejects mismatched kind and mediaTag with AppException', () => {
     expect(() => assertKindMatchesMediaTag('audio', 'cam')).toThrow(
-      WsException,
+      AppException,
     );
     expect(() => assertKindMatchesMediaTag('audio', 'cam')).toThrow(
       /Invalid kind/,
     );
     expect(() => assertKindMatchesMediaTag('video', 'mic')).toThrow(
-      WsException,
+      AppException,
     );
     expect(() => assertKindMatchesMediaTag('video', 'mic')).toThrow(
       /Invalid kind/,
@@ -63,9 +63,9 @@ describe('voice-media.util', () => {
     expect(() => assertKindMatchesMediaTag('video', 'cam')).not.toThrow();
   });
 
-  it('requires screen producer for screen-audio with WsException', () => {
+  it('requires screen producer for screen-audio with AppException', () => {
     expect(() => assertScreenAudioAllowed('screen-audio', false)).toThrow(
-      WsException,
+      AppException,
     );
     expect(() => assertScreenAudioAllowed('screen-audio', false)).toThrow(
       /screen-audio requires/,

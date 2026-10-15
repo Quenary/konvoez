@@ -1,6 +1,6 @@
-import { TVoiceRoomMediaTag } from '@konvoez/shared';
-import { WsException } from '@nestjs/websockets';
+import { ApiErrorCode, TVoiceRoomMediaTag } from '@konvoez/shared';
 import type { RtpCodecCapability } from 'mediasoup/types';
+import { AppException } from '../../shared/errors/app.exception';
 
 export const MAX_ROOM_VIDEO_PRODUCERS = 4;
 
@@ -65,7 +65,8 @@ export function assertKnownMediaTag(
   kind: unknown,
 ): asserts mediaTag is TVoiceRoomMediaTag {
   if (kind !== 'audio' && kind !== 'video') {
-    throw new WsException(
+    throw AppException.badRequest(
+      ApiErrorCode.VOICE_MEDIA_INVALID,
       `Invalid kind "${String(kind)}" (expected "audio" or "video")`,
     );
   }
@@ -73,7 +74,10 @@ export function assertKnownMediaTag(
     typeof mediaTag !== 'string' ||
     !(KNOWN_MEDIA_TAGS as readonly string[]).includes(mediaTag)
   ) {
-    throw new WsException(`Unknown mediaTag "${String(mediaTag)}"`);
+    throw AppException.badRequest(
+      ApiErrorCode.VOICE_MEDIA_INVALID,
+      `Unknown mediaTag "${String(mediaTag)}"`,
+    );
   }
 }
 
@@ -93,7 +97,8 @@ export function assertKindMatchesMediaTag(
 ): void {
   const expected = expectedKindForMediaTag(mediaTag);
   if (kind !== expected) {
-    throw new WsException(
+    throw AppException.badRequest(
+      ApiErrorCode.VOICE_MEDIA_INVALID,
       `Invalid kind "${kind}" for mediaTag "${mediaTag}" (expected "${expected}")`,
     );
   }
@@ -104,6 +109,9 @@ export function assertScreenAudioAllowed(
   hasScreenProducer: boolean,
 ): void {
   if (mediaTag === 'screen-audio' && !hasScreenProducer) {
-    throw new WsException('screen-audio requires an active screen producer');
+    throw AppException.badRequest(
+      ApiErrorCode.VOICE_MEDIA_INVALID,
+      'screen-audio requires an active screen producer',
+    );
   }
 }
