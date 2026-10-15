@@ -1,8 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { PasswordService } from '../../shared/services/password.service';
 import {
   FileServiceInjectionToken,
@@ -37,7 +39,10 @@ export class UsersService {
   async findOne(id: number): Promise<UserEntity> {
     const user = await this.repo.findOne({ id });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'User not found',
+      );
     }
     return user;
   }
@@ -51,7 +56,10 @@ export class UsersService {
     const em = this.em.fork();
     const user = await em.findOne(UserEntity, where);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'User not found',
+      );
     }
     return user;
   }
@@ -62,7 +70,10 @@ export class UsersService {
       $or: [{ username: login }, { email: login.toLowerCase() }],
     });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'User not found',
+      );
     }
     return user;
   }
@@ -124,7 +135,10 @@ export class UsersService {
     const files = await this.em.transactional(async (em) => {
       const user = await em.findOne(UserEntity, { id });
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw AppException.notFound(
+          ApiErrorCode.USER_NOT_FOUND,
+          'User not found',
+        );
       }
 
       const rooms = await em.find(RoomEntity, { author: id });
