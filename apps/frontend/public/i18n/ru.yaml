@@ -62,6 +62,7 @@ USER_DIALOG:
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
+  SAVED_MESSAGES: Сохраненные сообщения
   SEARCH_PLACEHOLDER: Поиск собеседника...
   EMPTY_TITLE: У вас пока нет личных сообщений
   EMPTY_DESC: Нажмите кнопку, чтобы начать диалог с пользователем

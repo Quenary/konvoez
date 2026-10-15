@@ -62,6 +62,7 @@ USER_DIALOG:
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
+  SAVED_MESSAGES: Saved messages
   SEARCH_PLACEHOLDER: Search user...
   EMPTY_TITLE: No direct messages yet
   EMPTY_DESC: Click the button to start a conversation with a user

@@ -1,13 +1,18 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
   output,
 } from '@angular/core';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
+import { TranslatePipe } from '@ngx-translate/core';
 import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import {
   TuiAutoColorPipe,
+  TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
   TuiFade,
@@ -22,6 +27,8 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
     TuiCell,
     TuiIcon,
     TuiTitle,
+    TuiAvatar,
+    TranslatePipe,
     UserAvatarComponent,
     TuiAutoColorPipe,
     TuiBadgedContent,
@@ -33,8 +40,16 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DirectChatItemComponent {
+  private readonly ngrxStore = inject(Store);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   readonly user = input.required<IUser>();
   readonly selected = output<IUser>();
+
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
+  protected readonly isSelf = computed(() => {
+    const current = this.currentUser();
+    const user = this.user();
+    return current?.id === user.id;
+  });
 }

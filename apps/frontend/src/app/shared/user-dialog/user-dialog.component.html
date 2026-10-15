@@ -23,18 +23,20 @@
 
 <footer class="footer">
   <div class="footer-actions">
-    <button
-      tuiIconButton
-      appearance="flat"
-      size="s"
-      type="button"
-      tuiDropdownAuto
-      tuiDropdownDirection="top"
-      [iconStart]="volumeIcon()"
-      [tuiDropdown]="volumeDropdown"
-      tuiHintAppearance="floating"
-      [tuiHint]="'CALL.VOLUME' | translate">
-    </button>
+    @if (!isSelf()) {
+      <button
+        tuiIconButton
+        appearance="flat"
+        size="s"
+        type="button"
+        tuiDropdownAuto
+        tuiDropdownDirection="top"
+        [iconStart]="volumeIcon()"
+        [tuiDropdown]="volumeDropdown"
+        tuiHintAppearance="floating"
+        [tuiHint]="'CALL.VOLUME' | translate">
+      </button>
+    }
     <button
       tuiIconButton
       iconStart="@tui.message-circle"
@@ -45,16 +47,18 @@
       [tuiHint]="'USER_DIALOG.OPEN_CHAT' | translate"
       (click)="onChatClick()">
     </button>
-    <button
-      tuiIconButton
-      iconStart="@tui.phone"
-      type="button"
-      size="s"
-      tuiHintAppearance="floating"
-      [attr.aria-label]="'USER_DIALOG.CALL' | translate"
-      [tuiHint]="'USER_DIALOG.CALL' | translate"
-      (click)="onCallClick()">
-    </button>
+    @if (!isSelf()) {
+      <button
+        tuiIconButton
+        iconStart="@tui.phone"
+        type="button"
+        size="s"
+        tuiHintAppearance="floating"
+        [attr.aria-label]="'USER_DIALOG.CALL' | translate"
+        [tuiHint]="'USER_DIALOG.CALL' | translate"
+        (click)="onCallClick()">
+      </button>
+    }
   </div>
 
   <ng-template #volumeDropdown>

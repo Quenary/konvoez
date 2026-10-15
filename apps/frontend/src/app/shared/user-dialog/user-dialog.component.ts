@@ -6,6 +6,8 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
   IOutgoingMessageCallbacks,
@@ -62,8 +64,13 @@ export class UserDialogComponent {
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
   );
+  private readonly ngrxStore = inject(Store);
 
   protected readonly user = this.context.data.user;
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
+  protected readonly isSelf = computed(
+    () => this.currentUser()?.id === this.user.id,
+  );
   protected readonly sending = signal(false);
   protected readonly volume = computed(() =>
     Math.round(

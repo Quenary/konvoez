@@ -16,6 +16,9 @@ import { IUser } from '@konvoez/shared';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { UsersStore } from '@core/stores/users.store';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
+import { TranslateService } from '@ngx-translate/core';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
@@ -40,6 +43,10 @@ export class DirectComponent {
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly usersStore = inject(UsersStore);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
+  private readonly ngrxStore = inject(Store);
+  private readonly translateService = inject(TranslateService);
+
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
 
   protected readonly recipientId = toSignal(
     this.activatedRoute.paramMap.pipe(
@@ -51,10 +58,20 @@ export class DirectComponent {
     { initialValue: null },
   );
 
+  protected readonly isSelf = computed(() => {
+    const id = this.recipientId();
+    const current = this.currentUser();
+    return id !== null && current !== undefined && id === current?.id;
+  });
+
   /** True when the route recipient matches the active direct call target. */
   protected readonly isCurrentDirectCallActive = computed(() => {
+    const isSelf = this.isSelf();
     const recipientId = this.recipientId();
     const callWithUserId = this.directCallService.callWithUserId();
+    if (isSelf) {
+      return false;
+    }
     return recipientId !== null && callWithUserId === recipientId;
   });
 
@@ -73,15 +90,30 @@ export class DirectComponent {
     return entityMap[id] ?? null;
   });
 
-  protected readonly title = computed(() => this.user()?.username ?? '');
-  protected readonly avatarUrl = computed(() => this.user()?.avatarUrl ?? null);
+  protected readonly title = computed(() => {
+    const isSelf = this.isSelf();
+    const user = this.user();
+    if (isSelf) {
+      return this.translateService.instant('DIRECT.SAVED_MESSAGES');
+    }
+    return user?.username ?? '';
+  });
+
+  protected readonly avatarUrl = computed(() =>
+    this.isSelf() ? null : (this.user()?.avatarUrl ?? null),
+  );
+
+  protected readonly avatarIcon = computed(() =>
+    this.isSelf() ? '@tui.bookmark' : null,
+  );
 
   protected readonly canRejoinCall = computed(() => {
+    const isSelf = this.isSelf();
     const isCurrentDirectCallActive = this.isCurrentDirectCallActive();
     const rejoinable = this.directCallService.rejoinableCall();
     const directUser = this.user();
 
-    if (isCurrentDirectCallActive || !rejoinable || !directUser) {
+    if (isSelf || isCurrentDirectCallActive || !rejoinable || !directUser) {
       return false;
     }
     return (
@@ -104,7 +136,8 @@ export class DirectComponent {
 
     effect(() => {
       const id = this.recipientId();
-      if (id !== null) {
+      const isSelf = this.isSelf();
+      if (id !== null && !isSelf) {
         untracked(() => {
           void this.directCallService.refreshActiveCall(id);
         });

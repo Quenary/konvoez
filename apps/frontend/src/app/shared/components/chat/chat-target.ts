@@ -32,6 +32,7 @@ export function chatTargetToApiIds(target: ChatTarget | null): {
 export function messageBelongsToChat(
   message: Pick<ITextRoomMessage, 'roomId' | 'recipientId' | 'senderId'>,
   target: ChatTarget | null,
+  currentUserId?: number | null,
 ): boolean {
   if (!target) {
     return false;
@@ -39,8 +40,15 @@ export function messageBelongsToChat(
   if (target.kind === 'room') {
     return message.roomId === target.id;
   }
-  return (
-    message.roomId === null &&
-    (message.senderId === target.id || message.recipientId === target.id)
-  );
+  if (message.roomId !== null) {
+    return false;
+  }
+  if (currentUserId != null) {
+    return (
+      (message.senderId === currentUserId &&
+        message.recipientId === target.id) ||
+      (message.senderId === target.id && message.recipientId === currentUserId)
+    );
+  }
+  return message.senderId === target.id || message.recipientId === target.id;
 }

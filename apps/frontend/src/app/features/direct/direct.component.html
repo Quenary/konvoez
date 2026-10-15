@@ -12,9 +12,10 @@
       <app-chat
         [recipientId]="id"
         [title]="_title"
-        [avatarUrl]="_avatarUrl">
+        [avatarUrl]="_avatarUrl"
+        [avatarIcon]="avatarIcon()">
         <div chatHeaderActions>
-          @if (user(); as directUser) {
+          @if (!isSelf() && user(); as directUser) {
             @if (isCurrentDirectCallActive()) {
               <div tuiGroup>
                 <button

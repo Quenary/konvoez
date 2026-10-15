@@ -6,7 +6,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import {
   TuiButton,
@@ -44,6 +44,7 @@ export class DirectChatDialogComponent implements OnInit {
     injectContext<TuiDialogContext<IUser | null, void>>();
   private readonly usersStore = inject(UsersStore);
   private readonly ngrxStore = inject(Store);
+  private readonly translateService = inject(TranslateService);
 
   private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
 
@@ -58,18 +59,32 @@ export class DirectChatDialogComponent implements OnInit {
     const query = this.searchQuery().trim().toLowerCase();
     const currentUserId = this.currentUser()?.id;
     const allUsers = this.usersStore.entities();
+    const savedTitle = this.translateService
+      .instant('DIRECT.SAVED_MESSAGES')
+      .toLowerCase();
 
-    return allUsers.filter((user) => {
-      if (user.id === currentUserId) {
-        return false;
-      }
+    const filtered = allUsers.filter((user) => {
+      const isSelf = user.id === currentUserId;
       if (!query) {
         return true;
+      }
+      if (isSelf) {
+        return (
+          savedTitle.includes(query) ||
+          user.username.toLowerCase().includes(query) ||
+          user.fullname.toLowerCase().includes(query)
+        );
       }
       return (
         user.username.toLowerCase().includes(query) ||
         user.fullname.toLowerCase().includes(query)
       );
+    });
+
+    return filtered.sort((a, b) => {
+      if (a.id === currentUserId) return -1;
+      if (b.id === currentUserId) return 1;
+      return 0;
     });
   });
 
