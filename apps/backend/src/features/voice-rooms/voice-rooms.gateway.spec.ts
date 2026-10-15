@@ -33,7 +33,7 @@ import {
   EDirectCallEvent,
   EUserRole,
   EVoiceRoomEvent,
-  EVoiceRoomErrorCode,
+  ApiErrorCode,
   EVoiceSessionType,
   type IUser,
   type IVoiceRoomProduce,
@@ -713,7 +713,7 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+      ).rejects.toThrow(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
       expect(sendTransport.produce).not.toHaveBeenCalled();
       expect(peer.producers.size).toBe(0);
     });
@@ -856,7 +856,7 @@ describe('VoiceRoomsGateway', () => {
         (
           (rejected[0] as PromiseRejectedResult).reason as WsException
         ).getError(),
-      ).toBe(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+      ).toBe(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
       expect(room.producers.size).toBe(4);
     });
 

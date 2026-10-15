@@ -9,8 +9,8 @@ import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
+  ApiErrorCode,
   EAttachmentKind,
-  EAttachmentUploadError,
   EUserRole,
   IAttachment,
   ITextRoomMessage,
@@ -282,8 +282,8 @@ describe('OutgoingMessagesStore', () => {
   });
 
   it.each([
-    [EAttachmentUploadError.EMPTY, 'unreadable'],
-    [EAttachmentUploadError.MALFORMED, 'unreadable'],
+    [ApiErrorCode.UPLOAD_EMPTY, 'unreadable'],
+    [ApiErrorCode.UPLOAD_MALFORMED, 'unreadable'],
     ['UPLOAD_ABORTED', 'server'],
   ])('maps a 400 %s upload error to %s', (message, code) => {
     store.send({

@@ -19,3 +19,4 @@ export * from './schemas/voice-session.schemas';
 export * from './schemas/entity-sync.schemas';
 export * from './schemas/attachment.schemas';
 export * from './desktop';
+export * from './errors';

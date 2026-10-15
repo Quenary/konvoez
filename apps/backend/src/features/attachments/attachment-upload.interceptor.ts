@@ -15,7 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import {
-  EAttachmentUploadError,
+  ApiErrorCode,
   ESettingKey,
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
@@ -102,7 +102,7 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
       this.logger.warn(
         `Empty upload body: userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
       );
-      throw new BadRequestException(EAttachmentUploadError.EMPTY);
+      throw new BadRequestException(ApiErrorCode.UPLOAD_EMPTY);
     }
     const contentLength = Number(req.headers['content-length'] ?? 0);
     if (contentLength > maxFileSize + attachmentsMaxPosterSize + 64 * 1024) {
@@ -158,7 +158,7 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
           this.logger.warn(
             `Malformed upload body: error=${error.message}, contentLength=${req.headers['content-length'] ?? 'none'}, userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
           );
-          reject(new BadRequestException(EAttachmentUploadError.MALFORMED));
+          reject(new BadRequestException(ApiErrorCode.UPLOAD_MALFORMED));
           return;
         }
         reject(error);

@@ -62,7 +62,7 @@ import {
   type ExecutionContext,
 } from '@nestjs/common';
 import {
-  EAttachmentUploadError,
+  ApiErrorCode,
   ESettingKey,
   attachmentsMaxPendingPerUser,
 } from '@konvoez/shared';
@@ -186,7 +186,7 @@ describe('AttachmentUploadInterceptor', () => {
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toMatchObject({
-      message: EAttachmentUploadError.EMPTY,
+      message: ApiErrorCode.UPLOAD_EMPTY,
       status: 400,
     });
     expect(multerMock).not.toHaveBeenCalled();
@@ -329,7 +329,7 @@ describe('AttachmentUploadInterceptor', () => {
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
     ).rejects.toMatchObject({
-      message: EAttachmentUploadError.MALFORMED,
+      message: ApiErrorCode.UPLOAD_MALFORMED,
       status: 400,
     });
     expect(warn).toHaveBeenCalledWith(
@@ -364,7 +364,7 @@ describe('AttachmentUploadInterceptor', () => {
 
     await expect(
       interceptor.intercept(context(), { handle: () => of(null) }),
-    ).rejects.toMatchObject({ message: EAttachmentUploadError.MALFORMED });
+    ).rejects.toMatchObject({ message: ApiErrorCode.UPLOAD_MALFORMED });
     await Promise.all(rm.mock.results.map((r) => r.value));
 
     expect(tempPath).not.toBe('');

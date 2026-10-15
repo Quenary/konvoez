@@ -1,10 +1,10 @@
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { EVoiceRoomErrorCode } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { parseError } from './parse-error.function';
 
 const SERVER_ERROR_KEYS: Record<string, string> = {
-  [EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED]: 'CALL.VIDEO_LIMIT_REACHED',
+  [ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED]: 'CALL.VIDEO_LIMIT_REACHED',
 };
 
 function resolveMessageKey(key: string, error?: unknown): string {

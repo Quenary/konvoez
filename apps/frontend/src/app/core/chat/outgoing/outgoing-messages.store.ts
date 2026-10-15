@@ -2,8 +2,8 @@ import { DestroyRef, computed, effect, inject } from '@angular/core';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
+  ApiErrorCode,
   EAttachmentKind,
-  EAttachmentUploadError,
   ITextRoomMessage,
 } from '@konvoez/shared';
 import {
@@ -680,8 +680,14 @@ function isUnreadableUpload(error: HttpErrorResponse): boolean {
     typeof body === 'object' && body !== null && 'message' in body
       ? body.message
       : null;
+  const code =
+    typeof body === 'object' && body !== null && 'code' in body
+      ? (body as { code: unknown }).code
+      : null;
   return (
-    message === EAttachmentUploadError.EMPTY ||
-    message === EAttachmentUploadError.MALFORMED
+    code === ApiErrorCode.UPLOAD_EMPTY ||
+    code === ApiErrorCode.UPLOAD_MALFORMED ||
+    message === ApiErrorCode.UPLOAD_EMPTY ||
+    message === ApiErrorCode.UPLOAD_MALFORMED
   );
 }
