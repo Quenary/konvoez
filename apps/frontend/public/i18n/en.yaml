@@ -59,6 +59,9 @@ USER_DIALOG:
   CALL: Call
   MESSAGE_SENT: Message sent
   QUICK_MESSAGE: Quick message
+  SAVED_MESSAGES: Saved messages
+  OPEN_PROFILE: Open profile
+  OPEN_DEVICES_SETTINGS: Open device settings
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat

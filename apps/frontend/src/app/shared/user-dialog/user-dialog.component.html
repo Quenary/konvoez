@@ -43,11 +43,32 @@
       type="button"
       size="s"
       tuiHintAppearance="floating"
-      [attr.aria-label]="'USER_DIALOG.OPEN_CHAT' | translate"
-      [tuiHint]="'USER_DIALOG.OPEN_CHAT' | translate"
+      [attr.aria-label]="chatHintKey() | translate"
+      [tuiHint]="chatHintKey() | translate"
       (click)="onChatClick()">
     </button>
-    @if (!isSelf()) {
+    @if (isSelf()) {
+      <button
+        tuiIconButton
+        iconStart="@tui.user-pen"
+        type="button"
+        size="s"
+        tuiHintAppearance="floating"
+        [attr.aria-label]="'USER_DIALOG.OPEN_PROFILE' | translate"
+        [tuiHint]="'USER_DIALOG.OPEN_PROFILE' | translate"
+        (click)="onProfileClick()">
+      </button>
+      <button
+        tuiIconButton
+        iconStart="@tui.file-headphone"
+        type="button"
+        size="s"
+        tuiHintAppearance="floating"
+        [attr.aria-label]="'USER_DIALOG.OPEN_DEVICES_SETTINGS' | translate"
+        [tuiHint]="'USER_DIALOG.OPEN_DEVICES_SETTINGS' | translate"
+        (click)="onDevicesClick()">
+      </button>
+    } @else {
       <button
         tuiIconButton
         iconStart="@tui.phone"
@@ -70,7 +91,7 @@
   </ng-template>
 
   <span tuiTitle>
-    {{ 'USER_DIALOG.QUICK_MESSAGE' | translate }}
+    {{ messageTitleKey() | translate }}
   </span>
   <app-chat-editor
     class="footer-editor"

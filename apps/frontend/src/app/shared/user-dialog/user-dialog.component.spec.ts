@@ -48,9 +48,14 @@ describe('UserDialogComponent', () => {
     updatedAt: null,
   };
 
+  let currentDialogUser: IUser;
+  let currentCompleteWith: ReturnType<typeof vi.fn>;
+
   beforeEach(async () => {
     initiateCall = vi.fn().mockResolvedValue(undefined);
     completeWith = vi.fn();
+    currentDialogUser = user;
+    currentCompleteWith = completeWith;
     send = vi.fn();
     notifications = {
       open: vi.fn(() => ({ subscribe: vi.fn() })),
@@ -68,7 +73,13 @@ describe('UserDialogComponent', () => {
         }),
         {
           provide: POLYMORPHEUS_CONTEXT,
-          useValue: { data: { user }, completeWith },
+          useFactory: () => ({
+            get data() {
+              return { user: currentDialogUser };
+            },
+            completeWith: (...args: unknown[]) =>
+              Reflect.apply(currentCompleteWith, null, args),
+          }),
         },
         { provide: DirectCallService, useValue: { initiateCall } },
         {
@@ -120,6 +131,11 @@ describe('UserDialogComponent', () => {
 
   it('navigates to the direct chat and closes the dialog', () => {
     const [, chatButton] = fixture.nativeElement.querySelectorAll('button');
+
+    expect(chatButton.getAttribute('aria-label')).toBe('USER_DIALOG.OPEN_CHAT');
+    expect(
+      fixture.nativeElement.querySelector('span[tuiTitle]')?.textContent,
+    ).toContain('USER_DIALOG.QUICK_MESSAGE');
 
     chatButton.click();
 
@@ -206,5 +222,75 @@ describe('UserDialogComponent', () => {
     callButton.click();
 
     expect(initiateCall).toHaveBeenCalledExactlyOnceWith(user);
+  });
+
+  describe('when viewing own profile (isSelf)', () => {
+    let selfFixture: ComponentFixture<UserDialogComponent>;
+    let selfCompleteWith: ReturnType<typeof vi.fn>;
+
+    const currentUserData: IUser = {
+      ...user,
+      id: 1,
+      username: 'tester',
+    };
+
+    beforeEach(() => {
+      selfCompleteWith = vi.fn();
+      currentDialogUser = currentUserData;
+      currentCompleteWith = selfCompleteWith;
+      selfFixture = TestBed.createComponent(UserDialogComponent);
+      selfFixture.detectChanges();
+    });
+
+    it('renders chat, profile, and devices buttons with self translations, and hides volume and call', () => {
+      const buttons = selfFixture.nativeElement.querySelectorAll(
+        '.footer-actions button',
+      );
+      expect(buttons.length).toBe(3);
+
+      const [chatBtn, profileBtn, devicesBtn] = buttons;
+      expect(chatBtn.getAttribute('aria-label')).toBe(
+        'USER_DIALOG.SAVED_MESSAGES',
+      );
+      expect(profileBtn.getAttribute('aria-label')).toBe(
+        'USER_DIALOG.OPEN_PROFILE',
+      );
+      expect(devicesBtn.getAttribute('aria-label')).toBe(
+        'USER_DIALOG.OPEN_DEVICES_SETTINGS',
+      );
+      expect(
+        selfFixture.nativeElement.querySelector(
+          'button[aria-label="USER_DIALOG.CALL"]',
+        ),
+      ).toBeNull();
+      expect(
+        selfFixture.nativeElement.querySelector(
+          'button[aria-label="CALL.VOLUME"]',
+        ),
+      ).toBeNull();
+      expect(
+        selfFixture.nativeElement.querySelector('span[tuiTitle]')?.textContent,
+      ).toContain('USER_DIALOG.SAVED_MESSAGES');
+    });
+
+    it('navigates to settings profile on profile button click', () => {
+      const profileBtn = selfFixture.nativeElement.querySelector(
+        'button[aria-label="USER_DIALOG.OPEN_PROFILE"]',
+      );
+      profileBtn.click();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/settings/profile']);
+      expect(selfCompleteWith).toHaveBeenCalledOnce();
+    });
+
+    it('navigates to settings devices on devices button click', () => {
+      const devicesBtn = selfFixture.nativeElement.querySelector(
+        'button[aria-label="USER_DIALOG.OPEN_DEVICES_SETTINGS"]',
+      );
+      devicesBtn.click();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/settings/devices']);
+      expect(selfCompleteWith).toHaveBeenCalledOnce();
+    });
   });
 });

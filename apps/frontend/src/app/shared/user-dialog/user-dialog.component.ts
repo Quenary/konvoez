@@ -71,6 +71,12 @@ export class UserDialogComponent {
   protected readonly isSelf = computed(
     () => this.currentUser()?.id === this.user.id,
   );
+  protected readonly chatHintKey = computed(() =>
+    this.isSelf() ? 'USER_DIALOG.SAVED_MESSAGES' : 'USER_DIALOG.OPEN_CHAT',
+  );
+  protected readonly messageTitleKey = computed(() =>
+    this.isSelf() ? 'USER_DIALOG.SAVED_MESSAGES' : 'USER_DIALOG.QUICK_MESSAGE',
+  );
   protected readonly sending = signal(false);
   protected readonly volume = computed(() =>
     Math.round(
@@ -111,6 +117,16 @@ export class UserDialogComponent {
 
   protected onChatClick(): void {
     void this.router.navigate(['/direct', this.context.data.user.id]);
+    this.context.completeWith();
+  }
+
+  protected onProfileClick(): void {
+    void this.router.navigate(['/settings/profile']);
+    this.context.completeWith();
+  }
+
+  protected onDevicesClick(): void {
+    void this.router.navigate(['/settings/devices']);
     this.context.completeWith();
   }
 

@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { EUserRole, IUser } from '@konvoez/shared';
-import { Store } from '@ngrx/store';
 import { TuiDialogService } from '@taiga-ui/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,7 +8,6 @@ import { UserDialogService } from './user-dialog.service';
 describe('UserDialogService', () => {
   let service: UserDialogService;
   let dialogService: { open: ReturnType<typeof vi.fn> };
-  let currentUser: IUser | null;
 
   const user: IUser = {
     id: 42,
@@ -30,7 +28,6 @@ describe('UserDialogService', () => {
   };
 
   beforeEach(() => {
-    currentUser = me;
     dialogService = {
       open: vi.fn().mockReturnValue(of(undefined)),
     };
@@ -39,10 +36,6 @@ describe('UserDialogService', () => {
       providers: [
         UserDialogService,
         { provide: TuiDialogService, useValue: dialogService },
-        {
-          provide: Store,
-          useValue: { selectSignal: () => () => currentUser },
-        },
       ],
     });
 
@@ -58,12 +51,13 @@ describe('UserDialogService', () => {
     );
   });
 
-  it('does not open the user dialog for the current user', async () => {
-    currentUser = user;
+  it('opens the user dialog for the current user', async () => {
+    await service.open(me);
 
-    await service.open(user);
-
-    expect(dialogService.open).not.toHaveBeenCalled();
+    expect(dialogService.open).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      { size: 's', data: { user: me } },
+    );
   });
 
   it.each([null, undefined])(
