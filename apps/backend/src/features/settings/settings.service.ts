@@ -165,7 +165,7 @@ export class SettingsService implements OnApplicationBootstrap {
       if (!result.success) {
         const fields = result.error.issues.map((issue) => ({
           path: issue.path.join('.'),
-          code: issue.code,
+          code: issue.message || issue.code,
         }));
         throw new AppException(
           ApiErrorCode.VALIDATION_FAILED,

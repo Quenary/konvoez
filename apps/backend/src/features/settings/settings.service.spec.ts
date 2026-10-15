@@ -404,6 +404,21 @@ describe('SettingsService', () => {
         code: ApiErrorCode.VALIDATION_FAILED,
       });
     });
+
+    it('should throw AppException with field error code from schema message', async () => {
+      await expect(
+        service.update(ESettingKey.PASSWORD_RECOVERY_CODE_TTL, {
+          value: 10,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VALIDATION_FAILED,
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            code: 'VALIDATION.TTL_RANGE',
+          }),
+        ]),
+      });
+    });
   });
 
   describe('updateMany', () => {
