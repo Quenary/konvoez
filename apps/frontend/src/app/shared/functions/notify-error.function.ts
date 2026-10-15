@@ -1,21 +1,18 @@
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { ApiErrorCode } from '@konvoez/shared';
-import { parseError } from './parse-error.function';
+import { parseApiError } from '@core/services/api-error.service';
 
-const SERVER_ERROR_KEYS: Record<string, string> = {
-  [ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED]: 'CALL.VIDEO_LIMIT_REACHED',
-};
-
-function resolveMessageKey(key: string, error?: unknown): string {
-  if (error === undefined) {
-    return key;
+export function resolveErrorMessageKey(
+  fallbackKey: string,
+  error?: unknown,
+): { key: string; params?: Record<string, string | number> } {
+  if (error !== undefined) {
+    const apiError = parseApiError(error);
+    if (apiError) {
+      return { key: `ERRORS.${apiError.code}`, params: apiError.params };
+    }
   }
-  const raw = parseError(error);
-  if (raw === undefined) {
-    return key;
-  }
-  return SERVER_ERROR_KEYS[raw] ?? key;
+  return { key: fallbackKey };
 }
 
 export function notifyError(
@@ -24,7 +21,10 @@ export function notifyError(
   key: string,
   error?: unknown,
 ): void {
-  const label = translate.instant(resolveMessageKey(key, error));
+  const resolved = resolveErrorMessageKey(key, error);
+  const label = resolved.params
+    ? translate.instant(resolved.key, resolved.params)
+    : translate.instant(resolved.key);
   if (error !== undefined) {
     console.error(label, error);
   }

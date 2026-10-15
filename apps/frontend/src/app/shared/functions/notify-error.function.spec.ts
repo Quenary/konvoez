@@ -18,9 +18,11 @@ describe('notifyError', () => {
       new Error(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED),
     );
 
-    expect(translate.instant).toHaveBeenCalledWith('CALL.VIDEO_LIMIT_REACHED');
+    expect(translate.instant).toHaveBeenCalledWith(
+      'ERRORS.VOICE_VIDEO_LIMIT_REACHED',
+    );
     expect(notifications.open).toHaveBeenCalledWith(
-      'CALL.VIDEO_LIMIT_REACHED',
+      'ERRORS.VOICE_VIDEO_LIMIT_REACHED',
       expect.objectContaining({ appearance: 'negative' }),
     );
   });

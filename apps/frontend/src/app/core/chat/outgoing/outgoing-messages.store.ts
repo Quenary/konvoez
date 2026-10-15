@@ -385,7 +385,9 @@ export const OutgoingMessagesStore = signalStore(
         if (
           error instanceof HttpErrorResponse &&
           error.status === 409 &&
-          error.error?.message === 'ATTACHMENTS_UNAVAILABLE'
+          (error.error?.code === ApiErrorCode.ATTACHMENTS_UNAVAILABLE ||
+            error.error?.message === 'ATTACHMENTS_UNAVAILABLE' ||
+            error.error?.message === ApiErrorCode.ATTACHMENTS_UNAVAILABLE)
         ) {
           const missing = new Set<string>(
             Array.isArray(error.error.attachmentIds)
@@ -655,6 +657,30 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
   if (!(error instanceof HttpErrorResponse)) {
     return 'server';
   }
+  const body: unknown = error.error;
+  const code =
+    typeof body === 'object' && body !== null && 'code' in body
+      ? (body as { code: unknown }).code
+      : null;
+
+  switch (code) {
+    case ApiErrorCode.FILE_TOO_BIG:
+    case ApiErrorCode.AVATAR_TOO_BIG:
+      return 'tooLarge';
+    case ApiErrorCode.ATTACHMENTS_DISABLED:
+      return 'disabled';
+    case ApiErrorCode.ATTACHMENTS_PENDING_LIMIT:
+    case ApiErrorCode.ATTACHMENTS_TOO_MANY:
+    case ApiErrorCode.RATE_LIMITED:
+      return 'rateLimited';
+    case ApiErrorCode.STORAGE_FULL:
+      return 'storageFull';
+    case ApiErrorCode.UPLOAD_EMPTY:
+    case ApiErrorCode.UPLOAD_MALFORMED:
+    case ApiErrorCode.FILE_REQUIRED:
+      return 'unreadable';
+  }
+
   switch (error.status) {
     case 400:
       return isUnreadableUpload(error) ? 'unreadable' : 'server';
