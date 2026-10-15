@@ -8,6 +8,7 @@ import {
   BadRequestException,
   ForbiddenException,
   HttpStatus,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
   PayloadTooLargeException,
@@ -171,9 +172,9 @@ describe('HttpExceptionFilter', () => {
     });
   });
 
-  it('handles MikroORM NotFoundError as NOT_FOUND', () => {
+  it('handles MikroORM NotFoundError as NOT_FOUND without leaking query details', () => {
     const host = createHost();
-    const notFoundError = new NotFoundError('Entity not found');
+    const notFoundError = new NotFoundError('User not found ({ id: 42 })');
 
     filter.catch(notFoundError, host);
 
@@ -181,6 +182,21 @@ describe('HttpExceptionFilter', () => {
     expect(jsonMock).toHaveBeenCalledWith({
       code: ApiErrorCode.NOT_FOUND,
       message: 'Entity not found',
+    });
+  });
+
+  it('handles HttpException with status >= 500 without leaking exception message', () => {
+    const host = createHost();
+    const internalHttpError = new InternalServerErrorException(
+      'Sensitive database connection failure',
+    );
+
+    filter.catch(internalHttpError, host);
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(jsonMock).toHaveBeenCalledWith({
+      code: ApiErrorCode.INTERNAL,
+      message: 'Internal server error',
     });
   });
 

@@ -120,15 +120,11 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
   }
 
   if (isNotFoundError(exception)) {
-    const message =
-      exception instanceof Error && exception.message
-        ? exception.message
-        : 'Entity not found';
     return {
       status: HttpStatus.NOT_FOUND,
       body: {
         code: ApiErrorCode.NOT_FOUND,
-        message,
+        message: 'Entity not found',
       },
       logLevel: 'warn',
     };
@@ -204,6 +200,10 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
       if (Array.isArray(resObj.attachmentIds)) {
         attachmentIdsOverride = resObj.attachmentIds as string[];
       }
+    }
+
+    if (status >= 500) {
+      message = 'Internal server error';
     }
 
     let defaultCode: ApiErrorCode;
