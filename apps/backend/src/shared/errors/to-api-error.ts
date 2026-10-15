@@ -6,6 +6,12 @@ import { MulterError } from 'multer';
 import { WsException } from '@nestjs/websockets';
 import { AppException } from './app.exception';
 
+const API_ERROR_CODES = new Set<string>(Object.values(ApiErrorCode));
+
+export function isApiErrorCode(value: unknown): value is ApiErrorCode {
+  return typeof value === 'string' && API_ERROR_CODES.has(value);
+}
+
 function isUniqueConstraintViolation(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
   const ctorName = err.constructor?.name;
@@ -130,11 +136,11 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
 
   if (exception instanceof WsException) {
     const error = exception.getError();
-    if (typeof error === 'string' && error in ApiErrorCode) {
+    if (isApiErrorCode(error)) {
       return {
         status: HttpStatus.BAD_REQUEST,
         body: {
-          code: error as ApiErrorCode,
+          code: error,
           message: error,
         },
         logLevel: 'warn',
@@ -143,11 +149,11 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
     if (typeof error === 'object' && error !== null && 'code' in error) {
       const errObj = error as Record<string, unknown>;
       const codeVal = errObj.code;
-      if (typeof codeVal === 'string' && codeVal in ApiErrorCode) {
+      if (isApiErrorCode(codeVal)) {
         return {
           status: HttpStatus.BAD_REQUEST,
           body: {
-            code: codeVal as ApiErrorCode,
+            code: codeVal,
             message:
               typeof errObj.message === 'string' ? errObj.message : codeVal,
             ...(errObj.params && typeof errObj.params === 'object'
@@ -186,8 +192,8 @@ export function toApiErrorResponse(exception: unknown): ResolvedApiError {
       } else if (Array.isArray(resObj.message)) {
         message = resObj.message.join(', ');
       }
-      if (typeof resObj.code === 'string' && resObj.code in ApiErrorCode) {
-        codeOverride = resObj.code as ApiErrorCode;
+      if (isApiErrorCode(resObj.code)) {
+        codeOverride = resObj.code;
       }
       if (resObj.params && typeof resObj.params === 'object') {
         paramsOverride = resObj.params as Record<string, string | number>;

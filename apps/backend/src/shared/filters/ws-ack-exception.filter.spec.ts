@@ -112,4 +112,23 @@ describe('WsAckExceptionFilter', () => {
       },
     });
   });
+
+  it('does not treat prototype property names as valid error codes on WsException', () => {
+    const ack = jest.fn();
+    const host = {
+      getArgs: () => [{}, {}, ack],
+      switchToWs: () => ({
+        getClient: () => ({ emit: jest.fn() }),
+      }),
+    } as unknown as ArgumentsHost;
+
+    filter.catch(new WsException({ code: 'toString' }), host);
+
+    expect(ack).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
+      },
+    });
+  });
 });

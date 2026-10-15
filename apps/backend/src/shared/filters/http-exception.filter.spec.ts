@@ -219,4 +219,21 @@ describe('HttpExceptionFilter', () => {
     });
     expect(errorSpy).toHaveBeenCalled();
   });
+
+  it('does not treat prototype property names (e.g. toString) as valid error codes', () => {
+    const host = createHost();
+    const exception = new BadRequestException({
+      code: 'toString',
+      message: 'Some error',
+    });
+
+    filter.catch(exception, host);
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: ApiErrorCode.BAD_REQUEST,
+      }),
+    );
+  });
 });
