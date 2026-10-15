@@ -90,10 +90,10 @@ describe('DirectChatDialogComponent', () => {
     expect(mockUsersStore.loadAll).toHaveBeenCalled();
   });
 
-  it('should filter out current user from filteredUsers', () => {
+  it('should place current user (saved messages) at the top of filteredUsers', () => {
     const users = component['filteredUsers']();
-    expect(users).toHaveLength(2);
-    expect(users.some((u) => u.id === mockCurrentUser.id)).toBe(false);
+    expect(users).toHaveLength(3);
+    expect(users[0].id).toBe(mockCurrentUser.id);
   });
 
   it('should filter users by search query', async () => {
@@ -103,6 +103,15 @@ describe('DirectChatDialogComponent', () => {
     const users = component['filteredUsers']();
     expect(users).toHaveLength(1);
     expect(users[0].username).toBe('alice');
+  });
+
+  it('should match current user when searching for username or saved messages', () => {
+    component['searchControl'].setValue('me');
+    fixture.detectChanges();
+
+    const users = component['filteredUsers']();
+    expect(users).toHaveLength(1);
+    expect(users[0].id).toBe(mockCurrentUser.id);
   });
 
   it('should complete with selected user on selectUser', () => {

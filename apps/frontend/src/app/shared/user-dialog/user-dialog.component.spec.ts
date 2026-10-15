@@ -9,6 +9,7 @@ import {
 import { DirectCallService } from '@core/services/direct-call.service';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
+import { provideStore } from '@ngrx/store';
 import { provideRouter, Router } from '@angular/router';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -62,6 +63,9 @@ describe('UserDialogComponent', () => {
       providers: [
         provideRouter([]),
         provideTranslateService(),
+        provideStore({
+          auth: () => ({ user: { id: 1, username: 'tester' } }),
+        }),
         {
           provide: POLYMORPHEUS_CONTEXT,
           useValue: { data: { user }, completeWith },

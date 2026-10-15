@@ -4,6 +4,7 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
+import { provideStore } from '@ngrx/store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { UsersStore } from '@core/stores/users.store';
@@ -12,12 +13,16 @@ import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-roo
 import { DirectComponent } from './direct.component';
 import { IUser } from '@konvoez/shared';
 
-@Component({ selector: 'app-chat', template: '<ng-content />' })
+@Component({
+  selector: 'app-chat',
+  template: '<ng-content select="[chatHeaderActions]" />',
+})
 class MockChatComponent {
   public readonly roomId = input<number | null>(null);
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
+  public readonly avatarIcon = input<string | null>(null);
 }
 
 @Component({ selector: 'app-voice-room-shell', template: '' })
@@ -80,6 +85,9 @@ describe('DirectComponent', () => {
       imports: [DirectComponent],
       providers: [
         provideTranslateService(),
+        provideStore({
+          auth: () => ({ user: { id: 1, username: 'alice' } }),
+        }),
         { provide: DirectCallService, useValue: mockDirectCallService },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: VoiceLeaveService, useValue: mockVoiceLeaveService },
@@ -196,5 +204,28 @@ describe('DirectComponent', () => {
     callWithUserId.set(null);
     fixture.detectChanges();
     expect(component['preferChat']()).toBe(false);
+  });
+
+  it('handles self messages (saved messages) without call buttons and with bookmark icon', async () => {
+    usersEntityMap.set({
+      1: {
+        id: 1,
+        username: 'alice',
+        fullname: 'Alice',
+        avatarUrl: null,
+      } as IUser,
+    });
+    paramMap$.next(convertToParamMap({ id: '1' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['isSelf']()).toBe(true);
+    expect(component['title']()).toBe('DIRECT.SAVED_MESSAGES');
+    expect(component['avatarIcon']()).toBe('@tui.bookmark');
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['canRejoinCall']()).toBe(false);
+    expect(
+      fixture.nativeElement.querySelector('button[iconStart="@tui.phone"]'),
+    ).toBeNull();
   });
 });

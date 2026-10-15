@@ -63,4 +63,67 @@ describe('chat-target helpers', () => {
       messageBelongsToChat({ roomId: 4, recipientId: null, senderId: 1 }, null),
     ).toBe(false);
   });
+
+  it('matches messages with currentUserId for direct and saved messages', () => {
+    const currentUserId = 1;
+
+    // Saved messages: target is oneself
+    const savedTarget = { kind: 'direct' as const, id: currentUserId };
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 1, senderId: 1 },
+        savedTarget,
+        currentUserId,
+      ),
+    ).toBe(true);
+    // Someone else messaging current user should NOT belong to saved messages
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 1, senderId: 2 },
+        savedTarget,
+        currentUserId,
+      ),
+    ).toBe(false);
+    // Current user messaging someone else should NOT belong to saved messages
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 2, senderId: 1 },
+        savedTarget,
+        currentUserId,
+      ),
+    ).toBe(false);
+
+    // Direct chat with another user (id: 2)
+    const otherTarget = { kind: 'direct' as const, id: 2 };
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 2, senderId: 1 },
+        otherTarget,
+        currentUserId,
+      ),
+    ).toBe(true);
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 1, senderId: 2 },
+        otherTarget,
+        currentUserId,
+      ),
+    ).toBe(true);
+    // Self messages should NOT appear in chat with user 2
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 1, senderId: 1 },
+        otherTarget,
+        currentUserId,
+      ),
+    ).toBe(false);
+    // Third party messages should NOT appear in chat with user 2
+    expect(
+      messageBelongsToChat(
+        { roomId: null, recipientId: 1, senderId: 3 },
+        otherTarget,
+        currentUserId,
+      ),
+    ).toBe(false);
+  });
 });
