@@ -59,9 +59,13 @@ USER_DIALOG:
   CALL: Call
   MESSAGE_SENT: Message sent
   QUICK_MESSAGE: Quick message
+  SAVED_MESSAGES: Saved messages
+  OPEN_PROFILE: Open profile
+  OPEN_DEVICES_SETTINGS: Open device settings
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
+  SAVED_MESSAGES: Saved messages
   SEARCH_PLACEHOLDER: Search user...
   EMPTY_TITLE: No direct messages yet
   EMPTY_DESC: Click the button to start a conversation with a user

@@ -59,9 +59,13 @@ USER_DIALOG:
   CALL: Позвонить
   MESSAGE_SENT: Сообщение отправлено
   QUICK_MESSAGE: Быстрое сообщение
+  SAVED_MESSAGES: Сохраненные сообщения
+  OPEN_PROFILE: Открыть профиль
+  OPEN_DEVICES_SETTINGS: Открыть настройки устройств
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
+  SAVED_MESSAGES: Сохраненные сообщения
   SEARCH_PLACEHOLDER: Поиск собеседника...
   EMPTY_TITLE: У вас пока нет личных сообщений
   EMPTY_DESC: Нажмите кнопку, чтобы начать диалог с пользователем

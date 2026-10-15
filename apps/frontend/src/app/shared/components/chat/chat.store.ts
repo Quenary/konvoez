@@ -178,6 +178,7 @@ export const ChatStore = signalStore(
                   senderId: user?.id ?? 0,
                 },
                 activeTarget,
+                user?.id,
               ) && !knownClientIds.has(message.tempId),
           )
           .map((message) =>
@@ -662,9 +663,11 @@ export const ChatStore = signalStore(
       const socket = inject(TextRoomSocketToken);
       const emitter = socket as never;
       const outgoingStore = inject(OutgoingMessagesStore);
+      const ngrxStore = inject(Store);
+      const currentUser = ngrxStore.selectSignal(selectCurrentUser);
 
       const belongsToActiveChat = (message: ITextRoomMessage): boolean =>
-        messageBelongsToChat(message, store.target());
+        messageBelongsToChat(message, store.target(), currentUser()?.id);
 
       outgoingStore.messageCreated$
         .pipe(takeUntilDestroyed())

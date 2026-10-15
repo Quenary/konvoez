@@ -16,6 +16,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs';
 import {
   TuiButton,
   TuiHint,
+  TuiIcon,
   TuiInput,
   TuiTextfield,
   TuiTitle,
@@ -45,6 +46,7 @@ import { v4 } from 'uuid';
     TuiHeader,
     TuiButton,
     TuiHint,
+    TuiIcon,
     TuiTextfield,
     TuiInput,
     TuiAutoFocus,
@@ -67,6 +69,7 @@ export class ChatComponent {
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
+  public readonly avatarIcon = input<string | null>(null);
   protected readonly draftKey = computed(() =>
     toChatKey(this.roomId(), this.recipientId()),
   );

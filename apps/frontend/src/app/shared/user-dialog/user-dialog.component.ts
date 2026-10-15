@@ -6,6 +6,8 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { DirectCallService } from '@core/services/direct-call.service';
 import {
   IOutgoingMessageCallbacks,
@@ -62,8 +64,18 @@ export class UserDialogComponent {
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
   );
+  private readonly ngrxStore = inject(Store);
 
   protected readonly user = this.context.data.user;
+  protected readonly isSelf = computed(
+    () => this.currentUser()?.id === this.user.id,
+  );
+  protected readonly chatHintKey = computed(() =>
+    this.isSelf() ? 'USER_DIALOG.SAVED_MESSAGES' : 'USER_DIALOG.OPEN_CHAT',
+  );
+  protected readonly messageTitleKey = computed(() =>
+    this.isSelf() ? 'USER_DIALOG.SAVED_MESSAGES' : 'USER_DIALOG.QUICK_MESSAGE',
+  );
   protected readonly sending = signal(false);
   protected readonly volume = computed(() =>
     Math.round(
@@ -82,6 +94,7 @@ export class UserDialogComponent {
     return '@tui.volume-2';
   });
 
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
   private readonly sendCallbacks: IOutgoingMessageCallbacks = {
     onSuccess: () => {
       this.tuiNotificationsService
@@ -104,6 +117,16 @@ export class UserDialogComponent {
 
   protected onChatClick(): void {
     void this.router.navigate(['/direct', this.context.data.user.id]);
+    this.context.completeWith();
+  }
+
+  protected onProfileClick(): void {
+    void this.router.navigate(['/settings/profile']);
+    this.context.completeWith();
+  }
+
+  protected onDevicesClick(): void {
+    void this.router.navigate(['/settings/devices']);
     this.context.completeWith();
   }
 

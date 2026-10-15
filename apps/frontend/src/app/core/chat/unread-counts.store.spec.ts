@@ -191,6 +191,19 @@ describe('UnreadCountsStore', () => {
     expect(store.directUnreadCount(7)).toBe(0);
   });
 
+  it('should not increment direct unread for self messages', () => {
+    store.handleNewMessage(
+      incomingRoomMessage({
+        roomId: null,
+        recipientId: currentUser.id,
+        senderId: currentUser.id,
+      }),
+      currentUser.id,
+    );
+    expect(store.directUnreadCount(currentUser.id)).toBe(0);
+    expect(store.directTotal()).toBe(0);
+  });
+
   it('should increment from socket MESSAGE_CREATED when authorized', () => {
     ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
     mockSocket.emit(

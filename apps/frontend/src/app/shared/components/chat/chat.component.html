@@ -7,7 +7,9 @@
         tuiAvatar
         size="s"
         class="header-avatar">
-        @if (avatarUrl()) {
+        @if (avatarIcon(); as icon) {
+          <tui-icon [icon]="icon" />
+        } @else if (avatarUrl()) {
           <img
             [alt]="currentTitle"
             [ngSrc]="avatarUrl()!"
