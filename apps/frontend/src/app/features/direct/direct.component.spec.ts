@@ -1,16 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, signal } from '@angular/core';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
-import { provideStore } from '@ngrx/store';
-import { DirectCallService } from '@core/services/direct-call.service';
-import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { UsersStore } from '@core/stores/users.store';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { DirectComponent } from './direct.component';
+import { DirectStore } from './direct.store';
 import { IUser } from '@konvoez/shared';
 
 @Component({
@@ -35,70 +30,65 @@ class MockVoiceRoomShellComponent {
 describe('DirectComponent', () => {
   let component: DirectComponent;
   let fixture: ComponentFixture<DirectComponent>;
-  let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
-  const user = {
+  const mockUser: IUser = {
     id: 99,
     username: 'bob',
     fullname: 'Bob',
     avatarUrl: null,
   } as IUser;
 
-  const interlocutor = signal<IUser | null>(null);
-  const isCallActive = signal(false);
-  const callWithUserId = signal<number | null>(null);
+  const recipientId = signal<number | null>(99);
+  const user = signal<IUser | null>(mockUser);
+  const isSelf = signal(false);
+  const isCurrentDirectCallActive = signal(false);
+  const canRejoinCall = signal(false);
+  const preferChat = signal(false);
+  const title = signal('bob');
+  const avatarUrl = signal<string | null>(null);
+  const avatarIcon = signal<string | null>(null);
+  const view = signal<'call' | 'chat'>('chat');
 
-  const mockDirectCallService = {
-    interlocutor,
-    isCallActive,
-    callWithUserId: callWithUserId.asReadonly(),
-    rejoinableCall: signal<{
-      callId: string;
-      callerId: number;
-      recipientId: number;
-    } | null>(null),
-    initiateCall: vi.fn(),
-    rejoinCall: vi.fn(),
-    refreshActiveCall: vi.fn().mockResolvedValue(null),
-  };
-
-  const usersEntityMap = signal<Record<number, IUser>>({ 99: user });
-  const mockUsersStore = {
-    loadAll: vi.fn(),
-    entityMap: usersEntityMap,
-  };
-
-  const mockVoiceLeaveService = {
-    leaveActiveVoice: vi.fn().mockResolvedValue(undefined),
+  const mockDirectStore = {
+    recipientId,
+    user,
+    isSelf,
+    isCurrentDirectCallActive,
+    canRejoinCall,
+    preferChat,
+    title,
+    avatarUrl,
+    avatarIcon,
+    view,
+    showChat: vi.fn(),
+    showCall: vi.fn(),
+    startDirectCall: vi.fn(),
+    rejoinDirectCall: vi.fn(),
+    hangup: vi.fn(),
   };
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    paramMap$ = new BehaviorSubject(convertToParamMap({ id: '99' }));
-    interlocutor.set(null);
-    isCallActive.set(false);
-    callWithUserId.set(null);
-    usersEntityMap.set({ 99: user });
-    mockDirectCallService.rejoinableCall.set(null);
+    recipientId.set(99);
+    user.set(mockUser);
+    isSelf.set(false);
+    isCurrentDirectCallActive.set(false);
+    canRejoinCall.set(false);
+    preferChat.set(false);
+    title.set('bob');
+    avatarUrl.set(null);
+    avatarIcon.set(null);
+    view.set('chat');
 
     await TestBed.configureTestingModule({
       imports: [DirectComponent],
-      providers: [
-        provideTranslateService(),
-        provideStore({
-          auth: () => ({ user: { id: 1, username: 'alice' } }),
-        }),
-        { provide: DirectCallService, useValue: mockDirectCallService },
-        { provide: UsersStore, useValue: mockUsersStore },
-        { provide: VoiceLeaveService, useValue: mockVoiceLeaveService },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            paramMap: paramMap$,
-          },
-        },
-      ],
+      providers: [provideTranslateService()],
     })
+      .overrideComponent(DirectComponent, {
+        set: {
+          providers: [{ provide: DirectStore, useValue: mockDirectStore }],
+        },
+      })
       .overrideComponent(DirectComponent, {
         remove: {
           imports: [ChatComponent, VoiceRoomShellComponent],
@@ -115,117 +105,111 @@ describe('DirectComponent', () => {
     await fixture.whenStable();
   });
 
-  it('should create and refresh active call', () => {
-    expect(component).toBeTruthy();
-    expect(mockUsersStore.loadAll).toHaveBeenCalled();
-    expect(mockDirectCallService.refreshActiveCall).toHaveBeenCalledWith(99);
-  });
-
   const queryChat = (): Element | null =>
     fixture.nativeElement.querySelector('app-chat');
 
   const queryVoiceShell = (): Element | null =>
     fixture.nativeElement.querySelector('app-voice-room-shell');
 
-  it('defaults to chat view and mounts chat only', () => {
-    expect(component['view']()).toBe('chat');
+  it('creates component and defaults to chat view', () => {
+    expect(component).toBeTruthy();
     expect(queryChat()).toBeTruthy();
     expect(queryVoiceShell()).toBeNull();
   });
 
-  it('mounts voice shell when callWithUserId matches route without UsersStore', () => {
-    usersEntityMap.set({});
-    callWithUserId.set(99);
+  it('mounts voice room shell when view is call', () => {
+    view.set('call');
     fixture.detectChanges();
 
-    expect(component['view']()).toBe('call');
     expect(queryVoiceShell()).toBeTruthy();
     expect(queryChat()).toBeNull();
   });
 
-  it('mounts voice shell only when current direct call is active', () => {
-    isCallActive.set(true);
-    interlocutor.set(user);
-    callWithUserId.set(99);
-    fixture.detectChanges();
-
-    expect(component['view']()).toBe('call');
-    expect(queryVoiceShell()).toBeTruthy();
-    expect(queryChat()).toBeNull();
-  });
-
-  it('mounts chat only while preferring chat during an active call', () => {
-    isCallActive.set(true);
-    interlocutor.set(user);
-    callWithUserId.set(99);
-    fixture.detectChanges();
-
+  it('delegates showChat to directStore', () => {
     component['showChat']();
-    fixture.detectChanges();
-    expect(component['view']()).toBe('chat');
-    expect(queryChat()).toBeTruthy();
-    expect(queryVoiceShell()).toBeNull();
+    expect(mockDirectStore.showChat).toHaveBeenCalled();
+  });
 
+  it('delegates showCall to directStore', () => {
     component['showCall']();
-    fixture.detectChanges();
-    expect(component['view']()).toBe('call');
-    expect(queryVoiceShell()).toBeTruthy();
-    expect(queryChat()).toBeNull();
+    expect(mockDirectStore.showCall).toHaveBeenCalled();
   });
 
-  it('starts a direct call', () => {
-    component['startDirectCall'](user);
-    expect(mockDirectCallService.initiateCall).toHaveBeenCalledWith(user);
-    expect(component['preferChat']()).toBe(false);
+  it('delegates startDirectCall to directStore', () => {
+    component['startDirectCall'](mockUser);
+    expect(mockDirectStore.startDirectCall).toHaveBeenCalledWith(mockUser);
   });
 
-  it('does not refresh active call when route id is negative or non-numeric', () => {
-    vi.clearAllMocks();
-    paramMap$.next(convertToParamMap({ id: '-5' }));
-    fixture.detectChanges();
-    expect(mockDirectCallService.refreshActiveCall).not.toHaveBeenCalled();
-
-    paramMap$.next(convertToParamMap({ id: 'invalid' }));
-    fixture.detectChanges();
-    expect(mockDirectCallService.refreshActiveCall).not.toHaveBeenCalled();
+  it('delegates rejoinDirectCall to directStore', () => {
+    component['rejoinDirectCall'](mockUser);
+    expect(mockDirectStore.rejoinDirectCall).toHaveBeenCalledWith(mockUser);
   });
 
-  it('resets preferChat when active call ends', () => {
-    isCallActive.set(true);
-    interlocutor.set(user);
-    callWithUserId.set(99);
-    fixture.detectChanges();
-
-    component['showChat']();
-    fixture.detectChanges();
-    expect(component['preferChat']()).toBe(true);
-
-    isCallActive.set(false);
-    callWithUserId.set(null);
-    fixture.detectChanges();
-    expect(component['preferChat']()).toBe(false);
+  it('delegates hangup to directStore', () => {
+    component['hangup']();
+    expect(mockDirectStore.hangup).toHaveBeenCalled();
   });
 
-  it('handles self messages (saved messages) without call buttons and with bookmark icon', async () => {
-    usersEntityMap.set({
-      1: {
-        id: 1,
-        username: 'alice',
-        fullname: 'Alice',
-        avatarUrl: null,
-      } as IUser,
-    });
-    paramMap$.next(convertToParamMap({ id: '1' }));
-    fixture.detectChanges();
-    await fixture.whenStable();
+  it('renders start call button when not in call and not rejoinable', () => {
+    const startCallBtn = fixture.nativeElement.querySelector(
+      'button[iconStart="@tui.phone"]',
+    );
+    expect(startCallBtn).toBeTruthy();
+    startCallBtn.click();
+    expect(mockDirectStore.startDirectCall).toHaveBeenCalledWith(mockUser);
+  });
 
-    expect(component['isSelf']()).toBe(true);
-    expect(component['title']()).toBe('DIRECT.SAVED_MESSAGES');
-    expect(component['avatarIcon']()).toBe('@tui.bookmark');
-    expect(component['avatarUrl']()).toBeNull();
-    expect(component['canRejoinCall']()).toBe(false);
+  it('renders rejoin call button when canRejoinCall is true', () => {
+    canRejoinCall.set(true);
+    fixture.detectChanges();
+
+    const joinBtn = fixture.nativeElement.querySelector(
+      'app-pulse-indicator button',
+    );
+    expect(joinBtn).toBeTruthy();
+    joinBtn.click();
+    expect(mockDirectStore.rejoinDirectCall).toHaveBeenCalledWith(mockUser);
+  });
+
+  it('renders call and hangup buttons when current direct call is active', () => {
+    isCurrentDirectCallActive.set(true);
+    fixture.detectChanges();
+
+    const toCallBtn = fixture.nativeElement.querySelector(
+      'button[iconStart="@tui.phone-call"]',
+    );
+    const hangupBtn = fixture.nativeElement.querySelector(
+      'button[iconStart="@tui.phone-off"]',
+    );
+    expect(toCallBtn).toBeTruthy();
+    expect(hangupBtn).toBeTruthy();
+
+    toCallBtn.click();
+    expect(mockDirectStore.showCall).toHaveBeenCalled();
+
+    hangupBtn.click();
+    expect(mockDirectStore.hangup).toHaveBeenCalled();
+  });
+
+  it('hides call buttons in header when isSelf is true (saved messages)', () => {
+    isSelf.set(true);
+    title.set('DIRECT.SAVED_MESSAGES');
+    avatarIcon.set('@tui.bookmark');
+    fixture.detectChanges();
+
     expect(
       fixture.nativeElement.querySelector('button[iconStart="@tui.phone"]'),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        'button[iconStart="@tui.phone-call"]',
+      ),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('button[iconStart="@tui.phone-off"]'),
+    ).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('app-pulse-indicator'),
     ).toBeNull();
   });
 });
