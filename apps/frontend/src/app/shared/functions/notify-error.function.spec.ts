@@ -1,19 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiErrorCode } from '@konvoez/shared';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { notifyError } from './notify-error.function';
 
 describe('notifyError', () => {
   it('maps known server errors to translation keys', () => {
     const notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
-    };
+    } as unknown as TuiNotificationService;
     const translate = {
       instant: vi.fn((key: string) => key),
-    };
+    } as unknown as TranslateService;
 
     notifyError(
-      notifications as never,
-      translate as never,
+      notifications,
+      translate,
       'CALL.CAMERA_FAILED',
       new Error(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED),
     );
@@ -30,14 +32,14 @@ describe('notifyError', () => {
   it('uses the fallback key when the error is unknown', () => {
     const notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
-    };
+    } as unknown as TuiNotificationService;
     const translate = {
       instant: vi.fn((key: string) => key),
-    };
+    } as unknown as TranslateService;
 
     notifyError(
-      notifications as never,
-      translate as never,
+      notifications,
+      translate,
       'CALL.CAMERA_FAILED',
       new Error('other'),
     );
@@ -51,18 +53,13 @@ describe('notifyError', () => {
     });
     const notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
-    };
+    } as unknown as TuiNotificationService;
     const translate = {
       instant: vi.fn((key: string) => key),
-    };
+    } as unknown as TranslateService;
     const err = new Error('boom');
 
-    notifyError(
-      notifications as never,
-      translate as never,
-      'CALL.CAMERA_FAILED',
-      err,
-    );
+    notifyError(notifications, translate, 'CALL.CAMERA_FAILED', err);
 
     expect(consoleSpy).toHaveBeenCalledTimes(1);
     expect(consoleSpy).toHaveBeenCalledWith('CALL.CAMERA_FAILED', err);
@@ -74,16 +71,12 @@ describe('notifyError', () => {
     });
     const notifications = {
       open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
-    };
+    } as unknown as TuiNotificationService;
     const translate = {
       instant: vi.fn((key: string) => key),
-    };
+    } as unknown as TranslateService;
 
-    notifyError(
-      notifications as never,
-      translate as never,
-      'VOICE.ROOM_CLOSED',
-    );
+    notifyError(notifications, translate, 'VOICE.ROOM_CLOSED');
 
     expect(consoleSpy).not.toHaveBeenCalled();
   });
