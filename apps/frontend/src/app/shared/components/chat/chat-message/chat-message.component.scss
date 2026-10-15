@@ -6,7 +6,7 @@
     flex-direction: column;
     width: 100%;
     transition: background-color 0.3s ease;
-    border-radius: 0.5rem;
+    border-radius: var(--tui-radius-l);
 
     &.message-highlight {
       animation: message-flash 1.5s ease-out;
