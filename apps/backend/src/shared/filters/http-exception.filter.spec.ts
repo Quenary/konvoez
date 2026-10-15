@@ -29,7 +29,11 @@ describe('HttpExceptionFilter', () => {
   let filter: HttpExceptionFilter;
   let statusMock: jest.Mock;
   let jsonMock: jest.Mock;
-  let responseMock: { status: jest.Mock; json: jest.Mock };
+  let responseMock: {
+    status: jest.Mock;
+    json: jest.Mock;
+    headersSent?: boolean;
+  };
   let errorSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
 
@@ -37,7 +41,7 @@ describe('HttpExceptionFilter', () => {
     filter = new HttpExceptionFilter();
     jsonMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock });
-    responseMock = { status: statusMock, json: jsonMock };
+    responseMock = { status: statusMock, json: jsonMock, headersSent: false };
 
     errorSpy = jest
       .spyOn(Logger.prototype, 'error')
@@ -235,5 +239,16 @@ describe('HttpExceptionFilter', () => {
         code: ApiErrorCode.BAD_REQUEST,
       }),
     );
+  });
+
+  it('does not send json response when headers are already sent', () => {
+    const host = createHost();
+    responseMock.headersSent = true;
+
+    filter.catch(new BadRequestException('Too late'), host);
+
+    expect(statusMock).not.toHaveBeenCalled();
+    expect(jsonMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
   });
 });
