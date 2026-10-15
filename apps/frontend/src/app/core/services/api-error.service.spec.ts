@@ -116,6 +116,17 @@ describe('parseApiError', () => {
     expect(parseApiError(response)).toEqual(payload);
   });
 
+  it('parses HttpErrorResponse with raw ApiErrorCode string body', () => {
+    const response = new HttpErrorResponse({
+      status: 401,
+      error: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+    });
+    expect(parseApiError(response)).toEqual({
+      code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+      message: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+    });
+  });
+
   it('returns null for HttpErrorResponse with non-JSON string or non-matching body', () => {
     const textResponse = new HttpErrorResponse({
       status: 500,

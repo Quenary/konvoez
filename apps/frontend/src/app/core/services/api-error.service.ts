@@ -45,6 +45,9 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
       }
     }
     if (typeof body === 'string') {
+      if (isApiErrorCode(body)) {
+        return { code: body, message: body };
+      }
       try {
         const parsed = JSON.parse(body) as unknown;
         if (
