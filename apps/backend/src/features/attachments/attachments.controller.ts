@@ -13,7 +13,6 @@ import {
   Res,
   StreamableFile,
   UploadedFiles,
-  UseFilters,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -28,7 +27,6 @@ import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthRefreshFallback, Author } from '../auth/auth.decorator';
 import { GetUserDto } from '../users/users.dto';
-import { AttachmentUploadExceptionFilter } from '@shared/filters/attachment-upload-exception.filter';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentDto } from './attachments.dto';
@@ -58,7 +56,6 @@ export class AttachmentsController {
 
   @Post()
   @HttpCode(201)
-  @UseFilters(AttachmentUploadExceptionFilter)
   @UseInterceptors(AttachmentUploadInterceptor)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
