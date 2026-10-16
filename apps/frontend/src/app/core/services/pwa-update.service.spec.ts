@@ -1,27 +1,30 @@
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
 import { SwUpdate, VersionEvent } from '@angular/service-worker';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { EVoiceSessionType } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { Subject, of } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PwaUpdateService } from './pwa-update.service';
 
 describe('PwaUpdateService', () => {
   let versionUpdates$: Subject<VersionEvent>;
+  let isStable$: Subject<boolean>;
   let dialogService: { open: ReturnType<typeof vi.fn> };
   let swUpdate: {
     isEnabled: boolean;
     versionUpdates: ReturnType<Subject<VersionEvent>['asObservable']>;
     unrecoverable: Subject<void>;
+    checkForUpdate: ReturnType<typeof vi.fn>;
   };
   let activeSession: ReturnType<typeof signal<unknown>>;
   let joiningTarget: ReturnType<typeof signal<unknown>>;
 
   beforeEach(() => {
     versionUpdates$ = new Subject<VersionEvent>();
+    isStable$ = new Subject<boolean>();
     dialogService = {
       open: vi.fn(() => of(false)),
     };
@@ -29,6 +32,7 @@ describe('PwaUpdateService', () => {
       isEnabled: true,
       versionUpdates: versionUpdates$.asObservable(),
       unrecoverable: new Subject<void>(),
+      checkForUpdate: vi.fn().mockResolvedValue(true),
     };
     activeSession = signal(null);
     joiningTarget = signal(null);
@@ -47,71 +51,46 @@ describe('PwaUpdateService', () => {
         },
       ],
     });
+
+    const appRef = TestBed.inject(ApplicationRef);
+    Object.defineProperty(appRef, 'isStable', {
+      value: isStable$.asObservable(),
+      configurable: true,
+    });
   });
 
   afterEach(() => {
     versionUpdates$.complete();
+    isStable$.complete();
     swUpdate.unrecoverable.complete();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     TestBed.resetTestingModule();
   });
 
-  it('defers a confirmed update reload until the voice session ends', async () => {
-    dialogService.open.mockReturnValue(of(true));
-    activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
-    const service = TestBed.inject(PwaUpdateService);
-
-    versionUpdates$.next({
-      type: 'VERSION_READY',
-      currentVersion: { hash: 'a' },
-      latestVersion: { hash: 'b' },
-    });
-
-    await vi.waitFor(() => expect(dialogService.open).toHaveBeenCalled(), {
-      timeout: 2000,
-    });
-    service['applyAvailableUpdate']();
-    expect(service['pendingNormalUpdateReload']).toBe(true);
-
-    activeSession.set(null);
-    await vi.waitFor(() =>
-      expect(service['pendingNormalUpdateReload']).toBe(false),
-    );
-  });
-
-  it('does not reload while a voice join is in progress', async () => {
+  it('reloads immediately on confirmed update even if a voice session is active', () => {
     const reload = vi.fn();
     vi.stubGlobal('location', { ...window.location, reload });
-    dialogService.open.mockReturnValue(of(true));
     activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
+
     const service = TestBed.inject(PwaUpdateService);
+    service.applyAvailableUpdate();
 
-    versionUpdates$.next({
-      type: 'VERSION_READY',
-      currentVersion: { hash: 'a' },
-      latestVersion: { hash: 'b' },
-    });
-
-    await vi.waitFor(() => expect(dialogService.open).toHaveBeenCalled(), {
-      timeout: 2000,
-    });
-    service['applyAvailableUpdate']();
-    expect(service['pendingNormalUpdateReload']).toBe(true);
-
-    joiningTarget.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 2 });
-    activeSession.set(null);
-    await Promise.resolve();
-    expect(reload).not.toHaveBeenCalled();
-    expect(service['pendingNormalUpdateReload']).toBe(true);
-
-    joiningTarget.set(null);
-    await vi.waitFor(() =>
-      expect(service['pendingNormalUpdateReload']).toBe(false),
-    );
-    vi.unstubAllGlobals();
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it('defers unrecoverable reload while a voice session is active', async () => {
+  it('reloads immediately on confirmed update even if a voice join is in progress', () => {
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    joiningTarget.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 2 });
+
+    const service = TestBed.inject(PwaUpdateService);
+    service.applyAvailableUpdate();
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('defers unrecoverable reload dialog while a voice session is active', async () => {
     activeSession.set({ type: EVoiceSessionType.GROUP_ROOM, roomId: 1 });
     TestBed.inject(PwaUpdateService);
 
@@ -182,7 +161,7 @@ describe('PwaUpdateService', () => {
 
     const service = TestBed.inject(PwaUpdateService);
     const applyAvailableUpdate = vi.fn(() => undefined);
-    service['applyAvailableUpdate'] = applyAvailableUpdate;
+    service.applyAvailableUpdate = applyAvailableUpdate;
 
     versionUpdates$.next({
       type: 'VERSION_READY',
@@ -198,12 +177,12 @@ describe('PwaUpdateService', () => {
     );
   });
 
-  it('should not reload when the dialog is dismissed', async () => {
+  it('sets updatePostponed to true and does not reload when update is postponed', async () => {
     dialogService.open.mockReturnValue(of(false));
 
     const service = TestBed.inject(PwaUpdateService);
     const applyAvailableUpdate = vi.fn(() => undefined);
-    service['applyAvailableUpdate'] = applyAvailableUpdate;
+    service.applyAvailableUpdate = applyAvailableUpdate;
 
     versionUpdates$.next({
       type: 'VERSION_READY',
@@ -218,6 +197,201 @@ describe('PwaUpdateService', () => {
       { timeout: 2000 },
     );
 
+    expect(service.updatePostponed()).toBe(true);
+    expect(service.postponedUpdateType()).toBe('update');
     expect(applyAvailableUpdate).not.toHaveBeenCalled();
+  });
+
+  it('sets postponedUpdateType to unrecoverable when unrecoverable dialog is postponed', async () => {
+    dialogService.open.mockReturnValue(of(false));
+
+    const service = TestBed.inject(PwaUpdateService);
+    const applyAvailableUpdate = vi.fn(() => undefined);
+    service.applyAvailableUpdate = applyAvailableUpdate;
+
+    swUpdate.unrecoverable.next();
+
+    await vi.waitFor(
+      () => {
+        expect(dialogService.open).toHaveBeenCalled();
+      },
+      { timeout: 2000 },
+    );
+
+    expect(service.updatePostponed()).toBe(true);
+    expect(service.postponedUpdateType()).toBe('unrecoverable');
+    expect(applyAvailableUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not reopen update dialog if update was already postponed', async () => {
+    vi.useFakeTimers();
+    const service = TestBed.inject(PwaUpdateService);
+    service['_postponedUpdate'].set('update');
+
+    versionUpdates$.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'a' },
+      latestVersion: { hash: 'b' },
+    });
+
+    await vi.advanceTimersByTimeAsync(1100);
+
+    expect(dialogService.open).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('resets dialogOpen flag via finalize when dialog errors', async () => {
+    dialogService.open.mockReturnValue(
+      throwError(() => new Error('dialog error')),
+    );
+    const service = TestBed.inject(PwaUpdateService);
+
+    versionUpdates$.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'a' },
+      latestVersion: { hash: 'b' },
+    });
+
+    await vi.waitFor(
+      () => {
+        expect(dialogService.open).toHaveBeenCalled();
+      },
+      { timeout: 2000 },
+    );
+
+    expect(service['dialogOpen']).toBe(false);
+  });
+
+  it('does not check for update on visibilitychange before isStable', async () => {
+    TestBed.inject(PwaUpdateService);
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not check for update on visibilitychange within 5 minutes of startup', async () => {
+    TestBed.inject(PwaUpdateService);
+
+    isStable$.next(true);
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
+  });
+
+  it('checks for update on visibilitychange when tab becomes visible after isStable and 5 minutes elapsed', async () => {
+    vi.useFakeTimers();
+    TestBed.inject(PwaUpdateService);
+
+    isStable$.next(true);
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  it('does not check for update on visibilitychange when tab is hidden', async () => {
+    vi.useFakeTimers();
+    TestBed.inject(PwaUpdateService);
+
+    isStable$.next(true);
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+
+    swUpdate.checkForUpdate.mockClear();
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('throttles checkForUpdate calls so it cannot be invoked more often than once every 5 minutes', async () => {
+    vi.useFakeTimers();
+    TestBed.inject(PwaUpdateService);
+
+    isStable$.next(true);
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+
+    // Startup check was automatic, so initial visibilitychange within 5 min is throttled
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
+
+    // After 5 minutes elapse from startup, visibilitychange triggers a check
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(1);
+
+    // Rapid switches within 5 minutes
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(10_000);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(60_000);
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(1);
+
+    // After 5 minutes elapse, next visibilitychange triggers a check
+    await vi.advanceTimersByTimeAsync(50_000); // 300,000 ms total elapsed
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it('checks for update periodically after isStable', async () => {
+    vi.useFakeTimers();
+    TestBed.inject(PwaUpdateService);
+
+    isStable$.next(true);
+    expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+  });
+
+  it('returns cached lastCheckResult when checkForUpdate is throttled within 5 minutes', async () => {
+    vi.useFakeTimers();
+    swUpdate.checkForUpdate.mockResolvedValue(true);
+    const service = TestBed.inject(PwaUpdateService);
+
+    // Initially throttled due to startup check
+    const initialResult = await service['checkForUpdate']();
+    expect(initialResult).toBe(false);
+    expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
+
+    // Advance past startup window
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+
+    const result1 = await service['checkForUpdate']();
+    expect(result1).toBe(true);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(1);
+
+    const result2 = await service['checkForUpdate']();
+    expect(result2).toBe(true);
+    expect(swUpdate.checkForUpdate).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
   });
 });

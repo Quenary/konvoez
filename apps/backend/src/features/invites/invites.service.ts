@@ -1,12 +1,9 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import * as crypto from 'crypto';
-import { inviteDefaultTtl, TInviteStatus } from '@konvoez/shared';
+import { ApiErrorCode, inviteDefaultTtl, TInviteStatus } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { InviteEntity } from './invites.entity';
 import { InviteCreateDto, InviteDto } from './invites.dto';
 import { UserEntity } from '../users/users.entity';
@@ -102,7 +99,10 @@ export class InvitesService {
       { populate: ['author', 'usedBy'] },
     );
     if (!invite) {
-      throw new NotFoundException(`Invite #${id} not found`);
+      throw AppException.notFound(ApiErrorCode.INVITE_NOT_FOUND, {
+        message: `Invite #${id} not found`,
+        params: { id },
+      });
     }
     return invite;
   }
@@ -126,22 +126,35 @@ export class InvitesService {
   async validate(code: string, email?: string): Promise<InviteEntity> {
     const invite = await this.repo.findOne({ code });
     if (!invite) {
-      throw new ForbiddenException('Invalid invite code');
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_INVALID,
+        'Invalid invite code',
+      );
     }
     if (invite.revokedAt) {
-      throw new ForbiddenException('Invite code has been revoked');
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_REVOKED,
+        'Invite code has been revoked',
+      );
     }
     if (invite.usedAt) {
-      throw new ForbiddenException('Invite code has already been used');
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_USED,
+        'Invite code has already been used',
+      );
     }
     if (new Date() > new Date(invite.expiresAt)) {
-      throw new ForbiddenException('Invite code has expired');
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_EXPIRED,
+        'Invite code has expired',
+      );
     }
     if (
       invite.email &&
       invite.email.toLowerCase() !== email?.trim().toLowerCase()
     ) {
-      throw new ForbiddenException(
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_EMAIL_MISMATCH,
         'Invite code is bound to another email address',
       );
     }

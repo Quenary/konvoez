@@ -18,7 +18,7 @@
 
 - Пиши только про найденные проблемы. Чистое не перечисляй и замечания не выдумывай. Если проблем нет — одна фраза об этом, и всё.
 - Серьёзность только `high` или `medium`. Более слабое не пиши.
-- На каждое замечание: серьёзность, место, почему это проблема, кратко предлагаемое решение.
+- На каждое замечание: краткое наименование, серьёзность, место, почему это проблема, кратко предлагаемое решение.
 
 ## English
 
@@ -40,4 +40,4 @@ Only real problems in the changes, judged against @AGENTS.md, @docs/CONTRIBUTING
 
 - Write only about problems you found. Do not list clean areas and do not invent remarks. If there are no problems, say so in one sentence and stop.
 - Severity is only `high` or `medium`. Leave out anything weaker.
-- For each remark: severity, location, why it is a problem, and a brief proposed fix.
+- For each remark: short name, severity, location, why it is a problem, and a brief proposed fix.

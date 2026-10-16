@@ -31,7 +31,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
   catchError,
@@ -220,11 +220,12 @@ export const ChatStore = signalStore(
       unreadCountsStore = inject(UnreadCountsStore),
       outgoingStore = inject(OutgoingMessagesStore),
       ngrxStore = inject(Store),
+      apiErrorService = inject(ApiErrorService),
     ) => {
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const showError = (error: unknown): void => {
         tuiNotificationsService
-          .open(parseError(error), {
+          .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             autoClose: 5000,
             closable: true,

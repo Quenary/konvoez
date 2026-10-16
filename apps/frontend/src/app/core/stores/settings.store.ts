@@ -27,7 +27,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import {
   DEFAULT_ECHO_CANCELLATION,
   DEFAULT_INPUT_GAIN,
@@ -167,10 +167,11 @@ export const SettingsStore = signalStore(
       speakerService = inject(SpeakerService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
+      apiErrorService = inject(ApiErrorService),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
-          .open(parseError(error), {
+          .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             autoClose: 5000,
             closable: true,

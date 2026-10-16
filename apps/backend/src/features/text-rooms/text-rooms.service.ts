@@ -1,10 +1,5 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AppException } from '@shared/errors/app.exception';
 import {
   EntityManager,
   EntityRepository,
@@ -47,6 +42,7 @@ import {
 } from '@shared/events/notifications.events';
 
 import {
+  ApiErrorCode,
   canDeleteTextRoomMessage,
   ESettingKey,
   IAttachment,
@@ -54,7 +50,6 @@ import {
   ITextRoomMessageReply,
   ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
-  SCHEMA_ERROR,
 } from '@konvoez/shared';
 import { htmlToPlainText } from '@shared/utils/html-text.util';
 import { AttachmentsService } from '../attachments/attachments.service';
@@ -529,7 +524,10 @@ export class TextRoomsService {
       );
       if (existing) {
         if (!this.sameMessageTarget(existing, dto)) {
-          throw new ConflictException({ message: 'CLIENT_ID_CONFLICT' });
+          throw AppException.conflict(
+            ApiErrorCode.MESSAGE_CLIENT_ID_CONFLICT,
+            'Client id conflict',
+          );
         }
         return this.existingMessageDto(user, existing);
       }
@@ -537,20 +535,29 @@ export class TextRoomsService {
 
     const requestedIds = dto.attachmentIds ?? [];
     if (this.isEmptyContent(dto.content) && requestedIds.length === 0) {
-      throw new BadRequestException(SCHEMA_ERROR.MESSAGE_EMPTY);
+      throw AppException.badRequest(
+        ApiErrorCode.MESSAGE_EMPTY,
+        'Message cannot be empty',
+      );
     }
     if (requestedIds.length > 0) {
       const enabled = await this.settingsService.getValue(
         ESettingKey.ATTACHMENTS_ENABLED,
       );
       if (!enabled) {
-        throw new ForbiddenException('ATTACHMENTS_DISABLED');
+        throw AppException.forbidden(
+          ApiErrorCode.ATTACHMENTS_DISABLED,
+          'Attachments are disabled',
+        );
       }
       const maxFiles = await this.settingsService.getValue(
         ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
       );
       if (requestedIds.length > maxFiles) {
-        throw new BadRequestException('ATTACHMENTS_TOO_MANY');
+        throw AppException.badRequest(
+          ApiErrorCode.ATTACHMENTS_TOO_MANY,
+          'Too many attachments',
+        );
       }
     }
     const attachmentIds = [...new Set(requestedIds)];
@@ -575,10 +582,14 @@ export class TextRoomsService {
         { populate: ['sender', 'recipient', 'room'] },
       );
       if (!replyTarget) {
-        throw new NotFoundException('Reply target message not found');
+        throw AppException.notFound(
+          ApiErrorCode.REPLY_TARGET_NOT_FOUND,
+          'Reply target message not found',
+        );
       }
       if (dto.roomId && replyTarget.room?.id !== dto.roomId) {
-        throw new ForbiddenException(
+        throw AppException.forbidden(
+          ApiErrorCode.REPLY_TARGET_FOREIGN,
           'Cannot reply to a message from another room',
         );
       }
@@ -589,7 +600,8 @@ export class TextRoomsService {
           (replyTarget.sender.id === dto.recipientId &&
             replyTarget.recipient?.id === user.id);
         if (!isDirectPair) {
-          throw new ForbiddenException(
+          throw AppException.forbidden(
+            ApiErrorCode.REPLY_TARGET_FOREIGN,
             'Cannot reply to a message from another chat',
           );
         }
@@ -649,7 +661,10 @@ export class TextRoomsService {
         );
         if (winner) {
           if (!this.sameMessageTarget(winner, dto)) {
-            throw new ConflictException({ message: 'CLIENT_ID_CONFLICT' });
+            throw AppException.conflict(
+              ApiErrorCode.MESSAGE_CLIENT_ID_CONFLICT,
+              'Client id conflict',
+            );
           }
           return this.existingMessageDto(user, winner);
         }
@@ -706,18 +721,27 @@ export class TextRoomsService {
     );
 
     if (!message) {
-      throw new NotFoundException('Message not found');
+      throw AppException.notFound(
+        ApiErrorCode.MESSAGE_NOT_FOUND,
+        'Message not found',
+      );
     }
 
     if (message.sender.id !== user.id) {
-      throw new ForbiddenException('You can only edit your own messages');
+      throw AppException.forbidden(
+        ApiErrorCode.MESSAGE_NOT_OWNER,
+        'You can only edit your own messages',
+      );
     }
 
     const existingAttachments = await this.loadAttachments([message]);
     const currentAttachments =
       existingAttachments.get(uuidStringify(message.id)) ?? [];
     if (this.isEmptyContent(dto.content) && currentAttachments.length === 0) {
-      throw new BadRequestException(SCHEMA_ERROR.MESSAGE_EMPTY);
+      throw AppException.badRequest(
+        ApiErrorCode.MESSAGE_EMPTY,
+        'Message cannot be empty',
+      );
     }
 
     const { encrypted, iv, authTag } = this.encryptionService.encrypt(
@@ -765,7 +789,10 @@ export class TextRoomsService {
     );
 
     if (!message) {
-      throw new NotFoundException('Message not found');
+      throw AppException.notFound(
+        ApiErrorCode.MESSAGE_NOT_FOUND,
+        'Message not found',
+      );
     }
 
     const allowed = canDeleteTextRoomMessage(
@@ -777,7 +804,10 @@ export class TextRoomsService {
       user,
     );
     if (!allowed) {
-      throw new ForbiddenException('You can only delete your own messages');
+      throw AppException.forbidden(
+        ApiErrorCode.MESSAGE_NOT_OWNER,
+        'You can only delete your own messages',
+      );
     }
 
     this.em.remove(message);
@@ -868,7 +898,10 @@ export class TextRoomsService {
     );
 
     if (!message) {
-      throw new NotFoundException('Message not found');
+      throw AppException.notFound(
+        ApiErrorCode.MESSAGE_NOT_FOUND,
+        'Message not found',
+      );
     }
 
     // Access check: user must be sender, recipient, or a room member
@@ -878,7 +911,10 @@ export class TextRoomsService {
       message.room != null; // room membership check is implicit via list access
 
     if (!isParticipant) {
-      throw new ForbiddenException('Access denied');
+      throw AppException.forbidden(
+        ApiErrorCode.MESSAGE_ACCESS_DENIED,
+        'Access denied',
+      );
     }
 
     const reads = await this.messageReadRepository.find(
@@ -900,7 +936,10 @@ export class TextRoomsService {
     );
 
     if (!message) {
-      throw new NotFoundException('Message not found');
+      throw AppException.notFound(
+        ApiErrorCode.MESSAGE_NOT_FOUND,
+        'Message not found',
+      );
     }
 
     const isParticipant =
@@ -909,7 +948,10 @@ export class TextRoomsService {
       message.room != null;
 
     if (!isParticipant) {
-      throw new ForbiddenException('Access denied');
+      throw AppException.forbidden(
+        ApiErrorCode.MESSAGE_ACCESS_DENIED,
+        'Access denied',
+      );
     }
 
     const existingReaction = await this.messageReactionRepository.findOne({

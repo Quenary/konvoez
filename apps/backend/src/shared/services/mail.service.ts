@@ -1,8 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import nodemailer, { Transporter } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { AppService } from './app.service';
@@ -29,7 +27,10 @@ export class MailService {
 
   async sendMail(options: SendMailOptions): Promise<void> {
     if (!this.transporter) {
-      throw new ServiceUnavailableException('Email delivery is not configured');
+      throw AppException.serviceUnavailable(
+        ApiErrorCode.EMAIL_NOT_CONFIGURED,
+        'Email delivery is not configured',
+      );
     }
 
     try {
@@ -42,7 +43,10 @@ export class MailService {
       });
     } catch (error) {
       this.logger.error('Failed to send email', error);
-      throw new ServiceUnavailableException('Failed to send email');
+      throw AppException.serviceUnavailable(
+        ApiErrorCode.EMAIL_SEND_FAILED,
+        'Failed to send email',
+      );
     }
   }
 

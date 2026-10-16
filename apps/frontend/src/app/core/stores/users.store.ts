@@ -10,7 +10,7 @@ import {
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import { UsersApiService } from '@core/api/users-api.service';
@@ -33,6 +33,7 @@ export const UsersStore = signalStore(
       usersApiService = inject(UsersApiService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
+      apiErrorService = inject(ApiErrorService),
     ) => ({
       clear(): void {
         patchState(store, removeAllEntities(), {
@@ -64,7 +65,7 @@ export const UsersStore = signalStore(
               catchError((error) => {
                 patchState(store, { loading: false });
                 tuiNotificationsService
-                  .open(parseError(error), {
+                  .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
                     appearance: 'negative',
                     autoClose: 5000,
                     closable: true,

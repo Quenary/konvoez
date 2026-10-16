@@ -22,11 +22,7 @@ import os from 'os';
 import path from 'path';
 import { parse, v7 } from 'uuid';
 import {
-  ConflictException,
-  HttpException,
-  NotFoundException,
-} from '@nestjs/common';
-import {
+  ApiErrorCode,
   EAttachmentKind,
   ESettingKey,
   attachmentFileNameMaxLength,
@@ -484,10 +480,9 @@ describe('AttachmentsService', () => {
     );
 
     await expect(createPending()).rejects.toMatchObject({
-      message: 'STORAGE_FULL',
+      code: ApiErrorCode.STORAGE_FULL,
       status: 507,
     });
-    await expect(createPending()).rejects.toBeInstanceOf(HttpException);
   });
 
   it('stores an image when metadata stripping fails', async () => {
@@ -691,7 +686,9 @@ describe('AttachmentsService', () => {
       });
       await expect(
         service.resolveReadable(id, outsider, false),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FILE_NOT_FOUND,
+      });
     });
 
     it('hides a detached attachment', async () => {
@@ -706,7 +703,9 @@ describe('AttachmentsService', () => {
 
       await expect(
         service.resolveReadable(id, author, false),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FILE_NOT_FOUND,
+      });
     });
 
     it('allows any user to read a room attachment', async () => {
@@ -743,7 +742,9 @@ describe('AttachmentsService', () => {
       ).resolves.toBeTruthy();
       await expect(
         service.resolveReadable(id, outsider, false),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FILE_NOT_FOUND,
+      });
     });
 
     it('deletes a pending upload owned by the caller', async () => {
@@ -770,18 +771,20 @@ describe('AttachmentsService', () => {
       repo.findOne.mockResolvedValue(row({ id: parse(id) }));
       em.nativeDelete.mockResolvedValue(0);
 
-      await expect(service.deletePending(id, author)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.deletePending(id, author)).rejects.toMatchObject({
+        code: ApiErrorCode.FILE_NOT_FOUND,
+      });
       expect(fileService.delete).not.toHaveBeenCalled();
     });
 
     it('returns 404 when deleting an attached or foreign upload', async () => {
       repo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.deletePending(v7(), outsider),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deletePending(v7(), outsider)).rejects.toMatchObject(
+        {
+          code: ApiErrorCode.FILE_NOT_FOUND,
+        },
+      );
     });
 
     it('reports missing claims', async () => {
@@ -795,7 +798,10 @@ describe('AttachmentsService', () => {
           parse(v7()),
           [id],
         ),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ATTACHMENTS_UNAVAILABLE,
+        attachmentIds: [id],
+      });
     });
   });
 });

@@ -21,7 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ConflictException } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 
 import { RoomsService } from './rooms.service';
@@ -77,12 +77,14 @@ describe('RoomsService', () => {
     service = new RoomsService(mockRepo, eventEmitter as never);
   });
 
-  it('should throw ConflictException if room name is already taken on create', async () => {
+  it('should throw AppException if room name is already taken on create', async () => {
     mockRepo.findOne.mockResolvedValueOnce(room);
 
     await expect(
       service.create({ name: 'Meeting', type: ERoomType.TEXT }, author),
-    ).rejects.toThrow(new ConflictException('Room name already taken'));
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.ROOM_NAME_TAKEN,
+    });
   });
 
   it('should emit ROOM_CREATED after successful create', async () => {
@@ -96,14 +98,14 @@ describe('RoomsService', () => {
     );
   });
 
-  it('should throw ConflictException if room name is already taken on update', async () => {
+  it('should throw AppException if room name is already taken on update', async () => {
     mockRepo.findOne
       .mockResolvedValueOnce(room) // findOne(id)
       .mockResolvedValueOnce(room); // findOne({ name, id: { $ne: id } })
 
-    await expect(service.update(1, { name: 'Meeting' })).rejects.toThrow(
-      new ConflictException('Room name already taken'),
-    );
+    await expect(service.update(1, { name: 'Meeting' })).rejects.toMatchObject({
+      code: ApiErrorCode.ROOM_NAME_TAKEN,
+    });
   });
 
   it('should emit ROOM_UPDATED after successful update', async () => {

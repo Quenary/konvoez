@@ -6,6 +6,7 @@ GENERAL:
   NO: Нет
   SAVE: Сохранить
   CANCEL: Отмена
+  LATER: Позже
   RETRY: Повторить
   CREATE: Создать
   GO_BACK: Назад
@@ -349,3 +350,68 @@ REACTIONS:
   CAT_CELEBRATION: Праздник и предметы
   CAT_FOOD: Еда и напитки
   CAT_ANIMALS: Животные и природа
+ERRORS:
+  UNKNOWN: Произошла непредвиденная ошибка
+  INTERNAL: Внутренняя ошибка сервера
+  BAD_REQUEST: Неверный запрос
+  UNAUTHORIZED: Требуется авторизация
+  FORBIDDEN: Доступ запрещён
+  NOT_FOUND: Не найдено
+  CONFLICT: Конфликт данных
+  PAYLOAD_TOO_LARGE: Слишком большой размер запроса
+  RATE_LIMITED: Слишком много запросов. Пожалуйста, повторите позже
+  SERVICE_UNAVAILABLE: Сервис временно недоступен
+  VALIDATION_FAILED: Ошибка валидации данных
+  AUTH_INVALID_CREDENTIALS: Неверное имя пользователя или пароль
+  AUTH_NO_REFRESH_TOKEN: Токен обновления не предоставлен
+  AUTH_METHOD_FORBIDDEN: Метод аутентификации запрещён
+  AUTH_RECOVERY_CODE_INVALID: Неверный код восстановления
+  AUTH_EMAIL_TAKEN: Аккаунт с такой почтой уже существует
+  AUTH_USERNAME_TAKEN: Это имя пользователя уже занято
+  AUTH_INVITE_REQUIRED: Для регистрации требуется приглашение
+  AUTH_SETUP_REQUIRED: Требуется первичная настройка сервера
+  AUTH_SETUP_TOKEN_INVALID: Неверный токен настройки
+  AUTH_SETUP_TOKEN_EXPIRED: Срок действия токена настройки истёк
+  EMAIL_NOT_CONFIGURED: Почтовый сервис не настроен
+  EMAIL_SEND_FAILED: Не удалось отправить письмо
+  INVITE_INVALID: Недействительный код приглашения
+  INVITE_USED: Это приглашение уже использовано
+  INVITE_REVOKED: Приглашение отозвано
+  INVITE_EXPIRED: Срок действия приглашения истёк
+  INVITE_EMAIL_MISMATCH: Приглашение предназначено для другого адреса почты
+  INVITE_NOT_FOUND: Приглашение не найдено
+  USER_NOT_FOUND: Пользователь не найден
+  USER_OWNER_DELETE_FORBIDDEN: Нельзя удалить владельца сервера
+  USER_OWNER_ROLE_FORBIDDEN: Нельзя изменить роль владельца сервера
+  USER_UPDATE_EMPTY: Нет данных для обновления пользователя
+  ROOM_NOT_FOUND: Комната не найдена
+  ROOM_NAME_TAKEN: Комната с таким именем уже существует
+  MESSAGE_NOT_FOUND: Сообщение не найдено
+  MESSAGE_EMPTY: Сообщение не может быть пустым
+  MESSAGE_ACCESS_DENIED: Доступ к сообщению запрещён
+  MESSAGE_NOT_OWNER: Можно редактировать или удалять только свои сообщения
+  MESSAGE_CLIENT_ID_CONFLICT: Сообщение уже существует
+  REPLY_TARGET_NOT_FOUND: Сообщение для ответа не найдено
+  REPLY_TARGET_FOREIGN: Нельзя ответить на сообщение из другой комнаты
+  ATTACHMENTS_DISABLED: Вложения отключены на сервере
+  ATTACHMENTS_UNAVAILABLE: Некоторые вложения больше недоступны
+  ATTACHMENTS_TOO_MANY: Слишком много вложений в одном сообщении
+  ATTACHMENTS_PENDING_LIMIT: Превышен лимит одновременных загрузок. Дождитесь завершения предыдущих
+  FILE_REQUIRED: Требуется файл
+  FILE_TOO_BIG: Размер файла превышает допустимый лимит
+  FILE_NOT_FOUND: Файл не найден
+  UPLOAD_EMPTY: Загруженный файл пуст
+  UPLOAD_MALFORMED: Некорректные данные загрузки
+  UPLOAD_ABORTED: Загрузка была прервана
+  STORAGE_FULL: Хранилище заполнено
+  IMAGE_INVALID: Некорректный формат или повреждённое изображение
+  AVATAR_TOO_BIG: Размер аватара слишком велик
+  SETTING_NOT_FOUND: Настройка не найдена
+  PUSH_SUBSCRIPTION_NOT_FOUND: Подписка на push-уведомления не найдена
+  VOICE_VIDEO_LIMIT_REACHED: Достигнут лимит видео в комнате
+  VOICE_SESSION_INVALID: Недействительная голосовая сессия
+  VOICE_TRANSPORT_NOT_FOUND: Транспорт голосовой связи не найден
+  VOICE_PRODUCER_NOT_FOUND: Источник медиапотока не найден
+  VOICE_CANNOT_CONSUME: Не удалось подключиться к медиапотоку
+  VOICE_MEDIA_INVALID: Некорректный формат медиа или настройки
+  CALL_NOT_JOINABLE: Звонок больше недоступен для подключения

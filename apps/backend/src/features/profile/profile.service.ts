@@ -1,12 +1,9 @@
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { EUserRole } from '@konvoez/shared';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
@@ -41,7 +38,10 @@ export class ProfileService {
         id: { $ne: author.id },
       });
       if (existingUsername) {
-        throw new ConflictException('Username already taken');
+        throw AppException.conflict(
+          ApiErrorCode.AUTH_USERNAME_TAKEN,
+          'Username already taken',
+        );
       }
     }
     if (dto.email) {
@@ -50,7 +50,10 @@ export class ProfileService {
         id: { $ne: author.id },
       });
       if (existingEmail) {
-        throw new ConflictException('Email already taken');
+        throw AppException.conflict(
+          ApiErrorCode.AUTH_EMAIL_TAKEN,
+          'Email already taken',
+        );
       }
     }
 
@@ -89,7 +92,10 @@ export class ProfileService {
 
   private assertNotOwner(author: GetUserDto): void {
     if (author.role === EUserRole.OWNER) {
-      throw new ForbiddenException('Owner account cannot be deleted');
+      throw AppException.forbidden(
+        ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
+        'Owner account cannot be deleted',
+      );
     }
   }
 }

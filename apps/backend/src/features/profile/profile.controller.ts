@@ -7,14 +7,12 @@ import {
   Patch,
   Post,
   UploadedFile,
-  UseFilters,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { avatarUploadLimits } from '@shared/services/file.service';
-import { AvatarUploadExceptionFilter } from '@shared/filters/avatar-upload-exception.filter';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
 import { GetUserDto } from '../users/users.dto';
@@ -65,7 +63,6 @@ export class ProfileController {
   }
 
   @Post('avatar/upload')
-  @UseFilters(AvatarUploadExceptionFilter)
   @UseInterceptors(FileInterceptor('avatar', { limits: avatarUploadLimits }))
   @ApiOkResponse({
     type: UploadFileResultDto,

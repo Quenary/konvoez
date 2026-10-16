@@ -1,14 +1,11 @@
 import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
-  ServiceUnavailableException,
-  UnauthorizedException,
 } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -86,12 +83,16 @@ export class AuthService implements OnApplicationBootstrap {
         this.ownerSetupTokenCacheKey,
       );
       if (!cachedToken) {
-        throw new ForbiddenException(
+        throw AppException.forbidden(
+          ApiErrorCode.AUTH_SETUP_TOKEN_EXPIRED,
           'Owner setup token has expired. Please restart the instance.',
         );
       }
       if (!dto.setupToken || dto.setupToken !== cachedToken) {
-        throw new ForbiddenException('Invalid or missing owner setup token');
+        throw AppException.forbidden(
+          ApiErrorCode.AUTH_SETUP_TOKEN_INVALID,
+          'Invalid or missing owner setup token',
+        );
       }
       const user = await this.createUser(dto, EUserRole.OWNER);
       await this.cacheManager.del(this.ownerSetupTokenCacheKey);
@@ -104,7 +105,8 @@ export class AuthService implements OnApplicationBootstrap {
     );
 
     if (inviteOnlySignUp && !dto.inviteCode) {
-      throw new ForbiddenException(
+      throw AppException.forbidden(
+        ApiErrorCode.AUTH_INVITE_REQUIRED,
         'Registration is only allowed with a valid invite code',
       );
     }
@@ -141,17 +143,24 @@ export class AuthService implements OnApplicationBootstrap {
       username: dto.username,
     });
     if (existingUsername) {
-      throw new ConflictException('Username already taken');
+      throw AppException.conflict(
+        ApiErrorCode.AUTH_USERNAME_TAKEN,
+        'Username already taken',
+      );
     }
 
     const existingEmail = await this.userRepo.findOne({ email: dto.email });
     if (existingEmail) {
-      throw new ConflictException('Email already taken');
+      throw AppException.conflict(
+        ApiErrorCode.AUTH_EMAIL_TAKEN,
+        'Email already taken',
+      );
     }
 
     const anyUser = (await this.usersService.count()) > 0;
     if (!anyUser && role !== EUserRole.OWNER) {
-      throw new ForbiddenException(
+      throw AppException.forbidden(
+        ApiErrorCode.AUTH_SETUP_REQUIRED,
         'Initial setup required: first user must be registered as OWNER with a valid setup token',
       );
     }
@@ -175,24 +184,33 @@ export class AuthService implements OnApplicationBootstrap {
    * @param login username or email
    * @param password
    * @returns UserEntity
-   * @throws UnauthorizedException
+   * @throws AppException
    */
   async validateUser(login: string, password: string): Promise<GetUserDto> {
     let user: UserEntity | null;
     try {
       user = await this.usersService.findOneByUsernameOrEmail(login.trim());
     } catch {
-      throw new UnauthorizedException('Invalid credentials');
+      throw AppException.unauthorized(
+        ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid credentials',
+      );
     }
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw AppException.unauthorized(
+        ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid credentials',
+      );
     }
     const result = await this.passwordService.comparePassword(
       password,
       user.password,
     );
     if (!result || user.deletedAt) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw AppException.unauthorized(
+        ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid credentials',
+      );
     }
     return this.usersService.toDto(user);
   }
@@ -201,7 +219,10 @@ export class AuthService implements OnApplicationBootstrap {
     dto: IPasswordRecoveryRequest,
   ): Promise<{ ok: true }> {
     if (!this.mailService.isConfigured) {
-      throw new ServiceUnavailableException('Email delivery is not configured');
+      throw AppException.serviceUnavailable(
+        ApiErrorCode.EMAIL_NOT_CONFIGURED,
+        'Email delivery is not configured',
+      );
     }
 
     const email = dto.email.trim().toLowerCase();
@@ -215,7 +236,11 @@ export class AuthService implements OnApplicationBootstrap {
     try {
       user = await this.usersService.findOneBy({ email });
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        (error instanceof AppException &&
+          error.code === ApiErrorCode.USER_NOT_FOUND) ||
+        error instanceof NotFoundException
+      ) {
         // Same response shape; still apply cooldown to limit probing.
         await this.cacheManager.set(
           cooldownKey,
@@ -293,14 +318,24 @@ export class AuthService implements OnApplicationBootstrap {
     try {
       user = await this.usersService.findOneBy({ email });
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw new BadRequestException('Invalid or expired recovery code');
+      if (
+        (error instanceof AppException &&
+          error.code === ApiErrorCode.USER_NOT_FOUND) ||
+        error instanceof NotFoundException
+      ) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+          'Invalid or expired recovery code',
+        );
       }
       throw error;
     }
 
     if (user.deletedAt) {
-      throw new BadRequestException('Invalid or expired recovery code');
+      throw AppException.badRequest(
+        ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+        'Invalid or expired recovery code',
+      );
     }
 
     const candidates = await this.recoveryCodeRepo.find(
@@ -325,7 +360,10 @@ export class AuthService implements OnApplicationBootstrap {
     }
 
     if (!matched) {
-      throw new BadRequestException('Invalid or expired recovery code');
+      throw AppException.badRequest(
+        ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+        'Invalid or expired recovery code',
+      );
     }
 
     matched.usedAt = new Date();
@@ -375,12 +413,18 @@ export class AuthService implements OnApplicationBootstrap {
       });
     } catch (error) {
       if (error instanceof JsonWebTokenError) {
-        throw new UnauthorizedException('Unauthorized');
+        throw AppException.unauthorized(
+          ApiErrorCode.UNAUTHORIZED,
+          'Unauthorized',
+        );
       }
       throw error;
     }
     if (data.type !== type) {
-      throw new UnauthorizedException('Unauthorized');
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
     }
     return data;
   }
@@ -393,7 +437,10 @@ export class AuthService implements OnApplicationBootstrap {
   async getMe(req: Request): Promise<GetUserDto> {
     const accessToken = req.cookies?.[ACCESS_TOKEN_KEY];
     if (!accessToken) {
-      throw new UnauthorizedException('Unauthorized');
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
     }
 
     return await this.getUserFromAccessToken(accessToken);
@@ -452,7 +499,10 @@ ${token}
   private async requireActiveUser(userId: number): Promise<GetUserDto> {
     const user = await this.usersService.findOneByAsDto({ id: userId });
     if (user.deletedAt) {
-      throw new UnauthorizedException('Unauthorized');
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
     }
     return user;
   }

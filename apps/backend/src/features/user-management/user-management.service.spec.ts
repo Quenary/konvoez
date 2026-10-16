@@ -19,8 +19,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import type { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
@@ -164,7 +163,9 @@ describe('UserManagementService', () => {
 
       await expect(
         service.updateRole(5, { role: EUserRole.ADMIN }, ownerAuthor),
-      ).rejects.toThrow(new ForbiddenException('Forbidden'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
       expect(mockRepo.assign).not.toHaveBeenCalled();
     });
 
@@ -178,9 +179,9 @@ describe('UserManagementService', () => {
 
       await expect(
         service.updateRole(5, { role: EUserRole.OWNER }, ownerAuthor),
-      ).rejects.toThrow(
-        new BadRequestException('Owner role cannot be assigned'),
-      );
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
+      });
     });
 
     it('should reject changing the caller own role', async () => {
@@ -188,7 +189,9 @@ describe('UserManagementService', () => {
 
       await expect(
         service.updateRole(1, { role: EUserRole.ADMIN }, mockUserDto),
-      ).rejects.toThrow(new ForbiddenException('Forbidden'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
     });
   });
 
@@ -223,9 +226,9 @@ describe('UserManagementService', () => {
       } as UserEntity;
       mockRepo.findOne.mockResolvedValueOnce(target);
 
-      await expect(service.anonymize(5, ownerAuthor)).rejects.toThrow(
-        new ForbiddenException('Forbidden'),
-      );
+      await expect(service.anonymize(5, ownerAuthor)).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
       expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
     });
   });
@@ -258,9 +261,11 @@ describe('UserManagementService', () => {
       } as UserEntity;
       mockRepo.findOne.mockResolvedValueOnce(target);
 
-      await expect(service.removePhysically(5, ownerAuthor)).rejects.toThrow(
-        new ForbiddenException('Forbidden'),
-      );
+      await expect(
+        service.removePhysically(5, ownerAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
   });

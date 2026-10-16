@@ -35,21 +35,16 @@ import {
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
 import { parse, v7, stringify as uuidStringify } from 'uuid';
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
 import {
+  ApiErrorCode,
   EAttachmentKind,
   ESettingKey,
   EUserRole,
   IAttachment,
-  SCHEMA_ERROR,
 } from '@konvoez/shared';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
@@ -363,7 +358,7 @@ describe('TextRoomsService', () => {
       });
     });
 
-    it('should throw NotFoundException if reply target message does not exist', async () => {
+    it('should throw AppException if reply target message does not exist', async () => {
       messageRepository.findOne.mockResolvedValue(null);
 
       await expect(
@@ -374,10 +369,12 @@ describe('TextRoomsService', () => {
           recipientId: null,
           replyToId: v7(),
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.REPLY_TARGET_NOT_FOUND,
+      });
     });
 
-    it('should throw ForbiddenException if reply target is in another room', async () => {
+    it('should throw AppException if reply target is in another room', async () => {
       const targetEntity = {
         id: parse(v7()),
         sender: { id: 2, username: 'other' },
@@ -394,7 +391,9 @@ describe('TextRoomsService', () => {
           recipientId: null,
           replyToId: v7(),
         }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.REPLY_TARGET_FOREIGN,
+      });
     });
 
     it('should generate and associate search token entities when creating message', async () => {
@@ -528,7 +527,9 @@ describe('TextRoomsService', () => {
           recipientId: null,
           clientId,
         }),
-      ).rejects.toBeInstanceOf(ConflictException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_CLIENT_ID_CONFLICT,
+      });
     });
 
     it('returns the winner when a concurrent insert hits the unique index', async () => {
@@ -566,7 +567,9 @@ describe('TextRoomsService', () => {
           roomId: 10,
           recipientId: null,
         }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_EMPTY,
+      });
       await expect(
         service.create(mockUser, {
           attachmentIds: [],
@@ -574,7 +577,9 @@ describe('TextRoomsService', () => {
           roomId: 10,
           recipientId: null,
         }),
-      ).rejects.toThrow(SCHEMA_ERROR.MESSAGE_EMPTY);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_EMPTY,
+      });
     });
 
     it('creates a message that only has files', async () => {
@@ -659,7 +664,9 @@ describe('TextRoomsService', () => {
           recipientId: null,
           attachmentIds: [v7(), v7()],
         }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ATTACHMENTS_TOO_MANY,
+      });
     });
   });
 
@@ -935,7 +942,9 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.updateMessage(mockUser, v7(), { content: 'Update' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_FOUND,
+      });
     });
 
     it('should throw ForbiddenException if user is not the sender', async () => {
@@ -949,7 +958,9 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.updateMessage(mockUser, msgId, { content: 'Edit' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_OWNER,
+      });
     });
   });
 
@@ -976,9 +987,9 @@ describe('TextRoomsService', () => {
     it('should throw NotFoundException when deleting non-existent message', async () => {
       messageRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.delete(mockUser, v7())).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.delete(mockUser, v7())).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_FOUND,
+      });
     });
 
     it('should throw ForbiddenException when deleting another user message', async () => {
@@ -992,9 +1003,9 @@ describe('TextRoomsService', () => {
 
       messageRepository.findOne.mockResolvedValue(existing);
 
-      await expect(service.delete(mockUser, msgId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.delete(mockUser, msgId)).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_OWNER,
+      });
     });
 
     it.each([EUserRole.ADMIN, EUserRole.OWNER])(
@@ -1036,7 +1047,9 @@ describe('TextRoomsService', () => {
 
         await expect(
           service.delete({ ...mockUser, role }, msgId),
-        ).rejects.toThrow(ForbiddenException);
+        ).rejects.toMatchObject({
+          code: ApiErrorCode.MESSAGE_NOT_OWNER,
+        });
       },
     );
   });
@@ -1234,9 +1247,9 @@ describe('TextRoomsService', () => {
     it('should throw NotFoundException when message does not exist', async () => {
       messageRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.getReaders(mockUser, v7())).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getReaders(mockUser, v7())).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_FOUND,
+      });
     });
 
     it('should throw ForbiddenException when user is not a participant', async () => {
@@ -1247,9 +1260,9 @@ describe('TextRoomsService', () => {
         room: null,
       } as unknown as MessageEntity);
 
-      await expect(service.getReaders(mockUser, v7())).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.getReaders(mockUser, v7())).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_ACCESS_DENIED,
+      });
     });
 
     it('should return readers for a participant', async () => {
@@ -1281,7 +1294,9 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.toggleReaction(mockUser, v7(), '👍'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_FOUND,
+      });
     });
 
     it('should throw ForbiddenException if user is not participant', async () => {
@@ -1294,7 +1309,9 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.toggleReaction(mockUser, v7(), '👍'),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_ACCESS_DENIED,
+      });
     });
 
     it('should add reaction when user has no reaction on message', async () => {
@@ -1412,7 +1429,9 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.toggleReaction(mockUser, msgId, '👍'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_NOT_FOUND,
+      });
     });
 
     it('should throw ForbiddenException when user is not a participant in DM', async () => {
@@ -1429,7 +1448,9 @@ describe('TextRoomsService', () => {
 
       await expect(
         service.toggleReaction(mockUser, msgId, '👍'),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_ACCESS_DENIED,
+      });
     });
 
     it('should normalize uppercase message id for reaction lookup and domain event', async () => {

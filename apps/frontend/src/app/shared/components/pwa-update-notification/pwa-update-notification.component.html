@@ -1,0 +1,16 @@
+<ng-template
+  [tuiNotificationOptions]="{
+    label: (labelKey() | translate),
+    autoClose: 0,
+    closable: false,
+    icon: '@tui.refresh-cw',
+  }"
+  [(tuiNotification)]="show">
+  <button
+    tuiButton
+    size="s"
+    type="button"
+    (click)="update()">
+    {{ actionKey() | translate }}
+  </button>
+</ng-template>

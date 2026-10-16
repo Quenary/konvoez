@@ -1,13 +1,13 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import {
-  BadRequestException,
+  HttpStatus,
   Injectable,
   Logger,
-  NotFoundException,
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import {
+  ApiErrorCode,
   defaultSettingValues,
   ESettingKey,
   settingValueSchemas,
@@ -18,6 +18,7 @@ import {
   TSettingValueMap,
 } from '@konvoez/shared';
 import { SettingsEntity } from './settings.entity';
+import { AppException } from '@shared/errors/app.exception';
 
 @Injectable()
 export class SettingsService implements OnApplicationBootstrap {
@@ -120,7 +121,10 @@ export class SettingsService implements OnApplicationBootstrap {
   async findOne(key: ESettingKey): Promise<SettingsEntity> {
     const setting = await this.repo.findOne({ key });
     if (!setting) {
-      throw new NotFoundException(`Setting with key "${key}" not found`);
+      throw AppException.notFound(
+        ApiErrorCode.SETTING_NOT_FOUND,
+        `Setting with key "${key}" not found`,
+      );
     }
     return setting;
   }
@@ -151,12 +155,26 @@ export class SettingsService implements OnApplicationBootstrap {
       const { key, value } = item;
       const schema = settingValueSchemas[key];
       if (!schema) {
-        throw new NotFoundException(`Setting with key "${key}" not supported`);
+        throw AppException.notFound(
+          ApiErrorCode.SETTING_NOT_FOUND,
+          `Setting with key "${key}" not supported`,
+        );
       }
 
       const result = schema.safeParse(value);
       if (!result.success) {
-        throw new BadRequestException(result.error.format());
+        const fields = result.error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          code: issue.message || issue.code,
+        }));
+        throw new AppException(
+          ApiErrorCode.VALIDATION_FAILED,
+          HttpStatus.BAD_REQUEST,
+          {
+            message: 'Validation failed',
+            fields,
+          },
+        );
       }
 
       const setting = await this.findOne(key);

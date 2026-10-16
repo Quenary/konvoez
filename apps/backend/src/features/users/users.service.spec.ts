@@ -19,7 +19,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { NotFoundException } from '@nestjs/common';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
 import { PasswordService } from '../../shared/services/password.service';
@@ -30,7 +30,6 @@ import {
   USER_AVATARS_BUCKET,
   type FileService,
 } from '@shared/services/file.service';
-import { EUserRole } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
@@ -113,9 +112,9 @@ describe('UsersService', () => {
 
     it('should throw NotFoundException if user not found', async () => {
       mockRepo.findOne.mockResolvedValueOnce(null);
-      await expect(service.findOne(999)).rejects.toThrow(
-        new NotFoundException('User not found'),
-      );
+      await expect(service.findOne(999)).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
     });
   });
 
@@ -144,9 +143,11 @@ describe('UsersService', () => {
     it('should throw NotFoundException when no user matches', async () => {
       mockForkedEm.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.findOneByUsernameOrEmail('missing')).rejects.toThrow(
-        new NotFoundException('User not found'),
-      );
+      await expect(
+        service.findOneByUsernameOrEmail('missing'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
     });
   });
 

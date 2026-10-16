@@ -20,17 +20,14 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ExecutionContext,
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthGuardRoles, AuthRefreshFallback } from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
-import { EUserRole } from '@konvoez/shared';
 import { GetUserDto } from '../users/users.dto';
 import type { Response } from 'express';
 
@@ -129,16 +126,16 @@ describe('AuthGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should throw ForbiddenException when user does not have an allowed role', async () => {
+    it('should throw AppException when user does not have an allowed role', async () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
       reflector.getAllAndOverride.mockReturnValueOnce([EUserRole.ADMIN]);
       authService.getMe.mockResolvedValueOnce(mockUser);
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new ForbiddenException('Method forbidden for the user'),
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_METHOD_FORBIDDEN,
+      });
       expect(request['author']).toBeUndefined();
     });
 
@@ -148,12 +145,12 @@ describe('AuthGuard', () => {
 
       reflector.getAllAndOverride.mockReturnValueOnce([EUserRole.MEMBER]);
       authService.getMe.mockRejectedValueOnce(
-        new UnauthorizedException('Unauthorized'),
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
       );
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
       expect(request['author']).toBeUndefined();
       expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
       expect(authService.setAuthCookies).not.toHaveBeenCalled();
@@ -202,12 +199,12 @@ describe('AuthGuard', () => {
         return undefined;
       });
       authService.getMe.mockRejectedValueOnce(
-        new UnauthorizedException('Unauthorized'),
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
       );
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
       expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
       expect(authService.setAuthCookies).not.toHaveBeenCalled();
       expect(request['author']).toBeUndefined();
@@ -226,12 +223,12 @@ describe('AuthGuard', () => {
         return undefined;
       });
       authService.resolveRefreshToken.mockRejectedValueOnce(
-        new UnauthorizedException('Unauthorized'),
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
       );
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
       expect(authService.setAuthCookies).not.toHaveBeenCalled();
       expect(request['author']).toBeUndefined();
     });
@@ -245,12 +242,12 @@ describe('AuthGuard', () => {
 
       reflector.getAllAndOverride.mockReturnValue(undefined);
       authService.getMe.mockRejectedValueOnce(
-        new UnauthorizedException('Unauthorized'),
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
       );
 
-      await expect(guard.canActivate(context)).rejects.toThrow(
-        new UnauthorizedException('Unauthorized'),
-      );
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
       expect(authService.getMe).toHaveBeenCalledWith(request);
       expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
       expect(authService.setAuthCookies).not.toHaveBeenCalled();

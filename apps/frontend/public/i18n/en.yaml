@@ -6,6 +6,7 @@ GENERAL:
   NO: No
   SAVE: Save
   CANCEL: Cancel
+  LATER: Later
   RETRY: Retry
   CREATE: Create
   GO_BACK: Go back
@@ -349,3 +350,68 @@ REACTIONS:
   CAT_CELEBRATION: Celebration & Objects
   CAT_FOOD: Food & Drink
   CAT_ANIMALS: Animals & Nature
+ERRORS:
+  UNKNOWN: An unexpected error occurred
+  INTERNAL: Internal server error
+  BAD_REQUEST: Bad request
+  UNAUTHORIZED: Unauthorized
+  FORBIDDEN: Access denied
+  NOT_FOUND: Not found
+  CONFLICT: Conflict
+  PAYLOAD_TOO_LARGE: Payload too large
+  RATE_LIMITED: Too many requests. Please try again later
+  SERVICE_UNAVAILABLE: Service temporarily unavailable
+  VALIDATION_FAILED: Validation failed
+  AUTH_INVALID_CREDENTIALS: Invalid username or password
+  AUTH_NO_REFRESH_TOKEN: No refresh token provided
+  AUTH_METHOD_FORBIDDEN: Authentication method not allowed
+  AUTH_RECOVERY_CODE_INVALID: Invalid recovery code
+  AUTH_EMAIL_TAKEN: An account with this email already exists
+  AUTH_USERNAME_TAKEN: This username is already taken
+  AUTH_INVITE_REQUIRED: An invitation is required to register
+  AUTH_SETUP_REQUIRED: Initial server setup is required
+  AUTH_SETUP_TOKEN_INVALID: Invalid setup token
+  AUTH_SETUP_TOKEN_EXPIRED: Setup token has expired
+  EMAIL_NOT_CONFIGURED: Email service is not configured
+  EMAIL_SEND_FAILED: Failed to send email
+  INVITE_INVALID: Invalid invitation code
+  INVITE_USED: This invitation code has already been used
+  INVITE_REVOKED: This invitation has been revoked
+  INVITE_EXPIRED: This invitation has expired
+  INVITE_EMAIL_MISMATCH: Invitation is intended for a different email address
+  INVITE_NOT_FOUND: Invitation not found
+  USER_NOT_FOUND: User not found
+  USER_OWNER_DELETE_FORBIDDEN: The server owner cannot be deleted
+  USER_OWNER_ROLE_FORBIDDEN: Server owner role cannot be modified
+  USER_UPDATE_EMPTY: No user fields to update
+  ROOM_NOT_FOUND: Room not found
+  ROOM_NAME_TAKEN: A room with this name already exists
+  MESSAGE_NOT_FOUND: Message not found
+  MESSAGE_EMPTY: Message cannot be empty
+  MESSAGE_ACCESS_DENIED: Access to message denied
+  MESSAGE_NOT_OWNER: You can only edit or delete your own messages
+  MESSAGE_CLIENT_ID_CONFLICT: Message already exists
+  REPLY_TARGET_NOT_FOUND: The message you are replying to was not found
+  REPLY_TARGET_FOREIGN: Cannot reply to a message from another room
+  ATTACHMENTS_DISABLED: Attachments are disabled on this server
+  ATTACHMENTS_UNAVAILABLE: Some attachments are no longer available
+  ATTACHMENTS_TOO_MANY: Too many attachments for a single message
+  ATTACHMENTS_PENDING_LIMIT: Too many pending uploads. Please wait for previous uploads to complete
+  FILE_REQUIRED: File is required
+  FILE_TOO_BIG: File size exceeds the maximum limit
+  FILE_NOT_FOUND: File not found
+  UPLOAD_EMPTY: Uploaded file is empty
+  UPLOAD_MALFORMED: Invalid upload data
+  UPLOAD_ABORTED: Upload was aborted
+  STORAGE_FULL: Storage is full
+  IMAGE_INVALID: Invalid image format or corrupted image
+  AVATAR_TOO_BIG: Avatar image is too large
+  SETTING_NOT_FOUND: Setting not found
+  PUSH_SUBSCRIPTION_NOT_FOUND: Push notification subscription not found
+  VOICE_VIDEO_LIMIT_REACHED: Room video limit reached
+  VOICE_SESSION_INVALID: Invalid voice session
+  VOICE_TRANSPORT_NOT_FOUND: Voice transport not found
+  VOICE_PRODUCER_NOT_FOUND: Voice media producer not found
+  VOICE_CANNOT_CONSUME: Unable to receive media stream
+  VOICE_MEDIA_INVALID: Invalid media format or settings
+  CALL_NOT_JOINABLE: Call is no longer available to join
