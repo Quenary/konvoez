@@ -15,6 +15,7 @@ import {
   isApiErrorCode,
   parseApiError,
 } from './api-error.service';
+import { ApiAckError } from './voice-room-socket-ack';
 
 function getI18nDir(): string {
   const candidates = [
@@ -90,6 +91,17 @@ describe('parseApiError', () => {
 
   it('returns null for generic Error with non-code message', () => {
     expect(parseApiError(new Error('Network disconnected'))).toBeNull();
+  });
+
+  it('parses ApiAckError and extracts apiError payload', () => {
+    const ackError = new ApiAckError({
+      code: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+      message: 'Room video producer limit reached',
+    });
+    expect(parseApiError(ackError)).toEqual({
+      code: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+      message: 'Room video producer limit reached',
+    });
   });
 
   it('parses HttpErrorResponse with ApiErrorResponse body', () => {

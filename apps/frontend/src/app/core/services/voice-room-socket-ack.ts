@@ -1,17 +1,36 @@
 import type { Socket } from 'socket.io-client';
+import { type ApiErrorResponse, type WsAckError } from '@konvoez/shared';
+import { isApiErrorCode } from './api-error.service';
 
 export const DEFAULT_VOICE_SOCKET_ACK_MS = 5000;
 export const VOICE_JOIN_ACK_MS = 10_000;
 
-type AckErrorResponse = { error: string };
+export class ApiAckError extends Error {
+  readonly apiError: ApiErrorResponse;
 
-function isAckErrorResponse(value: unknown): value is AckErrorResponse {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'error' in value &&
-    typeof (value as AckErrorResponse).error === 'string'
-  );
+  constructor(apiError: ApiErrorResponse) {
+    super(apiError.code);
+    this.name = 'ApiAckError';
+    this.apiError = apiError;
+  }
+}
+
+type LegacyAckError = { error: string };
+
+function isAckErrorResponse(
+  value: unknown,
+): value is WsAckError | LegacyAckError {
+  if (typeof value !== 'object' || value === null || !('error' in value)) {
+    return false;
+  }
+  const error = (value as { error: unknown }).error;
+  if (typeof error === 'string') {
+    return true;
+  }
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    return isApiErrorCode((error as { code: unknown }).code);
+  }
+  return false;
 }
 
 /** Socket.io ack with timeout and server-side `{ error }` payloads. */
@@ -23,7 +42,16 @@ export async function emitVoiceRoomWithAck<TResponse>(
 ): Promise<TResponse> {
   const response = await socket.timeout(timeoutMs).emitWithAck(event, payload);
   if (isAckErrorResponse(response)) {
-    throw new Error(response.error);
+    if (typeof response.error === 'string') {
+      if (isApiErrorCode(response.error)) {
+        throw new ApiAckError({
+          code: response.error,
+          message: response.error,
+        });
+      }
+      throw new Error(response.error);
+    }
+    throw new ApiAckError(response.error);
   }
   return response as TResponse;
 }

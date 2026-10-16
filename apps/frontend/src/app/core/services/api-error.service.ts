@@ -19,6 +19,16 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
   }
 
   if (error instanceof Error) {
+    if (
+      'apiError' in error &&
+      typeof (error as { apiError?: unknown }).apiError === 'object' &&
+      (error as { apiError?: unknown }).apiError !== null
+    ) {
+      const candidate = (error as { apiError: { code?: unknown } }).apiError;
+      if ('code' in candidate && isApiErrorCode(candidate.code)) {
+        return candidate as unknown as ApiErrorResponse;
+      }
+    }
     if (isApiErrorCode(error.message)) {
       return { code: error.message, message: error.message };
     }
