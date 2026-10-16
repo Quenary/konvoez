@@ -298,9 +298,12 @@ describe('OutgoingMessagesStore', () => {
       replyTo: null,
       files: [localFile('empty.png')],
     });
-    uploads
-      .get('empty.png')
-      ?.error(new HttpErrorResponse({ status: 400, error: { message } }));
+    uploads.get('empty.png')?.error(
+      new HttpErrorResponse({
+        status: 400,
+        error: { code: message, message },
+      }),
+    );
     expect(store.entityMap()['temp-400']?.files[0]?.state).toEqual({
       status: 'failed',
       code,
@@ -412,6 +415,7 @@ describe('OutgoingMessagesStore', () => {
       new HttpErrorResponse({
         status: 409,
         error: {
+          code: ApiErrorCode.ATTACHMENTS_UNAVAILABLE,
           message: 'ATTACHMENTS_UNAVAILABLE',
           attachmentIds: ['66666666-6666-4666-8666-666666666666'],
         },

@@ -24,6 +24,7 @@ import {
 } from '@ngrx/signals/entities';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { parseApiError } from '@core/services/api-error.service';
 import { parseError } from '@shared/functions/parse-error.function';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { firstValueFrom, Subject, Subscription } from 'rxjs';
@@ -382,17 +383,14 @@ export const OutgoingMessagesStore = signalStore(
         if (!current) {
           return;
         }
+        const apiError = parseApiError(error);
         if (
           error instanceof HttpErrorResponse &&
           error.status === 409 &&
-          (error.error?.code === ApiErrorCode.ATTACHMENTS_UNAVAILABLE ||
-            error.error?.message === 'ATTACHMENTS_UNAVAILABLE' ||
-            error.error?.message === ApiErrorCode.ATTACHMENTS_UNAVAILABLE)
+          apiError?.code === ApiErrorCode.ATTACHMENTS_UNAVAILABLE
         ) {
           const missing = new Set<string>(
-            Array.isArray(error.error.attachmentIds)
-              ? error.error.attachmentIds
-              : [],
+            Array.isArray(apiError.attachmentIds) ? apiError.attachmentIds : [],
           );
           replace({
             ...current,
@@ -657,11 +655,7 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
   if (!(error instanceof HttpErrorResponse)) {
     return 'server';
   }
-  const body: unknown = error.error;
-  const code =
-    typeof body === 'object' && body !== null && 'code' in body
-      ? (body as { code: unknown }).code
-      : null;
+  const code = parseApiError(error)?.code;
 
   switch (code) {
     case ApiErrorCode.FILE_TOO_BIG:
@@ -701,19 +695,8 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
 
 /** The server got no file or a broken multipart body from the browser. */
 function isUnreadableUpload(error: HttpErrorResponse): boolean {
-  const body: unknown = error.error;
-  const message =
-    typeof body === 'object' && body !== null && 'message' in body
-      ? body.message
-      : null;
-  const code =
-    typeof body === 'object' && body !== null && 'code' in body
-      ? (body as { code: unknown }).code
-      : null;
+  const code = parseApiError(error)?.code;
   return (
-    code === ApiErrorCode.UPLOAD_EMPTY ||
-    code === ApiErrorCode.UPLOAD_MALFORMED ||
-    message === ApiErrorCode.UPLOAD_EMPTY ||
-    message === ApiErrorCode.UPLOAD_MALFORMED
+    code === ApiErrorCode.UPLOAD_EMPTY || code === ApiErrorCode.UPLOAD_MALFORMED
   );
 }
