@@ -9,7 +9,7 @@ import {
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
-import { NotFoundException } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
 import { Readable } from 'stream';
 import fs from 'fs';
 import os from 'os';
@@ -96,7 +96,9 @@ describe('S3Service', () => {
 
     await expect(
       service.getStream('rooms-avatars/missing.png'),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.FILE_NOT_FOUND,
+    });
   });
 
   it('should delete an object from S3', async () => {

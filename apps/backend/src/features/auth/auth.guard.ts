@@ -1,13 +1,8 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
+import { AuthService } from './auth.service';
 import { AuthGuardRoles, AuthRefreshFallback } from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import type { Request, Response } from 'express';
@@ -40,7 +35,10 @@ export class AuthGuard implements CanActivate {
       request.author = user; // for Author decorator
       return true;
     }
-    throw new ForbiddenException('Method forbidden for the user');
+    throw AppException.forbidden(
+      ApiErrorCode.AUTH_METHOD_FORBIDDEN,
+      'Method forbidden for the user',
+    );
   }
 
   private async resolveUser(
@@ -56,7 +54,10 @@ export class AuthGuard implements CanActivate {
     if (!accessToken && refreshFallback && request.method === 'GET') {
       const refreshToken = request.cookies?.[REFRESH_TOKEN_KEY];
       if (!refreshToken) {
-        throw new UnauthorizedException('Unauthorized');
+        throw AppException.unauthorized(
+          ApiErrorCode.UNAUTHORIZED,
+          'Unauthorized',
+        );
       }
       const user = await this.authService.resolveRefreshToken(refreshToken);
       this.authService.setAuthCookies(user.id, response);

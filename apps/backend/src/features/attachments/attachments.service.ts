@@ -1,18 +1,11 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import {
-  ConflictException,
-  HttpException,
-  HttpStatus,
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Semaphore } from 'async-mutex';
 import fs from 'fs';
 import { parse, stringify as uuidStringify, v7 } from 'uuid';
 import {
+  ApiErrorCode,
   attachmentUploadHintsSchema,
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
@@ -25,6 +18,7 @@ import {
   INLINE_IMAGE_MIMES,
   INLINE_VIDEO_MIMES,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import {
   type FileService,
   FileServiceInjectionToken,
@@ -84,7 +78,10 @@ export class AttachmentsService {
     extras?: IUploadExtras,
   ): Promise<IAttachment> {
     if (!file?.path) {
-      throw new HttpException('FILE_REQUIRED', HttpStatus.BAD_REQUEST);
+      throw AppException.badRequest(
+        ApiErrorCode.FILE_REQUIRED,
+        'File required',
+      );
     }
     const storedFile = {
       path: file.path,
@@ -95,7 +92,7 @@ export class AttachmentsService {
       return await this.storePending(author, storedFile, extras);
     } catch (error) {
       if (isEnospc(error)) {
-        throw new HttpException('STORAGE_FULL', 507);
+        throw new AppException(ApiErrorCode.STORAGE_FULL, 507);
       }
       throw error;
     }
@@ -151,7 +148,10 @@ export class AttachmentsService {
       message: null,
     });
     if (!row) {
-      throw new NotFoundException();
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        'Attachment not found',
+      );
     }
     const storageKey = row.storageKey;
     const thumbnailKey = row.thumbnailKey;
@@ -162,7 +162,10 @@ export class AttachmentsService {
       message: null,
     });
     if (deleted !== 1) {
-      throw new NotFoundException();
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        'Attachment not found',
+      );
     }
     await this.removeStored(storageKey, thumbnailKey ?? null);
   }
@@ -189,7 +192,10 @@ export class AttachmentsService {
       },
     );
     if (!entity || !this.canRead(entity, author)) {
-      throw new NotFoundException();
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        'Attachment not found',
+      );
     }
     if (thumbnail) {
       if (entity.thumbnailKey) {
@@ -208,7 +214,10 @@ export class AttachmentsService {
           downloadName: entity.originalName,
         };
       }
-      throw new NotFoundException();
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        'Attachment not found',
+      );
     }
     return {
       entity,
@@ -259,8 +268,8 @@ export class AttachmentsService {
       }
     }
     if (missing.length > 0) {
-      throw new ConflictException({
-        message: 'ATTACHMENTS_UNAVAILABLE',
+      throw AppException.conflict(ApiErrorCode.ATTACHMENTS_UNAVAILABLE, {
+        message: 'Attachments unavailable',
         attachmentIds: missing,
       });
     }
@@ -297,7 +306,7 @@ export class AttachmentsService {
       status: EAttachmentStatus.PENDING,
     });
     if (pending >= attachmentsMaxPendingPerUser) {
-      throw new HttpException('ATTACHMENTS_PENDING_LIMIT', 429);
+      throw new AppException(ApiErrorCode.ATTACHMENTS_PENDING_LIMIT, 429);
     }
 
     const id = parse(v7());

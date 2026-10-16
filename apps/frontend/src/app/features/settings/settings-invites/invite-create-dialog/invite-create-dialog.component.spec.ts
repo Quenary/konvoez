@@ -99,7 +99,7 @@ describe('InviteCreateDialogComponent', () => {
 
     component['onSubmit']();
 
-    expect(component['error']()).toBe('Invalid TTL');
+    expect(component['error']()).toBe('GENERAL.REQ_ERR');
     expect(component['loading']()).toBe(false);
   });
 

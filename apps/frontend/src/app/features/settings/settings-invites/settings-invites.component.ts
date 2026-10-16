@@ -21,7 +21,7 @@ import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
 import { InvitesApiService } from '@core/api/invites-api.service';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 
 export interface IInviteStatusData {
   readonly icon: string;
@@ -88,6 +88,7 @@ export class SettingsInvitesComponent {
   private readonly dialogService = inject(TuiDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
+  private readonly apiErrorService = inject(ApiErrorService);
   private readonly injector = inject(Injector);
 
   protected readonly statusData = INVITE_STATUS_DATA;
@@ -96,7 +97,7 @@ export class SettingsInvitesComponent {
     loader: () =>
       firstValueFrom(this.invitesApiService.list()).catch((err) => {
         this.notificationService
-          .open(parseError(err), {
+          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             label: this.translateService.instant('GENERAL.REQ_ERR'),
           })
@@ -174,7 +175,7 @@ export class SettingsInvitesComponent {
       },
       error: (err) => {
         this.notificationService
-          .open(parseError(err), {
+          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             label: this.translateService.instant('GENERAL.REQ_ERR'),
           })
@@ -190,7 +191,7 @@ export class SettingsInvitesComponent {
       },
       error: (err) => {
         this.notificationService
-          .open(parseError(err), {
+          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             label: this.translateService.instant('GENERAL.REQ_ERR'),
           })

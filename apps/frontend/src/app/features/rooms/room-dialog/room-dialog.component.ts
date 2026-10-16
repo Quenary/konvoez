@@ -33,7 +33,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RoomsApiService } from '@core/api/rooms-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import {
   createZodError,
@@ -97,6 +97,7 @@ export class RoomDialogComponent {
   private readonly translateService = inject(TranslateService);
   private readonly roomsApiService = inject(RoomsApiService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly apiErrorService = inject(ApiErrorService);
 
   protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly typeOptions = [ERoomType.TEXT, ERoomType.VOICE];
@@ -160,7 +161,7 @@ export class RoomDialogComponent {
           },
           error: (err) => {
             this.tuiNotificationsService
-              .open(parseError(err), {
+              .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
                 appearance: 'negative',
                 autoClose: 5000,
                 closable: true,

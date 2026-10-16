@@ -33,14 +33,14 @@ import {
   EDirectCallEvent,
   EUserRole,
   EVoiceRoomEvent,
-  EVoiceRoomErrorCode,
+  ApiErrorCode,
   EVoiceSessionType,
   type IUser,
   type IVoiceRoomProduce,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
-import { WsException } from '@nestjs/websockets';
+import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
 
@@ -288,7 +288,7 @@ describe('VoiceRoomsGateway', () => {
       expect(peer).toEqual({ id: 'socket-1', sendTransport: transport });
     });
 
-    it('rejects connectTransport with WsException when transport is not found', async () => {
+    it('rejects connectTransport with AppException when transport is not found', async () => {
       const room = createRoom(
         new Map([['socket-1', { id: 'socket-1', user: alice }]]),
       );
@@ -307,7 +307,7 @@ describe('VoiceRoomsGateway', () => {
           transportId: 'unknown',
           dtlsParameters: {} as never,
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
   });
 
@@ -638,7 +638,7 @@ describe('VoiceRoomsGateway', () => {
       return socket;
     }
 
-    it('rejects unknown mediaTag with WsException', async () => {
+    it('rejects unknown mediaTag with AppException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -648,10 +648,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'webcam' as never,
           rtpParameters: {},
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects kind/mediaTag mismatch with WsException', async () => {
+    it('rejects kind/mediaTag mismatch with AppException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -661,10 +661,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects screen-audio without screen with WsException', async () => {
+    it('rejects screen-audio without screen with AppException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -674,10 +674,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'screen-audio',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects produce with WsException when send transport is missing', async () => {
+    it('rejects produce with AppException when send transport is missing', async () => {
       const { room } = readyPeer({ sendTransport: undefined });
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       await expect(
@@ -687,7 +687,7 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'mic',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
     it('enforces room video producer limit of 4', async () => {
@@ -713,7 +713,10 @@ describe('VoiceRoomsGateway', () => {
           mediaTag: 'cam',
           rtpParameters: {},
         }),
-      ).rejects.toThrow(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+        message: 'Room video producer limit reached',
+      });
       expect(sendTransport.produce).not.toHaveBeenCalled();
       expect(peer.producers.size).toBe(0);
     });
@@ -850,13 +853,11 @@ describe('VoiceRoomsGateway', () => {
       expect(fulfilled).toHaveLength(4);
       expect(rejected).toHaveLength(1);
       expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
-        WsException,
+        AppException,
       );
       expect(
-        (
-          (rejected[0] as PromiseRejectedResult).reason as WsException
-        ).getError(),
-      ).toBe(EVoiceRoomErrorCode.VIDEO_LIMIT_REACHED);
+        ((rejected[0] as PromiseRejectedResult).reason as AppException).code,
+      ).toBe(ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED);
       expect(room.producers.size).toBe(4);
     });
 
@@ -1272,7 +1273,7 @@ describe('VoiceRoomsGateway', () => {
   });
 
   describe('consume', () => {
-    it('rejects with WsException when receive transport is missing', async () => {
+    it('rejects with AppException when receive transport is missing', async () => {
       const peer = {
         id: 'socket-1',
         user: alice,
@@ -1297,10 +1298,10 @@ describe('VoiceRoomsGateway', () => {
           producerId: 'p1',
           rtpCapabilities: {} as never,
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects with WsException when producer is missing', async () => {
+    it('rejects with AppException when producer is missing', async () => {
       const peer = {
         id: 'socket-1',
         user: alice,
@@ -1325,10 +1326,10 @@ describe('VoiceRoomsGateway', () => {
           producerId: 'p1',
           rtpCapabilities: {} as never,
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects with WsException when router cannot consume', async () => {
+    it('rejects with AppException when router cannot consume', async () => {
       const producer = {
         id: 'p1',
         kind: 'audio',
@@ -1364,7 +1365,7 @@ describe('VoiceRoomsGateway', () => {
           producerId: 'p1',
           rtpCapabilities: {} as never,
         }),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
     it('creates consumer and stores in peer when valid', async () => {
@@ -1426,23 +1427,23 @@ describe('VoiceRoomsGateway', () => {
   });
 
   describe('session validation', () => {
-    it('rejects with WsException when socket has no session key', async () => {
+    it('rejects with AppException when socket has no session key', async () => {
       const socket = createSocket({ data: { user: alice } });
       await expect(
         gateway.handleGetRtpCapabilities(socket as never),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects with WsException when socket is not in the session room', async () => {
+    it('rejects with AppException when socket is not in the session room', async () => {
       const socket = createSocket({
         data: { user: alice, sessionKey: 'room:1', roomId: 1 },
       });
       await expect(
         gateway.handleGetRtpCapabilities(socket as never),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects with WsException when room is not found in state service', async () => {
+    it('rejects with AppException when room is not found in state service', async () => {
       const socket = createSocket({
         data: { user: alice, sessionKey: 'room:1', roomId: 1 },
       });
@@ -1451,10 +1452,10 @@ describe('VoiceRoomsGateway', () => {
 
       await expect(
         gateway.handleGetRtpCapabilities(socket as never),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
 
-    it('rejects with WsException when socket peer is not registered in the room', async () => {
+    it('rejects with AppException when socket peer is not registered in the room', async () => {
       const room = createRoom(new Map());
       voiceRoomsStateService.getRoom.mockReturnValue(room);
       const socket = createSocket({
@@ -1464,7 +1465,7 @@ describe('VoiceRoomsGateway', () => {
 
       await expect(
         gateway.handleGetRtpCapabilities(socket as never),
-      ).rejects.toThrow(WsException);
+      ).rejects.toThrow(AppException);
     });
   });
 

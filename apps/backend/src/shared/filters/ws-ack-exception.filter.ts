@@ -1,11 +1,6 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  Logger,
-} from '@nestjs/common';
-import { WsException } from '@nestjs/websockets';
+import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common';
+import type { WsAckError } from '@konvoez/shared';
+import { toApiErrorResponse } from '../errors/to-api-error';
 
 @Catch()
 export class WsAckExceptionFilter implements ExceptionFilter {
@@ -14,11 +9,10 @@ export class WsAckExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const args = host.getArgs();
     const ack = args.find(
-      (arg): arg is (response: { error: string }) => void =>
-        typeof arg === 'function',
+      (arg): arg is (response: WsAckError) => void => typeof arg === 'function',
     );
 
-    const { clientMessage, logLevel } = this.resolveClientResponse(exception);
+    const { body, logLevel } = toApiErrorResponse(exception);
 
     if (logLevel === 'error') {
       if (exception instanceof Error) {
@@ -27,49 +21,21 @@ export class WsAckExceptionFilter implements ExceptionFilter {
         this.logger.error(`WS handler failed: ${String(exception)}`);
       }
     } else {
-      this.logger.warn(`WS handler failed: ${clientMessage}`);
+      this.logger.warn(`WS handler failed: ${body.code}: ${body.message}`);
     }
 
     if (ack) {
-      ack({ error: clientMessage });
+      ack({ error: body });
       return;
     }
 
     const client = host.switchToWs().getClient<{
       emit: (event: string, payload: unknown) => void;
     }>();
-    client.emit('exception', { status: 'error', message: clientMessage });
-  }
-
-  private resolveClientResponse(exception: unknown): {
-    clientMessage: string;
-    logLevel: 'warn' | 'error';
-  } {
-    if (exception instanceof WsException) {
-      const error = exception.getError();
-      const clientMessage =
-        typeof error === 'string' ? error : JSON.stringify(error);
-      return { clientMessage, logLevel: 'warn' };
-    }
-    if (exception instanceof HttpException) {
-      const response = exception.getResponse();
-      if (typeof response === 'string') {
-        return { clientMessage: response, logLevel: 'warn' };
-      }
-      if (
-        typeof response === 'object' &&
-        response !== null &&
-        'message' in response
-      ) {
-        const message = (response as { message: unknown }).message;
-        if (typeof message === 'string') {
-          return { clientMessage: message, logLevel: 'warn' };
-        }
-        if (Array.isArray(message)) {
-          return { clientMessage: message.join(', '), logLevel: 'warn' };
-        }
-      }
-    }
-    return { clientMessage: 'Internal server error', logLevel: 'error' };
+    client.emit('exception', {
+      status: 'error',
+      message: body.message,
+      error: body,
+    });
   }
 }

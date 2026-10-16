@@ -1,8 +1,6 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { pipeline } from 'stream/promises';
 import fs from 'fs';
 import path from 'path';
@@ -117,10 +115,16 @@ export class LocalObjectStorageService implements FileService {
     try {
       stat = await fs.promises.stat(fullPath);
     } catch {
-      throw new NotFoundException(`File not found: ${key}`);
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        `File not found: ${key}`,
+      );
     }
     if (!stat.isFile()) {
-      throw new NotFoundException(`File not found: ${key}`);
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        `File not found: ${key}`,
+      );
     }
     return { size: stat.size };
   }
@@ -136,11 +140,17 @@ export class LocalObjectStorageService implements FileService {
     try {
       stat = await fs.promises.stat(fullPath);
     } catch {
-      throw new NotFoundException(`File not found: ${key}`);
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        `File not found: ${key}`,
+      );
     }
 
     if (!stat.isFile()) {
-      throw new NotFoundException(`File not found: ${key}`);
+      throw AppException.notFound(
+        ApiErrorCode.FILE_NOT_FOUND,
+        `File not found: ${key}`,
+      );
     }
 
     const contentLength = range ? range.end - range.start + 1 : stat.size;
@@ -188,7 +198,10 @@ export class LocalObjectStorageService implements FileService {
       this.storageNamingService.toPhysicalRelativePath(relativePath);
     const resolved = path.resolve(this.basePath, physical);
     if (!resolved.startsWith(this.basePath)) {
-      throw new BadRequestException('Invalid path: path traversal detected');
+      throw AppException.badRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Invalid path: path traversal detected',
+      );
     }
     return resolved;
   }

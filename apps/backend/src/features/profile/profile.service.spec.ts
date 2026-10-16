@@ -19,12 +19,8 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import {
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { PasswordService } from '../../shared/services/password.service';
 import type { GetUserDto } from '../users/users.dto';
@@ -111,7 +107,9 @@ describe('ProfileService', () => {
         service.updateSelf(author, {
           username: 'taken_user',
         } as UpdateProfileDto),
-      ).rejects.toThrow(new ConflictException('Username already taken'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_USERNAME_TAKEN,
+      });
     });
 
     it('should throw ConflictException if email is taken', async () => {
@@ -121,7 +119,9 @@ describe('ProfileService', () => {
         service.updateSelf(author, {
           email: 'taken@example.com',
         } as UpdateProfileDto),
-      ).rejects.toThrow(new ConflictException('Email already taken'));
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_EMAIL_TAKEN,
+      });
     });
 
     it('should update profile fields and return dto', async () => {
@@ -173,14 +173,16 @@ describe('ProfileService', () => {
     it('should propagate NotFoundException from usersService.findOne', async () => {
       mockRepo.findOne.mockResolvedValue(null);
       usersService.findOne.mockRejectedValueOnce(
-        new NotFoundException('User not found'),
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
       );
 
       await expect(
         service.updateSelf(author, {
           fullname: 'New Name',
         } as UpdateProfileDto),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
     });
   });
 
@@ -196,9 +198,9 @@ describe('ProfileService', () => {
     it('should reject owner self-anonymize', async () => {
       await expect(
         service.anonymizeSelf({ ...author, role: EUserRole.OWNER }),
-      ).rejects.toThrow(
-        new ForbiddenException('Owner account cannot be deleted'),
-      );
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
+      });
       expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
     });
   });
@@ -213,9 +215,9 @@ describe('ProfileService', () => {
     it('should reject owner self-removal', async () => {
       await expect(
         service.removeSelf({ ...author, role: EUserRole.OWNER }),
-      ).rejects.toThrow(
-        new ForbiddenException('Owner account cannot be deleted'),
-      );
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
+      });
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
   });

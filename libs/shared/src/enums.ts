@@ -26,12 +26,6 @@ export enum EAttachmentKind {
   FILE = 'FILE',
 }
 
-/** Messages of a 400 for an unusable attachment upload body. */
-export enum EAttachmentUploadError {
-  EMPTY = 'UPLOAD_EMPTY',
-  MALFORMED = 'UPLOAD_MALFORMED',
-}
-
 export enum ETextRoomEvent {
   JOIN = 'join',
   LEAVE = 'leave',
@@ -72,10 +66,6 @@ export enum EVoiceRoomEvent {
   SET_MUTE_STATE = 'set-mute-state',
   PEER_MUTE_CHANGED = 'peer-mute-changed',
   ERROR = 'error',
-}
-
-export enum EVoiceRoomErrorCode {
-  VIDEO_LIMIT_REACHED = 'Room video producer limit reached',
 }
 
 export enum EDirectCallEvent {

@@ -1,13 +1,9 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
@@ -45,10 +41,16 @@ export class UserManagementService {
     const user = await this.load(id);
     this.assertManageableTarget(id, author, user);
     if (dto.role === EUserRole.OWNER) {
-      throw new BadRequestException('Owner role cannot be assigned');
+      throw AppException.badRequest(
+        ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
+        'Owner role cannot be assigned',
+      );
     }
     if (!dto.role) {
-      throw new BadRequestException('At least one field is required');
+      throw AppException.badRequest(
+        ApiErrorCode.USER_UPDATE_EMPTY,
+        'At least one field is required',
+      );
     }
     this.repo.assign(user, { role: dto.role });
     this.em.persist(user);
@@ -77,7 +79,10 @@ export class UserManagementService {
   private async load(id: number): Promise<UserEntity> {
     const user = await this.repo.findOne({ id });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'User not found',
+      );
     }
     return user;
   }
@@ -88,7 +93,7 @@ export class UserManagementService {
     user: UserEntity,
   ): void {
     if (id === author.id || user.role === EUserRole.OWNER) {
-      throw new ForbiddenException('Forbidden');
+      throw AppException.forbidden(ApiErrorCode.FORBIDDEN, 'Forbidden');
     }
   }
 }

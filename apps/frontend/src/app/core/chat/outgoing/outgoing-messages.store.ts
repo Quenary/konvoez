@@ -2,8 +2,8 @@ import { DestroyRef, computed, effect, inject } from '@angular/core';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
+  ApiErrorCode,
   EAttachmentKind,
-  EAttachmentUploadError,
   ITextRoomMessage,
 } from '@konvoez/shared';
 import {
@@ -24,7 +24,10 @@ import {
 } from '@ngrx/signals/entities';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import {
+  ApiErrorService,
+  parseApiError,
+} from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { firstValueFrom, Subject, Subscription } from 'rxjs';
 import { ChatApiService } from '@core/api/chat-api.service';
@@ -87,13 +90,14 @@ export const OutgoingMessagesStore = signalStore(
       ngrxStore = inject(Store),
       translateService = inject(TranslateService),
       notifications = inject(TuiNotificationService),
+      apiErrorService = inject(ApiErrorService),
     ) => {
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const callbacksByMessage = new Map<string, IOutgoingMessageCallbacks>();
 
       const showError = (error: unknown): void => {
         notifications
-          .open(parseError(error), {
+          .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             autoClose: 5000,
             closable: true,
@@ -382,15 +386,14 @@ export const OutgoingMessagesStore = signalStore(
         if (!current) {
           return;
         }
+        const apiError = parseApiError(error);
         if (
           error instanceof HttpErrorResponse &&
           error.status === 409 &&
-          error.error?.message === 'ATTACHMENTS_UNAVAILABLE'
+          apiError?.code === ApiErrorCode.ATTACHMENTS_UNAVAILABLE
         ) {
           const missing = new Set<string>(
-            Array.isArray(error.error.attachmentIds)
-              ? error.error.attachmentIds
-              : [],
+            Array.isArray(apiError.attachmentIds) ? apiError.attachmentIds : [],
           );
           replace({
             ...current,
@@ -655,6 +658,26 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
   if (!(error instanceof HttpErrorResponse)) {
     return 'server';
   }
+  const code = parseApiError(error)?.code;
+
+  switch (code) {
+    case ApiErrorCode.FILE_TOO_BIG:
+    case ApiErrorCode.AVATAR_TOO_BIG:
+      return 'tooLarge';
+    case ApiErrorCode.ATTACHMENTS_DISABLED:
+      return 'disabled';
+    case ApiErrorCode.ATTACHMENTS_PENDING_LIMIT:
+    case ApiErrorCode.ATTACHMENTS_TOO_MANY:
+    case ApiErrorCode.RATE_LIMITED:
+      return 'rateLimited';
+    case ApiErrorCode.STORAGE_FULL:
+      return 'storageFull';
+    case ApiErrorCode.UPLOAD_EMPTY:
+    case ApiErrorCode.UPLOAD_MALFORMED:
+    case ApiErrorCode.FILE_REQUIRED:
+      return 'unreadable';
+  }
+
   switch (error.status) {
     case 400:
       return isUnreadableUpload(error) ? 'unreadable' : 'server';
@@ -675,13 +698,8 @@ function uploadErrorCode(error: unknown): TAttachmentUploadErrorCode {
 
 /** The server got no file or a broken multipart body from the browser. */
 function isUnreadableUpload(error: HttpErrorResponse): boolean {
-  const body: unknown = error.error;
-  const message =
-    typeof body === 'object' && body !== null && 'message' in body
-      ? body.message
-      : null;
+  const code = parseApiError(error)?.code;
   return (
-    message === EAttachmentUploadError.EMPTY ||
-    message === EAttachmentUploadError.MALFORMED
+    code === ApiErrorCode.UPLOAD_EMPTY || code === ApiErrorCode.UPLOAD_MALFORMED
   );
 }

@@ -1,6 +1,8 @@
-import { ArgumentsHost, Logger } from '@nestjs/common';
+import { ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
+import { ApiErrorCode } from '@konvoez/shared';
 import { WsAckExceptionFilter } from './ws-ack-exception.filter';
+import { AppException } from '../errors/app.exception';
 
 describe('WsAckExceptionFilter', () => {
   const filter = new WsAckExceptionFilter();
@@ -21,7 +23,7 @@ describe('WsAckExceptionFilter', () => {
     warnSpy.mockRestore();
   });
 
-  it('responds to ack callbacks with a WsException message', () => {
+  it('maps legacy WsException string to INTERNAL and logs at warn level', () => {
     const ack = jest.fn();
     const host = {
       getArgs: () => [{}, {}, ack],
@@ -32,7 +34,39 @@ describe('WsAckExceptionFilter', () => {
 
     filter.catch(new WsException('Producer not found'), host);
 
-    expect(ack).toHaveBeenCalledWith({ error: 'Producer not found' });
+    expect(ack).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
+      },
+    });
+    expect(warnSpy).toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('responds to ack callbacks with AppException payload', () => {
+    const ack = jest.fn();
+    const host = {
+      getArgs: () => [{}, {}, ack],
+      switchToWs: () => ({
+        getClient: () => ({ emit: jest.fn() }),
+      }),
+    } as unknown as ArgumentsHost;
+
+    filter.catch(
+      new AppException(
+        ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+        HttpStatus.BAD_REQUEST,
+      ),
+      host,
+    );
+
+    expect(ack).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+        message: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
+      },
+    });
     expect(warnSpy).toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
   });
@@ -48,7 +82,12 @@ describe('WsAckExceptionFilter', () => {
 
     filter.catch(new Error('Cannot read properties of undefined'), host);
 
-    expect(ack).toHaveBeenCalledWith({ error: 'Internal server error' });
+    expect(ack).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
+      },
+    });
     expect(errorSpy).toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
   });
@@ -67,6 +106,29 @@ describe('WsAckExceptionFilter', () => {
     expect(emit).toHaveBeenCalledWith('exception', {
       status: 'error',
       message: 'Internal server error',
+      error: {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
+      },
+    });
+  });
+
+  it('does not treat prototype property names as valid error codes on WsException', () => {
+    const ack = jest.fn();
+    const host = {
+      getArgs: () => [{}, {}, ack],
+      switchToWs: () => ({
+        getClient: () => ({ emit: jest.fn() }),
+      }),
+    } as unknown as ArgumentsHost;
+
+    filter.catch(new WsException({ code: 'toString' }), host);
+
+    expect(ack).toHaveBeenCalledWith({
+      error: {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
+      },
     });
   });
 });

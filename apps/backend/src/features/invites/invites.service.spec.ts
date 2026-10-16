@@ -20,9 +20,8 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { InvitesService } from './invites.service';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UserEntity } from '../users/users.entity';
-import { EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import type { GetUserDto } from '../users/users.dto';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import type { InviteEntity } from './invites.entity';
@@ -189,7 +188,9 @@ describe('InvitesService', () => {
 
     it('should throw NotFoundException if invite does not exist', async () => {
       mockRepo.findOne.mockResolvedValue(null);
-      await expect(service.revoke(99)).rejects.toThrow(NotFoundException);
+      await expect(service.revoke(99)).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_NOT_FOUND,
+      });
     });
   });
 
@@ -209,7 +210,9 @@ describe('InvitesService', () => {
       mockRepo.findOne.mockResolvedValue(null);
       await expect(
         service.validate('invalid', 'new@example.com'),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_INVALID,
+      });
     });
 
     it('should throw ForbiddenException if invite is revoked', async () => {
@@ -221,7 +224,9 @@ describe('InvitesService', () => {
       } as unknown as InviteEntity);
       await expect(
         service.validate('code123', 'new@example.com'),
-      ).rejects.toThrow('revoked');
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_REVOKED,
+      });
     });
 
     it('should throw ForbiddenException if invite is used', async () => {
@@ -233,7 +238,9 @@ describe('InvitesService', () => {
       } as unknown as InviteEntity);
       await expect(
         service.validate('code123', 'new@example.com'),
-      ).rejects.toThrow('already been used');
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_USED,
+      });
     });
 
     it('should throw ForbiddenException if invite is expired', async () => {
@@ -245,7 +252,9 @@ describe('InvitesService', () => {
       } as unknown as InviteEntity);
       await expect(
         service.validate('code123', 'new@example.com'),
-      ).rejects.toThrow('expired');
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_EXPIRED,
+      });
     });
 
     it('should throw ForbiddenException if invite email does not match user email', async () => {
@@ -258,7 +267,9 @@ describe('InvitesService', () => {
       } as unknown as InviteEntity);
       await expect(
         service.validate('code123', 'new@example.com'),
-      ).rejects.toThrow('bound to another email');
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_EMAIL_MISMATCH,
+      });
     });
 
     it('should return invite when valid', async () => {

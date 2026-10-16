@@ -1,21 +1,18 @@
 import {
-  BadRequestException,
   CallHandler,
   ExecutionContext,
-  ForbiddenException,
-  HttpException,
   Injectable,
   Logger,
   NestInterceptor,
-  PayloadTooLargeException,
 } from '@nestjs/common';
+import { AppException } from '@shared/errors/app.exception';
 import { Observable, finalize } from 'rxjs';
 import multer, { MulterError } from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import {
-  EAttachmentUploadError,
+  ApiErrorCode,
   ESettingKey,
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
@@ -82,7 +79,10 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
       ESettingKey.ATTACHMENTS_ENABLED,
     );
     if (!enabled) {
-      throw new ForbiddenException('ATTACHMENTS_DISABLED');
+      throw AppException.forbidden(
+        ApiErrorCode.ATTACHMENTS_DISABLED,
+        'Attachments are disabled',
+      );
     }
     const authorId = (req as Request & { author?: { id: number } }).author?.id;
     if (authorId !== undefined) {
@@ -91,7 +91,7 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
         status: EAttachmentStatus.PENDING,
       });
       if (pending >= attachmentsMaxPendingPerUser) {
-        throw new HttpException('ATTACHMENTS_PENDING_LIMIT', 429);
+        throw new AppException(ApiErrorCode.ATTACHMENTS_PENDING_LIMIT, 429);
       }
     }
     const maxFileSize = await this.settingsService.getValue(
@@ -102,11 +102,14 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
       this.logger.warn(
         `Empty upload body: userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
       );
-      throw new BadRequestException(EAttachmentUploadError.EMPTY);
+      throw AppException.badRequest(ApiErrorCode.UPLOAD_EMPTY);
     }
     const contentLength = Number(req.headers['content-length'] ?? 0);
     if (contentLength > maxFileSize + attachmentsMaxPosterSize + 64 * 1024) {
-      throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
+      throw AppException.payloadTooLarge(
+        ApiErrorCode.FILE_TOO_BIG,
+        'File too large',
+      );
     }
     await fs.promises.mkdir(this.appService.UPLOAD_TMP_DIR, {
       recursive: true,
@@ -146,19 +149,29 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
           return;
         }
         if (isEnospc(error)) {
-          reject(new HttpException('STORAGE_FULL', 507));
+          reject(new AppException(ApiErrorCode.STORAGE_FULL, 507));
           return;
         }
         if (isUploadAborted(error)) {
           this.logger.debug('Upload aborted by the client');
-          reject(new BadRequestException('UPLOAD_ABORTED'));
+          reject(
+            AppException.badRequest(
+              ApiErrorCode.UPLOAD_ABORTED,
+              'Upload aborted',
+            ),
+          );
           return;
         }
         if (isMalformedMultipart(error)) {
           this.logger.warn(
             `Malformed upload body: error=${error.message}, contentLength=${req.headers['content-length'] ?? 'none'}, userAgent=${req.headers['user-agent'] ?? 'unknown'}`,
           );
-          reject(new BadRequestException(EAttachmentUploadError.MALFORMED));
+          reject(
+            AppException.badRequest(
+              ApiErrorCode.UPLOAD_MALFORMED,
+              'Upload malformed',
+            ),
+          );
           return;
         }
         reject(error);
@@ -169,7 +182,10 @@ export class AttachmentUploadInterceptor implements NestInterceptor {
     if (video && video.size > maxFileSize) {
       this.removeTemp(video.path);
       this.removeTemp(poster?.path);
-      throw new PayloadTooLargeException({ message: 'FILE_TOO_BIG' });
+      throw AppException.payloadTooLarge(
+        ApiErrorCode.FILE_TOO_BIG,
+        'File too large',
+      );
     }
     if (poster && poster.size > attachmentsMaxPosterSize) {
       this.removeTemp(poster.path);

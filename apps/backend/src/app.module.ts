@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { RoomsModule } from './features/rooms/rooms.module';
@@ -19,6 +19,7 @@ import { NotificationsModule } from './features/notifications/notifications.modu
 import { FilesModule } from './features/files/files.module';
 import { AttachmentsModule } from './features/attachments/attachments.module';
 import { EntitySyncModule } from './features/entity-sync/entity-sync.module';
+import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
 @Module({
@@ -48,6 +49,10 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     {
       provide: APP_PIPE,
       useClass: ZodValidationPipe,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })

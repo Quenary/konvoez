@@ -1,10 +1,8 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import {
@@ -34,7 +32,10 @@ export class RoomsService {
   async findOne(id: number): Promise<RoomEntity> {
     const room = await this.repo.findOne({ id }, { populate: ['author'] });
     if (!room) {
-      throw new NotFoundException('Room not found');
+      throw AppException.notFound(
+        ApiErrorCode.ROOM_NOT_FOUND,
+        'Room not found',
+      );
     }
     return room;
   }
@@ -55,7 +56,10 @@ export class RoomsService {
   async create(dto: CreateRoomDto, author: GetUserDto): Promise<RoomEntity> {
     const existingRoom = await this.repo.findOne({ name: dto.name });
     if (existingRoom) {
-      throw new ConflictException('Room name already taken');
+      throw AppException.conflict(
+        ApiErrorCode.ROOM_NAME_TAKEN,
+        'Room name already taken',
+      );
     }
 
     const room = this.repo.create(
@@ -71,7 +75,10 @@ export class RoomsService {
       await this.em.flush();
     } catch (error) {
       if (error instanceof UniqueConstraintViolationException) {
-        throw new ConflictException('Room name already taken');
+        throw AppException.conflict(
+          ApiErrorCode.ROOM_NAME_TAKEN,
+          'Room name already taken',
+        );
       }
       throw error;
     }
@@ -94,7 +101,10 @@ export class RoomsService {
         id: { $ne: id },
       });
       if (duplicateRoom) {
-        throw new ConflictException('Room name already taken');
+        throw AppException.conflict(
+          ApiErrorCode.ROOM_NAME_TAKEN,
+          'Room name already taken',
+        );
       }
     }
 
@@ -105,7 +115,10 @@ export class RoomsService {
       await this.em.flush();
     } catch (error) {
       if (error instanceof UniqueConstraintViolationException) {
-        throw new ConflictException('Room name already taken');
+        throw AppException.conflict(
+          ApiErrorCode.ROOM_NAME_TAKEN,
+          'Room name already taken',
+        );
       }
       throw error;
     }

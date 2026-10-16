@@ -20,7 +20,7 @@ import { RoomsStore } from '@core/stores/rooms.store';
 import { DirectChatsStore } from '../../features/direct-chats/direct-chats.store';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -37,6 +37,7 @@ export class AuthEffects {
   private readonly directChatsStore = inject(DirectChatsStore);
   private readonly router = inject(Router);
   private readonly translateService = inject(TranslateService);
+  private readonly apiErrorService = inject(ApiErrorService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly pushNotificationService = inject(PushNotificationService);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
@@ -214,7 +215,7 @@ export class AuthEffects {
         ),
         tap(({ error }) => {
           this.tuiNotificationsService
-            .open(parseError(error), {
+            .open(this.apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
               appearance: 'negative',
               autoClose: 5000,
               closable: true,

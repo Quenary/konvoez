@@ -13,7 +13,7 @@ import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { EUserRole, IUser } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
@@ -90,6 +90,7 @@ export class SettingsUserManagementDialogComponent {
   private readonly dialogService = inject(TuiDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
+  private readonly apiErrorService = inject(ApiErrorService);
   private readonly injector = inject(Injector);
   private readonly store = inject(Store);
 
@@ -239,7 +240,7 @@ export class SettingsUserManagementDialogComponent {
 
   private notify(err: unknown): void {
     this.notificationService
-      .open(parseError(err), {
+      .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
         appearance: 'negative',
         label: this.translateService.instant('GENERAL.REQ_ERR'),
       })

@@ -1,12 +1,6 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { ApiErrorCode } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from './auth.service';
 import {
   AuthLoginDto,
@@ -43,7 +37,10 @@ export class AuthController {
   ) {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_KEY];
     if (!refreshToken) {
-      throw new UnauthorizedException('No refresh token');
+      throw AppException.unauthorized(
+        ApiErrorCode.AUTH_NO_REFRESH_TOKEN,
+        'No refresh token',
+      );
     }
     const user = await this.authService.resolveRefreshToken(refreshToken);
     this.authService.setAuthCookies(user.id, res);
