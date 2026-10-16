@@ -92,3 +92,20 @@ export interface ApiErrorResponse {
 export interface WsAckError {
   error: ApiErrorResponse;
 }
+
+export const GENERIC_API_ERROR_CODES = new Set<ApiErrorCode>([
+  ApiErrorCode.INTERNAL,
+  ApiErrorCode.BAD_REQUEST,
+  ApiErrorCode.UNAUTHORIZED,
+  ApiErrorCode.FORBIDDEN,
+  ApiErrorCode.NOT_FOUND,
+  ApiErrorCode.CONFLICT,
+  ApiErrorCode.PAYLOAD_TOO_LARGE,
+  ApiErrorCode.RATE_LIMITED,
+  ApiErrorCode.SERVICE_UNAVAILABLE,
+  ApiErrorCode.VALIDATION_FAILED,
+]);
+
+export function isGenericApiErrorCode(code: ApiErrorCode): boolean {
+  return GENERIC_API_ERROR_CODES.has(code);
+}
