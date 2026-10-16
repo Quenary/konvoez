@@ -23,6 +23,7 @@ import { RoomsComponent } from '@features/rooms/rooms.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EUserRole } from '@konvoez/shared';
 import { ConnectionStateNotificationComponent } from '@shared/components/connection-state-notification/connection-state-notification.component';
+import { PwaUpdateNotificationComponent } from '@shared/components/pwa-update-notification/pwa-update-notification.component';
 import { PendingCallDialogComponent } from '@shared/components/voice-room/pending-call-dialog/pending-call-dialog.component';
 import { PublicApiService } from '@core/services/public-api.service';
 
@@ -47,6 +48,7 @@ const DEFAULT_VERSION_INFO = {
     TuiChevron,
     LogoComponent,
     ConnectionStateNotificationComponent,
+    PwaUpdateNotificationComponent,
     PendingCallDialogComponent,
   ],
   templateUrl: './app.component.html',
