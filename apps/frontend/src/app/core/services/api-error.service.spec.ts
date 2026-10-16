@@ -188,6 +188,7 @@ describe('ApiErrorService', () => {
   beforeEach(() => {
     translations = {
       'ERRORS.UNKNOWN': 'An unexpected error occurred',
+      'ERRORS.INTERNAL': 'An unexpected internal error occurred',
       'ERRORS.AUTH_INVALID_CREDENTIALS': 'Invalid login credentials',
       'ERRORS.FILE_TOO_BIG': 'File exceeds max size {{max}}',
       'ERRORS.AUTH_EMAIL_TAKEN': 'Email is already registered',
@@ -291,68 +292,22 @@ describe('ApiErrorService', () => {
       );
       expect(result).toBe('TOTALLY_MISSING_FALLBACK_KEY');
     });
-  });
-
-  describe('fieldErrors', () => {
-    it('returns empty object when error is null or has no fields', () => {
-      expect(service.fieldErrors(null)).toEqual({});
-      expect(service.fieldErrors('SOMETHING')).toEqual({});
-      expect(
-        service.fieldErrors({
-          code: ApiErrorCode.VALIDATION_FAILED,
-          message: 'Failed',
-        }),
-      ).toEqual({});
-      expect(
-        service.fieldErrors({
-          code: ApiErrorCode.VALIDATION_FAILED,
-          message: 'Failed',
-          fields: [],
-        }),
-      ).toEqual({});
+    it('prioritizes explicit fallbackKey over generic error codes', () => {
+      const error: ApiErrorResponse = {
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
+      };
+      const result = service.translate(error, 'CUSTOM.FALLBACK');
+      expect(result).toBe('Custom fallback message');
     });
 
-    it('translates fields using VALIDATION.<code_or_prefixed>', () => {
+    it('translates generic error code using ERRORS.<code> when default fallback is used', () => {
       const error: ApiErrorResponse = {
-        code: ApiErrorCode.VALIDATION_FAILED,
-        message: 'Validation failed',
-        fields: [
-          { path: 'username', code: 'REQUIRED' },
-          { path: 'password', code: 'VALIDATION.MIN_LENGTH' },
-        ],
+        code: ApiErrorCode.INTERNAL,
+        message: 'Internal server error',
       };
-
-      const result = service.fieldErrors(error);
-      expect(result).toEqual({
-        username: 'Field is required',
-        password: 'Value is too short',
-      });
-    });
-
-    it('falls back to ERRORS.<code> when VALIDATION.<code> translation is not found', () => {
-      const error: ApiErrorResponse = {
-        code: ApiErrorCode.VALIDATION_FAILED,
-        message: 'Validation failed',
-        fields: [{ path: 'email', code: 'AUTH_EMAIL_TAKEN' }],
-      };
-
-      const result = service.fieldErrors(error);
-      expect(result).toEqual({
-        email: 'Email is already registered',
-      });
-    });
-
-    it('falls back to raw code when neither VALIDATION nor ERRORS translation exists', () => {
-      const error: ApiErrorResponse = {
-        code: ApiErrorCode.VALIDATION_FAILED,
-        message: 'Validation failed',
-        fields: [{ path: 'bio', code: 'UNKNOWN_CUSTOM_VALIDATOR' }],
-      };
-
-      const result = service.fieldErrors(error);
-      expect(result).toEqual({
-        bio: 'UNKNOWN_CUSTOM_VALIDATOR',
-      });
+      const result = service.translate(error);
+      expect(result).toBe('An unexpected internal error occurred');
     });
   });
 });

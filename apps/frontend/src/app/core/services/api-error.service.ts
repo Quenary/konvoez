@@ -1,7 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
-import { ApiErrorCode, type ApiErrorResponse } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  type ApiErrorResponse,
+  isGenericApiErrorCode,
+} from '@konvoez/shared';
 
 const API_ERROR_CODES = new Set<string>(Object.values(ApiErrorCode));
 
@@ -105,6 +109,13 @@ export class ApiErrorService {
   translate(error: unknown, fallbackKey = 'ERRORS.UNKNOWN'): string {
     const parsed = this.parse(error);
     if (parsed) {
+      if (
+        fallbackKey !== 'ERRORS.UNKNOWN' &&
+        isGenericApiErrorCode(parsed.code)
+      ) {
+        const fallback = this.translateService.instant(fallbackKey);
+        return fallback && fallback !== fallbackKey ? fallback : fallbackKey;
+      }
       const key = `ERRORS.${parsed.code}`;
       const translated = this.translateService.instant(key, parsed.params);
       if (translated && translated !== key) {
@@ -124,35 +135,5 @@ export class ApiErrorService {
 
     const fallback = this.translateService.instant(fallbackKey);
     return fallback && fallback !== fallbackKey ? fallback : fallbackKey;
-  }
-
-  fieldErrors(error: unknown): Record<string, string> {
-    const parsed = this.parse(error);
-    if (!parsed?.fields || parsed.fields.length === 0) {
-      return {};
-    }
-
-    const result: Record<string, string> = {};
-    for (const field of parsed.fields) {
-      const validationKey = field.code.startsWith('VALIDATION.')
-        ? field.code
-        : `VALIDATION.${field.code}`;
-      const translatedValidation = this.translateService.instant(validationKey);
-      if (translatedValidation && translatedValidation !== validationKey) {
-        result[field.path] = translatedValidation;
-        continue;
-      }
-
-      const errorKey = `ERRORS.${field.code}`;
-      const translatedError = this.translateService.instant(errorKey);
-      if (translatedError && translatedError !== errorKey) {
-        result[field.path] = translatedError;
-        continue;
-      }
-
-      result[field.path] = field.code;
-    }
-
-    return result;
   }
 }

@@ -1,3 +1,4 @@
+import { isGenericApiErrorCode } from '@konvoez/shared';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { parseApiError } from '@core/services/api-error.service';
@@ -8,7 +9,7 @@ export function resolveErrorMessageKey(
 ): { key: string; params?: Record<string, string | number> } {
   if (error !== undefined) {
     const apiError = parseApiError(error);
-    if (apiError) {
+    if (apiError && !isGenericApiErrorCode(apiError.code)) {
       return { key: `ERRORS.${apiError.code}`, params: apiError.params };
     }
   }

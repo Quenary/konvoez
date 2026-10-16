@@ -47,6 +47,24 @@ describe('notifyError', () => {
     expect(translate.instant).toHaveBeenCalledWith('CALL.CAMERA_FAILED');
   });
 
+  it('uses the fallback key when the error code is generic', () => {
+    const notifications = {
+      open: vi.fn().mockReturnValue({ subscribe: vi.fn() }),
+    } as unknown as TuiNotificationService;
+    const translate = {
+      instant: vi.fn((key: string) => key),
+    } as unknown as TranslateService;
+
+    notifyError(
+      notifications,
+      translate,
+      'ROOMS.LOAD_FAILED',
+      new Error(ApiErrorCode.INTERNAL),
+    );
+
+    expect(translate.instant).toHaveBeenCalledWith('ROOMS.LOAD_FAILED');
+  });
+
   it('logs to console.error when error is provided', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
       /* noop */
