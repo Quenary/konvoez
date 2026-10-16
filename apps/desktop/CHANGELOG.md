@@ -1,3 +1,7 @@
+## 0.4.2 (2026-10-15)
+
+This was a version bump only for desktop to align it with other projects, there were no code changes.
+
 ## 0.4.1 (2026-10-14)
 
 This was a version bump only for desktop to align it with other projects, there were no code changes.

@@ -1,3 +1,17 @@
+## 1.21.0 (2026-10-15)
+
+### Features
+
+- **server:** saved messages (self messages) ([#34](https://github.com/Quenary/konvoez/pull/34))
+
+### Code Refactoring
+
+- **frontend:** update audio control labels and add device settings button on voice panel ([2d90470](https://github.com/Quenary/konvoez/commit/2d90470))
+
+### Styles
+
+- **frontend:** message border radius, padding for scroll ([08f71e6](https://github.com/Quenary/konvoez/commit/08f71e6))
+
 ## 1.20.0 (2026-10-14)
 
 ### Features
