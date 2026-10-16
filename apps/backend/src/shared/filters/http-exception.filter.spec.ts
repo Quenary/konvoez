@@ -77,9 +77,11 @@ describe('HttpExceptionFilter', () => {
     const appEx = new AppException(
       ApiErrorCode.AUTH_INVALID_CREDENTIALS,
       HttpStatus.UNAUTHORIZED,
-      { attempt: 1 },
-      'Bad credentials',
-      [{ path: 'password', code: 'INVALID' }],
+      {
+        message: 'Bad credentials',
+        params: { attempt: 1 },
+        fields: [{ path: 'password', code: 'INVALID' }],
+      },
     );
 
     filter.catch(appEx, host);

@@ -99,11 +99,10 @@ export class InvitesService {
       { populate: ['author', 'usedBy'] },
     );
     if (!invite) {
-      throw AppException.notFound(
-        ApiErrorCode.INVITE_NOT_FOUND,
-        `Invite #${id} not found`,
-        { id },
-      );
+      throw AppException.notFound(ApiErrorCode.INVITE_NOT_FOUND, {
+        message: `Invite #${id} not found`,
+        params: { id },
+      });
     }
     return invite;
   }

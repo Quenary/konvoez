@@ -16,149 +16,111 @@ export class AppException extends HttpException {
   constructor(
     readonly code: ApiErrorCode,
     status: HttpStatus,
-    optionsOrParams?: Record<string, string | number> | AppExceptionOptions,
-    message?: string,
-    fields?: { path: string; code: string }[],
-    attachmentIds?: string[],
+    options: AppExceptionOptions = {},
   ) {
-    let params: Record<string, string | number> | undefined;
-    let effectiveMessage = message ?? code;
-    let effectiveFields = fields;
-    let effectiveAttachmentIds = attachmentIds;
-
-    if (
-      optionsOrParams &&
-      ('params' in optionsOrParams ||
-        'fields' in optionsOrParams ||
-        'attachmentIds' in optionsOrParams ||
-        'message' in optionsOrParams)
-    ) {
-      const opts = optionsOrParams as AppExceptionOptions;
-      params = opts.params;
-      if (opts.message) effectiveMessage = opts.message;
-      if (opts.fields) effectiveFields = opts.fields;
-      if (opts.attachmentIds) effectiveAttachmentIds = opts.attachmentIds;
-    } else {
-      params = optionsOrParams as Record<string, string | number> | undefined;
-    }
+    const effectiveMessage = options.message ?? code;
 
     super(
       {
         code,
         message: effectiveMessage,
-        ...(params ? { params } : {}),
-        ...(effectiveFields ? { fields: effectiveFields } : {}),
-        ...(effectiveAttachmentIds
-          ? { attachmentIds: effectiveAttachmentIds }
+        ...(options.params ? { params: options.params } : {}),
+        ...(options.fields ? { fields: options.fields } : {}),
+        ...(options.attachmentIds
+          ? { attachmentIds: options.attachmentIds }
           : {}),
       },
       status,
     );
 
     this.message = effectiveMessage;
-    this.params = params;
-    this.fields = effectiveFields;
-    this.attachmentIds = effectiveAttachmentIds;
+    this.params = options.params;
+    this.fields = options.fields;
+    this.attachmentIds = options.attachmentIds;
   }
 
   static badRequest(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.BAD_REQUEST,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 
   static unauthorized(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.UNAUTHORIZED,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 
   static forbidden(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.FORBIDDEN,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 
   static notFound(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.NOT_FOUND,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 
   static conflict(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.CONFLICT,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 
   static payloadTooLarge(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.PAYLOAD_TOO_LARGE,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 
   static serviceUnavailable(
     code: ApiErrorCode,
-    message?: string,
-    optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+    options?: AppExceptionOptions | string,
   ): AppException {
     return new AppException(
       code,
       HttpStatus.SERVICE_UNAVAILABLE,
-      normalizeHelperOpts(message, optsOrParams),
+      normalizeOptions(options),
     );
   }
 }
 
-function normalizeHelperOpts(
-  message?: string,
-  optsOrParams?: Record<string, string | number> | AppExceptionOptions,
+function normalizeOptions(
+  options?: AppExceptionOptions | string,
 ): AppExceptionOptions {
-  if (!optsOrParams) return { message };
-  if (
-    'params' in optsOrParams ||
-    'fields' in optsOrParams ||
-    'attachmentIds' in optsOrParams ||
-    'message' in optsOrParams
-  ) {
-    const opts = optsOrParams as AppExceptionOptions;
-    return { ...opts, message: message ?? opts.message };
-  }
-  return { params: optsOrParams as Record<string, string | number>, message };
+  if (!options) return {};
+  if (typeof options === 'string') return { message: options };
+  return options;
 }

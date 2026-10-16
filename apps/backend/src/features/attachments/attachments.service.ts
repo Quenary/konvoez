@@ -268,11 +268,10 @@ export class AttachmentsService {
       }
     }
     if (missing.length > 0) {
-      throw AppException.conflict(
-        ApiErrorCode.ATTACHMENTS_UNAVAILABLE,
-        'Attachments unavailable',
-        { attachmentIds: missing },
-      );
+      throw AppException.conflict(ApiErrorCode.ATTACHMENTS_UNAVAILABLE, {
+        message: 'Attachments unavailable',
+        attachmentIds: missing,
+      });
     }
   }
 

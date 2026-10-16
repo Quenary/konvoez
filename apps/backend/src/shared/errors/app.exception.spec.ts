@@ -54,8 +54,9 @@ describe('AppException', () => {
       ['serviceUnavailable', HttpStatus.SERVICE_UNAVAILABLE],
     ] as const)('creates %s with status %i', (helperName, expectedStatus) => {
       const helper = AppException[helperName];
-      const ex = helper(ApiErrorCode.INTERNAL, 'Test message', {
-        id: '123',
+      const ex = helper(ApiErrorCode.INTERNAL, {
+        message: 'Test message',
+        params: { id: '123' },
       });
 
       expect(ex.getStatus()).toBe(expectedStatus);
@@ -64,38 +65,33 @@ describe('AppException', () => {
       expect(ex.params).toEqual({ id: '123' });
     });
 
-    it('recognizes message property on AppExceptionOptions object', () => {
-      const ex = AppException.badRequest(ApiErrorCode.BAD_REQUEST, undefined, {
-        message: 'Overridden message',
-      });
+    it('supports string message shorthand in helpers', () => {
+      const ex = AppException.badRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'String message',
+      );
 
-      expect(ex.message).toBe('Overridden message');
+      expect(ex.message).toBe('String message');
       expect(ex.params).toBeUndefined();
     });
 
-    it('prefers explicit message argument over message in options', () => {
-      const ex = AppException.badRequest(
-        ApiErrorCode.BAD_REQUEST,
-        'Explicit message',
-        {
-          message: 'Options message',
-          params: { page: 1 },
-        },
-      );
-
-      expect(ex.message).toBe('Explicit message');
-      expect(ex.params).toEqual({ page: 1 });
-    });
-
-    it('maps plain object without special keys to params', () => {
-      const ex = AppException.notFound(
-        ApiErrorCode.USER_NOT_FOUND,
-        'User not found',
-        { userId: 42, tenant: 'default' },
-      );
+    it('supports options object with message, params, and fields', () => {
+      const ex = AppException.notFound(ApiErrorCode.USER_NOT_FOUND, {
+        message: 'User not found',
+        params: { userId: 42 },
+        fields: [{ path: 'id', code: 'INVALID' }],
+      });
 
       expect(ex.message).toBe('User not found');
-      expect(ex.params).toEqual({ userId: 42, tenant: 'default' });
+      expect(ex.params).toEqual({ userId: 42 });
+      expect(ex.fields).toEqual([{ path: 'id', code: 'INVALID' }]);
+    });
+
+    it('defaults message to code when no options are provided', () => {
+      const ex = AppException.forbidden(ApiErrorCode.FORBIDDEN);
+
+      expect(ex.message).toBe(ApiErrorCode.FORBIDDEN);
+      expect(ex.params).toBeUndefined();
     });
   });
 });
