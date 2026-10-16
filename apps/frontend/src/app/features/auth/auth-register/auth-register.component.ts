@@ -37,7 +37,7 @@ import {
 } from '@shared/functions/zod-validator.function';
 import { PublicApiService } from '@core/services/public-api.service';
 import { catchError, firstValueFrom, of } from 'rxjs';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 
 @Component({
   selector: 'app-auth-register',
@@ -66,6 +66,7 @@ export class AuthRegisterComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly apiErrorService = inject(ApiErrorService);
 
   protected readonly publicSettings = resource({
     loader: () =>
@@ -73,7 +74,7 @@ export class AuthRegisterComponent {
         this.publicApiService.getSettings().pipe(
           catchError((err) => {
             this.tuiNotificationsService
-              .open(parseError(err), {
+              .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
                 appearance: 'negative',
                 autoClose: 5000,
                 closable: true,

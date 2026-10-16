@@ -15,7 +15,7 @@ import {
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, mergeMap, pipe, switchMap, tap } from 'rxjs';
 import { RoomsApiService } from '@core/api/rooms-api.service';
@@ -44,10 +44,11 @@ export const RoomsStore = signalStore(
       roomsApiService = inject(RoomsApiService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
+      apiErrorService = inject(ApiErrorService),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
-          .open(parseError(error), {
+          .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             autoClose: 5000,
             closable: true,

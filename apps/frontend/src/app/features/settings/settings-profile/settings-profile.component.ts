@@ -45,7 +45,7 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ProfileApiService } from '@core/api/profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
 import {
   createZodError,
@@ -84,6 +84,7 @@ export class SettingsProfileComponent {
   private readonly profileApiService = inject(ProfileApiService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly apiErrorService = inject(ApiErrorService);
   private readonly dialogService = inject(TuiDialogService);
   private readonly injector = inject(Injector);
 
@@ -215,12 +216,15 @@ export class SettingsProfileComponent {
             this.avatarUrl.set(result.url);
           },
           error: (err) => {
-            this.tuiNotificationsService.open(parseError(err), {
-              appearance: 'negative',
-              autoClose: 5000,
-              closable: true,
-              label: this.translateService.instant('GENERAL.REQ_ERR'),
-            });
+            this.tuiNotificationsService.open(
+              this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'),
+              {
+                appearance: 'negative',
+                autoClose: 5000,
+                closable: true,
+                label: this.translateService.instant('GENERAL.REQ_ERR'),
+              },
+            );
           },
         });
       });

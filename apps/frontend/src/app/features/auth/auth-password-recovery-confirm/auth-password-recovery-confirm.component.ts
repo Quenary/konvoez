@@ -28,7 +28,7 @@ import {
   createZodFieldValidator,
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { AuthApiService } from '@core/api/auth-api.service';
 import { finalize } from 'rxjs';
 import * as z from 'zod';
@@ -69,6 +69,7 @@ export class AuthPasswordRecoveryConfirmComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly notifications = inject(TuiNotificationService);
   private readonly translate = inject(TranslateService);
+  private readonly apiError = inject(ApiErrorService);
 
   protected readonly loading = signal(false);
 
@@ -129,7 +130,7 @@ export class AuthPasswordRecoveryConfirmComponent {
         },
         error: (err) => {
           this.notifications
-            .open(parseError(err), {
+            .open(this.apiError.translate(err, 'GENERAL.REQ_ERR'), {
               appearance: 'negative',
               autoClose: 5000,
               closable: true,

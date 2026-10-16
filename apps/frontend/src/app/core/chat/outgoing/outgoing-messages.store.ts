@@ -24,8 +24,10 @@ import {
 } from '@ngrx/signals/entities';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { parseApiError } from '@core/services/api-error.service';
-import { parseError } from '@shared/functions/parse-error.function';
+import {
+  ApiErrorService,
+  parseApiError,
+} from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { firstValueFrom, Subject, Subscription } from 'rxjs';
 import { ChatApiService } from '@core/api/chat-api.service';
@@ -88,13 +90,14 @@ export const OutgoingMessagesStore = signalStore(
       ngrxStore = inject(Store),
       translateService = inject(TranslateService),
       notifications = inject(TuiNotificationService),
+      apiErrorService = inject(ApiErrorService),
     ) => {
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const callbacksByMessage = new Map<string, IOutgoingMessageCallbacks>();
 
       const showError = (error: unknown): void => {
         notifications
-          .open(parseError(error), {
+          .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             autoClose: 5000,
             closable: true,

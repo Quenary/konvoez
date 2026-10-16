@@ -20,7 +20,7 @@ import {
 import { TuiButtonLoading, TuiCopy } from '@taiga-ui/kit';
 import { TuiForm } from '@taiga-ui/layout';
 import { InvitesApiService } from '@core/api/invites-api.service';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import {
   createZodError,
   createZodFieldValidator,
@@ -55,6 +55,7 @@ export class InviteCreateDialogComponent {
   public readonly context =
     injectContext<TuiDialogContext<IInvite | null, void>>();
   private readonly invitesApiService = inject(InvitesApiService);
+  private readonly apiErrorService = inject(ApiErrorService);
 
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -115,7 +116,9 @@ export class InviteCreateDialogComponent {
         },
         error: (err) => {
           this.loading.set(false);
-          this.error.set(parseError(err) ?? null);
+          this.error.set(
+            this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'),
+          );
         },
       });
   }

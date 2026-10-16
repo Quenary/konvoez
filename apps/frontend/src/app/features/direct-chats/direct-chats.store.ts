@@ -19,7 +19,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { parseError } from '@shared/functions/parse-error.function';
+import { ApiErrorService } from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, fromEvent, pipe, switchMap, tap } from 'rxjs';
 import { ChatApiService } from '@core/api/chat-api.service';
@@ -42,10 +42,11 @@ export const DirectChatsStore = signalStore(
       chatApiService = inject(ChatApiService),
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
+      apiErrorService = inject(ApiErrorService),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
-          .open(parseError(error), {
+          .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
             appearance: 'negative',
             autoClose: 5000,
             closable: true,
