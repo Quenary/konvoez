@@ -1,3 +1,10 @@
+## 1.22.0 (2026-10-16)
+
+### Features
+
+- **frontend:** add PWA update notification component and improve update handling ([c209240](https://github.com/Quenary/konvoez/commit/c209240))
+- **server:** api error codes with translation on frontend ([#36](https://github.com/Quenary/konvoez/pull/36))
+
 ## 1.21.0 (2026-10-15)
 
 ### Features
