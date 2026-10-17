@@ -83,8 +83,88 @@
         [items]="typeOptions" />
     </tui-textfield>
   </label>
-  @if (errors().type; as err) {
-    <tui-error [error]="err | translate" />
+  <label
+    tuiLabel
+    class="private-room-toggle">
+    <input
+      tuiSwitch
+      formControlName="isPrivate"
+      type="checkbox" />
+    <div>
+      <div>{{ 'ROOMS.DIALOG.IS_PRIVATE' | translate }}</div>
+      <div class="private-room-desc">{{
+        'ROOMS.DIALOG.IS_PRIVATE_DESC' | translate
+      }}</div>
+    </div>
+  </label>
+
+  @if (isPrivate()) {
+    <div class="access-control-section">
+      <p class="access-hint">
+        {{ 'ROOMS.DIALOG.ALLOWED_NONE_HINT' | translate }}
+      </p>
+
+      @if (availableRolesResource.value(); as roles) {
+        @if (roles.length > 0) {
+          <div class="access-group">
+            <span class="access-group-title">
+              {{ 'ROOMS.DIALOG.ALLOWED_ROLES' | translate }}
+            </span>
+            <div class="access-checklist">
+              @for (role of roles; track role.id) {
+                <label
+                  tuiLabel
+                  class="access-checkbox-item">
+                  <input
+                    tuiCheckbox
+                    type="checkbox"
+                    [checked]="isRoleSelected(role.id)"
+                    (change)="
+                      toggleRole(role.id, $any($event.target).checked)
+                    " />
+                  <span class="item-name">
+                    @if (role.color) {
+                      <span
+                        class="dot"
+                        [style.background-color]="role.color"></span>
+                    }
+                    {{ role.name }}
+                  </span>
+                </label>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      @if (users(); as userList) {
+        @if (userList.length > 0) {
+          <div class="access-group">
+            <span class="access-group-title">
+              {{ 'ROOMS.DIALOG.ALLOWED_USERS' | translate }}
+            </span>
+            <div class="access-checklist">
+              @for (u of userList; track u.id) {
+                <label
+                  tuiLabel
+                  class="access-checkbox-item">
+                  <input
+                    tuiCheckbox
+                    type="checkbox"
+                    [checked]="isUserSelected(u.id)"
+                    (change)="toggleUser(u.id, $any($event.target).checked)" />
+                  <span
+                    class="item-name"
+                    [style.color]="u.username | tuiAutoColor">
+                    {{ u.username }}
+                  </span>
+                </label>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
   }
 
   @if (meta; as m) {

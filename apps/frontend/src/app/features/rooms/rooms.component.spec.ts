@@ -5,7 +5,7 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
+import { EPermission, ERoomType, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
@@ -36,7 +36,10 @@ describe('RoomsComponent', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -47,7 +50,10 @@ describe('RoomsComponent', () => {
     username: 'bob',
     fullname: 'Bob',
     email: 'bob@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -59,6 +65,9 @@ describe('RoomsComponent', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    isPrivate: false,
+    allowedRoleIds: [],
+    allowedUserIds: [],
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
@@ -70,6 +79,9 @@ describe('RoomsComponent', () => {
     type: ERoomType.VOICE,
     avatar: null,
     avatarUrl: null,
+    isPrivate: false,
+    allowedRoleIds: [],
+    allowedUserIds: [],
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
@@ -199,10 +211,10 @@ describe('RoomsComponent', () => {
     expect(component['canManageRooms']()).toBe(false);
   });
 
-  it('should allow room management for admin or owner', () => {
+  it('should allow room management for user with MANAGE_ROOMS or owner', () => {
     store.overrideSelector(selectCurrentUser, {
       ...me,
-      role: EUserRole.ADMIN,
+      permissions: [EPermission.MANAGE_ROOMS],
     });
     store.refreshState();
     fixture.detectChanges();
@@ -211,7 +223,8 @@ describe('RoomsComponent', () => {
 
     store.overrideSelector(selectCurrentUser, {
       ...me,
-      role: EUserRole.OWNER,
+      isOwner: true,
+      permissions: [],
     });
     store.refreshState();
     fixture.detectChanges();

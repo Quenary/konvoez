@@ -18,7 +18,6 @@ import {
   attachmentsDefaultMaxFileSize,
   attachmentsDefaultMaxFilesPerMessage,
   ESettingKey,
-  EUserRole,
   TSetting,
 } from '@konvoez/shared';
 import { ENoiseProcessor, EStorageKey } from '../../app.enums';
@@ -475,7 +474,10 @@ describe('SettingsStore', () => {
           username: 'tester',
           email: 'test@example.com',
           fullname: 'Test User',
-          role: EUserRole.MEMBER,
+          isOwner: false,
+          roles: [],
+          permissions: [],
+          avatar: null,
           avatarUrl: null,
           createdAt: new Date(),
           updatedAt: null,

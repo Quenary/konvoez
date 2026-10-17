@@ -2,7 +2,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WithUserDialogDirective } from './with-user-dialog.directive';
 
@@ -16,7 +16,9 @@ class HostComponent {
     username: 'alice',
     fullname: 'Alice Example',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,

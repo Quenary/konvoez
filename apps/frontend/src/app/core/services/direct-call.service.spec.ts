@@ -10,7 +10,6 @@ vi.hoisted(() => {
 import {
   DIRECT_CALL_RING_TIMEOUT_MS,
   EDirectCallEvent,
-  EUserRole,
   EVoiceSessionType,
   IUser,
 } from '@konvoez/shared';
@@ -29,8 +28,10 @@ const caller = {
   username: 'alice',
   fullname: 'Alice',
   email: 'alice@example.com',
+  isOwner: false,
+  roles: [],
+  permissions: [],
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
 } as IUser;
@@ -40,8 +41,10 @@ const recipient = {
   username: 'bob',
   fullname: 'Bob',
   email: 'bob@example.com',
+  isOwner: false,
+  roles: [],
+  permissions: [],
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
 } as IUser;

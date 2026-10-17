@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +14,9 @@ describe('UserDialogService', () => {
     username: 'alice',
     fullname: 'Alice Example',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,

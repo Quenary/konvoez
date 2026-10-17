@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { of } from 'rxjs';
@@ -19,7 +19,9 @@ describe('UsersStore', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     deletedAt: null,
@@ -32,7 +34,9 @@ describe('UsersStore', () => {
     username: 'bob',
     fullname: 'Bob',
     email: 'bob@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     deletedAt: null,

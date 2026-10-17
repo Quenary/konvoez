@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PendingCallDialogComponent } from './pending-call-dialog.component';
@@ -11,8 +11,10 @@ const interlocutor = {
   username: 'bob',
   fullname: 'Bob',
   email: 'bob@example.com',
+  isOwner: false,
+  roles: [],
+  permissions: [],
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
 } as IUser;

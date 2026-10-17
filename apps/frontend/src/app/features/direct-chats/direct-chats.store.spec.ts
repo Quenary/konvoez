@@ -7,7 +7,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { DirectChatsStore } from './direct-chats.store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 
 describe('DirectChatsStore', () => {
   let store: InstanceType<typeof DirectChatsStore>;
@@ -27,7 +27,10 @@ describe('DirectChatsStore', () => {
       username: 'alice',
       fullname: 'Alice Smith',
       email: 'alice@example.com',
-      role: EUserRole.MEMBER,
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      avatar: null,
       avatarUrl: null,
       createdAt: new Date(),
       updatedAt: null,
@@ -37,7 +40,10 @@ describe('DirectChatsStore', () => {
       username: 'bob',
       fullname: 'Bob Jones',
       email: 'bob@example.com',
-      role: EUserRole.MEMBER,
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      avatar: null,
       avatarUrl: null,
       createdAt: new Date(),
       updatedAt: null,
@@ -107,7 +113,10 @@ describe('DirectChatsStore', () => {
       username: 'charlie',
       fullname: 'Charlie Brown',
       email: 'charlie@example.com',
-      role: EUserRole.MEMBER,
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      avatar: null,
       avatarUrl: null,
       createdAt: new Date(),
       updatedAt: null,

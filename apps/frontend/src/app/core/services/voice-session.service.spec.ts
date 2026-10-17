@@ -4,12 +4,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  EUserRole,
-  EVoiceRoomEvent,
-  EVoiceSessionType,
-  IUser,
-} from '@konvoez/shared';
+import { EVoiceRoomEvent, EVoiceSessionType, IUser } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -28,8 +23,10 @@ const bob = {
   username: 'bob',
   fullname: 'Bob',
   email: 'bob@example.com',
+  isOwner: false,
+  roles: [],
+  permissions: [],
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
 } as IUser;

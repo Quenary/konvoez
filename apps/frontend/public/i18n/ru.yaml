@@ -53,6 +53,7 @@ MENU:
     NOTIFICATIONS: Уведомления
     INVITES: Приглашения
     USERS: Пользователи
+    ROLES: Роли
     ADMIN: Администрирование
 USER_DIALOG:
   FULLNAME: Полное имя
@@ -172,6 +173,11 @@ ROOMS:
     AUTHOR: Автор
     CREATED: Дата создания
     UPDATED: Дата изменения
+    IS_PRIVATE: Приватная комната
+    IS_PRIVATE_DESC: Доступ только для разрешенных ролей и пользователей
+    ALLOWED_ROLES: Разрешенные роли
+    ALLOWED_USERS: Разрешенные пользователи
+    ALLOWED_NONE_HINT: Владелец и администраторы всегда имеют доступ. Выберите роли или пользователей, чтобы открыть доступ остальным.
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля
@@ -260,6 +266,43 @@ SETTINGS:
     ROLE_OWNER: Владелец
     ROLE_ADMIN: Администратор
     ROLE_MEMBER: Пользователь
+    ROLES: Роли
+    OWNER_BADGE: Владелец
+    NO_ROLES_ASSIGNED: Нет назначенных ролей
+    ASSIGNED_ROLES: Назначенные роли
+  ROLES:
+    TITLE: Роли
+    SUBTITLE: Управление ролями, разрешениями и доступом к комнатам
+    CREATE_BUTTON: Создать роль
+    NO_ROLES: Роли не найдены
+    TABLE:
+      NAME: Роль
+      PERMISSIONS: Разрешения
+      TYPE: Тип
+      ACTIONS: Действия
+    DIALOG_TITLE_CREATE: Создание роли
+    DIALOG_TITLE_EDIT: Редактирование роли
+    NAME: Название роли
+    COLOR: Цвет
+    COLOR_PLACEHOLDER: '#3b82f6'
+    PERMISSIONS: Разрешения
+    IS_DEFAULT: Роль по умолчанию (назначается всем пользователям)
+    DEFAULT_BADGE: По умолчанию
+    CUSTOM_BADGE: Пользовательская
+    PERMISSIONS_COUNT: '{{count}} разрешений'
+    ALL_PERMISSIONS: Все разрешения
+    DELETE_CONFIRM: Вы уверены, что хотите удалить эту роль?
+    CANNOT_DELETE_DEFAULT: Нельзя удалить роль по умолчанию
+    PERMISSIONS_LIST:
+      MANAGE_SETTINGS: Управление настройками
+      MANAGE_USERS: Управление пользователями
+      MANAGE_ROLES: Управление ролями
+      MANAGE_INVITES: Управление приглашениями
+      MANAGE_ROOMS: Управление комнатами
+      SEND_MESSAGES: Отправка сообщений
+      CONNECT_VOICE: Подключение к голосовым комнатам
+      USE_ATTACHMENTS: Отправка вложений
+      MODERATE_MESSAGES: Модерирование сообщений
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
@@ -384,8 +427,12 @@ ERRORS:
   USER_OWNER_DELETE_FORBIDDEN: Нельзя удалить владельца сервера
   USER_OWNER_ROLE_FORBIDDEN: Нельзя изменить роль владельца сервера
   USER_UPDATE_EMPTY: Нет данных для обновления пользователя
+  ROLE_NOT_FOUND: Роль не найдена
+  ROLE_NAME_TAKEN: Роль с таким именем уже существует
+  ROLE_CANNOT_DELETE_DEFAULT: Нельзя удалить роль по умолчанию
   ROOM_NOT_FOUND: Комната не найдена
   ROOM_NAME_TAKEN: Комната с таким именем уже существует
+  ROOM_ACCESS_DENIED: Доступ к комнате запрещён
   MESSAGE_NOT_FOUND: Сообщение не найдено
   MESSAGE_EMPTY: Сообщение не может быть пустым
   MESSAGE_ACCESS_DENIED: Доступ к сообщению запрещён

@@ -5,12 +5,13 @@ import {
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ERoomType, maxAvatarSize } from '@konvoez/shared';
+import { ERoomType, maxAvatarSize, IRole } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IRoom } from '@konvoez/shared';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import {
   TuiButton,
+  TuiCheckbox,
   TuiDialogContext,
   TuiError,
   TuiInput,
@@ -29,10 +30,18 @@ import {
   TuiFileLike,
   TuiFiles,
   TuiSelect,
+  TuiSwitch,
 } from '@taiga-ui/kit';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  rxResource,
+  takeUntilDestroyed,
+  toSignal,
+} from '@angular/core/rxjs-interop';
 import { RoomsApiService } from '@core/api/rooms-api.service';
+import { RolesApiService } from '@core/api/roles-api.service';
+import { UsersStore } from '@core/stores/users.store';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
+import { catchError, of } from 'rxjs';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import {
@@ -56,6 +65,7 @@ export type RoomDialogData = Partial<IRoom>;
     LowerCasePipe,
     NgOptimizedImage,
     TuiButton,
+    TuiCheckbox,
     TuiError,
     TuiForm,
     TuiInput,
@@ -67,6 +77,7 @@ export type RoomDialogData = Partial<IRoom>;
     TuiAutoColorPipe,
     TuiAvatar,
     TuiLink,
+    TuiSwitch,
   ],
   providers: [
     {
@@ -96,6 +107,8 @@ export class RoomDialogComponent {
     injectContext<TuiDialogContext<RoomDialogData | null, RoomDialogData>>();
   private readonly translateService = inject(TranslateService);
   private readonly roomsApiService = inject(RoomsApiService);
+  private readonly rolesApiService = inject(RolesApiService);
+  private readonly usersStore = inject(UsersStore);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);
 
@@ -113,6 +126,10 @@ export class RoomDialogComponent {
       }),
       avatar: new FormControl<string | null>(this.context.data.avatar ?? null),
       avatarFile: new FormControl<TuiFileLike | null>(null),
+      isPrivate: new FormControl(this.context.data.isPrivate ?? false, {
+        nonNullable: true,
+        validators: [createZodFieldValidator(roomFormSchema.shape.isPrivate)],
+      }),
     },
     {
       validators: [createZodFormValidator(roomFormSchema)],
@@ -122,6 +139,26 @@ export class RoomDialogComponent {
   protected readonly avatarUrl = signal<string | null>(
     this.context.data.avatarUrl ?? null,
   );
+  protected readonly isPrivate = toSignal(
+    this.form.controls.isPrivate.valueChanges,
+    { initialValue: this.form.controls.isPrivate.value },
+  );
+
+  protected readonly selectedRoleIds = signal<Set<number>>(
+    new Set(this.context.data.allowedRoleIds ?? []),
+  );
+  protected readonly selectedUserIds = signal<Set<number>>(
+    new Set(this.context.data.allowedUserIds ?? []),
+  );
+
+  protected readonly availableRolesResource = rxResource({
+    stream: () =>
+      this.rolesApiService.list().pipe(catchError(() => of([] as IRole[]))),
+    defaultValue: [] as IRole[],
+  });
+
+  protected readonly users = this.usersStore.entities;
+
   protected readonly meta = this.context.data.id
     ? {
         author: this.context.data.author,
@@ -131,6 +168,8 @@ export class RoomDialogComponent {
     : null;
 
   constructor() {
+    this.usersStore.loadAll();
+
     this.form.controls.avatarFile.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((avatarFile) => {
@@ -173,19 +212,50 @@ export class RoomDialogComponent {
       });
   }
 
+  protected toggleRole(roleId: number, checked: boolean): void {
+    const next = new Set(this.selectedRoleIds());
+    if (checked) {
+      next.add(roleId);
+    } else {
+      next.delete(roleId);
+    }
+    this.selectedRoleIds.set(next);
+  }
+
+  protected isRoleSelected(roleId: number): boolean {
+    return this.selectedRoleIds().has(roleId);
+  }
+
+  protected toggleUser(userId: number, checked: boolean): void {
+    const next = new Set(this.selectedUserIds());
+    if (checked) {
+      next.add(userId);
+    } else {
+      next.delete(userId);
+    }
+    this.selectedUserIds.set(next);
+  }
+
+  protected isUserSelected(userId: number): boolean {
+    return this.selectedUserIds().has(userId);
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { name, type, avatar } = this.form.getRawValue();
+    const { name, type, avatar, isPrivate } = this.form.getRawValue();
     this.context.completeWith({
       ...this.context.data,
       name,
       type,
       avatar: avatar ?? undefined,
       avatarUrl: this.avatarUrl(),
+      isPrivate,
+      allowedRoleIds: isPrivate ? Array.from(this.selectedRoleIds()) : [],
+      allowedUserIds: isPrivate ? Array.from(this.selectedUserIds()) : [],
     });
   }
 

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
@@ -12,8 +12,12 @@ const user = (id: number, username: string): IUser =>
     username,
     fullname: username,
     email: `${username}@example.com`,
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatarUrl: null,
     createdAt: new Date(),
+    updatedAt: new Date(),
   }) as IUser;
 
 describe('VoiceSessionPeersService', () => {

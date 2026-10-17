@@ -13,7 +13,6 @@ import { ChatStore, EMessageStatus } from './chat.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import {
   ETextRoomEvent,
-  EUserRole,
   ITextRoomListResponse,
   ITextRoomMessage,
   ITextRoomReactionGroup,
@@ -80,7 +79,9 @@ describe('ChatStore', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
