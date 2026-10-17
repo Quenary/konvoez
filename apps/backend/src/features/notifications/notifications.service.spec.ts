@@ -82,6 +82,8 @@ describe('NotificationsService', () => {
       persist: jest.fn(),
       remove: jest.fn(),
       getReference: jest.fn().mockImplementation((_entity, id) => ({ id })),
+      fork: jest.fn(),
+      getRepository: jest.fn(),
     } as unknown as jest.Mocked<EntityManager>;
 
     subscriptionRepository = {
@@ -90,6 +92,11 @@ describe('NotificationsService', () => {
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((data) => data),
     } as unknown as jest.Mocked<EntityRepository<PushSubscriptionEntity>>;
+
+    em.fork.mockReturnValue(em);
+    em.getRepository.mockReturnValue(
+      subscriptionRepository as unknown as EntityRepository<object>,
+    );
 
     vapidKeyStorageService = {
       readVapidKeysFromDisk: jest.fn().mockReturnValue({
@@ -378,6 +385,122 @@ describe('NotificationsService', () => {
         operation: 'focusLastFocusedOrOpen',
         url: '/direct/1',
       });
+    });
+  });
+
+  describe('getSubscriptionsForUser', () => {
+    it('should use a forked EntityManager when no em is provided', async () => {
+      subscriptionRepository.find.mockResolvedValue([]);
+
+      const result = await service.getSubscriptionsForUser(2);
+
+      expect(em.fork).toHaveBeenCalled();
+      expect(em.getRepository).toHaveBeenCalledWith(PushSubscriptionEntity);
+      expect(subscriptionRepository.find).toHaveBeenCalledWith({
+        user: 2,
+        isActive: true,
+      });
+      expect(result).toEqual([]);
+    });
+
+    it('should use the provided EntityManager when passed', async () => {
+      const customRepo = {
+        find: jest.fn().mockResolvedValue([]),
+      } as unknown as EntityRepository<PushSubscriptionEntity>;
+      const customEm = {
+        getRepository: jest.fn().mockReturnValue(customRepo),
+      } as unknown as EntityManager;
+
+      const result = await service.getSubscriptionsForUser(2, customEm);
+
+      expect(customEm.getRepository).toHaveBeenCalledWith(
+        PushSubscriptionEntity,
+      );
+      expect(customRepo.find).toHaveBeenCalledWith({
+        user: 2,
+        isActive: true,
+      });
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('onDirectMessageNotification', () => {
+    it('should delegate to sendDirectMessageNotification with payload data', async () => {
+      const sendSpy = jest
+        .spyOn(service, 'sendDirectMessageNotification')
+        .mockResolvedValue();
+
+      await service.onDirectMessageNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        messagePreview: 'Hi',
+        messageId: 'msg-1',
+      });
+
+      expect(sendSpy).toHaveBeenCalledWith(2, 1, 'alice', 'Hi', 'msg-1');
+    });
+
+    it('should catch and log error if sending direct message notification fails', async () => {
+      const error = new Error('Send failed');
+      jest
+        .spyOn(service, 'sendDirectMessageNotification')
+        .mockRejectedValue(error);
+      const loggerSpy = jest
+        .spyOn(service['logger'], 'error')
+        .mockImplementation();
+
+      await service.onDirectMessageNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        messagePreview: 'Hi',
+        messageId: 'msg-1',
+      });
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Failed to send direct message push notification',
+        error.stack,
+      );
+    });
+  });
+
+  describe('onDirectCallNotification', () => {
+    it('should delegate to sendDirectCallNotification with payload data', async () => {
+      const sendSpy = jest
+        .spyOn(service, 'sendDirectCallNotification')
+        .mockResolvedValue();
+
+      await service.onDirectCallNotification({
+        recipientId: 2,
+        callerId: 1,
+        callerUsername: 'alice',
+        callId: 'call-1',
+      });
+
+      expect(sendSpy).toHaveBeenCalledWith(2, 1, 'alice', 'call-1');
+    });
+
+    it('should catch and log error if sending direct call notification fails', async () => {
+      const error = new Error('Call notification failed');
+      jest
+        .spyOn(service, 'sendDirectCallNotification')
+        .mockRejectedValue(error);
+      const loggerSpy = jest
+        .spyOn(service['logger'], 'error')
+        .mockImplementation();
+
+      await service.onDirectCallNotification({
+        recipientId: 2,
+        callerId: 1,
+        callerUsername: 'alice',
+        callId: 'call-1',
+      });
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Failed to send direct call push notification',
+        error.stack,
+      );
     });
   });
 });

@@ -66,9 +66,11 @@ export class NotificationsService {
     user: GetUserDto,
     dto: PushSubscriptionDto,
   ): Promise<void> {
+    const em = this.em.fork();
+    const repo = em.getRepository(PushSubscriptionEntity);
     const endpoint = dto.endpoint;
-    const existing = await this.subscriptionRepository.findOne({ endpoint });
-    const userRef = this.em.getReference(UserEntity, user.id);
+    const existing = await repo.findOne({ endpoint });
+    const userRef = em.getReference(UserEntity, user.id);
     const userAgent = dto.userAgent ?? null;
 
     if (existing) {
@@ -80,11 +82,11 @@ export class NotificationsService {
       existing.userAgent = userAgent ?? existing.userAgent ?? null;
       existing.browser =
         getBrowserName(userAgent ?? undefined) ?? existing.browser;
-      await this.em.flush();
+      await em.flush();
       return;
     }
 
-    this.subscriptionRepository.create(
+    repo.create(
       {
         user: userRef,
         endpoint,
@@ -98,14 +100,16 @@ export class NotificationsService {
       { persist: true },
     );
 
-    await this.em.flush();
+    await em.flush();
   }
 
   public async removeSubscription(
     user: GetUserDto,
     endpoint: string,
   ): Promise<void> {
-    const subscription = await this.subscriptionRepository.findOne({
+    const em = this.em.fork();
+    const repo = em.getRepository(PushSubscriptionEntity);
+    const subscription = await repo.findOne({
       user: user.id,
       endpoint,
     });
@@ -117,14 +121,16 @@ export class NotificationsService {
       );
     }
 
-    this.em.remove(subscription);
-    await this.em.flush();
+    em.remove(subscription);
+    await em.flush();
   }
 
   public async getSubscriptionsForUser(
     userId: number,
+    em: EntityManager = this.em.fork(),
   ): Promise<PushSubscriptionEntity[]> {
-    return this.subscriptionRepository.find({
+    const repo = em.getRepository(PushSubscriptionEntity);
+    return repo.find({
       user: userId,
       isActive: true,
     });
@@ -146,7 +152,8 @@ export class NotificationsService {
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
-    const subscriptions = await this.getSubscriptionsForUser(userId);
+    const em = this.em.fork();
+    const subscriptions = await this.getSubscriptionsForUser(userId, em);
     if (subscriptions.length === 0) {
       return;
     }
@@ -202,7 +209,7 @@ export class NotificationsService {
       }),
     );
 
-    await this.em.flush();
+    await em.flush();
   }
 
   public async sendDirectMessageNotification(
