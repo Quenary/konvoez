@@ -35,6 +35,7 @@ export class DirectComponent {
   protected readonly title = this.directStore.title;
   protected readonly avatarUrl = this.directStore.avatarUrl;
   protected readonly avatarIcon = this.directStore.avatarIcon;
+  protected readonly isOnline = this.directStore.isOnline;
   protected readonly canRejoinCall = this.directStore.canRejoinCall;
   protected readonly view = this.directStore.view;
 

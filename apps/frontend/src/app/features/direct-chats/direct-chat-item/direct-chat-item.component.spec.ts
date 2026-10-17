@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
 import { DirectChatItemComponent } from './direct-chat-item.component';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
+import { UsersStore } from '@core/stores/users.store';
 import { EUserRole, IUser } from '@konvoez/shared';
 
 describe('DirectChatItemComponent', () => {
@@ -36,8 +38,14 @@ describe('DirectChatItemComponent', () => {
     directUnreadCount: vi.fn((userId: number) => (userId === 2 ? 5 : 3)),
   };
 
+  const onlineMap = signal<Record<number, boolean>>({});
+  const mockUsersStore = {
+    onlineMap,
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
+    onlineMap.set({});
 
     await TestBed.configureTestingModule({
       imports: [DirectChatItemComponent],
@@ -47,6 +55,7 @@ describe('DirectChatItemComponent', () => {
           auth: () => ({ user: currentUser }),
         }),
         { provide: UnreadCountsStore, useValue: mockUnreadCountsStore },
+        { provide: UsersStore, useValue: mockUsersStore },
       ],
     }).compileComponents();
 
@@ -99,5 +108,41 @@ describe('DirectChatItemComponent', () => {
     button.click();
 
     expect(selectedSpy).toHaveBeenCalledWith(otherUser);
+  });
+
+  it('renders online badge when other user is online', async () => {
+    onlineMap.set({ [otherUser.id]: true });
+    fixture.componentRef.setInput('user', otherUser);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['isOnline']()).toBe(true);
+    const el: HTMLElement = fixture.nativeElement;
+    const badge = el.querySelector('.online-badge');
+    expect(badge).toBeTruthy();
+    expect(badge?.getAttribute('size')).toBe('xs');
+    expect(badge?.getAttribute('tuislot')).toBe('bottom');
+  });
+
+  it('does not render online badge when other user is offline', async () => {
+    onlineMap.set({});
+    fixture.componentRef.setInput('user', otherUser);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['isOnline']()).toBe(false);
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.online-badge')).toBeNull();
+  });
+
+  it('does not render online badge for self even if in onlineMap', async () => {
+    onlineMap.set({ [currentUser.id]: true });
+    fixture.componentRef.setInput('user', currentUser);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['isOnline']()).toBe(false);
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.online-badge')).toBeNull();
   });
 });

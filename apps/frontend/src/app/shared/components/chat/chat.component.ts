@@ -23,7 +23,12 @@ import {
 } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoFocus } from '@taiga-ui/cdk';
-import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import {
+  TuiAvatar,
+  TuiBadgedContent,
+  TuiBadgeNotification,
+  TuiInitialsPipe,
+} from '@taiga-ui/kit';
 import { FileDropDirective } from '@shared/directives/file-drop.directive';
 import { ChatEditorComponent } from './chat-editor/chat-editor.component';
 import { ChatMessagesListComponent } from './chat-messages-list/chat-messages-list.component';
@@ -51,6 +56,8 @@ import { v4 } from 'uuid';
     TuiInput,
     TuiAutoFocus,
     TuiAvatar,
+    TuiBadgedContent,
+    TuiBadgeNotification,
     TuiInitialsPipe,
     NgOptimizedImage,
     ReactiveFormsModule,
@@ -70,6 +77,7 @@ export class ChatComponent {
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
+  public readonly isOnline = input<boolean>(false);
   protected readonly draftKey = computed(() =>
     toChatKey(this.roomId(), this.recipientId()),
   );

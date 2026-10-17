@@ -2,12 +2,14 @@ import { Inject } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   OnGatewayConnection,
+  OnGatewayDisconnect,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { EEntitySyncEvent, type TEntitySyncEventMap } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
+import { UserPresenceService } from '../users/user-presence.service';
 import {
   EntitySyncDomainEvents,
   type TEntitySyncDomainPayloadMap,
@@ -24,12 +26,17 @@ type TSocket = Socket<
   path: '/ws/v1/sync',
   cors: { origin: '*' },
 })
-export class EntitySyncGateway implements OnGatewayConnection {
+export class EntitySyncGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   private readonly server!: Server<TEntitySyncEventMap>;
 
   @Inject(AuthService)
   private readonly authService!: AuthService;
+
+  @Inject(UserPresenceService)
+  private readonly userPresenceService!: UserPresenceService;
 
   async handleConnection(client: TSocket) {
     try {
@@ -43,10 +50,25 @@ export class EntitySyncGateway implements OnGatewayConnection {
         return;
       }
 
+      if (!client.connected) {
+        return;
+      }
+
       client.data.userId = user.id;
+      this.userPresenceService.addSocket(user.id, client.id);
+      client.emit(EEntitySyncEvent.USER_PRESENCE_SNAPSHOT, {
+        userIds: this.userPresenceService.getOnlineUserIds(),
+      });
     } catch {
       client.emit(EEntitySyncEvent.ERROR, { message: 'Unauthorized' });
       client.disconnect(true);
+    }
+  }
+
+  handleDisconnect(client: TSocket) {
+    const userId = client.data.userId;
+    if (userId != null) {
+      this.userPresenceService.removeSocket(userId, client.id);
     }
   }
 
@@ -111,5 +133,12 @@ export class EntitySyncGateway implements OnGatewayConnection {
     payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED],
   ) {
     this.server.emit(EEntitySyncEvent.VOICE_ROOM_PEER_MUTED, payload);
+  }
+
+  @OnEvent(EntitySyncDomainEvents.USER_PRESENCE_CHANGED)
+  onUserPresenceChanged(
+    payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.USER_PRESENCE_CHANGED],
+  ) {
+    this.server.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, payload);
   }
 }

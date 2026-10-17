@@ -50,6 +50,7 @@ describe('DirectChatDialogComponent', () => {
     entities: vi
       .fn()
       .mockReturnValue([mockCurrentUser, otherUser1, otherUser2]),
+    onlineMap: vi.fn().mockReturnValue({}),
   };
 
   const mockContext = {

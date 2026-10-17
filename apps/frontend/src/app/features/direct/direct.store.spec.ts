@@ -42,9 +42,11 @@ describe('DirectStore', () => {
   };
 
   const usersEntityMap = signal<Record<number, IUser>>({ 99: mockUser });
+  const usersOnlineMap = signal<Record<number, boolean>>({});
   const mockUsersStore = {
     loadAll: vi.fn(),
     entityMap: usersEntityMap,
+    onlineMap: usersOnlineMap,
   };
 
   const mockVoiceLeaveService = {
@@ -59,6 +61,7 @@ describe('DirectStore', () => {
     callWithUserId.set(null);
     rejoinableCall.set(null);
     usersEntityMap.set({ 99: mockUser });
+    usersOnlineMap.set({});
 
     TestBed.configureTestingModule({
       providers: [
@@ -292,6 +295,23 @@ describe('DirectStore', () => {
 
       store.hangup();
       expect(mockVoiceLeaveService.leaveActiveVoice).toHaveBeenCalled();
+    });
+
+    it('computes isOnline as true when direct user is in onlineMap', () => {
+      usersOnlineMap.set({ 99: true });
+      expect(store.isOnline()).toBe(true);
+    });
+
+    it('computes isOnline as false when direct user is offline', () => {
+      usersOnlineMap.set({});
+      expect(store.isOnline()).toBe(false);
+    });
+
+    it('computes isOnline as false for self chat even if in onlineMap', () => {
+      usersOnlineMap.set({ 1: true });
+      paramMap$.next(convertToParamMap({ id: '1' }));
+      expect(store.isSelf()).toBe(true);
+      expect(store.isOnline()).toBe(false);
     });
   });
 });

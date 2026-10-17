@@ -38,6 +38,7 @@ describe('DirectChatsComponent', () => {
   const mockUsersStore = {
     loadAll: vi.fn(),
     entities: vi.fn().mockReturnValue([mockUser]),
+    onlineMap: vi.fn().mockReturnValue({}),
   };
 
   const mockDialogService = {

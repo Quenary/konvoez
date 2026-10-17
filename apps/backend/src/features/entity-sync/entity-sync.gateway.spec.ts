@@ -16,6 +16,12 @@ describe('EntitySyncGateway', () => {
   let gateway: EntitySyncGateway;
   let serverMock: { emit: jest.Mock; to: jest.Mock };
   let authServiceMock: { getUserFromRawCookies: jest.Mock };
+  let userPresenceServiceMock: {
+    addSocket: jest.Mock;
+    removeSocket: jest.Mock;
+    isOnline: jest.Mock;
+    getOnlineUserIds: jest.Mock;
+  };
   let toMock: jest.Mock;
 
   const user: IUser = {
@@ -47,9 +53,16 @@ describe('EntitySyncGateway', () => {
     toMock = jest.fn().mockReturnValue({ emit: jest.fn() });
     serverMock = { emit: jest.fn(), to: toMock };
     authServiceMock = { getUserFromRawCookies: jest.fn() };
+    userPresenceServiceMock = {
+      addSocket: jest.fn(),
+      removeSocket: jest.fn(),
+      isOnline: jest.fn(),
+      getOnlineUserIds: jest.fn().mockReturnValue([1, 2]),
+    };
     Object.assign(gateway, {
       server: serverMock as unknown as Server,
       authService: authServiceMock,
+      userPresenceService: userPresenceServiceMock,
     });
   });
 
@@ -149,9 +162,19 @@ describe('EntitySyncGateway', () => {
     );
   });
 
-  it('should authenticate user and store userId on successful connection', async () => {
+  it('should emit USER_PRESENCE_CHANGED', () => {
+    gateway.onUserPresenceChanged({ userId: 5, isOnline: true });
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      EEntitySyncEvent.USER_PRESENCE_CHANGED,
+      { userId: 5, isOnline: true },
+    );
+  });
+
+  it('should authenticate user, store userId, register socket presence, and send snapshot on successful connection', async () => {
     authServiceMock.getUserFromRawCookies.mockResolvedValue(user);
     const client = {
+      id: 'socket-client-1',
+      connected: true,
       handshake: { headers: { cookie: 'session=123' } },
       data: {} as { userId?: number },
       emit: jest.fn(),
@@ -163,6 +186,66 @@ describe('EntitySyncGateway', () => {
     );
 
     expect(client.data.userId).toBe(user.id);
+    expect(userPresenceServiceMock.addSocket).toHaveBeenCalledWith(
+      user.id,
+      'socket-client-1',
+    );
+    expect(client.emit).toHaveBeenCalledWith(
+      EEntitySyncEvent.USER_PRESENCE_SNAPSHOT,
+      { userIds: [1, 2] },
+    );
     expect(client.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('should not register presence if socket disconnected while authenticating', async () => {
+    authServiceMock.getUserFromRawCookies.mockResolvedValue(user);
+    const client = {
+      id: 'socket-client-1',
+      connected: false,
+      handshake: { headers: { cookie: 'session=123' } },
+      data: {} as { userId?: number },
+      emit: jest.fn(),
+      disconnect: jest.fn(),
+    };
+
+    await gateway.handleConnection(
+      client as unknown as Parameters<typeof gateway.handleConnection>[0],
+    );
+
+    expect(client.data.userId).toBeUndefined();
+    expect(userPresenceServiceMock.addSocket).not.toHaveBeenCalled();
+    expect(client.emit).not.toHaveBeenCalledWith(
+      EEntitySyncEvent.USER_PRESENCE_SNAPSHOT,
+      expect.anything(),
+    );
+  });
+
+  it('should remove socket presence on disconnection', () => {
+    const client = {
+      id: 'socket-client-1',
+      data: { userId: 42 },
+    };
+
+    gateway.handleDisconnect(
+      client as unknown as Parameters<typeof gateway.handleDisconnect>[0],
+    );
+
+    expect(userPresenceServiceMock.removeSocket).toHaveBeenCalledWith(
+      42,
+      'socket-client-1',
+    );
+  });
+
+  it('should ignore disconnect when client has no userId', () => {
+    const client = {
+      id: 'socket-client-1',
+      data: {},
+    };
+
+    gateway.handleDisconnect(
+      client as unknown as Parameters<typeof gateway.handleDisconnect>[0],
+    );
+
+    expect(userPresenceServiceMock.removeSocket).not.toHaveBeenCalled();
   });
 });

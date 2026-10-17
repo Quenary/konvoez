@@ -6,6 +6,7 @@ import type {
   IVoiceRoomLobbyPeerJoined,
   IVoiceRoomLobbyPeerLeft,
   IVoiceRoomLobbyPeerMuted,
+  IUserPresenceChanged,
 } from '@konvoez/shared';
 import type { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -19,6 +20,7 @@ export const EntitySyncDomainEvents = {
   VOICE_ROOM_PEER_JOINED: 'entity-sync.voice-room.peer-joined',
   VOICE_ROOM_PEER_LEFT: 'entity-sync.voice-room.peer-left',
   VOICE_ROOM_PEER_MUTED: 'entity-sync.voice-room.peer-muted',
+  USER_PRESENCE_CHANGED: 'entity-sync.user.presence-changed',
 } as const;
 
 export type TEntitySyncDomainEvent =
@@ -34,6 +36,7 @@ export type TEntitySyncDomainPayloadMap = {
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED]: IVoiceRoomLobbyPeerJoined;
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT]: IVoiceRoomLobbyPeerLeft;
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED]: IVoiceRoomLobbyPeerMuted;
+  [EntitySyncDomainEvents.USER_PRESENCE_CHANGED]: IUserPresenceChanged;
 };
 
 export function emitEntitySyncDomainEvent<K extends TEntitySyncDomainEvent>(

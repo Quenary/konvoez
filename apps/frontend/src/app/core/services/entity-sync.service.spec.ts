@@ -34,6 +34,8 @@ describe('EntitySyncService', () => {
   let usersStore: {
     upsertOne: ReturnType<typeof vi.fn>;
     removeOne: ReturnType<typeof vi.fn>;
+    setOnlineUsers: ReturnType<typeof vi.fn>;
+    setUserPresence: ReturnType<typeof vi.fn>;
   };
   let roomsStore: {
     upsertOne: ReturnType<typeof vi.fn>;
@@ -105,6 +107,8 @@ describe('EntitySyncService', () => {
     usersStore = {
       upsertOne: vi.fn(),
       removeOne: vi.fn(),
+      setOnlineUsers: vi.fn(),
+      setUserPresence: vi.fn(),
     };
 
     roomsStore = {
@@ -245,6 +249,41 @@ describe('EntitySyncService', () => {
     expect(store.dispatch).not.toHaveBeenCalledWith(
       AuthActions.requestLogout(),
     );
+  });
+
+  it('updates online users on USER_PRESENCE_SNAPSHOT', () => {
+    createService();
+    emitter.emit(EEntitySyncEvent.USER_PRESENCE_SNAPSHOT, {
+      userIds: [1, 2, 3],
+    });
+
+    expect(usersStore.setOnlineUsers).toHaveBeenCalledWith([1, 2, 3]);
+  });
+
+  it('updates individual user presence on USER_PRESENCE_CHANGED', () => {
+    createService();
+    emitter.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, {
+      userId: 42,
+      isOnline: true,
+    });
+
+    expect(usersStore.setUserPresence).toHaveBeenCalledWith(42, true);
+
+    emitter.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, {
+      userId: 42,
+      isOnline: false,
+    });
+
+    expect(usersStore.setUserPresence).toHaveBeenCalledWith(42, false);
+  });
+
+  it('clears online users on entity sync socket disconnect', () => {
+    createService();
+    usersStore.setOnlineUsers.mockClear();
+
+    emitter.emit('disconnect');
+
+    expect(usersStore.setOnlineUsers).toHaveBeenCalledWith([]);
   });
 
   it('upserts room on ROOM_CREATED and ROOM_UPDATED', () => {

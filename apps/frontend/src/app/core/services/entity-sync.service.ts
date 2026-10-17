@@ -12,6 +12,8 @@ import {
   type IVoiceRoomLobbyPeerJoined,
   type IVoiceRoomLobbyPeerLeft,
   type IVoiceRoomLobbyPeerMuted,
+  type IUserPresenceChanged,
+  type IUserPresenceSnapshot,
 } from '@konvoez/shared';
 import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
@@ -126,6 +128,30 @@ export class EntitySyncService {
       )
       .subscribe(() => {
         this.store.dispatch(AuthActions.requestLogout());
+      });
+
+    fromEvent<IUserPresenceSnapshot>(
+      this.emitter,
+      EEntitySyncEvent.USER_PRESENCE_SNAPSHOT,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ userIds }) => {
+        this.usersStore.setOnlineUsers(userIds);
+      });
+
+    fromEvent<IUserPresenceChanged>(
+      this.emitter,
+      EEntitySyncEvent.USER_PRESENCE_CHANGED,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ userId, isOnline }) => {
+        this.usersStore.setUserPresence(userId, isOnline);
+      });
+
+    fromEvent(this.emitter, 'disconnect')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.usersStore.setOnlineUsers([]);
       });
   }
 

@@ -6,5 +6,9 @@
   .chat-badge {
     flex: 0 0 auto;
     overflow: visible;
+
+    .online-badge {
+      background: var(--tui-status-positive);
+    }
   }
 }

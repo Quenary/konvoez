@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TuiBadgeNotification } from '@taiga-ui/kit';
 import { ChatComponent } from './chat.component';
 import { ChatStore } from './chat.store';
 import type { ChatTarget } from './chat-target';
@@ -33,8 +34,12 @@ describe('ChatComponent', () => {
     })
       .overrideComponent(ChatComponent, {
         set: {
-          template: '',
-          imports: [],
+          template: `
+            @if (isOnline()) {
+              <tui-badge-notification class="online-badge" />
+            }
+          `,
+          imports: [TuiBadgeNotification],
           providers: [{ provide: ChatStore, useValue: chatStoreMock }],
         },
       })
@@ -78,5 +83,21 @@ describe('ChatComponent', () => {
 
     expect(leave).toHaveBeenCalledTimes(1);
     expect(join.mock.calls.length).toBe(joinCallsAfterMount);
+  });
+
+  it('accepts isOnline input and renders online badge', () => {
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('roomId', 1);
+    fixture.componentRef.setInput('title', 'room');
+    fixture.componentRef.setInput('isOnline', true);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.isOnline()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.online-badge')).toBeTruthy();
+
+    fixture.componentRef.setInput('isOnline', false);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.isOnline()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.online-badge')).toBeNull();
   });
 });

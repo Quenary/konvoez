@@ -91,6 +91,8 @@ export enum EEntitySyncEvent {
   VOICE_ROOM_PEER_JOINED = 'voice-room-peer-joined',
   VOICE_ROOM_PEER_LEFT = 'voice-room-peer-left',
   VOICE_ROOM_PEER_MUTED = 'voice-room-peer-muted',
+  USER_PRESENCE_CHANGED = 'user-presence-changed',
+  USER_PRESENCE_SNAPSHOT = 'user-presence-snapshot',
   ERROR = 'error',
 }
 

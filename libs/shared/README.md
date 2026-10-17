@@ -4,8 +4,8 @@ Cross-app contracts for Konvoez: Zod schemas, inferred TypeScript types, domain 
 
 ## Scope & Capabilities
 
-- **Zod schemas & types** (`src/schemas/`): auth, user, profile, user management, rooms, text rooms, voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync, public API, and custom fields
-- **Domain enums** (`src/enums.ts`): roles, room types, setting keys, attachment kinds, text/voice room and direct-call events, and entity-sync events
+- **Zod schemas & types** (`src/schemas/`): auth, user, profile, user management, rooms, text rooms, voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync and user presence, public API, and custom fields
+- **Domain enums** (`src/enums.ts`): roles, room types, setting keys, attachment kinds, text/voice room and direct-call events, and entity-sync and user presence events
 - **API errors** (`src/errors.ts`): `ApiErrorCode` enum and `ApiErrorResponse` wire format for HTTP responses and WebSocket error acks
 - **Constants** (`src/const.ts`): username/password/message limits, attachment defaults and TTLs, invite and password-recovery bounds
 - **Desktop bridge** (`src/desktop.ts`): IPC channel names (`EDesktopIpc`: commands, notifications, voice state), desktop commands, and Zod schemas for renderer ↔ main payloads
