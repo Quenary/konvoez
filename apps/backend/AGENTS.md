@@ -79,8 +79,10 @@ Path aliases (prefer these over deep relative imports):
 
 - Protect HTTP routes with `@UseGuards(AuthGuard)`.
 - Current user: `@Author()` (set by the guard).
-- Role-restrict with `@AuthGuardRoles([...])` when needed (`OWNER` / `ADMIN` / `MEMBER`).
-- Do not invent a second auth mechanism; extend the existing guard/decorators.
+- Require granular permissions with `@UseGuards(PermissionsGuard)` and `@RequirePermissions([EPermission...])`.
+- Instance owner (`isOwner: true`) bypasses all permission and private room restrictions and unconditionally holds all capabilities.
+- Flexible RBAC: user roles are resolved through `PermissionsService` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments.
+- Room access control: verify room visibility/membership with `RoomsService.canAccessRoom(room, user)` on HTTP and WebSocket handlers.
 - WebSocket gateways authenticate from handshake cookies via `AuthService` (same JWT cookies as HTTP).
 
 ### DTOs & validation

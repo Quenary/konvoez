@@ -4,12 +4,12 @@ Cross-app contracts for Konvoez: Zod schemas, inferred TypeScript types, domain 
 
 ## Scope & Capabilities
 
-- **Zod schemas & types** (`src/schemas/`): auth, user, profile, user management, rooms, text rooms, voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync and user presence, public API, and custom fields
-- **Domain enums** (`src/enums.ts`): roles, room types, setting keys, attachment kinds, text/voice room and direct-call events, and entity-sync and user presence events
-- **API errors** (`src/errors.ts`): `ApiErrorCode` enum and `apiErrorResponseSchema` / `TApiErrorResponse` wire format for HTTP responses and WebSocket error acks (`TWsAckError`)
+- **Zod schemas & types** (`src/schemas/`): auth, user (`isOwner`, `roles`, `permissions`), profile, user management, roles (`roleSchema`, `createRoleSchema`, `updateRoleSchema`, `roleSummarySchema`), rooms (`isPrivate`, `allowedRoleIds`, `allowedUserIds`), text rooms, voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync and user presence, public API, and custom fields
+- **Domain enums** (`src/enums.ts`): granular permissions (`EPermission`), room types, setting keys, attachment kinds, text/voice room and direct-call events, and entity-sync and user presence events
+- **API errors** (`src/errors.ts`): `ApiErrorCode` enum (including role management and room access errors) and `apiErrorResponseSchema` / `TApiErrorResponse` wire format for HTTP responses and WebSocket error acks (`TWsAckError`)
 - **Constants** (`src/const.ts`): username/password/message limits, attachment defaults and TTLs, invite and password-recovery bounds
 - **Desktop bridge** (`src/desktop.ts`): IPC channel names (`EDesktopIpc`: commands, notifications, voice state), desktop commands, and Zod schemas for renderer ↔ main payloads
-- **Helpers** (`src/text-room.ts`): shared permission and session utilities (e.g. message delete rules, voice session keys)
+- **Helpers** (`src/text-room.ts`): shared permission and session utilities (e.g. message delete rules taking `isOwner` and `MODERATE_MESSAGES` into account, voice session keys)
 - **Tests** (`src/schemas/*.spec.ts`, `src/errors.spec.ts`): Vitest contract suites for Zod validation schemas, error codes, and desktop payloads via `nx test shared`
 
 ## Import Rules
