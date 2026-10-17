@@ -3,10 +3,10 @@ import { EUserRole } from '../enums';
 
 export const userManagementUpdateSchema = z
   .object({
-    role: z.enum([EUserRole.ADMIN, EUserRole.MEMBER]),
+    roleIds: z.array(z.number().int()).optional(),
+    role: z.enum([EUserRole.ADMIN, EUserRole.MEMBER]).optional(),
   })
-  .partial()
-  .refine((data) => data.role !== undefined, {
+  .refine((data) => data.role !== undefined || data.roleIds !== undefined, {
     error: 'At least one field is required',
   });
 
