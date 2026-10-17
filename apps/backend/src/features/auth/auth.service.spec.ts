@@ -89,6 +89,9 @@ describe('AuthService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
@@ -102,6 +105,7 @@ describe('AuthService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
     avatar: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -607,7 +611,7 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(0);
       cacheManager.get.mockResolvedValue(validToken);
 
-      const ownerDto = { ...mockUserDto, role: EUserRole.OWNER };
+      const ownerDto = { ...mockUserDto, isOwner: true };
       usersService.toDto.mockReturnValueOnce(ownerDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
@@ -620,7 +624,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           username: createDto.username,
           email: createDto.email,
-          role: EUserRole.OWNER,
+          isOwner: true,
           password: 'hashed_password',
         }),
         { persist: true },
@@ -633,12 +637,12 @@ describe('AuthService', () => {
         EntitySyncDomainEvents.USER_CREATED,
         ownerDto,
       );
-      expect(result.role).toBe(EUserRole.OWNER);
+      expect(result.isOwner).toBe(true);
     });
 
     it('should create MEMBER user and not require setup token when users already exist', async () => {
       usersService.count.mockResolvedValue(1);
-      const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
+      const memberDto = { ...mockUserDto, isOwner: false };
 
       usersService.toDto.mockReturnValueOnce(memberDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
@@ -647,7 +651,7 @@ describe('AuthService', () => {
 
       expect(userRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          role: EUserRole.MEMBER,
+          isOwner: false,
         }),
         { persist: true },
       );
@@ -718,7 +722,7 @@ describe('AuthService', () => {
       );
       expect(userRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          role: EUserRole.MEMBER,
+          isOwner: false,
         }),
         { persist: true },
       );
@@ -726,7 +730,7 @@ describe('AuthService', () => {
         mockInvite,
         createdMember,
       );
-      expect(result.role).toBe(EUserRole.MEMBER);
+      expect(result.isOwner).toBe(false);
     });
 
     it('should not create user if invite validation fails', async () => {

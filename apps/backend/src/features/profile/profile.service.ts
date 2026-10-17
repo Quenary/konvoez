@@ -91,7 +91,7 @@ export class ProfileService {
   }
 
   private assertNotOwner(author: GetUserDto): void {
-    if (author.role === EUserRole.OWNER) {
+    if (author.isOwner || author.role === EUserRole.OWNER) {
       throw AppException.forbidden(
         ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
         'Owner account cannot be deleted',

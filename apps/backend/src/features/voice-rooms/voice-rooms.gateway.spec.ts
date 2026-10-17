@@ -7,6 +7,9 @@ jest.mock('../auth/auth.service', () => ({
 jest.mock('@shared/services/app.service', () => ({
   AppService: class {},
 }));
+jest.mock('../rooms/rooms.service', () => ({
+  RoomsService: class {},
+}));
 // Keep mediasoup out of Jest resolution (node10 / package exports). Specs mock state.
 jest.mock('mediasoup', () => ({
   createWorker: jest.fn(),
@@ -34,6 +37,7 @@ import {
   EUserRole,
   EVoiceRoomEvent,
   ApiErrorCode,
+  EPermission,
   EVoiceSessionType,
   type IUser,
   type TVoiceRoomProduce,
@@ -51,6 +55,9 @@ const alice: IUser = {
   email: 'alice@example.com',
   avatarUrl: null,
   role: EUserRole.MEMBER,
+  isOwner: false,
+  roles: [],
+  permissions: [EPermission.CONNECT_VOICE],
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -182,9 +189,15 @@ describe('VoiceRoomsGateway', () => {
       findRingingByCaller: jest.fn().mockReturnValue([]),
     };
 
+    const roomsServiceMock = {
+      findOne: jest.fn().mockResolvedValue({ id: 1, isPrivate: false }),
+      canAccessRoom: jest.fn().mockReturnValue(true),
+    };
+
     gateway = new VoiceRoomsGateway(
       authService as unknown as AuthService,
       {} as never,
+      roomsServiceMock as never,
       voiceRoomsStateService as unknown as VoiceRoomsStateService,
       directCallsStateService as unknown as DirectCallsStateService,
       eventEmitter as never,
@@ -1713,9 +1726,14 @@ describe('VoiceRoomsGateway', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       realState = new DirectCallsStateService();
+      const roomsServiceMock = {
+        findOne: jest.fn().mockResolvedValue({ id: 1, isPrivate: false }),
+        canAccessRoom: jest.fn().mockReturnValue(true),
+      };
       gateway = new VoiceRoomsGateway(
         authService as unknown as AuthService,
         {} as never,
+        roomsServiceMock as never,
         voiceRoomsStateService as unknown as VoiceRoomsStateService,
         realState,
         eventEmitter as never,

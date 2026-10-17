@@ -37,6 +37,7 @@ describe('UserManagementService', () => {
       | 'findAllAsDto'
       | 'findOneAsDto'
       | 'toDto'
+      | 'toDtoWithPermissions'
       | 'anonymizeLoaded'
       | 'removeLoaded'
     >
@@ -50,6 +51,7 @@ describe('UserManagementService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
     avatar: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -61,6 +63,9 @@ describe('UserManagementService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
@@ -71,6 +76,7 @@ describe('UserManagementService', () => {
     mockEm = {
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {
@@ -83,6 +89,9 @@ describe('UserManagementService', () => {
       findAllAsDto: jest.fn(),
       findOneAsDto: jest.fn(),
       toDto: jest.fn((user: UserEntity) => user as unknown as GetUserDto),
+      toDtoWithPermissions: jest.fn(
+        async (user: UserEntity) => user as unknown as GetUserDto,
+      ),
       anonymizeLoaded: jest.fn(),
       removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
@@ -118,19 +127,18 @@ describe('UserManagementService', () => {
       role: EUserRole.OWNER,
     };
 
-    it('should promote a member to admin', async () => {
+    it('should assign roles to a user', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
-      } as UserEntity;
+        roles: { set: jest.fn() },
+      } as unknown as UserEntity;
       mockRepo.findOne.mockResolvedValueOnce(target);
+      mockEm.find.mockResolvedValueOnce([{ id: 2 }] as never);
 
-      await service.updateRole(5, { role: EUserRole.ADMIN }, ownerAuthor);
+      await service.updateRole(5, { roleIds: [2] }, ownerAuthor);
 
-      expect(mockRepo.assign).toHaveBeenCalledWith(target, {
-        role: EUserRole.ADMIN,
-      });
+      expect(target.roles.set).toHaveBeenCalledWith([{ id: 2 }]);
       expect(mockEm.flush).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_UPDATED,
@@ -138,26 +146,11 @@ describe('UserManagementService', () => {
       );
     });
 
-    it('should demote an admin to member', async () => {
-      const target = {
-        ...mockUser,
-        id: 5,
-        role: EUserRole.ADMIN,
-      } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
-
-      await service.updateRole(5, { role: EUserRole.MEMBER }, ownerAuthor);
-
-      expect(mockRepo.assign).toHaveBeenCalledWith(target, {
-        role: EUserRole.MEMBER,
-      });
-    });
-
     it('should reject changing the owner role', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.OWNER,
+        isOwner: true,
       } as UserEntity;
       mockRepo.findOne.mockResolvedValueOnce(target);
 
@@ -222,7 +215,7 @@ describe('UserManagementService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.OWNER,
+        isOwner: true,
       } as UserEntity;
       mockRepo.findOne.mockResolvedValueOnce(target);
 
@@ -257,7 +250,7 @@ describe('UserManagementService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.OWNER,
+        isOwner: true,
       } as UserEntity;
       mockRepo.findOne.mockResolvedValueOnce(target);
 

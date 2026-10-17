@@ -42,6 +42,7 @@ import { RoomEntity } from '../rooms/rooms.entity';
 import {
   ApiErrorCode,
   EAttachmentKind,
+  EPermission,
   ESettingKey,
   EUserRole,
   IAttachment,
@@ -75,6 +76,9 @@ describe('TextRoomsService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [EPermission.SEND_MESSAGES, EPermission.USE_ATTACHMENTS],
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -132,6 +136,8 @@ describe('TextRoomsService', () => {
 
     roomsService = {
       findOne: jest.fn(),
+      findAll: jest.fn().mockResolvedValue([{ id: 10 } as RoomEntity]),
+      canAccessRoom: jest.fn().mockReturnValue(true),
     } as unknown as jest.Mocked<RoomsService>;
 
     encryptionService = {
@@ -1021,7 +1027,15 @@ describe('TextRoomsService', () => {
 
         messageRepository.findOne.mockResolvedValue(existing);
 
-        await service.delete({ ...mockUser, role }, msgId);
+        await service.delete(
+          {
+            ...mockUser,
+            role,
+            isOwner: role === EUserRole.OWNER,
+            permissions: [EPermission.MODERATE_MESSAGES],
+          },
+          msgId,
+        );
 
         expect(em.remove).toHaveBeenCalledWith(existing);
         expect(em.flush).toHaveBeenCalled();
@@ -1046,7 +1060,15 @@ describe('TextRoomsService', () => {
         messageRepository.findOne.mockResolvedValue(existing);
 
         await expect(
-          service.delete({ ...mockUser, role }, msgId),
+          service.delete(
+            {
+              ...mockUser,
+              role,
+              isOwner: role === EUserRole.OWNER,
+              permissions: [EPermission.MODERATE_MESSAGES],
+            },
+            msgId,
+          ),
         ).rejects.toMatchObject({
           code: ApiErrorCode.MESSAGE_NOT_OWNER,
         });

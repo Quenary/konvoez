@@ -49,6 +49,7 @@ describe('UsersService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
     avatar: null,
     deletedAt: null,
     createdAt: new Date(),
@@ -94,12 +95,17 @@ describe('UsersService', () => {
     } as unknown as jest.Mocked<FileService>;
 
     eventEmitter = { emit: jest.fn() };
+    const permissionsService = {
+      getUserPermissions: jest.fn().mockResolvedValue([]),
+      getDefaultPermissions: jest.fn().mockResolvedValue([]),
+    };
 
     service = new UsersService(
       mockRepo,
       passwordService,
       fileService,
       eventEmitter as never,
+      permissionsService as never,
     );
   });
 
@@ -124,9 +130,13 @@ describe('UsersService', () => {
 
       const result = await service.findOneByUsernameOrEmail('Test_User');
 
-      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
-        $or: [{ username: 'Test_User' }, { email: 'test_user' }],
-      });
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(
+        UserEntity,
+        {
+          $or: [{ username: 'Test_User' }, { email: 'test_user' }],
+        },
+        { populate: ['roles'] },
+      );
       expect(result).toBe(mockUser);
     });
 
@@ -135,9 +145,16 @@ describe('UsersService', () => {
 
       await service.findOneByUsernameOrEmail('User@Example.COM');
 
-      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
-        $or: [{ username: 'User@Example.COM' }, { email: 'user@example.com' }],
-      });
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(
+        UserEntity,
+        {
+          $or: [
+            { username: 'User@Example.COM' },
+            { email: 'user@example.com' },
+          ],
+        },
+        { populate: ['roles'] },
+      );
     });
 
     it('should throw NotFoundException when no user matches', async () => {
@@ -192,10 +209,10 @@ describe('UsersService', () => {
         'avatar-key',
         USER_AVATARS_BUCKET,
       );
-      expect(result.role).toBe(EUserRole.ADMIN);
+      expect(result.isOwner).toBe(false);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_UPDATED,
-        expect.objectContaining({ id: 5, role: EUserRole.ADMIN }),
+        expect.objectContaining({ id: 5, isOwner: false }),
       );
     });
   });

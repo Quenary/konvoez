@@ -7,19 +7,25 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
-import { EEntitySyncEvent, type TEntitySyncEventMap } from '@konvoez/shared';
+import {
+  EEntitySyncEvent,
+  EPermission,
+  type IRoom,
+  type TEntitySyncEventMap,
+} from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import { UserPresenceService } from '../users/user-presence.service';
 import {
   EntitySyncDomainEvents,
   type TEntitySyncDomainPayloadMap,
 } from '@shared/events/entity-sync.events';
+import { GetUserDto } from '../users/users.dto';
 
 type TSocket = Socket<
   TEntitySyncEventMap,
   TEntitySyncEventMap,
   DefaultEventsMap,
-  { userId?: number }
+  { userId?: number; user?: GetUserDto }
 >;
 
 @WebSocketGateway({
@@ -55,6 +61,7 @@ export class EntitySyncGateway
       }
 
       client.data.userId = user.id;
+      client.data.user = user;
       this.userPresenceService.addSocket(user.id, client.id);
       client.emit(EEntitySyncEvent.USER_PRESENCE_SNAPSHOT, {
         userIds: this.userPresenceService.getOnlineUserIds(),
@@ -70,6 +77,17 @@ export class EntitySyncGateway
     if (userId != null) {
       this.userPresenceService.removeSocket(userId, client.id);
     }
+  }
+
+  private canUserAccessRoom(user: GetUserDto, room: IRoom): boolean {
+    if (user.isOwner) return true;
+    if (user.permissions?.includes(EPermission.MANAGE_ROOMS)) return true;
+    if (!room.isPrivate) return true;
+    if (room.allowedUserIds?.includes(user.id)) return true;
+    const userRoleIds = user.roles?.map((r) => r.id) ?? [];
+    if (room.allowedRoleIds?.some((id) => userRoleIds.includes(id)))
+      return true;
+    return false;
   }
 
   @OnEvent(EntitySyncDomainEvents.USER_CREATED)
@@ -97,14 +115,37 @@ export class EntitySyncGateway
   onRoomCreated(
     payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.ROOM_CREATED],
   ) {
-    this.server.emit(EEntitySyncEvent.ROOM_CREATED, payload);
+    if (!payload.isPrivate) {
+      this.server.emit(EEntitySyncEvent.ROOM_CREATED, payload);
+      return;
+    }
+    for (const [_, client] of this.server.sockets.sockets) {
+      if (
+        client.data.user &&
+        this.canUserAccessRoom(client.data.user, payload)
+      ) {
+        client.emit(EEntitySyncEvent.ROOM_CREATED, payload);
+      }
+    }
   }
 
   @OnEvent(EntitySyncDomainEvents.ROOM_UPDATED)
   onRoomUpdated(
     payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.ROOM_UPDATED],
   ) {
-    this.server.emit(EEntitySyncEvent.ROOM_UPDATED, payload);
+    if (!payload.isPrivate) {
+      this.server.emit(EEntitySyncEvent.ROOM_UPDATED, payload);
+      return;
+    }
+    for (const [_, client] of this.server.sockets.sockets) {
+      if (client.data.user) {
+        if (this.canUserAccessRoom(client.data.user, payload)) {
+          client.emit(EEntitySyncEvent.ROOM_UPDATED, payload);
+        } else {
+          client.emit(EEntitySyncEvent.ROOM_DELETED, { id: payload.id });
+        }
+      }
+    }
   }
 
   @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)

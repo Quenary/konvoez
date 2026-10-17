@@ -4,6 +4,9 @@ jest.mock('@mikro-orm/nestjs', () => ({
 jest.mock('../auth/auth.service', () => ({
   AuthService: class {},
 }));
+jest.mock('../rooms/rooms.service', () => ({
+  RoomsService: class {},
+}));
 
 import { TextRoomsGateway } from './text-rooms.gateway';
 import { ETextRoomEvent, type ITextRoomMessage } from '@konvoez/shared';
@@ -17,6 +20,10 @@ describe('TextRoomsGateway', () => {
     except: jest.Mock;
     emit: jest.Mock;
   };
+  let roomsServiceMock: {
+    findOne: jest.Mock;
+    canAccessRoom: jest.Mock;
+  };
 
   beforeEach(() => {
     gateway = new TextRoomsGateway();
@@ -27,17 +34,25 @@ describe('TextRoomsGateway', () => {
       emit: jest.fn(),
     };
 
-    Object.assign(gateway, { server: serverMock as unknown as Server });
+    roomsServiceMock = {
+      findOne: jest.fn().mockResolvedValue({ id: 42, isPrivate: false }),
+      canAccessRoom: jest.fn().mockReturnValue(true),
+    };
+
+    Object.assign(gateway, {
+      server: serverMock as unknown as Server,
+      roomsService: roomsServiceMock,
+    });
   });
 
-  it('should join room and peer rooms in handleJoin', () => {
+  it('should join room and peer rooms in handleJoin', async () => {
     const clientMock = {
       data: { peer: { id: 100 } },
       join: jest.fn(),
       leave: jest.fn(),
     } as unknown as Socket;
 
-    gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
 
     expect(clientMock.join).toHaveBeenCalledWith('42');
     expect(clientMock.join).toHaveBeenCalledWith('100');

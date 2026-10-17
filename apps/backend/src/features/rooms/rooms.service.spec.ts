@@ -21,7 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 
 import { RoomsService } from './rooms.service';
@@ -42,6 +42,9 @@ describe('RoomsService', () => {
     fullname: 'Alice Example',
     email: 'alice@example.com',
     role: EUserRole.OWNER,
+    isOwner: true,
+    roles: [],
+    permissions: Object.values(EPermission),
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
@@ -54,6 +57,9 @@ describe('RoomsService', () => {
     type: ERoomType.TEXT,
     avatar: null,
     author: { id: 1, username: 'alice', fullname: 'Alice Example' },
+    isPrivate: false,
+    allowedRoles: { getItems: () => [] },
+    allowedUsers: { getItems: () => [] },
     createdAt: new Date(),
     updatedAt: null,
   } as unknown as RoomEntity;
@@ -64,11 +70,13 @@ describe('RoomsService', () => {
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
       populate: jest.fn().mockResolvedValue(undefined),
+      find: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {
       getEntityManager: jest.fn().mockReturnValue(mockEm),
       findOne: jest.fn(),
+      findAll: jest.fn().mockResolvedValue([room]),
       create: jest.fn().mockReturnValue(room),
       assign: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<RoomEntity>>;
@@ -129,5 +137,90 @@ describe('RoomsService', () => {
       EntitySyncDomainEvents.ROOM_DELETED,
       { id: 1 },
     );
+  });
+
+  describe('canAccessRoom', () => {
+    it('always allows owner access', () => {
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: { getItems: () => [] },
+        allowedRoles: { getItems: () => [] },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(author, privateRoom)).toBe(true);
+    });
+
+    it('allows user with MANAGE_ROOMS permission', () => {
+      const moderator = {
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROOMS],
+        roles: [],
+      } as unknown as GetUserDto;
+
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: { getItems: () => [] },
+        allowedRoles: { getItems: () => [] },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(moderator, privateRoom)).toBe(true);
+    });
+
+    it('denies user without permission or matching id/role to private room', () => {
+      const normalUser = {
+        id: 3,
+        isOwner: false,
+        permissions: [EPermission.SEND_MESSAGES],
+        roles: [{ id: 10 }],
+      } as unknown as GetUserDto;
+
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: { getItems: () => [{ id: 99 }] },
+        allowedRoles: { getItems: () => [{ id: 20 }] },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(normalUser, privateRoom)).toBe(false);
+    });
+
+    it('allows user explicitly listed in allowedUsers', () => {
+      const normalUser = {
+        id: 3,
+        isOwner: false,
+        permissions: [],
+        roles: [],
+      } as unknown as GetUserDto;
+
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: { getItems: () => [{ id: 3 }] },
+        allowedRoles: { getItems: () => [] },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(normalUser, privateRoom)).toBe(true);
+    });
+
+    it('allows user whose role is in allowedRoles', () => {
+      const normalUser = {
+        id: 3,
+        isOwner: false,
+        permissions: [],
+        roles: [{ id: 42 }],
+      } as unknown as GetUserDto;
+
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: { getItems: () => [] },
+        allowedRoles: { getItems: () => [{ id: 42 }] },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(normalUser, privateRoom)).toBe(true);
+    });
   });
 });

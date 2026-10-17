@@ -44,6 +44,7 @@ import {
 import {
   ApiErrorCode,
   canDeleteTextRoomMessage,
+  EPermission,
   ESettingKey,
   IAttachment,
   ITextRoomMessage,
@@ -314,8 +315,14 @@ export class TextRoomsService {
         .execute<Array<{ senderId: number; count: number }>>('all'),
     ]);
 
+    const accessibleRooms = await this.roomsService.findAll(user);
+    const accessibleRoomIds = new Set(accessibleRooms.map((r) => r.id));
+    const accessibleRoomRows = roomRows.filter((row) =>
+      accessibleRoomIds.has(Number(row.roomId)),
+    );
+
     const rooms = Object.fromEntries(
-      roomRows.map((row) => [String(row.roomId), Number(row.count)]),
+      accessibleRoomRows.map((row) => [String(row.roomId), Number(row.count)]),
     );
     const direct = Object.fromEntries(
       directRows.map((row) => [String(row.senderId), Number(row.count)]),
@@ -379,6 +386,13 @@ export class TextRoomsService {
         ];
       }
     } else if (roomId) {
+      const room = await this.roomsService.findOne(roomId);
+      if (!this.roomsService.canAccessRoom(user, room)) {
+        throw AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        );
+      }
       baseWhere.room = roomId;
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
@@ -560,7 +574,28 @@ export class TextRoomsService {
         );
       }
     }
+    if (
+      !user.isOwner &&
+      !user.permissions?.includes(EPermission.SEND_MESSAGES)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Permission denied to send messages',
+      );
+    }
+
     const attachmentIds = [...new Set(requestedIds)];
+
+    if (
+      attachmentIds.length > 0 &&
+      !user.isOwner &&
+      !user.permissions?.includes(EPermission.USE_ATTACHMENTS)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Permission denied to use attachments',
+      );
+    }
 
     let recipient: UserEntity | null = null;
     let room: RoomEntity | null = null;
@@ -571,6 +606,12 @@ export class TextRoomsService {
 
     if (dto.roomId) {
       room = await this.roomsService.findOne(dto.roomId);
+      if (!this.roomsService.canAccessRoom(user, room)) {
+        throw AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        );
+      }
     }
 
     let replyToId: Uint8Array | null = null;
@@ -846,7 +887,11 @@ export class TextRoomsService {
       },
     );
 
-    const othersMessages = messages.filter((msg) => msg.sender.id !== user.id);
+    const othersMessages = messages.filter(
+      (msg) =>
+        msg.sender.id !== user.id &&
+        (!msg.room || this.roomsService.canAccessRoom(user, msg.room)),
+    );
     if (othersMessages.length === 0) return;
 
     const existingReads = await this.messageReadRepository.find({

@@ -14,7 +14,11 @@ import { Server } from 'socket.io';
 
 describe('EntitySyncGateway', () => {
   let gateway: EntitySyncGateway;
-  let serverMock: { emit: jest.Mock; to: jest.Mock };
+  let serverMock: {
+    emit: jest.Mock;
+    to: jest.Mock;
+    sockets: { sockets: Map<string, unknown> };
+  };
   let authServiceMock: { getUserFromRawCookies: jest.Mock };
   let userPresenceServiceMock: {
     addSocket: jest.Mock;
@@ -30,6 +34,9 @@ describe('EntitySyncGateway', () => {
     fullname: 'Alice',
     email: 'alice@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     deletedAt: null,
@@ -44,6 +51,9 @@ describe('EntitySyncGateway', () => {
     avatar: null,
     avatarUrl: null,
     author: { id: 1, username: 'alice', fullname: 'Alice' },
+    isPrivate: false,
+    allowedRoleIds: [],
+    allowedUserIds: [],
     createdAt: new Date(),
     updatedAt: null,
   };
@@ -51,7 +61,11 @@ describe('EntitySyncGateway', () => {
   beforeEach(() => {
     gateway = new EntitySyncGateway();
     toMock = jest.fn().mockReturnValue({ emit: jest.fn() });
-    serverMock = { emit: jest.fn(), to: toMock };
+    serverMock = {
+      emit: jest.fn(),
+      to: toMock,
+      sockets: { sockets: new Map() },
+    };
     authServiceMock = { getUserFromRawCookies: jest.fn() };
     userPresenceServiceMock = {
       addSocket: jest.fn(),

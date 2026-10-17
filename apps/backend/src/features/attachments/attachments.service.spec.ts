@@ -24,6 +24,7 @@ import { parse, v7 } from 'uuid';
 import {
   ApiErrorCode,
   EAttachmentKind,
+  EPermission,
   ESettingKey,
   attachmentFileNameMaxLength,
 } from '@konvoez/shared';
@@ -60,6 +61,9 @@ describe('AttachmentsService', () => {
     fullname: 'Author',
     email: 'author@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [EPermission.USE_ATTACHMENTS],
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -138,6 +142,9 @@ describe('AttachmentsService', () => {
     settingsService = {
       getValue: jest.fn().mockResolvedValue(false),
     };
+    const roomsService = {
+      canAccessRoom: jest.fn().mockReturnValue(true),
+    };
     service = new AttachmentsService(
       repo as never,
       fileService as never,
@@ -145,6 +152,7 @@ describe('AttachmentsService', () => {
       imageProcessingService as never,
       videoProcessingService as never,
       settingsService as never,
+      roomsService as never,
     );
   });
 

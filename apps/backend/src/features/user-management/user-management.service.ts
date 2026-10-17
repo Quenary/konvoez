@@ -35,27 +35,43 @@ export class UserManagementService {
 
   async updateRole(
     id: number,
-    dto: { role?: EUserRole },
+    dto: { roleIds?: number[]; role?: EUserRole },
     author: GetUserDto,
   ): Promise<GetUserDto> {
-    const user = await this.load(id);
+    const user = await this.repo.findOne({ id }, { populate: ['roles'] });
+    if (!user) {
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'User not found',
+      );
+    }
     this.assertManageableTarget(id, author, user);
+
     if (dto.role === EUserRole.OWNER) {
       throw AppException.badRequest(
         ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
         'Owner role cannot be assigned',
       );
     }
-    if (!dto.role) {
+
+    if (dto.roleIds !== undefined) {
+      const RoleEntity = (await import('../roles/roles.entity')).RoleEntity;
+      const roles = await this.em.find(RoleEntity, {
+        id: { $in: dto.roleIds },
+      });
+      user.roles.set(roles);
+    }
+
+    if (!dto.role && dto.roleIds === undefined) {
       throw AppException.badRequest(
         ApiErrorCode.USER_UPDATE_EMPTY,
         'At least one field is required',
       );
     }
-    this.repo.assign(user, { role: dto.role });
+
     this.em.persist(user);
     await this.em.flush();
-    const result = this.usersService.toDto(user);
+    const result = await this.usersService.toDtoWithPermissions(user);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_UPDATED,
@@ -92,7 +108,7 @@ export class UserManagementService {
     author: GetUserDto,
     user: UserEntity,
   ): void {
-    if (id === author.id || user.role === EUserRole.OWNER) {
+    if (id === author.id || user.isOwner) {
       throw AppException.forbidden(ApiErrorCode.FORBIDDEN, 'Forbidden');
     }
   }

@@ -24,6 +24,8 @@ import {
   type TTextRoomDomainPayloadMap,
 } from '@shared/events/text-room.events';
 
+import { RoomsService } from '../rooms/rooms.service';
+
 type TSocket = Socket<
   TTextRoomEventMap,
   TTextRoomEventMap,
@@ -48,6 +50,8 @@ export class TextRoomsGateway
   private readonly server!: Server<TTextRoomEventMap>;
   @Inject(AuthService)
   private readonly authService!: AuthService;
+  @Inject(RoomsService)
+  private readonly roomsService!: RoomsService;
   private readonly logger = new Logger(TextRoomsGateway.name);
 
   private readonly userIdToSocketId: Map<number, string> = new Map();
@@ -99,21 +103,34 @@ export class TextRoomsGateway
   }
 
   @SubscribeMessage(ETextRoomEvent.JOIN)
-  handleJoin(
+  async handleJoin(
     @MessageBody() body: TextRoomJoinDto,
     @ConnectedSocket() client: TSocket,
   ) {
     this.handleLeave(client);
 
     const { roomId, recipientId } = body;
+    const peer = client.data.peer;
+
     if (roomId) {
+      if (peer) {
+        try {
+          const room = await this.roomsService.findOne(roomId);
+          if (!this.roomsService.canAccessRoom(peer, room)) {
+            client.emit(ETextRoomEvent.ERROR, { message: 'Access denied' });
+            return;
+          }
+        } catch {
+          client.emit(ETextRoomEvent.ERROR, { message: 'Room not found' });
+          return;
+        }
+      }
       client.data.roomId = roomId;
       client.join(roomId.toString());
     }
     if (recipientId) {
       client.data.recipientId = recipientId;
     }
-    const peer = client.data.peer;
     if (peer) {
       client.join(peer.id.toString());
     } else {

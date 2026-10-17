@@ -28,6 +28,9 @@ import { Migration20260930120000_NormalizeEmails } from './migrations/Migration2
 import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
 import { Migration20261003224050_MessageAttachments } from './migrations/Migration20261003224050_MessageAttachments';
 import { Migration20261009130000_MessageReactions } from './migrations/Migration20261009130000_MessageReactions';
+import { Migration20261017170127_RolesAndRoomAccess } from './migrations/Migration20261017170127_RolesAndRoomAccess';
+
+import { RoleEntitySchema } from './features/roles/roles.entity';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -36,6 +39,7 @@ export async function createMikroOrmConfig() {
     entities: [
       KonvoezBaseEntitySchema,
       UserEntitySchema,
+      RoleEntitySchema,
       RoomEntitySchema,
       SettingsEntitySchema,
       MessageEntitySchema,
@@ -66,6 +70,7 @@ export async function createMikroOrmConfig() {
         Migration20260930092254_UserSoftDelete,
         Migration20261003224050_MessageAttachments,
         Migration20261009130000_MessageReactions,
+        Migration20261017170127_RolesAndRoomAccess,
       ],
     },
   } satisfies Partial<Options>;

@@ -31,6 +31,7 @@ import {
   isDirectCallVoiceSession,
   ApiErrorCode,
   DIRECT_CALL_RING_TIMEOUT_MS,
+  EPermission,
 } from '@konvoez/shared';
 import {
   CallAcceptDto,
@@ -48,6 +49,7 @@ import {
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 import { AuthService } from '../auth/auth.service';
+import { RoomsService } from '../rooms/rooms.service';
 import { AppService } from '@shared/services/app.service';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
@@ -114,6 +116,7 @@ export class VoiceRoomsGateway
   constructor(
     private readonly authService: AuthService,
     private readonly appService: AppService,
+    private readonly roomsService: RoomsService,
     private readonly voiceRoomsStateService: VoiceRoomsStateService,
     private readonly directCallsStateService: DirectCallsStateService,
     private readonly eventEmitter: EventEmitter2,
@@ -291,6 +294,26 @@ export class VoiceRoomsGateway
       `handleJoinRoom: socketId=${socket.id}, sessionKey=${sessionKey}, roomId=${roomId}, userId=${socket.data.user?.id}`,
     );
     const user = socket.data.user;
+
+    if (
+      !user.isOwner &&
+      !user.permissions?.includes(EPermission.CONNECT_VOICE)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Permission denied to connect to voice',
+      );
+    }
+
+    if (roomId !== undefined) {
+      const roomEntity = await this.roomsService.findOne(roomId);
+      if (!this.roomsService.canAccessRoom(user, roomEntity)) {
+        throw AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        );
+      }
+    }
 
     // Ensure room + register peer before exposing session on the socket.
     // Otherwise concurrent GET_RTP_CAPABILITIES can see sessionKey without a peer

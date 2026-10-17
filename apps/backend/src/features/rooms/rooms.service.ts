@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { ApiErrorCode } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
@@ -16,6 +16,7 @@ import {
 } from '@shared/events/entity-sync.events';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
+import { RoleEntity } from '../roles/roles.entity';
 
 @Injectable()
 export class RoomsService {
@@ -29,27 +30,129 @@ export class RoomsService {
     this.em = this.repo.getEntityManager();
   }
 
-  async findOne(id: number): Promise<RoomEntity> {
-    const room = await this.repo.findOne({ id }, { populate: ['author'] });
+  canAccessRoom(
+    user:
+      | GetUserDto
+      | UserEntity
+      | {
+          id: number;
+          isOwner?: boolean;
+          permissions?: EPermission[];
+          roles?: Array<{ id: number }>;
+        },
+    room: RoomEntity,
+  ): boolean {
+    if (user.isOwner) {
+      return true;
+    }
+    const permissions =
+      'permissions' in user && Array.isArray(user.permissions)
+        ? user.permissions
+        : [];
+    if (permissions.includes(EPermission.MANAGE_ROOMS)) {
+      return true;
+    }
+    if (!room.isPrivate) {
+      return true;
+    }
+
+    if (room.allowedUsers) {
+      const allowedUsers =
+        typeof (
+          room.allowedUsers as unknown as {
+            getItems?: () => Array<{ id: number }>;
+          }
+        ).getItems === 'function'
+          ? (
+              room.allowedUsers as unknown as {
+                getItems: () => Array<{ id: number }>;
+              }
+            ).getItems()
+          : Array.isArray(room.allowedUsers)
+            ? room.allowedUsers
+            : [];
+      if (allowedUsers.some((u) => u.id === user.id)) {
+        return true;
+      }
+    }
+
+    if (room.allowedRoles) {
+      const allowedRoles =
+        typeof (
+          room.allowedRoles as unknown as {
+            getItems?: () => Array<{ id: number }>;
+          }
+        ).getItems === 'function'
+          ? (
+              room.allowedRoles as unknown as {
+                getItems: () => Array<{ id: number }>;
+              }
+            ).getItems()
+          : Array.isArray(room.allowedRoles)
+            ? room.allowedRoles
+            : [];
+      const allowedRoleIds = new Set(allowedRoles.map((r) => r.id));
+
+      if (user.roles) {
+        const userRoles =
+          typeof (
+            user.roles as unknown as {
+              getItems?: () => Array<{ id: number }>;
+            }
+          ).getItems === 'function'
+            ? (
+                user.roles as unknown as {
+                  getItems: () => Array<{ id: number }>;
+                }
+              ).getItems()
+            : Array.isArray(user.roles)
+              ? user.roles
+              : [];
+        if (userRoles.some((r) => allowedRoleIds.has(r.id))) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  async findOne(id: number, author?: GetUserDto): Promise<RoomEntity> {
+    const room = await this.repo.findOne(
+      { id },
+      { populate: ['author', 'allowedRoles', 'allowedUsers'] },
+    );
     if (!room) {
       throw AppException.notFound(
         ApiErrorCode.ROOM_NOT_FOUND,
         'Room not found',
       );
     }
+    if (author && !this.canAccessRoom(author, room)) {
+      throw AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Access to room is denied',
+      );
+    }
     return room;
   }
 
-  async findOneAsDto(id: number): Promise<GetRoomDto> {
-    return this.toDto(await this.findOne(id));
+  async findOneAsDto(id: number, author?: GetUserDto): Promise<GetRoomDto> {
+    return this.toDto(await this.findOne(id, author));
   }
 
-  async findAll(): Promise<RoomEntity[]> {
-    return this.repo.findAll({ populate: ['author'] });
+  async findAll(author?: GetUserDto): Promise<RoomEntity[]> {
+    const rooms = await this.repo.findAll({
+      populate: ['author', 'allowedRoles', 'allowedUsers'],
+    });
+    if (!author) {
+      return rooms.filter((r) => !r.isPrivate);
+    }
+    return rooms.filter((r) => this.canAccessRoom(author, r));
   }
 
-  async findAllAsDto(): Promise<GetRoomDto[]> {
-    const rooms = await this.findAll();
+  async findAllAsDto(author?: GetUserDto): Promise<GetRoomDto[]> {
+    const rooms = await this.findAll(author);
     return rooms.map((room) => this.toDto(room));
   }
 
@@ -64,12 +167,28 @@ export class RoomsService {
 
     const room = this.repo.create(
       {
-        ...dto,
-        // @Author() is a DTO; reference avoids cascading a User insert without password
+        name: dto.name,
+        type: dto.type,
+        avatar: dto.avatar,
+        isPrivate: dto.isPrivate ?? false,
         author: this.em.getReference(UserEntity, author.id),
       },
       { persist: true },
     );
+
+    if (dto.allowedRoleIds?.length) {
+      const roles = await this.em.find(RoleEntity, {
+        id: { $in: dto.allowedRoleIds },
+      });
+      room.allowedRoles.set(roles);
+    }
+
+    if (dto.allowedUserIds?.length) {
+      const users = await this.em.find(UserEntity, {
+        id: { $in: dto.allowedUserIds },
+      });
+      room.allowedUsers.set(users);
+    }
 
     try {
       await this.em.flush();
@@ -83,7 +202,7 @@ export class RoomsService {
       throw error;
     }
 
-    await this.em.populate(room, ['author']);
+    await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.ROOM_CREATED,
@@ -108,7 +227,24 @@ export class RoomsService {
       }
     }
 
-    this.repo.assign(room, dto);
+    if (dto.name !== undefined) room.name = dto.name;
+    if (dto.avatar !== undefined) room.avatar = dto.avatar;
+    if (dto.isPrivate !== undefined) room.isPrivate = dto.isPrivate;
+
+    if (dto.allowedRoleIds !== undefined) {
+      const roles = dto.allowedRoleIds.length
+        ? await this.em.find(RoleEntity, { id: { $in: dto.allowedRoleIds } })
+        : [];
+      room.allowedRoles.set(roles);
+    }
+
+    if (dto.allowedUserIds !== undefined) {
+      const users = dto.allowedUserIds.length
+        ? await this.em.find(UserEntity, { id: { $in: dto.allowedUserIds } })
+        : [];
+      room.allowedUsers.set(users);
+    }
+
     this.em.persist(room);
 
     try {
@@ -123,6 +259,7 @@ export class RoomsService {
       throw error;
     }
 
+    await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.ROOM_UPDATED,
@@ -143,6 +280,42 @@ export class RoomsService {
   }
 
   toDto(room: RoomEntity): GetRoomDto {
+    const allowedRoleIds = room.allowedRoles
+      ? typeof (
+          room.allowedRoles as unknown as {
+            getItems?: () => Array<{ id: number }>;
+          }
+        ).getItems === 'function'
+        ? (
+            room.allowedRoles as unknown as {
+              getItems: () => Array<{ id: number }>;
+            }
+          )
+            .getItems()
+            .map((r) => r.id)
+        : Array.isArray(room.allowedRoles)
+          ? (room.allowedRoles as Array<{ id: number }>).map((r) => r.id)
+          : []
+      : [];
+
+    const allowedUserIds = room.allowedUsers
+      ? typeof (
+          room.allowedUsers as unknown as {
+            getItems?: () => Array<{ id: number }>;
+          }
+        ).getItems === 'function'
+        ? (
+            room.allowedUsers as unknown as {
+              getItems: () => Array<{ id: number }>;
+            }
+          )
+            .getItems()
+            .map((u) => u.id)
+        : Array.isArray(room.allowedUsers)
+          ? (room.allowedUsers as Array<{ id: number }>).map((u) => u.id)
+          : []
+      : [];
+
     return {
       id: room.id,
       name: room.name,
@@ -154,6 +327,9 @@ export class RoomsService {
         username: room.author.username,
         fullname: room.author.fullname,
       },
+      isPrivate: room.isPrivate ?? false,
+      allowedRoleIds,
+      allowedUserIds,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     };

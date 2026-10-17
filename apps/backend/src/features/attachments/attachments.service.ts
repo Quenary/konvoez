@@ -11,6 +11,7 @@ import {
   attachmentsMaxPosterSize,
   attachmentsThumbnailMaxSide,
   EAttachmentKind,
+  EPermission,
   ESettingKey,
   IAttachment,
   IAttachmentUploadHints,
@@ -28,6 +29,8 @@ import { ImageProcessingService } from '@shared/services/image-processing.servic
 import { VideoProcessingService } from '@shared/services/video-processing.service';
 import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
+import { RoomsService } from '../rooms/rooms.service';
+import { RoomEntity } from '../rooms/rooms.entity';
 import { GetUserDto } from '../users/users.dto';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
@@ -68,6 +71,7 @@ export class AttachmentsService {
     private readonly imageProcessingService: ImageProcessingService,
     private readonly videoProcessingService: VideoProcessingService,
     private readonly settingsService: SettingsService,
+    private readonly roomsService: RoomsService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -77,6 +81,16 @@ export class AttachmentsService {
     file: { path?: string; size: number; originalname?: string } | undefined,
     extras?: IUploadExtras,
   ): Promise<IAttachment> {
+    if (
+      !author.isOwner &&
+      !author.permissions?.includes(EPermission.USE_ATTACHMENTS)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Permission denied to upload attachments',
+      );
+    }
+
     if (!file?.path) {
       throw AppException.badRequest(
         ApiErrorCode.FILE_REQUIRED,
@@ -185,6 +199,9 @@ export class AttachmentsService {
       {
         populate: [
           'message',
+          'message.room',
+          'message.room.allowedRoles',
+          'message.room.allowedUsers',
           'message.sender',
           'message.recipient',
           'uploader',
@@ -236,7 +253,7 @@ export class AttachmentsService {
     user: GetUserDto,
   ): boolean {
     if (message.room) {
-      return true;
+      return this.roomsService.canAccessRoom(user, message.room as RoomEntity);
     }
     return message.sender.id === user.id || message.recipient?.id === user.id;
   }
