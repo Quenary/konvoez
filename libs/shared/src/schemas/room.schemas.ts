@@ -17,7 +17,7 @@ export const roomCreateSchema = z.object({
   name: roomNameSchema,
   type: roomTypeSchema,
   avatar: stringSchema.optional(),
-  isPrivate: z.boolean().default(false),
+  isPrivate: z.boolean().optional(),
   allowedRoleIds: z.array(z.number().int()).optional(),
   allowedUserIds: z.array(z.number().int()).optional(),
 });
