@@ -3,7 +3,7 @@ import { ApiErrorCode } from '@konvoez/shared';
 import { ApiAckError, emitVoiceRoomWithAck } from './voice-room-socket-ack';
 
 describe('emitVoiceRoomWithAck', () => {
-  it('rejects with ApiAckError when the server returns a structured ApiErrorResponse', async () => {
+  it('rejects with ApiAckError when the server returns a structured TApiErrorResponse', async () => {
     const errorPayload = {
       code: ApiErrorCode.VOICE_VIDEO_LIMIT_REACHED,
       message: 'Room video producer limit reached',

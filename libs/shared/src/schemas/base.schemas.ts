@@ -37,4 +37,4 @@ export const entityDeletedSchema = z.object({
   id: z.number().int(),
 });
 
-export type IEntityDeleted = z.infer<typeof entityDeletedSchema>;
+export type TEntityDeleted = z.infer<typeof entityDeletedSchema>;

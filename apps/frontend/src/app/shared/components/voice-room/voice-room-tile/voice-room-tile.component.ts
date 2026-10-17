@@ -6,7 +6,7 @@ import {
   input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { IVoiceRoomPeerUser } from '@konvoez/shared';
+import { TVoiceRoomPeerUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
@@ -67,7 +67,7 @@ export class VoiceRoomTileComponent {
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  public readonly peer = input.required<IVoiceRoomPeerUser>();
+  public readonly peer = input.required<TVoiceRoomPeerUser>();
   public readonly streamKind = input<TVoiceStreamKind | null>(null);
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
   public readonly screenAvailable = input(false);

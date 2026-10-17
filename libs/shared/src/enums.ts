@@ -9,6 +9,11 @@ export enum ERoomType {
   VOICE = 'VOICE',
 }
 
+export enum EVoiceSessionType {
+  GROUP_ROOM = 'GROUP_ROOM',
+  DIRECT_CALL = 'DIRECT_CALL',
+}
+
 export enum ESettingKey {
   ICE_SERVERS = 'ICE_SERVERS',
   INVITE_ONLY_SIGN_UP = 'INVITE_ONLY_SIGN_UP',

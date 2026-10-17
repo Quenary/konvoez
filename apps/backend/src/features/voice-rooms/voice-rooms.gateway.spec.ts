@@ -36,7 +36,7 @@ import {
   ApiErrorCode,
   EVoiceSessionType,
   type IUser,
-  type IVoiceRoomProduce,
+  type TVoiceRoomProduce,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '@shared/events/notifications.events';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
@@ -903,7 +903,7 @@ describe('VoiceRoomsGateway', () => {
       voiceRoomsStateService.getRoom.mockReturnValue(room);
 
       const socket = joinedSocket();
-      const producePayload: IVoiceRoomProduce = {
+      const producePayload: TVoiceRoomProduce = {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
@@ -1668,6 +1668,13 @@ describe('VoiceRoomsGateway', () => {
       directCallsStateService.findActiveBetween.mockReturnValue(call);
 
       expect(gateway.handleCallGetActive(createSocket() as never, {})).toEqual({
+        callId: 'c1',
+        callerId: alice.id,
+        recipientId: bob.id,
+      });
+      expect(
+        gateway.handleCallGetActive(createSocket() as never, undefined),
+      ).toEqual({
         callId: 'c1',
         callerId: alice.id,
         recipientId: bob.id,

@@ -5,14 +5,14 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { EUserRole, IVoiceRoomPeerUser } from '@konvoez/shared';
+import { EUserRole, TVoiceRoomPeerUser } from '@konvoez/shared';
 import { TuiAsideComponent } from '@taiga-ui/layout';
 import { RoomPeerComponent } from './room-peer.component';
 
 const makePeer = (
   id: number,
-  overrides?: Partial<IVoiceRoomPeerUser>,
-): IVoiceRoomPeerUser => ({
+  overrides?: Partial<TVoiceRoomPeerUser>,
+): TVoiceRoomPeerUser => ({
   id,
   username: `user${id}`,
   fullname: `User ${id}`,
@@ -25,7 +25,7 @@ const makePeer = (
 });
 
 describe('RoomPeerComponent', () => {
-  let currentUser: ReturnType<typeof signal<IVoiceRoomPeerUser | null>>;
+  let currentUser: ReturnType<typeof signal<TVoiceRoomPeerUser | null>>;
   let microphoneMuted: ReturnType<typeof signal<boolean>>;
   let speakerMuted: ReturnType<typeof signal<boolean>>;
   let speakingMap: ReturnType<typeof signal<Record<number, boolean>>>;

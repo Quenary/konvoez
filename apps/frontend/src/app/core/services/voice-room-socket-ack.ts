@@ -1,14 +1,14 @@
 import type { Socket } from 'socket.io-client';
-import { type ApiErrorResponse, type WsAckError } from '@konvoez/shared';
+import { type TApiErrorResponse, type TWsAckError } from '@konvoez/shared';
 import { isApiErrorCode } from './api-error.service';
 
 export const DEFAULT_VOICE_SOCKET_ACK_MS = 5000;
 export const VOICE_JOIN_ACK_MS = 10_000;
 
 export class ApiAckError extends Error {
-  readonly apiError: ApiErrorResponse;
+  readonly apiError: TApiErrorResponse;
 
-  constructor(apiError: ApiErrorResponse) {
+  constructor(apiError: TApiErrorResponse) {
     super(apiError.code);
     this.name = 'ApiAckError';
     this.apiError = apiError;
@@ -19,7 +19,7 @@ type LegacyAckError = { error: string };
 
 function isAckErrorResponse(
   value: unknown,
-): value is WsAckError | LegacyAckError {
+): value is TWsAckError | LegacyAckError {
   if (typeof value !== 'object' || value === null || !('error' in value)) {
     return false;
   }

@@ -3,9 +3,9 @@ import type {
   IRoomDeleted,
   IUser,
   IUserDeleted,
-  IVoiceRoomLobbyPeerJoined,
-  IVoiceRoomLobbyPeerLeft,
-  IVoiceRoomLobbyPeerMuted,
+  TVoiceRoomLobbyPeerJoined,
+  TVoiceRoomLobbyPeerLeft,
+  TVoiceRoomLobbyPeerMuted,
   IUserPresenceChanged,
 } from '@konvoez/shared';
 import type { EventEmitter2 } from '@nestjs/event-emitter';
@@ -33,9 +33,9 @@ export type TEntitySyncDomainPayloadMap = {
   [EntitySyncDomainEvents.ROOM_CREATED]: IRoom;
   [EntitySyncDomainEvents.ROOM_UPDATED]: IRoom;
   [EntitySyncDomainEvents.ROOM_DELETED]: IRoomDeleted;
-  [EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED]: IVoiceRoomLobbyPeerJoined;
-  [EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT]: IVoiceRoomLobbyPeerLeft;
-  [EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED]: IVoiceRoomLobbyPeerMuted;
+  [EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED]: TVoiceRoomLobbyPeerJoined;
+  [EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT]: TVoiceRoomLobbyPeerLeft;
+  [EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED]: TVoiceRoomLobbyPeerMuted;
   [EntitySyncDomainEvents.USER_PRESENCE_CHANGED]: IUserPresenceChanged;
 };
 

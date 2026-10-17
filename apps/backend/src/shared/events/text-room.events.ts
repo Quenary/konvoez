@@ -1,6 +1,6 @@
 import type {
   ITextRoomMessage,
-  ITextRoomReactionUpdated,
+  TTextRoomReactionUpdated,
 } from '@konvoez/shared';
 import type { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -18,7 +18,7 @@ export type TTextRoomDomainPayloadMap = {
   [TextRoomDomainEvents.MESSAGE_CREATED]: ITextRoomMessage;
   [TextRoomDomainEvents.MESSAGE_UPDATED]: ITextRoomMessage;
   [TextRoomDomainEvents.MESSAGE_DELETED]: { id: string };
-  [TextRoomDomainEvents.MESSAGE_REACTION_UPDATED]: ITextRoomReactionUpdated;
+  [TextRoomDomainEvents.MESSAGE_REACTION_UPDATED]: TTextRoomReactionUpdated;
 };
 
 export function emitTextRoomDomainEvent<K extends TTextRoomDomainEvent>(

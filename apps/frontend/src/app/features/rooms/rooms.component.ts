@@ -19,7 +19,7 @@ import {
   IRoom,
   IRoomCreate,
   IUser,
-  IVoiceRoomPeerUser,
+  TVoiceRoomPeerUser,
 } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
@@ -54,7 +54,7 @@ import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
 
 interface IRoomWithPeers extends IRoom {
-  peers: IVoiceRoomPeerUser[];
+  peers: TVoiceRoomPeerUser[];
   isUserInRoom: boolean;
 }
 

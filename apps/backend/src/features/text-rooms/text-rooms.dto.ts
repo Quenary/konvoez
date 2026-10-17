@@ -8,8 +8,11 @@ import {
   messageReactionGroupSchema,
   messageReactionToggleSchema,
   messageSchema,
+  textRoomJoinSchema,
   unreadCountsSchema,
 } from '@konvoez/shared';
+
+export class TextRoomJoinDto extends createZodDto(textRoomJoinSchema) {}
 
 export class CreateMessageDto extends createZodDto(messageCreateSchema) {}
 

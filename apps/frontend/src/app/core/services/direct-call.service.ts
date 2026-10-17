@@ -3,15 +3,15 @@ import { Router } from '@angular/router';
 import {
   EDirectCallEvent,
   EVoiceSessionType,
-  ICallAcceptedPayload,
-  ICallAnsweredElsewherePayload,
-  ICallEndedPayload,
-  ICallGetActiveResult,
-  ICallHangupPayload,
-  ICallIncomingPayload,
-  ICallInitiatePayload,
-  ICallInitiateResult,
-  ICallRejectedPayload,
+  TCallAcceptedPayload,
+  TCallAnsweredElsewherePayload,
+  TCallEndedPayload,
+  TCallGetActiveResult,
+  TCallHangupPayload,
+  TCallIncomingPayload,
+  TCallInitiatePayload,
+  TCallInitiateResult,
+  TCallRejectedPayload,
   IUser,
   TVoiceSessionTarget,
   DIRECT_CALL_RING_TIMEOUT_MS,
@@ -62,7 +62,7 @@ export class DirectCallService {
   private readonly router = inject(Router);
 
   private readonly _activeCall = signal<IActiveCall | null>(null);
-  private readonly _rejoinableCall = signal<ICallGetActiveResult | null>(null);
+  private readonly _rejoinableCall = signal<TCallGetActiveResult | null>(null);
 
   public readonly activeCall = this._activeCall.asReadonly();
   public readonly rejoinableCall = this._rejoinableCall.asReadonly();
@@ -169,12 +169,12 @@ export class DirectCallService {
     try {
       this.audioService.startOutgoingDialing();
 
-      const result: ICallInitiateResult = await emitVoiceRoomWithAck(
+      const result: TCallInitiateResult = await emitVoiceRoomWithAck(
         this.socket,
         EDirectCallEvent.CALL_INITIATE,
         {
           recipientId: recipient.id,
-        } satisfies ICallInitiatePayload,
+        } satisfies TCallInitiatePayload,
       );
 
       if (result.alreadyActive) {
@@ -400,9 +400,9 @@ export class DirectCallService {
 
   public async refreshActiveCall(
     interlocutorId?: number,
-  ): Promise<ICallGetActiveResult | null> {
+  ): Promise<TCallGetActiveResult | null> {
     try {
-      const result: ICallGetActiveResult | null = await emitVoiceRoomWithAck(
+      const result: TCallGetActiveResult | null = await emitVoiceRoomWithAck(
         this.socket,
         EDirectCallEvent.CALL_GET_ACTIVE,
         interlocutorId !== undefined ? { interlocutorId } : {},
@@ -426,7 +426,7 @@ export class DirectCallService {
   }
 
   public async rejoinCall(
-    call: ICallGetActiveResult,
+    call: TCallGetActiveResult,
     interlocutor: IUser,
   ): Promise<void> {
     const me = this.currentUser();
@@ -499,7 +499,7 @@ export class DirectCallService {
   private setupSocketListeners(): void {
     this.socket.on(
       EDirectCallEvent.CALL_INCOMING,
-      (data: ICallIncomingPayload) => {
+      (data: TCallIncomingPayload) => {
         const current = this._activeCall();
         if (current && current.status !== ECallStatus.IDLE) {
           this.socket.emit(EDirectCallEvent.CALL_REJECT, {
@@ -524,7 +524,7 @@ export class DirectCallService {
 
     this.socket.on(
       EDirectCallEvent.CALL_ACCEPTED,
-      async (data: ICallAcceptedPayload) => {
+      async (data: TCallAcceptedPayload) => {
         const current = this._activeCall();
         if (!current || current.callId !== data.callId) {
           return;
@@ -551,7 +551,7 @@ export class DirectCallService {
 
     this.socket.on(
       EDirectCallEvent.CALL_REJECTED,
-      (data: ICallRejectedPayload) => {
+      (data: TCallRejectedPayload) => {
         const current = this._activeCall();
         if (!current || current.callId !== data.callId) {
           return;
@@ -578,7 +578,7 @@ export class DirectCallService {
       },
     );
 
-    this.socket.on(EDirectCallEvent.CALL_HANGUP, (data: ICallHangupPayload) => {
+    this.socket.on(EDirectCallEvent.CALL_HANGUP, (data: TCallHangupPayload) => {
       const current = this._activeCall();
       if (!current || current.callId !== data.callId) {
         return;
@@ -594,7 +594,7 @@ export class DirectCallService {
 
     this.socket.on(
       EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
-      (data: ICallAnsweredElsewherePayload) => {
+      (data: TCallAnsweredElsewherePayload) => {
         const current = this._activeCall();
         if (
           !current ||
@@ -609,7 +609,7 @@ export class DirectCallService {
       },
     );
 
-    this.socket.on(EDirectCallEvent.CALL_ENDED, (data: ICallEndedPayload) => {
+    this.socket.on(EDirectCallEvent.CALL_ENDED, (data: TCallEndedPayload) => {
       const current = this._activeCall();
 
       if (current?.callId === data.callId) {

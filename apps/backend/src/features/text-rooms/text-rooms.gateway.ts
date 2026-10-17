@@ -1,4 +1,4 @@
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Logger, UseFilters, UsePipes } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
@@ -10,13 +10,15 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
+import { ZodValidationPipe } from 'nestjs-zod';
+import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { AuthService } from '../auth/auth.service';
 import {
   ETextRoomEvent,
-  type ITextRoomJoin,
-  ITextRoomPeer,
-  TTextRoomEventMap,
+  type TTextRoomPeer,
+  type TTextRoomEventMap,
 } from '@konvoez/shared';
+import { TextRoomJoinDto } from './text-rooms.dto';
 import {
   TextRoomDomainEvents,
   type TTextRoomDomainPayloadMap,
@@ -29,10 +31,12 @@ type TSocket = Socket<
   {
     roomId?: number;
     recipientId?: number;
-    peer?: ITextRoomPeer;
+    peer?: TTextRoomPeer;
   }
 >;
 
+@UseFilters(WsAckExceptionFilter)
+@UsePipes(ZodValidationPipe)
 @WebSocketGateway({
   path: '/ws/v1/text',
   cors: { origin: '*' },
@@ -66,7 +70,7 @@ export class TextRoomsGateway
       client.data.peer = {
         ...user,
         clientId: client.id,
-      } as ITextRoomPeer;
+      } as TTextRoomPeer;
 
       this.userIdToSocketId.set(user.id, client.id);
       client.join(user.id.toString());
@@ -96,7 +100,7 @@ export class TextRoomsGateway
 
   @SubscribeMessage(ETextRoomEvent.JOIN)
   handleJoin(
-    @MessageBody() body: ITextRoomJoin,
+    @MessageBody() body: TextRoomJoinDto,
     @ConnectedSocket() client: TSocket,
   ) {
     this.handleLeave(client);

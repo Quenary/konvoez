@@ -60,13 +60,13 @@ When a reaction is updated on a message, the server broadcasts an event to the r
 - **Event**: `text-room:message-reaction-updated` (`ETextRoomEvent.MESSAGE_REACTION_UPDATED`)
 - **Payload**:
   ```ts
-  interface ITextRoomReactionUpdated {
+  type TTextRoomReactionUpdated = {
     messageId: string;
     roomId: number | null;
     recipientId: number | null;
     senderId: number | null;
-    reactions: ITextRoomReactionGroup[];
-  }
+    reactions: TMessageReactionGroup[];
+  };
   ```
 
 ## Client Implementation

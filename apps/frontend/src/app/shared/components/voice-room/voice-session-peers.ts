@@ -1,13 +1,13 @@
 import {
   EVoiceSessionType,
   IUser,
-  IVoiceRoomPeerUser,
+  TVoiceRoomPeerUser,
   TVoiceSessionTarget,
 } from '@konvoez/shared';
 
 export type TResolveVoiceSessionPeersInput = {
   me: IUser | null | undefined;
-  remotePeers: readonly IVoiceRoomPeerUser[];
+  remotePeers: readonly TVoiceRoomPeerUser[];
   session: TVoiceSessionTarget | null;
 };
 
@@ -16,8 +16,8 @@ export type TResolveVoiceSessionPeersInput = {
  */
 export function resolveVoiceSessionPeers(
   input: TResolveVoiceSessionPeersInput,
-): IVoiceRoomPeerUser[] {
-  const list: IVoiceRoomPeerUser[] = [];
+): TVoiceRoomPeerUser[] {
+  const list: TVoiceRoomPeerUser[] = [];
 
   if (input.me) {
     list.push(input.me);

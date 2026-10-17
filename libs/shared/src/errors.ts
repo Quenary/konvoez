@@ -1,3 +1,5 @@
+import * as z from 'zod';
+
 export enum ApiErrorCode {
   // Generic
   INTERNAL = 'INTERNAL',
@@ -81,17 +83,26 @@ export enum ApiErrorCode {
   CALL_NOT_JOINABLE = 'CALL_NOT_JOINABLE',
 }
 
-export interface ApiErrorResponse {
-  code: ApiErrorCode;
-  message: string;
-  params?: Record<string, string | number>;
-  fields?: { path: string; code: string }[];
-  attachmentIds?: string[];
-}
+export const apiErrorCodeSchema = z.enum(ApiErrorCode);
 
-export interface WsAckError {
-  error: ApiErrorResponse;
-}
+export const apiErrorFieldSchema = z.object({
+  path: z.string(),
+  code: z.string(),
+});
+
+export const apiErrorResponseSchema = z.object({
+  code: apiErrorCodeSchema,
+  message: z.string(),
+  params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  fields: z.array(apiErrorFieldSchema).optional(),
+  attachmentIds: z.array(z.string()).optional(),
+});
+export type TApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
+
+export const wsAckErrorSchema = z.object({
+  error: apiErrorResponseSchema,
+});
+export type TWsAckError = z.infer<typeof wsAckErrorSchema>;
 
 export const GENERIC_API_ERROR_CODES = new Set<ApiErrorCode>([
   ApiErrorCode.INTERNAL,

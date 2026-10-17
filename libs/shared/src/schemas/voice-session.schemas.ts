@@ -1,38 +1,50 @@
-import { IUser } from './user.schemas';
-import { EDirectCallEvent } from '../enums';
+import * as z from 'zod';
+import { userSchema } from './user.schemas';
+import { EDirectCallEvent, EVoiceSessionType } from '../enums';
 
-export enum EVoiceSessionType {
-  GROUP_ROOM = 'GROUP_ROOM',
-  DIRECT_CALL = 'DIRECT_CALL',
-}
+export { EVoiceSessionType } from '../enums';
+
+export const voiceSessionTypeSchema = z.enum(EVoiceSessionType);
+
+export const voiceSessionTargetGroupRoomSchema = z.object({
+  type: z.literal(EVoiceSessionType.GROUP_ROOM),
+  roomId: z.number().int().positive(),
+});
+
+export const voiceSessionTargetDirectCallSchema = z.object({
+  type: z.literal(EVoiceSessionType.DIRECT_CALL),
+  callId: z.string().min(1),
+  interlocutorId: z.number().int().positive(),
+});
 
 /**
  * Full join target (includes interlocutor for direct calls).
  */
-export type TVoiceSessionTarget =
-  | {
-      readonly type: EVoiceSessionType.GROUP_ROOM;
-      readonly roomId: number;
-    }
-  | {
-      readonly type: EVoiceSessionType.DIRECT_CALL;
-      readonly callId: string;
-      readonly interlocutorId: number;
-    };
+export const voiceSessionTargetSchema = z.discriminatedUnion('type', [
+  voiceSessionTargetGroupRoomSchema,
+  voiceSessionTargetDirectCallSchema,
+]);
+export type TVoiceSessionTarget = z.infer<typeof voiceSessionTargetSchema>;
+
+export const voiceSessionIdentityGroupRoomSchema = z.object({
+  type: z.literal(EVoiceSessionType.GROUP_ROOM),
+  roomId: z.number().int().positive(),
+});
+
+export const voiceSessionIdentityDirectCallSchema = z.object({
+  type: z.literal(EVoiceSessionType.DIRECT_CALL),
+  callId: z.string().min(1),
+});
 
 /**
  * Session identity encoded in the mediasoup / socket.io room key.
  * Direct-call keys do not embed interlocutorId.
  */
-export type TVoiceSessionIdentity =
-  | {
-      readonly type: EVoiceSessionType.GROUP_ROOM;
-      readonly roomId: number;
-    }
-  | {
-      readonly type: EVoiceSessionType.DIRECT_CALL;
-      readonly callId: string;
-    };
+export const voiceSessionIdentitySchema = z.discriminatedUnion('type', [
+  voiceSessionIdentityGroupRoomSchema,
+  voiceSessionIdentityDirectCallSchema,
+]);
+export type TVoiceSessionIdentity = z.infer<typeof voiceSessionIdentitySchema>;
 
 const GROUP_ROOM_PREFIX = 'room:';
 const DIRECT_CALL_PREFIX = 'call:';
@@ -107,85 +119,101 @@ export function toVoiceSessionIdentity(
   return { type: EVoiceSessionType.DIRECT_CALL, callId: target.callId };
 }
 
-export interface ICallInitiatePayload {
-  recipientId: number;
-}
+export const callInitiatePayloadSchema = z.object({
+  recipientId: z.number().int().positive(),
+});
+export type TCallInitiatePayload = z.infer<typeof callInitiatePayloadSchema>;
 
-export interface ICallInitiateResult {
-  callId: string;
-  alreadyActive?: boolean;
-}
+export const callInitiateResultSchema = z.object({
+  callId: z.string().min(1),
+  alreadyActive: z.boolean().optional(),
+});
+export type TCallInitiateResult = z.infer<typeof callInitiateResultSchema>;
 
-export interface ICallIncomingPayload {
-  callId: string;
-  caller: IUser;
-}
+export const callIncomingPayloadSchema = z.object({
+  callId: z.string().min(1),
+  caller: userSchema,
+});
+export type TCallIncomingPayload = z.infer<typeof callIncomingPayloadSchema>;
 
-export interface ICallAcceptPayload {
-  callId: string;
-  callerId: number;
-}
+export const callAcceptPayloadSchema = z.object({
+  callId: z.string().min(1),
+  callerId: z.number().int().positive(),
+});
+export type TCallAcceptPayload = z.infer<typeof callAcceptPayloadSchema>;
 
-export interface ICallAcceptedPayload {
-  callId: string;
-  recipient: IUser;
-}
+export const callAcceptedPayloadSchema = z.object({
+  callId: z.string().min(1),
+  recipient: userSchema,
+});
+export type TCallAcceptedPayload = z.infer<typeof callAcceptedPayloadSchema>;
 
-export interface ICallRejectPayload {
-  callId: string;
-  callerId: number;
-  reason?: 'declined' | 'busy' | 'failed';
-}
+export const callRejectPayloadSchema = z.object({
+  callId: z.string().min(1),
+  callerId: z.number().int().positive(),
+  reason: z.enum(['declined', 'busy', 'failed']).optional(),
+});
+export type TCallRejectPayload = z.infer<typeof callRejectPayloadSchema>;
 
-export interface ICallRejectedPayload {
-  callId: string;
-  reason?: string;
-}
+export const callRejectedPayloadSchema = z.object({
+  callId: z.string().min(1),
+  reason: z.string().optional(),
+});
+export type TCallRejectedPayload = z.infer<typeof callRejectedPayloadSchema>;
 
-export interface ICallHangupPayload {
-  callId: string;
-  byUserId: number;
-}
+export const callHangupPayloadSchema = z.object({
+  callId: z.string().min(1),
+  byUserId: z.number().int().positive(),
+});
+export type TCallHangupPayload = z.infer<typeof callHangupPayloadSchema>;
 
-export interface ICallEndedPayload {
-  callId: string;
-  reason?: 'timeout';
-}
+export const callEndedPayloadSchema = z.object({
+  callId: z.string().min(1),
+  reason: z.literal('timeout').optional(),
+});
+export type TCallEndedPayload = z.infer<typeof callEndedPayloadSchema>;
 
-export interface ICallAnsweredElsewherePayload {
-  callId: string;
-  outcome: 'accepted' | 'rejected';
-}
+export const callAnsweredElsewherePayloadSchema = z.object({
+  callId: z.string().min(1),
+  outcome: z.enum(['accepted', 'rejected']),
+});
+export type TCallAnsweredElsewherePayload = z.infer<
+  typeof callAnsweredElsewherePayloadSchema
+>;
 
 /** Server-side ring timeout and client fallback offset share this value. */
 export const DIRECT_CALL_RING_TIMEOUT_MS = 45_000;
 
-export interface ICallGetActivePayload {
-  /** When omitted, returns any active call the current user participates in. */
-  interlocutorId?: number;
-}
+export const callGetActivePayloadSchema = z
+  .object({
+    /** When omitted, returns any active call the current user participates in. */
+    interlocutorId: z.number().int().positive().optional(),
+  })
+  .default({});
+export type TCallGetActivePayload = z.infer<typeof callGetActivePayloadSchema>;
 
-export interface ICallGetActiveResult {
-  callId: string;
-  callerId: number;
-  recipientId: number;
-}
+export const callGetActiveResultSchema = z.object({
+  callId: z.string().min(1),
+  callerId: z.number().int().positive(),
+  recipientId: z.number().int().positive(),
+});
+export type TCallGetActiveResult = z.infer<typeof callGetActiveResultSchema>;
 
 export type TDirectCallEventPayloadMap = {
-  [EDirectCallEvent.CALL_INITIATE]: ICallInitiatePayload;
-  [EDirectCallEvent.CALL_INCOMING]: ICallIncomingPayload;
-  [EDirectCallEvent.CALL_ACCEPT]: ICallAcceptPayload;
-  [EDirectCallEvent.CALL_ACCEPTED]: ICallAcceptedPayload;
-  [EDirectCallEvent.CALL_REJECT]: ICallRejectPayload;
-  [EDirectCallEvent.CALL_REJECTED]: ICallRejectedPayload;
-  [EDirectCallEvent.CALL_HANGUP]: ICallHangupPayload;
-  [EDirectCallEvent.CALL_ENDED]: ICallEndedPayload;
-  [EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]: ICallAnsweredElsewherePayload;
-  [EDirectCallEvent.CALL_GET_ACTIVE]: ICallGetActivePayload;
+  [EDirectCallEvent.CALL_INITIATE]: TCallInitiatePayload;
+  [EDirectCallEvent.CALL_INCOMING]: TCallIncomingPayload;
+  [EDirectCallEvent.CALL_ACCEPT]: TCallAcceptPayload;
+  [EDirectCallEvent.CALL_ACCEPTED]: TCallAcceptedPayload;
+  [EDirectCallEvent.CALL_REJECT]: TCallRejectPayload;
+  [EDirectCallEvent.CALL_REJECTED]: TCallRejectedPayload;
+  [EDirectCallEvent.CALL_HANGUP]: TCallHangupPayload;
+  [EDirectCallEvent.CALL_ENDED]: TCallEndedPayload;
+  [EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]: TCallAnsweredElsewherePayload;
+  [EDirectCallEvent.CALL_GET_ACTIVE]: TCallGetActivePayload;
 };
 
 export type TDirectCallEventResultMap = {
-  [EDirectCallEvent.CALL_INITIATE]: ICallInitiateResult | { error: string };
+  [EDirectCallEvent.CALL_INITIATE]: TCallInitiateResult | { error: string };
   [EDirectCallEvent.CALL_INCOMING]: void;
   [EDirectCallEvent.CALL_ACCEPT]: object | { error: string };
   [EDirectCallEvent.CALL_ACCEPTED]: void;
@@ -194,5 +222,5 @@ export type TDirectCallEventResultMap = {
   [EDirectCallEvent.CALL_HANGUP]: void;
   [EDirectCallEvent.CALL_ENDED]: void;
   [EDirectCallEvent.CALL_ANSWERED_ELSEWHERE]: void;
-  [EDirectCallEvent.CALL_GET_ACTIVE]: ICallGetActiveResult | null;
+  [EDirectCallEvent.CALL_GET_ACTIVE]: TCallGetActiveResult | null;
 };

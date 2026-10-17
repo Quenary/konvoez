@@ -9,7 +9,7 @@ import {
   ITextRoomListRequest,
   ITextRoomMessage,
   ITextRoomReactionGroup,
-  ITextRoomReactionUpdated,
+  TTextRoomReactionUpdated,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -706,7 +706,7 @@ export const ChatStore = signalStore(
           patchState(store, setEntity(toMessageEntity(message)));
         });
 
-      fromEvent<ITextRoomReactionUpdated>(
+      fromEvent<TTextRoomReactionUpdated>(
         emitter,
         ETextRoomEvent.MESSAGE_REACTION_UPDATED,
       )

@@ -7,44 +7,40 @@ import {
 } from '../const';
 import { attachmentSchema } from './attachment.schemas';
 import { messageOptionalContentSchema } from './fields.schemas';
-import { IUser } from './user.schemas';
+import { userSchema } from './user.schemas';
 import { ETextRoomEvent } from '../enums';
 
-const nullableInt = z.number().int().nullable();
-const nullableString = stringSchema.nullable();
+const nullableInt = z.number().int().positive().nullish();
+const nullableString = stringSchema.nullish();
 
-export interface ITextRoomReactionUpdated {
-  messageId: string;
-  roomId: number | null;
-  recipientId: number | null;
-  senderId: number | null;
-  reactions: ITextRoomReactionGroup[];
-}
+export const textRoomJoinSchema = z.object({
+  roomId: nullableInt,
+  recipientId: nullableInt,
+});
+export type TTextRoomJoin = z.infer<typeof textRoomJoinSchema>;
 
-export type TTextRoomEventPayloadMap = {
-  [ETextRoomEvent.JOIN]: ITextRoomJoin;
-  [ETextRoomEvent.LEAVE]: object;
-  [ETextRoomEvent.MESSAGE_CREATED]: ITextRoomMessage;
-  [ETextRoomEvent.MESSAGE_EDITED]: ITextRoomMessage;
-  [ETextRoomEvent.MESSAGE_DELETED]: { id: string };
-  [ETextRoomEvent.MESSAGE_REACTION_UPDATED]: ITextRoomReactionUpdated;
-  [ETextRoomEvent.USER_TYPING]: ITextRoomUserTyping;
-  [ETextRoomEvent.ERROR]: { message: string };
-};
+export const textRoomUserTypingSchema = z.object({
+  id: z.number().int(),
+  username: stringSchema,
+});
+export type TTextRoomUserTyping = z.infer<typeof textRoomUserTypingSchema>;
 
-export type TTextRoomEventMap = {
-  [K in ETextRoomEvent]: (
-    data: TTextRoomEventPayloadMap[K],
-    ...args: unknown[]
-  ) => void;
-};
+export const textRoomPeerSchema = userSchema.extend({
+  clientId: stringSchema,
+});
+export type TTextRoomPeer = z.infer<typeof textRoomPeerSchema>;
 
-export type TTextRoomEvent = {
-  [K in ETextRoomEvent]: {
-    event: K;
-    data: TTextRoomEventPayloadMap[K];
-  };
-}[ETextRoomEvent];
+export const textRoomMessageDeletedSchema = z.object({
+  id: z.uuid(),
+});
+export type TTextRoomMessageDeleted = z.infer<
+  typeof textRoomMessageDeletedSchema
+>;
+
+export const textRoomErrorSchema = z.object({
+  message: stringSchema,
+});
+export type TTextRoomError = z.infer<typeof textRoomErrorSchema>;
 
 export const emojiRegex =
   /^(?:(?=.*\p{Extended_Pictographic})(?:[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]+)|\p{Regional_Indicator}{2})$/u;
@@ -121,6 +117,17 @@ export const messageListResponseSchema = z.object({
   items: z.array(messageSchema),
 });
 
+export const textRoomReactionUpdatedSchema = z.object({
+  messageId: z.uuid(),
+  roomId: nullableInt,
+  recipientId: nullableInt,
+  senderId: nullableInt,
+  reactions: z.array(messageReactionGroupSchema),
+});
+export type TTextRoomReactionUpdated = z.infer<
+  typeof textRoomReactionUpdatedSchema
+>;
+
 export type ITextRoomMessageReply = z.infer<typeof messageReplyToSchema>;
 export type ITextRoomCreateMessage = z.infer<typeof messageCreateSchema>;
 export type ITextRoomEditMessage = z.infer<typeof messageEditSchema>;
@@ -134,19 +141,27 @@ export type ITextRoomListResponse = z.infer<typeof messageListResponseSchema>;
 export type ITextRoomMarkRead = z.infer<typeof markReadSchema>;
 export type ITextRoomUnreadCounts = z.infer<typeof unreadCountsSchema>;
 
-export interface ITextRoomJoin {
-  roomId: number | null;
-  recipientId: number | null;
-}
+export type TTextRoomEventPayloadMap = {
+  [ETextRoomEvent.JOIN]: TTextRoomJoin;
+  [ETextRoomEvent.LEAVE]: object;
+  [ETextRoomEvent.MESSAGE_CREATED]: ITextRoomMessage;
+  [ETextRoomEvent.MESSAGE_EDITED]: ITextRoomMessage;
+  [ETextRoomEvent.MESSAGE_DELETED]: TTextRoomMessageDeleted;
+  [ETextRoomEvent.MESSAGE_REACTION_UPDATED]: TTextRoomReactionUpdated;
+  [ETextRoomEvent.USER_TYPING]: TTextRoomUserTyping;
+  [ETextRoomEvent.ERROR]: TTextRoomError;
+};
 
-export interface ITextRoomUserTyping {
-  id: number;
-  username: string;
-}
+export type TTextRoomEventMap = {
+  [K in ETextRoomEvent]: (
+    data: TTextRoomEventPayloadMap[K],
+    ...args: unknown[]
+  ) => void;
+};
 
-export interface ITextRoomPeer extends IUser {
-  /**
-   * ID of the socket session
-   */
-  clientId: string;
-}
+export type TTextRoomEvent = {
+  [K in ETextRoomEvent]: {
+    event: K;
+    data: TTextRoomEventPayloadMap[K];
+  };
+}[ETextRoomEvent];

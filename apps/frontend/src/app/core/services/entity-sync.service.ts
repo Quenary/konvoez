@@ -8,10 +8,10 @@ import {
   type IRoomDeleted,
   type IUser,
   type IUserDeleted,
-  type IVoiceRoomGetAllPeersSnapshot,
-  type IVoiceRoomLobbyPeerJoined,
-  type IVoiceRoomLobbyPeerLeft,
-  type IVoiceRoomLobbyPeerMuted,
+  type TVoiceRoomGetAllPeersSnapshot,
+  type TVoiceRoomLobbyPeerJoined,
+  type TVoiceRoomLobbyPeerLeft,
+  type TVoiceRoomLobbyPeerMuted,
   type IUserPresenceChanged,
   type IUserPresenceSnapshot,
 } from '@konvoez/shared';
@@ -224,7 +224,7 @@ export class EntitySyncService {
   }
 
   private bindVoiceLobbyEvents(): void {
-    fromEvent<IVoiceRoomLobbyPeerJoined>(
+    fromEvent<TVoiceRoomLobbyPeerJoined>(
       this.emitter,
       EEntitySyncEvent.VOICE_ROOM_PEER_JOINED,
     )
@@ -234,7 +234,7 @@ export class EntitySyncService {
         this.handleLobbyIncrementalResult(result);
       });
 
-    fromEvent<IVoiceRoomLobbyPeerLeft>(
+    fromEvent<TVoiceRoomLobbyPeerLeft>(
       this.emitter,
       EEntitySyncEvent.VOICE_ROOM_PEER_LEFT,
     )
@@ -244,7 +244,7 @@ export class EntitySyncService {
         this.handleLobbyIncrementalResult(result);
       });
 
-    fromEvent<IVoiceRoomLobbyPeerMuted>(
+    fromEvent<TVoiceRoomLobbyPeerMuted>(
       this.emitter,
       EEntitySyncEvent.VOICE_ROOM_PEER_MUTED,
     )
@@ -285,7 +285,7 @@ export class EntitySyncService {
         return;
       }
 
-      let snapshot: IVoiceRoomGetAllPeersSnapshot;
+      let snapshot: TVoiceRoomGetAllPeersSnapshot;
       try {
         snapshot = await emitVoiceRoomWithAck(
           this.voiceRoomSocket,

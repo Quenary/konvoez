@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import {
   ApiErrorCode,
-  type ApiErrorResponse,
+  type TApiErrorResponse,
   isGenericApiErrorCode,
 } from '@konvoez/shared';
 
@@ -13,7 +13,7 @@ export function isApiErrorCode(value: unknown): value is ApiErrorCode {
   return typeof value === 'string' && API_ERROR_CODES.has(value);
 }
 
-export function parseApiError(error: unknown): ApiErrorResponse | null {
+export function parseApiError(error: unknown): TApiErrorResponse | null {
   if (!error) {
     return null;
   }
@@ -30,7 +30,7 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
     ) {
       const candidate = (error as { apiError: { code?: unknown } }).apiError;
       if ('code' in candidate && isApiErrorCode(candidate.code)) {
-        return candidate as unknown as ApiErrorResponse;
+        return candidate as unknown as TApiErrorResponse;
       }
     }
     if (isApiErrorCode(error.message)) {
@@ -44,7 +44,7 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
         'code' in parsed &&
         isApiErrorCode((parsed as { code: unknown }).code)
       ) {
-        return parsed as ApiErrorResponse;
+        return parsed as TApiErrorResponse;
       }
     } catch {
       // ignore non-json error message
@@ -55,7 +55,7 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
     const body: unknown = error.error;
     if (typeof body === 'object' && body !== null) {
       if ('code' in body && isApiErrorCode((body as { code: unknown }).code)) {
-        return body as ApiErrorResponse;
+        return body as TApiErrorResponse;
       }
     }
     if (typeof body === 'string') {
@@ -70,7 +70,7 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
           'code' in parsed &&
           isApiErrorCode((parsed as { code: unknown }).code)
         ) {
-          return parsed as ApiErrorResponse;
+          return parsed as TApiErrorResponse;
         }
       } catch {
         // ignore non-json response body
@@ -86,12 +86,12 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
     ) {
       const inner = (error as { error: { code?: unknown } }).error;
       if ('code' in inner && isApiErrorCode(inner.code)) {
-        return inner as unknown as ApiErrorResponse;
+        return inner as unknown as TApiErrorResponse;
       }
     }
 
     if ('code' in error && isApiErrorCode((error as { code: unknown }).code)) {
-      return error as unknown as ApiErrorResponse;
+      return error as unknown as TApiErrorResponse;
     }
   }
 
@@ -102,7 +102,7 @@ export function parseApiError(error: unknown): ApiErrorResponse | null {
 export class ApiErrorService {
   private readonly translateService = inject(TranslateService);
 
-  parse(error: unknown): ApiErrorResponse | null {
+  parse(error: unknown): TApiErrorResponse | null {
     return parseApiError(error);
   }
 
