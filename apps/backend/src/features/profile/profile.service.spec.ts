@@ -35,7 +35,14 @@ describe('ProfileService', () => {
   let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
   let usersService: jest.Mocked<
-    Pick<UsersService, 'findOne' | 'toDto' | 'anonymizeLoaded' | 'removeLoaded'>
+    Pick<
+      UsersService,
+      | 'findOne'
+      | 'toDto'
+      | 'toDtoWithPermissions'
+      | 'anonymizeLoaded'
+      | 'removeLoaded'
+    >
   >;
   let passwordService: jest.Mocked<PasswordService>;
   let eventEmitter: { emit: jest.Mock };
@@ -88,6 +95,7 @@ describe('ProfileService', () => {
     usersService = {
       findOne: jest.fn().mockResolvedValue(mockUser),
       toDto: jest.fn().mockReturnValue(author),
+      toDtoWithPermissions: jest.fn().mockResolvedValue(author),
       anonymizeLoaded: jest.fn().mockResolvedValue(author),
       removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
@@ -149,7 +157,7 @@ describe('ProfileService', () => {
       );
       expect(mockEm.persist).toHaveBeenCalledWith(mockUser);
       expect(mockEm.flush).toHaveBeenCalled();
-      expect(usersService.toDto).toHaveBeenCalledWith(mockUser);
+      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(mockUser);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_UPDATED,
         author,

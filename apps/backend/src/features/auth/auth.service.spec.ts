@@ -181,6 +181,7 @@ describe('AuthService', () => {
             findOneByUsernameOrEmail: jest.fn(),
             findOneByAsDto: jest.fn(),
             toDto: jest.fn(),
+            toDtoWithPermissions: jest.fn(),
             count: jest.fn(),
             setPassword: jest.fn(),
           },
@@ -230,7 +231,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
 
@@ -241,7 +242,9 @@ describe('AuthService', () => {
         'password123',
         mockUserEntity.password,
       );
-      expect(usersService.toDto).toHaveBeenCalledWith(mockUserEntity);
+      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(
+        mockUserEntity,
+      );
       expect(result).toEqual(mockUserDto);
     });
 
@@ -250,7 +253,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser(
         'test@example.com',
@@ -268,7 +271,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('User@Example.COM', 'password123');
 
@@ -282,7 +285,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('  test_user  ', 'password123');
 
@@ -340,7 +343,7 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
       });
-      expect(usersService.toDto).not.toHaveBeenCalled();
+      expect(usersService.toDtoWithPermissions).not.toHaveBeenCalled();
     });
   });
 
@@ -612,7 +615,7 @@ describe('AuthService', () => {
       cacheManager.get.mockResolvedValue(validToken);
 
       const ownerDto = { ...mockUserDto, isOwner: true };
-      usersService.toDto.mockReturnValueOnce(ownerDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(ownerDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
@@ -644,7 +647,7 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(1);
       const memberDto = { ...mockUserDto, isOwner: false };
 
-      usersService.toDto.mockReturnValueOnce(memberDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
@@ -710,7 +713,7 @@ describe('AuthService', () => {
       const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
 
       userRepo.create.mockReturnValueOnce(createdMember);
-      usersService.toDto.mockReturnValueOnce(memberDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };

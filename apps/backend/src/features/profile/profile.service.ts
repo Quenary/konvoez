@@ -70,7 +70,7 @@ export class ProfileService {
     this.repo.assign(user, assignData);
     this.em.persist(user);
     await this.em.flush();
-    const result = this.usersService.toDto(user);
+    const result = await this.usersService.toDtoWithPermissions(user);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_UPDATED,

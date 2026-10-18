@@ -121,11 +121,11 @@ export class AuthService implements OnApplicationBootstrap {
       await this.invitesService.consume(invite, user);
     }
 
-    return this.emitUserCreated(user);
+    return await this.emitUserCreated(user);
   }
 
-  private emitUserCreated(user: UserEntity): GetUserDto {
-    const result = this.usersService.toDto(user);
+  private async emitUserCreated(user: UserEntity): Promise<GetUserDto> {
+    const result = await this.usersService.toDtoWithPermissions(user);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_CREATED,
@@ -211,7 +211,7 @@ export class AuthService implements OnApplicationBootstrap {
         'Invalid credentials',
       );
     }
-    return this.usersService.toDto(user);
+    return await this.usersService.toDtoWithPermissions(user);
   }
 
   async requestPasswordRecovery(
