@@ -20,7 +20,8 @@ import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
 import { GetUserDto } from './users.dto';
-import { PermissionsService } from '../permissions/permissions.service';
+import { PermissionsFacade } from '../permissions/permissions.facade';
+import type { RoleEntity } from '../roles/roles.entity';
 
 @Injectable()
 export class UsersService {
@@ -33,7 +34,7 @@ export class UsersService {
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly permissionsService: PermissionsService,
+    private readonly permissionsFacade: PermissionsFacade,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -96,6 +97,23 @@ export class UsersService {
   async findAllAsDto(): Promise<GetUserDto[]> {
     const users = await this.findAll();
     return Promise.all(users.map((user) => this.toDtoWithPermissions(user)));
+  }
+
+  async findByIds(ids: number[]): Promise<UserEntity[]> {
+    if (!ids.length) {
+      return [];
+    }
+    return this.repo.find({ id: { $in: ids } });
+  }
+
+  async updateUserRoles(
+    user: UserEntity,
+    roles: RoleEntity[],
+  ): Promise<UserEntity> {
+    user.roles.set(roles);
+    this.em.persist(user);
+    await this.em.flush();
+    return user;
   }
 
   async count(): Promise<number> {
@@ -238,7 +256,7 @@ export class UsersService {
     if (!user.roles?.isInitialized?.()) {
       await this.em.populate(user, ['roles']);
     }
-    const permissions = await this.permissionsService.getUserPermissions(user);
+    const permissions = await this.permissionsFacade.getUserPermissions(user);
     return this.toDto(user, permissions);
   }
 

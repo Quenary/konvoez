@@ -95,9 +95,12 @@ describe('UsersService', () => {
     } as unknown as jest.Mocked<FileService>;
 
     eventEmitter = { emit: jest.fn() };
-    const permissionsService = {
+    const permissionsFacade = {
       getUserPermissions: jest.fn().mockResolvedValue([]),
       getDefaultPermissions: jest.fn().mockResolvedValue([]),
+      findRolesByIds: jest.fn().mockResolvedValue([]),
+      hasPermission: jest.fn().mockResolvedValue(true),
+      hasAllPermissions: jest.fn().mockResolvedValue(true),
     };
 
     service = new UsersService(
@@ -105,7 +108,7 @@ describe('UsersService', () => {
       passwordService,
       fileService,
       eventEmitter as never,
-      permissionsService as never,
+      permissionsFacade as never,
     );
   });
 

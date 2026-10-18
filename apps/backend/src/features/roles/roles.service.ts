@@ -24,6 +24,17 @@ export class RolesService {
     return roles.map((r) => this.toDto(r));
   }
 
+  async findByIds(ids: number[]): Promise<RoleEntity[]> {
+    if (!ids.length) {
+      return [];
+    }
+    return this.repo.find({ id: { $in: ids } });
+  }
+
+  async findDefaultRoles(): Promise<RoleEntity[]> {
+    return this.repo.find({ isDefault: true });
+  }
+
   async findOne(id: number): Promise<RoleEntity> {
     const role = await this.repo.findOne({ id });
     if (!role) {

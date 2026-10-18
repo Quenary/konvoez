@@ -1,12 +1,11 @@
 import { Global, Module } from '@nestjs/common';
-import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { RoleEntitySchema } from '../roles/roles.entity';
-import { PermissionsService } from './permissions.service';
+import { RolesModule } from '../roles/roles.module';
+import { PermissionsFacade } from './permissions.facade';
 
 @Global()
 @Module({
-  imports: [MikroOrmModule.forFeature([RoleEntitySchema])],
-  providers: [PermissionsService],
-  exports: [PermissionsService],
+  imports: [RolesModule],
+  providers: [PermissionsFacade],
+  exports: [PermissionsFacade],
 })
 export class PermissionsModule {}

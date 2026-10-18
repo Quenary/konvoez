@@ -3,10 +3,8 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { RoleEntitySchema } from './roles.entity';
 import { RolesService } from './roles.service';
 import { RolesController } from './roles.controller';
-import { PermissionsModule } from '../permissions/permissions.module';
-
 @Module({
-  imports: [MikroOrmModule.forFeature([RoleEntitySchema]), PermissionsModule],
+  imports: [MikroOrmModule.forFeature([RoleEntitySchema])],
   providers: [RolesService],
   controllers: [RolesController],
   exports: [RolesService],

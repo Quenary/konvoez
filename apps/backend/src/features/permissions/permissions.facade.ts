@@ -1,20 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository } from '@mikro-orm/core';
 import { EPermission } from '@konvoez/shared';
 import { RoleEntity } from '../roles/roles.entity';
+import { RoleDto } from '../roles/roles.dto';
+import { RolesService } from '../roles/roles.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 
 @Injectable()
-export class PermissionsService {
-  constructor(
-    @InjectRepository(RoleEntity)
-    private readonly roleRepo: EntityRepository<RoleEntity>,
-  ) {}
+export class PermissionsFacade {
+  constructor(private readonly rolesService: RolesService) {}
 
   async getDefaultPermissions(): Promise<EPermission[]> {
-    const defaultRoles = await this.roleRepo.find({ isDefault: true });
+    const defaultRoles = await this.rolesService.findDefaultRoles();
     const set = new Set<EPermission>();
     for (const role of defaultRoles) {
       for (const p of role.permissions) {
@@ -43,7 +40,7 @@ export class PermissionsService {
     if ('roles' in user && user.roles) {
       const roles = Array.isArray(user.roles)
         ? user.roles
-        : typeof (user.roles as unknown as { getItems: () => unknown[] })
+        : typeof (user.roles as unknown as { getItems?: () => unknown[] })
               .getItems === 'function'
           ? (
               user.roles as unknown as { getItems: () => RoleEntity[] }
@@ -100,5 +97,13 @@ export class PermissionsService {
       }
     }
     return true;
+  }
+
+  async findRolesByIds(roleIds: number[]): Promise<RoleEntity[]> {
+    return this.rolesService.findByIds(roleIds);
+  }
+
+  async getAllRoles(): Promise<RoleDto[]> {
+    return this.rolesService.findAll();
   }
 }

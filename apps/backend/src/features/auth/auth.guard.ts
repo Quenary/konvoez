@@ -12,7 +12,7 @@ import {
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import type { Request, Response } from 'express';
 import { GetUserDto } from '../users/users.dto';
-import { PermissionsService } from '../permissions/permissions.service';
+import { PermissionsFacade } from '../permissions/permissions.facade';
 
 interface AuthenticatedRequest extends Request {
   author?: GetUserDto;
@@ -23,7 +23,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly authService: AuthService,
     private readonly reflector: Reflector,
-    private readonly permissionsService: PermissionsService,
+    private readonly permissionsFacade: PermissionsFacade,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,7 +51,7 @@ export class AuthGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     if (requiredPermissions && requiredPermissions.length > 0) {
-      const allowed = await this.permissionsService.hasAllPermissions(
+      const allowed = await this.permissionsFacade.hasAllPermissions(
         user,
         requiredPermissions,
       );

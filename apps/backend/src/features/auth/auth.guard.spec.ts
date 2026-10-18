@@ -34,14 +34,14 @@ import {
 } from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { GetUserDto } from '../users/users.dto';
-import { PermissionsService } from '../permissions/permissions.service';
+import { PermissionsFacade } from '../permissions/permissions.facade';
 import type { Response } from 'express';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
   let authService: jest.Mocked<AuthService>;
   let reflector: jest.Mocked<Reflector>;
-  let permissionsService: jest.Mocked<PermissionsService>;
+  let permissionsFacade: jest.Mocked<PermissionsFacade>;
 
   const mockUser: GetUserDto = {
     id: 1,
@@ -94,7 +94,7 @@ describe('AuthGuard', () => {
           },
         },
         {
-          provide: PermissionsService,
+          provide: PermissionsFacade,
           useValue: {
             getUserPermissions: jest.fn().mockResolvedValue([]),
             hasPermission: jest.fn().mockResolvedValue(true),
@@ -107,7 +107,7 @@ describe('AuthGuard', () => {
     guard = module.get<AuthGuard>(AuthGuard);
     authService = module.get(AuthService);
     reflector = module.get(Reflector);
-    permissionsService = module.get(PermissionsService);
+    permissionsFacade = module.get(PermissionsFacade);
   });
 
   describe('canActivate', () => {
@@ -198,7 +198,7 @@ describe('AuthGuard', () => {
         if (key === RequirePermissions) return [EPermission.MANAGE_SETTINGS];
         return undefined;
       });
-      permissionsService.hasAllPermissions.mockResolvedValueOnce(false);
+      permissionsFacade.hasAllPermissions.mockResolvedValueOnce(false);
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       await expect(guard.canActivate(context)).rejects.toMatchObject({
