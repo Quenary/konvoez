@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import { ensureRequestContext } from '@shared/utils/request-context.util';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import {
@@ -43,7 +44,17 @@ export class RoomsService {
           permissions?: EPermission[];
           roles?: Array<{ id: number }>;
         },
-    room: RoomEntity,
+    room:
+      | RoomEntity
+      | GetRoomDto
+      | {
+          id: number;
+          isPrivate?: boolean;
+          allowedRoles?: unknown;
+          allowedRoleIds?: number[];
+          allowedUsers?: unknown;
+          allowedUserIds?: number[];
+        },
   ): boolean {
     if (user.isOwner) {
       return true;
@@ -59,8 +70,12 @@ export class RoomsService {
       return true;
     }
 
-    if (room.allowedUsers) {
-      const allowedUsers =
+    if ('allowedUserIds' in room && Array.isArray(room.allowedUserIds)) {
+      if (room.allowedUserIds.includes(user.id)) {
+        return true;
+      }
+    } else if ('allowedUsers' in room && room.allowedUsers) {
+      const allowedUsers: Array<{ id: number }> =
         typeof (
           room.allowedUsers as unknown as {
             getItems?: () => Array<{ id: number }>;
@@ -72,15 +87,18 @@ export class RoomsService {
               }
             ).getItems()
           : Array.isArray(room.allowedUsers)
-            ? room.allowedUsers
+            ? (room.allowedUsers as Array<{ id: number }>)
             : [];
-      if (allowedUsers.some((u) => u.id === user.id)) {
+      if (allowedUsers.some((u: { id: number }) => u.id === user.id)) {
         return true;
       }
     }
 
-    if (room.allowedRoles) {
-      const allowedRoles =
+    let allowedRoleIds: Set<number> | null = null;
+    if ('allowedRoleIds' in room && Array.isArray(room.allowedRoleIds)) {
+      allowedRoleIds = new Set(room.allowedRoleIds);
+    } else if ('allowedRoles' in room && room.allowedRoles) {
+      const allowedRoles: Array<{ id: number }> =
         typeof (
           room.allowedRoles as unknown as {
             getItems?: () => Array<{ id: number }>;
@@ -92,28 +110,28 @@ export class RoomsService {
               }
             ).getItems()
           : Array.isArray(room.allowedRoles)
-            ? room.allowedRoles
+            ? (room.allowedRoles as Array<{ id: number }>)
             : [];
-      const allowedRoleIds = new Set(allowedRoles.map((r) => r.id));
+      allowedRoleIds = new Set(allowedRoles.map((r: { id: number }) => r.id));
+    }
 
-      if (user.roles) {
-        const userRoles =
-          typeof (
-            user.roles as unknown as {
-              getItems?: () => Array<{ id: number }>;
-            }
-          ).getItems === 'function'
-            ? (
-                user.roles as unknown as {
-                  getItems: () => Array<{ id: number }>;
-                }
-              ).getItems()
-            : Array.isArray(user.roles)
-              ? user.roles
-              : [];
-        if (userRoles.some((r) => allowedRoleIds.has(r.id))) {
-          return true;
-        }
+    if (allowedRoleIds && allowedRoleIds.size > 0 && user.roles) {
+      const userRoles =
+        typeof (
+          user.roles as unknown as {
+            getItems?: () => Array<{ id: number }>;
+          }
+        ).getItems === 'function'
+          ? (
+              user.roles as unknown as {
+                getItems: () => Array<{ id: number }>;
+              }
+            ).getItems()
+          : Array.isArray(user.roles)
+            ? user.roles
+            : [];
+      if (userRoles.some((r) => allowedRoleIds.has(r.id))) {
+        return true;
       }
     }
 
@@ -121,23 +139,25 @@ export class RoomsService {
   }
 
   async findOne(id: number, author?: GetUserDto): Promise<RoomEntity> {
-    const room = await this.repo.findOne(
-      { id },
-      { populate: ['author', 'allowedRoles', 'allowedUsers'] },
-    );
-    if (!room) {
-      throw AppException.notFound(
-        ApiErrorCode.ROOM_NOT_FOUND,
-        'Room not found',
+    return ensureRequestContext(this.em, async () => {
+      const room = await this.repo.findOne(
+        { id },
+        { populate: ['author', 'allowedRoles', 'allowedUsers'] },
       );
-    }
-    if (author && !this.canAccessRoom(author, room)) {
-      throw AppException.forbidden(
-        ApiErrorCode.ROOM_ACCESS_DENIED,
-        'Access to room is denied',
-      );
-    }
-    return room;
+      if (!room) {
+        throw AppException.notFound(
+          ApiErrorCode.ROOM_NOT_FOUND,
+          'Room not found',
+        );
+      }
+      if (author && !this.canAccessRoom(author, room)) {
+        throw AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        );
+      }
+      return room;
+    });
   }
 
   async findOneAsDto(id: number, author?: GetUserDto): Promise<GetRoomDto> {
@@ -145,13 +165,15 @@ export class RoomsService {
   }
 
   async findAll(author?: GetUserDto): Promise<RoomEntity[]> {
-    const rooms = await this.repo.findAll({
-      populate: ['author', 'allowedRoles', 'allowedUsers'],
+    return ensureRequestContext(this.em, async () => {
+      const rooms = await this.repo.findAll({
+        populate: ['author', 'allowedRoles', 'allowedUsers'],
+      });
+      if (!author) {
+        return rooms.filter((r) => !r.isPrivate);
+      }
+      return rooms.filter((r) => this.canAccessRoom(author, r));
     });
-    if (!author) {
-      return rooms.filter((r) => !r.isPrivate);
-    }
-    return rooms.filter((r) => this.canAccessRoom(author, r));
   }
 
   async findAllAsDto(author?: GetUserDto): Promise<GetRoomDto[]> {
@@ -160,130 +182,167 @@ export class RoomsService {
   }
 
   async findPrivateRooms(): Promise<GetRoomDto[]> {
-    const rooms = await this.repo.find(
-      { isPrivate: true },
-      { populate: ['author', 'allowedRoles', 'allowedUsers'] },
-    );
-    return rooms.map((room) => this.toDto(room));
+    return ensureRequestContext(this.em, async () => {
+      const rooms = await this.repo.find(
+        { isPrivate: true },
+        { populate: ['author', 'allowedRoles', 'allowedUsers'] },
+      );
+      return rooms.map((room) => this.toDto(room));
+    });
   }
 
   async create(dto: CreateRoomDto, author: GetUserDto): Promise<RoomEntity> {
-    const existingRoom = await this.repo.findOne({ name: dto.name });
-    if (existingRoom) {
-      throw AppException.conflict(
-        ApiErrorCode.ROOM_NAME_TAKEN,
-        'Room name already taken',
-      );
-    }
-
-    const room = this.repo.create(
-      {
-        name: dto.name,
-        type: dto.type,
-        avatar: dto.avatar,
-        isPrivate: dto.isPrivate ?? false,
-        author: this.em.getReference(UserEntity, author.id),
-      },
-      { persist: true },
-    );
-
-    if (dto.allowedRoleIds?.length) {
-      const roles = await this.permissionsFacade.findRolesByIds(
-        dto.allowedRoleIds,
-      );
-      room.allowedRoles.set(roles);
-    }
-
-    if (dto.allowedUserIds?.length) {
-      const users = await this.usersService.findByIds(dto.allowedUserIds);
-      room.allowedUsers.set(users);
-    }
-
-    try {
-      await this.em.flush();
-    } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
+    return ensureRequestContext(this.em, async () => {
+      const existingRoom = await this.repo.findOne({ name: dto.name });
+      if (existingRoom) {
         throw AppException.conflict(
           ApiErrorCode.ROOM_NAME_TAKEN,
           'Room name already taken',
         );
       }
-      throw error;
-    }
 
-    await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
-    emitEntitySyncDomainEvent(
-      this.eventEmitter,
-      EntitySyncDomainEvents.ROOM_CREATED,
-      this.toDto(room),
-    );
-    return room;
+      const room = this.repo.create(
+        {
+          name: dto.name,
+          type: dto.type,
+          avatar: dto.avatar,
+          isPrivate: dto.isPrivate ?? false,
+          author: this.em.getReference(UserEntity, author.id),
+        },
+        { persist: true },
+      );
+
+      if (dto.allowedRoleIds?.length) {
+        const roles = await this.permissionsFacade.findRolesByIds(
+          dto.allowedRoleIds,
+        );
+        room.allowedRoles.set(roles);
+      }
+
+      if (dto.allowedUserIds?.length) {
+        const users = await this.usersService.findByIds(dto.allowedUserIds);
+        room.allowedUsers.set(users);
+      }
+
+      try {
+        await this.em.flush();
+      } catch (error) {
+        if (error instanceof UniqueConstraintViolationException) {
+          throw AppException.conflict(
+            ApiErrorCode.ROOM_NAME_TAKEN,
+            'Room name already taken',
+          );
+        }
+        throw error;
+      }
+
+      await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.ROOM_CREATED,
+        this.toDto(room),
+      );
+      return room;
+    });
   }
 
   async update(id: number, dto: UpdateRoomDto): Promise<RoomEntity> {
-    const room = await this.findOne(id);
+    return ensureRequestContext(this.em, async () => {
+      const room = await this.findOne(id);
 
-    if (dto.name) {
-      const duplicateRoom = await this.repo.findOne({
-        name: dto.name,
-        id: { $ne: id },
-      });
-      if (duplicateRoom) {
-        throw AppException.conflict(
-          ApiErrorCode.ROOM_NAME_TAKEN,
-          'Room name already taken',
-        );
+      if (dto.name) {
+        const duplicateRoom = await this.repo.findOne({
+          name: dto.name,
+          id: { $ne: id },
+        });
+        if (duplicateRoom) {
+          throw AppException.conflict(
+            ApiErrorCode.ROOM_NAME_TAKEN,
+            'Room name already taken',
+          );
+        }
       }
-    }
 
-    if (dto.name !== undefined) room.name = dto.name;
-    if (dto.avatar !== undefined) room.avatar = dto.avatar;
-    if (dto.isPrivate !== undefined) room.isPrivate = dto.isPrivate;
+      if (dto.name !== undefined) room.name = dto.name;
+      if (dto.avatar !== undefined) room.avatar = dto.avatar;
+      if (dto.isPrivate !== undefined) room.isPrivate = dto.isPrivate;
 
-    if (dto.allowedRoleIds !== undefined) {
-      const roles = await this.permissionsFacade.findRolesByIds(
-        dto.allowedRoleIds,
+      if (dto.allowedRoleIds !== undefined) {
+        const roles = await this.permissionsFacade.findRolesByIds(
+          dto.allowedRoleIds,
+        );
+        room.allowedRoles.set(roles);
+      }
+
+      if (dto.allowedUserIds !== undefined) {
+        const users = await this.usersService.findByIds(dto.allowedUserIds);
+        room.allowedUsers.set(users);
+      }
+
+      this.em.persist(room);
+
+      try {
+        await this.em.flush();
+      } catch (error) {
+        if (error instanceof UniqueConstraintViolationException) {
+          throw AppException.conflict(
+            ApiErrorCode.ROOM_NAME_TAKEN,
+            'Room name already taken',
+          );
+        }
+        throw error;
+      }
+
+      await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.ROOM_UPDATED,
+        this.toDto(room),
       );
-      room.allowedRoles.set(roles);
-    }
-
-    if (dto.allowedUserIds !== undefined) {
-      const users = await this.usersService.findByIds(dto.allowedUserIds);
-      room.allowedUsers.set(users);
-    }
-
-    this.em.persist(room);
-
-    try {
-      await this.em.flush();
-    } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
-        throw AppException.conflict(
-          ApiErrorCode.ROOM_NAME_TAKEN,
-          'Room name already taken',
-        );
-      }
-      throw error;
-    }
-
-    await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
-    emitEntitySyncDomainEvent(
-      this.eventEmitter,
-      EntitySyncDomainEvents.ROOM_UPDATED,
-      this.toDto(room),
-    );
-    return room;
+      return room;
+    });
   }
 
   async remove(id: number): Promise<void> {
-    const room = await this.findOne(id);
-    this.em.remove(room);
-    await this.em.flush();
-    emitEntitySyncDomainEvent(
-      this.eventEmitter,
-      EntitySyncDomainEvents.ROOM_DELETED,
-      { id },
-    );
+    return ensureRequestContext(this.em, async () => {
+      const room = await this.findOne(id);
+      this.em.remove(room);
+      await this.em.flush();
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id },
+      );
+    });
+  }
+
+  async deleteRoomsByAuthor(authorId: number): Promise<void> {
+    return ensureRequestContext(this.em, async () => {
+      const rooms = await this.repo.find({ author: authorId });
+      if (rooms.length > 0) {
+        const roomIds = rooms.map((r) => r.id);
+        await this.em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
+        for (const roomId of roomIds) {
+          emitEntitySyncDomainEvent(
+            this.eventEmitter,
+            EntitySyncDomainEvents.ROOM_DELETED,
+            { id: roomId },
+          );
+        }
+      }
+    });
+  }
+
+  async findAvatarKeys(): Promise<string[]> {
+    return ensureRequestContext(this.em, async () => {
+      const rooms = await this.repo.find(
+        { avatar: { $ne: null } },
+        { fields: ['avatar'] },
+      );
+      return rooms
+        .map((r) => r.avatar)
+        .filter((key): key is string => Boolean(key));
+    });
   }
 
   toDto(room: RoomEntity): GetRoomDto {

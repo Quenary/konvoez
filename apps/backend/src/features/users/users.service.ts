@@ -5,6 +5,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import { ensureRequestContext } from '@shared/utils/request-context.util';
 import { PasswordService } from '../../shared/services/password.service';
 import {
   FileServiceInjectionToken,
@@ -40,14 +41,16 @@ export class UsersService {
   }
 
   async findOne(id: number): Promise<UserEntity> {
-    const user = await this.repo.findOne({ id }, { populate: ['roles'] });
-    if (!user) {
-      throw AppException.notFound(
-        ApiErrorCode.USER_NOT_FOUND,
-        'User not found',
-      );
-    }
-    return user;
+    return ensureRequestContext(this.em, async () => {
+      const user = await this.repo.findOne({ id }, { populate: ['roles'] });
+      if (!user) {
+        throw AppException.notFound(
+          ApiErrorCode.USER_NOT_FOUND,
+          'User not found',
+        );
+      }
+      return user;
+    });
   }
 
   async findOneAsDto(id: number): Promise<GetUserDto> {
@@ -91,7 +94,9 @@ export class UsersService {
   }
 
   async findAll(): Promise<UserEntity[]> {
-    return this.repo.findAll({ populate: ['roles'] });
+    return ensureRequestContext(this.em, async () => {
+      return this.repo.findAll({ populate: ['roles'] });
+    });
   }
 
   async findAllAsDto(): Promise<GetUserDto[]> {
@@ -100,20 +105,24 @@ export class UsersService {
   }
 
   async findByIds(ids: number[]): Promise<UserEntity[]> {
-    if (!ids.length) {
-      return [];
-    }
-    return this.repo.find({ id: { $in: ids } });
+    return ensureRequestContext(this.em, async () => {
+      if (!ids.length) {
+        return [];
+      }
+      return this.repo.find({ id: { $in: ids } });
+    });
   }
 
   async updateUserRoles(
     user: UserEntity,
     roles: RoleEntity[],
   ): Promise<UserEntity> {
-    user.roles.set(roles);
-    this.em.persist(user);
-    await this.em.flush();
-    return user;
+    return ensureRequestContext(this.em, async () => {
+      user.roles.set(roles);
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
   }
 
   async count(): Promise<number> {
@@ -122,12 +131,14 @@ export class UsersService {
   }
 
   async setPassword(userId: number, password: string): Promise<UserEntity> {
-    const user = await this.findOne(userId);
-    const passwordHash = await this.passwordService.hashPassword(password);
-    this.repo.assign(user, { password: passwordHash });
-    this.em.persist(user);
-    await this.em.flush();
-    return user;
+    return ensureRequestContext(this.em, async () => {
+      const user = await this.findOne(userId);
+      const passwordHash = await this.passwordService.hashPassword(password);
+      this.repo.assign(user, { password: passwordHash });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
   }
 
   async anonymizeLoaded(user: UserEntity): Promise<GetUserDto> {

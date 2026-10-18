@@ -8,6 +8,7 @@ import {
 } from '@mikro-orm/core';
 import { ApiErrorCode, IRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import { ensureRequestContext } from '@shared/utils/request-context.util';
 import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
@@ -28,46 +29,56 @@ export class RolesService {
   ) {}
 
   async findAll(): Promise<RoleDto[]> {
-    const roles = await this.repo.findAll({
-      orderBy: { priority: 'DESC', name: 'ASC' },
+    return ensureRequestContext(this.em, async () => {
+      const roles = await this.repo.findAll({
+        orderBy: { priority: 'DESC', name: 'ASC' },
+      });
+      return roles.map((r) => this.toDto(r));
     });
-    return roles.map((r) => this.toDto(r));
   }
 
   async findByIds(ids: number[]): Promise<RoleEntity[]> {
-    if (!ids.length) {
-      return [];
-    }
-    return this.repo.find({ id: { $in: ids } });
+    return ensureRequestContext(this.em, async () => {
+      if (!ids.length) {
+        return [];
+      }
+      return this.repo.find({ id: { $in: ids } });
+    });
   }
 
   async findDefaultRoles(): Promise<RoleEntity[]> {
-    return this.repo.find({ isDefault: true });
+    return ensureRequestContext(this.em, async () => {
+      return this.repo.find({ isDefault: true });
+    });
   }
 
   async findUserIdsByRole(roleId: number): Promise<number[]> {
-    const em = this.em as unknown as {
-      execute: (
-        query: string,
-        params?: unknown[],
-      ) => Promise<Array<{ user_id: number }>>;
-    };
-    const rows = await em.execute(
-      'select user_id from user_roles where role_id = ?',
-      [roleId],
-    );
-    return rows.map((r) => r.user_id);
+    return ensureRequestContext(this.em, async () => {
+      const em = this.em as unknown as {
+        execute: (
+          query: string,
+          params?: unknown[],
+        ) => Promise<Array<{ user_id: number }>>;
+      };
+      const rows = await em.execute(
+        'select user_id from user_roles where role_id = ?',
+        [roleId],
+      );
+      return rows.map((r) => r.user_id);
+    });
   }
 
   async findOne(id: number): Promise<RoleEntity> {
-    const role = await this.repo.findOne({ id });
-    if (!role) {
-      throw AppException.notFound(
-        ApiErrorCode.ROLE_NOT_FOUND,
-        'Role not found',
-      );
-    }
-    return role;
+    return ensureRequestContext(this.em, async () => {
+      const role = await this.repo.findOne({ id });
+      if (!role) {
+        throw AppException.notFound(
+          ApiErrorCode.ROLE_NOT_FOUND,
+          'Role not found',
+        );
+      }
+      return role;
+    });
   }
 
   async findOneAsDto(id: number): Promise<RoleDto> {
@@ -76,102 +87,132 @@ export class RolesService {
   }
 
   async create(dto: CreateRoleDto): Promise<RoleDto> {
-    const existing = await this.repo.findOne({ name: dto.name });
-    if (existing) {
-      throw AppException.conflict(
-        ApiErrorCode.ROLE_NAME_TAKEN,
-        'Role name already taken',
-      );
-    }
-
-    const role = this.repo.create(
-      {
-        name: dto.name,
-        color: dto.color ?? null,
-        priority: dto.priority ?? 0,
-        isDefault: dto.isDefault ?? false,
-        permissions: dto.permissions ?? [],
-      },
-      { persist: true },
-    );
-
-    try {
-      await this.em.flush();
-    } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
-        throw AppException.conflict(
-          ApiErrorCode.ROLE_NAME_TAKEN,
-          'Role name already taken',
-        );
-      }
-      throw error;
-    }
-
-    if (role.isDefault) {
-      emitEntitySyncDomainEvent(
-        this.eventEmitter,
-        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
-        { userIds: [] },
-      );
-    }
-
-    return this.toDto(role);
-  }
-
-  async update(id: number, dto: UpdateRoleDto): Promise<RoleDto> {
-    const role = await this.findOne(id);
-    const wasDefault = role.isDefault;
-    const isDefaultChanged =
-      dto.isDefault !== undefined && dto.isDefault !== wasDefault;
-    const permissionsChanged =
-      dto.permissions !== undefined &&
-      JSON.stringify(dto.permissions) !== JSON.stringify(role.permissions);
-    const priorityChanged =
-      dto.priority !== undefined && dto.priority !== role.priority;
-
-    if (dto.name && dto.name !== role.name) {
-      const existing = await this.repo.findOne({
-        name: dto.name,
-        id: { $ne: id },
-      });
+    return ensureRequestContext(this.em, async () => {
+      const existing = await this.repo.findOne({ name: dto.name });
       if (existing) {
         throw AppException.conflict(
           ApiErrorCode.ROLE_NAME_TAKEN,
           'Role name already taken',
         );
       }
-    }
 
-    this.repo.assign(role, {
-      ...(dto.name !== undefined ? { name: dto.name } : {}),
-      ...(dto.color !== undefined ? { color: dto.color ?? null } : {}),
-      ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
-      ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
-      ...(dto.permissions !== undefined
-        ? { permissions: dto.permissions }
-        : {}),
-    });
+      const role = this.repo.create(
+        {
+          name: dto.name,
+          color: dto.color ?? null,
+          priority: dto.priority ?? 0,
+          isDefault: dto.isDefault ?? false,
+          permissions: dto.permissions ?? [],
+        },
+        { persist: true },
+      );
 
-    try {
-      await this.em.flush();
-    } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
-        throw AppException.conflict(
-          ApiErrorCode.ROLE_NAME_TAKEN,
-          'Role name already taken',
+      try {
+        await this.em.flush();
+      } catch (error) {
+        if (error instanceof UniqueConstraintViolationException) {
+          throw AppException.conflict(
+            ApiErrorCode.ROLE_NAME_TAKEN,
+            'Role name already taken',
+          );
+        }
+        throw error;
+      }
+
+      if (role.isDefault) {
+        emitEntitySyncDomainEvent(
+          this.eventEmitter,
+          EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+          { userIds: [] },
         );
       }
-      throw error;
-    }
 
-    if (isDefaultChanged || wasDefault) {
-      emitEntitySyncDomainEvent(
-        this.eventEmitter,
-        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
-        { userIds: [] },
-      );
-    } else if (permissionsChanged || priorityChanged) {
+      return this.toDto(role);
+    });
+  }
+
+  async update(id: number, dto: UpdateRoleDto): Promise<RoleDto> {
+    return ensureRequestContext(this.em, async () => {
+      const role = await this.findOne(id);
+      const wasDefault = role.isDefault;
+      const isDefaultChanged =
+        dto.isDefault !== undefined && dto.isDefault !== wasDefault;
+      const permissionsChanged =
+        dto.permissions !== undefined &&
+        JSON.stringify(dto.permissions) !== JSON.stringify(role.permissions);
+      const priorityChanged =
+        dto.priority !== undefined && dto.priority !== role.priority;
+
+      if (dto.name && dto.name !== role.name) {
+        const existing = await this.repo.findOne({
+          name: dto.name,
+          id: { $ne: id },
+        });
+        if (existing) {
+          throw AppException.conflict(
+            ApiErrorCode.ROLE_NAME_TAKEN,
+            'Role name already taken',
+          );
+        }
+      }
+
+      this.repo.assign(role, {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.color !== undefined ? { color: dto.color ?? null } : {}),
+        ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+        ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
+        ...(dto.permissions !== undefined
+          ? { permissions: dto.permissions }
+          : {}),
+      });
+
+      try {
+        await this.em.flush();
+      } catch (error) {
+        if (error instanceof UniqueConstraintViolationException) {
+          throw AppException.conflict(
+            ApiErrorCode.ROLE_NAME_TAKEN,
+            'Role name already taken',
+          );
+        }
+        throw error;
+      }
+
+      if (isDefaultChanged || wasDefault) {
+        emitEntitySyncDomainEvent(
+          this.eventEmitter,
+          EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+          { userIds: [] },
+        );
+      } else if (permissionsChanged || priorityChanged) {
+        const userIds = await this.findUserIdsByRole(id);
+        if (userIds.length > 0) {
+          emitEntitySyncDomainEvent(
+            this.eventEmitter,
+            EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+            { userIds },
+          );
+        }
+      }
+
+      return this.toDto(role);
+    });
+  }
+
+  async remove(id: number): Promise<void> {
+    return ensureRequestContext(this.em, async () => {
+      const role = await this.findOne(id);
+      if (role.isDefault) {
+        throw AppException.badRequest(
+          ApiErrorCode.ROLE_CANNOT_DELETE_DEFAULT,
+          'Cannot delete default role',
+        );
+      }
+
       const userIds = await this.findUserIdsByRole(id);
+      this.em.remove(role);
+      await this.em.flush();
+
       if (userIds.length > 0) {
         emitEntitySyncDomainEvent(
           this.eventEmitter,
@@ -179,31 +220,7 @@ export class RolesService {
           { userIds },
         );
       }
-    }
-
-    return this.toDto(role);
-  }
-
-  async remove(id: number): Promise<void> {
-    const role = await this.findOne(id);
-    if (role.isDefault) {
-      throw AppException.badRequest(
-        ApiErrorCode.ROLE_CANNOT_DELETE_DEFAULT,
-        'Cannot delete default role',
-      );
-    }
-
-    const userIds = await this.findUserIdsByRole(id);
-    this.em.remove(role);
-    await this.em.flush();
-
-    if (userIds.length > 0) {
-      emitEntitySyncDomainEvent(
-        this.eventEmitter,
-        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
-        { userIds },
-      );
-    }
+    });
   }
 
   toDto(role: RoleEntity): RoleDto {
