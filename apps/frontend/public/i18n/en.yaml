@@ -341,6 +341,9 @@ VALIDATION:
   EMAIL: Enter a valid email
   ROOM_NAME_LENGTH: Room name must be 1–64 characters
   ROOM_TYPE: Select a room type
+  ROLE_NAME_REQUIRED: Role name is required
+  ROLE_NAME_LENGTH: Role name must be 1–64 characters
+  COLOR_HEX: Color must be a valid hex code (e.g. #ff0000)
   MESSAGE_LENGTH: Message must be 1–5000 characters
   MESSAGE_EMPTY: Message must contain text or a file
   MESSAGE_TO_SELF: You can't send a message to yourself

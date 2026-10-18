@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EPermission } from '../enums';
+import { SCHEMA_ERROR } from './base.schemas';
 import { createRoleSchema, updateRoleSchema, roleSchema } from './role.schemas';
 
 describe('role.schemas', () => {
@@ -24,6 +25,26 @@ describe('role.schemas', () => {
 
     const parsed = createRoleSchema.safeParse(payload);
     expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues[0].message).toBe(
+        SCHEMA_ERROR.ROLE_NAME_REQUIRED,
+      );
+    }
+  });
+
+  it('fails creation when name exceeds 64 characters', () => {
+    const payload = {
+      name: 'a'.repeat(65),
+      permissions: [],
+    };
+
+    const parsed = createRoleSchema.safeParse(payload);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues[0].message).toBe(
+        SCHEMA_ERROR.ROLE_NAME_LENGTH,
+      );
+    }
   });
 
   it('fails when color is not a valid hex code', () => {
@@ -34,6 +55,9 @@ describe('role.schemas', () => {
 
     const parsed = createRoleSchema.safeParse(payload);
     expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues[0].message).toBe(SCHEMA_ERROR.COLOR_HEX);
+    }
   });
 
   it('validates partial role update payload', () => {

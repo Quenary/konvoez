@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { baseEntitySchema } from './base.schemas';
+import { baseEntitySchema, SCHEMA_ERROR } from './base.schemas';
 import { EPermission } from '../enums';
 
 export const permissionSchema = z.nativeEnum(EPermission);
@@ -7,12 +7,12 @@ export const permissionSchema = z.nativeEnum(EPermission);
 export const roleNameSchema = z
   .string()
   .trim()
-  .min(1, { error: 'Role name is required' })
-  .max(64, { error: 'Role name cannot exceed 64 characters' });
+  .min(1, { error: SCHEMA_ERROR.ROLE_NAME_REQUIRED })
+  .max(64, { error: SCHEMA_ERROR.ROLE_NAME_LENGTH });
 
 export const roleColorSchema = z
   .string()
-  .regex(/^#[0-9a-fA-F]{6}$/, { error: 'Color must be a valid hex code' })
+  .regex(/^#[0-9a-fA-F]{6}$/, { error: SCHEMA_ERROR.COLOR_HEX })
   .nullish();
 
 export const roleSummarySchema = z.object({
