@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { VoiceSessionStore } from './voice-session.store';
 
 const bob = {
@@ -8,8 +8,10 @@ const bob = {
   username: 'bob',
   fullname: 'Bob',
   email: 'bob@example.com',
+  isOwner: false,
+  roles: [],
+  permissions: [],
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
 } as IUser;

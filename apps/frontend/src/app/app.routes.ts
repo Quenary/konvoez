@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { adminGuard } from './core/guards/admin.guard';
-import { ownerGuard } from './core/guards/owner.guard';
+import { permissionGuard } from './core/guards/permission.guard';
+import { EPermission } from '@konvoez/shared';
 
 export const routes: Routes = [
   {
@@ -101,7 +101,7 @@ export const routes: Routes = [
           },
           {
             path: 'invites',
-            canActivate: [adminGuard],
+            canActivate: [permissionGuard(EPermission.MANAGE_INVITES)],
             loadComponent: () =>
               import('./features/settings/settings-invites/settings-invites.component').then(
                 (m) => m.SettingsInvitesComponent,
@@ -109,15 +109,23 @@ export const routes: Routes = [
           },
           {
             path: 'users',
-            canActivate: [ownerGuard],
+            canActivate: [permissionGuard(EPermission.MANAGE_USERS)],
             loadComponent: () =>
               import('./features/settings/settings-user-management/settings-user-management.component').then(
                 (m) => m.SettingsUserManagementComponent,
               ),
           },
           {
+            path: 'roles',
+            canActivate: [permissionGuard(EPermission.MANAGE_ROLES)],
+            loadComponent: () =>
+              import('./features/settings/settings-roles/settings-roles.component').then(
+                (m) => m.SettingsRolesComponent,
+              ),
+          },
+          {
             path: 'admin',
-            canActivate: [adminGuard],
+            canActivate: [permissionGuard(EPermission.MANAGE_SETTINGS)],
             loadComponent: () =>
               import('./features/settings/settings-admin/settings-admin.component').then(
                 (m) => m.SettingsAdminComponent,

@@ -9,6 +9,7 @@ import { attachmentSchema } from './attachment.schemas';
 import { messageOptionalContentSchema } from './fields.schemas';
 import { userSchema } from './user.schemas';
 import { ETextRoomEvent } from '../enums';
+import { apiErrorResponseSchema, type TApiErrorResponse } from '../errors';
 
 const nullableInt = z.number().int().positive().nullish();
 const nullableString = stringSchema.nullish();
@@ -37,10 +38,8 @@ export type TTextRoomMessageDeleted = z.infer<
   typeof textRoomMessageDeletedSchema
 >;
 
-export const textRoomErrorSchema = z.object({
-  message: stringSchema,
-});
-export type TTextRoomError = z.infer<typeof textRoomErrorSchema>;
+export const textRoomErrorSchema = apiErrorResponseSchema;
+export type TTextRoomError = TApiErrorResponse;
 
 export const emojiRegex =
   /^(?:(?=.*\p{Extended_Pictographic})(?:[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]+)|\p{Regional_Indicator}{2})$/u;

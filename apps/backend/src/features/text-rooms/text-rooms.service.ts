@@ -24,7 +24,7 @@ import {
 } from './text-rooms.dto';
 import { extractTrigrams } from '@shared/utils/trigrams.util';
 import { UsersService } from '../users/users.service';
-import { RoomsService } from '../rooms/rooms.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { parse } from 'uuid';
 import { EncryptionService } from '@shared/services/encryption.service';
 import { stringify as uuidStringify } from 'uuid';
@@ -44,6 +44,7 @@ import {
 import {
   ApiErrorCode,
   canDeleteTextRoomMessage,
+  EPermission,
   ESettingKey,
   IAttachment,
   ITextRoomMessage,
@@ -69,7 +70,7 @@ export class TextRoomsService {
     @InjectRepository(MessageReactionEntity)
     private readonly messageReactionRepository: EntityRepository<MessageReactionEntity>,
     private readonly usersService: UsersService,
-    private readonly roomsService: RoomsService,
+    private readonly roomsFacade: RoomsFacade,
     private readonly encryptionService: EncryptionService,
     private readonly eventEmitter: EventEmitter2,
     private readonly attachmentsService: AttachmentsService,
@@ -314,8 +315,13 @@ export class TextRoomsService {
         .execute<Array<{ senderId: number; count: number }>>('all'),
     ]);
 
+    const accessibleRoomIds = await this.roomsFacade.getAccessibleRoomIds(user);
+    const accessibleRoomRows = roomRows.filter((row) =>
+      accessibleRoomIds.has(Number(row.roomId)),
+    );
+
     const rooms = Object.fromEntries(
-      roomRows.map((row) => [String(row.roomId), Number(row.count)]),
+      accessibleRoomRows.map((row) => [String(row.roomId), Number(row.count)]),
     );
     const direct = Object.fromEntries(
       directRows.map((row) => [String(row.senderId), Number(row.count)]),
@@ -379,6 +385,7 @@ export class TextRoomsService {
         ];
       }
     } else if (roomId) {
+      await this.roomsFacade.assertCanAccessRoom(user, roomId);
       baseWhere.room = roomId;
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
@@ -560,7 +567,28 @@ export class TextRoomsService {
         );
       }
     }
+    if (
+      !user.isOwner &&
+      !user.permissions?.includes(EPermission.SEND_MESSAGES)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Permission denied to send messages',
+      );
+    }
+
     const attachmentIds = [...new Set(requestedIds)];
+
+    if (
+      attachmentIds.length > 0 &&
+      !user.isOwner &&
+      !user.permissions?.includes(EPermission.USE_ATTACHMENTS)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Permission denied to use attachments',
+      );
+    }
 
     let recipient: UserEntity | null = null;
     let room: RoomEntity | null = null;
@@ -570,7 +598,8 @@ export class TextRoomsService {
     }
 
     if (dto.roomId) {
-      room = await this.roomsService.findOne(dto.roomId);
+      await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
+      room = this.em.getReference(RoomEntity, dto.roomId);
     }
 
     let replyToId: Uint8Array | null = null;
@@ -842,11 +871,23 @@ export class TextRoomsService {
     const messages = await this.messageRepository.find(
       { id: { $in: rawIds } },
       {
-        populate: ['sender', 'recipient', 'room', 'replyTo', 'replyTo.sender'],
+        populate: [
+          'sender',
+          'recipient',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+          'replyTo',
+          'replyTo.sender',
+        ],
       },
     );
 
-    const othersMessages = messages.filter((msg) => msg.sender.id !== user.id);
+    const othersMessages = messages.filter(
+      (msg) =>
+        msg.sender.id !== user.id &&
+        (!msg.room || this.roomsFacade.canAccessRoom(user, msg.room)),
+    );
     if (othersMessages.length === 0) return;
 
     const existingReads = await this.messageReadRepository.find({

@@ -3,12 +3,12 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
-import { ApiErrorCode } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import { ensureRequestContext } from '@shared/utils/request-context.util';
 import { PasswordService } from '../../shared/services/password.service';
 import {
   FileServiceInjectionToken,
-  ROOM_AVATARS_BUCKET,
   USER_AVATARS_BUCKET,
   type FileService,
 } from '@shared/services/file.service';
@@ -16,10 +16,11 @@ import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
 } from '@shared/events/entity-sync.events';
-import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
 import { GetUserDto } from './users.dto';
+import { PermissionsFacade } from '../permissions/permissions.facade';
+import type { RoleEntity } from '../roles/roles.entity';
 
 @Injectable()
 export class UsersService {
@@ -32,29 +33,32 @@ export class UsersService {
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsFacade: PermissionsFacade,
   ) {
     this.em = this.repo.getEntityManager();
   }
 
   async findOne(id: number): Promise<UserEntity> {
-    const user = await this.repo.findOne({ id });
-    if (!user) {
-      throw AppException.notFound(
-        ApiErrorCode.USER_NOT_FOUND,
-        'User not found',
-      );
-    }
-    return user;
+    return ensureRequestContext(this.em, async () => {
+      const user = await this.repo.findOne({ id }, { populate: ['roles'] });
+      if (!user) {
+        throw AppException.notFound(
+          ApiErrorCode.USER_NOT_FOUND,
+          'User not found',
+        );
+      }
+      return user;
+    });
   }
 
   async findOneAsDto(id: number): Promise<GetUserDto> {
     const user = await this.findOne(id);
-    return this.toDto(user);
+    return this.toDtoWithPermissions(user);
   }
 
   async findOneBy(where: Partial<UserEntity>): Promise<UserEntity> {
     const em = this.em.fork();
-    const user = await em.findOne(UserEntity, where);
+    const user = await em.findOne(UserEntity, where, { populate: ['roles'] });
     if (!user) {
       throw AppException.notFound(
         ApiErrorCode.USER_NOT_FOUND,
@@ -66,9 +70,13 @@ export class UsersService {
 
   async findOneByUsernameOrEmail(login: string): Promise<UserEntity> {
     const em = this.em.fork();
-    const user = await em.findOne(UserEntity, {
-      $or: [{ username: login }, { email: login.toLowerCase() }],
-    });
+    const user = await em.findOne(
+      UserEntity,
+      {
+        $or: [{ username: login }, { email: login.toLowerCase() }],
+      },
+      { populate: ['roles'] },
+    );
     if (!user) {
       throw AppException.notFound(
         ApiErrorCode.USER_NOT_FOUND,
@@ -80,16 +88,39 @@ export class UsersService {
 
   async findOneByAsDto(where: Partial<UserEntity>): Promise<GetUserDto> {
     const user = await this.findOneBy(where);
-    return this.toDto(user);
+    return this.toDtoWithPermissions(user);
   }
 
   async findAll(): Promise<UserEntity[]> {
-    return this.repo.findAll();
+    return ensureRequestContext(this.em, async () => {
+      return this.repo.findAll({ populate: ['roles'] });
+    });
   }
 
   async findAllAsDto(): Promise<GetUserDto[]> {
     const users = await this.findAll();
-    return users.map((user) => this.toDto(user));
+    return Promise.all(users.map((user) => this.toDtoWithPermissions(user)));
+  }
+
+  async findByIds(ids: number[]): Promise<UserEntity[]> {
+    return ensureRequestContext(this.em, async () => {
+      if (!ids.length) {
+        return [];
+      }
+      return this.repo.find({ id: { $in: ids } });
+    });
+  }
+
+  async updateUserRoles(
+    user: UserEntity,
+    roles: RoleEntity[],
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      user.roles.set(roles);
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
   }
 
   async count(): Promise<number> {
@@ -98,12 +129,14 @@ export class UsersService {
   }
 
   async setPassword(userId: number, password: string): Promise<UserEntity> {
-    const user = await this.findOne(userId);
-    const passwordHash = await this.passwordService.hashPassword(password);
-    this.repo.assign(user, { password: passwordHash });
-    this.em.persist(user);
-    await this.em.flush();
-    return user;
+    return ensureRequestContext(this.em, async () => {
+      const user = await this.findOne(userId);
+      const passwordHash = await this.passwordService.hashPassword(password);
+      this.repo.assign(user, { password: passwordHash });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
   }
 
   async anonymizeLoaded(user: UserEntity): Promise<GetUserDto> {
@@ -141,15 +174,10 @@ export class UsersService {
         );
       }
 
-      const rooms = await em.find(RoomEntity, { author: id });
-      const roomIds = rooms.map((room) => room.id);
       const messageFilter: FilterQuery<MessageEntity>[] = [
         { sender: id },
         { recipient: id },
       ];
-      if (roomIds.length > 0) {
-        messageFilter.push({ room: { $in: roomIds } });
-      }
       const messages = await em.find(
         MessageEntity,
         { $or: messageFilter },
@@ -165,33 +193,16 @@ export class UsersService {
         );
         await em.nativeDelete(MessageEntity, { id: { $in: messageIds } });
       }
-      if (roomIds.length > 0) {
-        await em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
-      }
 
       em.remove(user);
       await em.flush();
 
       return {
         avatar: user.avatar,
-        roomIds,
-        roomAvatars: rooms.flatMap((room) =>
-          room.avatar ? [room.avatar] : [],
-        ),
       };
     });
 
     await this.deleteStoredFile(files.avatar, USER_AVATARS_BUCKET);
-    for (const key of files.roomAvatars) {
-      await this.deleteStoredFile(key, ROOM_AVATARS_BUCKET);
-    }
-    for (const roomId of files.roomIds) {
-      emitEntitySyncDomainEvent(
-        this.eventEmitter,
-        EntitySyncDomainEvents.ROOM_DELETED,
-        { id: roomId },
-      );
-    }
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_DELETED,
@@ -199,19 +210,41 @@ export class UsersService {
     );
   }
 
-  toDto(user: UserEntity): GetUserDto {
+  toDto(user: UserEntity, permissions?: EPermission[]): GetUserDto {
+    const roles = user.roles?.isInitialized?.()
+      ? user.roles.getItems().map((r) => ({
+          id: r.id,
+          name: r.name,
+          color: r.color ?? null,
+          priority: r.priority,
+        }))
+      : [];
+
+    const effectivePermissions =
+      permissions ?? (user.isOwner ? Object.values(EPermission) : []);
+
     return {
       id: user.id,
       username: user.username,
       fullname: user.fullname,
       email: user.email,
-      role: user.role,
+      isOwner: user.isOwner,
+      roles,
+      permissions: effectivePermissions,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       avatar: user.avatar,
       avatarUrl: this.getAvatarUrl(user.avatar),
       deletedAt: user.deletedAt ?? null,
     };
+  }
+
+  async toDtoWithPermissions(user: UserEntity): Promise<GetUserDto> {
+    if (!user.roles?.isInitialized?.()) {
+      await this.em.populate(user, ['roles']);
+    }
+    const permissions = await this.permissionsFacade.getUserPermissions(user);
+    return this.toDto(user, permissions);
   }
 
   getAvatarUrl(key: string | null | undefined): string | null {

@@ -26,6 +26,7 @@ import { PasswordService } from '../../shared/services/password.service';
 import type { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { ProfileService } from './profile.service';
 import type { UpdateProfileDto } from './profile.dto';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
@@ -35,8 +36,16 @@ describe('ProfileService', () => {
   let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
   let usersService: jest.Mocked<
-    Pick<UsersService, 'findOne' | 'toDto' | 'anonymizeLoaded' | 'removeLoaded'>
+    Pick<
+      UsersService,
+      | 'findOne'
+      | 'toDto'
+      | 'toDtoWithPermissions'
+      | 'anonymizeLoaded'
+      | 'removeLoaded'
+    >
   >;
+  let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
   let passwordService: jest.Mocked<PasswordService>;
   let eventEmitter: { emit: jest.Mock };
 
@@ -59,6 +68,9 @@ describe('ProfileService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     deletedAt: null,
@@ -85,15 +97,20 @@ describe('ProfileService', () => {
     usersService = {
       findOne: jest.fn().mockResolvedValue(mockUser),
       toDto: jest.fn().mockReturnValue(author),
+      toDtoWithPermissions: jest.fn().mockResolvedValue(author),
       anonymizeLoaded: jest.fn().mockResolvedValue(author),
       removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
 
     eventEmitter = { emit: jest.fn() };
+    roomsFacade = {
+      deleteRoomsByAuthor: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new ProfileService(
       mockRepo,
       usersService as unknown as UsersService,
+      roomsFacade as unknown as RoomsFacade,
       passwordService,
       eventEmitter as never,
     );
@@ -146,7 +163,7 @@ describe('ProfileService', () => {
       );
       expect(mockEm.persist).toHaveBeenCalledWith(mockUser);
       expect(mockEm.flush).toHaveBeenCalled();
-      expect(usersService.toDto).toHaveBeenCalledWith(mockUser);
+      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(mockUser);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_UPDATED,
         author,
@@ -209,6 +226,7 @@ describe('ProfileService', () => {
     it('should remove the current user through UsersService', async () => {
       await service.removeSelf(author);
 
+      expect(roomsFacade.deleteRoomsByAuthor).toHaveBeenCalledWith(author.id);
       expect(usersService.removeLoaded).toHaveBeenCalledWith(author.id);
     });
 
@@ -218,6 +236,7 @@ describe('ProfileService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
       });
+      expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
   });

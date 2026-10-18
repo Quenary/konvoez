@@ -1,0 +1,47 @@
+.default-role-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  cursor: pointer;
+}
+
+.permissions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.permissions-header {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--tui-text-primary);
+}
+
+.permissions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--tui-border-normal);
+  border-radius: var(--tui-radius-m);
+  background-color: var(--tui-background-base);
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}

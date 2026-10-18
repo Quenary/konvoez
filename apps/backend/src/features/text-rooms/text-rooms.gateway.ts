@@ -14,15 +14,21 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { AuthService } from '../auth/auth.service';
 import {
+  ApiErrorCode,
   ETextRoomEvent,
   type TTextRoomPeer,
   type TTextRoomEventMap,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
+import { toApiErrorResponse } from '@shared/errors/to-api-error';
 import { TextRoomJoinDto } from './text-rooms.dto';
+import type { GetUserDto } from '../users/users.dto';
 import {
   TextRoomDomainEvents,
   type TTextRoomDomainPayloadMap,
 } from '@shared/events/text-room.events';
+
+import { RoomsFacade } from '../rooms/rooms.facade';
 
 type TSocket = Socket<
   TTextRoomEventMap,
@@ -48,6 +54,8 @@ export class TextRoomsGateway
   private readonly server!: Server<TTextRoomEventMap>;
   @Inject(AuthService)
   private readonly authService!: AuthService;
+  @Inject(RoomsFacade)
+  private readonly roomsFacade!: RoomsFacade;
   private readonly logger = new Logger(TextRoomsGateway.name);
 
   private readonly userIdToSocketId: Map<number, string> = new Map();
@@ -62,7 +70,10 @@ export class TextRoomsGateway
         this.logger.warn(
           `Unauthorized socket connection attempt: socketId=${client.id}`,
         );
-        client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
+        this.emitError(
+          client,
+          AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+        );
         client.disconnect(true);
         return;
       }
@@ -83,7 +94,7 @@ export class TextRoomsGateway
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
+      this.emitError(client, error);
       client.disconnect(true);
     }
   }
@@ -99,29 +110,56 @@ export class TextRoomsGateway
   }
 
   @SubscribeMessage(ETextRoomEvent.JOIN)
-  handleJoin(
+  async handleJoin(
     @MessageBody() body: TextRoomJoinDto,
     @ConnectedSocket() client: TSocket,
   ) {
     this.handleLeave(client);
 
     const { roomId, recipientId } = body;
+    const current = client.data.peer;
+    if (!current) {
+      this.logger.warn(`Socket join without peer: socketId=${client.id}`);
+      this.emitError(
+        client,
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+      );
+      return;
+    }
+
+    let fresh: GetUserDto;
+    try {
+      fresh = await this.authService.getActiveUserById(current.id);
+    } catch (error) {
+      this.emitError(client, error);
+      return;
+    }
+
+    const peer = { ...current, ...fresh, clientId: client.id } as TTextRoomPeer;
+    client.data.peer = peer;
+
     if (roomId) {
+      try {
+        await this.roomsFacade.assertCanAccessRoom(peer, roomId);
+      } catch (error) {
+        this.emitError(client, error);
+        return;
+      }
       client.data.roomId = roomId;
       client.join(roomId.toString());
     }
     if (recipientId) {
       client.data.recipientId = recipientId;
     }
-    const peer = client.data.peer;
-    if (peer) {
-      client.join(peer.id.toString());
-    } else {
-      this.logger.warn(`Socket join without peer: socketId=${client.id}`);
-    }
+    client.join(peer.id.toString());
     this.logger.debug(
-      `handleJoin: socketId=${client.id}, userId=${peer?.id}, roomId=${roomId}, recipientId=${recipientId}`,
+      `handleJoin: socketId=${client.id}, userId=${peer.id}, roomId=${roomId}, recipientId=${recipientId}`,
     );
+  }
+
+  private emitError(client: TSocket, exception: unknown): void {
+    const { body } = toApiErrorResponse(exception);
+    client.emit(ETextRoomEvent.ERROR, body);
   }
 
   @SubscribeMessage(ETextRoomEvent.LEAVE)

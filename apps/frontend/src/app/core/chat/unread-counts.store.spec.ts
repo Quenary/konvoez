@@ -5,12 +5,7 @@ import { provideStore, Store } from '@ngrx/store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
-import {
-  ETextRoomEvent,
-  EUserRole,
-  ITextRoomMessage,
-  IUser,
-} from '@konvoez/shared';
+import { ETextRoomEvent, ITextRoomMessage, IUser } from '@konvoez/shared';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { UnreadCountsStore } from './unread-counts.store';
 
@@ -50,7 +45,9 @@ describe('UnreadCountsStore', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
@@ -94,11 +91,17 @@ describe('UnreadCountsStore', () => {
         provideStore({ auth: authReducer }),
         { provide: ChatApiService, useValue: apiService },
         { provide: TextRoomSocketToken, useValue: mockSocket },
+        UnreadCountsStore,
       ],
     });
 
     ngrxStore = TestBed.inject(Store);
     store = TestBed.inject(UnreadCountsStore);
+  });
+
+  afterEach(() => {
+    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
+    TestBed.resetTestingModule();
   });
 
   it('should start with empty unread maps', () => {

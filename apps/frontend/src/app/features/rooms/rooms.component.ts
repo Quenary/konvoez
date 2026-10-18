@@ -179,6 +179,15 @@ export class RoomsComponent implements OnInit {
             name: room.name,
             type: room.type,
             ...(room.avatar ? { avatar: room.avatar } : {}),
+            ...(room.isPrivate !== undefined
+              ? { isPrivate: room.isPrivate }
+              : {}),
+            ...(room.allowedRoleIds !== undefined
+              ? { allowedRoleIds: room.allowedRoleIds }
+              : {}),
+            ...(room.allowedUserIds !== undefined
+              ? { allowedUserIds: room.allowedUserIds }
+              : {}),
           };
 
           this.roomsStore.create(body);

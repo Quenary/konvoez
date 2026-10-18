@@ -12,9 +12,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { EUserRole } from '@konvoez/shared';
+import { EPermission } from '@konvoez/shared';
 import { AuthGuard } from '../auth/auth.guard';
-import { AuthGuardRoles, Author } from '../auth/auth.decorator';
+import { Author, RequirePermissions } from '../auth/auth.decorator';
 import { GetUserDto } from '../users/users.dto';
 import { UserManagementService } from './user-management.service';
 import { UserManagementUpdateDto } from './user-management.dto';
@@ -22,11 +22,11 @@ import { UserManagementUpdateDto } from './user-management.dto';
 @ApiTags('user-management')
 @Controller('user-management')
 @UseGuards(AuthGuard)
-@AuthGuardRoles([EUserRole.OWNER])
 export class UserManagementController {
   constructor(private readonly userManagementService: UserManagementService) {}
 
   @Get()
+  @RequirePermissions([EPermission.MANAGE_USERS])
   @ApiOkResponse({
     type: GetUserDto,
     isArray: true,
@@ -37,6 +37,7 @@ export class UserManagementController {
   }
 
   @Get(':id')
+  @RequirePermissions([EPermission.MANAGE_USERS])
   @ApiOkResponse({
     type: GetUserDto,
     description: 'Get a user for owner management',
@@ -46,6 +47,7 @@ export class UserManagementController {
   }
 
   @Patch(':id')
+  @RequirePermissions([EPermission.MANAGE_ROLES])
   @ApiOkResponse({
     type: GetUserDto,
     description: 'Update a managed user (role only)',
@@ -59,6 +61,7 @@ export class UserManagementController {
   }
 
   @Post(':id/anonymize')
+  @RequirePermissions([EPermission.MANAGE_USERS])
   @ApiOkResponse({
     type: GetUserDto,
     description: 'Anonymize a user and keep their rooms and messages',
@@ -71,6 +74,7 @@ export class UserManagementController {
   }
 
   @Delete(':id')
+  @RequirePermissions([EPermission.MANAGE_USERS])
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({
     description: 'Physically delete a user and their traces',

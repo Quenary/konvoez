@@ -6,9 +6,9 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
 
 - **Single-instance server model**: The deployed application instance acts as its own self-contained server. It hosts text and voice rooms for authenticated users. It is not designed as a multi-tenant public cloud SaaS with tenant isolation.
 - **User roles and authorization**:
-  - `OWNER`: The instance creator / primary operator. Assigned exclusively to the first registered user via a one-time cryptographic bootstrap setup token printed to server logs. Possesses full administrative rights across the entire server (user management, room management, server settings, invite management). Cannot be transferred, escalated, or assigned via standard user management APIs.
-  - `ADMIN`: Elevated administrator role. Can manage rooms, moderate messages in text rooms (including deleting another user's room message), manage user accounts, manage server settings, and issue/revoke invite links. In personal (direct) chats an admin can delete only their own messages.
-  - `USER` (referred to as `MEMBER` in the codebase): Standard authenticated user. Can join text and voice rooms, send messages, participate in voice channels, edit/delete their own messages (in rooms and in personal chats), and update their own profile and avatar via self-only `/api/v1/profile` (not via `/api/v1/user-management` or mutating `/api/v1/users`).
+  - `OWNER`: The instance creator / primary operator (stored via `isOwner: true` flag). Assigned exclusively to the first registered user via a one-time cryptographic bootstrap setup token printed to server logs. Possesses full administrative rights and unconditionally holds all permissions (current and future) across the server, plus access to all private rooms. Cannot be transferred, escalated, modified, or deleted via standard user management APIs.
+  - Flexible Roles & Granular Permissions: All other capabilities are governed by configurable roles and fine-grained permissions (`EPermission`: `MANAGE_SETTINGS`, `MANAGE_USERS`, `MANAGE_ROLES`, `MANAGE_INVITES`, `MANAGE_ROOMS`, `SEND_MESSAGES`, `CONNECT_VOICE`, `USE_ATTACHMENTS`, `MODERATE_MESSAGES`). Standard seeded roles include `Admin` (all permissions), `Moderator` (`MANAGE_ROOMS`, `MODERATE_MESSAGES`), and `User` (default role for messaging and voice). Default roles automatically apply to all authenticated users.
+  - Private Rooms: Rooms can be marked private (`isPrivate: true`) and restricted to specific allowed roles and/or users. `OWNER` always has access to all rooms. In personal (direct) chats, users can delete only their own messages, while moderators with `MODERATE_MESSAGES` or `OWNER` can moderate messages in text rooms.
 - **Instance bootstrap & initial OWNER registration**:
   - On a fresh installation (when zero users exist in the database), the server generates a single-use 16-byte cryptographically secure random token (`owner_setup_token`) with a 5-minute TTL and prints it to the server console/stdout log.
   - The initial registration request must supply this valid `setupToken` to create the `OWNER` account.
@@ -16,9 +16,9 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
   - This prevents front-running and unauthorized instance takeover when deploying new instances to public networks.
 - **Registration policy & invite-only signups**:
   - User registration is governed by the `INVITE_ONLY_SIGN_UP` setting (defaults to `true`).
-  - The setting can be predefined via the `INVITE_ONLY_SIGN_UP` environment variable or dynamically toggled by `OWNER` / `ADMIN` in the admin settings UI.
+  - The setting can be predefined via the `INVITE_ONLY_SIGN_UP` environment variable or dynamically toggled by users with `MANAGE_SETTINGS` permission (or `OWNER`) in the admin settings UI.
   - When `INVITE_ONLY_SIGN_UP` is enabled, new user registration strictly requires a valid, active invite code.
-  - Invites can only be created by `OWNER` or `ADMIN`, have configurable expiration times (TTL), are single-use, and can optionally be bound to a specific recipient email address.
+  - Invites can only be created by users with `MANAGE_INVITES` permission (or `OWNER`), have configurable expiration times (TTL), are single-use, and can optionally be bound to a specific recipient email address.
   - Expired, revoked, or already consumed invite codes cannot be used for registration.
   - Initial `OWNER` registration is exempt from invite codes, but is protected by the bootstrap setup token.
 - **Message encryption at rest**:
@@ -48,9 +48,10 @@ Reports are judged against this model rather than against a multi-tenant cloud S
 - Authentication or authorization bypass (e.g., impersonating another user, forging JWT cookies).
 - Bypassing the initial `OWNER` bootstrap token requirement (e.g., claiming `OWNER` without a valid token or after initial setup).
 - Bypassing the invite-only registration policy when `INVITE_ONLY_SIGN_UP` is active (e.g., registering without a code, reusing consumed/revoked/expired invites, or bypassing email binding on restricted invites).
-- Unauthorized creation, revocation, or enumeration of invite codes by unauthenticated users or standard `USER` (`MEMBER`) accounts.
-- Privilege escalation (e.g., a standard `USER` escalating to `ADMIN` or assigning `OWNER`).
-- Cross-user data manipulation (e.g., editing another user's message, deleting another user's room message without `OWNER` or `ADMIN`, or deleting another user's personal-chat message as any role).
+- Unauthorized creation, revocation, or enumeration of invite codes without `MANAGE_INVITES` permission.
+- Privilege escalation (e.g., assigning oneself roles without `MANAGE_ROLES`, or modifying/claiming the `OWNER` account).
+- Cross-user data manipulation (e.g., editing another user's message, deleting another user's room message without `OWNER` or `MODERATE_MESSAGES` permission, or deleting another user's personal-chat message as any role).
+- Unauthorized access to private rooms without being an allowed user, having an allowed role, or being `OWNER`.
 - Cryptographic flaws in message encryption or key derivation (e.g., IV reuse, ciphertext manipulation bypassing GCM authentication tags).
 - Path traversal, arbitrary file read/write in file/avatar upload (`/api/v1/profile/avatar/upload`) and streaming (`/api/v1/users/avatar/stream`) endpoints (local or S3 storage).
 - Attachment serving (`/api/v1/attachments`): sniffed MIME, inline allowlist, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cross-Origin-Resource-Policy: same-origin`, and 404 for every access denial. Client video posters are untrusted images: size, sniff, and pixel limits apply, and a bad poster does not fail the upload.
@@ -64,7 +65,7 @@ These are not treated as vulnerabilities (and will not be accepted as High/Criti
 - Scenarios requiring an attacker to already possess physical or root/shell access to the host server or Docker container.
 - Intercepting the one-time `OWNER` setup token through access to the server console, stdout, or container log files (host/container access is already considered a fully compromised environment).
 - Access to data made possible by obtaining the host environment variables (`MASTER_KEY`, `JWT_SECRET`, database credentials).
-- Actions intentionally permitted for `OWNER` or `ADMIN` roles (e.g., an admin deleting a room, deleting another user's message in a text room, kicking/deleting a user account, generating invites, or changing server settings).
+- Actions intentionally permitted for users with relevant permissions (e.g., deleting a room with `MANAGE_ROOMS`, deleting another user's message in a text room with `MODERATE_MESSAGES`, kicking/deleting a user account with `MANAGE_USERS`, generating invites with `MANAGE_INVITES`, or changing server settings with `MANAGE_SETTINGS`).
 - Attacks exploiting lack of TLS termination when the host operator fails to configure a reverse proxy (operators are expected to deploy behind HTTPS/TLS in production).
 - Weak operator-configured environment secrets (e.g., using a trivial `MASTER_KEY` or `JWT_SECRET`).
 - Denial of Service (DoS) resulting from network saturation or standard media bandwidth limits without an underlying software vulnerability.

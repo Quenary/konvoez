@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { SettingsUserManagementComponent } from './settings-user-management.component';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
@@ -20,7 +20,9 @@ describe('SettingsUserManagementComponent', () => {
     username: 'alice',
     fullname: 'Alice Wonderland',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date('2026-01-02T03:04:00.000Z'),

@@ -4,6 +4,36 @@ export enum EUserRole {
   MEMBER = 'MEMBER',
 }
 
+export enum EPermission {
+  MANAGE_SETTINGS = 'MANAGE_SETTINGS',
+  MANAGE_INVITES = 'MANAGE_INVITES',
+  MANAGE_USERS = 'MANAGE_USERS',
+  MANAGE_ROLES = 'MANAGE_ROLES',
+  MANAGE_ROOMS = 'MANAGE_ROOMS',
+  SEND_MESSAGES = 'SEND_MESSAGES',
+  MODERATE_MESSAGES = 'MODERATE_MESSAGES',
+  USE_ATTACHMENTS = 'USE_ATTACHMENTS',
+  CONNECT_VOICE = 'CONNECT_VOICE',
+}
+
+export const DEFAULT_USER_PERMISSIONS: readonly EPermission[] = [
+  EPermission.SEND_MESSAGES,
+  EPermission.CONNECT_VOICE,
+  EPermission.USE_ATTACHMENTS,
+] as const;
+
+export const DEFAULT_MODERATOR_PERMISSIONS: readonly EPermission[] = [
+  EPermission.SEND_MESSAGES,
+  EPermission.CONNECT_VOICE,
+  EPermission.USE_ATTACHMENTS,
+  EPermission.MODERATE_MESSAGES,
+  EPermission.MANAGE_ROOMS,
+] as const;
+
+export const ALL_PERMISSIONS: readonly EPermission[] = Object.values(
+  EPermission,
+) as EPermission[];
+
 export enum ERoomType {
   TEXT = 'TEXT',
   VOICE = 'VOICE',

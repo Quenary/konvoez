@@ -21,6 +21,7 @@ export const EntitySyncDomainEvents = {
   VOICE_ROOM_PEER_LEFT: 'entity-sync.voice-room.peer-left',
   VOICE_ROOM_PEER_MUTED: 'entity-sync.voice-room.peer-muted',
   USER_PRESENCE_CHANGED: 'entity-sync.user.presence-changed',
+  USER_PERMISSIONS_CHANGED: 'entity-sync.user.permissions-changed',
 } as const;
 
 export type TEntitySyncDomainEvent =
@@ -37,6 +38,7 @@ export type TEntitySyncDomainPayloadMap = {
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT]: TVoiceRoomLobbyPeerLeft;
   [EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED]: TVoiceRoomLobbyPeerMuted;
   [EntitySyncDomainEvents.USER_PRESENCE_CHANGED]: IUserPresenceChanged;
+  [EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED]: { userIds: number[] };
 };
 
 export function emitEntitySyncDomainEvent<K extends TEntitySyncDomainEvent>(

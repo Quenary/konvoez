@@ -12,13 +12,13 @@ import {
   PasswordRecoveryCodeTtlSettingDto,
   SettingsUpdateDto,
 } from './settings.dto';
-import { AuthGuardRoles } from '../auth/auth.decorator';
 import {
   ESettingKey,
-  EUserRole,
+  EPermission,
   TSetting,
   TSettingByKey,
 } from '@konvoez/shared';
+import { RequirePermissions } from '../auth/auth.decorator';
 
 const settingResponseModels = [
   { $ref: getSchemaPath(IceServersSettingDto) },
@@ -72,6 +72,7 @@ export class SettingsController {
   }
 
   @Put()
+  @RequirePermissions([EPermission.MANAGE_SETTINGS])
   @ApiOkResponse({
     schema: {
       type: 'array',
@@ -81,7 +82,6 @@ export class SettingsController {
     },
     description: 'Update settings',
   })
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
   async update(@Body() dtos: SettingsUpdateDto): Promise<TSetting[]> {
     return await this.settingsService.updateManyAsDto(dtos);
   }

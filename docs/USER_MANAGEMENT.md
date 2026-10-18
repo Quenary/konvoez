@@ -1,18 +1,18 @@
 # User management
 
-Owner manage other accounts from **Settings → Users** (`/settings/users`). The API is `/api/v1/user-management` and accepts only an `OWNER` session. `ADMIN` and `MEMBER` get `403`. The owner cannot change or delete their own account, or any account with the `OWNER` role.
+Users with the `MANAGE_USERS` permission or instance `OWNER` manage other accounts from **Settings → Users** (`/settings/users`). The API is `/api/v1/user-management` and requires `MANAGE_USERS` permission (or `isOwner: true`). Other accounts receive `403`. No user (even the owner) can change or delete an account with `isOwner: true`, nor change or delete their own account via user management.
 
 Related user APIs: directory listing is authenticated `GET /api/v1/users` and `GET /api/v1/users/:id`; self-profile is `PATCH /api/v1/profile`, avatar upload `POST /api/v1/profile/avatar/upload`, self-anonymize `POST /api/v1/profile/anonymize`, and self physical delete `DELETE /api/v1/profile`; avatar streaming is `GET /api/v1/users/avatar/stream`. Soft-delete (`deletedAt`) is set only via anonymize below. `deletedAt` is on the public user object (`null` means the account is active).
 
-## Role
+## Roles
 
-`PATCH /api/v1/user-management/:id` with `{ role }`. Only `ADMIN` or `MEMBER`. Assigning `OWNER` is rejected.
+`PATCH /api/v1/user-management/:id` with `{ roleIds: number[] }` updates assigned roles for a user. Requires `MANAGE_ROLES` permission (or `isOwner: true`).
 
 ## Logical deletion
 
-`POST /api/v1/user-management/:id/anonymize`.
+`POST /api/v1/user-management/:id/anonymize` (requires `MANAGE_USERS` or `isOwner: true`).
 
-The row, role, rooms, and messages stay. The account becomes:
+The row, roles, rooms, and messages stay. The account becomes:
 
 - username `deleted-{id}`
 - full name `Deleted user`
@@ -25,7 +25,7 @@ Login, cookie refresh, socket connect, and password recovery then fail with the 
 
 ## Physical deletion
 
-`DELETE /api/v1/user-management/:id` returns `204`.
+`DELETE /api/v1/user-management/:id` returns `204` (requires `MANAGE_USERS` or `isOwner: true`).
 
 One transaction removes:
 
@@ -38,7 +38,7 @@ Invites, recovery codes, push subscriptions, notifications, and read receipts fo
 
 ## UI
 
-The menu item is shown only to the owner. A row opens the account and shows all public fields except the password. Delete opens a confirmation. **Full deletion** is off by default (logical deletion); turning it on selects physical deletion. The dialog only returns that choice; the caller performs the request.
+The menu item **Settings → Users** is shown only when the current user has `MANAGE_USERS` permission or is `OWNER`. A row opens the account and shows all public fields except the password. When the user also holds `MANAGE_ROLES`, role checkboxes can be toggled and saved. Delete opens a confirmation. **Full deletion** is off by default (logical deletion); turning it on selects physical deletion. The dialog only returns that choice; the caller performs the request.
 
 ## Self-deletion
 

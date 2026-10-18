@@ -17,7 +17,7 @@ Code lifetime comes from the `PASSWORD_RECOVERY_CODE_TTL` setting (milliseconds)
 
 - Default: `600000` (10 minutes)
 - Allowed range: `60000`–`3600000` (1 minute–1 hour)
-- Editable by `OWNER` / `ADMIN` in Administration settings (or via env on startup)
+- Editable by users with `MANAGE_SETTINGS` permission or `OWNER` in Administration settings (or via env on startup)
 
 ## SMTP
 

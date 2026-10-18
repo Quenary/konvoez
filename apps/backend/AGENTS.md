@@ -35,6 +35,27 @@ Path aliases (prefer these over deep relative imports):
 | `@konvoez/shared` | `libs/shared`  |
 | `@shared/*`       | `src/shared/*` |
 
+## Architecture & Modular Monolith
+
+The backend is built as a **modular monolith** running in a single process. Code organization follows strict modular boundaries:
+
+- **High Cohesion, Low Coupling**:
+  - Each feature module (`src/features/*`) represents a distinct bounded context encapsulating its own domain logic, persistence, and validation.
+  - Modules interact only through well-defined public boundaries (exported services or facades). Modules must never reach into private models or internals of another module.
+- **Single Entity Ownership**:
+  - Strictly one feature module owns an entity and registers it via `MikroOrmModule.forFeature([Entity])`.
+  - Never register foreign entities in `forFeature` of another module.
+  - Never perform ad-hoc ORM queries across module boundaries (e.g., `em.find(ForeignEntity)`, `this.repo.find(...)` on foreign entities).
+  - All cross-module entity queries must be performed through public service or facade methods provided by the owning module (e.g. `UsersService.findByIds`, `PermissionsFacade.findRolesByIds`).
+- **Facades for Cross-Cutting Subdomains**:
+  - When a domain subsystem exposes operations spanning multiple entities or internal mechanics (e.g., role-permission aggregation and RBAC queries), provide a public facade (e.g., `PermissionsFacade`).
+  - Consumers depend on the facade interface, avoiding direct tight coupling to entity structures or internal helper services.
+- **Domain Events via EventEmitter2**:
+  - Cross-module side effects and realtime sync are decoupled via in-process domain events using `EventEmitter2` (`@nestjs/event-emitter`).
+  - Domain services publish events (e.g., `emitEntitySyncDomainEvent(this.eventEmitter, EntitySyncDomainEvents.USER_UPDATED, payload)`).
+  - Gateways (`EntitySyncGateway`, `NotificationsGateway`, `TextRoomsGateway`) or listener services subscribe using `@OnEvent`.
+  - **Never inject WebSocket gateways into feature domain services.** Keep domain services transport-agnostic.
+
 ## General
 
 - Smallest change that fully solves the problem; do not refactor unrelated code.
@@ -71,7 +92,7 @@ Path aliases (prefer these over deep relative imports):
 
 ### Modules & DI
 
-- Register entities with `MikroOrmModule.forFeature([...])` inside the owning feature module.
+- Register entities with `MikroOrmModule.forFeature([...])` strictly inside the owning feature module. Never register foreign entities in `forFeature` or perform ad-hoc ORM queries across module boundaries (`em.find(ForeignEntity)`); delegate through public domain services or facades instead.
 - Cross-cutting infrastructure (config/`AppService`, password hashing, encryption, file storage) lives in `shared/` and is provided via `SharedModule`.
 - Alternate implementations use injection tokens (e.g. `FileServiceInjectionToken`); follow that pattern when swapping backends.
 
@@ -79,8 +100,10 @@ Path aliases (prefer these over deep relative imports):
 
 - Protect HTTP routes with `@UseGuards(AuthGuard)`.
 - Current user: `@Author()` (set by the guard).
-- Role-restrict with `@AuthGuardRoles([...])` when needed (`OWNER` / `ADMIN` / `MEMBER`).
-- Do not invent a second auth mechanism; extend the existing guard/decorators.
+- Require granular permissions with `@RequirePermissions([EPermission...])` on routes protected by `@UseGuards(AuthGuard)`.
+- Instance owner (`isOwner: true`) bypasses all permission and private room restrictions and unconditionally holds all capabilities.
+- Flexible RBAC: user roles and permissions are resolved through `PermissionsFacade` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments. External modules interact with authorization and role resolution solely through `PermissionsFacade`.
+- Room access control: verify room visibility/membership with `RoomsFacade.canAccessRoom(user, room)` or `RoomsFacade.assertCanAccessRoom(user, roomId)` on HTTP and WebSocket handlers.
 - WebSocket gateways authenticate from handshake cookies via `AuthService` (same JWT cookies as HTTP).
 
 ### DTOs & validation
@@ -133,4 +156,3 @@ Path aliases (prefer these over deep relative imports):
 - [nestjs-zod](https://github.com/BenLorantfy/nestjs-zod) — DTO / validation integration
 - Shared contracts: `libs/shared` (`@konvoez/shared`)
 - Security model: `docs/SECURITY.md`
-  )

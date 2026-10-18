@@ -7,6 +7,9 @@ jest.mock('../auth/auth.service', () => ({
 jest.mock('@shared/services/app.service', () => ({
   AppService: class {},
 }));
+jest.mock('../rooms/rooms.facade', () => ({
+  RoomsFacade: class {},
+}));
 // Keep mediasoup out of Jest resolution (node10 / package exports). Specs mock state.
 jest.mock('mediasoup', () => ({
   createWorker: jest.fn(),
@@ -34,6 +37,7 @@ import {
   EUserRole,
   EVoiceRoomEvent,
   ApiErrorCode,
+  EPermission,
   EVoiceSessionType,
   type IUser,
   type TVoiceRoomProduce,
@@ -51,6 +55,9 @@ const alice: IUser = {
   email: 'alice@example.com',
   avatarUrl: null,
   role: EUserRole.MEMBER,
+  isOwner: false,
+  roles: [],
+  permissions: [EPermission.CONNECT_VOICE],
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -93,7 +100,10 @@ function createSocket(
 
 describe('VoiceRoomsGateway', () => {
   let gateway: VoiceRoomsGateway;
-  let authService: { getUserFromRawCookies: jest.Mock };
+  let authService: {
+    getUserFromRawCookies: jest.Mock;
+    getActiveUserById: jest.Mock;
+  };
   let eventEmitter: { emit: jest.Mock };
   let voiceRoomsStateService: {
     ensureRoom: jest.Mock;
@@ -129,6 +139,11 @@ describe('VoiceRoomsGateway', () => {
   beforeEach(() => {
     authService = {
       getUserFromRawCookies: jest.fn(),
+      getActiveUserById: jest.fn().mockImplementation((id: number) => {
+        if (id === alice.id) return Promise.resolve(alice);
+        if (id === bob.id) return Promise.resolve(bob);
+        return Promise.resolve({ ...alice, id });
+      }),
     };
     eventEmitter = { emit: jest.fn() };
     voiceRoomsStateService = {
@@ -182,9 +197,14 @@ describe('VoiceRoomsGateway', () => {
       findRingingByCaller: jest.fn().mockReturnValue([]),
     };
 
+    const roomsFacadeMock = {
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+    };
+
     gateway = new VoiceRoomsGateway(
       authService as unknown as AuthService,
       {} as never,
+      roomsFacadeMock as never,
       voiceRoomsStateService as unknown as VoiceRoomsStateService,
       directCallsStateService as unknown as DirectCallsStateService,
       eventEmitter as never,
@@ -341,6 +361,45 @@ describe('VoiceRoomsGateway', () => {
       await expect(
         gateway.handleJoinRoom(socket as never, {} as never),
       ).rejects.toThrow('No room or session provided to join');
+    });
+
+    it('rejects join when socket has no user data', async () => {
+      const socket = createSocket({ data: { user: undefined } });
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('rejects join when fresh user lacks CONNECT_VOICE permission', async () => {
+      const socket = createSocket();
+      authService.getActiveUserById.mockResolvedValueOnce({
+        ...alice,
+        isOwner: false,
+        permissions: [],
+      });
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+      expect(authService.getUserFromRawCookies).not.toHaveBeenCalled();
+    });
+
+    it('rejects join when fresh user lookup fails', async () => {
+      const socket = createSocket();
+      authService.getActiveUserById.mockRejectedValueOnce(
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+      );
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('rejects joining a direct call that is not active for the user', async () => {
@@ -1713,9 +1772,13 @@ describe('VoiceRoomsGateway', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       realState = new DirectCallsStateService();
+      const roomsFacadeMock = {
+        assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+      };
       gateway = new VoiceRoomsGateway(
         authService as unknown as AuthService,
         {} as never,
+        roomsFacadeMock as never,
         voiceRoomsStateService as unknown as VoiceRoomsStateService,
         realState,
         eventEmitter as never,

@@ -10,7 +10,7 @@ import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { EPermission, IUser } from '@konvoez/shared';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
@@ -52,7 +52,9 @@ describe('ChatMessageComponent', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
@@ -345,9 +347,11 @@ describe('ChatMessageComponent', () => {
       senderUsername: 'bob',
     };
 
-    function loginAs(role: EUserRole): void {
+    function loginWith(overrides: Partial<IUser> = {}): void {
       TestBed.inject(Store).dispatch(
-        AuthActions.requestLoginSuccess({ user: { ...currentUser, role } }),
+        AuthActions.requestLoginSuccess({
+          user: { ...currentUser, ...overrides },
+        }),
       );
       fixture.detectChanges();
     }
@@ -359,7 +363,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('should allow deleting own messages in a room and in a direct chat', () => {
-      loginAs(EUserRole.MEMBER);
+      loginWith();
       expect(component['canDelete']()).toBe(true);
 
       fixture.componentRef.setInput('message', {
@@ -371,36 +375,40 @@ describe('ChatMessageComponent', () => {
       expect(component['canDelete']()).toBe(true);
     });
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
-      'should let %s delete another user room message',
-      (role) => {
-        loginAs(role);
+    it.each([
+      { isOwner: true, permissions: [] },
+      { isOwner: false, permissions: [EPermission.MODERATE_MESSAGES] },
+    ])(
+      'should let privileged user delete another user room message',
+      (overrides) => {
+        loginWith(overrides);
         fixture.componentRef.setInput('message', otherMessage);
         fixture.detectChanges();
         expect(component['canDelete']()).toBe(true);
       },
     );
 
-    it('should hide delete of another user room message for a member', () => {
-      loginAs(EUserRole.MEMBER);
+    it('should hide delete of another user room message for a normal member', () => {
+      loginWith({ isOwner: false, permissions: [] });
       fixture.componentRef.setInput('message', otherMessage);
       fixture.detectChanges();
       expect(component['canDelete']()).toBe(false);
     });
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER, EUserRole.MEMBER])(
-      'should hide delete of another user direct message for %s',
-      (role) => {
-        loginAs(role);
-        fixture.componentRef.setInput('message', {
-          ...otherMessage,
-          roomId: null,
-          recipientId: currentUser.id,
-        });
-        fixture.detectChanges();
-        expect(component['canDelete']()).toBe(false);
-      },
-    );
+    it.each([
+      { isOwner: true, permissions: [] },
+      { isOwner: false, permissions: [EPermission.MODERATE_MESSAGES] },
+      { isOwner: false, permissions: [] },
+    ])('should hide delete of another user direct message', (overrides) => {
+      loginWith(overrides);
+      fixture.componentRef.setInput('message', {
+        ...otherMessage,
+        roomId: null,
+        recipientId: currentUser.id,
+      });
+      fixture.detectChanges();
+      expect(component['canDelete']()).toBe(false);
+    });
   });
 
   describe('sender display from UsersStore', () => {
@@ -409,7 +417,9 @@ describe('ChatMessageComponent', () => {
       username: 'bob-new',
       fullname: 'Bob New',
       email: 'bob@example.com',
-      role: EUserRole.MEMBER,
+      isOwner: false,
+      roles: [],
+      permissions: [],
       avatar: 'avatar-key',
       avatarUrl: '/api/v1/users/avatar/stream?key=avatar-key',
       createdAt: new Date('2026-01-02'),

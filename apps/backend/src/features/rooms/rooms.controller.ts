@@ -19,9 +19,9 @@ import { RoomsService } from './rooms.service';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import {
-  AuthGuardRoles,
   AuthRefreshFallback,
   Author,
+  RequirePermissions,
 } from '../auth/auth.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { avatarUploadLimits } from '@shared/services/file.service';
@@ -29,7 +29,7 @@ import { RoomsAvatarsService } from './rooms-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
+import { EPermission } from '@konvoez/shared';
 
 @Controller('rooms')
 @UseGuards(AuthGuard)
@@ -40,7 +40,7 @@ export class RoomsController {
   ) {}
 
   @Post()
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
+  @RequirePermissions([EPermission.MANAGE_ROOMS])
   @ApiOkResponse({ type: GetRoomDto })
   async create(
     @Body() dto: CreateRoomDto,
@@ -52,12 +52,12 @@ export class RoomsController {
 
   @Get()
   @ApiOkResponse({ type: GetRoomDto, isArray: true })
-  findAll(): Promise<GetRoomDto[]> {
-    return this.roomsService.findAllAsDto();
+  findAll(@Author() author: GetUserDto): Promise<GetRoomDto[]> {
+    return this.roomsService.findAllAsDto(author);
   }
 
   @Post('avatar/upload')
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
+  @RequirePermissions([EPermission.MANAGE_ROOMS])
   @UseInterceptors(FileInterceptor('avatar', { limits: avatarUploadLimits }))
   @ApiOkResponse({
     type: UploadFileResultDto,
@@ -96,12 +96,15 @@ export class RoomsController {
 
   @Get(':id')
   @ApiOkResponse({ type: GetRoomDto })
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<GetRoomDto> {
-    return this.roomsService.findOneAsDto(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Author() author: GetUserDto,
+  ): Promise<GetRoomDto> {
+    return this.roomsService.findOneAsDto(id, author);
   }
 
   @Put(':id')
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
+  @RequirePermissions([EPermission.MANAGE_ROOMS])
   @ApiOkResponse({ type: GetRoomDto })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -112,7 +115,7 @@ export class RoomsController {
   }
 
   @Delete(':id')
-  @AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
+  @RequirePermissions([EPermission.MANAGE_ROOMS])
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.roomsService.remove(id);
   }

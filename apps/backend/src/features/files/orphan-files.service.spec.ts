@@ -16,13 +16,16 @@ jest.mock('@mikro-orm/core', () => {
     EntityManager: class EntityManager {},
   };
 });
+jest.mock('../rooms/rooms.facade', () => ({
+  RoomsFacade: class {},
+}));
 
 import type { EntityManager, MikroORM } from '@mikro-orm/core';
 import type {
   FileService,
   StoredFileInfo,
 } from '@shared/services/file.service';
-import { RoomEntity } from '../rooms/rooms.entity';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { UserEntity } from '../users/users.entity';
 import { MessageAttachmentEntity } from '../attachments/attachments.entity';
 import { OrphanFilesService } from './orphan-files.service';
@@ -36,6 +39,7 @@ describe('OrphanFilesService', () => {
 
   let service: OrphanFilesService;
   let find: jest.Mock;
+  let roomsFacade: { findAvatarKeys: jest.Mock };
   let fileService: jest.Mocked<Pick<FileService, 'list' | 'delete'>>;
   let oldFile: StoredFileInfo;
   let freshFile: StoredFileInfo;
@@ -44,9 +48,6 @@ describe('OrphanFilesService', () => {
     find = jest.fn(async (entity: unknown) => {
       if (entity === UserEntity) {
         return [{ avatar: referencedUserKey }];
-      }
-      if (entity === RoomEntity) {
-        return [{ avatar: referencedRoomKey }];
       }
       if (entity === MessageAttachmentEntity) {
         return [
@@ -58,6 +59,10 @@ describe('OrphanFilesService', () => {
       }
       return [];
     });
+
+    roomsFacade = {
+      findAvatarKeys: jest.fn().mockResolvedValue([referencedRoomKey]),
+    };
 
     const em = {
       fork: jest.fn(() => ({ find }) as unknown as EntityManager),
@@ -71,6 +76,7 @@ describe('OrphanFilesService', () => {
     service = new OrphanFilesService(
       { em } as unknown as MikroORM,
       fileService as unknown as FileService,
+      roomsFacade as unknown as RoomsFacade,
     );
 
     const gracePeriodMs = service['orphanGracePeriodMs'];
@@ -109,6 +115,7 @@ describe('OrphanFilesService', () => {
       return [];
     });
     find.mockResolvedValue([]);
+    roomsFacade.findAvatarKeys.mockResolvedValue([]);
     await expect(service.cleanup(now)).resolves.toBe(1);
     expect(fileService.delete).toHaveBeenCalledWith(roomOrphan);
   });

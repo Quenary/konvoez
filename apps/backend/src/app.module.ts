@@ -19,6 +19,8 @@ import { NotificationsModule } from './features/notifications/notifications.modu
 import { FilesModule } from './features/files/files.module';
 import { AttachmentsModule } from './features/attachments/attachments.module';
 import { EntitySyncModule } from './features/entity-sync/entity-sync.module';
+import { PermissionsModule } from './features/permissions/permissions.module';
+import { RolesModule } from './features/roles/roles.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
@@ -30,6 +32,8 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     EventEmitterModule.forRoot(),
     CacheModule.register({ isGlobal: true }),
     VoiceRoomsModule,
+    PermissionsModule,
+    RolesModule,
     AuthModule,
     RoomsModule,
     UsersModule,

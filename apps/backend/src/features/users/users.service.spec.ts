@@ -23,10 +23,8 @@ import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
 import { PasswordService } from '../../shared/services/password.service';
-import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import {
-  ROOM_AVATARS_BUCKET,
   USER_AVATARS_BUCKET,
   type FileService,
 } from '@shared/services/file.service';
@@ -49,6 +47,7 @@ describe('UsersService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
     avatar: null,
     deletedAt: null,
     createdAt: new Date(),
@@ -94,12 +93,20 @@ describe('UsersService', () => {
     } as unknown as jest.Mocked<FileService>;
 
     eventEmitter = { emit: jest.fn() };
+    const permissionsFacade = {
+      getUserPermissions: jest.fn().mockResolvedValue([]),
+      getDefaultPermissions: jest.fn().mockResolvedValue([]),
+      findRolesByIds: jest.fn().mockResolvedValue([]),
+      hasPermission: jest.fn().mockResolvedValue(true),
+      hasAllPermissions: jest.fn().mockResolvedValue(true),
+    };
 
     service = new UsersService(
       mockRepo,
       passwordService,
       fileService,
       eventEmitter as never,
+      permissionsFacade as never,
     );
   });
 
@@ -124,9 +131,13 @@ describe('UsersService', () => {
 
       const result = await service.findOneByUsernameOrEmail('Test_User');
 
-      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
-        $or: [{ username: 'Test_User' }, { email: 'test_user' }],
-      });
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(
+        UserEntity,
+        {
+          $or: [{ username: 'Test_User' }, { email: 'test_user' }],
+        },
+        { populate: ['roles'] },
+      );
       expect(result).toBe(mockUser);
     });
 
@@ -135,9 +146,16 @@ describe('UsersService', () => {
 
       await service.findOneByUsernameOrEmail('User@Example.COM');
 
-      expect(mockForkedEm.findOne).toHaveBeenCalledWith(UserEntity, {
-        $or: [{ username: 'User@Example.COM' }, { email: 'user@example.com' }],
-      });
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(
+        UserEntity,
+        {
+          $or: [
+            { username: 'User@Example.COM' },
+            { email: 'user@example.com' },
+          ],
+        },
+        { populate: ['roles'] },
+      );
     });
 
     it('should throw NotFoundException when no user matches', async () => {
@@ -192,39 +210,32 @@ describe('UsersService', () => {
         'avatar-key',
         USER_AVATARS_BUCKET,
       );
-      expect(result.role).toBe(EUserRole.ADMIN);
+      expect(result.isOwner).toBe(false);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_UPDATED,
-        expect.objectContaining({ id: 5, role: EUserRole.ADMIN }),
+        expect.objectContaining({ id: 5, isOwner: false }),
       );
     });
   });
 
   describe('removeLoaded', () => {
-    it('should delete the user, their rooms and messages, and leave other rooms untouched', async () => {
+    it('should delete the user and their direct messages, and clean up avatar file', async () => {
       const target = {
         ...mockUser,
         id: 5,
         role: EUserRole.MEMBER,
         avatar: 'avatar-key',
       } as UserEntity;
-      const ownRoom = { id: 10, avatar: 'room-key' };
       const messageId = new Uint8Array(16);
       mockEm.findOne.mockResolvedValueOnce(target);
-      mockEm.find
-        .mockResolvedValueOnce([ownRoom] as never)
-        .mockResolvedValueOnce([{ id: messageId }] as never);
+      mockEm.find.mockResolvedValueOnce([{ id: messageId }] as never);
 
       await service.removeLoaded(5);
 
-      expect(mockEm.find).toHaveBeenNthCalledWith(1, RoomEntity, {
-        author: 5,
-      });
-      expect(mockEm.find).toHaveBeenNthCalledWith(
-        2,
+      expect(mockEm.find).toHaveBeenCalledWith(
         MessageEntity,
         {
-          $or: [{ sender: 5 }, { recipient: 5 }, { room: { $in: [10] } }],
+          $or: [{ sender: 5 }, { recipient: 5 }],
         },
         { fields: ['id'] },
       );
@@ -236,26 +247,39 @@ describe('UsersService', () => {
       expect(mockEm.nativeDelete).toHaveBeenCalledWith(MessageEntity, {
         id: { $in: [messageId] },
       });
-      expect(mockEm.nativeDelete).toHaveBeenCalledWith(RoomEntity, {
-        id: { $in: [10] },
-      });
-      expect(mockEm.nativeDelete).not.toHaveBeenCalledWith(
-        RoomEntity,
-        expect.objectContaining({ id: { $in: expect.arrayContaining([11]) } }),
-      );
       expect(mockEm.remove).toHaveBeenCalledWith(target);
       expect(fileService.delete).toHaveBeenCalledWith(
         'avatar-key',
         USER_AVATARS_BUCKET,
       );
-      expect(fileService.delete).toHaveBeenCalledWith(
-        'room-key',
-        ROOM_AVATARS_BUCKET,
-      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.ROOM_DELETED,
-        { id: 10 },
+        EntitySyncDomainEvents.USER_DELETED,
+        { id: 5 },
       );
+    });
+
+    it('should handle user deletion when user has no messages', async () => {
+      const target = {
+        ...mockUser,
+        id: 5,
+        role: EUserRole.MEMBER,
+        avatar: null,
+      } as UserEntity;
+      mockEm.findOne.mockResolvedValueOnce(target);
+      mockEm.find.mockResolvedValueOnce([]);
+
+      await service.removeLoaded(5);
+
+      expect(mockEm.find).toHaveBeenCalledWith(
+        MessageEntity,
+        {
+          $or: [{ sender: 5 }, { recipient: 5 }],
+        },
+        { fields: ['id'] },
+      );
+      expect(mockEm.nativeDelete).not.toHaveBeenCalled();
+      expect(mockEm.remove).toHaveBeenCalledWith(target);
+      expect(fileService.delete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_DELETED,
         { id: 5 },

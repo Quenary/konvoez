@@ -3,7 +3,7 @@ import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ERoomType, EUserRole, IUser } from '@konvoez/shared';
+import { EPermission, ERoomType, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
@@ -23,7 +23,10 @@ describe('RoomManageService', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.ADMIN,
+    isOwner: false,
+    roles: [],
+    permissions: [EPermission.MANAGE_ROOMS],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -35,6 +38,9 @@ describe('RoomManageService', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    isPrivate: false,
+    allowedRoleIds: [],
+    allowedUserIds: [],
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,

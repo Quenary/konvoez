@@ -6,7 +6,7 @@ import { provideStore } from '@ngrx/store';
 import { DirectChatDialogComponent } from './direct-chat-dialog.component';
 import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 
 describe('DirectChatDialogComponent', () => {
   let component: DirectChatDialogComponent;
@@ -17,7 +17,10 @@ describe('DirectChatDialogComponent', () => {
     username: 'me',
     fullname: 'Current User',
     email: 'me@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -28,7 +31,10 @@ describe('DirectChatDialogComponent', () => {
     username: 'alice',
     fullname: 'Alice Wonderland',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -39,7 +45,10 @@ describe('DirectChatDialogComponent', () => {
     username: 'bob',
     fullname: 'Bob Builder',
     email: 'bob@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,

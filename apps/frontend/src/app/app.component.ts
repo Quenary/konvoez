@@ -21,7 +21,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
-import { EUserRole } from '@konvoez/shared';
+import { EPermission } from '@konvoez/shared';
 import { ConnectionStateNotificationComponent } from '@shared/components/connection-state-notification/connection-state-notification.component';
 import { PwaUpdateNotificationComponent } from '@shared/components/pwa-update-notification/pwa-update-notification.component';
 import { PendingCallDialogComponent } from '@shared/components/voice-room/pending-call-dialog/pending-call-dialog.component';
@@ -64,13 +64,44 @@ export class App {
     this.store.selectSignal(selectIsAuthorized);
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
-  protected readonly isAdminOrOwner = computed(() => {
-    const role = this.currentUser()?.role;
-    return role === EUserRole.ADMIN || role === EUserRole.OWNER;
+  protected readonly isOwner = computed(() => {
+    return Boolean(this.currentUser()?.isOwner);
   });
 
-  protected readonly isOwner = computed(() => {
-    return this.currentUser()?.role === EUserRole.OWNER;
+  protected readonly canManageInvites = computed(() => {
+    const user = this.currentUser();
+    return Boolean(
+      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_INVITES),
+    );
+  });
+
+  protected readonly canManageUsers = computed(() => {
+    const user = this.currentUser();
+    return Boolean(
+      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_USERS),
+    );
+  });
+
+  protected readonly canManageRoles = computed(() => {
+    const user = this.currentUser();
+    return Boolean(
+      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_ROLES),
+    );
+  });
+
+  protected readonly canManageSettings = computed(() => {
+    const user = this.currentUser();
+    return Boolean(
+      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_SETTINGS),
+    );
+  });
+
+  protected readonly canSeeAdminSection = computed(() => {
+    const invites = this.canManageInvites();
+    const users = this.canManageUsers();
+    const roles = this.canManageRoles();
+    const settings = this.canManageSettings();
+    return invites || users || roles || settings;
   });
 
   protected readonly collapsed = linkedSignal(() => this.isNarrow());

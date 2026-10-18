@@ -11,6 +11,7 @@ import {
   attachmentsMaxPosterSize,
   attachmentsThumbnailMaxSide,
   EAttachmentKind,
+  EPermission,
   ESettingKey,
   IAttachment,
   IAttachmentUploadHints,
@@ -28,6 +29,7 @@ import { ImageProcessingService } from '@shared/services/image-processing.servic
 import { VideoProcessingService } from '@shared/services/video-processing.service';
 import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
+import { RoomsFacade, type TRoomAccessTarget } from '../rooms/rooms.facade';
 import { GetUserDto } from '../users/users.dto';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
@@ -68,6 +70,7 @@ export class AttachmentsService {
     private readonly imageProcessingService: ImageProcessingService,
     private readonly videoProcessingService: VideoProcessingService,
     private readonly settingsService: SettingsService,
+    private readonly roomsFacade: RoomsFacade,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -77,6 +80,16 @@ export class AttachmentsService {
     file: { path?: string; size: number; originalname?: string } | undefined,
     extras?: IUploadExtras,
   ): Promise<IAttachment> {
+    if (
+      !author.isOwner &&
+      !author.permissions?.includes(EPermission.USE_ATTACHMENTS)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        'Permission denied to upload attachments',
+      );
+    }
+
     if (!file?.path) {
       throw AppException.badRequest(
         ApiErrorCode.FILE_REQUIRED,
@@ -185,6 +198,9 @@ export class AttachmentsService {
       {
         populate: [
           'message',
+          'message.room',
+          'message.room.allowedRoles',
+          'message.room.allowedUsers',
           'message.sender',
           'message.recipient',
           'uploader',
@@ -229,14 +245,14 @@ export class AttachmentsService {
 
   public canReadMessage(
     message: {
-      room?: unknown;
+      room?: TRoomAccessTarget | null;
       sender: { id: number };
       recipient?: { id: number } | null;
     },
     user: GetUserDto,
   ): boolean {
     if (message.room) {
-      return true;
+      return this.roomsFacade.canAccessRoom(user, message.room);
     }
     return message.sender.id === user.id || message.recipient?.id === user.id;
   }

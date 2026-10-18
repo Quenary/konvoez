@@ -17,11 +17,17 @@ export const roomCreateSchema = z.object({
   name: roomNameSchema,
   type: roomTypeSchema,
   avatar: stringSchema.optional(),
+  isPrivate: z.boolean().optional(),
+  allowedRoleIds: z.array(z.number().int()).optional(),
+  allowedUserIds: z.array(z.number().int()).optional(),
 });
 
 export const roomUpdateSchema = z.object({
-  name: roomNameSchema,
+  name: roomNameSchema.optional(),
   avatar: stringSchema.nullish(),
+  isPrivate: z.boolean().optional(),
+  allowedRoleIds: z.array(z.number().int()).optional(),
+  allowedUserIds: z.array(z.number().int()).optional(),
 });
 
 export const roomAuthorSchema = userBriefSchema.clone();
@@ -34,6 +40,9 @@ export const roomSchema = baseEntitySchema.extend({
   avatar: stringSchema.nullish(),
   avatarUrl: stringSchema.nullish(),
   author: roomAuthorSchema,
+  isPrivate: z.boolean().default(false),
+  allowedRoleIds: z.array(z.number().int()).default([]),
+  allowedUserIds: z.array(z.number().int()).default([]),
 });
 
 export type IRoomCreate = z.infer<typeof roomCreateSchema>;

@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core';
-import { EUserRole } from '@konvoez/shared';
+import { EPermission, EUserRole } from '@konvoez/shared';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { GetUserDto } from '../users/users.dto';
 
@@ -9,6 +9,17 @@ import type { GetUserDto } from '../users/users.dto';
  * @default all roles
  */
 export const AuthGuardRoles = Reflector.createDecorator<EUserRole[]>();
+
+/**
+ * Decorator to require specific permissions for the endpoint.
+ * Instance owner always bypasses this check.
+ */
+export const RequirePermissions = Reflector.createDecorator<EPermission[]>();
+
+/**
+ * Decorator to require instance owner privileges.
+ */
+export const RequireOwner = Reflector.createDecorator<true>();
 
 /**
  * On GET, when the access cookie is missing, renew the session from the

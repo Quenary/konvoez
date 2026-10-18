@@ -1,8 +1,9 @@
 import { defineEntity, p, Cascade } from '@mikro-orm/core';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { KonvoezBaseEntitySchema } from '../../shared/types/base.entity';
 import { RoomEntitySchema } from '../rooms/rooms.entity';
 import { MessageEntitySchema } from '../text-rooms/text-rooms.entity';
+import { RoleEntitySchema } from '../roles/roles.entity';
 
 export const UserEntitySchema = defineEntity({
   name: 'UserEntity',
@@ -14,7 +15,13 @@ export const UserEntitySchema = defineEntity({
     password: p.string().length(128).hidden(),
     fullname: p.string().length(128).index(),
     email: p.string().length(128).index().unique(),
-    role: p.enum(() => EUserRole).default(EUserRole.MEMBER),
+    isOwner: p.boolean().default(false),
+    roles: () =>
+      p
+        .manyToMany(RoleEntitySchema)
+        .pivotTable('user_roles')
+        .joinColumn('user_id')
+        .inverseJoinColumn('role_id'),
     avatar: p.string().length(512).nullable(),
     deletedAt: p.datetime().nullable(),
 
@@ -36,6 +43,6 @@ export const UserEntitySchema = defineEntity({
 
 export class UserEntity
   extends UserEntitySchema.class
-  implements Omit<IUser, 'avatarUrl'> {}
+  implements Omit<IUser, 'avatarUrl' | 'roles' | 'permissions'> {}
 
 UserEntitySchema.setClass(UserEntity);

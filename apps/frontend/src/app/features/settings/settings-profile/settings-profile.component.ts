@@ -35,7 +35,6 @@ import {
 } from '@core/auth/auth.selectors';
 import {
   emailSchema,
-  EUserRole,
   fullnameSchema,
   IProfileUpdate,
   maxAvatarSize,
@@ -92,7 +91,7 @@ export class SettingsProfileComponent {
   protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly canDeleteAccount = computed(() => {
     const currentUser = this.currentUser();
-    return currentUser != null && currentUser.role !== EUserRole.OWNER;
+    return currentUser != null && !currentUser.isOwner;
   });
   protected readonly form = new FormGroup(
     {

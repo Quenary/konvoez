@@ -91,6 +91,7 @@ computed(() => {
 - Put host bindings in the `host` object of `@Component` / `@Directive` — do not use `@HostBinding` / `@HostListener`.
 - Do not use `ngClass` / `ngStyle` — they add runtime overhead. Use `[class.foo]` / `[style.prop]` for dynamic bindings. The native `style=""` attribute is acceptable for one or two static values where adding a separate CSS class would be boilerplate.
 - Lazy-load feature routes with `loadComponent` (see `app.routes.ts`).
+- Protect routes with functional guards: `authGuard`, `unauthGuard`, `ownerGuard`, or `permissionGuard(EPermission.SOME_PERMISSION)`.
 - Keep components focused; push shared or heavy logic into services or stores.
 
 ### Templates

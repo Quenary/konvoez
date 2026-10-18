@@ -26,7 +26,6 @@ import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import {
   ESettingKey,
-  EUserRole,
   IPasswordRecoveryConfirm,
   IPasswordRecoveryRequest,
   passwordRecoveryCodeLength,
@@ -94,7 +93,7 @@ export class AuthService implements OnApplicationBootstrap {
           'Invalid or missing owner setup token',
         );
       }
-      const user = await this.createUser(dto, EUserRole.OWNER);
+      const user = await this.createUser(dto, true);
       await this.cacheManager.del(this.ownerSetupTokenCacheKey);
       this.logger.log(`Owner account created. Setup token consumed.`);
       return this.emitUserCreated(user);
@@ -116,17 +115,17 @@ export class AuthService implements OnApplicationBootstrap {
       invite = await this.invitesService.validate(dto.inviteCode, dto.email);
     }
 
-    const user = await this.createUser(dto, EUserRole.MEMBER);
+    const user = await this.createUser(dto, false);
 
     if (invite) {
       await this.invitesService.consume(invite, user);
     }
 
-    return this.emitUserCreated(user);
+    return await this.emitUserCreated(user);
   }
 
-  private emitUserCreated(user: UserEntity): GetUserDto {
-    const result = this.usersService.toDto(user);
+  private async emitUserCreated(user: UserEntity): Promise<GetUserDto> {
+    const result = await this.usersService.toDtoWithPermissions(user);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_CREATED,
@@ -137,7 +136,7 @@ export class AuthService implements OnApplicationBootstrap {
 
   private async createUser(
     dto: AuthRegisterDto,
-    role: EUserRole,
+    isOwner: boolean,
   ): Promise<UserEntity> {
     const existingUsername = await this.userRepo.findOne({
       username: dto.username,
@@ -158,7 +157,7 @@ export class AuthService implements OnApplicationBootstrap {
     }
 
     const anyUser = (await this.usersService.count()) > 0;
-    if (!anyUser && role !== EUserRole.OWNER) {
+    if (!anyUser && !isOwner) {
       throw AppException.forbidden(
         ApiErrorCode.AUTH_SETUP_REQUIRED,
         'Initial setup required: first user must be registered as OWNER with a valid setup token',
@@ -171,7 +170,7 @@ export class AuthService implements OnApplicationBootstrap {
       {
         ...userData,
         password,
-        role,
+        isOwner,
       },
       { persist: true },
     );
@@ -212,7 +211,7 @@ export class AuthService implements OnApplicationBootstrap {
         'Invalid credentials',
       );
     }
-    return this.usersService.toDto(user);
+    return await this.usersService.toDtoWithPermissions(user);
   }
 
   async requestPasswordRecovery(
@@ -449,6 +448,10 @@ export class AuthService implements OnApplicationBootstrap {
   async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
     const res = this.verifyToken(accessToken, 'access');
     return await this.requireActiveUser(res.userId);
+  }
+
+  async getActiveUserById(userId: number): Promise<GetUserDto> {
+    return await this.requireActiveUser(userId);
   }
 
   async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {

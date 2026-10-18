@@ -12,9 +12,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { EUserRole } from '@konvoez/shared';
+import { EPermission } from '@konvoez/shared';
 import { AuthGuard } from '../auth/auth.guard';
-import { AuthGuardRoles, Author } from '../auth/auth.decorator';
+import { Author, RequirePermissions } from '../auth/auth.decorator';
 import { InvitesService } from './invites.service';
 import { InviteCreateDto, InviteDto } from './invites.dto';
 import type { GetUserDto } from '../users/users.dto';
@@ -22,7 +22,7 @@ import type { GetUserDto } from '../users/users.dto';
 @ApiTags('invites')
 @Controller('invites')
 @UseGuards(AuthGuard)
-@AuthGuardRoles([EUserRole.ADMIN, EUserRole.OWNER])
+@RequirePermissions([EPermission.MANAGE_INVITES])
 export class InvitesController {
   constructor(private readonly invitesService: InvitesService) {}
 

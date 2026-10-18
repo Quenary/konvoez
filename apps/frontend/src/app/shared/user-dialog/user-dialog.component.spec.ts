@@ -7,7 +7,7 @@ import {
   OutgoingMessagesStore,
 } from '@core/chat/outgoing/outgoing-messages.store';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { IUser } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
 import { provideRouter, Router } from '@angular/router';
@@ -42,7 +42,9 @@ describe('UserDialogComponent', () => {
     username: 'alice',
     fullname: 'Alice Example',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,

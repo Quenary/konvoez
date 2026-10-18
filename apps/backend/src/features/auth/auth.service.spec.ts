@@ -89,6 +89,9 @@ describe('AuthService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
@@ -102,6 +105,7 @@ describe('AuthService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
     avatar: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -177,6 +181,7 @@ describe('AuthService', () => {
             findOneByUsernameOrEmail: jest.fn(),
             findOneByAsDto: jest.fn(),
             toDto: jest.fn(),
+            toDtoWithPermissions: jest.fn(),
             count: jest.fn(),
             setPassword: jest.fn(),
           },
@@ -226,7 +231,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
 
@@ -237,7 +242,9 @@ describe('AuthService', () => {
         'password123',
         mockUserEntity.password,
       );
-      expect(usersService.toDto).toHaveBeenCalledWith(mockUserEntity);
+      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(
+        mockUserEntity,
+      );
       expect(result).toEqual(mockUserDto);
     });
 
@@ -246,7 +253,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser(
         'test@example.com',
@@ -264,7 +271,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('User@Example.COM', 'password123');
 
@@ -278,7 +285,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDto.mockReturnValueOnce(mockUserDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('  test_user  ', 'password123');
 
@@ -336,7 +343,7 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
       });
-      expect(usersService.toDto).not.toHaveBeenCalled();
+      expect(usersService.toDtoWithPermissions).not.toHaveBeenCalled();
     });
   });
 
@@ -461,6 +468,38 @@ describe('AuthService', () => {
         code: ApiErrorCode.UNAUTHORIZED,
       });
       expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getActiveUserById', () => {
+    it('should return user DTO by user id when active', async () => {
+      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+
+      const result = await service.getActiveUserById(1);
+
+      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(result).toEqual(mockUserDto);
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      usersService.findOneByAsDto.mockResolvedValueOnce({
+        ...mockUserDto,
+        deletedAt: new Date(),
+      });
+
+      await expect(service.getActiveUserById(1)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('should propagate not found error when user does not exist', async () => {
+      usersService.findOneByAsDto.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      await expect(service.getActiveUserById(999)).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
     });
   });
 
@@ -607,8 +646,8 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(0);
       cacheManager.get.mockResolvedValue(validToken);
 
-      const ownerDto = { ...mockUserDto, role: EUserRole.OWNER };
-      usersService.toDto.mockReturnValueOnce(ownerDto);
+      const ownerDto = { ...mockUserDto, isOwner: true };
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(ownerDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
@@ -620,7 +659,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           username: createDto.username,
           email: createDto.email,
-          role: EUserRole.OWNER,
+          isOwner: true,
           password: 'hashed_password',
         }),
         { persist: true },
@@ -633,21 +672,21 @@ describe('AuthService', () => {
         EntitySyncDomainEvents.USER_CREATED,
         ownerDto,
       );
-      expect(result.role).toBe(EUserRole.OWNER);
+      expect(result.isOwner).toBe(true);
     });
 
     it('should create MEMBER user and not require setup token when users already exist', async () => {
       usersService.count.mockResolvedValue(1);
-      const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
+      const memberDto = { ...mockUserDto, isOwner: false };
 
-      usersService.toDto.mockReturnValueOnce(memberDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
 
       expect(userRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          role: EUserRole.MEMBER,
+          isOwner: false,
         }),
         { persist: true },
       );
@@ -706,7 +745,7 @@ describe('AuthService', () => {
       const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
 
       userRepo.create.mockReturnValueOnce(createdMember);
-      usersService.toDto.mockReturnValueOnce(memberDto);
+      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
@@ -718,7 +757,7 @@ describe('AuthService', () => {
       );
       expect(userRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          role: EUserRole.MEMBER,
+          isOwner: false,
         }),
         { persist: true },
       );
@@ -726,7 +765,7 @@ describe('AuthService', () => {
         mockInvite,
         createdMember,
       );
-      expect(result.role).toBe(EUserRole.MEMBER);
+      expect(result.isOwner).toBe(false);
     });
 
     it('should not create user if invite validation fails', async () => {

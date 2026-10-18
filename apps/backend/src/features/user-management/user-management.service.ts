@@ -1,8 +1,6 @@
-import { InjectRepository } from '@mikro-orm/nestjs';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import {
   EntitySyncDomainEvents,
@@ -11,19 +9,18 @@ import {
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
+import { PermissionsFacade } from '../permissions/permissions.facade';
+import { RoomsFacade } from '../rooms/rooms.facade';
+import { UserManagementUpdateDto } from './user-management.dto';
 
 @Injectable()
 export class UserManagementService {
-  private readonly em: EntityManager;
-
   constructor(
-    @InjectRepository(UserEntity)
-    private readonly repo: EntityRepository<UserEntity>,
     private readonly usersService: UsersService,
+    private readonly permissionsFacade: PermissionsFacade,
+    private readonly roomsFacade: RoomsFacade,
     private readonly eventEmitter: EventEmitter2,
-  ) {
-    this.em = this.repo.getEntityManager();
-  }
+  ) {}
 
   async findAll(): Promise<GetUserDto[]> {
     return await this.usersService.findAllAsDto();
@@ -35,56 +32,54 @@ export class UserManagementService {
 
   async updateRole(
     id: number,
-    dto: { role?: EUserRole },
+    dto: UserManagementUpdateDto,
     author: GetUserDto,
   ): Promise<GetUserDto> {
-    const user = await this.load(id);
+    const user = await this.usersService.findOne(id);
     this.assertManageableTarget(id, author, user);
-    if (dto.role === EUserRole.OWNER) {
-      throw AppException.badRequest(
-        ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
-        'Owner role cannot be assigned',
+
+    const uniqueRoleIds = [...new Set(dto.roleIds)];
+    const roles = await this.permissionsFacade.findRolesByIds(uniqueRoleIds);
+    if (roles.length !== uniqueRoleIds.length) {
+      throw AppException.notFound(
+        ApiErrorCode.ROLE_NOT_FOUND,
+        'One or more roles not found',
       );
     }
-    if (!dto.role) {
-      throw AppException.badRequest(
-        ApiErrorCode.USER_UPDATE_EMPTY,
-        'At least one field is required',
+    for (const role of roles) {
+      this.permissionsFacade.assertCanManageRole(author, role.priority);
+      await this.permissionsFacade.assertCanGrantPermissions(
+        author,
+        role.permissions,
       );
     }
-    this.repo.assign(user, { role: dto.role });
-    this.em.persist(user);
-    await this.em.flush();
-    const result = this.usersService.toDto(user);
+    await this.usersService.updateUserRoles(user, roles);
+
+    const result = await this.usersService.toDtoWithPermissions(user);
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_UPDATED,
       result,
     );
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+      { userIds: [id] },
+    );
     return result;
   }
 
   async anonymize(id: number, author: GetUserDto): Promise<GetUserDto> {
-    const user = await this.load(id);
+    const user = await this.usersService.findOne(id);
     this.assertManageableTarget(id, author, user);
     return this.usersService.anonymizeLoaded(user);
   }
 
   async removePhysically(id: number, author: GetUserDto): Promise<void> {
-    const user = await this.load(id);
+    const user = await this.usersService.findOne(id);
     this.assertManageableTarget(id, author, user);
+    await this.roomsFacade.deleteRoomsByAuthor(id);
     await this.usersService.removeLoaded(id);
-  }
-
-  private async load(id: number): Promise<UserEntity> {
-    const user = await this.repo.findOne({ id });
-    if (!user) {
-      throw AppException.notFound(
-        ApiErrorCode.USER_NOT_FOUND,
-        'User not found',
-      );
-    }
-    return user;
   }
 
   private assertManageableTarget(
@@ -92,8 +87,9 @@ export class UserManagementService {
     author: GetUserDto,
     user: UserEntity,
   ): void {
-    if (id === author.id || user.role === EUserRole.OWNER) {
+    if (id === author.id || user.isOwner) {
       throw AppException.forbidden(ApiErrorCode.FORBIDDEN, 'Forbidden');
     }
+    this.permissionsFacade.assertCanManageUser(author, user);
   }
 }
