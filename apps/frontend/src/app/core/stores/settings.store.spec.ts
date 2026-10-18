@@ -49,21 +49,6 @@ describe('SettingsStore', () => {
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
   let ngrxStore: Store;
 
-  const configureTestBed = () => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideStore({ auth: authReducer }),
-        provideTranslateService(),
-        { provide: SettingsApiService, useValue: apiService },
-        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
-        { provide: MicrophoneService, useValue: microphone },
-        { provide: SpeakerService, useValue: speaker },
-        { provide: TuiNotificationService, useValue: mockNotifications },
-        SettingsStore,
-      ],
-    });
-  };
-
   const mockDevice = (overrides: Partial<MediaDeviceInfo>): MediaDeviceInfo =>
     ({
       deviceId: 'id',
@@ -85,9 +70,7 @@ describe('SettingsStore', () => {
     },
   ];
 
-  beforeEach(() => {
-    localStorage.clear();
-
+  const createFreshMocks = () => {
     apiService = {
       list: vi.fn().mockReturnValue(of(mockSettings)),
       update: vi.fn().mockReturnValue(of(mockSettings)),
@@ -111,19 +94,39 @@ describe('SettingsStore', () => {
     mockNotifications = {
       open: vi.fn().mockReturnValue(of(null)),
     };
+  };
 
-    configureTestBed();
+  const configureTestBed = () => {
+    TestBed.resetTestingModule();
+    createFreshMocks();
+    TestBed.configureTestingModule({
+      providers: [
+        provideStore({ auth: authReducer }),
+        provideTranslateService(),
+        { provide: SettingsApiService, useValue: apiService },
+        { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
+        { provide: MicrophoneService, useValue: microphone },
+        { provide: SpeakerService, useValue: speaker },
+        { provide: TuiNotificationService, useValue: mockNotifications },
+        SettingsStore,
+      ],
+    });
 
     ngrxStore = TestBed.inject(Store);
-    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
     store = TestBed.inject(SettingsStore);
+  };
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+    configureTestBed();
   });
 
   const originalNavigator = globalThis.navigator;
 
   afterEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
-    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
     Object.defineProperty(globalThis, 'navigator', {
@@ -133,6 +136,7 @@ describe('SettingsStore', () => {
   });
 
   it('should initialize with empty settings and need initial setup', () => {
+    TestBed.flushEffects();
     expect(store.settings()).toEqual([]);
     expect(store.entities()).toEqual([]);
     expect(store.loading()).toBe(false);
@@ -165,7 +169,6 @@ describe('SettingsStore', () => {
       JSON.stringify({ version: LOCAL_SETTINGS_VERSION, audioInput }),
     );
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     const hydrated = TestBed.inject(SettingsStore);
@@ -181,7 +184,6 @@ describe('SettingsStore', () => {
       JSON.stringify({ version: 0 }),
     );
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     expect(TestBed.inject(SettingsStore).needsInitialSetup()).toBe(true);
@@ -198,7 +200,6 @@ describe('SettingsStore', () => {
       }),
     );
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     const hydrated = TestBed.inject(SettingsStore);
@@ -363,7 +364,6 @@ describe('SettingsStore', () => {
       }),
     );
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     const hydrated = TestBed.inject(SettingsStore);
@@ -389,7 +389,6 @@ describe('SettingsStore', () => {
       },
     });
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     const mobileStore = TestBed.inject(SettingsStore);
@@ -414,7 +413,6 @@ describe('SettingsStore', () => {
       }),
     );
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     const mobileStore = TestBed.inject(SettingsStore);
@@ -424,7 +422,6 @@ describe('SettingsStore', () => {
   it('keeps state as deepfilter when SIMD is unsupported, but computes effective as RNNoise and persists deepfilter', () => {
     vi.spyOn(WebAssembly, 'validate').mockReturnValue(false);
 
-    TestBed.resetTestingModule();
     configureTestBed();
 
     const fallbackStore = TestBed.inject(SettingsStore);
@@ -446,6 +443,7 @@ describe('SettingsStore', () => {
 
   it('should fetch settings, populate entities and compute iceServers on loadAll', () => {
     store.loadAll();
+    TestBed.flushEffects();
 
     expect(apiService.list).toHaveBeenCalled();
     expect(store.settings()).toEqual(mockSettings);
@@ -461,6 +459,7 @@ describe('SettingsStore', () => {
     );
 
     store.loadAll();
+    TestBed.flushEffects();
 
     expect(store.loading()).toBe(false);
     expect(mockNotifications.open).toHaveBeenCalled();
@@ -487,6 +486,8 @@ describe('SettingsStore', () => {
       }),
     );
 
+    TestBed.flushEffects();
+
     expect(apiService.list).toHaveBeenCalled();
     expect(store.settings()).toEqual(mockSettings);
   });
@@ -505,6 +506,7 @@ describe('SettingsStore', () => {
     store.updateSettings([
       { key: ESettingKey.INVITE_ONLY_SIGN_UP, value: false },
     ]);
+    TestBed.flushEffects();
 
     expect(apiService.update).toHaveBeenCalledWith([
       { key: ESettingKey.INVITE_ONLY_SIGN_UP, value: false },
