@@ -883,7 +883,15 @@ export class TextRoomsService {
     const messages = await this.messageRepository.find(
       { id: { $in: rawIds } },
       {
-        populate: ['sender', 'recipient', 'room', 'replyTo', 'replyTo.sender'],
+        populate: [
+          'sender',
+          'recipient',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+          'replyTo',
+          'replyTo.sender',
+        ],
       },
     );
 

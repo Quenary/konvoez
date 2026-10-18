@@ -1212,6 +1212,20 @@ describe('TextRoomsService', () => {
         messageIds: [uuidStringify(ownId), uuidStringify(otherId)],
       });
 
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        { id: { $in: [ownId, otherId] } },
+        {
+          populate: [
+            'sender',
+            'recipient',
+            'room',
+            'room.allowedRoles',
+            'room.allowedUsers',
+            'replyTo',
+            'replyTo.sender',
+          ],
+        },
+      );
       expect(messageReadRepository.create).toHaveBeenCalledTimes(1);
       expect(messageReadRepository.create).toHaveBeenCalledWith({
         message: otherMessage,
@@ -1230,6 +1244,27 @@ describe('TextRoomsService', () => {
           isRead: true,
         }),
       );
+    });
+
+    it('should skip messages in rooms the user cannot access', async () => {
+      const otherId = parse(v7());
+      const otherMessage = {
+        id: otherId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10, isPrivate: true },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([otherMessage]);
+      roomsService.canAccessRoom.mockReturnValueOnce(false);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(otherId)],
+      });
+
+      expect(messageReadRepository.find).not.toHaveBeenCalled();
+      expect(messageReadRepository.create).not.toHaveBeenCalled();
+      expect(em.flush).not.toHaveBeenCalled();
     });
 
     it('should not insert a read that already exists', async () => {
