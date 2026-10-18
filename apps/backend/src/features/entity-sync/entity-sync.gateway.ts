@@ -190,6 +190,7 @@ export class EntitySyncGateway
     const affectedSet =
       payload.userIds.length > 0 ? new Set(payload.userIds) : null;
     const privateRooms = await this.roomsFacade.findPrivateRooms();
+    const updatedById = new Map<number, GetUserDto>();
 
     for (const [_, client] of this.server.sockets.sockets) {
       const current = client.data.user;
@@ -198,9 +199,12 @@ export class EntitySyncGateway
 
       try {
         const previous = current;
-        const updated = await this.usersService.findOneAsDto(current.id);
+        let updated = updatedById.get(current.id);
+        if (!updated) {
+          updated = await this.usersService.findOneAsDto(current.id);
+          updatedById.set(current.id, updated);
+        }
         client.data.user = updated;
-        client.emit(EEntitySyncEvent.USER_UPDATED, updated);
 
         for (const room of privateRooms) {
           const hadAccess = this.canUserAccessRoom(previous, room);
@@ -214,6 +218,23 @@ export class EntitySyncGateway
       } catch {
         // user might have been deleted concurrently
       }
+    }
+
+    if (payload.userIds.length > 0) {
+      for (const userId of payload.userIds) {
+        if (!updatedById.has(userId)) {
+          try {
+            const updated = await this.usersService.findOneAsDto(userId);
+            updatedById.set(userId, updated);
+          } catch {
+            // user might have been deleted concurrently
+          }
+        }
+      }
+    }
+
+    for (const updated of updatedById.values()) {
+      this.server.emit(EEntitySyncEvent.USER_UPDATED, updated);
     }
   }
 }
