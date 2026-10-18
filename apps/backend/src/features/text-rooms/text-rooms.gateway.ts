@@ -14,10 +14,13 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { AuthService } from '../auth/auth.service';
 import {
+  ApiErrorCode,
   ETextRoomEvent,
   type TTextRoomPeer,
   type TTextRoomEventMap,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
+import { toApiErrorResponse } from '@shared/errors/to-api-error';
 import { TextRoomJoinDto } from './text-rooms.dto';
 import {
   TextRoomDomainEvents,
@@ -66,7 +69,10 @@ export class TextRoomsGateway
         this.logger.warn(
           `Unauthorized socket connection attempt: socketId=${client.id}`,
         );
-        client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
+        this.emitError(
+          client,
+          AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+        );
         client.disconnect(true);
         return;
       }
@@ -87,7 +93,7 @@ export class TextRoomsGateway
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
+      this.emitError(client, error);
       client.disconnect(true);
     }
   }
@@ -128,18 +134,31 @@ export class TextRoomsGateway
       }
     }
 
+    if (!peer) {
+      this.logger.warn(`Socket join without peer: socketId=${client.id}`);
+      this.emitError(
+        client,
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+      );
+      return;
+    }
+
     if (roomId) {
-      if (peer) {
-        try {
-          const room = await this.roomsService.findOne(roomId);
-          if (!this.roomsService.canAccessRoom(peer, room)) {
-            client.emit(ETextRoomEvent.ERROR, { message: 'Access denied' });
-            return;
-          }
-        } catch {
-          client.emit(ETextRoomEvent.ERROR, { message: 'Room not found' });
+      try {
+        const room = await this.roomsService.findOne(roomId);
+        if (!this.roomsService.canAccessRoom(peer, room)) {
+          this.emitError(
+            client,
+            AppException.forbidden(
+              ApiErrorCode.ROOM_ACCESS_DENIED,
+              'Access to room is denied',
+            ),
+          );
           return;
         }
+      } catch (error) {
+        this.emitError(client, error);
+        return;
       }
       client.data.roomId = roomId;
       client.join(roomId.toString());
@@ -147,14 +166,15 @@ export class TextRoomsGateway
     if (recipientId) {
       client.data.recipientId = recipientId;
     }
-    if (peer) {
-      client.join(peer.id.toString());
-    } else {
-      this.logger.warn(`Socket join without peer: socketId=${client.id}`);
-    }
+    client.join(peer.id.toString());
     this.logger.debug(
-      `handleJoin: socketId=${client.id}, userId=${peer?.id}, roomId=${roomId}, recipientId=${recipientId}`,
+      `handleJoin: socketId=${client.id}, userId=${peer.id}, roomId=${roomId}, recipientId=${recipientId}`,
     );
+  }
+
+  private emitError(client: TSocket, exception: unknown): void {
+    const { body } = toApiErrorResponse(exception);
+    client.emit(ETextRoomEvent.ERROR, body);
   }
 
   @SubscribeMessage(ETextRoomEvent.LEAVE)

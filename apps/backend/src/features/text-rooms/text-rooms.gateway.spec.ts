@@ -9,7 +9,12 @@ jest.mock('../rooms/rooms.service', () => ({
 }));
 
 import { TextRoomsGateway } from './text-rooms.gateway';
-import { ETextRoomEvent, type ITextRoomMessage } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  ETextRoomEvent,
+  type ITextRoomMessage,
+} from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { v7 } from 'uuid';
 import { Server, Socket } from 'socket.io';
 
@@ -50,12 +55,85 @@ describe('TextRoomsGateway', () => {
       data: { peer: { id: 100 } },
       join: jest.fn(),
       leave: jest.fn(),
+      handshake: { headers: {} },
     } as unknown as Socket;
 
     await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
 
     expect(clientMock.join).toHaveBeenCalledWith('42');
     expect(clientMock.join).toHaveBeenCalledWith('100');
+  });
+
+  it('should deny handleJoin without peer and emit UNAUTHORIZED', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: {},
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.UNAUTHORIZED,
+      }),
+    );
+  });
+
+  it('should emit ROOM_ACCESS_DENIED when user cannot access private room', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: { peer: { id: 100 } },
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    roomsServiceMock.canAccessRoom.mockReturnValueOnce(false);
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      }),
+    );
+  });
+
+  it('should emit ROOM_NOT_FOUND when room does not exist', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: { peer: { id: 100 } },
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    roomsServiceMock.findOne.mockRejectedValueOnce(
+      AppException.notFound(ApiErrorCode.ROOM_NOT_FOUND, 'Room not found'),
+    );
+
+    await gateway.handleJoin({ roomId: 999, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.ROOM_NOT_FOUND,
+      }),
+    );
   });
 
   it('should leave room in handleLeave', () => {

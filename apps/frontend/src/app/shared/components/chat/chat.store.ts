@@ -9,6 +9,7 @@ import {
   ITextRoomListRequest,
   ITextRoomMessage,
   ITextRoomReactionGroup,
+  TTextRoomError,
   TTextRoomReactionUpdated,
 } from '@konvoez/shared';
 import {
@@ -666,6 +667,22 @@ export const ChatStore = signalStore(
       const outgoingStore = inject(OutgoingMessagesStore);
       const ngrxStore = inject(Store);
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
+      const apiErrorService = inject(ApiErrorService);
+      const tuiNotificationsService = inject(TuiNotificationService);
+      const translateService = inject(TranslateService);
+
+      fromEvent<TTextRoomError>(emitter, ETextRoomEvent.ERROR)
+        .pipe(takeUntilDestroyed())
+        .subscribe((err) => {
+          tuiNotificationsService
+            .open(apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+              autoClose: 5000,
+              closable: true,
+              label: translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
+        });
 
       const belongsToActiveChat = (message: ITextRoomMessage): boolean =>
         messageBelongsToChat(message, store.target(), currentUser()?.id);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ApiErrorCode } from '../errors';
 import { EUserRole } from '../enums';
 import {
   textRoomErrorSchema,
@@ -105,7 +106,10 @@ describe('TextRoom Schemas', () => {
   describe('textRoomErrorSchema', () => {
     it('accepts error message', () => {
       expect(
-        textRoomErrorSchema.safeParse({ message: 'Unauthorized' }).success,
+        textRoomErrorSchema.safeParse({
+          code: ApiErrorCode.UNAUTHORIZED,
+          message: 'Unauthorized',
+        }).success,
       ).toBe(true);
     });
   });
