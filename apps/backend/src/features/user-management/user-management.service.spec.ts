@@ -1,12 +1,14 @@
 jest.mock('@mikro-orm/nestjs', () => ({
   InjectRepository: () => () => undefined,
 }));
+
 jest.mock('@mikro-orm/core', () => {
   const createProxy = (): unknown =>
     new Proxy(() => createProxy(), {
       get: () => createProxy(),
       apply: () => createProxy(),
     });
+
   return {
     defineEntity: () => ({
       class: class {},
@@ -20,28 +22,28 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
-import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import type { GetUserDto } from '../users/users.dto';
-import { UserEntity } from '../users/users.entity';
+import type { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
+import { PermissionsFacade } from '../permissions/permissions.facade';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
-  let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
-  let mockEm: jest.Mocked<EntityManager>;
   let usersService: jest.Mocked<
     Pick<
       UsersService,
       | 'findAllAsDto'
+      | 'findOne'
       | 'findOneAsDto'
-      | 'toDto'
       | 'toDtoWithPermissions'
+      | 'updateUserRoles'
       | 'anonymizeLoaded'
       | 'removeLoaded'
     >
   >;
+  let permissionsFacade: jest.Mocked<Pick<PermissionsFacade, 'findRolesByIds'>>;
   let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
@@ -73,34 +75,27 @@ describe('UserManagementService', () => {
   };
 
   beforeEach(() => {
-    mockEm = {
-      flush: jest.fn().mockResolvedValue(undefined),
-      persist: jest.fn(),
-      find: jest.fn().mockResolvedValue([]),
-    } as unknown as jest.Mocked<EntityManager>;
-
-    mockRepo = {
-      getEntityManager: jest.fn().mockReturnValue(mockEm),
-      findOne: jest.fn(),
-      assign: jest.fn().mockReturnValue(mockUser),
-    } as unknown as jest.Mocked<EntityRepository<UserEntity>>;
-
     usersService = {
       findAllAsDto: jest.fn(),
+      findOne: jest.fn(),
       findOneAsDto: jest.fn(),
-      toDto: jest.fn((user: UserEntity) => user as unknown as GetUserDto),
       toDtoWithPermissions: jest.fn(
         async (user: UserEntity) => user as unknown as GetUserDto,
       ),
+      updateUserRoles: jest.fn(),
       anonymizeLoaded: jest.fn(),
       removeLoaded: jest.fn().mockResolvedValue(undefined),
+    };
+
+    permissionsFacade = {
+      findRolesByIds: jest.fn().mockResolvedValue([]),
     };
 
     eventEmitter = { emit: jest.fn() };
 
     service = new UserManagementService(
-      mockRepo,
       usersService as unknown as UsersService,
+      permissionsFacade as unknown as PermissionsFacade,
       eventEmitter as never,
     );
   });
@@ -131,15 +126,18 @@ describe('UserManagementService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        roles: { set: jest.fn() },
-      } as unknown as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
-      mockEm.find.mockResolvedValueOnce([{ id: 2 }] as never);
+      } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2 } as never,
+      ]);
 
       await service.updateRole(5, { roleIds: [2] }, ownerAuthor);
 
-      expect(target.roles.set).toHaveBeenCalledWith([{ id: 2 }]);
-      expect(mockEm.flush).toHaveBeenCalled();
+      expect(permissionsFacade.findRolesByIds).toHaveBeenCalledWith([2]);
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
+        { id: 2 },
+      ]);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5 }),
@@ -152,14 +150,14 @@ describe('UserManagementService', () => {
         id: 5,
         isOwner: true,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(
         service.updateRole(5, { role: EUserRole.ADMIN }, ownerAuthor),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });
-      expect(mockRepo.assign).not.toHaveBeenCalled();
+      expect(usersService.updateUserRoles).not.toHaveBeenCalled();
     });
 
     it('should reject assigning the owner role', async () => {
@@ -168,7 +166,7 @@ describe('UserManagementService', () => {
         id: 5,
         role: EUserRole.MEMBER,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(
         service.updateRole(5, { role: EUserRole.OWNER }, ownerAuthor),
@@ -178,7 +176,7 @@ describe('UserManagementService', () => {
     });
 
     it('should reject changing the caller own role', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
+      usersService.findOne.mockResolvedValueOnce(mockUser);
 
       await expect(
         service.updateRole(1, { role: EUserRole.ADMIN }, mockUserDto),
@@ -202,7 +200,7 @@ describe('UserManagementService', () => {
         role: EUserRole.ADMIN,
       } as UserEntity;
       const anonymized = { ...mockUserDto, id: 5, role: EUserRole.ADMIN };
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
       usersService.anonymizeLoaded.mockResolvedValueOnce(anonymized);
 
       const result = await service.anonymize(5, ownerAuthor);
@@ -217,7 +215,7 @@ describe('UserManagementService', () => {
         id: 5,
         isOwner: true,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(service.anonymize(5, ownerAuthor)).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
@@ -239,7 +237,7 @@ describe('UserManagementService', () => {
         id: 5,
         role: EUserRole.MEMBER,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await service.removePhysically(5, ownerAuthor);
 
@@ -252,7 +250,7 @@ describe('UserManagementService', () => {
         id: 5,
         isOwner: true,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(
         service.removePhysically(5, ownerAuthor),
