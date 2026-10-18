@@ -1,0 +1,219 @@
+jest.mock('@mikro-orm/nestjs', () => ({
+  InjectRepository: () => () => undefined,
+}));
+
+jest.mock('@mikro-orm/core', () => {
+  const createProxy = (): unknown =>
+    new Proxy(() => createProxy(), {
+      get: () => createProxy(),
+      apply: () => createProxy(),
+    });
+
+  return {
+    defineEntity: () => ({
+      class: class {},
+      setClass: () => undefined,
+      addHook: () => undefined,
+    }),
+    p: createProxy(),
+    Cascade: {},
+    EntityManager: class EntityManager {},
+  };
+});
+
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import type { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { RoleEntity } from './roles.entity';
+import { RolesService } from './roles.service';
+
+describe('RolesService', () => {
+  let service: RolesService;
+  let mockRepo: jest.Mocked<EntityRepository<RoleEntity>>;
+  let mockEm: jest.Mocked<EntityManager>;
+
+  const mockRole = {
+    id: 1,
+    name: 'Moderator',
+    color: '#ff0000',
+    priority: 10,
+    isDefault: false,
+    permissions: [EPermission.MODERATE_MESSAGES],
+    createdAt: new Date(),
+    updatedAt: null,
+  } as unknown as RoleEntity;
+
+  const defaultRole = {
+    id: 2,
+    name: 'User',
+    color: null,
+    priority: 0,
+    isDefault: true,
+    permissions: [EPermission.MANAGE_ROOMS],
+    createdAt: new Date(),
+    updatedAt: null,
+  } as unknown as RoleEntity;
+
+  beforeEach(() => {
+    mockEm = {
+      flush: jest.fn().mockResolvedValue(undefined),
+      persist: jest.fn(),
+      remove: jest.fn(),
+    } as unknown as jest.Mocked<EntityManager>;
+
+    mockRepo = {
+      getEntityManager: jest.fn().mockReturnValue(mockEm),
+      findAll: jest.fn().mockResolvedValue([mockRole, defaultRole]),
+      find: jest.fn().mockResolvedValue([mockRole]),
+      findOne: jest.fn(),
+      create: jest.fn().mockReturnValue(mockRole),
+      assign: jest.fn(),
+    } as unknown as jest.Mocked<EntityRepository<RoleEntity>>;
+
+    service = new RolesService(mockRepo);
+  });
+
+  describe('findAll', () => {
+    it('returns roles mapped to DTOs ordered by priority and name', async () => {
+      const result = await service.findAll();
+
+      expect(mockRepo.findAll).toHaveBeenCalledWith({
+        orderBy: { priority: 'DESC', name: 'ASC' },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Moderator');
+      expect(result[1].name).toBe('User');
+    });
+  });
+
+  describe('findByIds', () => {
+    it('returns empty array when ids array is empty without querying repository', async () => {
+      const result = await service.findByIds([]);
+
+      expect(result).toEqual([]);
+      expect(mockRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('queries repository with $in when ids are provided', async () => {
+      mockRepo.find.mockResolvedValueOnce([mockRole]);
+
+      const result = await service.findByIds([1]);
+
+      expect(mockRepo.find).toHaveBeenCalledWith({ id: { $in: [1] } });
+      expect(result).toEqual([mockRole]);
+    });
+  });
+
+  describe('findDefaultRoles', () => {
+    it('queries repository for isDefault: true', async () => {
+      mockRepo.find.mockResolvedValueOnce([defaultRole]);
+
+      const result = await service.findDefaultRoles();
+
+      expect(mockRepo.find).toHaveBeenCalledWith({ isDefault: true });
+      expect(result).toEqual([defaultRole]);
+    });
+  });
+
+  describe('findOne', () => {
+    it('returns role when found', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockRole);
+
+      const result = await service.findOne(1);
+
+      expect(result).toBe(mockRole);
+    });
+
+    it('throws notFound when role does not exist', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.findOne(999)).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NOT_FOUND,
+      });
+    });
+  });
+
+  describe('create', () => {
+    it('creates a new role successfully', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+
+      const result = await service.create({
+        name: 'Moderator',
+        color: '#ff0000',
+        priority: 10,
+        isDefault: false,
+        permissions: [EPermission.MODERATE_MESSAGES],
+      });
+
+      expect(mockRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Moderator' }),
+        { persist: true },
+      );
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(result.name).toBe('Moderator');
+    });
+
+    it('throws conflict when role name is already taken', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockRole);
+
+      await expect(
+        service.create({
+          name: 'Moderator',
+          priority: 0,
+          isDefault: false,
+          permissions: [],
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NAME_TAKEN,
+      });
+      expect(mockEm.flush).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('updates role fields and flushes changes', async () => {
+      mockRepo.findOne
+        .mockResolvedValueOnce(mockRole)
+        .mockResolvedValueOnce(null);
+
+      const result = await service.update(1, { name: 'Senior Moderator' });
+
+      expect(mockRepo.assign).toHaveBeenCalledWith(
+        mockRole,
+        expect.objectContaining({ name: 'Senior Moderator' }),
+      );
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('throws conflict if updated name conflicts with another role', async () => {
+      mockRepo.findOne
+        .mockResolvedValueOnce(mockRole)
+        .mockResolvedValueOnce(defaultRole);
+
+      await expect(service.update(1, { name: 'User' })).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NAME_TAKEN,
+      });
+      expect(mockEm.flush).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('deletes non-default role', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockRole);
+
+      await service.remove(1);
+
+      expect(mockEm.remove).toHaveBeenCalledWith(mockRole);
+      expect(mockEm.flush).toHaveBeenCalled();
+    });
+
+    it('rejects deleting default role', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(defaultRole);
+
+      await expect(service.remove(2)).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_CANNOT_DELETE_DEFAULT,
+      });
+      expect(mockEm.remove).not.toHaveBeenCalled();
+    });
+  });
+});

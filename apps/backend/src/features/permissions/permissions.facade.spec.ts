@@ -1,0 +1,213 @@
+jest.mock('@mikro-orm/nestjs', () => ({
+  InjectRepository: () => () => undefined,
+}));
+
+jest.mock('@mikro-orm/core', () => {
+  const createProxy = (): unknown =>
+    new Proxy(() => createProxy(), {
+      get: () => createProxy(),
+      apply: () => createProxy(),
+    });
+
+  return {
+    defineEntity: () => ({
+      class: class {},
+      setClass: () => undefined,
+      addHook: () => undefined,
+    }),
+    p: createProxy(),
+    Cascade: {},
+    EntityManager: class EntityManager {},
+  };
+});
+
+import { EPermission } from '@konvoez/shared';
+import { PermissionsFacade } from './permissions.facade';
+import type { RolesService } from '../roles/roles.service';
+import type { RoleEntity } from '../roles/roles.entity';
+import type { GetUserDto } from '../users/users.dto';
+
+describe('PermissionsFacade', () => {
+  let facade: PermissionsFacade;
+  let rolesService: jest.Mocked<
+    Pick<RolesService, 'findDefaultRoles' | 'findByIds' | 'findAll'>
+  >;
+
+  const defaultRole = {
+    id: 1,
+    name: 'User',
+    isDefault: true,
+    permissions: [EPermission.MANAGE_ROOMS],
+  } as unknown as RoleEntity;
+
+  const customRole = {
+    id: 2,
+    name: 'Moderator',
+    isDefault: false,
+    permissions: [EPermission.MODERATE_MESSAGES],
+  } as unknown as RoleEntity;
+
+  beforeEach(() => {
+    rolesService = {
+      findDefaultRoles: jest.fn().mockResolvedValue([defaultRole]),
+      findByIds: jest.fn().mockResolvedValue([]),
+      findAll: jest.fn().mockResolvedValue([]),
+    };
+
+    facade = new PermissionsFacade(rolesService as unknown as RolesService);
+  });
+
+  describe('getDefaultPermissions', () => {
+    it('aggregates permissions from all default roles without duplicates', async () => {
+      const duplicateRole = {
+        id: 3,
+        name: 'Another Default',
+        isDefault: true,
+        permissions: [EPermission.MANAGE_ROOMS, EPermission.SEND_MESSAGES],
+      } as unknown as RoleEntity;
+      rolesService.findDefaultRoles.mockResolvedValueOnce([
+        defaultRole,
+        duplicateRole,
+      ]);
+
+      const permissions = await facade.getDefaultPermissions();
+
+      expect(permissions).toHaveLength(2);
+      expect(permissions).toContain(EPermission.MANAGE_ROOMS);
+      expect(permissions).toContain(EPermission.SEND_MESSAGES);
+    });
+  });
+
+  describe('getUserPermissions', () => {
+    it('returns all permissions for an owner', async () => {
+      const ownerUser = {
+        id: 1,
+        isOwner: true,
+      };
+
+      const permissions = await facade.getUserPermissions(ownerUser);
+
+      expect(permissions).toEqual(Object.values(EPermission));
+      expect(rolesService.findDefaultRoles).not.toHaveBeenCalled();
+    });
+
+    it('aggregates user roles and default roles for regular users', async () => {
+      const regularUser = {
+        id: 2,
+        isOwner: false,
+        roles: [customRole],
+      };
+
+      const permissions = await facade.getUserPermissions(regularUser);
+
+      expect(permissions).toContain(EPermission.MODERATE_MESSAGES);
+      expect(permissions).toContain(EPermission.MANAGE_ROOMS);
+    });
+
+    it('supports MikroORM collection with getItems() on roles', async () => {
+      const userWithCollection = {
+        id: 3,
+        isOwner: false,
+        roles: {
+          getItems: () => [customRole],
+        },
+      };
+
+      const permissions = await facade.getUserPermissions(
+        userWithCollection as never,
+      );
+
+      expect(permissions).toContain(EPermission.MODERATE_MESSAGES);
+      expect(permissions).toContain(EPermission.MANAGE_ROOMS);
+    });
+  });
+
+  describe('hasPermission', () => {
+    it('returns true unconditionally for owner', async () => {
+      const owner = { id: 1, isOwner: true };
+
+      expect(
+        await facade.hasPermission(owner, EPermission.MANAGE_SETTINGS),
+      ).toBe(true);
+    });
+
+    it('checks user permissions array when present on user object', async () => {
+      const user = {
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROOMS],
+      } as unknown as GetUserDto;
+
+      expect(await facade.hasPermission(user, EPermission.MANAGE_ROOMS)).toBe(
+        true,
+      );
+      expect(await facade.hasPermission(user, EPermission.MANAGE_ROLES)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('hasAllPermissions', () => {
+    it('returns true unconditionally for owner', async () => {
+      const owner = { id: 1, isOwner: true };
+
+      expect(
+        await facade.hasAllPermissions(owner, [
+          EPermission.MANAGE_SETTINGS,
+          EPermission.MANAGE_ROLES,
+        ]),
+      ).toBe(true);
+    });
+
+    it('returns true when user has all requested permissions', async () => {
+      const user = {
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROOMS, EPermission.MODERATE_MESSAGES],
+      } as unknown as GetUserDto;
+
+      expect(
+        await facade.hasAllPermissions(user, [
+          EPermission.MANAGE_ROOMS,
+          EPermission.MODERATE_MESSAGES,
+        ]),
+      ).toBe(true);
+    });
+
+    it('returns false when user is missing any requested permission', async () => {
+      const user = {
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROOMS],
+      } as unknown as GetUserDto;
+
+      expect(
+        await facade.hasAllPermissions(user, [
+          EPermission.MANAGE_ROOMS,
+          EPermission.MANAGE_ROLES,
+        ]),
+      ).toBe(false);
+    });
+  });
+
+  describe('role delegations', () => {
+    it('delegates findRolesByIds to rolesService', async () => {
+      rolesService.findByIds.mockResolvedValueOnce([customRole]);
+
+      const result = await facade.findRolesByIds([2]);
+
+      expect(rolesService.findByIds).toHaveBeenCalledWith([2]);
+      expect(result).toEqual([customRole]);
+    });
+
+    it('delegates getAllRoles to rolesService.findAll', async () => {
+      const dtos = [{ id: 1, name: 'User' }] as never;
+      rolesService.findAll.mockResolvedValueOnce(dtos);
+
+      const result = await facade.getAllRoles();
+
+      expect(rolesService.findAll).toHaveBeenCalled();
+      expect(result).toBe(dtos);
+    });
+  });
+});
