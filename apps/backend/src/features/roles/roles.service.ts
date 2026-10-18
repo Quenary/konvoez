@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import {
+  EntityManager,
+  EntityRepository,
+  UniqueConstraintViolationException,
+} from '@mikro-orm/core';
 import { ApiErrorCode, IRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { RoleEntity } from './roles.entity';
@@ -71,7 +75,17 @@ export class RolesService {
       { persist: true },
     );
 
-    await this.em.flush();
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        throw AppException.conflict(
+          ApiErrorCode.ROLE_NAME_TAKEN,
+          'Role name already taken',
+        );
+      }
+      throw error;
+    }
     return this.toDto(role);
   }
 
@@ -101,7 +115,17 @@ export class RolesService {
         : {}),
     });
 
-    await this.em.flush();
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        throw AppException.conflict(
+          ApiErrorCode.ROLE_NAME_TAKEN,
+          'Role name already taken',
+        );
+      }
+      throw error;
+    }
     return this.toDto(role);
   }
 

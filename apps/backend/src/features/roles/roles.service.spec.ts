@@ -18,11 +18,16 @@ jest.mock('@mikro-orm/core', () => {
     p: createProxy(),
     Cascade: {},
     EntityManager: class EntityManager {},
+    UniqueConstraintViolationException: class UniqueConstraintViolationException extends Error {},
   };
 });
 
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
-import type { EntityManager, EntityRepository } from '@mikro-orm/core';
+import {
+  type EntityManager,
+  type EntityRepository,
+  UniqueConstraintViolationException,
+} from '@mikro-orm/core';
 import { RoleEntity } from './roles.entity';
 import { RolesService } from './roles.service';
 
@@ -167,6 +172,24 @@ describe('RolesService', () => {
       });
       expect(mockEm.flush).not.toHaveBeenCalled();
     });
+
+    it('throws conflict on flush if UniqueConstraintViolationException occurs', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+      mockEm.flush.mockRejectedValueOnce(
+        new UniqueConstraintViolationException(new Error('unique')),
+      );
+
+      await expect(
+        service.create({
+          name: 'Moderator',
+          priority: 0,
+          isDefault: false,
+          permissions: [],
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NAME_TAKEN,
+      });
+    });
   });
 
   describe('update', () => {
@@ -194,6 +217,21 @@ describe('RolesService', () => {
         code: ApiErrorCode.ROLE_NAME_TAKEN,
       });
       expect(mockEm.flush).not.toHaveBeenCalled();
+    });
+
+    it('throws conflict on flush if UniqueConstraintViolationException occurs', async () => {
+      mockRepo.findOne
+        .mockResolvedValueOnce(mockRole)
+        .mockResolvedValueOnce(null);
+      mockEm.flush.mockRejectedValueOnce(
+        new UniqueConstraintViolationException(new Error('unique')),
+      );
+
+      await expect(
+        service.update(1, { name: 'Senior Moderator' }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NAME_TAKEN,
+      });
     });
   });
 
