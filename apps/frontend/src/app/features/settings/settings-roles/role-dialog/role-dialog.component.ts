@@ -24,7 +24,7 @@ import {
   TuiNotificationService,
   TuiTextfield,
 } from '@taiga-ui/core';
-import { TuiButtonLoading, TuiSwitch } from '@taiga-ui/kit';
+import { TuiButtonLoading, TuiInputColor, TuiSwitch } from '@taiga-ui/kit';
 import { TuiForm } from '@taiga-ui/layout';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
@@ -98,6 +98,7 @@ export const AVAILABLE_PERMISSIONS: readonly IPermissionOption[] = [
     TuiLabel,
     TuiSwitch,
     TuiTextfield,
+    TuiInputColor,
   ],
   templateUrl: './role-dialog.component.html',
   styleUrl: './role-dialog.component.scss',

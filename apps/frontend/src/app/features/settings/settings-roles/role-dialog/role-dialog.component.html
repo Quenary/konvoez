@@ -26,10 +26,9 @@
       {{ 'SETTINGS.ROLES.COLOR' | translate }}
     </label>
     <input
-      tuiInput
+      tuiInputColor
       id="role-color"
       formControlName="color"
-      type="text"
       [placeholder]="'SETTINGS.ROLES.COLOR_PLACEHOLDER' | translate" />
   </tui-textfield>
   @if (errors().color; as err) {
