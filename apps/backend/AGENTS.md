@@ -103,7 +103,7 @@ The backend is built as a **modular monolith** running in a single process. Code
 - Require granular permissions with `@RequirePermissions([EPermission...])` on routes protected by `@UseGuards(AuthGuard)`.
 - Instance owner (`isOwner: true`) bypasses all permission and private room restrictions and unconditionally holds all capabilities.
 - Flexible RBAC: user roles and permissions are resolved through `PermissionsFacade` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments. External modules interact with authorization and role resolution solely through `PermissionsFacade`.
-- Room access control: verify room visibility/membership with `RoomsService.canAccessRoom(room, user)` on HTTP and WebSocket handlers.
+- Room access control: verify room visibility/membership with `RoomsFacade.canAccessRoom(user, room)` or `RoomsFacade.assertCanAccessRoom(user, roomId)` on HTTP and WebSocket handlers.
 - WebSocket gateways authenticate from handshake cookies via `AuthService` (same JWT cookies as HTTP).
 
 ### DTOs & validation

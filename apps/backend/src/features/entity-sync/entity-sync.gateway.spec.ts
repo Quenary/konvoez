@@ -5,6 +5,7 @@ jest.mock('../auth/auth.service', () => ({
 import { EntitySyncGateway } from './entity-sync.gateway';
 import {
   EEntitySyncEvent,
+  EPermission,
   ERoomType,
   EUserRole,
   type IRoom,
@@ -27,6 +28,10 @@ describe('EntitySyncGateway', () => {
     getOnlineUserIds: jest.Mock;
   };
   let toMock: jest.Mock;
+  let roomsFacadeMock: {
+    findPrivateRooms: jest.Mock;
+    canAccessRoom: jest.Mock;
+  };
 
   const user: IUser = {
     id: 1,
@@ -76,15 +81,27 @@ describe('EntitySyncGateway', () => {
     const usersServiceMock = {
       findOneAsDto: jest.fn().mockResolvedValue(user),
     };
-    const roomsServiceMock = {
+    roomsFacadeMock = {
       findPrivateRooms: jest.fn().mockResolvedValue([]),
+      canAccessRoom: jest.fn().mockImplementation((u, r) => {
+        if (u.isOwner) return true;
+        if (u.permissions?.includes(EPermission.MANAGE_ROOMS)) return true;
+        if (!r.isPrivate) return true;
+        if (r.allowedUserIds?.includes(u.id)) return true;
+        const userRoleIds =
+          u.roles?.map((role: { id: number }) => role.id) ?? [];
+        return (
+          r.allowedRoleIds?.some((id: number) => userRoleIds.includes(id)) ??
+          false
+        );
+      }),
     };
     Object.assign(gateway, {
       server: serverMock as unknown as Server,
       authService: authServiceMock,
       userPresenceService: userPresenceServiceMock,
       usersService: usersServiceMock,
-      roomsService: roomsServiceMock,
+      roomsFacade: roomsFacadeMock,
     });
   });
 
@@ -306,13 +323,12 @@ describe('EntitySyncGateway', () => {
       const usersServiceMock = {
         findOneAsDto: jest.fn().mockResolvedValue(updatedUser),
       };
-      const roomsServiceMock = {
-        findPrivateRooms: jest.fn().mockResolvedValue([privateRoom]),
-      };
-
       Object.assign(gateway, {
         usersService: usersServiceMock,
-        roomsService: roomsServiceMock,
+        roomsFacade: {
+          ...roomsFacadeMock,
+          findPrivateRooms: jest.fn().mockResolvedValue([privateRoom]),
+        },
       });
 
       await gateway.onUserPermissionsChanged({ userIds: [5] });
@@ -364,13 +380,12 @@ describe('EntitySyncGateway', () => {
       const usersServiceMock = {
         findOneAsDto: jest.fn().mockResolvedValue(revokedUser),
       };
-      const roomsServiceMock = {
-        findPrivateRooms: jest.fn().mockResolvedValue([privateRoom]),
-      };
-
       Object.assign(gateway, {
         usersService: usersServiceMock,
-        roomsService: roomsServiceMock,
+        roomsFacade: {
+          ...roomsFacadeMock,
+          findPrivateRooms: jest.fn().mockResolvedValue([privateRoom]),
+        },
       });
 
       await gateway.onUserPermissionsChanged({ userIds: [] }); // all users

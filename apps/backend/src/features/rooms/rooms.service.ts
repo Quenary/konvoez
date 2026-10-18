@@ -316,20 +316,27 @@ export class RoomsService {
     });
   }
 
-  async deleteRoomsByAuthor(authorId: number): Promise<void> {
+  async deleteRoomsByAuthor(
+    authorId: number,
+  ): Promise<{ roomIds: number[]; avatarKeys: string[] }> {
     return ensureRequestContext(this.em, async () => {
       const rooms = await this.repo.find({ author: authorId });
-      if (rooms.length > 0) {
-        const roomIds = rooms.map((r) => r.id);
-        await this.em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
-        for (const roomId of roomIds) {
-          emitEntitySyncDomainEvent(
-            this.eventEmitter,
-            EntitySyncDomainEvents.ROOM_DELETED,
-            { id: roomId },
-          );
-        }
+      if (rooms.length === 0) {
+        return { roomIds: [], avatarKeys: [] };
       }
+      const roomIds = rooms.map((r) => r.id);
+      const avatarKeys = rooms
+        .map((r) => r.avatar)
+        .filter((key): key is string => Boolean(key));
+      await this.em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
+      for (const roomId of roomIds) {
+        emitEntitySyncDomainEvent(
+          this.eventEmitter,
+          EntitySyncDomainEvents.ROOM_DELETED,
+          { id: roomId },
+        );
+      }
+      return { roomIds, avatarKeys };
     });
   }
 

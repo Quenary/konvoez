@@ -17,11 +17,11 @@ import {
   EntitySyncDomainEvents,
   emitEntitySyncDomainEvent,
 } from '@shared/events/entity-sync.events';
-import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
 import { GetUserDto } from './users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import type { RoleEntity } from '../roles/roles.entity';
 
 @Injectable()
@@ -36,6 +36,7 @@ export class UsersService {
     private readonly fileService: FileService,
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsFacade: PermissionsFacade,
+    private readonly roomsFacade: RoomsFacade,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -167,6 +168,9 @@ export class UsersService {
   }
 
   async removeLoaded(id: number): Promise<void> {
+    const { roomIds, avatarKeys: roomAvatars } =
+      await this.roomsFacade.deleteRoomsByAuthor(id);
+
     const files = await this.em.transactional(async (em) => {
       const user = await em.findOne(UserEntity, { id });
       if (!user) {
@@ -176,8 +180,6 @@ export class UsersService {
         );
       }
 
-      const rooms = await em.find(RoomEntity, { author: id });
-      const roomIds = rooms.map((room) => room.id);
       const messageFilter: FilterQuery<MessageEntity>[] = [
         { sender: id },
         { recipient: id },
@@ -200,32 +202,18 @@ export class UsersService {
         );
         await em.nativeDelete(MessageEntity, { id: { $in: messageIds } });
       }
-      if (roomIds.length > 0) {
-        await em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
-      }
 
       em.remove(user);
       await em.flush();
 
       return {
         avatar: user.avatar,
-        roomIds,
-        roomAvatars: rooms.flatMap((room) =>
-          room.avatar ? [room.avatar] : [],
-        ),
       };
     });
 
     await this.deleteStoredFile(files.avatar, USER_AVATARS_BUCKET);
-    for (const key of files.roomAvatars) {
+    for (const key of roomAvatars) {
       await this.deleteStoredFile(key, ROOM_AVATARS_BUCKET);
-    }
-    for (const roomId of files.roomIds) {
-      emitEntitySyncDomainEvent(
-        this.eventEmitter,
-        EntitySyncDomainEvents.ROOM_DELETED,
-        { id: roomId },
-      );
     }
     emitEntitySyncDomainEvent(
       this.eventEmitter,

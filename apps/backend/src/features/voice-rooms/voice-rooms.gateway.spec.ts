@@ -7,8 +7,8 @@ jest.mock('../auth/auth.service', () => ({
 jest.mock('@shared/services/app.service', () => ({
   AppService: class {},
 }));
-jest.mock('../rooms/rooms.service', () => ({
-  RoomsService: class {},
+jest.mock('../rooms/rooms.facade', () => ({
+  RoomsFacade: class {},
 }));
 // Keep mediasoup out of Jest resolution (node10 / package exports). Specs mock state.
 jest.mock('mediasoup', () => ({
@@ -189,15 +189,14 @@ describe('VoiceRoomsGateway', () => {
       findRingingByCaller: jest.fn().mockReturnValue([]),
     };
 
-    const roomsServiceMock = {
-      findOne: jest.fn().mockResolvedValue({ id: 1, isPrivate: false }),
-      canAccessRoom: jest.fn().mockReturnValue(true),
+    const roomsFacadeMock = {
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
     };
 
     gateway = new VoiceRoomsGateway(
       authService as unknown as AuthService,
       {} as never,
-      roomsServiceMock as never,
+      roomsFacadeMock as never,
       voiceRoomsStateService as unknown as VoiceRoomsStateService,
       directCallsStateService as unknown as DirectCallsStateService,
       eventEmitter as never,
@@ -1726,14 +1725,13 @@ describe('VoiceRoomsGateway', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       realState = new DirectCallsStateService();
-      const roomsServiceMock = {
-        findOne: jest.fn().mockResolvedValue({ id: 1, isPrivate: false }),
-        canAccessRoom: jest.fn().mockReturnValue(true),
+      const roomsFacadeMock = {
+        assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
       };
       gateway = new VoiceRoomsGateway(
         authService as unknown as AuthService,
         {} as never,
-        roomsServiceMock as never,
+        roomsFacadeMock as never,
         voiceRoomsStateService as unknown as VoiceRoomsStateService,
         realState,
         eventEmitter as never,

@@ -19,6 +19,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
+import { AppException } from '@shared/errors/app.exception';
 import { TextRoomsService } from './text-rooms.service';
 import {
   MessageEntity,
@@ -27,7 +28,7 @@ import {
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
 import { UsersService } from '../users/users.service';
-import { RoomsService } from '../rooms/rooms.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { EncryptionService } from '@shared/services/encryption.service';
 import {
   EntityRepository,
@@ -38,7 +39,6 @@ import { parse, v7, stringify as uuidStringify } from 'uuid';
 import { ConflictException } from '@nestjs/common';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
-import { RoomEntity } from '../rooms/rooms.entity';
 import {
   ApiErrorCode,
   EAttachmentKind,
@@ -60,7 +60,7 @@ describe('TextRoomsService', () => {
     EntityRepository<MessageReactionEntity>
   >;
   let usersService: jest.Mocked<UsersService>;
-  let roomsService: jest.Mocked<RoomsService>;
+  let roomsFacade: jest.Mocked<RoomsFacade>;
   let encryptionService: jest.Mocked<EncryptionService>;
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
@@ -134,11 +134,11 @@ describe('TextRoomsService', () => {
       toDto: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
-    roomsService = {
-      findOne: jest.fn(),
-      findAll: jest.fn().mockResolvedValue([{ id: 10 } as RoomEntity]),
+    roomsFacade = {
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+      getAccessibleRoomIds: jest.fn().mockResolvedValue(new Set([10])),
       canAccessRoom: jest.fn().mockReturnValue(true),
-    } as unknown as jest.Mocked<RoomsService>;
+    } as unknown as jest.Mocked<RoomsFacade>;
 
     encryptionService = {
       encrypt: jest.fn().mockReturnValue({
@@ -175,7 +175,7 @@ describe('TextRoomsService', () => {
       messageReadRepository,
       messageReactionRepository,
       usersService,
-      roomsService,
+      roomsFacade,
       encryptionService,
       eventEmitter as never,
       attachmentsService as unknown as AttachmentsService,
@@ -233,9 +233,6 @@ describe('TextRoomsService', () => {
 
     it('should create a room message successfully', async () => {
       const roomId = 10;
-      roomsService.findOne.mockResolvedValue({
-        id: roomId,
-      } as unknown as RoomEntity);
 
       const msgId = parse(v7());
       const mockCreated = {
@@ -404,9 +401,6 @@ describe('TextRoomsService', () => {
 
     it('should generate and associate search token entities when creating message', async () => {
       const roomId = 10;
-      roomsService.findOne.mockResolvedValue({
-        id: roomId,
-      } as unknown as RoomEntity);
 
       const searchTokensAdd = jest.fn();
       const mockCreated = {
@@ -499,9 +493,6 @@ describe('TextRoomsService', () => {
       messageRepository.findOne.mockResolvedValue(null);
       const created = createdMessage(10, clientId);
       messageRepository.create.mockReturnValue(created);
-      roomsService.findOne.mockResolvedValue({
-        id: 10,
-      } as unknown as RoomEntity);
 
       await service.create(mockUser, {
         attachmentIds: [],
@@ -545,9 +536,6 @@ describe('TextRoomsService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(winner);
       messageRepository.create.mockReturnValue(createdMessage(10, clientId));
-      roomsService.findOne.mockResolvedValue({
-        id: 10,
-      } as unknown as RoomEntity);
       em.flush.mockRejectedValueOnce(
         new UniqueConstraintViolationException(new Error('unique')),
       );
@@ -592,9 +580,6 @@ describe('TextRoomsService', () => {
       const roomId = 10;
       const attachmentId = v7();
       const created = createdMessage(roomId);
-      roomsService.findOne.mockResolvedValue({
-        id: roomId,
-      } as unknown as RoomEntity);
       messageRepository.create.mockReturnValue(created);
       const attachment: IAttachment = {
         id: attachmentId,
@@ -634,9 +619,6 @@ describe('TextRoomsService', () => {
 
     it('rolls back when an attachment cannot be claimed', async () => {
       const attachmentId = v7();
-      roomsService.findOne.mockResolvedValue({
-        id: 10,
-      } as unknown as RoomEntity);
       messageRepository.create.mockReturnValue(createdMessage(10));
       attachmentsService.claimForMessage.mockRejectedValue(
         new ConflictException({
@@ -672,6 +654,26 @@ describe('TextRoomsService', () => {
         }),
       ).rejects.toMatchObject({
         code: ApiErrorCode.ATTACHMENTS_TOO_MANY,
+      });
+    });
+
+    it('throws when user cannot access the room', async () => {
+      roomsFacade.assertCanAccessRoom.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        ),
+      );
+
+      await expect(
+        service.create(mockUser, {
+          attachmentIds: [],
+          content: 'Hello',
+          roomId: 99,
+          recipientId: null,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
       });
     });
   });
@@ -886,6 +888,27 @@ describe('TextRoomsService', () => {
           afterId: null,
         }),
       ).rejects.toThrow('Either recipientId or chatRoomId must be provided');
+    });
+
+    it('throws when user cannot access the room', async () => {
+      roomsFacade.assertCanAccessRoom.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        ),
+      );
+
+      await expect(
+        service.list(mockUser, {
+          roomId: 99,
+          recipientId: null,
+          limit: 20,
+          beforeId: null,
+          afterId: null,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
     });
   });
 
@@ -1256,7 +1279,7 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([otherMessage]);
-      roomsService.canAccessRoom.mockReturnValueOnce(false);
+      roomsFacade.canAccessRoom.mockReturnValueOnce(false);
 
       await service.markRead(mockUser, {
         messageIds: [uuidStringify(otherId)],

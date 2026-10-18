@@ -79,7 +79,9 @@ export class RoomsFacade {
     return this.roomsService.findPrivateRooms();
   }
 
-  async deleteRoomsByAuthor(authorId: number): Promise<void> {
+  async deleteRoomsByAuthor(
+    authorId: number,
+  ): Promise<{ roomIds: number[]; avatarKeys: string[] }> {
     return this.roomsService.deleteRoomsByAuthor(authorId);
   }
 

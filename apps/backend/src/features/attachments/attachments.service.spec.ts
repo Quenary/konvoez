@@ -93,6 +93,7 @@ describe('AttachmentsService', () => {
   };
   let videoProcessingService: { createPoster: jest.Mock };
   let settingsService: { getValue: jest.Mock };
+  let roomsFacade: { canAccessRoom: jest.Mock };
   let service: AttachmentsService;
   let dir: string;
   let filePath: string;
@@ -142,7 +143,7 @@ describe('AttachmentsService', () => {
     settingsService = {
       getValue: jest.fn().mockResolvedValue(false),
     };
-    const roomsService = {
+    roomsFacade = {
       canAccessRoom: jest.fn().mockReturnValue(true),
     };
     service = new AttachmentsService(
@@ -152,7 +153,7 @@ describe('AttachmentsService', () => {
       imageProcessingService as never,
       videoProcessingService as never,
       settingsService as never,
-      roomsService as never,
+      roomsFacade as never,
     );
   });
 
@@ -810,6 +811,40 @@ describe('AttachmentsService', () => {
         code: ApiErrorCode.ATTACHMENTS_UNAVAILABLE,
         attachmentIds: [id],
       });
+    });
+  });
+
+  describe('canReadMessage', () => {
+    it('delegates to roomsFacade.canAccessRoom for room messages', () => {
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+      const room = { id: 10, isPrivate: true };
+      const canRead = service.canReadMessage(
+        { room, sender: { id: 2 } },
+        author,
+      );
+      expect(roomsFacade.canAccessRoom).toHaveBeenCalledWith(author, room);
+      expect(canRead).toBe(false);
+    });
+
+    it('allows sender or recipient for direct messages', () => {
+      expect(
+        service.canReadMessage(
+          { sender: { id: author.id }, recipient: { id: 2 } },
+          author,
+        ),
+      ).toBe(true);
+      expect(
+        service.canReadMessage(
+          { sender: { id: 2 }, recipient: { id: author.id } },
+          author,
+        ),
+      ).toBe(true);
+      expect(
+        service.canReadMessage(
+          { sender: { id: 2 }, recipient: { id: 3 } },
+          author,
+        ),
+      ).toBe(false);
     });
   });
 });

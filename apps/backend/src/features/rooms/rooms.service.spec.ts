@@ -240,12 +240,13 @@ describe('RoomsService', () => {
   describe('deleteRoomsByAuthor', () => {
     it('deletes rooms by author and emits ROOM_DELETED for each', async () => {
       mockRepo.find.mockResolvedValueOnce([
-        { id: 10 } as RoomEntity,
-        { id: 20 } as RoomEntity,
+        { id: 10, avatar: 'avatar-10' } as RoomEntity,
+        { id: 20, avatar: null } as unknown as RoomEntity,
       ]);
 
-      await service.deleteRoomsByAuthor(5);
+      const result = await service.deleteRoomsByAuthor(5);
 
+      expect(result).toEqual({ roomIds: [10, 20], avatarKeys: ['avatar-10'] });
       expect(mockRepo.find).toHaveBeenCalledWith({ author: 5 });
       expect(mockEm.nativeDelete).toHaveBeenCalledWith(RoomEntity, {
         id: { $in: [10, 20] },
@@ -263,8 +264,9 @@ describe('RoomsService', () => {
     it('does nothing when author has no rooms', async () => {
       mockRepo.find.mockResolvedValueOnce([]);
 
-      await service.deleteRoomsByAuthor(5);
+      const result = await service.deleteRoomsByAuthor(5);
 
+      expect(result).toEqual({ roomIds: [], avatarKeys: [] });
       expect(mockEm.nativeDelete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });

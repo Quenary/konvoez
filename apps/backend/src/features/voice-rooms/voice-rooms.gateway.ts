@@ -49,7 +49,7 @@ import {
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 import { AuthService } from '../auth/auth.service';
-import { RoomsService } from '../rooms/rooms.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { AppService } from '@shared/services/app.service';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
@@ -116,7 +116,7 @@ export class VoiceRoomsGateway
   constructor(
     private readonly authService: AuthService,
     private readonly appService: AppService,
-    private readonly roomsService: RoomsService,
+    private readonly roomsFacade: RoomsFacade,
     private readonly voiceRoomsStateService: VoiceRoomsStateService,
     private readonly directCallsStateService: DirectCallsStateService,
     private readonly eventEmitter: EventEmitter2,
@@ -319,13 +319,7 @@ export class VoiceRoomsGateway
     }
 
     if (roomId !== undefined) {
-      const roomEntity = await this.roomsService.findOne(roomId);
-      if (!this.roomsService.canAccessRoom(user, roomEntity)) {
-        throw AppException.forbidden(
-          ApiErrorCode.ROOM_ACCESS_DENIED,
-          'Access to room is denied',
-        );
-      }
+      await this.roomsFacade.assertCanAccessRoom(user, roomId);
     }
 
     // Ensure room + register peer before exposing session on the socket.

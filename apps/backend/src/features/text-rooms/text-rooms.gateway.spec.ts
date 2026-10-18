@@ -4,8 +4,8 @@ jest.mock('@mikro-orm/nestjs', () => ({
 jest.mock('../auth/auth.service', () => ({
   AuthService: class {},
 }));
-jest.mock('../rooms/rooms.service', () => ({
-  RoomsService: class {},
+jest.mock('../rooms/rooms.facade', () => ({
+  RoomsFacade: class {},
 }));
 
 import { TextRoomsGateway } from './text-rooms.gateway';
@@ -25,9 +25,8 @@ describe('TextRoomsGateway', () => {
     except: jest.Mock;
     emit: jest.Mock;
   };
-  let roomsServiceMock: {
-    findOne: jest.Mock;
-    canAccessRoom: jest.Mock;
+  let roomsFacadeMock: {
+    assertCanAccessRoom: jest.Mock;
   };
 
   beforeEach(() => {
@@ -39,14 +38,13 @@ describe('TextRoomsGateway', () => {
       emit: jest.fn(),
     };
 
-    roomsServiceMock = {
-      findOne: jest.fn().mockResolvedValue({ id: 42, isPrivate: false }),
-      canAccessRoom: jest.fn().mockReturnValue(true),
+    roomsFacadeMock = {
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
     };
 
     Object.assign(gateway, {
       server: serverMock as unknown as Server,
-      roomsService: roomsServiceMock,
+      roomsFacade: roomsFacadeMock,
     });
   });
 
@@ -97,7 +95,12 @@ describe('TextRoomsGateway', () => {
       handshake: { headers: {} },
     } as unknown as Socket;
 
-    roomsServiceMock.canAccessRoom.mockReturnValueOnce(false);
+    roomsFacadeMock.assertCanAccessRoom.mockRejectedValueOnce(
+      AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Access to room is denied',
+      ),
+    );
 
     await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
 
@@ -121,7 +124,7 @@ describe('TextRoomsGateway', () => {
       handshake: { headers: {} },
     } as unknown as Socket;
 
-    roomsServiceMock.findOne.mockRejectedValueOnce(
+    roomsFacadeMock.assertCanAccessRoom.mockRejectedValueOnce(
       AppException.notFound(ApiErrorCode.ROOM_NOT_FOUND, 'Room not found'),
     );
 

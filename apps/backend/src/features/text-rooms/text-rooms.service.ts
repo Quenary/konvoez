@@ -24,7 +24,7 @@ import {
 } from './text-rooms.dto';
 import { extractTrigrams } from '@shared/utils/trigrams.util';
 import { UsersService } from '../users/users.service';
-import { RoomsService } from '../rooms/rooms.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { parse } from 'uuid';
 import { EncryptionService } from '@shared/services/encryption.service';
 import { stringify as uuidStringify } from 'uuid';
@@ -70,7 +70,7 @@ export class TextRoomsService {
     @InjectRepository(MessageReactionEntity)
     private readonly messageReactionRepository: EntityRepository<MessageReactionEntity>,
     private readonly usersService: UsersService,
-    private readonly roomsService: RoomsService,
+    private readonly roomsFacade: RoomsFacade,
     private readonly encryptionService: EncryptionService,
     private readonly eventEmitter: EventEmitter2,
     private readonly attachmentsService: AttachmentsService,
@@ -315,8 +315,7 @@ export class TextRoomsService {
         .execute<Array<{ senderId: number; count: number }>>('all'),
     ]);
 
-    const accessibleRooms = await this.roomsService.findAll(user);
-    const accessibleRoomIds = new Set(accessibleRooms.map((r) => r.id));
+    const accessibleRoomIds = await this.roomsFacade.getAccessibleRoomIds(user);
     const accessibleRoomRows = roomRows.filter((row) =>
       accessibleRoomIds.has(Number(row.roomId)),
     );
@@ -386,13 +385,7 @@ export class TextRoomsService {
         ];
       }
     } else if (roomId) {
-      const room = await this.roomsService.findOne(roomId);
-      if (!this.roomsService.canAccessRoom(user, room)) {
-        throw AppException.forbidden(
-          ApiErrorCode.ROOM_ACCESS_DENIED,
-          'Access to room is denied',
-        );
-      }
+      await this.roomsFacade.assertCanAccessRoom(user, roomId);
       baseWhere.room = roomId;
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
@@ -605,13 +598,8 @@ export class TextRoomsService {
     }
 
     if (dto.roomId) {
-      room = await this.roomsService.findOne(dto.roomId);
-      if (!this.roomsService.canAccessRoom(user, room)) {
-        throw AppException.forbidden(
-          ApiErrorCode.ROOM_ACCESS_DENIED,
-          'Access to room is denied',
-        );
-      }
+      await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
+      room = this.em.getReference(RoomEntity, dto.roomId);
     }
 
     let replyToId: Uint8Array | null = null;
@@ -898,7 +886,7 @@ export class TextRoomsService {
     const othersMessages = messages.filter(
       (msg) =>
         msg.sender.id !== user.id &&
-        (!msg.room || this.roomsService.canAccessRoom(user, msg.room)),
+        (!msg.room || this.roomsFacade.canAccessRoom(user, msg.room)),
     );
     if (othersMessages.length === 0) return;
 

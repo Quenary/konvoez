@@ -12,7 +12,7 @@ import {
   type FileService,
   type StoredFileInfo,
 } from '@shared/services/file.service';
-import { RoomEntity } from '../rooms/rooms.entity';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { UserEntity } from '../users/users.entity';
 import { MessageAttachmentEntity } from '../attachments/attachments.entity';
 
@@ -30,6 +30,7 @@ export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
     private readonly orm: MikroORM,
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
+    private readonly roomsFacade: RoomsFacade,
   ) {}
 
   public onModuleInit(): void {
@@ -81,9 +82,9 @@ export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
 
   private async loadReferencedKeys(): Promise<Set<string>> {
     const em = this.orm.em.fork();
-    const [users, rooms, attachments] = await Promise.all([
+    const [users, roomAvatarKeys, attachments] = await Promise.all([
       em.find(UserEntity, { avatar: { $ne: null } }, { fields: ['avatar'] }),
-      em.find(RoomEntity, { avatar: { $ne: null } }, { fields: ['avatar'] }),
+      this.roomsFacade.findAvatarKeys(),
       em.find(
         MessageAttachmentEntity,
         {},
@@ -97,10 +98,8 @@ export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
         referenced.add(user.avatar);
       }
     }
-    for (const room of rooms) {
-      if (room.avatar) {
-        referenced.add(room.avatar);
-      }
+    for (const key of roomAvatarKeys) {
+      referenced.add(key);
     }
     for (const attachment of attachments) {
       referenced.add(attachment.storageKey);

@@ -9,7 +9,6 @@ import {
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import {
   EEntitySyncEvent,
-  EPermission,
   type IRoom,
   type TEntitySyncEventMap,
 } from '@konvoez/shared';
@@ -21,7 +20,7 @@ import {
 } from '@shared/events/entity-sync.events';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
-import { RoomsService } from '../rooms/rooms.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 
 type TSocket = Socket<
   TEntitySyncEventMap,
@@ -49,8 +48,8 @@ export class EntitySyncGateway
   @Inject(UsersService)
   private readonly usersService!: UsersService;
 
-  @Inject(RoomsService)
-  private readonly roomsService!: RoomsService;
+  @Inject(RoomsFacade)
+  private readonly roomsFacade!: RoomsFacade;
 
   async handleConnection(client: TSocket) {
     try {
@@ -88,14 +87,7 @@ export class EntitySyncGateway
   }
 
   private canUserAccessRoom(user: GetUserDto, room: IRoom): boolean {
-    if (user.isOwner) return true;
-    if (user.permissions?.includes(EPermission.MANAGE_ROOMS)) return true;
-    if (!room.isPrivate) return true;
-    if (room.allowedUserIds?.includes(user.id)) return true;
-    const userRoleIds = user.roles?.map((r) => r.id) ?? [];
-    if (room.allowedRoleIds?.some((id) => userRoleIds.includes(id)))
-      return true;
-    return false;
+    return this.roomsFacade.canAccessRoom(user, room);
   }
 
   @OnEvent(EntitySyncDomainEvents.USER_CREATED)
@@ -197,7 +189,7 @@ export class EntitySyncGateway
   ) {
     const affectedSet =
       payload.userIds.length > 0 ? new Set(payload.userIds) : null;
-    const privateRooms = await this.roomsService.findPrivateRooms();
+    const privateRooms = await this.roomsFacade.findPrivateRooms();
 
     for (const [_, client] of this.server.sockets.sockets) {
       const current = client.data.user;

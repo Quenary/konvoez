@@ -27,7 +27,7 @@ import {
   type TTextRoomDomainPayloadMap,
 } from '@shared/events/text-room.events';
 
-import { RoomsService } from '../rooms/rooms.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 
 type TSocket = Socket<
   TTextRoomEventMap,
@@ -53,8 +53,8 @@ export class TextRoomsGateway
   private readonly server!: Server<TTextRoomEventMap>;
   @Inject(AuthService)
   private readonly authService!: AuthService;
-  @Inject(RoomsService)
-  private readonly roomsService!: RoomsService;
+  @Inject(RoomsFacade)
+  private readonly roomsFacade!: RoomsFacade;
   private readonly logger = new Logger(TextRoomsGateway.name);
 
   private readonly userIdToSocketId: Map<number, string> = new Map();
@@ -145,17 +145,7 @@ export class TextRoomsGateway
 
     if (roomId) {
       try {
-        const room = await this.roomsService.findOne(roomId);
-        if (!this.roomsService.canAccessRoom(peer, room)) {
-          this.emitError(
-            client,
-            AppException.forbidden(
-              ApiErrorCode.ROOM_ACCESS_DENIED,
-              'Access to room is denied',
-            ),
-          );
-          return;
-        }
+        await this.roomsFacade.assertCanAccessRoom(peer, roomId);
       } catch (error) {
         this.emitError(client, error);
         return;

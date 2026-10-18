@@ -23,7 +23,6 @@ import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
 import { PasswordService } from '../../shared/services/password.service';
-import { RoomEntity } from '../rooms/rooms.entity';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import {
   ROOM_AVATARS_BUCKET,
@@ -40,6 +39,7 @@ describe('UsersService', () => {
   let mockForkedEm: jest.Mocked<EntityManager>;
   let passwordService: jest.Mocked<PasswordService>;
   let fileService: jest.Mocked<FileService>;
+  let roomsFacade: { deleteRoomsByAuthor: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
 
   const mockUser: UserEntity = {
@@ -103,12 +103,20 @@ describe('UsersService', () => {
       hasAllPermissions: jest.fn().mockResolvedValue(true),
     };
 
+    roomsFacade = {
+      deleteRoomsByAuthor: jest.fn().mockResolvedValue({
+        roomIds: [10],
+        avatarKeys: ['room-key'],
+      }),
+    };
+
     service = new UsersService(
       mockRepo,
       passwordService,
       fileService,
       eventEmitter as never,
       permissionsFacade as never,
+      roomsFacade as never,
     );
   });
 
@@ -221,27 +229,21 @@ describe('UsersService', () => {
   });
 
   describe('removeLoaded', () => {
-    it('should delete the user, their rooms and messages, and leave other rooms untouched', async () => {
+    it('should delete the user, their rooms and messages, and clean up files', async () => {
       const target = {
         ...mockUser,
         id: 5,
         role: EUserRole.MEMBER,
         avatar: 'avatar-key',
       } as UserEntity;
-      const ownRoom = { id: 10, avatar: 'room-key' };
       const messageId = new Uint8Array(16);
       mockEm.findOne.mockResolvedValueOnce(target);
-      mockEm.find
-        .mockResolvedValueOnce([ownRoom] as never)
-        .mockResolvedValueOnce([{ id: messageId }] as never);
+      mockEm.find.mockResolvedValueOnce([{ id: messageId }] as never);
 
       await service.removeLoaded(5);
 
-      expect(mockEm.find).toHaveBeenNthCalledWith(1, RoomEntity, {
-        author: 5,
-      });
-      expect(mockEm.find).toHaveBeenNthCalledWith(
-        2,
+      expect(roomsFacade.deleteRoomsByAuthor).toHaveBeenCalledWith(5);
+      expect(mockEm.find).toHaveBeenCalledWith(
         MessageEntity,
         {
           $or: [{ sender: 5 }, { recipient: 5 }, { room: { $in: [10] } }],
@@ -256,13 +258,6 @@ describe('UsersService', () => {
       expect(mockEm.nativeDelete).toHaveBeenCalledWith(MessageEntity, {
         id: { $in: [messageId] },
       });
-      expect(mockEm.nativeDelete).toHaveBeenCalledWith(RoomEntity, {
-        id: { $in: [10] },
-      });
-      expect(mockEm.nativeDelete).not.toHaveBeenCalledWith(
-        RoomEntity,
-        expect.objectContaining({ id: { $in: expect.arrayContaining([11]) } }),
-      );
       expect(mockEm.remove).toHaveBeenCalledWith(target);
       expect(fileService.delete).toHaveBeenCalledWith(
         'avatar-key',
@@ -273,9 +268,38 @@ describe('UsersService', () => {
         ROOM_AVATARS_BUCKET,
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.ROOM_DELETED,
-        { id: 10 },
+        EntitySyncDomainEvents.USER_DELETED,
+        { id: 5 },
       );
+    });
+
+    it('should handle user deletion when user has no rooms or messages', async () => {
+      const target = {
+        ...mockUser,
+        id: 5,
+        role: EUserRole.MEMBER,
+        avatar: null,
+      } as UserEntity;
+      roomsFacade.deleteRoomsByAuthor.mockResolvedValueOnce({
+        roomIds: [],
+        avatarKeys: [],
+      });
+      mockEm.findOne.mockResolvedValueOnce(target);
+      mockEm.find.mockResolvedValueOnce([]);
+
+      await service.removeLoaded(5);
+
+      expect(roomsFacade.deleteRoomsByAuthor).toHaveBeenCalledWith(5);
+      expect(mockEm.find).toHaveBeenCalledWith(
+        MessageEntity,
+        {
+          $or: [{ sender: 5 }, { recipient: 5 }],
+        },
+        { fields: ['id'] },
+      );
+      expect(mockEm.nativeDelete).not.toHaveBeenCalled();
+      expect(mockEm.remove).toHaveBeenCalledWith(target);
+      expect(fileService.delete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.USER_DELETED,
         { id: 5 },

@@ -186,10 +186,12 @@ describe('RoomsFacade', () => {
 
   describe('deleteRoomsByAuthor', () => {
     it('should delegate deleteRoomsByAuthor to roomsService', async () => {
-      roomsService.deleteRoomsByAuthor.mockResolvedValue(undefined);
+      const expected = { roomIds: [1, 2], avatarKeys: ['av-1'] };
+      roomsService.deleteRoomsByAuthor.mockResolvedValue(expected);
 
-      await facade.deleteRoomsByAuthor(42);
+      const result = await facade.deleteRoomsByAuthor(42);
 
+      expect(result).toBe(expected);
       expect(roomsService.deleteRoomsByAuthor).toHaveBeenCalledWith(42);
     });
   });

@@ -29,8 +29,7 @@ import { ImageProcessingService } from '@shared/services/image-processing.servic
 import { VideoProcessingService } from '@shared/services/video-processing.service';
 import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
-import { RoomsService } from '../rooms/rooms.service';
-import { RoomEntity } from '../rooms/rooms.entity';
+import { RoomsFacade, type TRoomAccessTarget } from '../rooms/rooms.facade';
 import { GetUserDto } from '../users/users.dto';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
@@ -71,7 +70,7 @@ export class AttachmentsService {
     private readonly imageProcessingService: ImageProcessingService,
     private readonly videoProcessingService: VideoProcessingService,
     private readonly settingsService: SettingsService,
-    private readonly roomsService: RoomsService,
+    private readonly roomsFacade: RoomsFacade,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -246,14 +245,14 @@ export class AttachmentsService {
 
   public canReadMessage(
     message: {
-      room?: unknown;
+      room?: TRoomAccessTarget | null;
       sender: { id: number };
       recipient?: { id: number } | null;
     },
     user: GetUserDto,
   ): boolean {
     if (message.room) {
-      return this.roomsService.canAccessRoom(user, message.room as RoomEntity);
+      return this.roomsFacade.canAccessRoom(user, message.room);
     }
     return message.sender.id === user.id || message.recipient?.id === user.id;
   }
