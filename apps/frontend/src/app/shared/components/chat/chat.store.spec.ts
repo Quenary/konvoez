@@ -171,9 +171,14 @@ describe('ChatStore', () => {
       ],
     });
 
-    store = TestBed.inject(ChatStore);
     ngrxStore = TestBed.inject(Store);
     ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
+    store = TestBed.inject(ChatStore);
+  });
+
+  afterEach(() => {
+    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
+    TestBed.resetTestingModule();
   });
 
   it('should initialize with default state', () => {
