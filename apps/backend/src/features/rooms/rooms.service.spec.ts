@@ -71,12 +71,14 @@ describe('RoomsService', () => {
       persist: jest.fn(),
       populate: jest.fn().mockResolvedValue(undefined),
       find: jest.fn().mockResolvedValue([]),
+      nativeDelete: jest.fn().mockResolvedValue(0),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {
       getEntityManager: jest.fn().mockReturnValue(mockEm),
       findOne: jest.fn(),
       findAll: jest.fn().mockResolvedValue([room]),
+      find: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockReturnValue(room),
       assign: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<RoomEntity>>;
@@ -232,6 +234,57 @@ describe('RoomsService', () => {
       } as unknown as RoomEntity;
 
       expect(service.canAccessRoom(normalUser, privateRoom)).toBe(true);
+    });
+  });
+
+  describe('deleteRoomsByAuthor', () => {
+    it('deletes rooms by author and emits ROOM_DELETED for each', async () => {
+      mockRepo.find.mockResolvedValueOnce([
+        { id: 10 } as RoomEntity,
+        { id: 20 } as RoomEntity,
+      ]);
+
+      await service.deleteRoomsByAuthor(5);
+
+      expect(mockRepo.find).toHaveBeenCalledWith({ author: 5 });
+      expect(mockEm.nativeDelete).toHaveBeenCalledWith(RoomEntity, {
+        id: { $in: [10, 20] },
+      });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id: 10 },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.ROOM_DELETED,
+        { id: 20 },
+      );
+    });
+
+    it('does nothing when author has no rooms', async () => {
+      mockRepo.find.mockResolvedValueOnce([]);
+
+      await service.deleteRoomsByAuthor(5);
+
+      expect(mockEm.nativeDelete).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAvatarKeys', () => {
+    it('returns non-null avatar keys', async () => {
+      mockRepo.find.mockResolvedValueOnce([
+        { avatar: 'avatar-1' } as RoomEntity,
+        { avatar: null } as unknown as RoomEntity,
+        { avatar: 'avatar-2' } as RoomEntity,
+      ]);
+
+      const keys = await service.findAvatarKeys();
+
+      expect(keys).toEqual(['avatar-1', 'avatar-2']);
+      expect(mockRepo.find).toHaveBeenCalledWith(
+        { avatar: { $ne: null } },
+        { fields: ['avatar'] },
+      );
     });
   });
 });

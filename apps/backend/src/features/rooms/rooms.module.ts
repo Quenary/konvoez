@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { RoomEntity } from './rooms.entity';
 import { RoomsService } from './rooms.service';
+import { RoomsFacade } from './rooms.facade';
 import { RoomsController } from './rooms.controller';
 import { RoomsAvatarsService } from './rooms-avatars.service';
 
@@ -9,7 +10,7 @@ import { RoomsAvatarsService } from './rooms-avatars.service';
 @Module({
   imports: [MikroOrmModule.forFeature([RoomEntity])],
   controllers: [RoomsController],
-  providers: [RoomsService, RoomsAvatarsService],
-  exports: [RoomsService],
+  providers: [RoomsService, RoomsAvatarsService, RoomsFacade],
+  exports: [RoomsService, RoomsFacade],
 })
 export class RoomsModule {}
