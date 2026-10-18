@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { IUser, IRole } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -44,6 +45,7 @@ export interface IUserManagementRoleOption {
   selector: 'app-settings-user-management-dialog',
   imports: [
     DayjsPipe,
+    FormsModule,
     TranslatePipe,
     UserAvatarComponent,
     TuiAutoColorPipe,

@@ -5,7 +5,12 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { ERoomType, maxAvatarSize, IRole, IUser } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IRoom } from '@konvoez/shared';
@@ -71,6 +76,7 @@ export interface IRoomUserOption {
   selector: 'app-room-dialog',
   imports: [
     DayjsPipe,
+    FormsModule,
     ReactiveFormsModule,
     TranslatePipe,
     LowerCasePipe,

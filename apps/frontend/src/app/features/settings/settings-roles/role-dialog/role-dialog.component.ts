@@ -5,7 +5,12 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { EPermission, ICreateRole, IRole, IUpdateRole } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -81,6 +86,7 @@ export const AVAILABLE_PERMISSIONS: readonly IPermissionOption[] = [
 @Component({
   selector: 'app-role-dialog',
   imports: [
+    FormsModule,
     ReactiveFormsModule,
     TranslatePipe,
     TuiButton,

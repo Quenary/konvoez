@@ -61,8 +61,9 @@
           <input
             tuiCheckbox
             type="checkbox"
-            [checked]="item.checked"
-            (change)="togglePermission(item.permission, $event)" />
+            [ngModel]="item.checked"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="togglePermission(item.permission, $event)" />
           <span>{{ item.labelKey | translate }}</span>
         </label>
       }

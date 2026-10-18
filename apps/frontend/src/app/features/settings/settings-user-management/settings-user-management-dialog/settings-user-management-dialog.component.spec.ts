@@ -164,4 +164,24 @@ describe('SettingsUserManagementDialogComponent', () => {
       roleIds: expect.arrayContaining([10, 20]),
     });
   });
+
+  it('renders interactive role checkboxes with ngModel', async () => {
+    const checkboxes = fixture.nativeElement.querySelectorAll(
+      '.roles-checklist input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+
+    expect(checkboxes.length).toBe(2);
+    for (const cb of checkboxes) {
+      expect(cb.disabled).toBe(false);
+    }
+    expect(checkboxes[0].checked).toBe(true);
+    expect(checkboxes[1].checked).toBe(false);
+
+    checkboxes[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['roleChanged']()).toBe(true);
+    expect(component['selectedRoleIds']().has(20)).toBe(true);
+  });
 });

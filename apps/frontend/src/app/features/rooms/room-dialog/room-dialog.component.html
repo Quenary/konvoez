@@ -118,8 +118,9 @@
                   <input
                     tuiCheckbox
                     type="checkbox"
-                    [checked]="opt.checked"
-                    (change)="toggleRole(opt.role.id, $event)" />
+                    [ngModel]="opt.checked"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="toggleRole(opt.role.id, $event)" />
                   <span class="item-name">
                     @if (opt.role.color) {
                       <span
@@ -149,8 +150,9 @@
                   <input
                     tuiCheckbox
                     type="checkbox"
-                    [checked]="opt.checked"
-                    (change)="toggleUser(opt.user.id, $event)" />
+                    [ngModel]="opt.checked"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="toggleUser(opt.user.id, $event)" />
                   <span
                     class="item-name"
                     [style.color]="opt.user.username | tuiAutoColor">

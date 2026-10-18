@@ -8,22 +8,62 @@ import { ERoomType } from '@konvoez/shared';
 import { RoomsApiService } from '@core/api/rooms-api.service';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { UsersStore } from '@core/stores/users.store';
+import { IRole, IUser } from '@konvoez/shared';
 import { RoomDialogComponent, RoomDialogData } from './room-dialog.component';
 
 describe('RoomDialogComponent', () => {
   let component: RoomDialogComponent;
   let fixture: ComponentFixture<RoomDialogComponent>;
 
+  const mockRoles: IRole[] = [
+    {
+      id: 10,
+      name: 'Admin',
+      priority: 10,
+      color: null,
+      isDefault: false,
+      permissions: [],
+      createdAt: new Date(),
+      updatedAt: null,
+    },
+    {
+      id: 20,
+      name: 'Moderator',
+      priority: 5,
+      color: null,
+      isDefault: false,
+      permissions: [],
+      createdAt: new Date(),
+      updatedAt: null,
+    },
+  ];
+
+  const mockUsers: IUser[] = [
+    {
+      id: 2,
+      username: 'alice',
+      fullname: 'Alice Smith',
+      email: 'alice@example.com',
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      avatar: null,
+      avatarUrl: null,
+      createdAt: new Date(),
+      updatedAt: null,
+    },
+  ];
+
   const mockRoomsApiService = {
     avatarUpload: vi.fn(),
   };
 
   const mockRolesApiService = {
-    list: vi.fn().mockReturnValue(of([])),
+    list: vi.fn().mockReturnValue(of(mockRoles)),
   };
 
   const mockUsersStore = {
-    entities: vi.fn().mockReturnValue([]),
+    entities: vi.fn().mockReturnValue(mockUsers),
     loadAll: vi.fn(),
   };
 
@@ -84,6 +124,26 @@ describe('RoomDialogComponent', () => {
         allowedUserIds: [2],
       }),
     );
+  });
+
+  it('renders interactive role and user checkboxes with ngModel', async () => {
+    const checkboxes = fixture.nativeElement.querySelectorAll(
+      '.access-checklist input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+
+    expect(checkboxes.length).toBe(3);
+    for (const cb of checkboxes) {
+      expect(cb.disabled).toBe(false);
+    }
+    expect(checkboxes[0].checked).toBe(true);
+    expect(checkboxes[1].checked).toBe(false);
+    expect(checkboxes[2].checked).toBe(true);
+
+    checkboxes[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['isRoleSelected'](20)).toBe(true);
   });
 
   it('completes with null on close', () => {
