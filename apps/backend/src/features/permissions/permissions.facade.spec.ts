@@ -364,7 +364,7 @@ describe('PermissionsFacade', () => {
       await expect(
         facade.assertCanGrantPermissions({ id: 1, isOwner: true }, [
           EPermission.MANAGE_ROLES,
-          EPermission.MANAGE_SERVER,
+          EPermission.MANAGE_SETTINGS,
         ]),
       ).resolves.not.toThrow();
     });

@@ -22,7 +22,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import { ApiErrorCode, EPermission, createRoleSchema } from '@konvoez/shared';
 import {
   type EntityManager,
   type EntityRepository,
@@ -30,11 +30,12 @@ import {
 } from '@mikro-orm/core';
 import { RoleEntity } from './roles.entity';
 import { RolesService } from './roles.service';
+import type { CreateRoleDto } from './roles.dto';
 
 describe('RolesService', () => {
   let service: RolesService;
   let mockRepo: jest.Mocked<EntityRepository<RoleEntity>>;
-  let mockEm: jest.Mocked<EntityManager>;
+  let mockEm: jest.Mocked<EntityManager> & { execute: jest.Mock };
   let mockEventEmitter: { emit: jest.Mock };
 
   const mockRole = {
@@ -65,7 +66,7 @@ describe('RolesService', () => {
       persist: jest.fn(),
       remove: jest.fn(),
       execute: jest.fn().mockResolvedValue([{ user_id: 10 }]),
-    } as unknown as jest.Mocked<EntityManager>;
+    } as unknown as jest.Mocked<EntityManager> & { execute: jest.Mock };
 
     mockRepo = {
       getEntityManager: jest.fn().mockReturnValue(mockEm),
@@ -286,11 +287,13 @@ describe('RolesService', () => {
         isDefault: true,
       } as RoleEntity);
 
-      await service.create({
-        name: 'Default',
-        isDefault: true,
-        permissions: [],
-      });
+      await service.create(
+        createRoleSchema.parse({
+          name: 'Default',
+          isDefault: true,
+          permissions: [],
+        }) as CreateRoleDto,
+      );
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         'entity-sync.user.permissions-changed',

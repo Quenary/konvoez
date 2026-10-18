@@ -1,4 +1,7 @@
 import { defineConfig, Options } from '@mikro-orm/core';
+import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import type { MySqlDriver } from '@mikro-orm/mysql';
+import type { SqliteDriver } from '@mikro-orm/sqlite';
 import { CompiledQuery, type DatabaseConnection } from 'kysely';
 import { Migrator } from '@mikro-orm/migrations';
 import { UserEntitySchema } from './features/users/users.entity';
@@ -81,7 +84,7 @@ export async function createMikroOrmConfig() {
 
   switch (engine) {
     case 'postgres': {
-      return defineConfig({
+      return defineConfig<PostgreSqlDriver>({
         ...baseOptions,
         driver: await import('@mikro-orm/postgresql').then(
           (m) => m.PostgreSqlDriver,
@@ -94,7 +97,7 @@ export async function createMikroOrmConfig() {
       });
     }
     case 'mysql': {
-      return defineConfig({
+      return defineConfig<MySqlDriver>({
         ...baseOptions,
         driver: await import('@mikro-orm/mysql').then((m) => m.MySqlDriver),
         dbName: process.env.DB_NAME || 'konvoez',
@@ -105,7 +108,7 @@ export async function createMikroOrmConfig() {
       });
     }
     default: {
-      return defineConfig({
+      return defineConfig<SqliteDriver>({
         ...baseOptions,
         driver: await import('@mikro-orm/sqlite').then((m) => m.SqliteDriver),
         dbName: process.env.DB_NAME || getDefaultSqliteDbPath(),

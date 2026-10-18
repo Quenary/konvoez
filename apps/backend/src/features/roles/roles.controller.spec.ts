@@ -22,12 +22,13 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import { ApiErrorCode, EPermission, createRoleSchema } from '@konvoez/shared';
 import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import type { GetUserDto } from '../users/users.dto';
 import type { RoleEntity } from './roles.entity';
+import type { CreateRoleDto } from './roles.dto';
 import type { RoleDto } from './roles.dto';
 
 describe('RolesController', () => {
@@ -113,11 +114,11 @@ describe('RolesController', () => {
 
   describe('create', () => {
     it('checks hierarchy and permissions then creates role', async () => {
-      const dto = {
+      const dto = createRoleSchema.parse({
         name: 'New Role',
         priority: 10,
         permissions: [EPermission.MANAGE_ROOMS],
-      };
+      }) as CreateRoleDto;
 
       const result = await controller.create(mockAuthor, dto);
 
@@ -139,7 +140,13 @@ describe('RolesController', () => {
       });
 
       await expect(
-        controller.create(mockAuthor, { name: 'Super', priority: 100 }),
+        controller.create(
+          mockAuthor,
+          createRoleSchema.parse({
+            name: 'Super',
+            priority: 100,
+          }) as CreateRoleDto,
+        ),
       ).rejects.toMatchObject({
         code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
       });
