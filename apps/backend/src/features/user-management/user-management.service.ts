@@ -48,6 +48,10 @@ export class UserManagementService {
     }
     for (const role of roles) {
       this.permissionsFacade.assertCanManageRole(author, role.priority);
+      await this.permissionsFacade.assertCanGrantPermissions(
+        author,
+        role.permissions,
+      );
     }
     await this.usersService.updateUserRoles(user, roles);
 

@@ -21,7 +21,8 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import type { GetUserDto } from '../users/users.dto';
 import type { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
@@ -47,7 +48,10 @@ describe('UserManagementService', () => {
   let permissionsFacade: jest.Mocked<
     Pick<
       PermissionsFacade,
-      'findRolesByIds' | 'assertCanManageRole' | 'assertCanManageUser'
+      | 'findRolesByIds'
+      | 'assertCanManageRole'
+      | 'assertCanManageUser'
+      | 'assertCanGrantPermissions'
     >
   >;
   let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
@@ -98,6 +102,7 @@ describe('UserManagementService', () => {
       findRolesByIds: jest.fn().mockResolvedValue([]),
       assertCanManageRole: jest.fn(),
       assertCanManageUser: jest.fn(),
+      assertCanGrantPermissions: jest.fn().mockResolvedValue(undefined),
     };
 
     roomsFacade = {
@@ -251,6 +256,81 @@ describe('UserManagementService', () => {
       expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
         { id: 2, priority: 10 },
       ]);
+    });
+
+    it('should reject when assigning a role containing permissions the author cannot grant', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      const adminAuthor: GetUserDto = {
+        ...mockUserDto,
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROLES],
+      };
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        {
+          id: 3,
+          priority: 10,
+          permissions: [EPermission.MANAGE_SETTINGS],
+        } as never,
+      ]);
+      permissionsFacade.assertCanGrantPermissions.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+          'Cannot grant permissions that you do not possess',
+        ),
+      );
+
+      await expect(
+        service.updateRole(5, { roleIds: [3] }, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+      expect(usersService.updateUserRoles).not.toHaveBeenCalled();
+    });
+
+    it('should succeed when author holds all permissions of the assigned role', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      const adminAuthor: GetUserDto = {
+        ...mockUserDto,
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROLES, EPermission.MANAGE_ROOMS],
+      };
+      usersService.findOne.mockResolvedValueOnce(target);
+      const role = {
+        id: 3,
+        priority: 10,
+        permissions: [EPermission.MANAGE_ROOMS],
+      };
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([role as never]);
+
+      await service.updateRole(5, { roleIds: [3] }, adminAuthor);
+
+      expect(permissionsFacade.assertCanGrantPermissions).toHaveBeenCalledWith(
+        adminAuthor,
+        role.permissions,
+      );
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [role]);
+    });
+
+    it('should allow owner to assign any role regardless of permissions', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      const role = {
+        id: 3,
+        priority: 10,
+        permissions: [EPermission.MANAGE_SETTINGS],
+      };
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([role as never]);
+
+      await service.updateRole(5, { roleIds: [3] }, ownerAuthor);
+
+      expect(permissionsFacade.assertCanGrantPermissions).toHaveBeenCalledWith(
+        ownerAuthor,
+        role.permissions,
+      );
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [role]);
     });
   });
 
