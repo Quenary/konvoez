@@ -76,6 +76,47 @@ describe('PermissionsFacade', () => {
       expect(permissions).toContain(EPermission.MANAGE_ROOMS);
       expect(permissions).toContain(EPermission.SEND_MESSAGES);
     });
+
+    it('caches default permissions across multiple calls', async () => {
+      rolesService.findDefaultRoles.mockResolvedValue([defaultRole]);
+
+      const first = await facade.getDefaultPermissions();
+      const second = await facade.getDefaultPermissions();
+
+      expect(first).toEqual([EPermission.MANAGE_ROOMS]);
+      expect(second).toEqual([EPermission.MANAGE_ROOMS]);
+      expect(rolesService.findDefaultRoles).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates cache when global permissions change event occurs', async () => {
+      rolesService.findDefaultRoles.mockResolvedValue([defaultRole]);
+
+      await facade.getDefaultPermissions();
+      expect(rolesService.findDefaultRoles).toHaveBeenCalledTimes(1);
+
+      // Specific user change should NOT invalidate default roles cache
+      facade.handlePermissionsChanged({ userIds: [42] });
+      await facade.getDefaultPermissions();
+      expect(rolesService.findDefaultRoles).toHaveBeenCalledTimes(1);
+
+      // Global (empty userIds) change SHOULD invalidate cache
+      facade.handlePermissionsChanged({ userIds: [] });
+      await facade.getDefaultPermissions();
+      expect(rolesService.findDefaultRoles).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears cache if loading default roles fails', async () => {
+      rolesService.findDefaultRoles.mockRejectedValueOnce(
+        new Error('DB error'),
+      );
+
+      await expect(facade.getDefaultPermissions()).rejects.toThrow('DB error');
+
+      rolesService.findDefaultRoles.mockResolvedValueOnce([defaultRole]);
+      await expect(facade.getDefaultPermissions()).resolves.toEqual([
+        EPermission.MANAGE_ROOMS,
+      ]);
+    });
   });
 
   describe('getUserPermissions', () => {

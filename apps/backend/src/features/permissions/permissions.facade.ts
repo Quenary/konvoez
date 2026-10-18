@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 import { RoleEntity } from '../roles/roles.entity';
 import { RoleDto } from '../roles/roles.dto';
 import { RolesService } from '../roles/roles.service';
@@ -9,17 +11,43 @@ import { GetUserDto } from '../users/users.dto';
 
 @Injectable()
 export class PermissionsFacade {
+  private defaultPermissionsCache: Promise<EPermission[]> | null = null;
+
   constructor(private readonly rolesService: RolesService) {}
 
   async getDefaultPermissions(): Promise<EPermission[]> {
-    const defaultRoles = await this.rolesService.findDefaultRoles();
-    const set = new Set<EPermission>();
-    for (const role of defaultRoles) {
-      for (const p of role.permissions) {
-        set.add(p);
-      }
+    if (!this.defaultPermissionsCache) {
+      this.defaultPermissionsCache = this.loadDefaultPermissions();
     }
-    return Array.from(set);
+    const perms = await this.defaultPermissionsCache;
+    return [...perms];
+  }
+
+  private async loadDefaultPermissions(): Promise<EPermission[]> {
+    try {
+      const defaultRoles = await this.rolesService.findDefaultRoles();
+      const set = new Set<EPermission>();
+      for (const role of defaultRoles) {
+        for (const p of role.permissions) {
+          set.add(p);
+        }
+      }
+      return Array.from(set);
+    } catch (err) {
+      this.defaultPermissionsCache = null;
+      throw err;
+    }
+  }
+
+  @OnEvent(EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED)
+  handlePermissionsChanged(payload?: { userIds?: number[] }): void {
+    if (!payload?.userIds || payload.userIds.length === 0) {
+      this.clearDefaultPermissionsCache();
+    }
+  }
+
+  clearDefaultPermissionsCache(): void {
+    this.defaultPermissionsCache = null;
   }
 
   async getUserPermissions(
