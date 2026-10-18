@@ -153,33 +153,18 @@ describe('UserManagementService', () => {
       usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(
-        service.updateRole(5, { role: EUserRole.ADMIN }, ownerAuthor),
+        service.updateRole(5, { roleIds: [2] }, ownerAuthor),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });
       expect(usersService.updateUserRoles).not.toHaveBeenCalled();
     });
 
-    it('should reject assigning the owner role', async () => {
-      const target = {
-        ...mockUser,
-        id: 5,
-        role: EUserRole.MEMBER,
-      } as UserEntity;
-      usersService.findOne.mockResolvedValueOnce(target);
-
-      await expect(
-        service.updateRole(5, { role: EUserRole.OWNER }, ownerAuthor),
-      ).rejects.toMatchObject({
-        code: ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
-      });
-    });
-
     it('should reject changing the caller own role', async () => {
       usersService.findOne.mockResolvedValueOnce(mockUser);
 
       await expect(
-        service.updateRole(1, { role: EUserRole.ADMIN }, mockUserDto),
+        service.updateRole(1, { roleIds: [2] }, mockUserDto),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });

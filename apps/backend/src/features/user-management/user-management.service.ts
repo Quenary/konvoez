@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import {
   EntitySyncDomainEvents,
@@ -10,6 +10,7 @@ import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
+import { UserManagementUpdateDto } from './user-management.dto';
 
 @Injectable()
 export class UserManagementService {
@@ -29,30 +30,14 @@ export class UserManagementService {
 
   async updateRole(
     id: number,
-    dto: { roleIds?: number[]; role?: EUserRole },
+    dto: UserManagementUpdateDto,
     author: GetUserDto,
   ): Promise<GetUserDto> {
     const user = await this.usersService.findOne(id);
     this.assertManageableTarget(id, author, user);
 
-    if (dto.role === EUserRole.OWNER) {
-      throw AppException.badRequest(
-        ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
-        'Owner role cannot be assigned',
-      );
-    }
-
-    if (dto.roleIds !== undefined) {
-      const roles = await this.permissionsFacade.findRolesByIds(dto.roleIds);
-      await this.usersService.updateUserRoles(user, roles);
-    }
-
-    if (!dto.role && dto.roleIds === undefined) {
-      throw AppException.badRequest(
-        ApiErrorCode.USER_UPDATE_EMPTY,
-        'At least one field is required',
-      );
-    }
+    const roles = await this.permissionsFacade.findRolesByIds(dto.roleIds);
+    await this.usersService.updateUserRoles(user, roles);
 
     const result = await this.usersService.toDtoWithPermissions(user);
     emitEntitySyncDomainEvent(
