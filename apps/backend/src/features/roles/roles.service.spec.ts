@@ -35,6 +35,7 @@ describe('RolesService', () => {
   let service: RolesService;
   let mockRepo: jest.Mocked<EntityRepository<RoleEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
+  let mockEventEmitter: { emit: jest.Mock };
 
   const mockRole = {
     id: 1,
@@ -63,6 +64,7 @@ describe('RolesService', () => {
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
       remove: jest.fn(),
+      execute: jest.fn().mockResolvedValue([{ user_id: 10 }]),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockRepo = {
@@ -74,7 +76,9 @@ describe('RolesService', () => {
       assign: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<RoleEntity>>;
 
-    service = new RolesService(mockRepo);
+    mockEventEmitter = { emit: jest.fn() };
+
+    service = new RolesService(mockRepo, mockEventEmitter as never);
   });
 
   describe('findAll', () => {
@@ -236,13 +240,18 @@ describe('RolesService', () => {
   });
 
   describe('remove', () => {
-    it('deletes non-default role', async () => {
+    it('deletes non-default role and emits USER_PERMISSIONS_CHANGED for members', async () => {
       mockRepo.findOne.mockResolvedValueOnce(mockRole);
+      mockEm.execute.mockResolvedValueOnce([{ user_id: 10 }]);
 
       await service.remove(1);
 
       expect(mockEm.remove).toHaveBeenCalledWith(mockRole);
       expect(mockEm.flush).toHaveBeenCalled();
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'entity-sync.user.permissions-changed',
+        { userIds: [10] },
+      );
     });
 
     it('rejects deleting default role', async () => {
@@ -252,6 +261,68 @@ describe('RolesService', () => {
         code: ApiErrorCode.ROLE_CANNOT_DELETE_DEFAULT,
       });
       expect(mockEm.remove).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findUserIdsByRole', () => {
+    it('executes raw query on user_roles pivot table', async () => {
+      mockEm.execute.mockResolvedValueOnce([{ user_id: 3 }, { user_id: 7 }]);
+
+      const ids = await service.findUserIdsByRole(5);
+
+      expect(mockEm.execute).toHaveBeenCalledWith(
+        'select user_id from user_roles where role_id = ?',
+        [5],
+      );
+      expect(ids).toEqual([3, 7]);
+    });
+  });
+
+  describe('permissions changed events', () => {
+    it('emits event with userIds: [] when creating default role', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+      mockRepo.create.mockReturnValueOnce({
+        ...mockRole,
+        isDefault: true,
+      } as RoleEntity);
+
+      await service.create({
+        name: 'Default',
+        isDefault: true,
+        permissions: [],
+      });
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'entity-sync.user.permissions-changed',
+        { userIds: [] },
+      );
+    });
+
+    it('emits event with userIds: [] when updating default role', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(defaultRole);
+
+      await service.update(2, {
+        permissions: [EPermission.MANAGE_ROLES],
+      });
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'entity-sync.user.permissions-changed',
+        { userIds: [] },
+      );
+    });
+
+    it('emits event with userIds for non-default role when permissions change', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockRole);
+      mockEm.execute.mockResolvedValueOnce([{ user_id: 42 }]);
+
+      await service.update(1, {
+        permissions: [EPermission.MANAGE_ROLES],
+      });
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'entity-sync.user.permissions-changed',
+        { userIds: [42] },
+      );
     });
   });
 });

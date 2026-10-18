@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   EntityManager,
@@ -7,6 +8,10 @@ import {
 } from '@mikro-orm/core';
 import { ApiErrorCode, IRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import {
+  EntitySyncDomainEvents,
+  emitEntitySyncDomainEvent,
+} from '@shared/events/entity-sync.events';
 import { RoleEntity } from './roles.entity';
 import { CreateRoleDto, RoleDto, UpdateRoleDto } from './roles.dto';
 
@@ -19,6 +24,7 @@ export class RolesService {
   constructor(
     @InjectRepository(RoleEntity)
     private readonly repo: EntityRepository<RoleEntity>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findAll(): Promise<RoleDto[]> {
@@ -37,6 +43,20 @@ export class RolesService {
 
   async findDefaultRoles(): Promise<RoleEntity[]> {
     return this.repo.find({ isDefault: true });
+  }
+
+  async findUserIdsByRole(roleId: number): Promise<number[]> {
+    const em = this.em as unknown as {
+      execute: (
+        query: string,
+        params?: unknown[],
+      ) => Promise<Array<{ user_id: number }>>;
+    };
+    const rows = await em.execute(
+      'select user_id from user_roles where role_id = ?',
+      [roleId],
+    );
+    return rows.map((r) => r.user_id);
   }
 
   async findOne(id: number): Promise<RoleEntity> {
@@ -86,11 +106,28 @@ export class RolesService {
       }
       throw error;
     }
+
+    if (role.isDefault) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds: [] },
+      );
+    }
+
     return this.toDto(role);
   }
 
   async update(id: number, dto: UpdateRoleDto): Promise<RoleDto> {
     const role = await this.findOne(id);
+    const wasDefault = role.isDefault;
+    const isDefaultChanged =
+      dto.isDefault !== undefined && dto.isDefault !== wasDefault;
+    const permissionsChanged =
+      dto.permissions !== undefined &&
+      JSON.stringify(dto.permissions) !== JSON.stringify(role.permissions);
+    const priorityChanged =
+      dto.priority !== undefined && dto.priority !== role.priority;
 
     if (dto.name && dto.name !== role.name) {
       const existing = await this.repo.findOne({
@@ -126,6 +163,24 @@ export class RolesService {
       }
       throw error;
     }
+
+    if (isDefaultChanged || wasDefault) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds: [] },
+      );
+    } else if (permissionsChanged || priorityChanged) {
+      const userIds = await this.findUserIdsByRole(id);
+      if (userIds.length > 0) {
+        emitEntitySyncDomainEvent(
+          this.eventEmitter,
+          EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+          { userIds },
+        );
+      }
+    }
+
     return this.toDto(role);
   }
 
@@ -138,8 +193,17 @@ export class RolesService {
       );
     }
 
+    const userIds = await this.findUserIdsByRole(id);
     this.em.remove(role);
     await this.em.flush();
+
+    if (userIds.length > 0) {
+      emitEntitySyncDomainEvent(
+        this.eventEmitter,
+        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds },
+      );
+    }
   }
 
   toDto(role: RoleEntity): RoleDto {

@@ -20,6 +20,8 @@ import {
   type TEntitySyncDomainPayloadMap,
 } from '@shared/events/entity-sync.events';
 import { GetUserDto } from '../users/users.dto';
+import { UsersService } from '../users/users.service';
+import { RoomsService } from '../rooms/rooms.service';
 
 type TSocket = Socket<
   TEntitySyncEventMap,
@@ -43,6 +45,12 @@ export class EntitySyncGateway
 
   @Inject(UserPresenceService)
   private readonly userPresenceService!: UserPresenceService;
+
+  @Inject(UsersService)
+  private readonly usersService!: UsersService;
+
+  @Inject(RoomsService)
+  private readonly roomsService!: RoomsService;
 
   async handleConnection(client: TSocket) {
     try {
@@ -181,5 +189,39 @@ export class EntitySyncGateway
     payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.USER_PRESENCE_CHANGED],
   ) {
     this.server.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, payload);
+  }
+
+  @OnEvent(EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED)
+  async onUserPermissionsChanged(
+    payload: TEntitySyncDomainPayloadMap[typeof EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED],
+  ) {
+    const affectedSet =
+      payload.userIds.length > 0 ? new Set(payload.userIds) : null;
+    const privateRooms = await this.roomsService.findPrivateRooms();
+
+    for (const [_, client] of this.server.sockets.sockets) {
+      const current = client.data.user;
+      if (!current) continue;
+      if (affectedSet && !affectedSet.has(current.id)) continue;
+
+      try {
+        const previous = current;
+        const updated = await this.usersService.findOneAsDto(current.id);
+        client.data.user = updated;
+        client.emit(EEntitySyncEvent.USER_UPDATED, updated);
+
+        for (const room of privateRooms) {
+          const hadAccess = this.canUserAccessRoom(previous, room);
+          const hasAccess = this.canUserAccessRoom(updated, room);
+          if (!hadAccess && hasAccess) {
+            client.emit(EEntitySyncEvent.ROOM_CREATED, room);
+          } else if (hadAccess && !hasAccess) {
+            client.emit(EEntitySyncEvent.ROOM_DELETED, { id: room.id });
+          }
+        }
+      } catch {
+        // user might have been deleted concurrently
+      }
+    }
   }
 }

@@ -73,10 +73,18 @@ describe('EntitySyncGateway', () => {
       isOnline: jest.fn(),
       getOnlineUserIds: jest.fn().mockReturnValue([1, 2]),
     };
+    const usersServiceMock = {
+      findOneAsDto: jest.fn().mockResolvedValue(user),
+    };
+    const roomsServiceMock = {
+      findPrivateRooms: jest.fn().mockResolvedValue([]),
+    };
     Object.assign(gateway, {
       server: serverMock as unknown as Server,
       authService: authServiceMock,
       userPresenceService: userPresenceServiceMock,
+      usersService: usersServiceMock,
+      roomsService: roomsServiceMock,
     });
   });
 
@@ -261,5 +269,115 @@ describe('EntitySyncGateway', () => {
     );
 
     expect(userPresenceServiceMock.removeSocket).not.toHaveBeenCalled();
+  });
+
+  describe('onUserPermissionsChanged', () => {
+    it('refreshes user data and adjusts private room visibility for affected clients', async () => {
+      const clientEmit = jest.fn();
+      const clientMock = {
+        id: 's-1',
+        data: {
+          user: {
+            ...user,
+            id: 5,
+            roles: [],
+            permissions: [],
+          },
+        },
+        emit: clientEmit,
+      };
+
+      serverMock.sockets.sockets.set('s-1', clientMock);
+
+      const privateRoom: IRoom = {
+        ...room,
+        id: 99,
+        isPrivate: true,
+        allowedRoleIds: [10],
+      };
+
+      const updatedUser: IUser = {
+        ...user,
+        id: 5,
+        roles: [{ id: 10, name: 'VIP', color: null, priority: 1 }],
+        permissions: [],
+      };
+
+      const usersServiceMock = {
+        findOneAsDto: jest.fn().mockResolvedValue(updatedUser),
+      };
+      const roomsServiceMock = {
+        findPrivateRooms: jest.fn().mockResolvedValue([privateRoom]),
+      };
+
+      Object.assign(gateway, {
+        usersService: usersServiceMock,
+        roomsService: roomsServiceMock,
+      });
+
+      await gateway.onUserPermissionsChanged({ userIds: [5] });
+
+      expect(usersServiceMock.findOneAsDto).toHaveBeenCalledWith(5);
+      expect(clientMock.data.user).toBe(updatedUser);
+      expect(clientEmit).toHaveBeenCalledWith(
+        EEntitySyncEvent.USER_UPDATED,
+        updatedUser,
+      );
+      // Gained access to privateRoom
+      expect(clientEmit).toHaveBeenCalledWith(
+        EEntitySyncEvent.ROOM_CREATED,
+        privateRoom,
+      );
+    });
+
+    it('emits ROOM_DELETED when user loses access to private room', async () => {
+      const clientEmit = jest.fn();
+      const clientMock = {
+        id: 's-2',
+        data: {
+          user: {
+            ...user,
+            id: 7,
+            roles: [{ id: 10, name: 'VIP', color: null, priority: 1 }],
+            permissions: [],
+          },
+        },
+        emit: clientEmit,
+      };
+
+      serverMock.sockets.sockets.set('s-2', clientMock);
+
+      const privateRoom: IRoom = {
+        ...room,
+        id: 99,
+        isPrivate: true,
+        allowedRoleIds: [10],
+      };
+
+      const revokedUser: IUser = {
+        ...user,
+        id: 7,
+        roles: [],
+        permissions: [],
+      };
+
+      const usersServiceMock = {
+        findOneAsDto: jest.fn().mockResolvedValue(revokedUser),
+      };
+      const roomsServiceMock = {
+        findPrivateRooms: jest.fn().mockResolvedValue([privateRoom]),
+      };
+
+      Object.assign(gateway, {
+        usersService: usersServiceMock,
+        roomsService: roomsServiceMock,
+      });
+
+      await gateway.onUserPermissionsChanged({ userIds: [] }); // all users
+
+      expect(clientEmit).toHaveBeenCalledWith(EEntitySyncEvent.ROOM_DELETED, {
+        id: 99,
+      });
+    });
   });
 });

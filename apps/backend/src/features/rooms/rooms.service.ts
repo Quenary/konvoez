@@ -159,6 +159,14 @@ export class RoomsService {
     return rooms.map((room) => this.toDto(room));
   }
 
+  async findPrivateRooms(): Promise<GetRoomDto[]> {
+    const rooms = await this.repo.find(
+      { isPrivate: true },
+      { populate: ['author', 'allowedRoles', 'allowedUsers'] },
+    );
+    return rooms.map((room) => this.toDto(room));
+  }
+
   async create(dto: CreateRoomDto, author: GetUserDto): Promise<RoomEntity> {
     const existingRoom = await this.repo.findOne({ name: dto.name });
     if (existingRoom) {

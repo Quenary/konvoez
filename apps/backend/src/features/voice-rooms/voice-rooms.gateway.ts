@@ -293,7 +293,20 @@ export class VoiceRoomsGateway
     this.logger.debug(
       `handleJoinRoom: socketId=${socket.id}, sessionKey=${sessionKey}, roomId=${roomId}, userId=${socket.data.user?.id}`,
     );
-    const user = socket.data.user;
+    let user = socket.data.user;
+    if (user) {
+      try {
+        const freshUser = await this.authService.getUserFromRawCookies(
+          socket.handshake.headers.cookie,
+        );
+        if (freshUser) {
+          socket.data.user = freshUser;
+          user = freshUser;
+        }
+      } catch {
+        // keep existing user
+      }
+    }
 
     if (
       !user.isOwner &&

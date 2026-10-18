@@ -149,6 +149,10 @@ describe('UserManagementService', () => {
         EntitySyncDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5 }),
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds: [5] },
+      );
     });
 
     it('should reject changing the owner role', async () => {

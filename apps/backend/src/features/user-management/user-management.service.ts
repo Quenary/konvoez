@@ -48,6 +48,11 @@ export class UserManagementService {
       EntitySyncDomainEvents.USER_UPDATED,
       result,
     );
+    emitEntitySyncDomainEvent(
+      this.eventEmitter,
+      EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+      { userIds: [id] },
+    );
     return result;
   }
 

@@ -110,7 +110,23 @@ export class TextRoomsGateway
     this.handleLeave(client);
 
     const { roomId, recipientId } = body;
-    const peer = client.data.peer;
+    let peer = client.data.peer;
+    if (peer) {
+      try {
+        const freshPeer = await this.authService.getUserFromRawCookies(
+          client.handshake.headers.cookie,
+        );
+        if (freshPeer) {
+          peer = {
+            ...freshPeer,
+            clientId: client.id,
+          } as TTextRoomPeer;
+          client.data.peer = peer;
+        }
+      } catch {
+        // keep existing peer
+      }
+    }
 
     if (roomId) {
       if (peer) {
