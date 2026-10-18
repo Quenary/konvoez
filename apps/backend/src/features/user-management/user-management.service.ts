@@ -37,6 +37,9 @@ export class UserManagementService {
     this.assertManageableTarget(id, author, user);
 
     const roles = await this.permissionsFacade.findRolesByIds(dto.roleIds);
+    for (const role of roles) {
+      this.permissionsFacade.assertCanManageRole(author, role.priority);
+    }
     await this.usersService.updateUserRoles(user, roles);
 
     const result = await this.usersService.toDtoWithPermissions(user);
@@ -68,5 +71,6 @@ export class UserManagementService {
     if (id === author.id || user.isOwner) {
       throw AppException.forbidden(ApiErrorCode.FORBIDDEN, 'Forbidden');
     }
+    this.permissionsFacade.assertCanManageUser(author, user);
   }
 }

@@ -21,7 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { EPermission } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { PermissionsFacade } from './permissions.facade';
 import type { RolesService } from '../roles/roles.service';
 import type { RoleEntity } from '../roles/roles.entity';
@@ -248,6 +248,159 @@ describe('PermissionsFacade', () => {
 
       expect(rolesService.findAll).toHaveBeenCalled();
       expect(result).toBe(dtos);
+    });
+  });
+
+  describe('getUserMaxPriority', () => {
+    it('returns Infinity for owner', () => {
+      expect(facade.getUserMaxPriority({ id: 1, isOwner: true })).toBe(
+        Infinity,
+      );
+    });
+
+    it('returns 0 for user without roles', () => {
+      expect(
+        facade.getUserMaxPriority({ id: 2, isOwner: false, roles: [] }),
+      ).toBe(0);
+    });
+
+    it('returns max priority among user roles', () => {
+      expect(
+        facade.getUserMaxPriority({
+          id: 3,
+          isOwner: false,
+          roles: [{ priority: 10 }, { priority: 50 }, { priority: 20 }],
+        }),
+      ).toBe(50);
+    });
+  });
+
+  describe('assertCanManageRole', () => {
+    it('allows owner to manage any role priority', () => {
+      expect(() =>
+        facade.assertCanManageRole({ id: 1, isOwner: true }, 9999),
+      ).not.toThrow();
+    });
+
+    it('allows author with higher priority to manage role', () => {
+      expect(() =>
+        facade.assertCanManageRole(
+          { id: 2, isOwner: false, roles: [{ priority: 20 }] },
+          10,
+        ),
+      ).not.toThrow();
+    });
+
+    it('rejects author with equal priority', () => {
+      expect(() =>
+        facade.assertCanManageRole(
+          { id: 2, isOwner: false, roles: [{ priority: 20 }] },
+          20,
+        ),
+      ).toThrow(
+        expect.objectContaining({
+          code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+        }),
+      );
+    });
+
+    it('rejects author with lower priority', () => {
+      expect(() =>
+        facade.assertCanManageRole(
+          { id: 2, isOwner: false, roles: [{ priority: 10 }] },
+          20,
+        ),
+      ).toThrow(
+        expect.objectContaining({
+          code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+        }),
+      );
+    });
+  });
+
+  describe('assertCanGrantPermissions', () => {
+    it('allows owner to grant any permissions', async () => {
+      await expect(
+        facade.assertCanGrantPermissions({ id: 1, isOwner: true }, [
+          EPermission.MANAGE_ROLES,
+          EPermission.MANAGE_SERVER,
+        ]),
+      ).resolves.not.toThrow();
+    });
+
+    it('allows author granting permissions they already possess', async () => {
+      const author = {
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROOMS, EPermission.SEND_MESSAGES],
+      };
+
+      await expect(
+        facade.assertCanGrantPermissions(author, [EPermission.MANAGE_ROOMS]),
+      ).resolves.not.toThrow();
+    });
+
+    it('rejects author attempting to grant permissions they lack', async () => {
+      const author = {
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROOMS],
+      };
+
+      await expect(
+        facade.assertCanGrantPermissions(author, [
+          EPermission.MANAGE_ROOMS,
+          EPermission.MANAGE_ROLES,
+        ]),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+    });
+  });
+
+  describe('assertCanManageUser', () => {
+    it('allows owner to manage any user', () => {
+      expect(() =>
+        facade.assertCanManageUser(
+          { id: 1, isOwner: true },
+          { id: 2, isOwner: false, roles: [{ priority: 100 }] },
+        ),
+      ).not.toThrow();
+    });
+
+    it('allows author with higher priority to manage lower priority user', () => {
+      expect(() =>
+        facade.assertCanManageUser(
+          { id: 2, isOwner: false, roles: [{ priority: 50 }] },
+          { id: 3, isOwner: false, roles: [{ priority: 20 }] },
+        ),
+      ).not.toThrow();
+    });
+
+    it('rejects author managing user with equal priority', () => {
+      expect(() =>
+        facade.assertCanManageUser(
+          { id: 2, isOwner: false, roles: [{ priority: 50 }] },
+          { id: 3, isOwner: false, roles: [{ priority: 50 }] },
+        ),
+      ).toThrow(
+        expect.objectContaining({
+          code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+        }),
+      );
+    });
+
+    it('rejects author managing user with higher priority', () => {
+      expect(() =>
+        facade.assertCanManageUser(
+          { id: 2, isOwner: false, roles: [{ priority: 30 }] },
+          { id: 3, isOwner: false, roles: [{ priority: 50 }] },
+        ),
+      ).toThrow(
+        expect.objectContaining({
+          code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+        }),
+      );
     });
   });
 });

@@ -430,6 +430,7 @@ ERRORS:
   ROLE_NOT_FOUND: Роль не найдена
   ROLE_NAME_TAKEN: Роль с таким именем уже существует
   ROLE_CANNOT_DELETE_DEFAULT: Нельзя удалить роль по умолчанию
+  ROLE_HIERARCHY_VIOLATION: Невозможно управлять пользователями или ролями с приоритетом, равным вашему или превышающим его
   ROOM_NOT_FOUND: Комната не найдена
   ROOM_NAME_TAKEN: Комната с таким именем уже существует
   ROOM_ACCESS_DENIED: Доступ к комнате запрещён

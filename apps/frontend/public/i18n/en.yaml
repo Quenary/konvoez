@@ -430,6 +430,7 @@ ERRORS:
   ROLE_NOT_FOUND: Role not found
   ROLE_NAME_TAKEN: A role with this name already exists
   ROLE_CANNOT_DELETE_DEFAULT: Default role cannot be deleted
+  ROLE_HIERARCHY_VIOLATION: Cannot manage users or roles with equal or higher priority than your own
   ROOM_NOT_FOUND: Room not found
   ROOM_NAME_TAKEN: A room with this name already exists
   ROOM_ACCESS_DENIED: Access to room denied

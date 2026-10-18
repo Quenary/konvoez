@@ -43,7 +43,12 @@ describe('UserManagementService', () => {
       | 'removeLoaded'
     >
   >;
-  let permissionsFacade: jest.Mocked<Pick<PermissionsFacade, 'findRolesByIds'>>;
+  let permissionsFacade: jest.Mocked<
+    Pick<
+      PermissionsFacade,
+      'findRolesByIds' | 'assertCanManageRole' | 'assertCanManageUser'
+    >
+  >;
   let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
@@ -89,6 +94,8 @@ describe('UserManagementService', () => {
 
     permissionsFacade = {
       findRolesByIds: jest.fn().mockResolvedValue([]),
+      assertCanManageRole: jest.fn(),
+      assertCanManageUser: jest.fn(),
     };
 
     eventEmitter = { emit: jest.fn() };
@@ -169,6 +176,41 @@ describe('UserManagementService', () => {
         code: ApiErrorCode.FORBIDDEN,
       });
     });
+
+    it('should reject when assertCanManageUser rejects target', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.assertCanManageUser.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(
+        service.updateRole(5, { roleIds: [2] }, mockUserDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+    });
+
+    it('should reject when assigning a role that author cannot manage', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2, priority: 50 } as never,
+      ]);
+      permissionsFacade.assertCanManageRole.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(
+        service.updateRole(5, { roleIds: [2] }, mockUserDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+      expect(permissionsFacade.assertCanManageRole).toHaveBeenCalledWith(
+        mockUserDto,
+        50,
+      );
+    });
   });
 
   describe('anonymize', () => {
@@ -207,6 +249,19 @@ describe('UserManagementService', () => {
       });
       expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
     });
+
+    it('should reject anonymizing when assertCanManageUser rejects target', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.assertCanManageUser.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(service.anonymize(5, mockUserDto)).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+      expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
+    });
   });
 
   describe('removePhysically', () => {
@@ -241,6 +296,21 @@ describe('UserManagementService', () => {
         service.removePhysically(5, ownerAuthor),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
+      });
+      expect(usersService.removeLoaded).not.toHaveBeenCalled();
+    });
+
+    it('should reject physically deleting when assertCanManageUser rejects target', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.assertCanManageUser.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(
+        service.removePhysically(5, mockUserDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
       });
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
