@@ -1,8 +1,11 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { MikroORM } from '@mikro-orm/core';
-import { createMikroOrmConfig } from '../mikro-orm.config';
+import { MikroORM, type Options } from '@mikro-orm/core';
+
+const { createMikroOrmConfig } = require('../mikro-orm.config') as {
+  createMikroOrmConfig: () => Promise<Options>;
+};
 
 describe('RolesAndRoomAccess migration', () => {
   let tmpDir: string;
