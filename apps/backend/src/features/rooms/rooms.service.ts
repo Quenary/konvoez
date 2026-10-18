@@ -16,7 +16,8 @@ import {
 } from '@shared/events/entity-sync.events';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
-import { RoleEntity } from '../roles/roles.entity';
+import { UsersService } from '../users/users.service';
+import { PermissionsFacade } from '../permissions/permissions.facade';
 
 @Injectable()
 export class RoomsService {
@@ -26,6 +27,8 @@ export class RoomsService {
     @InjectRepository(RoomEntity)
     private readonly repo: EntityRepository<RoomEntity>,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissionsFacade: PermissionsFacade,
+    private readonly usersService: UsersService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -177,16 +180,14 @@ export class RoomsService {
     );
 
     if (dto.allowedRoleIds?.length) {
-      const roles = await this.em.find(RoleEntity, {
-        id: { $in: dto.allowedRoleIds },
-      });
+      const roles = await this.permissionsFacade.findRolesByIds(
+        dto.allowedRoleIds,
+      );
       room.allowedRoles.set(roles);
     }
 
     if (dto.allowedUserIds?.length) {
-      const users = await this.em.find(UserEntity, {
-        id: { $in: dto.allowedUserIds },
-      });
+      const users = await this.usersService.findByIds(dto.allowedUserIds);
       room.allowedUsers.set(users);
     }
 
@@ -232,16 +233,14 @@ export class RoomsService {
     if (dto.isPrivate !== undefined) room.isPrivate = dto.isPrivate;
 
     if (dto.allowedRoleIds !== undefined) {
-      const roles = dto.allowedRoleIds.length
-        ? await this.em.find(RoleEntity, { id: { $in: dto.allowedRoleIds } })
-        : [];
+      const roles = await this.permissionsFacade.findRolesByIds(
+        dto.allowedRoleIds,
+      );
       room.allowedRoles.set(roles);
     }
 
     if (dto.allowedUserIds !== undefined) {
-      const users = dto.allowedUserIds.length
-        ? await this.em.find(UserEntity, { id: { $in: dto.allowedUserIds } })
-        : [];
+      const users = await this.usersService.findByIds(dto.allowedUserIds);
       room.allowedUsers.set(users);
     }
 

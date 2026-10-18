@@ -82,7 +82,18 @@ describe('RoomsService', () => {
     } as unknown as jest.Mocked<EntityRepository<RoomEntity>>;
 
     eventEmitter = { emit: jest.fn() };
-    service = new RoomsService(mockRepo, eventEmitter as never);
+    const permissionsFacade = {
+      findRolesByIds: jest.fn().mockResolvedValue([]),
+    };
+    const usersService = {
+      findByIds: jest.fn().mockResolvedValue([]),
+    };
+    service = new RoomsService(
+      mockRepo,
+      eventEmitter as never,
+      permissionsFacade as never,
+      usersService as never,
+    );
   });
 
   it('should throw AppException if room name is already taken on create', async () => {
