@@ -129,7 +129,14 @@ export class RoleDialogComponent {
 
   protected readonly errors = createZodError(this.form, roleFormSchema);
 
-  protected togglePermission(permission: EPermission, checked: boolean): void {
+  protected togglePermission(
+    permission: EPermission,
+    checkedOrEvent: boolean | Event,
+  ): void {
+    const checked =
+      typeof checkedOrEvent === 'boolean'
+        ? checkedOrEvent
+        : Boolean((checkedOrEvent.target as HTMLInputElement | null)?.checked);
     const next = new Set(this.selectedPermissions());
     if (checked) {
       next.add(permission);
@@ -137,10 +144,6 @@ export class RoleDialogComponent {
       next.delete(permission);
     }
     this.selectedPermissions.set(next);
-  }
-
-  protected isPermissionChecked(permission: EPermission): boolean {
-    return this.selectedPermissions().has(permission);
   }
 
   protected onSubmit(): void {

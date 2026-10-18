@@ -61,10 +61,8 @@
           <input
             tuiCheckbox
             type="checkbox"
-            [checked]="isPermissionChecked(opt.permission)"
-            (change)="
-              togglePermission(opt.permission, $any($event.target).checked)
-            " />
+            [checked]="selectedPermissions().has(opt.permission)"
+            (change)="togglePermission(opt.permission, $event)" />
           <span>{{ opt.labelKey | translate }}</span>
         </label>
       }

@@ -71,8 +71,8 @@
                 <input
                   tuiCheckbox
                   type="checkbox"
-                  [checked]="isRoleSelected(role.id)"
-                  (change)="toggleRole(role.id, $any($event.target).checked)" />
+                  [checked]="selectedRoleIds().has(role.id)"
+                  (change)="toggleRole(role.id, $event)" />
                 <span class="role-item-name">
                   @if (role.color) {
                     <span

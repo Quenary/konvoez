@@ -118,10 +118,8 @@
                   <input
                     tuiCheckbox
                     type="checkbox"
-                    [checked]="isRoleSelected(role.id)"
-                    (change)="
-                      toggleRole(role.id, $any($event.target).checked)
-                    " />
+                    [checked]="selectedRoleIds().has(role.id)"
+                    (change)="toggleRole(role.id, $event)" />
                   <span class="item-name">
                     @if (role.color) {
                       <span
@@ -151,8 +149,8 @@
                   <input
                     tuiCheckbox
                     type="checkbox"
-                    [checked]="isUserSelected(u.id)"
-                    (change)="toggleUser(u.id, $any($event.target).checked)" />
+                    [checked]="selectedUserIds().has(u.id)"
+                    (change)="toggleUser(u.id, $event)" />
                   <span
                     class="item-name"
                     [style.color]="u.username | tuiAutoColor">

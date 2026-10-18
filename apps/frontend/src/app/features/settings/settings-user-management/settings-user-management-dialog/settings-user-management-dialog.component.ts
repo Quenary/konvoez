@@ -2,9 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
   Injector,
+  linkedSignal,
   signal,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
@@ -68,7 +68,6 @@ export class SettingsUserManagementDialogComponent {
 
   protected readonly saving = signal(false);
   protected readonly deleting = signal(false);
-  protected readonly selectedRoleIds = signal<Set<number>>(new Set());
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -81,6 +80,11 @@ export class SettingsUserManagementDialogComponent {
         }),
       ),
     defaultValue: null as IUser | null,
+  });
+
+  protected readonly selectedRoleIds = linkedSignal(() => {
+    const user = this.userResource.value();
+    return new Set((user?.roles ?? []).map((r) => r.id));
   });
 
   protected readonly availableRolesResource = rxResource({
@@ -121,17 +125,11 @@ export class SettingsUserManagementDialogComponent {
     return false;
   });
 
-  constructor() {
-    effect(() => {
-      const user = this.userResource.value();
-      if (!user) {
-        return;
-      }
-      this.selectedRoleIds.set(new Set((user.roles ?? []).map((r) => r.id)));
-    });
-  }
-
-  protected toggleRole(roleId: number, checked: boolean): void {
+  protected toggleRole(roleId: number, checkedOrEvent: boolean | Event): void {
+    const checked =
+      typeof checkedOrEvent === 'boolean'
+        ? checkedOrEvent
+        : Boolean((checkedOrEvent.target as HTMLInputElement | null)?.checked);
     const next = new Set(this.selectedRoleIds());
     if (checked) {
       next.add(roleId);
@@ -139,10 +137,6 @@ export class SettingsUserManagementDialogComponent {
       next.delete(roleId);
     }
     this.selectedRoleIds.set(next);
-  }
-
-  protected isRoleSelected(roleId: number): boolean {
-    return this.selectedRoleIds().has(roleId);
   }
 
   protected saveRole(): void {

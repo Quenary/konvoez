@@ -212,7 +212,11 @@ export class RoomDialogComponent {
       });
   }
 
-  protected toggleRole(roleId: number, checked: boolean): void {
+  protected toggleRole(roleId: number, checkedOrEvent: boolean | Event): void {
+    const checked =
+      typeof checkedOrEvent === 'boolean'
+        ? checkedOrEvent
+        : Boolean((checkedOrEvent.target as HTMLInputElement | null)?.checked);
     const next = new Set(this.selectedRoleIds());
     if (checked) {
       next.add(roleId);
@@ -226,7 +230,11 @@ export class RoomDialogComponent {
     return this.selectedRoleIds().has(roleId);
   }
 
-  protected toggleUser(userId: number, checked: boolean): void {
+  protected toggleUser(userId: number, checkedOrEvent: boolean | Event): void {
+    const checked =
+      typeof checkedOrEvent === 'boolean'
+        ? checkedOrEvent
+        : Boolean((checkedOrEvent.target as HTMLInputElement | null)?.checked);
     const next = new Set(this.selectedUserIds());
     if (checked) {
       next.add(userId);
