@@ -98,6 +98,5 @@ docker compose -f docker-compose.build.yml up -d --build
 ### Other
 
 - Add invite emails (if email set), 2FA via email codes
-- Add customizable roles (functions access) and groups (rooms access)
 - Add emojis or/and customizable smile/sticker packs
 - Swipe to reply
