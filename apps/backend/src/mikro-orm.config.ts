@@ -53,6 +53,8 @@ export async function createMikroOrmConfig() {
     ],
     extensions: [Migrator],
     migrations: {
+      allOrNothing: false,
+      snapshot: false,
       // Used by the CLI (`migration:create`) which runs with cwd=apps/backend.
       pathTs: './src/migrations',
       // Explicit list is required for the webpack-bundled app (no FS discovery).

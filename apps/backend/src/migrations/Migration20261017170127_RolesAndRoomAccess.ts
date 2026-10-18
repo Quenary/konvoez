@@ -3,6 +3,10 @@ import { Migration } from '@mikro-orm/migrations';
 export class Migration20261017170127_RolesAndRoomAccess extends Migration {
   override name = 'Migration20261017170127_RolesAndRoomAccess';
 
+  override isTransactional(): boolean {
+    return false;
+  }
+
   override up(): void | Promise<void> {
     this.addSql(
       `create table \`roles\` (\`id\` integer not null primary key autoincrement, \`created_at\` datetime not null default CURRENT_TIMESTAMP, \`updated_at\` datetime null, \`name\` text not null, \`color\` text null, \`priority\` integer not null default 0, \`is_default\` integer not null default false, \`permissions\` json not null default '[]');`,
@@ -81,6 +85,7 @@ export class Migration20261017170127_RolesAndRoomAccess extends Migration {
       `create unique index \`users_email_unique\` on \`users\` (\`email\`);`,
     );
     this.addSql(`pragma foreign_keys = on;`);
+    this.addSql('pragma foreign_key_check;');
 
     this.addSql(
       `alter table \`rooms\` add column \`is_private\` integer not null default false;`,
@@ -118,5 +123,6 @@ export class Migration20261017170127_RolesAndRoomAccess extends Migration {
       `create unique index \`users_username_unique\` on \`users\` (\`username\`);`,
     );
     this.addSql(`pragma foreign_keys = on;`);
+    this.addSql('pragma foreign_key_check;');
   }
 }
