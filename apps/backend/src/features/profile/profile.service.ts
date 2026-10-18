@@ -12,6 +12,7 @@ import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { UpdateProfileDto } from './profile.dto';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class ProfileService {
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
     private readonly usersService: UsersService,
+    private readonly roomsFacade: RoomsFacade,
     private readonly passwordService: PasswordService,
     private readonly eventEmitter: EventEmitter2,
   ) {
@@ -87,6 +89,7 @@ export class ProfileService {
 
   async removeSelf(author: GetUserDto): Promise<void> {
     this.assertNotOwner(author);
+    await this.roomsFacade.deleteRoomsByAuthor(author.id);
     await this.usersService.removeLoaded(author.id);
   }
 

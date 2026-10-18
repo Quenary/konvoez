@@ -9,7 +9,6 @@ import { ensureRequestContext } from '@shared/utils/request-context.util';
 import { PasswordService } from '../../shared/services/password.service';
 import {
   FileServiceInjectionToken,
-  ROOM_AVATARS_BUCKET,
   USER_AVATARS_BUCKET,
   type FileService,
 } from '@shared/services/file.service';
@@ -21,7 +20,6 @@ import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
 import { GetUserDto } from './users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
-import { RoomsFacade } from '../rooms/rooms.facade';
 import type { RoleEntity } from '../roles/roles.entity';
 
 @Injectable()
@@ -36,7 +34,6 @@ export class UsersService {
     private readonly fileService: FileService,
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsFacade: PermissionsFacade,
-    private readonly roomsFacade: RoomsFacade,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -168,9 +165,6 @@ export class UsersService {
   }
 
   async removeLoaded(id: number): Promise<void> {
-    const { roomIds, avatarKeys: roomAvatars } =
-      await this.roomsFacade.deleteRoomsByAuthor(id);
-
     const files = await this.em.transactional(async (em) => {
       const user = await em.findOne(UserEntity, { id });
       if (!user) {
@@ -184,9 +178,6 @@ export class UsersService {
         { sender: id },
         { recipient: id },
       ];
-      if (roomIds.length > 0) {
-        messageFilter.push({ room: { $in: roomIds } });
-      }
       const messages = await em.find(
         MessageEntity,
         { $or: messageFilter },
@@ -212,9 +203,6 @@ export class UsersService {
     });
 
     await this.deleteStoredFile(files.avatar, USER_AVATARS_BUCKET);
-    for (const key of roomAvatars) {
-      await this.deleteStoredFile(key, ROOM_AVATARS_BUCKET);
-    }
     emitEntitySyncDomainEvent(
       this.eventEmitter,
       EntitySyncDomainEvents.USER_DELETED,

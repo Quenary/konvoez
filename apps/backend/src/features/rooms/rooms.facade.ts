@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { GetUserDto } from '../users/users.dto';
@@ -31,7 +31,10 @@ export type TRoomAccessTarget =
 
 @Injectable()
 export class RoomsFacade {
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(
+    @Inject(RoomsService)
+    private readonly roomsService: RoomsService,
+  ) {}
 
   canAccessRoom(user: TRoomAccessUser, room: TRoomAccessTarget): boolean {
     return this.roomsService.canAccessRoom(user, room);
@@ -79,10 +82,8 @@ export class RoomsFacade {
     return this.roomsService.findPrivateRooms();
   }
 
-  async deleteRoomsByAuthor(
-    authorId: number,
-  ): Promise<{ roomIds: number[]; avatarKeys: string[] }> {
-    return this.roomsService.deleteRoomsByAuthor(authorId);
+  async deleteRoomsByAuthor(authorId: number): Promise<void> {
+    await this.roomsService.deleteRoomsByAuthor(authorId);
   }
 
   async findAvatarKeys(): Promise<string[]> {

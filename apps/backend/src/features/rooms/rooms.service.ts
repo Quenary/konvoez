@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
+import {
+  FileServiceInjectionToken,
+  ROOM_AVATARS_BUCKET,
+  type FileService,
+} from '@shared/services/file.service';
 import { RoomEntity } from './rooms.entity';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import {
@@ -30,6 +35,8 @@ export class RoomsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsFacade: PermissionsFacade,
     private readonly usersService: UsersService,
+    @Inject(FileServiceInjectionToken)
+    private readonly fileService: FileService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -306,8 +313,12 @@ export class RoomsService {
   async remove(id: number): Promise<void> {
     return ensureRequestContext(this.em, async () => {
       const room = await this.findOne(id);
+      const avatar = room.avatar;
       this.em.remove(room);
       await this.em.flush();
+      if (avatar) {
+        await this.deleteStoredFile(avatar);
+      }
       emitEntitySyncDomainEvent(
         this.eventEmitter,
         EntitySyncDomainEvents.ROOM_DELETED,
@@ -316,19 +327,20 @@ export class RoomsService {
     });
   }
 
-  async deleteRoomsByAuthor(
-    authorId: number,
-  ): Promise<{ roomIds: number[]; avatarKeys: string[] }> {
+  async deleteRoomsByAuthor(authorId: number): Promise<void> {
     return ensureRequestContext(this.em, async () => {
       const rooms = await this.repo.find({ author: authorId });
       if (rooms.length === 0) {
-        return { roomIds: [], avatarKeys: [] };
+        return;
       }
       const roomIds = rooms.map((r) => r.id);
       const avatarKeys = rooms
         .map((r) => r.avatar)
         .filter((key): key is string => Boolean(key));
       await this.em.nativeDelete(RoomEntity, { id: { $in: roomIds } });
+      for (const key of avatarKeys) {
+        await this.deleteStoredFile(key);
+      }
       for (const roomId of roomIds) {
         emitEntitySyncDomainEvent(
           this.eventEmitter,
@@ -336,8 +348,16 @@ export class RoomsService {
           { id: roomId },
         );
       }
-      return { roomIds, avatarKeys };
     });
+  }
+
+  private async deleteStoredFile(
+    key: string | null | undefined,
+  ): Promise<void> {
+    if (!key) {
+      return;
+    }
+    await this.fileService.delete(key, ROOM_AVATARS_BUCKET);
   }
 
   async findAvatarKeys(): Promise<string[]> {

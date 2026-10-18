@@ -27,6 +27,7 @@ import type { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
 
 describe('UserManagementService', () => {
@@ -49,6 +50,7 @@ describe('UserManagementService', () => {
       'findRolesByIds' | 'assertCanManageRole' | 'assertCanManageUser'
     >
   >;
+  let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
   let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
@@ -98,11 +100,16 @@ describe('UserManagementService', () => {
       assertCanManageUser: jest.fn(),
     };
 
+    roomsFacade = {
+      deleteRoomsByAuthor: jest.fn().mockResolvedValue(undefined),
+    };
+
     eventEmitter = { emit: jest.fn() };
 
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
+      roomsFacade as unknown as RoomsFacade,
       eventEmitter as never,
     );
   });
@@ -315,6 +322,7 @@ describe('UserManagementService', () => {
 
       await service.removePhysically(5, ownerAuthor);
 
+      expect(roomsFacade.deleteRoomsByAuthor).toHaveBeenCalledWith(5);
       expect(usersService.removeLoaded).toHaveBeenCalledWith(5);
     });
 
@@ -331,6 +339,7 @@ describe('UserManagementService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });
+      expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
 
@@ -346,6 +355,7 @@ describe('UserManagementService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
       });
+      expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
   });

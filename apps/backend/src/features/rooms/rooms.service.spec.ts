@@ -28,6 +28,7 @@ import { RoomsService } from './rooms.service';
 import { RoomEntity } from './rooms.entity';
 import { ERoomType, EUserRole } from '@konvoez/shared';
 import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { ROOM_AVATARS_BUCKET } from '@shared/services/file.service';
 import { GetUserDto } from '../users/users.dto';
 
 describe('RoomsService', () => {
@@ -35,6 +36,7 @@ describe('RoomsService', () => {
   let mockRepo: jest.Mocked<EntityRepository<RoomEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
   let eventEmitter: { emit: jest.Mock };
+  let fileService: { delete: jest.Mock };
 
   const author = {
     id: 1,
@@ -84,6 +86,7 @@ describe('RoomsService', () => {
     } as unknown as jest.Mocked<EntityRepository<RoomEntity>>;
 
     eventEmitter = { emit: jest.fn() };
+    fileService = { delete: jest.fn().mockResolvedValue(undefined) };
     const permissionsFacade = {
       findRolesByIds: jest.fn().mockResolvedValue([]),
     };
@@ -95,6 +98,7 @@ describe('RoomsService', () => {
       eventEmitter as never,
       permissionsFacade as never,
       usersService as never,
+      fileService as never,
     );
   });
 
@@ -141,11 +145,18 @@ describe('RoomsService', () => {
   });
 
   it('should emit ROOM_DELETED after successful remove', async () => {
-    mockRepo.findOne.mockResolvedValueOnce(room);
+    mockRepo.findOne.mockResolvedValueOnce({
+      ...room,
+      avatar: 'room-avatar.webp',
+    } as unknown as RoomEntity);
     mockEm.remove = jest.fn();
 
     await service.remove(1);
 
+    expect(fileService.delete).toHaveBeenCalledWith(
+      'room-avatar.webp',
+      ROOM_AVATARS_BUCKET,
+    );
     expect(eventEmitter.emit).toHaveBeenCalledWith(
       EntitySyncDomainEvents.ROOM_DELETED,
       { id: 1 },
@@ -246,11 +257,15 @@ describe('RoomsService', () => {
 
       const result = await service.deleteRoomsByAuthor(5);
 
-      expect(result).toEqual({ roomIds: [10, 20], avatarKeys: ['avatar-10'] });
+      expect(result).toBeUndefined();
       expect(mockRepo.find).toHaveBeenCalledWith({ author: 5 });
       expect(mockEm.nativeDelete).toHaveBeenCalledWith(RoomEntity, {
         id: { $in: [10, 20] },
       });
+      expect(fileService.delete).toHaveBeenCalledWith(
+        'avatar-10',
+        ROOM_AVATARS_BUCKET,
+      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EntitySyncDomainEvents.ROOM_DELETED,
         { id: 10 },
@@ -266,8 +281,9 @@ describe('RoomsService', () => {
 
       const result = await service.deleteRoomsByAuthor(5);
 
-      expect(result).toEqual({ roomIds: [], avatarKeys: [] });
+      expect(result).toBeUndefined();
       expect(mockEm.nativeDelete).not.toHaveBeenCalled();
+      expect(fileService.delete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });

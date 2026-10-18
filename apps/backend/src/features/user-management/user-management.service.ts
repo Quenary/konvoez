@@ -10,6 +10,7 @@ import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { UserManagementUpdateDto } from './user-management.dto';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class UserManagementService {
   constructor(
     private readonly usersService: UsersService,
     private readonly permissionsFacade: PermissionsFacade,
+    private readonly roomsFacade: RoomsFacade,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -72,6 +74,7 @@ export class UserManagementService {
   async removePhysically(id: number, author: GetUserDto): Promise<void> {
     const user = await this.usersService.findOne(id);
     this.assertManageableTarget(id, author, user);
+    await this.roomsFacade.deleteRoomsByAuthor(id);
     await this.usersService.removeLoaded(id);
   }
 
