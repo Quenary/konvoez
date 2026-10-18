@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -32,6 +33,10 @@ import { roleFormSchema } from '@shared/schemas/forms.schema';
 export interface IPermissionOption {
   readonly permission: EPermission;
   readonly labelKey: string;
+}
+
+export interface IPermissionItemVm extends IPermissionOption {
+  readonly checked: boolean;
 }
 
 export const AVAILABLE_PERMISSIONS: readonly IPermissionOption[] = [
@@ -105,6 +110,15 @@ export class RoleDialogComponent {
   protected readonly loading = signal(false);
   protected readonly selectedPermissions = signal<Set<EPermission>>(
     new Set(this.context.data?.permissions ?? []),
+  );
+  protected readonly permissionItems = computed<readonly IPermissionItemVm[]>(
+    () => {
+      const selected = this.selectedPermissions();
+      return AVAILABLE_PERMISSIONS.map((opt) => ({
+        ...opt,
+        checked: selected.has(opt.permission),
+      }));
+    },
   );
 
   protected readonly form = new FormGroup(

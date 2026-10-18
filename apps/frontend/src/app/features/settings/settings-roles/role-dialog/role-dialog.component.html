@@ -54,16 +54,16 @@
     </div>
 
     <div class="permissions-grid">
-      @for (opt of availablePermissions; track opt.permission) {
+      @for (item of permissionItems(); track item.permission) {
         <label
           tuiLabel
           class="permission-item">
           <input
             tuiCheckbox
             type="checkbox"
-            [checked]="selectedPermissions().has(opt.permission)"
-            (change)="togglePermission(opt.permission, $event)" />
-          <span>{{ opt.labelKey | translate }}</span>
+            [checked]="item.checked"
+            (change)="togglePermission(item.permission, $event)" />
+          <span>{{ item.labelKey | translate }}</span>
         </label>
       }
     </div>

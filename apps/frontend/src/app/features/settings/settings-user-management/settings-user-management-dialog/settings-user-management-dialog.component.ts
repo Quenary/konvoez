@@ -35,6 +35,11 @@ export interface IUserManagementDialogData {
   readonly id: number;
 }
 
+export interface IUserManagementRoleOption {
+  readonly role: IRole;
+  readonly checked: boolean;
+}
+
 @Component({
   selector: 'app-settings-user-management-dialog',
   imports: [
@@ -96,6 +101,17 @@ export class SettingsUserManagementDialogComponent {
         }),
       ),
     defaultValue: [] as IRole[],
+  });
+
+  protected readonly roleOptions = computed<
+    readonly IUserManagementRoleOption[]
+  >(() => {
+    const roles = this.availableRolesResource.value() ?? [];
+    const selected = this.selectedRoleIds();
+    return roles.map((role) => ({
+      role,
+      checked: selected.has(role.id),
+    }));
   });
 
   protected readonly canManage = computed(() => {

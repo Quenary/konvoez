@@ -64,23 +64,23 @@
           </span>
         } @else if (canManage()) {
           <div class="roles-checklist">
-            @for (role of availableRolesResource.value(); track role.id) {
+            @for (opt of roleOptions(); track opt.role.id) {
               <label
                 tuiLabel
                 class="role-checkbox-item">
                 <input
                   tuiCheckbox
                   type="checkbox"
-                  [checked]="selectedRoleIds().has(role.id)"
-                  (change)="toggleRole(role.id, $event)" />
+                  [checked]="opt.checked"
+                  (change)="toggleRole(opt.role.id, $event)" />
                 <span class="role-item-name">
-                  @if (role.color) {
+                  @if (opt.role.color) {
                     <span
                       class="role-dot"
-                      [style.background-color]="role.color"></span>
+                      [style.background-color]="opt.role.color"></span>
                   }
-                  {{ role.name }}
-                  @if (role.isDefault) {
+                  {{ opt.role.name }}
+                  @if (opt.role.isDefault) {
                     <span class="muted-note"
                       >({{ 'SETTINGS.ROLES.DEFAULT_BADGE' | translate }})</span
                     >

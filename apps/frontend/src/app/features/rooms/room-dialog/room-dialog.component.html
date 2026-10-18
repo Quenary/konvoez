@@ -104,29 +104,29 @@
         {{ 'ROOMS.DIALOG.ALLOWED_NONE_HINT' | translate }}
       </p>
 
-      @if (availableRolesResource.value(); as roles) {
+      @if (roleOptions(); as roles) {
         @if (roles.length > 0) {
           <div class="access-group">
             <span class="access-group-title">
               {{ 'ROOMS.DIALOG.ALLOWED_ROLES' | translate }}
             </span>
             <div class="access-checklist">
-              @for (role of roles; track role.id) {
+              @for (opt of roles; track opt.role.id) {
                 <label
                   tuiLabel
                   class="access-checkbox-item">
                   <input
                     tuiCheckbox
                     type="checkbox"
-                    [checked]="selectedRoleIds().has(role.id)"
-                    (change)="toggleRole(role.id, $event)" />
+                    [checked]="opt.checked"
+                    (change)="toggleRole(opt.role.id, $event)" />
                   <span class="item-name">
-                    @if (role.color) {
+                    @if (opt.role.color) {
                       <span
                         class="dot"
-                        [style.background-color]="role.color"></span>
+                        [style.background-color]="opt.role.color"></span>
                     }
-                    {{ role.name }}
+                    {{ opt.role.name }}
                   </span>
                 </label>
               }
@@ -135,26 +135,26 @@
         }
       }
 
-      @if (users(); as userList) {
+      @if (userOptions(); as userList) {
         @if (userList.length > 0) {
           <div class="access-group">
             <span class="access-group-title">
               {{ 'ROOMS.DIALOG.ALLOWED_USERS' | translate }}
             </span>
             <div class="access-checklist">
-              @for (u of userList; track u.id) {
+              @for (opt of userList; track opt.user.id) {
                 <label
                   tuiLabel
                   class="access-checkbox-item">
                   <input
                     tuiCheckbox
                     type="checkbox"
-                    [checked]="selectedUserIds().has(u.id)"
-                    (change)="toggleUser(u.id, $event)" />
+                    [checked]="opt.checked"
+                    (change)="toggleUser(opt.user.id, $event)" />
                   <span
                     class="item-name"
-                    [style.color]="u.username | tuiAutoColor">
-                    {{ u.username }}
+                    [style.color]="opt.user.username | tuiAutoColor">
+                    {{ opt.user.username }}
                   </span>
                 </label>
               }

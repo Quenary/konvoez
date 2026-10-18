@@ -1,11 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ERoomType, maxAvatarSize, IRole } from '@konvoez/shared';
+import { ERoomType, maxAvatarSize, IRole, IUser } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IRoom } from '@konvoez/shared';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -52,6 +53,16 @@ import {
 import { roomFormSchema } from '@shared/schemas/forms.schema';
 
 export type RoomDialogData = Partial<IRoom>;
+
+export interface IRoomRoleOption {
+  readonly role: IRole;
+  readonly checked: boolean;
+}
+
+export interface IRoomUserOption {
+  readonly user: IUser;
+  readonly checked: boolean;
+}
 
 /**
  * Create/update room dialog component
@@ -158,6 +169,24 @@ export class RoomDialogComponent {
   });
 
   protected readonly users = this.usersStore.entities;
+
+  protected readonly roleOptions = computed<readonly IRoomRoleOption[]>(() => {
+    const roles = this.availableRolesResource.value() ?? [];
+    const selected = this.selectedRoleIds();
+    return roles.map((role) => ({
+      role,
+      checked: selected.has(role.id),
+    }));
+  });
+
+  protected readonly userOptions = computed<readonly IRoomUserOption[]>(() => {
+    const users = this.users();
+    const selected = this.selectedUserIds();
+    return users.map((user) => ({
+      user,
+      checked: selected.has(user.id),
+    }));
+  });
 
   protected readonly meta = this.context.data.id
     ? {
