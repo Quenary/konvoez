@@ -38,17 +38,29 @@ export class PermissionsFacade {
     const set = new Set<EPermission>();
 
     if ('roles' in user && user.roles) {
-      const roles = Array.isArray(user.roles)
-        ? user.roles
-        : typeof (user.roles as unknown as { getItems?: () => unknown[] })
-              .getItems === 'function'
-          ? (
-              user.roles as unknown as { getItems: () => RoleEntity[] }
-            ).getItems()
-          : [];
+      let roles: unknown[] = [];
+      if (Array.isArray(user.roles)) {
+        roles = user.roles;
+      } else {
+        const coll = user.roles as unknown as {
+          isInitialized?: () => boolean;
+          getItems?: () => unknown[];
+        };
+        if (
+          typeof coll.getItems === 'function' &&
+          (typeof coll.isInitialized !== 'function' || coll.isInitialized())
+        ) {
+          roles = coll.getItems();
+        }
+      }
 
       for (const role of roles) {
-        if ('permissions' in role && Array.isArray(role.permissions)) {
+        if (
+          role &&
+          typeof role === 'object' &&
+          'permissions' in role &&
+          Array.isArray(role.permissions)
+        ) {
           for (const p of role.permissions) {
             set.add(p);
           }
@@ -74,10 +86,10 @@ export class PermissionsFacade {
     if (user.isOwner) {
       return true;
     }
-    if ('permissions' in user && Array.isArray(user.permissions)) {
-      return user.permissions.includes(permission);
-    }
-    const perms = await this.getUserPermissions(user as UserEntity);
+    const perms =
+      'permissions' in user && Array.isArray(user.permissions)
+        ? user.permissions
+        : await this.getUserPermissions(user as UserEntity);
     return perms.includes(permission);
   }
 
@@ -91,12 +103,11 @@ export class PermissionsFacade {
     if (user.isOwner) {
       return true;
     }
-    for (const p of permissions) {
-      if (!(await this.hasPermission(user, p))) {
-        return false;
-      }
-    }
-    return true;
+    const perms =
+      'permissions' in user && Array.isArray(user.permissions)
+        ? user.permissions
+        : await this.getUserPermissions(user as UserEntity);
+    return permissions.every((p) => perms.includes(p));
   }
 
   async findRolesByIds(roleIds: number[]): Promise<RoleEntity[]> {

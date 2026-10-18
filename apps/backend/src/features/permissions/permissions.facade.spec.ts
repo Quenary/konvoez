@@ -120,6 +120,25 @@ describe('PermissionsFacade', () => {
       expect(permissions).toContain(EPermission.MODERATE_MESSAGES);
       expect(permissions).toContain(EPermission.MANAGE_ROOMS);
     });
+
+    it('does not access getItems on uninitialized MikroORM collection', async () => {
+      const getItems = jest.fn();
+      const userWithUninitializedCollection = {
+        id: 3,
+        isOwner: false,
+        roles: {
+          isInitialized: () => false,
+          getItems,
+        },
+      };
+
+      const permissions = await facade.getUserPermissions(
+        userWithUninitializedCollection as never,
+      );
+
+      expect(getItems).not.toHaveBeenCalled();
+      expect(permissions).toEqual([EPermission.MANAGE_ROOMS]);
+    });
   });
 
   describe('hasPermission', () => {
@@ -187,6 +206,27 @@ describe('PermissionsFacade', () => {
           EPermission.MANAGE_ROLES,
         ]),
       ).toBe(false);
+    });
+
+    it('resolves user permissions once when checking multiple permissions', async () => {
+      const user = {
+        id: 2,
+        isOwner: false,
+      };
+      jest
+        .spyOn(facade, 'getUserPermissions')
+        .mockResolvedValueOnce([
+          EPermission.MANAGE_ROOMS,
+          EPermission.MODERATE_MESSAGES,
+        ]);
+
+      const result = await facade.hasAllPermissions(user as never, [
+        EPermission.MANAGE_ROOMS,
+        EPermission.MODERATE_MESSAGES,
+      ]);
+
+      expect(result).toBe(true);
+      expect(facade.getUserPermissions).toHaveBeenCalledTimes(1);
     });
   });
 
