@@ -215,6 +215,36 @@ describe('UserManagementService', () => {
         50,
       );
     });
+
+    it('should reject with ROLE_NOT_FOUND when any role id does not exist', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2, priority: 10 } as never,
+      ]);
+
+      await expect(
+        service.updateRole(5, { roleIds: [2, 999] }, ownerAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NOT_FOUND,
+      });
+      expect(usersService.updateUserRoles).not.toHaveBeenCalled();
+    });
+
+    it('should deduplicate roleIds before looking up roles', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2, priority: 10 } as never,
+      ]);
+
+      await service.updateRole(5, { roleIds: [2, 2] }, ownerAuthor);
+
+      expect(permissionsFacade.findRolesByIds).toHaveBeenCalledWith([2]);
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
+        { id: 2, priority: 10 },
+      ]);
+    });
   });
 
   describe('anonymize', () => {

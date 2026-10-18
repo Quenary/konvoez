@@ -36,7 +36,14 @@ export class UserManagementService {
     const user = await this.usersService.findOne(id);
     this.assertManageableTarget(id, author, user);
 
-    const roles = await this.permissionsFacade.findRolesByIds(dto.roleIds);
+    const uniqueRoleIds = [...new Set(dto.roleIds)];
+    const roles = await this.permissionsFacade.findRolesByIds(uniqueRoleIds);
+    if (roles.length !== uniqueRoleIds.length) {
+      throw AppException.notFound(
+        ApiErrorCode.ROLE_NOT_FOUND,
+        'One or more roles not found',
+      );
+    }
     for (const role of roles) {
       this.permissionsFacade.assertCanManageRole(author, role.priority);
     }
