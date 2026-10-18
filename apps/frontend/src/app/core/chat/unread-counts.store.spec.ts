@@ -91,11 +91,17 @@ describe('UnreadCountsStore', () => {
         provideStore({ auth: authReducer }),
         { provide: ChatApiService, useValue: apiService },
         { provide: TextRoomSocketToken, useValue: mockSocket },
+        UnreadCountsStore,
       ],
     });
 
     ngrxStore = TestBed.inject(Store);
     store = TestBed.inject(UnreadCountsStore);
+  });
+
+  afterEach(() => {
+    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
+    TestBed.resetTestingModule();
   });
 
   it('should start with empty unread maps', () => {

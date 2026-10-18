@@ -115,6 +115,7 @@ describe('SettingsStore', () => {
     configureTestBed();
 
     ngrxStore = TestBed.inject(Store);
+    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
     store = TestBed.inject(SettingsStore);
   });
 
@@ -122,6 +123,7 @@ describe('SettingsStore', () => {
 
   afterEach(() => {
     localStorage.clear();
+    ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
     Object.defineProperty(globalThis, 'navigator', {
