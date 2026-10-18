@@ -337,6 +337,9 @@ describe('RoomsComponent', () => {
         name: 'ops',
         type: ERoomType.TEXT,
         avatar: 'avatar.png',
+        isPrivate: true,
+        allowedRoleIds: [1, 2],
+        allowedUserIds: [10],
       }),
     );
 
@@ -347,6 +350,9 @@ describe('RoomsComponent', () => {
       name: 'ops',
       type: ERoomType.TEXT,
       avatar: 'avatar.png',
+      isPrivate: true,
+      allowedRoleIds: [1, 2],
+      allowedUserIds: [10],
     });
   });
 
