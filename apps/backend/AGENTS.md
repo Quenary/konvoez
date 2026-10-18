@@ -71,7 +71,7 @@ Path aliases (prefer these over deep relative imports):
 
 ### Modules & DI
 
-- Register entities with `MikroOrmModule.forFeature([...])` inside the owning feature module.
+- Register entities with `MikroOrmModule.forFeature([...])` strictly inside the owning feature module. Never register foreign entities in `forFeature` or perform ad-hoc ORM queries across module boundaries (`em.find(ForeignEntity)`); delegate through public domain services or facades instead.
 - Cross-cutting infrastructure (config/`AppService`, password hashing, encryption, file storage) lives in `shared/` and is provided via `SharedModule`.
 - Alternate implementations use injection tokens (e.g. `FileServiceInjectionToken`); follow that pattern when swapping backends.
 
@@ -81,7 +81,7 @@ Path aliases (prefer these over deep relative imports):
 - Current user: `@Author()` (set by the guard).
 - Require granular permissions with `@RequirePermissions([EPermission...])` on routes protected by `@UseGuards(AuthGuard)`.
 - Instance owner (`isOwner: true`) bypasses all permission and private room restrictions and unconditionally holds all capabilities.
-- Flexible RBAC: user roles are resolved through `PermissionsService` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments.
+- Flexible RBAC: user roles and permissions are resolved through `PermissionsFacade` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments. External modules interact with authorization and role resolution solely through `PermissionsFacade`.
 - Room access control: verify room visibility/membership with `RoomsService.canAccessRoom(room, user)` on HTTP and WebSocket handlers.
 - WebSocket gateways authenticate from handshake cookies via `AuthService` (same JWT cookies as HTTP).
 
