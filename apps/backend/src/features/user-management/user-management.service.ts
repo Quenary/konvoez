@@ -9,6 +9,7 @@ import {
   emitEntitySyncDomainEvent,
 } from '@shared/events/entity-sync.events';
 import { UserEntity } from '../users/users.entity';
+import { RoleEntity } from '../roles/roles.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 
@@ -55,7 +56,6 @@ export class UserManagementService {
     }
 
     if (dto.roleIds !== undefined) {
-      const RoleEntity = (await import('../roles/roles.entity')).RoleEntity;
       const roles = await this.em.find(RoleEntity, {
         id: { $in: dto.roleIds },
       });
