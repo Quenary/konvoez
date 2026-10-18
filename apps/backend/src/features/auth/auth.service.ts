@@ -450,6 +450,10 @@ export class AuthService implements OnApplicationBootstrap {
     return await this.requireActiveUser(res.userId);
   }
 
+  async getActiveUserById(userId: number): Promise<GetUserDto> {
+    return await this.requireActiveUser(userId);
+  }
+
   async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {
     const data = this.verifyToken(refreshToken, 'refresh');
     return await this.requireActiveUser(data.userId);

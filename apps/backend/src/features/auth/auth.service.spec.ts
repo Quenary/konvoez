@@ -471,6 +471,38 @@ describe('AuthService', () => {
     });
   });
 
+  describe('getActiveUserById', () => {
+    it('should return user DTO by user id when active', async () => {
+      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+
+      const result = await service.getActiveUserById(1);
+
+      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(result).toEqual(mockUserDto);
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      usersService.findOneByAsDto.mockResolvedValueOnce({
+        ...mockUserDto,
+        deletedAt: new Date(),
+      });
+
+      await expect(service.getActiveUserById(1)).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('should propagate not found error when user does not exist', async () => {
+      usersService.findOneByAsDto.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      await expect(service.getActiveUserById(999)).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
+    });
+  });
+
   describe('getMe', () => {
     it('should throw UnauthorizedException when cookies are missing in request', async () => {
       const req = {} as Request;

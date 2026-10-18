@@ -28,6 +28,10 @@ describe('TextRoomsGateway', () => {
   let roomsFacadeMock: {
     assertCanAccessRoom: jest.Mock;
   };
+  let authServiceMock: {
+    getActiveUserById: jest.Mock;
+    getUserFromRawCookies: jest.Mock;
+  };
 
   beforeEach(() => {
     gateway = new TextRoomsGateway();
@@ -42,9 +46,23 @@ describe('TextRoomsGateway', () => {
       assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
     };
 
+    authServiceMock = {
+      getActiveUserById: jest.fn().mockImplementation((id: number) =>
+        Promise.resolve({
+          id,
+          username: `user_${id}`,
+          isOwner: false,
+          permissions: [],
+          roles: [],
+        }),
+      ),
+      getUserFromRawCookies: jest.fn(),
+    };
+
     Object.assign(gateway, {
       server: serverMock as unknown as Server,
       roomsFacade: roomsFacadeMock,
+      authService: authServiceMock,
     });
   });
 
@@ -136,6 +154,61 @@ describe('TextRoomsGateway', () => {
       expect.objectContaining({
         code: ApiErrorCode.ROOM_NOT_FOUND,
       }),
+    );
+  });
+
+  it('should emit error and not join when getActiveUserById fails', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: { peer: { id: 100 } },
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    authServiceMock.getActiveUserById.mockRejectedValueOnce(
+      AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'User inactive'),
+    );
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.UNAUTHORIZED,
+      }),
+    );
+  });
+
+  it('should reload fresh peer by id and never call getUserFromRawCookies on join', async () => {
+    const clientMock = {
+      data: { peer: { id: 100, username: 'old_snapshot' } },
+      join: jest.fn(),
+      leave: jest.fn(),
+      handshake: { headers: { cookie: 'stale=cookie' } },
+    } as unknown as Socket;
+
+    authServiceMock.getActiveUserById.mockResolvedValueOnce({
+      id: 100,
+      username: 'fresh_from_db',
+      roles: [],
+      permissions: [],
+      isOwner: false,
+    });
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(authServiceMock.getActiveUserById).toHaveBeenCalledWith(100);
+    expect(authServiceMock.getUserFromRawCookies).not.toHaveBeenCalled();
+    expect(roomsFacadeMock.assertCanAccessRoom).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 100,
+        username: 'fresh_from_db',
+      }),
+      42,
     );
   });
 

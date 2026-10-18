@@ -22,6 +22,7 @@ import {
 import { AppException } from '@shared/errors/app.exception';
 import { toApiErrorResponse } from '@shared/errors/to-api-error';
 import { TextRoomJoinDto } from './text-rooms.dto';
+import type { GetUserDto } from '../users/users.dto';
 import {
   TextRoomDomainEvents,
   type TTextRoomDomainPayloadMap,
@@ -116,25 +117,8 @@ export class TextRoomsGateway
     this.handleLeave(client);
 
     const { roomId, recipientId } = body;
-    let peer = client.data.peer;
-    if (peer) {
-      try {
-        const freshPeer = await this.authService.getUserFromRawCookies(
-          client.handshake.headers.cookie,
-        );
-        if (freshPeer) {
-          peer = {
-            ...freshPeer,
-            clientId: client.id,
-          } as TTextRoomPeer;
-          client.data.peer = peer;
-        }
-      } catch {
-        // keep existing peer
-      }
-    }
-
-    if (!peer) {
+    const current = client.data.peer;
+    if (!current) {
       this.logger.warn(`Socket join without peer: socketId=${client.id}`);
       this.emitError(
         client,
@@ -142,6 +126,17 @@ export class TextRoomsGateway
       );
       return;
     }
+
+    let fresh: GetUserDto;
+    try {
+      fresh = await this.authService.getActiveUserById(current.id);
+    } catch (error) {
+      this.emitError(client, error);
+      return;
+    }
+
+    const peer = { ...current, ...fresh, clientId: client.id } as TTextRoomPeer;
+    client.data.peer = peer;
 
     if (roomId) {
       try {

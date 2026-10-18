@@ -293,20 +293,16 @@ export class VoiceRoomsGateway
     this.logger.debug(
       `handleJoinRoom: socketId=${socket.id}, sessionKey=${sessionKey}, roomId=${roomId}, userId=${socket.data.user?.id}`,
     );
-    let user = socket.data.user;
-    if (user) {
-      try {
-        const freshUser = await this.authService.getUserFromRawCookies(
-          socket.handshake.headers.cookie,
-        );
-        if (freshUser) {
-          socket.data.user = freshUser;
-          user = freshUser;
-        }
-      } catch {
-        // keep existing user
-      }
+    const current = socket.data.user;
+    if (!current) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
     }
+    const fresh = await this.authService.getActiveUserById(current.id);
+    const user = { ...current, ...fresh };
+    socket.data.user = user;
 
     if (
       !user.isOwner &&
