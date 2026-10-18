@@ -16,9 +16,9 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform (simila
   - This prevents front-running and unauthorized instance takeover when deploying new instances to public networks.
 - **Registration policy & invite-only signups**:
   - User registration is governed by the `INVITE_ONLY_SIGN_UP` setting (defaults to `true`).
-  - The setting can be predefined via the `INVITE_ONLY_SIGN_UP` environment variable or dynamically toggled by `OWNER` / `ADMIN` in the admin settings UI.
+  - The setting can be predefined via the `INVITE_ONLY_SIGN_UP` environment variable or dynamically toggled by users with `MANAGE_SETTINGS` permission (or `OWNER`) in the admin settings UI.
   - When `INVITE_ONLY_SIGN_UP` is enabled, new user registration strictly requires a valid, active invite code.
-  - Invites can only be created by `OWNER` or `ADMIN`, have configurable expiration times (TTL), are single-use, and can optionally be bound to a specific recipient email address.
+  - Invites can only be created by users with `MANAGE_INVITES` permission (or `OWNER`), have configurable expiration times (TTL), are single-use, and can optionally be bound to a specific recipient email address.
   - Expired, revoked, or already consumed invite codes cannot be used for registration.
   - Initial `OWNER` registration is exempt from invite codes, but is protected by the bootstrap setup token.
 - **Message encryption at rest**:

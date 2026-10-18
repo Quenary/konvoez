@@ -79,7 +79,7 @@ Path aliases (prefer these over deep relative imports):
 
 - Protect HTTP routes with `@UseGuards(AuthGuard)`.
 - Current user: `@Author()` (set by the guard).
-- Require granular permissions with `@UseGuards(PermissionsGuard)` and `@RequirePermissions([EPermission...])`.
+- Require granular permissions with `@RequirePermissions([EPermission...])` on routes protected by `@UseGuards(AuthGuard)`.
 - Instance owner (`isOwner: true`) bypasses all permission and private room restrictions and unconditionally holds all capabilities.
 - Flexible RBAC: user roles are resolved through `PermissionsService` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments.
 - Room access control: verify room visibility/membership with `RoomsService.canAccessRoom(room, user)` on HTTP and WebSocket handlers.
