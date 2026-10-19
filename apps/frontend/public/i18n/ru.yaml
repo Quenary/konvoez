@@ -287,6 +287,7 @@ SETTINGS:
     COLOR_PLACEHOLDER: '#3b82f6'
     PERMISSIONS: Разрешения
     IS_DEFAULT: Роль по умолчанию (назначается всем пользователям)
+    MENTIONABLE: Разрешить упоминать роль
     DEFAULT_BADGE: По умолчанию
     CUSTOM_BADGE: Пользовательская
     PERMISSIONS_COUNT: '{{count}} разрешений'
@@ -303,6 +304,7 @@ SETTINGS:
       CONNECT_VOICE: Подключение к голосовым комнатам
       USE_ATTACHMENTS: Отправка вложений
       MODERATE_MESSAGES: Модерирование сообщений
+      MENTION_EVERYONE: Упоминать @everyone и роли
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера

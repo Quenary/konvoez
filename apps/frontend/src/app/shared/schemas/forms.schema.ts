@@ -88,6 +88,7 @@ export const roleFormSchema = z.object({
   name: stringSchema.trim().min(1, { error: SCHEMA_ERROR.REQUIRED }).max(32),
   color: stringSchema.trim().optional(),
   isDefault: z.boolean().default(false),
+  mentionable: z.boolean().default(false),
 });
 
 export type RoleFormValue = z.infer<typeof roleFormSchema>;

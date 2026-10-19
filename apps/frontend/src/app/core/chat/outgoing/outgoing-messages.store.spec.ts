@@ -102,6 +102,7 @@ describe('OutgoingMessagesStore', () => {
       clientId,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
   }
 

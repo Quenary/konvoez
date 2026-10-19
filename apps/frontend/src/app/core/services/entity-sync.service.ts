@@ -28,6 +28,7 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@core/auth/auth.selectors';
+import { RolesStore } from '@core/stores/roles.store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { emitVoiceRoomWithAck } from '@core/services/voice-room-socket-ack';
@@ -66,6 +67,7 @@ export class EntitySyncService {
   private readonly socket = inject(EntitySyncSocketToken);
   private readonly voiceRoomSocket = inject(VoiceRoomSocketToken);
   private readonly usersStore = inject(UsersStore);
+  private readonly rolesStore = inject(RolesStore);
   private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
@@ -78,6 +80,7 @@ export class EntitySyncService {
     this.bindAuthLobbyReset();
     this.bindUserEvents();
     this.bindRoomEvents();
+    this.bindRoleEvents();
     this.bindVoiceLobbyEvents();
     this.bindVoiceLobbySync();
   }
@@ -172,6 +175,14 @@ export class EntitySyncService {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ id }) => {
         this.roomsStore.removeOne(id);
+      });
+  }
+
+  private bindRoleEvents(): void {
+    fromEvent(this.emitter, EEntitySyncEvent.ROLES_CHANGED)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.rolesStore.loadAll();
       });
   }
 

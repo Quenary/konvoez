@@ -69,7 +69,15 @@ describe('SettingsUserManagementDialogComponent', () => {
     fullname: 'Bob Smith',
     email: 'bob@example.com',
     isOwner: false,
-    roles: [{ id: 10, name: 'Moderator', priority: 1, color: '#3b82f6' }],
+    roles: [
+      {
+        id: 10,
+        name: 'Moderator',
+        priority: 1,
+        color: '#3b82f6',
+        mentionable: false,
+      },
+    ],
     permissions: [],
     avatar: null,
     avatarUrl: null,
@@ -84,6 +92,7 @@ describe('SettingsUserManagementDialogComponent', () => {
       priority: 1,
       color: '#3b82f6',
       isDefault: false,
+      mentionable: false,
       permissions: [],
       createdAt: new Date(),
       updatedAt: null,
@@ -94,6 +103,7 @@ describe('SettingsUserManagementDialogComponent', () => {
       priority: 2,
       color: null,
       isDefault: false,
+      mentionable: false,
       permissions: [],
       createdAt: new Date(),
       updatedAt: null,
@@ -128,6 +138,10 @@ describe('SettingsUserManagementDialogComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    store.resetSelectors();
   });
 
   it('allows managing regular user when logged in as owner', () => {

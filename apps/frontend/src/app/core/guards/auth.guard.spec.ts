@@ -10,7 +10,7 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAuth } from '@core/auth/auth.selectors';
 import { authGuard } from './auth.guard';
 import { firstValueFrom, Observable } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { IUser } from '@konvoez/shared';
 
 describe('authGuard', () => {
@@ -54,6 +54,11 @@ describe('authGuard', () => {
 
     store = TestBed.inject(MockStore);
     router = TestBed.inject(Router);
+  });
+
+  afterEach(() => {
+    store.resetSelectors();
+    TestBed.resetTestingModule();
   });
 
   it('should return true when user is authenticated and init is true', async () => {

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { AuthApiService } from '@core/api/auth-api.service';
 import { AuthActions } from './auth.actions';
@@ -28,6 +28,11 @@ describe('TokenRefreshService', () => {
     service = TestBed.inject(TokenRefreshService);
     store = TestBed.inject(MockStore);
     vi.spyOn(store, 'dispatch');
+  });
+
+  afterEach(() => {
+    store.resetSelectors();
+    TestBed.resetTestingModule();
   });
 
   it('single-flights concurrent refresh calls', async () => {

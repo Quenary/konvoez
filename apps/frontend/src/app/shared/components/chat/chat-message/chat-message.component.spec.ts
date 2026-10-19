@@ -76,6 +76,7 @@ describe('ChatMessageComponent', () => {
     status: EMessageStatus.SUCCESS,
     replyTo: null,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
   };
 
   beforeEach(async () => {

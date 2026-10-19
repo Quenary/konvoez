@@ -45,6 +45,16 @@
     {{ 'SETTINGS.ROLES.IS_DEFAULT' | translate }}
   </label>
 
+  <label
+    tuiLabel
+    class="default-role-row">
+    <input
+      tuiSwitch
+      formControlName="mentionable"
+      type="checkbox" />
+    {{ 'SETTINGS.ROLES.MENTIONABLE' | translate }}
+  </label>
+
   <div class="permissions-section">
     <div class="permissions-header">
       <span class="permissions-title">

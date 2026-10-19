@@ -10,7 +10,7 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAuth } from '@core/auth/auth.selectors';
 import { adminGuard } from './admin.guard';
 import { firstValueFrom, Observable } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EPermission, IUser } from '@konvoez/shared';
 
 describe('adminGuard', () => {
@@ -55,6 +55,11 @@ describe('adminGuard', () => {
 
     store = TestBed.inject(MockStore);
     router = TestBed.inject(Router);
+  });
+
+  afterEach(() => {
+    store.resetSelectors();
+    TestBed.resetTestingModule();
   });
 
   it('should allow access when user has MANAGE_SETTINGS permission', async () => {

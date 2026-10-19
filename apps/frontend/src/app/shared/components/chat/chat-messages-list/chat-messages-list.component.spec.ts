@@ -33,6 +33,7 @@ describe('ChatMessagesListComponent', () => {
       status: EMessageStatus.SUCCESS,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     },
     {
       id: 'msg-2',
@@ -48,6 +49,7 @@ describe('ChatMessagesListComponent', () => {
       clientId: null,
       status: EMessageStatus.SUCCESS,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
       replyTo: {
         id: 'msg-1',
         senderId: 1,

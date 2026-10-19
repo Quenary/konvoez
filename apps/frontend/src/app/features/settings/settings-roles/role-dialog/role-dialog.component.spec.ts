@@ -23,6 +23,7 @@ describe('RoleDialogComponent', () => {
     color: '#3b82f6',
     priority: 10,
     isDefault: false,
+    mentionable: true,
     permissions: [EPermission.MANAGE_ROOMS],
     createdAt: new Date(),
     updatedAt: null,
@@ -61,8 +62,14 @@ describe('RoleDialogComponent', () => {
     expect(component['form'].controls.name.value).toBe('Moderator');
     expect(component['form'].controls.color.value).toBe('#3b82f6');
     expect(component['form'].controls.isDefault.value).toBe(false);
+    expect(component['form'].controls.mentionable.value).toBe(true);
     expect(
       component['selectedPermissions']().has(EPermission.MANAGE_ROOMS),
+    ).toBe(true);
+    expect(
+      component['availablePermissions'].some(
+        (p) => p.permission === EPermission.MENTION_EVERYONE,
+      ),
     ).toBe(true);
   });
 
@@ -96,6 +103,7 @@ describe('RoleDialogComponent', () => {
     mockRolesApiService.update.mockReturnValue(of(existingRole));
 
     component['form'].controls.name.setValue('Super Moderator');
+    component['form'].controls.mentionable.setValue(false);
     component['onSubmit']();
 
     expect(mockRolesApiService.update).toHaveBeenCalledWith(
@@ -104,6 +112,7 @@ describe('RoleDialogComponent', () => {
         name: 'Super Moderator',
         color: '#3b82f6',
         isDefault: false,
+        mentionable: false,
       }),
     );
     expect(mockDialogContext.completeWith).toHaveBeenCalledWith(existingRole);

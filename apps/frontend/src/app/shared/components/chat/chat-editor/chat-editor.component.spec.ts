@@ -28,6 +28,7 @@ describe('ChatEditorComponent', () => {
     status: EMessageStatus.SUCCESS,
     replyTo: null,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
   };
 
   const mockNotificationService = {

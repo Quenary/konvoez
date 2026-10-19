@@ -81,6 +81,10 @@ export const AVAILABLE_PERMISSIONS: readonly IPermissionOption[] = [
     permission: EPermission.MODERATE_MESSAGES,
     labelKey: 'SETTINGS.ROLES.PERMISSIONS_LIST.MODERATE_MESSAGES',
   },
+  {
+    permission: EPermission.MENTION_EVERYONE,
+    labelKey: 'SETTINGS.ROLES.PERMISSIONS_LIST.MENTION_EVERYONE',
+  },
 ];
 
 @Component({
@@ -142,6 +146,10 @@ export class RoleDialogComponent {
         nonNullable: true,
         validators: [createZodFieldValidator(roleFormSchema.shape.isDefault)],
       }),
+      mentionable: new FormControl(this.context.data?.mentionable ?? false, {
+        nonNullable: true,
+        validators: [createZodFieldValidator(roleFormSchema.shape.mentionable)],
+      }),
     },
     {
       validators: [createZodFormValidator(roleFormSchema)],
@@ -177,7 +185,7 @@ export class RoleDialogComponent {
 
     this.loading.set(true);
 
-    const { name, color, isDefault } = this.form.getRawValue();
+    const { name, color, isDefault, mentionable } = this.form.getRawValue();
     const permissions = Array.from(this.selectedPermissions());
     const trimmedColor = color.trim() ? color.trim() : null;
 
@@ -186,6 +194,7 @@ export class RoleDialogComponent {
         name,
         color: trimmedColor,
         isDefault,
+        mentionable,
         permissions,
       };
       this.rolesApiService.update(this.context.data.id, dto).subscribe({
@@ -209,6 +218,7 @@ export class RoleDialogComponent {
         color: trimmedColor,
         priority: 0,
         isDefault,
+        mentionable,
         permissions,
       };
       this.rolesApiService.create(dto).subscribe({

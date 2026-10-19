@@ -119,6 +119,7 @@ function toOutgoingMessageEntity(
     isPendingCreate: true,
     outgoing: message,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
   };
 }
 

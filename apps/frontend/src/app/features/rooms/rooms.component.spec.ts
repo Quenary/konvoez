@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EPermission, ERoomType, IUser } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -192,6 +192,11 @@ describe('RoomsComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    store.resetSelectors();
+    TestBed.resetTestingModule();
   });
 
   it('should create', () => {

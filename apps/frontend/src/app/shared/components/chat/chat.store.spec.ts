@@ -102,6 +102,7 @@ describe('ChatStore', () => {
     clientId: null,
     replyTo: null,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
   };
 
   const message2WithReply: ITextRoomMessage = {
@@ -117,6 +118,7 @@ describe('ChatStore', () => {
     attachments: [],
     clientId: null,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
     replyTo: {
       id: 'msg-1',
       senderId: 1,
@@ -274,6 +276,7 @@ describe('ChatStore', () => {
       clientId: null,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
     apiService.list.mockReturnValue(
@@ -325,6 +328,7 @@ describe('ChatStore', () => {
       attachments: [],
       clientId: 'temp-123',
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
       replyTo: {
         id: 'msg-1',
         senderId: 1,
@@ -435,6 +439,7 @@ describe('ChatStore', () => {
       clientId: 'temp-retry',
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     });
     retry$.complete();
 
@@ -573,6 +578,7 @@ describe('ChatStore', () => {
         clientId: null,
         replyTo: null,
         reactions: [],
+        mentions: { userIds: [], roleIds: [], everyone: false },
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, newSocketMessage);
@@ -597,6 +603,7 @@ describe('ChatStore', () => {
         clientId: null,
         replyTo: null,
         reactions: [],
+        mentions: { userIds: [], roleIds: [], everyone: false },
       };
 
       mockSocket.emit(
@@ -642,6 +649,7 @@ describe('ChatStore', () => {
         clientId: null,
         replyTo: null,
         reactions: [],
+        mentions: { userIds: [], roleIds: [], everyone: false },
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);
@@ -662,6 +670,7 @@ describe('ChatStore', () => {
         clientId: null,
         replyTo: null,
         reactions: [],
+        mentions: { userIds: [], roleIds: [], everyone: false },
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, otherRoomMessage);
@@ -686,6 +695,7 @@ describe('ChatStore', () => {
         clientId: null,
         replyTo: null,
         reactions: [],
+        mentions: { userIds: [], roleIds: [], everyone: false },
       };
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);

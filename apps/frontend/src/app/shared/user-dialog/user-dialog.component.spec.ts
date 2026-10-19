@@ -192,6 +192,7 @@ describe('UserDialogComponent', () => {
       clientId: request.tempId,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     });
     expect(completeWith).toHaveBeenCalledOnce();
     expect(notifications.open).toHaveBeenCalledWith(

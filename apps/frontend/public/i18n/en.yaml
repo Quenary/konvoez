@@ -287,6 +287,7 @@ SETTINGS:
     COLOR_PLACEHOLDER: '#3b82f6'
     PERMISSIONS: Permissions
     IS_DEFAULT: Default role (assigned to all users)
+    MENTIONABLE: Allow mentioning this role
     DEFAULT_BADGE: Default
     CUSTOM_BADGE: Custom
     PERMISSIONS_COUNT: '{{count}} permissions'
@@ -303,6 +304,7 @@ SETTINGS:
       CONNECT_VOICE: Connect to voice
       USE_ATTACHMENTS: Use attachments
       MODERATE_MESSAGES: Moderate messages
+      MENTION_EVERYONE: Mention @everyone and roles
   ADMIN:
     TITLE: Administration
     SUBTITLE: Global server settings
