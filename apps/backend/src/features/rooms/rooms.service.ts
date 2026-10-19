@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  canAccessRoomSnapshot,
+  EPermission,
+} from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
 import {
@@ -60,24 +64,33 @@ export class RoomsService {
           allowedUserIds?: number[];
         },
   ): boolean {
-    if (user.isOwner) {
-      return true;
-    }
     const permissions =
       'permissions' in user && Array.isArray(user.permissions)
         ? user.permissions
         : [];
-    if (permissions.includes(EPermission.MANAGE_ROOMS)) {
-      return true;
-    }
-    if (!room.isPrivate) {
-      return true;
+
+    let roleIds: number[] = [];
+    if ('roles' in user && user.roles) {
+      const userRoles: Array<{ id: number }> =
+        typeof (
+          user.roles as unknown as {
+            getItems?: () => Array<{ id: number }>;
+          }
+        ).getItems === 'function'
+          ? (
+              user.roles as unknown as {
+                getItems: () => Array<{ id: number }>;
+              }
+            ).getItems()
+          : Array.isArray(user.roles)
+            ? (user.roles as Array<{ id: number }>)
+            : [];
+      roleIds = userRoles.map((r) => r.id);
     }
 
+    let allowedUserIds: number[] = [];
     if ('allowedUserIds' in room && Array.isArray(room.allowedUserIds)) {
-      if (room.allowedUserIds.includes(user.id)) {
-        return true;
-      }
+      allowedUserIds = room.allowedUserIds;
     } else if ('allowedUsers' in room && room.allowedUsers) {
       const allowedUsers: Array<{ id: number }> =
         typeof (
@@ -93,14 +106,12 @@ export class RoomsService {
           : Array.isArray(room.allowedUsers)
             ? (room.allowedUsers as Array<{ id: number }>)
             : [];
-      if (allowedUsers.some((u: { id: number }) => u.id === user.id)) {
-        return true;
-      }
+      allowedUserIds = allowedUsers.map((u) => u.id);
     }
 
-    let allowedRoleIds: Set<number> | null = null;
+    let allowedRoleIds: number[] = [];
     if ('allowedRoleIds' in room && Array.isArray(room.allowedRoleIds)) {
-      allowedRoleIds = new Set(room.allowedRoleIds);
+      allowedRoleIds = room.allowedRoleIds;
     } else if ('allowedRoles' in room && room.allowedRoles) {
       const allowedRoles: Array<{ id: number }> =
         typeof (
@@ -116,30 +127,22 @@ export class RoomsService {
           : Array.isArray(room.allowedRoles)
             ? (room.allowedRoles as Array<{ id: number }>)
             : [];
-      allowedRoleIds = new Set(allowedRoles.map((r: { id: number }) => r.id));
+      allowedRoleIds = allowedRoles.map((r) => r.id);
     }
 
-    if (allowedRoleIds && allowedRoleIds.size > 0 && user.roles) {
-      const userRoles =
-        typeof (
-          user.roles as unknown as {
-            getItems?: () => Array<{ id: number }>;
-          }
-        ).getItems === 'function'
-          ? (
-              user.roles as unknown as {
-                getItems: () => Array<{ id: number }>;
-              }
-            ).getItems()
-          : Array.isArray(user.roles)
-            ? user.roles
-            : [];
-      if (userRoles.some((r) => allowedRoleIds.has(r.id))) {
-        return true;
-      }
-    }
-
-    return false;
+    return canAccessRoomSnapshot(
+      {
+        id: user.id,
+        isOwner: user.isOwner,
+        permissions,
+        roleIds,
+      },
+      {
+        isPrivate: room.isPrivate,
+        allowedUserIds,
+        allowedRoleIds,
+      },
+    );
   }
 
   async findOne(id: number, author?: GetUserDto): Promise<RoomEntity> {

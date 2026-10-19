@@ -22,3 +22,4 @@ export * from './schemas/attachment.schemas';
 export * from './desktop';
 export * from './errors';
 export * from './mentions';
+export * from './room-access';
