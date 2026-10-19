@@ -270,4 +270,31 @@ export class TextRoomsGateway
       `Dropped message reaction updated without target: messageId=${body.messageId}`,
     );
   }
+
+  @OnEvent(TextRoomsDomainEvents.MESSAGES_READ)
+  onMessagesRead(
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGES_READ],
+  ) {
+    if (body.roomId) {
+      this.logger.debug(
+        `Fan-out messages read: readerId=${body.readerId}, roomId=${body.roomId}`,
+      );
+      return this.server
+        .to(String(body.roomId))
+        .to(String(body.readerId))
+        .emit(ETextRoomEvent.MESSAGES_READ, body);
+    }
+    if (body.recipientId) {
+      this.logger.debug(
+        `Fan-out messages read: readerId=${body.readerId}, recipientId=${body.recipientId}`,
+      );
+      return this.server
+        .to(String(body.recipientId))
+        .to(String(body.readerId))
+        .emit(ETextRoomEvent.MESSAGES_READ, body);
+    }
+    this.logger.warn(
+      `Dropped messages read without target: readerId=${body.readerId}`,
+    );
+  }
 }

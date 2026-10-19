@@ -22,6 +22,7 @@ import {
   MessageDto,
   MessageListRequestDto,
   MessageListResponseDto,
+  ReadAllDto,
   CreateMessageDto,
 } from './text-rooms.dto';
 import { extractTrigrams } from '@shared/utils/trigrams.util';
@@ -1221,6 +1222,74 @@ export class TextRoomsService {
         ),
       );
     }
+  }
+
+  async readAll(
+    user: GetUserDto,
+    dto: ReadAllDto,
+  ): Promise<ITextRoomUnreadCounts> {
+    if (dto.roomId) {
+      await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
+    } else if (dto.recipientId === user.id) {
+      return await this.getUnreadCounts(user);
+    }
+
+    const baseWhere = await this.buildChatWhere(user, dto);
+    const newestMsg = await this.messageRepository.findOne(baseWhere, {
+      orderBy: { createdAt: 'DESC' },
+      fields: ['id'],
+    });
+
+    const maxId = newestMsg?.id;
+    if (!maxId) {
+      return await this.getUnreadCounts(user);
+    }
+
+    let affectedRows = 0;
+    if (dto.roomId) {
+      const result = await this.em
+        .getConnection()
+        .execute<{ affectedRows?: number }>(
+          'insert or ignore into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.room_id = ? and m.sender_id != ? and m.id <= ?',
+          [user.id, dto.roomId, user.id, Buffer.from(maxId)],
+          'run',
+        );
+      affectedRows = result.affectedRows ?? 0;
+    } else if (dto.recipientId) {
+      const result = await this.em
+        .getConnection()
+        .execute<{ affectedRows?: number }>(
+          'insert or ignore into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.sender_id = ? and m.recipient_id = ? and m.id <= ?',
+          [user.id, dto.recipientId, user.id, Buffer.from(maxId)],
+          'run',
+        );
+      affectedRows = result.affectedRows ?? 0;
+    }
+
+    if (affectedRows > 0) {
+      emitTextRoomsDomainEvent(
+        this.eventEmitter,
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: user.id,
+          roomId: dto.roomId ?? null,
+          recipientId: dto.recipientId ?? null,
+          messageIds: [],
+          maxMessageId: uuidStringify(maxId),
+        },
+      );
+    }
+
+    const counts = await this.getUnreadCounts(user);
+    emitTextRoomsDomainEvent(
+      this.eventEmitter,
+      TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+      {
+        userId: user.id,
+        counts,
+      },
+    );
+    return counts;
   }
 
   async getReaders(user: GetUserDto, messageId: string): Promise<GetUserDto[]> {

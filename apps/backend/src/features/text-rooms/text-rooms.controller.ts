@@ -22,6 +22,7 @@ import {
   MessageListResponseDto,
   MessageListRequestDto,
   EditMessageDto,
+  ReadAllDto,
   UnreadCountsResponseDto,
   ToggleReactionDto,
   ReactionGroupDto,
@@ -74,6 +75,19 @@ export class TextRoomsController {
     @Body() body: MarkReadDto,
   ): Promise<void> {
     await this.textRoomsService.markRead(author, body);
+  }
+
+  @Post('read-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    type: UnreadCountsResponseDto,
+    description: 'Mark all messages in a chat as read',
+  })
+  async readAll(
+    @Author() author: GetUserDto,
+    @Body() body: ReadAllDto,
+  ): Promise<UnreadCountsResponseDto> {
+    return await this.textRoomsService.readAll(author, body);
   }
 
   @Post()

@@ -54,6 +54,7 @@ import { TextRoomsDomainEvents } from './text-rooms.events';
 import { NotificationsDomainEvents } from '../notifications/notifications.events';
 import { MentionsService } from './mentions.service';
 import { RoomEntity } from '../rooms/rooms.entity';
+import { ReadAllDto } from './text-rooms.dto';
 
 describe('TextRoomsService', () => {
   let service: TextRoomsService;
@@ -71,6 +72,7 @@ describe('TextRoomsService', () => {
   let mentionsService: jest.Mocked<MentionsService>;
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
+  let connection: { execute: jest.Mock };
   let attachmentsService: {
     findAttachedByMessageIds: jest.Mock;
     claimForMessage: jest.Mock;
@@ -92,7 +94,12 @@ describe('TextRoomsService', () => {
   };
 
   beforeEach(() => {
+    connection = {
+      execute: jest.fn().mockResolvedValue({ affectedRows: 1, insertId: 1 }),
+    };
+
     em = {
+      getConnection: jest.fn().mockReturnValue(connection),
       flush: jest.fn().mockResolvedValue(undefined),
       populate: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
@@ -114,7 +121,13 @@ describe('TextRoomsService', () => {
       create: jest.fn(),
       assign: jest.fn(),
       remove: jest.fn(),
-      createQueryBuilder: jest.fn(),
+      createQueryBuilder: jest.fn().mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        join: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue([]),
+      })),
     } as unknown as jest.Mocked<EntityRepository<MessageEntity>>;
 
     messageReadRepository = {
@@ -140,7 +153,13 @@ describe('TextRoomsService', () => {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((data) => data),
-      createQueryBuilder: jest.fn(),
+      createQueryBuilder: jest.fn().mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        join: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue([]),
+      })),
     } as unknown as jest.Mocked<EntityRepository<MessageMentionEntity>>;
 
     usersService = {
@@ -2175,6 +2194,157 @@ describe('TextRoomsService', () => {
       expect(result).toEqual([
         { emoji: '👍', count: 1, userIds: [mockUser.id] },
       ]);
+    });
+  });
+
+  describe('readAll', () => {
+    it('marks all room messages as read up to maxId and emits MESSAGES_READ and UNREAD_COUNTS_CHANGED', async () => {
+      const maxUuid = v7();
+      const maxId = parse(maxUuid);
+      messageRepository.findOne.mockResolvedValueOnce({
+        id: maxId,
+      } as MessageEntity);
+      connection.execute.mockResolvedValueOnce({ affectedRows: 5 });
+
+      const result = await service.readAll(mockUser, {
+        roomId: 10,
+        recipientId: null,
+      });
+
+      expect(roomsFacade.assertCanAccessRoom).toHaveBeenCalledWith(
+        mockUser,
+        10,
+      );
+      expect(connection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('insert or ignore into message_reads'),
+        [mockUser.id, 10, mockUser.id, Buffer.from(maxId)],
+        'run',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [],
+          maxMessageId: maxUuid,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.objectContaining({
+          userId: mockUser.id,
+          counts: result,
+        }),
+      );
+    });
+
+    it('is idempotent and does not emit MESSAGES_READ when affectedRows is 0', async () => {
+      const maxUuid = v7();
+      const maxId = parse(maxUuid);
+      messageRepository.findOne.mockResolvedValueOnce({
+        id: maxId,
+      } as MessageEntity);
+      connection.execute.mockResolvedValueOnce({ affectedRows: 0 });
+
+      await service.readAll(mockUser, {
+        roomId: 10,
+        recipientId: null,
+      });
+
+      expect(connection.execute).toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+    });
+
+    it('marks all DM messages as read up to maxId', async () => {
+      const peerId = 2;
+      const maxUuid = v7();
+      const maxId = parse(maxUuid);
+      messageRepository.findOne.mockResolvedValueOnce({
+        id: maxId,
+      } as MessageEntity);
+      connection.execute.mockResolvedValueOnce({ affectedRows: 3 });
+
+      await service.readAll(mockUser, {
+        roomId: null,
+        recipientId: peerId,
+      });
+
+      expect(connection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('insert or ignore into message_reads'),
+        [mockUser.id, peerId, mockUser.id, Buffer.from(maxId)],
+        'run',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: null,
+          recipientId: peerId,
+          messageIds: [],
+          maxMessageId: maxUuid,
+        },
+      );
+    });
+
+    it('returns counts without writes for self-DM', async () => {
+      const result = await service.readAll(mockUser, {
+        roomId: null,
+        recipientId: mockUser.id,
+      });
+
+      expect(connection.execute).not.toHaveBeenCalled();
+      expect(messageRepository.findOne).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('returns counts without executing SQL when chat has no messages', async () => {
+      messageRepository.findOne.mockResolvedValueOnce(null);
+
+      const result = await service.readAll(mockUser, {
+        roomId: 10,
+        recipientId: null,
+      });
+
+      expect(connection.execute).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('throws when user cannot access private room', async () => {
+      roomsFacade.assertCanAccessRoom.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        ),
+      );
+
+      await expect(
+        service.readAll(mockUser, { roomId: 99, recipientId: null }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+    });
+
+    describe('ReadAllDto validation', () => {
+      it('validates targets through ReadAllDto', () => {
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: 10, recipientId: null })
+            .success,
+        ).toBe(true);
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: null, recipientId: 2 }).success,
+        ).toBe(true);
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: 10, recipientId: 2 }).success,
+        ).toBe(false);
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: null, recipientId: null })
+            .success,
+        ).toBe(false);
+      });
     });
   });
 });

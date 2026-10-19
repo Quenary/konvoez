@@ -13,10 +13,13 @@ import {
   ApiErrorCode,
   ETextRoomEvent,
   type ITextRoomMessage,
+  type TTextRoomMessagesRead,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { v7 } from 'uuid';
 import { Server, Socket } from 'socket.io';
+import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
+import { TextRoomsDomainEvents } from './text-rooms.events';
 
 describe('TextRoomsGateway', () => {
   let gateway: TextRoomsGateway;
@@ -376,5 +379,52 @@ describe('TextRoomsGateway', () => {
       ETextRoomEvent.MESSAGE_REACTION_UPDATED,
       payload,
     );
+  });
+
+  it('should emit MESSAGES_READ to room and reader in onMessagesRead', () => {
+    const payload: TTextRoomMessagesRead = {
+      readerId: 1,
+      roomId: 42,
+      recipientId: null,
+      messageIds: [],
+      maxMessageId: v7(),
+    };
+
+    gateway.onMessagesRead(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('42');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGES_READ,
+      payload,
+    );
+  });
+
+  it('should emit MESSAGES_READ to recipient and reader for direct message in onMessagesRead', () => {
+    const payload: TTextRoomMessagesRead = {
+      readerId: 1,
+      roomId: null,
+      recipientId: 2,
+      messageIds: [v7()],
+      maxMessageId: null,
+    };
+
+    gateway.onMessagesRead(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('2');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGES_READ,
+      payload,
+    );
+  });
+
+  it('should have OnEvent metadata for MESSAGES_READ on onMessagesRead', () => {
+    const metadata = Reflect.getMetadata(
+      EVENT_LISTENER_METADATA,
+      gateway.onMessagesRead,
+    );
+    const events = metadata.map((m: { event: string }) => m.event);
+    expect(events).toContain(TextRoomsDomainEvents.MESSAGES_READ);
   });
 });
