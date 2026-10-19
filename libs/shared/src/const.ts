@@ -11,6 +11,7 @@ export const messageMaxLength = 5000;
 export const pushNotificationBodyMaxLength = 200;
 export const messageListMinLimit = 1;
 export const messageListMaxLimit = 1000;
+export const MESSAGE_PAGE_SIZE = 25;
 export const roomNameMinLength = 1;
 export const roomNameMaxLength = 64;
 export const maxAvatarSize = 1024 * 1024 * 5; // 5MB

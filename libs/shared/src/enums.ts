@@ -71,6 +71,8 @@ export enum ETextRoomEvent {
   MESSAGE_DELETED = 'message-deleted',
   MESSAGE_REACTION_UPDATED = 'message-reaction-updated',
   USER_TYPING = 'user-typing',
+  UNREAD_COUNTS_CHANGED = 'unread-counts-changed',
+  MESSAGES_READ = 'messages-read',
   ERROR = 'error',
 }
 

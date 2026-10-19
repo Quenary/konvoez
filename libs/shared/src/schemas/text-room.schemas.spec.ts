@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ApiErrorCode } from '../errors';
 import { EUserRole } from '../enums';
+import { SCHEMA_ERROR } from './base.schemas';
 import {
+  messageListResponseSchema,
   messageSchema,
+  messagesReadEventSchema,
+  readAllSchema,
   textRoomErrorSchema,
   textRoomJoinSchema,
   textRoomMessageDeletedSchema,
@@ -195,6 +199,101 @@ describe('TextRoom Schemas', () => {
 
       const parsed = unreadCountsSchema.parse(counts);
       expect(parsed.roomMentions).toEqual({ '1': 1 });
+    });
+  });
+
+  describe('messageListResponseSchema', () => {
+    it('applies defaults for unread anchor fields when omitted', () => {
+      const parsed = messageListResponseSchema.parse({
+        items: [],
+      });
+      expect(parsed.firstUnreadMessageId).toBeNull();
+      expect(parsed.hasMoreBefore).toBe(false);
+      expect(parsed.hasMoreAfter).toBe(false);
+    });
+
+    it('accepts explicit unread anchor fields', () => {
+      const parsed = messageListResponseSchema.parse({
+        items: [],
+        firstUnreadMessageId: '018f4a1e-5a72-7752-9053-4ecdcb8bfa66',
+        hasMoreBefore: true,
+        hasMoreAfter: true,
+      });
+      expect(parsed.firstUnreadMessageId).toBe(
+        '018f4a1e-5a72-7752-9053-4ecdcb8bfa66',
+      );
+      expect(parsed.hasMoreBefore).toBe(true);
+      expect(parsed.hasMoreAfter).toBe(true);
+    });
+  });
+
+  describe('readAllSchema', () => {
+    it('accepts room-only target', () => {
+      const parsed = readAllSchema.safeParse({
+        roomId: 42,
+        recipientId: null,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('accepts recipient-only target', () => {
+      const parsed = readAllSchema.safeParse({
+        roomId: null,
+        recipientId: 99,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('rejects when both roomId and recipientId are provided', () => {
+      const parsed = readAllSchema.safeParse({
+        roomId: 42,
+        recipientId: 99,
+      });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues[0].message).toBe(
+          SCHEMA_ERROR.INVALID_CHAT_TARGET,
+        );
+      }
+    });
+
+    it('rejects when neither roomId nor recipientId is provided', () => {
+      const parsed = readAllSchema.safeParse({
+        roomId: null,
+        recipientId: null,
+      });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues[0].message).toBe(
+          SCHEMA_ERROR.INVALID_CHAT_TARGET,
+        );
+      }
+    });
+  });
+
+  describe('messagesReadEventSchema', () => {
+    it('applies defaults for messageIds and maxMessageId', () => {
+      const parsed = messagesReadEventSchema.parse({
+        readerId: 1,
+        roomId: 42,
+        recipientId: null,
+      });
+      expect(parsed.messageIds).toEqual([]);
+      expect(parsed.maxMessageId).toBeNull();
+    });
+
+    it('accepts explicit messageIds and maxMessageId', () => {
+      const parsed = messagesReadEventSchema.parse({
+        readerId: 1,
+        roomId: null,
+        recipientId: 2,
+        messageIds: ['018f4a1e-5a72-7752-9053-4ecdcb8bfa66'],
+        maxMessageId: '018f4a1e-5a72-7752-9053-4ecdcb8bfa66',
+      });
+      expect(parsed.messageIds).toEqual([
+        '018f4a1e-5a72-7752-9053-4ecdcb8bfa66',
+      ]);
+      expect(parsed.maxMessageId).toBe('018f4a1e-5a72-7752-9053-4ecdcb8bfa66');
     });
   });
 });

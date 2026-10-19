@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { baseEntitySchema, stringSchema } from './base.schemas';
+import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import {
   attachmentsMaxFilesHardLimit,
   messageListMaxLimit,
@@ -119,10 +119,31 @@ export const messageListRequestSchema = z.object({
   recipientId: nullableInt,
   roomId: nullableInt,
   search: z.string().optional(),
+  latest: z.boolean().optional(),
 });
 
 export const messageListResponseSchema = z.object({
   items: z.array(messageSchema),
+  firstUnreadMessageId: z.uuid().nullable().default(null),
+  hasMoreBefore: z.boolean().default(false),
+  hasMoreAfter: z.boolean().default(false),
+});
+
+export const readAllSchema = z
+  .object({
+    roomId: nullableInt,
+    recipientId: nullableInt,
+  })
+  .refine((v) => (v.roomId == null) !== (v.recipientId == null), {
+    error: SCHEMA_ERROR.INVALID_CHAT_TARGET,
+  });
+
+export const messagesReadEventSchema = z.object({
+  readerId: z.number().int(),
+  roomId: nullableInt,
+  recipientId: nullableInt,
+  messageIds: z.array(z.uuid()).default([]),
+  maxMessageId: z.uuid().nullable().default(null),
 });
 
 export const textRoomReactionUpdatedSchema = z.object({
@@ -147,6 +168,10 @@ export type ITextRoomReactionToggle = z.infer<
 export type ITextRoomListRequest = z.infer<typeof messageListRequestSchema>;
 export type ITextRoomListResponse = z.infer<typeof messageListResponseSchema>;
 export type ITextRoomMarkRead = z.infer<typeof markReadSchema>;
+export type ITextRoomReadAll = z.infer<typeof readAllSchema>;
+export type TTextRoomReadAll = ITextRoomReadAll;
+export type TTextRoomMessagesRead = z.infer<typeof messagesReadEventSchema>;
+export type ITextRoomMessagesRead = TTextRoomMessagesRead;
 export type ITextRoomUnreadCounts = z.infer<typeof unreadCountsSchema>;
 
 export type TTextRoomEventPayloadMap = {
@@ -157,6 +182,8 @@ export type TTextRoomEventPayloadMap = {
   [ETextRoomEvent.MESSAGE_DELETED]: TTextRoomMessageDeleted;
   [ETextRoomEvent.MESSAGE_REACTION_UPDATED]: TTextRoomReactionUpdated;
   [ETextRoomEvent.USER_TYPING]: TTextRoomUserTyping;
+  [ETextRoomEvent.UNREAD_COUNTS_CHANGED]: ITextRoomUnreadCounts;
+  [ETextRoomEvent.MESSAGES_READ]: TTextRoomMessagesRead;
   [ETextRoomEvent.ERROR]: TTextRoomError;
 };
 

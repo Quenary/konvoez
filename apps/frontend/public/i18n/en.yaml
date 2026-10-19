@@ -359,6 +359,7 @@ VALIDATION:
   INVITE_CODE_REQUIRED: Invite code is required for registration
   INVALID_SCHEMA: Invalid schema format
   RECOVERY_CODE: Enter the 6-digit recovery code
+  INVALID_CHAT_TARGET: Exactly one chat target must be specified
 AUTH:
   LOGIN: Username or email
   OWNER_SETUP_TITLE: Initial Server Setup
