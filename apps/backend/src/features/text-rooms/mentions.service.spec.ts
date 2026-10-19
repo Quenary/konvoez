@@ -190,6 +190,27 @@ describe('MentionsService', () => {
       });
     });
 
+    it('resolves @everyone in the second paragraph for an author with MENTION_EVERYONE', async () => {
+      const author = createAuthor(1, false, [EPermission.MENTION_EVERYONE]);
+      const user2 = createUser(2);
+      const user3 = createUser(3);
+
+      usersService.findMentionCandidates.mockResolvedValue([
+        createUser(1),
+        user2,
+        user3,
+      ]);
+      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+        createAuthor(u.id),
+      );
+
+      const html = '<p>hello</p><p>@everyone</p>';
+      const result = await service.resolve(author, dummyRoom, html);
+
+      expect(result.effective.everyone).toBe(true);
+      expect(result.recipientIds).toEqual([2, 3]);
+    });
+
     it('resolves mentionable role when author has MENTION_EVERYONE and ignores non-mentionable role', async () => {
       const author = createAuthor(1, false, [EPermission.MENTION_EVERYONE]);
       const role1 = createRole(10, true, 'Devs');

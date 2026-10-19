@@ -43,8 +43,10 @@ export function decodeBasicEntities(text: string): string {
 }
 
 const CODE_BLOCK_REGEX = /<(pre|code)\b[^>]*>[\s\S]*?<\/\1>/gi;
+const BLOCK_BOUNDARY_REGEX = /<br\s*\/?>|<\/(p|div|li|blockquote|h[1-6])>/gi;
 
 export function htmlToMentionText(html: string): string {
   const withoutCodeBlocks = html.replace(CODE_BLOCK_REGEX, '');
-  return decodeBasicEntities(htmlToPlainText(withoutCodeBlocks));
+  const separated = withoutCodeBlocks.replace(BLOCK_BOUNDARY_REGEX, ' $&');
+  return decodeBasicEntities(htmlToPlainText(separated));
 }

@@ -1,3 +1,4 @@
+import { parseMentions } from '@konvoez/shared';
 import {
   decodeBasicEntities,
   htmlToMentionText,
@@ -54,5 +55,35 @@ describe('decodeBasicEntities and htmlToMentionText', () => {
         '<p>Hi &lt;@12&gt;, check <code>&lt;@34&gt;</code> and <pre><code>@everyone</code></pre></p>',
       ),
     ).toBe('Hi <@12>, check and');
+  });
+
+  it('separates block boundaries so mentions at block starts are recognized', () => {
+    expect(
+      parseMentions(htmlToMentionText('<p>hello</p><p>@everyone</p>')).everyone,
+    ).toBe(true);
+
+    expect(parseMentions(htmlToMentionText('a<br>@everyone')).everyone).toBe(
+      true,
+    );
+    expect(parseMentions(htmlToMentionText('a<br/>@everyone')).everyone).toBe(
+      true,
+    );
+
+    expect(
+      parseMentions(htmlToMentionText('<p>a</p><p>&lt;@1&gt;</p>')).userIds,
+    ).toEqual([1]);
+
+    expect(
+      parseMentions(htmlToMentionText('<ul><li>x</li><li>@everyone</li></ul>'))
+        .everyone,
+    ).toBe(true);
+
+    expect(
+      parseMentions(htmlToMentionText('<p>email@everyone.com</p>')).everyone,
+    ).toBe(false);
+
+    expect(
+      parseMentions(htmlToMentionText('<pre>@everyone</pre>')).everyone,
+    ).toBe(false);
   });
 });
