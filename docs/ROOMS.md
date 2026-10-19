@@ -32,3 +32,7 @@ Room names are unique. Duplicate names return `409`.
 In the aside rooms list, the **add** buttons (text / voice) and the per-room context menu (edit / delete) are shown only when the current user has `MANAGE_ROOMS` permission or is `OWNER`. All members can open and use accessible rooms.
 
 The edit dialog allows configuring privacy, allowed roles, and allowed users (when private), and shows read-only **author**, **created**, and **updated** fields.
+
+## Mentions
+
+Text room messages support `@user`, `@Role`, and `@everyone` mentions. Messages mentioning the current user are highlighted, and rooms with unread mentions display an `@` badge in the aside list. See [Mentions](MENTIONS.md) for detailed architecture, token syntax, and permissions.

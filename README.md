@@ -23,7 +23,7 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 - **Voice Rooms**: Low-latency voice powered by WebRTC and the Mediasoup SFU, with noise suppression.
 - **Camera & Screen Sharing**: Stream your camera or screen in voice rooms and calls.
 - **Direct Messages & Calls**: Private one-to-one chats and calls.
-- **Text Chat**: Rich-text messages with replies, reactions and file attachments.
+- **Text Chat**: Rich-text messages with replies, reactions, @mentions and file attachments.
 - **Encrypted Messages**: Text messages are encrypted server-side at rest using AES-256-GCM.
 - **Notifications**: Web Push and native desktop notifications.
 - **PWA & Desktop Client**: Installable web app, plus a desktop app for Windows and Linux.
@@ -77,6 +77,7 @@ docker compose -f docker-compose.build.yml up -d --build
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Rooms](docs/ROOMS.md)
+- [Mentions](docs/MENTIONS.md)
 - [Message attachments](docs/ATTACHMENTS.md)
 - [Message reactions](docs/MESSAGE_REACTIONS.md)
 - [Frontend voice](docs/frontend/VOICE.md)
@@ -97,7 +98,6 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
-- Add `@mentions`
 - Add 2FA
 - Add notification settongs per user (topics)
 - Add invite emails (if email set)
