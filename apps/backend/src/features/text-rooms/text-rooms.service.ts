@@ -11,6 +11,7 @@ import { SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
+  MessageMentionEntity,
   MessageReadEntity,
   MessageReactionEntity,
   MessageSearchTokenEntity,
@@ -74,6 +75,8 @@ export class TextRoomsService {
     private readonly messageReadRepository: EntityRepository<MessageReadEntity>,
     @InjectRepository(MessageReactionEntity)
     private readonly messageReactionRepository: EntityRepository<MessageReactionEntity>,
+    @InjectRepository(MessageMentionEntity)
+    private readonly messageMentionRepository: EntityRepository<MessageMentionEntity>,
     private readonly usersService: UsersService,
     private readonly roomsFacade: RoomsFacade,
     private readonly encryptionService: EncryptionService,
@@ -318,7 +321,7 @@ export class TextRoomsService {
   async getUnreadCounts(user: GetUserDto): Promise<ITextRoomUnreadCounts> {
     const userId = user.id;
 
-    const [roomRows, directRows] = await Promise.all([
+    const [roomRows, directRows, mentionRows] = await Promise.all([
       this.messageQueryBuilder
         .createQueryBuilder('m')
         .select(['m.room as roomId', raw('count(*) as count')])
@@ -340,15 +343,39 @@ export class TextRoomsService {
         })
         .groupBy('m.sender')
         .execute<Array<{ senderId: number; count: number }>>('all'),
+      (
+        this
+          .messageMentionRepository as unknown as SqlEntityRepository<MessageMentionEntity>
+      )
+        .createQueryBuilder('mm')
+        .join('mm.message', 'm')
+        .select(['m.room as roomId', raw('count(*) as count')])
+        .where({
+          user: userId,
+          'm.sender': { $ne: userId },
+          'm.room': { $ne: null },
+          'm.id': { $nin: this.createUnreadMessageIdsSubquery(userId) },
+        })
+        .groupBy('m.room')
+        .execute<Array<{ roomId: number; count: number }>>('all'),
     ]);
 
     const accessibleRoomIds = await this.roomsFacade.getAccessibleRoomIds(user);
     const accessibleRoomRows = roomRows.filter((row) =>
       accessibleRoomIds.has(Number(row.roomId)),
     );
+    const accessibleMentionRows = mentionRows.filter((row) =>
+      accessibleRoomIds.has(Number(row.roomId)),
+    );
 
     const rooms = Object.fromEntries(
       accessibleRoomRows.map((row) => [String(row.roomId), Number(row.count)]),
+    );
+    const roomMentions = Object.fromEntries(
+      accessibleMentionRows.map((row) => [
+        String(row.roomId),
+        Number(row.count),
+      ]),
     );
     const direct = Object.fromEntries(
       directRows.map((row) => [String(row.senderId), Number(row.count)]),
@@ -358,7 +385,7 @@ export class TextRoomsService {
       0,
     );
 
-    return { rooms, roomMentions: {}, direct, directTotal };
+    return { rooms, roomMentions, direct, directTotal };
   }
 
   async getDirectChats(user: GetUserDto): Promise<GetUserDto[]> {

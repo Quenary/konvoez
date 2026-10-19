@@ -23,6 +23,7 @@ import { AppException } from '@shared/errors/app.exception';
 import { TextRoomsService } from './text-rooms.service';
 import {
   MessageEntity,
+  MessageMentionEntity,
   MessageReadEntity,
   MessageReactionEntity,
   MessageSearchTokenEntity,
@@ -60,6 +61,9 @@ describe('TextRoomsService', () => {
   let messageReadRepository: jest.Mocked<EntityRepository<MessageReadEntity>>;
   let messageReactionRepository: jest.Mocked<
     EntityRepository<MessageReactionEntity>
+  >;
+  let messageMentionRepository: jest.Mocked<
+    EntityRepository<MessageMentionEntity>
   >;
   let usersService: jest.Mocked<UsersService>;
   let roomsFacade: jest.Mocked<RoomsFacade>;
@@ -132,6 +136,13 @@ describe('TextRoomsService', () => {
       remove: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<MessageReactionEntity>>;
 
+    messageMentionRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((data) => data),
+      createQueryBuilder: jest.fn(),
+    } as unknown as jest.Mocked<EntityRepository<MessageMentionEntity>>;
+
     usersService = {
       findOne: jest.fn(),
       toDto: jest.fn(),
@@ -190,6 +201,7 @@ describe('TextRoomsService', () => {
       messageRepository,
       messageReadRepository,
       messageReactionRepository,
+      messageMentionRepository,
       usersService,
       roomsFacade,
       encryptionService,
@@ -1403,25 +1415,30 @@ describe('TextRoomsService', () => {
   describe('getUnreadCounts', () => {
     const mockQueryBuilder = (rows: unknown[]) => ({
       select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       groupBy: jest.fn().mockReturnThis(),
       execute: jest.fn().mockResolvedValue(rows),
     });
 
-    it('should aggregate unread room and direct counts', async () => {
+    it('should aggregate unread room, direct counts, and unread room mentions', async () => {
       const roomQb = mockQueryBuilder([{ roomId: 10, count: '2' }]);
       const directQb = mockQueryBuilder([{ senderId: 5, count: '3' }]);
+      const mentionQb = mockQueryBuilder([{ roomId: 10, count: '1' }]);
       (
         messageRepository as unknown as { createQueryBuilder: jest.Mock }
       ).createQueryBuilder
         .mockReturnValueOnce(roomQb)
         .mockReturnValueOnce(directQb);
+      (
+        messageMentionRepository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder.mockReturnValueOnce(mentionQb);
 
       const result = await service.getUnreadCounts(mockUser);
 
       expect(result).toEqual({
         rooms: { '10': 2 },
-        roomMentions: {},
+        roomMentions: { '10': 1 },
         direct: { '5': 3 },
         directTotal: 3,
       });
@@ -1438,6 +1455,36 @@ describe('TextRoomsService', () => {
           room: null,
         }),
       );
+      expect(mentionQb.join).toHaveBeenCalledWith('mm.message', 'm');
+      expect(mentionQb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: mockUser.id,
+          'm.sender': { $ne: mockUser.id },
+          'm.room': { $ne: null },
+          'm.id': { $nin: 'raw-read-subquery' },
+        }),
+      );
+    });
+
+    it('should filter unread room mentions by accessible rooms', async () => {
+      const roomQb = mockQueryBuilder([{ roomId: 10, count: '1' }]);
+      const directQb = mockQueryBuilder([]);
+      const mentionQb = mockQueryBuilder([
+        { roomId: 10, count: '1' },
+        { roomId: 99, count: '2' },
+      ]);
+      (
+        messageRepository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder
+        .mockReturnValueOnce(roomQb)
+        .mockReturnValueOnce(directQb);
+      (
+        messageMentionRepository as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder.mockReturnValueOnce(mentionQb);
+
+      const result = await service.getUnreadCounts(mockUser);
+
+      expect(result.roomMentions).toEqual({ '10': 1 });
     });
   });
 
