@@ -10,6 +10,14 @@ import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { MENTION_EVERYONE, splitMentionSegments } from '@konvoez/shared';
 
+export interface ITextContentUser {
+  readonly username: string;
+}
+
+export interface ITextContentRole {
+  readonly name: string;
+}
+
 @Pipe({
   name: 'textContent',
 })
@@ -19,7 +27,13 @@ export class TextContentPipe implements PipeTransform {
   private readonly rolesStore = inject(RolesStore, { optional: true });
   private readonly translate = inject(TranslateService, { optional: true });
 
-  transform(html: string | null | undefined, renderMentions = false): string {
+  transform(
+    html: string | null | undefined,
+    renderMentions = false,
+    usersMap?: Record<number, ITextContentUser> | null,
+    rolesMap?: Record<number, ITextContentRole> | null,
+    unknownLabel?: string | null,
+  ): string {
     if (!html) {
       return '';
     }
@@ -45,9 +59,9 @@ export class TextContentPipe implements PipeTransform {
     }
 
     const segments = splitMentionSegments(plainText);
-    const usersMap = this.usersStore?.entityMap() ?? {};
-    const rolesMap = this.rolesStore?.rolesById() ?? {};
-    const raw = this.translate?.instant('CHAT.MENTION_UNKNOWN');
+    const users = usersMap ?? this.usersStore?.entityMap() ?? {};
+    const roles = rolesMap ?? this.rolesStore?.rolesById() ?? {};
+    const raw = unknownLabel ?? this.translate?.instant('CHAT.MENTION_UNKNOWN');
     const unknown = !raw || raw === 'CHAT.MENTION_UNKNOWN' ? 'unknown' : raw;
 
     return segments
@@ -59,11 +73,11 @@ export class TextContentPipe implements PipeTransform {
           return MENTION_EVERYONE;
         }
         if (seg.type === 'role') {
-          const role = rolesMap[seg.id];
+          const role = roles[seg.id];
           return role ? `@${role.name}` : `@${unknown}`;
         }
         if (seg.type === 'user') {
-          const user = usersMap[seg.id];
+          const user = users[seg.id];
           return user ? `@${user.username}` : `@${unknown}`;
         }
         return `@${unknown}`;

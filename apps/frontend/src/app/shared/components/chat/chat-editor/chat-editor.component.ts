@@ -238,6 +238,9 @@ export class ChatEditorComponent {
   private readonly roomsStore = inject(RoomsStore);
   protected readonly mentionsEnabled = inject(CHAT_MENTIONS_ENABLED);
 
+  protected readonly usersById = computed(() => this.usersStore.entityMap());
+  protected readonly rolesById = computed(() => this.rolesStore.rolesById());
+
   public readonly editableMessage = input<ITextRoomMessage | null>(null);
   public readonly replyToMessage = input<ITextRoomMessage | null>(null);
   public readonly draftKey = input<TChatKey | null>(null);
@@ -439,7 +442,7 @@ export class ChatEditorComponent {
   );
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-  private readonly unknownLabel = toSignal(
+  protected readonly unknownLabel = toSignal(
     this.translateService.stream('CHAT.MENTION_UNKNOWN'),
     { initialValue: 'unknown' },
   );

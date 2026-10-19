@@ -24,7 +24,14 @@
         {{ reply.senderUsername }}
       </div>
       <div class="reply-text">
-        {{ reply.content | textContent }}
+        {{
+          reply.content
+            | textContent
+              : mentionsEnabled
+              : usersById()
+              : rolesById()
+              : unknownLabel()
+        }}
       </div>
     </div>
 

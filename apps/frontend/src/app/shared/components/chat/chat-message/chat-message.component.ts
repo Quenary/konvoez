@@ -90,7 +90,7 @@ export class ChatMessageComponent {
   private readonly store = inject(Store);
   private readonly chatStore = inject(ChatStore);
   private readonly usersStore = inject(UsersStore);
-  private readonly rolesStore = inject(RolesStore);
+  protected readonly rolesStore = inject(RolesStore);
   private readonly sanitizer = inject(Sanitizer);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
@@ -315,7 +315,7 @@ export class ChatMessageComponent {
   protected readonly readersLoading = signal(false);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-  private readonly unknownLabel = toSignal(
+  protected readonly unknownLabel = toSignal(
     this.translateService.stream('CHAT.MENTION_UNKNOWN'),
     { initialValue: 'unknown' },
   );

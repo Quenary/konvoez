@@ -118,4 +118,14 @@ describe('TextContentPipe', () => {
     const html = '<p>Unknown &lt;@999&gt; and &lt;@&amp;888&gt;</p>';
     expect(pipe.transform(html, true)).toBe('Unknown @unknown and @unknown');
   });
+
+  it('renders mention labels from explicitly passed usersMap, rolesMap, and unknownLabel', () => {
+    const html =
+      '<p>Hi &lt;@2&gt; and &lt;@&amp;20&gt; and &lt;@999&gt; and @everyone</p>';
+    const customUsers = { 2: { username: 'bob' } };
+    const customRoles = { 20: { name: 'Moderator' } };
+    expect(
+      pipe.transform(html, true, customUsers, customRoles, 'not-found'),
+    ).toBe('Hi @bob and @Moderator and @not-found and @everyone');
+  });
 });

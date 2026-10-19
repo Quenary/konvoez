@@ -74,7 +74,12 @@
               </span>
               <span class="message-reply-content">
                 @let replyPreview =
-                  reply.content | textContent: isRoomMessage();
+                  reply.content
+                    | textContent
+                      : isRoomMessage()
+                      : usersById()
+                      : rolesStore.rolesById()
+                      : unknownLabel();
                 @if (replyPreview) {
                   {{ replyPreview }}
                 } @else {
