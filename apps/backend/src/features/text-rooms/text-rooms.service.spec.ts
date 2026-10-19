@@ -1036,6 +1036,319 @@ describe('TextRoomsService', () => {
         code: ApiErrorCode.ROOM_ACCESS_DENIED,
       });
     });
+
+    describe('unread anchor mode', () => {
+      const makeMsg = (idStr: string, senderId = 2, createdAt = new Date()) =>
+        ({
+          id: parse(idStr),
+          sender: { id: senderId, username: `user_${senderId}` },
+          room: { id: 10 },
+          recipient: null,
+          createdAt,
+          updatedAt: null,
+          contentEncrypted: new Uint8Array(),
+          iv: new Uint8Array(),
+          authTag: new Uint8Array(),
+        }) as unknown as MessageEntity;
+
+      it('never read, 50 unread -> 25 items, first is oldest unread, hasMoreBefore false, hasMoreAfter true, firstUnreadMessageId = first item', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = makeMsg(anchorUuid, 2);
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 25 }, () => makeMsg(v7(), 2)),
+        ];
+
+        messageRepository.find
+          .mockResolvedValueOnce([]) // B: 0 before
+          .mockResolvedValueOnce(unreadAfter); // C: 26 >= anchor
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.items[0].id).toBe(anchorUuid);
+        expect(result.hasMoreBefore).toBe(false);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+      });
+
+      it('never read in DM -> anchors on peer message', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = {
+          ...makeMsg(anchorUuid, 2),
+          room: null,
+          recipient: { id: mockUser.id },
+        } as unknown as MessageEntity;
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 25 }, () => ({
+            ...makeMsg(v7(), 2),
+            room: null,
+            recipient: { id: mockUser.id },
+          })),
+        ] as unknown as MessageEntity[];
+
+        messageRepository.find
+          .mockResolvedValueOnce([]) // B
+          .mockResolvedValueOnce(unreadAfter); // C
+
+        const result = await service.list(mockUser, {
+          roomId: null,
+          recipientId: 2,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.items[0].id).toBe(anchorUuid);
+        expect(result.hasMoreBefore).toBe(false);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+      });
+
+      it('40 read + 25 unread -> 12 read + 13 unread, both flags true', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = makeMsg(anchorUuid, 2);
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const readBefore = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 24 }, () => makeMsg(v7(), 2)),
+        ];
+
+        messageRepository.find
+          .mockResolvedValueOnce(readBefore) // B: 26 items < anchor
+          .mockResolvedValueOnce(unreadAfter); // C: 25 items >= anchor
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+        expect(result.items[12].id).toBe(anchorUuid);
+      });
+
+      it('40 read + 3 unread -> 22 read + 3 unread, hasMoreAfter false', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = makeMsg(anchorUuid, 2);
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const readBefore = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 2 }, () => makeMsg(v7(), 2)),
+        ];
+
+        messageRepository.find
+          .mockResolvedValueOnce(readBefore) // B: 26 items < anchor
+          .mockResolvedValueOnce(unreadAfter); // C: 3 items >= anchor
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(false);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+        expect(result.items[22].id).toBe(anchorUuid);
+      });
+
+      it('all read -> latest 25, firstUnreadMessageId null, hasMoreAfter false', async () => {
+        messageRepository.findOne.mockResolvedValueOnce(null); // No unread
+        const latestRows = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        messageRepository.find.mockResolvedValueOnce(latestRows);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.firstUnreadMessageId).toBeNull();
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(false);
+      });
+
+      it('own messages never count as unread; a self-DM returns the latest page', async () => {
+        messageRepository.findOne.mockResolvedValueOnce(null);
+        const selfMessages = Array.from({ length: 5 }, () => ({
+          ...makeMsg(v7(), mockUser.id),
+          room: null,
+          recipient: { id: mockUser.id },
+        })) as unknown as MessageEntity[];
+        messageRepository.find.mockResolvedValueOnce(selfMessages);
+
+        const result = await service.list(mockUser, {
+          roomId: null,
+          recipientId: mockUser.id,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(5);
+        expect(result.firstUnreadMessageId).toBeNull();
+        expect(result.hasMoreBefore).toBe(false);
+        expect(result.hasMoreAfter).toBe(false);
+      });
+
+      it('latest: true with unread -> latest page', async () => {
+        const latestRows = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        messageRepository.find.mockResolvedValueOnce(latestRows);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+          latest: true,
+        });
+
+        expect(messageRepository.findOne).not.toHaveBeenCalled();
+        expect(result.items.length).toBe(25);
+        expect(result.firstUnreadMessageId).toBeNull();
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(false);
+      });
+
+      it('beforeId / afterId flags at the edges', async () => {
+        const cursorId = v7();
+
+        // beforeId with extra row
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 26 }, () => makeMsg(v7(), 2)),
+        );
+        const beforeRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: cursorId,
+          afterId: null,
+        });
+        expect(beforeRes.hasMoreBefore).toBe(true);
+        expect(beforeRes.hasMoreAfter).toBe(true);
+        expect(beforeRes.firstUnreadMessageId).toBeNull();
+
+        // beforeId without extra row (at the oldest edge)
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 10 }, () => makeMsg(v7(), 2)),
+        );
+        const beforeEdgeRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: cursorId,
+          afterId: null,
+        });
+        expect(beforeEdgeRes.hasMoreBefore).toBe(false);
+        expect(beforeEdgeRes.hasMoreAfter).toBe(true);
+
+        // afterId with extra row
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 26 }, () => makeMsg(v7(), 2)),
+        );
+        const afterRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: cursorId,
+        });
+        expect(afterRes.hasMoreBefore).toBe(true);
+        expect(afterRes.hasMoreAfter).toBe(true);
+        expect(afterRes.firstUnreadMessageId).toBeNull();
+
+        // afterId without extra row (at the newest edge)
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 10 }, () => makeMsg(v7(), 2)),
+        );
+        const afterEdgeRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: cursorId,
+        });
+        expect(afterEdgeRes.hasMoreBefore).toBe(true);
+        expect(afterEdgeRes.hasMoreAfter).toBe(false);
+      });
+
+      it('aroundId returns flags and firstUnreadMessageId', async () => {
+        const targetUuid = v7();
+        const anchorUuid = v7();
+        const targetMsg = makeMsg(targetUuid, 2);
+        const anchorMsg = makeMsg(anchorUuid, 2);
+
+        messageRepository.findOne
+          .mockResolvedValueOnce(targetMsg) // target
+          .mockResolvedValueOnce(anchorMsg); // anchor from findFirstUnreadId
+
+        const beforeRows = Array.from({ length: 13 }, () => makeMsg(v7(), 2));
+        const afterRows = Array.from({ length: 13 }, () => makeMsg(v7(), 2));
+
+        messageRepository.find
+          .mockResolvedValueOnce(beforeRows)
+          .mockResolvedValueOnce(afterRows);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          aroundId: targetUuid,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+      });
+
+      it('search ignores the anchor', async () => {
+        messageRepository.find.mockResolvedValueOnce([makeMsg(v7(), 2)]);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          search: 'keyword',
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(messageRepository.findOne).not.toHaveBeenCalled();
+        expect(result.firstUnreadMessageId).toBeNull();
+      });
+    });
   });
 
   describe('updateMessage', () => {

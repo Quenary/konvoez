@@ -19,6 +19,7 @@ import {
 import {
   EditMessageDto,
   MarkReadDto,
+  MessageDto,
   MessageListRequestDto,
   MessageListResponseDto,
   CreateMessageDto,
@@ -419,14 +420,54 @@ export class TextRoomsService {
     return users.map((u) => this.usersService.toDto(u));
   }
 
-  async list(
+  private async findFirstUnreadId(
     user: GetUserDto,
-    dto: MessageListRequestDto,
-  ): Promise<MessageListResponseDto> {
-    const { beforeId, afterId, aroundId, limit, recipientId, roomId, search } =
-      dto;
+    baseWhere: FilterQuery<MessageEntity>,
+  ): Promise<Uint8Array | null> {
+    const unread = await this.messageRepository.findOne(
+      {
+        ...baseWhere,
+        sender: { $ne: user.id },
+        id: { $nin: this.createUnreadMessageIdsSubquery(user.id) },
+      } as FilterQuery<MessageEntity>,
+      {
+        orderBy: { createdAt: 'ASC' },
+        fields: ['id'],
+      },
+    );
+    return unread?.id ?? null;
+  }
 
-    const baseWhere: FilterQuery<MessageEntity> = {};
+  private async toListItems(
+    messages: MessageEntity[],
+    userId: number,
+  ): Promise<MessageDto[]> {
+    const [isReadMap, attachments, reactions] = await Promise.all([
+      this.buildIsReadMap(messages, userId),
+      this.loadAttachments(messages),
+      this.loadReactions(messages),
+    ]);
+    return messages.map((m) => {
+      const id = uuidStringify(m.id);
+      return this.entityToDto(
+        m,
+        isReadMap.get(id) ?? false,
+        attachments.get(id) ?? [],
+        reactions.get(id) ?? [],
+      );
+    });
+  }
+
+  private async buildChatWhere(
+    user: GetUserDto,
+    target: { roomId?: number | null; recipientId?: number | null },
+  ): Promise<
+    FilterQuery<MessageEntity> & { $and?: FilterQuery<MessageEntity>[] }
+  > {
+    const { roomId, recipientId } = target;
+    const baseWhere: FilterQuery<MessageEntity> & {
+      $and?: FilterQuery<MessageEntity>[];
+    } = {};
 
     if (recipientId) {
       if (recipientId === user.id) {
@@ -444,6 +485,29 @@ export class TextRoomsService {
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
     }
+
+    return baseWhere;
+  }
+
+  async list(
+    user: GetUserDto,
+    dto: MessageListRequestDto,
+  ): Promise<MessageListResponseDto> {
+    const {
+      beforeId,
+      afterId,
+      aroundId,
+      limit,
+      recipientId,
+      roomId,
+      search,
+      latest,
+    } = dto;
+
+    const baseWhere = await this.buildChatWhere(user, {
+      roomId,
+      recipientId,
+    });
 
     if (search) {
       const trigrams = extractTrigrams(search);
@@ -476,13 +540,18 @@ export class TextRoomsService {
       );
 
       if (!target) {
-        return { items: [] };
+        return {
+          items: [],
+          firstUnreadMessageId: null,
+          hasMoreBefore: false,
+          hasMoreAfter: false,
+        };
       }
 
       const beforeLimit = Math.floor((limit - 1) / 2);
       const afterLimit = limit - 1 - beforeLimit;
 
-      const [beforeItems, afterItems] = await Promise.all([
+      const [beforeItems, afterItems, firstUnreadId] = await Promise.all([
         beforeLimit > 0
           ? this.messageRepository.find(
               {
@@ -490,7 +559,7 @@ export class TextRoomsService {
                 id: { $lt: parse(aroundId) },
               } as FilterQuery<MessageEntity>,
               {
-                limit: beforeLimit,
+                limit: beforeLimit + 1,
                 orderBy: { createdAt: 'DESC' },
                 populate,
               },
@@ -503,66 +572,141 @@ export class TextRoomsService {
                 id: { $gt: parse(aroundId) },
               } as FilterQuery<MessageEntity>,
               {
-                limit: afterLimit,
+                limit: afterLimit + 1,
                 orderBy: { createdAt: 'ASC' },
                 populate,
               },
             )
           : Promise.resolve([]),
+        this.findFirstUnreadId(user, baseWhere),
       ]);
 
-      const combined = [...beforeItems.reverse(), target, ...afterItems];
-      const [isReadMap, attachments, reactions] = await Promise.all([
-        this.buildIsReadMap(combined, user.id),
-        this.loadAttachments(combined),
-        this.loadReactions(combined),
-      ]);
+      const hasMoreBefore = beforeItems.length > beforeLimit;
+      const hasMoreAfter = afterItems.length > afterLimit;
+      const trimmedBefore = beforeItems.slice(0, beforeLimit);
+      const trimmedAfter = afterItems.slice(0, afterLimit);
+
+      const combined = [...trimmedBefore.reverse(), target, ...trimmedAfter];
+      const items = await this.toListItems(combined, user.id);
+
       return {
-        items: combined.map((m) => {
-          const id = uuidStringify(m.id);
-          return this.entityToDto(
-            m,
-            isReadMap.get(id) ?? false,
-            attachments.get(id) ?? [],
-            reactions.get(id) ?? [],
-          );
-        }),
+        items,
+        firstUnreadMessageId: firstUnreadId
+          ? uuidStringify(firstUnreadId)
+          : null,
+        hasMoreBefore,
+        hasMoreAfter,
       };
     }
 
-    const where: FilterQuery<MessageEntity> = { ...baseWhere };
-
     if (beforeId) {
-      where.id = { $lt: parse(beforeId) };
+      const where = {
+        ...baseWhere,
+        id: { $lt: parse(beforeId) },
+      } as FilterQuery<MessageEntity>;
+      const rows = await this.messageRepository.find(where, {
+        limit: limit + 1,
+        orderBy: { createdAt: 'DESC' },
+        populate,
+      });
+      const hasMoreBefore = rows.length > limit;
+      const trimmed = rows.slice(0, limit);
+      const items = await this.toListItems(trimmed, user.id);
+
+      return {
+        items,
+        firstUnreadMessageId: null,
+        hasMoreBefore,
+        hasMoreAfter: true,
+      };
     }
 
     if (afterId) {
-      where.id = { $gt: parse(afterId) };
+      const where = {
+        ...baseWhere,
+        id: { $gt: parse(afterId) },
+      } as FilterQuery<MessageEntity>;
+      const rows = await this.messageRepository.find(where, {
+        limit: limit + 1,
+        orderBy: { createdAt: 'ASC' },
+        populate,
+      });
+      const hasMoreAfter = rows.length > limit;
+      const trimmed = rows.slice(0, limit);
+      const items = await this.toListItems(trimmed, user.id);
+
+      return {
+        items,
+        firstUnreadMessageId: null,
+        hasMoreBefore: true,
+        hasMoreAfter,
+      };
     }
 
-    const orderBy = afterId ? { createdAt: 'ASC' } : { createdAt: 'DESC' };
+    // Anchor mode (no cursors, no search, !dto.latest)
+    if (!search && !latest) {
+      const anchor = await this.findFirstUnreadId(user, baseWhere);
+      if (anchor) {
+        const [beforeRows, afterRows] = await Promise.all([
+          this.messageRepository.find(
+            {
+              ...baseWhere,
+              id: { $lt: anchor },
+            } as FilterQuery<MessageEntity>,
+            {
+              limit: limit + 1,
+              orderBy: { createdAt: 'DESC' },
+              populate,
+            },
+          ),
+          this.messageRepository.find(
+            {
+              ...baseWhere,
+              id: { $gte: anchor },
+            } as FilterQuery<MessageEntity>,
+            {
+              limit: limit + 1,
+              orderBy: { createdAt: 'ASC' },
+              populate,
+            },
+          ),
+        ]);
 
-    const messages = await this.messageRepository.find(where, {
-      limit,
-      orderBy,
+        const beforeTake = Math.min(
+          beforeRows.length,
+          Math.max(Math.floor(limit / 2), limit - afterRows.length),
+        );
+        const afterTake = Math.min(afterRows.length, limit - beforeTake);
+        const combined = [
+          ...beforeRows.slice(0, beforeTake).reverse(),
+          ...afterRows.slice(0, afterTake),
+        ];
+        const items = await this.toListItems(combined, user.id);
+
+        return {
+          items,
+          firstUnreadMessageId: uuidStringify(anchor),
+          hasMoreBefore: beforeRows.length > beforeTake,
+          hasMoreAfter: afterRows.length > afterTake,
+        };
+      }
+    }
+
+    // Latest mode (no anchor found, or latest, or search without cursors)
+    const rows = await this.messageRepository.find(baseWhere, {
+      limit: limit + 1,
+      orderBy: { createdAt: 'DESC' },
       populate,
     });
+    const hasMoreBefore = rows.length > limit;
+    const trimmed = rows.slice(0, limit);
+    const items = await this.toListItems(trimmed, user.id);
 
-    const [isReadMap, attachments, reactions] = await Promise.all([
-      this.buildIsReadMap(messages, user.id),
-      this.loadAttachments(messages),
-      this.loadReactions(messages),
-    ]);
     return {
-      items: messages.map((m) => {
-        const id = uuidStringify(m.id);
-        return this.entityToDto(
-          m,
-          isReadMap.get(id) ?? false,
-          attachments.get(id) ?? [],
-          reactions.get(id) ?? [],
-        );
-      }),
+      items,
+      firstUnreadMessageId: null,
+      hasMoreBefore,
+      hasMoreAfter: false,
     };
   }
 
