@@ -29,3 +29,5 @@ Read-all takes a snapshot of the newest message in the chat and marks other user
 `UNREAD_COUNTS_CHANGED` replaces the user's unread-count maps across their active sessions. `MESSAGES_READ` updates read receipts for the affected messages in the chat and in the reader's other sessions. Normal visibility-based reads carry message IDs; read-all carries the newest message ID in its snapshot.
 
 When newer pages remain, incoming live messages are not inserted into the current page. They increase the unread count instead. Loading newer pages continues until the live tail is reached, including one follow-up page when a message arrived while a request was in flight. Sending a message while behind first loads the latest page so the outgoing message appears at the tail.
+
+When older history is loaded, the client keeps the first visible message at the same offset in the scroll container, even if the browser has already applied native scroll anchoring or new live messages arrive at the tail.

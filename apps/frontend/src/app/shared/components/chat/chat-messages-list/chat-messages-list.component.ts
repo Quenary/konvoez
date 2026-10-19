@@ -77,7 +77,7 @@ export class ChatMessagesListComponent implements OnInit {
   private headMessageId: string | null | undefined = undefined;
   /** `undefined` until the first messages read, so the initial page does not count as a new tail. */
   private tailMessageId: string | null | undefined = undefined;
-  private lastScrollHeight = 0;
+  private prependAnchor: { element: HTMLElement; top: number } | null = null;
   private pinnedToBottom = true;
 
   constructor() {
@@ -94,6 +94,7 @@ export class ChatMessagesListComponent implements OnInit {
           this.tailMessageId = undefined;
           this.headMessageId = undefined;
           this.lastOutgoingId = null;
+          this.prependAnchor = null;
           return;
         }
 
@@ -101,27 +102,36 @@ export class ChatMessagesListComponent implements OnInit {
           this.tailMessageId === undefined || this.headMessageId === undefined;
         const tailChanged = !isFirstRead && tailId !== this.tailMessageId;
         const headChanged = !isFirstRead && headId !== this.headMessageId;
+        const previousHeadIsStillLoaded =
+          this.headMessageId !== null &&
+          messages.some((message) => message.id === this.headMessageId);
 
         const isPrepend =
           !isFirstRead &&
-          !tailChanged &&
           headChanged &&
           headId !== null &&
-          this.headMessageId !== null;
+          previousHeadIsStillLoaded;
 
         this.tailMessageId = tailId;
         this.headMessageId = headId;
 
         if (isPrepend) {
           const el = this.scrollContainerRef().nativeElement;
-          const prevHeight = this.lastScrollHeight || el.scrollHeight;
+          const anchor = this.prependAnchor;
+          this.prependAnchor = null;
           requestAnimationFrame(() => {
-            const diff = el.scrollHeight - prevHeight;
-            if (diff > 0) {
-              el.scrollTop += diff;
+            if (!anchor?.element.isConnected) {
+              return;
             }
+            const containerTop = el.getBoundingClientRect().top;
+            const top =
+              anchor.element.getBoundingClientRect().top - containerTop;
+            el.scrollTop += top - anchor.top;
           });
           return;
+        }
+        if (isFirstRead || headChanged) {
+          this.prependAnchor = null;
         }
 
         if (outgoingId && outgoingId !== this.lastOutgoingId) {
@@ -170,7 +180,6 @@ export class ChatMessagesListComponent implements OnInit {
       .pipe(
         tap(($event) => {
           const el = $event.target as HTMLDivElement;
-          this.lastScrollHeight = el.scrollHeight;
           this.pinnedToBottom = this.isAtBottom(el);
         }),
         auditTime(100),
@@ -210,7 +219,19 @@ export class ChatMessagesListComponent implements OnInit {
 
   onScrollUp(): void {
     const el = this.scrollContainerRef().nativeElement;
-    this.lastScrollHeight = el.scrollHeight;
+    const containerRect = el.getBoundingClientRect();
+    const firstVisibleMessage = Array.from(
+      el.querySelectorAll<HTMLElement>('app-chat-message'),
+    ).find(
+      (message) => message.getBoundingClientRect().bottom > containerRect.top,
+    );
+    this.prependAnchor = firstVisibleMessage
+      ? {
+          element: firstVisibleMessage,
+          top:
+            firstVisibleMessage.getBoundingClientRect().top - containerRect.top,
+        }
+      : null;
     this.chatStore.requestPrevPage();
   }
 

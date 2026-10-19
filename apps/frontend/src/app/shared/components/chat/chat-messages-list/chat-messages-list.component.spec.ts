@@ -344,19 +344,82 @@ describe('ChatMessagesListComponent', () => {
     expect(component['pinnedToBottom']).toBe(false);
   });
 
-  it('preserves scroll position when older messages are prepended', async () => {
+  it('preserves the visible message position when older and live messages are added together', async () => {
     fixture.detectChanges();
     const container = fixture.nativeElement.querySelector(
       '.scroll-container',
     ) as HTMLDivElement;
     setScroll(container, {
-      scrollTop: 100,
+      scrollTop: 0,
       clientHeight: 400,
       scrollHeight: 800,
     });
 
-    component['lastScrollHeight'] = 800;
+    let anchorDocumentTop = 70;
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+    const firstMessage = container.querySelector(
+      'app-chat-message',
+    ) as HTMLElement;
+    firstMessage.getBoundingClientRect = vi.fn(
+      () => new DOMRect(0, anchorDocumentTop - container.scrollTop, 400, 40),
+    );
+    component.onScrollUp();
+    container.dispatchEvent(new Event('scroll'));
+
     const scrollSpy = vi.spyOn(component, 'scrollToBottom');
+
+    const liveMessage: IMessageEntity = {
+      ...mockMessages[1],
+      id: 'msg-live',
+      createdAt: new Date('2026-09-16T00:00:00.000Z'),
+    };
+    mockChatStore.messages.set([...mockMessages, liveMessage]);
+    fixture.detectChanges();
+
+    const olderMessage: IMessageEntity = {
+      ...mockMessages[0],
+      id: 'msg-older',
+      createdAt: new Date('2026-09-14T00:00:00.000Z'),
+    };
+
+    anchorDocumentTop = 670;
+    Object.defineProperty(container, 'scrollHeight', {
+      configurable: true,
+      value: 1200,
+    });
+    mockChatStore.messages.set([olderMessage, ...mockMessages, liveMessage]);
+    fixture.detectChanges();
+
+    expect(scrollSpy).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.scrollTop).toBe(600);
+    expect(
+      firstMessage.getBoundingClientRect().top -
+        container.getBoundingClientRect().top,
+    ).toBe(20);
+  });
+
+  it('does not double-adjust when browser scroll anchoring already preserved the visible message', async () => {
+    fixture.detectChanges();
+    const container = fixture.nativeElement.querySelector(
+      '.scroll-container',
+    ) as HTMLDivElement;
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 800,
+    });
+
+    let anchorDocumentTop = 70;
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+    const firstMessage = container.querySelector(
+      'app-chat-message',
+    ) as HTMLElement;
+    firstMessage.getBoundingClientRect = vi.fn(
+      () => new DOMRect(0, anchorDocumentTop - container.scrollTop, 400, 40),
+    );
+    component.onScrollUp();
 
     const olderMessage: IMessageEntity = {
       ...mockMessages[0],
@@ -365,21 +428,20 @@ describe('ChatMessagesListComponent', () => {
     };
 
     setScroll(container, {
-      scrollTop: 100,
+      scrollTop: 600,
       clientHeight: 400,
       scrollHeight: 1200,
     });
-
+    anchorDocumentTop = 670;
     mockChatStore.messages.set([olderMessage, ...mockMessages]);
-    TestBed.flushEffects();
-
-    expect(scrollSpy).not.toHaveBeenCalled();
+    fixture.detectChanges();
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
-    expect(container.scrollTop).toBe(500);
+    expect(container.scrollTop).toBe(600);
   });
 
-  it('captures lastScrollHeight and calls requestPrevPage on onScrollUp', () => {
+  it('captures a visible message anchor and requests older messages on scroll up', () => {
+    fixture.detectChanges();
     const container = fixture.nativeElement.querySelector(
       '.scroll-container',
     ) as HTMLDivElement;
@@ -389,8 +451,16 @@ describe('ChatMessagesListComponent', () => {
       scrollHeight: 950,
     });
 
+    const firstMessage = container.querySelector(
+      'app-chat-message',
+    ) as HTMLElement;
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+    firstMessage.getBoundingClientRect = vi.fn(
+      () => new DOMRect(0, 60, 400, 40),
+    );
+
     component.onScrollUp();
-    expect(component['lastScrollHeight']).toBe(950);
+    expect(component['prependAnchor']?.element).toBe(firstMessage);
     expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
   });
 
