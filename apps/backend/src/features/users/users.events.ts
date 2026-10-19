@@ -3,8 +3,7 @@ import type {
   IUserDeleted,
   IUserPresenceChanged,
 } from '@konvoez/shared';
-import type { EventEmitter2 } from '@nestjs/event-emitter';
-import { emitAppEvent } from '@shared/events';
+import { createDomainEventEmitter } from '@shared/events';
 
 export const UsersDomainEvents = {
   USER_CREATED: 'user.created',
@@ -25,10 +24,5 @@ export type TUsersDomainPayloadMap = {
   [UsersDomainEvents.USER_PERMISSIONS_CHANGED]: { userIds: number[] };
 };
 
-export function emitUsersDomainEvent<K extends TUsersDomainEvent>(
-  eventEmitter: EventEmitter2,
-  event: K,
-  payload: TUsersDomainPayloadMap[K],
-): void {
-  emitAppEvent(eventEmitter, event, payload);
-}
+export const emitUsersDomainEvent =
+  createDomainEventEmitter<TUsersDomainPayloadMap>();

@@ -1,6 +1,5 @@
 import type { IRoom, IRoomDeleted } from '@konvoez/shared';
-import type { EventEmitter2 } from '@nestjs/event-emitter';
-import { emitAppEvent } from '@shared/events';
+import { createDomainEventEmitter } from '@shared/events';
 
 export const RoomsDomainEvents = {
   ROOM_CREATED: 'room.created',
@@ -17,10 +16,5 @@ export type TRoomsDomainPayloadMap = {
   [RoomsDomainEvents.ROOM_DELETED]: IRoomDeleted;
 };
 
-export function emitRoomsDomainEvent<K extends TRoomsDomainEvent>(
-  eventEmitter: EventEmitter2,
-  event: K,
-  payload: TRoomsDomainPayloadMap[K],
-): void {
-  emitAppEvent(eventEmitter, event, payload);
-}
+export const emitRoomsDomainEvent =
+  createDomainEventEmitter<TRoomsDomainPayloadMap>();

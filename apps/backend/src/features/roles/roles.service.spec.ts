@@ -22,7 +22,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import { ApiErrorCode, EPermission, createRoleSchema } from '@konvoez/shared';
 import {
   type EntityManager,
   type EntityRepository,
@@ -30,6 +30,7 @@ import {
 } from '@mikro-orm/core';
 import { RoleEntity } from './roles.entity';
 import { RolesService } from './roles.service';
+import type { CreateRoleDto } from './roles.dto';
 import { RolesDomainEvents } from './roles.events';
 
 describe('RolesService', () => {
@@ -287,11 +288,13 @@ describe('RolesService', () => {
         isDefault: true,
       } as RoleEntity);
 
-      await service.create({
-        name: 'Default',
-        isDefault: true,
-        permissions: [],
-      });
+      await service.create(
+        createRoleSchema.parse({
+          name: 'Default',
+          isDefault: true,
+          permissions: [],
+        }) as CreateRoleDto,
+      );
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,

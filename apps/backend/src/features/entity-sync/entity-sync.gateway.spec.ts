@@ -12,6 +12,9 @@ import {
   type IUser,
 } from '@konvoez/shared';
 import { Server } from 'socket.io';
+import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
+import { RolesDomainEvents } from '../roles/roles.events';
+import { UsersDomainEvents } from '../users/users.events';
 
 describe('EntitySyncGateway', () => {
   let gateway: EntitySyncGateway;
@@ -289,6 +292,16 @@ describe('EntitySyncGateway', () => {
   });
 
   describe('onUserPermissionsChanged', () => {
+    it('is registered for both ROLE_PERMISSIONS_CHANGED and USER_PERMISSIONS_CHANGED events', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        EntitySyncGateway.prototype.onUserPermissionsChanged,
+      );
+      const events = metadata.map((m: { event: string }) => m.event);
+      expect(events).toContain(RolesDomainEvents.ROLE_PERMISSIONS_CHANGED);
+      expect(events).toContain(UsersDomainEvents.USER_PERMISSIONS_CHANGED);
+    });
+
     it('broadcasts USER_UPDATED to server and emits ROOM_CREATED when user gains access to private room', async () => {
       const clientEmit = jest.fn();
       const clientMock = {

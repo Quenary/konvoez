@@ -3,8 +3,7 @@ import type {
   TVoiceRoomLobbyPeerLeft,
   TVoiceRoomLobbyPeerMuted,
 } from '@konvoez/shared';
-import type { EventEmitter2 } from '@nestjs/event-emitter';
-import { emitAppEvent } from '@shared/events';
+import { createDomainEventEmitter } from '@shared/events';
 
 export const VoiceRoomsDomainEvents = {
   VOICE_ROOM_PEER_JOINED: 'voice-room.peer-joined',
@@ -21,10 +20,5 @@ export type TVoiceRoomsDomainPayloadMap = {
   [VoiceRoomsDomainEvents.VOICE_ROOM_PEER_MUTED]: TVoiceRoomLobbyPeerMuted;
 };
 
-export function emitVoiceRoomsDomainEvent<K extends TVoiceRoomsDomainEvent>(
-  eventEmitter: EventEmitter2,
-  event: K,
-  payload: TVoiceRoomsDomainPayloadMap[K],
-): void {
-  emitAppEvent(eventEmitter, event, payload);
-}
+export const emitVoiceRoomsDomainEvent =
+  createDomainEventEmitter<TVoiceRoomsDomainPayloadMap>();

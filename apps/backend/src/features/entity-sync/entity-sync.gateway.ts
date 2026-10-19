@@ -26,7 +26,10 @@ import {
   VoiceRoomsDomainEvents,
   type TVoiceRoomsDomainPayloadMap,
 } from '../voice-rooms/voice-rooms.events';
-import { RolesDomainEvents } from '../roles/roles.events';
+import {
+  RolesDomainEvents,
+  type TRolesDomainPayloadMap,
+} from '../roles/roles.events';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
@@ -194,7 +197,11 @@ export class EntitySyncGateway
 
   @OnEvent(RolesDomainEvents.ROLE_PERMISSIONS_CHANGED)
   @OnEvent(UsersDomainEvents.USER_PERMISSIONS_CHANGED)
-  async onUserPermissionsChanged(payload: { userIds: number[] }) {
+  async onUserPermissionsChanged(
+    payload:
+      | TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_PERMISSIONS_CHANGED]
+      | TRolesDomainPayloadMap[typeof RolesDomainEvents.ROLE_PERMISSIONS_CHANGED],
+  ) {
     const affectedSet =
       payload.userIds.length > 0 ? new Set(payload.userIds) : null;
     const privateRooms = await this.roomsFacade.findPrivateRooms();

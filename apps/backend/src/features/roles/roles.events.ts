@@ -1,5 +1,4 @@
-import type { EventEmitter2 } from '@nestjs/event-emitter';
-import { emitAppEvent } from '@shared/events';
+import { createDomainEventEmitter } from '@shared/events';
 
 export const RolesDomainEvents = {
   ROLE_PERMISSIONS_CHANGED: 'role.permissions-changed',
@@ -12,10 +11,5 @@ export type TRolesDomainPayloadMap = {
   [RolesDomainEvents.ROLE_PERMISSIONS_CHANGED]: { userIds: number[] };
 };
 
-export function emitRolesDomainEvent<K extends TRolesDomainEvent>(
-  eventEmitter: EventEmitter2,
-  event: K,
-  payload: TRolesDomainPayloadMap[K],
-): void {
-  emitAppEvent(eventEmitter, event, payload);
-}
+export const emitRolesDomainEvent =
+  createDomainEventEmitter<TRolesDomainPayloadMap>();

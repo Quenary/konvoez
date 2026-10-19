@@ -22,6 +22,8 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
+import { RolesDomainEvents } from '../roles/roles.events';
 import { PermissionsFacade } from './permissions.facade';
 import type { RolesService } from '../roles/roles.service';
 import type { RoleEntity } from '../roles/roles.entity';
@@ -103,6 +105,20 @@ describe('PermissionsFacade', () => {
       facade.handlePermissionsChanged({ userIds: [] });
       await facade.getDefaultPermissions();
       expect(rolesService.findDefaultRoles).toHaveBeenCalledTimes(2);
+    });
+
+    it('is registered for ROLE_PERMISSIONS_CHANGED event', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        PermissionsFacade.prototype.handlePermissionsChanged,
+      );
+      expect(metadata).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            event: RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
+          }),
+        ]),
+      );
     });
 
     it('clears cache if loading default roles fails', async () => {
