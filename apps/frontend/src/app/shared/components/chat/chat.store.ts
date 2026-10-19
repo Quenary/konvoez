@@ -22,9 +22,10 @@ import {
   withState,
 } from '@ngrx/signals';
 import {
+  addEntities,
   removeAllEntities,
   removeEntity,
-  setEntities,
+  setAllEntities,
   setEntity,
   updateEntities,
   updateEntity,
@@ -80,6 +81,11 @@ type ChatState = {
   targetScrollMessageId: string | null;
   searchQuery: string | null;
   isSearchOpen: boolean;
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+  unreadDividerMessageId: string | null;
+  initialPosition: 'bottom' | 'unread' | 'message';
+  missedLiveWhileBehind: boolean;
 };
 
 function toMessageEntity(
@@ -135,6 +141,11 @@ export const ChatStore = signalStore(
     targetScrollMessageId: null,
     searchQuery: null,
     isSearchOpen: false,
+    hasMoreBefore: false,
+    hasMoreAfter: false,
+    unreadDividerMessageId: null,
+    initialPosition: 'bottom',
+    missedLiveWhileBehind: false,
   }),
   withEntities<IMessageEntity>(),
   withComputed(
@@ -241,10 +252,16 @@ export const ChatStore = signalStore(
         pipe(
           switchMap((data) =>
             chatApiService.list(data).pipe(
-              tap(({ items }) => {
+              tap((res) => {
                 patchState(
                   store,
-                  setEntities(items.map((item) => toMessageEntity(item))),
+                  setAllEntities(
+                    res.items.map((item) => toMessageEntity(item)),
+                  ),
+                  {
+                    hasMoreBefore: res.hasMoreBefore,
+                    hasMoreAfter: res.hasMoreAfter,
+                  },
                 );
               }),
               catchError((error) => {
@@ -258,12 +275,263 @@ export const ChatStore = signalStore(
 
       const apiIds = () => chatTargetToApiIds(store.target());
 
+      const loadInitialMethod = rxMethod<{
+        target: ChatTarget;
+        initialMessageId?: string | null;
+      }>(
+        pipe(
+          switchMap(({ target, initialMessageId }) => {
+            const { roomId, recipientId } = chatTargetToApiIds(target);
+            if (initialMessageId) {
+              return chatApiService
+                .list({
+                  roomId,
+                  recipientId,
+                  aroundId: initialMessageId,
+                  beforeId: null,
+                  afterId: null,
+                  limit: defaultChunkSize,
+                })
+                .pipe(
+                  tap((res) => {
+                    if (res.items.length === 0) {
+                      tuiNotificationsService
+                        .open(
+                          translateService.instant(
+                            'ROOMS.ORIGINAL_MESSAGE_DELETED',
+                          ),
+                          { appearance: 'info', autoClose: 3000 },
+                        )
+                        .subscribe();
+                      if (store.ids().length === 0) {
+                        patchState(store, { targetScrollMessageId: null });
+                        loadInitialMethod({ target });
+                      }
+                      return;
+                    }
+                    patchState(
+                      store,
+                      setAllEntities(
+                        res.items.map((item) => toMessageEntity(item)),
+                      ),
+                      {
+                        hasMoreBefore: res.hasMoreBefore,
+                        hasMoreAfter: res.hasMoreAfter,
+                        unreadDividerMessageId: res.firstUnreadMessageId,
+                        initialPosition: 'message',
+                        targetScrollMessageId: initialMessageId,
+                        missedLiveWhileBehind: false,
+                      },
+                    );
+                  }),
+                  catchError((error) => {
+                    showError(error);
+                    return EMPTY;
+                  }),
+                );
+            }
+
+            return chatApiService
+              .list({
+                roomId,
+                recipientId,
+                beforeId: null,
+                afterId: null,
+                limit: defaultChunkSize,
+              })
+              .pipe(
+                tap((res) => {
+                  patchState(
+                    store,
+                    setAllEntities(
+                      res.items.map((item) => toMessageEntity(item)),
+                    ),
+                    {
+                      hasMoreBefore: res.hasMoreBefore,
+                      hasMoreAfter: res.hasMoreAfter,
+                      unreadDividerMessageId: res.firstUnreadMessageId,
+                      initialPosition: res.firstUnreadMessageId
+                        ? 'unread'
+                        : 'bottom',
+                      targetScrollMessageId: res.firstUnreadMessageId ?? null,
+                      missedLiveWhileBehind: false,
+                    },
+                  );
+                }),
+                catchError((error) => {
+                  showError(error);
+                  return EMPTY;
+                }),
+              );
+          }),
+        ),
+      );
+
+      const loadLatestMethod = rxMethod<void>(
+        pipe(
+          switchMap(() => {
+            const { roomId, recipientId } = apiIds();
+            return chatApiService
+              .list({
+                roomId,
+                recipientId,
+                beforeId: null,
+                afterId: null,
+                limit: defaultChunkSize,
+                latest: true,
+              })
+              .pipe(
+                tap((res) => {
+                  patchState(
+                    store,
+                    setAllEntities(
+                      res.items.map((item) => toMessageEntity(item)),
+                    ),
+                    {
+                      hasMoreBefore: res.hasMoreBefore,
+                      hasMoreAfter: false,
+                      targetScrollMessageId: null,
+                      initialPosition: 'bottom',
+                      missedLiveWhileBehind: false,
+                    },
+                  );
+                }),
+                catchError((error) => {
+                  showError(error);
+                  return EMPTY;
+                }),
+              );
+          }),
+        ),
+      );
+
+      const loadOlderMethod = rxMethod<void>(
+        pipe(
+          switchMap(() => {
+            const oldestId = store.oldestId();
+            if (!oldestId) {
+              return EMPTY;
+            }
+            const { roomId, recipientId } = apiIds();
+            return chatApiService
+              .list({
+                roomId,
+                recipientId,
+                beforeId: oldestId,
+                afterId: null,
+                limit: defaultChunkSize,
+                search: store.searchQuery() || undefined,
+              })
+              .pipe(
+                tap((res) => {
+                  patchState(
+                    store,
+                    addEntities(res.items.map((item) => toMessageEntity(item))),
+                    {
+                      hasMoreBefore: res.hasMoreBefore,
+                    },
+                  );
+                }),
+                catchError((error) => {
+                  showError(error);
+                  return EMPTY;
+                }),
+              );
+          }),
+        ),
+      );
+
+      const loadNewerMethod = rxMethod<void>(
+        pipe(
+          switchMap(() => {
+            const newestId = store.newestId();
+            if (!newestId) {
+              return EMPTY;
+            }
+            const { roomId, recipientId } = apiIds();
+            return chatApiService
+              .list({
+                roomId,
+                recipientId,
+                beforeId: null,
+                afterId: newestId,
+                limit: defaultChunkSize,
+                search: store.searchQuery() || undefined,
+              })
+              .pipe(
+                tap((res) => {
+                  patchState(
+                    store,
+                    addEntities(res.items.map((item) => toMessageEntity(item))),
+                    {
+                      hasMoreAfter: res.hasMoreAfter,
+                      ...(res.hasMoreAfter === false
+                        ? { missedLiveWhileBehind: false }
+                        : {}),
+                    },
+                  );
+                }),
+                catchError((error) => {
+                  showError(error);
+                  return EMPTY;
+                }),
+              );
+          }),
+        ),
+      );
+
+      const readAllAndJumpToLatestMethod = rxMethod<void>(
+        pipe(
+          switchMap(() => {
+            const { roomId, recipientId } = apiIds();
+            return chatApiService.readAll({ roomId, recipientId }).pipe(
+              tap((counts) => {
+                unreadCountsStore.applyCounts(counts);
+              }),
+              switchMap(() =>
+                chatApiService.list({
+                  roomId,
+                  recipientId,
+                  beforeId: null,
+                  afterId: null,
+                  limit: defaultChunkSize,
+                  latest: true,
+                }),
+              ),
+              tap((res) => {
+                patchState(
+                  store,
+                  setAllEntities(
+                    res.items.map((item) => toMessageEntity(item)),
+                  ),
+                  {
+                    hasMoreBefore: res.hasMoreBefore,
+                    hasMoreAfter: false,
+                    unreadDividerMessageId: null,
+                    targetScrollMessageId: null,
+                    initialPosition: 'bottom',
+                    missedLiveWhileBehind: false,
+                  },
+                );
+              }),
+              catchError((error) => {
+                showError(error);
+                return EMPTY;
+              }),
+            );
+          }),
+        ),
+      );
+
       const jumpToMessageMethod = rxMethod<string>(
         pipe(
           switchMap((messageId) => {
             const existing = store.entityMap()[messageId];
             if (existing) {
-              patchState(store, { targetScrollMessageId: messageId });
+              patchState(store, {
+                targetScrollMessageId: messageId,
+                initialPosition: 'message',
+              });
               return EMPTY;
             }
 
@@ -278,7 +546,8 @@ export const ChatStore = signalStore(
                 limit: defaultChunkSize,
               })
               .pipe(
-                tap(({ items }) => {
+                tap((res) => {
+                  const items = res.items;
                   if (items.length === 0) {
                     tuiNotificationsService
                       .open(
@@ -290,20 +559,24 @@ export const ChatStore = signalStore(
                       .subscribe();
                     if (store.ids().length === 0) {
                       patchState(store, { targetScrollMessageId: null });
-                      requestList({
-                        afterId: null,
-                        beforeId: null,
-                        limit: defaultChunkSize,
-                        roomId,
-                        recipientId,
-                      });
+                      const currentTarget = store.target();
+                      if (currentTarget) {
+                        loadInitialMethod({ target: currentTarget });
+                      }
                     }
                     return;
                   }
                   patchState(
                     store,
-                    setEntities(items.map((item) => toMessageEntity(item))),
-                    { targetScrollMessageId: messageId },
+                    setAllEntities(items.map((item) => toMessageEntity(item))),
+                    {
+                      targetScrollMessageId: messageId,
+                      hasMoreBefore: res.hasMoreBefore,
+                      hasMoreAfter: res.hasMoreAfter,
+                      unreadDividerMessageId: res.firstUnreadMessageId,
+                      initialPosition: 'message',
+                      missedLiveWhileBehind: false,
+                    },
                   );
                 }),
                 catchError((error) => {
@@ -327,19 +600,14 @@ export const ChatStore = signalStore(
             targetScrollMessageId: initialMessageId ?? null,
             searchQuery: null,
             isSearchOpen: false,
+            hasMoreBefore: false,
+            hasMoreAfter: false,
+            unreadDividerMessageId: null,
+            initialPosition: initialMessageId ? 'message' : 'bottom',
+            missedLiveWhileBehind: false,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
-          if (initialMessageId) {
-            jumpToMessageMethod(initialMessageId);
-          } else {
-            requestList({
-              afterId: null,
-              beforeId: null,
-              limit: defaultChunkSize,
-              roomId,
-              recipientId,
-            });
-          }
+          loadInitialMethod({ target, initialMessageId });
         },
 
         leave(): void {
@@ -357,7 +625,35 @@ export const ChatStore = signalStore(
             targetScrollMessageId: null,
             searchQuery: null,
             isSearchOpen: false,
+            hasMoreBefore: false,
+            hasMoreAfter: false,
+            unreadDividerMessageId: null,
+            initialPosition: 'bottom',
+            missedLiveWhileBehind: false,
           });
+        },
+
+        loadInitial(
+          target: ChatTarget,
+          initialMessageId?: string | null,
+        ): void {
+          loadInitialMethod({ target, initialMessageId });
+        },
+
+        loadLatest(): void {
+          loadLatestMethod();
+        },
+
+        loadOlder(): void {
+          loadOlderMethod();
+        },
+
+        loadNewer(): void {
+          loadNewerMethod();
+        },
+
+        readAllAndJumpToLatest(): void {
+          readAllAndJumpToLatestMethod();
         },
 
         setSearchQuery(query: string | null): void {
@@ -393,48 +689,19 @@ export const ChatStore = signalStore(
           const wasSearching = Boolean(store.searchQuery()?.trim());
           patchState(store, { searchQuery: null });
           if (wasSearching) {
-            const { roomId, recipientId } = apiIds();
-            patchState(store, removeAllEntities());
-            requestList({
-              afterId: null,
-              beforeId: null,
-              limit: defaultChunkSize,
-              roomId,
-              recipientId,
-            });
+            const target = store.target();
+            if (target) {
+              loadInitialMethod({ target });
+            }
           }
         },
 
         requestNextPage(): void {
-          const newestId = store.newestId();
-          if (!newestId) {
-            return;
-          }
-          const { roomId, recipientId } = apiIds();
-          requestList({
-            afterId: newestId,
-            beforeId: null,
-            limit: defaultChunkSize,
-            roomId,
-            recipientId,
-            search: store.searchQuery() || undefined,
-          });
+          loadNewerMethod();
         },
 
         requestPrevPage(): void {
-          const oldestId = store.oldestId();
-          if (!oldestId) {
-            return;
-          }
-          const { roomId, recipientId } = apiIds();
-          requestList({
-            afterId: null,
-            beforeId: oldestId,
-            limit: defaultChunkSize,
-            roomId,
-            recipientId,
-            search: store.searchQuery() || undefined,
-          });
+          loadOlderMethod();
         },
 
         setEditableMessageId(id: string | null): void {
@@ -466,6 +733,9 @@ export const ChatStore = signalStore(
           data: ITextRoomCreateMessage;
           files?: readonly ILocalFile[];
         }): void {
+          if (store.hasMoreAfter()) {
+            loadLatestMethod();
+          }
           const replyTarget = data.replyToId
             ? store.entityMap()[data.replyToId]
             : null;
@@ -484,6 +754,10 @@ export const ChatStore = signalStore(
               : null,
           });
           patchState(store, { replyToMessageId: null });
+        },
+
+        setMissedLiveWhileBehind(value: boolean): void {
+          patchState(store, { missedLiveWhileBehind: value });
         },
 
         retryMessage(id: string): void {
@@ -727,6 +1001,10 @@ export const ChatStore = signalStore(
             return;
           }
           if (!belongsToActiveChat(message)) {
+            return;
+          }
+          if (store.hasMoreAfter()) {
+            patchState(store, { missedLiveWhileBehind: true });
             return;
           }
           patchState(store, setEntity(toMessageEntity(message)));
