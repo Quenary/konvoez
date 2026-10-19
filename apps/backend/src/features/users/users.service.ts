@@ -12,10 +12,7 @@ import {
   USER_AVATARS_BUCKET,
   type FileService,
 } from '@shared/services/file.service';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { UsersDomainEvents, emitUsersDomainEvent } from './users.events';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
 import { GetUserDto } from './users.dto';
@@ -156,9 +153,9 @@ export class UsersService {
     await this.em.flush();
     await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
     const result = this.toDto(user);
-    emitEntitySyncDomainEvent(
+    emitUsersDomainEvent(
       this.eventEmitter,
-      EntitySyncDomainEvents.USER_UPDATED,
+      UsersDomainEvents.USER_UPDATED,
       result,
     );
     return result;
@@ -203,11 +200,9 @@ export class UsersService {
     });
 
     await this.deleteStoredFile(files.avatar, USER_AVATARS_BUCKET);
-    emitEntitySyncDomainEvent(
-      this.eventEmitter,
-      EntitySyncDomainEvents.USER_DELETED,
-      { id },
-    );
+    emitUsersDomainEvent(this.eventEmitter, UsersDomainEvents.USER_DELETED, {
+      id,
+    });
   }
 
   toDto(user: UserEntity, permissions?: EPermission[]): GetUserDto {

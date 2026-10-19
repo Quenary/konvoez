@@ -1,5 +1,5 @@
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
+import { UsersDomainEvents } from './users.events';
 import { UserPresenceService } from './user-presence.service';
 
 describe('UserPresenceService', () => {
@@ -25,7 +25,7 @@ describe('UserPresenceService', () => {
     expect(service.getOnlineUserIds()).toEqual([1]);
     expect(eventEmitterMock.emit).toHaveBeenCalledTimes(1);
     expect(eventEmitterMock.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.USER_PRESENCE_CHANGED,
+      UsersDomainEvents.USER_PRESENCE_CHANGED,
       { userId: 1, isOnline: true },
     );
   });
@@ -63,7 +63,7 @@ describe('UserPresenceService', () => {
     expect(service.getOnlineUserIds()).toEqual([]);
     expect(eventEmitterMock.emit).toHaveBeenCalledTimes(1);
     expect(eventEmitterMock.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.USER_PRESENCE_CHANGED,
+      UsersDomainEvents.USER_PRESENCE_CHANGED,
       { userId: 1, isOnline: false },
     );
   });

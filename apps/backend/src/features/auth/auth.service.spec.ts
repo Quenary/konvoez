@@ -58,7 +58,7 @@ import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { UsersDomainEvents } from '../users/users.events';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -669,7 +669,7 @@ describe('AuthService', () => {
         service['ownerSetupTokenCacheKey'],
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_CREATED,
+        UsersDomainEvents.USER_CREATED,
         ownerDto,
       );
       expect(result.isOwner).toBe(true);
@@ -692,7 +692,7 @@ describe('AuthService', () => {
       );
       expect(cacheManager.get).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_CREATED,
+        UsersDomainEvents.USER_CREATED,
         memberDto,
       );
       expect(result.role).toBe(EUserRole.MEMBER);

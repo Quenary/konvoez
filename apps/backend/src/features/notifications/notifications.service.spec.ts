@@ -32,7 +32,7 @@ import webPush from 'web-push';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
-import { NotificationsDomainEvents } from '@shared/events/notifications.events';
+import { NotificationsDomainEvents } from './notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { PushSubscriptionEntity } from './notifications.entity';
 import { NotificationsService } from './notifications.service';

@@ -31,6 +31,7 @@ import {
 import { RoleEntity } from './roles.entity';
 import { RolesService } from './roles.service';
 import type { CreateRoleDto } from './roles.dto';
+import { RolesDomainEvents } from './roles.events';
 
 describe('RolesService', () => {
   let service: RolesService;
@@ -250,7 +251,7 @@ describe('RolesService', () => {
       expect(mockEm.remove).toHaveBeenCalledWith(mockRole);
       expect(mockEm.flush).toHaveBeenCalled();
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [10] },
       );
     });
@@ -296,7 +297,7 @@ describe('RolesService', () => {
       );
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [] },
       );
     });
@@ -309,7 +310,7 @@ describe('RolesService', () => {
       });
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [] },
       );
     });
@@ -323,7 +324,7 @@ describe('RolesService', () => {
       });
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [42] },
       );
     });

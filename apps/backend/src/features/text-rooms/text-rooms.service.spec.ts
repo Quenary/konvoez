@@ -49,8 +49,8 @@ import {
 } from '@konvoez/shared';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
-import { TextRoomDomainEvents } from '@shared/events/text-room.events';
-import { NotificationsDomainEvents } from '@shared/events/notifications.events';
+import { TextRoomsDomainEvents } from './text-rooms.events';
+import { NotificationsDomainEvents } from '../notifications/notifications.events';
 
 describe('TextRoomsService', () => {
   let service: TextRoomsService;
@@ -218,7 +218,7 @@ describe('TextRoomsService', () => {
       expect(result.recipientId).toBe(mockUser.id);
       expect(result.isRead).toBe(true);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_CREATED,
+        TextRoomsDomainEvents.MESSAGE_CREATED,
         expect.objectContaining({
           recipientId: mockUser.id,
           senderId: mockUser.id,
@@ -261,7 +261,7 @@ describe('TextRoomsService', () => {
       expect(result.senderUsername).toBe('test_user');
       expect(result.roomId).toBe(roomId);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_CREATED,
+        TextRoomsDomainEvents.MESSAGE_CREATED,
         result,
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
@@ -507,7 +507,7 @@ describe('TextRoomsService', () => {
         expect.anything(),
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_CREATED,
+        TextRoomsDomainEvents.MESSAGE_CREATED,
         expect.objectContaining({ clientId }),
       );
     });
@@ -612,7 +612,7 @@ describe('TextRoomsService', () => {
       );
       expect(result.attachments).toEqual([attachment]);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_CREATED,
+        TextRoomsDomainEvents.MESSAGE_CREATED,
         expect.objectContaining({ attachments: [attachment] }),
       );
     });
@@ -933,7 +933,7 @@ describe('TextRoomsService', () => {
 
       expect(result).toBeDefined();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_UPDATED,
         expect.anything(),
       );
     });
@@ -1008,7 +1008,7 @@ describe('TextRoomsService', () => {
       expect(em.remove).toHaveBeenCalledWith(existing);
       expect(em.flush).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_DELETED,
+        TextRoomsDomainEvents.MESSAGE_DELETED,
         { id: msgId },
       );
     });
@@ -1063,7 +1063,7 @@ describe('TextRoomsService', () => {
         expect(em.remove).toHaveBeenCalledWith(existing);
         expect(em.flush).toHaveBeenCalled();
         expect(eventEmitter.emit).toHaveBeenCalledWith(
-          TextRoomDomainEvents.MESSAGE_DELETED,
+          TextRoomsDomainEvents.MESSAGE_DELETED,
           { id: msgId },
         );
       },
@@ -1201,7 +1201,7 @@ describe('TextRoomsService', () => {
       expect(messageReadRepository.find).not.toHaveBeenCalled();
       expect(em.flush).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_UPDATED,
         expect.anything(),
       );
     });
@@ -1257,11 +1257,11 @@ describe('TextRoomsService', () => {
       expect(em.flush).toHaveBeenCalled();
       expect(
         eventEmitter.emit.mock.calls.filter(
-          ([event]) => event === TextRoomDomainEvents.MESSAGE_UPDATED,
+          ([event]) => event === TextRoomsDomainEvents.MESSAGE_UPDATED,
         ),
       ).toHaveLength(1);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_UPDATED,
         expect.objectContaining({
           id: uuidStringify(otherId),
           isRead: true,
@@ -1317,7 +1317,7 @@ describe('TextRoomsService', () => {
       expect(messageReadRepository.create).not.toHaveBeenCalled();
       expect(
         eventEmitter.emit.mock.calls.filter(
-          ([event]) => event === TextRoomDomainEvents.MESSAGE_UPDATED,
+          ([event]) => event === TextRoomsDomainEvents.MESSAGE_UPDATED,
         ),
       ).toHaveLength(1);
     });
@@ -1419,7 +1419,7 @@ describe('TextRoomsService', () => {
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED,
         expect.objectContaining({
           messageId: msgId,
           roomId: 10,
@@ -1457,7 +1457,7 @@ describe('TextRoomsService', () => {
       expect(em.remove).toHaveBeenCalledWith(existingReaction);
       expect(em.flush).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED,
         expect.objectContaining({
           messageId: msgId,
           roomId: 10,
@@ -1557,7 +1557,7 @@ describe('TextRoomsService', () => {
       const result = await service.toggleReaction(mockUser, msgId, '👍');
 
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED,
         expect.objectContaining({
           messageId: normalizedMsgId,
           reactions: [{ emoji: '👍', count: 1, userIds: [mockUser.id] }],

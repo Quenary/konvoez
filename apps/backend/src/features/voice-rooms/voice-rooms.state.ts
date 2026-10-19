@@ -33,9 +33,9 @@ import { createWorker } from 'mediasoup';
 import { announcedAddressKey } from '@shared/utils/mediasoup-addresses.util';
 import { AppService } from '@shared/services/app.service';
 import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+  VoiceRoomsDomainEvents,
+  emitVoiceRoomsDomainEvent,
+} from './voice-rooms.events';
 import { Mutex } from 'async-mutex';
 import { VOICE_ROOM_MEDIA_CODECS } from './voice-media.util';
 
@@ -281,9 +281,9 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       notifiedUserIds.add(peer.user.id);
-      emitEntitySyncDomainEvent(
+      emitVoiceRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         this.createLobbyPeerLeft(roomId, peer.user.id),
       );
     }

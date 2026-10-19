@@ -1,5 +1,5 @@
-import type { EventEmitter2 } from '@nestjs/event-emitter';
 import type { TPushNotificationPayload } from '@konvoez/shared';
+import { createDomainEventEmitter } from '@shared/events';
 
 export const NotificationsDomainEvents = {
   DIRECT_MESSAGE: 'notifications.direct-message',
@@ -36,12 +36,5 @@ export type TNotificationsDomainPayloadMap = {
   [NotificationsDomainEvents.DELIVER]: INotificationDeliverPayload;
 };
 
-export function emitNotificationsDomainEvent<
-  K extends TNotificationsDomainEvent,
->(
-  eventEmitter: EventEmitter2,
-  event: K,
-  payload: TNotificationsDomainPayloadMap[K],
-): void {
-  eventEmitter.emit(event, payload);
-}
+export const emitNotificationsDomainEvent =
+  createDomainEventEmitter<TNotificationsDomainPayloadMap>();

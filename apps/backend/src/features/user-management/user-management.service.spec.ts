@@ -29,7 +29,7 @@ import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { UsersDomainEvents } from '../users/users.events';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
@@ -158,11 +158,11 @@ describe('UserManagementService', () => {
         { id: 2 },
       ]);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_UPDATED,
+        UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5 }),
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+        UsersDomainEvents.USER_PERMISSIONS_CHANGED,
         { userIds: [5] },
       );
     });

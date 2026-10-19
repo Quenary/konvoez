@@ -24,9 +24,9 @@ import { toApiErrorResponse } from '@shared/errors/to-api-error';
 import { TextRoomJoinDto } from './text-rooms.dto';
 import type { GetUserDto } from '../users/users.dto';
 import {
-  TextRoomDomainEvents,
-  type TTextRoomDomainPayloadMap,
-} from '@shared/events/text-room.events';
+  TextRoomsDomainEvents,
+  type TTextRoomsDomainPayloadMap,
+} from './text-rooms.events';
 
 import { RoomsFacade } from '../rooms/rooms.facade';
 
@@ -178,9 +178,9 @@ export class TextRoomsGateway
     }
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_CREATED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_CREATED)
   onMessageCreated(
-    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_CREATED],
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_CREATED],
   ) {
     if (body.roomId) {
       this.logger.debug(
@@ -211,9 +211,9 @@ export class TextRoomsGateway
     );
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_UPDATED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_UPDATED)
   onMessageUpdated(
-    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_UPDATED],
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_UPDATED],
   ) {
     if (body.roomId) {
       this.logger.debug(
@@ -237,17 +237,17 @@ export class TextRoomsGateway
     );
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_DELETED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_DELETED)
   onMessageDeleted(
-    payload: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_DELETED],
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_DELETED],
   ) {
     this.logger.debug(`Fan-out message deleted: messageId=${payload.id}`);
     return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, payload);
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_REACTION_UPDATED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED)
   onMessageReactionUpdated(
-    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_REACTION_UPDATED],
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED],
   ) {
     if (body.roomId) {
       this.logger.debug(

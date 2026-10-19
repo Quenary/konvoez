@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { UsersDomainEvents, emitUsersDomainEvent } from './users.events';
 
 @Injectable()
 export class UserPresenceService {
@@ -21,9 +18,9 @@ export class UserPresenceService {
     sockets.add(socketId);
 
     if (!wasOnline) {
-      emitEntitySyncDomainEvent(
+      emitUsersDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.USER_PRESENCE_CHANGED,
+        UsersDomainEvents.USER_PRESENCE_CHANGED,
         { userId, isOnline: true },
       );
     }
@@ -39,9 +36,9 @@ export class UserPresenceService {
     }
     if (sockets.size === 0) {
       this.userSockets.delete(userId);
-      emitEntitySyncDomainEvent(
+      emitUsersDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.USER_PRESENCE_CHANGED,
+        UsersDomainEvents.USER_PRESENCE_CHANGED,
         { userId, isOnline: false },
       );
     }

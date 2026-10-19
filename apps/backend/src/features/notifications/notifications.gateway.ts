@@ -14,7 +14,7 @@ import { AuthService } from '../auth/auth.service';
 import {
   NotificationsDomainEvents,
   type INotificationDeliverPayload,
-} from '@shared/events/notifications.events';
+} from './notifications.events';
 
 type TSocket = Socket<
   TNotificationsEventMap,

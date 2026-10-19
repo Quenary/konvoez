@@ -29,7 +29,7 @@ import {
   type FileService,
 } from '@shared/services/file.service';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { UsersDomainEvents } from './users.events';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -212,7 +212,7 @@ describe('UsersService', () => {
       );
       expect(result.isOwner).toBe(false);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_UPDATED,
+        UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5, isOwner: false }),
       );
     });
@@ -253,7 +253,7 @@ describe('UsersService', () => {
         USER_AVATARS_BUCKET,
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_DELETED,
+        UsersDomainEvents.USER_DELETED,
         { id: 5 },
       );
     });
@@ -281,7 +281,7 @@ describe('UsersService', () => {
       expect(mockEm.remove).toHaveBeenCalledWith(target);
       expect(fileService.delete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_DELETED,
+        UsersDomainEvents.USER_DELETED,
         { id: 5 },
       );
     });

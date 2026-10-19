@@ -42,8 +42,8 @@ import {
   type IUser,
   type TVoiceRoomProduce,
 } from '@konvoez/shared';
-import { NotificationsDomainEvents } from '@shared/events/notifications.events';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { NotificationsDomainEvents } from '../notifications/notifications.events';
+import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
@@ -350,7 +350,7 @@ describe('VoiceRoomsGateway', () => {
         peers: [],
       });
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         { roomId: 1, user: alice, epoch: 'epoch-1', revision: 1 },
       );
     });
@@ -449,7 +449,7 @@ describe('VoiceRoomsGateway', () => {
       expect(socket.join).toHaveBeenCalledWith('call:c1');
       expect(room.peers.has('socket-1')).toBe(true);
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         expect.anything(),
       );
     });
@@ -516,11 +516,11 @@ describe('VoiceRoomsGateway', () => {
         }),
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         expect.anything(),
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         expect.anything(),
       );
     });
@@ -616,7 +616,7 @@ describe('VoiceRoomsGateway', () => {
         }),
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         { roomId: 1, userId: alice.id, epoch: 'epoch-1', revision: 1 },
       );
     });
@@ -1240,7 +1240,7 @@ describe('VoiceRoomsGateway', () => {
         },
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_MUTED,
         {
           roomId: 1,
           userId: alice.id,
@@ -1947,7 +1947,7 @@ describe('VoiceRoomsGateway', () => {
       });
       expect(room.peers.has('socket-1')).toBe(false);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         { roomId, userId: bob.id, epoch: 'epoch-1', revision: 1 },
       );
       expect(voiceRoomsStateService.removeRoom).toHaveBeenCalledWith(

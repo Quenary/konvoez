@@ -55,11 +55,12 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
-} from '@shared/events/notifications.events';
+} from '../notifications/notifications.events';
 import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+  VoiceRoomsDomainEvents,
+  emitVoiceRoomsDomainEvent,
+} from './voice-rooms.events';
+import { RoomsDomainEvents } from '../rooms/rooms.events';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
@@ -122,7 +123,7 @@ export class VoiceRoomsGateway
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
+  @OnEvent(RoomsDomainEvents.ROOM_DELETED)
   handleRoomDeletedEvent({ id }: { id: number }): void {
     const sessionKey = getVoiceSessionKey({
       type: EVoiceSessionType.GROUP_ROOM,
@@ -347,9 +348,9 @@ export class VoiceRoomsGateway
     socket.data.roomId = roomId;
 
     if (roomId !== undefined && !userAlreadyInRoom) {
-      emitEntitySyncDomainEvent(
+      emitVoiceRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         this.voiceRoomsStateService.createLobbyPeerJoined(
           roomId,
           user,
@@ -408,9 +409,9 @@ export class VoiceRoomsGateway
       room.peers.delete(socket.id);
 
       if (roomId !== undefined && !this.isUserInRoom(room, peer.user.id)) {
-        emitEntitySyncDomainEvent(
+        emitVoiceRoomsDomainEvent(
           this.eventEmitter,
-          EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+          VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
           this.voiceRoomsStateService.createLobbyPeerLeft(roomId, peer.user.id),
         );
       }
@@ -683,9 +684,9 @@ export class VoiceRoomsGateway
     socket.to(roomsToEmit).emit(EVoiceRoomEvent.PEER_MUTE_CHANGED, payload);
 
     if (socket.data.roomId !== undefined) {
-      emitEntitySyncDomainEvent(
+      emitVoiceRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_MUTED,
         this.voiceRoomsStateService.createLobbyPeerMuted(
           socket.data.roomId,
           peer.user.id,

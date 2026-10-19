@@ -97,6 +97,9 @@ docker compose -f docker-compose.build.yml up -d --build
 
 ### Other
 
-- Add invite emails (if email set), 2FA via email codes
+- Add `@mentions`
+- Add 2FA
+- Add notification settongs per user (topics)
+- Add invite emails (if email set)
 - Add emojis or/and customizable smile/sticker packs
 - Swipe to reply

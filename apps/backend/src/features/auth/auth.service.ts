@@ -12,10 +12,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 import { Request, Response } from 'express';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthJWTData, AuthRegisterDto } from './auth.dto';
@@ -126,9 +123,9 @@ export class AuthService implements OnApplicationBootstrap {
 
   private async emitUserCreated(user: UserEntity): Promise<GetUserDto> {
     const result = await this.usersService.toDtoWithPermissions(user);
-    emitEntitySyncDomainEvent(
+    emitUsersDomainEvent(
       this.eventEmitter,
-      EntitySyncDomainEvents.USER_CREATED,
+      UsersDomainEvents.USER_CREATED,
       result,
     );
     return result;

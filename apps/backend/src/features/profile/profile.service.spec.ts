@@ -29,7 +29,7 @@ import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { ProfileService } from './profile.service';
 import type { UpdateProfileDto } from './profile.dto';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { UsersDomainEvents } from '../users/users.events';
 
 describe('ProfileService', () => {
   let service: ProfileService;
@@ -165,7 +165,7 @@ describe('ProfileService', () => {
       expect(mockEm.flush).toHaveBeenCalled();
       expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(mockUser);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_UPDATED,
+        UsersDomainEvents.USER_UPDATED,
         author,
       );
       expect(result).toBe(author);

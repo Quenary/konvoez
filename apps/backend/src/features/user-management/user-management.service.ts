@@ -2,10 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
+
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
@@ -56,14 +54,14 @@ export class UserManagementService {
     await this.usersService.updateUserRoles(user, roles);
 
     const result = await this.usersService.toDtoWithPermissions(user);
-    emitEntitySyncDomainEvent(
+    emitUsersDomainEvent(
       this.eventEmitter,
-      EntitySyncDomainEvents.USER_UPDATED,
+      UsersDomainEvents.USER_UPDATED,
       result,
     );
-    emitEntitySyncDomainEvent(
+    emitUsersDomainEvent(
       this.eventEmitter,
-      EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+      UsersDomainEvents.USER_PERMISSIONS_CHANGED,
       { userIds: [id] },
     );
     return result;
