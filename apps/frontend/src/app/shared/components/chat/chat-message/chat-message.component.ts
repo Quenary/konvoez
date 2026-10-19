@@ -131,6 +131,9 @@ export class ChatMessageComponent {
   });
 
   protected readonly mentionsMe = computed(() => {
+    if (this.isOwnMessage()) {
+      return false;
+    }
     const mentions = this.message().mentions;
     const currentUser = this.currentUser();
     return isMessageMentioningUser(mentions, currentUser);

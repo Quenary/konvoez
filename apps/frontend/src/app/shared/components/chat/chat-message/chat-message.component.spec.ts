@@ -617,6 +617,7 @@ describe('ChatMessageComponent', () => {
       // Not mentioned
       fixture.componentRef.setInput('message', {
         ...testMessage,
+        senderId: 2,
         mentions: { userIds: [99], roleIds: [99], everyone: false },
       });
       fixture.detectChanges();
@@ -627,6 +628,7 @@ describe('ChatMessageComponent', () => {
       // Mentioned by userId
       fixture.componentRef.setInput('message', {
         ...testMessage,
+        senderId: 2,
         mentions: { userIds: [1], roleIds: [], everyone: false },
       });
       fixture.detectChanges();
@@ -637,6 +639,7 @@ describe('ChatMessageComponent', () => {
       // Mentioned by roleId
       fixture.componentRef.setInput('message', {
         ...testMessage,
+        senderId: 2,
         mentions: { userIds: [], roleIds: [10], everyone: false },
       });
       fixture.detectChanges();
@@ -647,12 +650,33 @@ describe('ChatMessageComponent', () => {
       // Mentioned by everyone
       fixture.componentRef.setInput('message', {
         ...testMessage,
+        senderId: 2,
         mentions: { userIds: [], roleIds: [], everyone: true },
       });
       fixture.detectChanges();
       expect(
         fixture.nativeElement.querySelector('.message-mentioned'),
       ).toBeTruthy();
+    });
+
+    it('does not apply message-mentioned class on own message even with mass or self mentions', () => {
+      const store = TestBed.inject(Store);
+      const userWithRole: IUser = {
+        ...currentUser,
+        id: 1,
+        roles: [{ id: 10, name: 'Admin', priority: 1, mentionable: true }],
+      };
+      store.dispatch(AuthActions.initEnd({ user: userWithRole }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 1,
+        mentions: { userIds: [1], roleIds: [10], everyone: true },
+      });
+      fixture.detectChanges();
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeFalsy();
     });
 
     it('opens user dialog when clicking a user mention chip', () => {
