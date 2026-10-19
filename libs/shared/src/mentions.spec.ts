@@ -3,7 +3,9 @@ import {
   diffMentionedUsers,
   formatRoleMention,
   formatUserMention,
+  isMessageMentioningUser,
   MENTION_EVERYONE,
+  mentionSetSchema,
   parseMentions,
   splitMentionSegments,
 } from './mentions';
@@ -164,6 +166,94 @@ describe('mentions', () => {
     it('handles empty arrays', () => {
       expect(diffMentionedUsers([], [1, 2])).toEqual([1, 2]);
       expect(diffMentionedUsers([1, 2], [])).toEqual([]);
+    });
+  });
+
+  describe('mentionSetSchema', () => {
+    it('provides empty defaults when empty object is passed', () => {
+      const parsed = mentionSetSchema.parse({});
+      expect(parsed).toEqual({
+        userIds: [],
+        roleIds: [],
+        everyone: false,
+      });
+    });
+
+    it('validates and preserves valid mention set', () => {
+      const input = {
+        userIds: [1, 2],
+        roleIds: [3],
+        everyone: true,
+      };
+      expect(mentionSetSchema.parse(input)).toEqual(input);
+    });
+  });
+
+  describe('isMessageMentioningUser', () => {
+    const user = {
+      id: 10,
+      roles: [{ id: 1 }, { id: 2 }],
+    };
+
+    it('returns false when mentions or user is nullish', () => {
+      expect(isMessageMentioningUser(null, user)).toBe(false);
+      expect(
+        isMessageMentioningUser(
+          { userIds: [10], roleIds: [], everyone: false },
+          null,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns true when everyone is mentioned', () => {
+      expect(
+        isMessageMentioningUser(
+          { userIds: [], roleIds: [], everyone: true },
+          user,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true when user id is directly mentioned', () => {
+      expect(
+        isMessageMentioningUser(
+          { userIds: [10, 20], roleIds: [], everyone: false },
+          user,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true when user has a role that is mentioned', () => {
+      expect(
+        isMessageMentioningUser(
+          { userIds: [], roleIds: [2, 99], everyone: false },
+          user,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when neither user id, roles, nor everyone is mentioned', () => {
+      expect(
+        isMessageMentioningUser(
+          { userIds: [5, 6], roleIds: [8, 9], everyone: false },
+          user,
+        ),
+      ).toBe(false);
+    });
+
+    it('handles user with empty or undefined roles', () => {
+      expect(
+        isMessageMentioningUser(
+          { userIds: [], roleIds: [1], everyone: false },
+          { id: 10, roles: [] },
+        ),
+      ).toBe(false);
+      expect(
+        isMessageMentioningUser(
+          { userIds: [], roleIds: [1], everyone: false },
+          { id: 10 },
+        ),
+      ).toBe(false);
     });
   });
 });

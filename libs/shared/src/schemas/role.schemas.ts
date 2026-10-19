@@ -20,6 +20,7 @@ export const roleSummarySchema = z.object({
   name: roleNameSchema,
   color: roleColorSchema,
   priority: z.number().int().default(0),
+  mentionable: z.boolean().default(false),
 });
 
 export type IRoleSummary = z.infer<typeof roleSummarySchema>;
@@ -30,6 +31,7 @@ export const roleSchema = baseEntitySchema.extend({
   color: roleColorSchema,
   priority: z.number().int().default(0),
   isDefault: z.boolean().default(false),
+  mentionable: z.boolean().default(false),
   permissions: z.array(permissionSchema).default([]),
   userCount: z.number().int().optional(),
 });
@@ -41,6 +43,7 @@ export const createRoleSchema = z.object({
   color: roleColorSchema.optional(),
   priority: z.number().int().min(0).max(1000).default(0),
   isDefault: z.boolean().default(false),
+  mentionable: z.boolean().default(false),
   permissions: z.array(permissionSchema).default([]),
 });
 
@@ -51,6 +54,7 @@ export const updateRoleSchema = z.object({
   color: roleColorSchema.optional(),
   priority: z.number().int().min(0).max(1000).optional(),
   isDefault: z.boolean().optional(),
+  mentionable: z.boolean().optional(),
   permissions: z.array(permissionSchema).optional(),
 });
 

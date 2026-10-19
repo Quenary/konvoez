@@ -1,3 +1,5 @@
+import * as z from 'zod';
+
 export const MENTION_EVERYONE = '@everyone';
 
 export function formatUserMention(id: number): string {
@@ -21,10 +23,33 @@ export type TMentionSegment =
   | { type: 'role'; id: number }
   | { type: 'everyone' };
 
-export interface IMentionSet {
-  userIds: number[];
-  roleIds: number[];
-  everyone: boolean;
+export const mentionSetSchema = z.object({
+  userIds: z.array(z.number().int().positive()).default([]),
+  roleIds: z.array(z.number().int().positive()).default([]),
+  everyone: z.boolean().default(false),
+});
+
+export type IMentionSet = z.infer<typeof mentionSetSchema>;
+
+export function isMessageMentioningUser(
+  mentions: IMentionSet | null | undefined,
+  user:
+    { id: number; roles?: readonly { id: number }[] | null } | null | undefined,
+): boolean {
+  if (!mentions || !user) {
+    return false;
+  }
+  if (mentions.everyone) {
+    return true;
+  }
+  if (mentions.userIds.includes(user.id)) {
+    return true;
+  }
+  if (user.roles && user.roles.length > 0) {
+    const roleIdSet = new Set(mentions.roleIds);
+    return user.roles.some((r) => roleIdSet.has(r.id));
+  }
+  return false;
 }
 
 export function splitMentionSegments(text: string): TMentionSegment[] {

@@ -36,13 +36,15 @@ export type TEntitySyncEventPayloadMap = {
   [EEntitySyncEvent.VOICE_ROOM_PEER_MUTED]: TVoiceRoomLobbyPeerMuted;
   [EEntitySyncEvent.USER_PRESENCE_CHANGED]: IUserPresenceChanged;
   [EEntitySyncEvent.USER_PRESENCE_SNAPSHOT]: IUserPresenceSnapshot;
+  [EEntitySyncEvent.ROLES_CHANGED]: void;
   [EEntitySyncEvent.ERROR]: TEntitySyncError;
 };
 
 export type TEntitySyncEventMap = {
   [K in EEntitySyncEvent]: (
-    data: TEntitySyncEventPayloadMap[K],
-    ...args: unknown[]
+    ...args: TEntitySyncEventPayloadMap[K] extends void
+      ? [data?: void, ...args: unknown[]]
+      : [data: TEntitySyncEventPayloadMap[K], ...args: unknown[]]
   ) => void;
 };
 

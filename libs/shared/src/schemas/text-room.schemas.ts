@@ -10,6 +10,7 @@ import { messageOptionalContentSchema } from './fields.schemas';
 import { userSchema } from './user.schemas';
 import { ETextRoomEvent } from '../enums';
 import { apiErrorResponseSchema, type TApiErrorResponse } from '../errors';
+import { mentionSetSchema } from '../mentions';
 
 const nullableInt = z.number().int().positive().nullish();
 const nullableString = stringSchema.nullish();
@@ -90,6 +91,11 @@ export const messageSchema = baseEntitySchema.extend({
   attachments: z.array(attachmentSchema).default([]),
   clientId: z.uuid().nullable(),
   reactions: z.array(messageReactionGroupSchema).default([]),
+  mentions: mentionSetSchema.default({
+    userIds: [],
+    roleIds: [],
+    everyone: false,
+  }),
 });
 
 export const markReadSchema = z.object({
@@ -98,6 +104,9 @@ export const markReadSchema = z.object({
 
 export const unreadCountsSchema = z.object({
   rooms: z.record(z.string(), z.number().int().nonnegative()),
+  roomMentions: z
+    .record(z.string(), z.number().int().nonnegative())
+    .default({}),
   direct: z.record(z.string(), z.number().int().nonnegative()),
   directTotal: z.number().int().nonnegative(),
 });
