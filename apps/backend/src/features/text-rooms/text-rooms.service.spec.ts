@@ -1829,7 +1829,7 @@ describe('TextRoomsService', () => {
       expect(messageReadRepository.find).not.toHaveBeenCalled();
       expect(em.flush).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        TextRoomsDomainEvents.MESSAGE_UPDATED,
+        TextRoomsDomainEvents.MESSAGES_READ,
         expect.anything(),
       );
     });
@@ -1842,18 +1842,12 @@ describe('TextRoomsService', () => {
         sender: { id: mockUser.id, username: mockUser.username },
         room: { id: 10 },
         recipient: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
       } as unknown as MessageEntity;
       const otherMessage = {
         id: otherId,
         sender: { id: 2, username: 'bob' },
         room: { id: 10 },
         recipient: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([ownMessage, otherMessage]);
@@ -1865,17 +1859,7 @@ describe('TextRoomsService', () => {
 
       expect(messageRepository.find).toHaveBeenCalledWith(
         { id: { $in: [ownId, otherId] } },
-        {
-          populate: [
-            'sender',
-            'recipient',
-            'room',
-            'room.allowedRoles',
-            'room.allowedUsers',
-            'replyTo',
-            'replyTo.sender',
-          ],
-        },
+        expect.anything(),
       );
       expect(messageReadRepository.create).toHaveBeenCalledTimes(1);
       expect(messageReadRepository.create).toHaveBeenCalledWith({
@@ -1883,17 +1867,15 @@ describe('TextRoomsService', () => {
         reader: { id: mockUser.id },
       });
       expect(em.flush).toHaveBeenCalled();
-      expect(
-        eventEmitter.emit.mock.calls.filter(
-          ([event]) => event === TextRoomsDomainEvents.MESSAGE_UPDATED,
-        ),
-      ).toHaveLength(1);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomsDomainEvents.MESSAGE_UPDATED,
-        expect.objectContaining({
-          id: uuidStringify(otherId),
-          isRead: true,
-        }),
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [uuidStringify(otherId)],
+          maxMessageId: null,
+        },
       );
     });
 
@@ -1916,18 +1898,19 @@ describe('TextRoomsService', () => {
       expect(messageReadRepository.find).not.toHaveBeenCalled();
       expect(messageReadRepository.create).not.toHaveBeenCalled();
       expect(em.flush).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
     });
 
-    it('should not insert a read that already exists', async () => {
+    it('should not insert a read or emit events when all messages are already read', async () => {
       const otherId = parse(v7());
       const otherMessage = {
         id: otherId,
         sender: { id: 2, username: 'bob' },
         room: { id: 10 },
         recipient: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([otherMessage]);
@@ -1943,11 +1926,165 @@ describe('TextRoomsService', () => {
       });
 
       expect(messageReadRepository.create).not.toHaveBeenCalled();
-      expect(
-        eventEmitter.emit.mock.calls.filter(
-          ([event]) => event === TextRoomsDomainEvents.MESSAGE_UPDATED,
-        ),
-      ).toHaveLength(1);
+      expect(em.flush).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+    });
+
+    it('should only persist and emit reads for unread messages in a mixed batch', async () => {
+      const readId = parse(v7());
+      const unreadId = parse(v7());
+      const readMsg = {
+        id: readId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+      const unreadMsg = {
+        id: unreadId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([readMsg, unreadMsg]);
+      messageReadRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: readId },
+          reader: { id: mockUser.id },
+        } as unknown as MessageReadEntity,
+      ]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(readId), uuidStringify(unreadId)],
+      });
+
+      expect(messageReadRepository.create).toHaveBeenCalledTimes(1);
+      expect(messageReadRepository.create).toHaveBeenCalledWith({
+        message: unreadMsg,
+        reader: { id: mockUser.id },
+      });
+      expect(em.flush).toHaveBeenCalledTimes(1);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [uuidStringify(unreadId)],
+          maxMessageId: null,
+        },
+      );
+    });
+
+    it('should group MESSAGES_READ events by room for messages from multiple rooms', async () => {
+      const room10MsgId = parse(v7());
+      const room20MsgId = parse(v7());
+      const room10Msg = {
+        id: room10MsgId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+      const room20Msg = {
+        id: room20MsgId,
+        sender: { id: 3, username: 'charlie' },
+        room: { id: 20 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([room10Msg, room20Msg]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(room10MsgId), uuidStringify(room20MsgId)],
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [uuidStringify(room10MsgId)],
+          maxMessageId: null,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 20,
+          recipientId: null,
+          messageIds: [uuidStringify(room20MsgId)],
+          maxMessageId: null,
+        },
+      );
+    });
+
+    it('should emit MESSAGES_READ with recipientId as peer for direct messages', async () => {
+      const dmMsgId = parse(v7());
+      const peerId = 5;
+      const dmMsg = {
+        id: dmMsgId,
+        sender: { id: peerId, username: 'peer' },
+        room: null,
+        recipient: { id: mockUser.id, username: mockUser.username },
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([dmMsg]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(dmMsgId)],
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: null,
+          recipientId: peerId,
+          messageIds: [uuidStringify(dmMsgId)],
+          maxMessageId: null,
+        },
+      );
+    });
+
+    it('should catch UniqueConstraintViolationException, clear EM, re-query and succeed idempotently', async () => {
+      const msgId = parse(v7());
+      const msg = {
+        id: msgId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([msg]);
+      messageReadRepository.find
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            message: { id: msgId },
+            reader: { id: mockUser.id },
+          } as unknown as MessageReadEntity,
+        ]);
+      em.flush.mockRejectedValueOnce(
+        new UniqueConstraintViolationException(new Error('duplicate key')),
+      );
+
+      await expect(
+        service.markRead(mockUser, { messageIds: [uuidStringify(msgId)] }),
+      ).resolves.not.toThrow();
+
+      expect(em.clear).toHaveBeenCalled();
+      expect(messageReadRepository.find).toHaveBeenCalledTimes(2);
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
     });
   });
 

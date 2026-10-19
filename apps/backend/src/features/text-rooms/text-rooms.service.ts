@@ -1190,11 +1190,12 @@ export class TextRoomsService {
       existingReads.map((read) => uuidStringify(read.message.id)),
     );
 
-    for (const msg of othersMessages) {
-      if (alreadyRead.has(uuidStringify(msg.id))) {
-        continue;
-      }
+    const newMessages = othersMessages.filter(
+      (msg) => !alreadyRead.has(uuidStringify(msg.id)),
+    );
+    if (newMessages.length === 0) return;
 
+    for (const msg of newMessages) {
       this.em.persist(
         this.messageReadRepository.create({
           message: msg,
@@ -1203,23 +1204,90 @@ export class TextRoomsService {
       );
     }
 
-    await this.em.flush();
+    let insertedMessages = newMessages;
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        this.em.clear();
+        const postReads = await this.messageReadRepository.find({
+          message: { $in: newMessages.map((msg) => msg.id) },
+          reader: user.id,
+        });
+        const postReadSet = new Set(
+          postReads.map((r) => uuidStringify(r.message.id)),
+        );
+        const stillUnread = newMessages.filter(
+          (m) => !postReadSet.has(uuidStringify(m.id)),
+        );
+        if (stillUnread.length > 0) {
+          for (const msg of stillUnread) {
+            this.em.persist(
+              this.messageReadRepository.create({
+                message: msg,
+                reader: this.em.getReference(UserEntity, user.id),
+              }),
+            );
+          }
+          await this.em.flush();
+          insertedMessages = stillUnread;
+        } else {
+          insertedMessages = [];
+        }
+      } else {
+        throw error;
+      }
+    }
 
-    const [attachments, reactions] = await Promise.all([
-      this.loadAttachments(othersMessages),
-      this.loadReactions(othersMessages),
-    ]);
-    for (const msg of othersMessages) {
-      const id = uuidStringify(msg.id);
+    if (insertedMessages.length === 0) return;
+
+    const byChat = new Map<
+      string,
+      {
+        roomId: number | null;
+        recipientId: number | null;
+        messageIds: string[];
+      }
+    >();
+
+    for (const msg of insertedMessages) {
+      const msgUuid = uuidStringify(msg.id);
+      if (msg.room) {
+        const key = `room:${msg.room.id}`;
+        let group = byChat.get(key);
+        if (!group) {
+          group = { roomId: msg.room.id, recipientId: null, messageIds: [] };
+          byChat.set(key, group);
+        }
+        group.messageIds.push(msgUuid);
+      } else {
+        const peerId =
+          msg.sender.id === user.id
+            ? (msg.recipient?.id ?? null)
+            : msg.sender.id;
+        if (peerId) {
+          const key = `direct:${peerId}`;
+          let group = byChat.get(key);
+          if (!group) {
+            group = { roomId: null, recipientId: peerId, messageIds: [] };
+            byChat.set(key, group);
+          }
+          group.messageIds.push(msgUuid);
+        }
+      }
+    }
+
+    for (const group of byChat.values()) {
       emitTextRoomsDomainEvent(
         this.eventEmitter,
-        TextRoomsDomainEvents.MESSAGE_UPDATED,
-        this.entityToDto(
-          msg,
-          true,
-          attachments.get(id) ?? [],
-          reactions.get(id) ?? [],
-        ),
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: user.id,
+          roomId: group.roomId,
+          recipientId: group.recipientId,
+          messageIds: group.messageIds,
+          maxMessageId: null,
+        },
       );
     }
   }
