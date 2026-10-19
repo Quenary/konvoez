@@ -99,6 +99,7 @@ export class RolesService {
           color: dto.color ?? null,
           priority: dto.priority ?? 0,
           isDefault: dto.isDefault ?? false,
+          mentionable: dto.mentionable ?? false,
           permissions: dto.permissions ?? [],
         },
         { persist: true },
@@ -115,6 +116,12 @@ export class RolesService {
         }
         throw error;
       }
+
+      emitRolesDomainEvent(
+        this.eventEmitter,
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
 
       if (role.isDefault) {
         emitRolesDomainEvent(
@@ -158,6 +165,9 @@ export class RolesService {
         ...(dto.color !== undefined ? { color: dto.color ?? null } : {}),
         ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
         ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
+        ...(dto.mentionable !== undefined
+          ? { mentionable: dto.mentionable }
+          : {}),
         ...(dto.permissions !== undefined
           ? { permissions: dto.permissions }
           : {}),
@@ -174,6 +184,12 @@ export class RolesService {
         }
         throw error;
       }
+
+      emitRolesDomainEvent(
+        this.eventEmitter,
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
 
       if (isDefaultChanged || wasDefault) {
         emitRolesDomainEvent(
@@ -210,6 +226,12 @@ export class RolesService {
       this.em.remove(role);
       await this.em.flush();
 
+      emitRolesDomainEvent(
+        this.eventEmitter,
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
+
       if (userIds.length > 0) {
         emitRolesDomainEvent(
           this.eventEmitter,
@@ -227,6 +249,7 @@ export class RolesService {
       color: role.color ?? null,
       priority: role.priority,
       isDefault: role.isDefault,
+      mentionable: role.mentionable,
       permissions: role.permissions,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,

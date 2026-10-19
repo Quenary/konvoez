@@ -45,6 +45,7 @@ describe('RolesService', () => {
     color: '#ff0000',
     priority: 10,
     isDefault: false,
+    mentionable: false,
     permissions: [EPermission.MODERATE_MESSAGES],
     createdAt: new Date(),
     updatedAt: null,
@@ -56,6 +57,7 @@ describe('RolesService', () => {
     color: null,
     priority: 0,
     isDefault: true,
+    mentionable: false,
     permissions: [EPermission.MANAGE_ROOMS],
     createdAt: new Date(),
     updatedAt: null,
@@ -156,11 +158,36 @@ describe('RolesService', () => {
       });
 
       expect(mockRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Moderator' }),
+        expect.objectContaining({ name: 'Moderator', mentionable: false }),
         { persist: true },
       );
       expect(mockEm.flush).toHaveBeenCalled();
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
       expect(result.name).toBe('Moderator');
+    });
+
+    it('persists mentionable when creating a role', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+
+      await service.create({
+        name: 'Pingable',
+        priority: 5,
+        isDefault: false,
+        mentionable: true,
+        permissions: [],
+      });
+
+      expect(mockRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Pingable', mentionable: true }),
+        { persist: true },
+      );
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
     });
 
     it('throws conflict when role name is already taken', async () => {
@@ -211,7 +238,26 @@ describe('RolesService', () => {
         expect.objectContaining({ name: 'Senior Moderator' }),
       );
       expect(mockEm.flush).toHaveBeenCalled();
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
       expect(result).toBeDefined();
+    });
+
+    it('persists mentionable on update', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockRole);
+
+      await service.update(1, { mentionable: true });
+
+      expect(mockRepo.assign).toHaveBeenCalledWith(
+        mockRole,
+        expect.objectContaining({ mentionable: true }),
+      );
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
     });
 
     it('throws conflict if updated name conflicts with another role', async () => {
@@ -250,6 +296,10 @@ describe('RolesService', () => {
 
       expect(mockEm.remove).toHaveBeenCalledWith(mockRole);
       expect(mockEm.flush).toHaveBeenCalled();
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        RolesDomainEvents.ROLES_CHANGED,
+        {},
+      );
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [10] },

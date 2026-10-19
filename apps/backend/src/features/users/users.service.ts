@@ -212,6 +212,7 @@ export class UsersService {
           name: r.name,
           color: r.color ?? null,
           priority: r.priority,
+          mentionable: r.mentionable,
         }))
       : [];
 

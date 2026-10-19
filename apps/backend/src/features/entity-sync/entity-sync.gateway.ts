@@ -195,6 +195,11 @@ export class EntitySyncGateway
     this.server.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, payload);
   }
 
+  @OnEvent(RolesDomainEvents.ROLES_CHANGED)
+  onRolesChanged() {
+    this.server.emit(EEntitySyncEvent.ROLES_CHANGED);
+  }
+
   @OnEvent(RolesDomainEvents.ROLE_PERMISSIONS_CHANGED)
   @OnEvent(UsersDomainEvents.USER_PERMISSIONS_CHANGED)
   async onUserPermissionsChanged(
