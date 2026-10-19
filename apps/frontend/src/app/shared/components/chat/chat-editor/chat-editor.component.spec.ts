@@ -671,6 +671,43 @@ describe('ChatEditorComponent', () => {
       expect(val).toContain('@everyone');
     });
 
+    it('preserves draft text when usersStore updates while not editing', () => {
+      mentionFixture.detectChanges();
+      TestBed.flushEffects();
+
+      mentionComp['control'].setValue('Draft message');
+      expect(mentionComp['control'].value).toBe('Draft message');
+
+      usersMap.set({
+        ...usersMap(),
+        1: { ...alice, fullname: 'Alice Updated' },
+      });
+      mentionFixture.detectChanges();
+      TestBed.flushEffects();
+
+      expect(mentionComp['control'].value).toBe('Draft message');
+    });
+
+    it('preserves user modifications to editable message when usersStore updates', () => {
+      mentionFixture.componentRef.setInput('editableMessage', {
+        ...mockReplyMessage,
+        content: '<p>Original text</p>',
+      });
+      mentionFixture.detectChanges();
+      TestBed.flushEffects();
+
+      mentionComp['control'].setValue('<p>User modified text</p>');
+
+      usersMap.set({
+        ...usersMap(),
+        1: { ...alice, fullname: 'Alice New Name' },
+      });
+      mentionFixture.detectChanges();
+      TestBed.flushEffects();
+
+      expect(mentionComp['control'].value).toBe('<p>User modified text</p>');
+    });
+
     it('detects mention trigger from cursor position in text', () => {
       const mockEditor = {
         isActive: vi.fn().mockReturnValue(false),

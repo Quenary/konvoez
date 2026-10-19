@@ -449,39 +449,51 @@ export class ChatEditorComponent {
   );
   private chatKey = this.draftKey();
   private tiptapEditor: Editor | null = null;
+  private lastEditableMessageKey: string | null = null;
 
   constructor() {
     effect(() => {
       const editableMessage = this.editableMessage();
-      const enabled = this.mentionsEnabled;
-      const unknown = this.unknownLabel();
-      const users = this.usersStore.entityMap();
-      const roles = this.rolesStore.rolesById();
+      const currentKey = editableMessage
+        ? `${editableMessage.id}:${editableMessage.content}`
+        : null;
+
+      if (currentKey === this.lastEditableMessageKey) {
+        return;
+      }
+      this.lastEditableMessageKey = currentKey;
 
       if (!editableMessage) {
         this.control.setValue('', { emitEvent: false });
         return;
       }
 
-      const raw = editableMessage.content ?? '';
-      const resolved = enabled
-        ? deserializeMentionTokens(raw, (seg: TMentionSegment) => {
-            if (seg.type === 'everyone') {
-              return MENTION_EVERYONE;
-            }
-            if (seg.type === 'role') {
-              const role = roles[seg.id];
-              return role ? `@${role.name}` : `@${unknown}`;
-            }
-            if (seg.type === 'user') {
-              const user = users[seg.id];
-              return user ? `@${user.username}` : `@${unknown}`;
-            }
-            return `@${unknown}`;
-          })
-        : raw;
+      untracked(() => {
+        const enabled = this.mentionsEnabled;
+        const unknown = this.unknownLabel();
+        const users = this.usersStore.entityMap();
+        const roles = this.rolesStore.rolesById();
 
-      this.control.setValue(resolved, { emitEvent: false });
+        const raw = editableMessage.content ?? '';
+        const resolved = enabled
+          ? deserializeMentionTokens(raw, (seg: TMentionSegment) => {
+              if (seg.type === 'everyone') {
+                return MENTION_EVERYONE;
+              }
+              if (seg.type === 'role') {
+                const role = roles[seg.id];
+                return role ? `@${role.name}` : `@${unknown}`;
+              }
+              if (seg.type === 'user') {
+                const user = users[seg.id];
+                return user ? `@${user.username}` : `@${unknown}`;
+              }
+              return `@${unknown}`;
+            })
+          : raw;
+
+        this.control.setValue(resolved, { emitEvent: false });
+      });
     });
 
     effect(() => {
