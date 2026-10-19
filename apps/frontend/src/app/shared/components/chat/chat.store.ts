@@ -1016,7 +1016,17 @@ export const ChatStore = signalStore(
           if (!belongsToActiveChat(message)) {
             return;
           }
-          patchState(store, setEntity(toMessageEntity(message)));
+          const existing = store.entityMap()[message.id];
+          if (!existing) {
+            return;
+          }
+          patchState(
+            store,
+            setEntity({
+              ...toMessageEntity(message),
+              isRead: existing.isRead,
+            }),
+          );
         });
 
       fromEvent<TTextRoomReactionUpdated>(

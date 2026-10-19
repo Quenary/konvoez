@@ -700,14 +700,14 @@ describe('ChatStore', () => {
       expect(store.entityMap()['msg-socket-irrelevant']).toBeUndefined();
     });
 
-    it('should update message from socket on MESSAGE_EDITED', () => {
+    it('should update message content without changing read state on MESSAGE_EDITED', () => {
       store.join({ kind: 'room', id: 10 });
 
       const editedMessage: ITextRoomMessage = {
         ...message1,
         content: 'Edited via socket event',
         updatedAt: new Date('2026-09-15T00:20:00.000Z'),
-        isRead: false,
+        isRead: true,
         attachments: [],
         clientId: null,
       };
@@ -716,6 +716,20 @@ describe('ChatStore', () => {
       expect(store.entityMap()['msg-1'].content).toBe(
         'Edited via socket event',
       );
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+    });
+
+    it('should ignore MESSAGE_EDITED for messages outside the loaded window', () => {
+      store.join({ kind: 'room', id: 10 });
+      const initialEntities = store.entities();
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_EDITED, {
+        ...message1,
+        id: 'unloaded-message',
+        content: 'Edited outside the loaded window',
+      });
+
+      expect(store.entities()).toEqual(initialEntities);
     });
 
     it('should ignore socket messages that do not belong to the active chat', () => {
