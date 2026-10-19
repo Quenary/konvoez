@@ -137,6 +137,7 @@ VOICE:
   JOIN_FAILED: Couldn't join the voice channel
   ROOM_CLOSED: This voice room was closed
 ROOMS:
+  UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
   ORIGINAL_MESSAGE_DELETED: Original message was deleted
@@ -178,6 +179,9 @@ ROOMS:
     ALLOWED_ROLES: Allowed roles
     ALLOWED_USERS: Allowed users
     ALLOWED_NONE_HINT: Owner and admins always have access. Select roles or users to grant access to others.
+CHAT:
+  MENTION_EVERYONE_HINT: Notify everyone in this room
+  MENTION_UNKNOWN: unknown
 SETTINGS:
   PROFILE:
     TITLE: Profile settings
@@ -287,6 +291,7 @@ SETTINGS:
     COLOR_PLACEHOLDER: '#3b82f6'
     PERMISSIONS: Permissions
     IS_DEFAULT: Default role (assigned to all users)
+    MENTIONABLE: Allow mentioning this role
     DEFAULT_BADGE: Default
     CUSTOM_BADGE: Custom
     PERMISSIONS_COUNT: '{{count}} permissions'
@@ -303,6 +308,7 @@ SETTINGS:
       CONNECT_VOICE: Connect to voice
       USE_ATTACHMENTS: Use attachments
       MODERATE_MESSAGES: Moderate messages
+      MENTION_EVERYONE: Mention @everyone and roles
   ADMIN:
     TITLE: Administration
     SUBTITLE: Global server settings

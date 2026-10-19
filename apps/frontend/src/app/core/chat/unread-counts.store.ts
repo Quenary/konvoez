@@ -5,7 +5,12 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@core/auth/auth.selectors';
-import { ETextRoomEvent, ITextRoomMessage } from '@konvoez/shared';
+import {
+  ETextRoomEvent,
+  isMessageMentioningUser,
+  ITextRoomMessage,
+  IUser,
+} from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -21,6 +26,7 @@ import { ChatApiService } from '@core/api/chat-api.service';
 
 type UnreadCountsState = {
   rooms: Record<number, number>;
+  roomMentions: Record<number, number>;
   direct: Record<number, number>;
   activeRoomId: number | null;
   activeRecipientId: number | null;
@@ -43,6 +49,7 @@ export const UnreadCountsStore = signalStore(
   { providedIn: 'root' },
   withState<UnreadCountsState>({
     rooms: {},
+    roomMentions: {},
     direct: {},
     activeRoomId: null,
     activeRecipientId: null,
@@ -57,6 +64,10 @@ export const UnreadCountsStore = signalStore(
       return store.rooms()[roomId] ?? 0;
     },
 
+    roomMentionCount(roomId: number): number {
+      return store.roomMentions()[roomId] ?? 0;
+    },
+
     directUnreadCount(userId: number): number {
       return store.direct()[userId] ?? 0;
     },
@@ -69,10 +80,12 @@ export const UnreadCountsStore = signalStore(
       recipientId: number | null;
     }): void {
       const rooms = { ...store.rooms() };
+      const roomMentions = { ...store.roomMentions() };
       const direct = { ...store.direct() };
 
       if (roomId != null) {
         delete rooms[roomId];
+        delete roomMentions[roomId];
       }
 
       if (recipientId != null) {
@@ -83,6 +96,7 @@ export const UnreadCountsStore = signalStore(
         activeRoomId: roomId,
         activeRecipientId: recipientId,
         rooms,
+        roomMentions,
         direct,
       });
     },
@@ -94,7 +108,16 @@ export const UnreadCountsStore = signalStore(
       });
     },
 
-    handleNewMessage(message: ITextRoomMessage, currentUserId: number): void {
+    handleNewMessage(
+      message: ITextRoomMessage,
+      currentUser: Pick<IUser, 'id' | 'roles'> | number,
+    ): void {
+      const userObj =
+        typeof currentUser === 'number'
+          ? { id: currentUser, roles: [] }
+          : currentUser;
+      const currentUserId = userObj.id;
+
       if (message.senderId === currentUserId) {
         return;
       }
@@ -104,8 +127,18 @@ export const UnreadCountsStore = signalStore(
           return;
         }
 
+        const isMentioned = isMessageMentioningUser(message.mentions, userObj);
+
         patchState(store, {
           rooms: incrementCount(store.rooms(), message.roomId),
+          ...(isMentioned
+            ? {
+                roomMentions: incrementCount(
+                  store.roomMentions(),
+                  message.roomId,
+                ),
+              }
+            : {}),
         });
         return;
       }
@@ -124,9 +157,10 @@ export const UnreadCountsStore = signalStore(
       pipe(
         switchMap(() =>
           chatApiService.getUnreadCounts().pipe(
-            tap(({ rooms, direct }) => {
+            tap(({ rooms, roomMentions, direct }) => {
               patchState(store, {
                 rooms: parseCountMap(rooms),
+                roomMentions: parseCountMap(roomMentions ?? {}),
                 direct: parseCountMap(direct),
               });
             }),
@@ -152,6 +186,7 @@ export const UnreadCountsStore = signalStore(
           } else {
             patchState(store, {
               rooms: {},
+              roomMentions: {},
               direct: {},
               activeRoomId: null,
               activeRecipientId: null,
@@ -162,7 +197,7 @@ export const UnreadCountsStore = signalStore(
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_CREATED)
         .pipe(takeUntilDestroyed())
         .subscribe((message) => {
-          const me = currentUser()?.id;
+          const me = currentUser();
           if (!me) {
             return;
           }

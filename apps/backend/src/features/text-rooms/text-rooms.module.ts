@@ -5,17 +5,20 @@ import { TextRoomsController } from './text-rooms.controller';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
+  MessageMentionEntity,
   MessageReadEntity,
   MessageReactionEntity,
   MessageSearchTokenEntity,
 } from './text-rooms.entity';
 import { AttachmentsModule } from '../attachments/attachments.module';
 import { SettingsModule } from '../settings/settings.module';
+import { MentionsService } from './mentions.service';
 
 @Module({
   imports: [
     MikroOrmModule.forFeature([
       MessageEntity,
+      MessageMentionEntity,
       MessageReadEntity,
       MessageReactionEntity,
       MessageSearchTokenEntity,
@@ -24,6 +27,7 @@ import { SettingsModule } from '../settings/settings.module';
     SettingsModule,
   ],
   controllers: [TextRoomsController],
-  providers: [TextRoomsGateway, TextRoomsService],
+  providers: [TextRoomsGateway, TextRoomsService, MentionsService],
+  exports: [TextRoomsService, MentionsService],
 })
 export class TextRoomsModule {}

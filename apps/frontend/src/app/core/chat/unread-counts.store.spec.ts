@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { authReducer } from '@core/auth/auth.reducer';
@@ -70,6 +70,7 @@ describe('UnreadCountsStore', () => {
     clientId: null,
     replyTo: null,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
     ...overrides,
   });
 
@@ -80,6 +81,7 @@ describe('UnreadCountsStore', () => {
       getUnreadCounts: vi.fn(() =>
         of({
           rooms: { '10': 2 },
+          roomMentions: { '10': 1 },
           direct: { '5': 3 },
           directTotal: 3,
         }),
@@ -106,21 +108,26 @@ describe('UnreadCountsStore', () => {
 
   it('should start with empty unread maps', () => {
     expect(store.rooms()).toEqual({});
+    expect(store.roomMentions()).toEqual({});
     expect(store.direct()).toEqual({});
     expect(store.directTotal()).toBe(0);
+    expect(store.roomMentionCount(10)).toBe(0);
   });
 
   it('should load counts after login and reset them after logout', () => {
     ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
     expect(apiService.getUnreadCounts).toHaveBeenCalled();
     expect(store.rooms()).toEqual({ 10: 2 });
+    expect(store.roomMentions()).toEqual({ 10: 1 });
     expect(store.direct()).toEqual({ 5: 3 });
     expect(store.directTotal()).toBe(3);
     expect(store.roomUnreadCount(10)).toBe(2);
+    expect(store.roomMentionCount(10)).toBe(1);
     expect(store.directUnreadCount(5)).toBe(3);
 
     ngrxStore.dispatch(AuthActions.requestLogoutSuccess());
     expect(store.rooms()).toEqual({});
+    expect(store.roomMentions()).toEqual({});
     expect(store.direct()).toEqual({});
     expect(store.activeRoomId()).toBeNull();
     expect(store.activeRecipientId()).toBeNull();
@@ -135,6 +142,7 @@ describe('UnreadCountsStore', () => {
     store.load();
 
     expect(store.rooms()).toEqual({ 10: 2 });
+    expect(store.roomMentions()).toEqual({ 10: 1 });
     expect(store.direct()).toEqual({ 5: 3 });
   });
 
@@ -143,6 +151,7 @@ describe('UnreadCountsStore', () => {
     store.setActiveChat({ roomId: 10, recipientId: null });
 
     expect(store.roomUnreadCount(10)).toBe(0);
+    expect(store.roomMentionCount(10)).toBe(0);
     expect(store.activeRoomId()).toBe(10);
 
     store.handleNewMessage(incomingRoomMessage(), currentUser.id);
@@ -225,5 +234,78 @@ describe('UnreadCountsStore', () => {
     expect(store.activeRoomId()).toBeNull();
     expect(store.activeRecipientId()).toBeNull();
     expect(store.direct()).toEqual({ 5: 3 });
+  });
+
+  it('should track unread mentions when incoming message mentions user', () => {
+    ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
+    expect(store.roomMentionCount(10)).toBe(1);
+
+    // Active room does not increment
+    store.setActiveChat({ roomId: 10, recipientId: null });
+    expect(store.roomMentionCount(10)).toBe(0);
+
+    store.handleNewMessage(
+      incomingRoomMessage({
+        id: 'msg-mention-1',
+        roomId: 10,
+        mentions: { userIds: [currentUser.id], roleIds: [], everyone: false },
+      }),
+      currentUser,
+    );
+    expect(store.roomMentionCount(10)).toBe(0);
+
+    // Inactive room increments mention count
+    store.handleNewMessage(
+      incomingRoomMessage({
+        id: 'msg-mention-2',
+        roomId: 11,
+        mentions: { userIds: [currentUser.id], roleIds: [], everyone: false },
+      }),
+      currentUser,
+    );
+    expect(store.roomMentionCount(11)).toBe(1);
+
+    // Message without mention increments only rooms count, not mention count
+    store.handleNewMessage(
+      incomingRoomMessage({
+        id: 'msg-mention-3',
+        roomId: 11,
+        mentions: { userIds: [99], roleIds: [], everyone: false },
+      }),
+      currentUser,
+    );
+    expect(store.roomUnreadCount(11)).toBe(2);
+    expect(store.roomMentionCount(11)).toBe(1);
+
+    // Message mentioning role increments mention count if user has role
+    const userWithRole: IUser = {
+      ...currentUser,
+      roles: [{ id: 42, name: 'Moderator', priority: 1, mentionable: true }],
+    };
+    store.handleNewMessage(
+      incomingRoomMessage({
+        id: 'msg-mention-4',
+        roomId: 11,
+        mentions: { userIds: [], roleIds: [42], everyone: false },
+      }),
+      userWithRole,
+    );
+    expect(store.roomMentionCount(11)).toBe(2);
+
+    // Message with @everyone increments mention count
+    store.handleNewMessage(
+      incomingRoomMessage({
+        id: 'msg-mention-5',
+        roomId: 11,
+        mentions: { userIds: [], roleIds: [], everyone: true },
+      }),
+      currentUser,
+    );
+    expect(store.roomMentionCount(11)).toBe(3);
+
+    // Clearing room clears unread mentions too
+    store.setActiveChat({ roomId: 11, recipientId: null });
+    expect(store.roomMentionCount(11)).toBe(0);
+    expect(store.roomMentions()[11]).toBeUndefined();
   });
 });

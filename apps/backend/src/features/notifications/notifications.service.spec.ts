@@ -32,6 +32,7 @@ import webPush from 'web-push';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
 import { NotificationsDomainEvents } from './notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { PushSubscriptionEntity } from './notifications.entity';
@@ -502,6 +503,154 @@ describe('NotificationsService', () => {
 
       expect(loggerSpy).toHaveBeenCalledWith(
         'Failed to send direct call push notification',
+        error.stack,
+      );
+    });
+  });
+
+  describe('sendMentionNotification', () => {
+    it('should deliver notification to each recipient with mention payload', async () => {
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendMentionNotification({
+        recipientIds: [2, 3],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Hello @bob and @charlie',
+      });
+
+      expect(deliverSpy).toHaveBeenCalledTimes(2);
+      expect(deliverSpy).toHaveBeenCalledWith(2, {
+        title: 'alice · #general',
+        body: 'Hello @bob and @charlie',
+        tag: 'mention:msg-1',
+        data: {
+          type: 'mention',
+          roomId: 10,
+          messageId: 'msg-1',
+          senderId: 1,
+          url: '/text-room/10?message=msg-1',
+          onActionClick: {
+            default: {
+              operation: 'focusLastFocusedOrOpen',
+              url: '/text-room/10?message=msg-1',
+            },
+          },
+        },
+      });
+      expect(deliverSpy).toHaveBeenCalledWith(
+        3,
+        expect.objectContaining({
+          title: 'alice · #general',
+          tag: 'mention:msg-1',
+        }),
+      );
+    });
+
+    it('should continue delivering to other recipients if one fails', async () => {
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.sendMentionNotification({
+          recipientIds: [2, 3],
+          senderId: 1,
+          senderUsername: 'alice',
+          roomId: 10,
+          roomName: 'general',
+          messageId: 'msg-1',
+          messagePreview: 'Hello',
+        }),
+      ).resolves.not.toThrow();
+
+      expect(deliverSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return early without deliver if recipientIds is empty or body is empty', async () => {
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendMentionNotification({
+        recipientIds: [],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Hello',
+      });
+
+      await service.sendMentionNotification({
+        recipientIds: [2],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: '<p></p>',
+      });
+
+      expect(deliverSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onMentionNotification', () => {
+    it('is registered for MENTION event', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        NotificationsService.prototype.onMentionNotification,
+      );
+      const events = metadata.map((m: { event: string }) => m.event);
+      expect(events).toContain(NotificationsDomainEvents.MENTION);
+    });
+
+    it('should delegate to sendMentionNotification with payload data', async () => {
+      const sendSpy = jest
+        .spyOn(service, 'sendMentionNotification')
+        .mockResolvedValue();
+
+      const payload = {
+        recipientIds: [2],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Hello',
+      };
+
+      await service.onMentionNotification(payload);
+
+      expect(sendSpy).toHaveBeenCalledWith(payload);
+    });
+
+    it('should catch and log error if sending mention notification fails', async () => {
+      const error = new Error('Mention notification failed');
+      jest.spyOn(service, 'sendMentionNotification').mockRejectedValue(error);
+      const loggerSpy = jest
+        .spyOn(service['logger'], 'error')
+        .mockImplementation();
+
+      await service.onMentionNotification({
+        recipientIds: [2],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Hello',
+      });
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Failed to send mention push notification',
         error.stack,
       );
     });

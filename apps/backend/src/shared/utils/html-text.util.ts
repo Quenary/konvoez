@@ -26,3 +26,27 @@ export function htmlToPlainText(html: string, maxLength?: number): string {
 
   return `${chars.slice(0, maxLength - 3).join('')}...`;
 }
+
+const BASIC_ENTITIES: Record<string, string> = {
+  lt: '<',
+  gt: '>',
+  amp: '&',
+  quot: '"',
+  '#39': "'",
+};
+
+export function decodeBasicEntities(text: string): string {
+  return text.replace(
+    /&(lt|gt|amp|quot|#39);/g,
+    (_, entity: string) => BASIC_ENTITIES[entity] ?? `&${entity};`,
+  );
+}
+
+const CODE_BLOCK_REGEX = /<(pre|code)\b[^>]*>[\s\S]*?<\/\1>/gi;
+const BLOCK_BOUNDARY_REGEX = /<br\s*\/?>|<\/(p|div|li|blockquote|h[1-6])>/gi;
+
+export function htmlToMentionText(html: string): string {
+  const withoutCodeBlocks = html.replace(CODE_BLOCK_REGEX, '');
+  const separated = withoutCodeBlocks.replace(BLOCK_BOUNDARY_REGEX, ' $&');
+  return decodeBasicEntities(htmlToPlainText(separated));
+}

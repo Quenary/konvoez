@@ -14,6 +14,7 @@ export enum EPermission {
   MODERATE_MESSAGES = 'MODERATE_MESSAGES',
   USE_ATTACHMENTS = 'USE_ATTACHMENTS',
   CONNECT_VOICE = 'CONNECT_VOICE',
+  MENTION_EVERYONE = 'MENTION_EVERYONE',
 }
 
 export const DEFAULT_USER_PERMISSIONS: readonly EPermission[] = [
@@ -28,6 +29,7 @@ export const DEFAULT_MODERATOR_PERMISSIONS: readonly EPermission[] = [
   EPermission.USE_ATTACHMENTS,
   EPermission.MODERATE_MESSAGES,
   EPermission.MANAGE_ROOMS,
+  EPermission.MENTION_EVERYONE,
 ] as const;
 
 export const ALL_PERMISSIONS: readonly EPermission[] = Object.values(
@@ -128,6 +130,7 @@ export enum EEntitySyncEvent {
   VOICE_ROOM_PEER_MUTED = 'voice-room-peer-muted',
   USER_PRESENCE_CHANGED = 'user-presence-changed',
   USER_PRESENCE_SNAPSHOT = 'user-presence-snapshot',
+  ROLES_CHANGED = 'roles-changed',
   ERROR = 'error',
 }
 

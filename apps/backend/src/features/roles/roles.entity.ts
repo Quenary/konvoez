@@ -12,6 +12,7 @@ export const RoleEntitySchema = defineEntity({
     color: p.string().length(32).nullable(),
     priority: p.integer().default(0),
     isDefault: p.boolean().default(false),
+    mentionable: p.boolean().default(false),
     permissions: p.json<EPermission[]>().default('[]'),
   },
 });

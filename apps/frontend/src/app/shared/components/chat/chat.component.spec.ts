@@ -11,17 +11,20 @@ describe('ChatComponent', () => {
   let fixture: ComponentFixture<ChatComponent>;
   let join: ReturnType<typeof vi.fn>;
   let leave: ReturnType<typeof vi.fn>;
+  let jumpToMessage: ReturnType<typeof vi.fn>;
   let target: ReturnType<typeof signal<ChatTarget | null>>;
 
   beforeEach(async () => {
     join = vi.fn();
     leave = vi.fn();
+    jumpToMessage = vi.fn();
     target = signal<ChatTarget | null>(null);
 
     const chatStoreMock = {
       target,
       join,
       leave,
+      jumpToMessage,
       isSearchOpen: signal(false).asReadonly(),
       setSearchQuery: vi.fn(),
       setSearchOpen: vi.fn(),
@@ -99,5 +102,28 @@ describe('ChatComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.isOnline()).toBe(false);
     expect(fixture.nativeElement.querySelector('.online-badge')).toBeNull();
+  });
+
+  it('passes initialMessageId to join when initialMessageId input is provided', () => {
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('roomId', 1);
+    fixture.componentRef.setInput('title', 'room');
+    fixture.componentRef.setInput('initialMessageId', 'msg-target-1');
+    fixture.detectChanges();
+
+    expect(join).toHaveBeenCalledWith({ kind: 'room', id: 1 }, 'msg-target-1');
+  });
+
+  it('triggers jumpToMessage when initialMessageId changes while already joined', () => {
+    target.set({ kind: 'room', id: 1 });
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('roomId', 1);
+    fixture.componentRef.setInput('title', 'room');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('initialMessageId', 'msg-target-dynamic');
+    fixture.detectChanges();
+
+    expect(jumpToMessage).toHaveBeenCalledWith('msg-target-dynamic');
   });
 });

@@ -8,6 +8,11 @@ Related user APIs: directory listing is authenticated `GET /api/v1/users` and `G
 
 `PATCH /api/v1/user-management/:id` with `{ roleIds: number[] }` updates assigned roles for a user. Requires `MANAGE_ROLES` permission (or `isOwner: true`).
 
+Roles also configure mention settings:
+
+- **`mentionable`**: a boolean flag indicating whether the role can be tagged by members in text rooms.
+- **`MENTION_EVERYONE` permission**: grants the ability to use `@everyone` to notify all room members. Users without this permission can type `@everyone`, but it will be treated as plain text.
+
 ## Logical deletion
 
 `POST /api/v1/user-management/:id/anonymize` (requires `MANAGE_USERS` or `isOwner: true`).

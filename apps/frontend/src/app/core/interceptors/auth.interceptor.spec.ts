@@ -48,6 +48,7 @@ describe('authInterceptor', () => {
   });
 
   afterEach(() => {
+    store.resetSelectors();
     TestBed.resetTestingModule();
   });
 

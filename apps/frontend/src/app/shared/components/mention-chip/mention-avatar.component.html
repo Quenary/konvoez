@@ -1,0 +1,22 @@
+@let a = avatar();
+@switch (a.kind) {
+  @case ('user') {
+    <app-user-avatar
+      size="xs"
+      [username]="a.username"
+      [fullname]="a.fullname"
+      [avatarUrl]="a.avatarUrl" />
+  }
+  @case ('role') {
+    <span
+      tuiAvatar
+      size="xs"
+      [style.background]="a.color ?? (a.name | tuiAutoColor)"
+      [style.color]="'var(--tui-text-primary-on-accent-1)'">
+      {{ a.name | tuiInitials }}
+    </span>
+  }
+  @case ('everyone') {
+    <tui-icon icon="@tui.users" />
+  }
+}

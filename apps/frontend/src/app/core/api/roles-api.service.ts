@@ -17,6 +17,10 @@ export class RolesApiService {
     });
   }
 
+  findAll(): Observable<IRole[]> {
+    return this.list();
+  }
+
   create(dto: ICreateRole): Observable<IRole> {
     return this.httpClient.post<IRole>(this.baseUrl, dto, {
       withCredentials: true,

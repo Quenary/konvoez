@@ -56,6 +56,23 @@ describe('resolveNotificationUrl', () => {
     expect(url).toBe('/text-room/3');
   });
 
+  it('falls back to mention room and message url when type is mention', () => {
+    const url = resolveNotificationUrl({
+      type: 'mention',
+      roomId: 10,
+      messageId: '00000000-0000-7000-8000-000000000001',
+    });
+    expect(url).toBe(
+      '/text-room/10?message=00000000-0000-7000-8000-000000000001',
+    );
+
+    const urlWithoutMsg = resolveNotificationUrl({
+      type: 'mention',
+      roomId: 10,
+    });
+    expect(urlWithoutMsg).toBe('/text-room/10');
+  });
+
   it('falls back to recipientId for direct-message if senderId is absent', () => {
     const url = resolveNotificationUrl({
       recipientId: 5,

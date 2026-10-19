@@ -24,7 +24,14 @@
         {{ reply.senderUsername }}
       </div>
       <div class="reply-text">
-        {{ reply.content | textContent }}
+        {{
+          reply.content
+            | textContent
+              : mentionsEnabled
+              : usersById()
+              : rolesById()
+              : unknownLabel()
+        }}
       </div>
     </div>
 
@@ -67,7 +74,17 @@
     class="field-editor"
     [formControl]="control"
     [tools]="tools"
-    [floatingToolbar]="true">
+    [floatingToolbar]="true"
+    [tuiDropdownOpen]="mentionOpen()"
+    (tuiDropdownOpenChange)="onMentionDropdown($event)"
+    (loaded)="onEditorLoaded()">
+    @if (mentionsEnabled) {
+      <ng-container *tuiDropdown>
+        <app-mention-suggestions
+          [items]="suggestionVms()"
+          (picked)="insertMention($event)" />
+      </ng-container>
+    }
   </tui-editor>
 
   <button

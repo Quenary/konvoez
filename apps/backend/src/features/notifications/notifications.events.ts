@@ -5,6 +5,7 @@ export const NotificationsDomainEvents = {
   DIRECT_MESSAGE: 'notifications.direct-message',
   DIRECT_CALL: 'notifications.direct-call',
   DELIVER: 'notifications.deliver',
+  MENTION: 'notifications.mention',
 } as const;
 
 export type TNotificationsDomainEvent =
@@ -16,6 +17,16 @@ export type IDirectMessageNotificationPayload = {
   senderUsername: string;
   messagePreview: string;
   messageId: string;
+};
+
+export type IMentionNotificationPayload = {
+  recipientIds: number[];
+  senderId: number;
+  senderUsername: string;
+  roomId: number;
+  roomName: string;
+  messageId: string;
+  messagePreview: string;
 };
 
 export type IDirectCallNotificationPayload = {
@@ -34,6 +45,7 @@ export type TNotificationsDomainPayloadMap = {
   [NotificationsDomainEvents.DIRECT_MESSAGE]: IDirectMessageNotificationPayload;
   [NotificationsDomainEvents.DIRECT_CALL]: IDirectCallNotificationPayload;
   [NotificationsDomainEvents.DELIVER]: INotificationDeliverPayload;
+  [NotificationsDomainEvents.MENTION]: IMentionNotificationPayload;
 };
 
 export const emitNotificationsDomainEvent =

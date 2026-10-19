@@ -8,6 +8,7 @@ import {
   Sanitizer,
   SecurityContext,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -25,10 +26,12 @@ import { TuiEditorSocket } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import {
   canDeleteTextRoomMessage,
+  IMentionSet,
   ITextRoomMessageReply,
   IUser,
 } from '@konvoez/shared';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
+import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
@@ -46,6 +49,16 @@ import { EAttachmentKind } from '@konvoez/shared';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
 import { ExternalLinkClickDirective } from '@shared/directives/external-link-click.directive';
 import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
+import { MentionChipsDirective } from '@shared/components/mention-chip/mention-chips.directive';
+import { IMentionChipContext } from '@shared/components/mention-chip/mention-chip.vm';
+import { insertMentionPlaceholders } from './render-mentions';
+
+const EMPTY_MENTIONS: IMentionSet = {
+  userIds: [],
+  roleIds: [],
+  everyone: false,
+};
 
 @Component({
   selector: 'app-chat-message',
@@ -70,7 +83,11 @@ import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.di
     TodayDayjsPipe,
     ExternalLinkClickDirective,
     WithUserDialogDirective,
+    MentionChipsDirective,
   ],
+  host: {
+    '(click)': 'onHostClick($event)',
+  },
   templateUrl: './chat-message.component.html',
   styleUrl: './chat-message.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -79,21 +96,49 @@ export class ChatMessageComponent {
   private readonly store = inject(Store);
   private readonly chatStore = inject(ChatStore);
   private readonly usersStore = inject(UsersStore);
+  protected readonly rolesStore = inject(RolesStore);
   private readonly sanitizer = inject(Sanitizer);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly tuiDialogService = inject(TuiDialogService);
   private readonly chatApiService = inject(ChatApiService);
   private readonly outgoingStore = inject(OutgoingMessagesStore);
+  private readonly userDialogService = inject(UserDialogService);
+
   public readonly message = input.required<IMessageEntity>();
 
-  private readonly emptyProgress: Record<string, number> = {};
-
   protected readonly usersById = computed(() => this.usersStore.entityMap());
+
+  protected readonly isRoomMessage = computed(
+    () => this.message().roomId != null,
+  );
 
   protected readonly sanitizedContent = computed(() =>
     this.sanitizer.sanitize(SecurityContext.HTML, this.message().content),
   );
+
+  protected readonly contentHtml = computed(() => {
+    const isRoom = this.isRoomMessage();
+    const sanitized = this.sanitizedContent();
+    return isRoom ? insertMentionPlaceholders(sanitized ?? '') : sanitized;
+  });
+
+  protected readonly mentionCtx = computed<IMentionChipContext>(() => {
+    const usersById = this.usersById();
+    const rolesById = this.rolesStore.rolesById();
+    const me = this.currentUser();
+    const unknownLabel = this.unknownLabel();
+    const isOwn = this.isOwnMessage();
+    const mentions = this.message().mentions;
+    const accepted = isOwn ? EMPTY_MENTIONS : mentions;
+    return {
+      usersById,
+      rolesById,
+      me,
+      unknownLabel,
+      accepted,
+    };
+  });
 
   protected readonly attachmentList = computed(
     () => this.message().attachments ?? [],
@@ -164,7 +209,13 @@ export class ChatMessageComponent {
 
   protected readonly hasText = computed(() => {
     const content = this.sanitizedContent();
-    return !!content && content.replace(/<[^>]*>/g, '').trim().length > 0;
+    if (!content) {
+      return false;
+    }
+    return (
+      content.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/gi, '').trim()
+        .length > 0
+    );
   });
 
   protected readonly senderUser = computed(() => {
@@ -216,11 +267,9 @@ export class ChatMessageComponent {
   });
 
   protected readonly shouldShowAvatar = computed(() => {
-    // In private chats, don't show avatar for anyone
     if (this.isDirectChat()) {
       return false;
     }
-    // For group chats, show avatar only for other's messages
     return !this.isOwnMessage();
   });
 
@@ -270,9 +319,40 @@ export class ChatMessageComponent {
   protected readonly readersLoading = signal(false);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  protected readonly unknownLabel = toSignal(
+    this.translateService.stream('CHAT.MENTION_UNKNOWN'),
+    { initialValue: 'unknown' },
+  );
+  private readonly emptyProgress: Record<string, number> = {};
+
   protected readonly currentUserId = computed(
     () => this.currentUser()?.id ?? null,
   );
+
+  protected onHostClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    const chip = target.closest<HTMLElement>(
+      'app-mention-chip[data-kind="user"], span[data-type="mention"][data-kind="user"]',
+    );
+    if (!chip) {
+      return;
+    }
+    const rawId = chip.getAttribute('data-id');
+    if (!rawId) {
+      return;
+    }
+    const id = parseInt(rawId, 10);
+    if (!Number.isFinite(id)) {
+      return;
+    }
+    const user = this.usersById()[id];
+    if (user) {
+      this.userDialogService.open(user);
+    }
+  }
 
   protected onReactionSelect(emoji: string): void {
     if (this.outgoing()) {

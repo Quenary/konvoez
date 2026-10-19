@@ -29,10 +29,16 @@ describe('RolesApiService', () => {
       withCredentials: true,
     });
 
+    service.findAll().subscribe();
+    expect(get).toHaveBeenCalledWith('/api/v1/roles', {
+      withCredentials: true,
+    });
+
     const createDto = {
       name: 'Tester',
       priority: 0,
       isDefault: false,
+      mentionable: false,
       permissions: [EPermission.SEND_MESSAGES],
     };
     service.create(createDto).subscribe();

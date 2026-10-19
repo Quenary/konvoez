@@ -108,6 +108,38 @@ export class UsersService {
     });
   }
 
+  async findMentionCandidates(options: {
+    everyone: boolean;
+    userIds: number[];
+    roleIds: number[];
+  }): Promise<UserEntity[]> {
+    return ensureRequestContext(this.em, async () => {
+      if (options.everyone) {
+        return this.repo.find({ deletedAt: null }, { populate: ['roles'] });
+      }
+
+      const orConditions: FilterQuery<UserEntity>[] = [];
+      if (options.userIds.length > 0) {
+        orConditions.push({ id: { $in: options.userIds } });
+      }
+      if (options.roleIds.length > 0) {
+        orConditions.push({ roles: { $in: options.roleIds } });
+      }
+
+      if (orConditions.length === 0) {
+        return [];
+      }
+
+      return this.repo.find(
+        {
+          deletedAt: null,
+          $or: orConditions,
+        },
+        { populate: ['roles'] },
+      );
+    });
+  }
+
   async updateUserRoles(
     user: UserEntity,
     roles: RoleEntity[],
@@ -212,6 +244,7 @@ export class UsersService {
           name: r.name,
           color: r.color ?? null,
           priority: r.priority,
+          mentionable: r.mentionable,
         }))
       : [];
 

@@ -83,5 +83,26 @@ describe('role.schemas', () => {
 
     const parsed = roleSchema.safeParse(entity);
     expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.mentionable).toBe(false);
+    }
+  });
+
+  it('handles mentionable field in create, update, and role entities', () => {
+    const created = createRoleSchema.parse({
+      name: 'Pingable',
+      mentionable: true,
+    });
+    expect(created.mentionable).toBe(true);
+
+    const defaultCreated = createRoleSchema.parse({
+      name: 'Standard',
+    });
+    expect(defaultCreated.mentionable).toBe(false);
+
+    const updated = updateRoleSchema.parse({
+      mentionable: true,
+    });
+    expect(updated.mentionable).toBe(true);
   });
 });

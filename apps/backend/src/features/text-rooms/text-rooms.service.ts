@@ -11,6 +11,7 @@ import { SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
+  MessageMentionEntity,
   MessageReadEntity,
   MessageReactionEntity,
   MessageSearchTokenEntity,
@@ -47,14 +48,19 @@ import {
   EPermission,
   ESettingKey,
   IAttachment,
+  IMentionSet,
   ITextRoomMessage,
   ITextRoomMessageReply,
   ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
 } from '@konvoez/shared';
-import { htmlToPlainText } from '@shared/utils/html-text.util';
+import {
+  htmlToMentionText,
+  htmlToPlainText,
+} from '@shared/utils/html-text.util';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
+import { MentionsService } from './mentions.service';
 
 @Injectable()
 export class TextRoomsService {
@@ -69,12 +75,15 @@ export class TextRoomsService {
     private readonly messageReadRepository: EntityRepository<MessageReadEntity>,
     @InjectRepository(MessageReactionEntity)
     private readonly messageReactionRepository: EntityRepository<MessageReactionEntity>,
+    @InjectRepository(MessageMentionEntity)
+    private readonly messageMentionRepository: EntityRepository<MessageMentionEntity>,
     private readonly usersService: UsersService,
     private readonly roomsFacade: RoomsFacade,
     private readonly encryptionService: EncryptionService,
     private readonly eventEmitter: EventEmitter2,
     private readonly attachmentsService: AttachmentsService,
     private readonly settingsService: SettingsService,
+    private readonly mentionsService: MentionsService,
   ) {}
 
   private entityToDto(
@@ -126,6 +135,11 @@ export class TextRoomsService {
       attachments: [...attachments],
       clientId: data.clientId ? uuidStringify(data.clientId) : null,
       reactions: [...reactions],
+      mentions: data.mentions ?? {
+        userIds: [],
+        roleIds: [],
+        everyone: false,
+      },
     };
   }
 
@@ -190,6 +204,22 @@ export class TextRoomsService {
     const plain = htmlToPlainText(content);
     if (plain.length > 0) {
       return plain;
+    }
+    return `📎 ${attachments.map((item) => item.name).join(', ')}`;
+  }
+
+  private mentionMessagePreview(
+    content: string,
+    attachments: readonly IAttachment[],
+    usersById: Record<number, { username: string }>,
+    rolesById: Record<number, { name: string }>,
+  ): string {
+    const mentionText = htmlToMentionText(content);
+    const rendered = this.mentionsService
+      .renderPlainPreview(mentionText, usersById, rolesById)
+      .trim();
+    if (rendered.length > 0) {
+      return rendered;
     }
     return `📎 ${attachments.map((item) => item.name).join(', ')}`;
   }
@@ -291,7 +321,7 @@ export class TextRoomsService {
   async getUnreadCounts(user: GetUserDto): Promise<ITextRoomUnreadCounts> {
     const userId = user.id;
 
-    const [roomRows, directRows] = await Promise.all([
+    const [roomRows, directRows, mentionRows] = await Promise.all([
       this.messageQueryBuilder
         .createQueryBuilder('m')
         .select(['m.room as roomId', raw('count(*) as count')])
@@ -313,15 +343,39 @@ export class TextRoomsService {
         })
         .groupBy('m.sender')
         .execute<Array<{ senderId: number; count: number }>>('all'),
+      (
+        this
+          .messageMentionRepository as unknown as SqlEntityRepository<MessageMentionEntity>
+      )
+        .createQueryBuilder('mm')
+        .join('mm.message', 'm')
+        .select(['m.room as roomId', raw('count(*) as count')])
+        .where({
+          user: userId,
+          'm.sender': { $ne: userId },
+          'm.room': { $ne: null },
+          'm.id': { $nin: this.createUnreadMessageIdsSubquery(userId) },
+        })
+        .groupBy('m.room')
+        .execute<Array<{ roomId: number; count: number }>>('all'),
     ]);
 
     const accessibleRoomIds = await this.roomsFacade.getAccessibleRoomIds(user);
     const accessibleRoomRows = roomRows.filter((row) =>
       accessibleRoomIds.has(Number(row.roomId)),
     );
+    const accessibleMentionRows = mentionRows.filter((row) =>
+      accessibleRoomIds.has(Number(row.roomId)),
+    );
 
     const rooms = Object.fromEntries(
       accessibleRoomRows.map((row) => [String(row.roomId), Number(row.count)]),
+    );
+    const roomMentions = Object.fromEntries(
+      accessibleMentionRows.map((row) => [
+        String(row.roomId),
+        Number(row.count),
+      ]),
     );
     const direct = Object.fromEntries(
       directRows.map((row) => [String(row.senderId), Number(row.count)]),
@@ -331,7 +385,7 @@ export class TextRoomsService {
       0,
     );
 
-    return { rooms, direct, directTotal };
+    return { rooms, roomMentions, direct, directTotal };
   }
 
   async getDirectChats(user: GetUserDto): Promise<GetUserDto[]> {
@@ -598,9 +652,12 @@ export class TextRoomsService {
     }
 
     if (dto.roomId) {
-      await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
-      room = this.em.getReference(RoomEntity, dto.roomId);
+      room = await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
     }
+
+    const resolvedMentions = room
+      ? await this.mentionsService.resolve(user, room, dto.content)
+      : null;
 
     let replyToId: Uint8Array | null = null;
     let replyTarget: MessageEntity | null = null;
@@ -641,6 +698,7 @@ export class TextRoomsService {
       dto.content,
     );
 
+    let addedRecipientIds: number[] = [];
     let message: MessageEntity;
     try {
       message = await this.em.transactional(async (tx) => {
@@ -648,12 +706,17 @@ export class TextRoomsService {
           {
             sender: tx.getReference(UserEntity, user.id),
             recipient,
-            room,
+            room: room ? tx.getReference(RoomEntity, room.id) : null,
             replyToId,
             clientId: dto.clientId ? parse(dto.clientId) : null,
             contentEncrypted: encrypted,
             iv,
             authTag,
+            mentions: resolvedMentions?.effective ?? {
+              userIds: [],
+              roleIds: [],
+              everyone: false,
+            },
           },
           { persist: true },
         );
@@ -662,6 +725,13 @@ export class TextRoomsService {
         }
         this.indexSearchTokens(tx, created, dto.content);
         await tx.flush();
+        if (resolvedMentions) {
+          addedRecipientIds = await this.mentionsService.replace(
+            tx,
+            created.id,
+            resolvedMentions.recipientIds,
+          );
+        }
         if (attachmentIds.length > 0) {
           await this.attachmentsService.claimForMessage(
             tx,
@@ -736,6 +806,27 @@ export class TextRoomsService {
       );
     }
 
+    if (room && addedRecipientIds.length > 0 && resolvedMentions) {
+      emitNotificationsDomainEvent(
+        this.eventEmitter,
+        NotificationsDomainEvents.MENTION,
+        {
+          recipientIds: addedRecipientIds,
+          senderId: messageDto.senderId,
+          senderUsername: messageDto.senderUsername,
+          roomId: room.id,
+          roomName: room.name,
+          messageId: messageDto.id,
+          messagePreview: this.mentionMessagePreview(
+            dto.content,
+            messageDto.attachments,
+            resolvedMentions.usersById,
+            resolvedMentions.rolesById,
+          ),
+        },
+      );
+    }
+
     return messageDto;
   }
 
@@ -746,7 +837,16 @@ export class TextRoomsService {
   ): Promise<ITextRoomMessage> {
     let message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender', 'replyTo', 'replyTo.sender'] },
+      {
+        populate: [
+          'sender',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+          'replyTo',
+          'replyTo.sender',
+        ],
+      },
     );
 
     if (!message) {
@@ -777,10 +877,26 @@ export class TextRoomsService {
       dto.content,
     );
 
+    let resolved:
+      Awaited<ReturnType<typeof this.mentionsService.resolve>> | undefined;
+    let effectiveMentions: IMentionSet | undefined;
+    let recipientIds: number[] | undefined;
+
+    if (message.room) {
+      resolved = await this.mentionsService.resolve(
+        user,
+        message.room,
+        dto.content,
+      );
+      effectiveMentions = resolved.effective;
+      recipientIds = resolved.recipientIds;
+    }
+
     message = this.messageRepository.assign(message, {
       contentEncrypted: encrypted,
       iv,
       authTag,
+      ...(effectiveMentions ? { mentions: effectiveMentions } : {}),
     });
 
     await this.em.nativeDelete(MessageSearchTokenEntity, {
@@ -790,6 +906,15 @@ export class TextRoomsService {
 
     this.em.persist(message);
     await this.em.flush();
+
+    let addedRecipientIds: number[] = [];
+    if (message.room && recipientIds) {
+      addedRecipientIds = await this.mentionsService.replace(
+        this.em,
+        message.id,
+        recipientIds,
+      );
+    }
 
     const [isReadMap, updatedAttachments, reactions] = await Promise.all([
       this.buildIsReadMap([message], user.id),
@@ -808,6 +933,28 @@ export class TextRoomsService {
       TextRoomsDomainEvents.MESSAGE_UPDATED,
       messageDto,
     );
+
+    if (message.room && addedRecipientIds.length > 0 && resolved) {
+      emitNotificationsDomainEvent(
+        this.eventEmitter,
+        NotificationsDomainEvents.MENTION,
+        {
+          recipientIds: addedRecipientIds,
+          senderId: messageDto.senderId,
+          senderUsername: messageDto.senderUsername,
+          roomId: message.room.id,
+          roomName: message.room.name,
+          messageId: messageDto.id,
+          messagePreview: this.mentionMessagePreview(
+            dto.content,
+            messageDto.attachments,
+            resolved.usersById,
+            resolved.rolesById,
+          ),
+        },
+      );
+    }
+
     return messageDto;
   }
 

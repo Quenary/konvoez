@@ -55,7 +55,7 @@ export class RoomsFacade {
   async assertCanAccessRoom(
     user: TRoomAccessUser,
     roomId: number,
-  ): Promise<void> {
+  ): Promise<RoomEntity> {
     const room = await this.roomsService.findOne(roomId);
     if (!this.roomsService.canAccessRoom(user, room)) {
       throw AppException.forbidden(
@@ -63,6 +63,7 @@ export class RoomsFacade {
         'Access to room is denied',
       );
     }
+    return room;
   }
 
   async getAccessibleRoomIds(user: GetUserDto): Promise<Set<number>> {

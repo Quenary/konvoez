@@ -17,12 +17,14 @@ class MockChatComponent {
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
+  public readonly initialMessageId = input<string | null>(null);
 }
 
 describe('TextRoomComponent', () => {
   let component: TextRoomComponent;
   let fixture: ComponentFixture<TextRoomComponent>;
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  let queryParamMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   let routerNavigate: ReturnType<typeof vi.fn>;
   let roomsDictSignal: ReturnType<typeof signal<Record<number, IRoom>>>;
 
@@ -49,6 +51,7 @@ describe('TextRoomComponent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     paramMap$ = new BehaviorSubject(convertToParamMap({ id: '42' }));
+    queryParamMap$ = new BehaviorSubject(convertToParamMap({}));
     routerNavigate = vi.fn().mockResolvedValue(true);
     roomsDictSignal = signal<Record<number, IRoom>>({
       42: { id: 42, name: 'General', avatarUrl: null } as IRoom,
@@ -70,6 +73,7 @@ describe('TextRoomComponent', () => {
           provide: ActivatedRoute,
           useValue: {
             paramMap: paramMap$,
+            queryParamMap: queryParamMap$,
           },
         },
       ],
@@ -132,5 +136,21 @@ describe('TextRoomComponent', () => {
     await fixture.whenStable();
 
     expect(routerNavigate).not.toHaveBeenCalled();
+  });
+
+  it('reads message query param and clears it via router navigation', async () => {
+    routerNavigate.mockClear();
+
+    queryParamMap$.next(convertToParamMap({ message: 'msg-mention-123' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['targetMessageId']()).toBe('msg-mention-123');
+    expect(routerNavigate).toHaveBeenCalledWith([], {
+      relativeTo: expect.anything(),
+      queryParams: { message: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   });
 });

@@ -291,6 +291,24 @@ describe('EntitySyncGateway', () => {
     expect(userPresenceServiceMock.removeSocket).not.toHaveBeenCalled();
   });
 
+  describe('onRolesChanged', () => {
+    it('is registered for ROLES_CHANGED event', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        EntitySyncGateway.prototype.onRolesChanged,
+      );
+      const events = metadata.map((m: { event: string }) => m.event);
+      expect(events).toContain(RolesDomainEvents.ROLES_CHANGED);
+    });
+
+    it('broadcasts ROLES_CHANGED event to all clients', () => {
+      gateway.onRolesChanged();
+      expect(serverMock.emit).toHaveBeenCalledWith(
+        EEntitySyncEvent.ROLES_CHANGED,
+      );
+    });
+  });
+
   describe('onUserPermissionsChanged', () => {
     it('is registered for both ROLE_PERMISSIONS_CHANGED and USER_PERMISSIONS_CHANGED events', () => {
       const metadata = Reflect.getMetadata(

@@ -72,8 +72,15 @@
                 {{ replyUsername }}
               </span>
               <span class="message-reply-content">
-                @if (reply.content | textContent) {
-                  {{ reply.content | textContent }}
+                @let replyPreview =
+                  reply.content
+                    | textContent
+                      : isRoomMessage()
+                      : usersById()
+                      : rolesStore.rolesById()
+                      : unknownLabel();
+                @if (replyPreview) {
+                  {{ replyPreview }}
                 } @else {
                   📎 {{ 'ROOMS.ATTACHMENT' | translate }}
                 }
@@ -91,11 +98,20 @@
         }
 
         @if (hasText()) {
-          <tui-editor-socket
-            appExternalLinkClick
-            class="message-body-content"
-            [content]="sanitizedContent()">
-          </tui-editor-socket>
+          @if (isRoomMessage()) {
+            <tui-editor-socket
+              appExternalLinkClick
+              [appMentionChips]="mentionCtx()"
+              class="message-body-content"
+              [content]="contentHtml()">
+            </tui-editor-socket>
+          } @else {
+            <tui-editor-socket
+              appExternalLinkClick
+              class="message-body-content"
+              [content]="contentHtml()">
+            </tui-editor-socket>
+          }
         }
 
         <app-chat-message-reactions
