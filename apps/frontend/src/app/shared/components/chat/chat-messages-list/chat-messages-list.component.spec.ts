@@ -74,6 +74,7 @@ describe('ChatMessagesListComponent', () => {
     setEditableMessageId: vi.fn(),
     deleteMessage: vi.fn(),
     jumpToMessage: vi.fn(),
+    unreadDividerMessageId: signal<string | null>(null),
   };
 
   const mockUsersStore = {
@@ -84,6 +85,7 @@ describe('ChatMessagesListComponent', () => {
     vi.clearAllMocks();
     mockChatStore.messages.set(mockMessages);
     mockChatStore.targetScrollMessageId.set(null);
+    mockChatStore.unreadDividerMessageId.set(null);
     Element.prototype.scrollTo = vi.fn();
 
     class MockIntersectionObserver {
@@ -237,6 +239,24 @@ describe('ChatMessagesListComponent', () => {
     ]);
     TestBed.flushEffects();
     expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('should render unread divider item before message matching unreadDividerMessageId', () => {
+    mockChatStore.unreadDividerMessageId.set('msg-2');
+    fixture.detectChanges();
+
+    const divider = fixture.nativeElement.querySelector('#unread-divider');
+    expect(divider).toBeTruthy();
+
+    const children = Array.from(
+      fixture.nativeElement.querySelector('.scroll-container')?.children ?? [],
+    ) as HTMLElement[];
+    const dividerIndex = children.findIndex((el) => el.id === 'unread-divider');
+    const msg2Index = children.findIndex(
+      (el) => el.querySelector('#message-msg-2') || el.id === 'message-msg-2',
+    );
+    expect(dividerIndex).toBeGreaterThan(-1);
+    expect(msg2Index).toBe(dividerIndex + 1);
   });
 });
 

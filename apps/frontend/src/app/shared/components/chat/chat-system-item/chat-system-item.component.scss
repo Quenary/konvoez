@@ -1,0 +1,27 @@
+:host {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+.chat-system-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.chat-system-item-line {
+  flex: 1 1 auto;
+  height: 1px;
+  background-color: var(--tui-border-normal);
+  opacity: 0.6;
+}
+
+.chat-system-item-text {
+  font: var(--tui-font-text-xs);
+  color: var(--tui-text-secondary);
+  white-space: nowrap;
+  user-select: none;
+}

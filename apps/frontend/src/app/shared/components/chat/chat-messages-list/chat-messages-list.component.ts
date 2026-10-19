@@ -18,6 +18,7 @@ import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
 import { TuiButton, TuiHint } from '@taiga-ui/core';
 import { auditTime, filter, fromEvent, switchMap, take, tap } from 'rxjs';
 import { ChatMessageComponent } from '../chat-message/chat-message.component';
+import { ChatSystemItemComponent } from '../chat-system-item/chat-system-item.component';
 import { ChatStore } from '../chat.store';
 import { ChatTarget } from '../chat-target';
 
@@ -28,6 +29,7 @@ const bottomPinThresholdPx = 8;
   selector: 'app-chat-messages-list',
   imports: [
     ChatMessageComponent,
+    ChatSystemItemComponent,
     InfiniteScrollDirective,
     TuiButton,
     TranslatePipe,
@@ -43,6 +45,8 @@ export class ChatMessagesListComponent implements OnInit {
   private readonly injector = inject(Injector);
 
   protected readonly messages = this.chatStore.messages;
+  protected readonly unreadDividerMessageId =
+    this.chatStore.unreadDividerMessageId;
   protected readonly showScrollToBottom = signal<boolean>(false);
   protected readonly infiniteScrollDisabled = signal<boolean>(true);
 
