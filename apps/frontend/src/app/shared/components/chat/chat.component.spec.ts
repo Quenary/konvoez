@@ -104,14 +104,27 @@ describe('ChatComponent', () => {
     expect(fixture.nativeElement.querySelector('.online-badge')).toBeNull();
   });
 
-  it('triggers jumpToMessage when initialMessageId input is provided', () => {
+  it('passes initialMessageId to join when initialMessageId input is provided', () => {
     fixture = TestBed.createComponent(ChatComponent);
     fixture.componentRef.setInput('roomId', 1);
     fixture.componentRef.setInput('title', 'room');
     fixture.componentRef.setInput('initialMessageId', 'msg-target-1');
     fixture.detectChanges();
 
-    expect(jumpToMessage).toHaveBeenCalledWith('msg-target-1');
+    expect(join).toHaveBeenCalledWith({ kind: 'room', id: 1 }, 'msg-target-1');
+  });
+
+  it('triggers jumpToMessage when initialMessageId changes while already joined', () => {
+    target.set({ kind: 'room', id: 1 });
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('roomId', 1);
+    fixture.componentRef.setInput('title', 'room');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('initialMessageId', 'msg-target-dynamic');
+    fixture.detectChanges();
+
+    expect(jumpToMessage).toHaveBeenCalledWith('msg-target-dynamic');
   });
 
   it('calls jumpToMessage on component method invocation', () => {

@@ -259,6 +259,43 @@ describe('ChatStore', () => {
     expect(apiService.list).not.toHaveBeenCalled();
   });
 
+  it('should fetch aroundId directly when join is called with initialMessageId', () => {
+    const remoteMessage: ITextRoomMessage = {
+      id: 'msg-remote-initial',
+      senderId: 3,
+      senderUsername: 'charlie',
+      roomId: 10,
+      recipientId: null,
+      content: 'Remote message',
+      createdAt: new Date('2026-09-14T10:00:00.000Z'),
+      updatedAt: null,
+      isRead: false,
+      attachments: [],
+      clientId: null,
+      replyTo: null,
+      reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
+    };
+
+    apiService.list.mockReturnValue(
+      of<ITextRoomListResponse>({
+        items: [remoteMessage],
+      }),
+    );
+
+    store.join({ kind: 'room', id: 10 }, 'msg-remote-initial');
+
+    expect(apiService.list).toHaveBeenCalledWith({
+      roomId: 10,
+      recipientId: null,
+      aroundId: 'msg-remote-initial',
+      beforeId: null,
+      afterId: null,
+      limit: 25,
+    });
+    expect(store.targetScrollMessageId()).toBe('msg-remote-initial');
+  });
+
   it('should fetch aroundId and scroll if jumpToMessage targets unloaded message', () => {
     store.join({ kind: 'room', id: 10 });
 

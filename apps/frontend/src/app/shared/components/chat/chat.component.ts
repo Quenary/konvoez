@@ -88,25 +88,36 @@ export class ChatComponent {
   });
 
   private readonly editor = viewChild(ChatEditorComponent);
+  private lastHandledInitialMessageId: string | null = null;
 
   constructor() {
     effect(() => {
       const roomId = this.roomId();
       const recipientId = this.recipientId();
       const nextTarget = resolveChatTarget(roomId, recipientId);
+      const initialId = this.initialMessageId();
 
       // join()/leave()/patchState read store signals; keep them untracked or
       // the effect re-runs on every store update and freezes the tab.
       untracked(() => {
         const current = this.chatStore.target();
         if (chatTargetsEqual(current, nextTarget)) {
+          if (initialId && initialId !== this.lastHandledInitialMessageId) {
+            this.lastHandledInitialMessageId = initialId;
+            this.chatStore.jumpToMessage(initialId);
+          }
           return;
         }
         if (current !== null) {
           this.chatStore.leave();
         }
         if (nextTarget !== null) {
-          this.chatStore.join(nextTarget);
+          this.lastHandledInitialMessageId = initialId;
+          if (initialId) {
+            this.chatStore.join(nextTarget, initialId);
+          } else {
+            this.chatStore.join(nextTarget);
+          }
         }
         this.searchControl.setValue('', { emitEvent: false });
       });
@@ -117,15 +128,6 @@ export class ChatComponent {
       .subscribe((query) => {
         this.chatStore.setSearchQuery(query);
       });
-
-    effect(() => {
-      const initialId = this.initialMessageId();
-      if (initialId) {
-        untracked(() => {
-          this.chatStore.jumpToMessage(initialId);
-        });
-      }
-    });
   }
 
   public jumpToMessage(messageId: string): void {

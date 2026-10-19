@@ -257,8 +257,55 @@ export const ChatStore = signalStore(
 
       const apiIds = () => chatTargetToApiIds(store.target());
 
+      const jumpToMessageMethod = rxMethod<string>(
+        pipe(
+          switchMap((messageId) => {
+            const existing = store.entityMap()[messageId];
+            if (existing) {
+              patchState(store, { targetScrollMessageId: messageId });
+              return EMPTY;
+            }
+
+            const { roomId, recipientId } = apiIds();
+            return chatApiService
+              .list({
+                roomId,
+                recipientId,
+                aroundId: messageId,
+                beforeId: null,
+                afterId: null,
+                limit: defaultChunkSize,
+              })
+              .pipe(
+                tap(({ items }) => {
+                  if (items.length === 0) {
+                    tuiNotificationsService
+                      .open(
+                        translateService.instant(
+                          'ROOMS.ORIGINAL_MESSAGE_DELETED',
+                        ),
+                        { appearance: 'info', autoClose: 3000 },
+                      )
+                      .subscribe();
+                    return;
+                  }
+                  patchState(
+                    store,
+                    setEntities(items.map((item) => toMessageEntity(item))),
+                    { targetScrollMessageId: messageId },
+                  );
+                }),
+                catchError((error) => {
+                  showError(error);
+                  return EMPTY;
+                }),
+              );
+          }),
+        ),
+      );
+
       return {
-        join(target: ChatTarget): void {
+        join(target: ChatTarget, initialMessageId?: string | null): void {
           const { roomId, recipientId } = chatTargetToApiIds(target);
           messageReadQueueService.reset();
           unreadCountsStore.setActiveChat({ roomId, recipientId });
@@ -266,18 +313,22 @@ export const ChatStore = signalStore(
             target,
             editableMessageId: null,
             replyToMessageId: null,
-            targetScrollMessageId: null,
+            targetScrollMessageId: initialMessageId ?? null,
             searchQuery: null,
             isSearchOpen: false,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
-          requestList({
-            afterId: null,
-            beforeId: null,
-            limit: defaultChunkSize,
-            roomId,
-            recipientId,
-          });
+          if (initialMessageId) {
+            jumpToMessageMethod(initialMessageId);
+          } else {
+            requestList({
+              afterId: null,
+              beforeId: null,
+              limit: defaultChunkSize,
+              roomId,
+              recipientId,
+            });
+          }
         },
 
         leave(): void {
@@ -393,52 +444,7 @@ export const ChatStore = signalStore(
           patchState(store, { targetScrollMessageId: id });
         },
 
-        jumpToMessage: rxMethod<string>(
-          pipe(
-            switchMap((messageId) => {
-              const existing = store.entityMap()[messageId];
-              if (existing) {
-                patchState(store, { targetScrollMessageId: messageId });
-                return EMPTY;
-              }
-
-              const { roomId, recipientId } = apiIds();
-              return chatApiService
-                .list({
-                  roomId,
-                  recipientId,
-                  aroundId: messageId,
-                  beforeId: null,
-                  afterId: null,
-                  limit: defaultChunkSize,
-                })
-                .pipe(
-                  tap(({ items }) => {
-                    if (items.length === 0) {
-                      tuiNotificationsService
-                        .open(
-                          translateService.instant(
-                            'ROOMS.ORIGINAL_MESSAGE_DELETED',
-                          ),
-                          { appearance: 'info', autoClose: 3000 },
-                        )
-                        .subscribe();
-                      return;
-                    }
-                    patchState(
-                      store,
-                      setEntities(items.map((item) => toMessageEntity(item))),
-                      { targetScrollMessageId: messageId },
-                    );
-                  }),
-                  catchError((error) => {
-                    showError(error);
-                    return EMPTY;
-                  }),
-                );
-            }),
-          ),
-        ),
+        jumpToMessage: jumpToMessageMethod,
 
         createMessage({
           tempId,
