@@ -126,14 +126,4 @@ describe('ChatComponent', () => {
 
     expect(jumpToMessage).toHaveBeenCalledWith('msg-target-dynamic');
   });
-
-  it('calls jumpToMessage on component method invocation', () => {
-    fixture = TestBed.createComponent(ChatComponent);
-    fixture.componentRef.setInput('roomId', 1);
-    fixture.componentRef.setInput('title', 'room');
-    fixture.detectChanges();
-
-    fixture.componentInstance.jumpToMessage('msg-target-2');
-    expect(jumpToMessage).toHaveBeenCalledWith('msg-target-2');
-  });
 });

@@ -130,10 +130,6 @@ export class ChatComponent {
       });
   }
 
-  public jumpToMessage(messageId: string): void {
-    this.chatStore.jumpToMessage(messageId);
-  }
-
   protected onFilesDropped(files: File[]): void {
     this.editor()?.addFiles(files);
   }
