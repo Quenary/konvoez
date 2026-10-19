@@ -1,0 +1,15 @@
+<tui-data-list>
+  @for (item of items(); track item.key) {
+    <button
+      tuiOption
+      type="button"
+      [class.active]="item.active"
+      (click)="picked.emit(item)">
+      <app-mention-avatar [avatar]="item.avatar" />
+      <span class="label">{{ item.label }}</span>
+      @if (item.secondary) {
+        <span class="secondary">{{ item.secondary }}</span>
+      }
+    </button>
+  }
+</tui-data-list>

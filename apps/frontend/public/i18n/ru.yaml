@@ -178,6 +178,9 @@ ROOMS:
     ALLOWED_ROLES: Разрешенные роли
     ALLOWED_USERS: Разрешенные пользователи
     ALLOWED_NONE_HINT: Владелец и администраторы всегда имеют доступ. Выберите роли или пользователей, чтобы открыть доступ остальным.
+CHAT:
+  MENTION_EVERYONE_HINT: Уведомить всех в комнате
+  MENTION_UNKNOWN: неизвестно
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля

@@ -16,6 +16,7 @@ import { IRoom } from '@konvoez/shared';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
 import { TranslatePipe } from '@ngx-translate/core';
+import { CHAT_MENTIONS_ENABLED } from '@shared/components/chat/chat-editor/chat-mentions-enabled.token';
 
 @Component({
   selector: 'app-text-room',
@@ -26,6 +27,12 @@ import { TranslatePipe } from '@ngx-translate/core';
     TuiDropdown,
     TuiHint,
     TranslatePipe,
+  ],
+  providers: [
+    {
+      provide: CHAT_MENTIONS_ENABLED,
+      useValue: true,
+    },
   ],
   templateUrl: './text-room.component.html',
   styleUrl: './text-room.component.scss',

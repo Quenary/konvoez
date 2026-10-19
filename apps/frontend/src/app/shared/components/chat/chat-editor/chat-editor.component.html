@@ -67,7 +67,17 @@
     class="field-editor"
     [formControl]="control"
     [tools]="tools"
-    [floatingToolbar]="true">
+    [floatingToolbar]="true"
+    [tuiDropdownOpen]="mentionOpen()"
+    (tuiDropdownOpenChange)="onMentionDropdown($event)"
+    (loaded)="onEditorLoaded()">
+    @if (mentionsEnabled) {
+      <ng-container *tuiDropdown>
+        <app-mention-suggestions
+          [items]="suggestionVms()"
+          (picked)="insertMention($event)" />
+      </ng-container>
+    }
   </tui-editor>
 
   <button

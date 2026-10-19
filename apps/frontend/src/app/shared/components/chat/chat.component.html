@@ -91,6 +91,7 @@
   <app-chat-messages-list />
   <app-chat-editor
     [draftKey]="draftKey()"
+    [mentionRoomId]="roomId()"
     [editableMessage]="chatStore.editableMessage()"
     [replyToMessage]="chatStore.replyToMessage()"
     (submitted)="onMessageSubmitted($event)"
