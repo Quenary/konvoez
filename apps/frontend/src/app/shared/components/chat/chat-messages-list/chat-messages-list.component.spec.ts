@@ -521,16 +521,18 @@ describe('ChatMessagesListComponent', () => {
     expect(mockChatStore.readAllAndJumpToLatest).not.toHaveBeenCalled();
   });
 
-  it('calls readAllAndJumpToLatest on button click when hasMoreAfter is true', () => {
+  it('reads all and scrolls to the bottom on button click when hasMoreAfter is true', () => {
     mockChatStore.hasMoreAfter.set(true);
     fixture.detectChanges();
 
+    const scrollSpy = vi.spyOn(component, 'scrollToBottom');
     const btn = fixture.nativeElement.querySelector(
       '.scroll-to-bottom button',
     ) as HTMLButtonElement;
     btn.click();
 
     expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
+    expect(scrollSpy).toHaveBeenCalledWith('smooth');
   });
 
   it('calls readAllAndJumpToLatest on button click when unreadCount is positive', () => {
@@ -545,6 +547,44 @@ describe('ChatMessagesListComponent', () => {
     btn.click();
 
     expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
+  });
+
+  it('scrolls to the replacement latest page after clicking while behind', async () => {
+    mockChatStore.hasMoreAfter.set(true);
+    fixture.detectChanges();
+    const container = fixture.nativeElement.querySelector(
+      '.scroll-container',
+    ) as HTMLDivElement;
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 1200,
+    });
+    const scroll = vi.spyOn(container, 'scrollTo');
+
+    const btn = fixture.nativeElement.querySelector(
+      '.scroll-to-bottom button',
+    ) as HTMLButtonElement;
+    btn.click();
+    mockChatStore.messages.set([
+      ...mockMessages,
+      {
+        ...mockMessages[1],
+        id: 'msg-latest',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      },
+    ]);
+    fixture.detectChanges();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(scroll).toHaveBeenCalledWith({
+      top: 1200,
+      behavior: 'smooth',
+    });
+    expect(scroll).toHaveBeenCalledWith({
+      top: 1200,
+      behavior: 'instant',
+    });
   });
 });
 

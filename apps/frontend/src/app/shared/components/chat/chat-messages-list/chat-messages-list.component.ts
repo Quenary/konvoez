@@ -253,9 +253,8 @@ export class ChatMessagesListComponent implements OnInit {
   onScrollButtonClick(): void {
     if (this.hasMoreAfter() || this.unreadCount() > 0) {
       this.chatStore.readAllAndJumpToLatest();
-    } else {
-      this.scrollToBottom('smooth');
     }
+    this.scrollToBottom('smooth');
   }
 
   private applyInitialPosition(): void {
