@@ -287,6 +287,16 @@ export const ChatStore = signalStore(
                         { appearance: 'info', autoClose: 3000 },
                       )
                       .subscribe();
+                    if (store.ids().length === 0) {
+                      patchState(store, { targetScrollMessageId: null });
+                      requestList({
+                        afterId: null,
+                        beforeId: null,
+                        limit: defaultChunkSize,
+                        roomId,
+                        recipientId,
+                      });
+                    }
                     return;
                   }
                   patchState(

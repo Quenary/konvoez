@@ -334,8 +334,58 @@ describe('ChatStore', () => {
     expect(store.entityMap()['msg-remote-99']).toBeTruthy();
   });
 
-  it('should show notification if jumpToMessage target was deleted on server', () => {
+  it('should fall back to latest messages when join is called with missing initialMessageId', () => {
+    const latestMessage: ITextRoomMessage = {
+      id: 'msg-latest-1',
+      senderId: 3,
+      senderUsername: 'charlie',
+      roomId: 10,
+      recipientId: null,
+      content: 'Latest message',
+      createdAt: new Date('2026-09-14T10:00:00.000Z'),
+      updatedAt: null,
+      isRead: false,
+      attachments: [],
+      clientId: null,
+      replyTo: null,
+      reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
+    };
+
+    apiService.list
+      .mockReturnValueOnce(of<ITextRoomListResponse>({ items: [] }))
+      .mockReturnValueOnce(
+        of<ITextRoomListResponse>({ items: [latestMessage] }),
+      );
+
+    store.join({ kind: 'room', id: 10 }, 'missing-id');
+
+    expect(mockNotifications.open).toHaveBeenCalled();
+    expect(apiService.list).toHaveBeenCalledTimes(2);
+    expect(apiService.list).toHaveBeenNthCalledWith(1, {
+      roomId: 10,
+      recipientId: null,
+      aroundId: 'missing-id',
+      beforeId: null,
+      afterId: null,
+      limit: 25,
+    });
+    expect(apiService.list).toHaveBeenNthCalledWith(2, {
+      roomId: 10,
+      recipientId: null,
+      beforeId: null,
+      afterId: null,
+      limit: 25,
+    });
+    expect(store.entities()).toHaveLength(1);
+    expect(store.entities()[0].id).toBe('msg-latest-1');
+    expect(store.targetScrollMessageId()).toBeNull();
+  });
+
+  it('should show notification if jumpToMessage target was deleted on server and not fetch extra list when already loaded', () => {
     store.join({ kind: 'room', id: 10 });
+    expect(store.ids().length).toBeGreaterThan(0);
+    apiService.list.mockClear();
 
     apiService.list.mockReturnValue(
       of<ITextRoomListResponse>({
@@ -346,6 +396,7 @@ describe('ChatStore', () => {
     store.jumpToMessage('deleted-target-id');
 
     expect(mockNotifications.open).toHaveBeenCalled();
+    expect(apiService.list).toHaveBeenCalledTimes(1);
   });
 
   it('should create message optimistically with replyTo attachment and update on success', () => {
