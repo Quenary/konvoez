@@ -78,6 +78,7 @@ export class ChatComponent {
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
+  public readonly initialMessageId = input<string | null>(null);
   protected readonly draftKey = computed(() =>
     toChatKey(this.roomId(), this.recipientId()),
   );
@@ -116,6 +117,19 @@ export class ChatComponent {
       .subscribe((query) => {
         this.chatStore.setSearchQuery(query);
       });
+
+    effect(() => {
+      const initialId = this.initialMessageId();
+      if (initialId) {
+        untracked(() => {
+          this.chatStore.jumpToMessage(initialId);
+        });
+      }
+    });
+  }
+
+  public jumpToMessage(messageId: string): void {
+    this.chatStore.jumpToMessage(messageId);
   }
 
   protected onFilesDropped(files: File[]): void {

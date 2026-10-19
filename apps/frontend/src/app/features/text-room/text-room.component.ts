@@ -58,6 +58,16 @@ export class TextRoomComponent {
     { initialValue: null },
   );
 
+  protected readonly targetMessageId = toSignal(
+    this.activatedRoute.queryParamMap.pipe(
+      map((params) => {
+        const msg = params.get('message');
+        return msg && msg.trim().length > 0 ? msg.trim() : null;
+      }),
+    ),
+    { initialValue: null },
+  );
+
   protected readonly room = computed((): IRoom | null => {
     const id = this.roomId();
     const roomsDict = this.roomsDict();
@@ -98,6 +108,20 @@ export class TextRoomComponent {
       if (id !== null) {
         untracked(() => {
           this.roomsStore.loadOne(id);
+        });
+      }
+    });
+
+    effect(() => {
+      const messageId = this.targetMessageId();
+      if (messageId) {
+        untracked(() => {
+          void this.router.navigate([], {
+            relativeTo: this.activatedRoute,
+            queryParams: { message: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
         });
       }
     });

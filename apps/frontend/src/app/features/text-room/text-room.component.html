@@ -2,7 +2,8 @@
   <app-chat
     [roomId]="id"
     [title]="title()"
-    [avatarUrl]="avatarUrl()">
+    [avatarUrl]="avatarUrl()"
+    [initialMessageId]="targetMessageId()">
     @if (canManageRooms() && room(); as manageRoom) {
       <div chatHeaderActions>
         <button
