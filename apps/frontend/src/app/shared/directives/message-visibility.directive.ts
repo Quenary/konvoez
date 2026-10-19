@@ -1,5 +1,6 @@
 import {
   Directive,
+  effect,
   ElementRef,
   inject,
   input,
@@ -26,18 +27,30 @@ export class MessageVisibilityDirective implements OnInit, OnDestroy {
   readonly appMessageVisibility = input<string | null>(null);
 
   private observer: IntersectionObserver | null = null;
+  private isIntersecting = false;
+
+  constructor() {
+    effect(() => {
+      const id = this.appMessageVisibility();
+      if (id && this.isIntersecting) {
+        this.readQueue.enqueue(id);
+        this.observer?.unobserve(this.el.nativeElement);
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
+          this.isIntersecting = entry.isIntersecting;
           if (entry.isIntersecting) {
             const id = this.appMessageVisibility();
             if (id) {
               this.readQueue.enqueue(id);
+              // Once seen, stop observing
+              this.observer?.unobserve(this.el.nativeElement);
             }
-            // Once seen, stop observing
-            this.observer?.unobserve(this.el.nativeElement);
           }
         }
       },
