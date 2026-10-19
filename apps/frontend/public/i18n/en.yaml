@@ -137,6 +137,7 @@ VOICE:
   JOIN_FAILED: Couldn't join the voice channel
   ROOM_CLOSED: This voice room was closed
 ROOMS:
+  UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
   ORIGINAL_MESSAGE_DELETED: Original message was deleted

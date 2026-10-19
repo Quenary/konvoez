@@ -137,6 +137,7 @@ VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
   ROOM_CLOSED: Голосовая комната была закрыта
 ROOMS:
+  UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
   ORIGINAL_MESSAGE_DELETED: Оригинальное сообщение было удалено

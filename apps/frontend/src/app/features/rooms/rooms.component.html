@@ -77,6 +77,16 @@
             [ngTemplateOutletContext]="{ $implicit: count }"></ng-container>
         </tui-badge-notification>
       }
+      @if (roomMentionFlags()[room.id]) {
+        <tui-badge-notification
+          size="s"
+          appearance="accent"
+          tuiSlot="bottom"
+          class="room-mention-badge"
+          [attr.aria-label]="'ROOMS.UNREAD_MENTIONS' | translate">
+          &#64;
+        </tui-badge-notification>
+      }
       <div
         tuiAvatar
         size="xs">

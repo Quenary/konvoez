@@ -90,6 +90,7 @@ describe('RoomsComponent', () => {
   const roomsState = signal<Record<number, Record<number, IUser>>>({});
   const hangingCallUserId = signal<number | null>(null);
   const interlocutor = signal<IUser | null>(null);
+  const roomMentions = signal<Record<number, number>>({});
   const entityMap = signal<Record<number, IUser>>({
     [me.id]: me,
     [bob.id]: bob,
@@ -128,6 +129,7 @@ describe('RoomsComponent', () => {
     interlocutor.set(null);
     entityMap.set({ [me.id]: me, [bob.id]: bob });
     isTouch.set(false);
+    roomMentions.set({});
 
     await TestBed.configureTestingModule({
       imports: [RoomsComponent],
@@ -163,6 +165,7 @@ describe('RoomsComponent', () => {
           useValue: {
             directTotal: vi.fn().mockReturnValue(0),
             roomUnreadCount: vi.fn().mockReturnValue(0),
+            roomMentions,
           },
         },
         { provide: TuiDialogService, useValue: dialogService },
@@ -386,5 +389,19 @@ describe('RoomsComponent', () => {
     component['deleteRoom'](textRoom);
 
     expect(deleteRoom).toHaveBeenCalledWith(textRoom);
+  });
+
+  it('should compute roomMentionFlags when room has unread mentions', () => {
+    roomMentions.set({ [textRoom.id]: 1, 99: 0 });
+    fixture.detectChanges();
+
+    expect(component['roomMentionFlags']()).toEqual({ [textRoom.id]: true });
+  });
+
+  it('should compute empty roomMentionFlags when room has 0 unread mentions', () => {
+    roomMentions.set({ [textRoom.id]: 0 });
+    fixture.detectChanges();
+
+    expect(component['roomMentionFlags']()).toEqual({});
   });
 });

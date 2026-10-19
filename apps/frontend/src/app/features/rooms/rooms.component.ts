@@ -109,6 +109,19 @@ export class RoomsComponent implements OnInit {
 
   protected readonly textRooms = this.roomsStore.textRooms;
 
+  protected readonly roomMentionFlags = computed<Record<number, boolean>>(
+    () => {
+      const mentions = this.unreadCountsStore.roomMentions();
+      const flags: Record<number, boolean> = {};
+      for (const [roomId, count] of Object.entries(mentions)) {
+        if (count > 0) {
+          flags[Number(roomId)] = true;
+        }
+      }
+      return flags;
+    },
+  );
+
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
     const voiceRooms = this._voiceRooms();
     const voiceRoomsState = this.voiceLobbyStore.roomsState();
