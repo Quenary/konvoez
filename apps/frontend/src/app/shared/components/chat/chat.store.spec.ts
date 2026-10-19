@@ -128,6 +128,19 @@ describe('ChatStore', () => {
     },
   };
 
+  function mockListResponse(
+    items: ITextRoomMessage[],
+    overrides: Partial<ITextRoomListResponse> = {},
+  ): ITextRoomListResponse {
+    return {
+      items,
+      firstUnreadMessageId: null,
+      hasMoreBefore: false,
+      hasMoreAfter: false,
+      ...overrides,
+    };
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockSocket = new MockSocket();
@@ -136,11 +149,7 @@ describe('ChatStore', () => {
     };
 
     apiService = {
-      list: vi.fn(() =>
-        of<ITextRoomListResponse>({
-          items: [message1, message2WithReply],
-        }),
-      ),
+      list: vi.fn(() => of(mockListResponse([message1, message2WithReply]))),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(() => of(null)),
@@ -277,11 +286,7 @@ describe('ChatStore', () => {
       mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
-    apiService.list.mockReturnValue(
-      of<ITextRoomListResponse>({
-        items: [remoteMessage],
-      }),
-    );
+    apiService.list.mockReturnValue(of(mockListResponse([remoteMessage])));
 
     store.join({ kind: 'room', id: 10 }, 'msg-remote-initial');
 
@@ -316,11 +321,7 @@ describe('ChatStore', () => {
       mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
-    apiService.list.mockReturnValue(
-      of<ITextRoomListResponse>({
-        items: [remoteMessage],
-      }),
-    );
+    apiService.list.mockReturnValue(of(mockListResponse([remoteMessage])));
 
     store.jumpToMessage('msg-remote-99');
 
@@ -353,10 +354,8 @@ describe('ChatStore', () => {
     };
 
     apiService.list
-      .mockReturnValueOnce(of<ITextRoomListResponse>({ items: [] }))
-      .mockReturnValueOnce(
-        of<ITextRoomListResponse>({ items: [latestMessage] }),
-      );
+      .mockReturnValueOnce(of(mockListResponse([])))
+      .mockReturnValueOnce(of(mockListResponse([latestMessage])));
 
     store.join({ kind: 'room', id: 10 }, 'missing-id');
 
@@ -387,11 +386,7 @@ describe('ChatStore', () => {
     expect(store.ids().length).toBeGreaterThan(0);
     apiService.list.mockClear();
 
-    apiService.list.mockReturnValue(
-      of<ITextRoomListResponse>({
-        items: [],
-      }),
-    );
+    apiService.list.mockReturnValue(of(mockListResponse([])));
 
     store.jumpToMessage('deleted-target-id');
 
@@ -1057,6 +1052,70 @@ describe('ChatStore', () => {
       expect(store.entityMap()['msg-1'].reactions).toEqual([
         { emoji: '🔥', count: 2, userIds: [1, 2] },
       ]);
+    });
+  });
+
+  describe('MESSAGES_READ socket event', () => {
+    it('should mark own messages as isRead when another user reads them', () => {
+      store.join({ kind: 'room', id: 10 });
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: 2,
+        roomId: 10,
+        recipientId: null,
+        messageIds: ['msg-1'],
+        maxMessageId: null,
+      });
+
+      expect(store.entityMap()['msg-1'].isRead).toBe(true);
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+    });
+
+    it('should mark others messages as isRead when current user reads them', () => {
+      store.join({ kind: 'room', id: 10 });
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: currentUser.id,
+        roomId: 10,
+        recipientId: null,
+        messageIds: ['msg-2'],
+        maxMessageId: null,
+      });
+
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+      expect(store.entityMap()['msg-2'].isRead).toBe(true);
+    });
+
+    it('should mark messages as isRead up to maxMessageId', () => {
+      store.join({ kind: 'room', id: 10 });
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: currentUser.id,
+        roomId: 10,
+        recipientId: null,
+        messageIds: [],
+        maxMessageId: 'msg-999',
+      });
+
+      expect(store.entityMap()['msg-2'].isRead).toBe(true);
+    });
+
+    it('should ignore MESSAGES_READ event for a different room', () => {
+      store.join({ kind: 'room', id: 10 });
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: currentUser.id,
+        roomId: 999,
+        recipientId: null,
+        messageIds: ['msg-2'],
+        maxMessageId: null,
+      });
+
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
     });
   });
 });

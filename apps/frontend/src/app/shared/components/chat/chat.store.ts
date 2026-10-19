@@ -10,6 +10,7 @@ import {
   ITextRoomMessage,
   ITextRoomReactionGroup,
   TTextRoomError,
+  TTextRoomMessagesRead,
   TTextRoomReactionUpdated,
 } from '@konvoez/shared';
 import {
@@ -780,6 +781,65 @@ export const ChatStore = signalStore(
                     }
                   : null,
               }),
+            }),
+          );
+        });
+
+      fromEvent<TTextRoomMessagesRead>(emitter, ETextRoomEvent.MESSAGES_READ)
+        .pipe(takeUntilDestroyed())
+        .subscribe((payload) => {
+          const currentTarget = store.target();
+          if (!currentTarget) {
+            return;
+          }
+          if (currentTarget.kind === 'room') {
+            if (payload.roomId !== currentTarget.id) {
+              return;
+            }
+          } else {
+            const meId = currentUser()?.id;
+            const peerId = currentTarget.id;
+            const isMatch =
+              (payload.readerId === peerId && payload.recipientId === meId) ||
+              (payload.readerId === meId && payload.recipientId === peerId);
+            if (!isMatch) {
+              return;
+            }
+          }
+
+          const me = currentUser();
+          if (!me) {
+            return;
+          }
+
+          const isReaderMe = payload.readerId === me.id;
+          const readIdsSet = payload.messageIds?.length
+            ? new Set(payload.messageIds)
+            : null;
+          const maxId = payload.maxMessageId;
+
+          patchState(
+            store,
+            updateEntities({
+              predicate: (m) => {
+                if (m.isRead) {
+                  return false;
+                }
+                const isTargetSenderMatch = isReaderMe
+                  ? m.senderId !== me.id
+                  : m.senderId === me.id;
+                if (!isTargetSenderMatch) {
+                  return false;
+                }
+                if (readIdsSet && readIdsSet.has(m.id)) {
+                  return true;
+                }
+                if (maxId && m.id <= maxId) {
+                  return true;
+                }
+                return false;
+              },
+              changes: { isRead: true },
             }),
           );
         });
