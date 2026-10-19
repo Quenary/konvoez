@@ -1178,7 +1178,9 @@ export class TextRoomsService {
     const othersMessages = messages.filter(
       (msg) =>
         msg.sender.id !== user.id &&
-        (!msg.room || this.roomsFacade.canAccessRoom(user, msg.room)),
+        (msg.room
+          ? this.roomsFacade.canAccessRoom(user, msg.room)
+          : msg.recipient?.id === user.id),
     );
     if (othersMessages.length === 0) return;
 

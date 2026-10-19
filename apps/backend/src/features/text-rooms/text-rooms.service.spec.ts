@@ -2065,6 +2065,10 @@ describe('TextRoomsService', () => {
         messageIds: [uuidStringify(dmMsgId)],
       });
 
+      expect(messageReadRepository.create).toHaveBeenCalledWith({
+        message: dmMsg,
+        reader: { id: mockUser.id },
+      });
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         TextRoomsDomainEvents.MESSAGES_READ,
         {
@@ -2074,6 +2078,39 @@ describe('TextRoomsService', () => {
           messageIds: [uuidStringify(dmMsgId)],
           maxMessageId: null,
         },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.objectContaining({ userId: mockUser.id }),
+      );
+    });
+
+    it('should not allow a third user to mark a direct message as read', async () => {
+      const dmMsgId = parse(v7());
+      const dmMsg = {
+        id: dmMsgId,
+        sender: { id: 2, username: 'sender' },
+        room: null,
+        recipient: { id: 3, username: 'recipient' },
+      } as unknown as MessageEntity;
+      const thirdUser = { ...mockUser, id: 4 };
+
+      messageRepository.find.mockResolvedValue([dmMsg]);
+
+      await service.markRead(thirdUser, {
+        messageIds: [uuidStringify(dmMsgId)],
+      });
+
+      expect(messageReadRepository.find).not.toHaveBeenCalled();
+      expect(messageReadRepository.create).not.toHaveBeenCalled();
+      expect(em.flush).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
       );
     });
 
