@@ -67,7 +67,7 @@ Mentions are represented in rich text content using Discord-compatible canonical
 
 3. **Unread Mention Badge**:
    - Aside navigation replaces the unread count badge with an `@` badge (`tui-badge-notification`, accent, top slot) while the room has unread mentions.
-   - Selecting the room marks messages as read and clears the unread mention badge.
+   - Selecting the room does not clear unread counts by itself. The mention badge decreases as the mentioned messages are marked read and is cleared by read-all.
 
 4. **Deep-linking & Jumping**:
    - Opening a mention notification deep-links to `/text-room/:roomId?message=:messageId`.

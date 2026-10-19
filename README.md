@@ -77,6 +77,7 @@ docker compose -f docker-compose.build.yml up -d --build
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Rooms](docs/ROOMS.md)
+- [Chat reading](docs/CHAT_READING.md)
 - [Mentions](docs/MENTIONS.md)
 - [Message attachments](docs/ATTACHMENTS.md)
 - [Message reactions](docs/MESSAGE_REACTIONS.md)
