@@ -279,9 +279,10 @@ export const ChatStore = signalStore(
       const loadInitialMethod = rxMethod<{
         target: ChatTarget;
         initialMessageId?: string | null;
+        keepDivider?: boolean;
       }>(
         pipe(
-          switchMap(({ target, initialMessageId }) => {
+          switchMap(({ target, initialMessageId, keepDivider }) => {
             const { roomId, recipientId } = chatTargetToApiIds(target);
             if (initialMessageId) {
               return chatApiService
@@ -350,7 +351,9 @@ export const ChatStore = signalStore(
                     {
                       hasMoreBefore: res.hasMoreBefore,
                       hasMoreAfter: res.hasMoreAfter,
-                      unreadDividerMessageId: res.firstUnreadMessageId,
+                      unreadDividerMessageId: keepDivider
+                        ? store.unreadDividerMessageId()
+                        : res.firstUnreadMessageId,
                       initialPosition: res.firstUnreadMessageId
                         ? 'unread'
                         : 'bottom',
@@ -700,7 +703,7 @@ export const ChatStore = signalStore(
           if (wasSearching) {
             const target = store.target();
             if (target) {
-              loadInitialMethod({ target });
+              loadInitialMethod({ target, keepDivider: true });
             }
           }
         },

@@ -645,6 +645,31 @@ describe('ChatStore', () => {
       );
       expect(apiService.list.mock.calls[0][0].search).toBeUndefined();
     });
+
+    it('should keep the existing unread divider when clearing search', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            firstUnreadMessageId: 'msg-1',
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      expect(store.unreadDividerMessageId()).toBe('msg-1');
+
+      store.setSearchQuery('hello');
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            firstUnreadMessageId: 'msg-2',
+          }),
+        ),
+      );
+
+      store.clearSearch();
+
+      expect(store.unreadDividerMessageId()).toBe('msg-1');
+    });
   });
 
   describe('Socket message creation & search isolation', () => {
