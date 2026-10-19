@@ -1832,6 +1832,10 @@ describe('TextRoomsService', () => {
         TextRoomsDomainEvents.MESSAGES_READ,
         expect.anything(),
       );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
+      );
     });
 
     it('should skip the sender own messages and persist reads for others', async () => {
@@ -1877,6 +1881,18 @@ describe('TextRoomsService', () => {
           maxMessageId: null,
         },
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        {
+          userId: mockUser.id,
+          counts: {
+            rooms: {},
+            roomMentions: {},
+            direct: {},
+            directTotal: 0,
+          },
+        },
+      );
     });
 
     it('should skip messages in rooms the user cannot access', async () => {
@@ -1900,6 +1916,10 @@ describe('TextRoomsService', () => {
       expect(em.flush).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
         TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
         expect.anything(),
       );
     });
@@ -1929,6 +1949,10 @@ describe('TextRoomsService', () => {
       expect(em.flush).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
         TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
         expect.anything(),
       );
     });
@@ -2084,6 +2108,40 @@ describe('TextRoomsService', () => {
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
         TextRoomsDomainEvents.MESSAGES_READ,
         expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
+      );
+    });
+
+    it('should emit UNREAD_COUNTS_CHANGED with updated counts when messages are marked as read', async () => {
+      const otherId = parse(v7());
+      const otherMessage = {
+        id: otherId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([otherMessage]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(otherId)],
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        {
+          userId: mockUser.id,
+          counts: {
+            rooms: {},
+            roomMentions: {},
+            direct: {},
+            directTotal: 0,
+          },
+        },
       );
     });
   });

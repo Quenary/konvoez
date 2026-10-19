@@ -427,4 +427,33 @@ describe('TextRoomsGateway', () => {
     const events = metadata.map((m: { event: string }) => m.event);
     expect(events).toContain(TextRoomsDomainEvents.MESSAGES_READ);
   });
+
+  it('should emit UNREAD_COUNTS_CHANGED to user room in onUnreadCountsChanged', () => {
+    const payload = {
+      userId: 42,
+      counts: {
+        rooms: { '10': 3 },
+        roomMentions: {},
+        direct: {},
+        directTotal: 0,
+      },
+    };
+
+    gateway.onUnreadCountsChanged(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('42');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.UNREAD_COUNTS_CHANGED,
+      payload.counts,
+    );
+  });
+
+  it('should have OnEvent metadata for UNREAD_COUNTS_CHANGED on onUnreadCountsChanged', () => {
+    const metadata = Reflect.getMetadata(
+      EVENT_LISTENER_METADATA,
+      gateway.onUnreadCountsChanged,
+    );
+    const events = metadata.map((m: { event: string }) => m.event);
+    expect(events).toContain(TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED);
+  });
 });

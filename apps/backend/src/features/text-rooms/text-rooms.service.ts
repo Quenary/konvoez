@@ -1290,6 +1290,16 @@ export class TextRoomsService {
         },
       );
     }
+
+    const counts = await this.getUnreadCounts(user);
+    emitTextRoomsDomainEvent(
+      this.eventEmitter,
+      TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+      {
+        userId: user.id,
+        counts,
+      },
+    );
   }
 
   async readAll(

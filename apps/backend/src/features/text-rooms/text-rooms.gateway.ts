@@ -297,4 +297,16 @@ export class TextRoomsGateway
       `Dropped messages read without target: readerId=${body.readerId}`,
     );
   }
+
+  @OnEvent(TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED)
+  onUnreadCountsChanged(
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED],
+  ) {
+    this.logger.debug(
+      `Fan-out unread counts changed: userId=${payload.userId}`,
+    );
+    return this.server
+      .to(String(payload.userId))
+      .emit(ETextRoomEvent.UNREAD_COUNTS_CHANGED, payload.counts);
+  }
 }
