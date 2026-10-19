@@ -467,16 +467,18 @@ export const ChatStore = signalStore(
               })
               .pipe(
                 tap((res) => {
+                  const missed = store.missedLiveWhileBehind();
                   patchState(
                     store,
                     addEntities(res.items.map((item) => toMessageEntity(item))),
                     {
-                      hasMoreAfter: res.hasMoreAfter,
-                      ...(res.hasMoreAfter === false
-                        ? { missedLiveWhileBehind: false }
-                        : {}),
+                      hasMoreAfter: res.hasMoreAfter || missed,
+                      missedLiveWhileBehind: false,
                     },
                   );
+                  if (!res.hasMoreAfter && missed) {
+                    queueMicrotask(() => loadNewerMethod());
+                  }
                 }),
                 catchError((error) => {
                   showError(error);

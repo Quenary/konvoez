@@ -1409,6 +1409,46 @@ describe('ChatStore', () => {
       expect(store.missedLiveWhileBehind()).toBe(true);
     });
 
+    it('should fetch a missed live message after the final newer page completes', async () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const firstPage$ = new Subject<ITextRoomListResponse>();
+      const missedMessage: ITextRoomMessage = {
+        ...message2WithReply,
+        id: 'msg-missed-live',
+        createdAt: new Date('2026-09-21T00:00:00.000Z'),
+      };
+      apiService.list
+        .mockReturnValueOnce(firstPage$.asObservable())
+        .mockReturnValueOnce(
+          of(mockListResponse([missedMessage], { hasMoreAfter: false })),
+        );
+
+      store.loadNewer();
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, missedMessage);
+      expect(store.missedLiveWhileBehind()).toBe(true);
+      expect(store.entityMap()['msg-missed-live']).toBeUndefined();
+
+      firstPage$.next(mockListResponse([], { hasMoreAfter: false }));
+      firstPage$.complete();
+      await Promise.resolve();
+
+      expect(apiService.list).toHaveBeenCalledTimes(2);
+      expect(apiService.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ afterId: 'msg-2' }),
+      );
+      expect(store.entityMap()['msg-missed-live']).toBeTruthy();
+      expect(store.missedLiveWhileBehind()).toBe(false);
+    });
+
     it('should trigger loadLatest when sending outgoing message while hasMoreAfter is true', () => {
       apiService.list.mockReturnValue(
         of(
