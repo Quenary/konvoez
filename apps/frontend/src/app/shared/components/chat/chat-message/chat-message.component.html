@@ -3,6 +3,7 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
+    [class.message-mentioned]="mentionsMe()"
     [style.--author-color]="senderUsername() | tuiAutoColor"
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     @let _sender = senderUser();
@@ -72,8 +73,10 @@
                 {{ replyUsername }}
               </span>
               <span class="message-reply-content">
-                @if (reply.content | textContent) {
-                  {{ reply.content | textContent }}
+                @let replyPreview =
+                  reply.content | textContent: isRoomMessage();
+                @if (replyPreview) {
+                  {{ replyPreview }}
                 } @else {
                   📎 {{ 'ROOMS.ATTACHMENT' | translate }}
                 }
@@ -91,11 +94,20 @@
         }
 
         @if (hasText()) {
-          <tui-editor-socket
-            appExternalLinkClick
-            class="message-body-content"
-            [content]="sanitizedContent()">
-          </tui-editor-socket>
+          @if (isRoomMessage()) {
+            <tui-editor-socket
+              appExternalLinkClick
+              [appMentionChips]="mentionCtx()"
+              class="message-body-content"
+              [content]="contentHtml()">
+            </tui-editor-socket>
+          } @else {
+            <tui-editor-socket
+              appExternalLinkClick
+              class="message-body-content"
+              [content]="contentHtml()">
+            </tui-editor-socket>
+          }
         }
 
         <app-chat-message-reactions

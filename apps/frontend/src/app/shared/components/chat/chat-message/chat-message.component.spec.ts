@@ -15,6 +15,8 @@ import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
+import { RolesStore } from '@core/stores/roles.store';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;
@@ -35,6 +37,14 @@ describe('ChatMessageComponent', () => {
 
   const mockUsersStore = {
     entityMap: signal({}),
+  };
+
+  const mockRolesStore = {
+    rolesById: signal({}),
+  };
+
+  const mockUserDialogService = {
+    open: vi.fn(),
   };
 
   const mockNotificationService = {
@@ -124,6 +134,8 @@ describe('ChatMessageComponent', () => {
           useValue: { uploadProgress },
         },
         { provide: UsersStore, useValue: mockUsersStore },
+        { provide: RolesStore, useValue: mockRolesStore },
+        { provide: UserDialogService, useValue: mockUserDialogService },
         { provide: TuiNotificationService, useValue: mockNotificationService },
         { provide: TuiDialogService, useValue: mockDialogService },
         { provide: ChatApiService, useValue: mockChatApi },
@@ -532,6 +544,133 @@ describe('ChatMessageComponent', () => {
       const el: HTMLElement = fixture.nativeElement;
       const reactionsEl = el.querySelector('app-chat-message-reactions');
       expect(reactionsEl).not.toBeNull();
+    });
+  });
+
+  describe('mentions', () => {
+    it('renders plain text unchanged in DMs without app-mention-chip', () => {
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: null,
+        recipientId: 2,
+        content: '<p>Hi <@1></p>',
+      });
+      fixture.detectChanges();
+
+      expect(component['isRoomMessage']()).toBe(false);
+      expect(
+        fixture.nativeElement.querySelector('app-mention-chip'),
+      ).toBeFalsy();
+      expect(fixture.nativeElement.textContent).toContain('<@1>');
+    });
+
+    it('escapes username containing HTML in mention chip', () => {
+      mockUsersStore.entityMap.set({
+        1: { ...currentUser, username: '<img src=x onerror=alert(1)>' },
+      });
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        recipientId: null,
+        content: '<p>Hi <@1></p>',
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector('app-mention-chip');
+      expect(chip).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('img[onerror]')).toBeFalsy();
+      expect(chip.textContent).toContain('<img src=x onerror=alert(1)>');
+    });
+
+    it('sets mention-chip-me and info appearance only for mentions of current user', () => {
+      const bobUser: IUser = { ...currentUser, id: 2, username: 'bob' };
+      mockUsersStore.entityMap.set({
+        1: currentUser,
+        2: bobUser,
+      });
+
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        content: '<p><@1> and <@2></p>',
+      });
+      fixture.detectChanges();
+
+      const chips = fixture.nativeElement.querySelectorAll('app-mention-chip');
+      expect(chips.length).toBe(2);
+      expect(chips[0].classList.contains('mention-chip-me')).toBe(true);
+      expect(chips[1].classList.contains('mention-chip-me')).toBe(false);
+    });
+
+    it('applies message-mentioned class when message mentions current user, role, or everyone', () => {
+      const store = TestBed.inject(Store);
+      const userWithRole: IUser = {
+        ...currentUser,
+        id: 1,
+        roles: [{ id: 10, name: 'Admin', priority: 1, mentionable: true }],
+      };
+      store.dispatch(AuthActions.initEnd({ user: userWithRole }));
+
+      // Not mentioned
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        mentions: { userIds: [99], roleIds: [99], everyone: false },
+      });
+      fixture.detectChanges();
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeFalsy();
+
+      // Mentioned by userId
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        mentions: { userIds: [1], roleIds: [], everyone: false },
+      });
+      fixture.detectChanges();
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeTruthy();
+
+      // Mentioned by roleId
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        mentions: { userIds: [], roleIds: [10], everyone: false },
+      });
+      fixture.detectChanges();
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeTruthy();
+
+      // Mentioned by everyone
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        mentions: { userIds: [], roleIds: [], everyone: true },
+      });
+      fixture.detectChanges();
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeTruthy();
+    });
+
+    it('opens user dialog when clicking a user mention chip', () => {
+      mockUsersStore.entityMap.set({ 1: currentUser });
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        content: '<p><@1></p>',
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector(
+        'app-mention-chip[data-kind="user"]',
+      );
+      expect(chip).toBeTruthy();
+      chip.click();
+
+      expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
     });
   });
 });
