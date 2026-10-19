@@ -37,15 +37,25 @@ export class MentionsService {
     author: GetUserDto,
     room: RoomEntity | GetRoomDto,
     html: string,
-  ): Promise<{ effective: IMentionSet; recipientIds: number[] }> {
+  ): Promise<{
+    effective: IMentionSet;
+    recipientIds: number[];
+    usersById: Record<number, { username: string }>;
+    rolesById: Record<number, { name: string }>;
+  }> {
     const parsed = parseMentions(htmlToMentionText(html));
     const canMassMention =
       author.isOwner ||
       author.permissions.includes(EPermission.MENTION_EVERYONE);
 
     let effectiveRoles: RoleEntity[] = [];
+    const rolesById: Record<number, { name: string }> = {};
     if (canMassMention && parsed.roleIds.length > 0) {
-      const roles = await this.permissionsFacade.findRolesByIds(parsed.roleIds);
+      const roles =
+        (await this.permissionsFacade.findRolesByIds(parsed.roleIds)) ?? [];
+      for (const r of roles) {
+        rolesById[r.id] = { name: r.name };
+      }
       effectiveRoles = roles.filter((r) => r.mentionable);
     }
     const effectiveRoleIds = effectiveRoles.map((r) => r.id);
@@ -67,8 +77,10 @@ export class MentionsService {
 
     const recipientIdsSet = new Set<number>();
     const validUserIdsSet = new Set<number>();
+    const usersById: Record<number, { username: string }> = {};
 
     for (const candidate of candidateUsers) {
+      usersById[candidate.id] = { username: candidate.username };
       if (candidate.deletedAt !== null) {
         continue;
       }
@@ -90,6 +102,8 @@ export class MentionsService {
     return {
       effective,
       recipientIds: Array.from(recipientIdsSet).sort((a, b) => a - b),
+      usersById,
+      rolesById,
     };
   }
 

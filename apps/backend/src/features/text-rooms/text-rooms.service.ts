@@ -53,7 +53,10 @@ import {
   ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
 } from '@konvoez/shared';
-import { htmlToPlainText } from '@shared/utils/html-text.util';
+import {
+  htmlToMentionText,
+  htmlToPlainText,
+} from '@shared/utils/html-text.util';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
 import { MentionsService } from './mentions.service';
@@ -198,6 +201,22 @@ export class TextRoomsService {
     const plain = htmlToPlainText(content);
     if (plain.length > 0) {
       return plain;
+    }
+    return `📎 ${attachments.map((item) => item.name).join(', ')}`;
+  }
+
+  private mentionMessagePreview(
+    content: string,
+    attachments: readonly IAttachment[],
+    usersById: Record<number, { username: string }>,
+    rolesById: Record<number, { name: string }>,
+  ): string {
+    const mentionText = htmlToMentionText(content);
+    const rendered = this.mentionsService
+      .renderPlainPreview(mentionText, usersById, rolesById)
+      .trim();
+    if (rendered.length > 0) {
+      return rendered;
     }
     return `📎 ${attachments.map((item) => item.name).join(', ')}`;
   }
@@ -652,6 +671,7 @@ export class TextRoomsService {
       dto.content,
     );
 
+    let addedRecipientIds: number[] = [];
     let message: MessageEntity;
     try {
       message = await this.em.transactional(async (tx) => {
@@ -679,7 +699,7 @@ export class TextRoomsService {
         this.indexSearchTokens(tx, created, dto.content);
         await tx.flush();
         if (resolvedMentions) {
-          await this.mentionsService.replace(
+          addedRecipientIds = await this.mentionsService.replace(
             tx,
             created.id,
             resolvedMentions.recipientIds,
@@ -759,6 +779,27 @@ export class TextRoomsService {
       );
     }
 
+    if (room && addedRecipientIds.length > 0 && resolvedMentions) {
+      emitNotificationsDomainEvent(
+        this.eventEmitter,
+        NotificationsDomainEvents.MENTION,
+        {
+          recipientIds: addedRecipientIds,
+          senderId: messageDto.senderId,
+          senderUsername: messageDto.senderUsername,
+          roomId: room.id,
+          roomName: room.name,
+          messageId: messageDto.id,
+          messagePreview: this.mentionMessagePreview(
+            dto.content,
+            messageDto.attachments,
+            resolvedMentions.usersById,
+            resolvedMentions.rolesById,
+          ),
+        },
+      );
+    }
+
     return messageDto;
   }
 
@@ -809,11 +850,13 @@ export class TextRoomsService {
       dto.content,
     );
 
+    let resolved:
+      Awaited<ReturnType<typeof this.mentionsService.resolve>> | undefined;
     let effectiveMentions: IMentionSet | undefined;
     let recipientIds: number[] | undefined;
 
     if (message.room) {
-      const resolved = await this.mentionsService.resolve(
+      resolved = await this.mentionsService.resolve(
         user,
         message.room,
         dto.content,
@@ -837,8 +880,13 @@ export class TextRoomsService {
     this.em.persist(message);
     await this.em.flush();
 
+    let addedRecipientIds: number[] = [];
     if (message.room && recipientIds) {
-      await this.mentionsService.replace(this.em, message.id, recipientIds);
+      addedRecipientIds = await this.mentionsService.replace(
+        this.em,
+        message.id,
+        recipientIds,
+      );
     }
 
     const [isReadMap, updatedAttachments, reactions] = await Promise.all([
@@ -858,6 +906,28 @@ export class TextRoomsService {
       TextRoomsDomainEvents.MESSAGE_UPDATED,
       messageDto,
     );
+
+    if (message.room && addedRecipientIds.length > 0 && resolved) {
+      emitNotificationsDomainEvent(
+        this.eventEmitter,
+        NotificationsDomainEvents.MENTION,
+        {
+          recipientIds: addedRecipientIds,
+          senderId: messageDto.senderId,
+          senderUsername: messageDto.senderUsername,
+          roomId: message.room.id,
+          roomName: message.room.name,
+          messageId: messageDto.id,
+          messagePreview: this.mentionMessagePreview(
+            dto.content,
+            messageDto.attachments,
+            resolved.usersById,
+            resolved.rolesById,
+          ),
+        },
+      );
+    }
+
     return messageDto;
   }
 

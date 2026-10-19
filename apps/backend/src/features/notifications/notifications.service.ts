@@ -12,6 +12,7 @@ import {
   emitNotificationsDomainEvent,
   type IDirectCallNotificationPayload,
   type IDirectMessageNotificationPayload,
+  type IMentionNotificationPayload,
 } from './notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
@@ -270,6 +271,58 @@ export class NotificationsService {
         },
       },
     });
+  }
+
+  public async sendMentionNotification(
+    payload: IMentionNotificationPayload,
+  ): Promise<void> {
+    const body = htmlToPlainText(
+      payload.messagePreview,
+      pushNotificationBodyMaxLength,
+    );
+    if (!body || payload.recipientIds.length === 0) {
+      return;
+    }
+
+    const title = `${payload.senderUsername} · #${payload.roomName}`;
+    const url = `/text-room/${payload.roomId}?message=${payload.messageId}`;
+
+    await Promise.allSettled(
+      payload.recipientIds.map((recipientId) =>
+        this.deliver(recipientId, {
+          title,
+          body,
+          tag: `mention:${payload.messageId}`,
+          data: {
+            type: 'mention',
+            roomId: payload.roomId,
+            messageId: payload.messageId,
+            senderId: payload.senderId,
+            url,
+            onActionClick: {
+              default: {
+                operation: 'focusLastFocusedOrOpen',
+                url,
+              },
+            },
+          },
+        }),
+      ),
+    );
+  }
+
+  @OnEvent(NotificationsDomainEvents.MENTION)
+  async onMentionNotification(
+    payload: IMentionNotificationPayload,
+  ): Promise<void> {
+    try {
+      await this.sendMentionNotification(payload);
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send mention push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   @OnEvent(NotificationsDomainEvents.DIRECT_MESSAGE)

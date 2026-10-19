@@ -698,13 +698,24 @@ describe('TextRoomsService', () => {
       const roomId = 10;
       const created = createdMessage(roomId);
       messageRepository.create.mockImplementation(
-        (data) => ({ ...created, ...data }) as MessageEntity,
+        (data) =>
+          ({
+            ...created,
+            ...data,
+            sender: created.sender,
+          }) as MessageEntity,
       );
 
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [2], roleIds: [5], everyone: false },
         recipientIds: [2, 3],
+        usersById: { 2: { username: 'user2' } },
+        rolesById: { 5: { name: 'role5' } },
       });
+      mentionsService.replace.mockResolvedValueOnce([2, 3]);
+      mentionsService.renderPlainPreview.mockReturnValue(
+        'Hey @user2 and @role5',
+      );
 
       const result = await service.create(mockUser, {
         attachmentIds: [],
@@ -722,6 +733,18 @@ describe('TextRoomsService', () => {
         em,
         created.id,
         [2, 3],
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.MENTION,
+        {
+          recipientIds: [2, 3],
+          senderId: mockUser.id,
+          senderUsername: mockUser.username,
+          roomId,
+          roomName: 'general',
+          messageId: result.id,
+          messagePreview: 'Hey @user2 and @role5',
+        },
       );
       expect(result.mentions).toEqual({
         userIds: [2],
@@ -1088,7 +1111,7 @@ describe('TextRoomsService', () => {
       const existing = {
         id: parse(msgId),
         sender: { id: mockUser.id, username: mockUser.username },
-        room: { id: 10, isPrivate: false },
+        room: { id: 10, name: 'general', isPrivate: false },
         contentEncrypted: new Uint8Array(),
         iv: new Uint8Array(),
         authTag: new Uint8Array(),
@@ -1104,7 +1127,13 @@ describe('TextRoomsService', () => {
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [3], roleIds: [], everyone: true },
         recipientIds: [3, 4],
+        usersById: { 3: { username: 'user3' } },
+        rolesById: {},
       });
+      mentionsService.replace.mockResolvedValueOnce([4]);
+      mentionsService.renderPlainPreview.mockReturnValue(
+        'Edited @user3 @everyone',
+      );
 
       const result = await service.updateMessage(mockUser, msgId, {
         content: 'Edited <@3> @everyone',
@@ -1120,11 +1149,59 @@ describe('TextRoomsService', () => {
         existing.id,
         [3, 4],
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.MENTION,
+        {
+          recipientIds: [4],
+          senderId: mockUser.id,
+          senderUsername: mockUser.username,
+          roomId: 10,
+          roomName: 'general',
+          messageId: result.id,
+          messagePreview: 'Edited @user3 @everyone',
+        },
+      );
       expect(result.mentions).toEqual({
         userIds: [3],
         roleIds: [],
         everyone: true,
       });
+    });
+
+    it('does not emit MENTION when editing a room message without newly added recipients', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10, name: 'general', isPrivate: false },
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+        mentions: { userIds: [3], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockImplementation((target, patch) =>
+        Object.assign(target, patch),
+      );
+
+      mentionsService.resolve.mockResolvedValueOnce({
+        effective: { userIds: [3], roleIds: [], everyone: false },
+        recipientIds: [3],
+        usersById: { 3: { username: 'user3' } },
+        rolesById: {},
+      });
+      mentionsService.replace.mockResolvedValueOnce([]);
+
+      await service.updateMessage(mockUser, msgId, {
+        content: 'Same <@3>',
+      });
+
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        NotificationsDomainEvents.MENTION,
+        expect.anything(),
+      );
     });
 
     it('bypasses mentions resolution and replace when editing a direct chat message', async () => {
@@ -1152,6 +1229,10 @@ describe('TextRoomsService', () => {
 
       expect(mentionsService.resolve).not.toHaveBeenCalled();
       expect(mentionsService.replace).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        NotificationsDomainEvents.MENTION,
+        expect.anything(),
+      );
       expect(result.mentions).toEqual({
         userIds: [],
         roleIds: [],
