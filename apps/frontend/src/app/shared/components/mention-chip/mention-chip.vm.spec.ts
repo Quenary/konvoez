@@ -1,0 +1,212 @@
+import { describe, expect, it } from 'vitest';
+import { IRoleSummary, IUser } from '@konvoez/shared';
+import { buildMentionChipVm, IMentionChipContext } from './mention-chip.vm';
+
+describe('buildMentionChipVm', () => {
+  const alice: IUser = {
+    id: 1,
+    username: 'alice',
+    fullname: 'Alice Wonderland',
+    email: 'alice@example.com',
+    avatar: 'avatar1.png',
+    avatarUrl: 'https://example.com/avatar1.png',
+    isOwner: false,
+    roles: [
+      {
+        id: 10,
+        name: 'Admin',
+        color: '#ff0000',
+        priority: 1,
+        mentionable: true,
+      },
+    ],
+    permissions: [],
+    createdAt: new Date(),
+    updatedAt: null,
+  };
+
+  const bob: IUser = {
+    id: 2,
+    username: 'bob',
+    fullname: 'Bob Ross',
+    email: 'bob@example.com',
+    avatar: null,
+    avatarUrl: null,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    createdAt: new Date(),
+    updatedAt: null,
+  };
+
+  const adminRole: IRoleSummary = {
+    id: 10,
+    name: 'Admin',
+    color: '#ff0000',
+    priority: 1,
+    mentionable: true,
+  };
+
+  const modRole: IRoleSummary = {
+    id: 20,
+    name: 'Moderator',
+    color: null,
+    priority: 2,
+    mentionable: true,
+  };
+
+  const baseCtx: IMentionChipContext = {
+    usersById: { [alice.id]: alice, [bob.id]: bob },
+    rolesById: { [adminRole.id]: adminRole, [modRole.id]: modRole },
+    me: alice,
+    unknownLabel: 'unknown',
+  };
+
+  it('builds VM for an existing user (other user)', () => {
+    const vm = buildMentionChipVm({ kind: 'user', id: 2 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'user',
+      id: 2,
+      label: '@bob',
+      isMe: false,
+      appearance: 'neutral',
+      avatar: {
+        kind: 'user',
+        username: 'bob',
+        fullname: 'Bob Ross',
+        avatarUrl: null,
+      },
+    });
+  });
+
+  it('builds VM for an existing user (current user)', () => {
+    const vm = buildMentionChipVm({ kind: 'user', id: 1 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'user',
+      id: 1,
+      label: '@alice',
+      isMe: true,
+      appearance: 'info',
+      avatar: {
+        kind: 'user',
+        username: 'alice',
+        fullname: 'Alice Wonderland',
+        avatarUrl: 'https://example.com/avatar1.png',
+      },
+    });
+  });
+
+  it('builds VM for an unknown/missing user', () => {
+    const vm = buildMentionChipVm({ kind: 'user', id: 999 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'unknown',
+      id: 999,
+      label: '@unknown',
+      isMe: false,
+      appearance: 'neutral',
+      avatar: {
+        kind: 'unknown',
+      },
+    });
+  });
+
+  it('builds VM for a role that the current user has', () => {
+    const vm = buildMentionChipVm({ kind: 'role', id: 10 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'role',
+      id: 10,
+      label: '@Admin',
+      isMe: true,
+      appearance: 'info',
+      avatar: {
+        kind: 'role',
+        name: 'Admin',
+        color: '#ff0000',
+      },
+    });
+  });
+
+  it('builds VM for a role that the current user does not have', () => {
+    const vm = buildMentionChipVm({ kind: 'role', id: 20 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'role',
+      id: 20,
+      label: '@Moderator',
+      isMe: false,
+      appearance: 'neutral',
+      avatar: {
+        kind: 'role',
+        name: 'Moderator',
+        color: null,
+      },
+    });
+  });
+
+  it('builds VM for an unknown/missing role', () => {
+    const vm = buildMentionChipVm({ kind: 'role', id: 999 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'unknown',
+      id: 999,
+      label: '@unknown',
+      isMe: false,
+      appearance: 'neutral',
+      avatar: {
+        kind: 'unknown',
+      },
+    });
+  });
+
+  it('builds VM for everyone when user is logged in', () => {
+    const vm = buildMentionChipVm({ kind: 'everyone' }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'everyone',
+      id: null,
+      label: '@everyone',
+      isMe: true,
+      appearance: 'info',
+      avatar: {
+        kind: 'everyone',
+      },
+    });
+  });
+
+  it('builds VM for everyone when user is not logged in', () => {
+    const vm = buildMentionChipVm(
+      { kind: 'everyone' },
+      { ...baseCtx, me: null },
+    );
+
+    expect(vm).toEqual({
+      kind: 'everyone',
+      id: null,
+      label: '@everyone',
+      isMe: false,
+      appearance: 'neutral',
+      avatar: {
+        kind: 'everyone',
+      },
+    });
+  });
+
+  it('builds fallback unknown VM for unknown kind', () => {
+    const vm = buildMentionChipVm({ kind: 'foobar', id: 123 }, baseCtx);
+
+    expect(vm).toEqual({
+      kind: 'unknown',
+      id: 123,
+      label: '@unknown',
+      isMe: false,
+      appearance: 'neutral',
+      avatar: {
+        kind: 'unknown',
+      },
+    });
+  });
+});
