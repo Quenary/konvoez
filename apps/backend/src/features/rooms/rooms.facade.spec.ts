@@ -112,9 +112,9 @@ describe('RoomsFacade', () => {
       roomsService.findOne.mockResolvedValue(mockRoom);
       roomsService.canAccessRoom.mockReturnValue(true);
 
-      await expect(
-        facade.assertCanAccessRoom(mockUser, 10),
-      ).resolves.toBeUndefined();
+      await expect(facade.assertCanAccessRoom(mockUser, 10)).resolves.toBe(
+        mockRoom,
+      );
     });
 
     it('should throw ROOM_ACCESS_DENIED when user lacks access', async () => {

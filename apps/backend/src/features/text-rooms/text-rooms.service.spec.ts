@@ -51,6 +51,8 @@ import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
 import { TextRoomsDomainEvents } from './text-rooms.events';
 import { NotificationsDomainEvents } from '../notifications/notifications.events';
+import { MentionsService } from './mentions.service';
+import { RoomEntity } from '../rooms/rooms.entity';
 
 describe('TextRoomsService', () => {
   let service: TextRoomsService;
@@ -62,6 +64,7 @@ describe('TextRoomsService', () => {
   let usersService: jest.Mocked<UsersService>;
   let roomsFacade: jest.Mocked<RoomsFacade>;
   let encryptionService: jest.Mocked<EncryptionService>;
+  let mentionsService: jest.Mocked<MentionsService>;
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
   let attachmentsService: {
@@ -135,10 +138,23 @@ describe('TextRoomsService', () => {
     } as unknown as jest.Mocked<UsersService>;
 
     roomsFacade = {
-      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+      assertCanAccessRoom: jest.fn().mockResolvedValue({
+        id: 10,
+        name: 'general',
+        isPrivate: false,
+      } as RoomEntity),
       getAccessibleRoomIds: jest.fn().mockResolvedValue(new Set([10])),
       canAccessRoom: jest.fn().mockReturnValue(true),
     } as unknown as jest.Mocked<RoomsFacade>;
+
+    mentionsService = {
+      resolve: jest.fn().mockResolvedValue({
+        effective: { userIds: [], roleIds: [], everyone: false },
+        recipientIds: [],
+      }),
+      replace: jest.fn().mockResolvedValue([]),
+      renderPlainPreview: jest.fn().mockReturnValue('preview'),
+    } as unknown as jest.Mocked<MentionsService>;
 
     encryptionService = {
       encrypt: jest.fn().mockReturnValue({
@@ -180,6 +196,7 @@ describe('TextRoomsService', () => {
       eventEmitter as never,
       attachmentsService as unknown as AttachmentsService,
       settingsService as unknown as SettingsService,
+      mentionsService,
     );
   });
 
@@ -676,6 +693,80 @@ describe('TextRoomsService', () => {
         code: ApiErrorCode.ROOM_ACCESS_DENIED,
       });
     });
+
+    it('resolves mentions for room message and persists message_mentions rows', async () => {
+      const roomId = 10;
+      const created = createdMessage(roomId);
+      messageRepository.create.mockImplementation(
+        (data) => ({ ...created, ...data }) as MessageEntity,
+      );
+
+      mentionsService.resolve.mockResolvedValueOnce({
+        effective: { userIds: [2], roleIds: [5], everyone: false },
+        recipientIds: [2, 3],
+      });
+
+      const result = await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'Hey <@2> and <@&5>',
+        roomId,
+        recipientId: null,
+      });
+
+      expect(mentionsService.resolve).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({ id: roomId }),
+        'Hey <@2> and <@&5>',
+      );
+      expect(mentionsService.replace).toHaveBeenCalledWith(
+        em,
+        created.id,
+        [2, 3],
+      );
+      expect(result.mentions).toEqual({
+        userIds: [2],
+        roleIds: [5],
+        everyone: false,
+      });
+    });
+
+    it('bypasses mentions resolution and storage for direct messages', async () => {
+      usersService.findOne.mockResolvedValue({
+        id: 2,
+        username: 'bob',
+      } as unknown as UserEntity);
+
+      const msgId = parse(v7());
+      const mockCreated = {
+        id: msgId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: null,
+        recipient: { id: 2 },
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+        mentions: { userIds: [], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+      messageRepository.create.mockReturnValue(mockCreated);
+
+      const result = await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'DM with <@2> and @everyone',
+        roomId: null,
+        recipientId: 2,
+      });
+
+      expect(mentionsService.resolve).not.toHaveBeenCalled();
+      expect(mentionsService.replace).not.toHaveBeenCalled();
+      expect(result.mentions).toEqual({
+        userIds: [],
+        roleIds: [],
+        everyone: false,
+      });
+    });
   });
 
   describe('list', () => {
@@ -991,6 +1082,82 @@ describe('TextRoomsService', () => {
         code: ApiErrorCode.MESSAGE_NOT_OWNER,
       });
     });
+
+    it('resolves and replaces mentions when editing a room message', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10, isPrivate: false },
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+        mentions: { userIds: [], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockImplementation((target, patch) =>
+        Object.assign(target, patch),
+      );
+
+      mentionsService.resolve.mockResolvedValueOnce({
+        effective: { userIds: [3], roleIds: [], everyone: true },
+        recipientIds: [3, 4],
+      });
+
+      const result = await service.updateMessage(mockUser, msgId, {
+        content: 'Edited <@3> @everyone',
+      });
+
+      expect(mentionsService.resolve).toHaveBeenCalledWith(
+        mockUser,
+        existing.room,
+        'Edited <@3> @everyone',
+      );
+      expect(mentionsService.replace).toHaveBeenCalledWith(
+        em,
+        existing.id,
+        [3, 4],
+      );
+      expect(result.mentions).toEqual({
+        userIds: [3],
+        roleIds: [],
+        everyone: true,
+      });
+    });
+
+    it('bypasses mentions resolution and replace when editing a direct chat message', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: null,
+        recipient: { id: 2 },
+        contentEncrypted: new Uint8Array(),
+        iv: new Uint8Array(),
+        authTag: new Uint8Array(),
+        mentions: { userIds: [], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockImplementation((target, patch) =>
+        Object.assign(target, patch),
+      );
+
+      const result = await service.updateMessage(mockUser, msgId, {
+        content: 'Edited DM with <@2>',
+      });
+
+      expect(mentionsService.resolve).not.toHaveBeenCalled();
+      expect(mentionsService.replace).not.toHaveBeenCalled();
+      expect(result.mentions).toEqual({
+        userIds: [],
+        roleIds: [],
+        everyone: false,
+      });
+    });
   });
 
   describe('delete', () => {
@@ -1173,6 +1340,7 @@ describe('TextRoomsService', () => {
 
       expect(result).toEqual({
         rooms: { '10': 2 },
+        roomMentions: {},
         direct: { '5': 3 },
         directTotal: 3,
       });

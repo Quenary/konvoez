@@ -47,6 +47,7 @@ import {
   EPermission,
   ESettingKey,
   IAttachment,
+  IMentionSet,
   ITextRoomMessage,
   ITextRoomMessageReply,
   ITextRoomReactionGroup,
@@ -55,6 +56,7 @@ import {
 import { htmlToPlainText } from '@shared/utils/html-text.util';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
+import { MentionsService } from './mentions.service';
 
 @Injectable()
 export class TextRoomsService {
@@ -75,6 +77,7 @@ export class TextRoomsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly attachmentsService: AttachmentsService,
     private readonly settingsService: SettingsService,
+    private readonly mentionsService: MentionsService,
   ) {}
 
   private entityToDto(
@@ -126,6 +129,11 @@ export class TextRoomsService {
       attachments: [...attachments],
       clientId: data.clientId ? uuidStringify(data.clientId) : null,
       reactions: [...reactions],
+      mentions: data.mentions ?? {
+        userIds: [],
+        roleIds: [],
+        everyone: false,
+      },
     };
   }
 
@@ -331,7 +339,7 @@ export class TextRoomsService {
       0,
     );
 
-    return { rooms, direct, directTotal };
+    return { rooms, roomMentions: {}, direct, directTotal };
   }
 
   async getDirectChats(user: GetUserDto): Promise<GetUserDto[]> {
@@ -598,9 +606,12 @@ export class TextRoomsService {
     }
 
     if (dto.roomId) {
-      await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
-      room = this.em.getReference(RoomEntity, dto.roomId);
+      room = await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
     }
+
+    const resolvedMentions = room
+      ? await this.mentionsService.resolve(user, room, dto.content)
+      : null;
 
     let replyToId: Uint8Array | null = null;
     let replyTarget: MessageEntity | null = null;
@@ -648,12 +659,17 @@ export class TextRoomsService {
           {
             sender: tx.getReference(UserEntity, user.id),
             recipient,
-            room,
+            room: room ? tx.getReference(RoomEntity, room.id) : null,
             replyToId,
             clientId: dto.clientId ? parse(dto.clientId) : null,
             contentEncrypted: encrypted,
             iv,
             authTag,
+            mentions: resolvedMentions?.effective ?? {
+              userIds: [],
+              roleIds: [],
+              everyone: false,
+            },
           },
           { persist: true },
         );
@@ -662,6 +678,13 @@ export class TextRoomsService {
         }
         this.indexSearchTokens(tx, created, dto.content);
         await tx.flush();
+        if (resolvedMentions) {
+          await this.mentionsService.replace(
+            tx,
+            created.id,
+            resolvedMentions.recipientIds,
+          );
+        }
         if (attachmentIds.length > 0) {
           await this.attachmentsService.claimForMessage(
             tx,
@@ -746,7 +769,16 @@ export class TextRoomsService {
   ): Promise<ITextRoomMessage> {
     let message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender', 'replyTo', 'replyTo.sender'] },
+      {
+        populate: [
+          'sender',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+          'replyTo',
+          'replyTo.sender',
+        ],
+      },
     );
 
     if (!message) {
@@ -777,10 +809,24 @@ export class TextRoomsService {
       dto.content,
     );
 
+    let effectiveMentions: IMentionSet | undefined;
+    let recipientIds: number[] | undefined;
+
+    if (message.room) {
+      const resolved = await this.mentionsService.resolve(
+        user,
+        message.room,
+        dto.content,
+      );
+      effectiveMentions = resolved.effective;
+      recipientIds = resolved.recipientIds;
+    }
+
     message = this.messageRepository.assign(message, {
       contentEncrypted: encrypted,
       iv,
       authTag,
+      ...(effectiveMentions ? { mentions: effectiveMentions } : {}),
     });
 
     await this.em.nativeDelete(MessageSearchTokenEntity, {
@@ -790,6 +836,10 @@ export class TextRoomsService {
 
     this.em.persist(message);
     await this.em.flush();
+
+    if (message.room && recipientIds) {
+      await this.mentionsService.replace(this.em, message.id, recipientIds);
+    }
 
     const [isReadMap, updatedAttachments, reactions] = await Promise.all([
       this.buildIsReadMap([message], user.id),

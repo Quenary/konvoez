@@ -9,6 +9,7 @@ import { RoomEntitySchema } from './features/rooms/rooms.entity';
 import { SettingsEntitySchema } from './features/settings/settings.entity';
 import {
   MessageEntitySchema,
+  MessageMentionEntitySchema,
   MessageReadEntitySchema,
   MessageReactionEntitySchema,
   MessageSearchTokenEntitySchema,
@@ -33,6 +34,7 @@ import { Migration20261003224050_MessageAttachments } from './migrations/Migrati
 import { Migration20261009130000_MessageReactions } from './migrations/Migration20261009130000_MessageReactions';
 import { Migration20261017170127_RolesAndRoomAccess } from './migrations/Migration20261017170127_RolesAndRoomAccess';
 import { Migration20261019120000_MentionableRoles } from './migrations/Migration20261019120000_MentionableRoles';
+import { Migration20261019130000_MessageMentions } from './migrations/Migration20261019130000_MessageMentions';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -47,6 +49,7 @@ export async function createMikroOrmConfig() {
       RoomEntitySchema,
       SettingsEntitySchema,
       MessageEntitySchema,
+      MessageMentionEntitySchema,
       MessageSearchTokenEntitySchema,
       InviteEntitySchema,
       MessageReadEntitySchema,
@@ -78,6 +81,7 @@ export async function createMikroOrmConfig() {
         Migration20261009130000_MessageReactions,
         Migration20261017170127_RolesAndRoomAccess,
         Migration20261019120000_MentionableRoles,
+        Migration20261019130000_MessageMentions,
       ],
     },
   } satisfies Partial<Options>;

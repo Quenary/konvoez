@@ -26,3 +26,22 @@ export function htmlToPlainText(html: string, maxLength?: number): string {
 
   return `${chars.slice(0, maxLength - 3).join('')}...`;
 }
+
+const BASIC_ENTITIES: Record<string, string> = {
+  lt: '<',
+  gt: '>',
+  amp: '&',
+  quot: '"',
+  '#39': "'",
+};
+
+export function decodeBasicEntities(text: string): string {
+  return text.replace(
+    /&(lt|gt|amp|quot|#39);/g,
+    (_, entity: string) => BASIC_ENTITIES[entity] ?? `&${entity};`,
+  );
+}
+
+export function htmlToMentionText(html: string): string {
+  return decodeBasicEntities(htmlToPlainText(html));
+}
