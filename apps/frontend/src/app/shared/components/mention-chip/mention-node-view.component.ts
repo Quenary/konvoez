@@ -71,6 +71,7 @@ export class MentionNodeViewComponent extends TuiNodeViewNg {
       rolesById: this.rolesStore.rolesById(),
       me: this.currentUser() ?? null,
       unknownLabel: this.unknownLabel(),
+      accepted: null,
     };
     return buildMentionChipVm({ kind, id }, ctx);
   });

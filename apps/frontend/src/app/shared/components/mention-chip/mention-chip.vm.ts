@@ -1,4 +1,9 @@
-import { IRoleSummary, IUser, MENTION_EVERYONE } from '@konvoez/shared';
+import {
+  IMentionSet,
+  IRoleSummary,
+  IUser,
+  MENTION_EVERYONE,
+} from '@konvoez/shared';
 
 export type TMentionAvatarVm =
   | {
@@ -25,6 +30,7 @@ export interface IMentionChipContext {
   rolesById: Record<number, IRoleSummary>;
   me: IUser | null;
   unknownLabel: string;
+  accepted: IMentionSet | null;
 }
 
 export function buildMentionChipVm(
@@ -37,7 +43,9 @@ export function buildMentionChipVm(
   if (kind === 'user' && id !== null) {
     const user = ctx.usersById[id];
     if (user) {
-      const isMe = ctx.me?.id === user.id;
+      const isMe =
+        ctx.me?.id === user.id &&
+        (ctx.accepted === null || ctx.accepted.userIds.includes(user.id));
       return {
         kind: 'user',
         id: user.id,
@@ -55,7 +63,9 @@ export function buildMentionChipVm(
   } else if (kind === 'role' && id !== null) {
     const role = ctx.rolesById[id];
     if (role) {
-      const isMe = ctx.me?.roles?.some((r) => r.id === role.id) ?? false;
+      const isMe =
+        (ctx.me?.roles?.some((r) => r.id === role.id) ?? false) &&
+        (ctx.accepted === null || ctx.accepted.roleIds.includes(role.id));
       return {
         kind: 'role',
         id: role.id,
@@ -70,7 +80,8 @@ export function buildMentionChipVm(
       };
     }
   } else if (kind === 'everyone') {
-    const isMe = ctx.me !== null;
+    const isMe =
+      ctx.me !== null && (ctx.accepted === null || ctx.accepted.everyone);
     return {
       kind: 'everyone',
       id: null,

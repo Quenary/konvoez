@@ -32,6 +32,7 @@ class TestHostComponent {
     rolesById: {},
     me: null,
     unknownLabel: 'unknown',
+    accepted: null,
   });
 }
 
@@ -67,6 +68,7 @@ describe('MentionChipsDirective', () => {
     rolesById: { 10: adminRole },
     me: null,
     unknownLabel: 'unknown',
+    accepted: null,
   };
 
   beforeEach(async () => {

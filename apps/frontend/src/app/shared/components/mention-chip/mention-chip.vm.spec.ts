@@ -60,6 +60,7 @@ describe('buildMentionChipVm', () => {
     rolesById: { [adminRole.id]: adminRole, [modRole.id]: modRole },
     me: alice,
     unknownLabel: 'unknown',
+    accepted: null,
   };
 
   it('builds VM for an existing user (other user)', () => {
@@ -207,6 +208,103 @@ describe('buildMentionChipVm', () => {
       avatar: {
         kind: 'unknown',
       },
+    });
+  });
+
+  describe('accepted mentions filtering', () => {
+    it('sets isMe true and info for role when accepted.roleIds contains it', () => {
+      const vm = buildMentionChipVm(
+        { kind: 'role', id: 10 },
+        {
+          ...baseCtx,
+          accepted: { userIds: [], roleIds: [10], everyone: false },
+        },
+      );
+      expect(vm.isMe).toBe(true);
+      expect(vm.appearance).toBe('info');
+    });
+
+    it('sets isMe false and neutral for role when accepted.roleIds does not contain it', () => {
+      const vm = buildMentionChipVm(
+        { kind: 'role', id: 10 },
+        {
+          ...baseCtx,
+          accepted: { userIds: [], roleIds: [99], everyone: false },
+        },
+      );
+      expect(vm.isMe).toBe(false);
+      expect(vm.appearance).toBe('neutral');
+    });
+
+    it('sets isMe true and info for user when accepted.userIds contains me', () => {
+      const vm = buildMentionChipVm(
+        { kind: 'user', id: 1 },
+        {
+          ...baseCtx,
+          accepted: { userIds: [1], roleIds: [], everyone: false },
+        },
+      );
+      expect(vm.isMe).toBe(true);
+      expect(vm.appearance).toBe('info');
+    });
+
+    it('sets isMe false and neutral for user when accepted.userIds does not contain me', () => {
+      const vm = buildMentionChipVm(
+        { kind: 'user', id: 1 },
+        {
+          ...baseCtx,
+          accepted: { userIds: [2], roleIds: [], everyone: false },
+        },
+      );
+      expect(vm.isMe).toBe(false);
+      expect(vm.appearance).toBe('neutral');
+    });
+
+    it('sets isMe true and info for everyone when accepted.everyone is true', () => {
+      const vm = buildMentionChipVm(
+        { kind: 'everyone' },
+        {
+          ...baseCtx,
+          accepted: { userIds: [], roleIds: [], everyone: true },
+        },
+      );
+      expect(vm.isMe).toBe(true);
+      expect(vm.appearance).toBe('info');
+    });
+
+    it('sets isMe false and neutral for everyone when accepted.everyone is false', () => {
+      const vm = buildMentionChipVm(
+        { kind: 'everyone' },
+        {
+          ...baseCtx,
+          accepted: { userIds: [], roleIds: [], everyone: false },
+        },
+      );
+      expect(vm.isMe).toBe(false);
+      expect(vm.appearance).toBe('neutral');
+    });
+
+    it('keeps token-based result when accepted is null', () => {
+      const userVm = buildMentionChipVm(
+        { kind: 'user', id: 1 },
+        { ...baseCtx, accepted: null },
+      );
+      expect(userVm.isMe).toBe(true);
+      expect(userVm.appearance).toBe('info');
+
+      const roleVm = buildMentionChipVm(
+        { kind: 'role', id: 10 },
+        { ...baseCtx, accepted: null },
+      );
+      expect(roleVm.isMe).toBe(true);
+      expect(roleVm.appearance).toBe('info');
+
+      const everyoneVm = buildMentionChipVm(
+        { kind: 'everyone' },
+        { ...baseCtx, accepted: null },
+      );
+      expect(everyoneVm.isMe).toBe(true);
+      expect(everyoneVm.appearance).toBe('info');
     });
   });
 });

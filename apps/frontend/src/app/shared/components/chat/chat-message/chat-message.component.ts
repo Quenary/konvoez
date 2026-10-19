@@ -26,6 +26,7 @@ import { TuiEditorSocket } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import {
   canDeleteTextRoomMessage,
+  IMentionSet,
   isMessageMentioningUser,
   ITextRoomMessageReply,
   IUser,
@@ -53,6 +54,12 @@ import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { MentionChipsDirective } from '@shared/components/mention-chip/mention-chips.directive';
 import { IMentionChipContext } from '@shared/components/mention-chip/mention-chip.vm';
 import { insertMentionPlaceholders } from './render-mentions';
+
+const EMPTY_MENTIONS: IMentionSet = {
+  userIds: [],
+  roleIds: [],
+  everyone: false,
+};
 
 @Component({
   selector: 'app-chat-message',
@@ -122,11 +129,15 @@ export class ChatMessageComponent {
     const rolesById = this.rolesStore.rolesById();
     const me = this.currentUser();
     const unknownLabel = this.unknownLabel();
+    const isOwn = this.isOwnMessage();
+    const mentions = this.message().mentions;
+    const accepted = isOwn ? EMPTY_MENTIONS : mentions;
     return {
       usersById,
       rolesById,
       me,
       unknownLabel,
+      accepted,
     };
   });
 

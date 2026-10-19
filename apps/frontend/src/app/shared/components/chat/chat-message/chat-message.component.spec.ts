@@ -594,14 +594,77 @@ describe('ChatMessageComponent', () => {
 
       fixture.componentRef.setInput('message', {
         ...testMessage,
+        senderId: 2,
         roomId: 1,
         content: '<p><@1> and <@2></p>',
+        mentions: { userIds: [1], roleIds: [], everyone: false },
       });
       fixture.detectChanges();
 
       const chips = fixture.nativeElement.querySelectorAll('app-mention-chip');
       expect(chips.length).toBe(2);
       expect(chips[0].classList.contains('mention-chip-me')).toBe(true);
+      expect(chips[1].classList.contains('mention-chip-me')).toBe(false);
+    });
+
+    it('does not set mention-chip-me when @everyone is not in accepted mentions and message is not mentioned', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 2,
+        roomId: 1,
+        content: '<p>@everyone</p>',
+        mentions: { userIds: [], roleIds: [], everyone: false },
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector('app-mention-chip');
+      expect(chip).toBeTruthy();
+      expect(chip.classList.contains('mention-chip-me')).toBe(false);
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeFalsy();
+    });
+
+    it('sets mention-chip-me and applies message-mentioned when @everyone is accepted', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 2,
+        roomId: 1,
+        content: '<p>@everyone</p>',
+        mentions: { userIds: [], roleIds: [], everyone: true },
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector('app-mention-chip');
+      expect(chip).toBeTruthy();
+      expect(chip.classList.contains('mention-chip-me')).toBe(true);
+      expect(
+        fixture.nativeElement.querySelector('.message-mentioned'),
+      ).toBeTruthy();
+    });
+
+    it('does not set mention-chip-me on own message even if message contains mentions', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 1,
+        roomId: 1,
+        content: '<p><@1> and @everyone</p>',
+        mentions: { userIds: [1], roleIds: [], everyone: true },
+      });
+      fixture.detectChanges();
+
+      const chips = fixture.nativeElement.querySelectorAll('app-mention-chip');
+      expect(chips.length).toBe(2);
+      expect(chips[0].classList.contains('mention-chip-me')).toBe(false);
       expect(chips[1].classList.contains('mention-chip-me')).toBe(false);
     });
 
