@@ -12,7 +12,7 @@ import {
   emitNotificationsDomainEvent,
   type IDirectCallNotificationPayload,
   type IDirectMessageNotificationPayload,
-} from '@shared/events/notifications.events';
+} from './notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import {

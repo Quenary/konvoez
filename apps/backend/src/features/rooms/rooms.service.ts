@@ -16,10 +16,7 @@ import {
   EntityRepository,
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { RoomsDomainEvents, emitRoomsDomainEvent } from './rooms.events';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
@@ -244,9 +241,9 @@ export class RoomsService {
       }
 
       await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
-      emitEntitySyncDomainEvent(
+      emitRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.ROOM_CREATED,
+        RoomsDomainEvents.ROOM_CREATED,
         this.toDto(room),
       );
       return room;
@@ -301,9 +298,9 @@ export class RoomsService {
       }
 
       await this.em.populate(room, ['author', 'allowedRoles', 'allowedUsers']);
-      emitEntitySyncDomainEvent(
+      emitRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.ROOM_UPDATED,
+        RoomsDomainEvents.ROOM_UPDATED,
         this.toDto(room),
       );
       return room;
@@ -319,11 +316,9 @@ export class RoomsService {
       if (avatar) {
         await this.deleteStoredFile(avatar);
       }
-      emitEntitySyncDomainEvent(
-        this.eventEmitter,
-        EntitySyncDomainEvents.ROOM_DELETED,
-        { id },
-      );
+      emitRoomsDomainEvent(this.eventEmitter, RoomsDomainEvents.ROOM_DELETED, {
+        id,
+      });
     });
   }
 
@@ -342,9 +337,9 @@ export class RoomsService {
         await this.deleteStoredFile(key);
       }
       for (const roomId of roomIds) {
-        emitEntitySyncDomainEvent(
+        emitRoomsDomainEvent(
           this.eventEmitter,
-          EntitySyncDomainEvents.ROOM_DELETED,
+          RoomsDomainEvents.ROOM_DELETED,
           { id: roomId },
         );
       }

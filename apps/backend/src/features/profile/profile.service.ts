@@ -4,10 +4,7 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
@@ -73,9 +70,9 @@ export class ProfileService {
     this.em.persist(user);
     await this.em.flush();
     const result = await this.usersService.toDtoWithPermissions(user);
-    emitEntitySyncDomainEvent(
+    emitUsersDomainEvent(
       this.eventEmitter,
-      EntitySyncDomainEvents.USER_UPDATED,
+      UsersDomainEvents.USER_UPDATED,
       result,
     );
     return result;

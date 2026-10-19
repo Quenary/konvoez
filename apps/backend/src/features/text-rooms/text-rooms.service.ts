@@ -33,13 +33,13 @@ import { GetUserDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
-  TextRoomDomainEvents,
-  emitTextRoomDomainEvent,
-} from '@shared/events/text-room.events';
+  TextRoomsDomainEvents,
+  emitTextRoomsDomainEvent,
+} from './text-rooms.events';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
-} from '@shared/events/notifications.events';
+} from '../notifications/notifications.events';
 
 import {
   ApiErrorCode,
@@ -710,9 +710,9 @@ export class TextRoomsService {
       isSelfMessage,
       attachments.get(uuidStringify(message.id)) ?? [],
     );
-    emitTextRoomDomainEvent(
+    emitTextRoomsDomainEvent(
       this.eventEmitter,
-      TextRoomDomainEvents.MESSAGE_CREATED,
+      TextRoomsDomainEvents.MESSAGE_CREATED,
       messageDto,
     );
 
@@ -803,9 +803,9 @@ export class TextRoomsService {
       updatedAttachments.get(id) ?? currentAttachments,
       reactions.get(id) ?? [],
     );
-    emitTextRoomDomainEvent(
+    emitTextRoomsDomainEvent(
       this.eventEmitter,
-      TextRoomDomainEvents.MESSAGE_UPDATED,
+      TextRoomsDomainEvents.MESSAGE_UPDATED,
       messageDto,
     );
     return messageDto;
@@ -842,9 +842,9 @@ export class TextRoomsService {
     this.em.remove(message);
     await this.em.flush();
 
-    emitTextRoomDomainEvent(
+    emitTextRoomsDomainEvent(
       this.eventEmitter,
-      TextRoomDomainEvents.MESSAGE_DELETED,
+      TextRoomsDomainEvents.MESSAGE_DELETED,
       { id: messageId },
     );
   }
@@ -919,9 +919,9 @@ export class TextRoomsService {
     ]);
     for (const msg of othersMessages) {
       const id = uuidStringify(msg.id);
-      emitTextRoomDomainEvent(
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        TextRoomDomainEvents.MESSAGE_UPDATED,
+        TextRoomsDomainEvents.MESSAGE_UPDATED,
         this.entityToDto(
           msg,
           true,
@@ -1021,9 +1021,9 @@ export class TextRoomsService {
     const reactionsMap = await this.loadReactions([message]);
     const updatedReactions = reactionsMap.get(normalizedMessageId) ?? [];
 
-    emitTextRoomDomainEvent(
+    emitTextRoomsDomainEvent(
       this.eventEmitter,
-      TextRoomDomainEvents.MESSAGE_REACTION_UPDATED,
+      TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED,
       {
         messageId: normalizedMessageId,
         roomId: message.room?.id ?? null,

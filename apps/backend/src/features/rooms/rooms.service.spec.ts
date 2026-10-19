@@ -21,13 +21,17 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  EPermission,
+  ERoomType,
+  EUserRole,
+} from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 
 import { RoomsService } from './rooms.service';
 import { RoomEntity } from './rooms.entity';
-import { ERoomType, EUserRole } from '@konvoez/shared';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { RoomsDomainEvents } from './rooms.events';
 import { ROOM_AVATARS_BUCKET } from '@shared/services/file.service';
 import { GetUserDto } from '../users/users.dto';
 
@@ -118,7 +122,7 @@ describe('RoomsService', () => {
     await service.create({ name: 'Meeting', type: ERoomType.TEXT }, author);
 
     expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.ROOM_CREATED,
+      RoomsDomainEvents.ROOM_CREATED,
       expect.objectContaining({ id: room.id, name: room.name }),
     );
   });
@@ -139,7 +143,7 @@ describe('RoomsService', () => {
     await service.update(1, { name: 'Renamed' });
 
     expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.ROOM_UPDATED,
+      RoomsDomainEvents.ROOM_UPDATED,
       expect.objectContaining({ id: room.id }),
     );
   });
@@ -158,7 +162,7 @@ describe('RoomsService', () => {
       ROOM_AVATARS_BUCKET,
     );
     expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.ROOM_DELETED,
+      RoomsDomainEvents.ROOM_DELETED,
       { id: 1 },
     );
   });
@@ -267,11 +271,11 @@ describe('RoomsService', () => {
         ROOM_AVATARS_BUCKET,
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.ROOM_DELETED,
+        RoomsDomainEvents.ROOM_DELETED,
         { id: 10 },
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.ROOM_DELETED,
+        RoomsDomainEvents.ROOM_DELETED,
         { id: 20 },
       );
     });

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { RolesDomainEvents } from '../roles/roles.events';
 import { RoleEntity } from '../roles/roles.entity';
 import { RoleDto } from '../roles/roles.dto';
 import { RolesService } from '../roles/roles.service';
@@ -39,7 +39,7 @@ export class PermissionsFacade {
     }
   }
 
-  @OnEvent(EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED)
+  @OnEvent(RolesDomainEvents.ROLE_PERMISSIONS_CHANGED)
   handlePermissionsChanged(payload?: { userIds?: number[] }): void {
     if (!payload?.userIds || payload.userIds.length === 0) {
       this.clearDefaultPermissionsCache();

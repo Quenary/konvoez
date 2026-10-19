@@ -22,7 +22,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission, createRoleSchema } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import {
   type EntityManager,
   type EntityRepository,
@@ -30,7 +30,7 @@ import {
 } from '@mikro-orm/core';
 import { RoleEntity } from './roles.entity';
 import { RolesService } from './roles.service';
-import type { CreateRoleDto } from './roles.dto';
+import { RolesDomainEvents } from './roles.events';
 
 describe('RolesService', () => {
   let service: RolesService;
@@ -250,7 +250,7 @@ describe('RolesService', () => {
       expect(mockEm.remove).toHaveBeenCalledWith(mockRole);
       expect(mockEm.flush).toHaveBeenCalled();
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [10] },
       );
     });
@@ -287,16 +287,14 @@ describe('RolesService', () => {
         isDefault: true,
       } as RoleEntity);
 
-      await service.create(
-        createRoleSchema.parse({
-          name: 'Default',
-          isDefault: true,
-          permissions: [],
-        }) as CreateRoleDto,
-      );
+      await service.create({
+        name: 'Default',
+        isDefault: true,
+        permissions: [],
+      });
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [] },
       );
     });
@@ -309,7 +307,7 @@ describe('RolesService', () => {
       });
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [] },
       );
     });
@@ -323,7 +321,7 @@ describe('RolesService', () => {
       });
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
-        'entity-sync.user.permissions-changed',
+        RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
         { userIds: [42] },
       );
     });

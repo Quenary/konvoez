@@ -9,10 +9,7 @@ import {
 import { ApiErrorCode, IRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { RolesDomainEvents, emitRolesDomainEvent } from './roles.events';
 import { RoleEntity } from './roles.entity';
 import { CreateRoleDto, RoleDto, UpdateRoleDto } from './roles.dto';
 
@@ -120,9 +117,9 @@ export class RolesService {
       }
 
       if (role.isDefault) {
-        emitEntitySyncDomainEvent(
+        emitRolesDomainEvent(
           this.eventEmitter,
-          EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+          RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
           { userIds: [] },
         );
       }
@@ -179,17 +176,17 @@ export class RolesService {
       }
 
       if (isDefaultChanged || wasDefault) {
-        emitEntitySyncDomainEvent(
+        emitRolesDomainEvent(
           this.eventEmitter,
-          EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+          RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
           { userIds: [] },
         );
       } else if (permissionsChanged || priorityChanged) {
         const userIds = await this.findUserIdsByRole(id);
         if (userIds.length > 0) {
-          emitEntitySyncDomainEvent(
+          emitRolesDomainEvent(
             this.eventEmitter,
-            EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+            RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
             { userIds },
           );
         }
@@ -214,9 +211,9 @@ export class RolesService {
       await this.em.flush();
 
       if (userIds.length > 0) {
-        emitEntitySyncDomainEvent(
+        emitRolesDomainEvent(
           this.eventEmitter,
-          EntitySyncDomainEvents.USER_PERMISSIONS_CHANGED,
+          RolesDomainEvents.ROLE_PERMISSIONS_CHANGED,
           { userIds },
         );
       }

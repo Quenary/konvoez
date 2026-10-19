@@ -16,8 +16,9 @@ import {
   type FileService,
 } from '@shared/services/file.service';
 import { AppService } from '@shared/services/app.service';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
-import { TextRoomDomainEvents } from '@shared/events/text-room.events';
+import { TextRoomsDomainEvents } from '../text-rooms/text-rooms.events';
+import { RoomsDomainEvents } from '../rooms/rooms.events';
+import { UsersDomainEvents } from '../users/users.events';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 
@@ -58,9 +59,9 @@ export class AttachmentsCleanupService
     }
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_DELETED)
-  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
-  @OnEvent(EntitySyncDomainEvents.USER_DELETED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_DELETED)
+  @OnEvent(RoomsDomainEvents.ROOM_DELETED)
+  @OnEvent(UsersDomainEvents.USER_DELETED)
   public onDeleted(): void {
     void this.purgeDetached();
   }

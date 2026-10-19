@@ -52,7 +52,7 @@ The backend is built as a **modular monolith** running in a single process. Code
   - Consumers depend on the facade interface, avoiding direct tight coupling to entity structures or internal helper services.
 - **Domain Events via EventEmitter2**:
   - Cross-module side effects and realtime sync are decoupled via in-process domain events using `EventEmitter2` (`@nestjs/event-emitter`).
-  - Domain services publish events (e.g., `emitEntitySyncDomainEvent(this.eventEmitter, EntitySyncDomainEvents.USER_UPDATED, payload)`).
+  - Domain services publish events (e.g., `emitUsersDomainEvent(this.eventEmitter, UsersDomainEvents.USER_UPDATED, payload)`).
   - Gateways (`EntitySyncGateway`, `NotificationsGateway`, `TextRoomsGateway`) or listener services subscribe using `@OnEvent`.
   - **Never inject WebSocket gateways into feature domain services.** Keep domain services transport-agnostic.
 
@@ -127,8 +127,8 @@ The backend is built as a **modular monolith** running in a single process. Code
 
 - Text: `TextRoomsGateway` + `TextRoomsService`. Voice: `VoiceRoomsGateway` + mediasoup state services.
 - Entity metadata sync: `EntitySyncGateway` (`/ws/v1/sync`). Feature services publish domain events via `EventEmitter2` (`@nestjs/event-emitter`); the gateway listens with `@OnEvent` and fans out to Socket.IO. Do **not** inject the gateway into feature services.
-- Text message fan-out and push side effects follow the same pattern: emit from services/gateways via `@shared/events` (`text-room.events.ts`, `notifications.events.ts`); `TextRoomsGateway` / `NotificationsService` subscribe with `@OnEvent`. Do **not** inject `TextRoomsGateway` or `NotificationsService` into other features for notify-only work. Notification socket delivery is handled by `NotificationsGateway` (`/ws/v1/notifications`).
-- Domain event names/payloads for entity-sync live under `src/shared/events/` (e.g. `entity-sync.events.ts`). Wire event enums/payloads for clients live in `@konvoez/shared` (`EEntitySyncEvent`).
+- Text message fan-out and push side effects follow the same pattern: emit from services/gateways via feature domain events (`features/text-rooms/text-rooms.events.ts`, `features/notifications/notifications.events.ts`); `TextRoomsGateway` / `NotificationsService` subscribe with `@OnEvent`. Do **not** inject `TextRoomsGateway` or `NotificationsService` into other features for notify-only work. Notification socket delivery is handled by `NotificationsGateway` (`/ws/v1/notifications`).
+- Domain event definitions and typed emitter helpers live directly in their feature folders (e.g. `src/features/users/users.events.ts`, `src/features/rooms/rooms.events.ts`), while `src/shared/events/` provides the base application event contract (`IAppEvent`, `emitAppEvent`). Wire event enums/payloads for clients live in `@konvoez/shared` (`EEntitySyncEvent`).
 - Keep signaling contracts and event enums in `@konvoez/shared`; do not diverge payload shapes between client and server.
 - Gateways handle connection lifecycle and fan-out; heavy persistence/encryption stays in services.
 - Mediasoup / SFU state is process-local — treat it as sensitive runtime state, not something to casually serialize or share across instances.
