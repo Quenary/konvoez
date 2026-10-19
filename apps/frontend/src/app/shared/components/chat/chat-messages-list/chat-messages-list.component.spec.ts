@@ -75,6 +75,7 @@ describe('ChatMessagesListComponent', () => {
     deleteMessage: vi.fn(),
     jumpToMessage: vi.fn(),
     unreadDividerMessageId: signal<string | null>(null),
+    initialPosition: signal<'bottom' | 'unread' | 'message' | null>('bottom'),
   };
 
   const mockUsersStore = {
@@ -86,7 +87,9 @@ describe('ChatMessagesListComponent', () => {
     mockChatStore.messages.set(mockMessages);
     mockChatStore.targetScrollMessageId.set(null);
     mockChatStore.unreadDividerMessageId.set(null);
+    mockChatStore.initialPosition.set('bottom');
     Element.prototype.scrollTo = vi.fn();
+    Element.prototype.scrollIntoView = vi.fn();
 
     class MockIntersectionObserver {
       observe = vi.fn();
@@ -258,15 +261,129 @@ describe('ChatMessagesListComponent', () => {
     expect(dividerIndex).toBeGreaterThan(-1);
     expect(msg2Index).toBe(dividerIndex + 1);
   });
+
+  it('positions chat at unread divider when initialPosition is unread', async () => {
+    mockChatStore.unreadDividerMessageId.set('msg-2');
+    mockChatStore.initialPosition.set('unread');
+    fixture.detectChanges();
+    const divider = fixture.nativeElement.querySelector('#unread-divider');
+    expect(divider).toBeTruthy();
+    const scrollIntoView = vi.fn();
+    divider.scrollIntoView = scrollIntoView;
+
+    component['applyInitialPosition']();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'start',
+    });
+    expect(component['pinnedToBottom']).toBe(false);
+  });
+
+  it('falls back to scrollToBottom when initialPosition is unread but divider element is absent', async () => {
+    mockChatStore.unreadDividerMessageId.set(null);
+    mockChatStore.initialPosition.set('unread');
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+
+    component['applyInitialPosition']();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(scroll).toHaveBeenCalled();
+  });
+
+  it('calls scrollToBottom when initialPosition is bottom', async () => {
+    mockChatStore.initialPosition.set('bottom');
+    const scroll = vi.spyOn(component, 'scrollToBottom');
+
+    component['applyInitialPosition']();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(scroll).toHaveBeenCalled();
+  });
+
+  it('scrolls target message into view when initialPosition is message', async () => {
+    mockChatStore.initialPosition.set('message');
+    mockChatStore.targetScrollMessageId.set('msg-1');
+    fixture.detectChanges();
+    const msgEl = fixture.nativeElement.querySelector('#message-msg-1');
+    expect(msgEl).toBeTruthy();
+    const scrollIntoView = vi.fn();
+    msgEl.scrollIntoView = scrollIntoView;
+
+    component['applyInitialPosition']();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'instant',
+      block: 'center',
+    });
+    expect(mockChatStore.setTargetScrollMessageId).toHaveBeenCalledWith(null);
+    expect(component['pinnedToBottom']).toBe(false);
+  });
+
+  it('preserves scroll position when older messages are prepended', async () => {
+    fixture.detectChanges();
+    const container = fixture.nativeElement.querySelector(
+      '.scroll-container',
+    ) as HTMLDivElement;
+    setScroll(container, {
+      scrollTop: 100,
+      clientHeight: 400,
+      scrollHeight: 800,
+    });
+
+    component['lastScrollHeight'] = 800;
+    const scrollSpy = vi.spyOn(component, 'scrollToBottom');
+
+    const olderMessage: IMessageEntity = {
+      ...mockMessages[0],
+      id: 'msg-older',
+      createdAt: new Date('2026-09-14T00:00:00.000Z'),
+    };
+
+    setScroll(container, {
+      scrollTop: 100,
+      clientHeight: 400,
+      scrollHeight: 1200,
+    });
+
+    mockChatStore.messages.set([olderMessage, ...mockMessages]);
+    TestBed.flushEffects();
+
+    expect(scrollSpy).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(container.scrollTop).toBe(500);
+  });
+
+  it('captures lastScrollHeight and calls requestPrevPage on onScrollUp', () => {
+    const container = fixture.nativeElement.querySelector(
+      '.scroll-container',
+    ) as HTMLDivElement;
+    setScroll(container, {
+      scrollTop: 10,
+      clientHeight: 400,
+      scrollHeight: 950,
+    });
+
+    component.onScrollUp();
+    expect(component['lastScrollHeight']).toBe(950);
+    expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
+  });
 });
 
 function setScroll(
   element: HTMLElement,
   metrics: { scrollTop: number; clientHeight: number; scrollHeight: number },
 ): void {
+  let currentScrollTop = metrics.scrollTop;
   Object.defineProperty(element, 'scrollTop', {
     configurable: true,
-    value: metrics.scrollTop,
+    get: () => currentScrollTop,
+    set: (val: number) => {
+      currentScrollTop = val;
+    },
   });
   Object.defineProperty(element, 'clientHeight', {
     configurable: true,

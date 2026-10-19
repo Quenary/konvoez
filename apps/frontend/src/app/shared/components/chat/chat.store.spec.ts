@@ -1139,7 +1139,7 @@ describe('ChatStore', () => {
 
       expect(store.unreadDividerMessageId()).toBe('msg-1');
       expect(store.initialPosition()).toBe('unread');
-      expect(store.targetScrollMessageId()).toBe('msg-1');
+      expect(store.targetScrollMessageId()).toBeNull();
       expect(store.hasMoreBefore()).toBe(true);
       expect(store.hasMoreAfter()).toBe(true);
       expect(store.missedLiveWhileBehind()).toBe(false);

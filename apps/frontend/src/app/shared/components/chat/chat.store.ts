@@ -353,7 +353,7 @@ export const ChatStore = signalStore(
                       initialPosition: res.firstUnreadMessageId
                         ? 'unread'
                         : 'bottom',
-                      targetScrollMessageId: res.firstUnreadMessageId ?? null,
+                      targetScrollMessageId: null,
                       missedLiveWhileBehind: false,
                     },
                   );

@@ -61,21 +61,56 @@ export class ChatMessagesListComponent implements OnInit {
     read: ElementRef,
   });
   private lastOutgoingId: string | null = null;
+  /** `undefined` until the first messages read, so the initial page does not count as a new head. */
+  private headMessageId: string | null | undefined = undefined;
   /** `undefined` until the first messages read, so the initial page does not count as a new tail. */
   private tailMessageId: string | null | undefined = undefined;
+  private lastScrollHeight = 0;
   private pinnedToBottom = true;
 
   constructor() {
     effect(() => {
       const messages = this.messages();
+      const first = messages.at(0);
       const last = messages.at(-1);
+      const headId = first?.id ?? null;
       const tailId = last?.id ?? null;
       const outgoingId = last?.outgoing ? last.id : null;
 
       untracked(() => {
-        const isFirstRead = this.tailMessageId === undefined;
+        if (messages.length === 0) {
+          this.tailMessageId = undefined;
+          this.headMessageId = undefined;
+          this.lastOutgoingId = null;
+          return;
+        }
+
+        const isFirstRead =
+          this.tailMessageId === undefined || this.headMessageId === undefined;
         const tailChanged = !isFirstRead && tailId !== this.tailMessageId;
+        const headChanged = !isFirstRead && headId !== this.headMessageId;
+
+        const isPrepend =
+          !isFirstRead &&
+          !tailChanged &&
+          headChanged &&
+          headId !== null &&
+          this.headMessageId !== null;
+
         this.tailMessageId = tailId;
+        this.headMessageId = headId;
+
+        if (isPrepend) {
+          const el = this.scrollContainerRef().nativeElement;
+          const prevHeight = this.lastScrollHeight || el.scrollHeight;
+          requestAnimationFrame(() => {
+            const diff = el.scrollHeight - prevHeight;
+            if (diff > 0) {
+              el.scrollTop += diff;
+            }
+          });
+          return;
+        }
 
         if (outgoingId && outgoingId !== this.lastOutgoingId) {
           this.lastOutgoingId = outgoingId;
@@ -123,6 +158,7 @@ export class ChatMessagesListComponent implements OnInit {
       .pipe(
         tap(($event) => {
           const el = $event.target as HTMLDivElement;
+          this.lastScrollHeight = el.scrollHeight;
           this.pinnedToBottom = this.isAtBottom(el);
         }),
         auditTime(100),
@@ -153,7 +189,7 @@ export class ChatMessagesListComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
-        this.scrollToBottom();
+        this.applyInitialPosition();
         setTimeout(() => {
           this.infiniteScrollDisabled.set(false);
         }, 300);
@@ -161,6 +197,8 @@ export class ChatMessagesListComponent implements OnInit {
   }
 
   onScrollUp(): void {
+    const el = this.scrollContainerRef().nativeElement;
+    this.lastScrollHeight = el.scrollHeight;
     this.chatStore.requestPrevPage();
   }
 
@@ -176,6 +214,38 @@ export class ChatMessagesListComponent implements OnInit {
         top: el.scrollHeight,
         behavior,
       });
+    });
+  }
+
+  private applyInitialPosition(): void {
+    const position = this.chatStore.initialPosition();
+    requestAnimationFrame(() => {
+      if (position === 'unread') {
+        const divider = document.getElementById('unread-divider');
+        if (divider) {
+          divider.scrollIntoView({ behavior: 'instant', block: 'start' });
+          this.pinnedToBottom = false;
+        } else {
+          this.scrollToBottom();
+        }
+      } else if (position === 'message') {
+        const targetId = this.chatStore.targetScrollMessageId();
+        const el = targetId
+          ? document.getElementById(`message-${targetId}`)
+          : null;
+        if (el) {
+          el.scrollIntoView({ behavior: 'instant', block: 'center' });
+          el.classList.remove('message-highlight');
+          void el.offsetWidth;
+          el.classList.add('message-highlight');
+          this.pinnedToBottom = false;
+          this.chatStore.setTargetScrollMessageId(null);
+        } else {
+          this.scrollToBottom();
+        }
+      } else {
+        this.scrollToBottom();
+      }
     });
   }
 
