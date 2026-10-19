@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
@@ -19,6 +19,9 @@ import { DirectCallService } from '@core/services/direct-call.service';
 import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
+import { TuiAsideComponent } from '@taiga-ui/layout';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { AudioActivityService } from '@core/services/audio-activity.service';
 
 vi.hoisted(() => {
   (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
@@ -91,6 +94,7 @@ describe('RoomsComponent', () => {
   const hangingCallUserId = signal<number | null>(null);
   const interlocutor = signal<IUser | null>(null);
   const roomMentions = signal<Record<number, number>>({});
+  const roomUnreadCount = vi.fn().mockReturnValue(0);
   const entityMap = signal<Record<number, IUser>>({
     [me.id]: me,
     [bob.id]: bob,
@@ -130,10 +134,12 @@ describe('RoomsComponent', () => {
     entityMap.set({ [me.id]: me, [bob.id]: bob });
     isTouch.set(false);
     roomMentions.set({});
+    roomUnreadCount.mockReturnValue(0);
 
     await TestBed.configureTestingModule({
       imports: [RoomsComponent],
       providers: [
+        provideRouter([]),
         provideTranslateService(),
         provideMockStore({
           initialState: {
@@ -164,7 +170,7 @@ describe('RoomsComponent', () => {
           provide: UnreadCountsStore,
           useValue: {
             directTotal: vi.fn().mockReturnValue(0),
-            roomUnreadCount: vi.fn().mockReturnValue(0),
+            roomUnreadCount,
             roomMentions,
           },
         },
@@ -174,16 +180,20 @@ describe('RoomsComponent', () => {
           useValue: responsiveDialogService,
         },
         { provide: WA_IS_TOUCH, useValue: isTouch },
-      ],
-    })
-      .overrideComponent(RoomsComponent, {
-        set: {
-          // Aside items need TuiAsideComponent parent; test logic only.
-          template: '',
-          imports: [],
+        { provide: TuiAsideComponent, useValue: { expanded: signal(true) } },
+        {
+          provide: VoiceAudioPreferencesStore,
+          useValue: {
+            microphoneMuted: signal(false),
+            speakerMuted: signal(false),
+          },
         },
-      })
-      .compileComponents();
+        {
+          provide: AudioActivityService,
+          useValue: { speakingMap: signal({}) },
+        },
+      ],
+    }).compileComponents();
 
     store = TestBed.inject(MockStore);
 
@@ -403,5 +413,44 @@ describe('RoomsComponent', () => {
     fixture.detectChanges();
 
     expect(component['roomMentionFlags']()).toEqual({});
+  });
+
+  it('renders @ badge with accent appearance when room has unread mentions and unread messages', () => {
+    roomUnreadCount.mockImplementation((id: number) =>
+      id === textRoom.id ? 3 : 0,
+    );
+    roomMentions.set({ [textRoom.id]: 1 });
+    fixture.detectChanges();
+
+    const roomItem = fixture.nativeElement.querySelector('.room-item');
+    const badges = roomItem.querySelectorAll('tui-badge-notification');
+    expect(badges.length).toBe(1);
+    expect(badges[0].textContent.trim()).toBe('@');
+    expect(badges[0].getAttribute('appearance')).toBe('accent');
+    expect(badges[0].getAttribute('tuislot')).toBe('top');
+  });
+
+  it('renders unread count badge when room has unread messages and no mentions', () => {
+    roomUnreadCount.mockImplementation((id: number) =>
+      id === textRoom.id ? 3 : 0,
+    );
+    roomMentions.set({ [textRoom.id]: 0 });
+    fixture.detectChanges();
+
+    const roomItem = fixture.nativeElement.querySelector('.room-item');
+    const badges = roomItem.querySelectorAll('tui-badge-notification');
+    expect(badges.length).toBe(1);
+    expect(badges[0].textContent.trim()).toBe('3');
+    expect(badges[0].getAttribute('tuislot')).toBe('top');
+  });
+
+  it('renders no badge when room has neither unread messages nor mentions', () => {
+    roomUnreadCount.mockReturnValue(0);
+    roomMentions.set({});
+    fixture.detectChanges();
+
+    const roomItem = fixture.nativeElement.querySelector('.room-item');
+    const badges = roomItem.querySelectorAll('tui-badge-notification');
+    expect(badges.length).toBe(0);
   });
 });

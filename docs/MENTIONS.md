@@ -66,7 +66,7 @@ Mentions are represented in rich text content using Discord-compatible canonical
    - Messages mentioning the current user are highlighted with `.message-mentioned` (accent border and background tint).
 
 3. **Unread Mention Badge**:
-   - Aside navigation displays an `@` badge (`tui-badge-notification` in `tuiSlot="bottom"`) on rooms with unread mentions.
+   - Aside navigation replaces the unread count badge with an `@` badge (`tui-badge-notification`, accent, top slot) while the room has unread mentions.
    - Selecting the room marks messages as read and clears the unread mention badge.
 
 4. **Deep-linking & Jumping**:
