@@ -806,6 +806,13 @@ describe('ChatStore', () => {
 
   describe('Pagination', () => {
     it('should request next page using newestId', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreAfter: true,
+          }),
+        ),
+      );
       store.join({ kind: 'room', id: 10 });
       apiService.list.mockClear();
 
@@ -825,6 +832,13 @@ describe('ChatStore', () => {
     });
 
     it('should request prev page using oldestId', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
       store.join({ kind: 'room', id: 10 });
       apiService.list.mockClear();
 
@@ -841,6 +855,38 @@ describe('ChatStore', () => {
       apiService.list.mockClear();
       store.requestPrevPage();
       expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('should not request another page when the server reports no more messages', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      store.requestPrevPage();
+      store.requestNextPage();
+
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('should ignore a second older-page request while the first is in flight', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const response$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValue(response$.asObservable());
+
+      store.requestPrevPage();
+      store.requestPrevPage();
+
+      expect(apiService.list).toHaveBeenCalledTimes(1);
+      response$.next(mockListResponse([]));
+      response$.complete();
     });
   });
 
@@ -1180,6 +1226,13 @@ describe('ChatStore', () => {
     });
 
     it('should load older messages and prepend entities via loadOlder', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
       store.join({ kind: 'room', id: 10 });
       apiService.list.mockClear();
 
@@ -1211,6 +1264,13 @@ describe('ChatStore', () => {
     });
 
     it('should load newer messages and append entities via loadNewer', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreAfter: true,
+          }),
+        ),
+      );
       store.join({ kind: 'room', id: 10 });
       apiService.list.mockClear();
 

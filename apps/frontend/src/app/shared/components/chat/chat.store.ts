@@ -40,6 +40,7 @@ import {
   catchError,
   concatMap,
   EMPTY,
+  exhaustMap,
   fromEvent,
   pipe,
   switchMap,
@@ -407,7 +408,10 @@ export const ChatStore = signalStore(
 
       const loadOlderMethod = rxMethod<void>(
         pipe(
-          switchMap(() => {
+          exhaustMap(() => {
+            if (!store.hasMoreBefore()) {
+              return EMPTY;
+            }
             const oldestId = store.oldestId();
             if (!oldestId) {
               return EMPTY;
@@ -443,7 +447,10 @@ export const ChatStore = signalStore(
 
       const loadNewerMethod = rxMethod<void>(
         pipe(
-          switchMap(() => {
+          exhaustMap(() => {
+            if (!store.hasMoreAfter()) {
+              return EMPTY;
+            }
             const newestId = store.newestId();
             if (!newestId) {
               return EMPTY;
