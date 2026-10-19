@@ -149,6 +149,21 @@ describe('MentionsService', () => {
       expect(usersService.findMentionCandidates).not.toHaveBeenCalled();
     });
 
+    it('ignores mention tokens inside pre and code tags', async () => {
+      const author = createAuthor(1, false, [EPermission.MENTION_EVERYONE]);
+      const html =
+        '<p>Check <code>@everyone</code> and <pre><code>&lt;@2&gt;</code></pre></p>';
+      const result = await service.resolve(author, dummyRoom, html);
+
+      expect(result.effective).toEqual({
+        userIds: [],
+        roleIds: [],
+        everyone: false,
+      });
+      expect(result.recipientIds).toEqual([]);
+      expect(usersService.findMentionCandidates).not.toHaveBeenCalled();
+    });
+
     it('resolves @everyone when author has MENTION_EVERYONE, author excluded', async () => {
       const author = createAuthor(1, false, [EPermission.MENTION_EVERYONE]);
       const user2 = createUser(2);

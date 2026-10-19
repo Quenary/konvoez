@@ -42,6 +42,9 @@ export function decodeBasicEntities(text: string): string {
   );
 }
 
+const CODE_BLOCK_REGEX = /<(pre|code)\b[^>]*>[\s\S]*?<\/\1>/gi;
+
 export function htmlToMentionText(html: string): string {
-  return decodeBasicEntities(htmlToPlainText(html));
+  const withoutCodeBlocks = html.replace(CODE_BLOCK_REGEX, '');
+  return decodeBasicEntities(htmlToPlainText(withoutCodeBlocks));
 }

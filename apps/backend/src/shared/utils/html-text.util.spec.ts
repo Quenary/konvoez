@@ -47,4 +47,12 @@ describe('decodeBasicEntities and htmlToMentionText', () => {
       ),
     ).toBe('Hello <@12> and <@&3> @everyone');
   });
+
+  it('strips pre and code blocks before extracting mention text', () => {
+    expect(
+      htmlToMentionText(
+        '<p>Hi &lt;@12&gt;, check <code>&lt;@34&gt;</code> and <pre><code>@everyone</code></pre></p>',
+      ),
+    ).toBe('Hi <@12>, check and');
+  });
 });
