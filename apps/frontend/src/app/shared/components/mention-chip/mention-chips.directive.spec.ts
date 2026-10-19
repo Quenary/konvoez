@@ -196,4 +196,48 @@ describe('MentionChipsDirective', () => {
       fixture.nativeElement.querySelector('app-mention-chip')?.textContent,
     ).toContain('@alice_renamed');
   });
+
+  it('replaces chips for new placeholders on content change and removes old hosts from DOM', async () => {
+    host.content.set(
+      '<p><span data-type="mention" data-kind="user" data-id="1">&lt;@1&gt;</span></p>',
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const oldChip = fixture.nativeElement.querySelector('app-mention-chip');
+    expect(oldChip).toBeTruthy();
+
+    host.content.set(
+      '<p><span data-type="mention" data-kind="everyone">@everyone</span></p>',
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const chips = fixture.nativeElement.querySelectorAll('app-mention-chip');
+    expect(chips.length).toBe(1);
+    expect(chips[0].textContent).toContain('@everyone');
+    expect(fixture.nativeElement.contains(oldChip)).toBe(false);
+  });
+
+  it('returns appRef.viewCount to the baseline after the host is destroyed', async () => {
+    fixture.destroy();
+    const baseline = appRef.viewCount;
+
+    const localFixture = TestBed.createComponent(TestHostComponent);
+    localFixture.componentInstance.ctx.set(baseCtx);
+    localFixture.componentInstance.content.set(
+      '<p><span data-type="mention" data-kind="user" data-id="1">&lt;@1&gt;</span> ' +
+        '<span data-type="mention" data-kind="everyone">@everyone</span></p>',
+    );
+    localFixture.detectChanges();
+    await localFixture.whenStable();
+
+    expect(
+      localFixture.nativeElement.querySelectorAll('app-mention-chip').length,
+    ).toBe(2);
+    expect(appRef.viewCount).toBe(baseline + 2);
+
+    localFixture.destroy();
+    expect(appRef.viewCount).toBe(baseline);
+  });
 });

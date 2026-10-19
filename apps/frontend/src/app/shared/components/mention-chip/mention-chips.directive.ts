@@ -1,10 +1,10 @@
 import {
+  afterRenderEffect,
   ApplicationRef,
   ComponentRef,
   createComponent,
   DestroyRef,
   Directive,
-  effect,
   ElementRef,
   EnvironmentInjector,
   inject,
@@ -36,41 +36,43 @@ export class MentionChipsDirective {
       this.destroyComponents();
     });
 
-    effect(() => {
-      const ctx = this.appMentionChips();
-      const content = this.socket.content();
+    afterRenderEffect({
+      write: () => {
+        const ctx = this.appMentionChips();
+        const content = this.socket.content();
 
-      untracked(() => {
-        this.destroyComponents();
+        untracked(() => {
+          this.destroyComponents();
 
-        if (!content) {
-          return;
-        }
+          if (!content) {
+            return;
+          }
 
-        const host = this.elementRef.nativeElement;
-        const spans = host.querySelectorAll<HTMLSpanElement>(
-          'span[data-type="mention"]',
-        );
+          const host = this.elementRef.nativeElement;
+          const spans = host.querySelectorAll<HTMLSpanElement>(
+            'span[data-type="mention"]',
+          );
 
-        for (const span of Array.from(spans)) {
-          const kind = span.getAttribute('data-kind') ?? 'unknown';
-          const rawId = span.getAttribute('data-id');
-          const id =
-            rawId !== null && rawId !== '' ? parseInt(rawId, 10) : null;
+          for (const span of Array.from(spans)) {
+            const kind = span.getAttribute('data-kind') ?? 'unknown';
+            const rawId = span.getAttribute('data-id');
+            const id =
+              rawId !== null && rawId !== '' ? parseInt(rawId, 10) : null;
 
-          const ref = createComponent(MentionChipComponent, {
-            environmentInjector: this.environmentInjector,
-            elementInjector: this.injector,
-          });
+            const ref = createComponent(MentionChipComponent, {
+              environmentInjector: this.environmentInjector,
+              elementInjector: this.injector,
+            });
 
-          ref.setInput('vm', buildMentionChipVm({ kind, id }, ctx));
-          ref.changeDetectorRef.detectChanges();
-          this.appRef.attachView(ref.hostView);
-          span.textContent = '';
-          span.appendChild(ref.location.nativeElement);
-          this.componentRefs.push(ref);
-        }
-      });
+            ref.setInput('vm', buildMentionChipVm({ kind, id }, ctx));
+            ref.changeDetectorRef.detectChanges();
+            this.appRef.attachView(ref.hostView);
+            span.textContent = '';
+            span.appendChild(ref.location.nativeElement);
+            this.componentRefs.push(ref);
+          }
+        });
+      },
     });
   }
 
