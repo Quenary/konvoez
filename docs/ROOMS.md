@@ -35,4 +35,4 @@ The edit dialog allows configuring privacy, allowed roles, and allowed users (wh
 
 ## Mentions
 
-Text room messages support `@user`, `@Role`, and `@everyone` mentions. Messages mentioning the current user are highlighted, and rooms with unread mentions display an `@` badge in the aside list. See [Mentions](MENTIONS.md) for detailed architecture, token syntax, and permissions.
+Text room messages support `@user`, `@Role`, and `@everyone` mentions. Rooms with unread mentions display an `@` badge in the aside list. See [Mentions](MENTIONS.md) for detailed architecture, token syntax, and permissions.

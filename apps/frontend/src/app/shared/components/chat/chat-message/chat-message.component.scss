@@ -16,11 +16,6 @@
       }
     }
 
-    &.message-mentioned {
-      border-left: 3px solid var(--tui-status-warning);
-      background-color: var(--tui-status-warning-pale);
-    }
-
     // Row that contains avatar + bubble
     .message-row {
       display: flex;

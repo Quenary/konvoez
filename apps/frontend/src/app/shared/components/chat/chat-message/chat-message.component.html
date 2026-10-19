@@ -3,7 +3,6 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
-    [class.message-mentioned]="mentionsMe()"
     [style.--author-color]="senderUsername() | tuiAutoColor"
     [appMessageVisibility]="!isOwnMessage() ? m.id : null">
     @let _sender = senderUser();

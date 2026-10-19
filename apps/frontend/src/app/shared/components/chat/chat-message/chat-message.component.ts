@@ -27,7 +27,6 @@ import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import {
   canDeleteTextRoomMessage,
   IMentionSet,
-  isMessageMentioningUser,
   ITextRoomMessageReply,
   IUser,
 } from '@konvoez/shared';
@@ -139,15 +138,6 @@ export class ChatMessageComponent {
       unknownLabel,
       accepted,
     };
-  });
-
-  protected readonly mentionsMe = computed(() => {
-    if (this.isOwnMessage()) {
-      return false;
-    }
-    const mentions = this.message().mentions;
-    const currentUser = this.currentUser();
-    return isMessageMentioningUser(mentions, currentUser);
   });
 
   protected readonly attachmentList = computed(

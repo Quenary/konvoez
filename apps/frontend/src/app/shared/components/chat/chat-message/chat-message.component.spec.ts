@@ -623,12 +623,9 @@ describe('ChatMessageComponent', () => {
       const chip = fixture.nativeElement.querySelector('app-mention-chip');
       expect(chip).toBeTruthy();
       expect(chip.classList.contains('mention-chip-me')).toBe(false);
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeFalsy();
     });
 
-    it('sets mention-chip-me and applies message-mentioned when @everyone is accepted', () => {
+    it('sets mention-chip-me when @everyone is accepted', () => {
       const store = TestBed.inject(Store);
       store.dispatch(AuthActions.initEnd({ user: currentUser }));
 
@@ -644,9 +641,6 @@ describe('ChatMessageComponent', () => {
       const chip = fixture.nativeElement.querySelector('app-mention-chip');
       expect(chip).toBeTruthy();
       expect(chip.classList.contains('mention-chip-me')).toBe(true);
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeTruthy();
     });
 
     it('does not set mention-chip-me on own message even if message contains mentions', () => {
@@ -666,80 +660,6 @@ describe('ChatMessageComponent', () => {
       expect(chips.length).toBe(2);
       expect(chips[0].classList.contains('mention-chip-me')).toBe(false);
       expect(chips[1].classList.contains('mention-chip-me')).toBe(false);
-    });
-
-    it('applies message-mentioned class when message mentions current user, role, or everyone', () => {
-      const store = TestBed.inject(Store);
-      const userWithRole: IUser = {
-        ...currentUser,
-        id: 1,
-        roles: [{ id: 10, name: 'Admin', priority: 1, mentionable: true }],
-      };
-      store.dispatch(AuthActions.initEnd({ user: userWithRole }));
-
-      // Not mentioned
-      fixture.componentRef.setInput('message', {
-        ...testMessage,
-        senderId: 2,
-        mentions: { userIds: [99], roleIds: [99], everyone: false },
-      });
-      fixture.detectChanges();
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeFalsy();
-
-      // Mentioned by userId
-      fixture.componentRef.setInput('message', {
-        ...testMessage,
-        senderId: 2,
-        mentions: { userIds: [1], roleIds: [], everyone: false },
-      });
-      fixture.detectChanges();
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeTruthy();
-
-      // Mentioned by roleId
-      fixture.componentRef.setInput('message', {
-        ...testMessage,
-        senderId: 2,
-        mentions: { userIds: [], roleIds: [10], everyone: false },
-      });
-      fixture.detectChanges();
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeTruthy();
-
-      // Mentioned by everyone
-      fixture.componentRef.setInput('message', {
-        ...testMessage,
-        senderId: 2,
-        mentions: { userIds: [], roleIds: [], everyone: true },
-      });
-      fixture.detectChanges();
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeTruthy();
-    });
-
-    it('does not apply message-mentioned class on own message even with mass or self mentions', () => {
-      const store = TestBed.inject(Store);
-      const userWithRole: IUser = {
-        ...currentUser,
-        id: 1,
-        roles: [{ id: 10, name: 'Admin', priority: 1, mentionable: true }],
-      };
-      store.dispatch(AuthActions.initEnd({ user: userWithRole }));
-
-      fixture.componentRef.setInput('message', {
-        ...testMessage,
-        senderId: 1,
-        mentions: { userIds: [1], roleIds: [10], everyone: true },
-      });
-      fixture.detectChanges();
-      expect(
-        fixture.nativeElement.querySelector('.message-mentioned'),
-      ).toBeFalsy();
     });
 
     it('opens user dialog when clicking a user mention chip', () => {

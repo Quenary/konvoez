@@ -58,12 +58,12 @@ Mentions are represented in rich text content using Discord-compatible canonical
    - Inserts a ProseMirror mention node with a Taiga UI chip view.
    - Serialized to canonical tokens `<@id>`, `<@&id>`, `@everyone` on send; deserialized back to chips when editing.
 
-2. **Message Rendering & Highlighting**:
+2. **Message Rendering**:
    - In room messages, placeholders are replaced with `app-mention-chip` components.
    - User chips display avatar and `@username`; clicking a user chip opens the profile dialog (`UserDialogService`).
    - Role chips display role color and `@RoleName`.
    - Everyone chips display `@everyone` with a group icon.
-   - Messages mentioning the current user are highlighted with `.message-mentioned` (accent border and background tint).
+   - Accepted mentions of the current user, one of their roles, or `@everyone` use the info appearance on the corresponding chip.
 
 3. **Unread Mention Badge**:
    - Aside navigation replaces the unread count badge with an `@` badge (`tui-badge-notification`, accent, top slot) while the room has unread mentions.
