@@ -12,6 +12,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
+import { ChatTarget } from '../chat-target';
 
 describe('ChatMessagesListComponent', () => {
   let component: ChatMessagesListComponent;
@@ -66,7 +68,7 @@ describe('ChatMessagesListComponent', () => {
     setTargetScrollMessageId: vi.fn(),
     requestPrevPage: vi.fn(),
     requestNextPage: vi.fn(),
-    target: signal<{ kind: 'room'; id: number } | null>({
+    target: signal<ChatTarget | null>({
       kind: 'room',
       id: 1,
     }),
@@ -76,18 +78,37 @@ describe('ChatMessagesListComponent', () => {
     jumpToMessage: vi.fn(),
     unreadDividerMessageId: signal<string | null>(null),
     initialPosition: signal<'bottom' | 'unread' | 'message' | null>('bottom'),
+    hasMoreAfter: signal<boolean>(false),
+    readAllAndJumpToLatest: vi.fn(),
   };
 
   const mockUsersStore = {
     entityMap: signal({}),
   };
 
+  const mockUnreadCountsStore = {
+    rooms: signal<Record<number, number>>({}),
+    direct: signal<Record<number, number>>({}),
+    chatUnreadCount: vi.fn((target: ChatTarget | null): number => {
+      if (!target) {
+        return 0;
+      }
+      return target.kind === 'room'
+        ? (mockUnreadCountsStore.rooms()[target.id] ?? 0)
+        : (mockUnreadCountsStore.direct()[target.id] ?? 0);
+    }),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     mockChatStore.messages.set(mockMessages);
     mockChatStore.targetScrollMessageId.set(null);
+    mockChatStore.target.set({ kind: 'room', id: 1 });
     mockChatStore.unreadDividerMessageId.set(null);
     mockChatStore.initialPosition.set('bottom');
+    mockChatStore.hasMoreAfter.set(false);
+    mockUnreadCountsStore.rooms.set({});
+    mockUnreadCountsStore.direct.set({});
     Element.prototype.scrollTo = vi.fn();
     Element.prototype.scrollIntoView = vi.fn();
 
@@ -127,6 +148,7 @@ describe('ChatMessagesListComponent', () => {
         },
         { provide: ChatStore, useValue: mockChatStore },
         { provide: UsersStore, useValue: mockUsersStore },
+        { provide: UnreadCountsStore, useValue: mockUnreadCountsStore },
         {
           provide: TuiNotificationService,
           useValue: { open: vi.fn(() => of(undefined)) },
@@ -370,6 +392,89 @@ describe('ChatMessagesListComponent', () => {
     component.onScrollUp();
     expect(component['lastScrollHeight']).toBe(950);
     expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
+  });
+
+  it('renders scroll button when showScrollToBottom is true', () => {
+    component['showScrollToBottom'].set(true);
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('.scroll-to-bottom button');
+    expect(btn).toBeTruthy();
+  });
+
+  it('renders scroll button when hasMoreAfter is true even if showScrollToBottom is false', () => {
+    component['showScrollToBottom'].set(false);
+    mockChatStore.hasMoreAfter.set(true);
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('.scroll-to-bottom button');
+    expect(btn).toBeTruthy();
+  });
+
+  it('renders scroll button with unread count badge for the active room', () => {
+    component['showScrollToBottom'].set(true);
+    mockUnreadCountsStore.rooms.set({ 1: 5 });
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('.scroll-to-bottom button');
+    expect(btn).toBeTruthy();
+    const badge = fixture.nativeElement.querySelector('tui-badge-notification');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent?.trim()).toBe('5');
+  });
+
+  it('renders the active direct chat unread count', () => {
+    component['showScrollToBottom'].set(true);
+    mockChatStore.target.set({ kind: 'direct', id: 2 });
+    mockUnreadCountsStore.direct.set({ 2: 4 });
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('tui-badge-notification');
+    expect(badge?.textContent?.trim()).toBe('4');
+  });
+
+  it('does not render the unread badge when the active chat count is zero', () => {
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('tui-badge-notification'),
+    ).toBeNull();
+  });
+
+  it('calls scrollToBottom smooth on button click when hasMoreAfter is false and unreadCount is 0', () => {
+    component['showScrollToBottom'].set(true);
+    mockChatStore.hasMoreAfter.set(false);
+    fixture.detectChanges();
+
+    const scrollSpy = vi.spyOn(component, 'scrollToBottom');
+    const btn = fixture.nativeElement.querySelector(
+      '.scroll-to-bottom button',
+    ) as HTMLButtonElement;
+    btn.click();
+
+    expect(scrollSpy).toHaveBeenCalledWith('smooth');
+    expect(mockChatStore.readAllAndJumpToLatest).not.toHaveBeenCalled();
+  });
+
+  it('calls readAllAndJumpToLatest on button click when hasMoreAfter is true', () => {
+    mockChatStore.hasMoreAfter.set(true);
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement.querySelector(
+      '.scroll-to-bottom button',
+    ) as HTMLButtonElement;
+    btn.click();
+
+    expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
+  });
+
+  it('calls readAllAndJumpToLatest on button click when unreadCount is positive', () => {
+    mockChatStore.hasMoreAfter.set(false);
+    component['showScrollToBottom'].set(true);
+    mockUnreadCountsStore.rooms.set({ 1: 3 });
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement.querySelector(
+      '.scroll-to-bottom button',
+    ) as HTMLButtonElement;
+    btn.click();
+
+    expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
   });
 });
 

@@ -16,7 +16,9 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { InfiniteScrollDirective } from 'ngx-infinite-scroll';
 import { TuiButton, TuiHint } from '@taiga-ui/core';
+import { TuiBadgedContent, TuiBadgeNotification } from '@taiga-ui/kit';
 import { auditTime, filter, fromEvent, switchMap, take, tap } from 'rxjs';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { ChatMessageComponent } from '../chat-message/chat-message.component';
 import { ChatSystemItemComponent } from '../chat-system-item/chat-system-item.component';
 import { ChatStore } from '../chat.store';
@@ -32,6 +34,8 @@ const bottomPinThresholdPx = 8;
     ChatSystemItemComponent,
     InfiniteScrollDirective,
     TuiButton,
+    TuiBadgedContent,
+    TuiBadgeNotification,
     TranslatePipe,
     TuiHint,
   ],
@@ -41,13 +45,21 @@ const bottomPinThresholdPx = 8;
 })
 export class ChatMessagesListComponent implements OnInit {
   private readonly chatStore = inject(ChatStore);
+  private readonly unreadCountsStore = inject(UnreadCountsStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
 
   protected readonly messages = this.chatStore.messages;
   protected readonly unreadDividerMessageId =
     this.chatStore.unreadDividerMessageId;
+  protected readonly hasMoreAfter = this.chatStore.hasMoreAfter;
+  protected readonly unreadCount = computed(() =>
+    this.unreadCountsStore.chatUnreadCount(this.activeTarget()),
+  );
   protected readonly showScrollToBottom = signal<boolean>(false);
+  protected readonly shouldShowScrollButton = computed(
+    () => this.showScrollToBottom() || this.hasMoreAfter(),
+  );
   protected readonly infiniteScrollDisabled = signal<boolean>(true);
 
   private readonly activeTarget = computed((): ChatTarget | null =>
@@ -215,6 +227,14 @@ export class ChatMessagesListComponent implements OnInit {
         behavior,
       });
     });
+  }
+
+  onScrollButtonClick(): void {
+    if (this.hasMoreAfter() || this.unreadCount() > 0) {
+      this.chatStore.readAllAndJumpToLatest();
+    } else {
+      this.scrollToBottom('smooth');
+    }
   }
 
   private applyInitialPosition(): void {

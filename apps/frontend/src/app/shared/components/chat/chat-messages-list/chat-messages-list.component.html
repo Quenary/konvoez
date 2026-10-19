@@ -20,15 +20,23 @@
   }
 </div>
 
-@if (showScrollToBottom()) {
-  <button
-    class="scroll-to-bottom"
-    tuiIconButton
-    type="button"
-    iconStart="@tui.arrow-down"
-    size="s"
-    [tuiHint]="'ROOMS.SCROLL_TO_BOTTOM' | translate"
-    (click)="scrollToBottom('smooth')">
-    {{ 'ROOMS.SCROLL_TO_BOTTOM' | translate }}
-  </button>
+@if (shouldShowScrollButton()) {
+  <tui-badged-content class="scroll-to-bottom">
+    @if (unreadCount(); as count) {
+      <tui-badge-notification
+        size="s"
+        tuiSlot="top">
+        {{ count > 99 ? '99+' : count }}
+      </tui-badge-notification>
+    }
+    <button
+      tuiIconButton
+      type="button"
+      iconStart="@tui.arrow-down"
+      size="s"
+      [tuiHint]="'ROOMS.SCROLL_TO_BOTTOM' | translate"
+      (click)="onScrollButtonClick()">
+      {{ 'ROOMS.SCROLL_TO_BOTTOM' | translate }}
+    </button>
+  </tui-badged-content>
 }
