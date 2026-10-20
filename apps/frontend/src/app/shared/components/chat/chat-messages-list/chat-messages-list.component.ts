@@ -101,7 +101,6 @@ export class ChatMessagesListComponent implements OnInit {
   private edgeLoadingEnabled = false;
   private topVisible = false;
   private bottomVisible = false;
-  private wasLoadingOlder = false;
   private wasLoadingNewer = false;
   private previousLoadingOlder = false;
   private previousFirstMessageId: string | null | undefined = undefined;
@@ -163,14 +162,16 @@ export class ChatMessagesListComponent implements OnInit {
                 return;
               }
               this.positioning = true;
-              if (topInsetChanged) {
+              if (scrollSnapshot.anchor) {
+                // Anchoring on the visible message ignores growth below it
+                // (live messages at the tail), unlike a scrollHeight delta.
+                this.restoreAnchor(scrollSnapshot.anchor);
+              } else if (topInsetChanged) {
                 const delta =
                   scrollEl.scrollHeight - scrollSnapshot.scrollHeight;
                 if (delta !== 0) {
                   scrollEl.scrollTop = scrollSnapshot.scrollTop + delta;
                 }
-              } else if (scrollSnapshot.anchor) {
-                this.restoreAnchor(scrollSnapshot.anchor);
               }
               this.positioning = false;
             },
@@ -184,7 +185,6 @@ export class ChatMessagesListComponent implements OnInit {
     });
 
     effect(() => {
-      const older = this.loadingOlder();
       const newer = this.loadingNewer();
 
       untracked(() => {
@@ -200,7 +200,6 @@ export class ChatMessagesListComponent implements OnInit {
             { injector: this.injector },
           );
         }
-        this.wasLoadingOlder = older;
         this.wasLoadingNewer = newer;
       });
     });

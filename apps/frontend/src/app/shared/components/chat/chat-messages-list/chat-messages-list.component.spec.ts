@@ -495,94 +495,139 @@ describe('ChatMessagesListComponent', () => {
     expect(container.scrollTop).toBe(400);
   });
 
-  it('does not shift scrollTop when a live message arrives during an older-page load', async () => {
-    fixture.detectChanges();
-    await flushAfterRender(fixture);
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 200,
-      clientHeight: 400,
-      scrollHeight: 1200,
-    });
-    container.dispatchEvent(new Event('scroll'));
-    component['pinnedToBottom'] = false;
-    component['previousLoadingOlder'] = true;
-    mockChatStore.loadingOlder.set(true);
+  it.each([
+    {
+      name: 'older page is prepended',
+      older: true,
+      live: false,
+      loadingOlder: false,
+      preservedByBrowser: false,
+      anchorVisible: true,
+      expected: 500,
+    },
+    {
+      name: 'older page is prepended while a live message arrives at the tail',
+      older: true,
+      live: true,
+      loadingOlder: false,
+      preservedByBrowser: false,
+      anchorVisible: true,
+      expected: 500,
+    },
+    {
+      name: 'top skeleton appears',
+      older: false,
+      live: false,
+      loadingOlder: true,
+      preservedByBrowser: false,
+      anchorVisible: true,
+      expected: 256,
+    },
+    {
+      name: 'only a live message arrives at the tail',
+      older: false,
+      live: true,
+      loadingOlder: false,
+      preservedByBrowser: false,
+      anchorVisible: true,
+      expected: 200,
+    },
+    {
+      name: 'the browser already preserved the anchor offset',
+      older: true,
+      live: false,
+      loadingOlder: false,
+      preservedByBrowser: true,
+      anchorVisible: true,
+      expected: 200,
+    },
+    {
+      name: 'no message is visible and the top skeleton appears',
+      older: false,
+      live: false,
+      loadingOlder: true,
+      preservedByBrowser: false,
+      anchorVisible: false,
+      expected: 256,
+    },
+  ])(
+    'keeps the visible content in place when $name',
+    async ({
+      older,
+      live,
+      loadingOlder,
+      preservedByBrowser,
+      anchorVisible,
+      expected,
+    }) => {
+      const olderHeight = 300;
+      const liveHeight = 100;
+      const skeletonHeight = 56;
+      const baseScrollHeight = 1200;
 
-    const firstMessage = container.querySelector(
-      'app-chat-message',
-    ) as HTMLElement;
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
-    firstMessage.getBoundingClientRect = vi.fn(
-      () => new DOMRect(0, 120, 400, 40),
-    );
+      fixture.detectChanges();
+      await flushAfterRender(fixture);
+      const container = getScrollContainer(fixture);
+      setScroll(container, {
+        scrollTop: 200,
+        clientHeight: 400,
+        scrollHeight: baseScrollHeight,
+      });
+      container.dispatchEvent(new Event('scroll'));
+      component['previousFirstMessageId'] = 'msg-1';
+      container.getBoundingClientRect = vi.fn(
+        () => new DOMRect(0, 50, 400, 400),
+      );
 
-    messagesSignal.set([
-      ...mockMessages,
-      {
+      // Layout is derived from the rendered DOM, so the values change between
+      // the snapshot taken before render and the write after render.
+      const hasInDom = (selector: string): boolean =>
+        container.querySelector(selector) !== null;
+      const topGrowth = (): number =>
+        (hasInDom('[data-message-id="msg-older"]') ? olderHeight : 0) +
+        (hasInDom('.skeleton-row') ? skeletonHeight : 0);
+      Object.defineProperty(container, 'scrollHeight', {
+        configurable: true,
+        get: () =>
+          baseScrollHeight +
+          topGrowth() +
+          (hasInDom('[data-message-id="msg-live"]') ? liveHeight : 0),
+      });
+
+      const anchor = container.querySelector('app-chat-message') as HTMLElement;
+      anchor.setAttribute('data-message-id', 'msg-1');
+      anchor.getBoundingClientRect = vi.fn(
+        () =>
+          new DOMRect(
+            0,
+            (anchorVisible ? 120 : -100) +
+              (preservedByBrowser ? 0 : topGrowth()),
+            400,
+            40,
+          ),
+      );
+
+      const olderMessage: IMessageEntity = {
+        ...mockMessages[0],
+        id: 'msg-older',
+        createdAt: new Date('2026-09-14T00:00:00.000Z'),
+      };
+      const liveMessage: IMessageEntity = {
         ...mockMessages[1],
         id: 'msg-live',
         createdAt: new Date('2026-09-16T00:00:00.000Z'),
-      },
-    ]);
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
+      };
+      messagesSignal.set([
+        ...(older ? [olderMessage] : []),
+        ...mockMessages,
+        ...(live ? [liveMessage] : []),
+      ]);
+      mockChatStore.loadingOlder.set(loadingOlder);
+      await flushAfterRender(fixture);
 
-    expect(container.scrollTop).toBe(200);
-  });
-
-  it('keeps scroll position when the visible anchor shifts for a top skeleton', () => {
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    const anchor = container.querySelector('app-chat-message') as HTMLElement;
-    setScroll(container, {
-      scrollTop: 150,
-      clientHeight: 400,
-      scrollHeight: 1200,
-    });
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
-
-    anchor.getBoundingClientRect = vi.fn(() => new DOMRect(0, 130, 400, 40));
-    component['restoreAnchor']({ messageId: 'msg-1', offset: 20 });
-    expect(container.scrollTop).toBe(210);
-
-    anchor.getBoundingClientRect = vi.fn(() => new DOMRect(0, 70, 400, 40));
-    component['restoreAnchor']({ messageId: 'msg-1', offset: 80 });
-    expect(container.scrollTop).toBe(150);
-  });
-
-  it('does not double-adjust when the anchor offset is already preserved', async () => {
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 600,
-      clientHeight: 400,
-      scrollHeight: 1200,
-    });
-    component['pinnedToBottom'] = false;
-
-    const anchorDocumentTop = 670;
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
-    const firstMessage = container.querySelector(
-      'app-chat-message',
-    ) as HTMLElement;
-    firstMessage.setAttribute('data-message-id', 'msg-1');
-    firstMessage.getBoundingClientRect = vi.fn(
-      () => new DOMRect(0, anchorDocumentTop - container.scrollTop, 400, 40),
-    );
-
-    const olderMessage: IMessageEntity = {
-      ...mockMessages[0],
-      id: 'msg-older',
-      createdAt: new Date('2026-09-14T00:00:00.000Z'),
-    };
-
-    messagesSignal.set([olderMessage, ...mockMessages]);
-    fixture.detectChanges();
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
-    expect(container.scrollTop).toBe(600);
-  });
+      expect(container.scrollTop).toBe(expected);
+    },
+  );
 
   it('renders scroll button when showScrollToBottom is true', () => {
     component['showScrollToBottom'].set(true);
