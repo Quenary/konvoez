@@ -87,6 +87,7 @@ const EMPTY_MENTIONS: IMentionSet = {
   ],
   host: {
     '(click)': 'onHostClick($event)',
+    '[attr.data-message-id]': 'message().id',
   },
   templateUrl: './chat-message.component.html',
   styleUrl: './chat-message.component.scss',

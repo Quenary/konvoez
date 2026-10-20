@@ -8,6 +8,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
+import { TUI_SCROLL_REF } from '@taiga-ui/core';
 
 /**
  * Tracks whether a message element has become visible in the viewport.
@@ -22,6 +23,7 @@ import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 export class MessageVisibilityDirective implements OnInit, OnDestroy {
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly readQueue = inject(MessageReadQueueService);
+  private readonly scrollRef = inject(TUI_SCROLL_REF, { optional: true });
 
   /** The message UUID to enqueue when the element becomes visible. Pass null to disable. */
   readonly appMessageVisibility = input<string | null>(null);
@@ -54,7 +56,10 @@ export class MessageVisibilityDirective implements OnInit, OnDestroy {
           }
         }
       },
-      { threshold: 0.5 },
+      {
+        root: this.scrollRef?.nativeElement ?? null,
+        threshold: 0.5,
+      },
     );
 
     this.observer.observe(this.el.nativeElement);

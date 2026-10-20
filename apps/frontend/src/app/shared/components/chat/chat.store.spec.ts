@@ -1357,6 +1357,7 @@ describe('ChatStore', () => {
       expect(store.initialPosition()).toBe('bottom');
       expect(store.hasMoreAfter()).toBe(false);
       expect(store.missedLiveWhileBehind()).toBe(false);
+      expect(store.scrollToLatestToken()).toBe(1);
     });
 
     it('should call readAll and jump to latest on readAllAndJumpToLatest', () => {
@@ -1397,6 +1398,144 @@ describe('ChatStore', () => {
       expect(store.initialPosition()).toBe('bottom');
       expect(store.hasMoreAfter()).toBe(false);
       expect(store.missedLiveWhileBehind()).toBe(false);
+      expect(store.scrollToLatestToken()).toBe(1);
+    });
+
+    it('should set loadingOlder while an older page request is pending', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const response$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValue(response$.asObservable());
+
+      expect(store.loadingOlder()).toBe(false);
+      store.requestPrevPage();
+      expect(store.loadingOlder()).toBe(true);
+
+      response$.next(mockListResponse([]));
+      response$.complete();
+      expect(store.loadingOlder()).toBe(false);
+    });
+
+    it('should clear loadingOlder after an older page request fails', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+      apiService.list.mockReturnValue(
+        throwError(() => new Error('list failed')),
+      );
+
+      store.requestPrevPage();
+      expect(store.loadingOlder()).toBe(false);
+    });
+
+    it('should set loadingNewer while a newer page request is pending', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1], {
+            hasMoreBefore: false,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const response$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValue(response$.asObservable());
+
+      expect(store.loadingNewer()).toBe(false);
+      store.requestNextPage();
+      expect(store.loadingNewer()).toBe(true);
+
+      response$.next(mockListResponse([]));
+      response$.complete();
+      expect(store.loadingNewer()).toBe(false);
+    });
+
+    it('should clear loadingNewer after a newer page request fails', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1], {
+            hasMoreBefore: false,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+      apiService.list.mockReturnValue(
+        throwError(() => new Error('list failed')),
+      );
+
+      store.requestNextPage();
+      expect(store.loadingNewer()).toBe(false);
+    });
+
+    it('should reset loading flags on join', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const response$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValue(response$.asObservable());
+      store.requestPrevPage();
+      expect(store.loadingOlder()).toBe(true);
+
+      store.join({ kind: 'room', id: 11 });
+      expect(store.loadingOlder()).toBe(false);
+      expect(store.loadingNewer()).toBe(false);
+
+      response$.next(mockListResponse([]));
+      response$.complete();
+    });
+
+    it('should bump scrollToLatestToken only after the list response in readAllAndJumpToLatest', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+      const tokenBefore = store.scrollToLatestToken();
+
+      const counts = { total: 0, byRoom: {}, bySender: {} };
+      const readAll$ = new Subject<typeof counts>();
+      apiService.readAll.mockReturnValue(readAll$.asObservable());
+
+      const list$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValue(list$.asObservable());
+
+      store.readAllAndJumpToLatest();
+      expect(store.scrollToLatestToken()).toBe(tokenBefore);
+
+      readAll$.next(counts);
+      readAll$.complete();
+      expect(store.scrollToLatestToken()).toBe(tokenBefore);
+
+      list$.next(
+        mockListResponse([message2WithReply], {
+          hasMoreBefore: false,
+          hasMoreAfter: false,
+        }),
+      );
+      list$.complete();
+      expect(store.scrollToLatestToken()).toBe(tokenBefore + 1);
     });
 
     it('should not append live message from socket when hasMoreAfter is true and set missedLiveWhileBehind', () => {
