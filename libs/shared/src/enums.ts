@@ -4,15 +4,53 @@ export enum EUserRole {
   MEMBER = 'MEMBER',
 }
 
+export enum EPermission {
+  MANAGE_SETTINGS = 'MANAGE_SETTINGS',
+  MANAGE_INVITES = 'MANAGE_INVITES',
+  MANAGE_USERS = 'MANAGE_USERS',
+  MANAGE_ROLES = 'MANAGE_ROLES',
+  MANAGE_ROOMS = 'MANAGE_ROOMS',
+  SEND_MESSAGES = 'SEND_MESSAGES',
+  MODERATE_MESSAGES = 'MODERATE_MESSAGES',
+  USE_ATTACHMENTS = 'USE_ATTACHMENTS',
+  CONNECT_VOICE = 'CONNECT_VOICE',
+  MENTION_EVERYONE = 'MENTION_EVERYONE',
+}
+
+export const DEFAULT_USER_PERMISSIONS: readonly EPermission[] = [
+  EPermission.SEND_MESSAGES,
+  EPermission.CONNECT_VOICE,
+  EPermission.USE_ATTACHMENTS,
+] as const;
+
+export const DEFAULT_MODERATOR_PERMISSIONS: readonly EPermission[] = [
+  EPermission.SEND_MESSAGES,
+  EPermission.CONNECT_VOICE,
+  EPermission.USE_ATTACHMENTS,
+  EPermission.MODERATE_MESSAGES,
+  EPermission.MANAGE_ROOMS,
+  EPermission.MENTION_EVERYONE,
+] as const;
+
+export const ALL_PERMISSIONS: readonly EPermission[] = Object.values(
+  EPermission,
+) as EPermission[];
+
 export enum ERoomType {
   TEXT = 'TEXT',
   VOICE = 'VOICE',
+}
+
+export enum EVoiceSessionType {
+  GROUP_ROOM = 'GROUP_ROOM',
+  DIRECT_CALL = 'DIRECT_CALL',
 }
 
 export enum ESettingKey {
   ICE_SERVERS = 'ICE_SERVERS',
   INVITE_ONLY_SIGN_UP = 'INVITE_ONLY_SIGN_UP',
   PASSWORD_RECOVERY_CODE_TTL = 'PASSWORD_RECOVERY_CODE_TTL',
+  VAPID_EMAIL = 'VAPID_EMAIL',
   ATTACHMENTS_ENABLED = 'ATTACHMENTS_ENABLED',
   ATTACHMENTS_MAX_FILE_SIZE = 'ATTACHMENTS_MAX_FILE_SIZE',
   ATTACHMENTS_MAX_FILES_PER_MESSAGE = 'ATTACHMENTS_MAX_FILES_PER_MESSAGE',
@@ -34,6 +72,8 @@ export enum ETextRoomEvent {
   MESSAGE_DELETED = 'message-deleted',
   MESSAGE_REACTION_UPDATED = 'message-reaction-updated',
   USER_TYPING = 'user-typing',
+  UNREAD_COUNTS_CHANGED = 'unread-counts-changed',
+  MESSAGES_READ = 'messages-read',
   ERROR = 'error',
 }
 
@@ -91,6 +131,9 @@ export enum EEntitySyncEvent {
   VOICE_ROOM_PEER_JOINED = 'voice-room-peer-joined',
   VOICE_ROOM_PEER_LEFT = 'voice-room-peer-left',
   VOICE_ROOM_PEER_MUTED = 'voice-room-peer-muted',
+  USER_PRESENCE_CHANGED = 'user-presence-changed',
+  USER_PRESENCE_SNAPSHOT = 'user-presence-snapshot',
+  ROLES_CHANGED = 'roles-changed',
   ERROR = 'error',
 }
 

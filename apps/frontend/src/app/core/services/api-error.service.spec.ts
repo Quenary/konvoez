@@ -7,8 +7,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
   ApiErrorCode,
-  type ApiErrorResponse,
-  type WsAckError,
+  type TApiErrorResponse,
+  type TWsAckError,
 } from '@konvoez/shared';
 import {
   ApiErrorService,
@@ -79,8 +79,8 @@ describe('parseApiError', () => {
     });
   });
 
-  it('parses Error with JSON-encoded ApiErrorResponse message', () => {
-    const payload: ApiErrorResponse = {
+  it('parses Error with JSON-encoded TApiErrorResponse message', () => {
+    const payload: TApiErrorResponse = {
       code: ApiErrorCode.CONFLICT,
       message: 'Conflict details',
       params: { id: 42 },
@@ -104,8 +104,8 @@ describe('parseApiError', () => {
     });
   });
 
-  it('parses HttpErrorResponse with ApiErrorResponse body', () => {
-    const payload: ApiErrorResponse = {
+  it('parses HttpErrorResponse with TApiErrorResponse body', () => {
+    const payload: TApiErrorResponse = {
       code: ApiErrorCode.FORBIDDEN,
       message: 'Access denied',
     };
@@ -117,7 +117,7 @@ describe('parseApiError', () => {
   });
 
   it('parses HttpErrorResponse with JSON string error body', () => {
-    const payload: ApiErrorResponse = {
+    const payload: TApiErrorResponse = {
       code: ApiErrorCode.USER_NOT_FOUND,
       message: 'User not found',
     };
@@ -153,8 +153,8 @@ describe('parseApiError', () => {
     expect(parseApiError(emptyResponse)).toBeNull();
   });
 
-  it('parses WsAckError shape', () => {
-    const ack: WsAckError = {
+  it('parses TWsAckError shape', () => {
+    const ack: TWsAckError = {
       error: {
         code: ApiErrorCode.VOICE_MEDIA_INVALID,
         message: 'Unsupported codec',
@@ -163,8 +163,8 @@ describe('parseApiError', () => {
     expect(parseApiError(ack)).toEqual(ack.error);
   });
 
-  it('parses plain ApiErrorResponse object', () => {
-    const errorObj: ApiErrorResponse = {
+  it('parses plain TApiErrorResponse object', () => {
+    const errorObj: TApiErrorResponse = {
       code: ApiErrorCode.FILE_TOO_BIG,
       message: 'File is too large',
       params: { max: '10MB' },
@@ -244,7 +244,7 @@ describe('ApiErrorService', () => {
     });
 
     it('translates known error code with interpolation params', () => {
-      const error: ApiErrorResponse = {
+      const error: TApiErrorResponse = {
         code: ApiErrorCode.FILE_TOO_BIG,
         message: 'File too large',
         params: { max: '10MB' },
@@ -258,7 +258,7 @@ describe('ApiErrorService', () => {
     });
 
     it('falls back to parsed.message when key is not in translations and message is custom', () => {
-      const error: ApiErrorResponse = {
+      const error: TApiErrorResponse = {
         code: ApiErrorCode.CALL_NOT_JOINABLE,
         message: 'Custom call failure explanation',
       };
@@ -293,7 +293,7 @@ describe('ApiErrorService', () => {
       expect(result).toBe('TOTALLY_MISSING_FALLBACK_KEY');
     });
     it('prioritizes explicit fallbackKey over generic error codes', () => {
-      const error: ApiErrorResponse = {
+      const error: TApiErrorResponse = {
         code: ApiErrorCode.INTERNAL,
         message: 'Internal server error',
       };
@@ -302,7 +302,7 @@ describe('ApiErrorService', () => {
     });
 
     it('translates generic error code using ERRORS.<code> when default fallback is used', () => {
-      const error: ApiErrorResponse = {
+      const error: TApiErrorResponse = {
         code: ApiErrorCode.INTERNAL,
         message: 'Internal server error',
       };

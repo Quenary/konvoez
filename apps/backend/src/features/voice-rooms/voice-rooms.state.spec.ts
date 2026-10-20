@@ -5,7 +5,7 @@ jest.mock('mediasoup/types', () => ({}), { virtual: true });
 
 import { EUserRole, type IUser } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { createWorker } from 'mediasoup';
 import { Mutex } from 'async-mutex';
 import { VoiceRoomsStateService } from './voice-rooms.state';
@@ -158,11 +158,11 @@ describe('VoiceRoomsStateService lobby eviction', () => {
 
     expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
     expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+      VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
       expect.objectContaining({ roomId: 9, userId: alice.id, revision: 1 }),
     );
     expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+      VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
       expect.objectContaining({ roomId: 9, userId: bob.id, revision: 2 }),
     );
     expect(service.getRoom(sessionKey)).toBeUndefined();
@@ -211,7 +211,7 @@ describe('VoiceRoomsStateService lobby eviction', () => {
 
     expect(eventEmitter.emit).toHaveBeenCalledTimes(1);
     expect(eventEmitter.emit).toHaveBeenCalledWith(
-      EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+      VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
       expect.objectContaining({ roomId: 3, userId: alice.id, revision: 1 }),
     );
     expect(service.getRoom(sessionKey)?.peers.size).toBe(0);

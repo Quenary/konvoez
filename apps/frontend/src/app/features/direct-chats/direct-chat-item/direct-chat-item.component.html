@@ -1,19 +1,24 @@
+@let _user = user();
+
 <button
   style="width: 100%; box-sizing: border-box"
   tuiCell
   appearance="whiteblock"
   type="button"
-  (click)="selected.emit(user())">
+  (click)="selected.emit(_user)">
   <tui-badged-content class="chat-badge">
-    @if (
-      !isSelf() && unreadCountsStore.directUnreadCount(user().id);
-      as count
-    ) {
+    @if (!isSelf() && unreadCountsStore.directUnreadCount(_user.id); as count) {
       <tui-badge-notification
         size="s"
         tuiSlot="top">
         {{ count > 99 ? '99+' : count }}
       </tui-badge-notification>
+    }
+    @if (isOnline()) {
+      <tui-badge-notification
+        size="xs"
+        tuiSlot="bottom"
+        class="online-badge" />
     }
     @if (isSelf()) {
       <div
@@ -22,9 +27,9 @@
     } @else {
       <app-user-avatar
         size="m"
-        [username]="user().username"
-        [fullname]="user().fullname"
-        [avatarUrl]="user().avatarUrl" />
+        [username]="_user.username"
+        [fullname]="_user.fullname"
+        [avatarUrl]="_user.avatarUrl" />
     }
   </tui-badged-content>
 
@@ -34,16 +39,15 @@
         {{ 'DIRECT.SAVED_MESSAGES' | translate }}
       </span>
     } @else {
-      @let u = user();
       <span
-        [style.color]="u.username | tuiAutoColor"
+        [style.color]="_user.username | tuiAutoColor"
         tuiFade>
-        {{ u.username }}
+        {{ _user.username }}
       </span>
       <div
         tuiSubtitle
         tuiFade>
-        {{ u.fullname }}
+        {{ _user.fullname }}
       </div>
     }
   </div>

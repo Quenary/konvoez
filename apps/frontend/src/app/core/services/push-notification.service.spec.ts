@@ -10,9 +10,20 @@ import { PushNotificationService } from './push-notification.service';
 describe('PushNotificationService', () => {
   const vapidPublicKey =
     'BGtkbcjrO12YMoDuq2sCQeHlu47uPx3SHTgFKZFYiBW8Qr0D9vgyZSZPdw6_4ZFEI9Snk1VEAj2qTYI1I1YxBXE';
+  const vapidBase64 = vapidPublicKey.replace(/-/g, '+').replace(/_/g, '/');
+  const paddedVapidBase64 = vapidBase64.padEnd(
+    vapidBase64.length + ((4 - (vapidBase64.length % 4)) % 4),
+    '=',
+  );
+  const decodedVapidKey = atob(paddedVapidBase64);
+  const applicationServerKey = new ArrayBuffer(decodedVapidKey.length);
+  new Uint8Array(applicationServerKey).set(
+    Array.from(decodedVapidKey, (character) => character.charCodeAt(0)),
+  );
 
   const mockSubscription = {
     endpoint: 'https://push.example/abc',
+    options: { applicationServerKey },
     unsubscribe: vi.fn().mockResolvedValue(true),
     toJSON: vi.fn(() => ({
       endpoint: 'https://push.example/abc',

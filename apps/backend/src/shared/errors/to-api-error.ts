@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { ApiErrorCode, type ApiErrorResponse } from '@konvoez/shared';
+import { ApiErrorCode, type TApiErrorResponse } from '@konvoez/shared';
 import { ZodValidationException } from 'nestjs-zod';
 import { ZodError } from 'zod';
 import { MulterError } from 'multer';
@@ -37,14 +37,14 @@ function isNotFoundError(err: unknown): boolean {
 
 export interface ResolvedApiError {
   status: number;
-  body: ApiErrorResponse;
+  body: TApiErrorResponse;
   logLevel: 'warn' | 'error';
 }
 
 export function toApiErrorResponse(exception: unknown): ResolvedApiError {
   if (exception instanceof AppException) {
     const res = exception.getResponse() as Record<string, unknown>;
-    const body: ApiErrorResponse = {
+    const body: TApiErrorResponse = {
       code: exception.code,
       message:
         (typeof res.message === 'string' ? res.message : undefined) ??

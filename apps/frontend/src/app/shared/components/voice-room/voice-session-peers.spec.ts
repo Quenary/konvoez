@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EUserRole, EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUser } from '@konvoez/shared';
 import { resolveVoiceSessionPeers } from './voice-session-peers';
 
 const me = {
@@ -7,8 +7,12 @@ const me = {
   username: 'me',
   fullname: 'Me',
   email: 'me@example.com',
-  role: EUserRole.MEMBER,
+  isOwner: false,
+  roles: [],
+  permissions: [],
+  avatarUrl: null,
   createdAt: new Date(),
+  updatedAt: new Date(),
 } as IUser;
 
 const interlocutor = {
@@ -16,8 +20,12 @@ const interlocutor = {
   username: 'other',
   fullname: 'Other',
   email: 'other@example.com',
-  role: EUserRole.MEMBER,
+  isOwner: false,
+  roles: [],
+  permissions: [],
+  avatarUrl: null,
   createdAt: new Date(),
+  updatedAt: new Date(),
 } as IUser;
 
 const groupPeer = {
@@ -25,8 +33,12 @@ const groupPeer = {
   username: 'groupie',
   fullname: 'Groupie',
   email: 'g@example.com',
-  role: EUserRole.MEMBER,
+  isOwner: false,
+  roles: [],
+  permissions: [],
+  avatarUrl: null,
   createdAt: new Date(),
+  updatedAt: new Date(),
 } as IUser;
 
 describe('resolveVoiceSessionPeers', () => {

@@ -2,7 +2,7 @@ import { computed } from '@angular/core';
 import {
   EVoiceSessionType,
   IUser,
-  IVoiceRoomPeerUser,
+  TVoiceRoomPeerUser,
   TVoiceSessionTarget,
 } from '@konvoez/shared';
 import {
@@ -37,7 +37,7 @@ export const VoiceSessionStore = signalStore(
     activeSession: null,
     joiningTarget: null,
   }),
-  withEntities<IVoiceRoomPeerUser>(),
+  withEntities<TVoiceRoomPeerUser>(),
   withComputed(({ activeSession, entities, entityMap }) => ({
     selectedRoomId: computed(() => {
       const session = activeSession();

@@ -1,3 +1,5 @@
+import * as z from 'zod';
+
 export enum ApiErrorCode {
   // Generic
   INTERNAL = 'INTERNAL',
@@ -39,9 +41,16 @@ export enum ApiErrorCode {
   USER_OWNER_ROLE_FORBIDDEN = 'USER_OWNER_ROLE_FORBIDDEN',
   USER_UPDATE_EMPTY = 'USER_UPDATE_EMPTY',
 
+  // Roles
+  ROLE_NOT_FOUND = 'ROLE_NOT_FOUND',
+  ROLE_NAME_TAKEN = 'ROLE_NAME_TAKEN',
+  ROLE_CANNOT_DELETE_DEFAULT = 'ROLE_CANNOT_DELETE_DEFAULT',
+  ROLE_HIERARCHY_VIOLATION = 'ROLE_HIERARCHY_VIOLATION',
+
   // Rooms
   ROOM_NOT_FOUND = 'ROOM_NOT_FOUND',
   ROOM_NAME_TAKEN = 'ROOM_NAME_TAKEN',
+  ROOM_ACCESS_DENIED = 'ROOM_ACCESS_DENIED',
 
   // Text
   MESSAGE_NOT_FOUND = 'MESSAGE_NOT_FOUND',
@@ -69,6 +78,7 @@ export enum ApiErrorCode {
 
   // Settings & notifications
   SETTING_NOT_FOUND = 'SETTING_NOT_FOUND',
+  SETTING_ENV_LOCKED = 'SETTING_ENV_LOCKED',
   PUSH_SUBSCRIPTION_NOT_FOUND = 'PUSH_SUBSCRIPTION_NOT_FOUND',
 
   // Voice & calls (WS)
@@ -81,17 +91,26 @@ export enum ApiErrorCode {
   CALL_NOT_JOINABLE = 'CALL_NOT_JOINABLE',
 }
 
-export interface ApiErrorResponse {
-  code: ApiErrorCode;
-  message: string;
-  params?: Record<string, string | number>;
-  fields?: { path: string; code: string }[];
-  attachmentIds?: string[];
-}
+export const apiErrorCodeSchema = z.enum(ApiErrorCode);
 
-export interface WsAckError {
-  error: ApiErrorResponse;
-}
+export const apiErrorFieldSchema = z.object({
+  path: z.string(),
+  code: z.string(),
+});
+
+export const apiErrorResponseSchema = z.object({
+  code: apiErrorCodeSchema,
+  message: z.string(),
+  params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  fields: z.array(apiErrorFieldSchema).optional(),
+  attachmentIds: z.array(z.string()).optional(),
+});
+export type TApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
+
+export const wsAckErrorSchema = z.object({
+  error: apiErrorResponseSchema,
+});
+export type TWsAckError = z.infer<typeof wsAckErrorSchema>;
 
 export const GENERIC_API_ERROR_CODES = new Set<ApiErrorCode>([
   ApiErrorCode.INTERNAL,

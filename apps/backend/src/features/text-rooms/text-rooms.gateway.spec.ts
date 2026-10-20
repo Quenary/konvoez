@@ -4,11 +4,22 @@ jest.mock('@mikro-orm/nestjs', () => ({
 jest.mock('../auth/auth.service', () => ({
   AuthService: class {},
 }));
+jest.mock('../rooms/rooms.facade', () => ({
+  RoomsFacade: class {},
+}));
 
 import { TextRoomsGateway } from './text-rooms.gateway';
-import { ETextRoomEvent, type ITextRoomMessage } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  ETextRoomEvent,
+  type ITextRoomMessage,
+  type TTextRoomMessagesRead,
+} from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { v7 } from 'uuid';
 import { Server, Socket } from 'socket.io';
+import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
+import { TextRoomsDomainEvents } from './text-rooms.events';
 
 describe('TextRoomsGateway', () => {
   let gateway: TextRoomsGateway;
@@ -16,6 +27,13 @@ describe('TextRoomsGateway', () => {
     to: jest.Mock;
     except: jest.Mock;
     emit: jest.Mock;
+  };
+  let roomsFacadeMock: {
+    assertCanAccessRoom: jest.Mock;
+  };
+  let authServiceMock: {
+    getActiveUserById: jest.Mock;
+    getUserFromRawCookies: jest.Mock;
   };
 
   beforeEach(() => {
@@ -27,20 +45,174 @@ describe('TextRoomsGateway', () => {
       emit: jest.fn(),
     };
 
-    Object.assign(gateway, { server: serverMock as unknown as Server });
+    roomsFacadeMock = {
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+    };
+
+    authServiceMock = {
+      getActiveUserById: jest.fn().mockImplementation((id: number) =>
+        Promise.resolve({
+          id,
+          username: `user_${id}`,
+          isOwner: false,
+          permissions: [],
+          roles: [],
+        }),
+      ),
+      getUserFromRawCookies: jest.fn(),
+    };
+
+    Object.assign(gateway, {
+      server: serverMock as unknown as Server,
+      roomsFacade: roomsFacadeMock,
+      authService: authServiceMock,
+    });
   });
 
-  it('should join room and peer rooms in handleJoin', () => {
+  it('should join room and peer rooms in handleJoin', async () => {
     const clientMock = {
       data: { peer: { id: 100 } },
       join: jest.fn(),
       leave: jest.fn(),
+      handshake: { headers: {} },
     } as unknown as Socket;
 
-    gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
 
     expect(clientMock.join).toHaveBeenCalledWith('42');
     expect(clientMock.join).toHaveBeenCalledWith('100');
+  });
+
+  it('should deny handleJoin without peer and emit UNAUTHORIZED', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: {},
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.UNAUTHORIZED,
+      }),
+    );
+  });
+
+  it('should emit ROOM_ACCESS_DENIED when user cannot access private room', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: { peer: { id: 100 } },
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    roomsFacadeMock.assertCanAccessRoom.mockRejectedValueOnce(
+      AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Access to room is denied',
+      ),
+    );
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      }),
+    );
+  });
+
+  it('should emit ROOM_NOT_FOUND when room does not exist', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: { peer: { id: 100 } },
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    roomsFacadeMock.assertCanAccessRoom.mockRejectedValueOnce(
+      AppException.notFound(ApiErrorCode.ROOM_NOT_FOUND, 'Room not found'),
+    );
+
+    await gateway.handleJoin({ roomId: 999, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.ROOM_NOT_FOUND,
+      }),
+    );
+  });
+
+  it('should emit error and not join when getActiveUserById fails', async () => {
+    const emitMock = jest.fn();
+    const joinMock = jest.fn();
+    const clientMock = {
+      data: { peer: { id: 100 } },
+      join: joinMock,
+      leave: jest.fn(),
+      emit: emitMock,
+      handshake: { headers: {} },
+    } as unknown as Socket;
+
+    authServiceMock.getActiveUserById.mockRejectedValueOnce(
+      AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'User inactive'),
+    );
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(joinMock).not.toHaveBeenCalled();
+    expect(emitMock).toHaveBeenCalledWith(
+      ETextRoomEvent.ERROR,
+      expect.objectContaining({
+        code: ApiErrorCode.UNAUTHORIZED,
+      }),
+    );
+  });
+
+  it('should reload fresh peer by id and never call getUserFromRawCookies on join', async () => {
+    const clientMock = {
+      data: { peer: { id: 100, username: 'old_snapshot' } },
+      join: jest.fn(),
+      leave: jest.fn(),
+      handshake: { headers: { cookie: 'stale=cookie' } },
+    } as unknown as Socket;
+
+    authServiceMock.getActiveUserById.mockResolvedValueOnce({
+      id: 100,
+      username: 'fresh_from_db',
+      roles: [],
+      permissions: [],
+      isOwner: false,
+    });
+
+    await gateway.handleJoin({ roomId: 42, recipientId: null }, clientMock);
+
+    expect(authServiceMock.getActiveUserById).toHaveBeenCalledWith(100);
+    expect(authServiceMock.getUserFromRawCookies).not.toHaveBeenCalled();
+    expect(roomsFacadeMock.assertCanAccessRoom).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 100,
+        username: 'fresh_from_db',
+      }),
+      42,
+    );
   });
 
   it('should leave room in handleLeave', () => {
@@ -207,5 +379,81 @@ describe('TextRoomsGateway', () => {
       ETextRoomEvent.MESSAGE_REACTION_UPDATED,
       payload,
     );
+  });
+
+  it('should emit MESSAGES_READ to room and reader in onMessagesRead', () => {
+    const payload: TTextRoomMessagesRead = {
+      readerId: 1,
+      roomId: 42,
+      recipientId: null,
+      messageIds: [],
+      maxMessageId: v7(),
+    };
+
+    gateway.onMessagesRead(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('42');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGES_READ,
+      payload,
+    );
+  });
+
+  it('should emit MESSAGES_READ to recipient and reader for direct message in onMessagesRead', () => {
+    const payload: TTextRoomMessagesRead = {
+      readerId: 1,
+      roomId: null,
+      recipientId: 2,
+      messageIds: [v7()],
+      maxMessageId: null,
+    };
+
+    gateway.onMessagesRead(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('2');
+    expect(serverMock.to).toHaveBeenCalledWith('1');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.MESSAGES_READ,
+      payload,
+    );
+  });
+
+  it('should have OnEvent metadata for MESSAGES_READ on onMessagesRead', () => {
+    const metadata = Reflect.getMetadata(
+      EVENT_LISTENER_METADATA,
+      gateway.onMessagesRead,
+    );
+    const events = metadata.map((m: { event: string }) => m.event);
+    expect(events).toContain(TextRoomsDomainEvents.MESSAGES_READ);
+  });
+
+  it('should emit UNREAD_COUNTS_CHANGED to user room in onUnreadCountsChanged', () => {
+    const payload = {
+      userId: 42,
+      counts: {
+        rooms: { '10': 3 },
+        roomMentions: {},
+        direct: {},
+        directTotal: 0,
+      },
+    };
+
+    gateway.onUnreadCountsChanged(payload);
+
+    expect(serverMock.to).toHaveBeenCalledWith('42');
+    expect(serverMock.emit).toHaveBeenCalledWith(
+      ETextRoomEvent.UNREAD_COUNTS_CHANGED,
+      payload.counts,
+    );
+  });
+
+  it('should have OnEvent metadata for UNREAD_COUNTS_CHANGED on onUnreadCountsChanged', () => {
+    const metadata = Reflect.getMetadata(
+      EVENT_LISTENER_METADATA,
+      gateway.onUnreadCountsChanged,
+    );
+    const events = metadata.map((m: { event: string }) => m.event);
+    expect(events).toContain(TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED);
   });
 });

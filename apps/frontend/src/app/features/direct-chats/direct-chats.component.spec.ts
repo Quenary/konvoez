@@ -7,9 +7,9 @@ import { provideStore } from '@ngrx/store';
 import { TuiDialogService } from '@taiga-ui/core';
 import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
-import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { UsersStore } from '@core/stores/users.store';
+import { IUser } from '@konvoez/shared';
 
 describe('DirectChatsComponent', () => {
   let component: DirectChatsComponent;
@@ -21,7 +21,10 @@ describe('DirectChatsComponent', () => {
     username: 'john_doe',
     fullname: 'John Doe',
     email: 'john@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -38,6 +41,7 @@ describe('DirectChatsComponent', () => {
   const mockUsersStore = {
     loadAll: vi.fn(),
     entities: vi.fn().mockReturnValue([mockUser]),
+    onlineMap: vi.fn().mockReturnValue({}),
   };
 
   const mockDialogService = {

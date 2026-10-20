@@ -1,31 +1,32 @@
 # Password recovery
 
-Konvoez can email a one-time code so users can reset a forgotten password. SMTP is configured only via environment variables (not stored in the database).
+The app supports resetting a forgotten password with a one-time code sent by email. SMTP is configured only through environment variables (`SMTP_*` in `.env.example`); without `SMTP_HOST`, recovery requests return `503`.
 
 ## Flow
 
-1. **Request** — `POST /api/v1/auth/password-recovery/request` with `{ email }`.
-2. Server looks up the user by email. Unknown emails still receive `{ ok: true }` (no account enumeration).
-3. If SMTP is configured and the user exists, a **6-digit** code is generated, stored as an Argon2id hash in `password_recovery_codes`, and emailed.
-4. Previous unused codes for that user are invalidated.
-5. **Confirm** — `POST /api/v1/auth/password-recovery/confirm` with `{ email, code, password }`.
-6. On a valid, non-expired, unused code the password is updated and the code is marked used.
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant S as Server
+  participant M as Email
 
-## TTL
+  U->>S: Request recovery (email)
+  S-->>U: ok (always, even for unknown emails)
+  opt SMTP configured and user exists
+    S->>S: Invalidate previous codes, create 6-digit code (hashed)
+    S->>M: Send code
+  end
+  M-->>U: Code
+  U->>S: Confirm (email, code, new password)
+  S->>S: Check code: valid, unused, not expired
+  S-->>U: Password updated, code marked used
+```
 
-Code lifetime comes from the `PASSWORD_RECOVERY_CODE_TTL` setting (milliseconds):
+## Rules
 
-- Default: `600000` (10 minutes)
-- Allowed range: `60000`–`3600000` (1 minute–1 hour)
-- Editable by `OWNER` / `ADMIN` in Administration settings (or via env on startup)
-
-## SMTP
-
-See `.env.example` for `SMTP_HOST`, `SMTP_ENCRYPTION` (`TLS` | `STARTTLS` | other/empty), `SMTP_PORT`, credentials, and `SMTP_FROM`. If `SMTP_HOST` is empty, recovery requests return `503`.
-
-## Protections
-
-- Codes are hashed at rest; plaintext exists only in the outbound email.
-- ~60s cooldown per email for request (cache).
-- Single-use codes with expiry.
-- Generic success on request regardless of whether the email is registered.
+- **TTL**: `PASSWORD_RECOVERY_CODE_TTL`, default 10 minutes, range 1 minute to 1 hour. It can be changed in the admin settings (`MANAGE_SETTINGS` or `OWNER`) or through the environment.
+- **No account enumeration**: the request always succeeds, whether or not the email is registered.
+- **Hashed codes**: only the Argon2id hash is stored; the plaintext exists only in the email.
+- **Single use**: a new request invalidates earlier unused codes, and a used code cannot be reused.
+- **Rate limit**: about a 60-second cooldown per email for requests.
+- **Deleted accounts** cannot recover a password (see [User management](USER_MANAGEMENT.md)).

@@ -19,11 +19,13 @@ import {
 } from '@konvoez/shared';
 import { SettingsEntity } from './settings.entity';
 import { AppException } from '@shared/errors/app.exception';
+import { ensureRequestContext } from '@shared/utils/request-context.util';
 
 @Injectable()
 export class SettingsService implements OnApplicationBootstrap {
   private readonly logger = new Logger(SettingsService.name);
-  private readonly em: EntityManager;
+  private readonly em!: EntityManager;
+  private readonly envLockedKeys = new Set<ESettingKey>();
 
   constructor(
     @InjectRepository(SettingsEntity)
@@ -46,65 +48,67 @@ export class SettingsService implements OnApplicationBootstrap {
   }
 
   async initSettings(): Promise<void> {
-    const em = this.em.fork();
-    const repo = em.getRepository(SettingsEntity);
-    const keys = Object.values(ESettingKey);
+    await ensureRequestContext(this.em, async () => {
+      this.envLockedKeys.clear();
+      const keys = Object.values(ESettingKey);
 
-    for (const key of keys) {
-      const schema = settingValueSchemas[key];
-      const defaultValue = defaultSettingValues[key];
+      for (const key of keys) {
+        const schema = settingValueSchemas[key];
+        const defaultValue = defaultSettingValues[key];
 
-      const envRaw = process.env[key] ?? process.env[`SETTINGS_${key}`];
-      let valueToSave: TSetting['value'] = defaultValue;
-      let shouldSaveEnvValue = false;
+        const envRaw = process.env[key] ?? process.env[`SETTINGS_${key}`];
+        let valueToSave: TSetting['value'] = defaultValue;
+        let shouldSaveEnvValue = false;
 
-      if (envRaw !== undefined && envRaw !== '') {
-        const parsed = this.parseEnvValue(envRaw);
-        const result = schema.safeParse(parsed);
-        if (result.success) {
-          valueToSave = result.data as TSetting['value'];
-          shouldSaveEnvValue = true;
-          this.logger.log(`Loaded setting "${key}" from environment.`);
-        } else {
-          this.logger.warn(
-            `Invalid environment value for setting "${key}": ${result.error.message}`,
-          );
+        if (envRaw !== undefined && envRaw !== '') {
+          const parsed = this.parseEnvValue(envRaw);
+          const result = schema.safeParse(parsed);
+          if (result.success) {
+            valueToSave = result.data as TSetting['value'];
+            shouldSaveEnvValue = true;
+            this.envLockedKeys.add(key);
+            this.logger.log(`Loaded setting "${key}" from environment.`);
+          } else {
+            this.logger.warn(
+              `Invalid environment value for setting "${key}": ${result.error.message}`,
+            );
+          }
         }
-      }
 
-      const existing = await repo.findOne({ key });
+        const existing = await this.repo.findOne({ key });
 
-      if (shouldSaveEnvValue) {
-        if (existing) {
-          repo.assign(existing, { value: valueToSave });
+        if (shouldSaveEnvValue) {
+          if (existing) {
+            this.repo.assign(existing, { value: valueToSave });
+          } else {
+            const setting = this.repo.create({
+              key,
+              value: valueToSave,
+            });
+            this.em.persist(setting);
+          }
+        } else if (existing) {
+          const result = schema.safeParse(existing.value);
+          if (!result.success) {
+            this.logger.warn(
+              `Setting "${key}" in database is invalid. Resetting to default value.`,
+            );
+            this.repo.assign(existing, { value: defaultValue });
+          }
         } else {
-          const setting = repo.create({
+          this.logger.log(
+            `Setting "${key}" not found in database. Initializing with default value.`,
+          );
+          const setting = this.repo.create({
             key,
-            value: valueToSave,
+            value: defaultValue,
           });
-          em.persist(setting);
+          this.em.persist(setting);
         }
-      } else if (existing) {
-        const result = schema.safeParse(existing.value);
-        if (!result.success) {
-          this.logger.warn(
-            `Setting "${key}" in database is invalid. Resetting to default value.`,
-          );
-          repo.assign(existing, { value: defaultValue });
-        }
-      } else {
-        this.logger.log(
-          `Setting "${key}" not found in database. Initializing with default value.`,
-        );
-        const setting = repo.create({
-          key,
-          value: defaultValue,
-        });
-        em.persist(setting);
       }
-    }
 
-    await em.flush();
+      await this.em.flush();
+    });
   }
 
   toDto<K extends ESettingKey = ESettingKey>(
@@ -115,18 +119,21 @@ export class SettingsService implements OnApplicationBootstrap {
       value: setting.value,
       createdAt: setting.createdAt,
       updatedAt: setting.updatedAt,
+      envLocked: this.envLockedKeys.has(setting.key),
     } as unknown as TSettingByKey<K>;
   }
 
   async findOne(key: ESettingKey): Promise<SettingsEntity> {
-    const setting = await this.repo.findOne({ key });
-    if (!setting) {
-      throw AppException.notFound(
-        ApiErrorCode.SETTING_NOT_FOUND,
-        `Setting with key "${key}" not found`,
-      );
-    }
-    return setting;
+    return ensureRequestContext(this.em, async () => {
+      const setting = await this.repo.findOne({ key });
+      if (!setting) {
+        throw AppException.notFound(
+          ApiErrorCode.SETTING_NOT_FOUND,
+          `Setting with key "${key}" not found`,
+        );
+      }
+      return setting;
+    });
   }
 
   async findOneAsDto<K extends ESettingKey>(key: K): Promise<TSettingByKey<K>> {
@@ -140,7 +147,7 @@ export class SettingsService implements OnApplicationBootstrap {
   }
 
   async findAll(): Promise<SettingsEntity[]> {
-    return this.repo.findAll();
+    return ensureRequestContext(this.em, () => this.repo.findAll());
   }
 
   async findAllAsDto(): Promise<TSetting[]> {
@@ -149,42 +156,60 @@ export class SettingsService implements OnApplicationBootstrap {
   }
 
   async updateMany(dtos: TSettingsUpdate): Promise<SettingsEntity[]> {
-    const updatedEntitiesMap = new Map<ESettingKey, SettingsEntity>();
+    return ensureRequestContext(this.em, async () => {
+      const updatedEntitiesMap = new Map<ESettingKey, SettingsEntity>();
 
-    for (const item of dtos) {
-      const { key, value } = item;
-      const schema = settingValueSchemas[key];
-      if (!schema) {
-        throw AppException.notFound(
-          ApiErrorCode.SETTING_NOT_FOUND,
-          `Setting with key "${key}" not supported`,
-        );
+      for (const item of dtos) {
+        const { key, value } = item;
+        if (this.envLockedKeys.has(key)) {
+          throw new AppException(
+            ApiErrorCode.SETTING_ENV_LOCKED,
+            HttpStatus.CONFLICT,
+            {
+              message: `Setting "${key}" is set by environment`,
+            },
+          );
+        }
+
+        const schema = settingValueSchemas[key];
+        if (!schema) {
+          throw AppException.notFound(
+            ApiErrorCode.SETTING_NOT_FOUND,
+            `Setting with key "${key}" not supported`,
+          );
+        }
+
+        const result = schema.safeParse(value);
+        if (!result.success) {
+          const fields = result.error.issues.map((issue) => ({
+            path: issue.path.join('.'),
+            code: issue.message || issue.code,
+          }));
+          throw new AppException(
+            ApiErrorCode.VALIDATION_FAILED,
+            HttpStatus.BAD_REQUEST,
+            {
+              message: 'Validation failed',
+              fields,
+            },
+          );
+        }
+
+        const setting = await this.repo.findOne({ key });
+        if (!setting) {
+          throw AppException.notFound(
+            ApiErrorCode.SETTING_NOT_FOUND,
+            `Setting with key "${key}" not found`,
+          );
+        }
+        this.repo.assign(setting, { value: result.data });
+        this.em.persist(setting);
+        updatedEntitiesMap.set(key, setting);
       }
 
-      const result = schema.safeParse(value);
-      if (!result.success) {
-        const fields = result.error.issues.map((issue) => ({
-          path: issue.path.join('.'),
-          code: issue.message || issue.code,
-        }));
-        throw new AppException(
-          ApiErrorCode.VALIDATION_FAILED,
-          HttpStatus.BAD_REQUEST,
-          {
-            message: 'Validation failed',
-            fields,
-          },
-        );
-      }
-
-      const setting = await this.findOne(key);
-      this.repo.assign(setting, { value: result.data });
-      this.em.persist(setting);
-      updatedEntitiesMap.set(key, setting);
-    }
-
-    await this.em.flush();
-    return Array.from(updatedEntitiesMap.values());
+      await this.em.flush();
+      return Array.from(updatedEntitiesMap.values());
+    });
   }
 
   async updateManyAsDto(dtos: TSettingsUpdate): Promise<TSetting[]> {

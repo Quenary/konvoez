@@ -10,8 +10,8 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAuth } from '@core/auth/auth.selectors';
 import { ownerGuard } from './owner.guard';
 import { firstValueFrom, Observable } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { IUser } from '@konvoez/shared';
 
 describe('ownerGuard', () => {
   let store: MockStore;
@@ -23,13 +23,16 @@ describe('ownerGuard', () => {
     ) as Observable<boolean | UrlTree>;
   };
 
-  const createMockUser = (role: EUserRole): IUser => ({
+  const createMockUser = (isOwner: boolean): IUser => ({
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
     email: 'test@example.com',
-    role,
+    isOwner,
+    roles: [],
+    permissions: [],
     avatar: null,
+    avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
   });
@@ -53,10 +56,15 @@ describe('ownerGuard', () => {
     router = TestBed.inject(Router);
   });
 
+  afterEach(() => {
+    store.resetSelectors();
+    TestBed.resetTestingModule();
+  });
+
   it('should allow access when user is OWNER', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
-      user: createMockUser(EUserRole.OWNER),
+      user: createMockUser(true),
       loading: false,
     });
     store.refreshState();
@@ -65,22 +73,10 @@ describe('ownerGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should redirect to / when user is ADMIN', async () => {
+  it('should redirect to / when user is not OWNER', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
-      user: createMockUser(EUserRole.ADMIN),
-      loading: false,
-    });
-    store.refreshState();
-
-    const result = await firstValueFrom(executeGuard());
-    expect(result).toEqual(router.createUrlTree(['/']));
-  });
-
-  it('should redirect to / when user is MEMBER', async () => {
-    store.overrideSelector(selectAuth, {
-      init: true,
-      user: createMockUser(EUserRole.MEMBER),
+      user: createMockUser(false),
       loading: false,
     });
     store.refreshState();

@@ -1,12 +1,12 @@
 import {
   IUser,
-  IVoiceRoomPeerUser,
+  TVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
 } from '@konvoez/shared';
 
 export function toPeerUser(
   user: IUser & { producers?: unknown; muted?: boolean; deafened?: boolean },
-): IVoiceRoomPeerUser {
+): TVoiceRoomPeerUser {
   const { producers: _producers, ...rest } = user;
   return rest;
 }
@@ -16,7 +16,7 @@ export function mapRoomsUser(
   user: IUser,
 ): TVoiceRoomGetAllPeersResult {
   let changed = false;
-  const next: Record<number, Record<number, IVoiceRoomPeerUser>> = {};
+  const next: Record<number, Record<number, TVoiceRoomPeerUser>> = {};
   for (const [roomId, peers] of Object.entries(rooms)) {
     const roomPeers = peers;
     const existing = roomPeers[user.id];
@@ -41,7 +41,7 @@ export function omitRoomsUser(
   userId: number,
 ): TVoiceRoomGetAllPeersResult {
   let changed = false;
-  const next: Record<number, Record<number, IVoiceRoomPeerUser>> = {};
+  const next: Record<number, Record<number, TVoiceRoomPeerUser>> = {};
   for (const [roomId, peers] of Object.entries(rooms)) {
     if (peers[userId]) {
       changed = true;

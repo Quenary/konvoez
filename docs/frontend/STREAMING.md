@@ -1,29 +1,50 @@
 # Frontend streaming
 
-Camera and screen on the voice stack ([VOICE.md](./VOICE.md)).
+Camera and screen sharing run on top of the voice stack ([Voice](./VOICE.md)).
 
 ## Subscribe model
 
-| Kind                             | Produce          | Remote video             | Audio                                                               |
-| -------------------------------- | ---------------- | ------------------------ | ------------------------------------------------------------------- |
-| Mic                              | While in session | —                        | Auto → `PeerPlaybackService`                                        |
-| Camera                           | User toggle      | Auto                     | Video only → `PeerVideoService`                                     |
-| Screen (+ optional screen-audio) | User toggle      | Opt-in `watchPeerScreen` | Video → `PeerVideoService`; screen-audio → `PeerScreenAudioService` |
+| Kind                      | Published        | Remote video               | Audio                                                                    |
+| ------------------------- | ---------------- | -------------------------- | ------------------------------------------------------------------------ |
+| Microphone                | While in session | -                          | Automatic, through `PeerPlaybackService`                                 |
+| Camera                    | User toggle      | Automatic                  | Video only, through `PeerVideoService`                                   |
+| Screen (+ optional audio) | User toggle      | Opt-in (`watchPeerScreen`) | Video through `PeerVideoService`, audio through `PeerScreenAudioService` |
 
-One cam and one screen per user; room cap 4 video producers (backend). VP8 for senders. Mic/speaker mute states, per-peer mic gains and per-peer screen-audio gains live in `VoiceAudioPreferencesStore`. Height/FPS from settings + shared start dialog. Screen button hidden if `getDisplayMedia` is unavailable. Stopping screen share closes the screen video producer; the server also closes the paired `screen-audio` producer. The client still sends close acks for both tracks (with timeout); duplicate closes are treated as success so `stopScreen` cannot hang on an already-closed producer.
+- Each user has at most one camera and one screen stream; a room allows up to 4 video producers. Senders use VP8.
+- Resolution and frame rate come from settings and the shared start dialog. The screen button is hidden when `getDisplayMedia` is unavailable.
+- Stopping a screen share closes its video producer, and the server closes the paired `screen-audio` producer. Duplicate closes are treated as success, so stopping never hangs.
 
-## Pipeline
+```mermaid
+sequenceDiagram
+  participant S as Sharer
+  participant Srv as Server
+  participant V as Viewer
 
-`MediasoupSessionService` — device, transports, produce/consume. `PeerVideoService` — tracks, `availableScreens`, `watchingUserIds`. `ScreenWatchService` + `ConsumerRegistry` for opt-in screen video. `LocalScreenPreviewService` — shared pause for **local** screen preview (tab hidden / window blur; producing continues). `VoiceRoomViewService` — theatre/chrome layout and focus. `VoiceRoomTilesService` — reactive tile view model computation. `VoiceRoomActionsService` — tile and screen watch actions.
+  S->>Srv: Produce screen (+ screen audio)
+  Srv-->>V: Screen available (not consumed)
+  V->>Srv: watchPeerScreen
+  Srv-->>V: Consume screen video and audio
+  V->>V: Tile shows the stream
+  V->>Srv: Stop watching (or sharer stops)
+  Srv-->>V: Consumers closed
+```
 
-Tiles: `buildVoiceRoomTiles` — voice-only, cam, screen, or cam+screen as separate 16:9 tiles. Remote screen video attaches only while watching.
+## Services
 
-## Theatre & chrome
+| Service                                        | Responsibility                                                                            |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `MediasoupSessionService`                      | Device, transports, produce and consume.                                                  |
+| `PeerVideoService`                             | Remote tracks, available screens (`availableScreens`), watched users (`watchingUserIds`). |
+| `ScreenWatchService`, `ConsumerRegistry`       | Opt-in consumption of screen video.                                                       |
+| `LocalScreenPreviewService`                    | Pauses the local screen preview while the tab is hidden or blurred; publishing continues. |
+| `VoiceRoomViewService`                         | Layout (grid or theatre), chrome and focus.                                               |
+| `VoiceRoomTilesService`, `buildVoiceRoomTiles` | Tile view model: voice-only, camera, screen or camera + screen as separate 16:9 tiles.    |
+| `VoiceRoomActionsService`                      | Tile actions: watch or stop watching a screen, screen volume.                             |
 
-Theatre is a layout mode (`VoiceRoomViewService`: `layout: 'grid' | 'theatre'`). The active theatre focus is tracked as `theatreFocus: { peerId, stream }`. Grid unmounts while open; strip of mini-tiles; stage video or large tile. Focus is sticky; fallback to another stream if the focused tile disappears. Switch back to grid via `showGrid()`, or reset on session change (hangup, leave, logout, room switch).
+## Theatre mode
 
-`app-voice-room-shell` projects `app-voice-room-overlay` into `app-voice-room-grid` or `app-voice-room-theatre`. Stop-watch and screen volume when watching a remote screen are handled via `VoiceRoomActionsService`. Both group room and direct calls use `app-voice-room-shell`; controls live in `voice-room-controls-bar`.
+`VoiceRoomViewService` switches the layout between `grid` and `theatre`. In theatre the grid is unmounted: a strip of mini-tiles sits beside a stage with the focused stream (`theatreFocus: { peerId, stream }`).
 
-## Tests (spot checks)
-
-`peer-video.service.spec.ts`, `voice-room-tiles.spec.ts`, `voice-room-tiles.service.spec.ts`, `voice-room-actions.service.spec.ts`, `voice-room-shell.component.spec.ts`, `voice-room-grid.component.spec.ts`, `voice-room-theatre.component.spec.ts`, `voice-room-view.service.spec.ts`, `voice-room-controls-bar.component.spec.ts`, `voice-room.component.spec.ts`, `direct.component.spec.ts`
+- The focus is sticky; if the focused tile disappears, another stream takes over.
+- `showGrid()` returns to the grid. The layout resets when the session changes (hangup, leave, logout, room switch).
+- Group rooms and direct calls both render through `app-voice-room-shell`, which projects `app-voice-room-overlay` into the grid or theatre component. Controls live in `voice-room-controls-bar`.

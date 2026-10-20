@@ -2,15 +2,15 @@ import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   EVoiceRoomEvent,
-  IVoiceRoomCloseProducer,
-  IVoiceRoomConnectTransport,
-  IVoiceRoomConsume,
-  IVoiceRoomConsumeResult,
-  IVoiceRoomCreateTransport,
-  IVoiceRoomCreateTransportResult,
-  IVoiceRoomProduce,
-  IVoiceRoomProduceResult,
+  TVoiceRoomCloseProducer,
+  TVoiceRoomConnectTransport,
+  TVoiceRoomConsume,
+  TVoiceRoomConsumeResult,
+  TVoiceRoomCreateTransport,
+  TVoiceRoomCreateTransportResult,
   TVoiceRoomMediaTag,
+  TVoiceRoomProduce,
+  TVoiceRoomProduceResult,
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
 import type { Device } from 'mediasoup-client';
@@ -77,7 +77,7 @@ export class MediasoupSessionService {
   private screenAudioProducer: Producer | null = null;
   private microphoneMuted = false;
   private readonly consuming = new Set<string>();
-  private pendingConsumes: IVoiceRoomProduceResult[] = [];
+  private pendingConsumes: TVoiceRoomProduceResult[] = [];
 
   private get settingsStore(): InstanceType<typeof SettingsStore> {
     return this.injector.get(SettingsStore);
@@ -385,7 +385,7 @@ export class MediasoupSessionService {
     try {
       await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.CLOSE_PRODUCER, {
         producerId: producer.id,
-      } satisfies IVoiceRoomCloseProducer);
+      } satisfies TVoiceRoomCloseProducer);
     } catch (error) {
       console.warn('close-producer ack failed', error);
     }
@@ -439,12 +439,12 @@ export class MediasoupSessionService {
       throw new Error('mediasoup Device is not loaded');
     }
 
-    const result: IVoiceRoomCreateTransportResult = await emitVoiceRoomWithAck(
+    const result: TVoiceRoomCreateTransportResult = await emitVoiceRoomWithAck(
       this.socket,
       EVoiceRoomEvent.CREATE_TRANSPORT,
       {
         direction,
-      } satisfies IVoiceRoomCreateTransport,
+      } satisfies TVoiceRoomCreateTransport,
       VOICE_JOIN_ACK_MS,
     );
 
@@ -454,6 +454,7 @@ export class MediasoupSessionService {
       iceServers:
         iceServers.length > 0 ? (iceServers as RTCIceServer[]) : undefined,
     };
+
     const transport =
       direction === 'send'
         ? device.createSendTransport(options)
@@ -467,7 +468,7 @@ export class MediasoupSessionService {
           {
             transportId: transport.id,
             dtlsParameters,
-          } satisfies IVoiceRoomConnectTransport,
+          } satisfies TVoiceRoomConnectTransport,
         );
         callback();
       } catch (err) {
@@ -479,7 +480,7 @@ export class MediasoupSessionService {
       transport.on(
         'produce',
         async ({ kind, rtpParameters, appData }, callback, errback) => {
-          const producePayload: IVoiceRoomProduce = {
+          const producePayload: TVoiceRoomProduce = {
             kind,
             rtpParameters,
             transportId: transport.id,
@@ -487,7 +488,7 @@ export class MediasoupSessionService {
           };
 
           try {
-            const res: IVoiceRoomProduceResult = await emitVoiceRoomWithAck(
+            const res: TVoiceRoomProduceResult = await emitVoiceRoomWithAck(
               this.socket,
               EVoiceRoomEvent.PRODUCE,
               producePayload,
@@ -497,7 +498,7 @@ export class MediasoupSessionService {
           } catch (error) {
             if (isVoiceSocketAckTimeout(error)) {
               try {
-                const retryRes: IVoiceRoomProduceResult =
+                const retryRes: TVoiceRoomProduceResult =
                   await emitVoiceRoomWithAck(
                     this.socket,
                     EVoiceRoomEvent.PRODUCE,
@@ -551,7 +552,7 @@ export class MediasoupSessionService {
   }
 
   public async consume(
-    data: IVoiceRoomProduceResult,
+    data: TVoiceRoomProduceResult,
     resolvePeer: (userId: number) => IConsumePeerContext | null,
   ): Promise<void> {
     // Screen is opt-in: register availability, do not auto-consume.
@@ -576,7 +577,7 @@ export class MediasoupSessionService {
   }
 
   public async consumeProducer(
-    data: IVoiceRoomProduceResult,
+    data: TVoiceRoomProduceResult,
     resolvePeer: (userId: number) => IConsumePeerContext | null,
     options?: { screenGain?: number; rethrow?: boolean },
   ): Promise<void> {
@@ -609,14 +610,14 @@ export class MediasoupSessionService {
         throw new Error('Recv transport is not ready');
       }
 
-      const result: IVoiceRoomConsumeResult = await emitVoiceRoomWithAck(
+      const result: TVoiceRoomConsumeResult = await emitVoiceRoomWithAck(
         this.socket,
         EVoiceRoomEvent.CONSUME,
         {
           producerId: data.producerId,
           rtpCapabilities: device.recvRtpCapabilities,
           transportId: recvTransport.id,
-        } satisfies IVoiceRoomConsume,
+        } satisfies TVoiceRoomConsume,
       );
 
       const consumer = await recvTransport.consume(

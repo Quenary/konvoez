@@ -53,6 +53,7 @@ MENU:
     NOTIFICATIONS: Notifications
     INVITES: Invites
     USERS: Users
+    ROLES: Roles
     ADMIN: Administration
 USER_DIALOG:
   FULLNAME: Full name
@@ -136,6 +137,7 @@ VOICE:
   JOIN_FAILED: Couldn't join the voice channel
   ROOM_CLOSED: This voice room was closed
 ROOMS:
+  UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
   ORIGINAL_MESSAGE_DELETED: Original message was deleted
@@ -172,6 +174,15 @@ ROOMS:
     AUTHOR: Author
     CREATED: Created
     UPDATED: Modified
+    IS_PRIVATE: Private room
+    IS_PRIVATE_DESC: Only allowed roles and users can access
+    ALLOWED_ROLES: Allowed roles
+    ALLOWED_USERS: Allowed users
+    ALLOWED_NONE_HINT: Owner and admins always have access. Select roles or users to grant access to others.
+CHAT:
+  MENTION_EVERYONE_HINT: Notify everyone in this room
+  MENTION_UNKNOWN: unknown
+  UNREAD_MESSAGES: Unread messages
 SETTINGS:
   PROFILE:
     TITLE: Profile settings
@@ -191,6 +202,7 @@ SETTINGS:
     PERMISSION_DENIED: Permission was not granted. Please try again.
     ENABLE_ERROR: Could not enable notifications. Please try again.
     DISABLE_ERROR: Could not disable notifications. Please try again.
+    SERVER_DISABLED: Push notifications are not configured on this server.
   DEVICES:
     TITLE: Device settings
     AUDIO_INPUT: Microphone
@@ -260,13 +272,56 @@ SETTINGS:
     ROLE_OWNER: Owner
     ROLE_ADMIN: Admin
     ROLE_MEMBER: User
+    ROLES: Roles
+    OWNER_BADGE: Owner
+    NO_ROLES_ASSIGNED: No assigned roles
+    ASSIGNED_ROLES: Assigned roles
+  ROLES:
+    TITLE: Roles
+    SUBTITLE: Manage roles, permissions and room access
+    CREATE_BUTTON: Create role
+    NO_ROLES: No roles found
+    TABLE:
+      NAME: Role
+      PERMISSIONS: Permissions
+      TYPE: Type
+      ACTIONS: Actions
+    DIALOG_TITLE_CREATE: Create role
+    DIALOG_TITLE_EDIT: Edit role
+    NAME: Role name
+    COLOR: Color
+    COLOR_PLACEHOLDER: '#3b82f6'
+    PERMISSIONS: Permissions
+    IS_DEFAULT: Default role (assigned to all users)
+    MENTIONABLE: Allow mentioning this role
+    DEFAULT_BADGE: Default
+    CUSTOM_BADGE: Custom
+    PERMISSIONS_COUNT: '{{count}} permissions'
+    ALL_PERMISSIONS: All permissions
+    DELETE_CONFIRM: Are you sure you want to delete this role?
+    CANNOT_DELETE_DEFAULT: Default role cannot be deleted
+    PERMISSIONS_LIST:
+      MANAGE_SETTINGS: Manage settings
+      MANAGE_USERS: Manage users
+      MANAGE_ROLES: Manage roles
+      MANAGE_INVITES: Manage invites
+      MANAGE_ROOMS: Manage rooms
+      SEND_MESSAGES: Send messages
+      CONNECT_VOICE: Connect to voice
+      USE_ATTACHMENTS: Use attachments
+      MODERATE_MESSAGES: Moderate messages
+      MENTION_EVERYONE: Mention @everyone and roles
   ADMIN:
     TITLE: Administration
     SUBTITLE: Global server settings
+    PUSH: Push notifications
+    ENV_LOCKED: This setting is locked by the server environment.
     INVITE_ONLY_SIGN_UP: Invite-only registration
     INVITE_ONLY_SIGN_UP_DESC: Restrict new user registration to valid invite codes only
     PASSWORD_RECOVERY_CODE_TTL: Password recovery code TTL (ms)
     PASSWORD_RECOVERY_CODE_TTL_DESC: How long a recovery code stays valid (60000–3600000 ms, default 600000)
+    VAPID_EMAIL: VAPID email
+    VAPID_EMAIL_DESC: Email used as the VAPID subject for server push notifications. Accepts a plain email, mailto:..., or https://... URL.
     ICE_SERVERS: ICE servers configuration (JSON)
     ICE_SERVERS_DESC: List of STUN/TURN servers for WebRTC connections in JSON format
     ATTACHMENTS: Attachments
@@ -287,6 +342,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  LOGIN: Enter a valid username or email
   FILE_TOO_BIG: File is too big
   STRING: Value must be a string
   TTL_RANGE: Lifetime must be within the allowed range
@@ -298,6 +354,9 @@ VALIDATION:
   EMAIL: Enter a valid email
   ROOM_NAME_LENGTH: Room name must be 1–64 characters
   ROOM_TYPE: Select a room type
+  ROLE_NAME_REQUIRED: Role name is required
+  ROLE_NAME_LENGTH: Role name must be 1–64 characters
+  COLOR_HEX: Color must be a valid hex code (e.g. #ff0000)
   MESSAGE_LENGTH: Message must be 1–5000 characters
   MESSAGE_EMPTY: Message must contain text or a file
   MESSAGE_TO_SELF: You can't send a message to yourself
@@ -306,7 +365,9 @@ VALIDATION:
   SETUP_TOKEN_REQUIRED: Setup token is required for initial registration
   INVITE_CODE_REQUIRED: Invite code is required for registration
   INVALID_SCHEMA: Invalid schema format
+  VAPID_SUBJECT: 'Enter a valid VAPID subject: email, mailto:..., or https://...'
   RECOVERY_CODE: Enter the 6-digit recovery code
+  INVALID_CHAT_TARGET: Exactly one chat target must be specified
 AUTH:
   LOGIN: Username or email
   OWNER_SETUP_TITLE: Initial Server Setup
@@ -384,8 +445,13 @@ ERRORS:
   USER_OWNER_DELETE_FORBIDDEN: The server owner cannot be deleted
   USER_OWNER_ROLE_FORBIDDEN: Server owner role cannot be modified
   USER_UPDATE_EMPTY: No user fields to update
+  ROLE_NOT_FOUND: Role not found
+  ROLE_NAME_TAKEN: A role with this name already exists
+  ROLE_CANNOT_DELETE_DEFAULT: Default role cannot be deleted
+  ROLE_HIERARCHY_VIOLATION: Cannot manage users or roles with equal or higher priority than your own
   ROOM_NOT_FOUND: Room not found
   ROOM_NAME_TAKEN: A room with this name already exists
+  ROOM_ACCESS_DENIED: Access to room denied
   MESSAGE_NOT_FOUND: Message not found
   MESSAGE_EMPTY: Message cannot be empty
   MESSAGE_ACCESS_DENIED: Access to message denied
@@ -407,6 +473,7 @@ ERRORS:
   IMAGE_INVALID: Invalid image format or corrupted image
   AVATAR_TOO_BIG: Avatar image is too large
   SETTING_NOT_FOUND: Setting not found
+  SETTING_ENV_LOCKED: This setting is locked by a server environment variable
   PUSH_SUBSCRIPTION_NOT_FOUND: Push notification subscription not found
   VOICE_VIDEO_LIMIT_REACHED: Room video limit reached
   VOICE_SESSION_INVALID: Invalid voice session

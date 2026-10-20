@@ -1,13 +1,13 @@
 # Konvoez
 
-Konvoez is a self-hosted, single-server voice and text communication platform (Discord-like alternative where the deployed application instance acts as the server itself). Designed for friends to hang out, not for production use.
+Konvoez is a self-hosted, single-server voice and text communication platform. It is a Discord-like alternative where the deployed application instance acts as the server itself. It is designed for friends to hang out, not for production use.
 
 ## Desktop App
 
 [![Download for Windows](https://img.shields.io/badge/Download-Windows-0078D6?logo=windows)](https://github.com/Quenary/konvoez/releases/download/desktop-latest/Konvoez-Setup-x64.exe)
 [![Download for Linux](https://img.shields.io/badge/Download-Linux%20AppImage-FCC624?logo=linux&logoColor=black)](https://github.com/Quenary/konvoez/releases/download/desktop-latest/Konvoez-x86_64.AppImage)
 
-All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=desktop-v&expanded=true). Builds are unsigned (click "More info → Run anyway" on Windows); the AppImage requires `chmod +x`. See the [Desktop guide](apps/desktop/README.md).
+All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=desktop&expanded=true). Builds are unsigned: on Windows use **More info → Run anyway**, on Linux run `chmod +x` on the AppImage. See the [Desktop guide](apps/desktop/README.md).
 
 ## Table of Contents
 
@@ -19,88 +19,116 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 
 ## Key Features
 
-- **Single-Server Model**: An application instance is a complete standalone server with custom text and voice rooms.
-- **Voice Rooms**: Low-latency voice powered by WebRTC and the Mediasoup SFU, with noise suppression.
-- **Camera & Screen Sharing**: Stream your camera or screen in voice rooms and calls.
+- **Single-Server Model**: An application instance is a complete standalone server with its own text and voice rooms.
+- **Voice Rooms**: Low-latency voice over WebRTC and the Mediasoup SFU, with noise suppression.
+- **Camera & Screen Sharing**: Camera and screen streams in voice rooms and calls.
 - **Direct Messages & Calls**: Private one-to-one chats and calls.
-- **Text Chat**: Rich-text messages with replies, reactions and file attachments.
-- **Encrypted Messages**: Text messages are encrypted server-side at rest using AES-256-GCM.
+- **Text Chat**: Rich-text messages with replies, reactions, `@mentions` and file attachments.
+- **Encrypted Messages**: Message text is encrypted at rest on the server with AES-256-GCM.
 - **Notifications**: Web Push and native desktop notifications.
-- **PWA & Desktop Client**: Installable web app, plus a desktop app for Windows and Linux.
-- **Roles & Administration**: `OWNER`, `ADMIN` and `USER` (`MEMBER`) roles, user management and invite-only registration.
+- **PWA & Desktop Client**: An installable web app and a desktop app for Windows and Linux.
+- **Roles & Administration**: A single `OWNER`, configurable roles with granular permissions (seeded `Admin`, `Moderator`, `User`), private rooms, user management and invite-only registration.
 - **Localization**: English and Russian.
-- **Modern Monorepo**: Built with Angular (v22, Signals) and Taiga UI on the frontend, NestJS on the backend, Electron for desktop, and shared TypeScript schemas (Nx).
+- **Modern Monorepo**: Angular 22 (Signals) with Taiga UI on the frontend, NestJS on the backend, Electron for desktop, and shared TypeScript/Zod contracts, all in one Nx workspace.
 
 ## Deployment
 
-1. Copy `.env.example` to `.env` and set required variables:
+Konvoez ships as a single Docker image: Nginx serves the frontend and proxies the API to NestJS, and Mediasoup handles voice and video. Data (SQLite, uploaded files, push keys) lives in the `konvoez_data` volume.
+
+```mermaid
+flowchart LR
+  A[Create .env] --> B[docker compose up -d]
+  B --> C[Read setup token from logs]
+  C --> D[Register OWNER account]
+  D --> E[Invite other users]
+```
+
+1. Create the config from the template and fill in the required variables:
 
    ```bash
    cp .env.example .env
-   nano .env
    ```
 
-2. Start the server:
+   | Variable                 | Purpose                                                                                        |
+   | ------------------------ | ---------------------------------------------------------------------------------------------- |
+   | `MASTER_KEY`             | Secret for message encryption and VAPID key storage. Keep it: losing it makes data unreadable. |
+   | `JWT_SECRET`             | Secret for session tokens.                                                                     |
+   | `MEDIASOUP_ANNOUNCED_IP` | Public IPv4 or hostname that browsers use to reach the media server.                           |
+   | `COOKIE_SECURE`          | Set to `true` when the instance is served over HTTPS.                                          |
 
-### Option 1: Prebuilt Image (Recommended)
+   Generate secrets with `openssl rand -base64 32`. All other options are described in [.env.example](.env.example).
 
-Run via [docker-compose.yml](docker-compose.yml):
+2. Start the server with one of the options below.
 
-```bash
-docker compose up -d
-```
+   **Prebuilt image (recommended)**, via [docker-compose.yml](docker-compose.yml):
 
-### Option 2: Building from Source
+   ```bash
+   docker compose up -d
+   ```
 
-Build and run via [docker-compose.build.yml](docker-compose.build.yml):
+   **Build from source**, via [docker-compose.build.yml](docker-compose.build.yml):
 
-```bash
-docker compose -f docker-compose.build.yml up -d --build
-```
+   ```bash
+   docker compose -f docker-compose.build.yml up -d --build
+   ```
+
+3. Open the server on port `80` (behind a reverse proxy in practice) and register the `OWNER` account.
+
+To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 > [!IMPORTANT]
-> **Initial OWNER Setup**: On a fresh install, a one-time token (valid for 5 minutes) is printed to the container logs (`docker compose logs`). It is required to register the initial `OWNER` account.
+> **Initial OWNER setup**: on a fresh install the server prints a one-time token (valid for 5 minutes) to the container logs (`docker compose logs`). The token is required to register the `OWNER` account. If it expires, restart the container to get a new one.
 
 > [!IMPORTANT]
-> **Voice Calls & HTTPS**:
+> **Voice calls & HTTPS**:
 >
-> - **Ports & IP**: Forward UDP `40000-40100` and set `MEDIASOUP_ANNOUNCED_IP` in `.env` to your public IP/hostname.
-> - **HTTPS Required**: Browsers strictly require HTTPS for audio devices to work.
-> - See the [Networking & Deployment Guide](docs/NETWORKING.md) for reverse proxy (Caddy/Nginx) configurations.
+> - **Ports & IP**: forward UDP/TCP `40000-40100` to the Docker host and set `MEDIASOUP_ANNOUNCED_IP` to your public IP or hostname.
+> - **HTTPS**: browsers expose microphone and camera only in a secure context (HTTPS or `localhost`).
+> - See the [Networking & Deployment Guide](docs/NETWORKING.md) for router, reverse proxy (Nginx/Caddy) and LAN setups.
 
 ## Documentation
 
-- [Desktop client](apps/desktop/README.md)
+**Using and operating**
+
 - [Networking & Deployment Guide](docs/NETWORKING.md)
-- [Contributing Guidelines](docs/CONTRIBUTING.md)
 - [Security Policy](docs/SECURITY.md)
-- [Password Recovery](docs/PASSWORD_RECOVERY.md)
+- [Desktop client](apps/desktop/README.md)
+- [Changelog](CHANGELOG.md)
+
+**Features**
+
 - [User Management](docs/USER_MANAGEMENT.md)
+- [Password Recovery](docs/PASSWORD_RECOVERY.md)
 - [Rooms](docs/ROOMS.md)
+- [Chat reading](docs/CHAT_READING.md)
+- [Mentions](docs/MENTIONS.md)
 - [Message attachments](docs/ATTACHMENTS.md)
 - [Message reactions](docs/MESSAGE_REACTIONS.md)
+
+**Development**
+
+- [Contributing Guidelines](docs/CONTRIBUTING.md)
 - [Frontend voice](docs/frontend/VOICE.md)
 - [Frontend streaming](docs/frontend/STREAMING.md)
 - [Frontend noise suppression](docs/frontend/NOISE_SUPPRESSION.md)
+- Libraries: [shared](libs/shared/README.md), [client-shell](libs/client-shell/README.md), [ui-kit](libs/ui-kit/README.md), [client-dialogs](libs/client-dialogs/README.md)
 
 ## TODO
 
 ### Video streaming — phase 4 (simulcast & adaptive)
 
 - Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
-- Bitrate caps tied to capture height; optional `maxIncomingBitrate` on recv transport
-- Pause or reduce offscreen / hidden video consumers (adaptive downlink; align with local preview pause / theatre patterns)
+- Bitrate caps tied to capture height; optional `maxIncomingBitrate` on the receive transport
+- Pause or reduce offscreen / hidden video consumers (adaptive downlink)
 - Optional viewer-side quality picker (layer selection when simulcast exists)
-- Optional stream viewer count (needs signaling; not in phase 3)
-- Codec auto-pick for screen (e.g. VP9/AV1) when all consumers `canConsume` — still no server transcode
-- Mid-share height/FPS change via `replaceTrack` (stream quality dialog on tile / controls bar)
+- Optional stream viewer count (needs signaling)
+- Codec auto-pick for screen (e.g. VP9/AV1) when all consumers `canConsume`, still without server transcoding
+- Mid-share height/FPS change via `replaceTrack` (quality dialog on the tile / controls bar)
 
 ### Other
 
-- Is online
-- Refactor backend errors, use i18n keys and unified handling on frontend
-- Add saved messages (self messages)
-- Add invite emails (if email set), 2FA via email codes
-- Add customizable roles (functions access) and groups (rooms access)
-- Add emojis or/and customizable smile/sticker packs
+- 2FA
+- Per-user notification settings (topics)
+- Invite emails (if the user email is set)
+- Emojis and customizable emoji/sticker packs
 - Swipe to reply

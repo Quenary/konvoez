@@ -1,12 +1,14 @@
 jest.mock('@mikro-orm/nestjs', () => ({
   InjectRepository: () => () => undefined,
 }));
+
 jest.mock('@mikro-orm/core', () => {
   const createProxy = (): unknown =>
     new Proxy(() => createProxy(), {
       get: () => createProxy(),
       apply: () => createProxy(),
     });
+
   return {
     defineEntity: () => ({
       class: class {},
@@ -19,28 +21,40 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
-import type { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import type { GetUserDto } from '../users/users.dto';
-import { UserEntity } from '../users/users.entity';
+import type { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { PermissionsFacade } from '../permissions/permissions.facade';
+import { RoomsFacade } from '../rooms/rooms.facade';
+import { UsersDomainEvents } from '../users/users.events';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
-  let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
-  let mockEm: jest.Mocked<EntityManager>;
   let usersService: jest.Mocked<
     Pick<
       UsersService,
       | 'findAllAsDto'
+      | 'findOne'
       | 'findOneAsDto'
-      | 'toDto'
+      | 'toDtoWithPermissions'
+      | 'updateUserRoles'
       | 'anonymizeLoaded'
       | 'removeLoaded'
     >
   >;
+  let permissionsFacade: jest.Mocked<
+    Pick<
+      PermissionsFacade,
+      | 'findRolesByIds'
+      | 'assertCanManageRole'
+      | 'assertCanManageUser'
+      | 'assertCanGrantPermissions'
+    >
+  >;
+  let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
   let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
@@ -50,6 +64,7 @@ describe('UserManagementService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
     avatar: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -61,6 +76,9 @@ describe('UserManagementService', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
@@ -68,30 +86,35 @@ describe('UserManagementService', () => {
   };
 
   beforeEach(() => {
-    mockEm = {
-      flush: jest.fn().mockResolvedValue(undefined),
-      persist: jest.fn(),
-    } as unknown as jest.Mocked<EntityManager>;
-
-    mockRepo = {
-      getEntityManager: jest.fn().mockReturnValue(mockEm),
-      findOne: jest.fn(),
-      assign: jest.fn().mockReturnValue(mockUser),
-    } as unknown as jest.Mocked<EntityRepository<UserEntity>>;
-
     usersService = {
       findAllAsDto: jest.fn(),
+      findOne: jest.fn(),
       findOneAsDto: jest.fn(),
-      toDto: jest.fn((user: UserEntity) => user as unknown as GetUserDto),
+      toDtoWithPermissions: jest.fn(
+        async (user: UserEntity) => user as unknown as GetUserDto,
+      ),
+      updateUserRoles: jest.fn(),
       anonymizeLoaded: jest.fn(),
       removeLoaded: jest.fn().mockResolvedValue(undefined),
+    };
+
+    permissionsFacade = {
+      findRolesByIds: jest.fn().mockResolvedValue([]),
+      assertCanManageRole: jest.fn(),
+      assertCanManageUser: jest.fn(),
+      assertCanGrantPermissions: jest.fn().mockResolvedValue(undefined),
+    };
+
+    roomsFacade = {
+      deleteRoomsByAuthor: jest.fn().mockResolvedValue(undefined),
     };
 
     eventEmitter = { emit: jest.fn() };
 
     service = new UserManagementService(
-      mockRepo,
       usersService as unknown as UsersService,
+      permissionsFacade as unknown as PermissionsFacade,
+      roomsFacade as unknown as RoomsFacade,
       eventEmitter as never,
     );
   });
@@ -118,80 +141,196 @@ describe('UserManagementService', () => {
       role: EUserRole.OWNER,
     };
 
-    it('should promote a member to admin', async () => {
+    it('should assign roles to a user', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2 } as never,
+      ]);
 
-      await service.updateRole(5, { role: EUserRole.ADMIN }, ownerAuthor);
+      await service.updateRole(5, { roleIds: [2] }, ownerAuthor);
 
-      expect(mockRepo.assign).toHaveBeenCalledWith(target, {
-        role: EUserRole.ADMIN,
-      });
-      expect(mockEm.flush).toHaveBeenCalled();
+      expect(permissionsFacade.findRolesByIds).toHaveBeenCalledWith([2]);
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
+        { id: 2 },
+      ]);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.USER_UPDATED,
+        UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5 }),
       );
-    });
-
-    it('should demote an admin to member', async () => {
-      const target = {
-        ...mockUser,
-        id: 5,
-        role: EUserRole.ADMIN,
-      } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
-
-      await service.updateRole(5, { role: EUserRole.MEMBER }, ownerAuthor);
-
-      expect(mockRepo.assign).toHaveBeenCalledWith(target, {
-        role: EUserRole.MEMBER,
-      });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds: [5] },
+      );
     });
 
     it('should reject changing the owner role', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.OWNER,
+        isOwner: true,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(
-        service.updateRole(5, { role: EUserRole.ADMIN }, ownerAuthor),
+        service.updateRole(5, { roleIds: [2] }, ownerAuthor),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });
-      expect(mockRepo.assign).not.toHaveBeenCalled();
-    });
-
-    it('should reject assigning the owner role', async () => {
-      const target = {
-        ...mockUser,
-        id: 5,
-        role: EUserRole.MEMBER,
-      } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
-
-      await expect(
-        service.updateRole(5, { role: EUserRole.OWNER }, ownerAuthor),
-      ).rejects.toMatchObject({
-        code: ApiErrorCode.USER_OWNER_ROLE_FORBIDDEN,
-      });
+      expect(usersService.updateUserRoles).not.toHaveBeenCalled();
     });
 
     it('should reject changing the caller own role', async () => {
-      mockRepo.findOne.mockResolvedValueOnce(mockUser);
+      usersService.findOne.mockResolvedValueOnce(mockUser);
 
       await expect(
-        service.updateRole(1, { role: EUserRole.ADMIN }, mockUserDto),
+        service.updateRole(1, { roleIds: [2] }, mockUserDto),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });
+    });
+
+    it('should reject when assertCanManageUser rejects target', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.assertCanManageUser.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(
+        service.updateRole(5, { roleIds: [2] }, mockUserDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+    });
+
+    it('should reject when assigning a role that author cannot manage', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2, priority: 50 } as never,
+      ]);
+      permissionsFacade.assertCanManageRole.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(
+        service.updateRole(5, { roleIds: [2] }, mockUserDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+      expect(permissionsFacade.assertCanManageRole).toHaveBeenCalledWith(
+        mockUserDto,
+        50,
+      );
+    });
+
+    it('should reject with ROLE_NOT_FOUND when any role id does not exist', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2, priority: 10 } as never,
+      ]);
+
+      await expect(
+        service.updateRole(5, { roleIds: [2, 999] }, ownerAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_NOT_FOUND,
+      });
+      expect(usersService.updateUserRoles).not.toHaveBeenCalled();
+    });
+
+    it('should deduplicate roleIds before looking up roles', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        { id: 2, priority: 10 } as never,
+      ]);
+
+      await service.updateRole(5, { roleIds: [2, 2] }, ownerAuthor);
+
+      expect(permissionsFacade.findRolesByIds).toHaveBeenCalledWith([2]);
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
+        { id: 2, priority: 10 },
+      ]);
+    });
+
+    it('should reject when assigning a role containing permissions the author cannot grant', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      const adminAuthor: GetUserDto = {
+        ...mockUserDto,
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROLES],
+      };
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([
+        {
+          id: 3,
+          priority: 10,
+          permissions: [EPermission.MANAGE_SETTINGS],
+        } as never,
+      ]);
+      permissionsFacade.assertCanGrantPermissions.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+          'Cannot grant permissions that you do not possess',
+        ),
+      );
+
+      await expect(
+        service.updateRole(5, { roleIds: [3] }, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+      expect(usersService.updateUserRoles).not.toHaveBeenCalled();
+    });
+
+    it('should succeed when author holds all permissions of the assigned role', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      const adminAuthor: GetUserDto = {
+        ...mockUserDto,
+        id: 2,
+        isOwner: false,
+        permissions: [EPermission.MANAGE_ROLES, EPermission.MANAGE_ROOMS],
+      };
+      usersService.findOne.mockResolvedValueOnce(target);
+      const role = {
+        id: 3,
+        priority: 10,
+        permissions: [EPermission.MANAGE_ROOMS],
+      };
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([role as never]);
+
+      await service.updateRole(5, { roleIds: [3] }, adminAuthor);
+
+      expect(permissionsFacade.assertCanGrantPermissions).toHaveBeenCalledWith(
+        adminAuthor,
+        role.permissions,
+      );
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [role]);
+    });
+
+    it('should allow owner to assign any role regardless of permissions', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      const role = {
+        id: 3,
+        priority: 10,
+        permissions: [EPermission.MANAGE_SETTINGS],
+      };
+      permissionsFacade.findRolesByIds.mockResolvedValueOnce([role as never]);
+
+      await service.updateRole(5, { roleIds: [3] }, ownerAuthor);
+
+      expect(permissionsFacade.assertCanGrantPermissions).toHaveBeenCalledWith(
+        ownerAuthor,
+        role.permissions,
+      );
+      expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [role]);
     });
   });
 
@@ -209,7 +348,7 @@ describe('UserManagementService', () => {
         role: EUserRole.ADMIN,
       } as UserEntity;
       const anonymized = { ...mockUserDto, id: 5, role: EUserRole.ADMIN };
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
       usersService.anonymizeLoaded.mockResolvedValueOnce(anonymized);
 
       const result = await service.anonymize(5, ownerAuthor);
@@ -222,12 +361,25 @@ describe('UserManagementService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.OWNER,
+        isOwner: true,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(service.anonymize(5, ownerAuthor)).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
+      });
+      expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
+    });
+
+    it('should reject anonymizing when assertCanManageUser rejects target', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.assertCanManageUser.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(service.anonymize(5, mockUserDto)).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
       });
       expect(usersService.anonymizeLoaded).not.toHaveBeenCalled();
     });
@@ -246,10 +398,11 @@ describe('UserManagementService', () => {
         id: 5,
         role: EUserRole.MEMBER,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await service.removePhysically(5, ownerAuthor);
 
+      expect(roomsFacade.deleteRoomsByAuthor).toHaveBeenCalledWith(5);
       expect(usersService.removeLoaded).toHaveBeenCalledWith(5);
     });
 
@@ -257,15 +410,32 @@ describe('UserManagementService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.OWNER,
+        isOwner: true,
       } as UserEntity;
-      mockRepo.findOne.mockResolvedValueOnce(target);
+      usersService.findOne.mockResolvedValueOnce(target);
 
       await expect(
         service.removePhysically(5, ownerAuthor),
       ).rejects.toMatchObject({
         code: ApiErrorCode.FORBIDDEN,
       });
+      expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
+      expect(usersService.removeLoaded).not.toHaveBeenCalled();
+    });
+
+    it('should reject physically deleting when assertCanManageUser rejects target', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+      permissionsFacade.assertCanManageUser.mockImplementationOnce(() => {
+        throw { code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION };
+      });
+
+      await expect(
+        service.removePhysically(5, mockUserDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROLE_HIERARCHY_VIOLATION,
+      });
+      expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
     });
   });

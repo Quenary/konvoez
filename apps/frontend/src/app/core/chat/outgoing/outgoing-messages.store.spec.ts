@@ -11,7 +11,6 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import {
   ApiErrorCode,
   EAttachmentKind,
-  EUserRole,
   IAttachment,
   ITextRoomMessage,
   IUser,
@@ -49,7 +48,9 @@ describe('OutgoingMessagesStore', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
@@ -101,6 +102,7 @@ describe('OutgoingMessagesStore', () => {
       clientId,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
   }
 

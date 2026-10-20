@@ -13,7 +13,8 @@
         [recipientId]="id"
         [title]="_title"
         [avatarUrl]="_avatarUrl"
-        [avatarIcon]="avatarIcon()">
+        [avatarIcon]="avatarIcon()"
+        [isOnline]="isOnline()">
         <div chatHeaderActions>
           @if (!isSelf() && user(); as directUser) {
             @if (isCurrentDirectCallActive()) {

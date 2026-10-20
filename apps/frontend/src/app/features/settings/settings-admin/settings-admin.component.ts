@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
 } from '@angular/core';
@@ -20,11 +21,13 @@ import {
   DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  DEFAULT_VAPID_EMAIL,
   ESettingKey,
   iceServersSettingValueSchema,
   passwordRecoveryCodeTtlSettingValueSchema,
   SCHEMA_ERROR,
   TSettingsUpdate,
+  vapidEmailSettingValueSchema,
 } from '@konvoez/shared';
 import {
   TuiButton,
@@ -38,6 +41,7 @@ import {
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
 import { SettingsStore } from '@core/stores/settings.store';
+import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 import * as z from 'zod';
 
@@ -85,6 +89,19 @@ function iceServersJsonValidator(
 })
 export class SettingsAdminComponent {
   protected readonly settingsStore = inject(SettingsStore);
+  protected readonly pushNotificationService = inject(PushNotificationService);
+
+  private readonly controlKeys = {
+    inviteOnlySignUp: ESettingKey.INVITE_ONLY_SIGN_UP,
+    passwordRecoveryCodeTtl: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+    vapidEmail: ESettingKey.VAPID_EMAIL,
+    iceServersJson: ESettingKey.ICE_SERVERS,
+    attachmentsEnabled: ESettingKey.ATTACHMENTS_ENABLED,
+    attachmentsMaxFileSizeMib: ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
+    attachmentsMaxFilesPerMessage:
+      ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
+    attachmentsStripImageMetadata: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
+  } as const;
 
   protected readonly form = new FormGroup({
     inviteOnlySignUp: new FormControl(true, { nonNullable: true }),
@@ -97,6 +114,10 @@ export class SettingsAdminComponent {
         ],
       },
     ),
+    vapidEmail: new FormControl(DEFAULT_VAPID_EMAIL, {
+      nonNullable: true,
+      validators: [createZodFieldValidator(vapidEmailSettingValueSchema)],
+    }),
     iceServersJson: new FormControl('', {
       nonNullable: true,
       validators: [iceServersJsonValidator],
@@ -139,11 +160,29 @@ export class SettingsAdminComponent {
   });
 
   protected readonly defaultIceServers = this.stringify(DEFAULT_ICE_SERVERS);
+  protected readonly locked = computed(() => {
+    const envLocked = this.settingsStore.envLocked();
+    return {
+      inviteOnlySignUp: envLocked[ESettingKey.INVITE_ONLY_SIGN_UP],
+      passwordRecoveryCodeTtl:
+        envLocked[ESettingKey.PASSWORD_RECOVERY_CODE_TTL],
+      vapidEmail: envLocked[ESettingKey.VAPID_EMAIL],
+      iceServersJson: envLocked[ESettingKey.ICE_SERVERS],
+      attachmentsEnabled: envLocked[ESettingKey.ATTACHMENTS_ENABLED],
+      attachmentsMaxFileSizeMib:
+        envLocked[ESettingKey.ATTACHMENTS_MAX_FILE_SIZE],
+      attachmentsMaxFilesPerMessage:
+        envLocked[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE],
+      attachmentsStripImageMetadata:
+        envLocked[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA],
+    };
+  });
 
   constructor() {
     effect(() => {
       const inviteOnly = this.settingsStore.inviteOnlySignUp();
       const recoveryTtl = this.settingsStore.passwordRecoveryCodeTtl();
+      const vapidEmail = this.settingsStore.vapidEmail();
       const iceServers = this.settingsStore.iceServers();
       const attachmentsEnabled = this.settingsStore.attachmentsEnabled();
       const attachmentsMaxFileSize =
@@ -151,6 +190,7 @@ export class SettingsAdminComponent {
       const attachmentsMaxFiles =
         this.settingsStore.attachmentsMaxFilesPerMessage();
       const stripMetadata = this.settingsStore.attachmentsStripImageMetadata();
+      const envLocked = this.settingsStore.envLocked();
 
       this.form.controls.inviteOnlySignUp.setValue(inviteOnly, {
         emitEvent: false,
@@ -158,6 +198,7 @@ export class SettingsAdminComponent {
       this.form.controls.passwordRecoveryCodeTtl.setValue(recoveryTtl, {
         emitEvent: false,
       });
+      this.form.controls.vapidEmail.setValue(vapidEmail, { emitEvent: false });
       this.form.controls.iceServersJson.setValue(this.stringify(iceServers), {
         emitEvent: false,
       });
@@ -175,11 +216,26 @@ export class SettingsAdminComponent {
       this.form.controls.attachmentsStripImageMetadata.setValue(stripMetadata, {
         emitEvent: false,
       });
+
+      for (const [name, key] of Object.entries(this.controlKeys) as Array<
+        [keyof typeof this.form.controls, ESettingKey]
+      >) {
+        const control = this.form.controls[name];
+        if (envLocked[key]) {
+          control.disable({ emitEvent: false });
+        } else {
+          control.enable({ emitEvent: false });
+        }
+      }
     });
   }
 
   protected get iceServersError(): string | null {
     return this.form.controls.iceServersJson.errors?.['invalidSchema'] ?? null;
+  }
+
+  protected get vapidEmailError(): string | null {
+    return this.form.controls.vapidEmail.errors?.['invalidSchema'] ?? null;
   }
 
   protected onSubmit(): void {
@@ -202,6 +258,16 @@ export class SettingsAdminComponent {
       updates.push({
         key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
         value: Number(this.form.controls.passwordRecoveryCodeTtl.getRawValue()),
+      });
+    }
+
+    if (
+      this.form.controls.vapidEmail.dirty &&
+      this.form.controls.vapidEmail.enabled
+    ) {
+      updates.push({
+        key: ESettingKey.VAPID_EMAIL,
+        value: this.form.controls.vapidEmail.getRawValue().trim(),
       });
     }
 
@@ -253,6 +319,9 @@ export class SettingsAdminComponent {
     }
 
     this.settingsStore.updateSettings(updates);
+    if (updates.some((item) => item.key === ESettingKey.VAPID_EMAIL)) {
+      this.pushNotificationService.loadServerKey().subscribe();
+    }
     this.form.markAsPristine();
     this.form.markAsUntouched();
   }

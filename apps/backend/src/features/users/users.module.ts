@@ -4,12 +4,13 @@ import { UserEntity } from './users.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { UsersAvatarsService } from './users-avatars.service';
+import { UserPresenceService } from './user-presence.service';
 
 @Global()
 @Module({
   imports: [MikroOrmModule.forFeature([UserEntity])],
   controllers: [UsersController],
-  providers: [UsersService, UsersAvatarsService],
-  exports: [UsersService, UsersAvatarsService],
+  providers: [UsersService, UsersAvatarsService, UserPresenceService],
+  exports: [UsersService, UsersAvatarsService, UserPresenceService],
 })
 export class UsersModule {}

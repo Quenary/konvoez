@@ -7,6 +7,9 @@ jest.mock('../auth/auth.service', () => ({
 jest.mock('@shared/services/app.service', () => ({
   AppService: class {},
 }));
+jest.mock('../rooms/rooms.facade', () => ({
+  RoomsFacade: class {},
+}));
 // Keep mediasoup out of Jest resolution (node10 / package exports). Specs mock state.
 jest.mock('mediasoup', () => ({
   createWorker: jest.fn(),
@@ -34,12 +37,13 @@ import {
   EUserRole,
   EVoiceRoomEvent,
   ApiErrorCode,
+  EPermission,
   EVoiceSessionType,
   type IUser,
-  type IVoiceRoomProduce,
+  type TVoiceRoomProduce,
 } from '@konvoez/shared';
-import { NotificationsDomainEvents } from '@shared/events/notifications.events';
-import { EntitySyncDomainEvents } from '@shared/events/entity-sync.events';
+import { NotificationsDomainEvents } from '../notifications/notifications.events';
+import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
@@ -51,6 +55,9 @@ const alice: IUser = {
   email: 'alice@example.com',
   avatarUrl: null,
   role: EUserRole.MEMBER,
+  isOwner: false,
+  roles: [],
+  permissions: [EPermission.CONNECT_VOICE],
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -93,7 +100,10 @@ function createSocket(
 
 describe('VoiceRoomsGateway', () => {
   let gateway: VoiceRoomsGateway;
-  let authService: { getUserFromRawCookies: jest.Mock };
+  let authService: {
+    getUserFromRawCookies: jest.Mock;
+    getActiveUserById: jest.Mock;
+  };
   let eventEmitter: { emit: jest.Mock };
   let voiceRoomsStateService: {
     ensureRoom: jest.Mock;
@@ -129,6 +139,11 @@ describe('VoiceRoomsGateway', () => {
   beforeEach(() => {
     authService = {
       getUserFromRawCookies: jest.fn(),
+      getActiveUserById: jest.fn().mockImplementation((id: number) => {
+        if (id === alice.id) return Promise.resolve(alice);
+        if (id === bob.id) return Promise.resolve(bob);
+        return Promise.resolve({ ...alice, id });
+      }),
     };
     eventEmitter = { emit: jest.fn() };
     voiceRoomsStateService = {
@@ -182,9 +197,14 @@ describe('VoiceRoomsGateway', () => {
       findRingingByCaller: jest.fn().mockReturnValue([]),
     };
 
+    const roomsFacadeMock = {
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+    };
+
     gateway = new VoiceRoomsGateway(
       authService as unknown as AuthService,
       {} as never,
+      roomsFacadeMock as never,
       voiceRoomsStateService as unknown as VoiceRoomsStateService,
       directCallsStateService as unknown as DirectCallsStateService,
       eventEmitter as never,
@@ -330,7 +350,7 @@ describe('VoiceRoomsGateway', () => {
         peers: [],
       });
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         { roomId: 1, user: alice, epoch: 'epoch-1', revision: 1 },
       );
     });
@@ -341,6 +361,45 @@ describe('VoiceRoomsGateway', () => {
       await expect(
         gateway.handleJoinRoom(socket as never, {} as never),
       ).rejects.toThrow('No room or session provided to join');
+    });
+
+    it('rejects join when socket has no user data', async () => {
+      const socket = createSocket({ data: { user: undefined } });
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('rejects join when fresh user lacks CONNECT_VOICE permission', async () => {
+      const socket = createSocket();
+      authService.getActiveUserById.mockResolvedValueOnce({
+        ...alice,
+        isOwner: false,
+        permissions: [],
+      });
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+      expect(authService.getUserFromRawCookies).not.toHaveBeenCalled();
+    });
+
+    it('rejects join when fresh user lookup fails', async () => {
+      const socket = createSocket();
+      authService.getActiveUserById.mockRejectedValueOnce(
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+      );
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('rejects joining a direct call that is not active for the user', async () => {
@@ -390,7 +449,7 @@ describe('VoiceRoomsGateway', () => {
       expect(socket.join).toHaveBeenCalledWith('call:c1');
       expect(room.peers.has('socket-1')).toBe(true);
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         expect.anything(),
       );
     });
@@ -457,11 +516,11 @@ describe('VoiceRoomsGateway', () => {
         }),
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         expect.anything(),
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         expect.anything(),
       );
     });
@@ -557,7 +616,7 @@ describe('VoiceRoomsGateway', () => {
         }),
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         { roomId: 1, userId: alice.id, epoch: 'epoch-1', revision: 1 },
       );
     });
@@ -903,7 +962,7 @@ describe('VoiceRoomsGateway', () => {
       voiceRoomsStateService.getRoom.mockReturnValue(room);
 
       const socket = joinedSocket();
-      const producePayload: IVoiceRoomProduce = {
+      const producePayload: TVoiceRoomProduce = {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
@@ -1181,7 +1240,7 @@ describe('VoiceRoomsGateway', () => {
         },
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_MUTED,
         {
           roomId: 1,
           userId: alice.id,
@@ -1672,6 +1731,13 @@ describe('VoiceRoomsGateway', () => {
         callerId: alice.id,
         recipientId: bob.id,
       });
+      expect(
+        gateway.handleCallGetActive(createSocket() as never, undefined),
+      ).toEqual({
+        callId: 'c1',
+        callerId: alice.id,
+        recipientId: bob.id,
+      });
       expect(directCallsStateService.findActiveForUser).toHaveBeenCalledWith(
         alice.id,
       );
@@ -1706,9 +1772,13 @@ describe('VoiceRoomsGateway', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       realState = new DirectCallsStateService();
+      const roomsFacadeMock = {
+        assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+      };
       gateway = new VoiceRoomsGateway(
         authService as unknown as AuthService,
         {} as never,
+        roomsFacadeMock as never,
         voiceRoomsStateService as unknown as VoiceRoomsStateService,
         realState,
         eventEmitter as never,
@@ -1877,7 +1947,7 @@ describe('VoiceRoomsGateway', () => {
       });
       expect(room.peers.has('socket-1')).toBe(false);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
         { roomId, userId: bob.id, epoch: 'epoch-1', revision: 1 },
       );
       expect(voiceRoomsStateService.removeRoom).toHaveBeenCalledWith(

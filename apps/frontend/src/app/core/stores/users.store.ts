@@ -18,6 +18,7 @@ import { UsersApiService } from '@core/api/users-api.service';
 type UsersStoreState = {
   loading: boolean;
   loaded: boolean;
+  onlineMap: Record<number, boolean>;
 };
 
 export const UsersStore = signalStore(
@@ -25,6 +26,7 @@ export const UsersStore = signalStore(
   withState<UsersStoreState>({
     loading: false,
     loaded: false,
+    onlineMap: {},
   }),
   withEntities<IUser>(),
   withMethods(
@@ -39,7 +41,36 @@ export const UsersStore = signalStore(
         patchState(store, removeAllEntities(), {
           loading: false,
           loaded: false,
+          onlineMap: {},
         });
+      },
+
+      setOnlineUsers(userIds: number[]): void {
+        if (
+          userIds.length === 0 &&
+          Object.keys(store.onlineMap()).length === 0
+        ) {
+          return;
+        }
+        const onlineMap: Record<number, boolean> = {};
+        for (const id of userIds) {
+          onlineMap[id] = true;
+        }
+        patchState(store, { onlineMap });
+      },
+
+      setUserPresence(userId: number, isOnline: boolean): void {
+        const currentOnline = Boolean(store.onlineMap()[userId]);
+        if (currentOnline === isOnline) {
+          return;
+        }
+        const onlineMap = { ...store.onlineMap() };
+        if (isOnline) {
+          onlineMap[userId] = true;
+        } else {
+          delete onlineMap[userId];
+        }
+        patchState(store, { onlineMap });
       },
 
       upsertOne(user: IUser): void {

@@ -53,22 +53,58 @@
       </dd>
     </div>
     <div class="field">
-      <dt>{{ 'SETTINGS.USERS.ROLE' | translate }}</dt>
+      <dt>{{ 'SETTINGS.USERS.ROLES' | translate }}</dt>
       <dd>
-        @if (canManage()) {
-          <tui-textfield
-            tuiChevron
-            tuiTextfieldSize="m"
-            [tuiTextfieldCleaner]="false">
-            <input
-              tuiSelect
-              [formControl]="roleControl" />
-            <tui-data-list-wrapper
-              *tuiDropdown
-              [items]="roleOptions" />
-          </tui-textfield>
+        @if (user.isOwner) {
+          <span
+            tuiBadge
+            appearance="primary"
+            size="s">
+            {{ 'SETTINGS.USERS.OWNER_BADGE' | translate }}
+          </span>
+        } @else if (canManage()) {
+          <div class="roles-checklist">
+            @for (opt of roleOptions(); track opt.role.id) {
+              <label
+                tuiLabel
+                class="role-checkbox-item">
+                <input
+                  tuiCheckbox
+                  type="checkbox"
+                  [ngModel]="opt.checked"
+                  [ngModelOptions]="{ standalone: true }"
+                  (ngModelChange)="toggleRole(opt.role.id, $event)" />
+                <span class="role-item-name">
+                  @if (opt.role.color) {
+                    <span
+                      class="role-dot"
+                      [style.background-color]="opt.role.color"></span>
+                  }
+                  {{ opt.role.name }}
+                  @if (opt.role.isDefault) {
+                    <span class="muted-note"
+                      >({{ 'SETTINGS.ROLES.DEFAULT_BADGE' | translate }})</span
+                    >
+                  }
+                </span>
+              </label>
+            }
+          </div>
         } @else {
-          {{ roleLabels[user.role] | translate }}
+          <div class="assigned-roles-tags">
+            @for (role of user.roles; track role.id) {
+              <span
+                tuiBadge
+                appearance="neutral"
+                size="s">
+                {{ role.name }}
+              </span>
+            } @empty {
+              <span class="muted">{{
+                'SETTINGS.USERS.NO_ROLES_ASSIGNED' | translate
+              }}</span>
+            }
+          </div>
         }
       </dd>
     </div>

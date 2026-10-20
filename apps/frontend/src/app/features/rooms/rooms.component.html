@@ -68,7 +68,15 @@
     (longtap)="onRoomLongtap(room)"
     (click)="onRoomClick(room)">
     <tui-badged-content class="aside-badge">
-      @if (unreadCountsStore.roomUnreadCount(room.id); as count) {
+      @if (roomMentionFlags()[room.id]) {
+        <tui-badge-notification
+          size="s"
+          appearance="accent"
+          tuiSlot="top"
+          [attr.aria-label]="'ROOMS.UNREAD_MENTIONS' | translate">
+          &#64;
+        </tui-badge-notification>
+      } @else if (unreadCountsStore.roomUnreadCount(room.id); as count) {
         <tui-badge-notification
           size="s"
           tuiSlot="top">

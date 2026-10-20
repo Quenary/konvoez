@@ -1,0 +1,98 @@
+<form
+  tuiForm
+  novalidate
+  [formGroup]="form"
+  (ngSubmit)="onSubmit()">
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="role-name">
+      {{ 'SETTINGS.ROLES.NAME' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="role-name"
+      formControlName="name"
+      type="text" />
+  </tui-textfield>
+  @if (errors().name; as err) {
+    <tui-error [error]="err | translate" />
+  }
+
+  <tui-textfield>
+    <label
+      tuiLabel
+      for="role-color">
+      {{ 'SETTINGS.ROLES.COLOR' | translate }}
+    </label>
+    <input
+      tuiInputColor
+      id="role-color"
+      formControlName="color"
+      [placeholder]="'SETTINGS.ROLES.COLOR_PLACEHOLDER' | translate" />
+  </tui-textfield>
+  @if (errors().color; as err) {
+    <tui-error [error]="err | translate" />
+  }
+
+  <label
+    tuiLabel
+    class="default-role-row">
+    <input
+      tuiSwitch
+      formControlName="isDefault"
+      type="checkbox" />
+    {{ 'SETTINGS.ROLES.IS_DEFAULT' | translate }}
+  </label>
+
+  <label
+    tuiLabel
+    class="default-role-row">
+    <input
+      tuiSwitch
+      formControlName="mentionable"
+      type="checkbox" />
+    {{ 'SETTINGS.ROLES.MENTIONABLE' | translate }}
+  </label>
+
+  <div class="permissions-section">
+    <div class="permissions-header">
+      <span class="permissions-title">
+        {{ 'SETTINGS.ROLES.PERMISSIONS' | translate }}
+      </span>
+    </div>
+
+    <div class="permissions-grid">
+      @for (item of permissionItems(); track item.permission) {
+        <label
+          tuiLabel
+          class="permission-item">
+          <input
+            tuiCheckbox
+            type="checkbox"
+            [ngModel]="item.checked"
+            [ngModelOptions]="{ standalone: true }"
+            (ngModelChange)="togglePermission(item.permission, $event)" />
+          <span>{{ item.labelKey | translate }}</span>
+        </label>
+      }
+    </div>
+  </div>
+
+  <footer class="dialog-actions">
+    <button
+      tuiButton
+      type="button"
+      appearance="flat"
+      (click)="close()">
+      {{ 'GENERAL.CANCEL' | translate }}
+    </button>
+    <button
+      tuiButton
+      type="submit"
+      appearance="primary"
+      [loading]="loading()">
+      {{ (isEdit ? 'GENERAL.SAVE' : 'GENERAL.CREATE') | translate }}
+    </button>
+  </footer>
+</form>

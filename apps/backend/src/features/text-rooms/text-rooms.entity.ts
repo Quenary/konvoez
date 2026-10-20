@@ -1,4 +1,5 @@
 import { defineEntity, p, Cascade } from '@mikro-orm/core';
+import { type IMentionSet } from '@konvoez/shared';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { UserEntitySchema } from '../users/users.entity';
 import { RoomEntitySchema } from '../rooms/rooms.entity';
@@ -56,6 +57,10 @@ export const MessageEntitySchema = defineEntity({
         .mappedBy('message')
         .cascade(Cascade.REMOVE, Cascade.SCHEDULE_ORPHAN_REMOVAL)
         .orphanRemoval(),
+
+    mentions: p
+      .json<IMentionSet>()
+      .default('{"userIds":[],"roleIds":[],"everyone":false}'),
   },
 });
 
@@ -121,8 +126,26 @@ export const MessageReactionEntitySchema = defineEntity({
   },
 });
 
+export const MessageMentionEntitySchema = defineEntity({
+  name: 'MessageMentionEntity',
+  tableName: 'message_mentions',
+  indexes: [{ properties: ['user'] }],
+  uniques: [{ properties: ['message', 'user'] }],
+  properties: {
+    id: p.integer().primary().autoincrement(),
+    message: () =>
+      p
+        .manyToOne(MessageEntitySchema)
+        .updateRule('cascade')
+        .deleteRule('cascade'),
+    user: () => p.manyToOne(UserEntitySchema).deleteRule('cascade'),
+    createdAt: p.datetime().defaultRaw('CURRENT_TIMESTAMP'),
+  },
+});
+
 export class MessageEntity extends MessageEntitySchema.class {
   declare replyTo: MessageEntity | null;
+  declare mentions: IMentionSet;
 }
 
 export class MessageSearchTokenEntity
@@ -132,7 +155,10 @@ export class MessageReadEntity extends MessageReadEntitySchema.class {}
 
 export class MessageReactionEntity extends MessageReactionEntitySchema.class {}
 
+export class MessageMentionEntity extends MessageMentionEntitySchema.class {}
+
 MessageEntitySchema.setClass(MessageEntity);
 MessageSearchTokenEntitySchema.setClass(MessageSearchTokenEntity);
 MessageReadEntitySchema.setClass(MessageReadEntity);
 MessageReactionEntitySchema.setClass(MessageReactionEntity);
+MessageMentionEntitySchema.setClass(MessageMentionEntity);

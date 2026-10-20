@@ -1,5 +1,6 @@
 import {
   ChangeDetectionStrategy,
+  computed,
   Component,
   DestroyRef,
   inject,
@@ -36,6 +37,24 @@ export class SettingsNotificationsComponent {
   );
   protected readonly isLoading = signal(false);
   protected readonly isEnabled = this.pushNotificationService.isEnabled;
+  protected readonly serverKeyLoaded =
+    this.pushNotificationService.serverKeyLoaded;
+  protected readonly serverAvailable =
+    this.pushNotificationService.serverAvailable;
+  protected readonly canToggle = computed(() => {
+    const isSupported = this.isSupported();
+    const serverAvailable = this.serverAvailable();
+    const isEnabled = this.isEnabled();
+
+    return isSupported && (serverAvailable || isEnabled);
+  });
+
+  constructor() {
+    this.pushNotificationService
+      .loadServerKey()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe();
+  }
 
   protected onToggle(): void {
     if (!this.isSupported()) {

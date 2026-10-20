@@ -3,16 +3,22 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import webPush from 'web-push';
-import { ApiErrorCode, pushNotificationBodyMaxLength } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  ESettingKey,
+  pushNotificationBodyMaxLength,
+  toVapidSubject,
+} from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { htmlToPlainText } from '../../shared/utils/html-text.util';
-import { AppService } from '../../shared/services/app.service';
+import { SettingsService } from '../settings/settings.service';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
   type IDirectCallNotificationPayload,
   type IDirectMessageNotificationPayload,
-} from '@shared/events/notifications.events';
+  type IMentionNotificationPayload,
+} from './notifications.events';
 import { GetUserDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import {
@@ -37,28 +43,33 @@ export class NotificationsService {
   constructor(
     @InjectRepository(PushSubscriptionEntity)
     private readonly subscriptionRepository: EntityRepository<PushSubscriptionEntity>,
-    private readonly appService: AppService,
+    private readonly settingsService: SettingsService,
     private readonly vapidKeyStorageService: VapidKeyStorageService,
     private readonly eventEmitter: EventEmitter2,
-  ) {
-    this.configureVapid();
+  ) {}
+
+  public async resolveVapidSubject(): Promise<string | null> {
+    return toVapidSubject(
+      await this.settingsService.getValue(ESettingKey.VAPID_EMAIL),
+    );
   }
 
   public ensureVapidKeys(): { publicKey: string; privateKey: string } {
     const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
     if (storedKeys) {
-      this.configureVapid();
       return storedKeys;
     }
 
     const keys = webPush.generateVAPIDKeys();
     this.vapidKeyStorageService.saveVapidKeysToDisk(keys);
-    this.configureVapid();
-
     return keys;
   }
 
-  public getPublicKey(): string {
+  public async getPublicKeyIfEnabled(): Promise<string | null> {
+    const subject = await this.resolveVapidSubject();
+    if (!subject) {
+      return null;
+    }
     return this.ensureVapidKeys().publicKey;
   }
 
@@ -66,9 +77,11 @@ export class NotificationsService {
     user: GetUserDto,
     dto: PushSubscriptionDto,
   ): Promise<void> {
+    const em = this.em.fork();
+    const repo = em.getRepository(PushSubscriptionEntity);
     const endpoint = dto.endpoint;
-    const existing = await this.subscriptionRepository.findOne({ endpoint });
-    const userRef = this.em.getReference(UserEntity, user.id);
+    const existing = await repo.findOne({ endpoint });
+    const userRef = em.getReference(UserEntity, user.id);
     const userAgent = dto.userAgent ?? null;
 
     if (existing) {
@@ -80,11 +93,11 @@ export class NotificationsService {
       existing.userAgent = userAgent ?? existing.userAgent ?? null;
       existing.browser =
         getBrowserName(userAgent ?? undefined) ?? existing.browser;
-      await this.em.flush();
+      await em.flush();
       return;
     }
 
-    this.subscriptionRepository.create(
+    repo.create(
       {
         user: userRef,
         endpoint,
@@ -98,14 +111,16 @@ export class NotificationsService {
       { persist: true },
     );
 
-    await this.em.flush();
+    await em.flush();
   }
 
   public async removeSubscription(
     user: GetUserDto,
     endpoint: string,
   ): Promise<void> {
-    const subscription = await this.subscriptionRepository.findOne({
+    const em = this.em.fork();
+    const repo = em.getRepository(PushSubscriptionEntity);
+    const subscription = await repo.findOne({
       user: user.id,
       endpoint,
     });
@@ -117,14 +132,16 @@ export class NotificationsService {
       );
     }
 
-    this.em.remove(subscription);
-    await this.em.flush();
+    em.remove(subscription);
+    await em.flush();
   }
 
   public async getSubscriptionsForUser(
     userId: number,
+    em: EntityManager = this.em.fork(),
   ): Promise<PushSubscriptionEntity[]> {
-    return this.subscriptionRepository.find({
+    const repo = em.getRepository(PushSubscriptionEntity);
+    return repo.find({
       user: userId,
       isActive: true,
     });
@@ -146,12 +163,18 @@ export class NotificationsService {
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
-    const subscriptions = await this.getSubscriptionsForUser(userId);
+    const subject = await this.resolveVapidSubject();
+    if (!subject) {
+      return;
+    }
+
+    const em = this.em.fork();
+    const subscriptions = await this.getSubscriptionsForUser(userId, em);
     if (subscriptions.length === 0) {
       return;
     }
 
-    this.ensureVapidKeys();
+    const keys = this.ensureVapidKeys();
 
     const data = payload.data ? { ...payload.data } : {};
     if (data.url && !data.onActionClick) {
@@ -185,6 +208,13 @@ export class NotificationsService {
               },
             },
             notificationPayload,
+            {
+              vapidDetails: {
+                subject,
+                publicKey: keys.publicKey,
+                privateKey: keys.privateKey,
+              },
+            },
           );
 
           subscription.lastUsedAt = new Date();
@@ -202,7 +232,7 @@ export class NotificationsService {
       }),
     );
 
-    await this.em.flush();
+    await em.flush();
   }
 
   public async sendDirectMessageNotification(
@@ -265,6 +295,58 @@ export class NotificationsService {
     });
   }
 
+  public async sendMentionNotification(
+    payload: IMentionNotificationPayload,
+  ): Promise<void> {
+    const body = htmlToPlainText(
+      payload.messagePreview,
+      pushNotificationBodyMaxLength,
+    );
+    if (!body || payload.recipientIds.length === 0) {
+      return;
+    }
+
+    const title = `${payload.senderUsername} · #${payload.roomName}`;
+    const url = `/text-room/${payload.roomId}?message=${payload.messageId}`;
+
+    await Promise.allSettled(
+      payload.recipientIds.map((recipientId) =>
+        this.deliver(recipientId, {
+          title,
+          body,
+          tag: `mention:${payload.messageId}`,
+          data: {
+            type: 'mention',
+            roomId: payload.roomId,
+            messageId: payload.messageId,
+            senderId: payload.senderId,
+            url,
+            onActionClick: {
+              default: {
+                operation: 'focusLastFocusedOrOpen',
+                url,
+              },
+            },
+          },
+        }),
+      ),
+    );
+  }
+
+  @OnEvent(NotificationsDomainEvents.MENTION)
+  async onMentionNotification(
+    payload: IMentionNotificationPayload,
+  ): Promise<void> {
+    try {
+      await this.sendMentionNotification(payload);
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send mention push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
   @OnEvent(NotificationsDomainEvents.DIRECT_MESSAGE)
   async onDirectMessageNotification(
     payload: IDirectMessageNotificationPayload,
@@ -302,18 +384,5 @@ export class NotificationsService {
         error instanceof Error ? error.stack : String(error),
       );
     }
-  }
-
-  private configureVapid(): void {
-    const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
-    if (!storedKeys) {
-      return;
-    }
-
-    webPush.setVapidDetails(
-      `mailto:${this.appService.VAPID_EMAIL}`,
-      storedKeys.publicKey,
-      storedKeys.privateKey,
-    );
   }
 }

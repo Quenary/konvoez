@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  max-block-size: 18rem;
+  overflow-y: auto;
+}
+
+button[tuiOption] {
+  display: flex;
+  align-items: center;
+  gap: var(--tui-space-2, 0.5rem);
+  width: 100%;
+
+  &.active {
+    background: var(--tui-background-accent-1-hover, rgba(0, 0, 0, 0.08));
+  }
+}
+
+.label {
+  font-weight: 500;
+}
+
+.secondary {
+  color: var(--tui-text-secondary);
+  font-size: var(--tui-typography-ui-xs-size, 0.75rem);
+  margin-inline-start: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

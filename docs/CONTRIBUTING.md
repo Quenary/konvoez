@@ -1,134 +1,120 @@
-# Contributing guidelines for the Konvoez project
+# Contributing
 
-Contributions are welcome. Please follow these guidelines to keep the project consistent and maintainable.
+Contributions are welcome. The guidelines below keep the project consistent and maintainable.
 
-## Architecture & Development
+## Architecture
 
-Konvoez is an Nx monorepo:
+Konvoez is an Nx monorepo. The server (backend, frontend) and the desktop client share contracts through `libs/shared`.
 
-- **Frontend** (`apps/frontend`): Built with modern Angular (v19+, Signals, Standalone components, SCSS, Taiga UI).
-- **Backend** (`apps/backend`): Built with NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, and AES-256-GCM message encryption.
-- **Desktop** (`apps/desktop`): Lightweight Electron client wrapping the frontend, built with esbuild and packaged via electron-builder.
-- **Shared Library** (`libs/shared`): Shared TypeScript interfaces, enums, DTOs, and Zod validation schemas.
-- **Client Shell Library** (`libs/client-shell`): Framework-free client utilities, validation, adapter contracts, and i18n core for desktop and client shells.
-- **Client UI Kit** (`libs/ui-kit`): Electron-free and Angular-free Lit web component primitives styled with Taiga UI design tokens.
-- **Client Dialogs** (`libs/client-dialogs`): Framework-free Lit dialog components for desktop dialogs (`k-server-dialog`, `k-settings-dialog`, `k-source-picker-dialog`).
-
-### Getting Started
-
-1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH`, or `ffmpeg` on `PATH`). Posters are skipped when that binary is missing. The browser can still send a poster.
-   On Windows VS Build Tools is required if all dependencies is needed:
-   `winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"`
-
-2. **Install dependencies**:
-   ```bash
-   npm ci
-
-   # For Windows desktop build without VS Build Tools
-   npm ci --ignore-scripts
-   node node_modules/electron/install.js
-   ```
-3. **Environment setup**:
-   Copy `.env.example` to `.env` and configure required variables:
-   ```bash
-   cp .env.example .env
-   ```
-   Make sure `MASTER_KEY`, `JWT_SECRET`, and `MEDIASOUP_ANNOUNCED_IP` are defined.
-4. **Run development servers**:
-   ```bash
-   npm run start:dev
-   ```
-   Or run individual projects:
-   ```bash
-   npx nx serve backend
-   npx nx serve frontend
-   ```
-   The default frontend serve does not register a service worker. To test browser push locally:
-   ```bash
-   npm run start:dev:sw
-   ```
-   Use `localhost` or HTTPS — browsers require a secure context for the Push API.
-5. **Build**:
-
-   ```bash
-   npm run build
-   ```
-
-6. **Desktop** ([guide](../apps/desktop/README.md)):
-   ```bash
-   npx nx run desktop:serve
-   npx nx run desktop:package
-   ```
-
-## Commits
-
-- Use the [Conventional Commits](https://www.conventionalcommits.org/) format for all commit messages.
-  Example: `feat(backend): add message encryption` or `fix(frontend): update peer audio level indicator`.
-  Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
-- Keep commits focused; avoid mixing unrelated changes.
-- Husky and lint-staged are configured to run linters and formatters on staged files before commit.
-
-### Release Groups & Scope Isolation
-
-Releases are managed by Nx across two independent release groups:
-
-- **`server`**: covers `backend`, `frontend`, and `shared`. Produces semantic tags `v{version}` and root `CHANGELOG.md`.
-- **`desktop`**: covers `desktop`, `client-shell`, `ui-kit`, and `client-dialogs`. Produces semantic tags `desktop-v{version}` and `apps/desktop/CHANGELOG.md`.
-
-To maintain clean version bumps:
-
-- Commits touching only `apps/desktop/**`, `libs/client-shell/**`, `libs/ui-kit/**`, or `libs/client-dialogs/**` bump only `desktop`.
-- Commits touching only `apps/backend/**` or `apps/frontend/**` bump only `server`.
-- Commits touching `libs/shared/**` bump both `server` and `desktop` (since desktop and client-shell import shared).
-- Keep dependency updates (`fix(deps)`) isolated to their respective areas.
-
-## Code Changes
-
-- Follow the existing code style and architectural patterns in the codebase.
-- Prefer clear, readable, and idiomatic solutions over unnecessary cleverness.
-- Apply SOLID, KISS, DRY, and YAGNI when applicable. Follow the existing design instead of adding an abstraction or unused behavior only to satisfy a principle.
-- Maintain strict typing: use shared types and Zod schemas from `@konvoez/shared`.
-- Avoid introducing heavy or unnecessary dependencies.
-- Ensure code is formatted with Prettier (`npm run fmt`) and complies with ESLint rules (`npm run lint`).
+| Project               | Description                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| `apps/frontend`       | Angular (Signals, standalone components, SCSS, Taiga UI).                                           |
+| `apps/backend`        | NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, AES-256-GCM message encryption.                |
+| `apps/desktop`        | Electron client wrapping the frontend, built with esbuild and packaged with electron-builder.       |
+| `libs/shared`         | TypeScript interfaces, enums, DTOs and Zod schemas shared by all projects.                          |
+| `libs/client-shell`   | Framework-free client utilities: validation, adapter contracts, i18n core.                          |
+| `libs/ui-kit`         | Lit web component primitives styled with Taiga UI design tokens.                                    |
+| `libs/client-dialogs` | Lit dialogs for the desktop app (`k-server-dialog`, `k-settings-dialog`, `k-source-picker-dialog`). |
 
 ### Client Libraries Rules
 
-The client libraries (`libs/client-shell`, `libs/ui-kit`, `libs/client-dialogs`) are designed to be environment-agnostic:
+Nx lint enforces the dependency direction. Client libraries never import `electron`, Node built-ins, `@angular/*` or `@taiga-ui/*`. Dialogs talk to the host only through adapter contracts from `@konvoez/client-shell`.
 
-- **Zero Platform Coupling**: Never import `electron`, Node built-in modules, `@angular/*`, or `@taiga-ui/*` in client libraries.
-- **Adapter Contracts**: Dialog components interact with host environments solely through adapter contracts declared in `@konvoez/client-shell`.
-- **Module Boundaries**: Nx lint enforces strict architectural boundaries:
-  - `libs/client-shell` can only depend on `libs/shared`.
-  - `libs/ui-kit` can only depend on `libs/client-shell`.
-  - `libs/client-dialogs` can only depend on `libs/client-shell`, `libs/ui-kit`, and `libs/shared`.
-  - `apps/frontend` cannot import `@konvoez/ui-kit` or `@konvoez/client-dialogs`.
+```mermaid
+flowchart LR
+  shared[libs/shared]
+  shell[libs/client-shell]
+  kit[libs/ui-kit]
+  dialogs[libs/client-dialogs]
+  frontend[apps/frontend]
+  backend[apps/backend]
+  desktop[apps/desktop]
+
+  shell --> shared
+  kit --> shell
+  dialogs --> shell
+  dialogs --> kit
+  dialogs --> shared
+  frontend --> shared
+  backend --> shared
+  desktop --> dialogs
+  desktop --> shell
+  desktop --> kit
+```
+
+`apps/frontend` must not import `@konvoez/ui-kit` or `@konvoez/client-dialogs`.
+
+## Getting started
+
+1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH` or `ffmpeg` on `PATH`); without it posters are skipped and the browser poster is used. On Windows, native dependencies need VS Build Tools:
+
+   ```bash
+   winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+   ```
+
+2. **Install dependencies**:
+
+   ```bash
+   npm ci
+
+   # Windows desktop build without VS Build Tools
+   npm ci --ignore-scripts
+   node node_modules/electron/install.js
+   ```
+
+3. **Configure the environment**: copy `.env.example` to `.env`. `MASTER_KEY`, `JWT_SECRET` and `MEDIASOUP_ANNOUNCED_IP` must be set.
+
+4. **Run**:
+
+   ```bash
+   npm run start:dev          # backend + frontend
+   npx nx serve backend       # or each project separately
+   npx nx serve frontend
+   npm run start:dev:sw       # frontend with a service worker, for browser push
+   ```
+
+   Browser push requires a secure context, so use `localhost` or HTTPS.
+
+5. **Build**: `npm run build`.
+
+## Desktop
+
+The Electron client has its own [guide](../apps/desktop/README.md). Run it with `npx nx run desktop:serve` and package it with `npx nx run desktop:package`. Installers are built by GitHub Actions on `desktop-v*` tags.
+
+## Commits and releases
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(backend): add message encryption`. Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. Keep commits focused; Husky and lint-staged format and lint staged files before each commit.
+
+Nx publishes two independent release groups. The paths touched by a commit decide which group is bumped:
+
+| Group     | Projects                                              | Tag                  | Changelog                   |
+| --------- | ----------------------------------------------------- | -------------------- | --------------------------- |
+| `server`  | `backend`, `frontend`, `shared`                       | `v{version}`         | `CHANGELOG.md`              |
+| `desktop` | `desktop`, `client-shell`, `ui-kit`, `client-dialogs` | `desktop-v{version}` | `apps/desktop/CHANGELOG.md` |
+
+- Changes only in the desktop group bump `desktop`; changes only in `backend` or `frontend` bump `server`.
+- Changes in `libs/shared` bump both groups, because desktop and `client-shell` import it.
+- Keep dependency updates (`fix(deps)`) isolated to one area.
+
+## Code Changes
+
+- Follow the existing style and patterns; prefer clear, idiomatic solutions.
+- Apply SOLID, KISS, DRY and YAGNI only when they simplify the change.
+- Keep strict typing: use shared types and Zod schemas from `@konvoez/shared`.
+- Avoid heavy or unnecessary dependencies.
+- Format with Prettier (`npm run fmt`) and pass ESLint (`npm run lint`).
 
 ## Tests
 
-- All new features and bug fixes should include corresponding automated tests.
-- Cover the important behavior of the change. The test must lock that behavior, not only call the code.
-- When cases differ only by inputs and expected results, parameterize them instead of duplicating the test.
-- If you modify existing functionality, update or extend the related tests.
-- Ensure all tests pass before submitting changes:
-  ```bash
-  npm run test
-  ```
-- Ensure lint checks pass:
-  ```bash
-  npm run lint
-  ```
-- Ensure formatting checks pass:
-  ```bash
-  npx nx run <project>:format:check
-  ```
+- Every feature and bug fix comes with automated tests that lock the important behavior, not only call the code.
+- Parameterize cases that differ only by inputs and expected results.
+- Update existing tests when changing existing behavior.
+- Before submitting, run `npm run test`, `npm run lint` and `npm run fmt` (or `npx nx run <project>:format:check` to only check).
+- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `ui-kit`, `client-dialogs`, `desktop`.
 
-## Pull Requests
+## Pull requests
 
-- Provide a clear description of what was changed and the reasoning behind it.
-- Reference related issues where applicable (e.g., `Closes #123`).
-- Keep pull requests focused on a single responsibility.
-
-## General
-
-- For significant features or breaking architectural changes, consider opening an issue or discussing the plan first.
-- Update documentation and `README.md` when behavior or configuration options change.
+- Describe what changed and why; reference related issues (`Closes #123`).
+- Keep each pull request focused on a single responsibility.
+- Discuss significant features or breaking architectural changes in an issue first.
+- Update the documentation, including `README.md`, when behavior or configuration changes.

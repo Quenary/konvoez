@@ -9,7 +9,7 @@ import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { IVoiceRoomPeerUser } from '@konvoez/shared';
+import { TVoiceRoomPeerUser } from '@konvoez/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiHint, TuiIcon } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiFade } from '@taiga-ui/kit';
@@ -38,7 +38,7 @@ export class RoomPeerComponent {
   );
   private readonly audioActivityService = inject(AudioActivityService);
 
-  public readonly peer = input.required<IVoiceRoomPeerUser>();
+  public readonly peer = input.required<TVoiceRoomPeerUser>();
 
   protected readonly isLocal = computed(() => {
     const me = this.currentUser();

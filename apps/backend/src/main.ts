@@ -12,11 +12,17 @@ async function bootstrap() {
   const orm = app.get(MikroORM);
   await orm.migrator.up();
 
-  const notificationsService = app.get(NotificationsService);
-  await notificationsService.ensureVapidKeys();
-
   app.setGlobalPrefix('/api/v1');
   app.use(cookieParser());
+  await app.init();
+
+  const notificationsService = app.get(NotificationsService);
+  await notificationsService.ensureVapidKeys();
+  if (!(await notificationsService.resolveVapidSubject())) {
+    console.warn(
+      'VAPID_EMAIL is not configured (env or admin settings); web push notifications are disabled',
+    );
+  }
 
   const config = new DocumentBuilder()
     .setTitle('Konvoez API')

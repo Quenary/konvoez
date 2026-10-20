@@ -10,8 +10,8 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAuth } from '@core/auth/auth.selectors';
 import { adminGuard } from './admin.guard';
 import { firstValueFrom, Observable } from 'rxjs';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { EPermission, IUser } from '@konvoez/shared';
 
 describe('adminGuard', () => {
   let store: MockStore;
@@ -23,15 +23,19 @@ describe('adminGuard', () => {
     ) as Observable<boolean | UrlTree>;
   };
 
-  const createMockUser = (role: EUserRole): IUser => ({
+  const createMockUser = (overrides: Partial<IUser> = {}): IUser => ({
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
     email: 'test@example.com',
-    role,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
+    avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    ...overrides,
   });
 
   beforeEach(() => {
@@ -53,10 +57,15 @@ describe('adminGuard', () => {
     router = TestBed.inject(Router);
   });
 
-  it('should allow access (return true) when user is ADMIN', async () => {
+  afterEach(() => {
+    store.resetSelectors();
+    TestBed.resetTestingModule();
+  });
+
+  it('should allow access when user has MANAGE_SETTINGS permission', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
-      user: createMockUser(EUserRole.ADMIN),
+      user: createMockUser({ permissions: [EPermission.MANAGE_SETTINGS] }),
       loading: false,
     });
     store.refreshState();
@@ -65,10 +74,10 @@ describe('adminGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should allow access (return true) when user is OWNER', async () => {
+  it('should allow access when user is OWNER', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
-      user: createMockUser(EUserRole.OWNER),
+      user: createMockUser({ isOwner: true }),
       loading: false,
     });
     store.refreshState();
@@ -77,10 +86,10 @@ describe('adminGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('should redirect to / when user is MEMBER', async () => {
+  it('should redirect to / when user lacks permission', async () => {
     store.overrideSelector(selectAuth, {
       init: true,
-      user: createMockUser(EUserRole.MEMBER),
+      user: createMockUser({ permissions: [] }),
       loading: false,
     });
     store.refreshState();
@@ -112,7 +121,7 @@ describe('adminGuard', () => {
 
     store.overrideSelector(selectAuth, {
       init: true,
-      user: createMockUser(EUserRole.ADMIN),
+      user: createMockUser({ isOwner: true }),
       loading: false,
     });
     store.refreshState();

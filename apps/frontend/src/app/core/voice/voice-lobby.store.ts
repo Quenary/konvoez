@@ -1,19 +1,19 @@
 import {
   IUser,
-  IVoiceRoomGetAllPeersSnapshot,
-  IVoiceRoomLobbyPeerJoined,
-  IVoiceRoomLobbyPeerLeft,
-  IVoiceRoomLobbyPeerMuted,
-  IVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
+  TVoiceRoomGetAllPeersSnapshot,
+  TVoiceRoomLobbyPeerJoined,
+  TVoiceRoomLobbyPeerLeft,
+  TVoiceRoomLobbyPeerMuted,
+  TVoiceRoomPeerUser,
 } from '@konvoez/shared';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { mapRoomsUser, omitRoomsUser, toPeerUser } from './voice-peer.helpers';
 
 type LobbyEvent =
-  | { kind: 'joined'; payload: IVoiceRoomLobbyPeerJoined }
-  | { kind: 'left'; payload: IVoiceRoomLobbyPeerLeft }
-  | { kind: 'muted'; payload: IVoiceRoomLobbyPeerMuted };
+  | { kind: 'joined'; payload: TVoiceRoomLobbyPeerJoined }
+  | { kind: 'left'; payload: TVoiceRoomLobbyPeerLeft }
+  | { kind: 'muted'; payload: TVoiceRoomLobbyPeerMuted };
 
 /**
  * - `applied`: the event was applied to `roomsState`.
@@ -49,8 +49,8 @@ export const VoiceLobbyStore = signalStore(
   { providedIn: 'root' },
   withState<VoiceLobbyState>(initialState),
   withMethods((store) => {
-    const applyJoined = (payload: IVoiceRoomLobbyPeerJoined): void => {
-      const peer: IVoiceRoomPeerUser = {
+    const applyJoined = (payload: TVoiceRoomLobbyPeerJoined): void => {
+      const peer: TVoiceRoomPeerUser = {
         ...toPeerUser(payload.user),
         muted: payload.muted,
         deafened: payload.deafened,
@@ -66,7 +66,7 @@ export const VoiceLobbyStore = signalStore(
       }));
     };
 
-    const applyMuted = (payload: IVoiceRoomLobbyPeerMuted): void => {
+    const applyMuted = (payload: TVoiceRoomLobbyPeerMuted): void => {
       patchState(store, (state) => {
         const room = state.roomsState[payload.roomId];
         const peer = room?.[payload.userId];
@@ -89,7 +89,7 @@ export const VoiceLobbyStore = signalStore(
       });
     };
 
-    const applyLeft = (payload: IVoiceRoomLobbyPeerLeft): void => {
+    const applyLeft = (payload: TVoiceRoomLobbyPeerLeft): void => {
       patchState(store, (state) => {
         const room = state.roomsState[payload.roomId] || {};
         if (!room[payload.userId]) {
@@ -173,7 +173,7 @@ export const VoiceLobbyStore = signalStore(
 
     /** Applies events buffered before the snapshot; returns whether a new snapshot is needed. */
     const flushPendingEvents = (
-      snapshot: IVoiceRoomGetAllPeersSnapshot,
+      snapshot: TVoiceRoomGetAllPeersSnapshot,
     ): boolean => {
       const sorted = [...store.pendingLobbyEvents()]
         .filter(
@@ -200,7 +200,7 @@ export const VoiceLobbyStore = signalStore(
        * Replaces the lobby with a server snapshot and replays buffered events on top of it.
        * Returns `true` when buffered events show the snapshot is already outdated.
        */
-      setRoomsSnapshot(snapshot: IVoiceRoomGetAllPeersSnapshot): boolean {
+      setRoomsSnapshot(snapshot: TVoiceRoomGetAllPeersSnapshot): boolean {
         const isOlderSnapshotOfSameEpoch =
           store.lobbyEpoch() === snapshot.epoch &&
           (store.lobbyRevision() ?? -1) > snapshot.revision;
@@ -217,19 +217,19 @@ export const VoiceLobbyStore = signalStore(
       },
 
       applyVoicePeerJoined(
-        payload: IVoiceRoomLobbyPeerJoined,
+        payload: TVoiceRoomLobbyPeerJoined,
       ): TVoiceLobbyIncrementalResult {
         return applyIncremental({ kind: 'joined', payload });
       },
 
       applyVoicePeerLeft(
-        payload: IVoiceRoomLobbyPeerLeft,
+        payload: TVoiceRoomLobbyPeerLeft,
       ): TVoiceLobbyIncrementalResult {
         return applyIncremental({ kind: 'left', payload });
       },
 
       applyVoicePeerMuted(
-        payload: IVoiceRoomLobbyPeerMuted,
+        payload: TVoiceRoomLobbyPeerMuted,
       ): TVoiceLobbyIncrementalResult {
         return applyIncremental({ kind: 'muted', payload });
       },

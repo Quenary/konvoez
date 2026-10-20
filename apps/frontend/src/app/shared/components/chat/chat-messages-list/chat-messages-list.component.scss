@@ -8,18 +8,32 @@
 
   .scroll-container {
     height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow-anchor: none;
+  }
+
+  .messages {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-height: 100%;
     padding-right: 0.5rem;
 
-    // Grow empty space above messages when they don't fill the viewport
     &::before {
       content: '';
       flex: 1 0 auto;
     }
+  }
+
+  .skeleton-row {
+    height: 3rem;
+    width: 100%;
+    flex: none;
+    border-radius: var(--tui-radius-m);
+  }
+
+  .edge-sentinel {
+    height: 1px;
+    flex: none;
   }
 
   .scroll-to-bottom {

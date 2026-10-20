@@ -4,14 +4,12 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { UpdateProfileDto } from './profile.dto';
 
 @Injectable()
@@ -22,6 +20,7 @@ export class ProfileService {
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
     private readonly usersService: UsersService,
+    private readonly roomsFacade: RoomsFacade,
     private readonly passwordService: PasswordService,
     private readonly eventEmitter: EventEmitter2,
   ) {
@@ -70,10 +69,10 @@ export class ProfileService {
     this.repo.assign(user, assignData);
     this.em.persist(user);
     await this.em.flush();
-    const result = this.usersService.toDto(user);
-    emitEntitySyncDomainEvent(
+    const result = await this.usersService.toDtoWithPermissions(user);
+    emitUsersDomainEvent(
       this.eventEmitter,
-      EntitySyncDomainEvents.USER_UPDATED,
+      UsersDomainEvents.USER_UPDATED,
       result,
     );
     return result;
@@ -87,11 +86,12 @@ export class ProfileService {
 
   async removeSelf(author: GetUserDto): Promise<void> {
     this.assertNotOwner(author);
+    await this.roomsFacade.deleteRoomsByAuthor(author.id);
     await this.usersService.removeLoaded(author.id);
   }
 
   private assertNotOwner(author: GetUserDto): void {
-    if (author.role === EUserRole.OWNER) {
+    if (author.isOwner || author.role === EUserRole.OWNER) {
       throw AppException.forbidden(
         ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
         'Owner account cannot be deleted',

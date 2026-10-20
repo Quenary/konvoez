@@ -5,7 +5,13 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@core/auth/auth.selectors';
-import { ETextRoomEvent, ITextRoomMessage } from '@konvoez/shared';
+import {
+  ETextRoomEvent,
+  isMessageMentioningUser,
+  ITextRoomMessage,
+  ITextRoomUnreadCounts,
+  IUser,
+} from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -21,6 +27,7 @@ import { ChatApiService } from '@core/api/chat-api.service';
 
 type UnreadCountsState = {
   rooms: Record<number, number>;
+  roomMentions: Record<number, number>;
   direct: Record<number, number>;
   activeRoomId: number | null;
   activeRecipientId: number | null;
@@ -43,99 +50,152 @@ export const UnreadCountsStore = signalStore(
   { providedIn: 'root' },
   withState<UnreadCountsState>({
     rooms: {},
+    roomMentions: {},
     direct: {},
     activeRoomId: null,
     activeRecipientId: null,
   }),
-  withComputed(({ direct }) => ({
+  withComputed(({ direct, rooms, activeRoomId, activeRecipientId }) => ({
     directTotal: computed(() =>
       Object.values(direct()).reduce((sum, count) => sum + count, 0),
     ),
-  })),
-  withMethods((store, chatApiService = inject(ChatApiService)) => ({
-    roomUnreadCount(roomId: number): number {
-      return store.rooms()[roomId] ?? 0;
-    },
-
-    directUnreadCount(userId: number): number {
-      return store.direct()[userId] ?? 0;
-    },
-
-    setActiveChat({
-      roomId,
-      recipientId,
-    }: {
-      roomId: number | null;
-      recipientId: number | null;
-    }): void {
-      const rooms = { ...store.rooms() };
-      const direct = { ...store.direct() };
-
+    activeChatUnreadCount: computed(() => {
+      const roomId = activeRoomId();
       if (roomId != null) {
-        delete rooms[roomId];
+        return rooms()[roomId] ?? 0;
       }
-
+      const recipientId = activeRecipientId();
       if (recipientId != null) {
-        delete direct[recipientId];
+        return direct()[recipientId] ?? 0;
       }
-
+      return 0;
+    }),
+  })),
+  withMethods((store, chatApiService = inject(ChatApiService)) => {
+    const applyCounts = ({
+      rooms,
+      roomMentions,
+      direct,
+    }: ITextRoomUnreadCounts): void => {
       patchState(store, {
-        activeRoomId: roomId,
-        activeRecipientId: recipientId,
-        rooms,
-        direct,
+        rooms: parseCountMap(rooms),
+        roomMentions: parseCountMap(roomMentions ?? {}),
+        direct: parseCountMap(direct),
       });
-    },
+    };
 
-    clearActiveChat(): void {
-      patchState(store, {
-        activeRoomId: null,
-        activeRecipientId: null,
-      });
-    },
+    return {
+      roomUnreadCount(roomId: number): number {
+        return store.rooms()[roomId] ?? 0;
+      },
 
-    handleNewMessage(message: ITextRoomMessage, currentUserId: number): void {
-      if (message.senderId === currentUserId) {
-        return;
-      }
+      roomMentionCount(roomId: number): number {
+        return store.roomMentions()[roomId] ?? 0;
+      },
 
-      if (message.roomId) {
-        if (store.activeRoomId() === message.roomId) {
+      directUnreadCount(userId: number): number {
+        return store.direct()[userId] ?? 0;
+      },
+
+      chatUnreadCount(
+        target:
+          | { kind: 'room'; id: number }
+          | { kind: 'direct'; id: number }
+          | { roomId?: number | null; recipientId?: number | null }
+          | null,
+      ): number {
+        if (!target) return 0;
+        if ('kind' in target) {
+          return target.kind === 'room'
+            ? (store.rooms()[target.id] ?? 0)
+            : (store.direct()[target.id] ?? 0);
+        }
+        if (target.roomId != null) {
+          return store.rooms()[target.roomId] ?? 0;
+        }
+        if (target.recipientId != null) {
+          return store.direct()[target.recipientId] ?? 0;
+        }
+        return 0;
+      },
+
+      applyCounts,
+
+      setActiveChat({
+        roomId,
+        recipientId,
+      }: {
+        roomId: number | null;
+        recipientId: number | null;
+      }): void {
+        patchState(store, {
+          activeRoomId: roomId,
+          activeRecipientId: recipientId,
+        });
+      },
+
+      clearActiveChat(): void {
+        patchState(store, {
+          activeRoomId: null,
+          activeRecipientId: null,
+        });
+      },
+
+      handleNewMessage(
+        message: ITextRoomMessage,
+        currentUser: Pick<IUser, 'id' | 'roles'> | number,
+      ): void {
+        const userObj =
+          typeof currentUser === 'number'
+            ? { id: currentUser, roles: [] }
+            : currentUser;
+        const currentUserId = userObj.id;
+
+        if (message.senderId === currentUserId) {
           return;
         }
 
-        patchState(store, {
-          rooms: incrementCount(store.rooms(), message.roomId),
-        });
-        return;
-      }
+        if (message.roomId) {
+          const isMentioned = isMessageMentioningUser(
+            message.mentions,
+            userObj,
+          );
 
-      if (
-        message.recipientId === currentUserId &&
-        store.activeRecipientId() !== message.senderId
-      ) {
-        patchState(store, {
-          direct: incrementCount(store.direct(), message.senderId),
-        });
-      }
-    },
+          patchState(store, {
+            rooms: incrementCount(store.rooms(), message.roomId),
+            ...(isMentioned
+              ? {
+                  roomMentions: incrementCount(
+                    store.roomMentions(),
+                    message.roomId,
+                  ),
+                }
+              : {}),
+          });
+          return;
+        }
 
-    load: rxMethod<void>(
-      pipe(
-        switchMap(() =>
-          chatApiService.getUnreadCounts().pipe(
-            tap(({ rooms, direct }) => {
-              patchState(store, {
-                rooms: parseCountMap(rooms),
-                direct: parseCountMap(direct),
-              });
-            }),
-            catchError(() => EMPTY),
+        if (message.recipientId === currentUserId) {
+          patchState(store, {
+            direct: incrementCount(store.direct(), message.senderId),
+          });
+        }
+      },
+
+      load: rxMethod<void>(
+        pipe(
+          switchMap(() =>
+            chatApiService.getUnreadCounts().pipe(
+              tap((counts) => {
+                applyCounts(counts);
+              }),
+              catchError(() => EMPTY),
+            ),
           ),
         ),
       ),
-    ),
-  })),
+    };
+  }),
   withHooks({
     onInit(store) {
       const ngrxStore = inject(Store);
@@ -152,6 +212,7 @@ export const UnreadCountsStore = signalStore(
           } else {
             patchState(store, {
               rooms: {},
+              roomMentions: {},
               direct: {},
               activeRoomId: null,
               activeRecipientId: null,
@@ -162,11 +223,20 @@ export const UnreadCountsStore = signalStore(
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_CREATED)
         .pipe(takeUntilDestroyed())
         .subscribe((message) => {
-          const me = currentUser()?.id;
+          const me = currentUser();
           if (!me) {
             return;
           }
           store.handleNewMessage(message, me);
+        });
+
+      fromEvent<ITextRoomUnreadCounts>(
+        emitter,
+        ETextRoomEvent.UNREAD_COUNTS_CHANGED,
+      )
+        .pipe(takeUntilDestroyed())
+        .subscribe((counts) => {
+          store.applyCounts(counts);
         });
     },
   }),

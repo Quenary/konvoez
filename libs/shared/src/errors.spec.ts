@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   ApiErrorCode,
+  apiErrorResponseSchema,
   GENERIC_API_ERROR_CODES,
   isGenericApiErrorCode,
+  wsAckErrorSchema,
 } from './errors';
 
 describe('ApiErrorCode', () => {
@@ -12,8 +14,8 @@ describe('ApiErrorCode', () => {
     }
   });
 
-  it('contains all 63 expected error codes', () => {
-    expect(Object.keys(ApiErrorCode).length).toBe(63);
+  it('contains all 69 expected error codes', () => {
+    expect(Object.keys(ApiErrorCode).length).toBe(69);
   });
 });
 
@@ -26,5 +28,36 @@ describe('GENERIC_API_ERROR_CODES', () => {
     expect(isGenericApiErrorCode(ApiErrorCode.AUTH_INVALID_CREDENTIALS)).toBe(
       false,
     );
+  });
+});
+
+describe('apiErrorResponseSchema & wsAckErrorSchema', () => {
+  it('validates a structured api error response', () => {
+    const parsed = apiErrorResponseSchema.safeParse({
+      code: ApiErrorCode.VALIDATION_FAILED,
+      message: 'Validation failed',
+      fields: [{ path: 'username', code: 'TOO_SHORT' }],
+      params: { min: 3 },
+      attachmentIds: ['att-1'],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('validates wsAckErrorSchema', () => {
+    const parsed = wsAckErrorSchema.safeParse({
+      error: {
+        code: ApiErrorCode.NOT_FOUND,
+        message: 'Room not found',
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects invalid error code', () => {
+    const parsed = apiErrorResponseSchema.safeParse({
+      code: 'UNKNOWN_CODE',
+      message: 'Error',
+    });
+    expect(parsed.success).toBe(false);
   });
 });

@@ -3,22 +3,30 @@
   class="room-header">
   @if (title(); as currentTitle) {
     <h2 tuiTitle>
-      <div
-        tuiAvatar
-        size="s"
-        class="header-avatar">
-        @if (avatarIcon(); as icon) {
-          <tui-icon [icon]="icon" />
-        } @else if (avatarUrl()) {
-          <img
-            [alt]="currentTitle"
-            [ngSrc]="avatarUrl()!"
-            fill
-            priority />
-        } @else {
-          {{ currentTitle | tuiInitials }}
+      <tui-badged-content class="header-avatar-badge">
+        @if (isOnline()) {
+          <tui-badge-notification
+            size="xs"
+            tuiSlot="bottom"
+            class="online-badge" />
         }
-      </div>
+        <div
+          tuiAvatar
+          size="s"
+          class="header-avatar">
+          @if (avatarIcon(); as icon) {
+            <tui-icon [icon]="icon" />
+          } @else if (avatarUrl()) {
+            <img
+              [alt]="currentTitle"
+              [ngSrc]="avatarUrl()!"
+              fill
+              priority />
+          } @else {
+            {{ currentTitle | tuiInitials }}
+          }
+        </div>
+      </tui-badged-content>
 
       {{ currentTitle }}
     </h2>
@@ -83,6 +91,7 @@
   <app-chat-messages-list />
   <app-chat-editor
     [draftKey]="draftKey()"
+    [mentionRoomId]="roomId()"
     [editableMessage]="chatStore.editableMessage()"
     [replyToMessage]="chatStore.replyToMessage()"
     (submitted)="onMessageSubmitted($event)"

@@ -2,15 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
   Injector,
+  linkedSignal,
   signal,
 } from '@angular/core';
-import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { selectCurrentUser } from '@core/auth/auth.selectors';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { rxResource } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { IUser, IRole } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiErrorService } from '@core/services/api-error.service';
@@ -19,67 +18,43 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
 import {
   TuiButton,
+  TuiCheckbox,
   TuiDialogService,
-  TuiDropdown,
   TuiHint,
+  TuiLabel,
   TuiNotificationService,
-  TuiTextfield,
-  TUI_DEFAULT_ITEMS_HANDLERS,
-  TUI_ITEMS_HANDLERS,
 } from '@taiga-ui/core';
 import type { TuiDialogContext } from '@taiga-ui/core';
-import {
-  TuiAutoColorPipe,
-  TuiButtonLoading,
-  TuiChevron,
-  TuiDataListWrapper,
-  TuiSelect,
-} from '@taiga-ui/kit';
+import { TuiAutoColorPipe, TuiBadge, TuiButtonLoading } from '@taiga-ui/kit';
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, of } from 'rxjs';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
+import { RolesApiService } from '@core/api/roles-api.service';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 
 export interface IUserManagementDialogData {
   readonly id: number;
 }
 
-const ROLE_LABEL: Record<EUserRole, string> = {
-  [EUserRole.OWNER]: 'SETTINGS.USERS.ROLE_OWNER',
-  [EUserRole.ADMIN]: 'SETTINGS.USERS.ROLE_ADMIN',
-  [EUserRole.MEMBER]: 'SETTINGS.USERS.ROLE_MEMBER',
-};
+export interface IUserManagementRoleOption {
+  readonly role: IRole;
+  readonly checked: boolean;
+}
 
 @Component({
   selector: 'app-settings-user-management-dialog',
   imports: [
     DayjsPipe,
-    ReactiveFormsModule,
+    FormsModule,
     TranslatePipe,
     UserAvatarComponent,
     TuiAutoColorPipe,
+    TuiBadge,
     TuiButton,
     TuiButtonLoading,
-    TuiChevron,
-    TuiDataListWrapper,
-    TuiDropdown,
+    TuiCheckbox,
     TuiHint,
-    TuiSelect,
-    TuiTextfield,
-  ],
-  providers: [
-    {
-      provide: TUI_ITEMS_HANDLERS,
-      useFactory: () => {
-        const translateService = inject(TranslateService);
-        return {
-          stringify: signal((role: EUserRole) =>
-            translateService.instant(ROLE_LABEL[role]),
-          ),
-          identityMatcher: TUI_DEFAULT_ITEMS_HANDLERS.identityMatcher,
-          disabledItemHandler: TUI_DEFAULT_ITEMS_HANDLERS.disabledItemHandler,
-        };
-      },
-    },
+    TuiLabel,
   ],
   templateUrl: './settings-user-management-dialog.component.html',
   styleUrl: './settings-user-management-dialog.component.scss',
@@ -87,6 +62,7 @@ const ROLE_LABEL: Record<EUserRole, string> = {
 })
 export class SettingsUserManagementDialogComponent {
   private readonly userManagementApiService = inject(UserManagementApiService);
+  private readonly rolesApiService = inject(RolesApiService);
   private readonly dialogService = inject(TuiDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
@@ -97,18 +73,9 @@ export class SettingsUserManagementDialogComponent {
   public readonly context =
     injectContext<TuiDialogContext<boolean, IUserManagementDialogData>>();
 
-  protected readonly roleLabels = ROLE_LABEL;
-  protected readonly roleOptions = [EUserRole.ADMIN, EUserRole.MEMBER];
   protected readonly saving = signal(false);
   protected readonly deleting = signal(false);
-  protected readonly roleControl = new FormControl<EUserRole>(
-    EUserRole.MEMBER,
-    { nonNullable: true },
-  );
 
-  private readonly selectedRole = toSignal(this.roleControl.valueChanges, {
-    initialValue: this.roleControl.value,
-  });
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected readonly userResource = rxResource({
@@ -122,51 +89,83 @@ export class SettingsUserManagementDialogComponent {
     defaultValue: null as IUser | null,
   });
 
+  protected readonly selectedRoleIds = linkedSignal(() => {
+    const user = this.userResource.value();
+    return new Set((user?.roles ?? []).map((r) => r.id));
+  });
+
+  protected readonly availableRolesResource = rxResource({
+    stream: () =>
+      this.rolesApiService.list().pipe(
+        catchError((err) => {
+          this.notify(err);
+          return of([] as IRole[]);
+        }),
+      ),
+    defaultValue: [] as IRole[],
+  });
+
+  protected readonly roleOptions = computed<
+    readonly IUserManagementRoleOption[]
+  >(() => {
+    const roles = this.availableRolesResource.value() ?? [];
+    const selected = this.selectedRoleIds();
+    return roles.map((role) => ({
+      role,
+      checked: selected.has(role.id),
+    }));
+  });
+
   protected readonly canManage = computed(() => {
     const user = this.userResource.value();
     const me = this.currentUser();
     if (!user || !me) {
       return false;
     }
-    return user.role !== EUserRole.OWNER && user.id !== me.id;
+    return !user.isOwner && user.id !== me.id;
   });
 
   protected readonly roleChanged = computed(() => {
     const user = this.userResource.value();
-    const selected = this.selectedRole();
+    const selected = this.selectedRoleIds();
     if (!user) {
       return false;
     }
-    return selected !== user.role;
+    const current = new Set((user.roles ?? []).map((r) => r.id));
+    if (selected.size !== current.size) {
+      return true;
+    }
+    for (const id of selected) {
+      if (!current.has(id)) {
+        return true;
+      }
+    }
+    return false;
   });
 
-  constructor() {
-    effect(() => {
-      const user = this.userResource.value();
-      if (!user) {
-        return;
-      }
-      if (user.role === EUserRole.ADMIN || user.role === EUserRole.MEMBER) {
-        this.roleControl.setValue(user.role);
-      }
-    });
+  protected toggleRole(roleId: number, checkedOrEvent: boolean | Event): void {
+    const checked =
+      typeof checkedOrEvent === 'boolean'
+        ? checkedOrEvent
+        : Boolean((checkedOrEvent.target as HTMLInputElement | null)?.checked);
+    const next = new Set(this.selectedRoleIds());
+    if (checked) {
+      next.add(roleId);
+    } else {
+      next.delete(roleId);
+    }
+    this.selectedRoleIds.set(next);
   }
 
   protected saveRole(): void {
     const user = this.userResource.value();
-    const role = this.roleControl.value;
-    if (
-      !user ||
-      !this.canManage() ||
-      role === user.role ||
-      this.saving() ||
-      (role !== EUserRole.ADMIN && role !== EUserRole.MEMBER)
-    ) {
+    if (!user || !this.canManage() || !this.roleChanged() || this.saving()) {
       return;
     }
 
     this.saving.set(true);
-    this.userManagementApiService.update(user.id, { role }).subscribe({
+    const roleIds = Array.from(this.selectedRoleIds());
+    this.userManagementApiService.update(user.id, { roleIds }).subscribe({
       next: () => {
         this.saving.set(false);
         this.userResource.reload();

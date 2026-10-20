@@ -5,9 +5,13 @@ import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
 import { PushSubscriptionEntity } from './notifications.entity';
 import { VapidKeyStorageService } from './vapid-key-storage.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [MikroOrmModule.forFeature([PushSubscriptionEntity])],
+  imports: [
+    MikroOrmModule.forFeature([PushSubscriptionEntity]),
+    SettingsModule,
+  ],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,

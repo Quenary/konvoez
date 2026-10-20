@@ -53,6 +53,7 @@ MENU:
     NOTIFICATIONS: Уведомления
     INVITES: Приглашения
     USERS: Пользователи
+    ROLES: Роли
     ADMIN: Администрирование
 USER_DIALOG:
   FULLNAME: Полное имя
@@ -136,6 +137,7 @@ VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
   ROOM_CLOSED: Голосовая комната была закрыта
 ROOMS:
+  UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
   ORIGINAL_MESSAGE_DELETED: Оригинальное сообщение было удалено
@@ -172,6 +174,15 @@ ROOMS:
     AUTHOR: Автор
     CREATED: Дата создания
     UPDATED: Дата изменения
+    IS_PRIVATE: Приватная комната
+    IS_PRIVATE_DESC: Доступ только для разрешенных ролей и пользователей
+    ALLOWED_ROLES: Разрешенные роли
+    ALLOWED_USERS: Разрешенные пользователи
+    ALLOWED_NONE_HINT: Владелец и администраторы всегда имеют доступ. Выберите роли или пользователей, чтобы открыть доступ остальным.
+CHAT:
+  MENTION_EVERYONE_HINT: Уведомить всех в комнате
+  MENTION_UNKNOWN: неизвестно
+  UNREAD_MESSAGES: Непрочитанные сообщения
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля
@@ -191,6 +202,7 @@ SETTINGS:
     PERMISSION_DENIED: Доступ не был предоставлен. Попробуйте ещё раз.
     ENABLE_ERROR: Не удалось включить уведомления. Попробуйте ещё раз.
     DISABLE_ERROR: Не удалось отключить уведомления. Попробуйте ещё раз.
+    SERVER_DISABLED: Push-уведомления не настроены на этом сервере.
   DEVICES:
     TITLE: Настройки устройств
     AUDIO_INPUT: Микрофон
@@ -260,13 +272,56 @@ SETTINGS:
     ROLE_OWNER: Владелец
     ROLE_ADMIN: Администратор
     ROLE_MEMBER: Пользователь
+    ROLES: Роли
+    OWNER_BADGE: Владелец
+    NO_ROLES_ASSIGNED: Нет назначенных ролей
+    ASSIGNED_ROLES: Назначенные роли
+  ROLES:
+    TITLE: Роли
+    SUBTITLE: Управление ролями, разрешениями и доступом к комнатам
+    CREATE_BUTTON: Создать роль
+    NO_ROLES: Роли не найдены
+    TABLE:
+      NAME: Роль
+      PERMISSIONS: Разрешения
+      TYPE: Тип
+      ACTIONS: Действия
+    DIALOG_TITLE_CREATE: Создание роли
+    DIALOG_TITLE_EDIT: Редактирование роли
+    NAME: Название роли
+    COLOR: Цвет
+    COLOR_PLACEHOLDER: '#3b82f6'
+    PERMISSIONS: Разрешения
+    IS_DEFAULT: Роль по умолчанию (назначается всем пользователям)
+    MENTIONABLE: Разрешить упоминать роль
+    DEFAULT_BADGE: По умолчанию
+    CUSTOM_BADGE: Пользовательская
+    PERMISSIONS_COUNT: '{{count}} разрешений'
+    ALL_PERMISSIONS: Все разрешения
+    DELETE_CONFIRM: Вы уверены, что хотите удалить эту роль?
+    CANNOT_DELETE_DEFAULT: Нельзя удалить роль по умолчанию
+    PERMISSIONS_LIST:
+      MANAGE_SETTINGS: Управление настройками
+      MANAGE_USERS: Управление пользователями
+      MANAGE_ROLES: Управление ролями
+      MANAGE_INVITES: Управление приглашениями
+      MANAGE_ROOMS: Управление комнатами
+      SEND_MESSAGES: Отправка сообщений
+      CONNECT_VOICE: Подключение к голосовым комнатам
+      USE_ATTACHMENTS: Отправка вложений
+      MODERATE_MESSAGES: Модерирование сообщений
+      MENTION_EVERYONE: Упоминать @everyone и роли
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
+    PUSH: Push-уведомления
+    ENV_LOCKED: Эта настройка заблокирована переменными окружения сервера.
     INVITE_ONLY_SIGN_UP: Регистрация только по приглашению
     INVITE_ONLY_SIGN_UP_DESC: Разрешать регистрацию новых пользователей только при наличии действующего кода приглашения
     PASSWORD_RECOVERY_CODE_TTL: TTL кода восстановления пароля (мс)
     PASSWORD_RECOVERY_CODE_TTL_DESC: Срок действия кода восстановления (60000–3600000 мс, по умолчанию 600000)
+    VAPID_EMAIL: VAPID email
+    VAPID_EMAIL_DESC: Email, используемый как subject для push-уведомлений сервера. Поддерживаются обычный email, mailto:..., и https://... URL.
     ICE_SERVERS: Конфигурация ICE серверов (JSON)
     ICE_SERVERS_DESC: Список STUN/TURN серверов для WebRTC соединений в формате JSON
     ATTACHMENTS: Вложения
@@ -287,6 +342,7 @@ USER_DELETE:
     - С флажком безвозвратно удаляются учетная запись, созданные пользователем комнаты и все его сообщения.
 VALIDATION:
   REQUIRED: Обязательное поле
+  LOGIN: Введите корректное имя пользователя или email
   FILE_TOO_BIG: Файл слишком большой
   STRING: Значение должно быть строкой
   TTL_RANGE: Срок действия должен быть в допустимом диапазоне
@@ -298,6 +354,9 @@ VALIDATION:
   EMAIL: Введите корректный email
   ROOM_NAME_LENGTH: Название комнаты должно содержать 1–64 символа
   ROOM_TYPE: Выберите тип комнаты
+  ROLE_NAME_REQUIRED: Название роли обязательно
+  ROLE_NAME_LENGTH: Название роли должно содержать 1–64 символа
+  COLOR_HEX: Цвет должен быть корректным HEX-кодом (например, #ff0000)
   MESSAGE_LENGTH: Сообщение должно содержать 1–5000 символов
   MESSAGE_EMPTY: Сообщение должно содержать текст или файл
   MESSAGE_TO_SELF: Нельзя отправить сообщение самому себе
@@ -306,7 +365,9 @@ VALIDATION:
   SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации
   INVITE_CODE_REQUIRED: Код приглашения обязателен для регистрации
   INVALID_SCHEMA: Неверный формат схемы
+  VAPID_SUBJECT: 'Укажите корректный subject VAPID: email, mailto:..., или https://...'
   RECOVERY_CODE: Введите 6-значный код восстановления
+  INVALID_CHAT_TARGET: Должен быть указан ровно один чат
 AUTH:
   LOGIN: Имя пользователя или email
   OWNER_SETUP_TITLE: Первичная настройка сервера
@@ -384,8 +445,13 @@ ERRORS:
   USER_OWNER_DELETE_FORBIDDEN: Нельзя удалить владельца сервера
   USER_OWNER_ROLE_FORBIDDEN: Нельзя изменить роль владельца сервера
   USER_UPDATE_EMPTY: Нет данных для обновления пользователя
+  ROLE_NOT_FOUND: Роль не найдена
+  ROLE_NAME_TAKEN: Роль с таким именем уже существует
+  ROLE_CANNOT_DELETE_DEFAULT: Нельзя удалить роль по умолчанию
+  ROLE_HIERARCHY_VIOLATION: Невозможно управлять пользователями или ролями с приоритетом, равным вашему или превышающим его
   ROOM_NOT_FOUND: Комната не найдена
   ROOM_NAME_TAKEN: Комната с таким именем уже существует
+  ROOM_ACCESS_DENIED: Доступ к комнате запрещён
   MESSAGE_NOT_FOUND: Сообщение не найдено
   MESSAGE_EMPTY: Сообщение не может быть пустым
   MESSAGE_ACCESS_DENIED: Доступ к сообщению запрещён
@@ -407,6 +473,7 @@ ERRORS:
   IMAGE_INVALID: Некорректный формат или повреждённое изображение
   AVATAR_TOO_BIG: Размер аватара слишком велик
   SETTING_NOT_FOUND: Настройка не найдена
+  SETTING_ENV_LOCKED: Эта настройка заблокирована переменной окружения сервера
   PUSH_SUBSCRIPTION_NOT_FOUND: Подписка на push-уведомления не найдена
   VOICE_VIDEO_LIMIT_REACHED: Достигнут лимит видео в комнате
   VOICE_SESSION_INVALID: Недействительная голосовая сессия

@@ -1,0 +1,11 @@
+<div class="chat-system-item">
+  <span class="chat-system-item-line"></span>
+  <span class="chat-system-item-text">
+    @if (text(); as t) {
+      {{ t }}
+    } @else {
+      <ng-content></ng-content>
+    }
+  </span>
+  <span class="chat-system-item-line"></span>
+</div>

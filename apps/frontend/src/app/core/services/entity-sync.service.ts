@@ -8,10 +8,12 @@ import {
   type IRoomDeleted,
   type IUser,
   type IUserDeleted,
-  type IVoiceRoomGetAllPeersSnapshot,
-  type IVoiceRoomLobbyPeerJoined,
-  type IVoiceRoomLobbyPeerLeft,
-  type IVoiceRoomLobbyPeerMuted,
+  type TVoiceRoomGetAllPeersSnapshot,
+  type TVoiceRoomLobbyPeerJoined,
+  type TVoiceRoomLobbyPeerLeft,
+  type TVoiceRoomLobbyPeerMuted,
+  type IUserPresenceChanged,
+  type IUserPresenceSnapshot,
 } from '@konvoez/shared';
 import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
@@ -26,6 +28,7 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@core/auth/auth.selectors';
+import { RolesStore } from '@core/stores/roles.store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { emitVoiceRoomWithAck } from '@core/services/voice-room-socket-ack';
@@ -64,6 +67,7 @@ export class EntitySyncService {
   private readonly socket = inject(EntitySyncSocketToken);
   private readonly voiceRoomSocket = inject(VoiceRoomSocketToken);
   private readonly usersStore = inject(UsersStore);
+  private readonly rolesStore = inject(RolesStore);
   private readonly roomsStore = inject(RoomsStore);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
@@ -76,6 +80,7 @@ export class EntitySyncService {
     this.bindAuthLobbyReset();
     this.bindUserEvents();
     this.bindRoomEvents();
+    this.bindRoleEvents();
     this.bindVoiceLobbyEvents();
     this.bindVoiceLobbySync();
   }
@@ -127,6 +132,30 @@ export class EntitySyncService {
       .subscribe(() => {
         this.store.dispatch(AuthActions.requestLogout());
       });
+
+    fromEvent<IUserPresenceSnapshot>(
+      this.emitter,
+      EEntitySyncEvent.USER_PRESENCE_SNAPSHOT,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ userIds }) => {
+        this.usersStore.setOnlineUsers(userIds);
+      });
+
+    fromEvent<IUserPresenceChanged>(
+      this.emitter,
+      EEntitySyncEvent.USER_PRESENCE_CHANGED,
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ userId, isOnline }) => {
+        this.usersStore.setUserPresence(userId, isOnline);
+      });
+
+    fromEvent(this.emitter, 'disconnect')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.usersStore.setOnlineUsers([]);
+      });
   }
 
   private bindRoomEvents(): void {
@@ -146,6 +175,14 @@ export class EntitySyncService {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ id }) => {
         this.roomsStore.removeOne(id);
+      });
+  }
+
+  private bindRoleEvents(): void {
+    fromEvent(this.emitter, EEntitySyncEvent.ROLES_CHANGED)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.rolesStore.loadAll();
       });
   }
 
@@ -198,7 +235,7 @@ export class EntitySyncService {
   }
 
   private bindVoiceLobbyEvents(): void {
-    fromEvent<IVoiceRoomLobbyPeerJoined>(
+    fromEvent<TVoiceRoomLobbyPeerJoined>(
       this.emitter,
       EEntitySyncEvent.VOICE_ROOM_PEER_JOINED,
     )
@@ -208,7 +245,7 @@ export class EntitySyncService {
         this.handleLobbyIncrementalResult(result);
       });
 
-    fromEvent<IVoiceRoomLobbyPeerLeft>(
+    fromEvent<TVoiceRoomLobbyPeerLeft>(
       this.emitter,
       EEntitySyncEvent.VOICE_ROOM_PEER_LEFT,
     )
@@ -218,7 +255,7 @@ export class EntitySyncService {
         this.handleLobbyIncrementalResult(result);
       });
 
-    fromEvent<IVoiceRoomLobbyPeerMuted>(
+    fromEvent<TVoiceRoomLobbyPeerMuted>(
       this.emitter,
       EEntitySyncEvent.VOICE_ROOM_PEER_MUTED,
     )
@@ -259,7 +296,7 @@ export class EntitySyncService {
         return;
       }
 
-      let snapshot: IVoiceRoomGetAllPeersSnapshot;
+      let snapshot: TVoiceRoomGetAllPeersSnapshot;
       try {
         snapshot = await emitVoiceRoomWithAck(
           this.voiceRoomSocket,

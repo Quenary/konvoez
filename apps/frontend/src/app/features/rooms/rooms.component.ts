@@ -19,7 +19,7 @@ import {
   IRoom,
   IRoomCreate,
   IUser,
-  IVoiceRoomPeerUser,
+  TVoiceRoomPeerUser,
 } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
 import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.component';
@@ -54,7 +54,7 @@ import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
 
 interface IRoomWithPeers extends IRoom {
-  peers: IVoiceRoomPeerUser[];
+  peers: TVoiceRoomPeerUser[];
   isUserInRoom: boolean;
 }
 
@@ -108,6 +108,19 @@ export class RoomsComponent implements OnInit {
   public readonly collapsed = input.required<boolean>();
 
   protected readonly textRooms = this.roomsStore.textRooms;
+
+  protected readonly roomMentionFlags = computed<Record<number, boolean>>(
+    () => {
+      const mentions = this.unreadCountsStore.roomMentions();
+      const flags: Record<number, boolean> = {};
+      for (const [roomId, count] of Object.entries(mentions)) {
+        if (count > 0) {
+          flags[Number(roomId)] = true;
+        }
+      }
+      return flags;
+    },
+  );
 
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
     const voiceRooms = this._voiceRooms();
@@ -179,6 +192,15 @@ export class RoomsComponent implements OnInit {
             name: room.name,
             type: room.type,
             ...(room.avatar ? { avatar: room.avatar } : {}),
+            ...(room.isPrivate !== undefined
+              ? { isPrivate: room.isPrivate }
+              : {}),
+            ...(room.allowedRoleIds !== undefined
+              ? { allowedRoleIds: room.allowedRoleIds }
+              : {}),
+            ...(room.allowedUserIds !== undefined
+              ? { allowedUserIds: room.allowedUserIds }
+              : {}),
           };
 
           this.roomsStore.create(body);

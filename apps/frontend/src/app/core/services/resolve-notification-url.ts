@@ -25,6 +25,11 @@ export function resolveNotificationUrl(
     specificActionUrl ||
     data.url ||
     defaultActionUrl ||
+    (data.type === 'mention' && isPositiveInt(data.roomId)
+      ? data.messageId
+        ? `/text-room/${data.roomId}?message=${data.messageId}`
+        : `/text-room/${data.roomId}`
+      : null) ||
     (isPositiveInt(data.senderId) ? `/direct/${data.senderId}` : null) ||
     (isPositiveInt(data.callerId) ? `/direct/${data.callerId}` : null) ||
     (isPositiveInt(data.roomId) ? `/text-room/${data.roomId}` : null) ||

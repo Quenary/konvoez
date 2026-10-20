@@ -3,7 +3,7 @@ import { pushNotificationBodyMaxLength } from '../const';
 import { ENotificationsEvent } from '../enums';
 
 export const vapidPublicKeySchema = z.object({
-  publicKey: z.string().min(1),
+  publicKey: z.string().min(1).nullable(),
 });
 
 export const pushSubscriptionEndpointSchema = z.object({

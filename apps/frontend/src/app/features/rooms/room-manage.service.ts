@@ -2,7 +2,7 @@ import { computed, inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslateService } from '@ngx-translate/core';
-import { EUserRole } from '@konvoez/shared';
+import { EPermission } from '@konvoez/shared';
 import { TuiDialogService } from '@taiga-ui/core';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -28,8 +28,10 @@ export class RoomManageService {
   private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
 
   public readonly canManageRooms = computed(() => {
-    const role = this.currentUser()?.role;
-    return role === EUserRole.ADMIN || role === EUserRole.OWNER;
+    const user = this.currentUser();
+    return Boolean(
+      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_ROOMS),
+    );
   });
 
   public async editRoom(room: IRoom): Promise<void> {
@@ -52,6 +54,15 @@ export class RoomManageService {
           const body: IRoomUpdate = {
             name: data.name,
             ...(data.avatar !== undefined ? { avatar: data.avatar } : {}),
+            ...(data.isPrivate !== undefined
+              ? { isPrivate: data.isPrivate }
+              : {}),
+            ...(data.allowedRoleIds !== undefined
+              ? { allowedRoleIds: data.allowedRoleIds }
+              : {}),
+            ...(data.allowedUserIds !== undefined
+              ? { allowedUserIds: data.allowedUserIds }
+              : {}),
           };
 
           this.roomsStore.update({ id: data.id, room: body });

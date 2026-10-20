@@ -83,8 +83,88 @@
         [items]="typeOptions" />
     </tui-textfield>
   </label>
-  @if (errors().type; as err) {
-    <tui-error [error]="err | translate" />
+  <label
+    tuiLabel
+    class="private-room-toggle">
+    <input
+      tuiSwitch
+      formControlName="isPrivate"
+      type="checkbox" />
+    <div>
+      <div>{{ 'ROOMS.DIALOG.IS_PRIVATE' | translate }}</div>
+      <div class="private-room-desc">{{
+        'ROOMS.DIALOG.IS_PRIVATE_DESC' | translate
+      }}</div>
+    </div>
+  </label>
+
+  @if (isPrivate()) {
+    <div class="access-control-section">
+      <p class="access-hint">
+        {{ 'ROOMS.DIALOG.ALLOWED_NONE_HINT' | translate }}
+      </p>
+
+      @if (roleOptions(); as roles) {
+        @if (roles.length > 0) {
+          <div class="access-group">
+            <span class="access-group-title">
+              {{ 'ROOMS.DIALOG.ALLOWED_ROLES' | translate }}
+            </span>
+            <div class="access-checklist">
+              @for (opt of roles; track opt.role.id) {
+                <label
+                  tuiLabel
+                  class="access-checkbox-item">
+                  <input
+                    tuiCheckbox
+                    type="checkbox"
+                    [ngModel]="opt.checked"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="toggleRole(opt.role.id, $event)" />
+                  <span class="item-name">
+                    @if (opt.role.color) {
+                      <span
+                        class="dot"
+                        [style.background-color]="opt.role.color"></span>
+                    }
+                    {{ opt.role.name }}
+                  </span>
+                </label>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      @if (userOptions(); as userList) {
+        @if (userList.length > 0) {
+          <div class="access-group">
+            <span class="access-group-title">
+              {{ 'ROOMS.DIALOG.ALLOWED_USERS' | translate }}
+            </span>
+            <div class="access-checklist">
+              @for (opt of userList; track opt.user.id) {
+                <label
+                  tuiLabel
+                  class="access-checkbox-item">
+                  <input
+                    tuiCheckbox
+                    type="checkbox"
+                    [ngModel]="opt.checked"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="toggleUser(opt.user.id, $event)" />
+                  <span
+                    class="item-name"
+                    [style.color]="opt.user.username | tuiAutoColor">
+                    {{ opt.user.username }}
+                  </span>
+                </label>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
   }
 
   @if (meta; as m) {

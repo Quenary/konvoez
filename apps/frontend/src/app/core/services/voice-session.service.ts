@@ -9,9 +9,9 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import {
   EVoiceRoomEvent,
   EVoiceSessionType,
-  IVoiceRoomJoin,
-  IVoiceRoomProduceResult,
-  IVoiceRoomSetMuteState,
+  TVoiceRoomJoin,
+  TVoiceRoomProduceResult,
+  TVoiceRoomSetMuteState,
   TVoiceSessionTarget,
   getVoiceSessionKey,
 } from '@konvoez/shared';
@@ -160,7 +160,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
           this.socket.emit(EVoiceRoomEvent.SET_MUTE_STATE, {
             muted,
             deafened,
-          } satisfies IVoiceRoomSetMuteState);
+          } satisfies TVoiceRoomSetMuteState);
         }
       }
     });
@@ -261,7 +261,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
               : undefined,
           muted: this.voiceAudioPreferencesStore.microphoneMuted(),
           deafened: this.voiceAudioPreferencesStore.speakerMuted(),
-        } satisfies IVoiceRoomJoin,
+        } satisfies TVoiceRoomJoin,
         VOICE_JOIN_ACK_MS,
       );
 
@@ -451,7 +451,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     );
   }
 
-  private async consume(data: IVoiceRoomProduceResult): Promise<void> {
+  private async consume(data: TVoiceRoomProduceResult): Promise<void> {
     await this.mediasoupSessionService.consume(data, (userId) =>
       this.resolvePeer(userId),
     );

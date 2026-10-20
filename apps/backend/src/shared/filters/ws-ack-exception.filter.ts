@@ -1,5 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common';
-import type { WsAckError } from '@konvoez/shared';
+import type { TWsAckError } from '@konvoez/shared';
 import { toApiErrorResponse } from '../errors/to-api-error';
 
 @Catch()
@@ -9,7 +9,8 @@ export class WsAckExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const args = host.getArgs();
     const ack = args.find(
-      (arg): arg is (response: WsAckError) => void => typeof arg === 'function',
+      (arg): arg is (response: TWsAckError) => void =>
+        typeof arg === 'function',
     );
 
     const { body, logLevel } = toApiErrorResponse(exception);

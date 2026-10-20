@@ -18,6 +18,7 @@ import {
   TuiFade,
 } from '@taiga-ui/kit';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
+import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
@@ -42,14 +43,25 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
 export class DirectChatItemComponent {
   private readonly ngrxStore = inject(Store);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
+  protected readonly usersStore = inject(UsersStore);
 
   readonly user = input.required<IUser>();
   readonly selected = output<IUser>();
 
-  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
   protected readonly isSelf = computed(() => {
     const current = this.currentUser();
     const user = this.user();
     return current?.id === user.id;
   });
+  protected readonly isOnline = computed(() => {
+    const isSelf = this.isSelf();
+    const user = this.user();
+    const onlineMap = this.usersStore.onlineMap();
+    if (isSelf) {
+      return false;
+    }
+    return Boolean(onlineMap[user.id]);
+  });
+
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
 }

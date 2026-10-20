@@ -5,7 +5,8 @@ import {
   stringSchema,
 } from './base.schemas';
 import { emailSchema, fullnameSchema, usernameSchema } from './fields.schemas';
-import { EUserRole } from '../enums';
+import { EPermission, EUserRole } from '../enums';
+import { roleSummarySchema } from './role.schemas';
 
 export const userRoleSchema = z.enum(EUserRole);
 
@@ -14,7 +15,10 @@ export const userSchema = baseEntitySchema.extend({
   username: usernameSchema,
   fullname: fullnameSchema,
   email: emailSchema,
-  role: userRoleSchema,
+  isOwner: z.boolean().default(false),
+  roles: z.array(roleSummarySchema).default([]),
+  permissions: z.array(z.nativeEnum(EPermission)).default([]),
+  role: userRoleSchema.optional(),
   avatar: stringSchema.nullish(),
   avatarUrl: stringSchema.nullish(),
   deletedAt: z.coerce.date().nullish(),

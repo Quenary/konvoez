@@ -7,25 +7,18 @@ import {
   OnGatewayDisconnect,
   OnGatewayConnection,
 } from '@nestjs/websockets';
-import { Logger, OnModuleDestroy, UseFilters } from '@nestjs/common';
+import { Logger, OnModuleDestroy, UseFilters, UsePipes } from '@nestjs/common';
 import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { AppException } from '@shared/errors/app.exception';
 import { Socket, Server, DefaultEventsMap } from 'socket.io';
+import { ZodValidationPipe } from 'nestjs-zod';
 import {
-  type IVoiceRoomConnectTransport,
-  type IVoiceRoomConsume,
-  type IVoiceRoomConsumeResult,
-  type IVoiceRoomCreateTransport,
-  type IVoiceRoomCreateTransportResult,
-  type IVoiceRoomGetAllPeersSnapshot,
-  type IVoiceRoomJoin,
-  type IVoiceRoomProduce,
-  type IVoiceRoomProduceResult,
-  type IVoiceRoomProducerClosed,
-  type IVoiceRoomCloseProducer,
-  type IVoiceRoomCloseConsumer,
-  type IVoiceRoomSetMuteState,
-  type IVoiceRoomPeerMuted,
+  type TVoiceRoomConsumeResult,
+  type TVoiceRoomCreateTransportResult,
+  type TVoiceRoomGetAllPeersSnapshot,
+  type TVoiceRoomProduceResult,
+  type TVoiceRoomProducerClosed,
+  type TVoiceRoomPeerMuted,
   type IUser,
   EVoiceRoomEvent,
   EDirectCallEvent,
@@ -33,28 +26,41 @@ import {
   getVoiceSessionKey,
   EVoiceSessionType,
   toVoiceSessionIdentity,
-  type ICallInitiatePayload,
-  type ICallAcceptPayload,
-  type ICallRejectPayload,
-  type ICallHangupPayload,
-  type ICallGetActivePayload,
-  type ICallGetActiveResult,
+  type TCallGetActiveResult,
   type TVoiceSessionIdentity,
   isDirectCallVoiceSession,
   ApiErrorCode,
   DIRECT_CALL_RING_TIMEOUT_MS,
+  EPermission,
 } from '@konvoez/shared';
+import {
+  CallAcceptDto,
+  CallGetActiveDto,
+  CallHangupDto,
+  CallInitiateDto,
+  CallRejectDto,
+  VoiceRoomCloseConsumerDto,
+  VoiceRoomCloseProducerDto,
+  VoiceRoomConnectTransportDto,
+  VoiceRoomConsumeDto,
+  VoiceRoomCreateTransportDto,
+  VoiceRoomJoinDto,
+  VoiceRoomProduceDto,
+  VoiceRoomSetMuteStateDto,
+} from './voice-rooms.dto';
 import { AuthService } from '../auth/auth.service';
+import { RoomsFacade } from '../rooms/rooms.facade';
 import { AppService } from '@shared/services/app.service';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
-} from '@shared/events/notifications.events';
+} from '../notifications/notifications.events';
 import {
-  EntitySyncDomainEvents,
-  emitEntitySyncDomainEvent,
-} from '@shared/events/entity-sync.events';
+  VoiceRoomsDomainEvents,
+  emitVoiceRoomsDomainEvent,
+} from './voice-rooms.events';
+import { RoomsDomainEvents } from '../rooms/rooms.events';
 import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
@@ -93,6 +99,7 @@ type TSocket = Socket<
 const DIRECT_CALL_CALLER_RECONNECT_GRACE_MS = 5_000;
 
 @UseFilters(WsAckExceptionFilter)
+@UsePipes(ZodValidationPipe)
 @WebSocketGateway({
   path: '/ws/v1/voice',
   cors: { origin: '*' },
@@ -110,12 +117,13 @@ export class VoiceRoomsGateway
   constructor(
     private readonly authService: AuthService,
     private readonly appService: AppService,
+    private readonly roomsFacade: RoomsFacade,
     private readonly voiceRoomsStateService: VoiceRoomsStateService,
     private readonly directCallsStateService: DirectCallsStateService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  @OnEvent(EntitySyncDomainEvents.ROOM_DELETED)
+  @OnEvent(RoomsDomainEvents.ROOM_DELETED)
   handleRoomDeletedEvent({ id }: { id: number }): void {
     const sessionKey = getVoiceSessionKey({
       type: EVoiceSessionType.GROUP_ROOM,
@@ -220,7 +228,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.JOIN_ROOM)
   async handleJoinRoom(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomJoin,
+    @MessageBody() body: VoiceRoomJoinDto,
   ) {
     let identity: TVoiceSessionIdentity;
     let roomId: number | undefined;
@@ -286,7 +294,30 @@ export class VoiceRoomsGateway
     this.logger.debug(
       `handleJoinRoom: socketId=${socket.id}, sessionKey=${sessionKey}, roomId=${roomId}, userId=${socket.data.user?.id}`,
     );
-    const user = socket.data.user;
+    const current = socket.data.user;
+    if (!current) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+    const fresh = await this.authService.getActiveUserById(current.id);
+    const user = { ...current, ...fresh };
+    socket.data.user = user;
+
+    if (
+      !user.isOwner &&
+      !user.permissions?.includes(EPermission.CONNECT_VOICE)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Permission denied to connect to voice',
+      );
+    }
+
+    if (roomId !== undefined) {
+      await this.roomsFacade.assertCanAccessRoom(user, roomId);
+    }
 
     // Ensure room + register peer before exposing session on the socket.
     // Otherwise concurrent GET_RTP_CAPABILITIES can see sessionKey without a peer
@@ -317,9 +348,9 @@ export class VoiceRoomsGateway
     socket.data.roomId = roomId;
 
     if (roomId !== undefined && !userAlreadyInRoom) {
-      emitEntitySyncDomainEvent(
+      emitVoiceRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_JOINED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED,
         this.voiceRoomsStateService.createLobbyPeerJoined(
           roomId,
           user,
@@ -378,9 +409,9 @@ export class VoiceRoomsGateway
       room.peers.delete(socket.id);
 
       if (roomId !== undefined && !this.isUserInRoom(room, peer.user.id)) {
-        emitEntitySyncDomainEvent(
+        emitVoiceRoomsDomainEvent(
           this.eventEmitter,
-          EntitySyncDomainEvents.VOICE_ROOM_PEER_LEFT,
+          VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
           this.voiceRoomsStateService.createLobbyPeerLeft(roomId, peer.user.id),
         );
       }
@@ -416,7 +447,7 @@ export class VoiceRoomsGateway
   }
 
   @SubscribeMessage(EVoiceRoomEvent.GET_ALL_PEERS)
-  handleGetAllPeers(): IVoiceRoomGetAllPeersSnapshot {
+  handleGetAllPeers(): TVoiceRoomGetAllPeersSnapshot {
     return this.voiceRoomsStateService.getLobbySnapshot();
   }
 
@@ -429,7 +460,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.CREATE_TRANSPORT)
   async handleCreateTransport(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomCreateTransport,
+    @MessageBody() body: VoiceRoomCreateTransportDto,
   ) {
     const { room, peer, sessionKey } = this.getSocketRoomPeer(socket);
     this.logger.debug(
@@ -455,13 +486,13 @@ export class VoiceRoomsGateway
       iceCandidates: transport.iceCandidates,
       dtlsParameters: transport.dtlsParameters,
       sctpParameters: transport.sctpParameters,
-    } satisfies IVoiceRoomCreateTransportResult;
+    } satisfies TVoiceRoomCreateTransportResult;
   }
 
   @SubscribeMessage(EVoiceRoomEvent.CONNECT_TRANSPORT)
   async connectTransport(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomConnectTransport,
+    @MessageBody() body: VoiceRoomConnectTransportDto,
   ) {
     const { peer, sessionKey } = this.getSocketRoomPeer(socket);
     this.logger.debug(
@@ -491,7 +522,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.PRODUCE)
   async produce(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomProduce,
+    @MessageBody() body: VoiceRoomProduceDto,
   ) {
     const { room, peer, sessionKey } = this.getSocketRoomPeer(socket);
     this.logger.debug(
@@ -565,7 +596,7 @@ export class VoiceRoomsGateway
       producer.observer.on('close', onClosed);
       producer.on('transportclose', onClosed);
 
-      const result: IVoiceRoomProduceResult = {
+      const result: TVoiceRoomProduceResult = {
         producerId: producer.id,
         userId: peer.user.id,
         kind: body.kind,
@@ -582,7 +613,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.CLOSE_PRODUCER)
   async closeProducer(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomCloseProducer,
+    @MessageBody() body: VoiceRoomCloseProducerDto,
   ) {
     const { room, peer, sessionKey } = this.getSocketRoomPeer(socket);
     this.logger.debug(
@@ -607,7 +638,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.CLOSE_CONSUMER)
   async closeConsumer(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomCloseConsumer,
+    @MessageBody() body: VoiceRoomCloseConsumerDto,
   ) {
     const { peer, sessionKey } = this.getSocketRoomPeer(socket);
     this.logger.debug(
@@ -629,7 +660,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.SET_MUTE_STATE)
   handleSetMuteState(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomSetMuteState,
+    @MessageBody() body: VoiceRoomSetMuteStateDto,
   ) {
     const { peer, sessionKey } = this.getSocketRoomPeer(socket);
     const muted = Boolean(body?.muted);
@@ -642,7 +673,7 @@ export class VoiceRoomsGateway
     peer.muted = muted;
     peer.deafened = deafened;
 
-    const payload: IVoiceRoomPeerMuted = {
+    const payload: TVoiceRoomPeerMuted = {
       userId: peer.user.id,
       muted,
       deafened,
@@ -653,9 +684,9 @@ export class VoiceRoomsGateway
     socket.to(roomsToEmit).emit(EVoiceRoomEvent.PEER_MUTE_CHANGED, payload);
 
     if (socket.data.roomId !== undefined) {
-      emitEntitySyncDomainEvent(
+      emitVoiceRoomsDomainEvent(
         this.eventEmitter,
-        EntitySyncDomainEvents.VOICE_ROOM_PEER_MUTED,
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_MUTED,
         this.voiceRoomsStateService.createLobbyPeerMuted(
           socket.data.roomId,
           peer.user.id,
@@ -671,7 +702,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EVoiceRoomEvent.CONSUME)
   async consume(
     @ConnectedSocket() socket: TSocket,
-    @MessageBody() body: IVoiceRoomConsume,
+    @MessageBody() body: VoiceRoomConsumeDto,
   ) {
     const { room, peer, sessionKey } = this.getSocketRoomPeer(socket);
     this.logger.debug(
@@ -740,7 +771,7 @@ export class VoiceRoomsGateway
       kind: consumer.kind,
       mediaTag: consumer.appData.mediaTag,
       rtpParameters: consumer.rtpParameters,
-    } satisfies IVoiceRoomConsumeResult;
+    } satisfies TVoiceRoomConsumeResult;
   }
 
   // --- Direct call signaling ---
@@ -748,7 +779,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EDirectCallEvent.CALL_INITIATE)
   handleCallInitiate(
     @ConnectedSocket() client: TSocket,
-    @MessageBody() body: ICallInitiatePayload,
+    @MessageBody() body: CallInitiateDto,
   ) {
     const caller = client.data.user;
     if (!caller) {
@@ -800,7 +831,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EDirectCallEvent.CALL_ACCEPT)
   handleCallAccept(
     @ConnectedSocket() client: TSocket,
-    @MessageBody() body: ICallAcceptPayload,
+    @MessageBody() body: CallAcceptDto,
   ) {
     const recipient = client.data.user;
     if (!recipient) {
@@ -845,7 +876,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EDirectCallEvent.CALL_REJECT)
   handleCallReject(
     @ConnectedSocket() client: TSocket,
-    @MessageBody() body: ICallRejectPayload,
+    @MessageBody() body: CallRejectDto,
   ) {
     const recipient = client.data.user;
     if (!recipient) {
@@ -882,7 +913,7 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EDirectCallEvent.CALL_HANGUP)
   handleCallHangup(
     @ConnectedSocket() _client: TSocket,
-    @MessageBody() body: ICallHangupPayload,
+    @MessageBody() body: CallHangupDto,
   ) {
     // Hangup only cancels a ringing call. Connected participants use LEAVE_ROOM.
     const existing = this.directCallsStateService.get(body.callId);
@@ -916,15 +947,15 @@ export class VoiceRoomsGateway
   @SubscribeMessage(EDirectCallEvent.CALL_GET_ACTIVE)
   handleCallGetActive(
     @ConnectedSocket() client: TSocket,
-    @MessageBody() body: ICallGetActivePayload,
-  ): ICallGetActiveResult | null {
+    @MessageBody() body?: CallGetActiveDto,
+  ): TCallGetActiveResult | null {
     const user = client.data.user;
     if (!user) {
       return null;
     }
 
     const call =
-      body.interlocutorId !== undefined
+      body?.interlocutorId !== undefined
         ? this.directCallsStateService.findActiveBetween(
             user.id,
             body.interlocutorId,
@@ -1193,7 +1224,7 @@ export class VoiceRoomsGateway
       `Producer closed: producerId=${producer.id}, userId=${peer.user.id}, sessionKey=${sessionKey}`,
     );
 
-    const payload: IVoiceRoomProducerClosed = {
+    const payload: TVoiceRoomProducerClosed = {
       producerId: producer.id,
       userId: peer.user.id,
       ...(reason ? { reason } : {}),

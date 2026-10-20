@@ -1,4 +1,7 @@
 import { defineConfig, Options } from '@mikro-orm/core';
+import type { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import type { MySqlDriver } from '@mikro-orm/mysql';
+import type { SqliteDriver } from '@mikro-orm/sqlite';
 import { CompiledQuery, type DatabaseConnection } from 'kysely';
 import { Migrator } from '@mikro-orm/migrations';
 import { UserEntitySchema } from './features/users/users.entity';
@@ -6,6 +9,7 @@ import { RoomEntitySchema } from './features/rooms/rooms.entity';
 import { SettingsEntitySchema } from './features/settings/settings.entity';
 import {
   MessageEntitySchema,
+  MessageMentionEntitySchema,
   MessageReadEntitySchema,
   MessageReactionEntitySchema,
   MessageSearchTokenEntitySchema,
@@ -28,6 +32,11 @@ import { Migration20260930120000_NormalizeEmails } from './migrations/Migration2
 import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
 import { Migration20261003224050_MessageAttachments } from './migrations/Migration20261003224050_MessageAttachments';
 import { Migration20261009130000_MessageReactions } from './migrations/Migration20261009130000_MessageReactions';
+import { Migration20261017170127_RolesAndRoomAccess } from './migrations/Migration20261017170127_RolesAndRoomAccess';
+import { Migration20261019120000_MentionableRoles } from './migrations/Migration20261019120000_MentionableRoles';
+import { Migration20261019130000_MessageMentions } from './migrations/Migration20261019130000_MessageMentions';
+
+import { RoleEntitySchema } from './features/roles/roles.entity';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
 
@@ -36,9 +45,11 @@ export async function createMikroOrmConfig() {
     entities: [
       KonvoezBaseEntitySchema,
       UserEntitySchema,
+      RoleEntitySchema,
       RoomEntitySchema,
       SettingsEntitySchema,
       MessageEntitySchema,
+      MessageMentionEntitySchema,
       MessageSearchTokenEntitySchema,
       InviteEntitySchema,
       MessageReadEntitySchema,
@@ -49,6 +60,8 @@ export async function createMikroOrmConfig() {
     ],
     extensions: [Migrator],
     migrations: {
+      allOrNothing: false,
+      snapshot: false,
       // Used by the CLI (`migration:create`) which runs with cwd=apps/backend.
       pathTs: './src/migrations',
       // Explicit list is required for the webpack-bundled app (no FS discovery).
@@ -66,6 +79,9 @@ export async function createMikroOrmConfig() {
         Migration20260930092254_UserSoftDelete,
         Migration20261003224050_MessageAttachments,
         Migration20261009130000_MessageReactions,
+        Migration20261017170127_RolesAndRoomAccess,
+        Migration20261019120000_MentionableRoles,
+        Migration20261019130000_MessageMentions,
       ],
     },
   } satisfies Partial<Options>;
@@ -74,7 +90,7 @@ export async function createMikroOrmConfig() {
 
   switch (engine) {
     case 'postgres': {
-      return defineConfig({
+      return defineConfig<PostgreSqlDriver>({
         ...baseOptions,
         driver: await import('@mikro-orm/postgresql').then(
           (m) => m.PostgreSqlDriver,
@@ -87,7 +103,7 @@ export async function createMikroOrmConfig() {
       });
     }
     case 'mysql': {
-      return defineConfig({
+      return defineConfig<MySqlDriver>({
         ...baseOptions,
         driver: await import('@mikro-orm/mysql').then((m) => m.MySqlDriver),
         dbName: process.env.DB_NAME || 'konvoez',
@@ -98,7 +114,7 @@ export async function createMikroOrmConfig() {
       });
     }
     default: {
-      return defineConfig({
+      return defineConfig<SqliteDriver>({
         ...baseOptions,
         driver: await import('@mikro-orm/sqlite').then((m) => m.SqliteDriver),
         dbName: process.env.DB_NAME || getDefaultSqliteDbPath(),

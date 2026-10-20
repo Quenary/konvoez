@@ -9,6 +9,7 @@ import {
   ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
   IUser,
+  TTextRoomReadAll,
 } from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
 import { environment } from '@environments/environment';
@@ -73,6 +74,16 @@ export class ChatApiService {
     return this.httpClient.post<void>(
       `${environment.apiPath}/text-rooms/read`,
       { messageIds },
+    );
+  }
+
+  readAll(body: TTextRoomReadAll): Observable<ITextRoomUnreadCounts> {
+    return this.httpClient.post<ITextRoomUnreadCounts>(
+      `${environment.apiPath}/text-rooms/read-all`,
+      body,
+      {
+        withCredentials: true,
+      },
     );
   }
 

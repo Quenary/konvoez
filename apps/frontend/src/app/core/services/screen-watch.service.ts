@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { EVoiceRoomEvent, IVoiceRoomCloseConsumer } from '@konvoez/shared';
+import { EVoiceRoomEvent, TVoiceRoomCloseConsumer } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { emitVoiceRoomWithAck } from './voice-room-socket-ack';
 import { MediasoupSessionService } from './mediasoup-session.service';
@@ -83,7 +83,7 @@ export class ScreenWatchService {
           EVoiceRoomEvent.CLOSE_CONSUMER,
           {
             consumerId,
-          } satisfies IVoiceRoomCloseConsumer,
+          } satisfies TVoiceRoomCloseConsumer,
         );
       } catch (error) {
         console.warn('close-consumer ack failed', error);

@@ -6,7 +6,6 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
-import { EUserRole } from '@konvoez/shared';
 import {
   AUDIO_DEVICE_HANDLER,
   IAudioDeviceHandler,
@@ -28,7 +27,10 @@ describe('InitialSetupService', () => {
     username: 'tester',
     email: 'test@example.com',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,

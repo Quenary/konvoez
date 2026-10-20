@@ -1,25 +1,35 @@
 # Rooms
 
-Text and voice rooms are managed via `/api/v1/rooms`. Listing and reading are available to any authenticated user. Creating, updating, deleting, and uploading a room avatar require an `OWNER` or `ADMIN` session. `MEMBER` gets `403`.
+The app supports text and voice rooms. Any authenticated user can list and use the rooms they have access to. Creating, editing and deleting rooms (and uploading a room avatar) requires `MANAGE_ROOMS` or `OWNER`; other users get `403`.
 
-Room authorship (`author`: `IUserBrief` — id, username, fullname) is stored on create for audit and returned in room DTOs, but does not grant edit/delete rights — only role does.
+The room author (id, username, full name) is recorded for audit and returned with the room, but it does not grant edit or delete rights. Room names are unique; a duplicate returns `409`.
 
-## API
+## Access control
 
-| Method   | Path                          | Roles             | Notes                                      |
-| -------- | ----------------------------- | ----------------- | ------------------------------------------ |
-| `GET`    | `/api/v1/rooms`               | any authenticated | List all rooms                             |
-| `GET`    | `/api/v1/rooms/:id`           | any authenticated | Single room                                |
-| `POST`   | `/api/v1/rooms`               | `OWNER` / `ADMIN` | Create (`name`, `type`, optional `avatar`) |
-| `PUT`    | `/api/v1/rooms/:id`           | `OWNER` / `ADMIN` | Update name / avatar                       |
-| `DELETE` | `/api/v1/rooms/:id`           | `OWNER` / `ADMIN` | Delete room                                |
-| `POST`   | `/api/v1/rooms/avatar/upload` | `OWNER` / `ADMIN` | Upload avatar file, returns key + URL      |
-| `GET`    | `/api/v1/rooms/avatar/stream` | any authenticated | Stream avatar by `key`                     |
+Rooms are **public** (visible to every authenticated user) or **private** (restricted to allowed roles and allowed users).
 
-Room names are unique. Duplicate names return `409`.
+```mermaid
+flowchart TD
+  A[User requests a room] --> P{Room is private?}
+  P -- no --> OK[Access granted]
+  P -- yes --> O{OWNER?}
+  O -- yes --> OK
+  O -- no --> U{User in allowed users?}
+  U -- yes --> OK
+  U -- no --> R{Any active role in allowed roles?}
+  R -- yes --> OK
+  R -- no --> NO["No access: hidden from the list,<br/>no voice, no history, no messages"]
+```
+
+Active roles include assigned roles and the default roles.
 
 ## UI
 
-In the aside rooms list, the **add** buttons (text / voice) and the per-room context menu (edit / delete) are shown only when the current user is `OWNER` or `ADMIN`. Members can still open and use rooms.
+- The **add** buttons (text, voice) and the per-room context menu (edit, delete) in the rooms list are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
+- The edit dialog sets privacy, allowed roles and allowed users, and shows the read-only author, created and updated fields.
+- Deleting a voice room closes its active voice session for all participants (see [Voice](frontend/VOICE.md)).
 
-The edit dialog shows read-only **author**, **created**, and **updated** fields (same layout as the user-management dialog).
+## Related
+
+- [Mentions](MENTIONS.md): `@user`, `@Role` and `@everyone` in text rooms, with the `@` badge for unread mentions.
+- [Chat reading](CHAT_READING.md): opening a chat and unread counts.

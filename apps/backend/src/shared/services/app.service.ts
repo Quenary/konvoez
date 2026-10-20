@@ -96,12 +96,6 @@ export class AppService {
     process.env['COOKIE_DOMAIN'];
 
   /**
-   * Contact email included in VAPID details.
-   */
-  public readonly VAPID_EMAIL: string =
-    process.env['VAPID_EMAIL'] || 'konvoez@invalid.email';
-
-  /**
    * Directory for persisting VAPID keys on disk.
    * Default is the shared app data directory next to sqlite and files.
    */

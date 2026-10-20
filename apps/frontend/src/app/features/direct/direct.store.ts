@@ -94,6 +94,16 @@ export const DirectStore = signalStore(
 
       const avatarIcon = computed(() => (isSelf() ? '@tui.bookmark' : null));
 
+      const isOnline = computed(() => {
+        const self = isSelf();
+        const directUser = user();
+        const onlineMap = usersStore.onlineMap();
+        if (self || !directUser) {
+          return false;
+        }
+        return Boolean(onlineMap[directUser.id]);
+      });
+
       const view = computed((): 'call' | 'chat' => {
         const active = isCurrentDirectCallActive();
         const preferChat = store.preferChat();
@@ -111,6 +121,7 @@ export const DirectStore = signalStore(
         title,
         avatarUrl,
         avatarIcon,
+        isOnline,
         view,
       };
     },

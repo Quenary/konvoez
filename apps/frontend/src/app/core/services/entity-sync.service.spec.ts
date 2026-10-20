@@ -6,7 +6,6 @@ import {
   EEntitySyncEvent,
   EVoiceRoomEvent,
   ERoomType,
-  EUserRole,
   IRoom,
   IUser,
 } from '@konvoez/shared';
@@ -19,6 +18,7 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@core/auth/auth.selectors';
+import { RolesStore } from '@core/stores/roles.store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { UsersStore } from '@core/stores/users.store';
 import { VoiceSessionService } from './voice-session.service';
@@ -34,10 +34,15 @@ describe('EntitySyncService', () => {
   let usersStore: {
     upsertOne: ReturnType<typeof vi.fn>;
     removeOne: ReturnType<typeof vi.fn>;
+    setOnlineUsers: ReturnType<typeof vi.fn>;
+    setUserPresence: ReturnType<typeof vi.fn>;
   };
   let roomsStore: {
     upsertOne: ReturnType<typeof vi.fn>;
     removeOne: ReturnType<typeof vi.fn>;
+  };
+  let rolesStore: {
+    loadAll: ReturnType<typeof vi.fn>;
   };
   let voiceSessionStore: {
     applyUserEntityUpdate: ReturnType<typeof vi.fn>;
@@ -67,7 +72,10 @@ describe('EntitySyncService', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -78,7 +86,10 @@ describe('EntitySyncService', () => {
     username: 'bob',
     fullname: 'Bob',
     email: 'bob@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
+    avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -90,6 +101,9 @@ describe('EntitySyncService', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    isPrivate: false,
+    allowedRoleIds: [],
+    allowedUserIds: [],
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
@@ -105,11 +119,17 @@ describe('EntitySyncService', () => {
     usersStore = {
       upsertOne: vi.fn(),
       removeOne: vi.fn(),
+      setOnlineUsers: vi.fn(),
+      setUserPresence: vi.fn(),
     };
 
     roomsStore = {
       upsertOne: vi.fn(),
       removeOne: vi.fn(),
+    };
+
+    rolesStore = {
+      loadAll: vi.fn(),
     };
 
     voiceSessionStore = {
@@ -159,6 +179,7 @@ describe('EntitySyncService', () => {
         { provide: EntitySyncSocketToken, useValue: socket },
         { provide: VoiceRoomSocketToken, useValue: voiceRoomSocket },
         { provide: UsersStore, useValue: usersStore },
+        { provide: RolesStore, useValue: rolesStore },
         { provide: RoomsStore, useValue: roomsStore },
         { provide: VoiceSessionStore, useValue: voiceSessionStore },
         { provide: VoiceSessionService, useValue: voiceSessionService },
@@ -247,6 +268,41 @@ describe('EntitySyncService', () => {
     );
   });
 
+  it('updates online users on USER_PRESENCE_SNAPSHOT', () => {
+    createService();
+    emitter.emit(EEntitySyncEvent.USER_PRESENCE_SNAPSHOT, {
+      userIds: [1, 2, 3],
+    });
+
+    expect(usersStore.setOnlineUsers).toHaveBeenCalledWith([1, 2, 3]);
+  });
+
+  it('updates individual user presence on USER_PRESENCE_CHANGED', () => {
+    createService();
+    emitter.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, {
+      userId: 42,
+      isOnline: true,
+    });
+
+    expect(usersStore.setUserPresence).toHaveBeenCalledWith(42, true);
+
+    emitter.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, {
+      userId: 42,
+      isOnline: false,
+    });
+
+    expect(usersStore.setUserPresence).toHaveBeenCalledWith(42, false);
+  });
+
+  it('clears online users on entity sync socket disconnect', () => {
+    createService();
+    usersStore.setOnlineUsers.mockClear();
+
+    emitter.emit('disconnect');
+
+    expect(usersStore.setOnlineUsers).toHaveBeenCalledWith([]);
+  });
+
   it('upserts room on ROOM_CREATED and ROOM_UPDATED', () => {
     createService();
     emitter.emit(EEntitySyncEvent.ROOM_CREATED, room);
@@ -263,6 +319,15 @@ describe('EntitySyncService', () => {
     createService();
     emitter.emit(EEntitySyncEvent.ROOM_DELETED, { id: room.id });
     expect(roomsStore.removeOne).toHaveBeenCalledWith(room.id);
+  });
+
+  it('reloads roles on ROLES_CHANGED', () => {
+    createService();
+    rolesStore.loadAll.mockClear();
+
+    emitter.emit(EEntitySyncEvent.ROLES_CHANGED);
+
+    expect(rolesStore.loadAll).toHaveBeenCalledTimes(1);
   });
 
   it('resets the voice lobby on logout', () => {

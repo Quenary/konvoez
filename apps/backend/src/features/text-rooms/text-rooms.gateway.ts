@@ -1,4 +1,4 @@
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Logger, UseFilters, UsePipes } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
@@ -10,17 +10,25 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
+import { ZodValidationPipe } from 'nestjs-zod';
+import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { AuthService } from '../auth/auth.service';
 import {
+  ApiErrorCode,
   ETextRoomEvent,
-  type ITextRoomJoin,
-  ITextRoomPeer,
-  TTextRoomEventMap,
+  type TTextRoomPeer,
+  type TTextRoomEventMap,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
+import { toApiErrorResponse } from '@shared/errors/to-api-error';
+import { TextRoomJoinDto } from './text-rooms.dto';
+import type { GetUserDto } from '../users/users.dto';
 import {
-  TextRoomDomainEvents,
-  type TTextRoomDomainPayloadMap,
-} from '@shared/events/text-room.events';
+  TextRoomsDomainEvents,
+  type TTextRoomsDomainPayloadMap,
+} from './text-rooms.events';
+
+import { RoomsFacade } from '../rooms/rooms.facade';
 
 type TSocket = Socket<
   TTextRoomEventMap,
@@ -29,10 +37,12 @@ type TSocket = Socket<
   {
     roomId?: number;
     recipientId?: number;
-    peer?: ITextRoomPeer;
+    peer?: TTextRoomPeer;
   }
 >;
 
+@UseFilters(WsAckExceptionFilter)
+@UsePipes(ZodValidationPipe)
 @WebSocketGateway({
   path: '/ws/v1/text',
   cors: { origin: '*' },
@@ -44,6 +54,8 @@ export class TextRoomsGateway
   private readonly server!: Server<TTextRoomEventMap>;
   @Inject(AuthService)
   private readonly authService!: AuthService;
+  @Inject(RoomsFacade)
+  private readonly roomsFacade!: RoomsFacade;
   private readonly logger = new Logger(TextRoomsGateway.name);
 
   private readonly userIdToSocketId: Map<number, string> = new Map();
@@ -58,7 +70,10 @@ export class TextRoomsGateway
         this.logger.warn(
           `Unauthorized socket connection attempt: socketId=${client.id}`,
         );
-        client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
+        this.emitError(
+          client,
+          AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+        );
         client.disconnect(true);
         return;
       }
@@ -66,7 +81,7 @@ export class TextRoomsGateway
       client.data.peer = {
         ...user,
         clientId: client.id,
-      } as ITextRoomPeer;
+      } as TTextRoomPeer;
 
       this.userIdToSocketId.set(user.id, client.id);
       client.join(user.id.toString());
@@ -79,7 +94,7 @@ export class TextRoomsGateway
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      client.emit(ETextRoomEvent.ERROR, { message: 'Unauthorized' });
+      this.emitError(client, error);
       client.disconnect(true);
     }
   }
@@ -95,29 +110,56 @@ export class TextRoomsGateway
   }
 
   @SubscribeMessage(ETextRoomEvent.JOIN)
-  handleJoin(
-    @MessageBody() body: ITextRoomJoin,
+  async handleJoin(
+    @MessageBody() body: TextRoomJoinDto,
     @ConnectedSocket() client: TSocket,
   ) {
     this.handleLeave(client);
 
     const { roomId, recipientId } = body;
+    const current = client.data.peer;
+    if (!current) {
+      this.logger.warn(`Socket join without peer: socketId=${client.id}`);
+      this.emitError(
+        client,
+        AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
+      );
+      return;
+    }
+
+    let fresh: GetUserDto;
+    try {
+      fresh = await this.authService.getActiveUserById(current.id);
+    } catch (error) {
+      this.emitError(client, error);
+      return;
+    }
+
+    const peer = { ...current, ...fresh, clientId: client.id } as TTextRoomPeer;
+    client.data.peer = peer;
+
     if (roomId) {
+      try {
+        await this.roomsFacade.assertCanAccessRoom(peer, roomId);
+      } catch (error) {
+        this.emitError(client, error);
+        return;
+      }
       client.data.roomId = roomId;
       client.join(roomId.toString());
     }
     if (recipientId) {
       client.data.recipientId = recipientId;
     }
-    const peer = client.data.peer;
-    if (peer) {
-      client.join(peer.id.toString());
-    } else {
-      this.logger.warn(`Socket join without peer: socketId=${client.id}`);
-    }
+    client.join(peer.id.toString());
     this.logger.debug(
-      `handleJoin: socketId=${client.id}, userId=${peer?.id}, roomId=${roomId}, recipientId=${recipientId}`,
+      `handleJoin: socketId=${client.id}, userId=${peer.id}, roomId=${roomId}, recipientId=${recipientId}`,
     );
+  }
+
+  private emitError(client: TSocket, exception: unknown): void {
+    const { body } = toApiErrorResponse(exception);
+    client.emit(ETextRoomEvent.ERROR, body);
   }
 
   @SubscribeMessage(ETextRoomEvent.LEAVE)
@@ -136,9 +178,9 @@ export class TextRoomsGateway
     }
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_CREATED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_CREATED)
   onMessageCreated(
-    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_CREATED],
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_CREATED],
   ) {
     if (body.roomId) {
       this.logger.debug(
@@ -169,9 +211,9 @@ export class TextRoomsGateway
     );
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_UPDATED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_UPDATED)
   onMessageUpdated(
-    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_UPDATED],
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_UPDATED],
   ) {
     if (body.roomId) {
       this.logger.debug(
@@ -195,17 +237,17 @@ export class TextRoomsGateway
     );
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_DELETED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_DELETED)
   onMessageDeleted(
-    payload: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_DELETED],
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_DELETED],
   ) {
     this.logger.debug(`Fan-out message deleted: messageId=${payload.id}`);
     return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, payload);
   }
 
-  @OnEvent(TextRoomDomainEvents.MESSAGE_REACTION_UPDATED)
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED)
   onMessageReactionUpdated(
-    body: TTextRoomDomainPayloadMap[typeof TextRoomDomainEvents.MESSAGE_REACTION_UPDATED],
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED],
   ) {
     if (body.roomId) {
       this.logger.debug(
@@ -227,5 +269,44 @@ export class TextRoomsGateway
     this.logger.warn(
       `Dropped message reaction updated without target: messageId=${body.messageId}`,
     );
+  }
+
+  @OnEvent(TextRoomsDomainEvents.MESSAGES_READ)
+  onMessagesRead(
+    body: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGES_READ],
+  ) {
+    if (body.roomId) {
+      this.logger.debug(
+        `Fan-out messages read: readerId=${body.readerId}, roomId=${body.roomId}`,
+      );
+      return this.server
+        .to(String(body.roomId))
+        .to(String(body.readerId))
+        .emit(ETextRoomEvent.MESSAGES_READ, body);
+    }
+    if (body.recipientId) {
+      this.logger.debug(
+        `Fan-out messages read: readerId=${body.readerId}, recipientId=${body.recipientId}`,
+      );
+      return this.server
+        .to(String(body.recipientId))
+        .to(String(body.readerId))
+        .emit(ETextRoomEvent.MESSAGES_READ, body);
+    }
+    this.logger.warn(
+      `Dropped messages read without target: readerId=${body.readerId}`,
+    );
+  }
+
+  @OnEvent(TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED)
+  onUnreadCountsChanged(
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED],
+  ) {
+    this.logger.debug(
+      `Fan-out unread counts changed: userId=${payload.userId}`,
+    );
+    return this.server
+      .to(String(payload.userId))
+      .emit(ETextRoomEvent.UNREAD_COUNTS_CHANGED, payload.counts);
   }
 }

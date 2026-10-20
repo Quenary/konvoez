@@ -10,11 +10,13 @@ import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
-import { EUserRole, IUser } from '@konvoez/shared';
+import { EPermission, IUser } from '@konvoez/shared';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
+import { RolesStore } from '@core/stores/roles.store';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;
@@ -37,6 +39,14 @@ describe('ChatMessageComponent', () => {
     entityMap: signal({}),
   };
 
+  const mockRolesStore = {
+    rolesById: signal({}),
+  };
+
+  const mockUserDialogService = {
+    open: vi.fn(),
+  };
+
   const mockNotificationService = {
     open: vi.fn(() => of(undefined)),
   };
@@ -52,7 +62,9 @@ describe('ChatMessageComponent', () => {
     username: 'alice',
     fullname: 'Alice',
     email: 'alice@example.com',
-    role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
@@ -74,6 +86,7 @@ describe('ChatMessageComponent', () => {
     status: EMessageStatus.SUCCESS,
     replyTo: null,
     reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
   };
 
   beforeEach(async () => {
@@ -121,6 +134,8 @@ describe('ChatMessageComponent', () => {
           useValue: { uploadProgress },
         },
         { provide: UsersStore, useValue: mockUsersStore },
+        { provide: RolesStore, useValue: mockRolesStore },
+        { provide: UserDialogService, useValue: mockUserDialogService },
         { provide: TuiNotificationService, useValue: mockNotificationService },
         { provide: TuiDialogService, useValue: mockDialogService },
         { provide: ChatApiService, useValue: mockChatApi },
@@ -345,9 +360,11 @@ describe('ChatMessageComponent', () => {
       senderUsername: 'bob',
     };
 
-    function loginAs(role: EUserRole): void {
+    function loginWith(overrides: Partial<IUser> = {}): void {
       TestBed.inject(Store).dispatch(
-        AuthActions.requestLoginSuccess({ user: { ...currentUser, role } }),
+        AuthActions.requestLoginSuccess({
+          user: { ...currentUser, ...overrides },
+        }),
       );
       fixture.detectChanges();
     }
@@ -359,7 +376,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('should allow deleting own messages in a room and in a direct chat', () => {
-      loginAs(EUserRole.MEMBER);
+      loginWith();
       expect(component['canDelete']()).toBe(true);
 
       fixture.componentRef.setInput('message', {
@@ -371,36 +388,40 @@ describe('ChatMessageComponent', () => {
       expect(component['canDelete']()).toBe(true);
     });
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
-      'should let %s delete another user room message',
-      (role) => {
-        loginAs(role);
+    it.each([
+      { isOwner: true, permissions: [] },
+      { isOwner: false, permissions: [EPermission.MODERATE_MESSAGES] },
+    ])(
+      'should let privileged user delete another user room message',
+      (overrides) => {
+        loginWith(overrides);
         fixture.componentRef.setInput('message', otherMessage);
         fixture.detectChanges();
         expect(component['canDelete']()).toBe(true);
       },
     );
 
-    it('should hide delete of another user room message for a member', () => {
-      loginAs(EUserRole.MEMBER);
+    it('should hide delete of another user room message for a normal member', () => {
+      loginWith({ isOwner: false, permissions: [] });
       fixture.componentRef.setInput('message', otherMessage);
       fixture.detectChanges();
       expect(component['canDelete']()).toBe(false);
     });
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER, EUserRole.MEMBER])(
-      'should hide delete of another user direct message for %s',
-      (role) => {
-        loginAs(role);
-        fixture.componentRef.setInput('message', {
-          ...otherMessage,
-          roomId: null,
-          recipientId: currentUser.id,
-        });
-        fixture.detectChanges();
-        expect(component['canDelete']()).toBe(false);
-      },
-    );
+    it.each([
+      { isOwner: true, permissions: [] },
+      { isOwner: false, permissions: [EPermission.MODERATE_MESSAGES] },
+      { isOwner: false, permissions: [] },
+    ])('should hide delete of another user direct message', (overrides) => {
+      loginWith(overrides);
+      fixture.componentRef.setInput('message', {
+        ...otherMessage,
+        roomId: null,
+        recipientId: currentUser.id,
+      });
+      fixture.detectChanges();
+      expect(component['canDelete']()).toBe(false);
+    });
   });
 
   describe('sender display from UsersStore', () => {
@@ -409,7 +430,9 @@ describe('ChatMessageComponent', () => {
       username: 'bob-new',
       fullname: 'Bob New',
       email: 'bob@example.com',
-      role: EUserRole.MEMBER,
+      isOwner: false,
+      roles: [],
+      permissions: [],
       avatar: 'avatar-key',
       avatarUrl: '/api/v1/users/avatar/stream?key=avatar-key',
       createdAt: new Date('2026-01-02'),
@@ -521,6 +544,204 @@ describe('ChatMessageComponent', () => {
       const el: HTMLElement = fixture.nativeElement;
       const reactionsEl = el.querySelector('app-chat-message-reactions');
       expect(reactionsEl).not.toBeNull();
+    });
+  });
+
+  describe('mentions', () => {
+    it('renders plain text unchanged in DMs without app-mention-chip', () => {
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: null,
+        recipientId: 2,
+        content: '<p>Hi <@1></p>',
+      });
+      fixture.detectChanges();
+
+      expect(component['isRoomMessage']()).toBe(false);
+      expect(
+        fixture.nativeElement.querySelector('app-mention-chip'),
+      ).toBeFalsy();
+      expect(fixture.nativeElement.textContent).toContain('<@1>');
+    });
+
+    it('escapes username containing HTML in mention chip', () => {
+      mockUsersStore.entityMap.set({
+        1: { ...currentUser, username: '<img src=x onerror=alert(1)>' },
+      });
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        recipientId: null,
+        content: '<p>Hi <@1></p>',
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector('app-mention-chip');
+      expect(chip).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('img[onerror]')).toBeFalsy();
+      expect(chip.textContent).toContain('<img src=x onerror=alert(1)>');
+    });
+
+    it('sets mention-chip-me and info appearance only for mentions of current user', () => {
+      const bobUser: IUser = { ...currentUser, id: 2, username: 'bob' };
+      mockUsersStore.entityMap.set({
+        1: currentUser,
+        2: bobUser,
+      });
+
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 2,
+        roomId: 1,
+        content: '<p><@1> and <@2></p>',
+        mentions: { userIds: [1], roleIds: [], everyone: false },
+      });
+      fixture.detectChanges();
+
+      const chips = fixture.nativeElement.querySelectorAll('app-mention-chip');
+      expect(chips.length).toBe(2);
+      expect(chips[0].classList.contains('mention-chip-me')).toBe(true);
+      expect(chips[1].classList.contains('mention-chip-me')).toBe(false);
+    });
+
+    it('does not set mention-chip-me when @everyone is not in accepted mentions and message is not mentioned', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 2,
+        roomId: 1,
+        content: '<p>@everyone</p>',
+        mentions: { userIds: [], roleIds: [], everyone: false },
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector('app-mention-chip');
+      expect(chip).toBeTruthy();
+      expect(chip.classList.contains('mention-chip-me')).toBe(false);
+    });
+
+    it('sets mention-chip-me when @everyone is accepted', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 2,
+        roomId: 1,
+        content: '<p>@everyone</p>',
+        mentions: { userIds: [], roleIds: [], everyone: true },
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector('app-mention-chip');
+      expect(chip).toBeTruthy();
+      expect(chip.classList.contains('mention-chip-me')).toBe(true);
+    });
+
+    it('does not set mention-chip-me on own message even if message contains mentions', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId: 1,
+        roomId: 1,
+        content: '<p><@1> and @everyone</p>',
+        mentions: { userIds: [1], roleIds: [], everyone: true },
+      });
+      fixture.detectChanges();
+
+      const chips = fixture.nativeElement.querySelectorAll('app-mention-chip');
+      expect(chips.length).toBe(2);
+      expect(chips[0].classList.contains('mention-chip-me')).toBe(false);
+      expect(chips[1].classList.contains('mention-chip-me')).toBe(false);
+    });
+
+    it('opens user dialog when clicking a user mention chip', () => {
+      mockUsersStore.entityMap.set({ 1: currentUser });
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        content: '<p><@1></p>',
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector(
+        'app-mention-chip[data-kind="user"]',
+      );
+      expect(chip).toBeTruthy();
+      chip.click();
+
+      expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
+    });
+  });
+
+  describe('readTrackingId', () => {
+    it('returns message id when message is not own, not read, and not pending create', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: 2,
+        isRead: false,
+        isPendingCreate: false,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBe('msg-42');
+    });
+
+    it('returns null when message is own', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: currentUser.id,
+        isRead: false,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBeNull();
+    });
+
+    it('returns null when message is already read', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: 2,
+        isRead: true,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBeNull();
+    });
+
+    it('returns null when message is pending create', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: 2,
+        isRead: false,
+        isPendingCreate: true,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBeNull();
     });
   });
 });

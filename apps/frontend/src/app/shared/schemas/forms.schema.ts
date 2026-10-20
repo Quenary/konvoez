@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import {
+  authLoginSchema,
   authRegisterSchema,
   emailSchema,
   fullnameSchema,
@@ -26,6 +27,12 @@ const refinePasswordMatch = <
 
 const requiredTrimmedString = (error: string) =>
   z.string({ error }).trim().min(1, { error });
+
+export const authLoginFormSchema = authLoginSchema.extend({
+  login: z.union([usernameSchema, emailSchema], {
+    error: 'VALIDATION.LOGIN',
+  }),
+});
 
 export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;
@@ -81,7 +88,17 @@ export const roomFormSchema = z.object({
   type: roomTypeSchema,
   avatar: stringSchema.nullable(),
   avatarFile: z.unknown().nullable(),
+  isPrivate: z.boolean().default(false),
 });
+
+export const roleFormSchema = z.object({
+  name: stringSchema.trim().min(1, { error: SCHEMA_ERROR.REQUIRED }).max(32),
+  color: stringSchema.trim().optional(),
+  isDefault: z.boolean().default(false),
+  mentionable: z.boolean().default(false),
+});
+
+export type RoleFormValue = z.infer<typeof roleFormSchema>;
 
 export const inviteMinTtlMinutes = inviteMinTtl / 60_000;
 export const inviteMaxTtlMinutes = inviteMaxTtl / 60_000;

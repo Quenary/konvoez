@@ -4,6 +4,8 @@
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
     "moduleResolution": "node10",
+    "allowJs": true,
+    "isolatedModules": true,
     "types": ["jest", "node", "multer"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

@@ -18,6 +18,7 @@ class MockChatComponent {
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
+  public readonly isOnline = input<boolean>(false);
 }
 
 @Component({ selector: 'app-voice-room-shell', template: '' })
@@ -47,6 +48,7 @@ describe('DirectComponent', () => {
   const title = signal('bob');
   const avatarUrl = signal<string | null>(null);
   const avatarIcon = signal<string | null>(null);
+  const isOnline = signal(false);
   const view = signal<'call' | 'chat'>('chat');
 
   const mockDirectStore = {
@@ -59,6 +61,7 @@ describe('DirectComponent', () => {
     title,
     avatarUrl,
     avatarIcon,
+    isOnline,
     view,
     showChat: vi.fn(),
     showCall: vi.fn(),
@@ -78,6 +81,7 @@ describe('DirectComponent', () => {
     title.set('bob');
     avatarUrl.set(null);
     avatarIcon.set(null);
+    isOnline.set(false);
     view.set('chat');
 
     await TestBed.configureTestingModule({
@@ -211,5 +215,20 @@ describe('DirectComponent', () => {
     expect(
       fixture.nativeElement.querySelector('app-pulse-indicator'),
     ).toBeNull();
+  });
+
+  it('binds isOnline to app-chat', () => {
+    isOnline.set(true);
+    fixture.detectChanges();
+
+    const chatDebugEl = fixture.debugElement.query(
+      (de) => de.componentInstance instanceof MockChatComponent,
+    );
+    expect(chatDebugEl).toBeTruthy();
+    expect(chatDebugEl.componentInstance.isOnline()).toBe(true);
+
+    isOnline.set(false);
+    fixture.detectChanges();
+    expect(chatDebugEl.componentInstance.isOnline()).toBe(false);
   });
 });

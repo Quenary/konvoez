@@ -36,4 +36,28 @@ describe('ChatApiService', () => {
     expect(res.items[0].createdAt).toBeInstanceOf(Date);
     expect(res.items[0].updatedAt).toBeInstanceOf(Date);
   });
+
+  it('calls readAll endpoint with credentials', async () => {
+    const post = vi.fn().mockReturnValue(
+      of({
+        rooms: {},
+        roomMentions: {},
+        direct: {},
+        directTotal: 0,
+      }),
+    );
+
+    TestBed.configureTestingModule({
+      providers: [ChatApiService, { provide: HttpClient, useValue: { post } }],
+    });
+
+    const body = { roomId: 10, recipientId: null };
+    await firstValueFrom(TestBed.inject(ChatApiService).readAll(body));
+
+    expect(post).toHaveBeenCalledWith(
+      expect.stringContaining('/text-rooms/read-all'),
+      body,
+      { withCredentials: true },
+    );
+  });
 });

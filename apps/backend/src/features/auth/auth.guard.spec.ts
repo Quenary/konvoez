@@ -22,19 +22,26 @@ jest.mock('@mikro-orm/core', () => {
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
-import { AuthGuardRoles, AuthRefreshFallback } from './auth.decorator';
+import {
+  AuthGuardRoles,
+  AuthRefreshFallback,
+  RequireOwner,
+  RequirePermissions,
+} from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { GetUserDto } from '../users/users.dto';
+import { PermissionsFacade } from '../permissions/permissions.facade';
 import type { Response } from 'express';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
   let authService: jest.Mocked<AuthService>;
   let reflector: jest.Mocked<Reflector>;
+  let permissionsFacade: jest.Mocked<PermissionsFacade>;
 
   const mockUser: GetUserDto = {
     id: 1,
@@ -42,6 +49,9 @@ describe('AuthGuard', () => {
     fullname: 'Test User',
     email: 'test@example.com',
     role: EUserRole.MEMBER,
+    isOwner: false,
+    roles: [],
+    permissions: [],
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
@@ -83,12 +93,21 @@ describe('AuthGuard', () => {
             getAllAndOverride: jest.fn(),
           },
         },
+        {
+          provide: PermissionsFacade,
+          useValue: {
+            getUserPermissions: jest.fn().mockResolvedValue([]),
+            hasPermission: jest.fn().mockResolvedValue(true),
+            hasAllPermissions: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 
     guard = module.get<AuthGuard>(AuthGuard);
     authService = module.get(AuthService);
     reflector = module.get(Reflector);
+    permissionsFacade = module.get(PermissionsFacade);
   });
 
   describe('canActivate', () => {
@@ -96,7 +115,7 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.getAllAndOverride.mockReturnValueOnce(undefined);
+      reflector.getAllAndOverride.mockReturnValue(undefined);
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       const result = await guard.canActivate(context);
@@ -114,10 +133,10 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.getAllAndOverride.mockReturnValueOnce([
-        EUserRole.MEMBER,
-        EUserRole.ADMIN,
-      ]);
+      reflector.getAllAndOverride.mockImplementation((key) => {
+        if (key === AuthGuardRoles) return [EUserRole.MEMBER, EUserRole.ADMIN];
+        return undefined;
+      });
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       const result = await guard.canActivate(context);
@@ -130,7 +149,10 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.getAllAndOverride.mockReturnValueOnce([EUserRole.ADMIN]);
+      reflector.getAllAndOverride.mockImplementation((key) => {
+        if (key === AuthGuardRoles) return [EUserRole.ADMIN];
+        return undefined;
+      });
       authService.getMe.mockResolvedValueOnce(mockUser);
 
       await expect(guard.canActivate(context)).rejects.toMatchObject({
@@ -139,11 +161,59 @@ describe('AuthGuard', () => {
       expect(request['author']).toBeUndefined();
     });
 
+    it('should enforce RequireOwner when non-owner accesses', async () => {
+      const request: Record<string, unknown> = {};
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockImplementation((key) => {
+        if (key === RequireOwner) return true;
+        return undefined;
+      });
+      authService.getMe.mockResolvedValueOnce(mockUser);
+
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_METHOD_FORBIDDEN,
+      });
+    });
+
+    it('should allow RequireOwner when user is owner', async () => {
+      const request: Record<string, unknown> = {};
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockImplementation((key) => {
+        if (key === RequireOwner) return true;
+        return undefined;
+      });
+      authService.getMe.mockResolvedValueOnce({ ...mockUser, isOwner: true });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+    });
+
+    it('should enforce RequirePermissions when user lacks permissions', async () => {
+      const request: Record<string, unknown> = {};
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockImplementation((key) => {
+        if (key === RequirePermissions) return [EPermission.MANAGE_SETTINGS];
+        return undefined;
+      });
+      permissionsFacade.hasAllPermissions.mockResolvedValueOnce(false);
+      authService.getMe.mockResolvedValueOnce(mockUser);
+
+      await expect(guard.canActivate(context)).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_METHOD_FORBIDDEN,
+      });
+    });
+
     it('should propagate UnauthorizedException when authService.getMe fails', async () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.getAllAndOverride.mockReturnValueOnce([EUserRole.MEMBER]);
+      reflector.getAllAndOverride.mockImplementation((key) => {
+        if (key === AuthGuardRoles) return [EUserRole.MEMBER];
+        return undefined;
+      });
       authService.getMe.mockRejectedValueOnce(
         AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
       );

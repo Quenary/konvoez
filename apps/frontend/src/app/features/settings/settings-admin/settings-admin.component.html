@@ -47,6 +47,34 @@
         </p>
       </div>
 
+      <h3 tuiTitle>{{ 'SETTINGS.ADMIN.PUSH' | translate }}</h3>
+
+      <div class="setting-item">
+        <tui-textfield>
+          <label
+            tuiLabel
+            for="vapid-email">
+            {{ 'SETTINGS.ADMIN.VAPID_EMAIL' | translate }}
+          </label>
+          <input
+            tuiInput
+            id="vapid-email"
+            formControlName="vapidEmail"
+            placeholder="admin@example.com" />
+        </tui-textfield>
+        <p class="setting-description">
+          {{ 'SETTINGS.ADMIN.VAPID_EMAIL_DESC' | translate }}
+        </p>
+        @if (locked().vapidEmail) {
+          <p class="setting-description">
+            {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+          </p>
+        }
+        @if (vapidEmailError; as err) {
+          <tui-error [error]="err | translate" />
+        }
+      </div>
+
       <div class="setting-item">
         <tui-textfield class="json-field">
           <label
@@ -68,6 +96,11 @@
         </p>
         @if (iceServersError; as err) {
           <tui-error [error]="err | translate" />
+        }
+        @if (locked().iceServersJson) {
+          <p class="setting-description">
+            {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+          </p>
         }
       </div>
 

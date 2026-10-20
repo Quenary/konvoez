@@ -61,7 +61,7 @@
                   {{ 'MENU.SETTINGS.NOTIFICATIONS' | translate }}
                 </button>
 
-                @if (isAdminOrOwner()) {
+                @if (canManageInvites()) {
                   <button
                     tuiAsideItem
                     type="button"
@@ -69,17 +69,29 @@
                     [routerLink]="'/settings/invites'">
                     {{ 'MENU.SETTINGS.INVITES' | translate }}
                   </button>
+                }
 
-                  @if (isOwner()) {
-                    <button
-                      tuiAsideItem
-                      type="button"
-                      iconStart="@tui.users"
-                      [routerLink]="'/settings/users'">
-                      {{ 'MENU.SETTINGS.USERS' | translate }}
-                    </button>
-                  }
+                @if (canManageUsers()) {
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    iconStart="@tui.users"
+                    [routerLink]="'/settings/users'">
+                    {{ 'MENU.SETTINGS.USERS' | translate }}
+                  </button>
+                }
 
+                @if (canManageRoles()) {
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    iconStart="@tui.key"
+                    [routerLink]="'/settings/roles'">
+                    {{ 'MENU.SETTINGS.ROLES' | translate }}
+                  </button>
+                }
+
+                @if (canManageSettings()) {
                   <button
                     tuiAsideItem
                     type="button"
@@ -101,7 +113,7 @@
                 {{ v.currentVersion }}
               </button>
             }
-            @if (v.updateAvailable && v.releaseUrl && isAdminOrOwner()) {
+            @if (v.updateAvailable && v.releaseUrl && canManageSettings()) {
               <a
                 tuiAsideItem
                 [href]="v.releaseUrl"
