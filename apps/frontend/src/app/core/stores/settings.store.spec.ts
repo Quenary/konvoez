@@ -67,6 +67,7 @@ describe('SettingsStore', () => {
       value: [{ urls: 'stun:stun.l.google.com:19302' }],
       createdAt: new Date(),
       updatedAt: null,
+      envLocked: false,
     },
   ];
 
@@ -499,6 +500,7 @@ describe('SettingsStore', () => {
         value: false,
         createdAt: new Date(),
         updatedAt: null,
+        envLocked: false,
       },
     ];
     apiService.update.mockReturnValue(of(updatedSettings));

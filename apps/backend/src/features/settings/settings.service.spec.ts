@@ -55,8 +55,10 @@ describe('SettingsService', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    delete process.env[ESettingKey.ICE_SERVERS];
-    delete process.env[`SETTINGS_${ESettingKey.ICE_SERVERS}`];
+    for (const key of Object.values(ESettingKey)) {
+      delete process.env[key];
+      delete process.env[`SETTINGS_${key}`];
+    }
 
     em = {
       persist: jest.fn(),

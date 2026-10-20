@@ -473,6 +473,7 @@ ERRORS:
   IMAGE_INVALID: Invalid image format or corrupted image
   AVATAR_TOO_BIG: Avatar image is too large
   SETTING_NOT_FOUND: Setting not found
+  SETTING_ENV_LOCKED: This setting is locked by a server environment variable
   PUSH_SUBSCRIPTION_NOT_FOUND: Push notification subscription not found
   VOICE_VIDEO_LIMIT_REACHED: Room video limit reached
   VOICE_SESSION_INVALID: Invalid voice session

@@ -473,6 +473,7 @@ ERRORS:
   IMAGE_INVALID: Некорректный формат или повреждённое изображение
   AVATAR_TOO_BIG: Размер аватара слишком велик
   SETTING_NOT_FOUND: Настройка не найдена
+  SETTING_ENV_LOCKED: Эта настройка заблокирована переменной окружения сервера
   PUSH_SUBSCRIPTION_NOT_FOUND: Подписка на push-уведомления не найдена
   VOICE_VIDEO_LIMIT_REACHED: Достигнут лимит видео в комнате
   VOICE_SESSION_INVALID: Недействительная голосовая сессия
