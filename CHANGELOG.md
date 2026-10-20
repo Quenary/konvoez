@@ -1,3 +1,24 @@
+## 1.23.0 (2026-10-20)
+
+### Features
+
+- admin settings env lock, VALID_EMAIL setting in ui without default value ([4fe2d78](https://github.com/Quenary/konvoez/commit/4fe2d78))
+- chat unread anchor ([#42](https://github.com/Quenary/konvoez/pull/42))
+- add chat mentions with notifications and unread badge ([#40](https://github.com/Quenary/konvoez/pull/40))
+- roles, permissions, private rooms ([#38](https://github.com/Quenary/konvoez/pull/38))
+- **server:** is online status ([cb05e40](https://github.com/Quenary/konvoez/commit/cb05e40))
+
+### Bug Fixes
+
+- **frontend:** login/email validation error ([f5b37dc](https://github.com/Quenary/konvoez/commit/f5b37dc))
+- **backend:** use fork em in notifications ([ed751a2](https://github.com/Quenary/konvoez/commit/ed751a2))
+
+### Code Refactoring
+
+- **frontend:** enhance chat message loading and scrolling behavior ([#43](https://github.com/Quenary/konvoez/pull/43))
+- **backend:** mv domain events to feature modules ([#39](https://github.com/Quenary/konvoez/pull/39))
+- **shared:** replace interfaces to zod schemas ([d6b1e2b](https://github.com/Quenary/konvoez/commit/d6b1e2b))
+
 ## 1.22.0 (2026-10-16)
 
 ### Features
