@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TUI_SCROLL_REF } from '@taiga-ui/core';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { MessageVisibilityDirective } from './message-visibility.directive';
 
@@ -22,6 +23,7 @@ describe('MessageVisibilityDirective', () => {
     unobserve: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
   };
+  let observerOptions: IntersectionObserverInit | undefined;
 
   beforeEach(async () => {
     observer = {
@@ -34,8 +36,12 @@ describe('MessageVisibilityDirective', () => {
       unobserve = observer.unobserve;
       disconnect = observer.disconnect;
 
-      constructor(callback: IntersectionObserverCallback) {
+      constructor(
+        callback: IntersectionObserverCallback,
+        options?: IntersectionObserverInit,
+      ) {
         observerCallback = callback;
+        observerOptions = options;
       }
     }
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
@@ -95,5 +101,22 @@ describe('MessageVisibilityDirective', () => {
   it('should disconnect the observer on destroy', () => {
     fixture.destroy();
     expect(observer.disconnect).toHaveBeenCalled();
+  });
+
+  it('should use the viewport root when TUI_SCROLL_REF is provided', async () => {
+    const scrollElement = document.createElement('div');
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent],
+      providers: [
+        { provide: MessageReadQueueService, useValue: readQueue },
+        { provide: TUI_SCROLL_REF, useValue: { nativeElement: scrollElement } },
+      ],
+    }).compileComponents();
+
+    const scrollFixture = TestBed.createComponent(HostComponent);
+    scrollFixture.detectChanges();
+
+    expect(observerOptions?.root).toBe(scrollElement);
   });
 });

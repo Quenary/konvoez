@@ -6,7 +6,7 @@ import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
 import { UsersStore } from '@core/stores/users.store';
 import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
-import { Sanitizer, signal } from '@angular/core';
+import { Sanitizer, computed, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
@@ -18,6 +18,9 @@ import { ChatTarget } from '../chat-target';
 describe('ChatMessagesListComponent', () => {
   let component: ChatMessagesListComponent;
   let fixture: ComponentFixture<ChatMessagesListComponent>;
+  let edgeObserverCallback: IntersectionObserverCallback;
+  let edgeObserverOptions: IntersectionObserverInit | undefined;
+  let observedElements: Element[] = [];
 
   const mockMessages: IMessageEntity[] = [
     {
@@ -62,8 +65,12 @@ describe('ChatMessagesListComponent', () => {
     },
   ];
 
+  const messagesSignal = signal<IMessageEntity[]>(mockMessages);
   const mockChatStore = {
-    messages: signal<IMessageEntity[]>(mockMessages),
+    messages: messagesSignal,
+    ids: computed(() =>
+      messagesSignal().map((message: IMessageEntity) => message.id),
+    ),
     targetScrollMessageId: signal<string | null>(null),
     setTargetScrollMessageId: vi.fn(),
     requestPrevPage: vi.fn(),
@@ -79,6 +86,9 @@ describe('ChatMessagesListComponent', () => {
     unreadDividerMessageId: signal<string | null>(null),
     initialPosition: signal<'bottom' | 'unread' | 'message' | null>('bottom'),
     hasMoreAfter: signal<boolean>(false),
+    loadingOlder: signal(false),
+    loadingNewer: signal(false),
+    scrollToLatestToken: signal(0),
     readAllAndJumpToLatest: vi.fn(),
   };
 
@@ -101,21 +111,42 @@ describe('ChatMessagesListComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockChatStore.messages.set(mockMessages);
+    observedElements = [];
+    messagesSignal.set(mockMessages);
     mockChatStore.targetScrollMessageId.set(null);
     mockChatStore.target.set({ kind: 'room', id: 1 });
     mockChatStore.unreadDividerMessageId.set(null);
     mockChatStore.initialPosition.set('bottom');
     mockChatStore.hasMoreAfter.set(false);
+    mockChatStore.loadingOlder.set(false);
+    mockChatStore.loadingNewer.set(false);
+    mockChatStore.scrollToLatestToken.set(0);
     mockUnreadCountsStore.rooms.set({});
     mockUnreadCountsStore.direct.set({});
     Element.prototype.scrollTo = vi.fn();
     Element.prototype.scrollIntoView = vi.fn();
 
     class MockIntersectionObserver {
-      observe = vi.fn();
+      private readonly edge: boolean;
+
+      observe = vi.fn((element: Element) => {
+        if (this.edge) {
+          observedElements.push(element);
+        }
+      });
       unobserve = vi.fn();
       disconnect = vi.fn();
+
+      constructor(
+        callback: IntersectionObserverCallback,
+        options?: IntersectionObserverInit,
+      ) {
+        this.edge = options?.rootMargin === '300px 0px';
+        if (this.edge) {
+          edgeObserverCallback = callback;
+          edgeObserverOptions = options;
+        }
+      }
     }
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
@@ -181,19 +212,97 @@ describe('ChatMessagesListComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call requestPrevPage on onScrollUp', () => {
-    component.onScrollUp();
+  it('configures edge observer with the scrollbar element as root', async () => {
+    fixture.detectChanges();
+    await flushAfterRender(fixture);
+    const container = getScrollContainer(fixture);
+    expect(edgeObserverOptions?.root).toBe(container);
+    expect(edgeObserverOptions?.rootMargin).toBe('300px 0px');
+  });
+
+  it('does not request pages from sentinels while edge loading is disabled', () => {
+    fixture.detectChanges();
+    mockChatStore.requestPrevPage.mockClear();
+    component['edgeLoadingEnabled'] = false;
+    const topSentinel = observedElements[0];
+    edgeObserverCallback(
+      [
+        {
+          isIntersecting: true,
+          target: topSentinel,
+        } as IntersectionObserverEntry,
+      ],
+      {} as IntersectionObserver,
+    );
+    expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
+  });
+
+  it('requests older messages when the top sentinel intersects after edge loading is enabled', async () => {
+    fixture.detectChanges();
+    component['applyInitialPosition']();
+    await flushAfterRender(fixture);
+    component['edgeLoadingEnabled'] = true;
+
+    const topSentinel = observedElements[0];
+    edgeObserverCallback(
+      [
+        {
+          isIntersecting: true,
+          target: topSentinel,
+        } as IntersectionObserverEntry,
+      ],
+      {} as IntersectionObserver,
+    );
     expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
   });
 
-  it('should call requestNextPage on onScrolled', () => {
-    component.onScrolled();
+  it('requests newer messages when the bottom sentinel intersects after edge loading is enabled', async () => {
+    fixture.detectChanges();
+    component['applyInitialPosition']();
+    await flushAfterRender(fixture);
+    component['edgeLoadingEnabled'] = true;
+
+    const bottomSentinel = observedElements[1];
+    edgeObserverCallback(
+      [
+        {
+          isIntersecting: true,
+          target: bottomSentinel,
+        } as IntersectionObserverEntry,
+      ],
+      {} as IntersectionObserver,
+    );
     expect(mockChatStore.requestNextPage).toHaveBeenCalled();
   });
 
-  it('scrolls once when an outgoing message appears and not on later updates', () => {
+  it('requests another older page when loadingOlder finishes and the top sentinel stays visible', async () => {
     fixture.detectChanges();
-    const scroll = vi.spyOn(component, 'scrollToBottom');
+    component['applyInitialPosition']();
+    await flushAfterRender(fixture);
+    component['edgeLoadingEnabled'] = true;
+    component['topVisible'] = true;
+
+    mockChatStore.loadingOlder.set(true);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    mockChatStore.loadingOlder.set(false);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    await flushAfterRender(fixture);
+
+    expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
+  });
+
+  it('pins to the bottom when an outgoing message appears and not on later updates', async () => {
+    fixture.detectChanges();
+    await flushAfterRender(fixture);
+    const container = getScrollContainer(fixture);
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 800,
+    });
+
     const outgoing = {
       ...mockMessages[1],
       id: 'out-1',
@@ -212,22 +321,32 @@ describe('ChatMessagesListComponent', () => {
         state: { phase: 'uploading' as const },
       },
     };
-    mockChatStore.messages.set([...mockMessages, outgoing]);
+    messagesSignal.set([...mockMessages, outgoing]);
     TestBed.flushEffects();
-    expect(scroll).toHaveBeenCalledTimes(1);
+    await flushAfterRender(fixture);
+    expect(component['pinnedToBottom']).toBe(true);
+    expect(container.scrollTop).toBe(800);
 
-    mockChatStore.messages.set([
+    messagesSignal.set([
       ...mockMessages,
       { ...outgoing, content: '<p>progress</p>' },
     ]);
     TestBed.flushEffects();
-    expect(scroll).toHaveBeenCalledTimes(1);
+    await flushAfterRender(fixture);
+    expect(container.scrollTop).toBe(800);
   });
 
-  it('scrolls to the bottom when a new message arrives while already at the bottom', () => {
+  it('scrolls to the bottom when a new message arrives while already at the bottom', async () => {
     fixture.detectChanges();
-    const scroll = vi.spyOn(component, 'scrollToBottom');
-    mockChatStore.messages.set([
+    const container = getScrollContainer(fixture);
+    setScroll(container, {
+      scrollTop: 400,
+      clientHeight: 400,
+      scrollHeight: 800,
+    });
+    container.dispatchEvent(new Event('scroll'));
+
+    messagesSignal.set([
       ...mockMessages,
       {
         ...mockMessages[0],
@@ -237,14 +356,13 @@ describe('ChatMessagesListComponent', () => {
       },
     ]);
     TestBed.flushEffects();
-    expect(scroll).toHaveBeenCalledTimes(1);
+    await flushAfterRender(fixture);
+    expect(container.scrollTop).toBe(800);
   });
 
-  it('keeps the scroll position when a new message arrives above the bottom', () => {
+  it('keeps the scroll position when a new message arrives above the bottom', async () => {
     fixture.detectChanges();
-    const container = fixture.nativeElement.querySelector(
-      '.scroll-container',
-    ) as HTMLDivElement;
+    const container = getScrollContainer(fixture);
     setScroll(container, {
       scrollTop: 0,
       clientHeight: 400,
@@ -252,8 +370,7 @@ describe('ChatMessagesListComponent', () => {
     });
     container.dispatchEvent(new Event('scroll'));
 
-    const scroll = vi.spyOn(component, 'scrollToBottom');
-    mockChatStore.messages.set([
+    messagesSignal.set([
       ...mockMessages,
       {
         ...mockMessages[0],
@@ -263,7 +380,8 @@ describe('ChatMessagesListComponent', () => {
       },
     ]);
     TestBed.flushEffects();
-    expect(scroll).not.toHaveBeenCalled();
+    await flushAfterRender(fixture);
+    expect(container.scrollTop).toBe(0);
   });
 
   it('should render unread divider item before message matching unreadDividerMessageId', () => {
@@ -274,7 +392,7 @@ describe('ChatMessagesListComponent', () => {
     expect(divider).toBeTruthy();
 
     const children = Array.from(
-      fixture.nativeElement.querySelector('.scroll-container')?.children ?? [],
+      fixture.nativeElement.querySelector('.messages')?.children ?? [],
     ) as HTMLElement[];
     const dividerIndex = children.findIndex((el) => el.id === 'unread-divider');
     const msg2Index = children.findIndex(
@@ -294,7 +412,7 @@ describe('ChatMessagesListComponent', () => {
     divider.scrollIntoView = scrollIntoView;
 
     component['applyInitialPosition']();
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await flushAfterRender(fixture);
 
     expect(scrollIntoView).toHaveBeenCalledWith({
       behavior: 'instant',
@@ -303,25 +421,39 @@ describe('ChatMessagesListComponent', () => {
     expect(component['pinnedToBottom']).toBe(false);
   });
 
-  it('falls back to scrollToBottom when initialPosition is unread but divider element is absent', async () => {
+  it('falls back to the bottom when initialPosition is unread but divider element is absent', async () => {
     mockChatStore.unreadDividerMessageId.set(null);
     mockChatStore.initialPosition.set('unread');
-    const scroll = vi.spyOn(component, 'scrollToBottom');
+    fixture.detectChanges();
+    const container = getScrollContainer(fixture);
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 900,
+    });
 
     component['applyInitialPosition']();
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await flushAfterRender(fixture);
 
-    expect(scroll).toHaveBeenCalled();
+    expect(container.scrollTop).toBe(900);
+    expect(component['pinnedToBottom']).toBe(true);
   });
 
-  it('calls scrollToBottom when initialPosition is bottom', async () => {
+  it('scrolls to the bottom when initialPosition is bottom', async () => {
     mockChatStore.initialPosition.set('bottom');
-    const scroll = vi.spyOn(component, 'scrollToBottom');
+    fixture.detectChanges();
+    const container = getScrollContainer(fixture);
+    setScroll(container, {
+      scrollTop: 0,
+      clientHeight: 400,
+      scrollHeight: 900,
+    });
 
     component['applyInitialPosition']();
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await flushAfterRender(fixture);
 
-    expect(scroll).toHaveBeenCalled();
+    expect(container.scrollTop).toBe(900);
+    expect(component['pinnedToBottom']).toBe(true);
   });
 
   it('scrolls target message into view when initialPosition is message', async () => {
@@ -334,7 +466,7 @@ describe('ChatMessagesListComponent', () => {
     msgEl.scrollIntoView = scrollIntoView;
 
     component['applyInitialPosition']();
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await flushAfterRender(fixture);
 
     expect(scrollIntoView).toHaveBeenCalledWith({
       behavior: 'instant',
@@ -344,124 +476,59 @@ describe('ChatMessagesListComponent', () => {
     expect(component['pinnedToBottom']).toBe(false);
   });
 
-  it('preserves the visible message position when older and live messages are added together', async () => {
-    fixture.detectChanges();
-    const container = fixture.nativeElement.querySelector(
-      '.scroll-container',
-    ) as HTMLDivElement;
+  it('adjusts scrollTop when content grows at the top of the list', () => {
+    const container = document.createElement('div');
+    let scrollHeight = 800;
     setScroll(container, {
       scrollTop: 0,
       clientHeight: 400,
-      scrollHeight: 800,
+      scrollHeight,
     });
-
-    let anchorDocumentTop = 70;
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
-    const firstMessage = container.querySelector(
-      'app-chat-message',
-    ) as HTMLElement;
-    firstMessage.getBoundingClientRect = vi.fn(
-      () => new DOMRect(0, anchorDocumentTop - container.scrollTop, 400, 40),
-    );
-    component.onScrollUp();
-    container.dispatchEvent(new Event('scroll'));
-
-    const scrollSpy = vi.spyOn(component, 'scrollToBottom');
-
-    const liveMessage: IMessageEntity = {
-      ...mockMessages[1],
-      id: 'msg-live',
-      createdAt: new Date('2026-09-16T00:00:00.000Z'),
-    };
-    mockChatStore.messages.set([...mockMessages, liveMessage]);
-    fixture.detectChanges();
-
-    const olderMessage: IMessageEntity = {
-      ...mockMessages[0],
-      id: 'msg-older',
-      createdAt: new Date('2026-09-14T00:00:00.000Z'),
-    };
-
-    anchorDocumentTop = 670;
     Object.defineProperty(container, 'scrollHeight', {
       configurable: true,
-      value: 1200,
+      get: () => scrollHeight,
     });
-    mockChatStore.messages.set([olderMessage, ...mockMessages, liveMessage]);
-    fixture.detectChanges();
 
-    expect(scrollSpy).not.toHaveBeenCalled();
-
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    expect(container.scrollTop).toBe(600);
-    expect(
-      firstMessage.getBoundingClientRect().top -
-        container.getBoundingClientRect().top,
-    ).toBe(20);
-  });
-
-  it('does not double-adjust when browser scroll anchoring already preserved the visible message', async () => {
-    fixture.detectChanges();
-    const container = fixture.nativeElement.querySelector(
-      '.scroll-container',
-    ) as HTMLDivElement;
-    setScroll(container, {
+    scrollHeight = 1200;
+    component['restoreScrollAfterTopGrowth'](container, {
       scrollTop: 0,
-      clientHeight: 400,
       scrollHeight: 800,
     });
 
-    let anchorDocumentTop = 70;
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
-    const firstMessage = container.querySelector(
-      'app-chat-message',
-    ) as HTMLElement;
-    firstMessage.getBoundingClientRect = vi.fn(
-      () => new DOMRect(0, anchorDocumentTop - container.scrollTop, 400, 40),
-    );
-    component.onScrollUp();
+    expect(container.scrollTop).toBe(400);
+  });
 
-    const olderMessage: IMessageEntity = {
-      ...mockMessages[0],
-      id: 'msg-older',
-      createdAt: new Date('2026-09-14T00:00:00.000Z'),
-    };
-
+  it('does not double-adjust when the anchor offset is already preserved', async () => {
+    fixture.detectChanges();
+    const container = getScrollContainer(fixture);
     setScroll(container, {
       scrollTop: 600,
       clientHeight: 400,
       scrollHeight: 1200,
     });
-    anchorDocumentTop = 670;
-    mockChatStore.messages.set([olderMessage, ...mockMessages]);
-    fixture.detectChanges();
+    component['pinnedToBottom'] = false;
 
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    expect(container.scrollTop).toBe(600);
-  });
-
-  it('captures a visible message anchor and requests older messages on scroll up', () => {
-    fixture.detectChanges();
-    const container = fixture.nativeElement.querySelector(
-      '.scroll-container',
-    ) as HTMLDivElement;
-    setScroll(container, {
-      scrollTop: 10,
-      clientHeight: 400,
-      scrollHeight: 950,
-    });
-
+    const anchorDocumentTop = 670;
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
     const firstMessage = container.querySelector(
       'app-chat-message',
     ) as HTMLElement;
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+    firstMessage.setAttribute('data-message-id', 'msg-1');
     firstMessage.getBoundingClientRect = vi.fn(
-      () => new DOMRect(0, 60, 400, 40),
+      () => new DOMRect(0, anchorDocumentTop - container.scrollTop, 400, 40),
     );
 
-    component.onScrollUp();
-    expect(component['prependAnchor']?.element).toBe(firstMessage);
-    expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
+    const olderMessage: IMessageEntity = {
+      ...mockMessages[0],
+      id: 'msg-older',
+      createdAt: new Date('2026-09-14T00:00:00.000Z'),
+    };
+
+    messagesSignal.set([olderMessage, ...mockMessages]);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    await flushAfterRender(fixture);
+    expect(container.scrollTop).toBe(600);
   });
 
   it('renders scroll button when showScrollToBottom is true', () => {
@@ -521,7 +588,7 @@ describe('ChatMessagesListComponent', () => {
     expect(mockChatStore.readAllAndJumpToLatest).not.toHaveBeenCalled();
   });
 
-  it('reads all and scrolls to the bottom on button click when hasMoreAfter is true', () => {
+  it('reads all on button click when hasMoreAfter is true without scrolling immediately', () => {
     mockChatStore.hasMoreAfter.set(true);
     fixture.detectChanges();
 
@@ -532,7 +599,7 @@ describe('ChatMessagesListComponent', () => {
     btn.click();
 
     expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
-    expect(scrollSpy).toHaveBeenCalledWith('smooth');
+    expect(scrollSpy).not.toHaveBeenCalled();
   });
 
   it('calls readAllAndJumpToLatest on button click when unreadCount is positive', () => {
@@ -549,24 +616,24 @@ describe('ChatMessagesListComponent', () => {
     expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
   });
 
-  it('scrolls to the replacement latest page after clicking while behind', async () => {
+  it('scrolls to the replacement latest page after the scroll-to-latest token changes', async () => {
     mockChatStore.hasMoreAfter.set(true);
     fixture.detectChanges();
-    const container = fixture.nativeElement.querySelector(
-      '.scroll-container',
-    ) as HTMLDivElement;
+    const container = getScrollContainer(fixture);
     setScroll(container, {
       scrollTop: 0,
       clientHeight: 400,
       scrollHeight: 1200,
     });
-    const scroll = vi.spyOn(container, 'scrollTo');
+    const scrollTo = vi.spyOn(container, 'scrollTo');
 
     const btn = fixture.nativeElement.querySelector(
       '.scroll-to-bottom button',
     ) as HTMLButtonElement;
     btn.click();
-    mockChatStore.messages.set([
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    messagesSignal.set([
       ...mockMessages,
       {
         ...mockMessages[1],
@@ -574,19 +641,30 @@ describe('ChatMessagesListComponent', () => {
         createdAt: new Date('2026-09-15T00:02:00.000Z'),
       },
     ]);
-    fixture.detectChanges();
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    mockChatStore.scrollToLatestToken.set(1);
+    TestBed.flushEffects();
+    await flushAfterRender(fixture);
 
-    expect(scroll).toHaveBeenCalledWith({
-      top: 1200,
-      behavior: 'smooth',
-    });
-    expect(scroll).toHaveBeenCalledWith({
-      top: 1200,
-      behavior: 'instant',
-    });
+    expect(container.scrollTop).toBe(1200);
+    expect(component['pinnedToBottom']).toBe(true);
   });
 });
+
+function getScrollContainer(fixture: ComponentFixture<unknown>): HTMLElement {
+  return fixture.nativeElement.querySelector(
+    'tui-scrollbar.scroll-container',
+  ) as HTMLElement;
+}
+
+async function flushAfterRender(
+  fixture: ComponentFixture<unknown>,
+): Promise<void> {
+  fixture.detectChanges();
+  await fixture.whenStable();
+  TestBed.flushEffects();
+  fixture.detectChanges();
+  await fixture.whenStable();
+}
 
 function setScroll(
   element: HTMLElement,

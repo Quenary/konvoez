@@ -1,24 +1,34 @@
-<div
+<tui-scrollbar
   #scrollContainer
-  class="scroll-container"
-  infiniteScroll
-  [infiniteScrollDistance]="1"
-  [infiniteScrollUpDistance]="1"
-  [infiniteScrollThrottle]="150"
-  [scrollWindow]="false"
-  [infiniteScrollDisabled]="infiniteScrollDisabled()"
-  (scrolledUp)="onScrollUp()"
-  (scrolled)="onScrolled()">
-  @let unreadId = unreadDividerMessageId();
-  @for (m of messages(); track m.id) {
-    @if (unreadId && m.id === unreadId) {
-      <app-chat-system-item id="unread-divider">
-        {{ 'CHAT.UNREAD_MESSAGES' | translate }}
-      </app-chat-system-item>
+  class="scroll-container">
+  <div class="messages">
+    <div
+      #topSentinel
+      class="edge-sentinel"></div>
+    @if (loadingOlder()) {
+      <div
+        class="skeleton-row"
+        [tuiSkeleton]="true"></div>
     }
-    <app-chat-message [message]="m"> </app-chat-message>
-  }
-</div>
+    @let unreadId = unreadDividerMessageId();
+    @for (m of messages(); track m.id) {
+      @if (unreadId && m.id === unreadId) {
+        <app-chat-system-item id="unread-divider">
+          {{ 'CHAT.UNREAD_MESSAGES' | translate }}
+        </app-chat-system-item>
+      }
+      <app-chat-message [message]="m" />
+    }
+    @if (loadingNewer()) {
+      <div
+        class="skeleton-row"
+        [tuiSkeleton]="true"></div>
+    }
+    <div
+      #bottomSentinel
+      class="edge-sentinel"></div>
+  </div>
+</tui-scrollbar>
 
 @if (shouldShowScrollButton()) {
   <tui-badged-content class="scroll-to-bottom">

@@ -41,6 +41,7 @@ import {
   concatMap,
   EMPTY,
   exhaustMap,
+  finalize,
   fromEvent,
   pipe,
   switchMap,
@@ -87,6 +88,9 @@ type ChatState = {
   unreadDividerMessageId: string | null;
   initialPosition: 'bottom' | 'unread' | 'message';
   missedLiveWhileBehind: boolean;
+  loadingOlder: boolean;
+  loadingNewer: boolean;
+  scrollToLatestToken: number;
 };
 
 function toMessageEntity(
@@ -147,6 +151,9 @@ export const ChatStore = signalStore(
     unreadDividerMessageId: null,
     initialPosition: 'bottom',
     missedLiveWhileBehind: false,
+    loadingOlder: false,
+    loadingNewer: false,
+    scrollToLatestToken: 0,
   }),
   withEntities<IMessageEntity>(),
   withComputed(
@@ -397,6 +404,7 @@ export const ChatStore = signalStore(
                       targetScrollMessageId: null,
                       initialPosition: 'bottom',
                       missedLiveWhileBehind: false,
+                      scrollToLatestToken: store.scrollToLatestToken() + 1,
                     },
                   );
                 }),
@@ -419,6 +427,7 @@ export const ChatStore = signalStore(
             if (!oldestId) {
               return EMPTY;
             }
+            patchState(store, { loadingOlder: true });
             const { roomId, recipientId } = apiIds();
             return chatApiService
               .list({
@@ -443,6 +452,7 @@ export const ChatStore = signalStore(
                   showError(error);
                   return EMPTY;
                 }),
+                finalize(() => patchState(store, { loadingOlder: false })),
               );
           }),
         ),
@@ -458,6 +468,7 @@ export const ChatStore = signalStore(
             if (!newestId) {
               return EMPTY;
             }
+            patchState(store, { loadingNewer: true });
             const { roomId, recipientId } = apiIds();
             return chatApiService
               .list({
@@ -487,6 +498,7 @@ export const ChatStore = signalStore(
                   showError(error);
                   return EMPTY;
                 }),
+                finalize(() => patchState(store, { loadingNewer: false })),
               );
           }),
         ),
@@ -523,6 +535,7 @@ export const ChatStore = signalStore(
                     targetScrollMessageId: null,
                     initialPosition: 'bottom',
                     missedLiveWhileBehind: false,
+                    scrollToLatestToken: store.scrollToLatestToken() + 1,
                   },
                 );
               }),
@@ -617,6 +630,8 @@ export const ChatStore = signalStore(
             unreadDividerMessageId: null,
             initialPosition: initialMessageId ? 'message' : 'bottom',
             missedLiveWhileBehind: false,
+            loadingOlder: false,
+            loadingNewer: false,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
           loadInitialMethod({ target, initialMessageId });
@@ -642,6 +657,8 @@ export const ChatStore = signalStore(
             unreadDividerMessageId: null,
             initialPosition: 'bottom',
             missedLiveWhileBehind: false,
+            loadingOlder: false,
+            loadingNewer: false,
           });
         },
 
