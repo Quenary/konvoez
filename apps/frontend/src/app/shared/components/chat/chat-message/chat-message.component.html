@@ -4,7 +4,7 @@
     class="message"
     [class.message-own]="isOwnMessage()"
     [style.--author-color]="senderUsername() | tuiAutoColor"
-    [appMessageVisibility]="!isOwnMessage() ? m.id : null">
+    [appMessageVisibility]="readTrackingId()">
     @let _sender = senderUser();
 
     <div

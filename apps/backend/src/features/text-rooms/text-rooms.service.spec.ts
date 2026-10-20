@@ -54,6 +54,7 @@ import { TextRoomsDomainEvents } from './text-rooms.events';
 import { NotificationsDomainEvents } from '../notifications/notifications.events';
 import { MentionsService } from './mentions.service';
 import { RoomEntity } from '../rooms/rooms.entity';
+import { ReadAllDto } from './text-rooms.dto';
 
 describe('TextRoomsService', () => {
   let service: TextRoomsService;
@@ -71,6 +72,7 @@ describe('TextRoomsService', () => {
   let mentionsService: jest.Mocked<MentionsService>;
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
+  let connection: { execute: jest.Mock };
   let attachmentsService: {
     findAttachedByMessageIds: jest.Mock;
     claimForMessage: jest.Mock;
@@ -92,7 +94,12 @@ describe('TextRoomsService', () => {
   };
 
   beforeEach(() => {
+    connection = {
+      execute: jest.fn().mockResolvedValue({ affectedRows: 1, insertId: 1 }),
+    };
+
     em = {
+      getConnection: jest.fn().mockReturnValue(connection),
       flush: jest.fn().mockResolvedValue(undefined),
       populate: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
@@ -114,7 +121,13 @@ describe('TextRoomsService', () => {
       create: jest.fn(),
       assign: jest.fn(),
       remove: jest.fn(),
-      createQueryBuilder: jest.fn(),
+      createQueryBuilder: jest.fn().mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        join: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue([]),
+      })),
     } as unknown as jest.Mocked<EntityRepository<MessageEntity>>;
 
     messageReadRepository = {
@@ -140,7 +153,13 @@ describe('TextRoomsService', () => {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((data) => data),
-      createQueryBuilder: jest.fn(),
+      createQueryBuilder: jest.fn().mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        join: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue([]),
+      })),
     } as unknown as jest.Mocked<EntityRepository<MessageMentionEntity>>;
 
     usersService = {
@@ -1036,6 +1055,319 @@ describe('TextRoomsService', () => {
         code: ApiErrorCode.ROOM_ACCESS_DENIED,
       });
     });
+
+    describe('unread anchor mode', () => {
+      const makeMsg = (idStr: string, senderId = 2, createdAt = new Date()) =>
+        ({
+          id: parse(idStr),
+          sender: { id: senderId, username: `user_${senderId}` },
+          room: { id: 10 },
+          recipient: null,
+          createdAt,
+          updatedAt: null,
+          contentEncrypted: new Uint8Array(),
+          iv: new Uint8Array(),
+          authTag: new Uint8Array(),
+        }) as unknown as MessageEntity;
+
+      it('never read, 50 unread -> 25 items, first is oldest unread, hasMoreBefore false, hasMoreAfter true, firstUnreadMessageId = first item', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = makeMsg(anchorUuid, 2);
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 25 }, () => makeMsg(v7(), 2)),
+        ];
+
+        messageRepository.find
+          .mockResolvedValueOnce([]) // B: 0 before
+          .mockResolvedValueOnce(unreadAfter); // C: 26 >= anchor
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.items[0].id).toBe(anchorUuid);
+        expect(result.hasMoreBefore).toBe(false);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+      });
+
+      it('never read in DM -> anchors on peer message', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = {
+          ...makeMsg(anchorUuid, 2),
+          room: null,
+          recipient: { id: mockUser.id },
+        } as unknown as MessageEntity;
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 25 }, () => ({
+            ...makeMsg(v7(), 2),
+            room: null,
+            recipient: { id: mockUser.id },
+          })),
+        ] as unknown as MessageEntity[];
+
+        messageRepository.find
+          .mockResolvedValueOnce([]) // B
+          .mockResolvedValueOnce(unreadAfter); // C
+
+        const result = await service.list(mockUser, {
+          roomId: null,
+          recipientId: 2,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.items[0].id).toBe(anchorUuid);
+        expect(result.hasMoreBefore).toBe(false);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+      });
+
+      it('40 read + 25 unread -> 12 read + 13 unread, both flags true', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = makeMsg(anchorUuid, 2);
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const readBefore = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 24 }, () => makeMsg(v7(), 2)),
+        ];
+
+        messageRepository.find
+          .mockResolvedValueOnce(readBefore) // B: 26 items < anchor
+          .mockResolvedValueOnce(unreadAfter); // C: 25 items >= anchor
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+        expect(result.items[12].id).toBe(anchorUuid);
+      });
+
+      it('40 read + 3 unread -> 22 read + 3 unread, hasMoreAfter false', async () => {
+        const anchorUuid = v7();
+        const anchorMsg = makeMsg(anchorUuid, 2);
+        messageRepository.findOne.mockResolvedValueOnce(anchorMsg);
+
+        const readBefore = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        const unreadAfter = [
+          anchorMsg,
+          ...Array.from({ length: 2 }, () => makeMsg(v7(), 2)),
+        ];
+
+        messageRepository.find
+          .mockResolvedValueOnce(readBefore) // B: 26 items < anchor
+          .mockResolvedValueOnce(unreadAfter); // C: 3 items >= anchor
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(false);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+        expect(result.items[22].id).toBe(anchorUuid);
+      });
+
+      it('all read -> latest 25, firstUnreadMessageId null, hasMoreAfter false', async () => {
+        messageRepository.findOne.mockResolvedValueOnce(null); // No unread
+        const latestRows = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        messageRepository.find.mockResolvedValueOnce(latestRows);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.firstUnreadMessageId).toBeNull();
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(false);
+      });
+
+      it('own messages never count as unread; a self-DM returns the latest page', async () => {
+        messageRepository.findOne.mockResolvedValueOnce(null);
+        const selfMessages = Array.from({ length: 5 }, () => ({
+          ...makeMsg(v7(), mockUser.id),
+          room: null,
+          recipient: { id: mockUser.id },
+        })) as unknown as MessageEntity[];
+        messageRepository.find.mockResolvedValueOnce(selfMessages);
+
+        const result = await service.list(mockUser, {
+          roomId: null,
+          recipientId: mockUser.id,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(5);
+        expect(result.firstUnreadMessageId).toBeNull();
+        expect(result.hasMoreBefore).toBe(false);
+        expect(result.hasMoreAfter).toBe(false);
+      });
+
+      it('latest: true with unread -> latest page', async () => {
+        const latestRows = Array.from({ length: 26 }, () => makeMsg(v7(), 2));
+        messageRepository.find.mockResolvedValueOnce(latestRows);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+          latest: true,
+        });
+
+        expect(messageRepository.findOne).not.toHaveBeenCalled();
+        expect(result.items.length).toBe(25);
+        expect(result.firstUnreadMessageId).toBeNull();
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(false);
+      });
+
+      it('beforeId / afterId flags at the edges', async () => {
+        const cursorId = v7();
+
+        // beforeId with extra row
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 26 }, () => makeMsg(v7(), 2)),
+        );
+        const beforeRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: cursorId,
+          afterId: null,
+        });
+        expect(beforeRes.hasMoreBefore).toBe(true);
+        expect(beforeRes.hasMoreAfter).toBe(true);
+        expect(beforeRes.firstUnreadMessageId).toBeNull();
+
+        // beforeId without extra row (at the oldest edge)
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 10 }, () => makeMsg(v7(), 2)),
+        );
+        const beforeEdgeRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: cursorId,
+          afterId: null,
+        });
+        expect(beforeEdgeRes.hasMoreBefore).toBe(false);
+        expect(beforeEdgeRes.hasMoreAfter).toBe(true);
+
+        // afterId with extra row
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 26 }, () => makeMsg(v7(), 2)),
+        );
+        const afterRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: cursorId,
+        });
+        expect(afterRes.hasMoreBefore).toBe(true);
+        expect(afterRes.hasMoreAfter).toBe(true);
+        expect(afterRes.firstUnreadMessageId).toBeNull();
+
+        // afterId without extra row (at the newest edge)
+        messageRepository.find.mockResolvedValueOnce(
+          Array.from({ length: 10 }, () => makeMsg(v7(), 2)),
+        );
+        const afterEdgeRes = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          limit: 25,
+          beforeId: null,
+          afterId: cursorId,
+        });
+        expect(afterEdgeRes.hasMoreBefore).toBe(true);
+        expect(afterEdgeRes.hasMoreAfter).toBe(false);
+      });
+
+      it('aroundId returns flags and firstUnreadMessageId', async () => {
+        const targetUuid = v7();
+        const anchorUuid = v7();
+        const targetMsg = makeMsg(targetUuid, 2);
+        const anchorMsg = makeMsg(anchorUuid, 2);
+
+        messageRepository.findOne
+          .mockResolvedValueOnce(targetMsg) // target
+          .mockResolvedValueOnce(anchorMsg); // anchor from findFirstUnreadId
+
+        const beforeRows = Array.from({ length: 13 }, () => makeMsg(v7(), 2));
+        const afterRows = Array.from({ length: 13 }, () => makeMsg(v7(), 2));
+
+        messageRepository.find
+          .mockResolvedValueOnce(beforeRows)
+          .mockResolvedValueOnce(afterRows);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          aroundId: targetUuid,
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(result.items.length).toBe(25);
+        expect(result.hasMoreBefore).toBe(true);
+        expect(result.hasMoreAfter).toBe(true);
+        expect(result.firstUnreadMessageId).toBe(anchorUuid);
+      });
+
+      it('search ignores the anchor', async () => {
+        messageRepository.find.mockResolvedValueOnce([makeMsg(v7(), 2)]);
+
+        const result = await service.list(mockUser, {
+          roomId: 10,
+          recipientId: null,
+          search: 'keyword',
+          limit: 25,
+          beforeId: null,
+          afterId: null,
+        });
+
+        expect(messageRepository.findOne).not.toHaveBeenCalled();
+        expect(result.firstUnreadMessageId).toBeNull();
+      });
+    });
   });
 
   describe('updateMessage', () => {
@@ -1497,7 +1829,11 @@ describe('TextRoomsService', () => {
       expect(messageReadRepository.find).not.toHaveBeenCalled();
       expect(em.flush).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        TextRoomsDomainEvents.MESSAGE_UPDATED,
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
         expect.anything(),
       );
     });
@@ -1510,18 +1846,12 @@ describe('TextRoomsService', () => {
         sender: { id: mockUser.id, username: mockUser.username },
         room: { id: 10 },
         recipient: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
       } as unknown as MessageEntity;
       const otherMessage = {
         id: otherId,
         sender: { id: 2, username: 'bob' },
         room: { id: 10 },
         recipient: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([ownMessage, otherMessage]);
@@ -1533,17 +1863,7 @@ describe('TextRoomsService', () => {
 
       expect(messageRepository.find).toHaveBeenCalledWith(
         { id: { $in: [ownId, otherId] } },
-        {
-          populate: [
-            'sender',
-            'recipient',
-            'room',
-            'room.allowedRoles',
-            'room.allowedUsers',
-            'replyTo',
-            'replyTo.sender',
-          ],
-        },
+        expect.anything(),
       );
       expect(messageReadRepository.create).toHaveBeenCalledTimes(1);
       expect(messageReadRepository.create).toHaveBeenCalledWith({
@@ -1551,17 +1871,27 @@ describe('TextRoomsService', () => {
         reader: { id: mockUser.id },
       });
       expect(em.flush).toHaveBeenCalled();
-      expect(
-        eventEmitter.emit.mock.calls.filter(
-          ([event]) => event === TextRoomsDomainEvents.MESSAGE_UPDATED,
-        ),
-      ).toHaveLength(1);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        TextRoomsDomainEvents.MESSAGE_UPDATED,
-        expect.objectContaining({
-          id: uuidStringify(otherId),
-          isRead: true,
-        }),
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [uuidStringify(otherId)],
+          maxMessageId: null,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        {
+          userId: mockUser.id,
+          counts: {
+            rooms: {},
+            roomMentions: {},
+            direct: {},
+            directTotal: 0,
+          },
+        },
       );
     });
 
@@ -1584,18 +1914,23 @@ describe('TextRoomsService', () => {
       expect(messageReadRepository.find).not.toHaveBeenCalled();
       expect(messageReadRepository.create).not.toHaveBeenCalled();
       expect(em.flush).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
+      );
     });
 
-    it('should not insert a read that already exists', async () => {
+    it('should not insert a read or emit events when all messages are already read', async () => {
       const otherId = parse(v7());
       const otherMessage = {
         id: otherId,
         sender: { id: 2, username: 'bob' },
         room: { id: 10 },
         recipient: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([otherMessage]);
@@ -1611,11 +1946,240 @@ describe('TextRoomsService', () => {
       });
 
       expect(messageReadRepository.create).not.toHaveBeenCalled();
-      expect(
-        eventEmitter.emit.mock.calls.filter(
-          ([event]) => event === TextRoomsDomainEvents.MESSAGE_UPDATED,
-        ),
-      ).toHaveLength(1);
+      expect(em.flush).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
+      );
+    });
+
+    it('should only persist and emit reads for unread messages in a mixed batch', async () => {
+      const readId = parse(v7());
+      const unreadId = parse(v7());
+      const readMsg = {
+        id: readId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+      const unreadMsg = {
+        id: unreadId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([readMsg, unreadMsg]);
+      messageReadRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: readId },
+          reader: { id: mockUser.id },
+        } as unknown as MessageReadEntity,
+      ]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(readId), uuidStringify(unreadId)],
+      });
+
+      expect(messageReadRepository.create).toHaveBeenCalledTimes(1);
+      expect(messageReadRepository.create).toHaveBeenCalledWith({
+        message: unreadMsg,
+        reader: { id: mockUser.id },
+      });
+      expect(em.flush).toHaveBeenCalledTimes(1);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [uuidStringify(unreadId)],
+          maxMessageId: null,
+        },
+      );
+    });
+
+    it('should group MESSAGES_READ events by room for messages from multiple rooms', async () => {
+      const room10MsgId = parse(v7());
+      const room20MsgId = parse(v7());
+      const room10Msg = {
+        id: room10MsgId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+      const room20Msg = {
+        id: room20MsgId,
+        sender: { id: 3, username: 'charlie' },
+        room: { id: 20 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([room10Msg, room20Msg]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(room10MsgId), uuidStringify(room20MsgId)],
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [uuidStringify(room10MsgId)],
+          maxMessageId: null,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 20,
+          recipientId: null,
+          messageIds: [uuidStringify(room20MsgId)],
+          maxMessageId: null,
+        },
+      );
+    });
+
+    it('should emit MESSAGES_READ with recipientId as peer for direct messages', async () => {
+      const dmMsgId = parse(v7());
+      const peerId = 5;
+      const dmMsg = {
+        id: dmMsgId,
+        sender: { id: peerId, username: 'peer' },
+        room: null,
+        recipient: { id: mockUser.id, username: mockUser.username },
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([dmMsg]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(dmMsgId)],
+      });
+
+      expect(messageReadRepository.create).toHaveBeenCalledWith({
+        message: dmMsg,
+        reader: { id: mockUser.id },
+      });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: null,
+          recipientId: peerId,
+          messageIds: [uuidStringify(dmMsgId)],
+          maxMessageId: null,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.objectContaining({ userId: mockUser.id }),
+      );
+    });
+
+    it('should not allow a third user to mark a direct message as read', async () => {
+      const dmMsgId = parse(v7());
+      const dmMsg = {
+        id: dmMsgId,
+        sender: { id: 2, username: 'sender' },
+        room: null,
+        recipient: { id: 3, username: 'recipient' },
+      } as unknown as MessageEntity;
+      const thirdUser = { ...mockUser, id: 4 };
+
+      messageRepository.find.mockResolvedValue([dmMsg]);
+
+      await service.markRead(thirdUser, {
+        messageIds: [uuidStringify(dmMsgId)],
+      });
+
+      expect(messageReadRepository.find).not.toHaveBeenCalled();
+      expect(messageReadRepository.create).not.toHaveBeenCalled();
+      expect(em.flush).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
+      );
+    });
+
+    it('should catch UniqueConstraintViolationException, clear EM, re-query and succeed idempotently', async () => {
+      const msgId = parse(v7());
+      const msg = {
+        id: msgId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([msg]);
+      messageReadRepository.find
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            message: { id: msgId },
+            reader: { id: mockUser.id },
+          } as unknown as MessageReadEntity,
+        ]);
+      em.flush.mockRejectedValueOnce(
+        new UniqueConstraintViolationException(new Error('duplicate key')),
+      );
+
+      await expect(
+        service.markRead(mockUser, { messageIds: [uuidStringify(msgId)] }),
+      ).resolves.not.toThrow();
+
+      expect(em.clear).toHaveBeenCalled();
+      expect(messageReadRepository.find).toHaveBeenCalledTimes(2);
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.anything(),
+      );
+    });
+
+    it('should emit UNREAD_COUNTS_CHANGED with updated counts when messages are marked as read', async () => {
+      const otherId = parse(v7());
+      const otherMessage = {
+        id: otherId,
+        sender: { id: 2, username: 'bob' },
+        room: { id: 10 },
+        recipient: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.find.mockResolvedValue([otherMessage]);
+      messageReadRepository.find.mockResolvedValue([]);
+
+      await service.markRead(mockUser, {
+        messageIds: [uuidStringify(otherId)],
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        {
+          userId: mockUser.id,
+          counts: {
+            rooms: {},
+            roomMentions: {},
+            direct: {},
+            directTotal: 0,
+          },
+        },
+      );
     });
   });
 
@@ -1862,6 +2426,157 @@ describe('TextRoomsService', () => {
       expect(result).toEqual([
         { emoji: '👍', count: 1, userIds: [mockUser.id] },
       ]);
+    });
+  });
+
+  describe('readAll', () => {
+    it('marks all room messages as read up to maxId and emits MESSAGES_READ and UNREAD_COUNTS_CHANGED', async () => {
+      const maxUuid = v7();
+      const maxId = parse(maxUuid);
+      messageRepository.findOne.mockResolvedValueOnce({
+        id: maxId,
+      } as MessageEntity);
+      connection.execute.mockResolvedValueOnce({ affectedRows: 5 });
+
+      const result = await service.readAll(mockUser, {
+        roomId: 10,
+        recipientId: null,
+      });
+
+      expect(roomsFacade.assertCanAccessRoom).toHaveBeenCalledWith(
+        mockUser,
+        10,
+      );
+      expect(connection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('insert or ignore into message_reads'),
+        [mockUser.id, 10, mockUser.id, Buffer.from(maxId)],
+        'run',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: 10,
+          recipientId: null,
+          messageIds: [],
+          maxMessageId: maxUuid,
+        },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+        expect.objectContaining({
+          userId: mockUser.id,
+          counts: result,
+        }),
+      );
+    });
+
+    it('is idempotent and does not emit MESSAGES_READ when affectedRows is 0', async () => {
+      const maxUuid = v7();
+      const maxId = parse(maxUuid);
+      messageRepository.findOne.mockResolvedValueOnce({
+        id: maxId,
+      } as MessageEntity);
+      connection.execute.mockResolvedValueOnce({ affectedRows: 0 });
+
+      await service.readAll(mockUser, {
+        roomId: 10,
+        recipientId: null,
+      });
+
+      expect(connection.execute).toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        expect.anything(),
+      );
+    });
+
+    it('marks all DM messages as read up to maxId', async () => {
+      const peerId = 2;
+      const maxUuid = v7();
+      const maxId = parse(maxUuid);
+      messageRepository.findOne.mockResolvedValueOnce({
+        id: maxId,
+      } as MessageEntity);
+      connection.execute.mockResolvedValueOnce({ affectedRows: 3 });
+
+      await service.readAll(mockUser, {
+        roomId: null,
+        recipientId: peerId,
+      });
+
+      expect(connection.execute).toHaveBeenCalledWith(
+        expect.stringContaining('insert or ignore into message_reads'),
+        [mockUser.id, peerId, mockUser.id, Buffer.from(maxId)],
+        'run',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: mockUser.id,
+          roomId: null,
+          recipientId: peerId,
+          messageIds: [],
+          maxMessageId: maxUuid,
+        },
+      );
+    });
+
+    it('returns counts without writes for self-DM', async () => {
+      const result = await service.readAll(mockUser, {
+        roomId: null,
+        recipientId: mockUser.id,
+      });
+
+      expect(connection.execute).not.toHaveBeenCalled();
+      expect(messageRepository.findOne).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('returns counts without executing SQL when chat has no messages', async () => {
+      messageRepository.findOne.mockResolvedValueOnce(null);
+
+      const result = await service.readAll(mockUser, {
+        roomId: 10,
+        recipientId: null,
+      });
+
+      expect(connection.execute).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('throws when user cannot access private room', async () => {
+      roomsFacade.assertCanAccessRoom.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        ),
+      );
+
+      await expect(
+        service.readAll(mockUser, { roomId: 99, recipientId: null }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+    });
+
+    describe('ReadAllDto validation', () => {
+      it('validates targets through ReadAllDto', () => {
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: 10, recipientId: null })
+            .success,
+        ).toBe(true);
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: null, recipientId: 2 }).success,
+        ).toBe(true);
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: 10, recipientId: 2 }).success,
+        ).toBe(false);
+        expect(
+          ReadAllDto.schema.safeParse({ roomId: null, recipientId: null })
+            .success,
+        ).toBe(false);
+      });
     });
   });
 });

@@ -182,6 +182,7 @@ ROOMS:
 CHAT:
   MENTION_EVERYONE_HINT: Уведомить всех в комнате
   MENTION_UNKNOWN: неизвестно
+  UNREAD_MESSAGES: Непрочитанные сообщения
 SETTINGS:
   PROFILE:
     TITLE: Настройки профиля
@@ -359,6 +360,7 @@ VALIDATION:
   INVITE_CODE_REQUIRED: Код приглашения обязателен для регистрации
   INVALID_SCHEMA: Неверный формат схемы
   RECOVERY_CODE: Введите 6-значный код восстановления
+  INVALID_CHAT_TARGET: Должен быть указан ровно один чат
 AUTH:
   LOGIN: Имя пользователя или email
   OWNER_SETUP_TITLE: Первичная настройка сервера

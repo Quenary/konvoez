@@ -60,7 +60,7 @@ describe('MessageVisibilityDirective', () => {
     expect(observer.unobserve).toHaveBeenCalled();
   });
 
-  it('should not enqueue when the bound id is null', () => {
+  it('should not enqueue when the bound id is null and keep observing', () => {
     fixture.componentInstance.messageId.set(null);
     fixture.detectChanges();
 
@@ -70,6 +70,26 @@ describe('MessageVisibilityDirective', () => {
     );
 
     expect(readQueue.enqueue).not.toHaveBeenCalled();
+    expect(observer.unobserve).not.toHaveBeenCalled();
+  });
+
+  it('should enqueue and unobserve when message id becomes valid while intersecting', () => {
+    fixture.componentInstance.messageId.set(null);
+    fixture.detectChanges();
+
+    observerCallback(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      observer as unknown as IntersectionObserver,
+    );
+
+    expect(readQueue.enqueue).not.toHaveBeenCalled();
+    expect(observer.unobserve).not.toHaveBeenCalled();
+
+    fixture.componentInstance.messageId.set('msg-2');
+    fixture.detectChanges();
+
+    expect(readQueue.enqueue).toHaveBeenCalledWith('msg-2');
+    expect(observer.unobserve).toHaveBeenCalled();
   });
 
   it('should disconnect the observer on destroy', () => {

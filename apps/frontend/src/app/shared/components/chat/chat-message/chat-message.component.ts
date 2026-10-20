@@ -262,6 +262,14 @@ export class ChatMessageComponent {
     return !!currentUser && message.senderId === currentUser.id;
   });
 
+  protected readonly readTrackingId = computed(() => {
+    const isOwn = this.isOwnMessage();
+    const message = this.message();
+    return !isOwn && !message.isRead && !message.isPendingCreate
+      ? message.id
+      : null;
+  });
+
   protected readonly isDirectChat = computed(() => {
     return this.message().recipientId !== null;
   });

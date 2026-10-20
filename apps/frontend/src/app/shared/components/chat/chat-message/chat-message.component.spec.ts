@@ -680,4 +680,68 @@ describe('ChatMessageComponent', () => {
       expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
     });
   });
+
+  describe('readTrackingId', () => {
+    it('returns message id when message is not own, not read, and not pending create', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: 2,
+        isRead: false,
+        isPendingCreate: false,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBe('msg-42');
+    });
+
+    it('returns null when message is own', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: currentUser.id,
+        isRead: false,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBeNull();
+    });
+
+    it('returns null when message is already read', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: 2,
+        isRead: true,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBeNull();
+    });
+
+    it('returns null when message is pending create', () => {
+      const store = TestBed.inject(Store);
+      store.dispatch(AuthActions.initEnd({ user: currentUser }));
+
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        id: 'msg-42',
+        senderId: 2,
+        isRead: false,
+        isPendingCreate: true,
+      });
+      fixture.detectChanges();
+
+      expect(component['readTrackingId']()).toBeNull();
+    });
+  });
 });

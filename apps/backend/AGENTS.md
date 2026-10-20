@@ -132,6 +132,8 @@ The backend is built as a **modular monolith** running in a single process. Code
 - Keep signaling contracts and event enums in `@konvoez/shared`; do not diverge payload shapes between client and server.
 - Gateways handle connection lifecycle and fan-out; heavy persistence/encryption stays in services.
 - Mediasoup / SFU state is process-local — treat it as sensitive runtime state, not something to casually serialize or share across instances.
+- Text chat reads are idempotent: `POST /text-rooms/read` inserts only missing read records and emits `MESSAGES_READ` for newly read messages, not `MESSAGE_EDITED`. `POST /text-rooms/read-all` accepts exactly one of `roomId` or `recipientId` and marks other users' messages read through the newest message present when the request starts; newer messages stay unread. Both paths publish `UNREAD_COUNTS_CHANGED` so the user's other sessions receive the authoritative counts. Keep these effects in `TextRoomsService` domain events and `TextRoomsGateway` fan-out.
+- See [Chat reading](../../docs/CHAT_READING.md) for the unread anchor, page flags, divider lifecycle, and client behavior while paging.
 
 ## Testing
 

@@ -146,16 +146,16 @@ describe('UnreadCountsStore', () => {
     expect(store.direct()).toEqual({ 5: 3 });
   });
 
-  it('should zero the active chat and increment only inactive chats', () => {
+  it('should keep active chat counts and increment on new messages', () => {
     ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
     store.setActiveChat({ roomId: 10, recipientId: null });
 
-    expect(store.roomUnreadCount(10)).toBe(0);
-    expect(store.roomMentionCount(10)).toBe(0);
+    expect(store.roomUnreadCount(10)).toBe(2);
+    expect(store.roomMentionCount(10)).toBe(1);
     expect(store.activeRoomId()).toBe(10);
 
     store.handleNewMessage(incomingRoomMessage(), currentUser.id);
-    expect(store.roomUnreadCount(10)).toBe(0);
+    expect(store.roomUnreadCount(10)).toBe(3);
 
     store.handleNewMessage(
       incomingRoomMessage({
@@ -200,7 +200,8 @@ describe('UnreadCountsStore', () => {
       }),
       currentUser.id,
     );
-    expect(store.directUnreadCount(7)).toBe(0);
+    expect(store.directUnreadCount(7)).toBe(1);
+    expect(store.directTotal()).toBe(2);
   });
 
   it('should not increment direct unread for self messages', () => {
@@ -240,9 +241,9 @@ describe('UnreadCountsStore', () => {
     ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
     expect(store.roomMentionCount(10)).toBe(1);
 
-    // Active room does not increment
+    // Active room keeps count updated
     store.setActiveChat({ roomId: 10, recipientId: null });
-    expect(store.roomMentionCount(10)).toBe(0);
+    expect(store.roomMentionCount(10)).toBe(1);
 
     store.handleNewMessage(
       incomingRoomMessage({
@@ -252,7 +253,7 @@ describe('UnreadCountsStore', () => {
       }),
       currentUser,
     );
-    expect(store.roomMentionCount(10)).toBe(0);
+    expect(store.roomMentionCount(10)).toBe(2);
 
     // Inactive room increments mention count
     store.handleNewMessage(
@@ -303,9 +304,61 @@ describe('UnreadCountsStore', () => {
     );
     expect(store.roomMentionCount(11)).toBe(3);
 
-    // Clearing room clears unread mentions too
+    // Setting active chat preserves counts
     store.setActiveChat({ roomId: 11, recipientId: null });
-    expect(store.roomMentionCount(11)).toBe(0);
-    expect(store.roomMentions()[11]).toBeUndefined();
+    expect(store.roomMentionCount(11)).toBe(3);
+  });
+
+  it('should apply counts directly via applyCounts and query via chatUnreadCount', () => {
+    store.applyCounts({
+      rooms: { '20': 5 },
+      roomMentions: { '20': 2 },
+      direct: { '9': 4 },
+      directTotal: 4,
+    });
+
+    expect(store.rooms()).toEqual({ 20: 5 });
+    expect(store.roomMentions()).toEqual({ 20: 2 });
+    expect(store.direct()).toEqual({ 9: 4 });
+    expect(store.directTotal()).toBe(4);
+    expect(store.chatUnreadCount({ kind: 'room', id: 20 })).toBe(5);
+    expect(store.chatUnreadCount({ kind: 'direct', id: 9 })).toBe(4);
+    expect(store.chatUnreadCount({ roomId: 20 })).toBe(5);
+    expect(store.chatUnreadCount({ recipientId: 9 })).toBe(4);
+    expect(store.chatUnreadCount(null)).toBe(0);
+  });
+
+  it('should update counts on UNREAD_COUNTS_CHANGED socket event', () => {
+    ngrxStore.dispatch(AuthActions.requestLoginSuccess({ user: currentUser }));
+
+    mockSocket.emit(ETextRoomEvent.UNREAD_COUNTS_CHANGED, {
+      rooms: { '10': 0, '15': 2 },
+      roomMentions: {},
+      direct: { '3': 1 },
+      directTotal: 1,
+    });
+
+    expect(store.rooms()).toEqual({ 10: 0, 15: 2 });
+    expect(store.direct()).toEqual({ 3: 1 });
+  });
+
+  it('should compute activeChatUnreadCount for active room and active DM', () => {
+    store.applyCounts({
+      rooms: { '10': 3 },
+      roomMentions: {},
+      direct: { '5': 4 },
+      directTotal: 4,
+    });
+
+    expect(store.activeChatUnreadCount()).toBe(0);
+
+    store.setActiveChat({ roomId: 10, recipientId: null });
+    expect(store.activeChatUnreadCount()).toBe(3);
+
+    store.setActiveChat({ roomId: null, recipientId: 5 });
+    expect(store.activeChatUnreadCount()).toBe(4);
+
+    store.clearActiveChat();
+    expect(store.activeChatUnreadCount()).toBe(0);
   });
 });

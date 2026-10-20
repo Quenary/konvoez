@@ -61,6 +61,7 @@ describe('ChatStore', () => {
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
     toggleReaction: ReturnType<typeof vi.fn>;
+    readAll: ReturnType<typeof vi.fn>;
   };
   let mockSocket: MockSocket;
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
@@ -68,6 +69,7 @@ describe('ChatStore', () => {
     setActiveChat: ReturnType<typeof vi.fn>;
     clearActiveChat: ReturnType<typeof vi.fn>;
     load: ReturnType<typeof vi.fn>;
+    applyCounts: ReturnType<typeof vi.fn>;
   };
   let messageReadQueueService: {
     reset: ReturnType<typeof vi.fn>;
@@ -128,6 +130,19 @@ describe('ChatStore', () => {
     },
   };
 
+  function mockListResponse(
+    items: ITextRoomMessage[],
+    overrides: Partial<ITextRoomListResponse> = {},
+  ): ITextRoomListResponse {
+    return {
+      items,
+      firstUnreadMessageId: null,
+      hasMoreBefore: false,
+      hasMoreAfter: false,
+      ...overrides,
+    };
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockSocket = new MockSocket();
@@ -136,20 +151,18 @@ describe('ChatStore', () => {
     };
 
     apiService = {
-      list: vi.fn(() =>
-        of<ITextRoomListResponse>({
-          items: [message1, message2WithReply],
-        }),
-      ),
-      create: vi.fn(),
+      list: vi.fn(() => of(mockListResponse([message1, message2WithReply]))),
+      create: vi.fn(() => of(message1)),
       update: vi.fn(),
       delete: vi.fn(() => of(null)),
       toggleReaction: vi.fn(() => of([])),
+      readAll: vi.fn(() => of({ total: 0, byRoom: {}, bySender: {} })),
     };
     unreadCountsStore = {
       setActiveChat: vi.fn(),
       clearActiveChat: vi.fn(),
       load: vi.fn(),
+      applyCounts: vi.fn(),
     };
     messageReadQueueService = {
       reset: vi.fn(),
@@ -277,11 +290,7 @@ describe('ChatStore', () => {
       mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
-    apiService.list.mockReturnValue(
-      of<ITextRoomListResponse>({
-        items: [remoteMessage],
-      }),
-    );
+    apiService.list.mockReturnValue(of(mockListResponse([remoteMessage])));
 
     store.join({ kind: 'room', id: 10 }, 'msg-remote-initial');
 
@@ -316,11 +325,7 @@ describe('ChatStore', () => {
       mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
-    apiService.list.mockReturnValue(
-      of<ITextRoomListResponse>({
-        items: [remoteMessage],
-      }),
-    );
+    apiService.list.mockReturnValue(of(mockListResponse([remoteMessage])));
 
     store.jumpToMessage('msg-remote-99');
 
@@ -353,10 +358,8 @@ describe('ChatStore', () => {
     };
 
     apiService.list
-      .mockReturnValueOnce(of<ITextRoomListResponse>({ items: [] }))
-      .mockReturnValueOnce(
-        of<ITextRoomListResponse>({ items: [latestMessage] }),
-      );
+      .mockReturnValueOnce(of(mockListResponse([])))
+      .mockReturnValueOnce(of(mockListResponse([latestMessage])));
 
     store.join({ kind: 'room', id: 10 }, 'missing-id');
 
@@ -387,11 +390,7 @@ describe('ChatStore', () => {
     expect(store.ids().length).toBeGreaterThan(0);
     apiService.list.mockClear();
 
-    apiService.list.mockReturnValue(
-      of<ITextRoomListResponse>({
-        items: [],
-      }),
-    );
+    apiService.list.mockReturnValue(of(mockListResponse([])));
 
     store.jumpToMessage('deleted-target-id');
 
@@ -646,6 +645,31 @@ describe('ChatStore', () => {
       );
       expect(apiService.list.mock.calls[0][0].search).toBeUndefined();
     });
+
+    it('should keep the existing unread divider when clearing search', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            firstUnreadMessageId: 'msg-1',
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      expect(store.unreadDividerMessageId()).toBe('msg-1');
+
+      store.setSearchQuery('hello');
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            firstUnreadMessageId: 'msg-2',
+          }),
+        ),
+      );
+
+      store.clearSearch();
+
+      expect(store.unreadDividerMessageId()).toBe('msg-1');
+    });
   });
 
   describe('Socket message creation & search isolation', () => {
@@ -701,14 +725,14 @@ describe('ChatStore', () => {
       expect(store.entityMap()['msg-socket-irrelevant']).toBeUndefined();
     });
 
-    it('should update message from socket on MESSAGE_EDITED', () => {
+    it('should update message content without changing read state on MESSAGE_EDITED', () => {
       store.join({ kind: 'room', id: 10 });
 
       const editedMessage: ITextRoomMessage = {
         ...message1,
         content: 'Edited via socket event',
         updatedAt: new Date('2026-09-15T00:20:00.000Z'),
-        isRead: false,
+        isRead: true,
         attachments: [],
         clientId: null,
       };
@@ -717,6 +741,20 @@ describe('ChatStore', () => {
       expect(store.entityMap()['msg-1'].content).toBe(
         'Edited via socket event',
       );
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+    });
+
+    it('should ignore MESSAGE_EDITED for messages outside the loaded window', () => {
+      store.join({ kind: 'room', id: 10 });
+      const initialEntities = store.entities();
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_EDITED, {
+        ...message1,
+        id: 'unloaded-message',
+        content: 'Edited outside the loaded window',
+      });
+
+      expect(store.entities()).toEqual(initialEntities);
     });
 
     it('should ignore socket messages that do not belong to the active chat', () => {
@@ -793,6 +831,13 @@ describe('ChatStore', () => {
 
   describe('Pagination', () => {
     it('should request next page using newestId', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreAfter: true,
+          }),
+        ),
+      );
       store.join({ kind: 'room', id: 10 });
       apiService.list.mockClear();
 
@@ -812,6 +857,13 @@ describe('ChatStore', () => {
     });
 
     it('should request prev page using oldestId', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
       store.join({ kind: 'room', id: 10 });
       apiService.list.mockClear();
 
@@ -828,6 +880,38 @@ describe('ChatStore', () => {
       apiService.list.mockClear();
       store.requestPrevPage();
       expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('should not request another page when the server reports no more messages', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      store.requestPrevPage();
+      store.requestNextPage();
+
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('should ignore a second older-page request while the first is in flight', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const response$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValue(response$.asObservable());
+
+      store.requestPrevPage();
+      store.requestPrevPage();
+
+      expect(apiService.list).toHaveBeenCalledTimes(1);
+      response$.next(mockListResponse([]));
+      response$.complete();
     });
   });
 
@@ -1057,6 +1141,378 @@ describe('ChatStore', () => {
       expect(store.entityMap()['msg-1'].reactions).toEqual([
         { emoji: '🔥', count: 2, userIds: [1, 2] },
       ]);
+    });
+  });
+
+  describe('MESSAGES_READ socket event', () => {
+    it('should mark own messages as isRead when another user reads them', () => {
+      store.join({ kind: 'room', id: 10 });
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: 2,
+        roomId: 10,
+        recipientId: null,
+        messageIds: ['msg-1'],
+        maxMessageId: null,
+      });
+
+      expect(store.entityMap()['msg-1'].isRead).toBe(true);
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+    });
+
+    it('should mark others messages as isRead when current user reads them', () => {
+      store.join({ kind: 'room', id: 10 });
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: currentUser.id,
+        roomId: 10,
+        recipientId: null,
+        messageIds: ['msg-2'],
+        maxMessageId: null,
+      });
+
+      expect(store.entityMap()['msg-1'].isRead).toBe(false);
+      expect(store.entityMap()['msg-2'].isRead).toBe(true);
+    });
+
+    it('should mark messages as isRead up to maxMessageId', () => {
+      store.join({ kind: 'room', id: 10 });
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: currentUser.id,
+        roomId: 10,
+        recipientId: null,
+        messageIds: [],
+        maxMessageId: 'msg-999',
+      });
+
+      expect(store.entityMap()['msg-2'].isRead).toBe(true);
+    });
+
+    it('should ignore MESSAGES_READ event for a different room', () => {
+      store.join({ kind: 'room', id: 10 });
+
+      mockSocket.emit(ETextRoomEvent.MESSAGES_READ, {
+        readerId: currentUser.id,
+        roomId: 999,
+        recipientId: null,
+        messageIds: ['msg-2'],
+        maxMessageId: null,
+      });
+
+      expect(store.entityMap()['msg-2'].isRead).toBe(false);
+    });
+  });
+
+  describe('Bidirectional paging and unread anchor', () => {
+    it('should anchor around first unread message when returned by server in loadInitial', () => {
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            firstUnreadMessageId: 'msg-1',
+            hasMoreBefore: true,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+
+      store.join({ kind: 'room', id: 10 });
+
+      expect(store.unreadDividerMessageId()).toBe('msg-1');
+      expect(store.initialPosition()).toBe('unread');
+      expect(store.targetScrollMessageId()).toBeNull();
+      expect(store.hasMoreBefore()).toBe(true);
+      expect(store.hasMoreAfter()).toBe(true);
+      expect(store.missedLiveWhileBehind()).toBe(false);
+    });
+
+    it('should set initialPosition to bottom and unreadDividerMessageId to null when no unread messages', () => {
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            firstUnreadMessageId: null,
+            hasMoreBefore: true,
+            hasMoreAfter: false,
+          }),
+        ),
+      );
+
+      store.join({ kind: 'room', id: 10 });
+
+      expect(store.unreadDividerMessageId()).toBeNull();
+      expect(store.initialPosition()).toBe('bottom');
+      expect(store.targetScrollMessageId()).toBeNull();
+      expect(store.hasMoreBefore()).toBe(true);
+      expect(store.hasMoreAfter()).toBe(false);
+    });
+
+    it('should load older messages and prepend entities via loadOlder', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const olderMessage: ITextRoomMessage = {
+        ...message1,
+        id: 'msg-older-0',
+        createdAt: new Date('2026-09-14T00:00:00.000Z'),
+      };
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([olderMessage], {
+            hasMoreBefore: false,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+
+      store.loadOlder();
+
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          beforeId: 'msg-1',
+        }),
+      );
+      expect(store.ids()).toContain('msg-older-0');
+      expect(store.oldestId()).toBe('msg-older-0');
+      expect(store.hasMoreBefore()).toBe(false);
+    });
+
+    it('should load newer messages and append entities via loadNewer', () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const newerMessage: ITextRoomMessage = {
+        ...message2WithReply,
+        id: 'msg-newer-3',
+        createdAt: new Date('2026-09-17T00:00:00.000Z'),
+      };
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([newerMessage], {
+            hasMoreBefore: true,
+            hasMoreAfter: false,
+          }),
+        ),
+      );
+
+      store.loadNewer();
+
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          afterId: 'msg-2',
+        }),
+      );
+      expect(store.ids()).toContain('msg-newer-3');
+      expect(store.newestId()).toBe('msg-newer-3');
+      expect(store.hasMoreAfter()).toBe(false);
+      expect(store.missedLiveWhileBehind()).toBe(false);
+    });
+
+    it('should request latest messages and reset state via loadLatest', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const latestMessage: ITextRoomMessage = {
+        ...message2WithReply,
+        id: 'msg-latest-99',
+        createdAt: new Date('2026-09-20T00:00:00.000Z'),
+      };
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([latestMessage], {
+            hasMoreBefore: true,
+            hasMoreAfter: false,
+          }),
+        ),
+      );
+
+      store.loadLatest();
+
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          latest: true,
+        }),
+      );
+      expect(store.ids()).toEqual(['msg-latest-99']);
+      expect(store.initialPosition()).toBe('bottom');
+      expect(store.hasMoreAfter()).toBe(false);
+      expect(store.missedLiveWhileBehind()).toBe(false);
+    });
+
+    it('should call readAll and jump to latest on readAllAndJumpToLatest', () => {
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const counts = { total: 0, byRoom: {}, bySender: {} };
+      apiService.readAll.mockReturnValue(of(counts));
+
+      const latestMessage: ITextRoomMessage = {
+        ...message2WithReply,
+        id: 'msg-latest-99',
+        createdAt: new Date('2026-09-20T00:00:00.000Z'),
+      };
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([latestMessage], {
+            hasMoreBefore: true,
+            hasMoreAfter: false,
+          }),
+        ),
+      );
+
+      store.readAllAndJumpToLatest();
+
+      expect(apiService.readAll).toHaveBeenCalledWith({
+        roomId: 10,
+        recipientId: null,
+      });
+      expect(unreadCountsStore.applyCounts).toHaveBeenCalledWith(counts);
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          latest: true,
+        }),
+      );
+      expect(store.unreadDividerMessageId()).toBeNull();
+      expect(store.initialPosition()).toBe('bottom');
+      expect(store.hasMoreAfter()).toBe(false);
+      expect(store.missedLiveWhileBehind()).toBe(false);
+    });
+
+    it('should not append live message from socket when hasMoreAfter is true and set missedLiveWhileBehind', () => {
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1], {
+            hasMoreBefore: false,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      expect(store.hasMoreAfter()).toBe(true);
+
+      const liveMessage: ITextRoomMessage = {
+        id: 'msg-live-100',
+        content: '<p>Live message</p>',
+        senderId: 99,
+        senderUsername: 'bob',
+        roomId: 10,
+        recipientId: null,
+        createdAt: new Date('2026-09-21T00:00:00.000Z'),
+        updatedAt: null,
+        isRead: false,
+        attachments: [],
+        clientId: null,
+        replyTo: null,
+        reactions: [],
+        mentions: { userIds: [], roleIds: [], everyone: false },
+      };
+
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, liveMessage);
+
+      expect(store.entityMap()['msg-live-100']).toBeUndefined();
+      expect(store.missedLiveWhileBehind()).toBe(true);
+    });
+
+    it('should fetch a missed live message after the final newer page completes', async () => {
+      apiService.list.mockReturnValueOnce(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      const firstPage$ = new Subject<ITextRoomListResponse>();
+      const missedMessage: ITextRoomMessage = {
+        ...message2WithReply,
+        id: 'msg-missed-live',
+        createdAt: new Date('2026-09-21T00:00:00.000Z'),
+      };
+      apiService.list
+        .mockReturnValueOnce(firstPage$.asObservable())
+        .mockReturnValueOnce(
+          of(mockListResponse([missedMessage], { hasMoreAfter: false })),
+        );
+
+      store.loadNewer();
+      mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, missedMessage);
+      expect(store.missedLiveWhileBehind()).toBe(true);
+      expect(store.entityMap()['msg-missed-live']).toBeUndefined();
+
+      firstPage$.next(mockListResponse([], { hasMoreAfter: false }));
+      firstPage$.complete();
+      await Promise.resolve();
+
+      expect(apiService.list).toHaveBeenCalledTimes(2);
+      expect(apiService.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ afterId: 'msg-2' }),
+      );
+      expect(store.entityMap()['msg-missed-live']).toBeTruthy();
+      expect(store.missedLiveWhileBehind()).toBe(false);
+    });
+
+    it('should trigger loadLatest when sending outgoing message while hasMoreAfter is true', () => {
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1], {
+            hasMoreBefore: false,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      expect(store.hasMoreAfter()).toBe(true);
+      apiService.list.mockClear();
+
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+            hasMoreAfter: false,
+          }),
+        ),
+      );
+
+      store.createMessage({
+        tempId: 'temp-out-1',
+        data: {
+          content: 'My message',
+          roomId: 10,
+          recipientId: null,
+          replyToId: null,
+          attachmentIds: [],
+        },
+      });
+
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 10,
+          latest: true,
+        }),
+      );
     });
   });
 });

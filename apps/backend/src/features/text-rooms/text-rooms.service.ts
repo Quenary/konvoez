@@ -19,8 +19,10 @@ import {
 import {
   EditMessageDto,
   MarkReadDto,
+  MessageDto,
   MessageListRequestDto,
   MessageListResponseDto,
+  ReadAllDto,
   CreateMessageDto,
 } from './text-rooms.dto';
 import { extractTrigrams } from '@shared/utils/trigrams.util';
@@ -419,14 +421,54 @@ export class TextRoomsService {
     return users.map((u) => this.usersService.toDto(u));
   }
 
-  async list(
+  private async findFirstUnreadId(
     user: GetUserDto,
-    dto: MessageListRequestDto,
-  ): Promise<MessageListResponseDto> {
-    const { beforeId, afterId, aroundId, limit, recipientId, roomId, search } =
-      dto;
+    baseWhere: FilterQuery<MessageEntity>,
+  ): Promise<Uint8Array | null> {
+    const unread = await this.messageRepository.findOne(
+      {
+        ...baseWhere,
+        sender: { $ne: user.id },
+        id: { $nin: this.createUnreadMessageIdsSubquery(user.id) },
+      } as FilterQuery<MessageEntity>,
+      {
+        orderBy: { createdAt: 'ASC' },
+        fields: ['id'],
+      },
+    );
+    return unread?.id ?? null;
+  }
 
-    const baseWhere: FilterQuery<MessageEntity> = {};
+  private async toListItems(
+    messages: MessageEntity[],
+    userId: number,
+  ): Promise<MessageDto[]> {
+    const [isReadMap, attachments, reactions] = await Promise.all([
+      this.buildIsReadMap(messages, userId),
+      this.loadAttachments(messages),
+      this.loadReactions(messages),
+    ]);
+    return messages.map((m) => {
+      const id = uuidStringify(m.id);
+      return this.entityToDto(
+        m,
+        isReadMap.get(id) ?? false,
+        attachments.get(id) ?? [],
+        reactions.get(id) ?? [],
+      );
+    });
+  }
+
+  private async buildChatWhere(
+    user: GetUserDto,
+    target: { roomId?: number | null; recipientId?: number | null },
+  ): Promise<
+    FilterQuery<MessageEntity> & { $and?: FilterQuery<MessageEntity>[] }
+  > {
+    const { roomId, recipientId } = target;
+    const baseWhere: FilterQuery<MessageEntity> & {
+      $and?: FilterQuery<MessageEntity>[];
+    } = {};
 
     if (recipientId) {
       if (recipientId === user.id) {
@@ -444,6 +486,29 @@ export class TextRoomsService {
     } else {
       throw new Error('Either recipientId or chatRoomId must be provided');
     }
+
+    return baseWhere;
+  }
+
+  async list(
+    user: GetUserDto,
+    dto: MessageListRequestDto,
+  ): Promise<MessageListResponseDto> {
+    const {
+      beforeId,
+      afterId,
+      aroundId,
+      limit,
+      recipientId,
+      roomId,
+      search,
+      latest,
+    } = dto;
+
+    const baseWhere = await this.buildChatWhere(user, {
+      roomId,
+      recipientId,
+    });
 
     if (search) {
       const trigrams = extractTrigrams(search);
@@ -476,13 +541,18 @@ export class TextRoomsService {
       );
 
       if (!target) {
-        return { items: [] };
+        return {
+          items: [],
+          firstUnreadMessageId: null,
+          hasMoreBefore: false,
+          hasMoreAfter: false,
+        };
       }
 
       const beforeLimit = Math.floor((limit - 1) / 2);
       const afterLimit = limit - 1 - beforeLimit;
 
-      const [beforeItems, afterItems] = await Promise.all([
+      const [beforeItems, afterItems, firstUnreadId] = await Promise.all([
         beforeLimit > 0
           ? this.messageRepository.find(
               {
@@ -490,7 +560,7 @@ export class TextRoomsService {
                 id: { $lt: parse(aroundId) },
               } as FilterQuery<MessageEntity>,
               {
-                limit: beforeLimit,
+                limit: beforeLimit + 1,
                 orderBy: { createdAt: 'DESC' },
                 populate,
               },
@@ -503,66 +573,141 @@ export class TextRoomsService {
                 id: { $gt: parse(aroundId) },
               } as FilterQuery<MessageEntity>,
               {
-                limit: afterLimit,
+                limit: afterLimit + 1,
                 orderBy: { createdAt: 'ASC' },
                 populate,
               },
             )
           : Promise.resolve([]),
+        this.findFirstUnreadId(user, baseWhere),
       ]);
 
-      const combined = [...beforeItems.reverse(), target, ...afterItems];
-      const [isReadMap, attachments, reactions] = await Promise.all([
-        this.buildIsReadMap(combined, user.id),
-        this.loadAttachments(combined),
-        this.loadReactions(combined),
-      ]);
+      const hasMoreBefore = beforeItems.length > beforeLimit;
+      const hasMoreAfter = afterItems.length > afterLimit;
+      const trimmedBefore = beforeItems.slice(0, beforeLimit);
+      const trimmedAfter = afterItems.slice(0, afterLimit);
+
+      const combined = [...trimmedBefore.reverse(), target, ...trimmedAfter];
+      const items = await this.toListItems(combined, user.id);
+
       return {
-        items: combined.map((m) => {
-          const id = uuidStringify(m.id);
-          return this.entityToDto(
-            m,
-            isReadMap.get(id) ?? false,
-            attachments.get(id) ?? [],
-            reactions.get(id) ?? [],
-          );
-        }),
+        items,
+        firstUnreadMessageId: firstUnreadId
+          ? uuidStringify(firstUnreadId)
+          : null,
+        hasMoreBefore,
+        hasMoreAfter,
       };
     }
 
-    const where: FilterQuery<MessageEntity> = { ...baseWhere };
-
     if (beforeId) {
-      where.id = { $lt: parse(beforeId) };
+      const where = {
+        ...baseWhere,
+        id: { $lt: parse(beforeId) },
+      } as FilterQuery<MessageEntity>;
+      const rows = await this.messageRepository.find(where, {
+        limit: limit + 1,
+        orderBy: { createdAt: 'DESC' },
+        populate,
+      });
+      const hasMoreBefore = rows.length > limit;
+      const trimmed = rows.slice(0, limit);
+      const items = await this.toListItems(trimmed, user.id);
+
+      return {
+        items,
+        firstUnreadMessageId: null,
+        hasMoreBefore,
+        hasMoreAfter: true,
+      };
     }
 
     if (afterId) {
-      where.id = { $gt: parse(afterId) };
+      const where = {
+        ...baseWhere,
+        id: { $gt: parse(afterId) },
+      } as FilterQuery<MessageEntity>;
+      const rows = await this.messageRepository.find(where, {
+        limit: limit + 1,
+        orderBy: { createdAt: 'ASC' },
+        populate,
+      });
+      const hasMoreAfter = rows.length > limit;
+      const trimmed = rows.slice(0, limit);
+      const items = await this.toListItems(trimmed, user.id);
+
+      return {
+        items,
+        firstUnreadMessageId: null,
+        hasMoreBefore: true,
+        hasMoreAfter,
+      };
     }
 
-    const orderBy = afterId ? { createdAt: 'ASC' } : { createdAt: 'DESC' };
+    // Anchor mode (no cursors, no search, !dto.latest)
+    if (!search && !latest) {
+      const anchor = await this.findFirstUnreadId(user, baseWhere);
+      if (anchor) {
+        const [beforeRows, afterRows] = await Promise.all([
+          this.messageRepository.find(
+            {
+              ...baseWhere,
+              id: { $lt: anchor },
+            } as FilterQuery<MessageEntity>,
+            {
+              limit: limit + 1,
+              orderBy: { createdAt: 'DESC' },
+              populate,
+            },
+          ),
+          this.messageRepository.find(
+            {
+              ...baseWhere,
+              id: { $gte: anchor },
+            } as FilterQuery<MessageEntity>,
+            {
+              limit: limit + 1,
+              orderBy: { createdAt: 'ASC' },
+              populate,
+            },
+          ),
+        ]);
 
-    const messages = await this.messageRepository.find(where, {
-      limit,
-      orderBy,
+        const beforeTake = Math.min(
+          beforeRows.length,
+          Math.max(Math.floor(limit / 2), limit - afterRows.length),
+        );
+        const afterTake = Math.min(afterRows.length, limit - beforeTake);
+        const combined = [
+          ...beforeRows.slice(0, beforeTake).reverse(),
+          ...afterRows.slice(0, afterTake),
+        ];
+        const items = await this.toListItems(combined, user.id);
+
+        return {
+          items,
+          firstUnreadMessageId: uuidStringify(anchor),
+          hasMoreBefore: beforeRows.length > beforeTake,
+          hasMoreAfter: afterRows.length > afterTake,
+        };
+      }
+    }
+
+    // Latest mode (no anchor found, or latest, or search without cursors)
+    const rows = await this.messageRepository.find(baseWhere, {
+      limit: limit + 1,
+      orderBy: { createdAt: 'DESC' },
       populate,
     });
+    const hasMoreBefore = rows.length > limit;
+    const trimmed = rows.slice(0, limit);
+    const items = await this.toListItems(trimmed, user.id);
 
-    const [isReadMap, attachments, reactions] = await Promise.all([
-      this.buildIsReadMap(messages, user.id),
-      this.loadAttachments(messages),
-      this.loadReactions(messages),
-    ]);
     return {
-      items: messages.map((m) => {
-        const id = uuidStringify(m.id);
-        return this.entityToDto(
-          m,
-          isReadMap.get(id) ?? false,
-          attachments.get(id) ?? [],
-          reactions.get(id) ?? [],
-        );
-      }),
+      items,
+      firstUnreadMessageId: null,
+      hasMoreBefore,
+      hasMoreAfter: false,
     };
   }
 
@@ -1033,7 +1178,9 @@ export class TextRoomsService {
     const othersMessages = messages.filter(
       (msg) =>
         msg.sender.id !== user.id &&
-        (!msg.room || this.roomsFacade.canAccessRoom(user, msg.room)),
+        (msg.room
+          ? this.roomsFacade.canAccessRoom(user, msg.room)
+          : msg.recipient?.id === user.id),
     );
     if (othersMessages.length === 0) return;
 
@@ -1045,11 +1192,12 @@ export class TextRoomsService {
       existingReads.map((read) => uuidStringify(read.message.id)),
     );
 
-    for (const msg of othersMessages) {
-      if (alreadyRead.has(uuidStringify(msg.id))) {
-        continue;
-      }
+    const newMessages = othersMessages.filter(
+      (msg) => !alreadyRead.has(uuidStringify(msg.id)),
+    );
+    if (newMessages.length === 0) return;
 
+    for (const msg of newMessages) {
       this.em.persist(
         this.messageReadRepository.create({
           message: msg,
@@ -1058,25 +1206,170 @@ export class TextRoomsService {
       );
     }
 
-    await this.em.flush();
+    let insertedMessages = newMessages;
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        this.em.clear();
+        const postReads = await this.messageReadRepository.find({
+          message: { $in: newMessages.map((msg) => msg.id) },
+          reader: user.id,
+        });
+        const postReadSet = new Set(
+          postReads.map((r) => uuidStringify(r.message.id)),
+        );
+        const stillUnread = newMessages.filter(
+          (m) => !postReadSet.has(uuidStringify(m.id)),
+        );
+        if (stillUnread.length > 0) {
+          for (const msg of stillUnread) {
+            this.em.persist(
+              this.messageReadRepository.create({
+                message: msg,
+                reader: this.em.getReference(UserEntity, user.id),
+              }),
+            );
+          }
+          await this.em.flush();
+          insertedMessages = stillUnread;
+        } else {
+          insertedMessages = [];
+        }
+      } else {
+        throw error;
+      }
+    }
 
-    const [attachments, reactions] = await Promise.all([
-      this.loadAttachments(othersMessages),
-      this.loadReactions(othersMessages),
-    ]);
-    for (const msg of othersMessages) {
-      const id = uuidStringify(msg.id);
+    if (insertedMessages.length === 0) return;
+
+    const byChat = new Map<
+      string,
+      {
+        roomId: number | null;
+        recipientId: number | null;
+        messageIds: string[];
+      }
+    >();
+
+    for (const msg of insertedMessages) {
+      const msgUuid = uuidStringify(msg.id);
+      if (msg.room) {
+        const key = `room:${msg.room.id}`;
+        let group = byChat.get(key);
+        if (!group) {
+          group = { roomId: msg.room.id, recipientId: null, messageIds: [] };
+          byChat.set(key, group);
+        }
+        group.messageIds.push(msgUuid);
+      } else {
+        const peerId =
+          msg.sender.id === user.id
+            ? (msg.recipient?.id ?? null)
+            : msg.sender.id;
+        if (peerId) {
+          const key = `direct:${peerId}`;
+          let group = byChat.get(key);
+          if (!group) {
+            group = { roomId: null, recipientId: peerId, messageIds: [] };
+            byChat.set(key, group);
+          }
+          group.messageIds.push(msgUuid);
+        }
+      }
+    }
+
+    for (const group of byChat.values()) {
       emitTextRoomsDomainEvent(
         this.eventEmitter,
-        TextRoomsDomainEvents.MESSAGE_UPDATED,
-        this.entityToDto(
-          msg,
-          true,
-          attachments.get(id) ?? [],
-          reactions.get(id) ?? [],
-        ),
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: user.id,
+          roomId: group.roomId,
+          recipientId: group.recipientId,
+          messageIds: group.messageIds,
+          maxMessageId: null,
+        },
       );
     }
+
+    const counts = await this.getUnreadCounts(user);
+    emitTextRoomsDomainEvent(
+      this.eventEmitter,
+      TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+      {
+        userId: user.id,
+        counts,
+      },
+    );
+  }
+
+  async readAll(
+    user: GetUserDto,
+    dto: ReadAllDto,
+  ): Promise<ITextRoomUnreadCounts> {
+    if (dto.roomId) {
+      await this.roomsFacade.assertCanAccessRoom(user, dto.roomId);
+    } else if (dto.recipientId === user.id) {
+      return await this.getUnreadCounts(user);
+    }
+
+    const baseWhere = await this.buildChatWhere(user, dto);
+    const newestMsg = await this.messageRepository.findOne(baseWhere, {
+      orderBy: { createdAt: 'DESC' },
+      fields: ['id'],
+    });
+
+    const maxId = newestMsg?.id;
+    if (!maxId) {
+      return await this.getUnreadCounts(user);
+    }
+
+    let affectedRows = 0;
+    if (dto.roomId) {
+      const result = await this.em
+        .getConnection()
+        .execute<{ affectedRows?: number }>(
+          'insert or ignore into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.room_id = ? and m.sender_id != ? and m.id <= ?',
+          [user.id, dto.roomId, user.id, Buffer.from(maxId)],
+          'run',
+        );
+      affectedRows = result.affectedRows ?? 0;
+    } else if (dto.recipientId) {
+      const result = await this.em
+        .getConnection()
+        .execute<{ affectedRows?: number }>(
+          'insert or ignore into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.sender_id = ? and m.recipient_id = ? and m.id <= ?',
+          [user.id, dto.recipientId, user.id, Buffer.from(maxId)],
+          'run',
+        );
+      affectedRows = result.affectedRows ?? 0;
+    }
+
+    if (affectedRows > 0) {
+      emitTextRoomsDomainEvent(
+        this.eventEmitter,
+        TextRoomsDomainEvents.MESSAGES_READ,
+        {
+          readerId: user.id,
+          roomId: dto.roomId ?? null,
+          recipientId: dto.recipientId ?? null,
+          messageIds: [],
+          maxMessageId: uuidStringify(maxId),
+        },
+      );
+    }
+
+    const counts = await this.getUnreadCounts(user);
+    emitTextRoomsDomainEvent(
+      this.eventEmitter,
+      TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED,
+      {
+        userId: user.id,
+        counts,
+      },
+    );
+    return counts;
   }
 
   async getReaders(user: GetUserDto, messageId: string): Promise<GetUserDto[]> {
