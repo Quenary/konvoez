@@ -5,7 +5,7 @@ import {
   inject,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { authLoginSchema, IAuthLogin } from '@konvoez/shared';
+import { IAuthLogin } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import {
   selectAuthLoading,
@@ -28,6 +28,7 @@ import {
   createZodFieldValidator,
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
+import { authLoginFormSchema } from '@shared/schemas/forms.schema';
 
 @Component({
   selector: 'app-auth',
@@ -59,18 +60,20 @@ export class AuthComponent {
     {
       login: new FormControl('', {
         nonNullable: true,
-        validators: [createZodFieldValidator(authLoginSchema.shape.login)],
+        validators: [createZodFieldValidator(authLoginFormSchema.shape.login)],
       }),
       password: new FormControl('', {
         nonNullable: true,
-        validators: [createZodFieldValidator(authLoginSchema.shape.password)],
+        validators: [
+          createZodFieldValidator(authLoginFormSchema.shape.password),
+        ],
       }),
     },
     {
-      validators: [createZodFormValidator(authLoginSchema)],
+      validators: [createZodFormValidator(authLoginFormSchema)],
     },
   );
-  protected readonly errors = createZodError(this.form, authLoginSchema);
+  protected readonly errors = createZodError(this.form, authLoginFormSchema);
 
   private readonly isAuthorized = this.store.selectSignal(selectIsAuthorized);
 

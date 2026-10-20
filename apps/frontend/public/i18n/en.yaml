@@ -337,6 +337,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  LOGIN: Enter a valid username or email
   FILE_TOO_BIG: File is too big
   STRING: Value must be a string
   TTL_RANGE: Lifetime must be within the allowed range

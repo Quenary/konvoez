@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import {
+  authLoginSchema,
   authRegisterSchema,
   emailSchema,
   fullnameSchema,
@@ -26,6 +27,12 @@ const refinePasswordMatch = <
 
 const requiredTrimmedString = (error: string) =>
   z.string({ error }).trim().min(1, { error });
+
+export const authLoginFormSchema = authLoginSchema.extend({
+  login: z.union([usernameSchema, emailSchema], {
+    error: 'VALIDATION.LOGIN',
+  }),
+});
 
 export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;
