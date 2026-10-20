@@ -1,38 +1,35 @@
 # Rooms
 
-Text and voice rooms are managed via `/api/v1/rooms`. Listing and reading public rooms are available to any authenticated user. Creating, updating, deleting, and uploading a room avatar require `MANAGE_ROOMS` permission (or `isOwner: true`). Users without this permission get `403`.
+The app supports text and voice rooms. Any authenticated user can list and use the rooms they have access to. Creating, editing and deleting rooms (and uploading a room avatar) requires `MANAGE_ROOMS` or `OWNER`; other users get `403`.
 
-Room authorship (`author`: `IUserBrief` — id, username, fullname) is stored on create for audit and returned in room DTOs, but does not grant edit/delete rights — only `MANAGE_ROOMS` or `isOwner: true` does.
+The room author (id, username, full name) is recorded for audit and returned with the room, but it does not grant edit or delete rights. Room names are unique; a duplicate returns `409`.
 
-## Access control & privacy
+## Access control
 
-Rooms can be public or private:
+Rooms are **public** (visible to every authenticated user) or **private** (restricted to allowed roles and allowed users).
 
-- **Public rooms** (`isPrivate: false`): visible and accessible to all authenticated users.
-- **Private rooms** (`isPrivate: true`): access is restricted by `allowedRoles` (`allowedRoleIds: number[]`) and `allowedUsers` (`allowedUserIds: number[]`).
-- A user can access a private room if they are `OWNER`, or if their account ID is in `allowedUsers`, or if any of their active roles (assigned or default) is in `allowedRoles`.
-- Users without access to a private room cannot see it in room lists, cannot join its voice session, cannot fetch its message history, and cannot send or read messages in it.
+```mermaid
+flowchart TD
+  A[User requests a room] --> P{Room is private?}
+  P -- no --> OK[Access granted]
+  P -- yes --> O{OWNER?}
+  O -- yes --> OK
+  O -- no --> U{User in allowed users?}
+  U -- yes --> OK
+  U -- no --> R{Any active role in allowed roles?}
+  R -- yes --> OK
+  R -- no --> NO["No access: hidden from the list,<br/>no voice, no history, no messages"]
+```
 
-## API
-
-| Method   | Path                          | Permission / Role         | Notes                                                                                       |
-| -------- | ----------------------------- | ------------------------- | ------------------------------------------------------------------------------------------- |
-| `GET`    | `/api/v1/rooms`               | any authenticated         | List all accessible rooms (filters out private rooms user cannot access)                    |
-| `GET`    | `/api/v1/rooms/:id`           | room access or `OWNER`    | Single room                                                                                 |
-| `POST`   | `/api/v1/rooms`               | `MANAGE_ROOMS` or `OWNER` | Create (`name`, `type`, optional `avatar`, `isPrivate`, `allowedRoleIds`, `allowedUserIds`) |
-| `PUT`    | `/api/v1/rooms/:id`           | `MANAGE_ROOMS` or `OWNER` | Update (`name`, optional `avatar`, `isPrivate`, `allowedRoleIds`, `allowedUserIds`)         |
-| `DELETE` | `/api/v1/rooms/:id`           | `MANAGE_ROOMS` or `OWNER` | Delete room                                                                                 |
-| `POST`   | `/api/v1/rooms/avatar/upload` | `MANAGE_ROOMS` or `OWNER` | Upload avatar file, returns key + URL                                                       |
-| `GET`    | `/api/v1/rooms/avatar/stream` | any authenticated         | Stream avatar by `key`                                                                      |
-
-Room names are unique. Duplicate names return `409`.
+Active roles include assigned roles and the default roles.
 
 ## UI
 
-In the aside rooms list, the **add** buttons (text / voice) and the per-room context menu (edit / delete) are shown only when the current user has `MANAGE_ROOMS` permission or is `OWNER`. All members can open and use accessible rooms.
+- The **add** buttons (text, voice) and the per-room context menu (edit, delete) in the rooms list are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
+- The edit dialog sets privacy, allowed roles and allowed users, and shows the read-only author, created and updated fields.
+- Deleting a voice room closes its active voice session for all participants (see [Voice](frontend/VOICE.md)).
 
-The edit dialog allows configuring privacy, allowed roles, and allowed users (when private), and shows read-only **author**, **created**, and **updated** fields.
+## Related
 
-## Mentions
-
-Text room messages support `@user`, `@Role`, and `@everyone` mentions. Rooms with unread mentions display an `@` badge in the aside list. See [Mentions](MENTIONS.md) for detailed architecture, token syntax, and permissions.
+- [Mentions](MENTIONS.md): `@user`, `@Role` and `@everyone` in text rooms, with the `@` badge for unread mentions.
+- [Chat reading](CHAT_READING.md): opening a chat and unread counts.

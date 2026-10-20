@@ -1,18 +1,15 @@
 # Backend Agent Guide
 
-Guidelines for AI agents working in `apps/backend` — the NestJS API for Konvoez (self-hosted voice and text chat).
+Rules for `apps/backend` — the NestJS API for Konvoez. General rules (scope, TypeScript, tests, checks) are in the root `AGENTS.md`.
 
 ## Stack
 
-- **NestJS 11** (modules, DI, guards, pipes, WebSockets)
-- **MikroORM 7** with `defineEntity` schemas (SQLite default; MySQL/Postgres via `DB_ENGINE`)
-- **nestjs-zod** + Zod schemas from `@konvoez/shared` for request/response DTOs
-- **Socket.IO** gateways for realtime text/voice signaling
-- **mediasoup** (WebRTC SFU) for voice rooms and direct calls
-- **JWT** in HTTP-only cookies; passwords via Argon2
-- **AES-256-GCM** message encryption at rest (`EncryptionService` + `MASTER_KEY`)
+- **NestJS 11**, **MikroORM 7** with `defineEntity` schemas. SQLite is the supported engine; `DB_ENGINE` keeps the option for other drivers open.
+- **nestjs-zod** with Zod schemas from `@konvoez/shared` for DTOs.
+- **Socket.IO** gateways and **mediasoup** (WebRTC SFU).
+- **JWT** in HTTP-only cookies, **Argon2** passwords, **AES-256-GCM** message encryption at rest (`EncryptionService`).
 
-HTTP API prefix: `/api/v1`. Swagger: `/docs`. WS paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`, `/ws/v1/notifications`.
+HTTP prefix `/api/v1`, Swagger `/docs`. WebSocket paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`, `/ws/v1/notifications`.
 
 ## Layout
 
@@ -21,140 +18,62 @@ src/
   features/     # domain modules (auth, users, rooms, text-rooms, voice-rooms, …)
   shared/       # cross-cutting services, utils, tokens, base entity
   migrations/   # MikroORM migrations (explicit list in mikro-orm.config.ts)
-  main.ts
-  app.module.ts
-  mikro-orm.config.ts
 ```
 
-Typical feature files: `*.module.ts`, `*.controller.ts`, `*.service.ts`, `*.gateway.ts` (realtime), `*.entity.ts`, `*.dto.ts`, `*.spec.ts`.
+Path aliases: `@konvoez/shared` → `libs/shared`, `@shared/*` → `src/shared/*`. Use them instead of deep relative imports.
 
-Path aliases (prefer these over deep relative imports):
+## Architecture
 
-| Alias             | Points to      |
-| ----------------- | -------------- |
-| `@konvoez/shared` | `libs/shared`  |
-| `@shared/*`       | `src/shared/*` |
+The backend is a **modular monolith** in a single process. Organize by feature modules, not by technical layers.
 
-## Architecture & Modular Monolith
+- **Boundaries**: a feature module is a bounded context that owns its domain logic, persistence and validation. Other modules use only its exported services or facades.
+- **Single entity owner**: exactly one module owns an entity and registers it with `MikroOrmModule.forFeature([Entity])`. Other modules never register it and never query it through the ORM (`em.find(ForeignEntity)`); they call the owner's public methods (`UsersService.findByIds`, `PermissionsFacade.findRolesByIds`).
+- **Facades**: a subsystem that spans several entities exposes one facade (`PermissionsFacade`, `RoomsFacade`) and consumers depend only on it.
+- **Domain events**: cross-module side effects and realtime fan-out go through `EventEmitter2`. Services emit with the typed helpers in the feature's `*.events.ts` (built on `createDomainEventEmitter` from `shared/events/`); gateways and listeners subscribe with `@OnEvent`. Event enums and wire payloads live in `@konvoez/shared`.
+- **No transport in domain services**: never inject a gateway (`TextRoomsGateway`, `EntitySyncGateway`, …) or `NotificationsService` into another feature just to notify. Emit an event instead.
+- **Shared infrastructure** (`AppService`, password hashing, encryption, file storage) lives in `shared/` and is provided by `SharedModule`. Alternative implementations use injection tokens (`FileServiceInjectionToken`).
 
-The backend is built as a **modular monolith** running in a single process. Code organization follows strict modular boundaries:
+## NestJS conventions
 
-- **High Cohesion, Low Coupling**:
-  - Each feature module (`src/features/*`) represents a distinct bounded context encapsulating its own domain logic, persistence, and validation.
-  - Modules interact only through well-defined public boundaries (exported services or facades). Modules must never reach into private models or internals of another module.
-- **Single Entity Ownership**:
-  - Strictly one feature module owns an entity and registers it via `MikroOrmModule.forFeature([Entity])`.
-  - Never register foreign entities in `forFeature` of another module.
-  - Never perform ad-hoc ORM queries across module boundaries (e.g., `em.find(ForeignEntity)`, `this.repo.find(...)` on foreign entities).
-  - All cross-module entity queries must be performed through public service or facade methods provided by the owning module (e.g. `UsersService.findByIds`, `PermissionsFacade.findRolesByIds`).
-- **Facades for Cross-Cutting Subdomains**:
-  - When a domain subsystem exposes operations spanning multiple entities or internal mechanics (e.g., role-permission aggregation and RBAC queries), provide a public facade (e.g., `PermissionsFacade`).
-  - Consumers depend on the facade interface, avoiding direct tight coupling to entity structures or internal helper services.
-- **Domain Events via EventEmitter2**:
-  - Cross-module side effects and realtime sync are decoupled via in-process domain events using `EventEmitter2` (`@nestjs/event-emitter`).
-  - Domain services publish events (e.g., `emitUsersDomainEvent(this.eventEmitter, UsersDomainEvents.USER_UPDATED, payload)`).
-  - Gateways (`EntitySyncGateway`, `NotificationsGateway`, `TextRoomsGateway`) or listener services subscribe using `@OnEvent`.
-  - **Never inject WebSocket gateways into feature domain services.** Keep domain services transport-agnostic.
+- Controllers stay thin: validate/auth → call a service → return a DTO. Business logic and ORM access belong to services.
+- Use constructor injection. Do not use `ModuleRef.get()` or other service locators.
+- Export only what other modules need. Extract shared logic instead of using `forwardRef()`.
+- `@Global()` is for true cross-cutting modules (`SharedModule`, `AuthModule`). Do not make new feature modules global.
+- Services throw `AppException` with an `ApiErrorCode`; do not return ad-hoc `{ error }` objects for control flow.
+- Log with the NestJS `Logger`, not `console.log`.
 
-## General
+### Auth and authorization
 
-- Smallest change that fully solves the problem; do not refactor unrelated code.
-- Drop unused variables and imports.
-- Do not use `console.log`; use NestJS `Logger`.
-- Prefer meaningful names over comments; comment only non-obvious intent or constraints.
-- Every new file must end with a trailing newline.
-- Never use deprecated APIs; replace them with the recommended alternative.
-- For bug fixes, add the smallest failing test first when practical. Prefer unit tests with `@nestjs/testing`; E2E only for real multi-layer flows.
-- Respect the threat model in `docs/SECURITY.md` (roles, invites, encryption, cookies).
+- Protect HTTP routes with `@UseGuards(AuthGuard)`, read the user with `@Author()`, and require permissions with `@RequirePermissions([EPermission…])`.
+- Resolve roles and permissions only through `PermissionsFacade`. It applies default roles (`isDefault: true`) on top of assigned ones. The instance owner (`isOwner: true`) bypasses permission and private room checks.
+- Check room access with `RoomsFacade.canAccessRoom` or `assertCanAccessRoom` in both HTTP and WebSocket handlers.
+- Gateways authenticate from the handshake cookies via `AuthService`, the same JWT cookies as HTTP.
 
-## TypeScript
+### DTOs and validation
 
-- Keep `strict` checking **everywhere**, including `*.spec.ts`. Do not use `any` or `as any`.
-- Prefer `unknown` + narrowing; when a cast is unavoidable, use `as unknown as Something` (or a typed guard), not `any`.
-- Prefer inference when obvious; annotate when it clarifies intent.
-- Prefer discriminated unions over boolean flag combinations.
-- Prefer `satisfies` over `as` when checking object shapes.
-- Prefer `readonly` and immutable updates unless controlled mutation is clearly better.
-- Field order in classes: private → protected → public.
-- Naming: PascalCase for classes, camelCase for members/variables.
-- Injected / constructed dependencies: name the field after the injected symbol, camelCased (e.g. `UsersService` → `usersService`, `PasswordService` → `passwordService`). Do not shorten to `users`, `userService`, etc.
+- Define Zod schemas in `@konvoez/shared` and wrap them with `createZodDto(...)` in the feature `*.dto.ts`.
+- The global `ZodValidationPipe` is registered in `AppModule`. Do not add `class-validator` or a custom ValidationPipe.
+- Map entities to API shapes with the service `toDto` / `*AsDto` helpers so hidden fields (password hashes) never leak. Add Swagger decorators where neighboring controllers do.
 
-## NestJS
+## Data and MikroORM
 
-- Organize by **feature modules**, not by technical layer (no global `controllers/` / `services/` trees).
-- Keep controllers thin: validate/auth → call service → return DTO. No business logic or ORM in controllers.
-- Prefer **constructor injection**; avoid `ModuleRef.get()` / service-locator patterns.
-- Providers are singletons by default; do not put request-mutable state on singleton services.
-- Export only what other modules need. Prefer extracting shared logic over `forwardRef()` / circular modules.
-- `@Global()` is already used for true cross-cutting modules (`SharedModule`, `AuthModule`, …); do not make every new module global.
-- Throw `AppException` with `ApiErrorCode` from services when appropriate (e.g. `AppException.notFound(ApiErrorCode.USER_NOT_FOUND, '...')`); do not return ad-hoc `{ error }` objects for control flow.
-- Use lifecycle hooks (`onModuleInit`, `onApplicationShutdown`, …) for async setup/cleanup; keep constructors fast. Shutdown hooks are enabled in `main.ts`.
+- Entities use `defineEntity` with `p.*` builders and extend `KonvoezBaseEntitySchema`.
+- Inject `EntityRepository<T>` with `@InjectRepository`; get the `EntityManager` from the repository (`em.fork()` for isolated work). Services own persistence; do not add repository classes unless complexity clearly demands it.
+- Schema changes go through migrations in `src/migrations/`, created only with the CLI, never by hand: `npm run migration:create -- --name DescriptiveSuffix` (the suffix is required). Then add the new migration to `migrationsList` in `mikro-orm.config.ts`, which the webpack bundle needs. Never use ORM `synchronize` instead of migrations.
+- Message content is encrypted through `EncryptionService` before persisting and decrypted on read. Plaintext chat bodies are never stored.
 
-### Modules & DI
+## Realtime and voice
 
-- Register entities with `MikroOrmModule.forFeature([...])` strictly inside the owning feature module. Never register foreign entities in `forFeature` or perform ad-hoc ORM queries across module boundaries (`em.find(ForeignEntity)`); delegate through public domain services or facades instead.
-- Cross-cutting infrastructure (config/`AppService`, password hashing, encryption, file storage) lives in `shared/` and is provided via `SharedModule`.
-- Alternate implementations use injection tokens (e.g. `FileServiceInjectionToken`); follow that pattern when swapping backends.
-
-### Auth & authorization
-
-- Protect HTTP routes with `@UseGuards(AuthGuard)`.
-- Current user: `@Author()` (set by the guard).
-- Require granular permissions with `@RequirePermissions([EPermission...])` on routes protected by `@UseGuards(AuthGuard)`.
-- Instance owner (`isOwner: true`) bypasses all permission and private room restrictions and unconditionally holds all capabilities.
-- Flexible RBAC: user roles and permissions are resolved through `PermissionsFacade` which automatically applies default roles (`isDefault: true`) to all users in addition to explicit role assignments. External modules interact with authorization and role resolution solely through `PermissionsFacade`.
-- Room access control: verify room visibility/membership with `RoomsFacade.canAccessRoom(user, room)` or `RoomsFacade.assertCanAccessRoom(user, roomId)` on HTTP and WebSocket handlers.
-- WebSocket gateways authenticate from handshake cookies via `AuthService` (same JWT cookies as HTTP).
-
-### DTOs & validation
-
-- Define Zod schemas in `@konvoez/shared`; wrap with `createZodDto(...)` in feature `*.dto.ts`.
-- Global `ZodValidationPipe` is registered in `AppModule` — do not add `class-validator` / hand-rolled ValidationPipe.
-- Document responses with `@ApiOkResponse` / Swagger decorators where existing controllers do.
-- Map entities to API shapes via service `toDto` / `*AsDto` helpers; do not leak hidden fields (e.g. password hashes).
-
-## Data & MikroORM
-
-- Entities use `defineEntity` + `p.*` property builders; extend `KonvoezBaseEntitySchema` for `createdAt` / `updatedAt`.
-- Inject `EntityRepository<T>` with `@InjectRepository`; obtain `EntityManager` from the repository when needed (`repo.getEntityManager()`, `em.fork()` for isolated work).
-- Do not introduce a separate repository-class layer unless complexity clearly demands it — services own persistence here.
-- Schema changes go through migrations under `src/migrations/`. Create them via CLI only — never hand-write migration files: `npm run migration:create -- --name DescriptiveSuffix`. The `--name` suffix is required (e.g. `PushSubscriptionNotifications` → `Migration20260923111848_PushSubscriptionNotifications`). After creating a migration, add it to `migrationsList` in `mikro-orm.config.ts` (required for the webpack bundle).
-- Never enable ORM `synchronize` as a substitute for migrations in shared/prod paths.
-- Encrypt message content through `EncryptionService` before persist; decrypt on read. Do not store plaintext chat bodies.
-- Avoid N+1 queries: load needed relations deliberately; paginate large lists.
-
-## Realtime & voice
-
-- Text: `TextRoomsGateway` + `TextRoomsService`. Voice: `VoiceRoomsGateway` + mediasoup state services.
-- Entity metadata sync: `EntitySyncGateway` (`/ws/v1/sync`). Feature services publish domain events via `EventEmitter2` (`@nestjs/event-emitter`); the gateway listens with `@OnEvent` and fans out to Socket.IO. Do **not** inject the gateway into feature services.
-- Text message fan-out and push side effects follow the same pattern: emit from services/gateways via feature domain events (`features/text-rooms/text-rooms.events.ts`, `features/notifications/notifications.events.ts`); `TextRoomsGateway` / `NotificationsService` subscribe with `@OnEvent`. Do **not** inject `TextRoomsGateway` or `NotificationsService` into other features for notify-only work. Notification socket delivery is handled by `NotificationsGateway` (`/ws/v1/notifications`).
-- Domain event definitions and typed emitter helpers live directly in their feature folders (e.g. `src/features/users/users.events.ts`, `src/features/rooms/rooms.events.ts`), while `src/shared/events/` provides the base factory helper (`createDomainEventEmitter`). Wire event enums/payloads for clients live in `@konvoez/shared` (`EEntitySyncEvent`).
-- Keep signaling contracts and event enums in `@konvoez/shared`; do not diverge payload shapes between client and server.
-- Gateways handle connection lifecycle and fan-out; heavy persistence/encryption stays in services.
-- Mediasoup / SFU state is process-local — treat it as sensitive runtime state, not something to casually serialize or share across instances.
-- Text chat reads are idempotent: `POST /text-rooms/read` inserts only missing read records and emits `MESSAGES_READ` for newly read messages, not `MESSAGE_EDITED`. `POST /text-rooms/read-all` accepts exactly one of `roomId` or `recipientId` and marks other users' messages read through the newest message present when the request starts; newer messages stay unread. Both paths publish `UNREAD_COUNTS_CHANGED` so the user's other sessions receive the authoritative counts. Keep these effects in `TextRoomsService` domain events and `TextRoomsGateway` fan-out.
-- See [Chat reading](../../docs/CHAT_READING.md) for the unread anchor, page flags, divider lifecycle, and client behavior while paging.
+- Text: `TextRoomsGateway` + `TextRoomsService`. Voice: `VoiceRoomsGateway` + mediasoup state services. Entity sync: `EntitySyncGateway`. Notification sockets: `NotificationsGateway`.
+- Gateways handle connection lifecycle and fan-out; heavy persistence and encryption stay in services.
+- Keep signaling contracts and event enums in `@konvoez/shared`, so client and server payloads do not diverge.
+- Mediasoup state is process-local runtime state. Do not serialize it or share it across instances.
+- Marking messages read is idempotent: `POST /text-rooms/read` inserts only missing records and emits `MESSAGES_READ` for newly read messages. `POST /text-rooms/read-all` accepts exactly one of `roomId` or `recipientId` and marks messages up to the newest one at request start. Both publish `UNREAD_COUNTS_CHANGED`. Keep these effects in `TextRoomsService` events and `TextRoomsGateway` fan-out. Client-side behavior: [Chat reading](../../docs/CHAT_READING.md).
 
 ## Testing
 
-- Unit tests: `Test.createTestingModule` with mocked providers.
-- Mock MikroORM at the module boundary when entity schema imports are noisy (see existing `*.spec.ts` patterns).
-- Mock external I/O (S3, push, mediasoup) — do not hit real services in unit tests.
-- Cover authz edge cases (roles, invites, owner bootstrap) when touching those paths.
-- Strict typing applies to specs too: no `any` / `as any`. Use `as unknown as Something` (or narrow) for incomplete mocks/entities.
-- Access private/protected members via **index signature** (keeps real types): `service['orphanGracePeriodMs']`, `service['cleanupBucket'](...)`. Do **not** cast the whole instance with `as unknown as { … }` or `as any` just to reach internals.
+Jest with `@nestjs/testing`.
 
-## Change discipline
-
-- Preserve existing architecture unless there is a strong reason to change it.
-- Follow Conventional Commits when committing (`feat(backend): …`, `fix(backend): …`).
-- After substantive edits, ensure lint/tests relevant to the touched area still pass.
-- Env/secrets: never hard-code `MASTER_KEY`, `JWT_SECRET`, or storage credentials; read via `AppService` / env as existing code does.
-
-## Resources
-
-- [NestJS docs](https://docs.nestjs.com) — modules, providers, guards, pipes, websockets, testing
-- [MikroORM docs](https://mikro-orm.io/docs) — entities, repositories, migrations
-- [nestjs-zod](https://github.com/BenLorantfy/nestjs-zod) — DTO / validation integration
-- Shared contracts: `libs/shared` (`@konvoez/shared`)
-- Security model: `docs/SECURITY.md`
+- Build units with `Test.createTestingModule` and mocked providers. Mock MikroORM at the module boundary when entity imports are noisy (see existing `*.spec.ts`).
+- Mock external I/O (S3, push, mediasoup); unit tests never reach real services.
+- When touching authorization paths (roles, invites, owner bootstrap), cover their edge cases.

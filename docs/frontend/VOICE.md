@@ -1,28 +1,32 @@
 # Frontend voice
 
-Group voice rooms and direct calls share one media stack. Signaling and SFU: [NETWORKING.md](../NETWORKING.md). Camera/screen: [STREAMING.md](./STREAMING.md). Mic dynamics: [NOISE_SUPPRESSION.md](./NOISE_SUPPRESSION.md).
+Group voice rooms and direct calls share one media stack. Signaling and SFU: [Networking](../NETWORKING.md). Camera and screen: [Streaming](./STREAMING.md). Microphone processing: [Noise suppression](./NOISE_SUPPRESSION.md).
 
 ## Layers
 
-Signal stores hold session, lobby presence, and audio prefs. Sockets, mediasoup, and device pipelines live in services (no `Device` / `Transport` / `AudioNode` in stores).
+Signal stores hold state (session, lobby presence, audio preferences). Sockets, mediasoup and audio pipelines live in services; stores never hold `Device`, `Transport` or `AudioNode` objects.
 
 ```mermaid
 flowchart TB
-  UI[Pages and shared voice-room UI]
-  VSS[VoiceSessionStore]
-  VLS[VoiceLobbyStore]
-  VAP[VoiceAudioPreferencesStore]
-  Nav[RoomNavigationService]
-  Sync[EntitySyncService]
-  Session[VoiceSessionService]
-  Ms[MediasoupSessionService]
-  DC[DirectCallService]
-  Leave[VoiceLeaveService]
-  View[VoiceRoomViewService]
+  UI[Pages and voice-room UI]
 
-  UI --> VSS
-  UI --> VLS
-  UI --> VAP
+  subgraph Stores
+    VSS[VoiceSessionStore]
+    VLS[VoiceLobbyStore]
+    VAP[VoiceAudioPreferencesStore]
+  end
+
+  subgraph Services
+    Nav[RoomNavigationService]
+    Sync[EntitySyncService]
+    Session[VoiceSessionService]
+    Ms[MediasoupSessionService]
+    DC[DirectCallService]
+    Leave[VoiceLeaveService]
+    View[VoiceRoomViewService]
+  end
+
+  UI --> Stores
   UI --> Nav
   UI --> Session
   UI --> DC
@@ -39,42 +43,75 @@ flowchart TB
   Leave --> Session
 ```
 
-- **Hangup:** `VoiceLeaveService.leaveActiveVoice()` — direct call via `DirectCallService.leaveCall()`, else `VoiceSessionService.leaveSession()`. `VoiceSessionService` does not import `DirectCallService`; switching sessions uses `sessionWillChange$` and `detachFromCallWithoutHangup()`.
-- **Audio contexts & UI SFX:** capture, playback, and UI SFX are separate; resume after gesture is centralized in `AudioContextResumeService`. UI SFX (`AudioService`) use Web Audio API synthesizers following harmonic conventions (ascending positive cues, descending negative cues):
-  - **Join / Leave:** 2-tone cues on local join/leave and remote peer events (`PEER_JOINED` / `PEER_LEFT`).
-  - **Mute / Unmute:** 2-tone cues in high register (`E5 ↔ A5`).
-  - **Deafen / Undeafen:** 2-tone cues in lower register (`A4 ↔ E5`).
-  - **Stream Start / Stop:** 3-tone cues on screen/camera publish and stop (local and remote peers via `PRODUCER_CREATED` and `PRODUCER_CLOSED`, suppressed on `peer-left`).
-
-## Flow (short)
-
-1. **Join** — `VoiceSessionService.joinSession` (`GROUP_ROOM` or `DIRECT_CALL`) via `RoomNavigationService.selectRoom` and the `VoiceRoomComponent` route effect for group rooms, or `DirectCallService` (`callWithUserId`, accept, rejoin) for direct calls. `JOIN_ROOM`, `CREATE_TRANSPORT`, and `PRODUCE` use a 10 s timeout (`VOICE_JOIN_ACK_MS`); `PRODUCE` retries once on ack timeout (the server serializes `PRODUCE` per room with a mutex so replace-by-tag cleanly replaces any orphan producer). Other ack-based voice events (except `LEAVE_ROOM`) use the same helper with the default 5 s timeout and `{ error }` handling. `LEAVE_ROOM` uses a raw `socket.timeout(3000).emitWithAck` on leave. While a join is in flight, `VoiceSessionStore.joiningTarget` is set (used by UI and by `canProduce`). Join/leave SFX, transports, mic produce, wake lock; reconnect rejoins stored session. Lobby peers: `EntitySyncService` loads an initial `GET_ALL_PEERS` snapshot when the voice socket connects (with ack timeout + retry), then applies `VOICE_ROOM_PEER_JOINED` / `VOICE_ROOM_PEER_LEFT` / `VOICE_ROOM_PEER_MUTED` from entity-sync (`VoiceLobbyStore`; direct calls excluded). Events carry the server `epoch` + monotonic `revision`; a gap, an epoch change, or a reconnect of either the voice or the entity-sync socket triggers a (serialized) snapshot resync, and events are buffered while the lobby is unsynced. On each snapshot, buffered events from another epoch (or at or below the snapshot revision) are dropped so a server restart cannot poison the buffer. Deleting a group room emits `ROOM_CLOSED` on the voice socket to participants (then server eviction and lobby revision); the client shows a toast, emits `roomClosed$` with the room id, leaves the session, and `VoiceRoomComponent` navigates home when the closed id matches its route. Clients also resync the lobby on tab visibility, `online`, and a 60 s timer while visible.
-2. **Mic** — `MicrophoneService` pipeline; mute via producer track + `VoiceAudioPreferencesStore`. Active sessions broadcast mute/deafen state changes to session peers via `SET_MUTE_STATE` (`PEER_MUTE_CHANGED`) and to lobby via entity-sync (`VOICE_ROOM_PEER_MUTED`).
-3. **Remote audio** — consume → `PeerPlaybackService` (deafen × per-peer gain).
-4. **Speaking** — `AudioActivityService` polls registered analysers for tiles/avatars. `VoiceSessionService` registers the local analyser from `MicrophoneService` for the current user when there is an active session, an analyser exists, and `VoiceAudioPreferencesStore` reports the mic unmuted (mute state only comes from the prefs store).
-5. **Direct calls** — signaling in `DirectCallService`; the user dialog (opened by `WithUserDialogDirective` through lazy `UserDialogService`) provides direct-message navigation, call initiation, and per-user playback gain control. Peer and screen-stream playback gain controls share `shared/components/volume-control/`. UI on `/direct/:id` (`DirectComponent` + `app-voice-room-shell`) and sidebar (`voice-room-panel`, hanging call in rooms aside). Shared grid/overlay: `shared/components/voice-room/`.
-
-## Ownership
-
 | Concern                                  | Owner                                          |
 | ---------------------------------------- | ---------------------------------------------- |
-| Active session + session peers           | `VoiceSessionStore`                            |
+| Active session and its peers             | `VoiceSessionStore`                            |
 | Who is in which group voice room         | `VoiceLobbyStore`                              |
-| Lobby sync (peers snapshot & revisions)  | `EntitySyncService`                            |
-| Room navigation & selection              | `RoomNavigationService`                        |
-| Mute, deafen, peer / screen-audio gain   | `VoiceAudioPreferencesStore`                   |
-| Join / leave media                       | `VoiceSessionService`                          |
+| Lobby sync (snapshot and revisions)      | `EntitySyncService`                            |
+| Room navigation and selection            | `RoomNavigationService`                        |
+| Mute, deafen, per-peer gains             | `VoiceAudioPreferencesStore`                   |
+| Join and leave media                     | `VoiceSessionService`                          |
 | Call signaling, `callWithUserId`, rejoin | `DirectCallService`                            |
 | Hangup button                            | `VoiceLeaveService`                            |
-| Device changes in settings               | `AUDIO_DEVICE_HANDLER` → `VoiceSessionService` |
+| Audio device changes in settings         | `AUDIO_DEVICE_HANDLER` → `VoiceSessionService` |
 | Theatre, chrome, fullscreen              | `VoiceRoomViewService`                         |
 | Grid peer list                           | `VoiceSessionPeersService`                     |
 
+## Join flow
+
+A session is joined for a `GROUP_ROOM` (through room navigation) or a `DIRECT_CALL` (through `DirectCallService`: call, accept, rejoin).
+
+```mermaid
+sequenceDiagram
+  participant UI
+  participant VS as VoiceSessionService
+  participant Srv as Server (voice socket)
+  participant Ms as MediasoupSessionService
+
+  UI->>VS: joinSession(target)
+  Note over VS: join sound, leave previous session
+  VS->>Srv: JOIN_ROOM
+  Srv-->>VS: PEERS_ON_JOIN (peers and their producers)
+  VS->>Ms: ensureDeviceLoaded
+  Ms->>Srv: GET_RTP_CAPABILITIES
+  VS->>Ms: ensure send and receive transports
+  Ms->>Srv: CREATE_TRANSPORT
+  Ms->>Srv: PRODUCE (microphone)
+  VS->>Ms: consume remote producers
+  Note over VS: screen wake lock
+  Srv-->>VS: peer joined / left / muted events
+```
+
+- `JOIN_ROOM`, `CREATE_TRANSPORT` and `PRODUCE` use a longer timeout (10 s) than other acknowledged events (5 s); `PRODUCE` is retried once.
+- While joining, `VoiceSessionStore.joiningTarget` is set and used by the UI.
+- After a reconnect the stored session is rejoined.
+- Hangup goes through `VoiceLeaveService.leaveActiveVoice()`: a direct call is left via `DirectCallService`, otherwise via `VoiceSessionService`. Switching sessions leaves the previous one automatically.
+
+## Lobby
+
+`VoiceLobbyStore` shows who is in each group voice room, even for users who are not in a session (direct calls are excluded).
+
+- On voice socket connect, `EntitySyncService` loads a snapshot of all peers, then applies live join, leave and mute events.
+- Events carry a server `epoch` and a monotonic `revision`. A gap, a new epoch or a reconnect triggers a resync; events are buffered until the lobby is synced, and stale ones are dropped.
+- The client also resyncs when the tab becomes visible, the browser goes online, and every 60 seconds while visible.
+- When a group room is deleted, the server sends `ROOM_CLOSED`: the client shows a toast, leaves the session and, if that room is open, navigates home.
+
+## Audio
+
+- **Microphone**: `MicrophoneService` builds the capture pipeline. Mute is applied to the producer track and stored in `VoiceAudioPreferencesStore`. Mute and deafen changes are sent to session peers and, through entity sync, to the lobby.
+- **Remote audio**: consumed tracks play through `PeerPlaybackService` (deafen combined with per-peer gain).
+- **Speaking indicator**: `AudioActivityService` polls the registered analysers; the local analyser is registered only while the mic is unmuted in an active session.
+- **Sounds**: capture, playback and UI sound effects use separate audio contexts; resuming them after a user gesture is handled by `AudioContextResumeService`. Effects are synthesized with Web Audio (positive cues rise, negative cues fall): join/leave, mute/unmute, deafen/undeafen, and stream start/stop for local and remote peers.
+
+## Direct calls
+
+`DirectCallService` handles call signaling. The UI lives on `/direct/:id` (`DirectComponent` with `app-voice-room-shell`) and in the sidebar. The user dialog offers direct-message navigation, call initiation and per-user volume. The grid and overlay are shared with group rooms (`shared/components/voice-room/`).
+
 ## Code map
 
-- Stores: `apps/frontend/src/app/core/stores/`, `apps/frontend/src/app/core/voice/`, `apps/frontend/src/app/core/chat/`
-- API services: `apps/frontend/src/app/core/api/`
-- Session / mediasoup / devices: `apps/frontend/src/app/core/services/voice-*.ts`, `mediasoup-session.service.ts`, `peer-*.service.ts`, `direct-call.service.ts`, `voice-leave.service.ts`, `entity-sync.service.ts`
+- Stores: `apps/frontend/src/app/core/{stores,voice,chat}/`
+- API: `apps/frontend/src/app/core/api/`
+- Services (session, mediasoup, peers, calls, entity sync): `apps/frontend/src/app/core/services/`
 - Navigation: `apps/frontend/src/app/features/rooms/room-navigation.service.ts`
 - Shared UI: `apps/frontend/src/app/shared/components/voice-room/`
 - Routes: `features/voice-room/`, `features/direct/`
