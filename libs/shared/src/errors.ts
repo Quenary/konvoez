@@ -78,6 +78,7 @@ export enum ApiErrorCode {
 
   // Settings & notifications
   SETTING_NOT_FOUND = 'SETTING_NOT_FOUND',
+  SETTING_ENV_LOCKED = 'SETTING_ENV_LOCKED',
   PUSH_SUBSCRIPTION_NOT_FOUND = 'PUSH_SUBSCRIPTION_NOT_FOUND',
 
   // Voice & calls (WS)

@@ -22,7 +22,7 @@ export class NotificationsController {
   })
   async getVapidPublicKey(): Promise<VapidPublicKeyDto> {
     return {
-      publicKey: this.notificationsService.getPublicKey(),
+      publicKey: await this.notificationsService.getPublicKeyIfEnabled(),
     };
   }
 

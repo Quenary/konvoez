@@ -19,7 +19,12 @@ import { NotificationsApiService } from './notifications-api.service';
 import { DesktopBridgeService } from '@core/desktop/desktop-bridge.service';
 
 export type PushToggleResult =
-  'enabled' | 'disabled' | 'unsupported' | 'permission-denied' | 'failed';
+  | 'enabled'
+  | 'disabled'
+  | 'unsupported'
+  | 'permission-denied'
+  | 'failed'
+  | 'server-disabled';
 
 @Injectable({ providedIn: 'root' })
 export class PushNotificationService {
@@ -32,8 +37,18 @@ export class PushNotificationService {
   private readonly permissionState = signal<NotificationPermission>(
     this.readPermission(),
   );
+  private readonly serverPublicKey = signal<string | null | undefined>(
+    undefined,
+  );
 
   public readonly subscription = this.subscriptionState.asReadonly();
+  public readonly serverKeyLoaded = computed(
+    () => this.serverPublicKey() !== undefined,
+  );
+  public readonly serverAvailable = computed(
+    () =>
+      this.serverPublicKey() !== null && this.serverPublicKey() !== undefined,
+  );
   public readonly isEnabled = computed(
     () =>
       this.isSupported() &&
@@ -125,6 +140,19 @@ export class PushNotificationService {
       .subscribe();
   }
 
+  public loadServerKey(): Observable<string | null> {
+    return this.notificationsApiService.getPublicKey().pipe(
+      tap(({ publicKey }) => {
+        this.serverPublicKey.set(publicKey ?? null);
+      }),
+      map(({ publicKey }) => publicKey ?? null),
+      catchError(() => {
+        this.serverPublicKey.set(null);
+        return of(null);
+      }),
+    );
+  }
+
   public syncExistingSubscription(): Observable<boolean> {
     if (!this.isSupported()) {
       return of(false);
@@ -138,12 +166,37 @@ export class PushNotificationService {
           return of(false);
         }
 
-        return this.notificationsApiService
-          .createSubscription(this.toApiPayload(subscription))
-          .pipe(
-            map(() => true),
-            catchError(() => of(false)),
-          );
+        return this.loadServerKey().pipe(
+          switchMap((publicKey) => {
+            if (!publicKey) {
+              return of(false);
+            }
+            const current = subscription.options.applicationServerKey;
+            const matches =
+              current !== null && arrayBufferToBase64Url(current) === publicKey;
+            if (matches) {
+              return this.notificationsApiService
+                .createSubscription(this.toApiPayload(subscription))
+                .pipe(
+                  map(() => true),
+                  catchError(() => of(false)),
+                );
+            }
+
+            const endpoint = subscription.endpoint;
+            return from(subscription.unsubscribe()).pipe(
+              tap(() => this.subscriptionState.set(null)),
+              switchMap(() =>
+                this.notificationsApiService
+                  .unsubscribe({ endpoint })
+                  .pipe(catchError(() => of(null))),
+              ),
+              switchMap(() => this.subscribe()),
+              map((result) => result === 'enabled'),
+            );
+          }),
+          catchError(() => of(false)),
+        );
       }),
     );
   }
@@ -164,36 +217,39 @@ export class PushNotificationService {
         return action === 'enable'
           ? 'SETTINGS.NOTIFICATIONS.ENABLE_ERROR'
           : 'SETTINGS.NOTIFICATIONS.DISABLE_ERROR';
+      case 'server-disabled':
+        return 'SETTINGS.NOTIFICATIONS.SERVER_DISABLED';
     }
   }
 
   private subscribe(): Observable<PushToggleResult> {
-    return this.notificationsApiService.getPublicKey().pipe(
-      switchMap(({ publicKey }) => {
+    return this.loadServerKey().pipe(
+      switchMap((publicKey) => {
         if (!publicKey) {
-          return throwError(() => new Error('VAPID public key is empty'));
+          return of('server-disabled' as const);
         }
 
         return from(
           this.swPush.requestSubscription({
             serverPublicKey: publicKey,
           }),
+        ).pipe(
+          switchMap((subscription) =>
+            this.notificationsApiService
+              .createSubscription(this.toApiPayload(subscription))
+              .pipe(
+                tap(() => this.subscriptionState.set(subscription)),
+                map(() => 'enabled' as const),
+                catchError((error: unknown) =>
+                  from(subscription.unsubscribe()).pipe(
+                    tap(() => this.subscriptionState.set(null)),
+                    switchMap(() => throwError(() => error)),
+                  ),
+                ),
+              ),
+          ),
         );
       }),
-      switchMap((subscription) =>
-        this.notificationsApiService
-          .createSubscription(this.toApiPayload(subscription))
-          .pipe(
-            tap(() => this.subscriptionState.set(subscription)),
-            map(() => 'enabled' as const),
-            catchError((error: unknown) =>
-              from(subscription.unsubscribe()).pipe(
-                tap(() => this.subscriptionState.set(null)),
-                switchMap(() => throwError(() => error)),
-              ),
-            ),
-          ),
-      ),
     );
   }
 
@@ -213,4 +269,16 @@ export class PushNotificationService {
       userAgent: navigator.userAgent,
     };
   }
+}
+
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }

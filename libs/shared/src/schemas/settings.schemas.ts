@@ -12,6 +12,10 @@ import {
   passwordRecoveryCodeMinTtl,
 } from '../const';
 
+export const settingMetaSchema = z.object({
+  envLocked: z.boolean(),
+});
+
 /* ==========================================================================
    ICE Servers Setting
    ========================================================================== */
@@ -66,9 +70,9 @@ export const iceServersSettingBaseSchema = z.object({
   value: iceServersSettingValueSchema,
 });
 
-export const iceServersSettingSchema = iceServersSettingBaseSchema.extend(
-  baseEntitySchema.shape,
-);
+export const iceServersSettingSchema = iceServersSettingBaseSchema
+  .extend(baseEntitySchema.shape)
+  .extend(settingMetaSchema.shape);
 export type TIceServersSetting = z.infer<typeof iceServersSettingSchema>;
 
 /* ==========================================================================
@@ -87,8 +91,9 @@ export const inviteOnlySignUpSettingBaseSchema = z.object({
   value: inviteOnlySignUpSettingValueSchema,
 });
 
-export const inviteOnlySignUpSettingSchema =
-  inviteOnlySignUpSettingBaseSchema.extend(baseEntitySchema.shape);
+export const inviteOnlySignUpSettingSchema = inviteOnlySignUpSettingBaseSchema
+  .extend(baseEntitySchema.shape)
+  .extend(settingMetaSchema.shape);
 export type TInviteOnlySignUpSetting = z.infer<
   typeof inviteOnlySignUpSettingSchema
 >;
@@ -115,10 +120,58 @@ export const passwordRecoveryCodeTtlSettingBaseSchema = z.object({
 });
 
 export const passwordRecoveryCodeTtlSettingSchema =
-  passwordRecoveryCodeTtlSettingBaseSchema.extend(baseEntitySchema.shape);
+  passwordRecoveryCodeTtlSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
 export type TPasswordRecoveryCodeTtlSetting = z.infer<
   typeof passwordRecoveryCodeTtlSettingSchema
 >;
+
+/* ==========================================================================
+   VAPID Email Setting
+   ========================================================================== */
+
+export const vapidEmailSettingValueSchema = z
+  .string({ error: SCHEMA_ERROR.VAPID_SUBJECT })
+  .trim()
+  .refine(
+    (value) =>
+      value === '' ||
+      z.email().safeParse(value).success ||
+      /^https:\/\/[^\s]+$/.test(value) ||
+      (value.startsWith('mailto:') &&
+        z.email().safeParse(value.slice('mailto:'.length)).success),
+    { error: SCHEMA_ERROR.VAPID_SUBJECT },
+  );
+export type TVapidEmailSettingValue = z.infer<
+  typeof vapidEmailSettingValueSchema
+>;
+
+export const DEFAULT_VAPID_EMAIL: TVapidEmailSettingValue = '';
+
+export const vapidEmailSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.VAPID_EMAIL),
+  value: vapidEmailSettingValueSchema,
+});
+
+export const vapidEmailSettingSchema = vapidEmailSettingBaseSchema
+  .extend(baseEntitySchema.shape)
+  .extend(settingMetaSchema.shape);
+export type TVapidEmailSetting = z.infer<typeof vapidEmailSettingSchema>;
+
+export function toVapidSubject(value: string): string | null {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.startsWith('https://') || normalized.startsWith('mailto:')) {
+    return normalized;
+  }
+  if (z.email().safeParse(normalized).success) {
+    return `mailto:${normalized}`;
+  }
+  return null;
+}
 
 /* ==========================================================================
    Attachments Enabled
@@ -137,7 +190,9 @@ export const attachmentsEnabledSettingBaseSchema = z.object({
 });
 
 export const attachmentsEnabledSettingSchema =
-  attachmentsEnabledSettingBaseSchema.extend(baseEntitySchema.shape);
+  attachmentsEnabledSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
 export type TAttachmentsEnabledSetting = z.infer<
   typeof attachmentsEnabledSettingSchema
 >;
@@ -168,7 +223,9 @@ export const attachmentsMaxFileSizeSettingBaseSchema = z.object({
 });
 
 export const attachmentsMaxFileSizeSettingSchema =
-  attachmentsMaxFileSizeSettingBaseSchema.extend(baseEntitySchema.shape);
+  attachmentsMaxFileSizeSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
 export type TAttachmentsMaxFileSizeSetting = z.infer<
   typeof attachmentsMaxFileSizeSettingSchema
 >;
@@ -197,7 +254,9 @@ export const attachmentsMaxFilesPerMessageSettingBaseSchema = z.object({
 });
 
 export const attachmentsMaxFilesPerMessageSettingSchema =
-  attachmentsMaxFilesPerMessageSettingBaseSchema.extend(baseEntitySchema.shape);
+  attachmentsMaxFilesPerMessageSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
 export type TAttachmentsMaxFilesPerMessageSetting = z.infer<
   typeof attachmentsMaxFilesPerMessageSettingSchema
 >;
@@ -219,7 +278,9 @@ export const attachmentsStripImageMetadataSettingBaseSchema = z.object({
 });
 
 export const attachmentsStripImageMetadataSettingSchema =
-  attachmentsStripImageMetadataSettingBaseSchema.extend(baseEntitySchema.shape);
+  attachmentsStripImageMetadataSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
 export type TAttachmentsStripImageMetadataSetting = z.infer<
   typeof attachmentsStripImageMetadataSettingSchema
 >;
@@ -233,6 +294,7 @@ export const settingValueSchemas = {
   [ESettingKey.INVITE_ONLY_SIGN_UP]: inviteOnlySignUpSettingValueSchema,
   [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]:
     passwordRecoveryCodeTtlSettingValueSchema,
+  [ESettingKey.VAPID_EMAIL]: vapidEmailSettingValueSchema,
   [ESettingKey.ATTACHMENTS_ENABLED]: attachmentsEnabledSettingValueSchema,
   [ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]:
     attachmentsMaxFileSizeSettingValueSchema,
@@ -246,6 +308,7 @@ export const defaultSettingValues = {
   [ESettingKey.ICE_SERVERS]: DEFAULT_ICE_SERVERS,
   [ESettingKey.INVITE_ONLY_SIGN_UP]: DEFAULT_INVITE_ONLY_SIGN_UP,
   [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  [ESettingKey.VAPID_EMAIL]: DEFAULT_VAPID_EMAIL,
   [ESettingKey.ATTACHMENTS_ENABLED]: DEFAULT_ATTACHMENTS_ENABLED,
   [ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]: DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
   [ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE]:
@@ -258,15 +321,34 @@ export type TSettingValueMap = {
   [K in ESettingKey]: z.infer<(typeof settingValueSchemas)[K]>;
 };
 
-export const settingSchema = z.discriminatedUnion('key', [
-  iceServersSettingSchema,
-  inviteOnlySignUpSettingSchema,
-  passwordRecoveryCodeTtlSettingSchema,
-  attachmentsEnabledSettingSchema,
-  attachmentsMaxFileSizeSettingSchema,
-  attachmentsMaxFilesPerMessageSettingSchema,
-  attachmentsStripImageMetadataSettingSchema,
-]);
+const settingSchemaEntries = [
+  iceServersSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  inviteOnlySignUpSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  passwordRecoveryCodeTtlSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  vapidEmailSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  attachmentsEnabledSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  attachmentsMaxFileSizeSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  attachmentsMaxFilesPerMessageSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+  attachmentsStripImageMetadataSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
+] as const;
+
+export const settingSchema = z.discriminatedUnion('key', settingSchemaEntries);
 export type TSetting = z.infer<typeof settingSchema>;
 export type TSettingByKey<K extends ESettingKey> = Extract<
   TSetting,
@@ -277,6 +359,7 @@ export const settingItemUpdateSchema = z.discriminatedUnion('key', [
   iceServersSettingBaseSchema,
   inviteOnlySignUpSettingBaseSchema,
   passwordRecoveryCodeTtlSettingBaseSchema,
+  vapidEmailSettingBaseSchema,
   attachmentsEnabledSettingBaseSchema,
   attachmentsMaxFileSizeSettingBaseSchema,
   attachmentsMaxFilesPerMessageSettingBaseSchema,

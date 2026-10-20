@@ -125,6 +125,22 @@ export const SettingsStore = signalStore(
           defaultSettingValues[ESettingKey.PASSWORD_RECOVERY_CODE_TTL]
         );
       }),
+      vapidEmail: computed(() => {
+        const item = entityMap()[ESettingKey.VAPID_EMAIL];
+        return (
+          (item?.value as string | undefined) ??
+          defaultSettingValues[ESettingKey.VAPID_EMAIL]
+        );
+      }),
+      envLocked: computed(
+        () =>
+          Object.fromEntries(
+            Object.values(ESettingKey).map((key) => [
+              key,
+              entityMap()[key]?.envLocked ?? false,
+            ]),
+          ) as Record<ESettingKey, boolean>,
+      ),
       attachmentsEnabled: computed(() => {
         const item = entityMap()[ESettingKey.ATTACHMENTS_ENABLED];
         return (

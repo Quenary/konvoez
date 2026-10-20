@@ -13,13 +13,21 @@ jest.mock('@mikro-orm/core', () => {
       setClass: () => undefined,
       addHook: () => undefined,
     }),
+    RequestContext: {
+      currentRequestContext: jest.fn(() => undefined),
+      create: jest.fn((_em: unknown, callback: () => unknown) => callback()),
+    },
     p: createProxy(),
   };
 });
 
 import { SettingsService } from './settings.service';
 import { SettingsEntity } from './settings.entity';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import {
+  EntityManager,
+  EntityRepository,
+  RequestContext,
+} from '@mikro-orm/core';
 import {
   ApiErrorCode,
   attachmentsDefaultMaxFileSize,
@@ -325,6 +333,26 @@ describe('SettingsService', () => {
 
       const result = await service.findOne(ESettingKey.ICE_SERVERS);
       expect(result).toBe(mockSetting);
+      expect(repo.findOne).toHaveBeenCalledWith({
+        key: ESettingKey.ICE_SERVERS,
+      });
+    });
+
+    it('should create a request context before reading settings', async () => {
+      const mockSetting = {
+        key: ESettingKey.ICE_SERVERS,
+        value: DEFAULT_ICE_SERVERS,
+      } as SettingsEntity;
+      repo.findOne.mockResolvedValue(mockSetting);
+
+      await expect(service.getValue(ESettingKey.ICE_SERVERS)).resolves.toEqual(
+        DEFAULT_ICE_SERVERS,
+      );
+
+      expect(RequestContext.create).toHaveBeenCalledWith(
+        em,
+        expect.any(Function),
+      );
       expect(repo.findOne).toHaveBeenCalledWith({
         key: ESettingKey.ICE_SERVERS,
       });

@@ -12,6 +12,12 @@
     </h2>
   </header>
 
+  @if (serverKeyLoaded() && !serverAvailable()) {
+    <p class="setting-description">
+      {{ 'SETTINGS.NOTIFICATIONS.SERVER_DISABLED' | translate }}
+    </p>
+  }
+
   <div class="setting-item">
     <div class="status-row">
       <span class="status-label">{{
@@ -36,7 +42,7 @@
       tuiButton
       type="button"
       [appearance]="isEnabled() ? 'accent' : 'primary'"
-      [disabled]="!isSupported()"
+      [disabled]="!canToggle()"
       [loading]="isLoading()"
       (click)="onToggle()">
       {{

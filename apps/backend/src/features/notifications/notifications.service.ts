@@ -3,10 +3,15 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import webPush from 'web-push';
-import { ApiErrorCode, pushNotificationBodyMaxLength } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  ESettingKey,
+  pushNotificationBodyMaxLength,
+  toVapidSubject,
+} from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { htmlToPlainText } from '../../shared/utils/html-text.util';
-import { AppService } from '../../shared/services/app.service';
+import { SettingsService } from '../settings/settings.service';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
@@ -38,28 +43,33 @@ export class NotificationsService {
   constructor(
     @InjectRepository(PushSubscriptionEntity)
     private readonly subscriptionRepository: EntityRepository<PushSubscriptionEntity>,
-    private readonly appService: AppService,
+    private readonly settingsService: SettingsService,
     private readonly vapidKeyStorageService: VapidKeyStorageService,
     private readonly eventEmitter: EventEmitter2,
-  ) {
-    this.configureVapid();
+  ) {}
+
+  public async resolveVapidSubject(): Promise<string | null> {
+    return toVapidSubject(
+      await this.settingsService.getValue(ESettingKey.VAPID_EMAIL),
+    );
   }
 
   public ensureVapidKeys(): { publicKey: string; privateKey: string } {
     const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
     if (storedKeys) {
-      this.configureVapid();
       return storedKeys;
     }
 
     const keys = webPush.generateVAPIDKeys();
     this.vapidKeyStorageService.saveVapidKeysToDisk(keys);
-    this.configureVapid();
-
     return keys;
   }
 
-  public getPublicKey(): string {
+  public async getPublicKeyIfEnabled(): Promise<string | null> {
+    const subject = await this.resolveVapidSubject();
+    if (!subject) {
+      return null;
+    }
     return this.ensureVapidKeys().publicKey;
   }
 
@@ -153,13 +163,18 @@ export class NotificationsService {
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
+    const subject = await this.resolveVapidSubject();
+    if (!subject) {
+      return;
+    }
+
     const em = this.em.fork();
     const subscriptions = await this.getSubscriptionsForUser(userId, em);
     if (subscriptions.length === 0) {
       return;
     }
 
-    this.ensureVapidKeys();
+    const keys = this.ensureVapidKeys();
 
     const data = payload.data ? { ...payload.data } : {};
     if (data.url && !data.onActionClick) {
@@ -193,6 +208,13 @@ export class NotificationsService {
               },
             },
             notificationPayload,
+            {
+              vapidDetails: {
+                subject,
+                publicKey: keys.publicKey,
+                privateKey: keys.privateKey,
+              },
+            },
           );
 
           subscription.lastUsedAt = new Date();
@@ -362,18 +384,5 @@ export class NotificationsService {
         error instanceof Error ? error.stack : String(error),
       );
     }
-  }
-
-  private configureVapid(): void {
-    const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
-    if (!storedKeys) {
-      return;
-    }
-
-    webPush.setVapidDetails(
-      `mailto:${this.appService.VAPID_EMAIL}`,
-      storedKeys.publicKey,
-      storedKeys.privateKey,
-    );
   }
 }

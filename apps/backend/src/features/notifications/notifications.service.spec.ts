@@ -38,7 +38,6 @@ import { GetUserDto } from '../users/users.dto';
 import { PushSubscriptionEntity } from './notifications.entity';
 import { NotificationsService } from './notifications.service';
 import { VapidKeyStorageService } from './vapid-key-storage.service';
-import { AppService } from '../../shared/services/app.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -116,7 +115,9 @@ describe('NotificationsService', () => {
 
     service = new NotificationsService(
       subscriptionRepository,
-      { VAPID_EMAIL: 'konvoez@invalid.email' } as AppService,
+      {
+        getValue: jest.fn().mockResolvedValue('konvoez@invalid.email'),
+      } as unknown as any,
       vapidKeyStorageService as unknown as VapidKeyStorageService,
       eventEmitter,
     );
@@ -213,6 +214,13 @@ describe('NotificationsService', () => {
           keys: { auth: first.auth, p256dh: first.p256dh },
         },
         expect.stringContaining('"notification"'),
+        {
+          vapidDetails: {
+            subject: 'mailto:konvoez@invalid.email',
+            publicKey: 'stored-pub',
+            privateKey: 'stored-priv',
+          },
+        },
       );
       expect(em.flush).toHaveBeenCalledTimes(1);
       expect(first.lastUsedAt).toBeInstanceOf(Date);

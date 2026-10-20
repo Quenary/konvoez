@@ -202,6 +202,7 @@ SETTINGS:
     PERMISSION_DENIED: Доступ не был предоставлен. Попробуйте ещё раз.
     ENABLE_ERROR: Не удалось включить уведомления. Попробуйте ещё раз.
     DISABLE_ERROR: Не удалось отключить уведомления. Попробуйте ещё раз.
+    SERVER_DISABLED: Push-уведомления не настроены на этом сервере.
   DEVICES:
     TITLE: Настройки устройств
     AUDIO_INPUT: Микрофон
@@ -313,10 +314,14 @@ SETTINGS:
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
+    PUSH: Push-уведомления
+    ENV_LOCKED: Эта настройка заблокирована переменными окружения сервера.
     INVITE_ONLY_SIGN_UP: Регистрация только по приглашению
     INVITE_ONLY_SIGN_UP_DESC: Разрешать регистрацию новых пользователей только при наличии действующего кода приглашения
     PASSWORD_RECOVERY_CODE_TTL: TTL кода восстановления пароля (мс)
     PASSWORD_RECOVERY_CODE_TTL_DESC: Срок действия кода восстановления (60000–3600000 мс, по умолчанию 600000)
+    VAPID_EMAIL: VAPID email
+    VAPID_EMAIL_DESC: Email, используемый как subject для push-уведомлений сервера. Поддерживаются обычный email, mailto:..., и https://... URL.
     ICE_SERVERS: Конфигурация ICE серверов (JSON)
     ICE_SERVERS_DESC: Список STUN/TURN серверов для WebRTC соединений в формате JSON
     ATTACHMENTS: Вложения
@@ -360,6 +365,7 @@ VALIDATION:
   SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации
   INVITE_CODE_REQUIRED: Код приглашения обязателен для регистрации
   INVALID_SCHEMA: Неверный формат схемы
+  VAPID_SUBJECT: 'Укажите корректный subject VAPID: email, mailto:..., или https://...'
   RECOVERY_CODE: Введите 6-значный код восстановления
   INVALID_CHAT_TARGET: Должен быть указан ровно один чат
 AUTH:
