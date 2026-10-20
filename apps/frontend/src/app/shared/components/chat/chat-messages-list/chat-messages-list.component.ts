@@ -105,7 +105,6 @@ export class ChatMessagesListComponent implements OnInit {
   private wasLoadingNewer = false;
   private previousLoadingOlder = false;
   private previousFirstMessageId: string | null | undefined = undefined;
-  private previousMessageCount = 0;
   private edgeObserver: IntersectionObserver | null = null;
   private readonly scrollToLatestTokenAtInit =
     this.chatStore.scrollToLatestToken();
@@ -131,7 +130,6 @@ export class ChatMessagesListComponent implements OnInit {
 
         const ids = this.chatStore.ids();
         const firstId = ids[0] != null ? String(ids[0]) : null;
-        const messageCount = ids.length;
         const isFirstSnapshot = this.previousFirstMessageId === undefined;
         const prepended =
           !isFirstSnapshot &&
@@ -139,20 +137,17 @@ export class ChatMessagesListComponent implements OnInit {
           this.previousFirstMessageId !== null &&
           firstId !== this.previousFirstMessageId;
         const olderLoading = this.loadingOlder();
-        const topLayoutChanged =
-          prepended ||
-          olderLoading ||
-          (this.previousLoadingOlder && !olderLoading);
+        const topInsetChanged =
+          prepended || olderLoading !== this.previousLoadingOlder;
 
         const scrollEl = this.scrollContainerRef().nativeElement;
-        const metricsBefore = {
-          scrollTop: scrollEl.scrollTop,
-          scrollHeight: scrollEl.scrollHeight,
-        };
-        const anchor =
-          !this.pinnedToBottom && !topLayoutChanged
-            ? this.captureAnchor()
-            : null;
+        const scrollSnapshot = !this.pinnedToBottom
+          ? {
+              scrollTop: scrollEl.scrollTop,
+              scrollHeight: scrollEl.scrollHeight,
+              anchor: this.captureAnchor(),
+            }
+          : null;
 
         afterNextRender(
           {
@@ -164,20 +159,26 @@ export class ChatMessagesListComponent implements OnInit {
                 scrollEl.scrollTop = scrollEl.scrollHeight;
                 return;
               }
-              if (topLayoutChanged) {
-                this.restoreScrollAfterTopGrowth(scrollEl, metricsBefore);
+              if (!scrollSnapshot) {
                 return;
               }
-              if (anchor) {
-                this.restoreAnchor(anchor);
+              this.positioning = true;
+              if (topInsetChanged) {
+                const delta =
+                  scrollEl.scrollHeight - scrollSnapshot.scrollHeight;
+                if (delta !== 0) {
+                  scrollEl.scrollTop = scrollSnapshot.scrollTop + delta;
+                }
+              } else if (scrollSnapshot.anchor) {
+                this.restoreAnchor(scrollSnapshot.anchor);
               }
+              this.positioning = false;
             },
           },
           { injector: this.injector },
         );
 
         this.previousFirstMessageId = firstId;
-        this.previousMessageCount = messageCount;
         this.previousLoadingOlder = olderLoading;
       });
     });
@@ -187,18 +188,6 @@ export class ChatMessagesListComponent implements OnInit {
       const newer = this.loadingNewer();
 
       untracked(() => {
-        if (this.wasLoadingOlder && !older && this.topVisible) {
-          afterNextRender(
-            {
-              write: () => {
-                if (this.topVisible && this.edgeLoadingEnabled) {
-                  this.chatStore.requestPrevPage();
-                }
-              },
-            },
-            { injector: this.injector },
-          );
-        }
         if (this.wasLoadingNewer && !newer && this.bottomVisible) {
           afterNextRender(
             {
@@ -298,7 +287,9 @@ export class ChatMessagesListComponent implements OnInit {
                 if (
                   entry.isIntersecting &&
                   this.edgeLoadingEnabled &&
-                  !this.positioning
+                  !this.positioning &&
+                  !this.loadingOlder() &&
+                  !this.loadingNewer()
                 ) {
                   this.chatStore.requestPrevPage();
                 }
@@ -307,7 +298,9 @@ export class ChatMessagesListComponent implements OnInit {
                 if (
                   entry.isIntersecting &&
                   this.edgeLoadingEnabled &&
-                  !this.positioning
+                  !this.positioning &&
+                  !this.loadingOlder() &&
+                  !this.loadingNewer()
                 ) {
                   this.chatStore.requestNextPage();
                 }
@@ -340,9 +333,8 @@ export class ChatMessagesListComponent implements OnInit {
       .pipe(
         tap(() => {
           this.edgeLoadingEnabled = false;
-          this.previousFirstMessageId = undefined;
-          this.previousMessageCount = 0;
           this.previousLoadingOlder = false;
+          this.previousFirstMessageId = undefined;
         }),
         switchMap(() =>
           toObservable(this.chatStore.messages, {
@@ -456,17 +448,6 @@ export class ChatMessagesListComponent implements OnInit {
       messageId,
       offset: rect.top - containerRect.top,
     };
-  }
-
-  private restoreScrollAfterTopGrowth(
-    scrollEl: HTMLElement,
-    metricsBefore: { scrollTop: number; scrollHeight: number },
-  ): void {
-    const delta = scrollEl.scrollHeight - metricsBefore.scrollHeight;
-    if (delta === 0) {
-      return;
-    }
-    scrollEl.scrollTop = metricsBefore.scrollTop + delta;
   }
 
   private restoreAnchor(anchor: ScrollAnchor): void {

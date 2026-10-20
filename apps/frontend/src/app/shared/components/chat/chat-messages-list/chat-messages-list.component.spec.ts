@@ -275,22 +275,24 @@ describe('ChatMessagesListComponent', () => {
     expect(mockChatStore.requestNextPage).toHaveBeenCalled();
   });
 
-  it('requests another older page when loadingOlder finishes and the top sentinel stays visible', async () => {
+  it('does not request an older page from the sentinel while loadingOlder is true', () => {
     fixture.detectChanges();
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
+    mockChatStore.requestPrevPage.mockClear();
     component['edgeLoadingEnabled'] = true;
-    component['topVisible'] = true;
-
     mockChatStore.loadingOlder.set(true);
-    fixture.detectChanges();
-    TestBed.flushEffects();
-    mockChatStore.loadingOlder.set(false);
-    fixture.detectChanges();
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
 
-    expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
+    const topSentinel = observedElements[0];
+    edgeObserverCallback(
+      [
+        {
+          isIntersecting: true,
+          target: topSentinel,
+        } as IntersectionObserverEntry,
+      ],
+      {} as IntersectionObserver,
+    );
+
+    expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
   });
 
   it('pins to the bottom when an outgoing message appears and not on later updates', async () => {
@@ -476,26 +478,77 @@ describe('ChatMessagesListComponent', () => {
     expect(component['pinnedToBottom']).toBe(false);
   });
 
-  it('adjusts scrollTop when content grows at the top of the list', () => {
-    const container = document.createElement('div');
-    let scrollHeight = 800;
+  it('adjusts scrollTop when the visible anchor message moves down in the viewport', () => {
+    fixture.detectChanges();
+    const container = getScrollContainer(fixture);
+    const anchor = container.querySelector('app-chat-message') as HTMLElement;
     setScroll(container, {
       scrollTop: 0,
       clientHeight: 400,
-      scrollHeight,
-    });
-    Object.defineProperty(container, 'scrollHeight', {
-      configurable: true,
-      get: () => scrollHeight,
-    });
-
-    scrollHeight = 1200;
-    component['restoreScrollAfterTopGrowth'](container, {
-      scrollTop: 0,
       scrollHeight: 800,
     });
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+    anchor.getBoundingClientRect = vi.fn(() => new DOMRect(0, 470, 400, 40));
+
+    component['restoreAnchor']({ messageId: 'msg-1', offset: 20 });
 
     expect(container.scrollTop).toBe(400);
+  });
+
+  it('does not shift scrollTop when a live message arrives during an older-page load', async () => {
+    fixture.detectChanges();
+    await flushAfterRender(fixture);
+    const container = getScrollContainer(fixture);
+    setScroll(container, {
+      scrollTop: 200,
+      clientHeight: 400,
+      scrollHeight: 1200,
+    });
+    container.dispatchEvent(new Event('scroll'));
+    component['pinnedToBottom'] = false;
+    component['previousLoadingOlder'] = true;
+    mockChatStore.loadingOlder.set(true);
+
+    const firstMessage = container.querySelector(
+      'app-chat-message',
+    ) as HTMLElement;
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+    firstMessage.getBoundingClientRect = vi.fn(
+      () => new DOMRect(0, 120, 400, 40),
+    );
+
+    messagesSignal.set([
+      ...mockMessages,
+      {
+        ...mockMessages[1],
+        id: 'msg-live',
+        createdAt: new Date('2026-09-16T00:00:00.000Z'),
+      },
+    ]);
+    TestBed.flushEffects();
+    await flushAfterRender(fixture);
+
+    expect(container.scrollTop).toBe(200);
+  });
+
+  it('keeps scroll position when the visible anchor shifts for a top skeleton', () => {
+    fixture.detectChanges();
+    const container = getScrollContainer(fixture);
+    const anchor = container.querySelector('app-chat-message') as HTMLElement;
+    setScroll(container, {
+      scrollTop: 150,
+      clientHeight: 400,
+      scrollHeight: 1200,
+    });
+    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
+
+    anchor.getBoundingClientRect = vi.fn(() => new DOMRect(0, 130, 400, 40));
+    component['restoreAnchor']({ messageId: 'msg-1', offset: 20 });
+    expect(container.scrollTop).toBe(210);
+
+    anchor.getBoundingClientRect = vi.fn(() => new DOMRect(0, 70, 400, 40));
+    component['restoreAnchor']({ messageId: 'msg-1', offset: 80 });
+    expect(container.scrollTop).toBe(150);
   });
 
   it('does not double-adjust when the anchor offset is already preserved', async () => {
