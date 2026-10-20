@@ -156,7 +156,6 @@
     "argon2": "^0.45.1",
     "async-mutex": "^0.5.0",
     "axios": "^1.20.0",
-    "bcrypt": "^6.0.0",
     "cache-manager": "^7.2.9",
     "cookie-parser": "^1.4.7",
     "dayjs": "^1.11.23",
