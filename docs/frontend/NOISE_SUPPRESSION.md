@@ -78,3 +78,6 @@ flowchart LR
 ## Settings
 
 Device and audio preferences persist in local storage (`konvoez-local-settings`, `SettingsStore`): input and output devices, `noiseProcessor`, `inputGain`, `outputVolume` and `echoCancellation`. Mute and deafen state and per-user gains stay in `VoiceAudioPreferencesStore`.
+
+- When a selected device is unavailable, active capture and playback switch to an available fallback. Reconnecting the selected device returns it to use.
+- Automatic switches are announced with a toast; the settings device lists refresh when hardware changes.

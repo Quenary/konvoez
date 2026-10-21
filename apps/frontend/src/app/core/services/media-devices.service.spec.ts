@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MediaDevicesService } from './media-devices.service';
+import {
+  DEVICE_CHANGE_DEBOUNCE_MS,
+  MediaDevicesService,
+} from './media-devices.service';
 
 describe('MediaDevicesService', () => {
   let service: MediaDevicesService;
@@ -238,6 +241,43 @@ describe('MediaDevicesService', () => {
     it('rejects when enumerateDevices is missing', async () => {
       vi.stubGlobal('navigator', { mediaDevices: {} });
       await expect(service.enumerateDevices()).rejects.toBeUndefined();
+    });
+  });
+
+  describe('deviceChange$', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('debounces devicechange bursts and removes the listener on unsubscribe', () => {
+      vi.useFakeTimers();
+      const target = new EventTarget();
+      const removeEventListener = vi.spyOn(target, 'removeEventListener');
+      vi.stubGlobal('navigator', { mediaDevices: target });
+      const changed = vi.fn();
+
+      const subscription = service.deviceChange$.subscribe(changed);
+      target.dispatchEvent(new Event('devicechange'));
+      target.dispatchEvent(new Event('devicechange'));
+      vi.advanceTimersByTime(DEVICE_CHANGE_DEBOUNCE_MS);
+
+      expect(changed).toHaveBeenCalledTimes(1);
+
+      subscription.unsubscribe();
+      expect(removeEventListener).toHaveBeenCalledWith(
+        'devicechange',
+        expect.any(Function),
+        undefined,
+      );
+    });
+
+    it('completes immediately without the MediaDevices API', () => {
+      vi.stubGlobal('navigator', {});
+      const complete = vi.fn();
+
+      service.deviceChange$.subscribe({ complete });
+
+      expect(complete).toHaveBeenCalled();
     });
   });
 });

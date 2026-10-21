@@ -10,6 +10,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { ENoiseProcessor } from '../../app.enums';
 import { MicrophoneService } from './microphone.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 
 describe('MicrophoneService', () => {
   let service: MicrophoneService;
@@ -18,6 +19,7 @@ describe('MicrophoneService', () => {
   let loadDeepFilter: ReturnType<typeof vi.fn>;
   let isSimdSupported: ReturnType<typeof vi.fn>;
   let notificationOpen: ReturnType<typeof vi.fn>;
+  let notify: ReturnType<typeof vi.fn>;
 
   const workletNodes = {
     rnnoise: [] as Array<{
@@ -63,6 +65,7 @@ describe('MicrophoneService', () => {
   } as unknown as NoiseSuppressorPort;
 
   beforeEach(() => {
+    notify = vi.fn();
     workletNodes.rnnoise.length = 0;
     workletNodes.deepfilter.length = 0;
     loadRnnoise = vi.mocked(noiseSuppressorPort.loadRnnoise);
@@ -90,6 +93,10 @@ describe('MicrophoneService', () => {
     TestBed.configureTestingModule({
       providers: [
         MicrophoneService,
+        {
+          provide: MediaDeviceSwitchNotifierService,
+          useValue: { notify },
+        },
         { provide: NOISE_SUPPRESSOR_PORT, useValue: noiseSuppressorPort },
         {
           provide: TuiNotificationService,
@@ -155,27 +162,165 @@ describe('MicrophoneService', () => {
     expect(service.processedStream()).toBeNull();
   });
 
-  it('does not recreate capture after a spurious devicechange', async () => {
-    const setDevice = vi.spyOn(service, 'setDevice').mockResolvedValue();
+  const spyReacquire = () =>
+    vi
+      .spyOn(
+        service as unknown as { reacquireInputStream: () => Promise<void> },
+        'reacquireInputStream',
+      )
+      .mockResolvedValue();
+
+  const liveInput = (deviceId: string) => {
+    const track = {
+      readyState: 'live',
+      getSettings: () => ({ deviceId }),
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack;
+    return {
+      track,
+      stream: {
+        getAudioTracks: () => [track],
+        getTracks: () => [track],
+      } as unknown as MediaStream,
+    };
+  };
+
+  const activatePipeline = (deviceId: string) => {
+    const input = liveInput(deviceId);
     service['_processedStream'].set({} as MediaStream);
+    service['captureGraph'] = {} as TCaptureGraph;
+    service['inputStream'] = input.stream;
+    return input;
+  };
+
+  const devices = (...items: Array<[MediaDeviceKind, string, string?]>) =>
+    items.map(([kind, deviceId, label]) => ({
+      kind,
+      deviceId,
+      label: label ?? deviceId,
+    }));
+
+  it('does not recreate capture after a spurious devicechange', async () => {
+    const reacquire = spyReacquire();
+    activatePipeline('default');
+    enumerateDevices.mockResolvedValue(
+      devices(['audioinput', 'default'], ['audioinput', 'mic-1']),
+    );
 
     await service['handleDeviceChange']();
 
-    expect(setDevice).not.toHaveBeenCalled();
+    expect(reacquire).not.toHaveBeenCalled();
   });
 
-  it('falls back to the default input when the selected device disappears', async () => {
-    const setDevice = vi.spyOn(service, 'setDevice').mockResolvedValue();
-    service['device'] = {
-      deviceId: 'missing',
-      kind: 'audioinput',
-    } as MediaDeviceInfo;
-    service['_processedStream'].set({} as MediaStream);
-    enumerateDevices.mockResolvedValue([]);
+  it('prefers the communications device over default without a user choice', async () => {
+    const reacquire = spyReacquire();
+    activatePipeline('default');
+    enumerateDevices.mockResolvedValue(
+      devices(['audioinput', 'default'], ['audioinput', 'communications']),
+    );
 
     await service['handleDeviceChange']();
 
-    expect(setDevice).toHaveBeenCalledWith(null);
+    expect(reacquire).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back when the chosen device disappears and keeps the choice', async () => {
+    const reacquire = spyReacquire();
+    const chosen = {
+      deviceId: 'usb',
+      label: 'USB mic',
+      kind: 'audioinput',
+    } as MediaDeviceInfo;
+    service['device'] = chosen;
+    activatePipeline('usb');
+    enumerateDevices.mockResolvedValue(
+      devices(['audioinput', 'communications'], ['audioinput', 'default']),
+    );
+
+    await service['handleDeviceChange']();
+
+    expect(reacquire).toHaveBeenCalledTimes(1);
+    expect(service['device']).toBe(chosen);
+  });
+
+  it('shows a toast with the new device after an automatic switch', async () => {
+    const usb = liveInput('usb');
+    Object.assign(usb.track, { label: 'USB mic' });
+    spyReacquire().mockImplementation(async () => {
+      service['inputStream'] = usb.stream;
+    });
+    service['device'] = {
+      deviceId: 'usb',
+      label: 'USB mic',
+      kind: 'audioinput',
+    } as MediaDeviceInfo;
+    activatePipeline('communications');
+    enumerateDevices.mockResolvedValue(
+      devices(
+        ['audioinput', 'communications'],
+        ['audioinput', 'usb', 'USB mic'],
+      ),
+    );
+
+    await service['handleDeviceChange']();
+
+    expect(notify).toHaveBeenCalledWith('audioinput', 'USB mic');
+  });
+
+  it('does not toast when nothing was switched', async () => {
+    spyReacquire();
+    activatePipeline('default');
+    enumerateDevices.mockResolvedValue(devices(['audioinput', 'default']));
+
+    await service['handleDeviceChange']();
+
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('switches back to the chosen device when it is plugged in again', async () => {
+    const reacquire = spyReacquire();
+    service['device'] = {
+      deviceId: 'usb',
+      label: 'USB mic',
+      kind: 'audioinput',
+    } as MediaDeviceInfo;
+    activatePipeline('communications');
+    enumerateDevices.mockResolvedValue(
+      devices(
+        ['audioinput', 'communications'],
+        ['audioinput', 'default'],
+        ['audioinput', 'usb', 'USB mic'],
+      ),
+    );
+
+    await service['handleDeviceChange']();
+
+    expect(reacquire).toHaveBeenCalledTimes(1);
+  });
+
+  it('reacquires the input when the live input track ends', async () => {
+    const reacquire = spyReacquire();
+    const { track } = activatePipeline('mic-1');
+    Object.assign(track, { readyState: 'ended' });
+    enumerateDevices.mockResolvedValue(devices(['audioinput', 'default']));
+
+    service['onInputTrackEnded']({ target: track } as unknown as Event);
+
+    await vi.waitFor(() => {
+      expect(reacquire).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('ignores ended events from tracks that are no longer used', async () => {
+    const reacquire = spyReacquire();
+    activatePipeline('mic-1');
+
+    service['onInputTrackEnded']({
+      target: liveInput('old').track,
+    } as unknown as Event);
+    await Promise.resolve();
+
+    expect(reacquire).not.toHaveBeenCalled();
   });
 
   it('switches processor at runtime preserving MediaStreamDestination track', async () => {

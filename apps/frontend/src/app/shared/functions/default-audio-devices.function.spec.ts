@@ -18,9 +18,25 @@ const device = (
   }) as MediaDeviceInfo;
 
 describe('default-audio-devices', () => {
-  it('picks input from preferred device id when present', () => {
+  it('prefers communications, then default, for inputs and outputs', () => {
     const devices = [
+      device({ deviceId: 'mic-1', kind: 'audioinput' }),
       device({ deviceId: 'default', kind: 'audioinput' }),
+      device({ deviceId: 'communications', kind: 'audioinput' }),
+      device({ deviceId: 'spk-1', kind: 'audiooutput' }),
+      device({ deviceId: 'default', kind: 'audiooutput' }),
+      device({ deviceId: 'communications', kind: 'audiooutput' }),
+    ];
+
+    expect(pickDefaultAudioInput(devices, 'mic-1')?.deviceId).toBe(
+      'communications',
+    );
+    expect(pickDefaultAudioOutput(devices)?.deviceId).toBe('communications');
+  });
+
+  it('uses the active stream device when no virtual device is listed', () => {
+    const devices = [
+      device({ deviceId: 'mic-1', kind: 'audioinput' }),
       device({ deviceId: 'mic-2', kind: 'audioinput' }),
     ];
 

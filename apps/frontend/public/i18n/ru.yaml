@@ -224,6 +224,10 @@ SETTINGS:
     PROCESSOR_OFF: Отключено
     PROCESSOR_UNSUPPORTED: Не поддерживается на этом устройстве (требуется WebAssembly SIMD)
     PROCESSOR_OVERLOAD_NOTIFICATION: Обнаружена высокая нагрузка на процессор; шумоподавление переключено на RNNoise для текущей сессии.
+    AUTO_SWITCHED_AUDIO_INPUT: 'Микрофон переключён на {{label}}'
+    AUTO_SWITCHED_AUDIO_OUTPUT: 'Вывод звука переключён на {{label}}'
+    AUTO_SWITCHED_VIDEO_INPUT: 'Камера переключена на {{label}}'
+    UNKNOWN_DEVICE: неизвестное устройство
     ECHO_CANCELLATION: Эхоподавление
     ECHO_CANCELLATION_HINT: Рекомендуется при использовании динамиков. Можно отключить при использовании наушников.
     MIC_TEST_START: Проверить микрофон

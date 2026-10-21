@@ -11,13 +11,15 @@ import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { AudioService } from './audio.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 
 describe('MediasoupSessionService', () => {
   let service: MediasoupSessionService;
   let getStream: ReturnType<typeof vi.fn>;
   let releaseCamera: ReturnType<typeof vi.fn>;
   let setLocalCamTrack: ReturnType<typeof vi.fn>;
-  let deviceLost$: Subject<void>;
+  let deviceChanged$: Subject<void>;
+  let notify: ReturnType<typeof vi.fn>;
   let emitWithAck: ReturnType<typeof vi.fn>;
   let socketTimeout: ReturnType<typeof vi.fn>;
   let releaseScreen: ReturnType<typeof vi.fn>;
@@ -30,7 +32,8 @@ describe('MediasoupSessionService', () => {
     getStream = vi.fn();
     releaseCamera = vi.fn();
     setLocalCamTrack = vi.fn();
-    deviceLost$ = new Subject<void>();
+    deviceChanged$ = new Subject<void>();
+    notify = vi.fn();
     emitWithAck = vi.fn().mockResolvedValue({});
     socketTimeout = vi.fn().mockReturnValue({ emitWithAck });
     releaseScreen = vi.fn();
@@ -41,6 +44,10 @@ describe('MediasoupSessionService', () => {
     TestBed.configureTestingModule({
       providers: [
         MediasoupSessionService,
+        {
+          provide: MediaDeviceSwitchNotifierService,
+          useValue: { notify },
+        },
         {
           provide: AudioService,
           useValue: audioService,
@@ -83,7 +90,7 @@ describe('MediasoupSessionService', () => {
           useValue: {
             getTrack: vi.fn(),
             release: releaseCamera,
-            deviceLost$: deviceLost$.asObservable(),
+            deviceChanged$: deviceChanged$.asObservable(),
           },
         },
         {
@@ -113,13 +120,61 @@ describe('MediasoupSessionService', () => {
     service = TestBed.inject(MediasoupSessionService);
   });
 
-  it('stops the camera when its device disappears', async () => {
-    deviceLost$.next();
+  it('ignores camera device changes without an active camera producer', async () => {
+    const getTrack = TestBed.inject(CameraService).getTrack as ReturnType<
+      typeof vi.fn
+    >;
+    deviceChanged$.next();
+    await service.switchCamera();
+
+    expect(getTrack).not.toHaveBeenCalled();
+    expect(releaseCamera).not.toHaveBeenCalled();
+  });
+
+  it('replaces the camera producer track when the camera device changes', async () => {
+    const replaceTrack = vi.fn().mockResolvedValue(undefined);
+    service['cameraProducer'] = {
+      id: 'cam-prod',
+      closed: false,
+      replaceTrack,
+      close: vi.fn(),
+      track: { getSettings: () => ({ deviceId: 'cam-1' }) },
+    } as never;
+    const track = {
+      id: 'cam-2',
+      label: 'USB cam',
+      getSettings: () => ({ deviceId: 'cam-2' }),
+    } as unknown as MediaStreamTrack;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue(track);
+
+    deviceChanged$.next();
+
+    await vi.waitFor(() => {
+      expect(replaceTrack).toHaveBeenCalledWith({ track });
+    });
+    expect(setLocalCamTrack).toHaveBeenCalledWith(track);
+    expect(releaseCamera).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('videoinput', 'USB cam');
+  });
+
+  it('stops the camera when no camera can be opened after a device change', async () => {
+    service['cameraProducer'] = {
+      id: 'cam-prod',
+      closed: false,
+      replaceTrack: vi.fn(),
+      close: vi.fn(),
+    } as never;
+    TestBed.inject(CameraService).getTrack = vi
+      .fn()
+      .mockRejectedValue(new Error('NotFoundError'));
+
+    deviceChanged$.next();
 
     await vi.waitFor(() => {
       expect(releaseCamera).toHaveBeenCalledTimes(1);
     });
     expect(setLocalCamTrack).toHaveBeenCalledWith(null);
+    expect(service['cameraProducer']).toBeNull();
   });
 
   it('clears pending consumes', () => {

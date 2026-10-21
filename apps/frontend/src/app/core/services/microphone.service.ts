@@ -1,4 +1,5 @@
-import { Injectable, OnDestroy, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NOISE_SUPPRESSOR_PORT } from '@core/audio/noise-suppressor.port';
 import { ensureVoiceDynamicsWorklet } from '@core/audio/voice-dynamics';
 import {
@@ -10,10 +11,13 @@ import {
   swapDenoiser,
 } from '@core/audio/capture-graph';
 import { getStream } from '@shared/functions/get-stream.function';
+import { resolveMediaDevice } from '@shared/functions/media-device-priority.function';
 import { DEFAULT_ECHO_CANCELLATION } from '@shared/schemas/local-settings.schema';
 import { Mutex } from 'async-mutex';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { AudioContextResumeService } from './audio-context-resume.service';
+import { MediaDevicesService } from './media-devices.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 import { ENoiseProcessor } from '../../app.enums';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
@@ -25,13 +29,15 @@ const publicMethodsMutex = new Mutex();
  * expander, compressor, makeup, limiter, analyser, processed MediaStream.
  */
 @Injectable({ providedIn: 'root' })
-export class MicrophoneService implements OnDestroy {
+export class MicrophoneService {
   private readonly noiseSuppressor = inject(NOISE_SUPPRESSOR_PORT);
   private readonly audioContextResumeService = inject(
     AudioContextResumeService,
   );
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly mediaDevicesService = inject(MediaDevicesService);
+  private readonly switchNotifier = inject(MediaDeviceSwitchNotifierService);
 
   private readonly _analyserNode = signal<AnalyserNode | null>(null);
   /** Microphone analyser node */
@@ -56,26 +62,18 @@ export class MicrophoneService implements OnDestroy {
   private device: MediaDeviceInfo | null = null;
   private gain = 1;
 
-  private readonly onDeviceChange = (): void => {
+  /** Input track 'ended' (device unplugged) falls back through the same priority. */
+  private readonly onInputTrackEnded = (event: Event): void => {
+    if (event.target !== this.inputStream?.getAudioTracks()[0]) {
+      return;
+    }
     void this.handleDeviceChange();
   };
 
   constructor() {
-    if (typeof navigator.mediaDevices?.addEventListener === 'function') {
-      navigator.mediaDevices.addEventListener(
-        'devicechange',
-        this.onDeviceChange,
-      );
-    }
-  }
-
-  ngOnDestroy(): void {
-    if (typeof navigator.mediaDevices?.removeEventListener === 'function') {
-      navigator.mediaDevices.removeEventListener(
-        'devicechange',
-        this.onDeviceChange,
-      );
-    }
+    this.mediaDevicesService.deviceChange$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => void this.handleDeviceChange());
   }
 
   /**
@@ -191,26 +189,53 @@ export class MicrophoneService implements OnDestroy {
   }
 
   /**
-   * iOS/Safari fires `devicechange` after the first mic permission even when
-   * hardware did not change. Recreating capture then stops the track already
-   * given to mediasoup (local VAD still works on the new analyser).
+   * Re-evaluates the input device after `devicechange` or an ended input track.
+   * Switches only when the device that should be used (user choice, then
+   * `communications`, then `default`) differs from the live one, so spurious events
+   * (iOS/Safari fires `devicechange` after the first permission) change nothing.
+   * The source node is swapped inside the graph: the processed track given to
+   * mediasoup, mute state, processor, echo cancellation and analyser stay as they are.
+   * Serialized with all other pipeline changes by the shared mutex.
    */
   private async handleDeviceChange(): Promise<void> {
-    if (!this.processedStream()) {
+    await publicMethodsMutex.runExclusive(() => this.switchToPreferredInput());
+  }
+
+  private async switchToPreferredInput(): Promise<void> {
+    if (!this.processedStream() || !this.captureGraph) {
       return;
     }
 
-    if (!this.device) {
+    const devices = await this.mediaDevicesService
+      .enumerateDevices()
+      .catch((): MediaDeviceInfo[] => []);
+    const desired = resolveMediaDevice(devices, 'audioinput', this.device);
+    const track = this.inputStream?.getAudioTracks()[0];
+    const isLive = track?.readyState === 'live';
+    const currentId = isLive ? (track.getSettings().deviceId ?? null) : null;
+
+    if (isLive && (!desired || desired.deviceId === currentId)) {
       return;
     }
 
-    const devices = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
-    const selectedStillPresent = devices.some(
-      (item) =>
-        item.kind === 'audioinput' && item.deviceId === this.device?.deviceId,
-    );
-    if (!selectedStillPresent) {
-      await this.setDevice(null);
+    const previousId = track?.getSettings().deviceId ?? null;
+    try {
+      await this.reacquireInputStream();
+    } catch (error) {
+      console.warn('Failed to switch microphone device', error);
+      return;
+    }
+
+    const next = this.inputStream?.getAudioTracks()[0];
+    const nextId = next?.getSettings().deviceId ?? null;
+    if (next && nextId !== previousId) {
+      const label =
+        devices.find(
+          (item) => item.kind === 'audioinput' && item.deviceId === nextId,
+        )?.label ||
+        next.label ||
+        '';
+      this.switchNotifier.notify('audioinput', label);
     }
   }
 
@@ -317,6 +342,13 @@ export class MicrophoneService implements OnDestroy {
       echoCancellation: this.echoCancellationPreference,
       noiseSuppression: this.activeProcessor === ENoiseProcessor.BROWSER,
     });
+    this.watchInputTrack(this.inputStream);
+  }
+
+  private watchInputTrack(stream: MediaStream | null): void {
+    stream
+      ?.getAudioTracks()[0]
+      ?.addEventListener?.('ended', this.onInputTrackEnded);
   }
 
   private async reacquireInputStream(): Promise<void> {
@@ -329,6 +361,7 @@ export class MicrophoneService implements OnDestroy {
       echoCancellation: this.echoCancellationPreference,
       noiseSuppression: this.activeProcessor === ENoiseProcessor.BROWSER,
     });
+    this.watchInputTrack(this.inputStream);
     previousStream?.getTracks().forEach((track) => track.stop());
 
     this.captureGraph.source.disconnect();

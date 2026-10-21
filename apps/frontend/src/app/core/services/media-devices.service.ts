@@ -1,5 +1,17 @@
 import { Injectable } from '@angular/core';
+import {
+  EMPTY,
+  Observable,
+  debounceTime,
+  defer,
+  fromEvent,
+  map,
+  share,
+} from 'rxjs';
 import { isDisplayMediaAudioConstraintsAbortError } from '@shared/functions/display-media-error.utils';
+
+/** Debounce for bursts of `devicechange` (one plug often fires several events). */
+export const DEVICE_CHANGE_DEBOUNCE_MS = 500;
 
 /**
  * Wrapper for navigator media devices api.
@@ -9,6 +21,22 @@ import { isDisplayMediaAudioConstraintsAbortError } from '@shared/functions/disp
   providedIn: 'root',
 })
 export class MediaDevicesService {
+  /**
+   * Debounced `devicechange` from `navigator.mediaDevices`. Single shared listener:
+   * added on the first subscriber and removed when the last one unsubscribes.
+   */
+  public readonly deviceChange$: Observable<void> = defer(() => {
+    const mediaDevices = navigator?.mediaDevices;
+    if (typeof mediaDevices?.addEventListener !== 'function') {
+      return EMPTY;
+    }
+    return fromEvent(mediaDevices, 'devicechange');
+  }).pipe(
+    debounceTime(DEVICE_CHANGE_DEBOUNCE_MS),
+    map((): void => undefined),
+    share(),
+  );
+
   isDisplayMediaSupported(): boolean {
     return typeof navigator?.mediaDevices?.getDisplayMedia === 'function';
   }

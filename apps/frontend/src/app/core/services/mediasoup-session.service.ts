@@ -30,6 +30,7 @@ import {
 } from './voice-room-socket-ack';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicrophoneService } from './microphone.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
@@ -60,6 +61,7 @@ export class MediasoupSessionService {
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly peerScreenAudioService = inject(PeerScreenAudioService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly switchNotifier = inject(MediaDeviceSwitchNotifierService);
   private readonly consumerRegistry = inject(ConsumerRegistry);
 
   private readonly sessionMutex = new Mutex();
@@ -84,9 +86,11 @@ export class MediasoupSessionService {
   }
 
   constructor() {
-    this.cameraService.deviceLost$.pipe(takeUntilDestroyed()).subscribe(() => {
-      void this.stopCamera();
-    });
+    this.cameraService.deviceChanged$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        void this.switchCamera();
+      });
   }
 
   public setMicrophoneMuted(muted: boolean): void {
@@ -133,6 +137,14 @@ export class MediasoupSessionService {
 
   public stopCamera(): Promise<void> {
     return this.cameraMutex.runExclusive(() => this.stopCameraLocked());
+  }
+
+  /**
+   * Moves an active camera producer to the device that should be used now
+   * (user choice, else first camera). Stops the camera when none can be opened.
+   */
+  public switchCamera(): Promise<void> {
+    return this.cameraMutex.runExclusive(() => this.switchCameraLocked());
   }
 
   public produceScreen(): Promise<void> {
@@ -242,13 +254,37 @@ export class MediasoupSessionService {
         if (this.cameraProducer !== producer) {
           return;
         }
-        void this.stopCamera();
+        void this.switchCamera();
       });
     } catch (error) {
       this.peerVideoService.setLocalCamTrack(null);
       this.cameraService.release();
       console.error('Failed to produce camera\n', error);
       throw error;
+    }
+  }
+
+  private async switchCameraLocked(): Promise<void> {
+    const producer = this.cameraProducer;
+    if (!producer || producer.closed) {
+      return;
+    }
+    const previousId = producer.track?.getSettings?.().deviceId ?? null;
+    try {
+      const track = await this.cameraService.getTrack();
+      if (this.cameraProducer !== producer || producer.closed) {
+        this.cameraService.release();
+        return;
+      }
+      await producer.replaceTrack({ track });
+      this.peerVideoService.setLocalCamTrack(track);
+      const nextId = track.getSettings?.().deviceId ?? null;
+      if (nextId !== previousId) {
+        this.switchNotifier.notify('videoinput', track.label ?? '');
+      }
+    } catch (error) {
+      console.warn('Failed to switch camera device', error);
+      await this.stopCameraLocked();
     }
   }
 

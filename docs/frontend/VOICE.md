@@ -99,6 +99,7 @@ sequenceDiagram
 ## Audio
 
 - **Microphone**: `MicrophoneService` builds the capture pipeline. Mute is applied to the producer track and stored in `VoiceAudioPreferencesStore`. Mute and deafen changes are sent to session peers and, through entity sync, to the lobby.
+- **Device changes**: On device connect or disconnect, the client re-evaluates the active microphone, camera and audio output. It prefers the selected device (matching by id or label), then browser `communications` and `default` devices; the camera falls back to the first available camera. A toast appears when the active device changes.
 - **Remote audio**: consumed tracks play through `PeerPlaybackService` (deafen combined with per-peer gain).
 - **Speaking indicator**: `AudioActivityService` polls the registered analysers; the local analyser is registered only while the mic is unmuted in an active session.
 - **Sounds**: capture, playback and UI sound effects use separate audio contexts; resuming them after a user gesture is handled by `AudioContextResumeService`. Effects are synthesized with Web Audio (positive cues rise, negative cues fall): join/leave, mute/unmute, deafen/undeafen, and stream start/stop for local and remote peers.

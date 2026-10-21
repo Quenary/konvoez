@@ -142,4 +142,95 @@ describe('getStream', () => {
     expect(getUserMedia).toHaveBeenCalledTimes(2);
     expect(getUserMedia).toHaveBeenNthCalledWith(2, { audio: true });
   });
+
+  it('tries the chosen device, then communications, then default', async () => {
+    const getUserMedia = vi
+      .fn()
+      .mockRejectedValueOnce(mediaError('NotFoundError'))
+      .mockResolvedValueOnce({ id: 'communications' });
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: 'audioinput', deviceId: 'default', label: 'Default' },
+          {
+            kind: 'audioinput',
+            deviceId: 'communications',
+            label: 'Communications',
+          },
+          { kind: 'audioinput', deviceId: 'usb', label: 'USB mic' },
+        ]),
+      },
+    });
+
+    const stream = await getStream({
+      deviceId: 'usb',
+      label: 'USB mic',
+      kind: 'audioinput',
+    } as MediaDeviceInfo);
+
+    expect(stream).toEqual({ id: 'communications' });
+    expect(
+      getUserMedia.mock.calls.map(
+        ([constraints]) =>
+          (constraints.audio as { deviceId: { exact: string } }).deviceId.exact,
+      ),
+    ).toEqual(['usb', 'communications']);
+  });
+
+  it('opens a renamed device found by label', async () => {
+    const getUserMedia = vi.fn().mockResolvedValue({ id: 'usb-2' });
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: 'audioinput', deviceId: 'default', label: 'Default' },
+          { kind: 'audioinput', deviceId: 'usb-2', label: 'USB mic (2)' },
+        ]),
+      },
+    });
+
+    await getStream({
+      deviceId: 'usb-1',
+      label: 'USB mic',
+      kind: 'audioinput',
+    } as MediaDeviceInfo);
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(
+      (getUserMedia.mock.calls[0][0].audio as { deviceId: { exact: string } })
+        .deviceId.exact,
+    ).toBe('usb-2');
+  });
+
+  it('opens only the given device in strict mode', async () => {
+    const getUserMedia = vi.fn().mockRejectedValue(mediaError('NotFoundError'));
+    const enumerateDevices = vi
+      .fn()
+      .mockResolvedValue([
+        { kind: 'audioinput', deviceId: 'communications', label: 'C' },
+      ]);
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia, enumerateDevices },
+    });
+
+    await expect(
+      getStream(
+        {
+          deviceId: 'usb',
+          label: 'USB',
+          kind: 'audioinput',
+        } as MediaDeviceInfo,
+        { strictDevice: true },
+      ),
+    ).rejects.toThrow('NotFoundError');
+    expect(enumerateDevices).not.toHaveBeenCalled();
+    expect(
+      getUserMedia.mock.calls.every(
+        ([constraints]) =>
+          (constraints.audio as { deviceId: { exact: string } }).deviceId
+            .exact === 'usb',
+      ),
+    ).toBe(true);
+  });
 });

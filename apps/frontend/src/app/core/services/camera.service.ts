@@ -1,4 +1,5 @@
 import { Injectable, Injector, OnDestroy, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
@@ -7,6 +8,8 @@ import {
 } from '@shared/schemas/local-settings.schema';
 import { SettingsStore } from '@core/stores/settings.store';
 import { Observable, Subject } from 'rxjs';
+import { resolveMediaDevice } from '@shared/functions/media-device-priority.function';
+import { MediaDevicesService } from './media-devices.service';
 
 /**
  * Local webcam capture with height/FPS constraints from local settings.
@@ -14,6 +17,7 @@ import { Observable, Subject } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class CameraService implements OnDestroy {
   private readonly injector = inject(Injector);
+  private readonly mediaDevicesService = inject(MediaDevicesService);
 
   /** Lazy: SettingsStore → AUDIO_DEVICE_HANDLER → VoiceSessionService (cycle if eager). */
   private get settingsStore(): InstanceType<typeof SettingsStore> {
@@ -22,28 +26,23 @@ export class CameraService implements OnDestroy {
 
   private stream: MediaStream | null = null;
   private track: MediaStreamTrack | null = null;
-  private readonly deviceLostSubject = new Subject<void>();
-  /** Selected camera disappeared. Capture stays live until the session stops it. */
-  public readonly deviceLost$: Observable<void> =
-    this.deviceLostSubject.asObservable();
-
-  private readonly onDeviceChange = (): void => {
-    void this.handleDeviceChange();
-  };
+  private readonly deviceChangedSubject = new Subject<void>();
+  /**
+   * The camera that should be used (user choice by id/label, else the first camera)
+   * differs from the live one, or none is left. Capture stays live; the session
+   * decides whether to switch the producer track or stop the camera.
+   */
+  public readonly deviceChanged$: Observable<void> =
+    this.deviceChangedSubject.asObservable();
 
   constructor() {
-    navigator.mediaDevices?.addEventListener?.(
-      'devicechange',
-      this.onDeviceChange,
-    );
+    this.mediaDevicesService.deviceChange$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => void this.handleDeviceChange());
   }
 
   ngOnDestroy(): void {
-    navigator.mediaDevices?.removeEventListener?.(
-      'devicechange',
-      this.onDeviceChange,
-    );
-    this.deviceLostSubject.complete();
+    this.deviceChangedSubject.complete();
     this.release();
   }
 
@@ -58,10 +57,15 @@ export class CameraService implements OnDestroy {
       DEFAULT_STREAM_HEIGHT;
     const fps =
       options?.fps ?? this.settingsStore.streamFps() ?? DEFAULT_STREAM_FPS;
-    const device =
+    const preferred =
       options?.device !== undefined
         ? options.device
         : this.settingsStore.videoInput();
+    const devices = await this.mediaDevicesService
+      .enumerateDevices()
+      .catch((): MediaDeviceInfo[] => []);
+    const device =
+      resolveMediaDevice(devices, 'videoinput', preferred) ?? preferred;
 
     this.release();
 
@@ -120,16 +124,23 @@ export class CameraService implements OnDestroy {
 
   private async handleDeviceChange(): Promise<void> {
     const current = this.track;
-    const device = this.settingsStore.videoInput();
-    if (!current || !device) {
+    if (!current || current.readyState !== 'live') {
       return;
     }
-    const devices = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
-    const stillPresent = devices.some(
-      (item) => item.kind === 'videoinput' && item.deviceId === device.deviceId,
+    const devices = await this.mediaDevicesService
+      .enumerateDevices()
+      .catch((): MediaDeviceInfo[] => []);
+    const desired = resolveMediaDevice(
+      devices,
+      'videoinput',
+      this.settingsStore.videoInput(),
     );
-    if (!stillPresent) {
-      this.deviceLostSubject.next();
+    if (this.track !== current) {
+      return;
     }
+    if (desired && desired.deviceId === current.getSettings?.().deviceId) {
+      return;
+    }
+    this.deviceChangedSubject.next();
   }
 }

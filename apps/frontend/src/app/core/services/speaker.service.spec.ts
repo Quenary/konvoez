@@ -4,13 +4,23 @@ import {
   SPEAKER_WORKLET_LOAD_TIMEOUT_MS,
   SpeakerService,
 } from './speaker.service';
+import { MediaDevicesService } from './media-devices.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 
 describe('SpeakerService', () => {
   let service: SpeakerService;
+  let notify: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    notify = vi.fn();
     TestBed.configureTestingModule({
-      providers: [SpeakerService],
+      providers: [
+        SpeakerService,
+        {
+          provide: MediaDeviceSwitchNotifierService,
+          useValue: { notify },
+        },
+      ],
     });
 
     service = TestBed.inject(SpeakerService);
@@ -108,6 +118,96 @@ describe('SpeakerService', () => {
     expect(second).toBe(audio.bus);
     expect(third).toBe(audio.bus);
     expect(audio.limiters).toHaveLength(0);
+  });
+
+  describe('output device priority', () => {
+    const outputs = (...ids: string[]) =>
+      ids.map((deviceId) => ({
+        kind: 'audiooutput',
+        deviceId,
+        label: deviceId,
+      })) as MediaDeviceInfo[];
+
+    const withContext = (sinkId = '') => {
+      const context = {
+        state: 'running',
+        sinkId,
+        setSinkId: vi.fn().mockResolvedValue(undefined),
+      };
+      service['context'] = context as unknown as AudioContext;
+      return context;
+    };
+
+    const stubDevices = (devices: MediaDeviceInfo[]) => {
+      TestBed.inject(MediaDevicesService).enumerateDevices = vi
+        .fn()
+        .mockResolvedValue(devices);
+    };
+
+    it('uses the chosen output when it is listed', async () => {
+      const context = withContext();
+      stubDevices(outputs('default', 'communications', 'hp'));
+      service['device'] = { deviceId: 'hp', label: 'hp' } as MediaDeviceInfo;
+
+      await service['handleDeviceChange']();
+
+      expect(context.setSinkId).toHaveBeenCalledWith('hp');
+    });
+
+    it('falls back to communications when the chosen output is gone', async () => {
+      const context = withContext('hp');
+      stubDevices(outputs('default', 'communications'));
+      service['device'] = { deviceId: 'hp', label: 'hp' } as MediaDeviceInfo;
+
+      await service['handleDeviceChange']();
+
+      expect(context.setSinkId).toHaveBeenCalledWith('communications');
+      expect(notify).toHaveBeenCalledWith('audiooutput', 'communications');
+    });
+
+    it('does not toast when the sink is set by a manual selection', async () => {
+      const context = withContext('hp');
+      stubDevices(outputs('default', 'spk'));
+
+      await service.setDevice({
+        deviceId: 'spk',
+        label: 'spk',
+      } as MediaDeviceInfo);
+
+      expect(context.setSinkId).toHaveBeenCalledWith('spk');
+      expect(notify).not.toHaveBeenCalled();
+    });
+
+    it('falls back to default when communications cannot be used', async () => {
+      const context = withContext('hp');
+      context.setSinkId.mockRejectedValueOnce(new Error('NotFoundError'));
+      stubDevices(outputs('default', 'communications'));
+
+      await service['handleDeviceChange']();
+
+      expect(context.setSinkId.mock.calls.map(([id]) => id)).toEqual([
+        'communications',
+        'default',
+      ]);
+    });
+
+    it('does not touch the sink when it already plays to the wanted device', async () => {
+      const context = withContext('communications');
+      stubDevices(outputs('default', 'communications'));
+
+      await service['handleDeviceChange']();
+
+      expect(context.setSinkId).not.toHaveBeenCalled();
+      expect(notify).not.toHaveBeenCalled();
+    });
+
+    it('does not create a context on devicechange', async () => {
+      stubDevices(outputs('default'));
+
+      await service['handleDeviceChange']();
+
+      expect(service['context']).toBeNull();
+    });
   });
 });
 
