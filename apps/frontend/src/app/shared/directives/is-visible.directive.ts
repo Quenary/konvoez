@@ -8,10 +8,17 @@ import {
   output,
 } from '@angular/core';
 
+/** Dense steps keep the callback firing while a tall host scrolls through. */
+const OBSERVER_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);
+
 /**
  * Emits whether the host element is visible inside `appIsVisibleRoot` (the
  * viewport when it is null). Emits on every change of the visibility state;
  * the first observation is always emitted.
+ *
+ * The visible share is measured against the part of the host that fits in
+ * the root, so a host taller than the root counts as visible once it covers
+ * enough of it.
  */
 @Directive({
   selector: '[appIsVisible]',
@@ -31,15 +38,14 @@ export class IsVisibleDirective {
 
   constructor() {
     effect(() => {
-      const threshold = this.appIsVisibleThreshold();
       const root = this.appIsVisibleRoot();
-      this.observe(threshold, root);
+      this.observe(root);
     });
 
     inject(DestroyRef).onDestroy(() => this.disconnect());
   }
 
-  private observe(threshold: number, root: Element | null): void {
+  private observe(root: Element | null): void {
     this.disconnect();
     this.observer = new IntersectionObserver(
       (entries) => {
@@ -48,7 +54,8 @@ export class IsVisibleDirective {
           return;
         }
         const visible =
-          entry.isIntersecting && entry.intersectionRatio >= threshold;
+          entry.isIntersecting &&
+          visibleShare(entry) >= this.appIsVisibleThreshold();
         if (visible !== this.visible) {
           this.visible = visible;
           this.appIsVisible.emit(visible);
@@ -56,7 +63,7 @@ export class IsVisibleDirective {
       },
       {
         root,
-        threshold,
+        threshold: OBSERVER_THRESHOLDS,
       },
     );
     this.observer.observe(this.el.nativeElement);
@@ -66,4 +73,10 @@ export class IsVisibleDirective {
     this.observer?.disconnect();
     this.observer = null;
   }
+}
+
+function visibleShare(entry: IntersectionObserverEntry): number {
+  const hostHeight = entry.boundingClientRect.height;
+  const fit = Math.min(hostHeight, entry.rootBounds?.height ?? hostHeight);
+  return fit > 0 ? entry.intersectionRect.height / fit : 0;
 }

@@ -27,17 +27,27 @@ type MockObserver = {
 describe('IsVisibleDirective', () => {
   let observers: MockObserver[];
 
-  function entry(isIntersecting: boolean, ratio: number) {
+  const ROOT_HEIGHT = 400;
+
+  function entry(
+    isIntersecting: boolean,
+    visibleHeight: number,
+    hostHeight: number,
+  ): IntersectionObserverEntry {
     return {
       isIntersecting,
-      intersectionRatio: ratio,
-    } as IntersectionObserverEntry;
+      intersectionRatio: visibleHeight / hostHeight,
+      intersectionRect: { height: visibleHeight },
+      boundingClientRect: { height: hostHeight },
+      rootBounds: { height: ROOT_HEIGHT },
+    } as unknown as IntersectionObserverEntry;
   }
 
-  function fire(isIntersecting: boolean, ratio: number) {
+  /** Fires for a host of `hostHeight` px with `ratio` of it visible. */
+  function fire(isIntersecting: boolean, ratio: number, hostHeight = 100) {
     const observer = observers.at(-1);
     observer?.callback(
-      [entry(isIntersecting, ratio)],
+      [entry(isIntersecting, ratio * hostHeight, hostHeight)],
       observer as unknown as IntersectionObserver,
     );
   }
@@ -84,7 +94,8 @@ describe('IsVisibleDirective', () => {
     const host = fixture.nativeElement.querySelector('div');
 
     expect(observers).toHaveLength(1);
-    expect(observers[0].options).toEqual({ root, threshold: 0.5 });
+    expect(observers[0].options?.root).toBe(root);
+    expect(observers[0].options?.threshold).toContain(0.5);
     expect(observers[0].observe).toHaveBeenCalledWith(host);
   });
 
@@ -128,16 +139,30 @@ describe('IsVisibleDirective', () => {
     expect(fixture.componentInstance.events).toEqual([false]);
   });
 
-  it('recreates the observer when the threshold changes', async () => {
+  it.each([
+    ['a short host mostly visible', 100, 60, true],
+    ['a short host barely visible', 100, 30, false],
+    ['a host three roots tall covering the root', 1200, 400, true],
+    ['a host three roots tall covering half the root', 1200, 200, true],
+    ['a host three roots tall showing a strip', 1200, 80, false],
+  ])('measures visibility for %s', async (_name, host, visible, expected) => {
     const fixture = await create(null);
 
-    fixture.componentInstance.threshold.set(1);
-    fixture.detectChanges();
-    await fixture.whenStable();
+    fire(true, visible / host, host);
 
-    expect(observers).toHaveLength(2);
-    expect(observers[0].disconnect).toHaveBeenCalled();
-    expect(observers[1].options?.threshold).toBe(1);
+    expect(fixture.componentInstance.events).toEqual([expected]);
+  });
+
+  it('applies a new threshold to later observations', async () => {
+    const fixture = await create(null);
+    fire(true, 0.6);
+
+    fixture.componentInstance.threshold.set(0.9);
+    fixture.detectChanges();
+    fire(true, 0.7);
+
+    expect(observers).toHaveLength(1);
+    expect(fixture.componentInstance.events).toEqual([true, false]);
   });
 
   it('disconnects on destroy', async () => {

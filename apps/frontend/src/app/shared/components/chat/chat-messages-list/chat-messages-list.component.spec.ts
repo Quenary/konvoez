@@ -276,6 +276,8 @@ describe('ChatMessagesListComponent', () => {
     return virtualizer.fake.getVirtualItems().map((item) => item.key);
   }
 
+  const ROW_HEIGHT = 100;
+
   function setVisible(messageId: string, visible: boolean): void {
     const host = fixture.nativeElement
       .querySelector(`[id="message-${messageId}"]`)
@@ -287,7 +289,10 @@ describe('ChatMessagesListComponent', () => {
         {
           isIntersecting: visible,
           intersectionRatio: visible ? 1 : 0,
-        } as IntersectionObserverEntry,
+          intersectionRect: { height: visible ? ROW_HEIGHT : 0 },
+          boundingClientRect: { height: ROW_HEIGHT },
+          rootBounds: null,
+        } as unknown as IntersectionObserverEntry,
       ],
       {} as IntersectionObserver,
     );

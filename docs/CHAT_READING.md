@@ -33,7 +33,7 @@ The **unread divider** is placed before the first unread message of the initial 
 - `UNREAD_COUNTS_CHANGED` replaces the unread counts across all of the user's sessions.
 - `MESSAGES_READ` updates read receipts in the chat and in the reader's other sessions.
 - While newer pages are still unloaded, live messages are not inserted into the list; they only increase the unread count. Newer pages load until the live tail is reached. Sending a message while behind loads the latest page first, so the message appears at the tail.
-- Older and newer pages start loading about two and a half screens before the edge, so fast scrolling keeps going through history without stopping at the top.
+- Older and newer pages start loading a few screens before the edge, so fast scrolling keeps going through history without stopping at the top.
 - When older history loads, the first visible message keeps its position on screen, including during momentum scrolling on iOS.
 - A short chat is shown at the bottom of the list.
 
