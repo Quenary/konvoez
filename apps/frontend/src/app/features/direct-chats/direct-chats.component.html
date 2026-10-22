@@ -26,36 +26,34 @@
     </aside>
   </header>
 
-  <tui-scrollbar class="direct-scroll">
-    <div class="direct-container">
-      @if (directChatsStore.entities().length > 0) {
-        <div class="chats-list">
-          @for (user of directChatsStore.entities(); track user.id) {
-            <app-direct-chat-item
-              [user]="user"
-              (selected)="openChat($event)" />
-          }
-        </div>
-      } @else if (!directChatsStore.loading()) {
-        <div class="empty-state">
-          <div class="empty-icon-wrapper">
-            <tui-icon
-              icon="@tui.messages-square"
-              class="empty-icon" />
-          </div>
-          <h3 class="empty-title">{{ 'DIRECT.EMPTY_TITLE' | translate }}</h3>
-          <p class="empty-desc">{{ 'DIRECT.EMPTY_DESC' | translate }}</p>
-          <button
-            tuiButton
-            appearance="primary"
-            size="m"
-            iconStart="@tui.plus"
-            type="button"
-            (click)="openNewChatDialog()">
-            {{ 'DIRECT.START_CHAT' | translate }}
-          </button>
-        </div>
-      }
+  @if (directChatsStore.entities().length > 0) {
+    <tui-scrollbar class="direct-chats-scroll">
+      <div class="chats-list">
+        @for (user of directChatsStore.entities(); track user.id) {
+          <app-direct-chat-item
+            [user]="user"
+            (selected)="openChat($event)" />
+        }
+      </div>
+    </tui-scrollbar>
+  } @else if (!directChatsStore.loading()) {
+    <div class="empty-state">
+      <div class="empty-icon-wrapper">
+        <tui-icon
+          icon="@tui.messages-square"
+          class="empty-icon" />
+      </div>
+      <h3 class="empty-title">{{ 'DIRECT.EMPTY_TITLE' | translate }}</h3>
+      <p class="empty-desc">{{ 'DIRECT.EMPTY_DESC' | translate }}</p>
+      <button
+        tuiButton
+        appearance="primary"
+        size="m"
+        iconStart="@tui.plus"
+        type="button"
+        (click)="openNewChatDialog()">
+        {{ 'DIRECT.START_CHAT' | translate }}
+      </button>
     </div>
-  </tui-scrollbar>
+  }
 </div>
