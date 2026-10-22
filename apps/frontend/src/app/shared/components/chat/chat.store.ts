@@ -9,6 +9,7 @@ import {
   ITextRoomListRequest,
   ITextRoomMessage,
   ITextRoomReactionGroup,
+  MESSAGE_PAGE_SIZE,
   TTextRoomError,
   TTextRoomMessagesRead,
   TTextRoomReactionUpdated,
@@ -60,8 +61,6 @@ import {
   chatTargetToApiIds,
   messageBelongsToChat,
 } from './chat-target';
-
-const defaultChunkSize = 25;
 
 export enum EMessageStatus {
   LOADING = 'LOADING',
@@ -299,7 +298,7 @@ export const ChatStore = signalStore(
                   aroundId: initialMessageId,
                   beforeId: null,
                   afterId: null,
-                  limit: defaultChunkSize,
+                  limit: MESSAGE_PAGE_SIZE,
                 })
                 .pipe(
                   tap((res) => {
@@ -346,7 +345,7 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: null,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
               })
               .pipe(
                 tap((res) => {
@@ -388,7 +387,7 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: null,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
                 latest: true,
               })
               .pipe(
@@ -435,7 +434,7 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: oldestId,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
                 search: store.searchQuery() || undefined,
               })
               .pipe(
@@ -476,7 +475,7 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: null,
                 afterId: newestId,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
                 search: store.searchQuery() || undefined,
               })
               .pipe(
@@ -518,7 +517,7 @@ export const ChatStore = signalStore(
                   recipientId,
                   beforeId: null,
                   afterId: null,
-                  limit: defaultChunkSize,
+                  limit: MESSAGE_PAGE_SIZE,
                   latest: true,
                 }),
               ),
@@ -568,7 +567,7 @@ export const ChatStore = signalStore(
                 aroundId: messageId,
                 beforeId: null,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
               })
               .pipe(
                 tap((res) => {
@@ -695,7 +694,7 @@ export const ChatStore = signalStore(
           requestList({
             afterId: null,
             beforeId: null,
-            limit: defaultChunkSize,
+            limit: MESSAGE_PAGE_SIZE,
             roomId,
             recipientId,
             search: trimmed || undefined,

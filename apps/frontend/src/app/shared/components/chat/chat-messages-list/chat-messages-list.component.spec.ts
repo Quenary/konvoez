@@ -7,21 +7,68 @@ import { UsersStore } from '@core/stores/users.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
-import { Sanitizer, computed, signal } from '@angular/core';
+import { Sanitizer, Signal, computed, signal } from '@angular/core';
 import { of } from 'rxjs';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { ChatTarget } from '../chat-target';
+import { AuthActions } from '@core/auth/auth.actions';
+import { Store } from '@ngrx/store';
+import {
+  CHAT_VIRTUALIZER_FACTORY,
+  ChatVirtualizerFactory,
+} from './chat-virtualizer';
+
+type FakeOptions = {
+  count: number;
+  getItemKey: (index: number) => string | number;
+};
+
+/** Layout-free stand-in for the TanStack virtualizer. */
+function createFakeVirtualizer() {
+  let options: () => FakeOptions = () => ({ count: 0, getItemKey: (i) => i });
+  const fake = {
+    range: signal<{ startIndex: number; endIndex: number } | null>(null),
+    isScrolling: signal(false),
+    scrollOffset: signal(0),
+    getTotalSize: signal(0),
+    scrollRect: signal<{ width: number; height: number } | null>(null),
+    atEnd: true,
+    isAtEnd: vi.fn((): boolean => fake.atEnd),
+    scrollToIndex: vi.fn(),
+    scrollToEnd: vi.fn(),
+    measureElement: vi.fn(),
+    getVirtualItems: null as unknown as Signal<
+      { index: number; key: string | number; start: number }[]
+    >,
+  };
+  const factory = ((opts: () => FakeOptions) => {
+    options = opts;
+    fake.getVirtualItems = computed(() => {
+      const current = options();
+      return Array.from({ length: current.count }, (_, index) => ({
+        index,
+        key: current.getItemKey(index),
+        start: index * 50,
+      }));
+    });
+    return fake;
+  }) as unknown as ChatVirtualizerFactory;
+  return { fake, factory, options: () => options() };
+}
 
 describe('ChatMessagesListComponent', () => {
   let component: ChatMessagesListComponent;
   let fixture: ComponentFixture<ChatMessagesListComponent>;
-  let edgeObserverCallback: IntersectionObserverCallback;
-  let edgeObserverOptions: IntersectionObserverInit | undefined;
-  let observedElements: Element[] = [];
+  let virtualizer: ReturnType<typeof createFakeVirtualizer>;
+  let readQueue: {
+    enqueue: ReturnType<typeof vi.fn>;
+    reset: ReturnType<typeof vi.fn>;
+  };
+  let visibilityCallbacks: Map<Element, IntersectionObserverCallback>;
 
   const mockMessages: IMessageEntity[] = [
     {
@@ -76,6 +123,7 @@ describe('ChatMessagesListComponent', () => {
     setTargetScrollMessageId: vi.fn(),
     requestPrevPage: vi.fn(),
     requestNextPage: vi.fn(),
+    hasMoreBefore: signal<boolean>(false),
     target: signal<ChatTarget | null>({
       kind: 'room',
       id: 1,
@@ -111,42 +159,34 @@ describe('ChatMessagesListComponent', () => {
   };
 
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     vi.clearAllMocks();
-    observedElements = [];
     messagesSignal.set(mockMessages);
     mockChatStore.targetScrollMessageId.set(null);
     mockChatStore.target.set({ kind: 'room', id: 1 });
     mockChatStore.unreadDividerMessageId.set(null);
     mockChatStore.initialPosition.set('bottom');
     mockChatStore.hasMoreAfter.set(false);
+    mockChatStore.hasMoreBefore.set(false);
     mockChatStore.loadingOlder.set(false);
     mockChatStore.loadingNewer.set(false);
     mockChatStore.scrollToLatestToken.set(0);
     mockUnreadCountsStore.rooms.set({});
     mockUnreadCountsStore.direct.set({});
-    Element.prototype.scrollTo = vi.fn();
-    Element.prototype.scrollIntoView = vi.fn();
+    virtualizer = createFakeVirtualizer();
+    readQueue = { enqueue: vi.fn(), reset: vi.fn() };
+    visibilityCallbacks = new Map();
 
     class MockIntersectionObserver {
-      private readonly edge: boolean;
-
+      private readonly callback: IntersectionObserverCallback;
       observe = vi.fn((element: Element) => {
-        if (this.edge) {
-          observedElements.push(element);
-        }
+        visibilityCallbacks.set(element, this.callback);
       });
       unobserve = vi.fn();
       disconnect = vi.fn();
 
-      constructor(
-        callback: IntersectionObserverCallback,
-        options?: IntersectionObserverInit,
-      ) {
-        this.edge = options?.rootMargin === '300px 0px';
-        if (this.edge) {
-          edgeObserverCallback = callback;
-          edgeObserverOptions = options;
-        }
+      constructor(callback: IntersectionObserverCallback) {
+        this.callback = callback;
       }
     }
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
@@ -189,10 +229,7 @@ describe('ChatMessagesListComponent', () => {
           provide: ChatApiService,
           useValue: { getReaders: vi.fn(), markRead: vi.fn() },
         },
-        {
-          provide: MessageReadQueueService,
-          useValue: { enqueue: vi.fn(), reset: vi.fn() },
-        },
+        { provide: MessageReadQueueService, useValue: readQueue },
         {
           provide: OutgoingMessagesStore,
           useValue: { uploadProgress: signal({}) },
@@ -201,588 +238,399 @@ describe('ChatMessagesListComponent', () => {
           provide: TuiResponsiveDialogService,
           useValue: { open: vi.fn(() => of(undefined)) },
         },
+        { provide: CHAT_VIRTUALIZER_FACTORY, useValue: virtualizer.factory },
       ],
     }).compileComponents();
 
+    TestBed.inject(Store).dispatch(
+      AuthActions.initEnd({ user: { id: 1, username: 'alice' } as never }),
+    );
     fixture = TestBed.createComponent(ChatMessagesListComponent);
     component = fixture.componentInstance;
-    await fixture.whenStable();
+    await settle();
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function settle(): Promise<void> {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    TestBed.tick();
+    await fixture.whenStable();
+  }
+
+  /** Lets a programmatic jump that did not scroll finish via its fallback. */
+  async function finishJump(): Promise<void> {
+    vi.advanceTimersByTime(600);
+    await settle();
+  }
+
+  function rowKeys(): (string | number)[] {
+    return virtualizer.fake.getVirtualItems().map((item) => item.key);
+  }
+
+  function setVisible(messageId: string, visible: boolean): void {
+    const host = fixture.nativeElement
+      .querySelector(`[id="message-${messageId}"]`)
+      ?.closest('app-chat-message') as Element | null;
+    const callback = host ? visibilityCallbacks.get(host) : undefined;
+    expect(callback).toBeTruthy();
+    callback?.(
+      [
+        {
+          isIntersecting: visible,
+          intersectionRatio: visible ? 1 : 0,
+        } as IntersectionObserverEntry,
+      ],
+      {} as IntersectionObserver,
+    );
+  }
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('configures edge observer with the scrollbar element as root', async () => {
-    fixture.detectChanges();
-    await flushAfterRender(fixture);
-    const container = getScrollContainer(fixture);
-    expect(edgeObserverOptions?.root).toBe(container);
-    expect(edgeObserverOptions?.rootMargin).toBe('300px 0px');
-  });
+  describe('rows', () => {
+    it('keys message rows by client id and inserts the divider and skeletons', async () => {
+      mockChatStore.unreadDividerMessageId.set('msg-2');
+      mockChatStore.loadingOlder.set(true);
+      mockChatStore.loadingNewer.set(true);
+      await settle();
 
-  it('does not request pages from sentinels while edge loading is disabled', () => {
-    fixture.detectChanges();
-    mockChatStore.requestPrevPage.mockClear();
-    component['edgeLoadingEnabled'] = false;
-    const topSentinel = observedElements[0];
-    edgeObserverCallback(
-      [
-        {
-          isIntersecting: true,
-          target: topSentinel,
-        } as IntersectionObserverEntry,
-      ],
-      {} as IntersectionObserver,
-    );
-    expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
-  });
-
-  it('requests older messages when the top sentinel intersects after edge loading is enabled', async () => {
-    fixture.detectChanges();
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
-    component['edgeLoadingEnabled'] = true;
-
-    const topSentinel = observedElements[0];
-    edgeObserverCallback(
-      [
-        {
-          isIntersecting: true,
-          target: topSentinel,
-        } as IntersectionObserverEntry,
-      ],
-      {} as IntersectionObserver,
-    );
-    expect(mockChatStore.requestPrevPage).toHaveBeenCalled();
-  });
-
-  it('requests newer messages when the bottom sentinel intersects after edge loading is enabled', async () => {
-    fixture.detectChanges();
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
-    component['edgeLoadingEnabled'] = true;
-
-    const bottomSentinel = observedElements[1];
-    edgeObserverCallback(
-      [
-        {
-          isIntersecting: true,
-          target: bottomSentinel,
-        } as IntersectionObserverEntry,
-      ],
-      {} as IntersectionObserver,
-    );
-    expect(mockChatStore.requestNextPage).toHaveBeenCalled();
-  });
-
-  it('does not request an older page from the sentinel while loadingOlder is true', () => {
-    fixture.detectChanges();
-    mockChatStore.requestPrevPage.mockClear();
-    component['edgeLoadingEnabled'] = true;
-    mockChatStore.loadingOlder.set(true);
-
-    const topSentinel = observedElements[0];
-    edgeObserverCallback(
-      [
-        {
-          isIntersecting: true,
-          target: topSentinel,
-        } as IntersectionObserverEntry,
-      ],
-      {} as IntersectionObserver,
-    );
-
-    expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
-  });
-
-  it('pins to the bottom when an outgoing message appears and not on later updates', async () => {
-    fixture.detectChanges();
-    await flushAfterRender(fixture);
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 0,
-      clientHeight: 400,
-      scrollHeight: 800,
-    });
-
-    const outgoing = {
-      ...mockMessages[1],
-      id: 'out-1',
-      outgoing: {
-        tempId: 'out-1',
-        data: {
-          content: '<p>Second with reply</p>',
-          roomId: 1,
-          recipientId: null,
-          replyToId: null,
-          attachmentIds: [],
-        },
-        replyTo: null,
-        createdAt: mockMessages[1].createdAt,
-        files: [],
-        state: { phase: 'uploading' as const },
-      },
-    };
-    messagesSignal.set([...mockMessages, outgoing]);
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
-    expect(component['pinnedToBottom']).toBe(true);
-    expect(container.scrollTop).toBe(800);
-
-    messagesSignal.set([
-      ...mockMessages,
-      { ...outgoing, content: '<p>progress</p>' },
-    ]);
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
-    expect(container.scrollTop).toBe(800);
-  });
-
-  it('scrolls to the bottom when a new message arrives while already at the bottom', async () => {
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 400,
-      clientHeight: 400,
-      scrollHeight: 800,
-    });
-    container.dispatchEvent(new Event('scroll'));
-
-    messagesSignal.set([
-      ...mockMessages,
-      {
-        ...mockMessages[0],
-        id: 'msg-3',
-        content: '<p>Third</p>',
-        createdAt: new Date('2026-09-15T00:02:00.000Z'),
-      },
-    ]);
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
-    expect(container.scrollTop).toBe(800);
-  });
-
-  it('keeps the scroll position when a new message arrives above the bottom', async () => {
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 0,
-      clientHeight: 400,
-      scrollHeight: 1200,
-    });
-    container.dispatchEvent(new Event('scroll'));
-
-    messagesSignal.set([
-      ...mockMessages,
-      {
-        ...mockMessages[0],
-        id: 'msg-3',
-        content: '<p>Third</p>',
-        createdAt: new Date('2026-09-15T00:02:00.000Z'),
-      },
-    ]);
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
-    expect(container.scrollTop).toBe(0);
-  });
-
-  it('should render unread divider item before message matching unreadDividerMessageId', () => {
-    mockChatStore.unreadDividerMessageId.set('msg-2');
-    fixture.detectChanges();
-
-    const divider = fixture.nativeElement.querySelector('#unread-divider');
-    expect(divider).toBeTruthy();
-
-    const children = Array.from(
-      fixture.nativeElement.querySelector('.messages')?.children ?? [],
-    ) as HTMLElement[];
-    const dividerIndex = children.findIndex((el) => el.id === 'unread-divider');
-    const msg2Index = children.findIndex(
-      (el) => el.querySelector('#message-msg-2') || el.id === 'message-msg-2',
-    );
-    expect(dividerIndex).toBeGreaterThan(-1);
-    expect(msg2Index).toBe(dividerIndex + 1);
-  });
-
-  it('positions chat at unread divider when initialPosition is unread', async () => {
-    mockChatStore.unreadDividerMessageId.set('msg-2');
-    mockChatStore.initialPosition.set('unread');
-    fixture.detectChanges();
-    const divider = fixture.nativeElement.querySelector('#unread-divider');
-    expect(divider).toBeTruthy();
-    const scrollIntoView = vi.fn();
-    divider.scrollIntoView = scrollIntoView;
-
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
-
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'instant',
-      block: 'start',
-    });
-    expect(component['pinnedToBottom']).toBe(false);
-  });
-
-  it('falls back to the bottom when initialPosition is unread but divider element is absent', async () => {
-    mockChatStore.unreadDividerMessageId.set(null);
-    mockChatStore.initialPosition.set('unread');
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 0,
-      clientHeight: 400,
-      scrollHeight: 900,
-    });
-
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
-
-    expect(container.scrollTop).toBe(900);
-    expect(component['pinnedToBottom']).toBe(true);
-  });
-
-  it('scrolls to the bottom when initialPosition is bottom', async () => {
-    mockChatStore.initialPosition.set('bottom');
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 0,
-      clientHeight: 400,
-      scrollHeight: 900,
-    });
-
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
-
-    expect(container.scrollTop).toBe(900);
-    expect(component['pinnedToBottom']).toBe(true);
-  });
-
-  it('scrolls target message into view when initialPosition is message', async () => {
-    mockChatStore.initialPosition.set('message');
-    mockChatStore.targetScrollMessageId.set('msg-1');
-    fixture.detectChanges();
-    const msgEl = fixture.nativeElement.querySelector('#message-msg-1');
-    expect(msgEl).toBeTruthy();
-    const scrollIntoView = vi.fn();
-    msgEl.scrollIntoView = scrollIntoView;
-
-    component['applyInitialPosition']();
-    await flushAfterRender(fixture);
-
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'instant',
-      block: 'center',
-    });
-    expect(mockChatStore.setTargetScrollMessageId).toHaveBeenCalledWith(null);
-    expect(component['pinnedToBottom']).toBe(false);
-  });
-
-  it('adjusts scrollTop when the visible anchor message moves down in the viewport', () => {
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    const anchor = container.querySelector('app-chat-message') as HTMLElement;
-    setScroll(container, {
-      scrollTop: 0,
-      clientHeight: 400,
-      scrollHeight: 800,
-    });
-    container.getBoundingClientRect = vi.fn(() => new DOMRect(0, 50, 400, 400));
-    anchor.getBoundingClientRect = vi.fn(() => new DOMRect(0, 470, 400, 40));
-
-    component['restoreAnchor']({ messageId: 'msg-1', offset: 20 });
-
-    expect(container.scrollTop).toBe(400);
-  });
-
-  it.each([
-    {
-      name: 'older page is prepended',
-      older: true,
-      live: false,
-      loadingOlder: false,
-      preservedByBrowser: false,
-      anchorVisible: true,
-      expected: 500,
-    },
-    {
-      name: 'older page is prepended while a live message arrives at the tail',
-      older: true,
-      live: true,
-      loadingOlder: false,
-      preservedByBrowser: false,
-      anchorVisible: true,
-      expected: 500,
-    },
-    {
-      name: 'top skeleton appears',
-      older: false,
-      live: false,
-      loadingOlder: true,
-      preservedByBrowser: false,
-      anchorVisible: true,
-      expected: 256,
-    },
-    {
-      name: 'only a live message arrives at the tail',
-      older: false,
-      live: true,
-      loadingOlder: false,
-      preservedByBrowser: false,
-      anchorVisible: true,
-      expected: 200,
-    },
-    {
-      name: 'the browser already preserved the anchor offset',
-      older: true,
-      live: false,
-      loadingOlder: false,
-      preservedByBrowser: true,
-      anchorVisible: true,
-      expected: 200,
-    },
-    {
-      name: 'no message is visible and the top skeleton appears',
-      older: false,
-      live: false,
-      loadingOlder: true,
-      preservedByBrowser: false,
-      anchorVisible: false,
-      expected: 256,
-    },
-  ])(
-    'keeps the visible content in place when $name',
-    async ({
-      older,
-      live,
-      loadingOlder,
-      preservedByBrowser,
-      anchorVisible,
-      expected,
-    }) => {
-      const olderHeight = 300;
-      const liveHeight = 100;
-      const skeletonHeight = 56;
-      const baseScrollHeight = 1200;
-
-      fixture.detectChanges();
-      await flushAfterRender(fixture);
-      const container = getScrollContainer(fixture);
-      setScroll(container, {
-        scrollTop: 200,
-        clientHeight: 400,
-        scrollHeight: baseScrollHeight,
-      });
-      container.dispatchEvent(new Event('scroll'));
-      component['previousFirstMessageId'] = 'msg-1';
-      container.getBoundingClientRect = vi.fn(
-        () => new DOMRect(0, 50, 400, 400),
-      );
-
-      // Layout is derived from the rendered DOM, so the values change between
-      // the snapshot taken before render and the write after render.
-      const hasInDom = (selector: string): boolean =>
-        container.querySelector(selector) !== null;
-      const topGrowth = (): number =>
-        (hasInDom('[data-message-id="msg-older"]') ? olderHeight : 0) +
-        (hasInDom('.skeleton-row') ? skeletonHeight : 0);
-      Object.defineProperty(container, 'scrollHeight', {
-        configurable: true,
-        get: () =>
-          baseScrollHeight +
-          topGrowth() +
-          (hasInDom('[data-message-id="msg-live"]') ? liveHeight : 0),
-      });
-
-      const anchor = container.querySelector('app-chat-message') as HTMLElement;
-      anchor.setAttribute('data-message-id', 'msg-1');
-      anchor.getBoundingClientRect = vi.fn(
-        () =>
-          new DOMRect(
-            0,
-            (anchorVisible ? 120 : -100) +
-              (preservedByBrowser ? 0 : topGrowth()),
-            400,
-            40,
-          ),
-      );
-
-      const olderMessage: IMessageEntity = {
-        ...mockMessages[0],
-        id: 'msg-older',
-        createdAt: new Date('2026-09-14T00:00:00.000Z'),
-      };
-      const liveMessage: IMessageEntity = {
-        ...mockMessages[1],
-        id: 'msg-live',
-        createdAt: new Date('2026-09-16T00:00:00.000Z'),
-      };
-      messagesSignal.set([
-        ...(older ? [olderMessage] : []),
-        ...mockMessages,
-        ...(live ? [liveMessage] : []),
+      expect(rowKeys()).toEqual([
+        'skel-top',
+        'msg:msg-1',
+        'divider',
+        'msg:msg-2',
+        'skel-bottom',
       ]);
-      mockChatStore.loadingOlder.set(loadingOlder);
-      await flushAfterRender(fixture);
-
-      expect(container.scrollTop).toBe(expected);
-    },
-  );
-
-  it('renders scroll button when showScrollToBottom is true', () => {
-    component['showScrollToBottom'].set(true);
-    fixture.detectChanges();
-    const btn = fixture.nativeElement.querySelector('.scroll-to-bottom button');
-    expect(btn).toBeTruthy();
-  });
-
-  it('renders scroll button when hasMoreAfter is true even if showScrollToBottom is false', () => {
-    component['showScrollToBottom'].set(false);
-    mockChatStore.hasMoreAfter.set(true);
-    fixture.detectChanges();
-    const btn = fixture.nativeElement.querySelector('.scroll-to-bottom button');
-    expect(btn).toBeTruthy();
-  });
-
-  it('renders scroll button with unread count badge for the active room', () => {
-    component['showScrollToBottom'].set(true);
-    mockUnreadCountsStore.rooms.set({ 1: 5 });
-    fixture.detectChanges();
-    const btn = fixture.nativeElement.querySelector('.scroll-to-bottom button');
-    expect(btn).toBeTruthy();
-    const badge = fixture.nativeElement.querySelector('tui-badge-notification');
-    expect(badge).toBeTruthy();
-    expect(badge?.textContent?.trim()).toBe('5');
-  });
-
-  it('renders the active direct chat unread count', () => {
-    component['showScrollToBottom'].set(true);
-    mockChatStore.target.set({ kind: 'direct', id: 2 });
-    mockUnreadCountsStore.direct.set({ 2: 4 });
-    fixture.detectChanges();
-    const badge = fixture.nativeElement.querySelector('tui-badge-notification');
-    expect(badge?.textContent?.trim()).toBe('4');
-  });
-
-  it('does not render the unread badge when the active chat count is zero', () => {
-    fixture.detectChanges();
-    expect(
-      fixture.nativeElement.querySelector('tui-badge-notification'),
-    ).toBeNull();
-  });
-
-  it('calls scrollToBottom smooth on button click when hasMoreAfter is false and unreadCount is 0', () => {
-    component['showScrollToBottom'].set(true);
-    mockChatStore.hasMoreAfter.set(false);
-    fixture.detectChanges();
-
-    const scrollSpy = vi.spyOn(component, 'scrollToBottom');
-    const btn = fixture.nativeElement.querySelector(
-      '.scroll-to-bottom button',
-    ) as HTMLButtonElement;
-    btn.click();
-
-    expect(scrollSpy).toHaveBeenCalledWith('smooth');
-    expect(mockChatStore.readAllAndJumpToLatest).not.toHaveBeenCalled();
-  });
-
-  it('reads all on button click when hasMoreAfter is true without scrolling immediately', () => {
-    mockChatStore.hasMoreAfter.set(true);
-    fixture.detectChanges();
-
-    const scrollSpy = vi.spyOn(component, 'scrollToBottom');
-    const btn = fixture.nativeElement.querySelector(
-      '.scroll-to-bottom button',
-    ) as HTMLButtonElement;
-    btn.click();
-
-    expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
-    expect(scrollSpy).not.toHaveBeenCalled();
-  });
-
-  it('calls readAllAndJumpToLatest on button click when unreadCount is positive', () => {
-    mockChatStore.hasMoreAfter.set(false);
-    component['showScrollToBottom'].set(true);
-    mockUnreadCountsStore.rooms.set({ 1: 3 });
-    fixture.detectChanges();
-
-    const btn = fixture.nativeElement.querySelector(
-      '.scroll-to-bottom button',
-    ) as HTMLButtonElement;
-    btn.click();
-
-    expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
-  });
-
-  it('scrolls to the replacement latest page after the scroll-to-latest token changes', async () => {
-    mockChatStore.hasMoreAfter.set(true);
-    fixture.detectChanges();
-    const container = getScrollContainer(fixture);
-    setScroll(container, {
-      scrollTop: 0,
-      clientHeight: 400,
-      scrollHeight: 1200,
+      expect(
+        fixture.nativeElement.querySelectorAll('.skeleton-row'),
+      ).toHaveLength(2);
+      expect(
+        fixture.nativeElement.querySelector('#unread-divider'),
+      ).toBeTruthy();
     });
-    const scrollTo = vi.spyOn(container, 'scrollTo');
 
-    const btn = fixture.nativeElement.querySelector(
-      '.scroll-to-bottom button',
-    ) as HTMLButtonElement;
-    btn.click();
-    expect(scrollTo).not.toHaveBeenCalled();
+    it('hands every rendered row to the virtualizer for measurement', () => {
+      expect(virtualizer.fake.measureElement).toHaveBeenCalledTimes(2);
+    });
+  });
 
-    messagesSignal.set([
-      ...mockMessages,
-      {
-        ...mockMessages[1],
-        id: 'msg-latest',
-        createdAt: new Date('2026-09-15T00:02:00.000Z'),
-      },
-    ]);
-    mockChatStore.scrollToLatestToken.set(1);
-    TestBed.flushEffects();
-    await flushAfterRender(fixture);
+  describe('initial position', () => {
+    it('scrolls to the end for the bottom position', () => {
+      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalled();
+    });
 
-    expect(container.scrollTop).toBe(1200);
-    expect(component['pinnedToBottom']).toBe(true);
+    it('scrolls the unread divider to the top for the unread position', async () => {
+      fixture.destroy();
+      vi.clearAllMocks();
+      mockChatStore.initialPosition.set('unread');
+      mockChatStore.unreadDividerMessageId.set('msg-2');
+      fixture = TestBed.createComponent(ChatMessagesListComponent);
+      await settle();
+
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(1, {
+        align: 'start',
+      });
+      expect(virtualizer.fake.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it('centers the target message for the message position and clears it', async () => {
+      fixture.destroy();
+      vi.clearAllMocks();
+      mockChatStore.initialPosition.set('message');
+      mockChatStore.targetScrollMessageId.set('msg-2');
+      fixture = TestBed.createComponent(ChatMessagesListComponent);
+      await settle();
+
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(1, {
+        align: 'center',
+        behavior: 'auto',
+      });
+      expect(mockChatStore.setTargetScrollMessageId).toHaveBeenCalledWith(null);
+    });
+
+    it('falls back to the end when the unread divider is absent', async () => {
+      fixture.destroy();
+      vi.clearAllMocks();
+      mockChatStore.initialPosition.set('unread');
+      fixture = TestBed.createComponent(ChatMessagesListComponent);
+      await settle();
+
+      expect(virtualizer.fake.scrollToIndex).not.toHaveBeenCalled();
+      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalled();
+    });
+  });
+
+  describe('edge prefetch', () => {
+    /** Viewport 500 px, content 5000 px: the prefetch zone is 1250 px. */
+    async function scrollTo(offset: number): Promise<void> {
+      virtualizer.fake.scrollRect.set({ width: 600, height: 500 });
+      virtualizer.fake.getTotalSize.set(5000);
+      virtualizer.fake.scrollOffset.set(offset);
+      await settle();
+    }
+
+    it('does not request pages before the initial jump settles', async () => {
+      mockChatStore.hasMoreBefore.set(true);
+      await scrollTo(0);
+
+      expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
+    });
+
+    it('requests older messages within 2.5 viewports of the top', async () => {
+      await finishJump();
+      mockChatStore.hasMoreBefore.set(true);
+      await scrollTo(1200);
+
+      expect(mockChatStore.requestPrevPage).toHaveBeenCalledTimes(1);
+    });
+
+    it('requests newer messages within 2.5 viewports of the bottom', async () => {
+      await finishJump();
+      mockChatStore.hasMoreAfter.set(true);
+      await scrollTo(3300);
+
+      expect(mockChatStore.requestNextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not request pages in the middle of the history', async () => {
+      await finishJump();
+      mockChatStore.hasMoreBefore.set(true);
+      mockChatStore.hasMoreAfter.set(true);
+      await scrollTo(2500);
+
+      expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
+      expect(mockChatStore.requestNextPage).not.toHaveBeenCalled();
+    });
+
+    it('waits for a loading page and requests again while still close', async () => {
+      await finishJump();
+      mockChatStore.loadingOlder.set(true);
+      mockChatStore.hasMoreBefore.set(true);
+      await scrollTo(100);
+      expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
+
+      mockChatStore.loadingOlder.set(false);
+      await settle();
+      expect(mockChatStore.requestPrevPage).toHaveBeenCalledTimes(1);
+
+      mockChatStore.loadingOlder.set(true);
+      await settle();
+      mockChatStore.loadingOlder.set(false);
+      await settle();
+      expect(mockChatStore.requestPrevPage).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('following the end', () => {
+    it('scrolls to the end when an own outgoing message appears', async () => {
+      virtualizer.fake.scrollToEnd.mockClear();
+      messagesSignal.set([
+        ...mockMessages,
+        {
+          ...mockMessages[0],
+          id: 'temp-1',
+          clientId: 'temp-1',
+          createdAt: new Date('2026-09-15T00:05:00.000Z'),
+          outgoing: {
+            tempId: 'temp-1',
+            data: {
+              roomId: 1,
+              recipientId: null,
+              content: '',
+              attachmentIds: [],
+            },
+            replyTo: null,
+            createdAt: new Date('2026-09-15T00:05:00.000Z'),
+            files: [],
+            state: { phase: 'creating' },
+          },
+        },
+      ]);
+      await settle();
+
+      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('scrolls to the end after the scroll-to-latest token changes', async () => {
+      virtualizer.fake.scrollToEnd.mockClear();
+      mockChatStore.scrollToLatestToken.set(1);
+      await settle();
+
+      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('jumps to a message requested after positioning', async () => {
+      await finishJump();
+      mockChatStore.targetScrollMessageId.set('msg-1');
+      await settle();
+
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(0, {
+        align: 'center',
+        behavior: 'smooth',
+      });
+    });
+  });
+
+  describe('mark-read', () => {
+    it('enqueues a visible incoming unread message once scrolling settled', async () => {
+      await finishJump();
+      setVisible('msg-2', true);
+
+      expect(readQueue.enqueue).toHaveBeenCalledWith('msg-2');
+    });
+
+    it('does not enqueue own, read or pending messages', async () => {
+      messagesSignal.set([
+        { ...mockMessages[0], senderId: 1 },
+        { ...mockMessages[1], isRead: true },
+      ]);
+      await finishJump();
+      setVisible('msg-1', true);
+      setVisible('msg-2', true);
+
+      expect(readQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('holds visible messages during a programmatic jump and flushes them after it', async () => {
+      setVisible('msg-2', true);
+      expect(readQueue.enqueue).not.toHaveBeenCalled();
+
+      await finishJump();
+
+      expect(readQueue.enqueue).toHaveBeenCalledWith('msg-2');
+    });
+
+    it('holds visible messages while the user scrolls and sends only those still visible', async () => {
+      await finishJump();
+      virtualizer.fake.isScrolling.set(true);
+      await settle();
+      setVisible('msg-1', true);
+      setVisible('msg-2', true);
+      setVisible('msg-1', false);
+      expect(readQueue.enqueue).not.toHaveBeenCalled();
+
+      virtualizer.fake.isScrolling.set(false);
+      await settle();
+
+      expect(readQueue.enqueue).toHaveBeenCalledTimes(1);
+      expect(readQueue.enqueue).toHaveBeenCalledWith('msg-2');
+    });
+
+    it('forgets messages whose rows are no longer rendered', async () => {
+      await finishJump();
+      virtualizer.fake.isScrolling.set(true);
+      await settle();
+      setVisible('msg-2', true);
+      messagesSignal.set([mockMessages[0]]);
+      await settle();
+
+      virtualizer.fake.isScrolling.set(false);
+      await settle();
+
+      expect(readQueue.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scroll-to-bottom button', () => {
+    function button(): HTMLButtonElement | null {
+      return fixture.nativeElement.querySelector('.scroll-to-bottom button');
+    }
+
+    async function scrollAway(): Promise<void> {
+      virtualizer.fake.atEnd = false;
+      virtualizer.fake.scrollOffset.set(100);
+      await settle();
+    }
+
+    it('is hidden at the end without newer pages', () => {
+      expect(button()).toBeNull();
+    });
+
+    it('shows when far from the end', async () => {
+      await scrollAway();
+
+      expect(button()).toBeTruthy();
+      expect(virtualizer.fake.isAtEnd).toHaveBeenCalledWith(200);
+    });
+
+    it('shows when newer pages exist', async () => {
+      mockChatStore.hasMoreAfter.set(true);
+      await settle();
+
+      expect(button()).toBeTruthy();
+    });
+
+    it('shows the unread count of the active room', async () => {
+      await scrollAway();
+      mockUnreadCountsStore.rooms.set({ 1: 5 });
+      await settle();
+
+      const badge = fixture.nativeElement.querySelector(
+        'tui-badge-notification',
+      );
+      expect(badge?.textContent?.trim()).toBe('5');
+    });
+
+    it('shows the unread count of the active direct chat', async () => {
+      await scrollAway();
+      mockChatStore.target.set({ kind: 'direct', id: 2 });
+      mockUnreadCountsStore.direct.set({ 2: 4 });
+      await settle();
+
+      const badge = fixture.nativeElement.querySelector(
+        'tui-badge-notification',
+      );
+      expect(badge?.textContent?.trim()).toBe('4');
+    });
+
+    it('caps the badge at 99+', async () => {
+      await scrollAway();
+      mockUnreadCountsStore.rooms.set({ 1: 150 });
+      await settle();
+
+      expect(
+        fixture.nativeElement
+          .querySelector('tui-badge-notification')
+          ?.textContent?.trim(),
+      ).toBe('99+');
+    });
+
+    it('scrolls smoothly to the end when everything is loaded and read', async () => {
+      await scrollAway();
+      virtualizer.fake.scrollToEnd.mockClear();
+      button()?.click();
+      await settle();
+
+      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalledWith({
+        behavior: 'smooth',
+      });
+      expect(mockChatStore.readAllAndJumpToLatest).not.toHaveBeenCalled();
+    });
+
+    it('reads all and loads the latest page when newer pages exist', async () => {
+      mockChatStore.hasMoreAfter.set(true);
+      await settle();
+      virtualizer.fake.scrollToEnd.mockClear();
+      button()?.click();
+      await settle();
+
+      expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
+      expect(virtualizer.fake.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it('reads all when there are unread messages', async () => {
+      await scrollAway();
+      mockUnreadCountsStore.rooms.set({ 1: 3 });
+      await settle();
+      button()?.click();
+
+      expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
+    });
   });
 });
-
-function getScrollContainer(fixture: ComponentFixture<unknown>): HTMLElement {
-  return fixture.nativeElement.querySelector(
-    'tui-scrollbar.scroll-container',
-  ) as HTMLElement;
-}
-
-async function flushAfterRender(
-  fixture: ComponentFixture<unknown>,
-): Promise<void> {
-  fixture.detectChanges();
-  await fixture.whenStable();
-  TestBed.flushEffects();
-  fixture.detectChanges();
-  await fixture.whenStable();
-}
-
-function setScroll(
-  element: HTMLElement,
-  metrics: { scrollTop: number; clientHeight: number; scrollHeight: number },
-): void {
-  let currentScrollTop = metrics.scrollTop;
-  Object.defineProperty(element, 'scrollTop', {
-    configurable: true,
-    get: () => currentScrollTop,
-    set: (val: number) => {
-      currentScrollTop = val;
-    },
-  });
-  Object.defineProperty(element, 'clientHeight', {
-    configurable: true,
-    value: metrics.clientHeight,
-  });
-  Object.defineProperty(element, 'scrollHeight', {
-    configurable: true,
-    value: metrics.scrollHeight,
-  });
-}

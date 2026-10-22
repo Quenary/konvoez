@@ -3,8 +3,7 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
-    [style.--author-color]="senderUsername() | tuiAutoColor"
-    [appMessageVisibility]="readTrackingId()">
+    [style.--author-color]="senderUsername() | tuiAutoColor">
     @let _sender = senderUser();
 
     <div

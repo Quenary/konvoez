@@ -17,6 +17,7 @@ import {
   ITextRoomMessage,
   ITextRoomReactionGroup,
   IUser,
+  MESSAGE_PAGE_SIZE,
 } from '@konvoez/shared';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
@@ -216,7 +217,7 @@ describe('ChatStore', () => {
       expect.objectContaining({
         roomId: 10,
         recipientId: null,
-        limit: 25,
+        limit: MESSAGE_PAGE_SIZE,
       }),
     );
     expect(store.messages().length).toBe(2);
@@ -300,7 +301,7 @@ describe('ChatStore', () => {
       aroundId: 'msg-remote-initial',
       beforeId: null,
       afterId: null,
-      limit: 25,
+      limit: MESSAGE_PAGE_SIZE,
     });
     expect(store.targetScrollMessageId()).toBe('msg-remote-initial');
   });
@@ -371,14 +372,14 @@ describe('ChatStore', () => {
       aroundId: 'missing-id',
       beforeId: null,
       afterId: null,
-      limit: 25,
+      limit: MESSAGE_PAGE_SIZE,
     });
     expect(apiService.list).toHaveBeenNthCalledWith(2, {
       roomId: 10,
       recipientId: null,
       beforeId: null,
       afterId: null,
-      limit: 25,
+      limit: MESSAGE_PAGE_SIZE,
     });
     expect(store.entities()).toHaveLength(1);
     expect(store.entities()[0].id).toBe('msg-latest-1');

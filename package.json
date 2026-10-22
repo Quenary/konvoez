@@ -153,6 +153,7 @@
     "@taiga-ui/icons": "^5.26.0",
     "@taiga-ui/kit": "^5.26.0",
     "@taiga-ui/layout": "^5.26.0",
+    "@tanstack/angular-virtual": "~6.1.8",
     "argon2": "^0.45.1",
     "async-mutex": "^0.5.0",
     "axios": "^1.20.0",

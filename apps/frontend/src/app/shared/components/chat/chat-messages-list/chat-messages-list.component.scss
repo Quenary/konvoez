@@ -11,30 +11,34 @@
     overflow-anchor: none;
   }
 
-  .messages {
+  // Short chats stay pinned to the bottom: the sizer is pushed down until
+  // the content overflows, at which point the free space collapses to zero.
+  .viewport {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    min-height: 100%;
+    box-sizing: border-box;
     padding-right: 0.5rem;
     overflow-x: hidden;
+  }
 
-    &::before {
-      content: '';
-      flex: 1 0 auto;
-    }
+  .sizer {
+    position: relative;
+    flex: none;
+    width: 100%;
+    margin-top: auto;
+  }
+
+  .row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
   }
 
   .skeleton-row {
     height: 3rem;
     width: 100%;
-    flex: none;
     border-radius: var(--tui-radius-m);
-  }
-
-  .edge-sentinel {
-    height: 1px;
-    flex: none;
   }
 
   .scroll-to-bottom {

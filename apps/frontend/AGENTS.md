@@ -1,6 +1,6 @@
 # Frontend Agent Guide
 
-Rules for `apps/frontend` — the Angular client for Konvoez. General rules (scope, TypeScript, tests, checks) are in the root `AGENTS.md`. Voice, streaming and audio pipelines are described in `docs/frontend/`.
+Rules for `apps/frontend` — the Angular client for Konvoez. General rules (scope, TypeScript, tests, checks) are in the root `AGENTS.md`. Voice, streaming, audio pipelines and the chat message list are described in `docs/frontend/`.
 
 ## Stack
 
