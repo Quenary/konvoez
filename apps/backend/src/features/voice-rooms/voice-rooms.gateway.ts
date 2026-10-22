@@ -22,6 +22,9 @@ import {
   type IUser,
   EVoiceRoomEvent,
   EDirectCallEvent,
+  ESocketEvent,
+  type TVoiceRoomRestartIceResult,
+  type TVoiceRoomSessionCheckResult,
   type TVoiceRoomEventMap,
   getVoiceSessionKey,
   EVoiceSessionType,
@@ -46,6 +49,7 @@ import {
   VoiceRoomCreateTransportDto,
   VoiceRoomJoinDto,
   VoiceRoomProduceDto,
+  VoiceRoomRestartIceDto,
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 import { AuthService } from '../auth/auth.service';
@@ -499,24 +503,43 @@ export class VoiceRoomsGateway
       `connectTransport: socketId=${socket.id}, sessionKey=${sessionKey}, transportId=${body.transportId}`,
     );
 
-    let transport: WebRtcTransport | undefined;
-    if (peer.sendTransport?.id === body.transportId) {
-      transport = peer.sendTransport;
-    } else if (peer.recvTransport?.id === body.transportId) {
-      transport = peer.recvTransport;
-    }
-    if (!transport) {
-      throw AppException.notFound(
-        ApiErrorCode.VOICE_TRANSPORT_NOT_FOUND,
-        'Transport not found',
-      );
-    }
+    const transport = this.getPeerTransport(peer, body.transportId);
 
     await transport.connect({
       dtlsParameters: body.dtlsParameters as unknown as DtlsParameters,
     });
 
     return {};
+  }
+
+  @SubscribeMessage(ESocketEvent.PING)
+  handlePing(): object {
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.SESSION_CHECK)
+  handleSessionCheck(
+    @ConnectedSocket() socket: TSocket,
+  ): TVoiceRoomSessionCheckResult {
+    const sessionKey = this.resolveSessionKey(socket);
+    const room = sessionKey
+      ? this.voiceRoomsStateService.getRoom(sessionKey)
+      : undefined;
+    return { active: Boolean(room?.peers.has(socket.id)) };
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.RESTART_ICE)
+  async handleRestartIce(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomRestartIceDto,
+  ): Promise<TVoiceRoomRestartIceResult> {
+    const { peer, sessionKey } = this.getSocketRoomPeer(socket);
+    this.logger.debug(
+      `restartIce: socketId=${socket.id}, sessionKey=${sessionKey}, transportId=${body.transportId}`,
+    );
+    const transport = this.getPeerTransport(peer, body.transportId);
+    const iceParameters = await transport.restartIce();
+    return { iceParameters };
   }
 
   @SubscribeMessage(EVoiceRoomEvent.PRODUCE)
@@ -1021,6 +1044,22 @@ export class VoiceRoomsGateway
         'Socket not in session',
       );
     }
+  }
+
+  private getPeerTransport(
+    peer: { sendTransport?: WebRtcTransport; recvTransport?: WebRtcTransport },
+    transportId: string,
+  ): WebRtcTransport {
+    if (peer.sendTransport?.id === transportId) {
+      return peer.sendTransport;
+    }
+    if (peer.recvTransport?.id === transportId) {
+      return peer.recvTransport;
+    }
+    throw AppException.notFound(
+      ApiErrorCode.VOICE_TRANSPORT_NOT_FOUND,
+      'Transport not found',
+    );
   }
 
   private getSocketRoomPeer(socket: TSocket) {

@@ -12,6 +12,7 @@ import {
   voiceRoomCreateTransportSchema,
   voiceRoomJoinSchema,
   voiceRoomProduceSchema,
+  voiceRoomRestartIceSchema,
   voiceRoomSetMuteStateSchema,
 } from '@konvoez/shared';
 
@@ -23,6 +24,10 @@ export class VoiceRoomCreateTransportDto extends createZodDto(
 
 export class VoiceRoomConnectTransportDto extends createZodDto(
   voiceRoomConnectTransportSchema,
+) {}
+
+export class VoiceRoomRestartIceDto extends createZodDto(
+  voiceRoomRestartIceSchema,
 ) {}
 
 export class VoiceRoomProduceDto extends createZodDto(voiceRoomProduceSchema) {}

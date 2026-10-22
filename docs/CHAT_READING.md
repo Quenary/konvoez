@@ -37,4 +37,6 @@ The **unread divider** is placed before the first unread message of the initial 
 - When older history loads, the first visible message keeps its position on screen, including during momentum scrolling on iOS.
 - A short chat is shown at the bottom of the list.
 
+- After a socket reconnect the open chat loads the messages it missed, and unread counts and chat lists are reloaded: [App resume](frontend/APP_RESUME.md).
+
 Implementation details (virtualization, anchoring, read receipts): [Frontend chat list](frontend/CHAT_LIST.md).

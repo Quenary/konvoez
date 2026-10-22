@@ -15,6 +15,7 @@ import { WsAckExceptionFilter } from '@shared/filters/ws-ack-exception.filter';
 import { AuthService } from '../auth/auth.service';
 import {
   ApiErrorCode,
+  ESocketEvent,
   ETextRoomEvent,
   type TTextRoomPeer,
   type TTextRoomEventMap,
@@ -59,6 +60,11 @@ export class TextRoomsGateway
   private readonly logger = new Logger(TextRoomsGateway.name);
 
   private readonly userIdToSocketId: Map<number, string> = new Map();
+
+  @SubscribeMessage(ESocketEvent.PING)
+  handlePing(): object {
+    return {};
+  }
 
   async handleConnection(client: TSocket) {
     try {

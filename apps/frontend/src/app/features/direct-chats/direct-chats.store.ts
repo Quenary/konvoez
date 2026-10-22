@@ -1,3 +1,4 @@
+import { socketReconnected$ } from '@shared/functions/socket-reconnected.function';
 import { inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
@@ -96,6 +97,12 @@ export const DirectChatsStore = signalStore(
       const ngrxStore = inject(Store);
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
       const emitter = socket as never;
+
+      socketReconnected$(socket)
+        .pipe(takeUntilDestroyed())
+        .subscribe(() => {
+          store.loadDirectChats();
+        });
 
       fromEvent<ITextRoomMessage>(emitter, ETextRoomEvent.MESSAGE_CREATED)
         .pipe(takeUntilDestroyed())

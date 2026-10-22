@@ -17,7 +17,12 @@ import { NotificationsSocketToken } from '@core/tokens/notifications-socket.toke
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { AuthApiService } from '@core/api/auth-api.service';
-import { delay, of, throwError } from 'rxjs';
+import { delay, of, Subject, throwError } from 'rxjs';
+import { ESocketEvent } from '@konvoez/shared';
+import {
+  AppResumeService,
+  type IAppResume,
+} from '@core/services/app-resume.service';
 import { TokenRefreshService } from './token-refresh.service';
 import { AuthSocketManager } from './auth-socket-manager.service';
 
@@ -25,6 +30,8 @@ type FakeSocket = EventEmitter & {
   connected: boolean;
   connect: Mock;
   disconnect: Mock;
+  emitWithAck: Mock;
+  timeout: Mock;
 };
 
 const makeSocket = (): FakeSocket => {
@@ -37,6 +44,8 @@ const makeSocket = (): FakeSocket => {
     disconnect: vi.fn(() => {
       socket.connected = false;
     }),
+    emitWithAck: vi.fn(() => Promise.resolve({})),
+    timeout: vi.fn(() => socket),
   });
   return socket;
 };
@@ -48,8 +57,10 @@ describe('AuthSocketManager', () => {
   let sync: FakeSocket;
   let notifications: FakeSocket;
   let authApi: { refresh: Mock };
+  let resume$: Subject<IAppResume>;
 
   beforeEach(() => {
+    resume$ = new Subject<IAppResume>();
     vi.useFakeTimers();
     voice = makeSocket();
     text = makeSocket();
@@ -70,6 +81,7 @@ describe('AuthSocketManager', () => {
         { provide: EntitySyncSocketToken, useValue: sync },
         { provide: NotificationsSocketToken, useValue: notifications },
         { provide: DesktopBridgeService, useValue: { isDesktop: true } },
+        { provide: AppResumeService, useValue: { resume$ } },
       ],
     });
 
@@ -275,5 +287,58 @@ describe('AuthSocketManager', () => {
     voice.emit('disconnect', 'transport close');
     await vi.advanceTimersByTimeAsync(30_000);
     expect(authApi.refresh).not.toHaveBeenCalled();
+  });
+
+  describe('on resume', () => {
+    it('pings connected sockets and keeps the ones that answer', async () => {
+      startAuthorized();
+      voice.disconnect.mockClear();
+
+      resume$.next({ sleptMs: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(voice.emitWithAck).toHaveBeenCalledWith(ESocketEvent.PING);
+      expect(voice.disconnect).not.toHaveBeenCalled();
+      expect(voice.connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('recycles a socket that does not answer the ping', async () => {
+      startAuthorized();
+      voice.disconnect.mockClear();
+      text.disconnect.mockClear();
+      voice.emitWithAck.mockRejectedValueOnce(new Error('timeout'));
+
+      resume$.next({ sleptMs: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(voice.disconnect).toHaveBeenCalledTimes(1);
+      expect(voice.connect).toHaveBeenCalledTimes(2);
+      expect(text.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('reconnects a dropped socket immediately with a token refresh', async () => {
+      startAuthorized();
+      authApi.refresh.mockClear();
+      voice.emit('disconnect', 'io server disconnect');
+      voice.connected = false;
+
+      resume$.next({ sleptMs: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(authApi.refresh).toHaveBeenCalledTimes(1);
+      expect(voice.connect).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(voice.connect).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores resume while unauthorized', async () => {
+      TestBed.inject(AuthSocketManager).start();
+
+      resume$.next({ sleptMs: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(voice.emitWithAck).not.toHaveBeenCalled();
+      expect(voice.connect).not.toHaveBeenCalled();
+    });
   });
 });

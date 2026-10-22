@@ -105,7 +105,17 @@ export enum EVoiceRoomEvent {
   CONSUMER_CLOSED = 'consumer-closed',
   SET_MUTE_STATE = 'set-mute-state',
   PEER_MUTE_CHANGED = 'peer-mute-changed',
+  /** Asks whether this socket is still a participant of its voice session. */
+  SESSION_CHECK = 'session-check',
+  /** Restarts ICE on a transport after network loss; returns new ICE parameters. */
+  RESTART_ICE = 'restart-ice',
   ERROR = 'error',
+}
+
+/** Events every socket gateway handles. */
+export enum ESocketEvent {
+  /** Liveness probe acknowledged by the server, used after app resume. */
+  PING = 'app:ping',
 }
 
 export enum EDirectCallEvent {

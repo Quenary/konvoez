@@ -1,3 +1,4 @@
+import { socketReconnected$ } from '@shared/functions/socket-reconnected.function';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
@@ -159,6 +160,13 @@ export class EntitySyncService {
   }
 
   private bindRoomEvents(): void {
+    // Room events emitted while the socket was down are lost: refetch.
+    socketReconnected$(this.socket)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.roomsStore.loadAll();
+      });
+
     fromEvent<IRoom>(this.emitter, EEntitySyncEvent.ROOM_CREATED)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((room) => {

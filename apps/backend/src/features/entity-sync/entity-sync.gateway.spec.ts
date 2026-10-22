@@ -291,6 +291,10 @@ describe('EntitySyncGateway', () => {
     expect(userPresenceServiceMock.removeSocket).not.toHaveBeenCalled();
   });
 
+  it('acknowledges the liveness ping', () => {
+    expect(gateway.handlePing()).toEqual({});
+  });
+
   describe('onRolesChanged', () => {
     it('is registered for ROLES_CHANGED event', () => {
       const metadata = Reflect.getMetadata(

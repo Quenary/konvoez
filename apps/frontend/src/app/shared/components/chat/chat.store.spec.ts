@@ -959,6 +959,65 @@ describe('ChatStore', () => {
     });
   });
 
+  describe('catch-up after reconnect', () => {
+    const reconnect = (): void => {
+      mockSocket.emit('disconnect');
+      mockSocket.emit('connect');
+    };
+
+    it('rejoins the room and loads messages newer than the last known one', () => {
+      apiService.list.mockReturnValueOnce(
+        of(mockListResponse([message1, message2WithReply])),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+      mockSocket.emit.mockClear();
+      const missed = {
+        ...message1,
+        id: 'msg-3',
+        content: 'Missed',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      };
+      apiService.list.mockReturnValueOnce(of(mockListResponse([missed])));
+
+      reconnect();
+
+      expect(mockSocket.emit).toHaveBeenCalledWith(ETextRoomEvent.JOIN, {
+        roomId: 10,
+        recipientId: null,
+      });
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({ roomId: 10, afterId: 'msg-2' }),
+      );
+      expect(store.hasMoreAfter()).toBe(false);
+      expect(store.newestId()).toBe('msg-3');
+    });
+
+    it('only rejoins when the view is scrolled into history', () => {
+      apiService.list.mockReturnValueOnce(
+        of(mockListResponse([message1], { hasMoreAfter: true })),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      reconnect();
+
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('does nothing without an open chat', () => {
+      mockSocket.emit.mockClear();
+
+      reconnect();
+
+      expect(apiService.list).not.toHaveBeenCalled();
+      expect(mockSocket.emit).not.toHaveBeenCalledWith(
+        ETextRoomEvent.JOIN,
+        expect.anything(),
+      );
+    });
+  });
+
   describe('Pagination', () => {
     it('should request next page using newestId', () => {
       apiService.list.mockReturnValueOnce(

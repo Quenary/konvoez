@@ -1,3 +1,4 @@
+import { EVoiceRoomEvent } from '@konvoez/shared';
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -508,6 +509,48 @@ describe('MediasoupSessionService', () => {
     expect(videoClose).toHaveBeenCalled();
     expect(audioClose).toHaveBeenCalled();
     expect(releaseScreen).toHaveBeenCalled();
+  });
+
+  describe('resume helpers', () => {
+    const fakeTransport = (id: string, connectionState = 'connected') => ({
+      id,
+      closed: false,
+      connectionState,
+      restartIce: vi.fn().mockResolvedValue(undefined),
+    });
+
+    it('reports healthy transports only when both are live', () => {
+      service['sendTransport'] = fakeTransport('s') as never;
+      service['recvTransport'] = fakeTransport('r', 'new') as never;
+      expect(service.transportsHealthy()).toBe(true);
+
+      service['recvTransport'] = fakeTransport('r', 'disconnected') as never;
+      expect(service.transportsHealthy()).toBe(false);
+
+      service['recvTransport'] = null;
+      expect(service.transportsHealthy()).toBe(false);
+    });
+
+    it('restarts ICE on both transports with server parameters', async () => {
+      const send = fakeTransport('s');
+      const recv = fakeTransport('r');
+      service['sendTransport'] = send as never;
+      service['recvTransport'] = recv as never;
+      emitWithAck.mockResolvedValue({ iceParameters: { password: 'p' } });
+
+      await service.restartIce();
+
+      expect(emitWithAck).toHaveBeenCalledWith(EVoiceRoomEvent.RESTART_ICE, {
+        transportId: 's',
+      });
+      expect(emitWithAck).toHaveBeenCalledWith(EVoiceRoomEvent.RESTART_ICE, {
+        transportId: 'r',
+      });
+      expect(send.restartIce).toHaveBeenCalledWith({
+        iceParameters: { password: 'p' },
+      });
+      expect(recv.restartIce).toHaveBeenCalled();
+    });
   });
 
   it('creates transport using the 10 s timeout', async () => {

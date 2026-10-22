@@ -11,11 +11,14 @@ import {
   TVoiceRoomMediaTag,
   TVoiceRoomProduce,
   TVoiceRoomProduceResult,
+  TVoiceRoomRestartIce,
+  TVoiceRoomRestartIceResult,
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
 import type { Device } from 'mediasoup-client';
 import type {
   ConsumerOptions,
+  IceParameters,
   Producer,
   RtpCapabilities,
   RtpCodecCapability,
@@ -129,6 +132,35 @@ export class MediasoupSessionService {
     camProducer?.close();
     screenVideo?.close();
     screenAudio?.close();
+  }
+
+  /** Both transports exist and none is failed, disconnected or closed. */
+  public transportsHealthy(): boolean {
+    return [this.sendTransport, this.recvTransport].every(
+      (transport) =>
+        transport !== null &&
+        !transport.closed &&
+        !UNHEALTHY_TRANSPORT_STATES.has(transport.connectionState),
+    );
+  }
+
+  /** Fresh ICE credentials from the server for every live transport. */
+  public async restartIce(): Promise<void> {
+    for (const transport of [this.sendTransport, this.recvTransport]) {
+      if (!transport || transport.closed) {
+        continue;
+      }
+      const payload: TVoiceRoomRestartIce = { transportId: transport.id };
+      const { iceParameters }: TVoiceRoomRestartIceResult =
+        await emitVoiceRoomWithAck(
+          this.socket,
+          EVoiceRoomEvent.RESTART_ICE,
+          payload,
+        );
+      await transport.restartIce({
+        iceParameters: iceParameters as IceParameters,
+      });
+    }
   }
 
   public produceCamera(): Promise<void> {
@@ -739,6 +771,11 @@ export class MediasoupSessionService {
 }
 
 const TRACK_UNMUTE_TIMEOUT_MS = 2000;
+const UNHEALTHY_TRANSPORT_STATES: ReadonlySet<string> = new Set([
+  'failed',
+  'disconnected',
+  'closed',
+]);
 
 function waitForTrackUnmute(track: MediaStreamTrack): Promise<void> {
   if (track.readyState !== 'live' || !track.muted) {

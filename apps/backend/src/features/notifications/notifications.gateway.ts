@@ -2,12 +2,14 @@ import { Inject } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   OnGatewayConnection,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import {
   ENotificationsEvent,
+  ESocketEvent,
   type TNotificationsEventMap,
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
@@ -33,6 +35,11 @@ export class NotificationsGateway implements OnGatewayConnection {
 
   @Inject(AuthService)
   private readonly authService!: AuthService;
+
+  @SubscribeMessage(ESocketEvent.PING)
+  handlePing(): object {
+    return {};
+  }
 
   async handleConnection(client: TSocket) {
     try {

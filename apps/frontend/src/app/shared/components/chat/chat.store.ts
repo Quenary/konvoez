@@ -1,3 +1,4 @@
+import { socketReconnected$ } from '@shared/functions/socket-reconnected.function';
 import { computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
@@ -713,6 +714,28 @@ export const ChatStore = signalStore(
           loadNewerMethod();
         },
 
+        /**
+         * The server forgets the room membership of a dropped socket: rejoin it
+         * and load what arrived while offline. A view scrolled into history
+         * already loads newer pages on its own.
+         */
+        catchUpAfterReconnect(): void {
+          const target = store.target();
+          if (!target) {
+            return;
+          }
+          socket.emit(ETextRoomEvent.JOIN, chatTargetToApiIds(target));
+          if (
+            store.searchQuery()?.trim() ||
+            !store.newestId() ||
+            store.hasMoreAfter()
+          ) {
+            return;
+          }
+          patchState(store, { hasMoreAfter: true });
+          loadNewerMethod();
+        },
+
         readAllAndJumpToLatest(): void {
           readAllAndJumpToLatestMethod();
         },
@@ -1035,6 +1058,12 @@ export const ChatStore = signalStore(
               label: translateService.instant('GENERAL.REQ_ERR'),
             })
             .subscribe();
+        });
+
+      socketReconnected$(socket)
+        .pipe(takeUntilDestroyed())
+        .subscribe(() => {
+          store.catchUpAfterReconnect();
         });
 
       const belongsToActiveChat = (message: ITextRoomMessage): boolean =>
