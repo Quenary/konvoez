@@ -1,6 +1,6 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { IUser } from '@konvoez/shared';
-import { TuiDialogService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { IUserDialogData } from './user-dialog.component';
 
@@ -8,7 +8,7 @@ import type { IUserDialogData } from './user-dialog.component';
   providedIn: 'root',
 })
 export class UserDialogService {
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
 
   public async open(user: IUser | null | undefined): Promise<void> {

@@ -15,11 +15,11 @@ import { isDisplayMediaUserCancellation } from '@shared/functions/display-media-
 import { notifyError } from '@shared/functions/notify-error.function';
 import {
   TuiButton,
-  TuiDialogService,
   TuiGroup,
   TuiHint,
   TuiNotificationService,
 } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { firstValueFrom } from 'rxjs';
@@ -44,7 +44,7 @@ export class VoiceRoomControlsBarComponent {
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly screenCaptureService = inject(ScreenCaptureService);
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);

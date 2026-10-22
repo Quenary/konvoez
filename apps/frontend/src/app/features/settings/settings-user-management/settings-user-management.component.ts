@@ -11,12 +11,8 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { TuiTable } from '@taiga-ui/addon-table';
-import {
-  TuiDialogService,
-  TuiHint,
-  TuiNotificationService,
-  TuiTitle,
-} from '@taiga-ui/core';
+import { TuiHint, TuiNotificationService, TuiTitle } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -42,7 +38,7 @@ import { UserManagementApiService } from '@core/api/user-management-api.service'
 })
 export class SettingsUserManagementComponent {
   private readonly userManagementApiService = inject(UserManagementApiService);
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);

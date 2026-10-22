@@ -4,7 +4,8 @@ import { provideStore } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
 import { UsersStore } from '@core/stores/users.store';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { Sanitizer, computed, signal } from '@angular/core';
 import { of } from 'rxjs';
@@ -197,7 +198,7 @@ describe('ChatMessagesListComponent', () => {
           useValue: { uploadProgress: signal({}) },
         },
         {
-          provide: TuiDialogService,
+          provide: TuiResponsiveDialogService,
           useValue: { open: vi.fn(() => of(undefined)) },
         },
       ],

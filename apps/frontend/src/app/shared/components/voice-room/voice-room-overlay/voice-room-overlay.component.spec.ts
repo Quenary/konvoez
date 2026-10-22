@@ -12,7 +12,8 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { VoiceRoomOverlayComponent } from './voice-room-overlay.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
@@ -142,7 +143,7 @@ describe('VoiceRoomOverlayComponent', () => {
           },
         },
         {
-          provide: TuiDialogService,
+          provide: TuiResponsiveDialogService,
           useValue: { open: vi.fn(() => of(null)) },
         },
         {

@@ -4,7 +4,8 @@ import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
 import { ChatStore, EMessageStatus, IMessageEntity } from '../chat.store';
 import { UsersStore } from '@core/stores/users.store';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { computed, signal, Sanitizer } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -137,7 +138,10 @@ describe('ChatMessageComponent', () => {
         { provide: RolesStore, useValue: mockRolesStore },
         { provide: UserDialogService, useValue: mockUserDialogService },
         { provide: TuiNotificationService, useValue: mockNotificationService },
-        { provide: TuiDialogService, useValue: mockDialogService },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: mockDialogService,
+        },
         { provide: ChatApiService, useValue: mockChatApi },
         {
           provide: MessageReadQueueService,

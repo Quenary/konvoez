@@ -3,11 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import {
-  TuiDialogContext,
-  TuiDialogService,
-  TuiNotificationService,
-} from '@taiga-ui/core';
+import { TuiDialogContext, TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { IUser, IRole } from '@konvoez/shared';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
@@ -127,7 +124,10 @@ describe('SettingsUserManagementDialogComponent', () => {
           useValue: mockUserManagementApiService,
         },
         { provide: RolesApiService, useValue: mockRolesApiService },
-        { provide: TuiDialogService, useValue: mockDialogService },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: mockDialogService,
+        },
         { provide: TuiNotificationService, useValue: mockNotificationService },
         { provide: POLYMORPHEUS_CONTEXT, useValue: mockDialogContext },
       ],

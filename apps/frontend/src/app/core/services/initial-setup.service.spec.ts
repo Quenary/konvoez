@@ -3,7 +3,8 @@ import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
@@ -70,7 +71,7 @@ describe('InitialSetupService', () => {
           provide: TuiNotificationService,
           useValue: { open: vi.fn().mockReturnValue(of(null)) },
         },
-        { provide: TuiDialogService, useValue: dialogService },
+        { provide: TuiResponsiveDialogService, useValue: dialogService },
         {
           provide: PushNotificationService,
           useValue: {

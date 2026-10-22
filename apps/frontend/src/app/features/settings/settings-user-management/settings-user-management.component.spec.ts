@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { IUser } from '@konvoez/shared';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { SettingsUserManagementComponent } from './settings-user-management.component';
@@ -38,7 +39,7 @@ describe('SettingsUserManagementComponent', () => {
         provideTranslateService(),
         { provide: UserManagementApiService, useValue: mockApi },
         {
-          provide: TuiDialogService,
+          provide: TuiResponsiveDialogService,
           useValue: { open: vi.fn().mockReturnValue(of(null)) },
         },
         {

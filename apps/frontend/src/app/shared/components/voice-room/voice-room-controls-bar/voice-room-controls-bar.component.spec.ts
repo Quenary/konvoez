@@ -8,7 +8,8 @@ import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { VoiceRoomControlsBarComponent } from './voice-room-controls-bar.component';
 
 describe('VoiceRoomControlsBarComponent', () => {
@@ -102,7 +103,7 @@ describe('VoiceRoomControlsBarComponent', () => {
           },
         },
         {
-          provide: TuiDialogService,
+          provide: TuiResponsiveDialogService,
           useValue: { open: openDialog },
         },
         {

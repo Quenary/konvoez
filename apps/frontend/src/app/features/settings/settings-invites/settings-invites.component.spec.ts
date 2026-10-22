@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { IInvite } from '@konvoez/shared';
 import { SettingsInvitesComponent } from './settings-invites.component';
 import { InvitesApiService } from '@core/api/invites-api.service';
@@ -47,7 +48,10 @@ describe('SettingsInvitesComponent', () => {
       providers: [
         provideTranslateService(),
         { provide: InvitesApiService, useValue: mockInvitesApiService },
-        { provide: TuiDialogService, useValue: mockDialogService },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: mockDialogService,
+        },
         { provide: TuiNotificationService, useValue: mockNotificationService },
       ],
     }).compileComponents();

@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { TuiDialogService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { take } from 'rxjs';
 import { SettingsStore } from '@core/stores/settings.store';
@@ -12,7 +12,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 export class InitialSetupService {
   private readonly store = inject(Store);
   private readonly settingsStore = inject(SettingsStore);
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { EPermission, IRole } from '@konvoez/shared';
 import { SettingsRolesComponent } from './settings-roles.component';
@@ -19,12 +19,8 @@ describe('SettingsRolesComponent', () => {
     remove: vi.fn(),
   };
 
-  const mockDialogService = {
-    open: vi.fn().mockReturnValue(of(null)),
-  };
-
   const mockResponsiveDialogService = {
-    open: vi.fn().mockReturnValue(of(true)),
+    open: vi.fn().mockReturnValue(of(null)),
   };
 
   const mockNotificationService = {
@@ -63,7 +59,6 @@ describe('SettingsRolesComponent', () => {
       providers: [
         provideTranslateService(),
         { provide: RolesApiService, useValue: mockRolesApiService },
-        { provide: TuiDialogService, useValue: mockDialogService },
         {
           provide: TuiResponsiveDialogService,
           useValue: mockResponsiveDialogService,
@@ -105,14 +100,14 @@ describe('SettingsRolesComponent', () => {
     await setupTestBed([]);
     await component['openCreateDialog']();
 
-    expect(mockDialogService.open).toHaveBeenCalled();
+    expect(mockResponsiveDialogService.open).toHaveBeenCalled();
   });
 
   it('opens edit dialog when openEditDialog is called', async () => {
     await setupTestBed([sampleRole]);
     await component['openEditDialog'](sampleRole);
 
-    expect(mockDialogService.open).toHaveBeenCalled();
+    expect(mockResponsiveDialogService.open).toHaveBeenCalled();
   });
 
   it('prevents deleting a default role', async () => {
@@ -125,6 +120,7 @@ describe('SettingsRolesComponent', () => {
 
   it('deletes custom role after confirmation', async () => {
     mockRolesApiService.remove.mockReturnValue(of(undefined));
+    mockResponsiveDialogService.open.mockReturnValue(of(true));
     await setupTestBed([sampleRole]);
 
     component['deleteRole'](sampleRole);

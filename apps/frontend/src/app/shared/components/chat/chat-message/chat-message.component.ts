@@ -14,7 +14,6 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,
   TuiDataList,
-  TuiDialogService,
   TuiDropdown,
   TuiHint,
   TuiIcon,
@@ -22,6 +21,7 @@ import {
   TuiNotificationService,
   TuiOption,
 } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiEditorSocket } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import {
@@ -101,7 +101,9 @@ export class ChatMessageComponent {
   private readonly sanitizer = inject(Sanitizer);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
-  private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly tuiResponsiveDialogService = inject(
+    TuiResponsiveDialogService,
+  );
   private readonly chatApiService = inject(ChatApiService);
   private readonly outgoingStore = inject(OutgoingMessagesStore);
   private readonly userDialogService = inject(UserDialogService);
@@ -421,7 +423,7 @@ export class ChatMessageComponent {
       },
     });
 
-    this.tuiDialogService
+    this.tuiResponsiveDialogService
       .open(template, {
         label: this.translateService.instant('ROOMS.READ_BY'),
         closable: true,
