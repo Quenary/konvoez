@@ -1,3 +1,28 @@
+## 1.24.0 (2026-10-22)
+
+### Features
+
+- implement app resume functionality with socket reconnection handling and liveness pings ([5373f32](https://github.com/Quenary/konvoez/commit/5373f32))
+- **frontend:** chat virtual scroll ([a889635](https://github.com/Quenary/konvoez/commit/a889635))
+- **frontend:** implement loading state for microphone capture process and update controls bar for visual feedback ([2d4f6e1](https://github.com/Quenary/konvoez/commit/2d4f6e1))
+- **frontend:** collapse menu on narrow screens after navigation ([bd25ae8](https://github.com/Quenary/konvoez/commit/bd25ae8))
+- automatic device switch on devicechange event ([003de05](https://github.com/Quenary/konvoez/commit/003de05))
+
+### Bug Fixes
+
+- **frontend:** update viewport meta tag for better scaling on mobile devices ([2b1cb17](https://github.com/Quenary/konvoez/commit/2b1cb17))
+
+### Code Refactoring
+
+- **frontend:** replace TuiDialogService with TuiResponsiveDialogService across multiple components and services for improved mobile compatibility ([30f85b1](https://github.com/Quenary/konvoez/commit/30f85b1))
+
+### Styles
+
+- **frontend:** direct chats layout ([cb14cc3](https://github.com/Quenary/konvoez/commit/cb14cc3))
+- **frontend:** hide voice room overlay only on theatre layout ([97da718](https://github.com/Quenary/konvoez/commit/97da718))
+- **frontend:** auth components on smaller screens ([fa72076](https://github.com/Quenary/konvoez/commit/fa72076))
+- **frontend:** better chat message overflow and text handling ([0f9d27a](https://github.com/Quenary/konvoez/commit/0f9d27a))
+
 ## 1.23.0 (2026-10-20)
 
 ### Features
