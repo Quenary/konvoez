@@ -101,6 +101,7 @@ CALL:
   VOLUME: Громкость
   MUTE_MICROPHONE: Выключить микрофон
   UNMUTE_MICROPHONE: Включить микрофон
+  MICROPHONE_LOADING: Подготовка микрофона…
   MUTE_SPEAKER: Выключить звук
   UNMUTE_SPEAKER: Включить звук
   MICROPHONE_MUTED: Микрофон выключен

@@ -101,6 +101,7 @@ CALL:
   VOLUME: Volume
   MUTE_MICROPHONE: Mute microphone
   UNMUTE_MICROPHONE: Unmute microphone
+  MICROPHONE_LOADING: Preparing microphone…
   MUTE_SPEAKER: Turn off sound
   UNMUTE_SPEAKER: Turn on sound
   MICROPHONE_MUTED: Microphone muted

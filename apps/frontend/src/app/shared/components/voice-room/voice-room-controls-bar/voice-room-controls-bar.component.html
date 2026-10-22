@@ -6,6 +6,7 @@
       size="m"
       [iconStart]="micMuted() ? '@tui.mic-off' : '@tui.mic'"
       type="button"
+      [loading]="micCaptureLoading()"
       tuiHintAppearance="floating"
       [tuiHint]="micHintKey() | translate"
       (click)="toggleMicrophone()">

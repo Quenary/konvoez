@@ -446,6 +446,71 @@ describe('MicrophoneService', () => {
     expect(service.analyserNode()).toBe(analyser);
   });
 
+  it('sets captureLoading while getStream loads denoiser assets', async () => {
+    let releaseLoad!: (module: WebAssembly.Module) => void;
+    loadDeepFilter.mockImplementation(
+      () =>
+        new Promise<WebAssembly.Module>((resolve) => {
+          releaseLoad = resolve;
+        }),
+    );
+
+    const ensureContext = vi
+      .spyOn(
+        service as unknown as { ensureContext: () => Promise<void> },
+        'ensureContext',
+      )
+      .mockImplementation(async () => {
+        service['context'] = {
+          sampleRate: 48000,
+          state: 'running',
+          audioWorklet: {
+            addModule: vi.fn().mockResolvedValue(undefined),
+          },
+        } as unknown as AudioContext;
+      });
+    const ensureDynamics = vi
+      .spyOn(
+        service as unknown as { ensureDynamics: () => Promise<void> },
+        'ensureDynamics',
+      )
+      .mockResolvedValue(undefined);
+    const ensureInputStream = vi
+      .spyOn(
+        service as unknown as {
+          ensureInputStream: (device: MediaDeviceInfo | null) => Promise<void>;
+        },
+        'ensureInputStream',
+      )
+      .mockResolvedValue(undefined);
+    const ensurePipeline = vi
+      .spyOn(
+        service as unknown as { ensurePipeline: () => void },
+        'ensurePipeline',
+      )
+      .mockImplementation(() => {
+        service['_processedStream'].set({
+          getAudioTracks: () => [{ readyState: 'live' }],
+        } as unknown as MediaStream);
+      });
+
+    expect(service.captureLoading()).toBe(false);
+    const pending = service.getStream();
+
+    await vi.waitFor(() => {
+      expect(service.captureLoading()).toBe(true);
+    });
+
+    releaseLoad({} as WebAssembly.Module);
+    await pending;
+
+    expect(service.captureLoading()).toBe(false);
+    ensureContext.mockRestore();
+    ensureDynamics.mockRestore();
+    ensureInputStream.mockRestore();
+    ensurePipeline.mockRestore();
+  });
+
   it('drops nodes built before ensurePipeline throws', () => {
     service['context'] = {
       createMediaStreamSource: () => {

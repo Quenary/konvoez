@@ -4,6 +4,7 @@ import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { EMPTY, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AudioService } from '@core/services/audio.service';
+import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { SettingsStore } from '@core/stores/settings.store';
@@ -30,6 +31,7 @@ describe('VoiceRoomControlsBarComponent', () => {
   let microphoneMuted: ReturnType<typeof signal<boolean>>;
   let speakerMuted: ReturnType<typeof signal<boolean>>;
   let canProduce: ReturnType<typeof signal<boolean>>;
+  let captureLoading: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     localCamTrack = signal<MediaStreamTrack | null>(null);
@@ -49,6 +51,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     microphoneMuted = signal(false);
     speakerMuted = signal(false);
     canProduce = signal(true);
+    captureLoading = signal(false);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomControlsBarComponent],
@@ -83,6 +86,12 @@ describe('VoiceRoomControlsBarComponent', () => {
             playUnmuteAudio: vi.fn(),
             playDeafenAudio: vi.fn(),
             playUndeafenAudio: vi.fn(),
+          },
+        },
+        {
+          provide: MicrophoneService,
+          useValue: {
+            captureLoading: captureLoading.asReadonly(),
           },
         },
         {
@@ -202,14 +211,18 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(toggleSpeakerMuted).toHaveBeenCalledTimes(1);
   });
 
-  it('precomputes micHintKey for muted and unmuted states', () => {
+  it('precomputes micHintKey for loading, muted and unmuted states', () => {
     microphoneMuted.set(false);
+    captureLoading.set(false);
     const fixture = create();
     const cmp = fixture.componentInstance;
     expect(cmp['micHintKey']()).toBe('CALL.MUTE_MICROPHONE');
 
     microphoneMuted.set(true);
     expect(cmp['micHintKey']()).toBe('CALL.UNMUTE_MICROPHONE');
+
+    captureLoading.set(true);
+    expect(cmp['micHintKey']()).toBe('CALL.MICROPHONE_LOADING');
   });
 
   it('precomputes speakerHintKey for muted and unmuted states', () => {

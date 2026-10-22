@@ -10,6 +10,7 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
+import { MicrophoneService } from '@core/services/microphone.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { isDisplayMediaUserCancellation } from '@shared/functions/display-media-error.utils';
 import { notifyError } from '@shared/functions/notify-error.function';
@@ -20,6 +21,7 @@ import {
   TuiNotificationService,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import { TuiButtonLoading } from '@taiga-ui/kit';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { firstValueFrom } from 'rxjs';
@@ -31,12 +33,13 @@ import {
 
 @Component({
   selector: 'app-voice-room-controls-bar',
-  imports: [TuiButton, TuiGroup, TuiHint, TranslatePipe],
+  imports: [TuiButton, TuiButtonLoading, TuiGroup, TuiHint, TranslatePipe],
   templateUrl: './voice-room-controls-bar.component.html',
   styleUrl: './voice-room-controls-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VoiceRoomControlsBarComponent {
+  private readonly microphoneService = inject(MicrophoneService);
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
   );
@@ -51,6 +54,7 @@ export class VoiceRoomControlsBarComponent {
 
   public readonly hangup = output<void>();
 
+  protected readonly micCaptureLoading = this.microphoneService.captureLoading;
   protected readonly micMuted = this.voiceAudioPreferencesStore.microphoneMuted;
   protected readonly speakerMuted =
     this.voiceAudioPreferencesStore.speakerMuted;
@@ -70,9 +74,14 @@ export class VoiceRoomControlsBarComponent {
     () => !this.canProduce() && !this.screenOn(),
   );
 
-  protected readonly micHintKey = computed(() =>
-    this.micMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
-  );
+  protected readonly micHintKey = computed(() => {
+    const captureLoading = this.micCaptureLoading();
+    const muted = this.micMuted();
+    if (captureLoading) {
+      return 'CALL.MICROPHONE_LOADING';
+    }
+    return muted ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE';
+  });
   protected readonly speakerHintKey = computed(() =>
     this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
   );

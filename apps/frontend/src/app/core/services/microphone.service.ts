@@ -46,6 +46,10 @@ export class MicrophoneService {
   private readonly _processedStream = signal<MediaStream | null>(null);
   public readonly processedStream = this._processedStream.asReadonly();
 
+  private readonly _captureLoading = signal(false);
+  /** True while denoiser assets or capture pipeline are being prepared. */
+  public readonly captureLoading = this._captureLoading.asReadonly();
+
   private context: AudioContext | null = null;
   private inputStream: MediaStream | null = null;
 
@@ -152,17 +156,19 @@ export class MicrophoneService {
       this.cleanupInputStream();
     }
 
-    await this.ensureContext();
-    this.activeProcessor = await resolveDenoiser(
-      this.context,
-      this.processorPreference,
-      this.noiseSuppressor,
-      this.wasmCache,
-    );
-    await this.ensureDynamics();
-    await this.ensureInputStream(this.device);
-    this.ensurePipeline();
-    return this.processedStream() as MediaStream;
+    return this.runWithCaptureLoading(async () => {
+      await this.ensureContext();
+      this.activeProcessor = await resolveDenoiser(
+        this.context,
+        this.processorPreference,
+        this.noiseSuppressor,
+        this.wasmCache,
+      );
+      await this.ensureDynamics();
+      await this.ensureInputStream(this.device);
+      this.ensurePipeline();
+      return this.processedStream() as MediaStream;
+    });
   }
 
   @Mutexed(publicMethodsMutex)
@@ -372,28 +378,41 @@ export class MicrophoneService {
   }
 
   private async applyProcessor(target: ENoiseProcessor): Promise<void> {
-    if (!this.context || !this.captureGraph) {
+    const context = this.context;
+    const captureGraph = this.captureGraph;
+    if (!context || !captureGraph) {
       return;
     }
 
-    const prevProcessor = this.activeProcessor;
-    const resolved = await swapDenoiser(
-      this.captureGraph,
-      this.context,
-      target,
-      this.noiseSuppressor,
-      this.wasmCache,
-    );
-    this.activeProcessor = resolved;
+    await this.runWithCaptureLoading(async () => {
+      const prevProcessor = this.activeProcessor;
+      const resolved = await swapDenoiser(
+        captureGraph,
+        context,
+        target,
+        this.noiseSuppressor,
+        this.wasmCache,
+      );
+      this.activeProcessor = resolved;
 
-    const needsReacquire =
-      (prevProcessor === ENoiseProcessor.BROWSER &&
-        resolved !== ENoiseProcessor.BROWSER) ||
-      (prevProcessor !== ENoiseProcessor.BROWSER &&
-        resolved === ENoiseProcessor.BROWSER);
+      const needsReacquire =
+        (prevProcessor === ENoiseProcessor.BROWSER &&
+          resolved !== ENoiseProcessor.BROWSER) ||
+        (prevProcessor !== ENoiseProcessor.BROWSER &&
+          resolved === ENoiseProcessor.BROWSER);
 
-    if (needsReacquire) {
-      await this.reacquireInputStream();
+      if (needsReacquire) {
+        await this.reacquireInputStream();
+      }
+    });
+  }
+
+  private async runWithCaptureLoading<T>(fn: () => Promise<T>): Promise<T> {
+    this._captureLoading.set(true);
+    try {
+      return await fn();
+    } finally {
+      this._captureLoading.set(false);
     }
   }
 
