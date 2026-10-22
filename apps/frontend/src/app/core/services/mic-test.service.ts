@@ -246,9 +246,11 @@ export class MicTestService {
     const echoCancellation = this.settingsStore.echoCancellation();
     const inputGain = this.settingsStore.inputGain();
 
+    // Strictly the device selected in settings: no auto-switch fallback here.
     this.inputStream = await getStream(device, {
       echoCancellation,
       noiseSuppression: preferredProcessor === ENoiseProcessor.BROWSER,
+      strictDevice: true,
     });
 
     const resolvedProcessor = await resolveDenoiser(

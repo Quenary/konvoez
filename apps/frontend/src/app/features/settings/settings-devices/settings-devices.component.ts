@@ -8,7 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MediaDevicesService } from '@core/services/media-devices.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -40,7 +40,7 @@ import {
   TuiInputSlider,
 } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { catchError, finalize, from, map, of, switchMap } from 'rxjs';
+import { catchError, EMPTY, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
 import { isSimdSupported } from '@core/audio/audio-capabilities';
@@ -244,6 +244,20 @@ export class SettingsDevicesComponent {
 
   constructor() {
     this.destroyRef.onDestroy(() => void this.micTestService.stop());
+
+    // Keep device lists in sync with plugged/unplugged hardware.
+    this.mediaDevicesService.deviceChange$
+      .pipe(
+        switchMap(() =>
+          from(this.mediaDevicesService.enumerateDevices()).pipe(
+            catchError(() => EMPTY),
+          ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((devices) => {
+        this.devicesLoad.update((value) => ({ ...value, devices }));
+      });
 
     effect(() => {
       const { devices, streamInputDeviceId } = this.devicesLoad.value();

@@ -3,7 +3,6 @@ import { Store } from '@ngrx/store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslateService } from '@ngx-translate/core';
 import { EPermission } from '@konvoez/shared';
-import { TuiDialogService } from '@taiga-ui/core';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -19,7 +18,6 @@ export class RoomManageService {
   private readonly ngrxStore = inject(Store);
   private readonly roomsStore = inject(RoomsStore);
   private readonly translateService = inject(TranslateService);
-  private readonly tuiDialogService = inject(TuiDialogService);
   private readonly tuiResponsiveDialogService = inject(
     TuiResponsiveDialogService,
   );
@@ -38,7 +36,7 @@ export class RoomManageService {
     const { RoomDialogComponent } =
       await import('./room-dialog/room-dialog.component');
 
-    this.tuiDialogService
+    this.tuiResponsiveDialogService
       .open<RoomDialogData>(
         new PolymorpheusComponent(RoomDialogComponent, this.injector),
         {

@@ -8,12 +8,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { IRole } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { TuiTable } from '@taiga-ui/addon-table';
-import {
-  TuiButton,
-  TuiDialogService,
-  TuiNotificationService,
-  TuiTitle,
-} from '@taiga-ui/core';
+import { TuiButton, TuiNotificationService, TuiTitle } from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -40,7 +35,6 @@ import { ApiErrorService } from '@core/services/api-error.service';
 })
 export class SettingsRolesComponent {
   private readonly rolesApiService = inject(RolesApiService);
-  private readonly dialogService = inject(TuiDialogService);
   private readonly responsiveDialogService = inject(TuiResponsiveDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
@@ -62,7 +56,7 @@ export class SettingsRolesComponent {
     const { RoleDialogComponent } =
       await import('./role-dialog/role-dialog.component');
 
-    this.dialogService
+    this.responsiveDialogService
       .open<IRole | null>(
         new PolymorpheusComponent(RoleDialogComponent, this.injector),
         {
@@ -82,7 +76,7 @@ export class SettingsRolesComponent {
     const { RoleDialogComponent } =
       await import('./role-dialog/role-dialog.component');
 
-    this.dialogService
+    this.responsiveDialogService
       .open<IRole | null>(
         new PolymorpheusComponent(RoleDialogComponent, this.injector),
         {

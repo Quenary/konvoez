@@ -12,11 +12,11 @@ import { IInvite, TInviteStatus } from '@konvoez/shared';
 import { TuiTable } from '@taiga-ui/addon-table';
 import {
   TuiButton,
-  TuiDialogService,
   TuiIcon,
   TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
 import { InvitesApiService } from '@core/api/invites-api.service';
@@ -85,7 +85,7 @@ export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
 })
 export class SettingsInvitesComponent {
   private readonly invitesApiService = inject(InvitesApiService);
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);

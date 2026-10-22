@@ -3,10 +3,17 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   linkedSignal,
+  untracked,
 } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterOutlet,
+} from '@angular/router';
 import { Store } from '@ngrx/store';
 import {
   selectCurrentUser,
@@ -16,7 +23,7 @@ import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { catchError, map, of } from 'rxjs';
+import { catchError, filter, map, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
@@ -59,6 +66,7 @@ export class App {
   private readonly store = inject(Store);
   private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly publicApiService = inject(PublicApiService);
+  private readonly router = inject(Router);
 
   protected readonly isAuthenticated =
     this.store.selectSignal(selectIsAuthorized);
@@ -120,4 +128,22 @@ export class App {
       .pipe(map((result) => result.matches)),
     { initialValue: false },
   );
+
+  private readonly navigationEnd = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+    ),
+  );
+
+  constructor() {
+    effect(() => {
+      this.navigationEnd();
+      untracked(() => {
+        const isNarrow = this.isNarrow();
+        if (isNarrow) {
+          this.collapsed.set(true);
+        }
+      });
+    });
+  }
 }

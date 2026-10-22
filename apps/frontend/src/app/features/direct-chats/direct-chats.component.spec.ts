@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
-import { TuiDialogService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
@@ -60,7 +60,10 @@ describe('DirectChatsComponent', () => {
         }),
         { provide: DirectChatsStore, useValue: mockDirectChatsStore },
         { provide: UsersStore, useValue: mockUsersStore },
-        { provide: TuiDialogService, useValue: mockDialogService },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: mockDialogService,
+        },
         {
           provide: UnreadCountsStore,
           useValue: {

@@ -8,18 +8,13 @@ import {
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import {
-  TuiButton,
-  TuiDialogService,
-  TuiIcon,
-  TuiScrollbar,
-  TuiTitle,
-} from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiScrollbar, TuiTitle } from '@taiga-ui/core';
 import { TuiCard, TuiHeader } from '@taiga-ui/layout';
 import { DirectChatsStore } from './direct-chats.store';
 import { DirectChatItemComponent } from './direct-chat-item/direct-chat-item.component';
 import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 
 @Component({
   selector: 'app-direct-chats',
@@ -40,7 +35,9 @@ import { IUser } from '@konvoez/shared';
 export class DirectChatsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
-  private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly tuiRespectiveDialogService = inject(
+    TuiResponsiveDialogService,
+  );
   private readonly translateService = inject(TranslateService);
   private readonly usersStore = inject(UsersStore);
   protected readonly directChatsStore = inject(DirectChatsStore);
@@ -54,7 +51,7 @@ export class DirectChatsComponent implements OnInit {
     const { DirectChatDialogComponent } =
       await import('./direct-chat-dialog/direct-chat-dialog.component');
 
-    this.tuiDialogService
+    this.tuiRespectiveDialogService
       .open<IUser | null>(
         new PolymorpheusComponent(DirectChatDialogComponent, this.injector),
         {

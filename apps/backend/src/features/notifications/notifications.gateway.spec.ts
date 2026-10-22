@@ -56,6 +56,10 @@ describe('NotificationsGateway', () => {
     });
   });
 
+  it('acknowledges the liveness ping', () => {
+    expect(gateway.handlePing()).toEqual({});
+  });
+
   describe('handleConnection', () => {
     it('should disconnect if user is not authorized', async () => {
       authServiceMock.getUserFromRawCookies.mockResolvedValue(null);

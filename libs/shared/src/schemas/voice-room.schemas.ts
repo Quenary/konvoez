@@ -247,6 +247,21 @@ export type TVoiceRoomConsumerClosed = z.infer<
   typeof voiceRoomConsumerClosedSchema
 >;
 
+export const voiceRoomRestartIceSchema = z.object({
+  transportId: z.string().min(1),
+});
+export type TVoiceRoomRestartIce = z.infer<typeof voiceRoomRestartIceSchema>;
+
+export type TVoiceRoomRestartIceResult = {
+  /** Opaque mediasoup IceParameters JSON */
+  iceParameters: unknown;
+};
+
+export type TVoiceRoomSessionCheckResult = {
+  /** True when the socket is still a peer of its voice session. */
+  active: boolean;
+};
+
 export const voiceRoomErrorSchema = z.object({
   message: z.string(),
 });
@@ -272,6 +287,8 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.CONSUMER_CLOSED]: TVoiceRoomConsumerClosed;
   [EVoiceRoomEvent.SET_MUTE_STATE]: TVoiceRoomSetMuteState;
   [EVoiceRoomEvent.PEER_MUTE_CHANGED]: TVoiceRoomPeerMuted;
+  [EVoiceRoomEvent.SESSION_CHECK]: void;
+  [EVoiceRoomEvent.RESTART_ICE]: TVoiceRoomRestartIce;
   [EVoiceRoomEvent.ERROR]: TVoiceRoomError;
 } & TDirectCallEventPayloadMap;
 
@@ -296,6 +313,8 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.CONSUMER_CLOSED]: void;
   [EVoiceRoomEvent.SET_MUTE_STATE]: object;
   [EVoiceRoomEvent.PEER_MUTE_CHANGED]: void;
+  [EVoiceRoomEvent.SESSION_CHECK]: TVoiceRoomSessionCheckResult;
+  [EVoiceRoomEvent.RESTART_ICE]: TVoiceRoomRestartIceResult;
   [EVoiceRoomEvent.ERROR]: void;
 } & TDirectCallEventResultMap;
 

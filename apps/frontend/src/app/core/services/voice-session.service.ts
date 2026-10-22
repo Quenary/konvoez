@@ -11,6 +11,7 @@ import {
   EVoiceSessionType,
   TVoiceRoomJoin,
   TVoiceRoomProduceResult,
+  TVoiceRoomSessionCheckResult,
   TVoiceRoomSetMuteState,
   TVoiceSessionTarget,
   getVoiceSessionKey,
@@ -18,9 +19,11 @@ import {
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { notifyError } from '@shared/functions/notify-error.function';
 import { Mutex } from 'async-mutex';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { IAudioDeviceHandler } from '../tokens/audio-device-handler.token';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
+import { AppResumeService } from './app-resume.service';
 import { AudioService } from './audio.service';
 import {
   IConsumePeerContext,
@@ -38,6 +41,8 @@ import {
 } from './voice-room-socket-ack';
 
 const voiceSessionMutex = new Mutex();
+/** Session check on resume; a dead socket is recycled by AuthSocketManager. */
+export const VOICE_RESUME_CHECK_ACK_MS = 3000;
 const micControlsMutex = new Mutex();
 
 /**
@@ -52,6 +57,7 @@ const micControlsMutex = new Mutex();
 export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly store = inject(Store);
   private readonly socket = inject(VoiceRoomSocketToken);
+  private readonly appResumeService = inject(AppResumeService);
   private readonly voiceSessionStore = inject(VoiceSessionStore);
   private readonly audioActivityService = inject(AudioActivityService);
   private readonly voiceAudioPreferencesStore = inject(
@@ -100,6 +106,12 @@ export class VoiceSessionService implements IAudioDeviceHandler {
           },
         );
       }
+    });
+
+    this.appResumeService.resume$.pipe(takeUntilDestroyed()).subscribe(() => {
+      void this.resumeSession().catch((error: unknown) => {
+        this.reportJoinFailure(error);
+      });
     });
 
     effect(() => {
@@ -213,6 +225,47 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   @Mutexed()
   public async setAudioOutput(device: MediaDeviceInfo | null): Promise<void> {
     await this.speakerService.setDevice(device);
+  }
+
+  /**
+   * After sleep: rejoin when the server dropped the peer or a transport died,
+   * otherwise refresh ICE. A dead socket is left to the reconnect path, whose
+   * `connect` handler rejoins.
+   */
+  @Mutexed(voiceSessionMutex)
+  private async resumeSession(): Promise<void> {
+    const session = this.voiceSessionStore.activeSession();
+    if (
+      !session ||
+      this.voiceSessionStore.joiningTarget() ||
+      !this.socket.connected
+    ) {
+      return;
+    }
+
+    let active: boolean;
+    try {
+      ({ active } = await emitVoiceRoomWithAck<TVoiceRoomSessionCheckResult>(
+        this.socket,
+        EVoiceRoomEvent.SESSION_CHECK,
+        undefined,
+        VOICE_RESUME_CHECK_ACK_MS,
+      ));
+    } catch {
+      return;
+    }
+
+    if (active && this.mediasoupSessionService.transportsHealthy()) {
+      try {
+        await this.mediasoupSessionService.restartIce();
+        return;
+      } catch (error) {
+        console.error('ICE restart failed, rejoining', error);
+      }
+    }
+
+    this.mediasoupSessionService.cleanup();
+    await this.joinSessionLocked(session, true);
   }
 
   private async joinSessionLocked(

@@ -31,6 +31,7 @@ import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-l
   host: {
     '[class.visible]': 'chromeVisible()',
     '[attr.aria-hidden]': 'chromeVisible() ? null : true',
+    '[class.with-hide]': 'withHide()',
   },
   imports: [
     NgOptimizedImage,
@@ -64,6 +65,7 @@ export class VoiceRoomOverlayComponent {
   public readonly participantsCount = input(0);
   public readonly fullscreenTarget = input<HTMLElement | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
+  public readonly withHide = input<boolean>(false);
   public readonly left = output<void>();
 
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;

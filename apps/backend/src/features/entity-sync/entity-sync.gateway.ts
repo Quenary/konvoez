@@ -3,12 +3,14 @@ import { OnEvent } from '@nestjs/event-emitter';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import {
   EEntitySyncEvent,
+  ESocketEvent,
   type IRoom,
   type TEntitySyncEventMap,
 } from '@konvoez/shared';
@@ -62,6 +64,11 @@ export class EntitySyncGateway
 
   @Inject(RoomsFacade)
   private readonly roomsFacade!: RoomsFacade;
+
+  @SubscribeMessage(ESocketEvent.PING)
+  handlePing(): object {
+    return {};
+  }
 
   async handleConnection(client: TSocket) {
     try {

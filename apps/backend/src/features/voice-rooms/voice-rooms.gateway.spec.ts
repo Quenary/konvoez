@@ -220,6 +220,10 @@ describe('VoiceRoomsGateway', () => {
     Object.assign(gateway, { server: serverMock as unknown as Server });
   });
 
+  it('acknowledges the liveness ping', () => {
+    expect(gateway.handlePing()).toEqual({});
+  });
+
   describe('connection', () => {
     it('authorizes the socket and joins the user room', async () => {
       authService.getUserFromRawCookies.mockResolvedValue(alice);
@@ -327,6 +331,73 @@ describe('VoiceRoomsGateway', () => {
           transportId: 'unknown',
           dtlsParameters: {} as never,
         }),
+      ).rejects.toThrow(AppException);
+    });
+  });
+
+  describe('resume', () => {
+    it('reports an active session when the socket is a room peer', () => {
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', { id: 'socket-1', user: alice }]])),
+      );
+      const socket = createSocket({ data: { sessionKey: 'room:1' } });
+
+      expect(gateway.handleSessionCheck(socket as never)).toEqual({
+        active: true,
+      });
+    });
+
+    it('reports an inactive session when the peer is gone', () => {
+      voiceRoomsStateService.getRoom.mockReturnValue(createRoom());
+      const socket = createSocket({ data: { sessionKey: 'room:1' } });
+
+      expect(gateway.handleSessionCheck(socket as never)).toEqual({
+        active: false,
+      });
+    });
+
+    it('reports an inactive session for a socket without a session', () => {
+      const socket = createSocket({ data: {} });
+
+      expect(gateway.handleSessionCheck(socket as never)).toEqual({
+        active: false,
+      });
+    });
+
+    it('restarts ICE on the peer transport', async () => {
+      const iceParameters = { usernameFragment: 'u', password: 'p' };
+      const transport = {
+        id: 't1',
+        restartIce: jest.fn().mockResolvedValue(iceParameters),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(
+          new Map([
+            [
+              'socket-1',
+              { id: 'socket-1', user: alice, recvTransport: transport },
+            ],
+          ]),
+        ),
+      );
+      const socket = createSocket({ data: { sessionKey: 'room:1' } });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.handleRestartIce(socket as never, { transportId: 't1' }),
+      ).resolves.toEqual({ iceParameters });
+      expect(transport.restartIce).toHaveBeenCalled();
+    });
+
+    it('rejects restartIce for an unknown transport', async () => {
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', { id: 'socket-1', user: alice }]])),
+      );
+      const socket = createSocket({ data: { sessionKey: 'room:1' } });
+      socket.rooms.add('room:1');
+
+      await expect(
+        gateway.handleRestartIce(socket as never, { transportId: 'x' }),
       ).rejects.toThrow(AppException);
     });
   });

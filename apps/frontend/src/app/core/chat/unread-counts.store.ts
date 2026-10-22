@@ -1,3 +1,4 @@
+import { socketReconnected$ } from '@shared/functions/socket-reconnected.function';
 import { computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
@@ -217,6 +218,15 @@ export const UnreadCountsStore = signalStore(
               activeRoomId: null,
               activeRecipientId: null,
             });
+          }
+        });
+
+      const isAuthorized = ngrxStore.selectSignal(selectIsAuthorized);
+      socketReconnected$(socket)
+        .pipe(takeUntilDestroyed())
+        .subscribe(() => {
+          if (isAuthorized()) {
+            store.load();
           }
         });
 

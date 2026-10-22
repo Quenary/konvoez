@@ -27,13 +27,8 @@ import { RoomManageService } from './room-manage.service';
 import { RoomNavigationService } from './room-navigation.service';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { DirectCallService } from '@core/services/direct-call.service';
-import {
-  TuiButton,
-  TuiDialogService,
-  TuiDropdown,
-  TuiHint,
-  TuiIcon,
-} from '@taiga-ui/core';
+import { TuiButton, TuiDropdown, TuiHint, TuiIcon } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import {
   TuiAutoColorPipe,
   TuiAvatar,
@@ -97,7 +92,9 @@ export class RoomsComponent implements OnInit {
   private readonly voiceLobbyStore = inject(VoiceLobbyStore);
   private readonly directCallService = inject(DirectCallService);
   private readonly router = inject(Router);
-  private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly tuiResponsiveDialogService = inject(
+    TuiResponsiveDialogService,
+  );
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isTouch = inject(WA_IS_TOUCH);
@@ -175,7 +172,7 @@ export class RoomsComponent implements OnInit {
     const { RoomDialogComponent } =
       await import('./room-dialog/room-dialog.component');
 
-    this.tuiDialogService
+    this.tuiResponsiveDialogService
       .open<RoomDialogData>(
         new PolymorpheusComponent(RoomDialogComponent, this.injector),
         {

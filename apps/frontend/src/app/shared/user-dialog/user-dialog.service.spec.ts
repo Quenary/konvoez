@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { IUser } from '@konvoez/shared';
-import { TuiDialogService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserDialogService } from './user-dialog.service';
@@ -37,7 +37,7 @@ describe('UserDialogService', () => {
     TestBed.configureTestingModule({
       providers: [
         UserDialogService,
-        { provide: TuiDialogService, useValue: dialogService },
+        { provide: TuiResponsiveDialogService, useValue: dialogService },
       ],
     });
 

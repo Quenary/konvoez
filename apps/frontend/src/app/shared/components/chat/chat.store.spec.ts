@@ -17,6 +17,7 @@ import {
   ITextRoomMessage,
   ITextRoomReactionGroup,
   IUser,
+  MESSAGE_PAGE_SIZE,
 } from '@konvoez/shared';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
@@ -216,7 +217,7 @@ describe('ChatStore', () => {
       expect.objectContaining({
         roomId: 10,
         recipientId: null,
-        limit: 25,
+        limit: MESSAGE_PAGE_SIZE,
       }),
     );
     expect(store.messages().length).toBe(2);
@@ -300,7 +301,7 @@ describe('ChatStore', () => {
       aroundId: 'msg-remote-initial',
       beforeId: null,
       afterId: null,
-      limit: 25,
+      limit: MESSAGE_PAGE_SIZE,
     });
     expect(store.targetScrollMessageId()).toBe('msg-remote-initial');
   });
@@ -339,6 +340,135 @@ describe('ChatStore', () => {
     expect(store.entityMap()['msg-remote-99']).toBeTruthy();
   });
 
+  it('holds prefetch while a jump reloads the window and bumps its version', () => {
+    store.join({ kind: 'room', id: 10 });
+    const version = store.windowVersion();
+    const response$ = new Subject<ITextRoomListResponse>();
+    apiService.list.mockReturnValue(response$);
+
+    store.jumpToMessage('msg-remote-50');
+
+    expect(store.reloadingWindow()).toBe(true);
+    expect(store.windowVersion()).toBe(version);
+
+    response$.next(
+      mockListResponse([
+        {
+          id: 'msg-remote-50',
+          senderId: 3,
+          senderUsername: 'charlie',
+          roomId: 10,
+          recipientId: null,
+          content: 'Old remote message',
+          createdAt: new Date('2026-09-14T10:00:00.000Z'),
+          updatedAt: null,
+          isRead: false,
+          attachments: [],
+          clientId: null,
+          replyTo: null,
+          reactions: [],
+          mentions: { userIds: [], roleIds: [], everyone: false },
+        },
+      ]),
+    );
+    response$.complete();
+
+    expect(store.reloadingWindow()).toBe(false);
+    expect(store.windowVersion()).toBe(version + 1);
+    expect(store.initialPosition()).toBe('message');
+    expect(store.ids()).toEqual(['msg-remote-50']);
+  });
+
+  it('keeps the window version for a jump to a loaded message', () => {
+    store.join({ kind: 'room', id: 10 });
+    const version = store.windowVersion();
+
+    store.jumpToMessage('msg-1');
+
+    expect(store.windowVersion()).toBe(version);
+    expect(store.reloadingWindow()).toBe(false);
+  });
+
+  describe('response after a chat switch', () => {
+    const stale: ITextRoomMessage = {
+      ...message1,
+      id: 'msg-stale',
+      content: 'From the previous chat',
+    };
+    const fresh: ITextRoomMessage = {
+      ...message1,
+      id: 'msg-fresh',
+      roomId: 20,
+    };
+
+    it.each([
+      ['a jump to an unloaded message', () => store.jumpToMessage('msg-far')],
+      ['an older page', () => store.loadOlder()],
+      ['a newer page', () => store.loadNewer()],
+      ['the latest page', () => store.loadLatest()],
+      ['read all and jump to latest', () => store.readAllAndJumpToLatest()],
+    ])('is dropped for %s', (_name, request) => {
+      apiService.list.mockReturnValue(
+        of(
+          mockListResponse([message1, message2WithReply], {
+            hasMoreBefore: true,
+            hasMoreAfter: true,
+          }),
+        ),
+      );
+      store.join({ kind: 'room', id: 10 });
+      const delayed$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValueOnce(delayed$);
+      request();
+
+      apiService.list.mockReturnValue(of(mockListResponse([fresh])));
+      store.join({ kind: 'room', id: 20 });
+      delayed$.next(
+        mockListResponse([stale], { hasMoreBefore: true, hasMoreAfter: true }),
+      );
+
+      expect(delayed$.observed).toBe(false);
+      expect(store.ids()).toEqual(['msg-fresh']);
+      expect(store.hasMoreBefore()).toBe(false);
+      expect(store.hasMoreAfter()).toBe(false);
+      expect(store.targetScrollMessageId()).toBeNull();
+      expect(store.reloadingWindow()).toBe(false);
+      expect(store.loadingOlder()).toBe(false);
+      expect(store.loadingNewer()).toBe(false);
+    });
+
+    it('is dropped after leaving the chat', () => {
+      store.join({ kind: 'room', id: 10 });
+      const delayed$ = new Subject<ITextRoomListResponse>();
+      apiService.list.mockReturnValueOnce(delayed$);
+      store.jumpToMessage('msg-far');
+      expect(store.reloadingWindow()).toBe(true);
+
+      store.leave();
+      delayed$.next(mockListResponse([stale]));
+
+      expect(store.ids()).toEqual([]);
+      expect(store.reloadingWindow()).toBe(false);
+    });
+
+    it('lets the new chat load older pages while the old request hangs', () => {
+      apiService.list.mockReturnValue(
+        of(mockListResponse([message1], { hasMoreBefore: true })),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockReturnValueOnce(new Subject<ITextRoomListResponse>());
+      store.loadOlder();
+
+      store.join({ kind: 'room', id: 20 });
+      apiService.list.mockClear();
+      store.loadOlder();
+
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({ roomId: 20, beforeId: 'msg-1' }),
+      );
+    });
+  });
+
   it('should fall back to latest messages when join is called with missing initialMessageId', () => {
     const latestMessage: ITextRoomMessage = {
       id: 'msg-latest-1',
@@ -371,14 +501,14 @@ describe('ChatStore', () => {
       aroundId: 'missing-id',
       beforeId: null,
       afterId: null,
-      limit: 25,
+      limit: MESSAGE_PAGE_SIZE,
     });
     expect(apiService.list).toHaveBeenNthCalledWith(2, {
       roomId: 10,
       recipientId: null,
       beforeId: null,
       afterId: null,
-      limit: 25,
+      limit: MESSAGE_PAGE_SIZE,
     });
     expect(store.entities()).toHaveLength(1);
     expect(store.entities()[0].id).toBe('msg-latest-1');
@@ -826,6 +956,65 @@ describe('ChatStore', () => {
 
       mockSocket.emit(ETextRoomEvent.MESSAGE_CREATED, directMessage);
       expect(store.entityMap()['msg-direct-active']).toBeTruthy();
+    });
+  });
+
+  describe('catch-up after reconnect', () => {
+    const reconnect = (): void => {
+      mockSocket.emit('disconnect');
+      mockSocket.emit('connect');
+    };
+
+    it('rejoins the room and loads messages newer than the last known one', () => {
+      apiService.list.mockReturnValueOnce(
+        of(mockListResponse([message1, message2WithReply])),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+      mockSocket.emit.mockClear();
+      const missed = {
+        ...message1,
+        id: 'msg-3',
+        content: 'Missed',
+        createdAt: new Date('2026-09-15T00:02:00.000Z'),
+      };
+      apiService.list.mockReturnValueOnce(of(mockListResponse([missed])));
+
+      reconnect();
+
+      expect(mockSocket.emit).toHaveBeenCalledWith(ETextRoomEvent.JOIN, {
+        roomId: 10,
+        recipientId: null,
+      });
+      expect(apiService.list).toHaveBeenCalledWith(
+        expect.objectContaining({ roomId: 10, afterId: 'msg-2' }),
+      );
+      expect(store.hasMoreAfter()).toBe(false);
+      expect(store.newestId()).toBe('msg-3');
+    });
+
+    it('only rejoins when the view is scrolled into history', () => {
+      apiService.list.mockReturnValueOnce(
+        of(mockListResponse([message1], { hasMoreAfter: true })),
+      );
+      store.join({ kind: 'room', id: 10 });
+      apiService.list.mockClear();
+
+      reconnect();
+
+      expect(apiService.list).not.toHaveBeenCalled();
+    });
+
+    it('does nothing without an open chat', () => {
+      mockSocket.emit.mockClear();
+
+      reconnect();
+
+      expect(apiService.list).not.toHaveBeenCalled();
+      expect(mockSocket.emit).not.toHaveBeenCalledWith(
+        ETextRoomEvent.JOIN,
+        expect.anything(),
+      );
     });
   });
 

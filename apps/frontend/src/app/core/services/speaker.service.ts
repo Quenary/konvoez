@@ -1,4 +1,5 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   createVoiceDynamicsNode,
   disposeVoiceDynamicsNode,
@@ -7,6 +8,12 @@ import {
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import { AudioContextResumeService } from './audio-context-resume.service';
+import { MediaDevicesService } from './media-devices.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
+import {
+  DEFAULT_DEVICE_ID,
+  prioritizedDevices,
+} from '@shared/functions/media-device-priority.function';
 
 const publicMethodsMutex = new Mutex();
 
@@ -41,6 +48,8 @@ export class SpeakerService implements OnDestroy {
   private readonly audioContextResumeService = inject(
     AudioContextResumeService,
   );
+  private readonly mediaDevicesService = inject(MediaDevicesService);
+  private readonly switchNotifier = inject(MediaDeviceSwitchNotifierService);
   private context: AudioContext | null = null;
   private device: MediaDeviceInfo | null = null;
   private busNode: GainNode | null = null;
@@ -51,17 +60,10 @@ export class SpeakerService implements OnDestroy {
   private limiterWaitDone = false;
   private limiterFailed = false;
 
-  private readonly onDeviceChange = async () => {
-    await this.ensureContext();
-  };
-
   constructor() {
-    if (typeof navigator.mediaDevices?.addEventListener === 'function') {
-      navigator.mediaDevices.addEventListener(
-        'devicechange',
-        this.onDeviceChange,
-      );
-    }
+    this.mediaDevicesService.deviceChange$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => void this.handleDeviceChange());
   }
 
   @Mutexed(publicMethodsMutex)
@@ -138,13 +140,19 @@ export class SpeakerService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (typeof navigator.mediaDevices?.removeEventListener === 'function') {
-      navigator.mediaDevices.removeEventListener(
-        'devicechange',
-        this.onDeviceChange,
-      );
-    }
     void this.release();
+  }
+
+  /** Re-applies the output priority to a live context; never creates one. */
+  @Mutexed(publicMethodsMutex)
+  private async handleDeviceChange(): Promise<void> {
+    if (!this.context || this.context.state === 'closed') {
+      return;
+    }
+    const switched = await this.setSinkId(this.device);
+    if (switched) {
+      this.switchNotifier.notify('audiooutput', switched.label);
+    }
   }
 
   private async ensureContext(): Promise<AudioContext> {
@@ -223,19 +231,62 @@ export class SpeakerService implements OnDestroy {
     }
   }
 
-  private async setSinkId(device: MediaDeviceInfo | null) {
-    if (
-      this.context &&
-      'setSinkId' in this.context &&
-      typeof this.context.setSinkId == 'function'
-    ) {
+  /**
+   * Output priority: the user's device (id, then similar label), `communications`,
+   * `default`. Skips the call when the context already plays to the wanted sink.
+   * With no candidates (no virtual ids and no stored device) the browser default stays.
+   */
+  /** Returns the newly applied output (id + label) when the sink actually changed. */
+  private async setSinkId(
+    device: MediaDeviceInfo | null,
+  ): Promise<{ deviceId: string; label: string } | null> {
+    const context = this.context as
+      | (AudioContext & {
+          sinkId?: string | object;
+          setSinkId?: (id: string) => Promise<void>;
+        })
+      | null;
+    if (!context || typeof context.setSinkId !== 'function') {
+      return null;
+    }
+
+    const devices = await this.mediaDevicesService
+      .enumerateDevices()
+      .catch((): MediaDeviceInfo[] => []);
+    const candidates = prioritizedDevices(devices, 'audiooutput', device).map(
+      (item) => item.deviceId,
+    );
+    if (!candidates.length && device?.deviceId) {
+      candidates.push(device.deviceId);
+    }
+    if (!candidates.length) {
+      return null;
+    }
+    if (context.sinkId === candidates[0]) {
+      return null;
+    }
+
+    const previous = context.sinkId;
+    for (const id of candidates) {
       try {
-        if (device) {
-          return await this.context.setSinkId(device.deviceId);
+        await context.setSinkId(id);
+        if (id === previous) {
+          return null;
         }
-      } catch {
-        await this.context.setSinkId('default');
+        const label =
+          devices.find(
+            (item) => item.kind === 'audiooutput' && item.deviceId === id,
+          )?.label ?? '';
+        return { deviceId: id, label };
+      } catch (error) {
+        console.warn(`setSinkId failed for "${id}"`, error);
       }
     }
+    try {
+      await context.setSinkId(DEFAULT_DEVICE_ID);
+    } catch {
+      // keep the current sink
+    }
+    return null;
   }
 }

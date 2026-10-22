@@ -8,7 +8,7 @@ import { TUI_ITEMS_HANDLERS, TuiNotificationService } from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { signal } from '@angular/core';
 import { ENoiseProcessor } from '../../../app.enums';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 describe('SettingsDevicesComponent', () => {
   let fixture: ComponentFixture<SettingsDevicesComponent>;
@@ -38,8 +38,10 @@ describe('SettingsDevicesComponent', () => {
   };
 
   let notificationOpen: ReturnType<typeof vi.fn>;
+  let deviceChange$: Subject<void>;
 
   beforeEach(() => {
+    deviceChange$ = new Subject<void>();
     notificationOpen = vi.fn().mockReturnValue(of(null));
     micTestService = {
       isRunning: signal(false),
@@ -78,6 +80,7 @@ describe('SettingsDevicesComponent', () => {
               getTracks: () => [],
             }),
             enumerateDevices: vi.fn().mockResolvedValue([]),
+            deviceChange$: deviceChange$.asObservable(),
           },
         },
         {
@@ -89,6 +92,7 @@ describe('SettingsDevicesComponent', () => {
           useValue: {
             instant: (key: string) => key,
             get: (key: string) => of(key),
+            translate: (key: string) => signal(key).asReadonly(),
           },
         },
       ],
@@ -189,5 +193,26 @@ describe('SettingsDevicesComponent', () => {
   it('stops mic test when component is destroyed', () => {
     fixture.destroy();
     expect(micTestService.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes device lists on devicechange', async () => {
+    const mediaDevices = TestBed.inject(MediaDevicesService) as unknown as {
+      enumerateDevices: ReturnType<typeof vi.fn>;
+    };
+    mediaDevices.enumerateDevices.mockResolvedValue([
+      { kind: 'audioinput', deviceId: 'usb', label: 'USB mic' },
+      { kind: 'audiooutput', deviceId: 'hp', label: 'Headphones' },
+    ]);
+
+    deviceChange$.next();
+
+    await vi.waitFor(() => {
+      expect(component['audioInputList']().map((d) => d.deviceId)).toEqual([
+        'usb',
+      ]);
+    });
+    expect(component['audioOutputList']().map((d) => d.deviceId)).toEqual([
+      'hp',
+    ]);
   });
 });

@@ -1,5 +1,5 @@
 :host {
-  display: contents;
+  display: block;
 
   .message {
     display: flex;
@@ -119,6 +119,8 @@
     &-body {
       flex: 1;
       min-width: 0;
+      max-width: 100%;
+      overflow-x: hidden;
       padding: 0.5rem;
       display: flex;
       flex-direction: column;
@@ -161,6 +163,35 @@
 
       &-content {
         flex: 1;
+
+        ::ng-deep {
+          p,
+          ul,
+          ol,
+          li,
+          blockquote {
+            overflow-wrap: break-word;
+            text-wrap: pretty;
+          }
+          h1,
+          h2,
+          h3,
+          h4,
+          h5,
+          h6 {
+            overflow-wrap: break-word;
+            text-wrap: balance;
+          }
+          a {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+          :not(pre) > code {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+        }
       }
     }
   }

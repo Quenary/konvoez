@@ -31,6 +31,9 @@ const bob = {
   updatedAt: new Date(),
 } as IUser;
 
+import { Subject } from 'rxjs';
+import { AppResumeService, type IAppResume } from './app-resume.service';
+
 describe('VoiceSessionService', () => {
   let service: VoiceSessionService;
   let socket: {
@@ -79,7 +82,10 @@ describe('VoiceSessionService', () => {
     consume: ReturnType<typeof vi.fn>;
     consumePending: ReturnType<typeof vi.fn>;
     handleConsumerClosed: ReturnType<typeof vi.fn>;
+    transportsHealthy: ReturnType<typeof vi.fn>;
+    restartIce: ReturnType<typeof vi.fn>;
   };
+  let resume$: Subject<IAppResume>;
   let screenWatch: {
     release: ReturnType<typeof vi.fn>;
     onRemoteProducerClosed: ReturnType<typeof vi.fn>;
@@ -181,7 +187,10 @@ describe('VoiceSessionService', () => {
       consume: vi.fn().mockResolvedValue(undefined),
       consumePending: vi.fn().mockResolvedValue(undefined),
       handleConsumerClosed: vi.fn(),
+      transportsHealthy: vi.fn().mockReturnValue(true),
+      restartIce: vi.fn().mockResolvedValue(undefined),
     };
+    resume$ = new Subject<IAppResume>();
     screenWatch = {
       release: vi.fn(),
       onRemoteProducerClosed: vi.fn(),
@@ -231,6 +240,7 @@ describe('VoiceSessionService', () => {
         { provide: SpeakerService, useValue: { setDevice: vi.fn() } },
         { provide: AudioService, useValue: audioService },
         { provide: MediasoupSessionService, useValue: mediasoup },
+        { provide: AppResumeService, useValue: { resume$ } },
         { provide: ScreenWatchService, useValue: screenWatch },
         {
           provide: PeerPlaybackService,
@@ -507,6 +517,79 @@ describe('VoiceSessionService', () => {
         'VOICE.JOIN_FAILED',
         expect.objectContaining({ appearance: 'negative' }),
       );
+    });
+  });
+
+  describe('resume', () => {
+    const session = { type: EVoiceSessionType.GROUP_ROOM, roomId: 7 };
+
+    const sessionCheck = (result: Promise<unknown>): void => {
+      socket.emitWithAck.mockImplementation((event: string) =>
+        event === EVoiceRoomEvent.SESSION_CHECK
+          ? result
+          : Promise.resolve(undefined),
+      );
+    };
+
+    beforeEach(() => {
+      voiceSessionStore.setActiveSession(session);
+    });
+
+    it('restarts ICE when the server still has the peer', async () => {
+      sessionCheck(Promise.resolve({ active: true }));
+
+      resume$.next({ sleptMs: 1 });
+
+      await vi.waitFor(() => expect(mediasoup.restartIce).toHaveBeenCalled());
+      expect(mediasoup.cleanup).not.toHaveBeenCalled();
+      expect(socket.emitWithAck).not.toHaveBeenCalledWith(
+        EVoiceRoomEvent.JOIN_ROOM,
+        expect.anything(),
+      );
+    });
+
+    it('rejoins the same room when the server dropped the peer', async () => {
+      sessionCheck(Promise.resolve({ active: false }));
+
+      resume$.next({ sleptMs: 1 });
+
+      await vi.waitFor(() =>
+        expect(mediasoup.ensureRecvTransport).toHaveBeenCalled(),
+      );
+      expect(mediasoup.cleanup).toHaveBeenCalled();
+      expect(mediasoup.restartIce).not.toHaveBeenCalled();
+      expect(voiceSessionStore.activeSession()).toEqual(session);
+    });
+
+    it('rejoins when a transport failed even if the peer is alive', async () => {
+      sessionCheck(Promise.resolve({ active: true }));
+      mediasoup.transportsHealthy.mockReturnValue(false);
+
+      resume$.next({ sleptMs: 1 });
+
+      await vi.waitFor(() =>
+        expect(mediasoup.ensureSendTransport).toHaveBeenCalled(),
+      );
+      expect(mediasoup.restartIce).not.toHaveBeenCalled();
+    });
+
+    it('leaves a silent socket to the reconnect path', async () => {
+      sessionCheck(Promise.reject(new Error('operation has timed out')));
+
+      resume$.next({ sleptMs: 1 });
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(mediasoup.cleanup).not.toHaveBeenCalled();
+      expect(mediasoup.restartIce).not.toHaveBeenCalled();
+    });
+
+    it('does nothing without an active session', async () => {
+      voiceSessionStore.setActiveSession(null);
+
+      resume$.next({ sleptMs: 1 });
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(socket.emitWithAck).not.toHaveBeenCalled();
     });
   });
 

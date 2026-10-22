@@ -19,6 +19,8 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Backend, NestJS (`apps/backend`) — `apps/backend/AGENTS.md`
 - Frontend, Angular (`apps/frontend`) — `apps/frontend/AGENTS.md`
 - Frontend voice, streaming, audio pipeline — `docs/frontend/VOICE.md`, `docs/frontend/STREAMING.md`, `docs/frontend/NOISE_SUPPRESSION.md`
+- Frontend chat message list (virtual scroll, read receipts) — `docs/frontend/CHAT_LIST.md`
+- Frontend app resume (socket liveness, catch-up, voice rejoin) — `docs/frontend/APP_RESUME.md`
 - Desktop, Electron (`apps/desktop`) — `apps/desktop/README.md`, `docs/CONTRIBUTING.md` (Desktop)
 - Shared contracts: Zod schemas, enums, types (`libs/shared`) — `libs/shared/README.md`
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)

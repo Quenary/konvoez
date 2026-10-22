@@ -14,7 +14,6 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,
   TuiDataList,
-  TuiDialogService,
   TuiDropdown,
   TuiHint,
   TuiIcon,
@@ -22,6 +21,7 @@ import {
   TuiNotificationService,
   TuiOption,
 } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiEditorSocket } from '@taiga-ui/editor';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import {
@@ -35,17 +35,18 @@ import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
-import { MessageVisibilityDirective } from '@shared/directives/message-visibility.directive';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
-import { mediaFrameLimit } from '@shared/components/media-grid/media-grid.layout';
+import {
+  messageHasMedia,
+  messageMediaFrame,
+} from '@shared/functions/message-media-frame.function';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { ChatMessageAttachmentsComponent } from '../chat-message-attachments/chat-message-attachments.component';
 import { ChatMessageReactionsBarComponent } from './chat-message-reactions-bar/chat-message-reactions-bar.component';
 import { ChatMessageReactionsComponent } from './chat-message-reactions/chat-message-reactions.component';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
-import { EAttachmentKind } from '@konvoez/shared';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
 import { ExternalLinkClickDirective } from '@shared/directives/external-link-click.directive';
 import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
@@ -75,7 +76,6 @@ const EMPTY_MENTIONS: IMentionSet = {
     TuiOption,
     TuiAutoColorPipe,
     TextContentPipe,
-    MessageVisibilityDirective,
     ChatMessageAttachmentsComponent,
     ChatMessageReactionsBarComponent,
     ChatMessageReactionsComponent,
@@ -101,7 +101,9 @@ export class ChatMessageComponent {
   private readonly sanitizer = inject(Sanitizer);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
-  private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly tuiResponsiveDialogService = inject(
+    TuiResponsiveDialogService,
+  );
   private readonly chatApiService = inject(ChatApiService);
   private readonly outgoingStore = inject(OutgoingMessagesStore);
   private readonly userDialogService = inject(UserDialogService);
@@ -151,56 +153,11 @@ export class ChatMessageComponent {
     this.outgoing() ? this.outgoingStore.uploadProgress() : this.emptyProgress,
   );
 
-  protected readonly mediaFrame = computed(() => {
-    const outgoing = this.outgoing();
-    const attachments = this.attachmentList();
-    const sizes: { width: number; height: number }[] = [];
-    if (outgoing) {
-      for (const file of outgoing.files) {
-        if (
-          file.kind !== EAttachmentKind.IMAGE &&
-          file.kind !== EAttachmentKind.VIDEO
-        ) {
-          continue;
-        }
-        if (!file.width || !file.height) {
-          return null;
-        }
-        sizes.push({ width: file.width, height: file.height });
-      }
-    } else {
-      for (const item of attachments) {
-        if (
-          item.kind !== EAttachmentKind.IMAGE &&
-          item.kind !== EAttachmentKind.VIDEO
-        ) {
-          continue;
-        }
-        if (!item.width || !item.height) {
-          return null;
-        }
-        sizes.push({ width: item.width, height: item.height });
-      }
-    }
-    return mediaFrameLimit(sizes);
-  });
+  protected readonly mediaFrame = computed(() =>
+    messageMediaFrame(this.message()),
+  );
 
-  protected readonly hasMedia = computed(() => {
-    const outgoing = this.outgoing();
-    const attachments = this.attachmentList();
-    if (outgoing) {
-      return outgoing.files.some(
-        (file) =>
-          file.kind === EAttachmentKind.IMAGE ||
-          file.kind === EAttachmentKind.VIDEO,
-      );
-    }
-    return attachments.some(
-      (item) =>
-        item.kind === EAttachmentKind.IMAGE ||
-        item.kind === EAttachmentKind.VIDEO,
-    );
-  });
+  protected readonly hasMedia = computed(() => messageHasMedia(this.message()));
 
   protected readonly showAttachments = computed(() => {
     const outgoing = this.outgoing();
@@ -261,14 +218,6 @@ export class ChatMessageComponent {
     const currentUser = this.currentUser() as IUser | null;
     const message = this.message();
     return !!currentUser && message.senderId === currentUser.id;
-  });
-
-  protected readonly readTrackingId = computed(() => {
-    const isOwn = this.isOwnMessage();
-    const message = this.message();
-    return !isOwn && !message.isRead && !message.isPendingCreate
-      ? message.id
-      : null;
   });
 
   protected readonly isDirectChat = computed(() => {
@@ -421,7 +370,7 @@ export class ChatMessageComponent {
       },
     });
 
-    this.tuiDialogService
+    this.tuiResponsiveDialogService
       .open(template, {
         label: this.translateService.instant('ROOMS.READ_BY'),
         closable: true,

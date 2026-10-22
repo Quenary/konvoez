@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { inject, Injectable } from '@angular/core';
-import { TuiDialogService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import {
   FileShareDialogComponent,
@@ -12,7 +12,9 @@ import {
 })
 export class DownloadService {
   private readonly document = inject(DOCUMENT);
-  private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly tuiResponsiveDialogService = inject(
+    TuiResponsiveDialogService,
+  );
 
   /**
    * In an iOS home-screen PWA a download navigates the only webview to a
@@ -47,7 +49,7 @@ export class DownloadService {
   }
 
   private openShareDialog(data: IFileShareDialogData): void {
-    this.tuiDialogService
+    this.tuiResponsiveDialogService
       .open(new PolymorpheusComponent(FileShareDialogComponent), {
         closable: true,
         dismissible: true,

@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
-import { TuiDialogService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileShareDialogComponent } from '@shared/components/file-share-dialog/file-share-dialog.component';
@@ -24,7 +24,10 @@ describe('DownloadService', () => {
             defaultView: { setTimeout: setTimeoutSpy, navigator },
           },
         },
-        { provide: TuiDialogService, useValue: { open: dialogOpen } },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: { open: dialogOpen },
+        },
       ],
     });
     return TestBed.inject(DownloadService);

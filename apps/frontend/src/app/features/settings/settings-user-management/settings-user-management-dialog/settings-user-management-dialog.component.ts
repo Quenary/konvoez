@@ -19,11 +19,11 @@ import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dia
 import {
   TuiButton,
   TuiCheckbox,
-  TuiDialogService,
   TuiHint,
   TuiLabel,
   TuiNotificationService,
 } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import type { TuiDialogContext } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge, TuiButtonLoading } from '@taiga-ui/kit';
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -63,7 +63,7 @@ export interface IUserManagementRoleOption {
 export class SettingsUserManagementDialogComponent {
   private readonly userManagementApiService = inject(UserManagementApiService);
   private readonly rolesApiService = inject(RolesApiService);
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly translateService = inject(TranslateService);
   private readonly notificationService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);

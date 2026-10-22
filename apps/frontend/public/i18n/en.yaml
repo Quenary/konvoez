@@ -101,6 +101,7 @@ CALL:
   VOLUME: Volume
   MUTE_MICROPHONE: Mute microphone
   UNMUTE_MICROPHONE: Unmute microphone
+  MICROPHONE_LOADING: Preparing microphone…
   MUTE_SPEAKER: Turn off sound
   UNMUTE_SPEAKER: Turn on sound
   MICROPHONE_MUTED: Microphone muted
@@ -224,6 +225,10 @@ SETTINGS:
     PROCESSOR_OFF: Disabled
     PROCESSOR_UNSUPPORTED: Unsupported on this device (requires WebAssembly SIMD)
     PROCESSOR_OVERLOAD_NOTIFICATION: High CPU load detected; noise suppression switched to RNNoise for this session.
+    AUTO_SWITCHED_AUDIO_INPUT: 'Microphone switched to {{label}}'
+    AUTO_SWITCHED_AUDIO_OUTPUT: 'Audio output switched to {{label}}'
+    AUTO_SWITCHED_VIDEO_INPUT: 'Camera switched to {{label}}'
+    UNKNOWN_DEVICE: unknown device
     ECHO_CANCELLATION: Echo cancellation
     ECHO_CANCELLATION_HINT: Recommended when using speakers. Can be turned off with headphones.
     MIC_TEST_START: Check microphone

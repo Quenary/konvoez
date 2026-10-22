@@ -40,6 +40,7 @@ describe('EntitySyncService', () => {
   let roomsStore: {
     upsertOne: ReturnType<typeof vi.fn>;
     removeOne: ReturnType<typeof vi.fn>;
+    loadAll: ReturnType<typeof vi.fn>;
   };
   let rolesStore: {
     loadAll: ReturnType<typeof vi.fn>;
@@ -126,6 +127,7 @@ describe('EntitySyncService', () => {
     roomsStore = {
       upsertOne: vi.fn(),
       removeOne: vi.fn(),
+      loadAll: vi.fn(),
     };
 
     rolesStore = {
@@ -301,6 +303,17 @@ describe('EntitySyncService', () => {
     emitter.emit('disconnect');
 
     expect(usersStore.setOnlineUsers).toHaveBeenCalledWith([]);
+  });
+
+  it('reloads rooms after the entity sync socket reconnects', () => {
+    createService();
+
+    emitter.emit('connect');
+    expect(roomsStore.loadAll).not.toHaveBeenCalled();
+
+    emitter.emit('disconnect');
+    emitter.emit('connect');
+    expect(roomsStore.loadAll).toHaveBeenCalledTimes(1);
   });
 
   it('upserts room on ROOM_CREATED and ROOM_UPDATED', () => {

@@ -6,7 +6,6 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EPermission, ERoomType, IUser } from '@konvoez/shared';
-import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
@@ -107,10 +106,6 @@ describe('RoomsComponent', () => {
     entities: signal([me, bob]),
   };
 
-  const dialogService = {
-    open: vi.fn(),
-  };
-
   const responsiveDialogService = {
     open: vi.fn(),
   };
@@ -174,7 +169,6 @@ describe('RoomsComponent', () => {
             roomMentions,
           },
         },
-        { provide: TuiDialogService, useValue: dialogService },
         {
           provide: TuiResponsiveDialogService,
           useValue: responsiveDialogService,
@@ -350,7 +344,7 @@ describe('RoomsComponent', () => {
   });
 
   it('should dispatch create room after dialog confirms', async () => {
-    dialogService.open.mockReturnValue(
+    responsiveDialogService.open.mockReturnValue(
       of({
         name: 'ops',
         type: ERoomType.TEXT,
@@ -363,7 +357,7 @@ describe('RoomsComponent', () => {
 
     await component['addRoom'](ERoomType.TEXT);
 
-    expect(dialogService.open).toHaveBeenCalled();
+    expect(responsiveDialogService.open).toHaveBeenCalled();
     expect(roomsStore.create).toHaveBeenCalledWith({
       name: 'ops',
       type: ERoomType.TEXT,
@@ -375,7 +369,7 @@ describe('RoomsComponent', () => {
   });
 
   it('should not create room when dialog is cancelled', async () => {
-    dialogService.open.mockReturnValue(of(null));
+    responsiveDialogService.open.mockReturnValue(of(null));
     await component['addRoom'](ERoomType.VOICE);
 
     expect(roomsStore.create).not.toHaveBeenCalled();

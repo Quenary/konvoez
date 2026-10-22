@@ -9,7 +9,8 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { TuiDialogService, TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { SettingsStore } from '@core/stores/settings.store';
 import { RoomManageService } from '@features/rooms/room-manage.service';
 import { AudioService } from '@core/services/audio.service';
@@ -141,7 +142,7 @@ describe('VoiceRoomShellComponent', () => {
           useValue: { open: vi.fn(() => of(null)) },
         },
         {
-          provide: TuiDialogService,
+          provide: TuiResponsiveDialogService,
           useValue: { open: vi.fn(() => of(null)) },
         },
         {

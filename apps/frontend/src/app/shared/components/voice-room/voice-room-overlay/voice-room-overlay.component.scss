@@ -6,11 +6,13 @@
   pointer-events: none;
 }
 
-.room-header,
-.controls-dock {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
+:host.with-hide {
+  .room-header,
+  .controls-dock {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
 }
 
 :host.visible .room-header,

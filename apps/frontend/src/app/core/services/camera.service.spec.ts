@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { SettingsStore } from '@core/stores/settings.store';
+import { EMPTY } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CameraService } from './camera.service';
+import { MediaDevicesService } from './media-devices.service';
 
 describe('CameraService', () => {
   let service: CameraService;
@@ -31,6 +33,16 @@ describe('CameraService', () => {
       providers: [
         CameraService,
         {
+          provide: MediaDevicesService,
+          useValue: {
+            deviceChange$: EMPTY,
+            enumerateDevices: (): Promise<MediaDeviceInfo[]> =>
+              (
+                enumerateDevices as unknown as () => Promise<MediaDeviceInfo[]>
+              )(),
+          },
+        },
+        {
           provide: SettingsStore,
           useValue: {
             videoInput: videoInput.asReadonly(),
@@ -45,11 +57,12 @@ describe('CameraService', () => {
     const track = {
       readyState: 'live',
       stop: vi.fn(),
+      getSettings: () => ({ deviceId: 'cam-1' }),
     } as unknown as MediaStreamTrack;
     service['track'] = track;
     const release = vi.spyOn(service, 'release');
     const lost = vi.fn();
-    service.deviceLost$.subscribe(lost);
+    service.deviceChanged$.subscribe(lost);
 
     await service['handleDeviceChange']();
 
@@ -80,15 +93,57 @@ describe('CameraService', () => {
     service['track'] = {
       readyState: 'live',
       stop: vi.fn(),
+      getSettings: () => ({ deviceId: 'cam-1' }),
     } as unknown as MediaStreamTrack;
     enumerateDevices.mockResolvedValue([
       { kind: 'videoinput', deviceId: 'cam-1' },
     ]);
     const lost = vi.fn();
-    service.deviceLost$.subscribe(lost);
+    service.deviceChanged$.subscribe(lost);
 
     await service['handleDeviceChange']();
 
     expect(lost).not.toHaveBeenCalled();
+  });
+
+  it('reports a change when the chosen camera is plugged back in', async () => {
+    service['track'] = {
+      readyState: 'live',
+      stop: vi.fn(),
+      getSettings: () => ({ deviceId: 'cam-2' }),
+    } as unknown as MediaStreamTrack;
+    enumerateDevices.mockResolvedValue([
+      { kind: 'videoinput', deviceId: 'cam-2', label: 'Built-in' },
+      { kind: 'videoinput', deviceId: 'cam-1', label: 'USB cam' },
+    ]);
+    const changed = vi.fn();
+    service.deviceChanged$.subscribe(changed);
+
+    await service['handleDeviceChange']();
+
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it('matches the chosen camera by label when its id changed', async () => {
+    videoInput.set({
+      deviceId: 'old-id',
+      label: 'USB cam',
+      kind: 'videoinput',
+    } as MediaDeviceInfo);
+    service['track'] = {
+      readyState: 'live',
+      stop: vi.fn(),
+      getSettings: () => ({ deviceId: 'new-id' }),
+    } as unknown as MediaStreamTrack;
+    enumerateDevices.mockResolvedValue([
+      { kind: 'videoinput', deviceId: 'cam-0', label: 'Built-in' },
+      { kind: 'videoinput', deviceId: 'new-id', label: 'USB cam (1234:5678)' },
+    ]);
+    const changed = vi.fn();
+    service.deviceChanged$.subscribe(changed);
+
+    await service['handleDeviceChange']();
+
+    expect(changed).not.toHaveBeenCalled();
   });
 });

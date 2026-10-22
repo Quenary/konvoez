@@ -4,7 +4,6 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EPermission, ERoomType, IUser } from '@konvoez/shared';
-import { TuiDialogService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { IRoom } from '@konvoez/shared';
@@ -46,10 +45,6 @@ describe('RoomManageService', () => {
     updatedAt: null,
   };
 
-  const dialogService = {
-    open: vi.fn(),
-  };
-
   const responsiveDialogService = {
     open: vi.fn(),
   };
@@ -70,7 +65,6 @@ describe('RoomManageService', () => {
           selectors: [{ selector: selectCurrentUser, value: me }],
         }),
         { provide: RoomsStore, useValue: roomsStore },
-        { provide: TuiDialogService, useValue: dialogService },
         {
           provide: TuiResponsiveDialogService,
           useValue: responsiveDialogService,
@@ -87,7 +81,7 @@ describe('RoomManageService', () => {
   });
 
   it('should update room after dialog confirms', async () => {
-    dialogService.open.mockReturnValue(
+    responsiveDialogService.open.mockReturnValue(
       of({
         id: room.id,
         name: 'renamed',

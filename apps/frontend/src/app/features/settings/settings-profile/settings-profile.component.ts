@@ -12,13 +12,13 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,
-  TuiDialogService,
   TuiError,
   TuiInput,
   TuiLink,
   TuiNotificationService,
   TuiTextfield,
 } from '@taiga-ui/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import {
   TuiSwitch,
@@ -84,7 +84,7 @@ export class SettingsProfileComponent {
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);
-  private readonly dialogService = inject(TuiDialogService);
+  private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
 
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);

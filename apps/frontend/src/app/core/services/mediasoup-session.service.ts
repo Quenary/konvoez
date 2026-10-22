@@ -11,11 +11,14 @@ import {
   TVoiceRoomMediaTag,
   TVoiceRoomProduce,
   TVoiceRoomProduceResult,
+  TVoiceRoomRestartIce,
+  TVoiceRoomRestartIceResult,
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
 import type { Device } from 'mediasoup-client';
 import type {
   ConsumerOptions,
+  IceParameters,
   Producer,
   RtpCapabilities,
   RtpCodecCapability,
@@ -30,6 +33,7 @@ import {
 } from './voice-room-socket-ack';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicrophoneService } from './microphone.service';
+import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 import { CameraService } from './camera.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
@@ -60,6 +64,7 @@ export class MediasoupSessionService {
   private readonly peerPlaybackService = inject(PeerPlaybackService);
   private readonly peerScreenAudioService = inject(PeerScreenAudioService);
   private readonly peerVideoService = inject(PeerVideoService);
+  private readonly switchNotifier = inject(MediaDeviceSwitchNotifierService);
   private readonly consumerRegistry = inject(ConsumerRegistry);
 
   private readonly sessionMutex = new Mutex();
@@ -84,9 +89,11 @@ export class MediasoupSessionService {
   }
 
   constructor() {
-    this.cameraService.deviceLost$.pipe(takeUntilDestroyed()).subscribe(() => {
-      void this.stopCamera();
-    });
+    this.cameraService.deviceChanged$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        void this.switchCamera();
+      });
   }
 
   public setMicrophoneMuted(muted: boolean): void {
@@ -127,12 +134,49 @@ export class MediasoupSessionService {
     screenAudio?.close();
   }
 
+  /** Both transports exist and none is failed, disconnected or closed. */
+  public transportsHealthy(): boolean {
+    return [this.sendTransport, this.recvTransport].every(
+      (transport) =>
+        transport !== null &&
+        !transport.closed &&
+        !UNHEALTHY_TRANSPORT_STATES.has(transport.connectionState),
+    );
+  }
+
+  /** Fresh ICE credentials from the server for every live transport. */
+  public async restartIce(): Promise<void> {
+    for (const transport of [this.sendTransport, this.recvTransport]) {
+      if (!transport || transport.closed) {
+        continue;
+      }
+      const payload: TVoiceRoomRestartIce = { transportId: transport.id };
+      const { iceParameters }: TVoiceRoomRestartIceResult =
+        await emitVoiceRoomWithAck(
+          this.socket,
+          EVoiceRoomEvent.RESTART_ICE,
+          payload,
+        );
+      await transport.restartIce({
+        iceParameters: iceParameters as IceParameters,
+      });
+    }
+  }
+
   public produceCamera(): Promise<void> {
     return this.cameraMutex.runExclusive(() => this.produceCameraLocked());
   }
 
   public stopCamera(): Promise<void> {
     return this.cameraMutex.runExclusive(() => this.stopCameraLocked());
+  }
+
+  /**
+   * Moves an active camera producer to the device that should be used now
+   * (user choice, else first camera). Stops the camera when none can be opened.
+   */
+  public switchCamera(): Promise<void> {
+    return this.cameraMutex.runExclusive(() => this.switchCameraLocked());
   }
 
   public produceScreen(): Promise<void> {
@@ -242,13 +286,37 @@ export class MediasoupSessionService {
         if (this.cameraProducer !== producer) {
           return;
         }
-        void this.stopCamera();
+        void this.switchCamera();
       });
     } catch (error) {
       this.peerVideoService.setLocalCamTrack(null);
       this.cameraService.release();
       console.error('Failed to produce camera\n', error);
       throw error;
+    }
+  }
+
+  private async switchCameraLocked(): Promise<void> {
+    const producer = this.cameraProducer;
+    if (!producer || producer.closed) {
+      return;
+    }
+    const previousId = producer.track?.getSettings?.().deviceId ?? null;
+    try {
+      const track = await this.cameraService.getTrack();
+      if (this.cameraProducer !== producer || producer.closed) {
+        this.cameraService.release();
+        return;
+      }
+      await producer.replaceTrack({ track });
+      this.peerVideoService.setLocalCamTrack(track);
+      const nextId = track.getSettings?.().deviceId ?? null;
+      if (nextId !== previousId) {
+        this.switchNotifier.notify('videoinput', track.label ?? '');
+      }
+    } catch (error) {
+      console.warn('Failed to switch camera device', error);
+      await this.stopCameraLocked();
     }
   }
 
@@ -703,6 +771,11 @@ export class MediasoupSessionService {
 }
 
 const TRACK_UNMUTE_TIMEOUT_MS = 2000;
+const UNHEALTHY_TRANSPORT_STATES: ReadonlySet<string> = new Set([
+  'failed',
+  'disconnected',
+  'closed',
+]);
 
 function waitForTrackUnmute(track: MediaStreamTrack): Promise<void> {
   if (track.readyState !== 'live' || !track.muted) {

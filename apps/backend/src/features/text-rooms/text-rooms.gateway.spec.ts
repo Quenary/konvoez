@@ -456,4 +456,8 @@ describe('TextRoomsGateway', () => {
     const events = metadata.map((m: { event: string }) => m.event);
     expect(events).toContain(TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED);
   });
+
+  it('acknowledges the liveness ping', () => {
+    expect(gateway.handlePing()).toEqual({});
+  });
 });
