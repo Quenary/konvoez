@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiButton, TuiHint, TuiScrollbar } from '@taiga-ui/core';
+import { TuiButton, TuiHint } from '@taiga-ui/core';
 import {
   TuiBadgedContent,
   TuiBadgeNotification,
@@ -41,8 +41,11 @@ import { VirtualMeasureDirective } from './virtual-measure.directive';
 export const PREFETCH_VIEWPORTS = 2.5;
 /** Distance from the end above which the scroll-to-bottom button shows. */
 const SCROLL_BUTTON_DISTANCE_PX = 200;
-/** Pinned-to-end slack for following appended messages. */
-const SCROLL_END_THRESHOLD_PX = 80;
+/** Slack for subpixel rounding when deciding the list is at the bottom. */
+const AT_BOTTOM_SLACK_PX = 2;
+const WHEEL_LINE_PX = 16;
+const KEYBOARD_LINE_PX = 40;
+const KEYBOARD_PAGE_SHARE = 0.9;
 const ROW_GAP_PX = 8;
 const LIST_PADDING_PX = 8;
 const OVERSCAN_ROWS = 8;
@@ -62,7 +65,6 @@ const JUMP_MAX_SETTLE_FRAMES = 60;
     ChatSystemItemComponent,
     IsVisibleDirective,
     VirtualMeasureDirective,
-    TuiScrollbar,
     TuiSkeleton,
     TuiButton,
     TuiBadgedContent,
@@ -88,13 +90,18 @@ export class ChatMessagesListComponent {
     read: ElementRef,
   });
 
+  /**
+   * Newest first: the list is inverted, so index 0 sits at the visual bottom
+   * and scroll offset 0 is the latest message. Older pages are appended at
+   * the far end of the scroll range and never shift what is on screen.
+   */
   protected readonly rows = computed(() =>
     buildChatRows({
       messages: this.chatStore.messages(),
       unreadDividerMessageId: this.chatStore.unreadDividerMessageId(),
       loadingOlder: this.chatStore.loadingOlder(),
       loadingNewer: this.chatStore.loadingNewer(),
-    }),
+    }).reverse(),
   );
 
   protected readonly virtualizer = inject(CHAT_VIRTUALIZER_FACTORY)(() => {
@@ -104,9 +111,9 @@ export class ChatMessagesListComponent {
       count: rows.length,
       getItemKey: (index: number) => rows[index]?.key ?? index,
       estimateSize: (index: number) => this.estimateSize(rows[index]),
+      // Keeps the row at the scroll offset in place when rows are inserted
+      // before it, i.e. newer messages arriving while reading history.
       anchorTo: 'end',
-      followOnAppend: true,
-      scrollEndThreshold: SCROLL_END_THRESHOLD_PX,
       overscan: OVERSCAN_ROWS,
       gap: ROW_GAP_PX,
       paddingStart: LIST_PADDING_PX,
@@ -117,10 +124,6 @@ export class ChatMessagesListComponent {
 
   protected readonly virtualItems = this.virtualizer.getVirtualItems;
   protected readonly totalSize = this.virtualizer.getTotalSize;
-  /** The Taiga content wrapper has no height, so the viewport is sized here. */
-  protected readonly viewportHeight = computed(
-    () => this.virtualizer.scrollRect()?.height ?? 0,
-  );
   protected readonly measureElement = (element: HTMLElement | null): void =>
     this.virtualizer.measureElement(element);
 
@@ -128,13 +131,11 @@ export class ChatMessagesListComponent {
   protected readonly unreadCount = computed(() =>
     this.unreadCountsStore.chatUnreadCount(this.activeTarget()),
   );
-  private readonly farFromEnd = computed(() => {
-    this.virtualizer.scrollOffset();
-    this.virtualizer.getTotalSize();
-    return !this.virtualizer.isAtEnd(SCROLL_BUTTON_DISTANCE_PX);
-  });
+  private readonly farFromBottom = computed(
+    () => (this.virtualizer.scrollOffset() ?? 0) > SCROLL_BUTTON_DISTANCE_PX,
+  );
   protected readonly shouldShowScrollButton = computed(
-    () => this.farFromEnd() || this.hasMoreAfter(),
+    () => this.farFromBottom() || this.hasMoreAfter(),
   );
   private readonly activeTarget = computed((): ChatTarget | null =>
     this.chatStore.target(),
@@ -159,9 +160,12 @@ export class ChatMessagesListComponent {
   private jumpFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingHighlightId: string | null = null;
   private lastOutgoingId: string | null = null;
+  private newestKey: string | number | null = null;
   private listWidth = DEFAULT_LIST_WIDTH_PX;
   private readonly scrollToLatestTokenAtInit =
     this.chatStore.scrollToLatestToken();
+  /** Store window the current position was applied to. */
+  private positionedWindow = this.chatStore.windowVersion();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.clearJumpFallback());
@@ -173,6 +177,22 @@ export class ChatMessagesListComponent {
         this.positioned.set(false);
         this.visibleIds.clear();
         this.lastOutgoingId = null;
+        this.positionedWindow = this.chatStore.windowVersion();
+      });
+    });
+
+    // A jump replaced the window with a slice around its target: position
+    // from scratch, like opening the chat with a deep link. Old offsets mean
+    // nothing for the new rows, and a smooth scroll across them would crawl.
+    effect(() => {
+      const version = this.chatStore.windowVersion();
+      untracked(() => {
+        if (version === this.positionedWindow) {
+          return;
+        }
+        this.positionedWindow = version;
+        this.positioned.set(false);
+        this.visibleIds.clear();
       });
     });
 
@@ -195,7 +215,7 @@ export class ChatMessagesListComponent {
       const outgoingId = last?.outgoing ? last.id : null;
       untracked(() => {
         if (outgoingId && outgoingId !== this.lastOutgoingId) {
-          this.afterRender(() => this.virtualizer.scrollToEnd());
+          this.afterRender(() => this.scrollToLatest());
         }
         this.lastOutgoingId = outgoingId;
       });
@@ -209,7 +229,7 @@ export class ChatMessagesListComponent {
       untracked(() =>
         this.afterRender(() => {
           this.startJump();
-          this.virtualizer.scrollToEnd();
+          this.scrollToLatest();
         }),
       );
     });
@@ -218,7 +238,9 @@ export class ChatMessagesListComponent {
     effect(() => {
       const targetId = this.chatStore.targetScrollMessageId();
       const positioned = this.positioned();
-      if (!targetId || !positioned) {
+      const freshWindow =
+        this.chatStore.windowVersion() !== this.positionedWindow;
+      if (!targetId || !positioned || freshWindow) {
         return;
       }
       untracked(() =>
@@ -241,6 +263,7 @@ export class ChatMessagesListComponent {
       const blocked =
         !this.positioned() ||
         this.jumping() ||
+        this.chatStore.reloadingWindow() ||
         this.chatStore.loadingOlder() ||
         this.chatStore.loadingNewer();
       if (blocked || viewport <= 0 || this.rows().length === 0) {
@@ -248,13 +271,33 @@ export class ChatMessagesListComponent {
       }
       const threshold = viewport * PREFETCH_VIEWPORTS;
       untracked(() => {
-        if (offset < threshold && this.chatStore.hasMoreBefore()) {
-          this.chatStore.requestPrevPage();
-        } else if (
+        if (
           total - offset - viewport < threshold &&
-          this.chatStore.hasMoreAfter()
+          this.chatStore.hasMoreBefore()
         ) {
+          this.chatStore.requestPrevPage();
+        } else if (offset < threshold && this.chatStore.hasMoreAfter()) {
           this.chatStore.requestNextPage();
+        }
+      });
+    });
+
+    // A live message at the tail while the user is at the bottom: show it.
+    // Anchoring would otherwise keep the previous newest row in place and
+    // push the new one below the viewport.
+    effect(() => {
+      const newestKey = this.rows()[0]?.key ?? null;
+      untracked(() => {
+        const previous = this.newestKey;
+        this.newestKey = newestKey;
+        const atLiveBottom =
+          this.positioned() &&
+          !this.jumping() &&
+          !this.chatStore.hasMoreAfter() &&
+          this.scrollContainerRef().nativeElement.scrollTop <=
+            AT_BOTTOM_SLACK_PX;
+        if (previous !== null && previous !== newestKey && atLiveBottom) {
+          this.afterRender(() => this.virtualizer.scrollToOffset(0));
         }
       });
     });
@@ -314,10 +357,53 @@ export class ChatMessagesListComponent {
 
   scrollToBottom(behavior: ScrollBehavior = 'instant'): void {
     this.afterRender(() =>
-      this.virtualizer.scrollToEnd({
-        behavior: behavior === 'instant' ? 'auto' : behavior,
-      }),
+      this.scrollToLatest(behavior === 'instant' ? 'auto' : behavior),
     );
+  }
+
+  /**
+   * The container is flipped, so native wheel and keyboard scrolling would
+   * run backwards. Both are re-applied with the sign inverted.
+   */
+  protected onWheel(event: WheelEvent): void {
+    if (event.ctrlKey || event.deltaY === 0) {
+      return;
+    }
+    const el = this.scrollContainerRef().nativeElement;
+    const unit =
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? WHEEL_LINE_PX
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? el.clientHeight
+          : 1;
+    event.preventDefault();
+    el.scrollTop -= event.deltaY * unit;
+  }
+
+  protected onKeydown(event: KeyboardEvent): void {
+    const el = this.scrollContainerRef().nativeElement;
+    if (event.target !== el || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const page = el.clientHeight * KEYBOARD_PAGE_SHARE;
+    const delta: Record<string, number> = {
+      ArrowUp: KEYBOARD_LINE_PX,
+      ArrowDown: -KEYBOARD_LINE_PX,
+      PageUp: page,
+      PageDown: -page,
+      Home: el.scrollHeight,
+      End: -el.scrollHeight,
+    };
+    const step = delta[event.key];
+    if (step === undefined) {
+      return;
+    }
+    event.preventDefault();
+    el.scrollTop += step;
+  }
+
+  private scrollToLatest(behavior: ScrollBehavior = 'auto'): void {
+    this.virtualizer.scrollToOffset(0, { behavior });
   }
 
   onScrollButtonClick(): void {
@@ -335,7 +421,8 @@ export class ChatMessagesListComponent {
     if (position === 'unread') {
       const index = rows.findIndex((row) => row.kind === 'divider');
       if (index >= 0) {
-        this.virtualizer.scrollToIndex(index, { align: 'start' });
+        // Flipped: the scroll end of the viewport is its visual top.
+        this.virtualizer.scrollToIndex(index, { align: 'end' });
         return;
       }
     } else if (position === 'message') {
@@ -344,7 +431,7 @@ export class ChatMessagesListComponent {
         return;
       }
     }
-    this.virtualizer.scrollToEnd();
+    this.scrollToLatest();
   }
 
   /** Returns false when the message is not in the loaded window. */

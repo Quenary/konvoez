@@ -340,6 +340,55 @@ describe('ChatStore', () => {
     expect(store.entityMap()['msg-remote-99']).toBeTruthy();
   });
 
+  it('holds prefetch while a jump reloads the window and bumps its version', () => {
+    store.join({ kind: 'room', id: 10 });
+    const version = store.windowVersion();
+    const response$ = new Subject<ITextRoomListResponse>();
+    apiService.list.mockReturnValue(response$);
+
+    store.jumpToMessage('msg-remote-50');
+
+    expect(store.reloadingWindow()).toBe(true);
+    expect(store.windowVersion()).toBe(version);
+
+    response$.next(
+      mockListResponse([
+        {
+          id: 'msg-remote-50',
+          senderId: 3,
+          senderUsername: 'charlie',
+          roomId: 10,
+          recipientId: null,
+          content: 'Old remote message',
+          createdAt: new Date('2026-09-14T10:00:00.000Z'),
+          updatedAt: null,
+          isRead: false,
+          attachments: [],
+          clientId: null,
+          replyTo: null,
+          reactions: [],
+          mentions: { userIds: [], roleIds: [], everyone: false },
+        },
+      ]),
+    );
+    response$.complete();
+
+    expect(store.reloadingWindow()).toBe(false);
+    expect(store.windowVersion()).toBe(version + 1);
+    expect(store.initialPosition()).toBe('message');
+    expect(store.ids()).toEqual(['msg-remote-50']);
+  });
+
+  it('keeps the window version for a jump to a loaded message', () => {
+    store.join({ kind: 'room', id: 10 });
+    const version = store.windowVersion();
+
+    store.jumpToMessage('msg-1');
+
+    expect(store.windowVersion()).toBe(version);
+    expect(store.reloadingWindow()).toBe(false);
+  });
+
   it('should fall back to latest messages when join is called with missing initialMessageId', () => {
     const latestMessage: ITextRoomMessage = {
       id: 'msg-latest-1',

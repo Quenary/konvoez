@@ -1,7 +1,6 @@
-import { Component, ElementRef, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TUI_SCROLL_REF } from '@taiga-ui/core';
 import { IsVisibleDirective } from './is-visible.directive';
 
 @Component({
@@ -9,10 +8,12 @@ import { IsVisibleDirective } from './is-visible.directive';
   imports: [IsVisibleDirective],
   template: `<div
     [appIsVisibleThreshold]="threshold()"
+    [appIsVisibleRoot]="root()"
     (appIsVisible)="events.push($event)"></div>`,
 })
 class HostComponent {
   readonly threshold = signal(0.5);
+  readonly root = signal<Element | null>(null);
   readonly events: boolean[] = [];
 }
 
@@ -44,11 +45,9 @@ describe('IsVisibleDirective', () => {
   async function create(scrollRoot: HTMLElement | null) {
     await TestBed.configureTestingModule({
       imports: [HostComponent],
-      providers: scrollRoot
-        ? [{ provide: TUI_SCROLL_REF, useValue: new ElementRef(scrollRoot) }]
-        : [],
     }).compileComponents();
     const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.root.set(scrollRoot);
     fixture.detectChanges();
     return fixture;
   }
@@ -79,7 +78,7 @@ describe('IsVisibleDirective', () => {
     vi.unstubAllGlobals();
   });
 
-  it('observes the host with the Taiga scroll root and default threshold', async () => {
+  it('observes the host with the given root and default threshold', async () => {
     const root = document.createElement('div');
     const fixture = await create(root);
     const host = fixture.nativeElement.querySelector('div');
@@ -89,10 +88,23 @@ describe('IsVisibleDirective', () => {
     expect(observers[0].observe).toHaveBeenCalledWith(host);
   });
 
-  it('uses the Taiga default scroll ref outside a scroll container', async () => {
+  it('uses the viewport without a root', async () => {
     await create(null);
 
-    expect(observers[0].options?.root).toBe(document.documentElement);
+    expect(observers[0].options?.root).toBeNull();
+  });
+
+  it('recreates the observer when the root changes', async () => {
+    const fixture = await create(null);
+    const root = document.createElement('div');
+
+    fixture.componentInstance.root.set(root);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(observers).toHaveLength(2);
+    expect(observers[0].disconnect).toHaveBeenCalled();
+    expect(observers[1].options?.root).toBe(root);
   });
 
   it('emits only when the visibility changes', async () => {

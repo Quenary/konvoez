@@ -1,9 +1,15 @@
-<tui-scrollbar
+<!--
+  Inverted list: the container and every row are flipped, see CHAT_LIST.md.
+  A native scroller instead of tui-scrollbar: Taiga's custom bars are anchored
+  with position: fixed, which breaks inside a transformed container.
+-->
+<div
   #scrollContainer
-  class="scroll-container">
-  <div
-    class="viewport"
-    [style.min-height.px]="viewportHeight()">
+  class="scroll-container"
+  tabindex="0"
+  (wheel)="onWheel($event)"
+  (keydown)="onKeydown($event)">
+  <div class="viewport">
     <div
       class="sizer"
       [style.height.px]="totalSize()">
@@ -14,10 +20,11 @@
           class="row"
           [appVirtualMeasure]="measureElement"
           [appVirtualMeasureIndex]="item.index"
-          [style.transform]="'translateY(' + item.start + 'px)'">
+          [style.transform]="'translateY(' + item.start + 'px) scaleY(-1)'">
           @if (row?.kind === 'message') {
             <app-chat-message
               appIsVisible
+              [appIsVisibleRoot]="scrollContainer"
               [message]="row.message"
               (appIsVisible)="onMessageVisibility(row.message, $event)" />
           } @else if (row?.kind === 'divider') {
@@ -33,7 +40,7 @@
       }
     </div>
   </div>
-</tui-scrollbar>
+</div>
 
 @if (shouldShowScrollButton()) {
   <tui-badged-content class="scroll-to-bottom">

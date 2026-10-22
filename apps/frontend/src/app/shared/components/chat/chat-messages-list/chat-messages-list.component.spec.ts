@@ -36,10 +36,8 @@ function createFakeVirtualizer() {
     scrollOffset: signal(0),
     getTotalSize: signal(0),
     scrollRect: signal<{ width: number; height: number } | null>(null),
-    atEnd: true,
-    isAtEnd: vi.fn((): boolean => fake.atEnd),
     scrollToIndex: vi.fn(),
-    scrollToEnd: vi.fn(),
+    scrollToOffset: vi.fn(),
     measureElement: vi.fn(),
     getVirtualItems: null as unknown as Signal<
       { index: number; key: string | number; start: number }[]
@@ -120,7 +118,9 @@ describe('ChatMessagesListComponent', () => {
       messagesSignal().map((message: IMessageEntity) => message.id),
     ),
     targetScrollMessageId: signal<string | null>(null),
-    setTargetScrollMessageId: vi.fn(),
+    setTargetScrollMessageId: vi.fn((id: string | null) =>
+      mockChatStore.targetScrollMessageId.set(id),
+    ),
     requestPrevPage: vi.fn(),
     requestNextPage: vi.fn(),
     hasMoreBefore: signal<boolean>(false),
@@ -138,6 +138,8 @@ describe('ChatMessagesListComponent', () => {
     loadingOlder: signal(false),
     loadingNewer: signal(false),
     scrollToLatestToken: signal(0),
+    windowVersion: signal(0),
+    reloadingWindow: signal(false),
     readAllAndJumpToLatest: vi.fn(),
   };
 
@@ -171,6 +173,8 @@ describe('ChatMessagesListComponent', () => {
     mockChatStore.loadingOlder.set(false);
     mockChatStore.loadingNewer.set(false);
     mockChatStore.scrollToLatestToken.set(0);
+    mockChatStore.windowVersion.set(0);
+    mockChatStore.reloadingWindow.set(false);
     mockUnreadCountsStore.rooms.set({});
     mockUnreadCountsStore.direct.set({});
     virtualizer = createFakeVirtualizer();
@@ -300,12 +304,13 @@ describe('ChatMessagesListComponent', () => {
       mockChatStore.loadingNewer.set(true);
       await settle();
 
+      // Inverted list: index 0 is the newest row (the visual bottom).
       expect(rowKeys()).toEqual([
-        'skel-top',
-        'msg:msg-1',
-        'divider',
-        'msg:msg-2',
         'skel-bottom',
+        'msg:msg-2',
+        'divider',
+        'msg:msg-1',
+        'skel-top',
       ]);
       expect(
         fixture.nativeElement.querySelectorAll('.skeleton-row'),
@@ -321,8 +326,10 @@ describe('ChatMessagesListComponent', () => {
   });
 
   describe('initial position', () => {
-    it('scrolls to the end for the bottom position', () => {
-      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalled();
+    it('scrolls to the bottom (offset 0) for the bottom position', () => {
+      expect(virtualizer.fake.scrollToOffset).toHaveBeenCalledWith(0, {
+        behavior: 'auto',
+      });
     });
 
     it('scrolls the unread divider to the top for the unread position', async () => {
@@ -333,10 +340,11 @@ describe('ChatMessagesListComponent', () => {
       fixture = TestBed.createComponent(ChatMessagesListComponent);
       await settle();
 
+      // The divider sits at index 1; 'end' is the visual top when flipped.
       expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(1, {
-        align: 'start',
+        align: 'end',
       });
-      expect(virtualizer.fake.scrollToEnd).not.toHaveBeenCalled();
+      expect(virtualizer.fake.scrollToOffset).not.toHaveBeenCalled();
     });
 
     it('centers the target message for the message position and clears it', async () => {
@@ -347,7 +355,7 @@ describe('ChatMessagesListComponent', () => {
       fixture = TestBed.createComponent(ChatMessagesListComponent);
       await settle();
 
-      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(1, {
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(0, {
         align: 'center',
         behavior: 'auto',
       });
@@ -362,12 +370,17 @@ describe('ChatMessagesListComponent', () => {
       await settle();
 
       expect(virtualizer.fake.scrollToIndex).not.toHaveBeenCalled();
-      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalled();
+      expect(virtualizer.fake.scrollToOffset).toHaveBeenCalledWith(0, {
+        behavior: 'auto',
+      });
     });
   });
 
   describe('edge prefetch', () => {
-    /** Viewport 500 px, content 5000 px: the prefetch zone is 1250 px. */
+    /**
+     * Viewport 500 px, content 5000 px: the prefetch zone is 1250 px.
+     * Inverted: offset 0 is the newest edge, 4500 the oldest.
+     */
     async function scrollTo(offset: number): Promise<void> {
       virtualizer.fake.scrollRect.set({ width: 600, height: 500 });
       virtualizer.fake.getTotalSize.set(5000);
@@ -385,7 +398,7 @@ describe('ChatMessagesListComponent', () => {
     it('requests older messages within 2.5 viewports of the top', async () => {
       await finishJump();
       mockChatStore.hasMoreBefore.set(true);
-      await scrollTo(1200);
+      await scrollTo(3300);
 
       expect(mockChatStore.requestPrevPage).toHaveBeenCalledTimes(1);
     });
@@ -393,7 +406,7 @@ describe('ChatMessagesListComponent', () => {
     it('requests newer messages within 2.5 viewports of the bottom', async () => {
       await finishJump();
       mockChatStore.hasMoreAfter.set(true);
-      await scrollTo(3300);
+      await scrollTo(1200);
 
       expect(mockChatStore.requestNextPage).toHaveBeenCalledTimes(1);
     });
@@ -412,7 +425,7 @@ describe('ChatMessagesListComponent', () => {
       await finishJump();
       mockChatStore.loadingOlder.set(true);
       mockChatStore.hasMoreBefore.set(true);
-      await scrollTo(100);
+      await scrollTo(4400);
       expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
 
       mockChatStore.loadingOlder.set(false);
@@ -425,11 +438,23 @@ describe('ChatMessagesListComponent', () => {
       await settle();
       expect(mockChatStore.requestPrevPage).toHaveBeenCalledTimes(2);
     });
+
+    it('does not request pages while a jump reloads the window', async () => {
+      await finishJump();
+      mockChatStore.reloadingWindow.set(true);
+      mockChatStore.hasMoreBefore.set(true);
+      mockChatStore.hasMoreAfter.set(true);
+      await scrollTo(100);
+      await scrollTo(4400);
+
+      expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
+      expect(mockChatStore.requestNextPage).not.toHaveBeenCalled();
+    });
   });
 
   describe('following the end', () => {
     it('scrolls to the end when an own outgoing message appears', async () => {
-      virtualizer.fake.scrollToEnd.mockClear();
+      virtualizer.fake.scrollToOffset.mockClear();
       messagesSignal.set([
         ...mockMessages,
         {
@@ -454,15 +479,15 @@ describe('ChatMessagesListComponent', () => {
       ]);
       await settle();
 
-      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalledTimes(1);
+      expect(virtualizer.fake.scrollToOffset).toHaveBeenCalledTimes(1);
     });
 
     it('scrolls to the end after the scroll-to-latest token changes', async () => {
-      virtualizer.fake.scrollToEnd.mockClear();
+      virtualizer.fake.scrollToOffset.mockClear();
       mockChatStore.scrollToLatestToken.set(1);
       await settle();
 
-      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalledTimes(1);
+      expect(virtualizer.fake.scrollToOffset).toHaveBeenCalledTimes(1);
     });
 
     it('jumps to a message requested after positioning', async () => {
@@ -470,10 +495,166 @@ describe('ChatMessagesListComponent', () => {
       mockChatStore.targetScrollMessageId.set('msg-1');
       await settle();
 
-      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(0, {
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(1, {
         align: 'center',
         behavior: 'smooth',
       });
+    });
+  });
+
+  describe('window reload', () => {
+    /** What the store does when a jump target was not loaded. */
+    async function reloadAround(id: string): Promise<void> {
+      messagesSignal.set([
+        { ...mockMessages[0], id: 'old-1' },
+        { ...mockMessages[1], id, replyTo: null },
+        { ...mockMessages[0], id: 'old-3' },
+      ]);
+      mockChatStore.targetScrollMessageId.set(id);
+      mockChatStore.initialPosition.set('message');
+      mockChatStore.hasMoreBefore.set(true);
+      mockChatStore.hasMoreAfter.set(true);
+      mockChatStore.windowVersion.update((v) => v + 1);
+      await settle();
+    }
+
+    it('positions the new window instantly instead of scrolling smoothly', async () => {
+      await finishJump();
+      virtualizer.fake.scrollToIndex.mockClear();
+      await reloadAround('old-2');
+
+      // Rows newest first: old-3, old-2, old-1.
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledTimes(1);
+      expect(virtualizer.fake.scrollToIndex).toHaveBeenCalledWith(1, {
+        align: 'center',
+        behavior: 'auto',
+      });
+      expect(mockChatStore.setTargetScrollMessageId).toHaveBeenCalledWith(null);
+    });
+
+    it('holds prefetch until the jump into the new window settles', async () => {
+      await finishJump();
+      virtualizer.fake.scrollRect.set({ width: 600, height: 500 });
+      virtualizer.fake.getTotalSize.set(5000);
+      virtualizer.fake.scrollOffset.set(0);
+      await reloadAround('old-2');
+
+      expect(mockChatStore.requestNextPage).not.toHaveBeenCalled();
+      expect(mockChatStore.requestPrevPage).not.toHaveBeenCalled();
+
+      await finishJump();
+      expect(mockChatStore.requestNextPage).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('inverted input', () => {
+    function container(): HTMLElement {
+      return fixture.nativeElement.querySelector('.scroll-container');
+    }
+
+    function wheel(init: WheelEventInit): WheelEvent {
+      const event = new WheelEvent('wheel', { cancelable: true, ...init });
+      container().dispatchEvent(event);
+      return event;
+    }
+
+    function key(code: string): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', {
+        key: code,
+        cancelable: true,
+        bubbles: true,
+      });
+      container().dispatchEvent(event);
+      return event;
+    }
+
+    beforeEach(() => {
+      Object.defineProperty(container(), 'clientHeight', { value: 500 });
+      Object.defineProperty(container(), 'scrollHeight', { value: 5000 });
+      // jsdom does not scroll; a plain property records the writes.
+      Object.defineProperty(container(), 'scrollTop', {
+        value: 1000,
+        writable: true,
+      });
+    });
+
+    it('inverts the wheel so that scrolling up reveals older messages', () => {
+      const event = wheel({ deltaY: -100 });
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(container().scrollTop).toBe(1100);
+    });
+
+    it('converts line and page wheel deltas to pixels', () => {
+      wheel({ deltaY: 3, deltaMode: WheelEvent.DOM_DELTA_LINE });
+      expect(container().scrollTop).toBe(1000 - 3 * 16);
+
+      container().scrollTop = 1000;
+      wheel({ deltaY: -1, deltaMode: WheelEvent.DOM_DELTA_PAGE });
+      expect(container().scrollTop).toBe(1500);
+    });
+
+    it('leaves zoom and horizontal wheel events alone', () => {
+      expect(wheel({ deltaY: 100, ctrlKey: true }).defaultPrevented).toBe(
+        false,
+      );
+      expect(wheel({ deltaX: 100 }).defaultPrevented).toBe(false);
+      expect(container().scrollTop).toBe(1000);
+    });
+
+    it('maps page and edge keys to the visual direction', () => {
+      key('PageUp');
+      expect(container().scrollTop).toBe(1450);
+      key('PageDown');
+      expect(container().scrollTop).toBe(1000);
+      key('Home');
+      expect(container().scrollTop).toBe(6000);
+      container().scrollTop = 1000;
+      key('End');
+      expect(container().scrollTop).toBeLessThanOrEqual(0);
+    });
+  });
+
+  describe('live tail', () => {
+    it('keeps the bottom pinned when a newer message arrives at the bottom', async () => {
+      await finishJump();
+      virtualizer.fake.scrollToOffset.mockClear();
+      messagesSignal.set([
+        ...mockMessages,
+        {
+          ...mockMessages[1],
+          id: 'msg-3',
+          createdAt: new Date('2026-09-15T00:02:00.000Z'),
+        },
+      ]);
+      await settle();
+      vi.advanceTimersByTime(50);
+      await settle();
+
+      expect(virtualizer.fake.scrollToOffset).toHaveBeenCalledWith(0);
+    });
+
+    it('does not move a reader who scrolled into the history', async () => {
+      await finishJump();
+      Object.defineProperty(
+        fixture.nativeElement.querySelector('.scroll-container'),
+        'scrollTop',
+        { value: 800, configurable: true },
+      );
+      virtualizer.fake.scrollToOffset.mockClear();
+      messagesSignal.set([
+        ...mockMessages,
+        {
+          ...mockMessages[1],
+          id: 'msg-3',
+          createdAt: new Date('2026-09-15T00:02:00.000Z'),
+        },
+      ]);
+      await settle();
+      vi.advanceTimersByTime(50);
+      await settle();
+
+      expect(virtualizer.fake.scrollToOffset).not.toHaveBeenCalled();
     });
   });
 
@@ -543,8 +724,7 @@ describe('ChatMessagesListComponent', () => {
     }
 
     async function scrollAway(): Promise<void> {
-      virtualizer.fake.atEnd = false;
-      virtualizer.fake.scrollOffset.set(100);
+      virtualizer.fake.scrollOffset.set(300);
       await settle();
     }
 
@@ -556,7 +736,6 @@ describe('ChatMessagesListComponent', () => {
       await scrollAway();
 
       expect(button()).toBeTruthy();
-      expect(virtualizer.fake.isAtEnd).toHaveBeenCalledWith(200);
     });
 
     it('shows when newer pages exist', async () => {
@@ -603,11 +782,11 @@ describe('ChatMessagesListComponent', () => {
 
     it('scrolls smoothly to the end when everything is loaded and read', async () => {
       await scrollAway();
-      virtualizer.fake.scrollToEnd.mockClear();
+      virtualizer.fake.scrollToOffset.mockClear();
       button()?.click();
       await settle();
 
-      expect(virtualizer.fake.scrollToEnd).toHaveBeenCalledWith({
+      expect(virtualizer.fake.scrollToOffset).toHaveBeenCalledWith(0, {
         behavior: 'smooth',
       });
       expect(mockChatStore.readAllAndJumpToLatest).not.toHaveBeenCalled();
@@ -616,12 +795,12 @@ describe('ChatMessagesListComponent', () => {
     it('reads all and loads the latest page when newer pages exist', async () => {
       mockChatStore.hasMoreAfter.set(true);
       await settle();
-      virtualizer.fake.scrollToEnd.mockClear();
+      virtualizer.fake.scrollToOffset.mockClear();
       button()?.click();
       await settle();
 
       expect(mockChatStore.readAllAndJumpToLatest).toHaveBeenCalled();
-      expect(virtualizer.fake.scrollToEnd).not.toHaveBeenCalled();
+      expect(virtualizer.fake.scrollToOffset).not.toHaveBeenCalled();
     });
 
     it('reads all when there are unread messages', async () => {

@@ -7,22 +7,22 @@ import {
   input,
   output,
 } from '@angular/core';
-import { TUI_SCROLL_REF } from '@taiga-ui/core';
 
 /**
- * Emits whether the host element is visible inside the nearest Taiga scroll
- * container (the viewport when there is none). Emits on every change of the
- * visibility state; the first observation is always emitted.
+ * Emits whether the host element is visible inside `appIsVisibleRoot` (the
+ * viewport when it is null). Emits on every change of the visibility state;
+ * the first observation is always emitted.
  */
 @Directive({
   selector: '[appIsVisible]',
 })
 export class IsVisibleDirective {
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly scrollRef = inject(TUI_SCROLL_REF, { optional: true });
-
   /** Share of the element that must be visible to count as visible. */
   readonly appIsVisibleThreshold = input<number>(0.5);
+
+  /** Intersection root, usually the scroll container; null is the viewport. */
+  readonly appIsVisibleRoot = input<Element | null>(null);
 
   readonly appIsVisible = output<boolean>();
 
@@ -32,13 +32,14 @@ export class IsVisibleDirective {
   constructor() {
     effect(() => {
       const threshold = this.appIsVisibleThreshold();
-      this.observe(threshold);
+      const root = this.appIsVisibleRoot();
+      this.observe(threshold, root);
     });
 
     inject(DestroyRef).onDestroy(() => this.disconnect());
   }
 
-  private observe(threshold: number): void {
+  private observe(threshold: number, root: Element | null): void {
     this.disconnect();
     this.observer = new IntersectionObserver(
       (entries) => {
@@ -54,7 +55,7 @@ export class IsVisibleDirective {
         }
       },
       {
-        root: this.scrollRef?.nativeElement ?? null,
+        root,
         threshold,
       },
     );

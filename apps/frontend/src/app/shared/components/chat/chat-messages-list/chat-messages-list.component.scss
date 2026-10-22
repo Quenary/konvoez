@@ -6,26 +6,29 @@
   overflow: hidden;
   position: relative;
 
+  // Flipped so that scroll offset 0 is the visual bottom: the newest message
+  // sits there and a short chat is naturally pinned to the bottom. Rows are
+  // flipped back individually.
   .scroll-container {
     height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     overflow-anchor: none;
+    overscroll-behavior: contain;
+    outline: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--tui-border-normal) transparent;
+    transform: scaleY(-1);
   }
 
-  // Short chats stay pinned to the bottom: the sizer is pushed down until
-  // the content overflows, at which point the free space collapses to zero.
   .viewport {
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
     padding-right: 0.5rem;
     overflow-x: hidden;
   }
 
   .sizer {
     position: relative;
-    flex: none;
     width: 100%;
-    margin-top: auto;
   }
 
   .row {

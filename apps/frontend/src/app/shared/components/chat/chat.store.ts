@@ -90,6 +90,13 @@ type ChatState = {
   loadingOlder: boolean;
   loadingNewer: boolean;
   scrollToLatestToken: number;
+  /**
+   * Bumped when a jump replaces the loaded window with a slice around a
+   * message that was not loaded. The list re-applies its initial position.
+   */
+  windowVersion: number;
+  /** A jump is loading a slice around its target; holds edge prefetch. */
+  reloadingWindow: boolean;
 };
 
 function toMessageEntity(
@@ -153,6 +160,8 @@ export const ChatStore = signalStore(
     loadingOlder: false,
     loadingNewer: false,
     scrollToLatestToken: 0,
+    windowVersion: 0,
+    reloadingWindow: false,
   }),
   withEntities<IMessageEntity>(),
   withComputed(
@@ -560,6 +569,7 @@ export const ChatStore = signalStore(
             }
 
             const { roomId, recipientId } = apiIds();
+            patchState(store, { reloadingWindow: true });
             return chatApiService
               .list({
                 roomId,
@@ -600,6 +610,7 @@ export const ChatStore = signalStore(
                       unreadDividerMessageId: res.firstUnreadMessageId,
                       initialPosition: 'message',
                       missedLiveWhileBehind: false,
+                      windowVersion: store.windowVersion() + 1,
                     },
                   );
                 }),
@@ -607,6 +618,7 @@ export const ChatStore = signalStore(
                   showError(error);
                   return EMPTY;
                 }),
+                finalize(() => patchState(store, { reloadingWindow: false })),
               );
           }),
         ),
