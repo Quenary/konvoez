@@ -111,6 +111,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 - [Frontend voice](docs/frontend/VOICE.md)
 - [Frontend streaming](docs/frontend/STREAMING.md)
 - [Frontend noise suppression](docs/frontend/NOISE_SUPPRESSION.md)
+- [Frontend chat list](docs/frontend/CHAT_LIST.md)
 - Libraries: [shared](libs/shared/README.md), [client-shell](libs/client-shell/README.md), [ui-kit](libs/ui-kit/README.md), [client-dialogs](libs/client-dialogs/README.md)
 
 ## TODO

@@ -9,6 +9,7 @@ import {
   ITextRoomListRequest,
   ITextRoomMessage,
   ITextRoomReactionGroup,
+  MESSAGE_PAGE_SIZE,
   TTextRoomError,
   TTextRoomMessagesRead,
   TTextRoomReactionUpdated,
@@ -44,7 +45,9 @@ import {
   finalize,
   fromEvent,
   pipe,
+  Subject,
   switchMap,
+  takeUntil,
   tap,
 } from 'rxjs';
 import { ChatApiService } from '@core/api/chat-api.service';
@@ -60,8 +63,6 @@ import {
   chatTargetToApiIds,
   messageBelongsToChat,
 } from './chat-target';
-
-const defaultChunkSize = 25;
 
 export enum EMessageStatus {
   LOADING = 'LOADING',
@@ -91,6 +92,13 @@ type ChatState = {
   loadingOlder: boolean;
   loadingNewer: boolean;
   scrollToLatestToken: number;
+  /**
+   * Bumped when a jump replaces the loaded window with a slice around a
+   * message that was not loaded. The list re-applies its initial position.
+   */
+  windowVersion: number;
+  /** A jump is loading a slice around its target; holds edge prefetch. */
+  reloadingWindow: boolean;
 };
 
 function toMessageEntity(
@@ -154,6 +162,8 @@ export const ChatStore = signalStore(
     loadingOlder: false,
     loadingNewer: false,
     scrollToLatestToken: 0,
+    windowVersion: 0,
+    reloadingWindow: false,
   }),
   withEntities<IMessageEntity>(),
   withComputed(
@@ -245,6 +255,12 @@ export const ChatStore = signalStore(
       apiErrorService = inject(ApiErrorService),
     ) => {
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
+      /**
+       * Emits on every chat switch. Each list request stops on it, so a slow
+       * response for the previous chat never lands in the next one.
+       */
+      const chatSwitch$ = new Subject<void>();
+
       const showError = (error: unknown): void => {
         tuiNotificationsService
           .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
@@ -260,6 +276,7 @@ export const ChatStore = signalStore(
         pipe(
           switchMap((data) =>
             chatApiService.list(data).pipe(
+              takeUntil(chatSwitch$),
               tap((res) => {
                 patchState(
                   store,
@@ -299,9 +316,10 @@ export const ChatStore = signalStore(
                   aroundId: initialMessageId,
                   beforeId: null,
                   afterId: null,
-                  limit: defaultChunkSize,
+                  limit: MESSAGE_PAGE_SIZE,
                 })
                 .pipe(
+                  takeUntil(chatSwitch$),
                   tap((res) => {
                     if (res.items.length === 0) {
                       tuiNotificationsService
@@ -346,9 +364,10 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: null,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   patchState(
                     store,
@@ -388,10 +407,11 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: null,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
                 latest: true,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   patchState(
                     store,
@@ -435,10 +455,11 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: oldestId,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
                 search: store.searchQuery() || undefined,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   patchState(
                     store,
@@ -476,10 +497,11 @@ export const ChatStore = signalStore(
                 recipientId,
                 beforeId: null,
                 afterId: newestId,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
                 search: store.searchQuery() || undefined,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   const missed = store.missedLiveWhileBehind();
                   patchState(
@@ -509,6 +531,7 @@ export const ChatStore = signalStore(
           switchMap(() => {
             const { roomId, recipientId } = apiIds();
             return chatApiService.readAll({ roomId, recipientId }).pipe(
+              takeUntil(chatSwitch$),
               tap((counts) => {
                 unreadCountsStore.applyCounts(counts);
               }),
@@ -518,10 +541,11 @@ export const ChatStore = signalStore(
                   recipientId,
                   beforeId: null,
                   afterId: null,
-                  limit: defaultChunkSize,
+                  limit: MESSAGE_PAGE_SIZE,
                   latest: true,
                 }),
               ),
+              takeUntil(chatSwitch$),
               tap((res) => {
                 patchState(
                   store,
@@ -561,6 +585,7 @@ export const ChatStore = signalStore(
             }
 
             const { roomId, recipientId } = apiIds();
+            patchState(store, { reloadingWindow: true });
             return chatApiService
               .list({
                 roomId,
@@ -568,9 +593,10 @@ export const ChatStore = signalStore(
                 aroundId: messageId,
                 beforeId: null,
                 afterId: null,
-                limit: defaultChunkSize,
+                limit: MESSAGE_PAGE_SIZE,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   const items = res.items;
                   if (items.length === 0) {
@@ -601,6 +627,7 @@ export const ChatStore = signalStore(
                       unreadDividerMessageId: res.firstUnreadMessageId,
                       initialPosition: 'message',
                       missedLiveWhileBehind: false,
+                      windowVersion: store.windowVersion() + 1,
                     },
                   );
                 }),
@@ -608,6 +635,7 @@ export const ChatStore = signalStore(
                   showError(error);
                   return EMPTY;
                 }),
+                finalize(() => patchState(store, { reloadingWindow: false })),
               );
           }),
         ),
@@ -615,6 +643,7 @@ export const ChatStore = signalStore(
 
       return {
         join(target: ChatTarget, initialMessageId?: string | null): void {
+          chatSwitch$.next();
           const { roomId, recipientId } = chatTargetToApiIds(target);
           messageReadQueueService.reset();
           unreadCountsStore.setActiveChat({ roomId, recipientId });
@@ -632,6 +661,7 @@ export const ChatStore = signalStore(
             missedLiveWhileBehind: false,
             loadingOlder: false,
             loadingNewer: false,
+            reloadingWindow: false,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
           loadInitialMethod({ target, initialMessageId });
@@ -641,6 +671,7 @@ export const ChatStore = signalStore(
           if (store.target() === null) {
             return;
           }
+          chatSwitch$.next();
           messageReadQueueService.reset();
           unreadCountsStore.clearActiveChat();
           unreadCountsStore.load();
@@ -659,6 +690,7 @@ export const ChatStore = signalStore(
             missedLiveWhileBehind: false,
             loadingOlder: false,
             loadingNewer: false,
+            reloadingWindow: false,
           });
         },
 
@@ -695,7 +727,7 @@ export const ChatStore = signalStore(
           requestList({
             afterId: null,
             beforeId: null,
-            limit: defaultChunkSize,
+            limit: MESSAGE_PAGE_SIZE,
             roomId,
             recipientId,
             search: trimmed || undefined,

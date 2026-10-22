@@ -1,0 +1,175 @@
+import { Component, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { IsVisibleDirective } from './is-visible.directive';
+
+@Component({
+  selector: 'app-is-visible-host',
+  imports: [IsVisibleDirective],
+  template: `<div
+    [appIsVisibleThreshold]="threshold()"
+    [appIsVisibleRoot]="root()"
+    (appIsVisible)="events.push($event)"></div>`,
+})
+class HostComponent {
+  readonly threshold = signal(0.5);
+  readonly root = signal<Element | null>(null);
+  readonly events: boolean[] = [];
+}
+
+type MockObserver = {
+  callback: IntersectionObserverCallback;
+  options: IntersectionObserverInit | undefined;
+  observe: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+};
+
+describe('IsVisibleDirective', () => {
+  let observers: MockObserver[];
+
+  const ROOT_HEIGHT = 400;
+
+  function entry(
+    isIntersecting: boolean,
+    visibleHeight: number,
+    hostHeight: number,
+  ): IntersectionObserverEntry {
+    return {
+      isIntersecting,
+      intersectionRatio: visibleHeight / hostHeight,
+      intersectionRect: { height: visibleHeight },
+      boundingClientRect: { height: hostHeight },
+      rootBounds: { height: ROOT_HEIGHT },
+    } as unknown as IntersectionObserverEntry;
+  }
+
+  /** Fires for a host of `hostHeight` px with `ratio` of it visible. */
+  function fire(isIntersecting: boolean, ratio: number, hostHeight = 100) {
+    const observer = observers.at(-1);
+    observer?.callback(
+      [entry(isIntersecting, ratio * hostHeight, hostHeight)],
+      observer as unknown as IntersectionObserver,
+    );
+  }
+
+  async function create(scrollRoot: HTMLElement | null) {
+    await TestBed.configureTestingModule({
+      imports: [HostComponent],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(HostComponent);
+    fixture.componentInstance.root.set(scrollRoot);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  beforeEach(() => {
+    observers = [];
+    class MockIntersectionObserver {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(
+        callback: IntersectionObserverCallback,
+        options?: IntersectionObserverInit,
+      ) {
+        observers.push({
+          callback,
+          options,
+          observe: this.observe,
+          disconnect: this.disconnect,
+        });
+      }
+    }
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('observes the host with the given root and default threshold', async () => {
+    const root = document.createElement('div');
+    const fixture = await create(root);
+    const host = fixture.nativeElement.querySelector('div');
+
+    expect(observers).toHaveLength(1);
+    expect(observers[0].options?.root).toBe(root);
+    expect(observers[0].options?.threshold).toContain(0.5);
+    expect(observers[0].observe).toHaveBeenCalledWith(host);
+  });
+
+  it('uses the viewport without a root', async () => {
+    await create(null);
+
+    expect(observers[0].options?.root).toBeNull();
+  });
+
+  it('recreates the observer when the root changes', async () => {
+    const fixture = await create(null);
+    const root = document.createElement('div');
+
+    fixture.componentInstance.root.set(root);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(observers).toHaveLength(2);
+    expect(observers[0].disconnect).toHaveBeenCalled();
+    expect(observers[1].options?.root).toBe(root);
+  });
+
+  it('emits only when the visibility changes', async () => {
+    const fixture = await create(null);
+    const events = fixture.componentInstance.events;
+
+    fire(true, 0.6);
+    fire(true, 0.9);
+    fire(true, 0.3);
+    fire(false, 0);
+    fire(true, 1);
+
+    expect(events).toEqual([true, false, true]);
+  });
+
+  it('does not emit visible for an intersection below the threshold', async () => {
+    const fixture = await create(null);
+
+    fire(true, 0.2);
+
+    expect(fixture.componentInstance.events).toEqual([false]);
+  });
+
+  it.each([
+    ['a short host mostly visible', 100, 60, true],
+    ['a short host barely visible', 100, 30, false],
+    ['a host three roots tall covering the root', 1200, 400, true],
+    ['a host three roots tall covering half the root', 1200, 200, true],
+    ['a host three roots tall showing a strip', 1200, 80, false],
+  ])('measures visibility for %s', async (_name, host, visible, expected) => {
+    const fixture = await create(null);
+
+    fire(true, visible / host, host);
+
+    expect(fixture.componentInstance.events).toEqual([expected]);
+  });
+
+  it('applies a new threshold to later observations', async () => {
+    const fixture = await create(null);
+    fire(true, 0.6);
+
+    fixture.componentInstance.threshold.set(0.9);
+    fixture.detectChanges();
+    fire(true, 0.7);
+
+    expect(observers).toHaveLength(1);
+    expect(fixture.componentInstance.events).toEqual([true, false]);
+  });
+
+  it('disconnects on destroy', async () => {
+    const fixture = await create(null);
+
+    fixture.destroy();
+
+    expect(observers[0].disconnect).toHaveBeenCalled();
+  });
+});
