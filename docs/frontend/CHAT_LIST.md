@@ -28,6 +28,7 @@ The message list of text rooms and direct chats (`ChatMessagesListComponent`) is
 
 - Pages of `MESSAGE_PAGE_SIZE` load in advance, a few screens before an edge, and keep loading while the user stays close. The loaded window is not capped.
 - No page is requested while a jump or a window reload is in progress.
+- Switching or leaving a chat cancels its pending loads, so a late response never lands in another chat.
 
 ```mermaid
 flowchart TD

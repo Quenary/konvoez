@@ -45,7 +45,9 @@ import {
   finalize,
   fromEvent,
   pipe,
+  Subject,
   switchMap,
+  takeUntil,
   tap,
 } from 'rxjs';
 import { ChatApiService } from '@core/api/chat-api.service';
@@ -253,6 +255,12 @@ export const ChatStore = signalStore(
       apiErrorService = inject(ApiErrorService),
     ) => {
       const currentUser = ngrxStore.selectSignal(selectCurrentUser);
+      /**
+       * Emits on every chat switch. Each list request stops on it, so a slow
+       * response for the previous chat never lands in the next one.
+       */
+      const chatSwitch$ = new Subject<void>();
+
       const showError = (error: unknown): void => {
         tuiNotificationsService
           .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
@@ -268,6 +276,7 @@ export const ChatStore = signalStore(
         pipe(
           switchMap((data) =>
             chatApiService.list(data).pipe(
+              takeUntil(chatSwitch$),
               tap((res) => {
                 patchState(
                   store,
@@ -310,6 +319,7 @@ export const ChatStore = signalStore(
                   limit: MESSAGE_PAGE_SIZE,
                 })
                 .pipe(
+                  takeUntil(chatSwitch$),
                   tap((res) => {
                     if (res.items.length === 0) {
                       tuiNotificationsService
@@ -357,6 +367,7 @@ export const ChatStore = signalStore(
                 limit: MESSAGE_PAGE_SIZE,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   patchState(
                     store,
@@ -400,6 +411,7 @@ export const ChatStore = signalStore(
                 latest: true,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   patchState(
                     store,
@@ -447,6 +459,7 @@ export const ChatStore = signalStore(
                 search: store.searchQuery() || undefined,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   patchState(
                     store,
@@ -488,6 +501,7 @@ export const ChatStore = signalStore(
                 search: store.searchQuery() || undefined,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   const missed = store.missedLiveWhileBehind();
                   patchState(
@@ -517,6 +531,7 @@ export const ChatStore = signalStore(
           switchMap(() => {
             const { roomId, recipientId } = apiIds();
             return chatApiService.readAll({ roomId, recipientId }).pipe(
+              takeUntil(chatSwitch$),
               tap((counts) => {
                 unreadCountsStore.applyCounts(counts);
               }),
@@ -530,6 +545,7 @@ export const ChatStore = signalStore(
                   latest: true,
                 }),
               ),
+              takeUntil(chatSwitch$),
               tap((res) => {
                 patchState(
                   store,
@@ -580,6 +596,7 @@ export const ChatStore = signalStore(
                 limit: MESSAGE_PAGE_SIZE,
               })
               .pipe(
+                takeUntil(chatSwitch$),
                 tap((res) => {
                   const items = res.items;
                   if (items.length === 0) {
@@ -626,6 +643,7 @@ export const ChatStore = signalStore(
 
       return {
         join(target: ChatTarget, initialMessageId?: string | null): void {
+          chatSwitch$.next();
           const { roomId, recipientId } = chatTargetToApiIds(target);
           messageReadQueueService.reset();
           unreadCountsStore.setActiveChat({ roomId, recipientId });
@@ -643,6 +661,7 @@ export const ChatStore = signalStore(
             missedLiveWhileBehind: false,
             loadingOlder: false,
             loadingNewer: false,
+            reloadingWindow: false,
           });
           socket.emit(ETextRoomEvent.JOIN, { roomId, recipientId });
           loadInitialMethod({ target, initialMessageId });
@@ -652,6 +671,7 @@ export const ChatStore = signalStore(
           if (store.target() === null) {
             return;
           }
+          chatSwitch$.next();
           messageReadQueueService.reset();
           unreadCountsStore.clearActiveChat();
           unreadCountsStore.load();
@@ -670,6 +690,7 @@ export const ChatStore = signalStore(
             missedLiveWhileBehind: false,
             loadingOlder: false,
             loadingNewer: false,
+            reloadingWindow: false,
           });
         },
 
