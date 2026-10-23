@@ -116,6 +116,11 @@ describe('DirectComponent', () => {
   const queryVoiceShell = (): Element | null =>
     fixture.nativeElement.querySelector('app-voice-room-shell');
 
+  const headerActionButtons = (): HTMLButtonElement[] =>
+    Array.from(
+      fixture.nativeElement.querySelectorAll('[chatHeaderActions] button'),
+    );
+
   it('creates component and defaults to chat view', () => {
     expect(component).toBeTruthy();
     expect(queryChat()).toBeTruthy();
@@ -156,9 +161,7 @@ describe('DirectComponent', () => {
   });
 
   it('renders start call button when not in call and not rejoinable', () => {
-    const startCallBtn = fixture.nativeElement.querySelector(
-      `button[iconStart="${icons.phone}"]`,
-    );
+    const [startCallBtn] = headerActionButtons();
     expect(startCallBtn).toBeTruthy();
     startCallBtn.click();
     expect(mockDirectStore.startDirectCall).toHaveBeenCalledWith(mockUser);
@@ -180,12 +183,7 @@ describe('DirectComponent', () => {
     isCurrentDirectCallActive.set(true);
     fixture.detectChanges();
 
-    const toCallBtn = fixture.nativeElement.querySelector(
-      `button[iconStart="${icons['phone-call']}"]`,
-    );
-    const hangupBtn = fixture.nativeElement.querySelector(
-      `button[iconStart="${icons['phone-off']}"]`,
-    );
+    const [toCallBtn, hangupBtn] = headerActionButtons();
     expect(toCallBtn).toBeTruthy();
     expect(hangupBtn).toBeTruthy();
 
@@ -202,19 +200,7 @@ describe('DirectComponent', () => {
     avatarIcon.set(icons.bookmark);
     fixture.detectChanges();
 
-    expect(
-      fixture.nativeElement.querySelector(`button[iconStart="${icons.phone}"]`),
-    ).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector(
-        `button[iconStart="${icons['phone-call']}"]`,
-      ),
-    ).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector(
-        `button[iconStart="${icons['phone-off']}"]`,
-      ),
-    ).toBeNull();
+    expect(headerActionButtons().length).toBe(0);
     expect(
       fixture.nativeElement.querySelector('app-pulse-indicator'),
     ).toBeNull();

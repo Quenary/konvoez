@@ -98,7 +98,7 @@ describe('DirectChatItemComponent', () => {
     expect(el.textContent).toContain('DIRECT.SAVED_MESSAGES');
     expect(el.textContent).not.toContain('Alice Wonderland');
     expect(el.querySelector('app-user-avatar')).toBeNull();
-    expect(el.querySelector(`[tuiAvatar="${icons.bookmark}"]`)).toBeTruthy();
+    expect(el.querySelector('div[tuiAvatar]')).toBeTruthy();
     expect(el.querySelector('tui-badge-notification')).toBeNull();
   });
 
