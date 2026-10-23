@@ -24,7 +24,7 @@ export interface IMentionChipVm {
   isMe: boolean;
   appearance: 'info' | 'neutral';
   avatar: TMentionAvatarVm;
-  textColo: string | null | undefined;
+  textColor: string | null | undefined;
 }
 
 export interface IMentionChipContext {
@@ -60,7 +60,7 @@ export function buildMentionChipVm(
           fullname: user.fullname,
           avatarUrl: user.avatarUrl ?? null,
         },
-        textColo: isMe ? undefined : tuiAutoColor(user.username),
+        textColor: isMe ? undefined : tuiAutoColor(user.username),
       };
     }
   } else if (kind === 'role' && id !== null) {
@@ -80,7 +80,7 @@ export function buildMentionChipVm(
           name: role.name,
           color: role.color ?? null,
         },
-        textColo: isMe ? undefined : role.color,
+        textColor: isMe ? undefined : role.color,
       };
     }
   } else if (kind === 'everyone') {
@@ -95,7 +95,7 @@ export function buildMentionChipVm(
       avatar: {
         kind: 'everyone',
       },
-      textColo: undefined,
+      textColor: undefined,
     };
   }
 
@@ -108,6 +108,6 @@ export function buildMentionChipVm(
     avatar: {
       kind: 'unknown',
     },
-    textColo: undefined,
+    textColor: undefined,
   };
 }
