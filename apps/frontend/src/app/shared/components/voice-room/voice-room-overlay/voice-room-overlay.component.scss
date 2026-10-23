@@ -47,7 +47,7 @@
     flex-direction: row;
     align-items: center;
     gap: 0.75rem;
-    text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
+    flex-wrap: wrap;
   }
 
   .header-avatar {
@@ -59,6 +59,7 @@
     flex-wrap: nowrap;
     align-items: center;
     gap: 0.25rem;
+    flex-wrap: wrap;
   }
 }
 
