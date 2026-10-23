@@ -18,6 +18,7 @@ export const supportedLocales = [
 export const icons = {
   create: '@tui.plus',
   refresh: '@tui.refresh-cw',
+  direct: '@tui.messages-square',
   settings: '@tui.settings',
   'settings-profile': '@tui.user-pen',
   'settings-devices': '@tui.file-headphone',

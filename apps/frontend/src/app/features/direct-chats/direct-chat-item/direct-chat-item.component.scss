@@ -1,5 +1,5 @@
 // tuiCardLarge bleeds cells into card padding; inside a scrollbar that causes overflow.
-:host-context(.direct-chats-scroll) {
+:host-context(.chats-list) {
   button[tuiCell] {
     margin: 0;
     inline-size: 100%;

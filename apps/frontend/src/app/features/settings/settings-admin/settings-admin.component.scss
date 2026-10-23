@@ -1,28 +1,11 @@
-:host {
+@use 'mixins' as mixins;
+
+@include mixins.scrollable-form;
+
+.scroll-content {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  max-height: 100%;
-}
-
-form[tuiForm] {
-  flex-shrink: 1;
-  gap: 3rem;
-
-  > header,
-  > footer {
-    flex-shrink: 0;
-  }
-}
-
-.card-scroll {
-  padding-right: 1.5rem;
-
-  &-content {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
+  gap: 2rem;
 }
 
 .setting-item {
