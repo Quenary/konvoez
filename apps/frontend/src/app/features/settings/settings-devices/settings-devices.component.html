@@ -67,50 +67,6 @@
         </tui-textfield>
       </label>
 
-      <!-- Mic Test -->
-      <div class="mic-test-container">
-        <div class="mic-test-container-header">
-          <button
-            tuiButton
-            type="button"
-            [appearance]="isMicTesting() ? 'negative' : 'primary'"
-            [iconStart]="isMicTesting() ? icons.square : icons.mic"
-            (click)="toggleMicTest()">
-            {{
-              (isMicTesting()
-                ? 'SETTINGS.DEVICES.MIC_TEST_STOP'
-                : 'SETTINGS.DEVICES.MIC_TEST_START'
-              ) | translate
-            }}
-          </button>
-
-          @if (isMicTesting()) {
-            <progress
-              tuiProgressBar
-              size="m"
-              [value]="micTestLevel()"
-              [max]="100"
-              class="mic-test-container-header-bar"></progress>
-          }
-        </div>
-
-        @if (isMicTesting()) {
-          <aside
-            tuiNotification
-            appearance="warning">
-            {{ 'SETTINGS.DEVICES.MIC_TEST_FEEDBACK_WARNING' | translate }}
-          </aside>
-
-          @if (!isSinkIdSupported()) {
-            <aside
-              tuiNotification
-              appearance="info">
-              {{ 'SETTINGS.DEVICES.MIC_TEST_OUTPUT_HINT' | translate }}
-            </aside>
-          }
-        }
-      </div>
-
       <!-- Input Gain -->
       <tui-textfield>
         <label
@@ -197,6 +153,50 @@
           [tuiTooltip]="'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate">
         </tui-icon>
       </label>
+
+      <!-- Mic Test -->
+      <div class="mic-test-container">
+        <div class="mic-test-container-header">
+          <button
+            tuiButton
+            type="button"
+            [appearance]="isMicTesting() ? 'negative' : 'primary'"
+            [iconStart]="isMicTesting() ? icons.square : icons.mic"
+            (click)="toggleMicTest()">
+            {{
+              (isMicTesting()
+                ? 'SETTINGS.DEVICES.MIC_TEST_STOP'
+                : 'SETTINGS.DEVICES.MIC_TEST_START'
+              ) | translate
+            }}
+          </button>
+
+          @if (isMicTesting()) {
+            <progress
+              tuiProgressBar
+              size="m"
+              [value]="micTestLevel()"
+              [max]="100"
+              class="mic-test-container-header-bar"></progress>
+          }
+        </div>
+
+        @if (isMicTesting()) {
+          <aside
+            tuiNotification
+            appearance="warning">
+            {{ 'SETTINGS.DEVICES.MIC_TEST_FEEDBACK_WARNING' | translate }}
+          </aside>
+
+          @if (!isSinkIdSupported()) {
+            <aside
+              tuiNotification
+              appearance="info">
+              {{ 'SETTINGS.DEVICES.MIC_TEST_OUTPUT_HINT' | translate }}
+            </aside>
+          }
+        }
+      </div>
 
       <!-- Audio Output -->
       <label tuiLabel>
