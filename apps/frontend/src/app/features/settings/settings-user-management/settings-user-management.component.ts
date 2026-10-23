@@ -11,13 +11,20 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { TuiTable } from '@taiga-ui/addon-table';
-import { TuiHint, TuiNotificationService, TuiTitle } from '@taiga-ui/core';
+import {
+  TuiHint,
+  TuiIcon,
+  TuiNotificationService,
+  TuiTitle,
+} from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, finalize, of } from 'rxjs';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
+import { LayoutService } from '@core/services/layout.service';
+import { icons } from '../../../app.constants';
 
 @Component({
   selector: 'app-settings-user-management',
@@ -31,6 +38,7 @@ import { UserManagementApiService } from '@core/api/user-management-api.service'
     TuiHint,
     TuiTable,
     TuiTitle,
+    TuiIcon,
   ],
   templateUrl: './settings-user-management.component.html',
   styleUrl: './settings-user-management.component.scss',
@@ -43,6 +51,10 @@ export class SettingsUserManagementComponent {
   private readonly notificationService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);
   private readonly injector = inject(Injector);
+  private readonly layoutService = inject(LayoutService);
+
+  protected readonly icons = icons;
+  protected readonly isNarrow = this.layoutService.isNarrow;
 
   protected readonly usersResource = rxResource({
     stream: () =>

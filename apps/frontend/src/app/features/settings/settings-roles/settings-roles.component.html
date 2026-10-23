@@ -3,6 +3,7 @@
   tuiCardLarge>
   <header tuiHeader>
     <h2 tuiTitle>
+      <tui-icon [icon]="icons['settings-roles']" />
       {{ 'SETTINGS.ROLES.TITLE' | translate }}
       <span tuiSubtitle>
         {{ 'SETTINGS.ROLES.SUBTITLE' | translate }}
@@ -10,13 +11,17 @@
     </h2>
 
     <aside tuiAccessories>
+      @let createButtonTitle = 'SETTINGS.ROLES.CREATE_BUTTON' | translate;
       <button
         tuiButton
         size="m"
         type="button"
-        iconStart="@tui.plus"
+        [iconStart]="icons['create']"
+        [tuiHint]="createButtonTitle"
         (click)="openCreateDialog()">
-        {{ 'SETTINGS.ROLES.CREATE_BUTTON' | translate }}
+        @if (!isNarrow()) {
+          {{ createButtonTitle }}
+        }
       </button>
     </aside>
   </header>

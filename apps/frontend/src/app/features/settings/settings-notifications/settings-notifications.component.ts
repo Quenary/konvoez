@@ -7,11 +7,12 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { TuiButton, TuiTitle } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { TuiButtonLoading } from '@taiga-ui/kit';
+import { icons } from '../../../app.constants';
 
 @Component({
   selector: 'app-settings-notifications',
@@ -23,6 +24,7 @@ import { TuiButtonLoading } from '@taiga-ui/kit';
     TuiHeader,
     TuiTitle,
     TuiButtonLoading,
+    TuiIcon,
   ],
   templateUrl: './settings-notifications.component.html',
   styleUrl: './settings-notifications.component.scss',
@@ -32,6 +34,7 @@ export class SettingsNotificationsComponent {
   private readonly pushNotificationService = inject(PushNotificationService);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly icons = icons;
   protected readonly isSupported = signal(
     this.pushNotificationService.isSupported(),
   );

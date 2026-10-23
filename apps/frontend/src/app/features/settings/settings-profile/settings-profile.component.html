@@ -6,7 +6,10 @@
   [formGroup]="form"
   (ngSubmit)="onSubmit()">
   <header tuiHeader>
-    {{ 'SETTINGS.PROFILE.TITLE' | translate }}
+    <h2 tuiTitle>
+      <tui-icon [icon]="icons['settings-profile']" />
+      {{ 'SETTINGS.PROFILE.TITLE' | translate }}
+    </h2>
   </header>
 
   <label tuiInputFiles>
@@ -154,7 +157,7 @@
     <tui-error [error]="err | translate" />
   }
 
-  <footer>
+  <footer style="flex-wrap: wrap">
     <button
       tuiButton
       appearance="primary"

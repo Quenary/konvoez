@@ -7,6 +7,7 @@
   (ngSubmit)="onSubmit()">
   <header tuiHeader>
     <h2 tuiTitle>
+      <tui-icon [icon]="icons['settings-admin']" />
       {{ 'SETTINGS.ADMIN.TITLE' | translate }}
       <span tuiSubtitle>
         {{ 'SETTINGS.ADMIN.SUBTITLE' | translate }}
@@ -24,7 +25,7 @@
             type="checkbox" />
           {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP' | translate }}
         </label>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP_DESC' | translate }}
         </p>
       </div>
@@ -42,7 +43,7 @@
             type="number"
             formControlName="passwordRecoveryCodeTtl" />
         </tui-textfield>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL_DESC' | translate }}
         </p>
       </div>
@@ -62,11 +63,11 @@
             formControlName="vapidEmail"
             placeholder="admin@example.com" />
         </tui-textfield>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.VAPID_EMAIL_DESC' | translate }}
         </p>
         @if (locked().vapidEmail) {
-          <p class="setting-description">
+          <p class="setting-item-description locked">
             {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
           </p>
         }
@@ -76,13 +77,17 @@
       </div>
 
       <div class="setting-item">
-        <tui-textfield class="json-field">
+        <tui-textfield>
           <label
             tuiLabel
             for="ice-servers-json">
             {{ 'SETTINGS.ADMIN.ICE_SERVERS' | translate }}
           </label>
           <textarea
+            style="
+              font-family:
+                ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            "
             tuiTextarea
             id="ice-servers-json"
             formControlName="iceServersJson"
@@ -91,14 +96,14 @@
             [placeholder]="defaultIceServers">
           </textarea>
         </tui-textfield>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.ICE_SERVERS_DESC' | translate }}
         </p>
         @if (iceServersError; as err) {
           <tui-error [error]="err | translate" />
         }
         @if (locked().iceServersJson) {
-          <p class="setting-description">
+          <p class="setting-item-description locked">
             {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
           </p>
         }
@@ -114,7 +119,7 @@
             type="checkbox" />
           {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED' | translate }}
         </label>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED_DESC' | translate }}
         </p>
       </div>
@@ -132,7 +137,7 @@
             type="number"
             formControlName="attachmentsMaxFileSizeMib" />
         </tui-textfield>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE_DESC' | translate }}
         </p>
       </div>
@@ -150,7 +155,7 @@
             type="number"
             formControlName="attachmentsMaxFilesPerMessage" />
         </tui-textfield>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{
             'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC' | translate
           }}
@@ -165,7 +170,7 @@
             type="checkbox" />
           {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA' | translate }}
         </label>
-        <p class="setting-description">
+        <p class="setting-item-description">
           {{
             'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA_DESC' | translate
           }}

@@ -13,6 +13,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   TuiButton,
   TuiError,
+  TuiIcon,
   TuiInput,
   TuiLink,
   TuiNotificationService,
@@ -53,6 +54,7 @@ import {
 } from '@shared/functions/zod-validator.function';
 import { getProfileFormSchema } from '@shared/schemas/forms.schema';
 import { map, startWith } from 'rxjs';
+import { icons } from '../../../app.constants';
 
 @Component({
   selector: 'app-settings-profile',
@@ -73,6 +75,7 @@ import { map, startWith } from 'rxjs';
     TuiAvatar,
     TuiLink,
     TuiButtonLoading,
+    TuiIcon,
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',
@@ -87,6 +90,7 @@ export class SettingsProfileComponent {
   private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
 
+  protected readonly icons = icons;
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
   protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly canDeleteAccount = computed(() => {

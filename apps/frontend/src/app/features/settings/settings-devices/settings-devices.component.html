@@ -3,19 +3,24 @@
   tuiCardLarge
   tuiForm="m">
   <header tuiHeader>
-    <div tuiTitle>
+    <h2 tuiTitle>
+      <tui-icon [icon]="icons['settings-devices']" />
       {{ 'SETTINGS.DEVICES.TITLE' | translate }}
-    </div>
+    </h2>
 
     <aside tuiAccessories>
+      @let refreshTitle = 'GENERAL.REFRESH' | translate;
       <button
         tuiButton
         size="m"
         type="button"
-        appearance="flat"
-        iconStart="@tui.refresh-cw"
+        [iconStart]="icons['refresh']"
+        [tuiHint]="refreshTitle"
         [loading]="devicesLoad.isLoading()"
         (click)="devicesLoad.reload()">
+        @if (!isNarrow()) {
+          {{ refreshTitle }}
+        }
       </button>
     </aside>
   </header>
@@ -62,7 +67,7 @@
 
   <!-- Mic Test -->
   <div class="mic-test-container">
-    <div class="mic-test-header">
+    <div class="mic-test-container-header">
       <button
         tuiButton
         type="button"
@@ -83,7 +88,7 @@
           size="m"
           [value]="micTestLevel()"
           [max]="100"
-          class="mic-level-bar"></progress>
+          class="mic-test-container-header-bar"></progress>
       }
     </div>
 

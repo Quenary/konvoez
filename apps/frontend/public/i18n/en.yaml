@@ -24,6 +24,7 @@ GENERAL:
   DROP_IT: Drop it here!
   CLOSE: Close
   MORE: More
+  REFRESH: Refresh
 CONNECTION:
   PROBLEMS: Connection problems
 PROFILE:

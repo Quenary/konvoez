@@ -21,9 +21,8 @@ import {
 } from '@core/auth/auth.selectors';
 import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
-import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
-import { catchError, filter, map, of } from 'rxjs';
+import { catchError, filter, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
@@ -33,6 +32,8 @@ import { ConnectionStateNotificationComponent } from '@shared/components/connect
 import { PwaUpdateNotificationComponent } from '@shared/components/pwa-update-notification/pwa-update-notification.component';
 import { PendingCallDialogComponent } from '@shared/components/voice-room/pending-call-dialog/pending-call-dialog.component';
 import { PublicApiService } from '@core/services/public-api.service';
+import { LayoutService } from '@core/services/layout.service';
+import { icons } from './app.constants';
 
 const DEFAULT_VERSION_INFO = {
   currentVersion: '',
@@ -64,10 +65,11 @@ const DEFAULT_VERSION_INFO = {
 })
 export class App {
   private readonly store = inject(Store);
-  private readonly breakpointObserver = inject(BreakpointObserver);
   private readonly publicApiService = inject(PublicApiService);
   private readonly router = inject(Router);
+  private readonly layoutService = inject(LayoutService);
 
+  protected readonly icons = icons;
   protected readonly isAuthenticated =
     this.store.selectSignal(selectIsAuthorized);
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
@@ -112,7 +114,9 @@ export class App {
     return invites || users || roles || settings;
   });
 
-  protected readonly collapsed = linkedSignal(() => this.isNarrow());
+  protected readonly collapsed = linkedSignal(() =>
+    this.layoutService.isNarrow(),
+  );
 
   protected readonly versionInfo = rxResource({
     stream: () =>
@@ -121,13 +125,6 @@ export class App {
         .pipe(catchError(() => of(DEFAULT_VERSION_INFO))),
     defaultValue: DEFAULT_VERSION_INFO,
   });
-
-  private readonly isNarrow = toSignal<boolean, boolean>(
-    this.breakpointObserver
-      .observe([Breakpoints.Handset, Breakpoints.Small])
-      .pipe(map((result) => result.matches)),
-    { initialValue: false },
-  );
 
   private readonly navigationEnd = toSignal(
     this.router.events.pipe(
@@ -139,7 +136,7 @@ export class App {
     effect(() => {
       this.navigationEnd();
       untracked(() => {
-        const isNarrow = this.isNarrow();
+        const isNarrow = this.layoutService.isNarrow();
         if (isNarrow) {
           this.collapsed.set(true);
         }

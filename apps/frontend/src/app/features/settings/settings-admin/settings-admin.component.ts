@@ -32,6 +32,7 @@ import {
 import {
   TuiButton,
   TuiError,
+  TuiIcon,
   TuiInput,
   TuiLabel,
   TuiScrollbar,
@@ -44,6 +45,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 import * as z from 'zod';
+import { icons } from '../../../app.constants';
 
 function iceServersJsonValidator(
   control: AbstractControl,
@@ -82,6 +84,7 @@ function iceServersJsonValidator(
     TuiTextarea,
     TuiTextfield,
     TuiTitle,
+    TuiIcon,
   ],
   templateUrl: './settings-admin.component.html',
   styleUrl: './settings-admin.component.scss',
@@ -102,6 +105,8 @@ export class SettingsAdminComponent {
       ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
     attachmentsStripImageMetadata: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
   } as const;
+
+  protected readonly icons = icons;
 
   protected readonly form = new FormGroup({
     inviteOnlySignUp: new FormControl(true, { nonNullable: true }),
