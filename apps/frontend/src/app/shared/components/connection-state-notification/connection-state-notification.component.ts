@@ -8,6 +8,8 @@ import { ConnectionStateService } from '@core/services/connection-state.service'
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiNotification } from '@taiga-ui/core';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-connection-state-notification',
   imports: [TuiNotification, TranslatePipe],
@@ -17,6 +19,7 @@ import { TuiNotification } from '@taiga-ui/core';
 export class ConnectionStateNotificationComponent {
   private readonly connectionStateService = inject(ConnectionStateService);
 
+  protected readonly icons = icons;
   protected readonly show = linkedSignal(
     () => !this.connectionStateService.isOnline(),
   );

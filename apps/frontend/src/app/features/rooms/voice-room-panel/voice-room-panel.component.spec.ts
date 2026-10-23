@@ -13,6 +13,7 @@ import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoomNavigationService } from '../room-navigation.service';
 import { VoiceRoomPanelComponent } from './voice-room-panel.component';
+import { icons } from '@constants';
 
 describe('VoiceRoomPanelComponent', () => {
   let router: { navigate: ReturnType<typeof vi.fn> };
@@ -266,12 +267,13 @@ describe('VoiceRoomPanelComponent', () => {
   it('renders camera and screen stop buttons only when tracks exist', () => {
     const { fixture } = createComponent();
     expect(
-      fixture.nativeElement.querySelectorAll('button[iconStart="@tui.video"]')
-        .length,
+      fixture.nativeElement.querySelectorAll(
+        `button[iconStart="${icons.video}"]`,
+      ).length,
     ).toBe(0);
     expect(
       fixture.nativeElement.querySelectorAll(
-        'button[iconStart="@tui.screen-share-off"]',
+        `button[iconStart="${icons['screen-share-off']}"]`,
       ).length,
     ).toBe(0);
 
@@ -280,12 +282,13 @@ describe('VoiceRoomPanelComponent', () => {
     fixture.detectChanges();
 
     expect(
-      fixture.nativeElement.querySelectorAll('button[iconStart="@tui.video"]')
-        .length,
+      fixture.nativeElement.querySelectorAll(
+        `button[iconStart="${icons.video}"]`,
+      ).length,
     ).toBe(1);
     expect(
       fixture.nativeElement.querySelectorAll(
-        'button[iconStart="@tui.screen-share-off"]',
+        `button[iconStart="${icons['screen-share-off']}"]`,
       ).length,
     ).toBe(1);
   });

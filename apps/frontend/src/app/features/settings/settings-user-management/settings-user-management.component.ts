@@ -25,7 +25,7 @@ import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, finalize, of } from 'rxjs';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
 import { LayoutService } from '@core/services/layout.service';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-user-management',

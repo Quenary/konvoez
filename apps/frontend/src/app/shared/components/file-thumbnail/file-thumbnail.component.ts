@@ -24,6 +24,8 @@ function formatSize(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-file-thumbnail',
   imports: [
@@ -44,6 +46,7 @@ function formatSize(size: number): string {
   },
 })
 export class FileThumbnailComponent {
+  protected readonly icons = icons;
   public readonly name = input.required<string>();
   public readonly kind = input.required<EAttachmentKind>();
   public readonly src = input<string | null>(null);

@@ -14,7 +14,7 @@
         tuiButton
         appearance="primary"
         size="m"
-        [iconStart]="icons.create"
+        [iconStart]="icons.add"
         type="button"
         [tuiHint]="createTitle"
         (click)="openNewChatDialog()">
@@ -39,7 +39,7 @@
     <div class="empty-state">
       <div class="empty-state-icon-wrapper">
         <tui-icon
-          icon="@tui.messages-square"
+          [icon]="icons.direct"
           class="empty-state-icon" />
       </div>
       <h3 class="empty-state-title">{{ 'DIRECT.EMPTY_TITLE' | translate }}</h3>
@@ -48,7 +48,7 @@
         tuiButton
         appearance="primary"
         size="m"
-        iconStart="@tui.plus"
+        [iconStart]="icons.add"
         type="button"
         (click)="openNewChatDialog()">
         {{ 'DIRECT.START_CHAT' | translate }}

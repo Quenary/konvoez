@@ -26,6 +26,8 @@ import {
 } from '../voice-room-tiles';
 import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room-overlay',
   host: {
@@ -58,6 +60,7 @@ export class VoiceRoomOverlayComponent {
   private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
 
+  protected readonly icons = icons;
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly title = input<string>('');

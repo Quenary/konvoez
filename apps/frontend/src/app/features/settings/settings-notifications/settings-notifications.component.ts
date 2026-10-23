@@ -12,7 +12,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { TuiButtonLoading } from '@taiga-ui/kit';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-notifications',

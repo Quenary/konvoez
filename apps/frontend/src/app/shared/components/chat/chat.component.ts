@@ -42,6 +42,8 @@ import type { IChatEditorSubmission } from './chat-editor/chat-editor.component'
 import { toChatKey } from './composer-drafts';
 import { v4 } from 'uuid';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-chat',
   imports: [
@@ -72,6 +74,7 @@ import { v4 } from 'uuid';
 export class ChatComponent {
   protected readonly chatStore = inject(ChatStore);
 
+  protected readonly icons = icons;
   public readonly roomId = input<number | null>(null);
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();

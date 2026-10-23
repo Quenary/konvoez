@@ -62,7 +62,7 @@
           appearance="primary"
           size="s"
           type="button"
-          iconStart="@tui.screen-share"
+          [iconStart]="icons['screen-share']"
           (click)="$event.stopPropagation(); onWatchClick()">
           {{ 'CALL.WATCH_SCREEN' | translate }}
         </button>
@@ -74,7 +74,7 @@
     @if (isMuted()) {
       <tui-icon
         appearance="neutral"
-        iconStart="@tui.mic-off"
+        [iconStart]="icons['mic-off']"
         size="l"
         tuiBadge
         tuiHintAppearance="floating"
@@ -83,7 +83,7 @@
     @if (isDeafened()) {
       <tui-icon
         appearance="neutral"
-        iconStart="@tui.headphone-off"
+        [iconStart]="icons['headphone-off']"
         size="l"
         tuiBadge
         tuiHintAppearance="floating"
@@ -126,7 +126,7 @@
                   appearance="accent"
                   size="s"
                   type="button"
-                  iconStart="@tui.screen-share-off"
+                  [iconStart]="icons['screen-share-off']"
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.STOP_WATCH_SCREEN' | translate"
                   (click)="onStopWatchClick()">
@@ -137,7 +137,7 @@
                   appearance="primary"
                   size="s"
                   type="button"
-                  iconStart="@tui.gallery-horizontal"
+                  [iconStart]="icons['gallery-horizontal']"
                   (click)="onOpenTheatreClick()">
                 </button>
 
@@ -148,7 +148,7 @@
                   type="button"
                   tuiDropdownAuto
                   tuiDropdownDirection="top"
-                  iconStart="@tui.volume-2"
+                  [iconStart]="icons['volume-2']"
                   [tuiDropdown]="screenVolumeDropdown"
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.SCREEN_VOLUME' | translate">

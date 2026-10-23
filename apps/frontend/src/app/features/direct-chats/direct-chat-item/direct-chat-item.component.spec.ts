@@ -7,6 +7,7 @@ import { DirectChatItemComponent } from './direct-chat-item.component';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
+import { icons } from '@constants';
 
 describe('DirectChatItemComponent', () => {
   let component: DirectChatItemComponent;
@@ -83,7 +84,7 @@ describe('DirectChatItemComponent', () => {
     expect(
       el.querySelector('tui-badge-notification')?.textContent?.trim(),
     ).toBe('5');
-    expect(el.querySelector('[tuiAvatar="@tui.bookmark"]')).toBeNull();
+    expect(el.querySelector(`[tuiAvatar="${icons.bookmark}"]`)).toBeNull();
   });
 
   it('renders Saved Messages item with bookmark icon and no unread badge when user is self', async () => {
@@ -97,7 +98,7 @@ describe('DirectChatItemComponent', () => {
     expect(el.textContent).toContain('DIRECT.SAVED_MESSAGES');
     expect(el.textContent).not.toContain('Alice Wonderland');
     expect(el.querySelector('app-user-avatar')).toBeNull();
-    expect(el.querySelector('[tuiAvatar="@tui.bookmark"]')).toBeTruthy();
+    expect(el.querySelector(`[tuiAvatar="${icons.bookmark}"]`)).toBeTruthy();
     expect(el.querySelector('tui-badge-notification')).toBeNull();
   });
 

@@ -8,6 +8,7 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { TVoiceRoomPeerUser } from '@konvoez/shared';
 import { TuiAsideComponent } from '@taiga-ui/layout';
 import { RoomPeerComponent } from './room-peer.component';
+import { icons } from '@constants';
 
 const makePeer = (
   id: number,
@@ -121,10 +122,10 @@ describe('RoomPeerComponent', () => {
       expect(fixture.componentInstance['isDeafened']()).toBe(expectDeafened);
 
       const micIcon = fixture.nativeElement.querySelector(
-        'tui-icon[icon="@tui.mic-off"]',
+        `tui-icon[icon="${icons['mic-off']}"]`,
       );
       const headphoneIcon = fixture.nativeElement.querySelector(
-        'tui-icon[icon="@tui.headphone-off"]',
+        `tui-icon[icon="${icons['headphone-off']}"]`,
       );
 
       if (expectMicOff) {
@@ -161,7 +162,9 @@ describe('RoomPeerComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance['isMuted']()).toBe(true);
     expect(
-      fixture.nativeElement.querySelector('tui-icon[icon="@tui.mic-off"]'),
+      fixture.nativeElement.querySelector(
+        `tui-icon[icon="${icons['mic-off']}"]`,
+      ),
     ).not.toBeNull();
 
     speakerMuted.set(true);
@@ -169,7 +172,7 @@ describe('RoomPeerComponent', () => {
     expect(fixture.componentInstance['isDeafened']()).toBe(true);
     expect(
       fixture.nativeElement.querySelector(
-        'tui-icon[icon="@tui.headphone-off"]',
+        `tui-icon[icon="${icons['headphone-off']}"]`,
       ),
     ).not.toBeNull();
   });

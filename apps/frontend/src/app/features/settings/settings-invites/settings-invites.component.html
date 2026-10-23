@@ -17,7 +17,7 @@
         tuiButton
         size="m"
         type="button"
-        [iconStart]="icons['create']"
+        [iconStart]="icons['add']"
         [tuiHint]="createButtonTitle"
         (click)="openCreateDialog()">
         @if (!isNarrow()) {
@@ -132,7 +132,7 @@
                     appearance="action"
                     size="xs"
                     tuiButton
-                    iconStart="@tui.ban"
+                    [iconStart]="icons.ban"
                     type="button"
                     (click)="revoke(invite.id)">
                     {{ 'SETTINGS.INVITES.REVOKE' | translate }}
@@ -142,7 +142,7 @@
                     appearance="action"
                     size="xs"
                     tuiButton
-                    iconStart="@tui.trash"
+                    [iconStart]="icons.delete"
                     type="button"
                     (click)="delete(invite.id)">
                     {{ 'SETTINGS.INVITES.DELETE' | translate }}

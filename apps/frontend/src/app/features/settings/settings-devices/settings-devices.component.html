@@ -30,11 +30,11 @@
     let-value>
     @if (value) {
       <tui-icon
-        icon="@tui.badge-check"
+        [icon]="icons['badge-check']"
         style="color: var(--tui-status-positive); pointer-events: none" />
     } @else {
       <tui-icon
-        icon="@tui.triangle-alert"
+        [icon]="icons['triangle-alert']"
         style="color: var(--tui-status-negative); pointer-events: none" />
     }
   </ng-template>
@@ -45,7 +45,7 @@
       <label tuiLabel>
         {{ 'SETTINGS.DEVICES.AUDIO_INPUT' | translate }}
         <tui-textfield
-          iconStart="@tui.mic"
+          [iconStart]="icons.mic"
           tuiChevron
           tuiTextfieldSize="m"
           [tuiTextfieldCleaner]="false">
@@ -74,7 +74,7 @@
             tuiButton
             type="button"
             [appearance]="isMicTesting() ? 'negative' : 'primary'"
-            [iconStart]="isMicTesting() ? '@tui.square' : '@tui.mic'"
+            [iconStart]="isMicTesting() ? icons.square : icons.mic"
             (click)="toggleMicTest()">
             {{
               (isMicTesting()
@@ -138,7 +138,7 @@
       <label tuiLabel>
         {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION' | translate }}
         <tui-textfield
-          iconStart="@tui.sparkles"
+          [iconStart]="icons.sparkles"
           tuiChevron
           tuiTextfieldSize="m"
           [tuiTextfieldCleaner]="false">
@@ -193,7 +193,7 @@
         {{ 'SETTINGS.DEVICES.ECHO_CANCELLATION' | translate }}
 
         <tui-icon
-          icon="@tui.message-circle-question-mark"
+          [icon]="icons.help"
           [tuiTooltip]="'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate">
         </tui-icon>
       </label>
@@ -202,7 +202,7 @@
       <label tuiLabel>
         {{ 'SETTINGS.DEVICES.AUDIO_OUTPUT' | translate }}
         <tui-textfield
-          iconStart="@tui.headphones"
+          [iconStart]="icons.headphones"
           tuiChevron
           tuiTextfieldSize="m"
           [tuiTextfieldCleaner]="false">
@@ -223,7 +223,7 @@
           </ng-container>
 
           <tui-icon
-            icon="@tui.message-circle-question-mark"
+            [icon]="icons.help"
             [tuiTooltip]="'SETTINGS.DEVICES.API_NOT_AVAILABLE' | translate">
           </tui-icon>
         </tui-textfield>

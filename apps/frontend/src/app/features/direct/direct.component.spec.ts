@@ -7,6 +7,7 @@ import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-roo
 import { DirectComponent } from './direct.component';
 import { DirectStore } from './direct.store';
 import { IUser } from '@konvoez/shared';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-chat',
@@ -156,7 +157,7 @@ describe('DirectComponent', () => {
 
   it('renders start call button when not in call and not rejoinable', () => {
     const startCallBtn = fixture.nativeElement.querySelector(
-      'button[iconStart="@tui.phone"]',
+      `button[iconStart="${icons.phone}"]`,
     );
     expect(startCallBtn).toBeTruthy();
     startCallBtn.click();
@@ -180,10 +181,10 @@ describe('DirectComponent', () => {
     fixture.detectChanges();
 
     const toCallBtn = fixture.nativeElement.querySelector(
-      'button[iconStart="@tui.phone-call"]',
+      `button[iconStart="${icons['phone-call']}"]`,
     );
     const hangupBtn = fixture.nativeElement.querySelector(
-      'button[iconStart="@tui.phone-off"]',
+      `button[iconStart="${icons['phone-off']}"]`,
     );
     expect(toCallBtn).toBeTruthy();
     expect(hangupBtn).toBeTruthy();
@@ -198,19 +199,21 @@ describe('DirectComponent', () => {
   it('hides call buttons in header when isSelf is true (saved messages)', () => {
     isSelf.set(true);
     title.set('DIRECT.SAVED_MESSAGES');
-    avatarIcon.set('@tui.bookmark');
+    avatarIcon.set(icons.bookmark);
     fixture.detectChanges();
 
     expect(
-      fixture.nativeElement.querySelector('button[iconStart="@tui.phone"]'),
+      fixture.nativeElement.querySelector(`button[iconStart="${icons.phone}"]`),
     ).toBeNull();
     expect(
       fixture.nativeElement.querySelector(
-        'button[iconStart="@tui.phone-call"]',
+        `button[iconStart="${icons['phone-call']}"]`,
       ),
     ).toBeNull();
     expect(
-      fixture.nativeElement.querySelector('button[iconStart="@tui.phone-off"]'),
+      fixture.nativeElement.querySelector(
+        `button[iconStart="${icons['phone-off']}"]`,
+      ),
     ).toBeNull();
     expect(
       fixture.nativeElement.querySelector('app-pulse-indicator'),

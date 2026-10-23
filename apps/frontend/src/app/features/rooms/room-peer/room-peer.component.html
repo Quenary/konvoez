@@ -21,13 +21,13 @@
   <span class="status-icons">
     @if (isMuted()) {
       <tui-icon
-        icon="@tui.mic-off"
+        [icon]="icons['mic-off']"
         [tuiHint]="'CALL.MICROPHONE_MUTED' | translate"
         tuiHintAppearance="floating" />
     }
     @if (isDeafened()) {
       <tui-icon
-        icon="@tui.headphone-off"
+        [icon]="icons['headphone-off']"
         [tuiHint]="'CALL.SPEAKER_OFF' | translate"
         tuiHintAppearance="floating" />
     }

@@ -11,7 +11,7 @@
       tuiButton
       type="button"
       routerLink="/auth">
-      <tui-icon icon="@tui.chevron-left" />
+      <tui-icon [icon]="icons['chevron-left']" />
       {{ 'GENERAL.GO_BACK' | translate }}
     </button>
   </header>
@@ -19,7 +19,7 @@
   @if (isOwnerSetupRequired()) {
     <div class="owner-setup-info">
       <div class="owner-setup-title">
-        <tui-icon icon="@tui.shield-alert" />
+        <tui-icon [icon]="icons['shield-alert']" />
         <strong>{{ 'AUTH.OWNER_SETUP_TITLE' | translate }}</strong>
       </div>
       <p class="owner-setup-desc">
@@ -27,7 +27,7 @@
       </p>
     </div>
 
-    <tui-textfield iconStart="@tui.key">
+    <tui-textfield [iconStart]="icons.key">
       <label
         tuiLabel
         for="register-setup-token">
@@ -42,7 +42,7 @@
         type="password" />
 
       <tui-icon
-        icon="@tui.message-circle-question-mark"
+        [icon]="icons.help"
         [tuiTooltip]="'AUTH.SETUP_TOKEN_HINT' | translate" />
 
       <tui-icon tuiPassword />
@@ -56,7 +56,7 @@
     !isOwnerSetupRequired() &&
     (inviteOnlySignUp() || form.controls.inviteCode.value)
   ) {
-    <tui-textfield iconStart="@tui.ticket">
+    <tui-textfield [iconStart]="icons.ticket">
       <label
         tuiLabel
         for="register-invite-code">
@@ -75,7 +75,7 @@
     }
   }
 
-  <tui-textfield iconStart="@tui.user">
+  <tui-textfield [iconStart]="icons.user">
     <label
       tuiLabel
       for="register-username">
@@ -93,7 +93,7 @@
     <tui-error [error]="err | translate" />
   }
 
-  <tui-textfield iconStart="@tui.lock">
+  <tui-textfield [iconStart]="icons.lock">
     <label
       tuiLabel
       for="register-password">
@@ -108,7 +108,7 @@
       type="password" />
 
     <tui-icon
-      icon="@tui.message-circle-question-mark"
+      [icon]="icons.help"
       [tuiTooltip]="'PROFILE.PASSWORD_HINT' | translate"></tui-icon>
 
     <tui-icon tuiPassword />
@@ -117,7 +117,7 @@
     <tui-error [error]="err | translate" />
   }
 
-  <tui-textfield iconStart="@tui.lock">
+  <tui-textfield [iconStart]="icons.lock">
     <label
       tuiLabel
       for="confirm-register-password">
@@ -131,7 +131,7 @@
       type="password" />
 
     <tui-icon
-      icon="@tui.message-circle-question-mark"
+      [icon]="icons.help"
       [tuiTooltip]="'PROFILE.PASSWORD_HINT' | translate"></tui-icon>
 
     <tui-icon tuiPassword />
@@ -140,7 +140,7 @@
     <tui-error [error]="err | translate" />
   }
 
-  <tui-textfield iconStart="@tui.file-user">
+  <tui-textfield [iconStart]="icons['file-user']">
     <label
       tuiLabel
       for="register-fullname">
@@ -158,7 +158,7 @@
     <tui-error [error]="err | translate" />
   }
 
-  <tui-textfield iconStart="@tui.mail">
+  <tui-textfield [iconStart]="icons.mail">
     <label
       tuiLabel
       for="register-email">
@@ -182,7 +182,7 @@
       type="submit"
       [disabled]="!form.dirty || publicSettings.isLoading()"
       [loading]="loading() || publicSettings.isLoading()">
-      <tui-icon icon="@tui.user-plus" />
+      <tui-icon [icon]="icons['user-plus']" />
       {{ 'GENERAL.SIGN_UP' | translate }}
     </button>
   </footer>

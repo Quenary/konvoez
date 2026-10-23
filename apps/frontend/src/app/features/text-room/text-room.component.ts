@@ -18,6 +18,8 @@ import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CHAT_MENTIONS_ENABLED } from '@shared/components/chat/chat-editor/chat-mentions-enabled.token';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-text-room',
   imports: [
@@ -44,6 +46,7 @@ export class TextRoomComponent {
   private readonly roomsStore = inject(RoomsStore);
   private readonly roomManageService = inject(RoomManageService);
 
+  protected readonly icons = icons;
   private lastNonNullRoomId: number | null = null;
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;

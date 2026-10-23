@@ -47,7 +47,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
 import { isSimdSupported } from '@core/audio/audio-capabilities';
 import { ENoiseProcessor } from '../../../app.enums';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 import { LayoutService } from '@core/services/layout.service';
 
 type DevicesLoadResult = {

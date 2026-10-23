@@ -47,7 +47,7 @@
       appearance="flat"
       size="s"
       type="button"
-      [iconStart]="isFullscreen() ? '@tui.minimize' : '@tui.maximize'"
+      [iconStart]="isFullscreen() ? icons.minimize : icons.maximize"
       [attr.aria-label]="
         (isFullscreen() ? 'CALL.EXIT_FULLSCREEN' : 'CALL.FULLSCREEN')
           | translate

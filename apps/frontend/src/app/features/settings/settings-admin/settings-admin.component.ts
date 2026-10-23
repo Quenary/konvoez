@@ -45,7 +45,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 import * as z from 'zod';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 
 function iceServersJsonValidator(
   control: AbstractControl,
@@ -94,6 +94,7 @@ export class SettingsAdminComponent {
   protected readonly settingsStore = inject(SettingsStore);
   protected readonly pushNotificationService = inject(PushNotificationService);
 
+  protected readonly icons = icons;
   private readonly controlKeys = {
     inviteOnlySignUp: ESettingKey.INVITE_ONLY_SIGN_UP,
     passwordRecoveryCodeTtl: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
@@ -105,8 +106,6 @@ export class SettingsAdminComponent {
       ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
     attachmentsStripImageMetadata: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
   } as const;
-
-  protected readonly icons = icons;
 
   protected readonly form = new FormGroup({
     inviteOnlySignUp: new FormControl(true, { nonNullable: true }),

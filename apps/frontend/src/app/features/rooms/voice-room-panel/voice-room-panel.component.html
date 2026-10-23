@@ -4,7 +4,7 @@
     [orientation]="collapsed() ? 'vertical' : 'horizontal'">
     <button
       tuiButton
-      iconStart="@tui.audio-lines"
+      [iconStart]="icons['audio-lines']"
       appearance="positive"
       type="button"
       tuiHintAppearance="floating"
@@ -17,7 +17,7 @@
     </button>
     <button
       tuiIconButton
-      iconStart="@tui.log-out"
+      [iconStart]="icons['log-out']"
       appearance="negative"
       type="button"
       tuiHintAppearance="floating"
@@ -36,7 +36,7 @@
     type="button"
     tuiHintAppearance="floating"
     [tuiHint]="micHintKey() | translate"
-    [iconStart]="microphoneMuted() ? '@tui.mic-off' : '@tui.mic'"
+    [iconStart]="microphoneMuted() ? icons['mic-off'] : icons.mic"
     [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
     (click)="toggleMicrophoneMuted()">
   </button>
@@ -45,14 +45,14 @@
     type="button"
     tuiHintAppearance="floating"
     [tuiHint]="speakerHintKey() | translate"
-    [iconStart]="speakerMuted() ? '@tui.headphone-off' : '@tui.headphones'"
+    [iconStart]="speakerMuted() ? icons['headphone-off'] : icons.headphones"
     [appearance]="speakerMuted() ? 'negative' : 'neutral'"
     (click)="toggleSpeakerMuted()">
   </button>
   @if (cameraOn()) {
     <button
       tuiIconButton
-      iconStart="@tui.video"
+      [iconStart]="icons.video"
       appearance="primary"
       type="button"
       tuiHintAppearance="floating"
@@ -63,7 +63,7 @@
   @if (screenOn()) {
     <button
       tuiIconButton
-      iconStart="@tui.screen-share-off"
+      [iconStart]="icons['screen-share-off']"
       appearance="primary"
       type="button"
       tuiHintAppearance="floating"
@@ -76,7 +76,7 @@
     type="button"
     tuiHintAppearance="floating"
     [tuiHint]="'CALL.OPEN_DEVICES_SETTINGS' | translate"
-    iconStart="@tui.settings"
+    [iconStart]="icons.settings"
     appearance="neutral"
     (click)="openDevicesSettings()">
   </button>

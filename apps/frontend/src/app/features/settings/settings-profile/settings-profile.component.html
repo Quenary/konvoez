@@ -28,7 +28,7 @@
             <div
               appearance="secondary"
               size="xxl"
-              tuiAvatar="@tui.droplet">
+              [tuiAvatar]="icons.droplet">
             </div>
             <div>
               {{ 'GENERAL.DROP_IT' | translate }}
@@ -49,7 +49,7 @@
               <div
                 appearance="secondary"
                 size="xxl"
-                tuiAvatar="@tui.cloud-upload">
+                [tuiAvatar]="icons['cloud-upload']">
               </div>
             }
 
@@ -64,7 +64,7 @@
         </ng-template>
       </label>
 
-      <tui-textfield iconStart="@tui.user">
+      <tui-textfield [iconStart]="icons.user">
         <label
           tuiLabel
           for="profile-username">
@@ -91,7 +91,7 @@
         {{ 'PROFILE.IS_CHANGING_PASSWORD' | translate }}
       </label>
 
-      <tui-textfield iconStart="@tui.lock">
+      <tui-textfield [iconStart]="icons.lock">
         <label
           tuiLabel
           for="profile-password">
@@ -108,7 +108,7 @@
         <tui-error [error]="err | translate" />
       }
 
-      <tui-textfield iconStart="@tui.lock">
+      <tui-textfield [iconStart]="icons.lock">
         <label
           tuiLabel
           for="profile-confirm-password">
@@ -125,7 +125,7 @@
         <tui-error [error]="err | translate" />
       }
 
-      <tui-textfield iconStart="@tui.file-user">
+      <tui-textfield [iconStart]="icons['file-user']">
         <label
           tuiLabel
           for="profile-fullname">
@@ -142,7 +142,7 @@
         <tui-error [error]="err | translate" />
       }
 
-      <tui-textfield iconStart="@tui.mail">
+      <tui-textfield [iconStart]="icons.mail">
         <label
           tuiLabel
           for="profile-email">
@@ -166,7 +166,7 @@
     <button
       tuiButton
       appearance="primary"
-      iconStart="@tui.save"
+      [iconStart]="icons.save"
       [tuiHint]="saveTitle"
       type="submit"
       [disabled]="isSaveDisabled()"
@@ -180,9 +180,10 @@
     <button
       tuiButton
       appearance="primary-destructive"
-      iconStart="@tui.log-out"
+      [iconStart]="icons['log-out']"
       type="button"
       [tuiHint]="logOutTitle"
+      tuiHintAppearance="accent"
       (click)="logout()">
       @if (!isNarrow()) {
         {{ logOutTitle }}
@@ -194,9 +195,10 @@
       <button
         tuiButton
         appearance="negative"
-        iconStart="@tui.trash"
+        [iconStart]="icons.delete"
         type="button"
         [tuiHint]="dleeteTitle"
+        tuiHintAppearance="negative"
         (click)="openDelete()">
         @if (!isNarrow()) {
           {{ dleeteTitle }}

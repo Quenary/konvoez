@@ -25,7 +25,7 @@ import { catchError, finalize, of } from 'rxjs';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { LayoutService } from '@core/services/layout.service';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-roles',

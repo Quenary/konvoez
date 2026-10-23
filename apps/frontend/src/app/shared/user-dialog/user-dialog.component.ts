@@ -31,6 +31,7 @@ import { ChatEditorComponent } from '../components/chat/chat-editor/chat-editor.
 import { v4 } from 'uuid';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VolumeControlComponent } from '../components/volume-control/volume-control.component';
+import { icons } from '@constants';
 
 export interface IUserDialogData {
   readonly user: IUser;
@@ -65,6 +66,8 @@ export class UserDialogComponent {
     VoiceAudioPreferencesStore,
   );
   private readonly ngrxStore = inject(Store);
+
+  protected readonly icons = icons;
 
   protected readonly user = this.context.data.user;
   protected readonly isSelf = computed(

@@ -20,13 +20,14 @@ src/app/
   shared/      # reusable components, pipes, directives, helpers
 ```
 
-| Alias             | Points to            |
-| ----------------- | -------------------- |
-| `@konvoez/shared` | `libs/shared`        |
-| `@core/*`         | `src/app/core/*`     |
-| `@features/*`     | `src/app/features/*` |
-| `@shared/*`       | `src/app/shared/*`   |
-| `@environments/*` | `src/environments/*` |
+| Alias             | Points to                  |
+| ----------------- | -------------------------- |
+| `@konvoez/shared` | `libs/shared`              |
+| `@core/*`         | `src/app/core/*`           |
+| `@features/*`     | `src/app/features/*`       |
+| `@shared/*`       | `src/app/shared/*`         |
+| `@environments/*` | `src/environments/*`       |
+| `@constants`      | `src/app/app.constants.ts` |
 
 Use aliases instead of deep relative imports. Selector prefix is `app`. Components use external `.ts` + `.html` + `.scss` files unless they are trivial and already inline.
 

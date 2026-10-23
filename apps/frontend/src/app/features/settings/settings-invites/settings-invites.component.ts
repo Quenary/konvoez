@@ -25,7 +25,7 @@ import { InvitesApiService } from '@core/api/invites-api.service';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { LayoutService } from '@core/services/layout.service';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 
 export interface IInviteStatusData {
   readonly icon: string;

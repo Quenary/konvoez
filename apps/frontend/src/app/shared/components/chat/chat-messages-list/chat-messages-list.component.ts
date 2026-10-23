@@ -58,6 +58,8 @@ const FRAME_MS = 16;
 const JUMP_STABLE_FRAMES = 4;
 const JUMP_MAX_SETTLE_FRAMES = 60;
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-chat-messages-list',
   imports: [
@@ -83,6 +85,7 @@ export class ChatMessagesListComponent {
   private readonly injector = inject(Injector);
   private readonly currentUser = inject(Store).selectSignal(selectCurrentUser);
 
+  protected readonly icons = icons;
   private readonly scrollContainerRef = viewChild.required<
     unknown,
     ElementRef<HTMLElement>

@@ -17,7 +17,7 @@
         tuiButton
         size="m"
         type="button"
-        [iconStart]="icons['create']"
+        [iconStart]="icons['add']"
         [tuiHint]="createButtonTitle"
         (click)="openCreateDialog()">
         @if (!isNarrow()) {
@@ -113,7 +113,7 @@
                     appearance="flat"
                     size="xs"
                     tuiButton
-                    iconStart="@tui.pen"
+                    [iconStart]="icons.edit"
                     type="button"
                     (click)="openEditDialog(role)">
                     {{ 'GENERAL.EDIT' | translate }}
@@ -123,7 +123,7 @@
                       appearance="action-grayscale"
                       size="xs"
                       tuiButton
-                      iconStart="@tui.trash"
+                      [iconStart]="icons.delete"
                       type="button"
                       (click)="deleteRole(role)">
                       {{ 'GENERAL.DELETE' | translate }}

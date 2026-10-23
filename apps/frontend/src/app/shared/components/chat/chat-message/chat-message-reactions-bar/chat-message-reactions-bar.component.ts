@@ -17,6 +17,8 @@ import {
   saveRecentEmoji,
 } from './emoji.data';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-chat-message-reactions-bar',
   imports: [TranslatePipe, TuiHint, TuiIcon],
@@ -25,6 +27,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatMessageReactionsBarComponent {
+  protected readonly icons = icons;
   // 1. Every inject() call
   private readonly elementRef = inject(ElementRef<HTMLElement>);
 

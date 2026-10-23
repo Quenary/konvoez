@@ -56,7 +56,7 @@ import {
 } from '@shared/functions/zod-validator.function';
 import { getProfileFormSchema } from '@shared/schemas/forms.schema';
 import { map, startWith } from 'rxjs';
-import { icons } from '../../../app.constants';
+import { icons } from '@constants';
 import { LayoutService } from '@core/services/layout.service';
 
 @Component({

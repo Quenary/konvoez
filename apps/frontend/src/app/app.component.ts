@@ -33,7 +33,7 @@ import { PwaUpdateNotificationComponent } from '@shared/components/pwa-update-no
 import { PendingCallDialogComponent } from '@shared/components/voice-room/pending-call-dialog/pending-call-dialog.component';
 import { PublicApiService } from '@core/services/public-api.service';
 import { LayoutService } from '@core/services/layout.service';
-import { icons } from './app.constants';
+import { icons } from '@constants';
 
 const DEFAULT_VERSION_INFO = {
   currentVersion: '',

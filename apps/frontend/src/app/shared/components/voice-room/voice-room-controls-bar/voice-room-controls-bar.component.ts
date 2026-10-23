@@ -31,6 +31,8 @@ import {
   TStreamQualityKind,
 } from '../stream-quality-dialog/stream-quality-dialog.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room-controls-bar',
   imports: [TuiButton, TuiButtonLoading, TuiGroup, TuiHint, TranslatePipe],
@@ -52,6 +54,7 @@ export class VoiceRoomControlsBarComponent {
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
+  protected readonly icons = icons;
   public readonly hangup = output<void>();
 
   protected readonly micCaptureLoading = this.microphoneService.captureLoading;

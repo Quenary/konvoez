@@ -27,6 +27,8 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import { AuthApiService } from '@core/api/auth-api.service';
 import { finalize } from 'rxjs';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-auth-password-recovery',
   imports: [
@@ -54,6 +56,7 @@ export class AuthPasswordRecoveryComponent {
   private readonly translate = inject(TranslateService);
   private readonly apiError = inject(ApiErrorService);
 
+  protected readonly icons = icons;
   protected readonly loading = signal(false);
 
   protected readonly form = new FormGroup(

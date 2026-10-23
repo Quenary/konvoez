@@ -11,7 +11,7 @@
     </h2>
   </header>
 
-  <tui-textfield iconStart="@tui.user">
+  <tui-textfield [iconStart]="icons.user">
     <label
       tuiLabel
       for="login">
@@ -29,7 +29,7 @@
     <tui-error [error]="err | translate" />
   }
 
-  <tui-textfield iconStart="@tui.lock">
+  <tui-textfield [iconStart]="icons.lock">
     <label
       tuiLabel
       for="password">
@@ -55,7 +55,7 @@
       type="submit"
       [disabled]="!form.dirty"
       [loading]="loading()">
-      <tui-icon icon="@tui.log-in" />
+      <tui-icon [icon]="icons['log-in']" />
       {{ 'GENERAL.SIGN_IN' | translate }}
     </button>
 
@@ -64,7 +64,7 @@
       tuiButton
       type="button"
       routerLink="/auth/register">
-      <tui-icon icon="@tui.user-plus" />
+      <tui-icon [icon]="icons['user-plus']" />
       {{ 'GENERAL.SIGN_UP' | translate }}
     </button>
 

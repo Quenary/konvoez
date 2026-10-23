@@ -61,6 +61,8 @@ const EMPTY_MENTIONS: IMentionSet = {
   everyone: false,
 };
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-chat-message',
   imports: [
@@ -108,6 +110,7 @@ export class ChatMessageComponent {
   private readonly outgoingStore = inject(OutgoingMessagesStore);
   private readonly userDialogService = inject(UserDialogService);
 
+  protected readonly icons = icons;
   public readonly message = input.required<IMessageEntity>();
 
   protected readonly usersById = computed(() => this.usersStore.entityMap());

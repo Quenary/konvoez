@@ -80,6 +80,8 @@ export interface IChatEditorSubmission {
   readonly replyToMessage: ITextRoomMessage | null;
 }
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-chat-editor',
   imports: [
@@ -238,6 +240,7 @@ export class ChatEditorComponent {
   private readonly roomsStore = inject(RoomsStore);
   protected readonly mentionsEnabled = inject(CHAT_MENTIONS_ENABLED);
 
+  protected readonly icons = icons;
   protected readonly usersById = computed(() => this.usersStore.entityMap());
   protected readonly rolesById = computed(() => this.rolesStore.rolesById());
 

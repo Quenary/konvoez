@@ -22,7 +22,7 @@ import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { LayoutService } from '@core/services/layout.service';
-import { icons } from '../../app.constants';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-direct-chats',

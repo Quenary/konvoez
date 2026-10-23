@@ -21,7 +21,7 @@
     @if (kind() === kinds.VIDEO) {
       <tui-icon
         class="play"
-        icon="@tui.play" />
+        [icon]="icons.play" />
       <ng-container [ngTemplateOutlet]="durationBadge" />
     }
   } @else if (showLocalVideo()) {
@@ -33,7 +33,7 @@
       (error)="onBroken()"></video>
     <tui-icon
       class="play"
-      icon="@tui.play" />
+      [icon]="icons.play" />
     <ng-container [ngTemplateOutlet]="durationBadge" />
   } @else {
     <span class="file-fallback">
@@ -41,7 +41,7 @@
       @if (kind() === kinds.VIDEO) {
         <tui-icon
           class="play"
-          icon="@tui.play" />
+          [icon]="icons.play" />
         <ng-container [ngTemplateOutlet]="durationBadge" />
       }
       <span class="file-name">{{ name() }}</span>
@@ -80,7 +80,7 @@
   @case ('error') {
     <tui-icon
       class="error-icon"
-      icon="@tui.circle-alert"
+      [icon]="icons['circle-alert']"
       [tuiHint]="errorText()" />
   }
 }
@@ -91,7 +91,7 @@
     type="button"
     size="xs"
     appearance="secondary"
-    iconStart="@tui.x"
+    [iconStart]="icons.close"
     class="remove"
     [attr.aria-label]="'ROOMS.REMOVE_FILE' | translate"
     (click)="onRemove($event)">

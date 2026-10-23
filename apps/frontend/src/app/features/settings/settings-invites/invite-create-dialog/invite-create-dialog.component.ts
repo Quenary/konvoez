@@ -33,6 +33,8 @@ import {
   inviteFormTtlSchema,
 } from '@shared/schemas/forms.schema';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-invite-create-dialog',
   imports: [
@@ -52,6 +54,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InviteCreateDialogComponent {
+  protected readonly icons = icons;
   public readonly context =
     injectContext<TuiDialogContext<IInvite | null, void>>();
   private readonly invitesApiService = inject(InvitesApiService);

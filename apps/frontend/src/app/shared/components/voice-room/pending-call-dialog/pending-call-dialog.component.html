@@ -3,7 +3,7 @@
     *tuiPush="true"
     [type]="pendingTitleKey() | translate"
     [lines]="3">
-    <tui-icon icon="@tui.phone" />
+    <tui-icon [icon]="icons.phone" />
 
     <div
       tuiCell="m"
@@ -40,7 +40,7 @@
         tuiButton
         type="button"
         appearance="negative"
-        iconStart="@tui.phone-off"
+        [iconStart]="icons['phone-off']"
         (click)="cancel()">
         {{ 'GENERAL.CANCEL' | translate }}
       </button>
@@ -51,7 +51,7 @@
         tuiButton
         type="button"
         appearance="negative"
-        iconStart="@tui.phone-off"
+        [iconStart]="icons['phone-off']"
         (click)="reject()">
         {{ 'CALL.DECLINE' | translate }}
       </button>
@@ -61,7 +61,7 @@
         tuiButton
         type="button"
         appearance="positive"
-        iconStart="@tui.phone"
+        [iconStart]="icons.phone"
         (click)="accept()">
         {{ 'CALL.ACCEPT' | translate }}
       </button>
