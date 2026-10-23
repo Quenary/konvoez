@@ -15,10 +15,11 @@ import {
   TuiHint,
   TuiIcon,
   TuiNotificationService,
+  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
 import { InvitesApiService } from '@core/api/invites-api.service';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -75,7 +76,9 @@ export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
     TuiAutoColorPipe,
     TuiButton,
     TuiCardLarge,
+    TuiForm,
     TuiHeader,
+    TuiScrollbar,
     TuiIcon,
     TuiProgressCircle,
     TuiTable,

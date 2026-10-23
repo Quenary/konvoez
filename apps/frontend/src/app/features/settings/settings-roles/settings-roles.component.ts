@@ -13,10 +13,11 @@ import {
   TuiHint,
   TuiIcon,
   TuiNotificationService,
+  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -33,7 +34,9 @@ import { icons } from '../../../app.constants';
     TuiBadge,
     TuiButton,
     TuiCardLarge,
+    TuiForm,
     TuiHeader,
+    TuiScrollbar,
     TuiTable,
     TuiTitle,
     TuiIcon,

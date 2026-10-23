@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiScrollbar, TuiTitle } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PushNotificationService } from '@core/services/push-notification.service';
@@ -25,6 +25,7 @@ import { icons } from '../../../app.constants';
     TuiTitle,
     TuiButtonLoading,
     TuiIcon,
+    TuiScrollbar,
   ],
   templateUrl: './settings-notifications.component.html',
   styleUrl: './settings-notifications.component.scss',

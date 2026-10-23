@@ -1,6 +1,7 @@
 <div
   appearance="floating"
-  tuiCardLarge>
+  tuiCardLarge
+  tuiForm="m">
   <header tuiHeader>
     <h2 tuiTitle>
       <tui-icon [icon]="icons['settings-roles']" />
@@ -26,121 +27,123 @@
     </aside>
   </header>
 
-  <div class="table-wrapper">
-    <table
-      tuiTable
-      class="roles-table">
-      <thead>
-        <tr>
-          <th
-            tuiTh
-            class="col-name">
-            {{ 'SETTINGS.ROLES.TABLE.NAME' | translate }}
-          </th>
-          <th
-            tuiTh
-            class="col-type">
-            {{ 'SETTINGS.ROLES.TABLE.TYPE' | translate }}
-          </th>
-          <th
-            tuiTh
-            class="col-permissions">
-            {{ 'SETTINGS.ROLES.TABLE.PERMISSIONS' | translate }}
-          </th>
-          <th
-            tuiTh
-            class="col-actions">
-            {{ 'SETTINGS.ROLES.TABLE.ACTIONS' | translate }}
-          </th>
-        </tr>
-      </thead>
-      <tbody tuiTbody>
-        @for (role of rolesResource.value(); track role.id) {
+  <tui-scrollbar>
+    <div class="table-wrapper">
+      <table
+        tuiTable
+        class="roles-table">
+        <thead>
           <tr>
-            <td
-              tuiTd
+            <th
+              tuiTh
               class="col-name">
-              <div class="role-name-cell">
-                @if (role.color) {
-                  <span
-                    class="role-color-dot"
-                    [style.background-color]="role.color"></span>
-                }
-                <span class="role-name">{{ role.name }}</span>
-              </div>
-            </td>
-
-            <td
-              tuiTd
+              {{ 'SETTINGS.ROLES.TABLE.NAME' | translate }}
+            </th>
+            <th
+              tuiTh
               class="col-type">
-              @if (role.isDefault) {
-                <span
-                  tuiBadge
-                  appearance="positive"
-                  size="s">
-                  {{ 'SETTINGS.ROLES.DEFAULT_BADGE' | translate }}
-                </span>
-              } @else {
-                <span
-                  tuiBadge
-                  appearance="neutral"
-                  size="s">
-                  {{ 'SETTINGS.ROLES.CUSTOM_BADGE' | translate }}
-                </span>
-              }
-            </td>
-
-            <td
-              tuiTd
+              {{ 'SETTINGS.ROLES.TABLE.TYPE' | translate }}
+            </th>
+            <th
+              tuiTh
               class="col-permissions">
-              <span class="permissions-count">
-                {{
-                  role.permissions.length === 9
-                    ? ('SETTINGS.ROLES.ALL_PERMISSIONS' | translate)
-                    : ('SETTINGS.ROLES.PERMISSIONS_COUNT'
-                      | translate: { count: role.permissions.length })
-                }}
-              </span>
-            </td>
-
-            <td
-              tuiTd
+              {{ 'SETTINGS.ROLES.TABLE.PERMISSIONS' | translate }}
+            </th>
+            <th
+              tuiTh
               class="col-actions">
-              <div class="actions-cell">
-                <button
-                  appearance="flat"
-                  size="xs"
-                  tuiButton
-                  iconStart="@tui.pen"
-                  type="button"
-                  (click)="openEditDialog(role)">
-                  {{ 'GENERAL.EDIT' | translate }}
-                </button>
-                @if (!role.isDefault) {
+              {{ 'SETTINGS.ROLES.TABLE.ACTIONS' | translate }}
+            </th>
+          </tr>
+        </thead>
+        <tbody tuiTbody>
+          @for (role of rolesResource.value(); track role.id) {
+            <tr>
+              <td
+                tuiTd
+                class="col-name">
+                <div class="role-name-cell">
+                  @if (role.color) {
+                    <span
+                      class="role-color-dot"
+                      [style.background-color]="role.color"></span>
+                  }
+                  <span class="role-name">{{ role.name }}</span>
+                </div>
+              </td>
+
+              <td
+                tuiTd
+                class="col-type">
+                @if (role.isDefault) {
+                  <span
+                    tuiBadge
+                    appearance="positive"
+                    size="s">
+                    {{ 'SETTINGS.ROLES.DEFAULT_BADGE' | translate }}
+                  </span>
+                } @else {
+                  <span
+                    tuiBadge
+                    appearance="neutral"
+                    size="s">
+                    {{ 'SETTINGS.ROLES.CUSTOM_BADGE' | translate }}
+                  </span>
+                }
+              </td>
+
+              <td
+                tuiTd
+                class="col-permissions">
+                <span class="permissions-count">
+                  {{
+                    role.permissions.length === 9
+                      ? ('SETTINGS.ROLES.ALL_PERMISSIONS' | translate)
+                      : ('SETTINGS.ROLES.PERMISSIONS_COUNT'
+                        | translate: { count: role.permissions.length })
+                  }}
+                </span>
+              </td>
+
+              <td
+                tuiTd
+                class="col-actions">
+                <div class="actions-cell">
                   <button
-                    appearance="action-grayscale"
+                    appearance="flat"
                     size="xs"
                     tuiButton
-                    iconStart="@tui.trash"
+                    iconStart="@tui.pen"
                     type="button"
-                    (click)="deleteRole(role)">
-                    {{ 'GENERAL.DELETE' | translate }}
+                    (click)="openEditDialog(role)">
+                    {{ 'GENERAL.EDIT' | translate }}
                   </button>
-                }
-              </div>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td
-              tuiTd
-              colspan="4"
-              class="empty-cell">
-              {{ 'SETTINGS.ROLES.NO_ROLES' | translate }}
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+                  @if (!role.isDefault) {
+                    <button
+                      appearance="action-grayscale"
+                      size="xs"
+                      tuiButton
+                      iconStart="@tui.trash"
+                      type="button"
+                      (click)="deleteRole(role)">
+                      {{ 'GENERAL.DELETE' | translate }}
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td
+                tuiTd
+                colspan="4"
+                class="empty-cell">
+                {{ 'SETTINGS.ROLES.NO_ROLES' | translate }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </tui-scrollbar>
 </div>

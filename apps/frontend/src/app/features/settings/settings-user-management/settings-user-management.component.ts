@@ -15,11 +15,12 @@ import {
   TuiHint,
   TuiIcon,
   TuiNotificationService,
+  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiAutoColorPipe } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, finalize, of } from 'rxjs';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
@@ -34,7 +35,9 @@ import { icons } from '../../../app.constants';
     UserAvatarComponent,
     TuiAutoColorPipe,
     TuiCardLarge,
+    TuiForm,
     TuiHeader,
+    TuiScrollbar,
     TuiHint,
     TuiTable,
     TuiTitle,

@@ -29,6 +29,7 @@ import {
   TuiSlider,
   TuiTextfield,
   TuiHint,
+  TuiScrollbar,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
@@ -88,6 +89,7 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
     TuiTextfield,
     TuiInputSlider,
     TuiHint,
+    TuiScrollbar,
   ],
   providers: [
     {

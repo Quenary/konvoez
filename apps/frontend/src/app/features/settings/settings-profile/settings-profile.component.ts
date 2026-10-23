@@ -17,6 +17,7 @@ import {
   TuiInput,
   TuiLink,
   TuiNotificationService,
+  TuiScrollbar,
   TuiTextfield,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -69,6 +70,7 @@ import { icons } from '../../../app.constants';
     TuiError,
     TuiForm,
     TuiHeader,
+    TuiScrollbar,
     TuiFiles,
     TuiInput,
     TuiSwitch,

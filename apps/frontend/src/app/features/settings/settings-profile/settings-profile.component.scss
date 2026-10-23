@@ -1,0 +1,9 @@
+@use 'mixins' as mixins;
+
+@include mixins.scrollable-form;
+
+.scroll-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}

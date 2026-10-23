@@ -1,3 +1,15 @@
+@use 'mixins' as mixins;
+
+@include mixins.scrollable-form;
+
+.scroll-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  /* offset for input slider */
+  padding-bottom: 1rem;
+}
+
 .mic-test-container {
   display: flex;
   flex-direction: column;

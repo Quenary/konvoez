@@ -1,6 +1,9 @@
+@use 'mixins' as mixins;
+
+@include mixins.scrollable-form;
+
 .table-wrapper {
   overflow-x: auto;
-  margin-top: 1rem;
 
   .roles-table {
     width: 100%;

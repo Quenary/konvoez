@@ -13,30 +13,34 @@
     </h2>
   </header>
 
-  @if (serverKeyLoaded() && !serverAvailable()) {
-    <p class="setting-description">
-      {{ 'SETTINGS.NOTIFICATIONS.SERVER_DISABLED' | translate }}
-    </p>
-  }
+  <tui-scrollbar>
+    <div class="scroll-content">
+      @if (serverKeyLoaded() && !serverAvailable()) {
+        <p class="setting-description">
+          {{ 'SETTINGS.NOTIFICATIONS.SERVER_DISABLED' | translate }}
+        </p>
+      }
 
-  <div class="setting-item">
-    <div class="status-row">
-      <span class="status-label">{{
-        'SETTINGS.NOTIFICATIONS.STATUS' | translate
-      }}</span>
-      <span
-        class="status-badge"
-        [class.enabled]="isEnabled()"
-        [class.disabled]="!isEnabled()">
-        {{
-          (isEnabled()
-            ? 'SETTINGS.NOTIFICATIONS.ENABLED'
-            : 'SETTINGS.NOTIFICATIONS.DISABLED'
-          ) | translate
-        }}
-      </span>
+      <div class="setting-item">
+        <div class="status-row">
+          <span class="status-label">{{
+            'SETTINGS.NOTIFICATIONS.STATUS' | translate
+          }}</span>
+          <span
+            class="status-badge"
+            [class.enabled]="isEnabled()"
+            [class.disabled]="!isEnabled()">
+            {{
+              (isEnabled()
+                ? 'SETTINGS.NOTIFICATIONS.ENABLED'
+                : 'SETTINGS.NOTIFICATIONS.DISABLED'
+              ) | translate
+            }}
+          </span>
+        </div>
+      </div>
     </div>
-  </div>
+  </tui-scrollbar>
 
   <footer>
     <button
