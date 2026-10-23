@@ -22,7 +22,7 @@
     }
     @if (isSelf()) {
       <div
-        tuiAvatar="@tui.bookmark"
+        [tuiAvatar]="icons.bookmark"
         size="m"></div>
     } @else {
       <app-user-avatar
@@ -53,6 +53,6 @@
   </div>
 
   <tui-icon
-    icon="@tui.chevron-right"
+    [icon]="icons['chevron-right']"
     tuiAccessories />
 </button>

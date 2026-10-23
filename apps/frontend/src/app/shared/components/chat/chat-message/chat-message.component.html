@@ -130,17 +130,17 @@
             @case ('error') {
               <tui-icon
                 class="message-status-icon message-status-icon--error"
-                icon="@tui.circle-x" />
+                [icon]="icons['circle-x']" />
             }
             @case ('read') {
               <tui-icon
                 class="message-status-icon"
-                icon="@tui.check-check" />
+                [icon]="icons['check-check']" />
             }
             @case ('sent') {
               <tui-icon
                 class="message-status-icon"
-                icon="@tui.check" />
+                [icon]="icons.check" />
             }
           }
         </span>
@@ -175,7 +175,7 @@
           @if (canCancelSending()) {
             <button
               tuiOption
-              iconEnd="@tui.x"
+              [iconEnd]="icons.close"
               (click)="cancelSending(); close()">
               {{ 'ROOMS.CANCEL_SENDING' | translate }}
             </button>
@@ -183,14 +183,14 @@
         } @else {
           <button
             tuiOption
-            iconEnd="@tui.reply"
+            [iconEnd]="icons.reply"
             (click)="replyMessage(); close()">
             {{ 'GENERAL.REPLY' | translate }}
           </button>
           @if (canEdit()) {
             <button
               tuiOption
-              iconEnd="@tui.edit"
+              [iconEnd]="icons.edit"
               (click)="editMessage(); close()">
               {{ 'GENERAL.EDIT' | translate }}
             </button>
@@ -198,7 +198,7 @@
           @if (canDelete()) {
             <button
               tuiOption
-              iconEnd="@tui.delete"
+              [iconEnd]="icons.delete"
               (click)="deleteMessage(); close()">
               {{ 'GENERAL.DELETE' | translate }}
             </button>
@@ -206,7 +206,7 @@
           @if (canViewReaders()) {
             <button
               tuiOption
-              iconEnd="@tui.users"
+              [iconEnd]="icons.users"
               (click)="showReadersDialog(readersDialog); close()">
               {{ 'ROOMS.READ_BY' | translate }}
             </button>

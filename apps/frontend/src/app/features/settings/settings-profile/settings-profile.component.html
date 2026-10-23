@@ -6,182 +6,203 @@
   [formGroup]="form"
   (ngSubmit)="onSubmit()">
   <header tuiHeader>
-    {{ 'SETTINGS.PROFILE.TITLE' | translate }}
+    <h2 tuiTitle>
+      <tui-icon [icon]="icons['settings-profile']" />
+      {{ 'SETTINGS.PROFILE.TITLE' | translate }}
+    </h2>
   </header>
 
-  <label tuiInputFiles>
-    <input
-      tuiInputFiles
-      id="profile-avatar"
-      accept="image/*"
-      [maxFileSize]="maxAvatarSize"
-      [formControl]="form.controls.avatarFile"
-      type="file" />
+  <tui-scrollbar>
+    <div class="scroll-content">
+      <label tuiInputFiles>
+        <input
+          tuiInputFiles
+          id="profile-avatar"
+          accept="image/*"
+          [maxFileSize]="maxAvatarSize"
+          [formControl]="form.controls.avatarFile"
+          type="file" />
 
-    <ng-template let-dragged>
-      @if (dragged) {
-        <div
-          appearance="secondary"
-          size="xxl"
-          tuiAvatar="@tui.droplet">
-        </div>
-        <div>
-          {{ 'GENERAL.DROP_IT' | translate }}
-        </div>
-      } @else {
-        @if (avatarUrl(); as au) {
-          <div
-            appearance="secondary"
-            size="xxl"
-            tuiAvatar>
-            <img
-              [ngSrc]="au"
-              fill
-              priority
-              [alt]="au" />
-          </div>
-        } @else {
-          <div
-            appearance="secondary"
-            size="xxl"
-            tuiAvatar="@tui.cloud-upload">
-          </div>
-        }
+        <ng-template let-dragged>
+          @if (dragged) {
+            <div
+              appearance="secondary"
+              size="xxl"
+              [tuiAvatar]="icons.droplet">
+            </div>
+            <div>
+              {{ 'GENERAL.DROP_IT' | translate }}
+            </div>
+          } @else {
+            @if (avatarUrl(); as au) {
+              <div
+                appearance="secondary"
+                size="xxl"
+                tuiAvatar>
+                <img
+                  [ngSrc]="au"
+                  fill
+                  priority
+                  [alt]="au" />
+              </div>
+            } @else {
+              <div
+                appearance="secondary"
+                size="xxl"
+                [tuiAvatar]="icons['cloud-upload']">
+              </div>
+            }
 
-        <div>
-          {{ 'GENERAL.DRAG_FILE' | translate }}
-          {{ 'GENERAL.OR' | translate | lowercase }}
-          <a tuiLink>
-            {{ 'GENERAL.CLICK_TO_SELECT' | translate | lowercase }}
-          </a>
-        </div>
+            <div>
+              {{ 'GENERAL.DRAG_FILE' | translate }}
+              {{ 'GENERAL.OR' | translate | lowercase }}
+              <a tuiLink>
+                {{ 'GENERAL.CLICK_TO_SELECT' | translate | lowercase }}
+              </a>
+            </div>
+          }
+        </ng-template>
+      </label>
+
+      <tui-textfield [iconStart]="icons.user">
+        <label
+          tuiLabel
+          for="profile-username">
+          {{ 'PROFILE.USERNAME' | translate }}
+        </label>
+
+        <input
+          tuiInput
+          id="profile-username"
+          autocomplete="username"
+          formControlName="username"
+          type="text" />
+      </tui-textfield>
+      @if (errors().username; as err) {
+        <tui-error [error]="err | translate" />
       }
-    </ng-template>
-  </label>
 
-  <tui-textfield iconStart="@tui.user">
-    <label
-      tuiLabel
-      for="profile-username">
-      {{ 'PROFILE.USERNAME' | translate }}
-    </label>
+      <label tuiLabel>
+        <input
+          tuiSwitch
+          formControlName="isChangingPassword"
+          type="checkbox" />
 
-    <input
-      tuiInput
-      id="profile-username"
-      autocomplete="username"
-      formControlName="username"
-      type="text" />
-  </tui-textfield>
-  @if (errors().username; as err) {
-    <tui-error [error]="err | translate" />
-  }
+        {{ 'PROFILE.IS_CHANGING_PASSWORD' | translate }}
+      </label>
 
-  <label tuiLabel>
-    <input
-      tuiSwitch
-      formControlName="isChangingPassword"
-      type="checkbox" />
+      <tui-textfield [iconStart]="icons.lock">
+        <label
+          tuiLabel
+          for="profile-password">
+          {{ 'PROFILE.PASSWORD' | translate }}
+        </label>
+        <input
+          tuiInput
+          id="profile-password"
+          autocomplete="new-password"
+          formControlName="password"
+          type="password" />
+      </tui-textfield>
+      @if (errors().password; as err) {
+        <tui-error [error]="err | translate" />
+      }
 
-    {{ 'PROFILE.IS_CHANGING_PASSWORD' | translate }}
-  </label>
+      <tui-textfield [iconStart]="icons.lock">
+        <label
+          tuiLabel
+          for="profile-confirm-password">
+          {{ 'PROFILE.CONFIRM_PASSWORD' | translate }}
+        </label>
+        <input
+          tuiInput
+          id="profile-confirm-password"
+          autocomplete="new-password"
+          formControlName="confirmPassword"
+          type="password" />
+      </tui-textfield>
+      @if (errors().confirmPassword; as err) {
+        <tui-error [error]="err | translate" />
+      }
 
-  <tui-textfield iconStart="@tui.lock">
-    <label
-      tuiLabel
-      for="profile-password">
-      {{ 'PROFILE.PASSWORD' | translate }}
-    </label>
-    <input
-      tuiInput
-      id="profile-password"
-      autocomplete="new-password"
-      formControlName="password"
-      type="password" />
-  </tui-textfield>
-  @if (errors().password; as err) {
-    <tui-error [error]="err | translate" />
-  }
+      <tui-textfield [iconStart]="icons['file-user']">
+        <label
+          tuiLabel
+          for="profile-fullname">
+          {{ 'PROFILE.FULLNAME' | translate }}
+        </label>
+        <input
+          tuiInput
+          id="profile-fullname"
+          autocomplete="name"
+          formControlName="fullname"
+          type="text" />
+      </tui-textfield>
+      @if (errors().fullname; as err) {
+        <tui-error [error]="err | translate" />
+      }
 
-  <tui-textfield iconStart="@tui.lock">
-    <label
-      tuiLabel
-      for="profile-confirm-password">
-      {{ 'PROFILE.CONFIRM_PASSWORD' | translate }}
-    </label>
-    <input
-      tuiInput
-      id="profile-confirm-password"
-      autocomplete="new-password"
-      formControlName="confirmPassword"
-      type="password" />
-  </tui-textfield>
-  @if (errors().confirmPassword; as err) {
-    <tui-error [error]="err | translate" />
-  }
+      <tui-textfield [iconStart]="icons.mail">
+        <label
+          tuiLabel
+          for="profile-email">
+          {{ 'PROFILE.EMAIL' | translate }}
+        </label>
+        <input
+          tuiInput
+          id="profile-email"
+          autocomplete="email"
+          formControlName="email"
+          type="text" />
+      </tui-textfield>
+      @if (errors().email; as err) {
+        <tui-error [error]="err | translate" />
+      }
+    </div>
+  </tui-scrollbar>
 
-  <tui-textfield iconStart="@tui.file-user">
-    <label
-      tuiLabel
-      for="profile-fullname">
-      {{ 'PROFILE.FULLNAME' | translate }}
-    </label>
-    <input
-      tuiInput
-      id="profile-fullname"
-      autocomplete="name"
-      formControlName="fullname"
-      type="text" />
-  </tui-textfield>
-  @if (errors().fullname; as err) {
-    <tui-error [error]="err | translate" />
-  }
-
-  <tui-textfield iconStart="@tui.mail">
-    <label
-      tuiLabel
-      for="profile-email">
-      {{ 'PROFILE.EMAIL' | translate }}
-    </label>
-    <input
-      tuiInput
-      id="profile-email"
-      autocomplete="email"
-      formControlName="email"
-      type="text" />
-  </tui-textfield>
-  @if (errors().email; as err) {
-    <tui-error [error]="err | translate" />
-  }
-
-  <footer>
+  <footer style="flex-wrap: wrap">
+    @let saveTitle = 'GENERAL.SAVE' | translate;
     <button
       tuiButton
       appearance="primary"
-      iconStart="@tui.save"
+      [iconStart]="icons.save"
+      [tuiHint]="saveTitle"
       type="submit"
       [disabled]="isSaveDisabled()"
       [loading]="loading()">
-      {{ 'GENERAL.SAVE' | translate }}
+      @if (!isNarrow()) {
+        {{ saveTitle }}
+      }
     </button>
 
+    @let logOutTitle = 'GENERAL.LOG_OUT' | translate;
     <button
       tuiButton
       appearance="primary-destructive"
-      iconStart="@tui.log-out"
+      [iconStart]="icons['log-out']"
       type="button"
+      [tuiHint]="logOutTitle"
+      tuiHintAppearance="accent"
       (click)="logout()">
-      {{ 'GENERAL.LOG_OUT' | translate }}
+      @if (!isNarrow()) {
+        {{ logOutTitle }}
+      }
     </button>
 
     @if (canDeleteAccount()) {
+      @let dleeteTitle = 'SETTINGS.PROFILE.DELETE' | translate;
       <button
         tuiButton
         appearance="negative"
-        iconStart="@tui.trash"
+        [iconStart]="icons.delete"
         type="button"
+        [tuiHint]="dleeteTitle"
+        tuiHintAppearance="negative"
         (click)="openDelete()">
-        {{ 'SETTINGS.PROFILE.DELETE' | translate }}
+        @if (!isNarrow()) {
+          {{ dleeteTitle }}
+        }
       </button>
     }
   </footer>

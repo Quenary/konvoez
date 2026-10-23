@@ -10,7 +10,7 @@
   }
   @if (current().downloadUrl && !broken()) {
     <button
-      iconStart="@tui.download"
+      [iconStart]="icons.download"
       tuiIconButton
       tuiPreviewAction
       type="button"
@@ -19,7 +19,7 @@
     </button>
   }
   <button
-    iconStart="@tui.x"
+    [iconStart]="icons.close"
     tuiIconButton
     tuiPreviewAction
     type="button"

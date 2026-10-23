@@ -1,33 +1,32 @@
 <div
   appearance="floating"
-  tuiCardLarge>
-  <header
-    tuiHeader
-    class="direct-header">
+  tuiCardLarge
+  tuiForm="m">
+  <header tuiHeader>
     <h2 tuiTitle>
-      <span class="header-title">
-        <tui-icon
-          icon="@tui.messages-square"
-          class="title-icon" />
-        {{ 'DIRECT.TITLE' | translate }}
-      </span>
+      <tui-icon [icon]="icons.direct" />
+      {{ 'DIRECT.TITLE' | translate }}
     </h2>
 
     <aside tuiAccessories>
+      @let createTitle = 'DIRECT.NEW_CHAT' | translate;
       <button
         tuiButton
         appearance="primary"
         size="m"
-        iconStart="@tui.plus"
+        [iconStart]="icons.add"
         type="button"
+        [tuiHint]="createTitle"
         (click)="openNewChatDialog()">
-        {{ 'DIRECT.NEW_CHAT' | translate }}
+        @if (!isNarrow()) {
+          {{ createTitle }}
+        }
       </button>
     </aside>
   </header>
 
   @if (directChatsStore.entities().length > 0) {
-    <tui-scrollbar class="direct-chats-scroll">
+    <tui-scrollbar>
       <div class="chats-list">
         @for (user of directChatsStore.entities(); track user.id) {
           <app-direct-chat-item
@@ -38,18 +37,18 @@
     </tui-scrollbar>
   } @else if (!directChatsStore.loading()) {
     <div class="empty-state">
-      <div class="empty-icon-wrapper">
+      <div class="empty-state-icon-wrapper">
         <tui-icon
-          icon="@tui.messages-square"
-          class="empty-icon" />
+          [icon]="icons.direct"
+          class="empty-state-icon" />
       </div>
-      <h3 class="empty-title">{{ 'DIRECT.EMPTY_TITLE' | translate }}</h3>
-      <p class="empty-desc">{{ 'DIRECT.EMPTY_DESC' | translate }}</p>
+      <h3 class="empty-state-title">{{ 'DIRECT.EMPTY_TITLE' | translate }}</h3>
+      <p class="empty-state-desc">{{ 'DIRECT.EMPTY_DESC' | translate }}</p>
       <button
         tuiButton
         appearance="primary"
         size="m"
-        iconStart="@tui.plus"
+        [iconStart]="icons.add"
         type="button"
         (click)="openNewChatDialog()">
         {{ 'DIRECT.START_CHAT' | translate }}

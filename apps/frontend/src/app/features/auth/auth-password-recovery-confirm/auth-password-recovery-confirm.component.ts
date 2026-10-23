@@ -42,6 +42,8 @@ const confirmFormSchema = passwordRecoveryConfirmSchema
     path: ['confirmPassword'],
   });
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-auth-password-recovery-confirm',
   imports: [
@@ -71,6 +73,7 @@ export class AuthPasswordRecoveryConfirmComponent {
   private readonly translate = inject(TranslateService);
   private readonly apiError = inject(ApiErrorService);
 
+  protected readonly icons = icons;
   protected readonly loading = signal(false);
 
   protected readonly form = new FormGroup(

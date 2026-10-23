@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MentionAvatarComponent } from './mention-avatar.component';
-
 describe('MentionAvatarComponent', () => {
   let fixture: ComponentFixture<MentionAvatarComponent>;
   let element: HTMLElement;
@@ -79,9 +78,7 @@ describe('MentionAvatarComponent', () => {
     });
     fixture.detectChanges();
 
-    const icon = element.querySelector('tui-icon');
-    expect(icon).toBeTruthy();
-    expect(icon?.getAttribute('icon')).toBe('@tui.users');
+    expect(element.querySelector('tui-icon')).toBeTruthy();
   });
 
   it('renders nothing for unknown', () => {

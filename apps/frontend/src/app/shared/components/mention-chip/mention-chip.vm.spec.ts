@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { IRoleSummary, IUser } from '@konvoez/shared';
+import { tuiAutoColor } from '@taiga-ui/kit';
 import { buildMentionChipVm, IMentionChipContext } from './mention-chip.vm';
 
 describe('buildMentionChipVm', () => {
@@ -78,6 +79,7 @@ describe('buildMentionChipVm', () => {
         fullname: 'Bob Ross',
         avatarUrl: null,
       },
+      textColor: tuiAutoColor('bob'),
     });
   });
 
@@ -96,6 +98,7 @@ describe('buildMentionChipVm', () => {
         fullname: 'Alice Wonderland',
         avatarUrl: 'https://example.com/avatar1.png',
       },
+      textColor: undefined,
     });
   });
 
@@ -111,6 +114,7 @@ describe('buildMentionChipVm', () => {
       avatar: {
         kind: 'unknown',
       },
+      textColor: undefined,
     });
   });
 
@@ -128,6 +132,7 @@ describe('buildMentionChipVm', () => {
         name: 'Admin',
         color: '#ff0000',
       },
+      textColor: undefined,
     });
   });
 
@@ -145,6 +150,7 @@ describe('buildMentionChipVm', () => {
         name: 'Moderator',
         color: null,
       },
+      textColor: null,
     });
   });
 
@@ -160,6 +166,7 @@ describe('buildMentionChipVm', () => {
       avatar: {
         kind: 'unknown',
       },
+      textColor: undefined,
     });
   });
 
@@ -175,6 +182,7 @@ describe('buildMentionChipVm', () => {
       avatar: {
         kind: 'everyone',
       },
+      textColor: undefined,
     });
   });
 
@@ -193,6 +201,7 @@ describe('buildMentionChipVm', () => {
       avatar: {
         kind: 'everyone',
       },
+      textColor: undefined,
     });
   });
 
@@ -208,6 +217,7 @@ describe('buildMentionChipVm', () => {
       avatar: {
         kind: 'unknown',
       },
+      textColor: undefined,
     });
   });
 
@@ -222,6 +232,7 @@ describe('buildMentionChipVm', () => {
       );
       expect(vm.isMe).toBe(true);
       expect(vm.appearance).toBe('info');
+      expect(vm.textColor).toBeUndefined();
     });
 
     it('sets isMe false and neutral for role when accepted.roleIds does not contain it', () => {
@@ -234,6 +245,7 @@ describe('buildMentionChipVm', () => {
       );
       expect(vm.isMe).toBe(false);
       expect(vm.appearance).toBe('neutral');
+      expect(vm.textColor).toBe('#ff0000');
     });
 
     it('sets isMe true and info for user when accepted.userIds contains me', () => {
@@ -246,6 +258,7 @@ describe('buildMentionChipVm', () => {
       );
       expect(vm.isMe).toBe(true);
       expect(vm.appearance).toBe('info');
+      expect(vm.textColor).toBeUndefined();
     });
 
     it('sets isMe false and neutral for user when accepted.userIds does not contain me', () => {
@@ -258,6 +271,7 @@ describe('buildMentionChipVm', () => {
       );
       expect(vm.isMe).toBe(false);
       expect(vm.appearance).toBe('neutral');
+      expect(vm.textColor).toBe(tuiAutoColor('alice'));
     });
 
     it('sets isMe true and info for everyone when accepted.everyone is true', () => {
@@ -305,6 +319,9 @@ describe('buildMentionChipVm', () => {
       );
       expect(everyoneVm.isMe).toBe(true);
       expect(everyoneVm.appearance).toBe('info');
+      expect(userVm.textColor).toBeUndefined();
+      expect(roleVm.textColor).toBeUndefined();
+      expect(everyoneVm.textColor).toBeUndefined();
     });
   });
 });

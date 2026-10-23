@@ -30,6 +30,8 @@ import {
 } from '@shared/functions/zod-validator.function';
 import { authLoginFormSchema } from '@shared/schemas/forms.schema';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-auth',
   imports: [
@@ -55,6 +57,7 @@ export class AuthComponent {
   private readonly store = inject(Store);
   private readonly router = inject(Router);
 
+  protected readonly icons = icons;
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(
     {

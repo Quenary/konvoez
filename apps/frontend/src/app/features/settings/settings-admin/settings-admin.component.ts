@@ -32,6 +32,7 @@ import {
 import {
   TuiButton,
   TuiError,
+  TuiIcon,
   TuiInput,
   TuiLabel,
   TuiScrollbar,
@@ -44,6 +45,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 import * as z from 'zod';
+import { icons } from '@constants';
 
 function iceServersJsonValidator(
   control: AbstractControl,
@@ -82,6 +84,7 @@ function iceServersJsonValidator(
     TuiTextarea,
     TuiTextfield,
     TuiTitle,
+    TuiIcon,
   ],
   templateUrl: './settings-admin.component.html',
   styleUrl: './settings-admin.component.scss',
@@ -91,6 +94,7 @@ export class SettingsAdminComponent {
   protected readonly settingsStore = inject(SettingsStore);
   protected readonly pushNotificationService = inject(PushNotificationService);
 
+  protected readonly icons = icons;
   private readonly controlKeys = {
     inviteOnlySignUp: ESettingKey.INVITE_ONLY_SIGN_UP,
     passwordRecoveryCodeTtl: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,

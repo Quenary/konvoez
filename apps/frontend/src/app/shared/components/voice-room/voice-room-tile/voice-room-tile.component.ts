@@ -31,6 +31,8 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
 import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 import { VolumeControlComponent } from '../../volume-control/volume-control.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room-tile',
   imports: [
@@ -65,6 +67,7 @@ export class VoiceRoomTileComponent {
   private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
 
+  protected readonly icons = icons;
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly peer = input.required<TVoiceRoomPeerUser>();

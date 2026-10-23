@@ -1,43 +1,40 @@
-:host {
-  display: block;
-  max-width: 900px;
-  margin: 0 auto;
-}
+@use 'mixins' as mixins;
+
+@include mixins.scrollable-form;
 
 .table-wrapper {
   overflow-x: auto;
-  margin-top: 1rem;
-}
 
-.roles-table {
-  width: 100%;
-}
+  .roles-table {
+    width: 100%;
 
-.role-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+    .role-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
 
-.role-color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+    .role-color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
 
-.role-name {
-  font-weight: 500;
-}
+    .role-name {
+      font-weight: 500;
+    }
 
-.actions-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+    .actions-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
 
-.empty-cell {
-  text-align: center;
-  padding: 2rem;
-  color: var(--tui-text-tertiary);
+    .empty-cell {
+      text-align: center;
+      padding: 2rem;
+      color: var(--tui-text-tertiary);
+    }
+  }
 }

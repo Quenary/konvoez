@@ -8,6 +8,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint } from '@taiga-ui/core';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room-local-screen-preview-pause-button',
   imports: [TuiButton, TuiHint, TranslatePipe],
@@ -19,6 +21,7 @@ export class VoiceRoomLocalScreenPreviewPauseButtonComponent {
     LocalScreenPreviewService,
   );
 
+  protected readonly icons = icons;
   public readonly size = input<'s' | 'm'>('m');
 
   protected onPause(): void {

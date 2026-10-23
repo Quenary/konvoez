@@ -35,6 +35,8 @@ script-src 'self' 'wasm-unsafe-eval';
 
 `MicrophoneService` runs one 48 kHz `AudioContext`. Changing the denoiser or echo cancellation swaps the denoiser node in place, so the track sent to mediasoup is not renegotiated and audio does not drop.
 
+`getUserMedia` requests `autoGainControl: false` (including relaxed constraint fallbacks). Browser AGC on Windows can adjust the system microphone level via WASAPI; Konvoez keeps OS volume unchanged and applies level only through the input-gain `GainNode`. The desktop shell also disables Chromium's `WebRtcAllowInputVolumeAdjustment` feature.
+
 ```mermaid
 flowchart LR
   mic[getUserMedia] --> gain["Input gain 0-200%"]

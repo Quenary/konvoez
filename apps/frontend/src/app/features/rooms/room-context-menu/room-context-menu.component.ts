@@ -7,6 +7,8 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiDataList, TuiOptGroup, TuiOption } from '@taiga-ui/core';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-room-context-menu',
   imports: [TranslatePipe, TuiDataList, TuiOptGroup, TuiOption],
@@ -14,6 +16,7 @@ import { TuiDataList, TuiOptGroup, TuiOption } from '@taiga-ui/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomContextMenuComponent {
+  protected readonly icons = icons;
   public readonly roomName = input.required<string>();
 
   public readonly edit = output<void>();

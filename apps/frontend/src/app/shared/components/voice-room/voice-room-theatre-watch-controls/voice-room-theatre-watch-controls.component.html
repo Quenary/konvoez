@@ -4,7 +4,7 @@
     appearance="accent"
     size="m"
     type="button"
-    iconStart="@tui.screen-share-off"
+    [iconStart]="icons['screen-share-off']"
     tuiHintAppearance="floating"
     [tuiHint]="'CALL.STOP_WATCH_SCREEN' | translate"
     (click)="onStopWatch()">
@@ -17,7 +17,7 @@
     type="button"
     tuiDropdownAuto
     tuiDropdownDirection="top"
-    iconStart="@tui.volume-2"
+    [iconStart]="icons['volume-2']"
     [tuiDropdown]="screenVolumeDropdown"
     tuiHintAppearance="floating"
     [tuiHint]="'CALL.SCREEN_VOLUME' | translate">

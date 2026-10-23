@@ -39,7 +39,7 @@
       tuiIconButton
       appearance="flat"
       size="s"
-      iconStart="@tui.search"
+      [iconStart]="icons.search"
       type="button"
       tuiHintAppearance="floating"
       [tuiHint]="'GENERAL.SEARCH' | translate"
@@ -50,7 +50,7 @@
 
   @if (chatStore.isSearchOpen()) {
     <tui-textfield
-      iconStart="@tui.search"
+      [iconStart]="icons.search"
       [tuiTextfieldCleaner]="false"
       class="search-textfield">
       <input
@@ -63,7 +63,7 @@
           tuiIconButton
           appearance="flat"
           size="xs"
-          iconStart="@tui.x"
+          [iconStart]="icons.close"
           type="button"
           tuiHintAppearance="floating"
           [tuiHint]="'GENERAL.CANCEL' | translate"
@@ -74,7 +74,7 @@
         tuiIconButton
         appearance="flat"
         size="xs"
-        iconStart="@tui.chevron-up"
+        [iconStart]="icons['chevron-up']"
         type="button"
         tuiHintAppearance="floating"
         [tuiHint]="'GENERAL.CLOSE' | translate"

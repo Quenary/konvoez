@@ -8,15 +8,24 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { IRole } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { TuiTable } from '@taiga-ui/addon-table';
-import { TuiButton, TuiNotificationService, TuiTitle } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiHint,
+  TuiIcon,
+  TuiNotificationService,
+  TuiScrollbar,
+  TuiTitle,
+} from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { catchError, finalize, of } from 'rxjs';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
+import { LayoutService } from '@core/services/layout.service';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-roles',
@@ -25,9 +34,13 @@ import { ApiErrorService } from '@core/services/api-error.service';
     TuiBadge,
     TuiButton,
     TuiCardLarge,
+    TuiForm,
     TuiHeader,
+    TuiScrollbar,
     TuiTable,
     TuiTitle,
+    TuiIcon,
+    TuiHint,
   ],
   templateUrl: './settings-roles.component.html',
   styleUrl: './settings-roles.component.scss',
@@ -40,6 +53,10 @@ export class SettingsRolesComponent {
   private readonly notificationService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);
   private readonly injector = inject(Injector);
+  private readonly layoutService = inject(LayoutService);
+
+  protected readonly icons = icons;
+  protected readonly isNarrow = this.layoutService.isNarrow;
 
   protected readonly rolesResource = rxResource({
     stream: () =>

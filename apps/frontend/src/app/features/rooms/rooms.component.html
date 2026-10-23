@@ -12,7 +12,7 @@
           [ngTemplateOutletContext]="{ $implicit: count }"></ng-container>
       </tui-badge-notification>
     }
-    <tui-icon icon="@tui.messages-square" />
+    <tui-icon [icon]="icons.direct" />
   </tui-badged-content>
   {{ 'MENU.DIRECT' | translate }}
 </button>
@@ -46,14 +46,14 @@
   [style.margin-top.rem]="1"
   [style.color]="'var(--tui-text-secondary)'"
   tuiAsideItem
-  iconStart="@tui.message-circle-more">
+  [iconStart]="icons['text-rooms']">
   {{ 'MENU.TEXT' | translate }}
   @if (canManageRooms()) {
     <button
       [style.margin-left]="'auto'"
       tuiIconButton
       appearance="positive"
-      iconStart="@tui.plus"
+      [iconStart]="icons.add"
       (click)="addRoom(ERoomType.TEXT); $event.stopPropagation()">
     </button>
   }
@@ -107,14 +107,14 @@
   [style.margin-top.rem]="1"
   [style.color]="'var(--tui-text-secondary)'"
   tuiAsideItem
-  iconStart="@tui.audio-lines">
+  [iconStart]="icons['audio-lines']">
   {{ 'MENU.VOICE' | translate }}
   @if (canManageRooms()) {
     <button
       [style.margin-left]="'auto'"
       tuiIconButton
       appearance="positive"
-      iconStart="@tui.plus"
+      [iconStart]="icons.add"
       (click)="addRoom(ERoomType.VOICE); $event.stopPropagation()">
     </button>
   }

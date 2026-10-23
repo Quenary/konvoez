@@ -8,13 +8,21 @@ import {
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { TuiButton, TuiIcon, TuiScrollbar, TuiTitle } from '@taiga-ui/core';
-import { TuiCard, TuiHeader } from '@taiga-ui/layout';
+import {
+  TuiButton,
+  TuiHint,
+  TuiIcon,
+  TuiScrollbar,
+  TuiTitle,
+} from '@taiga-ui/core';
+import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { DirectChatsStore } from './direct-chats.store';
 import { DirectChatItemComponent } from './direct-chat-item/direct-chat-item.component';
 import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import { LayoutService } from '@core/services/layout.service';
+import { icons } from '@constants';
 
 @Component({
   selector: 'app-direct-chats',
@@ -26,7 +34,9 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
     TuiTitle,
     TuiScrollbar,
     TuiCard,
+    TuiForm,
     DirectChatItemComponent,
+    TuiHint,
   ],
   templateUrl: './direct-chats.component.html',
   styleUrl: './direct-chats.component.scss',
@@ -41,6 +51,10 @@ export class DirectChatsComponent implements OnInit {
   private readonly translateService = inject(TranslateService);
   private readonly usersStore = inject(UsersStore);
   protected readonly directChatsStore = inject(DirectChatsStore);
+  private readonly layoutService = inject(LayoutService);
+
+  protected readonly icons = icons;
+  protected readonly isNarrow = this.layoutService.isNarrow;
 
   ngOnInit(): void {
     this.directChatsStore.loadDirectChats();

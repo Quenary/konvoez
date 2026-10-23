@@ -10,6 +10,8 @@ export interface IUserDeleteDialogResult {
   readonly fullDeletion: boolean;
 }
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-user-delete-dialog',
   imports: [
@@ -26,6 +28,7 @@ export interface IUserDeleteDialogResult {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserDeleteDialogComponent {
+  protected readonly icons = icons;
   public readonly context =
     injectContext<TuiDialogContext<IUserDeleteDialogResult | null, void>>();
 

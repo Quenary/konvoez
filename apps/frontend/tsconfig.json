@@ -19,7 +19,8 @@
       "@environments/*": ["./src/environments/*"],
       "@core/*": ["./src/app/core/*"],
       "@shared/*": ["./src/app/shared/*"],
-      "@features/*": ["./src/app/features/*"]
+      "@features/*": ["./src/app/features/*"],
+      "@constants": ["./src/app/app.constants.ts"]
     }
   },
   "angularCompilerOptions": {

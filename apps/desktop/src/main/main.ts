@@ -23,6 +23,11 @@ if (!gotSingleInstanceLock) {
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  // Chromium AGC can adjust the Windows/macOS system mic level; keep OS volume alone.
+  app.commandLine.appendSwitch(
+    'disable-features',
+    'WebRtcAllowInputVolumeAdjustment',
+  );
   if (process.platform === 'linux') {
     app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer');
   }

@@ -47,6 +47,8 @@ import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
+import { LayoutService } from '@core/services/layout.service';
+import { icons } from '@constants';
 
 interface IRoomWithPeers extends IRoom {
   peers: TVoiceRoomPeerUser[];
@@ -100,10 +102,13 @@ export class RoomsComponent implements OnInit {
   private readonly isTouch = inject(WA_IS_TOUCH);
   private readonly roomManageService = inject(RoomManageService);
   private readonly roomNavigationService = inject(RoomNavigationService);
+  private readonly layoutService = inject(LayoutService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
 
   public readonly collapsed = input.required<boolean>();
 
+  protected readonly icons = icons;
+  protected readonly isNarrow = this.layoutService.isNarrow;
   protected readonly textRooms = this.roomsStore.textRooms;
 
   protected readonly roomMentionFlags = computed<Record<number, boolean>>(

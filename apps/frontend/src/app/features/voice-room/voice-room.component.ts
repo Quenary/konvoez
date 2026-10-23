@@ -22,6 +22,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
 import { IRoom } from '@konvoez/shared';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room',
   imports: [
@@ -45,6 +47,7 @@ export class VoiceRoomComponent {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly roomManageService = inject(RoomManageService);
 
+  protected readonly icons = icons;
   /**
    * Tracks which route room id we already attempted to join, so leaving
    * while staying on the page does not immediately re-join.

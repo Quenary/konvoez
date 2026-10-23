@@ -22,7 +22,7 @@
     tuiForm="m"
     [formGroup]="form"
     (ngSubmit)="onSubmit()">
-    <tui-textfield iconStart="@tui.mail">
+    <tui-textfield [iconStart]="icons.mail">
       <label
         tuiLabel
         for="invite-email">
@@ -40,7 +40,7 @@
       <tui-error [error]="err | translate" />
     }
 
-    <tui-textfield iconStart="@tui.clock">
+    <tui-textfield [iconStart]="icons.clock">
       <label
         tuiLabel
         for="invite-ttl">

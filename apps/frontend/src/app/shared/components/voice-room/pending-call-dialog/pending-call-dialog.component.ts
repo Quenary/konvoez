@@ -11,6 +11,8 @@ import { TuiButton, TuiCell, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiPush } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-pending-call-dialog',
   imports: [
@@ -32,6 +34,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 export class PendingCallDialogComponent {
   private readonly directCallService = inject(DirectCallService);
 
+  protected readonly icons = icons;
   protected readonly isRinging = this.directCallService.isRinging;
   protected readonly interlocutor = this.directCallService.interlocutor;
   protected readonly isInGroupRoom = this.directCallService.isInGroupRoom;

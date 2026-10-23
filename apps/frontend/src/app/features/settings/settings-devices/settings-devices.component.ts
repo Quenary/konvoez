@@ -28,6 +28,8 @@ import {
   TuiButton,
   TuiSlider,
   TuiTextfield,
+  TuiHint,
+  TuiScrollbar,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
@@ -45,6 +47,8 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
 import { isSimdSupported } from '@core/audio/audio-capabilities';
 import { ENoiseProcessor } from '../../../app.enums';
+import { icons } from '@constants';
+import { LayoutService } from '@core/services/layout.service';
 
 type DevicesLoadResult = {
   devices: MediaDeviceInfo[];
@@ -84,6 +88,8 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
     TuiProgressBar,
     TuiTextfield,
     TuiInputSlider,
+    TuiHint,
+    TuiScrollbar,
   ],
   providers: [
     {
@@ -157,7 +163,10 @@ export class SettingsDevicesComponent {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly layoutService = inject(LayoutService);
 
+  protected readonly icons = icons;
+  protected readonly isNarrow = this.layoutService.isNarrow;
   protected readonly audioInput = this.settingsStore.audioInput;
   protected readonly audioInputAvailable = computed(() => {
     const audioInput = this.audioInput();
@@ -208,7 +217,11 @@ export class SettingsDevicesComponent {
 
   protected readonly devicesLoad = rxResource({
     stream: () =>
-      from(this.mediaDevicesService.getUserMedia({ audio: true })).pipe(
+      from(
+        this.mediaDevicesService.getUserMedia({
+          audio: { autoGainControl: false },
+        }),
+      ).pipe(
         switchMap((stream) => {
           const streamInputDeviceId =
             stream.getAudioTracks()[0]?.getSettings()?.deviceId ?? null;

@@ -55,7 +55,7 @@
     <button
       tuiIconButton
       type="button"
-      iconStart="@tui.paperclip"
+      [iconStart]="icons.paperclip"
       size="s"
       [attr.aria-label]="'ROOMS.ATTACH_FILES' | translate"
       [disabled]="loading()"
@@ -89,7 +89,7 @@
 
   <button
     tuiIconButton
-    iconStart="@tui.send"
+    [iconStart]="icons.send"
     size="s"
     [loading]="loading()"
     (click)="onSubmit()">

@@ -22,6 +22,8 @@ import { UsersStore } from '@core/stores/users.store';
 import { IUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-direct-chat-item',
   imports: [
@@ -45,6 +47,7 @@ export class DirectChatItemComponent {
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
   protected readonly usersStore = inject(UsersStore);
 
+  protected readonly icons = icons;
   readonly user = input.required<IUser>();
   readonly selected = output<IUser>();
 

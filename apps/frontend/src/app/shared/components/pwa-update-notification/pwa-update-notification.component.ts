@@ -9,6 +9,8 @@ import { PwaUpdateService } from '@core/services/pwa-update.service';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiNotification } from '@taiga-ui/core';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-pwa-update-notification',
   imports: [TuiNotification, TuiButton, TranslatePipe],
@@ -18,6 +20,7 @@ import { TuiButton, TuiNotification } from '@taiga-ui/core';
 export class PwaUpdateNotificationComponent {
   private readonly pwaUpdateService = inject(PwaUpdateService);
 
+  protected readonly icons = icons;
   protected readonly show = linkedSignal(() =>
     this.pwaUpdateService.updatePostponed(),
   );

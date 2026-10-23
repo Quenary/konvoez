@@ -16,6 +16,8 @@ import { TuiAutoColorPipe, TuiFade } from '@taiga-ui/kit';
 import { TuiAsideItemDirective } from '@taiga-ui/layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-room-peer',
   imports: [
@@ -38,6 +40,7 @@ export class RoomPeerComponent {
   );
   private readonly audioActivityService = inject(AudioActivityService);
 
+  protected readonly icons = icons;
   public readonly peer = input.required<TVoiceRoomPeerUser>();
 
   protected readonly isLocal = computed(() => {

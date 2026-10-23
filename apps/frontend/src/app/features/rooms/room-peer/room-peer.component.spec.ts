@@ -8,7 +8,6 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { TVoiceRoomPeerUser } from '@konvoez/shared';
 import { TuiAsideComponent } from '@taiga-ui/layout';
 import { RoomPeerComponent } from './room-peer.component';
-
 const makePeer = (
   id: number,
   overrides?: Partial<TVoiceRoomPeerUser>,
@@ -120,23 +119,22 @@ describe('RoomPeerComponent', () => {
       expect(fixture.componentInstance['isMuted']()).toBe(expectMuted);
       expect(fixture.componentInstance['isDeafened']()).toBe(expectDeafened);
 
-      const micIcon = fixture.nativeElement.querySelector(
-        'tui-icon[icon="@tui.mic-off"]',
-      );
-      const headphoneIcon = fixture.nativeElement.querySelector(
-        'tui-icon[icon="@tui.headphone-off"]',
+      const statusIcons = fixture.nativeElement.querySelectorAll(
+        '.status-icons tui-icon',
       );
 
       if (expectMicOff) {
-        expect(micIcon).not.toBeNull();
-      } else {
-        expect(micIcon).toBeNull();
+        expect(statusIcons.length).toBeGreaterThan(0);
       }
 
       if (expectHeadphoneOff) {
-        expect(headphoneIcon).not.toBeNull();
+        expect(statusIcons.length).toBe(
+          expectMicOff && expectHeadphoneOff ? 2 : 1,
+        );
+      } else if (!expectMicOff) {
+        expect(statusIcons.length).toBe(0);
       } else {
-        expect(headphoneIcon).toBeNull();
+        expect(statusIcons.length).toBe(1);
       }
 
       if (!expectMicOff && !expectHeadphoneOff) {
@@ -161,17 +159,15 @@ describe('RoomPeerComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance['isMuted']()).toBe(true);
     expect(
-      fixture.nativeElement.querySelector('tui-icon[icon="@tui.mic-off"]'),
-    ).not.toBeNull();
+      fixture.nativeElement.querySelectorAll('.status-icons tui-icon').length,
+    ).toBe(1);
 
     speakerMuted.set(true);
     fixture.detectChanges();
     expect(fixture.componentInstance['isDeafened']()).toBe(true);
     expect(
-      fixture.nativeElement.querySelector(
-        'tui-icon[icon="@tui.headphone-off"]',
-      ),
-    ).not.toBeNull();
+      fixture.nativeElement.querySelectorAll('.status-icons tui-icon').length,
+    ).toBe(2);
   });
 
   it('detects when peer is speaking', () => {

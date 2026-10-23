@@ -24,6 +24,7 @@ GENERAL:
   DROP_IT: Drop it here!
   CLOSE: Close
   MORE: More
+  REFRESH: Refresh
 CONNECTION:
   PROBLEMS: Connection problems
 PROFILE:
@@ -319,8 +320,8 @@ SETTINGS:
   ADMIN:
     TITLE: Administration
     SUBTITLE: Global server settings
-    PUSH: Push notifications
     ENV_LOCKED: This setting is locked by the server environment.
+    SECURITY: Security
     INVITE_ONLY_SIGN_UP: Invite-only registration
     INVITE_ONLY_SIGN_UP_DESC: Restrict new user registration to valid invite codes only
     PASSWORD_RECOVERY_CODE_TTL: Password recovery code TTL (ms)

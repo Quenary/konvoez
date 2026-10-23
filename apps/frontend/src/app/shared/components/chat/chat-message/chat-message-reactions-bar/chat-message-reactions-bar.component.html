@@ -22,7 +22,7 @@
       [tuiHint]="'REACTIONS.EXPAND' | translate"
       (click)="toggleExpand()">
       <tui-icon
-        icon="@tui.chevron-down"
+        [icon]="icons['chevron-down']"
         class="expand-icon" />
     </button>
   </div>
@@ -47,7 +47,7 @@
         [tuiHint]="'REACTIONS.COLLAPSE' | translate"
         (click)="toggleExpand()">
         <tui-icon
-          icon="@tui.chevron-up"
+          [icon]="icons['chevron-up']"
           class="collapse-icon" />
       </button>
     </div>

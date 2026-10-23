@@ -7,7 +7,7 @@
         <header>
           <button
             tuiAsideItem
-            iconStart="@tui.home"
+            [iconStart]="icons.home"
             type="button"
             [routerLink]="'/'"
             [routerLinkActiveOptions]="{ exact: true }">
@@ -32,7 +32,7 @@
               tuiAsideItem
               automation-id="setting"
               type="button"
-              iconStart="@tui.settings"
+              [iconStart]="icons['settings']"
               tuiChevron>
               {{ 'MENU.SETTINGS.TITLE' | translate }}
 
@@ -40,7 +40,7 @@
                 <button
                   tuiAsideItem
                   type="button"
-                  iconStart="@tui.user-pen"
+                  [iconStart]="icons['settings-profile']"
                   [routerLink]="'/settings/profile'">
                   {{ 'MENU.SETTINGS.PROFILE' | translate }}
                 </button>
@@ -48,7 +48,7 @@
                 <button
                   tuiAsideItem
                   type="button"
-                  iconStart="@tui.file-headphone"
+                  [iconStart]="icons['settings-devices']"
                   [routerLink]="'/settings/devices'">
                   {{ 'MENU.SETTINGS.DEVICES' | translate }}
                 </button>
@@ -56,7 +56,7 @@
                 <button
                   tuiAsideItem
                   type="button"
-                  iconStart="@tui.bell-ring"
+                  [iconStart]="icons['settings-notifications']"
                   [routerLink]="'/settings/notifications'">
                   {{ 'MENU.SETTINGS.NOTIFICATIONS' | translate }}
                 </button>
@@ -65,7 +65,7 @@
                   <button
                     tuiAsideItem
                     type="button"
-                    iconStart="@tui.mail"
+                    [iconStart]="icons['settings-invites']"
                     [routerLink]="'/settings/invites'">
                     {{ 'MENU.SETTINGS.INVITES' | translate }}
                   </button>
@@ -75,7 +75,7 @@
                   <button
                     tuiAsideItem
                     type="button"
-                    iconStart="@tui.users"
+                    [iconStart]="icons['settings-users']"
                     [routerLink]="'/settings/users'">
                     {{ 'MENU.SETTINGS.USERS' | translate }}
                   </button>
@@ -85,7 +85,7 @@
                   <button
                     tuiAsideItem
                     type="button"
-                    iconStart="@tui.key"
+                    [iconStart]="icons['settings-roles']"
                     [routerLink]="'/settings/roles'">
                     {{ 'MENU.SETTINGS.ROLES' | translate }}
                   </button>
@@ -95,7 +95,7 @@
                   <button
                     tuiAsideItem
                     type="button"
-                    iconStart="@tui.shield"
+                    [iconStart]="icons['settings-admin']"
                     [routerLink]="'/settings/admin'">
                     {{ 'MENU.SETTINGS.ADMIN' | translate }}
                   </button>
@@ -109,7 +109,7 @@
               <button
                 tuiAsideItem
                 type="button"
-                iconStart="@tui.info">
+                [iconStart]="icons.info">
                 {{ v.currentVersion }}
               </button>
             }
@@ -119,7 +119,7 @@
                 [href]="v.releaseUrl"
                 target="_blank"
                 rel="noopener noreferrer"
-                iconStart="@tui.download"
+                [iconStart]="icons.download"
                 [style.color]="'var(--tui-text-positive)'">
                 {{ 'MENU.UPDATE_AVAILABLE' | translate }}
               </a>
@@ -130,7 +130,7 @@
             tuiAsideItem
             type="button"
             [iconStart]="
-              collapsed() ? '@tui.chevron-right' : '@tui.chevron-left'
+              collapsed() ? icons['chevron-right'] : icons['chevron-left']
             "
             (click)="collapsed.update((v) => !v)">
             {{ (collapsed() ? 'MENU.EXPAND' : 'MENU.COLLAPSE') | translate }}

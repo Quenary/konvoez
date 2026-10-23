@@ -1,11 +1,10 @@
-:host {
-  display: block;
-  inline-size: 100%;
-  max-inline-size: 40rem;
-  margin: 0 auto;
-}
+@use 'mixins' as mixins;
 
-form[tuiForm] {
+@include mixins.scrollable-form;
+
+.scroll-content {
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 

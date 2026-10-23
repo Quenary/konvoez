@@ -23,7 +23,7 @@
                   tuiIconButton
                   appearance="positive"
                   size="s"
-                  iconStart="@tui.phone-call"
+                  [iconStart]="icons['phone-call']"
                   type="button"
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.TO_CALL' | translate"
@@ -34,7 +34,7 @@
                   tuiIconButton
                   appearance="negative"
                   size="s"
-                  iconStart="@tui.phone-off"
+                  [iconStart]="icons['phone-off']"
                   type="button"
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.HANGUP' | translate"
@@ -50,7 +50,7 @@
                   tuiIconButton
                   appearance="positive"
                   size="s"
-                  iconStart="@tui.phone-call"
+                  [iconStart]="icons['phone-call']"
                   type="button"
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.JOIN_CALL' | translate"
@@ -63,7 +63,7 @@
                 tuiIconButton
                 appearance="flat"
                 size="s"
-                iconStart="@tui.phone"
+                [iconStart]="icons.phone"
                 type="button"
                 tuiHintAppearance="floating"
                 [tuiHint]="'CALL.START_CALL' | translate"
@@ -83,7 +83,7 @@
     tuiIconButton
     appearance="flat"
     size="s"
-    iconStart="@tui.message-circle"
+    [iconStart]="icons['message-circle']"
     type="button"
     tuiHintAppearance="floating"
     [tuiHint]="'CALL.TO_CHAT' | translate"

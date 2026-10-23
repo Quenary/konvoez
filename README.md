@@ -35,14 +35,6 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 
 Konvoez ships as a single Docker image: Nginx serves the frontend and proxies the API to NestJS, and Mediasoup handles voice and video. Data (SQLite, uploaded files, push keys) lives in the `konvoez_data` volume.
 
-```mermaid
-flowchart LR
-  A[Create .env] --> B[docker compose up -d]
-  B --> C[Read setup token from logs]
-  C --> D[Register OWNER account]
-  D --> E[Invite other users]
-```
-
 1. Create the config from the template and fill in the required variables:
 
    ```bash
@@ -116,20 +108,17 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 ## TODO
 
-### Video streaming — phase 4 (simulcast & adaptive)
-
-- Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
-- Bitrate caps tied to capture height; optional `maxIncomingBitrate` on the receive transport
-- Pause or reduce offscreen / hidden video consumers (adaptive downlink)
-- Optional viewer-side quality picker (layer selection when simulcast exists)
-- Optional stream viewer count (needs signaling)
-- Codec auto-pick for screen (e.g. VP9/AV1) when all consumers `canConsume`, still without server transcoding
-- Mid-share height/FPS change via `replaceTrack` (quality dialog on the tile / controls bar)
-
-### Other
-
 - 2FA
 - Per-user notification settings (topics)
+- Audio streaming adaptive (for potato internet)
+- Video streaming simulcast & adaptive:
+  - Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
+  - Bitrate caps tied to capture height; optional `maxIncomingBitrate` on the receive transport
+  - Pause or reduce offscreen / hidden video consumers (adaptive downlink)
+  - Optional viewer-side quality picker (layer selection when simulcast exists)
+  - Optional stream viewer count (needs signaling)
+  - Codec auto-pick for screen (e.g. VP9/AV1) when all consumers `canConsume`, still without server transcoding
+  - Mid-share height/FPS change via `replaceTrack` (quality dialog on the tile / controls bar)
 - Invite emails (if the user email is set)
 - Emojis and customizable emoji/sticker packs
 - Swipe to reply

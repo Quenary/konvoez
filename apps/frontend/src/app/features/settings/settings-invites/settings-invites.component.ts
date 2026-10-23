@@ -12,16 +12,20 @@ import { IInvite, TInviteStatus } from '@konvoez/shared';
 import { TuiTable } from '@taiga-ui/addon-table';
 import {
   TuiButton,
+  TuiHint,
   TuiIcon,
   TuiNotificationService,
+  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
 import { InvitesApiService } from '@core/api/invites-api.service';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { ApiErrorService } from '@core/services/api-error.service';
+import { LayoutService } from '@core/services/layout.service';
+import { icons } from '@constants';
 
 export interface IInviteStatusData {
   readonly icon: string;
@@ -72,12 +76,15 @@ export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
     TuiAutoColorPipe,
     TuiButton,
     TuiCardLarge,
+    TuiForm,
     TuiHeader,
+    TuiScrollbar,
     TuiIcon,
     TuiProgressCircle,
     TuiTable,
     TuiTooltip,
     TuiTitle,
+    TuiHint,
   ],
   templateUrl: './settings-invites.component.html',
   styleUrl: './settings-invites.component.scss',
@@ -90,6 +97,10 @@ export class SettingsInvitesComponent {
   private readonly notificationService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);
   private readonly injector = inject(Injector);
+  private readonly layoutService = inject(LayoutService);
+
+  protected readonly icons = icons;
+  protected readonly isNarrow = this.layoutService.isNarrow;
 
   protected readonly statusData = INVITE_STATUS_DATA;
 

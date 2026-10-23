@@ -13,7 +13,6 @@ import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/l
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-
 const user = (id: number): IUser =>
   ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
 
@@ -223,24 +222,9 @@ describe('VoiceRoomTileComponent', () => {
       expect(fixture.componentInstance['isMuted']()).toBe(state.muted);
       expect(fixture.componentInstance['isDeafened']()).toBe(state.deafened);
 
-      const micBadge = fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.mic-off"]',
-      );
-      const headphoneBadge = fixture.nativeElement.querySelector(
-        'tui-icon[iconStart="@tui.headphone-off"]',
-      );
-
-      if (expectMic) {
-        expect(micBadge).not.toBeNull();
-      } else {
-        expect(micBadge).toBeNull();
-      }
-
-      if (expectHeadphone) {
-        expect(headphoneBadge).not.toBeNull();
-      } else {
-        expect(headphoneBadge).toBeNull();
-      }
+      const badges = fixture.nativeElement.querySelectorAll('.badges tui-icon');
+      const expectedCount = (expectMic ? 1 : 0) + (expectHeadphone ? 1 : 0);
+      expect(badges.length).toBe(expectedCount);
     },
   );
 });

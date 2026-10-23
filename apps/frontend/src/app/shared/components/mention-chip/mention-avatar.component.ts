@@ -4,6 +4,8 @@ import { TuiAutoColorPipe, TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { TMentionAvatarVm } from './mention-chip.vm';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-mention-avatar',
   imports: [
@@ -18,5 +20,6 @@ import { TMentionAvatarVm } from './mention-chip.vm';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MentionAvatarComponent {
+  protected readonly icons = icons;
   readonly avatar = input.required<TMentionAvatarVm>();
 }

@@ -7,6 +7,8 @@ import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/puls
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { DirectStore } from './direct.store';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-direct',
   imports: [
@@ -26,6 +28,7 @@ import { DirectStore } from './direct.store';
 export class DirectComponent {
   protected readonly directStore = inject(DirectStore);
 
+  protected readonly icons = icons;
   protected readonly recipientId = this.directStore.recipientId;
   protected readonly user = this.directStore.user;
   protected readonly isSelf = this.directStore.isSelf;

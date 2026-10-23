@@ -23,6 +23,8 @@ import { IUser } from '@konvoez/shared';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DirectChatItemComponent } from '../direct-chat-item/direct-chat-item.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-direct-chat-dialog',
   imports: [
@@ -40,6 +42,7 @@ import { DirectChatItemComponent } from '../direct-chat-item/direct-chat-item.co
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DirectChatDialogComponent implements OnInit {
+  protected readonly icons = icons;
   public readonly context =
     injectContext<TuiDialogContext<IUser | null, void>>();
   private readonly usersStore = inject(UsersStore);

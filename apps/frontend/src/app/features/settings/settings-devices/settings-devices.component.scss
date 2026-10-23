@@ -1,16 +1,31 @@
+@use 'mixins' as mixins;
+
+@include mixins.scrollable-form;
+
+.scroll-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* offset for input slider */
+  padding-bottom: 1rem;
+}
+
 .mic-test-container {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin: 0.5rem 0;
-}
+  padding-bottom: 1rem;
 
-.mic-test-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
+  &-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 
-.mic-level-bar {
-  flex: 1;
+    &-bar {
+      flex: 1;
+      min-width: 10rem;
+    }
+  }
 }

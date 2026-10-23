@@ -15,6 +15,8 @@ import type { Observer } from 'rxjs';
 import { DownloadService } from '@core/services/download.service';
 import { MEDIA_PREVIEW_DATA } from './media-preview';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-media-preview',
   imports: [TranslatePipe, TuiButton, TuiPreview],
@@ -24,6 +26,7 @@ import { MEDIA_PREVIEW_DATA } from './media-preview';
 })
 export class MediaPreviewComponent {
   private readonly data = inject(MEDIA_PREVIEW_DATA);
+  protected readonly icons = icons;
   private readonly context = injectContext<TuiContext<Observer<void>>>();
   private readonly downloadService = inject(DownloadService);
 

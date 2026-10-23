@@ -12,7 +12,7 @@ describe('getStream', () => {
     vi.unstubAllGlobals();
   });
 
-  it('asks for echo cancellation and AGC without browser noise suppression', async () => {
+  it('asks for echo cancellation off and AGC off without browser noise suppression', async () => {
     const getUserMedia = vi.fn().mockResolvedValue({ id: 'stream' });
     vi.stubGlobal('navigator', {
       mediaDevices: { getUserMedia },
@@ -30,7 +30,7 @@ describe('getStream', () => {
       audio: {
         echoCancellation: false,
         noiseSuppression: false,
-        autoGainControl: true,
+        autoGainControl: false,
         channelCount: { ideal: 1 },
         deviceId: { exact: 'mic-1' },
       },
@@ -49,7 +49,7 @@ describe('getStream', () => {
       audio: {
         echoCancellation: false,
         noiseSuppression: false,
-        autoGainControl: true,
+        autoGainControl: false,
         channelCount: { ideal: 1 },
       },
     });
@@ -94,7 +94,7 @@ describe('getStream', () => {
     expect(stream).toEqual({ id: 'stream' });
     expect(getUserMedia).toHaveBeenCalledTimes(2);
     expect(getUserMedia).toHaveBeenLastCalledWith({
-      audio: { deviceId: { exact: 'mic-1' } },
+      audio: { deviceId: { exact: 'mic-1' }, autoGainControl: false },
     });
   });
 
@@ -122,7 +122,7 @@ describe('getStream', () => {
       audio: {
         echoCancellation: false,
         noiseSuppression: false,
-        autoGainControl: true,
+        autoGainControl: false,
         channelCount: { ideal: 1 },
       },
     });
@@ -140,7 +140,9 @@ describe('getStream', () => {
     await getStream(null);
 
     expect(getUserMedia).toHaveBeenCalledTimes(2);
-    expect(getUserMedia).toHaveBeenNthCalledWith(2, { audio: true });
+    expect(getUserMedia).toHaveBeenNthCalledWith(2, {
+      audio: { autoGainControl: false },
+    });
   });
 
   it('tries the chosen device, then communications, then default', async () => {

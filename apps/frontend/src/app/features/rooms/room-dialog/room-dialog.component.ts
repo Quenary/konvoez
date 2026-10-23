@@ -56,6 +56,7 @@ import {
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { roomFormSchema } from '@shared/schemas/forms.schema';
+import { icons } from '@constants';
 
 export type RoomDialogData = Partial<IRoom>;
 
@@ -120,6 +121,7 @@ export interface IRoomUserOption {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomDialogComponent {
+  protected readonly icons = icons;
   private readonly context =
     injectContext<TuiDialogContext<RoomDialogData | null, RoomDialogData>>();
   private readonly translateService = inject(TranslateService);

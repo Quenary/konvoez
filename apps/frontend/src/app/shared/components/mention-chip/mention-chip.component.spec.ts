@@ -29,6 +29,7 @@ describe('MentionChipComponent', () => {
         fullname: 'Alice Wonderland',
         avatarUrl: null,
       },
+      textColor: undefined,
     };
 
     fixture.componentRef.setInput('vm', vm);
@@ -58,6 +59,7 @@ describe('MentionChipComponent', () => {
         name: 'Moderator',
         color: null,
       },
+      textColor: null,
     };
 
     fixture.componentRef.setInput('vm', vm);
@@ -85,6 +87,7 @@ describe('MentionChipComponent', () => {
       avatar: {
         kind: 'everyone',
       },
+      textColor: undefined,
     };
 
     fixture.componentRef.setInput('vm', vm);

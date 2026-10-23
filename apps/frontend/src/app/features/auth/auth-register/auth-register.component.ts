@@ -39,6 +39,8 @@ import { PublicApiService } from '@core/services/public-api.service';
 import { catchError, firstValueFrom, of } from 'rxjs';
 import { ApiErrorService } from '@core/services/api-error.service';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-auth-register',
   imports: [
@@ -68,6 +70,7 @@ export class AuthRegisterComponent {
   private readonly translateService = inject(TranslateService);
   private readonly apiErrorService = inject(ApiErrorService);
 
+  protected readonly icons = icons;
   protected readonly publicSettings = resource({
     loader: () =>
       firstValueFrom(

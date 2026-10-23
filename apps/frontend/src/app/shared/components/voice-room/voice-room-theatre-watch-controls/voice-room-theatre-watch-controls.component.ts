@@ -11,6 +11,8 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VolumeControlComponent } from '../../volume-control/volume-control.component';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room-theatre-watch-controls',
   imports: [
@@ -31,6 +33,7 @@ export class VoiceRoomTheatreWatchControlsComponent {
     VoiceAudioPreferencesStore,
   );
 
+  protected readonly icons = icons;
   public readonly userId = input<number | null>(null);
 
   protected readonly screenVolume = computed(() => {

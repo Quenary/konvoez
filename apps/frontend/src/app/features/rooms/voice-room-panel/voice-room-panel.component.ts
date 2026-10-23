@@ -19,6 +19,8 @@ import { DirectCallService } from '@core/services/direct-call.service';
 import { EVoiceSessionType } from '@konvoez/shared';
 import { TuiFade } from '@taiga-ui/kit';
 
+import { icons } from '@constants';
+
 @Component({
   selector: 'app-voice-room-panel',
   imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint, TuiFade],
@@ -39,6 +41,7 @@ export class VoiceRoomPanelComponent {
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
 
+  protected readonly icons = icons;
   public readonly collapsed = input.required<boolean>();
 
   protected readonly microphoneMuted =
