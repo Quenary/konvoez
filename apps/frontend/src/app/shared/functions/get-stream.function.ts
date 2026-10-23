@@ -5,8 +5,10 @@
  *
  * Browser noise suppression stays off by default (WASM denoisers own that job).
  * Echo cancellation stays off by default for clean voice capture (enabled manually for speakers).
- * Auto gain control stays on at the browser layer by default.
- * Looser constraints are retried only after OverconstrainedError or TypeError.
+ * Auto gain control stays off by default: Chromium AGC on Windows can mutate the
+ * OS microphone volume via WASAPI. In-app level uses a GainNode only.
+ * Looser constraints are retried only after OverconstrainedError or TypeError,
+ * and still keep autoGainControl off.
  * NotAllowedError stops the search so Firefox does not prompt again.
  */
 import { DEFAULT_ECHO_CANCELLATION } from '../schemas/local-settings.schema';
@@ -33,7 +35,7 @@ function captureConstraints(
   const base: MediaTrackConstraints = {
     echoCancellation: options?.echoCancellation ?? DEFAULT_ECHO_CANCELLATION,
     noiseSuppression: options?.noiseSuppression ?? false,
-    autoGainControl: options?.autoGainControl ?? true,
+    autoGainControl: options?.autoGainControl ?? false,
     channelCount: { ideal: 1 },
   };
 
@@ -76,6 +78,19 @@ async function openAudio(
   return navigator.mediaDevices.getUserMedia({ audio: constraints });
 }
 
+function relaxedConstraints(
+  deviceId: string | undefined,
+  options?: GetStreamAudioOptions,
+): MediaTrackConstraints {
+  // Keep AGC off even when other processing constraints are dropped: Chromium's
+  // default for `audio: true` enables AGC and can change the OS mic volume.
+  const autoGainControl = options?.autoGainControl ?? false;
+  if (!deviceId) {
+    return { autoGainControl };
+  }
+  return { deviceId: { exact: deviceId }, autoGainControl };
+}
+
 async function openDevice(
   deviceId?: string,
   options?: GetStreamAudioOptions,
@@ -87,10 +102,7 @@ async function openDevice(
       throw error;
     }
     console.warn('getUserMedia rejected capture constraints', error);
-    if (!deviceId) {
-      return openAudio(true);
-    }
-    return openAudio({ deviceId: { exact: deviceId } });
+    return openAudio(relaxedConstraints(deviceId, options));
   }
 }
 

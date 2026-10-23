@@ -217,7 +217,11 @@ export class SettingsDevicesComponent {
 
   protected readonly devicesLoad = rxResource({
     stream: () =>
-      from(this.mediaDevicesService.getUserMedia({ audio: true })).pipe(
+      from(
+        this.mediaDevicesService.getUserMedia({
+          audio: { autoGainControl: false },
+        }),
+      ).pipe(
         switchMap((stream) => {
           const streamInputDeviceId =
             stream.getAudioTracks()[0]?.getSettings()?.deviceId ?? null;
