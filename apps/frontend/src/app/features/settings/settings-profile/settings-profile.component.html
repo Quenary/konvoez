@@ -162,33 +162,45 @@
   </tui-scrollbar>
 
   <footer style="flex-wrap: wrap">
+    @let saveTitle = 'GENERAL.SAVE' | translate;
     <button
       tuiButton
       appearance="primary"
       iconStart="@tui.save"
+      [tuiHint]="saveTitle"
       type="submit"
       [disabled]="isSaveDisabled()"
       [loading]="loading()">
-      {{ 'GENERAL.SAVE' | translate }}
+      @if (!isNarrow()) {
+        {{ saveTitle }}
+      }
     </button>
 
+    @let logOutTitle = 'GENERAL.LOG_OUT' | translate;
     <button
       tuiButton
       appearance="primary-destructive"
       iconStart="@tui.log-out"
       type="button"
+      [tuiHint]="logOutTitle"
       (click)="logout()">
-      {{ 'GENERAL.LOG_OUT' | translate }}
+      @if (!isNarrow()) {
+        {{ logOutTitle }}
+      }
     </button>
 
     @if (canDeleteAccount()) {
+      @let dleeteTitle = 'SETTINGS.PROFILE.DELETE' | translate;
       <button
         tuiButton
         appearance="negative"
         iconStart="@tui.trash"
         type="button"
+        [tuiHint]="dleeteTitle"
         (click)="openDelete()">
-        {{ 'SETTINGS.PROFILE.DELETE' | translate }}
+        @if (!isNarrow()) {
+          {{ dleeteTitle }}
+        }
       </button>
     }
   </footer>
