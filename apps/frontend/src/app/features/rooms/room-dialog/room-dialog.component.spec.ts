@@ -8,7 +8,7 @@ import { ERoomType } from '@konvoez/shared';
 import { RoomsApiService } from '@core/api/rooms-api.service';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { UsersStore } from '@core/stores/users.store';
-import { IRole, IUser } from '@konvoez/shared';
+import { IRole, IUserSafe } from '@konvoez/shared';
 import { RoomDialogComponent, RoomDialogData } from './room-dialog.component';
 
 describe('RoomDialogComponent', () => {
@@ -40,12 +40,11 @@ describe('RoomDialogComponent', () => {
     },
   ];
 
-  const mockUsers: IUser[] = [
+  const mockUsers: IUserSafe[] = [
     {
       id: 2,
       username: 'alice',
       fullname: 'Alice Smith',
-      email: 'alice@example.com',
       isOwner: false,
       roles: [],
       permissions: [],

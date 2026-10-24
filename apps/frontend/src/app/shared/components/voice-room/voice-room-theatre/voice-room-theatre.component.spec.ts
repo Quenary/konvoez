@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -15,8 +15,8 @@ import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomTilesService } from '../voice-room-tiles.service';
 import { buildVoiceRoomTiles, type TVoiceRoomTile } from '../voice-room-tiles';
 
-const peer = (id: number, username = `u${id}`): IUser =>
-  ({ id, username, fullname: `User ${id}` }) as IUser;
+const peer = (id: number, username = `u${id}`): IUserSafe =>
+  ({ id, username, fullname: `User ${id}` }) as IUserSafe;
 
 const stripTiles = () =>
   buildVoiceRoomTiles({

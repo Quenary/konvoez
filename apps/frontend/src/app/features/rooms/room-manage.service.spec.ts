@@ -3,7 +3,7 @@ import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EPermission, ERoomType, IUser } from '@konvoez/shared';
+import { EPermission, ERoomType, IUserSafe } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { IRoom } from '@konvoez/shared';
@@ -17,11 +17,10 @@ describe('RoomManageService', () => {
     remove: ReturnType<typeof vi.fn>;
   };
 
-  const me: IUser = {
+  const me: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [EPermission.MANAGE_ROOMS],

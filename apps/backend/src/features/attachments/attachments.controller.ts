@@ -26,7 +26,7 @@ import {
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthRefreshFallback, Author } from '../auth/auth.decorator';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentDto } from './attachments.dto';
@@ -73,7 +73,7 @@ export class AttachmentsController {
   })
   @ApiCreatedResponse({ type: AttachmentDto })
   public upload(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @UploadedFiles()
     files:
       | {
@@ -94,7 +94,7 @@ export class AttachmentsController {
   @ApiNoContentResponse({ description: "Delete the caller's pending upload" })
   public async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
   ): Promise<void> {
     await this.attachmentsService.deletePending(id, author);
   }
@@ -104,7 +104,7 @@ export class AttachmentsController {
   public content(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('download') download: string | undefined,
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile | undefined> {
@@ -115,7 +115,7 @@ export class AttachmentsController {
   @AuthRefreshFallback(true)
   public thumbnail(
     @Param('id', ParseUUIDPipe) id: string,
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile | undefined> {
@@ -124,7 +124,7 @@ export class AttachmentsController {
 
   private async send(
     id: string,
-    author: GetUserDto,
+    author: GetUserSafeDto,
     thumbnail: boolean,
     download: string | undefined,
     req: Request,

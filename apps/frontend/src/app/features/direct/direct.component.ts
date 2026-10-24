@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
@@ -50,11 +50,11 @@ export class DirectComponent {
     this.directStore.showCall();
   }
 
-  protected startDirectCall(recipient: IUser): void {
+  protected startDirectCall(recipient: IUserSafe): void {
     this.directStore.startDirectCall(recipient);
   }
 
-  protected rejoinDirectCall(recipient: IUser): void {
+  protected rejoinDirectCall(recipient: IUserSafe): void {
     this.directStore.rejoinDirectCall(recipient);
   }
 

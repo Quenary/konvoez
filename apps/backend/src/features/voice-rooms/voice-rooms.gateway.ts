@@ -19,7 +19,7 @@ import {
   type TVoiceRoomProduceResult,
   type TVoiceRoomProducerClosed,
   type TVoiceRoomPeerMuted,
-  type IUser,
+  type IUserSafe,
   EVoiceRoomEvent,
   EDirectCallEvent,
   ESocketEvent,
@@ -96,7 +96,7 @@ type TSocket = Socket<
     roomId?: number;
     sessionKey?: string;
     sessionTarget?: TVoiceSessionIdentity;
-    user: IUser;
+    user: IUserSafe;
   }
 >;
 
@@ -1162,7 +1162,7 @@ export class VoiceRoomsGateway
   private removePeerMedia(
     room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
     peer: {
-      user: IUser;
+      user: IUserSafe;
       producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
       consumers: Map<string, Consumer<VoiceRoomStateMediasoupAppData>>;
       sendTransport?: WebRtcTransport;
@@ -1198,7 +1198,7 @@ export class VoiceRoomsGateway
   private closeProducerInternal(
     room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
     peer: {
-      user: IUser;
+      user: IUserSafe;
       producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
     },
     producer: Producer<VoiceRoomStateMediasoupAppData>,
@@ -1244,7 +1244,7 @@ export class VoiceRoomsGateway
   private finalizeProducerClosed(
     room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
     peer: {
-      user: IUser;
+      user: IUserSafe;
       producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
     },
     producer: Producer<VoiceRoomStateMediasoupAppData>,

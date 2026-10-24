@@ -14,7 +14,7 @@ import {
   TVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
-  IUser,
+  IUserSafe,
   TVoiceRoomMediaTag,
   TVoiceSessionIdentity,
   getVoiceSessionKey,
@@ -72,7 +72,7 @@ type VoiceRoomStatePeer = {
   /**
    * User info
    */
-  user: IUser;
+  user: IUserSafe;
   sendTransport?: WebRtcTransport;
   recvTransport?: WebRtcTransport;
   producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
@@ -202,7 +202,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
 
   public createLobbyPeerJoined(
     roomId: number,
-    user: IUser,
+    user: IUserSafe,
     muted = false,
     deafened = false,
   ): TVoiceRoomLobbyPeerJoined {

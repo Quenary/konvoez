@@ -55,7 +55,7 @@ export class SettingsController {
     description: 'Get all settings',
   })
   async getAll(): Promise<TSetting[]> {
-    return await this.settingsService.findAllAsDto();
+    return await this.settingsService.findAllAsSafeDto();
   }
 
   @Get(':key')
@@ -68,7 +68,7 @@ export class SettingsController {
   async getOne<K extends ESettingKey>(
     @Param('key') key: K,
   ): Promise<TSettingByKey<K>> {
-    return await this.settingsService.findOneAsDto(key);
+    return await this.settingsService.findOneAsSafeDto(key);
   }
 
   @Put()

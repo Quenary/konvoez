@@ -11,7 +11,7 @@ import {
   DIRECT_CALL_RING_TIMEOUT_MS,
   EDirectCallEvent,
   EVoiceSessionType,
-  IUser,
+  IUserSafe,
 } from '@konvoez/shared';
 import { DirectCallService, ECallStatus } from './direct-call.service';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
@@ -27,27 +27,25 @@ const caller = {
   id: 1,
   username: 'alice',
   fullname: 'Alice',
-  email: 'alice@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 const recipient = {
   id: 2,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 describe('DirectCallService', () => {
   let service: DirectCallService;

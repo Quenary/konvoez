@@ -25,7 +25,6 @@ describe('VoiceRoom Schemas', () => {
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
-    email: 'test@example.com',
     role: EUserRole.MEMBER,
     avatar: null,
     avatarUrl: null,

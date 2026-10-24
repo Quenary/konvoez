@@ -7,7 +7,7 @@ import {
 } from '../const';
 import { attachmentSchema } from './attachment.schemas';
 import { messageOptionalContentSchema } from './fields.schemas';
-import { userSchema } from './user.schemas';
+import { userSafeSchema } from './user.schemas';
 import { ETextRoomEvent } from '../enums';
 import { apiErrorResponseSchema, type TApiErrorResponse } from '../errors';
 import { mentionSetSchema } from '../mentions';
@@ -27,7 +27,7 @@ export const textRoomUserTypingSchema = z.object({
 });
 export type TTextRoomUserTyping = z.infer<typeof textRoomUserTypingSchema>;
 
-export const textRoomPeerSchema = userSchema.extend({
+export const textRoomPeerSchema = userSafeSchema.extend({
   clientId: stringSchema,
 });
 export type TTextRoomPeer = z.infer<typeof textRoomPeerSchema>;

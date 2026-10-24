@@ -22,7 +22,7 @@ import {
 } from '@mikro-orm/core';
 import { RoomsDomainEvents, emitRoomsDomainEvent } from './rooms.events';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 
@@ -44,7 +44,7 @@ export class RoomsService {
 
   canAccessRoom(
     user:
-      | GetUserDto
+      | GetUserSafeDto
       | UserEntity
       | {
           id: number;
@@ -145,7 +145,7 @@ export class RoomsService {
     );
   }
 
-  async findOne(id: number, author?: GetUserDto): Promise<RoomEntity> {
+  async findOne(id: number, author?: GetUserSafeDto): Promise<RoomEntity> {
     return ensureRequestContext(this.em, async () => {
       const room = await this.repo.findOne(
         { id },
@@ -167,11 +167,14 @@ export class RoomsService {
     });
   }
 
-  async findOneAsDto(id: number, author?: GetUserDto): Promise<GetRoomDto> {
+  async findOneAsSafeDto(
+    id: number,
+    author?: GetUserSafeDto,
+  ): Promise<GetRoomDto> {
     return this.toDto(await this.findOne(id, author));
   }
 
-  async findAll(author?: GetUserDto): Promise<RoomEntity[]> {
+  async findAll(author?: GetUserSafeDto): Promise<RoomEntity[]> {
     return ensureRequestContext(this.em, async () => {
       const rooms = await this.repo.findAll({
         populate: ['author', 'allowedRoles', 'allowedUsers'],
@@ -183,7 +186,7 @@ export class RoomsService {
     });
   }
 
-  async findAllAsDto(author?: GetUserDto): Promise<GetRoomDto[]> {
+  async findAllAsSafeDto(author?: GetUserSafeDto): Promise<GetRoomDto[]> {
     const rooms = await this.findAll(author);
     return rooms.map((room) => this.toDto(room));
   }
@@ -198,7 +201,10 @@ export class RoomsService {
     });
   }
 
-  async create(dto: CreateRoomDto, author: GetUserDto): Promise<RoomEntity> {
+  async create(
+    dto: CreateRoomDto,
+    author: GetUserSafeDto,
+  ): Promise<RoomEntity> {
     return ensureRequestContext(this.em, async () => {
       const existingRoom = await this.repo.findOne({ name: dto.name });
       if (existingRoom) {

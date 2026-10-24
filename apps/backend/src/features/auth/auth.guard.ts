@@ -11,11 +11,11 @@ import {
 } from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import type { Request, Response } from 'express';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 
 interface AuthenticatedRequest extends Request {
-  author?: GetUserDto;
+  author?: GetUserFullDto;
 }
 
 @Injectable()
@@ -86,7 +86,7 @@ export class AuthGuard implements CanActivate {
     context: ExecutionContext,
     request: AuthenticatedRequest,
     response: Response,
-  ): Promise<GetUserDto> {
+  ): Promise<GetUserFullDto> {
     const accessToken = request.cookies?.[ACCESS_TOKEN_KEY];
     const refreshFallback = this.reflector.getAllAndOverride<true>(
       AuthRefreshFallback,

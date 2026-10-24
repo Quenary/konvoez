@@ -1,5 +1,5 @@
 import {
-  IUser,
+  IUserSafe,
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomGetAllPeersSnapshot,
   TVoiceRoomLobbyPeerJoined,
@@ -243,7 +243,7 @@ export const VoiceLobbyStore = signalStore(
         patchState(store, initialState);
       },
 
-      applyUserEntityUpdate(user: IUser): void {
+      applyUserEntityUpdate(user: IUserSafe): void {
         patchState(store, (state) => ({
           roomsState: mapRoomsUser(state.roomsState, user),
         }));

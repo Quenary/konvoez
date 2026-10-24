@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { UsersService } from './users.service';
-import { GetUserDto } from './users.dto';
+import { GetUserSafeDto } from './users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthRefreshFallback } from '../auth/auth.decorator';
@@ -26,12 +26,12 @@ export class UsersController {
 
   @Get()
   @ApiOkResponse({
-    type: GetUserDto,
+    type: GetUserSafeDto,
     isArray: true,
     description: 'Get all users',
   })
-  async findAll(): Promise<GetUserDto[]> {
-    return await this.usersService.findAllAsDto();
+  async findAll(): Promise<GetUserSafeDto[]> {
+    return await this.usersService.findAllAsSafeDto();
   }
 
   @Get('avatar/stream')
@@ -57,10 +57,12 @@ export class UsersController {
 
   @Get(':id')
   @ApiOkResponse({
-    type: GetUserDto,
+    type: GetUserSafeDto,
     description: 'Get user by id',
   })
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<GetUserDto> {
-    return await this.usersService.findOneAsDto(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<GetUserSafeDto> {
+    return await this.usersService.findOneAsSafeDto(id);
   }
 }

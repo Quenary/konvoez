@@ -2,16 +2,16 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { signal } from '@angular/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceRoomTileMiniComponent } from './voice-room-tile-mini.component';
 
-const user = (id: number): IUser =>
+const user = (id: number): IUserSafe =>
   ({
     id,
     username: `u${id}`,
     fullname: `User ${id}`,
-  }) as IUser;
+  }) as IUserSafe;
 
 describe('VoiceRoomTileMiniComponent', () => {
   beforeEach(() => {

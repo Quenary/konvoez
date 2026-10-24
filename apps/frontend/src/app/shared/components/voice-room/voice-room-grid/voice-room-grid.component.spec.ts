@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -16,12 +16,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomGridComponent } from './voice-room-grid.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 
-const user = (id: number): IUser =>
-  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
+const user = (id: number): IUserSafe =>
+  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUserSafe;
 
 describe('VoiceRoomGridComponent', () => {
-  let currentUser: ReturnType<typeof signal<IUser | null>>;
-  let remotePeers: ReturnType<typeof signal<readonly IUser[]>>;
+  let currentUser: ReturnType<typeof signal<IUserSafe | null>>;
+  let remotePeers: ReturnType<typeof signal<readonly IUserSafe[]>>;
   let remoteCamTracks: ReturnType<
     typeof signal<Readonly<Record<number, MediaStreamTrack>>>
   >;

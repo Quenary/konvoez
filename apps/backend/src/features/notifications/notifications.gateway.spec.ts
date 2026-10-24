@@ -6,7 +6,7 @@ import { NotificationsGateway } from './notifications.gateway';
 import {
   ENotificationsEvent,
   EUserRole,
-  type IUser,
+  type IUserSafe,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
 import { Server } from 'socket.io';
@@ -17,11 +17,10 @@ describe('NotificationsGateway', () => {
   let authServiceMock: { getUserFromRawCookies: jest.Mock };
   let toMock: jest.Mock;
 
-  const user: IUser = {
+  const user: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    email: 'alice@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],

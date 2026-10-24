@@ -5,7 +5,7 @@ import {
   Injector,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
@@ -64,10 +64,10 @@ export class SettingsUserManagementComponent {
       this.userManagementApiService.list().pipe(
         catchError((err) => {
           this.notify(err);
-          return of([] as IUser[]);
+          return of([] as IUserFull[]);
         }),
       ),
-    defaultValue: [] as IUser[],
+    defaultValue: [] as IUserFull[],
   });
 
   protected openUser(id: number): void {

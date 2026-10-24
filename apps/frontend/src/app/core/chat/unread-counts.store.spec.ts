@@ -5,7 +5,12 @@ import { provideStore, Store } from '@ngrx/store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
-import { ETextRoomEvent, ITextRoomMessage, IUser } from '@konvoez/shared';
+import {
+  ETextRoomEvent,
+  ITextRoomMessage,
+  IUserSafe,
+  IUserFull,
+} from '@konvoez/shared';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { UnreadCountsStore } from './unread-counts.store';
 
@@ -40,11 +45,11 @@ describe('UnreadCountsStore', () => {
   let apiService: { getUnreadCounts: ReturnType<typeof vi.fn> };
   let mockSocket: MockSocket;
 
-  const currentUser: IUser = {
+  const currentUser: IUserFull = {
     id: 1,
     username: 'alice',
+    email: 'test@example.com',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -279,7 +284,7 @@ describe('UnreadCountsStore', () => {
     expect(store.roomMentionCount(11)).toBe(1);
 
     // Message mentioning role increments mention count if user has role
-    const userWithRole: IUser = {
+    const userWithRole: IUserSafe = {
       ...currentUser,
       roles: [{ id: 42, name: 'Moderator', priority: 1, mentionable: true }],
     };

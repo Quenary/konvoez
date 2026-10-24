@@ -28,7 +28,6 @@ describe('VoiceSession Schemas & Helpers', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    email: 'alice@example.com',
     role: EUserRole.MEMBER,
     avatar: null,
     avatarUrl: null,

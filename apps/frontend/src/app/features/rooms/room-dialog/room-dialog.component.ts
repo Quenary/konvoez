@@ -11,7 +11,7 @@ import {
   FormsModule,
   ReactiveFormsModule,
 } from '@angular/forms';
-import { ERoomType, maxAvatarSize, IRole, IUser } from '@konvoez/shared';
+import { ERoomType, maxAvatarSize, IRole, IUserSafe } from '@konvoez/shared';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IRoom } from '@konvoez/shared';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -66,7 +66,7 @@ export interface IRoomRoleOption {
 }
 
 export interface IRoomUserOption {
-  readonly user: IUser;
+  readonly user: IUserSafe;
   readonly checked: boolean;
 }
 

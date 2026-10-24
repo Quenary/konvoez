@@ -36,6 +36,7 @@ flowchart TD
 - **Stored files**: attachments, avatars and other uploads are not encrypted by the app. Encryption is the operator's job at the storage layer (for example LUKS or S3 server-side encryption).
 - **Voice and video**: WebRTC through the Mediasoup SFU, encrypted in transit with DTLS-SRTP.
 - **Web Push**: optional, for direct messages. Payloads are encrypted for the browser subscription, so push services cannot read them. The payload carries a plaintext preview so the OS can render the notification; the server and the recipient device can see it. VAPID keys live on disk next to SQLite and are encrypted with `MASTER_KEY`; operators may mount their own `vapid.json`.
+- **User email**: treated as PII. General HTTP, WebSocket and entity-sync user payloads use `userSafeSchema` / `GetUserSafeDto` (PII omitted). Self auth/profile and admin `user-management` responses use `userFullSchema` / `GetUserFullDto` (includes email).
 
 ### Authentication
 

@@ -27,7 +27,7 @@ import { RolesDomainEvents } from '../roles/roles.events';
 import { PermissionsFacade } from './permissions.facade';
 import type { RolesService } from '../roles/roles.service';
 import type { RoleEntity } from '../roles/roles.entity';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 
 describe('PermissionsFacade', () => {
   let facade: PermissionsFacade;
@@ -212,7 +212,7 @@ describe('PermissionsFacade', () => {
         id: 2,
         isOwner: false,
         permissions: [EPermission.MANAGE_ROOMS],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       expect(await facade.hasPermission(user, EPermission.MANAGE_ROOMS)).toBe(
         true,
@@ -240,7 +240,7 @@ describe('PermissionsFacade', () => {
         id: 2,
         isOwner: false,
         permissions: [EPermission.MANAGE_ROOMS, EPermission.MODERATE_MESSAGES],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       expect(
         await facade.hasAllPermissions(user, [
@@ -255,7 +255,7 @@ describe('PermissionsFacade', () => {
         id: 2,
         isOwner: false,
         permissions: [EPermission.MANAGE_ROOMS],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       expect(
         await facade.hasAllPermissions(user, [

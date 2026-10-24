@@ -1,7 +1,7 @@
 import {
   IMentionSet,
   IRoleSummary,
-  IUser,
+  IUserSafe,
   MENTION_EVERYONE,
 } from '@konvoez/shared';
 import { tuiAutoColor } from '@taiga-ui/kit';
@@ -28,9 +28,9 @@ export interface IMentionChipVm {
 }
 
 export interface IMentionChipContext {
-  usersById: Record<number, IUser>;
+  usersById: Record<number, IUserSafe>;
   rolesById: Record<number, IRoleSummary>;
-  me: IUser | null;
+  me: IUserSafe | null;
   unknownLabel: string;
   accepted: IMentionSet | null;
 }

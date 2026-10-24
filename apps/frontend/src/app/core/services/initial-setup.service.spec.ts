@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { IUserFull } from '@konvoez/shared';
 import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
@@ -23,7 +24,7 @@ describe('InitialSetupService', () => {
   let ngrxStore: Store;
   let dialogResult$: Subject<boolean>;
 
-  const authorizedUser = {
+  const authorizedUser: IUserFull = {
     id: 1,
     username: 'tester',
     email: 'test@example.com',

@@ -28,7 +28,7 @@ import {
   canDeleteTextRoomMessage,
   IMentionSet,
   ITextRoomMessageReply,
-  IUser,
+  IUserSafe,
 } from '@konvoez/shared';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { RolesStore } from '@core/stores/roles.store';
@@ -218,7 +218,7 @@ export class ChatMessageComponent {
   });
 
   protected readonly isOwnMessage = computed(() => {
-    const currentUser = this.currentUser() as IUser | null;
+    const currentUser = this.currentUser() as IUserSafe | null;
     const message = this.message();
     return !!currentUser && message.senderId === currentUser.id;
   });
@@ -276,7 +276,7 @@ export class ChatMessageComponent {
     return !outgoing && canDeleteTextRoomMessage(message, currentUser);
   });
 
-  protected readonly readers = signal<IUser[]>([]);
+  protected readonly readers = signal<IUserSafe[]>([]);
   protected readonly readersLoading = signal(false);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);

@@ -7,7 +7,7 @@ import {
   EVoiceRoomEvent,
   type IRoom,
   type IRoomDeleted,
-  type IUser,
+  type IUserSafe,
   type IUserDeleted,
   type TVoiceRoomGetAllPeersSnapshot,
   type TVoiceRoomLobbyPeerJoined,
@@ -98,13 +98,13 @@ export class EntitySyncService {
   }
 
   private bindUserEvents(): void {
-    fromEvent<IUser>(this.emitter, EEntitySyncEvent.USER_CREATED)
+    fromEvent<IUserSafe>(this.emitter, EEntitySyncEvent.USER_CREATED)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
         this.usersStore.upsertOne(user);
       });
 
-    fromEvent<IUser>(this.emitter, EEntitySyncEvent.USER_UPDATED)
+    fromEvent<IUserSafe>(this.emitter, EEntitySyncEvent.USER_UPDATED)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         tap((user) => {
@@ -115,8 +115,15 @@ export class EntitySyncService {
         withLatestFrom(this.store.select(selectCurrentUser)),
         filter(([user, currentUser]) => currentUser?.id === user.id),
       )
-      .subscribe(([user]) => {
-        this.store.dispatch(AuthActions.requestPatchUserSuccess({ user }));
+      .subscribe(([user, currentUser]) => {
+        if (!currentUser) {
+          return;
+        }
+        this.store.dispatch(
+          AuthActions.requestPatchUserSuccess({
+            user: { ...user, email: currentUser.email },
+          }),
+        );
       });
 
     fromEvent<IUserDeleted>(this.emitter, EEntitySyncEvent.USER_DELETED)

@@ -15,7 +15,6 @@ const makePeer = (
   id,
   username: `user${id}`,
   fullname: `User ${id}`,
-  email: `user${id}@example.com`,
   isOwner: false,
   roles: [],
   permissions: [],

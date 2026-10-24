@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { userSchema } from './user.schemas';
+import { userSafeSchema } from './user.schemas';
 import { EDirectCallEvent, EVoiceSessionType } from '../enums';
 
 export { EVoiceSessionType } from '../enums';
@@ -132,7 +132,7 @@ export type TCallInitiateResult = z.infer<typeof callInitiateResultSchema>;
 
 export const callIncomingPayloadSchema = z.object({
   callId: z.string().min(1),
-  caller: userSchema,
+  caller: userSafeSchema,
 });
 export type TCallIncomingPayload = z.infer<typeof callIncomingPayloadSchema>;
 
@@ -144,7 +144,7 @@ export type TCallAcceptPayload = z.infer<typeof callAcceptPayloadSchema>;
 
 export const callAcceptedPayloadSchema = z.object({
   callId: z.string().min(1),
-  recipient: userSchema,
+  recipient: userSafeSchema,
 });
 export type TCallAcceptedPayload = z.infer<typeof callAcceptedPayloadSchema>;
 

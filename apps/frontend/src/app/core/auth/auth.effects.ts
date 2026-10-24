@@ -24,7 +24,7 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 
 @Injectable()
 export class AuthEffects {
@@ -71,7 +71,7 @@ export class AuthEffects {
       this.actions$.pipe(
         ofType(AuthActions.initEnd, AuthActions.requestLoginSuccess),
         map((action) => action.user),
-        filter((user): user is IUser => user != null),
+        filter((user): user is IUserFull => user != null),
         switchMap(() =>
           this.pushNotificationService.syncExistingSubscription(),
         ),

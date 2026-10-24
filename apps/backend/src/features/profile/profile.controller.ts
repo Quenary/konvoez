@@ -15,7 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { avatarUploadLimits } from '@shared/services/file.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { UsersAvatarsService } from '../users/users-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
@@ -34,22 +34,22 @@ export class ProfileController {
 
   @Patch()
   @ApiOkResponse({
-    type: GetUserDto,
+    type: GetUserFullDto,
     description: 'Update the current user profile',
   })
   async update(
     @Body() dto: UpdateProfileDto,
-    @Author() author: GetUserDto,
-  ): Promise<GetUserDto> {
+    @Author() author: GetUserSafeDto,
+  ): Promise<GetUserFullDto> {
     return await this.profileService.updateSelf(author, dto);
   }
 
   @Post('anonymize')
   @ApiOkResponse({
-    type: GetUserDto,
+    type: GetUserFullDto,
     description: 'Anonymize the current user and keep their rooms and messages',
   })
-  async anonymize(@Author() author: GetUserDto): Promise<GetUserDto> {
+  async anonymize(@Author() author: GetUserSafeDto): Promise<GetUserFullDto> {
     return await this.profileService.anonymizeSelf(author);
   }
 
@@ -58,7 +58,7 @@ export class ProfileController {
   @ApiNoContentResponse({
     description: 'Physically delete the current user and their traces',
   })
-  async remove(@Author() author: GetUserDto): Promise<void> {
+  async remove(@Author() author: GetUserSafeDto): Promise<void> {
     await this.profileService.removeSelf(author);
   }
 

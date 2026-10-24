@@ -1,20 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { VoiceLobbyStore } from './voice-lobby.store';
 
 const bob = {
   id: 42,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 const epoch = 'epoch-1';
 

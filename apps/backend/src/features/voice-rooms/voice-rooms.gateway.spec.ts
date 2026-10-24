@@ -39,7 +39,7 @@ import {
   ApiErrorCode,
   EPermission,
   EVoiceSessionType,
-  type IUser,
+  type IUserSafe,
   type TVoiceRoomProduce,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '../notifications/notifications.events';
@@ -48,11 +48,10 @@ import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
 
-const alice: IUser = {
+const alice: IUserSafe = {
   id: 7,
   username: 'alice',
   fullname: 'Alice',
-  email: 'alice@example.com',
   avatarUrl: null,
   role: EUserRole.MEMBER,
   isOwner: false,
@@ -62,12 +61,11 @@ const alice: IUser = {
   updatedAt: new Date(),
 };
 
-const bob: IUser = {
+const bob: IUserSafe = {
   ...alice,
   id: 8,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
 };
 
 function createRoom(peers: Map<string, unknown> = new Map()) {
@@ -156,7 +154,7 @@ describe('VoiceRoomsGateway', () => {
         type: EVoiceSessionType.GROUP_ROOM,
         roomId,
       })),
-      createLobbyPeerJoined: jest.fn((roomId: number, user: IUser) => ({
+      createLobbyPeerJoined: jest.fn((roomId: number, user: IUserSafe) => ({
         roomId,
         user,
         epoch: 'epoch-1',
@@ -943,7 +941,7 @@ describe('VoiceRoomsGateway', () => {
 
       const sockets: Socket[] = [];
       for (let i = 0; i < 5; i += 1) {
-        const user: IUser = { ...alice, id: 10 + i, username: `user-${i}` };
+        const user: IUserSafe = { ...alice, id: 10 + i, username: `user-${i}` };
         const peer = {
           id: `socket-${i}`,
           user,

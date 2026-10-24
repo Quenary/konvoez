@@ -12,7 +12,7 @@ The app supports administrators managing other accounts from **Settings → User
 
 - The `OWNER` account cannot be modified or deleted by anyone, including itself, and no one can change or delete their own account through user management.
 - Users without the permission get `403`. The **Users** menu item is shown only to users who hold `MANAGE_USERS` or are the `OWNER`.
-- The user directory (`GET /api/v1/users`) is available to any authenticated user.
+- The user directory (`GET /api/v1/users`) is available to any authenticated user and returns `GetUserSafeDto` (no email). `GetUserFullDto` (with email) appears on `GET /api/v1/auth/me`, profile self-update responses, and `user-management` endpoints for administrators with `MANAGE_USERS`.
 
 ## Roles
 

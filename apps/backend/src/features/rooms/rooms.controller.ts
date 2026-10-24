@@ -28,7 +28,7 @@ import { avatarUploadLimits } from '@shared/services/file.service';
 import { RoomsAvatarsService } from './rooms-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { EPermission } from '@konvoez/shared';
 
 @Controller('rooms')
@@ -44,7 +44,7 @@ export class RoomsController {
   @ApiOkResponse({ type: GetRoomDto })
   async create(
     @Body() dto: CreateRoomDto,
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
   ): Promise<GetRoomDto> {
     const room = await this.roomsService.create(dto, author);
     return this.roomsService.toDto(room);
@@ -52,8 +52,8 @@ export class RoomsController {
 
   @Get()
   @ApiOkResponse({ type: GetRoomDto, isArray: true })
-  findAll(@Author() author: GetUserDto): Promise<GetRoomDto[]> {
-    return this.roomsService.findAllAsDto(author);
+  findAll(@Author() author: GetUserSafeDto): Promise<GetRoomDto[]> {
+    return this.roomsService.findAllAsSafeDto(author);
   }
 
   @Post('avatar/upload')
@@ -98,9 +98,9 @@ export class RoomsController {
   @ApiOkResponse({ type: GetRoomDto })
   findOne(
     @Param('id', ParseIntPipe) id: number,
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
   ): Promise<GetRoomDto> {
-    return this.roomsService.findOneAsDto(id, author);
+    return this.roomsService.findOneAsSafeDto(id, author);
   }
 
   @Put(':id')

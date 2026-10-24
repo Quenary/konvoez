@@ -23,7 +23,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthLoginDto } from './auth.dto';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import type { Request, Response } from 'express';
 
@@ -31,7 +31,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<AuthService>;
 
-  const mockUser: GetUserDto = {
+  const mockUser: GetUserFullDto = {
     id: 10,
     username: 'testuser',
     fullname: 'Test User',

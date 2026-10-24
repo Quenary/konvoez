@@ -4,7 +4,7 @@ Cross-app contracts for Konvoez: Zod schemas, inferred TypeScript types, domain 
 
 ## Scope & Capabilities
 
-- **Zod schemas & types** (`src/schemas/`): auth, user (`isOwner`, `roles`, `permissions`), profile, user management, roles (`roleSchema`, `createRoleSchema`, `updateRoleSchema`, `roleSummarySchema`, with `mentionable`), rooms (`isPrivate`, `allowedRoleIds`, `allowedUserIds`), text rooms (messages with `mentionSetSchema`, mention suggestion items), voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync and user presence, public API, and custom fields
+- **Zod schemas & types** (`src/schemas/`): auth, user (`userFullSchema` complete; `userSafeSchema` public omit of PII; `isOwner`, `roles`, `permissions`), profile, user management, roles (`roleSchema`, `createRoleSchema`, `updateRoleSchema`, `roleSummarySchema`, with `mentionable`), rooms (`isPrivate`, `allowedRoleIds`, `allowedUserIds`), text rooms (messages with `mentionSetSchema`, mention suggestion items), voice rooms and sessions, attachments, files, settings, invites, notifications, entity sync and user presence, public API, and custom fields
 - **Domain enums** (`src/enums.ts`): granular permissions (`EPermission`, including `MENTION_EVERYONE`), room types, setting keys, attachment kinds, text/voice room and direct-call events, and entity-sync and user presence events
 - **API errors** (`src/errors.ts`): `ApiErrorCode` enum (including role management and room access errors) and `apiErrorResponseSchema` / `TApiErrorResponse` wire format for HTTP responses and WebSocket error acks (`TWsAckError`)
 - **Constants** (`src/const.ts`): username/password/message limits, attachment defaults and TTLs, invite and password-recovery bounds

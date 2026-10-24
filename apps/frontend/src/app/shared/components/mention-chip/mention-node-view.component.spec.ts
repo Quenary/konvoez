@@ -12,7 +12,7 @@ import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { createKonvoezMention } from '@core/tiptap/mention/mention.extension';
-import { IRole, IUser } from '@konvoez/shared';
+import { IRole, IUserSafe } from '@konvoez/shared';
 import { MentionNodeViewComponent } from './mention-node-view.component';
 
 describe('MentionNodeViewComponent', () => {
@@ -20,11 +20,10 @@ describe('MentionNodeViewComponent', () => {
   let container: HTMLDivElement;
   let store: MockStore;
 
-  const me: IUser = {
+  const me: IUserSafe = {
     id: 99,
     username: 'myuser',
     fullname: 'My User',
-    email: 'my@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,
@@ -34,11 +33,10 @@ describe('MentionNodeViewComponent', () => {
     updatedAt: null,
   };
 
-  const alice: IUser = {
+  const alice: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,
@@ -48,7 +46,7 @@ describe('MentionNodeViewComponent', () => {
     updatedAt: null,
   };
 
-  const usersMap = signal<Record<number, IUser>>({});
+  const usersMap = signal<Record<number, IUserSafe>>({});
   const mockUsersStore = {
     entityMap: usersMap,
   };

@@ -1,5 +1,5 @@
 import type {
-  IUser,
+  IUserSafe,
   IUserDeleted,
   IUserPresenceChanged,
 } from '@konvoez/shared';
@@ -17,8 +17,8 @@ export type TUsersDomainEvent =
   (typeof UsersDomainEvents)[keyof typeof UsersDomainEvents];
 
 export type TUsersDomainPayloadMap = {
-  [UsersDomainEvents.USER_CREATED]: IUser;
-  [UsersDomainEvents.USER_UPDATED]: IUser;
+  [UsersDomainEvents.USER_CREATED]: IUserSafe;
+  [UsersDomainEvents.USER_UPDATED]: IUserSafe;
   [UsersDomainEvents.USER_DELETED]: IUserDeleted;
   [UsersDomainEvents.USER_PRESENCE_CHANGED]: IUserPresenceChanged;
   [UsersDomainEvents.USER_PERMISSIONS_CHANGED]: { userIds: number[] };

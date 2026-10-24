@@ -14,7 +14,7 @@ import {
   OutgoingMessagesStore,
 } from '@core/chat/outgoing/outgoing-messages.store';
 import { ILocalFile } from '@core/chat/outgoing/outgoing.types';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import {
   TuiButton,
   TuiDialogContext,
@@ -34,7 +34,7 @@ import { VolumeControlComponent } from '../components/volume-control/volume-cont
 import { icons } from '@constants';
 
 export interface IUserDialogData {
-  readonly user: IUser;
+  readonly user: IUserSafe;
 }
 
 @Component({

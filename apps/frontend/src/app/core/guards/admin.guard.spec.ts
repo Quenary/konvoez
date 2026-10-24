@@ -11,7 +11,7 @@ import { selectAuth } from '@core/auth/auth.selectors';
 import { adminGuard } from './admin.guard';
 import { firstValueFrom, Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { EPermission, IUser } from '@konvoez/shared';
+import { EPermission, IUserFull } from '@konvoez/shared';
 
 describe('adminGuard', () => {
   let store: MockStore;
@@ -23,11 +23,11 @@ describe('adminGuard', () => {
     ) as Observable<boolean | UrlTree>;
   };
 
-  const createMockUser = (overrides: Partial<IUser> = {}): IUser => ({
+  const createMockUser = (overrides: Partial<IUserFull> = {}): IUserFull => ({
     id: 1,
     username: 'testuser',
-    fullname: 'Test User',
     email: 'test@example.com',
+    fullname: 'Test User',
     isOwner: false,
     roles: [],
     permissions: [],

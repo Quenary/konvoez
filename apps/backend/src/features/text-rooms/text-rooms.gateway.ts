@@ -23,7 +23,7 @@ import {
 import { AppException } from '@shared/errors/app.exception';
 import { toApiErrorResponse } from '@shared/errors/to-api-error';
 import { TextRoomJoinDto } from './text-rooms.dto';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 import {
   TextRoomsDomainEvents,
   type TTextRoomsDomainPayloadMap,
@@ -133,7 +133,7 @@ export class TextRoomsGateway
       return;
     }
 
-    let fresh: GetUserDto;
+    let fresh: GetUserSafeDto;
     try {
       fresh = await this.authService.getActiveUserById(current.id);
     } catch (error) {

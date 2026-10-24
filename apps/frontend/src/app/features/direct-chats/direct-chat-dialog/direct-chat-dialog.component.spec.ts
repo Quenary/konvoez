@@ -6,17 +6,16 @@ import { provideStore } from '@ngrx/store';
 import { DirectChatDialogComponent } from './direct-chat-dialog.component';
 import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 
 describe('DirectChatDialogComponent', () => {
   let component: DirectChatDialogComponent;
   let fixture: ComponentFixture<DirectChatDialogComponent>;
 
-  const mockCurrentUser: IUser = {
+  const mockCurrentUser: IUserSafe = {
     id: 1,
     username: 'me',
     fullname: 'Current User',
-    email: 'me@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -26,11 +25,10 @@ describe('DirectChatDialogComponent', () => {
     updatedAt: null,
   };
 
-  const otherUser1: IUser = {
+  const otherUser1: IUserSafe = {
     id: 2,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -40,11 +38,10 @@ describe('DirectChatDialogComponent', () => {
     updatedAt: null,
   };
 
-  const otherUser2: IUser = {
+  const otherUser2: IUserSafe = {
     id: 3,
     username: 'bob',
     fullname: 'Bob Builder',
-    email: 'bob@example.com',
     isOwner: false,
     roles: [],
     permissions: [],

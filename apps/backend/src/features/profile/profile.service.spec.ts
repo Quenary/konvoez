@@ -23,7 +23,7 @@ import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { PasswordService } from '../../shared/services/password.service';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
@@ -39,8 +39,9 @@ describe('ProfileService', () => {
     Pick<
       UsersService,
       | 'findOne'
-      | 'toDto'
-      | 'toDtoWithPermissions'
+      | 'toSafeDto'
+      | 'toSafeDtoWithPermissions'
+      | 'toFullDto'
       | 'anonymizeLoaded'
       | 'removeLoaded'
     >
@@ -62,11 +63,10 @@ describe('ProfileService', () => {
     updatedAt: null,
   } as unknown as UserEntity;
 
-  const author: GetUserDto = {
+  const authorPublic: GetUserSafeDto = {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    email: 'test@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
@@ -76,6 +76,11 @@ describe('ProfileService', () => {
     deletedAt: null,
     createdAt: new Date(),
     updatedAt: null,
+  };
+
+  const author: GetUserFullDto = {
+    ...authorPublic,
+    email: 'test@example.com',
   };
 
   beforeEach(() => {
@@ -96,8 +101,9 @@ describe('ProfileService', () => {
 
     usersService = {
       findOne: jest.fn().mockResolvedValue(mockUser),
-      toDto: jest.fn().mockReturnValue(author),
-      toDtoWithPermissions: jest.fn().mockResolvedValue(author),
+      toSafeDto: jest.fn().mockReturnValue(authorPublic),
+      toSafeDtoWithPermissions: jest.fn().mockResolvedValue(authorPublic),
+      toFullDto: jest.fn().mockReturnValue(author),
       anonymizeLoaded: jest.fn().mockResolvedValue(author),
       removeLoaded: jest.fn().mockResolvedValue(undefined),
     };
@@ -163,10 +169,16 @@ describe('ProfileService', () => {
       );
       expect(mockEm.persist).toHaveBeenCalledWith(mockUser);
       expect(mockEm.flush).toHaveBeenCalled();
-      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(mockUser);
+      expect(usersService.toSafeDtoWithPermissions).toHaveBeenCalledWith(
+        mockUser,
+      );
+      expect(usersService.toFullDto).toHaveBeenCalledWith(
+        mockUser,
+        authorPublic.permissions,
+      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_UPDATED,
-        author,
+        authorPublic,
       );
       expect(result).toBe(author);
     });

@@ -32,7 +32,7 @@ import { parse } from 'uuid';
 import { EncryptionService } from '@shared/services/encryption.service';
 import { stringify as uuidStringify } from 'uuid';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -237,7 +237,7 @@ export class TextRoomsService {
   }
 
   private async existingMessageDto(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     message: MessageEntity,
   ): Promise<ITextRoomMessage> {
     const [attachments, reactions, isReadMap] = await Promise.all([
@@ -320,7 +320,7 @@ export class TextRoomsService {
       .toRaw();
   }
 
-  async getUnreadCounts(user: GetUserDto): Promise<ITextRoomUnreadCounts> {
+  async getUnreadCounts(user: GetUserSafeDto): Promise<ITextRoomUnreadCounts> {
     const userId = user.id;
 
     const [roomRows, directRows, mentionRows] = await Promise.all([
@@ -390,7 +390,7 @@ export class TextRoomsService {
     return { rooms, roomMentions, direct, directTotal };
   }
 
-  async getDirectChats(user: GetUserDto): Promise<GetUserDto[]> {
+  async getDirectChats(user: GetUserSafeDto): Promise<GetUserSafeDto[]> {
     const messages = await this.messageRepository.find(
       {
         room: null,
@@ -418,11 +418,11 @@ export class TextRoomsService {
       }
     }
 
-    return users.map((u) => this.usersService.toDto(u));
+    return users.map((u) => this.usersService.toSafeDto(u));
   }
 
   private async findFirstUnreadId(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     baseWhere: FilterQuery<MessageEntity>,
   ): Promise<Uint8Array | null> {
     const unread = await this.messageRepository.findOne(
@@ -460,7 +460,7 @@ export class TextRoomsService {
   }
 
   private async buildChatWhere(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     target: { roomId?: number | null; recipientId?: number | null },
   ): Promise<
     FilterQuery<MessageEntity> & { $and?: FilterQuery<MessageEntity>[] }
@@ -491,7 +491,7 @@ export class TextRoomsService {
   }
 
   async list(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     dto: MessageListRequestDto,
   ): Promise<MessageListResponseDto> {
     const {
@@ -712,7 +712,7 @@ export class TextRoomsService {
   }
 
   async create(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     dto: CreateMessageDto,
   ): Promise<ITextRoomMessage> {
     if (dto.clientId) {
@@ -976,7 +976,7 @@ export class TextRoomsService {
   }
 
   async updateMessage(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     messageId: string,
     dto: EditMessageDto,
   ): Promise<ITextRoomMessage> {
@@ -1103,7 +1103,7 @@ export class TextRoomsService {
     return messageDto;
   }
 
-  async delete(user: GetUserDto, messageId: string): Promise<void> {
+  async delete(user: GetUserSafeDto, messageId: string): Promise<void> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
       { populate: ['sender'] },
@@ -1157,7 +1157,7 @@ export class TextRoomsService {
     });
   }
 
-  async markRead(user: GetUserDto, dto: MarkReadDto): Promise<void> {
+  async markRead(user: GetUserSafeDto, dto: MarkReadDto): Promise<void> {
     const rawIds = dto.messageIds.map((id) => parse(id));
 
     const messages = await this.messageRepository.find(
@@ -1305,7 +1305,7 @@ export class TextRoomsService {
   }
 
   async readAll(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     dto: ReadAllDto,
   ): Promise<ITextRoomUnreadCounts> {
     if (dto.roomId) {
@@ -1372,7 +1372,10 @@ export class TextRoomsService {
     return counts;
   }
 
-  async getReaders(user: GetUserDto, messageId: string): Promise<GetUserDto[]> {
+  async getReaders(
+    user: GetUserSafeDto,
+    messageId: string,
+  ): Promise<GetUserSafeDto[]> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
       { populate: ['sender', 'recipient', 'room'] },
@@ -1403,11 +1406,11 @@ export class TextRoomsService {
       { populate: ['reader'] },
     );
 
-    return reads.map((r) => this.usersService.toDto(r.reader));
+    return reads.map((r) => this.usersService.toSafeDto(r.reader));
   }
 
   async toggleReaction(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     messageId: string,
     emoji: string,
   ): Promise<ITextRoomReactionGroup[]> {

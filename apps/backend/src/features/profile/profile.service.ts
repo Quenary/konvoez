@@ -7,7 +7,7 @@ import { AppException } from '@shared/errors/app.exception';
 import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { UpdateProfileDto } from './profile.dto';
@@ -28,9 +28,9 @@ export class ProfileService {
   }
 
   async updateSelf(
-    author: GetUserDto,
+    author: GetUserSafeDto,
     dto: UpdateProfileDto,
-  ): Promise<GetUserDto> {
+  ): Promise<GetUserFullDto> {
     if (dto.username) {
       const existingUsername = await this.repo.findOne({
         username: dto.username,
@@ -69,28 +69,28 @@ export class ProfileService {
     this.repo.assign(user, assignData);
     this.em.persist(user);
     await this.em.flush();
-    const result = await this.usersService.toDtoWithPermissions(user);
+    const publicDto = await this.usersService.toSafeDtoWithPermissions(user);
     emitUsersDomainEvent(
       this.eventEmitter,
       UsersDomainEvents.USER_UPDATED,
-      result,
+      publicDto,
     );
-    return result;
+    return this.usersService.toFullDto(user, publicDto.permissions);
   }
 
-  async anonymizeSelf(author: GetUserDto): Promise<GetUserDto> {
+  async anonymizeSelf(author: GetUserSafeDto): Promise<GetUserFullDto> {
     this.assertNotOwner(author);
     const user = await this.usersService.findOne(author.id);
     return await this.usersService.anonymizeLoaded(user);
   }
 
-  async removeSelf(author: GetUserDto): Promise<void> {
+  async removeSelf(author: GetUserSafeDto): Promise<void> {
     this.assertNotOwner(author);
     await this.roomsFacade.deleteRoomsByAuthor(author.id);
     await this.usersService.removeLoaded(author.id);
   }
 
-  private assertNotOwner(author: GetUserDto): void {
+  private assertNotOwner(author: GetUserSafeDto): void {
     if (author.isOwner || author.role === EUserRole.OWNER) {
       throw AppException.forbidden(
         ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,

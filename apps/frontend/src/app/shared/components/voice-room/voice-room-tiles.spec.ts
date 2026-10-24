@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import {
   buildVoiceRoomTiles,
   findVoiceRoomTile,
@@ -10,7 +10,8 @@ import {
   type TVoiceRoomTile,
 } from './voice-room-tiles';
 
-const user = (id: number): IUser => ({ id, username: `u${id}` }) as IUser;
+const user = (id: number): IUserSafe =>
+  ({ id, username: `u${id}` }) as IUserSafe;
 
 const track = (id: string): MediaStreamTrack => ({ id }) as MediaStreamTrack;
 

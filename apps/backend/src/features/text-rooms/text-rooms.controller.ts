@@ -14,7 +14,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { ApiNoContentResponse, ApiOkResponse } from '@nestjs/swagger';
 import { TextRoomsService } from './text-rooms.service';
 import { Author } from '../auth/auth.decorator';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import {
   MarkReadDto,
   MessageDto,
@@ -35,12 +35,14 @@ export class TextRoomsController {
 
   @Get('direct')
   @ApiOkResponse({
-    type: GetUserDto,
+    type: GetUserSafeDto,
     isArray: true,
     description:
       'Get list of users with whom the current user has direct messages',
   })
-  async getDirectChats(@Author() author: GetUserDto): Promise<GetUserDto[]> {
+  async getDirectChats(
+    @Author() author: GetUserSafeDto,
+  ): Promise<GetUserSafeDto[]> {
     return await this.textRoomsService.getDirectChats(author);
   }
 
@@ -50,7 +52,7 @@ export class TextRoomsController {
     description: 'Get unread message counts for text rooms and direct chats',
   })
   async getUnreadCounts(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
   ): Promise<UnreadCountsResponseDto> {
     return await this.textRoomsService.getUnreadCounts(author);
   }
@@ -61,7 +63,7 @@ export class TextRoomsController {
     description: 'Get messages list (chunked)',
   })
   async list(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Body() body: MessageListRequestDto,
   ) {
     return await this.textRoomsService.list(author, body);
@@ -71,7 +73,7 @@ export class TextRoomsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: 'Mark messages as read' })
   async markRead(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Body() body: MarkReadDto,
   ): Promise<void> {
     await this.textRoomsService.markRead(author, body);
@@ -84,7 +86,7 @@ export class TextRoomsController {
     description: 'Mark all messages in a chat as read',
   })
   async readAll(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Body() body: ReadAllDto,
   ): Promise<UnreadCountsResponseDto> {
     return await this.textRoomsService.readAll(author, body);
@@ -95,21 +97,24 @@ export class TextRoomsController {
     type: MessageDto,
     description: 'Create message',
   })
-  async create(@Author() author: GetUserDto, @Body() body: CreateMessageDto) {
+  async create(
+    @Author() author: GetUserSafeDto,
+    @Body() body: CreateMessageDto,
+  ) {
     const message = await this.textRoomsService.create(author, body);
     return message;
   }
 
   @Get(':id/readers')
   @ApiOkResponse({
-    type: GetUserDto,
+    type: GetUserSafeDto,
     isArray: true,
     description: 'Get list of users who have read a message',
   })
   async getReaders(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Param('id') id: string,
-  ): Promise<GetUserDto[]> {
+  ): Promise<GetUserSafeDto[]> {
     return await this.textRoomsService.getReaders(author, id);
   }
 
@@ -119,7 +124,7 @@ export class TextRoomsController {
     description: 'Update message',
   })
   async updateMessage(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Param('id') id: string,
     @Body() body: EditMessageDto,
   ) {
@@ -134,7 +139,7 @@ export class TextRoomsController {
     description: 'Toggle emoji reaction on message',
   })
   async toggleReaction(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Param('id') id: string,
     @Body() body: ToggleReactionDto,
   ): Promise<ReactionGroupDto[]> {
@@ -145,7 +150,7 @@ export class TextRoomsController {
   @ApiOkResponse({
     description: 'Delete message',
   })
-  async delete(@Author() author: GetUserDto, @Param('id') id: string) {
+  async delete(@Author() author: GetUserSafeDto, @Param('id') id: string) {
     await this.textRoomsService.delete(author, id);
   }
 }

@@ -80,7 +80,9 @@ describe('UsersService', () => {
       findOne: jest.fn(),
       findAll: jest.fn().mockResolvedValue([mockUser]),
       create: jest.fn().mockReturnValue(mockUser),
-      assign: jest.fn().mockReturnValue(mockUser),
+      assign: jest
+        .fn()
+        .mockImplementation((entity, data) => Object.assign(entity, data)),
     } as unknown as jest.Mocked<EntityRepository<UserEntity>>;
 
     passwordService = {
@@ -169,15 +171,25 @@ describe('UsersService', () => {
     });
   });
 
-  describe('toDto', () => {
-    it('should map deletedAt', () => {
+  describe('toSafeDto', () => {
+    it('should map deletedAt and omit email', () => {
       const deletedAt = new Date('2026-09-30T12:00:00.000Z');
-      const dto = service.toDto({
+      const dto = service.toSafeDto({
         ...mockUser,
         deletedAt,
       } as UserEntity);
 
       expect(dto.deletedAt).toEqual(deletedAt);
+      expect(dto).not.toHaveProperty('password');
+      expect(dto).not.toHaveProperty('email');
+    });
+  });
+
+  describe('toFullDto', () => {
+    it('should include email for self and admin responses', () => {
+      const dto = service.toFullDto(mockUser);
+
+      expect(dto.email).toBe('test@example.com');
       expect(dto).not.toHaveProperty('password');
     });
   });
@@ -211,10 +223,15 @@ describe('UsersService', () => {
         USER_AVATARS_BUCKET,
       );
       expect(result.isOwner).toBe(false);
+      expect(result.email).toBe('deleted-5@users.invalid');
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5, isOwner: false }),
       );
+      const emitted = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === UsersDomainEvents.USER_UPDATED,
+      )?.[1];
+      expect(emitted).not.toHaveProperty('email');
     });
   });
 

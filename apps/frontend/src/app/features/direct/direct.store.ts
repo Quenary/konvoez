@@ -12,7 +12,7 @@ import {
 } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { UsersStore } from '@core/stores/users.store';
@@ -147,12 +147,12 @@ export const DirectStore = signalStore(
         patchState(store, { preferChat: false });
       },
 
-      startDirectCall(recipient: IUser): void {
+      startDirectCall(recipient: IUserSafe): void {
         patchState(store, { preferChat: false });
         void directCallService.initiateCall(recipient);
       },
 
-      rejoinDirectCall(recipient: IUser): void {
+      rejoinDirectCall(recipient: IUserSafe): void {
         const call = directCallService.rejoinableCall();
         if (!call) {
           return;

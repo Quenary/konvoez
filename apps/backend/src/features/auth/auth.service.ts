@@ -20,7 +20,7 @@ import { UsersService } from '../users/users.service';
 import * as cookie from 'cookie';
 import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import {
   ESettingKey,
   IPasswordRecoveryConfirm,
@@ -72,7 +72,7 @@ export class AuthService implements OnApplicationBootstrap {
     return count === 0;
   }
 
-  async register(dto: AuthRegisterDto): Promise<GetUserDto> {
+  async register(dto: AuthRegisterDto): Promise<GetUserFullDto> {
     const isOwnerSetup = await this.isOwnerSetupRequired();
     if (isOwnerSetup) {
       const cachedToken = await this.cacheManager.get<string>(
@@ -121,14 +121,14 @@ export class AuthService implements OnApplicationBootstrap {
     return await this.emitUserCreated(user);
   }
 
-  private async emitUserCreated(user: UserEntity): Promise<GetUserDto> {
-    const result = await this.usersService.toDtoWithPermissions(user);
+  private async emitUserCreated(user: UserEntity): Promise<GetUserFullDto> {
+    const publicDto = await this.usersService.toSafeDtoWithPermissions(user);
     emitUsersDomainEvent(
       this.eventEmitter,
       UsersDomainEvents.USER_CREATED,
-      result,
+      publicDto,
     );
-    return result;
+    return this.usersService.toFullDto(user, publicDto.permissions);
   }
 
   private async createUser(
@@ -182,7 +182,7 @@ export class AuthService implements OnApplicationBootstrap {
    * @returns UserEntity
    * @throws AppException
    */
-  async validateUser(login: string, password: string): Promise<GetUserDto> {
+  async validateUser(login: string, password: string): Promise<GetUserFullDto> {
     let user: UserEntity | null;
     try {
       user = await this.usersService.findOneByUsernameOrEmail(login.trim());
@@ -208,7 +208,7 @@ export class AuthService implements OnApplicationBootstrap {
         'Invalid credentials',
       );
     }
-    return await this.usersService.toDtoWithPermissions(user);
+    return await this.usersService.toFullDtoWithPermissions(user);
   }
 
   async requestPasswordRecovery(
@@ -430,7 +430,7 @@ export class AuthService implements OnApplicationBootstrap {
    * @param req request
    * @returns
    */
-  async getMe(req: Request): Promise<GetUserDto> {
+  async getMe(req: Request): Promise<GetUserFullDto> {
     const accessToken = req.cookies?.[ACCESS_TOKEN_KEY];
     if (!accessToken) {
       throw AppException.unauthorized(
@@ -442,23 +442,23 @@ export class AuthService implements OnApplicationBootstrap {
     return await this.getUserFromAccessToken(accessToken);
   }
 
-  async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
+  async getUserFromAccessToken(accessToken: string): Promise<GetUserFullDto> {
     const res = this.verifyToken(accessToken, 'access');
     return await this.requireActiveUser(res.userId);
   }
 
-  async getActiveUserById(userId: number): Promise<GetUserDto> {
+  async getActiveUserById(userId: number): Promise<GetUserFullDto> {
     return await this.requireActiveUser(userId);
   }
 
-  async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {
+  async resolveRefreshToken(refreshToken: string): Promise<GetUserFullDto> {
     const data = this.verifyToken(refreshToken, 'refresh');
     return await this.requireActiveUser(data.userId);
   }
 
   async getUserFromRawCookies(
     cookies: string | null | undefined,
-  ): Promise<GetUserDto | null> {
+  ): Promise<GetUserFullDto | null> {
     if (!cookies) {
       return null;
     }
@@ -496,8 +496,10 @@ ${token}
     return num.toString().padStart(passwordRecoveryCodeLength, '0');
   }
 
-  private async requireActiveUser(userId: number): Promise<GetUserDto> {
-    const user = await this.usersService.findOneByAsDto({ id: userId });
+  private async requireActiveUser(userId: number): Promise<GetUserFullDto> {
+    const user = await this.usersService.findOneByAsFullDto({
+      id: userId,
+    });
     if (user.deletedAt) {
       throw AppException.unauthorized(
         ApiErrorCode.UNAUTHORIZED,

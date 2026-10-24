@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { IUploadFileResult, IUser, IProfileUpdate } from '@konvoez/shared';
+import { IUploadFileResult, IUserFull, IProfileUpdate } from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
@@ -13,14 +13,14 @@ export class ProfileApiService {
   private readonly httpClient = inject(HttpClient);
   private readonly baseUrl = `${environment.apiPath}/profile`;
 
-  patch(body: IProfileUpdate): Observable<IUser> {
-    return this.httpClient.patch<IUser>(this.baseUrl, body, {
+  patch(body: IProfileUpdate): Observable<IUserFull> {
+    return this.httpClient.patch<IUserFull>(this.baseUrl, body, {
       withCredentials: true,
     });
   }
 
-  anonymize(): Observable<IUser> {
-    return this.httpClient.post<IUser>(
+  anonymize(): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
       `${this.baseUrl}/anonymize`,
       {},
       {

@@ -2,7 +2,7 @@ import { createActionGroup, emptyProps, props } from '@ngrx/store';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   IAuthLogin,
-  IUser,
+  IUserFull,
   IAuthRegister,
   IProfileUpdate,
 } from '@konvoez/shared';
@@ -11,9 +11,9 @@ export const AuthActions = createActionGroup({
   source: 'AUTH',
   events: {
     initStart: emptyProps(),
-    initEnd: props<{ user: IUser | null }>(),
+    initEnd: props<{ user: IUserFull | null }>(),
     requestLogin: props<{ body: IAuthLogin }>(),
-    requestLoginSuccess: props<{ user: IUser }>(),
+    requestLoginSuccess: props<{ user: IUserFull }>(),
     requestLoginError: props<{ error: HttpErrorResponse }>(),
     requestLogout: emptyProps(),
     requestLogoutSuccess: emptyProps(),
@@ -23,13 +23,13 @@ export const AuthActions = createActionGroup({
     requestRegisterSuccess: emptyProps(),
     requestRegisterError: props<{ error: HttpErrorResponse }>(),
     requestPatchUser: props<{ body: IProfileUpdate }>(),
-    requestPatchUserSuccess: props<{ user: IUser }>(),
+    requestPatchUserSuccess: props<{ user: IUserFull }>(),
     requestPatchUserError: props<{ error: HttpErrorResponse }>(),
     requestDeleteSelf: props<{ fullDeletion: boolean }>(),
     requestDeleteSelfSuccess: emptyProps(),
     requestDeleteSelfError: props<{ error: HttpErrorResponse }>(),
     requestMe: emptyProps(),
-    requestMeSuccess: props<{ user: IUser }>(),
+    requestMeSuccess: props<{ user: IUserFull }>(),
     requestMeError: props<{ error: HttpErrorResponse }>(),
   },
 });

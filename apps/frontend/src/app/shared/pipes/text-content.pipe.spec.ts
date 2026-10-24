@@ -9,18 +9,17 @@ import {
 import { provideTranslateService } from '@ngx-translate/core';
 import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
-import { IRoleSummary, IUser } from '@konvoez/shared';
+import { IRoleSummary, IUserSafe } from '@konvoez/shared';
 import { TextContentPipe } from './text-content.pipe';
 
 describe('TextContentPipe', () => {
   let pipe: TextContentPipe;
   let sanitizer: Sanitizer;
 
-  const alice: IUser = {
+  const alice: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,
@@ -38,7 +37,7 @@ describe('TextContentPipe', () => {
     mentionable: true,
   };
 
-  const usersMap = signal<Record<number, IUser>>({ 1: alice });
+  const usersMap = signal<Record<number, IUserSafe>>({ 1: alice });
   const rolesMap = signal<Record<number, IRoleSummary>>({ 10: adminRole });
 
   beforeEach(() => {

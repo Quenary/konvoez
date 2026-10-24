@@ -1,7 +1,7 @@
 import { Reflector } from '@nestjs/core';
 import { EPermission, EUserRole } from '@konvoez/shared';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserFullDto } from '../users/users.dto';
 
 /**
  * Special decorator for auth.guard
@@ -34,6 +34,6 @@ export const AuthRefreshFallback = Reflector.createDecorator<true>();
 export const Author = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    return request['author'] as GetUserDto;
+    return request['author'] as GetUserFullDto;
   },
 );

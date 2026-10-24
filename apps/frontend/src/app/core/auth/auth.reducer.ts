@@ -1,11 +1,11 @@
 import { createReducer, on } from '@ngrx/store';
 import { AuthActions } from './auth.actions';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 
 export interface IAuthState {
   init: boolean;
   loading: boolean;
-  user: IUser | null;
+  user: IUserFull | null;
 }
 
 export const initialState: IAuthState = {

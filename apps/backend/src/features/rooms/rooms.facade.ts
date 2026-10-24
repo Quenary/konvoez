@@ -1,14 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { GetRoomDto } from './rooms.dto';
 import { RoomEntity } from './rooms.entity';
 import { RoomsService } from './rooms.service';
 
 export type TRoomAccessUser =
-  | GetUserDto
+  | GetUserSafeDto
   | UserEntity
   | {
       id: number;
@@ -66,17 +66,17 @@ export class RoomsFacade {
     return room;
   }
 
-  async getAccessibleRoomIds(user: GetUserDto): Promise<Set<number>> {
+  async getAccessibleRoomIds(user: GetUserSafeDto): Promise<Set<number>> {
     const rooms = await this.roomsService.findAll(user);
     return new Set(rooms.map((room) => room.id));
   }
 
-  async findById(id: number, author?: GetUserDto): Promise<GetRoomDto> {
-    return this.roomsService.findOneAsDto(id, author);
+  async findById(id: number, author?: GetUserSafeDto): Promise<GetRoomDto> {
+    return this.roomsService.findOneAsSafeDto(id, author);
   }
 
-  async findAll(author?: GetUserDto): Promise<GetRoomDto[]> {
-    return this.roomsService.findAllAsDto(author);
+  async findAll(author?: GetUserSafeDto): Promise<GetRoomDto[]> {
+    return this.roomsService.findAllAsSafeDto(author);
   }
 
   async findPrivateRooms(): Promise<GetRoomDto[]> {

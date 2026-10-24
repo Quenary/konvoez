@@ -4,7 +4,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EVoiceRoomEvent, EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceRoomEvent, EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -22,14 +22,13 @@ const bob = {
   id: 42,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 import { Subject } from 'rxjs';
 import { AppResumeService, type IAppResume } from './app-resume.service';
@@ -48,7 +47,7 @@ describe('VoiceSessionService', () => {
   let voiceSessionStore: {
     activeSession: ReturnType<typeof signal>;
     joiningTarget: Signal<unknown>;
-    peersDict: ReturnType<typeof signal<Record<number, IUser>>>;
+    peersDict: ReturnType<typeof signal<Record<number, IUserSafe>>>;
     setActiveSession: (session: unknown) => void;
     setJoiningTarget: ReturnType<typeof vi.fn>;
     setPeers: ReturnType<typeof vi.fn>;
@@ -127,7 +126,7 @@ describe('VoiceSessionService', () => {
 
     const activeSession = signal<unknown>(null);
     const joiningTarget = signal<unknown>(null);
-    const peersDict = signal<Record<number, IUser>>({});
+    const peersDict = signal<Record<number, IUserSafe>>({});
     voiceSessionStore = {
       activeSession: activeSession as never,
       joiningTarget: joiningTarget.asReadonly(),
@@ -138,14 +137,14 @@ describe('VoiceSessionService', () => {
       setJoiningTarget: vi.fn((target: unknown) => {
         joiningTarget.set(target);
       }),
-      setPeers: vi.fn((users: IUser[]) => {
-        const next: Record<number, IUser> = {};
+      setPeers: vi.fn((users: IUserSafe[]) => {
+        const next: Record<number, IUserSafe> = {};
         for (const u of users) {
           next[u.id] = u;
         }
         peersDict.set(next);
       }),
-      upsertPeer: vi.fn((user: IUser) => {
+      upsertPeer: vi.fn((user: IUserSafe) => {
         peersDict.update((dict) => ({ ...dict, [user.id]: user }));
       }),
       removePeer: vi.fn((userId: number) => {
@@ -696,7 +695,7 @@ describe('VoiceSessionService', () => {
       const onPeerJoined = handlers[EVoiceRoomEvent.PEER_JOINED];
 
       await onPeerJoined({
-        user: { id: 2, username: 'bob', email: 'bob@example.com' },
+        user: { id: 2, username: 'bob' },
         epoch: 'epoch-1',
         revision: 1,
       });
@@ -708,11 +707,10 @@ describe('VoiceSessionService', () => {
       const onPeersOnJoin = handlers[EVoiceRoomEvent.PEERS_ON_JOIN];
 
       await onPeersOnJoin({
-        2: { id: 2, username: 'bob', email: 'bob@example.com', producers: [] },
+        2: { id: 2, username: 'bob', producers: [] },
         3: {
           id: 3,
           username: 'alice',
-          email: 'alice@example.com',
           producers: [],
         },
       });
@@ -741,7 +739,7 @@ describe('VoiceSessionService', () => {
       const onPeerLeft = handlers[EVoiceRoomEvent.PEER_LEFT];
 
       onPeerLeft({
-        user: { id: 999, username: 'ghost', email: 'ghost@example.com' },
+        user: { id: 999, username: 'ghost' },
       });
 
       expect(audioService.playPeerLeaveAudio).not.toHaveBeenCalled();

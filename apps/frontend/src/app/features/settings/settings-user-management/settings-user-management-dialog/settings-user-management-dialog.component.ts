@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { IUser, IRole } from '@konvoez/shared';
+import { IUserFull, IRole } from '@konvoez/shared';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiErrorService } from '@core/services/api-error.service';
@@ -86,7 +86,7 @@ export class SettingsUserManagementDialogComponent {
           return of(null);
         }),
       ),
-    defaultValue: null as IUser | null,
+    defaultValue: null as IUserFull | null,
   });
 
   protected readonly selectedRoleIds = linkedSignal(() => {

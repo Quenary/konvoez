@@ -22,7 +22,7 @@ jest.mock('@mikro-orm/core', () => {
 import { InvitesService } from './invites.service';
 import { UserEntity } from '../users/users.entity';
 import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import type { InviteEntity } from './invites.entity';
 
@@ -31,7 +31,7 @@ describe('InvitesService', () => {
   let mockRepo: jest.Mocked<EntityRepository<InviteEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
 
-  const mockAuthorUser: GetUserDto = {
+  const mockAuthorUser: GetUserSafeDto = {
     id: 1,
     username: 'admin',
     fullname: 'Administrator',
@@ -101,11 +101,7 @@ describe('InvitesService', () => {
         mockAuthorUser,
       );
 
-      expect(mockRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'user@example.com',
-        }),
-      );
+      expect(mockRepo.create).toHaveBeenCalledWith(expect.objectContaining({}));
     });
   });
 
@@ -127,7 +123,6 @@ describe('InvitesService', () => {
         {
           id: 2,
           code: 'used123',
-          email: 'used@example.com',
           author: mockAuthorEntity,
           usedBy: { id: 2, username: 'consumer', fullname: 'Consumer User' },
           expiresAt: new Date(now + 100000),

@@ -7,7 +7,7 @@ import {
   OutgoingMessagesStore,
 } from '@core/chat/outgoing/outgoing-messages.store';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
 import { provideRouter, Router } from '@angular/router';
@@ -37,11 +37,10 @@ describe('UserDialogComponent', () => {
   let peerGainLevels: ReturnType<typeof signal<Record<number, number>>>;
   let setPeerGain: ReturnType<typeof vi.fn>;
 
-  const user: IUser = {
+  const user: IUserSafe = {
     id: 42,
     username: 'alice',
     fullname: 'Alice Example',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -50,7 +49,7 @@ describe('UserDialogComponent', () => {
     updatedAt: null,
   };
 
-  let currentDialogUser: IUser;
+  let currentDialogUser: IUserSafe;
   let currentCompleteWith: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
@@ -231,7 +230,7 @@ describe('UserDialogComponent', () => {
     let selfFixture: ComponentFixture<UserDialogComponent>;
     let selfCompleteWith: ReturnType<typeof vi.fn>;
 
-    const currentUserData: IUser = {
+    const currentUserData: IUserSafe = {
       ...user,
       id: 1,
       username: 'tester',

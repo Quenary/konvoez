@@ -3,30 +3,28 @@ jest.mock('mediasoup', () => ({
 }));
 jest.mock('mediasoup/types', () => ({}), { virtual: true });
 
-import { EUserRole, type IUser } from '@konvoez/shared';
+import { EUserRole, type IUserSafe } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
 import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { createWorker } from 'mediasoup';
 import { Mutex } from 'async-mutex';
 import { VoiceRoomsStateService } from './voice-rooms.state';
 
-const alice: IUser = {
+const alice: IUserSafe = {
   id: 1,
   username: 'alice',
   fullname: 'Alice',
-  email: 'alice@example.com',
   avatarUrl: null,
   role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
-const bob: IUser = {
+const bob: IUserSafe = {
   ...alice,
   id: 2,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
 };
 
 describe('VoiceRoomsStateService lobby revision', () => {

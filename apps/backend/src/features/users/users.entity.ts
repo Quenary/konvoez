@@ -1,5 +1,5 @@
 import { defineEntity, p, Cascade } from '@mikro-orm/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { KonvoezBaseEntitySchema } from '../../shared/types/base.entity';
 import { RoomEntitySchema } from '../rooms/rooms.entity';
 import { MessageEntitySchema } from '../text-rooms/text-rooms.entity';
@@ -43,6 +43,6 @@ export const UserEntitySchema = defineEntity({
 
 export class UserEntity
   extends UserEntitySchema.class
-  implements Omit<IUser, 'avatarUrl' | 'roles' | 'permissions'> {}
+  implements Omit<IUserSafe, 'avatarUrl' | 'roles' | 'permissions'> {}
 
 UserEntitySchema.setClass(UserEntity);

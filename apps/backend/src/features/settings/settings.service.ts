@@ -136,7 +136,9 @@ export class SettingsService implements OnApplicationBootstrap {
     });
   }
 
-  async findOneAsDto<K extends ESettingKey>(key: K): Promise<TSettingByKey<K>> {
+  async findOneAsSafeDto<K extends ESettingKey>(
+    key: K,
+  ): Promise<TSettingByKey<K>> {
     const setting = await this.findOne(key);
     return this.toDto<K>(setting);
   }
@@ -150,7 +152,7 @@ export class SettingsService implements OnApplicationBootstrap {
     return ensureRequestContext(this.em, () => this.repo.findAll());
   }
 
-  async findAllAsDto(): Promise<TSetting[]> {
+  async findAllAsSafeDto(): Promise<TSetting[]> {
     const settings = await this.findAll();
     return settings.map((setting) => this.toDto(setting));
   }

@@ -13,7 +13,7 @@ import {
   EAttachmentKind,
   IAttachment,
   ITextRoomMessage,
-  IUser,
+  IUserFull,
 } from '@konvoez/shared';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
@@ -43,11 +43,11 @@ describe('OutgoingMessagesStore', () => {
   >();
   const aborted = new Set<string>();
 
-  const user: IUser = {
+  const user: IUserFull = {
     id: 1,
     username: 'alice',
+    email: 'test@example.com',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],

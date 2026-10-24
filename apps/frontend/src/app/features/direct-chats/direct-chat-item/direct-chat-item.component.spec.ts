@@ -6,18 +6,17 @@ import { provideStore } from '@ngrx/store';
 import { DirectChatItemComponent } from './direct-chat-item.component';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { icons } from '@constants';
 
 describe('DirectChatItemComponent', () => {
   let component: DirectChatItemComponent;
   let fixture: ComponentFixture<DirectChatItemComponent>;
 
-  const currentUser: IUser = {
+  const currentUser: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -27,11 +26,10 @@ describe('DirectChatItemComponent', () => {
     updatedAt: null,
   };
 
-  const otherUser: IUser = {
+  const otherUser: IUserSafe = {
     id: 2,
     username: 'bob',
     fullname: 'Bob Builder',
-    email: 'bob@example.com',
     isOwner: false,
     roles: [],
     permissions: [],

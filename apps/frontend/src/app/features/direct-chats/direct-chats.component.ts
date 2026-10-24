@@ -19,7 +19,7 @@ import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { DirectChatsStore } from './direct-chats.store';
 import { DirectChatItemComponent } from './direct-chat-item/direct-chat-item.component';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { LayoutService } from '@core/services/layout.service';
 import { icons } from '@constants';
@@ -66,7 +66,7 @@ export class DirectChatsComponent implements OnInit {
       await import('./direct-chat-dialog/direct-chat-dialog.component');
 
     this.tuiRespectiveDialogService
-      .open<IUser | null>(
+      .open<IUserSafe | null>(
         new PolymorpheusComponent(DirectChatDialogComponent, this.injector),
         {
           closable: true,
@@ -80,7 +80,7 @@ export class DirectChatsComponent implements OnInit {
       });
   }
 
-  protected openChat(user: IUser): void {
+  protected openChat(user: IUserSafe): void {
     this.router.navigate(['/direct', user.id]);
   }
 }

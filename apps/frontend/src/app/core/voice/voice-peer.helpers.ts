@@ -1,11 +1,15 @@
 import {
-  IUser,
+  IUserSafe,
   TVoiceRoomPeerUser,
   TVoiceRoomGetAllPeersResult,
 } from '@konvoez/shared';
 
 export function toPeerUser(
-  user: IUser & { producers?: unknown; muted?: boolean; deafened?: boolean },
+  user: IUserSafe & {
+    producers?: unknown;
+    muted?: boolean;
+    deafened?: boolean;
+  },
 ): TVoiceRoomPeerUser {
   const { producers: _producers, ...rest } = user;
   return rest;
@@ -13,7 +17,7 @@ export function toPeerUser(
 
 export function mapRoomsUser(
   rooms: TVoiceRoomGetAllPeersResult,
-  user: IUser,
+  user: IUserSafe,
 ): TVoiceRoomGetAllPeersResult {
   let changed = false;
   const next: Record<number, Record<number, TVoiceRoomPeerUser>> = {};

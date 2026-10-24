@@ -19,7 +19,7 @@ import { TuiAutoFocus } from '@taiga-ui/cdk';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DirectChatItemComponent } from '../direct-chat-item/direct-chat-item.component';
 
@@ -44,7 +44,7 @@ import { icons } from '@constants';
 export class DirectChatDialogComponent implements OnInit {
   protected readonly icons = icons;
   public readonly context =
-    injectContext<TuiDialogContext<IUser | null, void>>();
+    injectContext<TuiDialogContext<IUserSafe | null, void>>();
   private readonly usersStore = inject(UsersStore);
   private readonly ngrxStore = inject(Store);
   private readonly translateService = inject(TranslateService);
@@ -95,7 +95,7 @@ export class DirectChatDialogComponent implements OnInit {
     this.usersStore.loadAll();
   }
 
-  protected selectUser(user: IUser): void {
+  protected selectUser(user: IUserSafe): void {
     this.context.completeWith(user);
   }
 

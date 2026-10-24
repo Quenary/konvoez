@@ -39,7 +39,7 @@ import { PasswordService } from '@shared/services/password.service';
 import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import {
   ApiErrorCode,
   ESettingKey,
@@ -83,7 +83,7 @@ describe('AuthService', () => {
   };
   let em: { persist: jest.Mock; flush: jest.Mock };
 
-  const mockUserDto: GetUserDto = {
+  const mockUserDto: GetUserFullDto = {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
@@ -179,9 +179,30 @@ describe('AuthService', () => {
           useValue: {
             findOneBy: jest.fn(),
             findOneByUsernameOrEmail: jest.fn(),
-            findOneByAsDto: jest.fn(),
-            toDto: jest.fn(),
-            toDtoWithPermissions: jest.fn(),
+            findOneByAsFullDto: jest.fn(),
+            toSafeDto: jest.fn(),
+            toSafeDtoWithPermissions: jest.fn(),
+            toFullDtoWithPermissions: jest.fn(),
+            toFullDto: jest.fn(
+              (
+                user: {
+                  id: number;
+                  email: string;
+                  username: string;
+                  fullname: string;
+                  isOwner: boolean;
+                },
+                permissions?: unknown,
+              ) => ({
+                ...mockUserDto,
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                fullname: user.fullname,
+                isOwner: user.isOwner,
+                permissions: permissions ?? mockUserDto.permissions,
+              }),
+            ),
             count: jest.fn(),
             setPassword: jest.fn(),
           },
@@ -231,7 +252,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
 
@@ -242,7 +263,7 @@ describe('AuthService', () => {
         'password123',
         mockUserEntity.password,
       );
-      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(
+      expect(usersService.toFullDtoWithPermissions).toHaveBeenCalledWith(
         mockUserEntity,
       );
       expect(result).toEqual(mockUserDto);
@@ -253,7 +274,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser(
         'test@example.com',
@@ -271,7 +292,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('User@Example.COM', 'password123');
 
@@ -285,7 +306,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('  test_user  ', 'password123');
 
@@ -343,7 +364,7 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
       });
-      expect(usersService.toDtoWithPermissions).not.toHaveBeenCalled();
+      expect(usersService.toFullDtoWithPermissions).not.toHaveBeenCalled();
     });
   });
 
@@ -433,21 +454,23 @@ describe('AuthService', () => {
     it('should verify token and return user DTO by user id', async () => {
       const payload: AuthJWTData = { type: 'access', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneByAsFullDto.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getUserFromAccessToken('valid_token');
 
       expect(jwtService.verify).toHaveBeenCalledWith('valid_token', {
         secret: appService.JWT_SECRET,
       });
-      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(usersService.findOneByAsFullDto).toHaveBeenCalledWith({
+        id: 1,
+      });
       expect(result).toEqual(mockUserDto);
     });
 
     it('should throw UnauthorizedException when the account is deleted', async () => {
       const payload: AuthJWTData = { type: 'access', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce({
+      usersService.findOneByAsFullDto.mockResolvedValueOnce({
         ...mockUserDto,
         deletedAt: new Date(),
       });
@@ -467,22 +490,24 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
-      expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
+      expect(usersService.findOneByAsFullDto).not.toHaveBeenCalled();
     });
   });
 
   describe('getActiveUserById', () => {
     it('should return user DTO by user id when active', async () => {
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneByAsFullDto.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getActiveUserById(1);
 
-      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(usersService.findOneByAsFullDto).toHaveBeenCalledWith({
+        id: 1,
+      });
       expect(result).toEqual(mockUserDto);
     });
 
     it('should throw UnauthorizedException when the account is deleted', async () => {
-      usersService.findOneByAsDto.mockResolvedValueOnce({
+      usersService.findOneByAsFullDto.mockResolvedValueOnce({
         ...mockUserDto,
         deletedAt: new Date(),
       });
@@ -493,7 +518,7 @@ describe('AuthService', () => {
     });
 
     it('should propagate not found error when user does not exist', async () => {
-      usersService.findOneByAsDto.mockRejectedValueOnce(
+      usersService.findOneByAsFullDto.mockRejectedValueOnce(
         AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
       );
 
@@ -526,7 +551,7 @@ describe('AuthService', () => {
       } as unknown as Request;
       const payload: AuthJWTData = { type: 'access', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneByAsFullDto.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getMe(req);
 
@@ -551,7 +576,7 @@ describe('AuthService', () => {
     it('should return user DTO when cookies string contains valid access token', async () => {
       const payload: AuthJWTData = { type: 'access', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneByAsFullDto.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getUserFromRawCookies(
         `foo=bar; ${ACCESS_TOKEN_KEY}=raw_valid_token; baz=qux`,
@@ -560,7 +585,9 @@ describe('AuthService', () => {
       expect(jwtService.verify).toHaveBeenCalledWith('raw_valid_token', {
         secret: appService.JWT_SECRET,
       });
-      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(usersService.findOneByAsFullDto).toHaveBeenCalledWith({
+        id: 1,
+      });
       expect(result).toEqual(mockUserDto);
     });
   });
@@ -646,8 +673,11 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(0);
       cacheManager.get.mockResolvedValue(validToken);
 
-      const ownerDto = { ...mockUserDto, isOwner: true };
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(ownerDto);
+      const { email: _ownerEmail, ...ownerPublic } = {
+        ...mockUserDto,
+        isOwner: true,
+      };
+      usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(ownerPublic);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
@@ -670,16 +700,20 @@ describe('AuthService', () => {
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_CREATED,
-        ownerDto,
+        ownerPublic,
       );
       expect(result.isOwner).toBe(true);
+      expect(result.email).toBe(createDto.email);
     });
 
     it('should create MEMBER user and not require setup token when users already exist', async () => {
       usersService.count.mockResolvedValue(1);
-      const memberDto = { ...mockUserDto, isOwner: false };
+      const { email: _memberEmail, ...memberPublic } = {
+        ...mockUserDto,
+        isOwner: false,
+      };
 
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
+      usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(memberPublic);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
@@ -693,9 +727,10 @@ describe('AuthService', () => {
       expect(cacheManager.get).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_CREATED,
-        memberDto,
+        memberPublic,
       );
       expect(result.role).toBe(EUserRole.MEMBER);
+      expect(result.email).toBe(createDto.email);
     });
 
     it('should throw ConflictException when username is already taken', async () => {
@@ -742,10 +777,13 @@ describe('AuthService', () => {
         ...mockUserEntity,
         role: EUserRole.MEMBER,
       } as unknown as UserEntity;
-      const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
+      const { email: _inviteEmail, ...memberPublic } = {
+        ...mockUserDto,
+        role: EUserRole.MEMBER,
+      };
 
       userRepo.create.mockReturnValueOnce(createdMember);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
+      usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(memberPublic);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
@@ -1001,7 +1039,7 @@ describe('AuthService', () => {
     it('should return the active user when the account is active', async () => {
       const payload: AuthJWTData = { type: 'refresh', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneByAsFullDto.mockResolvedValueOnce(mockUserDto);
 
       await expect(
         service.resolveRefreshToken('refresh_token'),
@@ -1011,7 +1049,7 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException when the account is deleted', async () => {
       const payload: AuthJWTData = { type: 'refresh', userId: 1 };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce({
+      usersService.findOneByAsFullDto.mockResolvedValueOnce({
         ...mockUserDto,
         deletedAt: new Date(),
       });
@@ -1031,7 +1069,7 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
-      expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
+      expect(usersService.findOneByAsFullDto).not.toHaveBeenCalled();
     });
   });
 });

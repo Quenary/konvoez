@@ -32,7 +32,7 @@ import {
   RolesDomainEvents,
   type TRolesDomainPayloadMap,
 } from '../roles/roles.events';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
 
@@ -40,7 +40,7 @@ type TSocket = Socket<
   TEntitySyncEventMap,
   TEntitySyncEventMap,
   DefaultEventsMap,
-  { userId?: number; user?: GetUserDto }
+  { userId?: number; user?: GetUserSafeDto }
 >;
 
 @WebSocketGateway({
@@ -105,7 +105,7 @@ export class EntitySyncGateway
     }
   }
 
-  private canUserAccessRoom(user: GetUserDto, room: IRoom): boolean {
+  private canUserAccessRoom(user: GetUserSafeDto, room: IRoom): boolean {
     return this.roomsFacade.canAccessRoom(user, room);
   }
 
@@ -217,7 +217,7 @@ export class EntitySyncGateway
     const affectedSet =
       payload.userIds.length > 0 ? new Set(payload.userIds) : null;
     const privateRooms = await this.roomsFacade.findPrivateRooms();
-    const updatedById = new Map<number, GetUserDto>();
+    const updatedById = new Map<number, GetUserSafeDto>();
 
     for (const [_, client] of this.server.sockets.sockets) {
       const current = client.data.user;
@@ -228,7 +228,7 @@ export class EntitySyncGateway
         const previous = current;
         let updated = updatedById.get(current.id);
         if (!updated) {
-          updated = await this.usersService.findOneAsDto(current.id);
+          updated = await this.usersService.findOneAsSafeDto(current.id);
           updatedById.set(current.id, updated);
         }
         client.data.user = updated;
@@ -251,7 +251,7 @@ export class EntitySyncGateway
       for (const userId of payload.userIds) {
         if (!updatedById.has(userId)) {
           try {
-            const updated = await this.usersService.findOneAsDto(userId);
+            const updated = await this.usersService.findOneAsSafeDto(userId);
             updatedById.set(userId, updated);
           } catch {
             // user might have been deleted concurrently

@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { userSchema } from './user.schemas';
+import { userSafeSchema } from './user.schemas';
 import { EDirectCallEvent, EVoiceRoomEvent } from '../enums';
 import {
   TDirectCallEventPayloadMap,
@@ -25,7 +25,7 @@ export const voiceRoomJoinSchema = z.object({
 export type TVoiceRoomJoin = z.infer<typeof voiceRoomJoinSchema>;
 
 export const voiceRoomPeerJoinedSchema = z.object({
-  user: userSchema,
+  user: userSafeSchema,
   roomId: z.number().int().positive().optional(),
   sessionKey: z.string().min(1),
   muted: z.boolean().optional(),
@@ -34,7 +34,7 @@ export const voiceRoomPeerJoinedSchema = z.object({
 export type TVoiceRoomPeerJoined = z.infer<typeof voiceRoomPeerJoinedSchema>;
 
 export const voiceRoomPeerLeftSchema = z.object({
-  user: userSchema,
+  user: userSafeSchema,
   roomId: z.number().int().positive().optional(),
   sessionKey: z.string().min(1),
 });
@@ -47,7 +47,7 @@ export const voiceRoomClosedSchema = z.object({
 });
 export type TVoiceRoomClosed = z.infer<typeof voiceRoomClosedSchema>;
 
-export const voiceRoomPeerUserSchema = userSchema.extend({
+export const voiceRoomPeerUserSchema = userSafeSchema.extend({
   muted: z.boolean().optional(),
   deafened: z.boolean().optional(),
 });
@@ -80,7 +80,7 @@ export type TVoiceRoomGetAllPeersSnapshot = z.infer<
 
 export const voiceRoomLobbyPeerJoinedSchema = z.object({
   roomId: z.number().int().positive(),
-  user: userSchema,
+  user: userSafeSchema,
   muted: z.boolean().optional(),
   deafened: z.boolean().optional(),
   epoch: z.string().min(1),
@@ -122,7 +122,7 @@ export type TVoiceRoomProduceResult = z.infer<
   typeof voiceRoomProduceResultSchema
 >;
 
-export const voiceRoomUserWithProducersSchema = userSchema.extend({
+export const voiceRoomUserWithProducersSchema = userSafeSchema.extend({
   producers: z.array(voiceRoomProduceResultSchema),
   muted: z.boolean().optional(),
   deafened: z.boolean().optional(),

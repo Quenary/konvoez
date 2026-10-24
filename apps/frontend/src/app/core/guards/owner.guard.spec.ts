@@ -11,7 +11,7 @@ import { selectAuth } from '@core/auth/auth.selectors';
 import { ownerGuard } from './owner.guard';
 import { firstValueFrom, Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 
 describe('ownerGuard', () => {
   let store: MockStore;
@@ -23,11 +23,11 @@ describe('ownerGuard', () => {
     ) as Observable<boolean | UrlTree>;
   };
 
-  const createMockUser = (isOwner: boolean): IUser => ({
+  const createMockUser = (isOwner: boolean): IUserFull => ({
     id: 1,
     username: 'testuser',
-    fullname: 'Test User',
     email: 'test@example.com',
+    fullname: 'Test User',
     isOwner,
     roles: [],
     permissions: [],
