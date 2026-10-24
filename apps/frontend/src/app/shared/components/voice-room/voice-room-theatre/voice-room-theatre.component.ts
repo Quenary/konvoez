@@ -73,6 +73,10 @@ export class VoiceRoomTheatreComponent {
     }
   }
 
+  protected onStageClick(): void {
+    this.voiceRoomViewService.showGrid();
+  }
+
   protected onStripTileClick(tile: TVoiceRoomTile): void {
     if (this.focusTile()?.key === tile.key) {
       return;
