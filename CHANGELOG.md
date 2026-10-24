@@ -1,3 +1,26 @@
+## 1.24.1 (2026-10-23)
+
+### Bug Fixes
+
+- **frontend:** mention-chip textColo typo, tests ([d796c8a](https://github.com/Quenary/konvoez/commit/d796c8a))
+- disable mic agc (dont change system gain) ([0fc9504](https://github.com/Quenary/konvoez/commit/0fc9504))
+
+### Code Refactoring
+
+- **frontend:** device settings layout ([f54d11a](https://github.com/Quenary/konvoez/commit/f54d11a))
+- **frontend:** admin settings fieldsets ([9cbf420](https://github.com/Quenary/konvoez/commit/9cbf420))
+- **frontend:** all icon names from constants ([70e7d0d](https://github.com/Quenary/konvoez/commit/70e7d0d))
+- **frontend:** settings profile buttons on smaller screens ([e7bf738](https://github.com/Quenary/konvoez/commit/e7bf738))
+- **frontend:** consistant settings styles ([bdfa6e1](https://github.com/Quenary/konvoez/commit/bdfa6e1))
+
+### Styles
+
+- **frontend:** password recovery icon ([fed8d6a](https://github.com/Quenary/konvoez/commit/fed8d6a))
+- **frontend:** scrollable settings components ([d3dab80](https://github.com/Quenary/konvoez/commit/d3dab80))
+- **frontend:** scrollable form mixin, use it in direct-chats and settings-admin ([e023c28](https://github.com/Quenary/konvoez/commit/e023c28))
+- **frontend:** voice room overlay wrap on smaller screens ([207b765](https://github.com/Quenary/konvoez/commit/207b765))
+- **frontend:** mention chip text color ([25c1452](https://github.com/Quenary/konvoez/commit/25c1452))
+
 ## 1.24.0 (2026-10-22)
 
 ### Features
