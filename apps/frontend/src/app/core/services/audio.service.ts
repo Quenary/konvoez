@@ -23,21 +23,21 @@ interface IToneOptions {
 /** Shared harmonic palette for UI cues. */
 const F = {
   dial: 425,
-  muteLow: 659.25, // E5
+  muteLow: 523.25, // C5
   muteHigh: 880, // A5
-  deafenLow: 440, // A4
-  deafenHigh: 659.25, // E5
+  deafenLow: 261.63, // C4
+  deafenHigh: 440, // A4
   leaveLow: 523.25, // C5
   leaveHigh: 659.25, // E5
   joinLow: 648,
   joinHigh: 864,
   chord: [523.25, 659.25, 783.99] as const, // C5 E5 G5
-  streamStart: [587.33, 739.99, 880] as const, // D5 F#5 A5
-  streamStop: [880, 739.99, 587.33] as const, // A5 F#5 D5
+  streamStart: [587.33, 880, 1174.66] as const, // D5 A5 D6
+  streamStop: [1174.66, 880, 587.33] as const, // D6 A5 D5
 } as const;
 
-const STREAM_THROTTLE_MS = 100;
-const CUE_THROTTLE_MS = 80;
+const STREAM_THROTTLE_MS = 250;
+const CUE_THROTTLE_MS = 120;
 
 /** UI/telephony cue tones (join/leave, mute, dial, ringtone). Not peer media playback. */
 @Injectable({
@@ -64,9 +64,9 @@ export class AudioService {
     }
     this.lastStreamStartAt = now;
     this.playNotes([
-      { frequency: F.streamStart[0], when: 0, duration: 0.08, peak: 0.09 },
-      { frequency: F.streamStart[1], when: 0.07, duration: 0.08, peak: 0.1 },
-      { frequency: F.streamStart[2], when: 0.14, duration: 0.16, peak: 0.11 },
+      { frequency: F.streamStart[0], when: 0, duration: 0.07, peak: 0.09 },
+      { frequency: F.streamStart[1], when: 0.105, duration: 0.07, peak: 0.1 },
+      { frequency: F.streamStart[2], when: 0.21, duration: 0.15, peak: 0.11 },
     ]);
   }
 
@@ -77,9 +77,9 @@ export class AudioService {
     }
     this.lastStreamStopAt = now;
     this.playNotes([
-      { frequency: F.streamStop[0], when: 0, duration: 0.08, peak: 0.1 },
-      { frequency: F.streamStop[1], when: 0.07, duration: 0.08, peak: 0.08 },
-      { frequency: F.streamStop[2], when: 0.14, duration: 0.16, peak: 0.07 },
+      { frequency: F.streamStop[0], when: 0, duration: 0.07, peak: 0.1 },
+      { frequency: F.streamStop[1], when: 0.105, duration: 0.07, peak: 0.08 },
+      { frequency: F.streamStop[2], when: 0.21, duration: 0.15, peak: 0.07 },
     ]);
   }
 
@@ -117,14 +117,14 @@ export class AudioService {
       {
         frequency: F.muteHigh,
         when: 0,
-        duration: 0.05,
+        duration: 0.06,
         peak: 0.13,
         attack: 0.005,
       },
       {
         frequency: F.muteLow,
-        when: 0.05,
-        duration: 0.07,
+        when: 0.095,
+        duration: 0.08,
         peak: 0.11,
         attack: 0.005,
       },
@@ -141,14 +141,14 @@ export class AudioService {
       {
         frequency: F.muteLow,
         when: 0,
-        duration: 0.05,
+        duration: 0.06,
         peak: 0.12,
         attack: 0.005,
       },
       {
         frequency: F.muteHigh,
-        when: 0.05,
-        duration: 0.07,
+        when: 0.095,
+        duration: 0.08,
         peak: 0.14,
         attack: 0.005,
       },
@@ -166,14 +166,14 @@ export class AudioService {
         frequency: F.deafenHigh,
         when: 0,
         duration: 0.06,
-        peak: 0.13,
+        peak: 0.14,
         attack: 0.006,
       },
       {
         frequency: F.deafenLow,
-        when: 0.06,
+        when: 0.095,
         duration: 0.09,
-        peak: 0.11,
+        peak: 0.12,
         attack: 0.006,
       },
     ]);
@@ -190,14 +190,14 @@ export class AudioService {
         frequency: F.deafenLow,
         when: 0,
         duration: 0.06,
-        peak: 0.11,
+        peak: 0.12,
         attack: 0.006,
       },
       {
         frequency: F.deafenHigh,
-        when: 0.06,
+        when: 0.095,
         duration: 0.09,
-        peak: 0.14,
+        peak: 0.15,
         attack: 0.006,
       },
     ]);

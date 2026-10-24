@@ -71,7 +71,7 @@ describe('AudioService', () => {
     service = TestBed.inject(AudioService);
   });
 
-  it('plays 3 ascending tones on playStreamStartAudio', () => {
+  it('plays 3 ascending tones on playStreamStartAudio with pauses between notes', () => {
     service.playStreamStartAudio();
 
     expect(createdOscillators).toHaveLength(3);
@@ -80,32 +80,46 @@ describe('AudioService', () => {
       expect.any(Number),
     );
     expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(
-      739.99,
-      expect.any(Number),
-    );
-    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(
       880,
       expect.any(Number),
     );
+    expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(
+      1174.66,
+      expect.any(Number),
+    );
+
+    // Verify positive pauses between consecutive notes
+    const start0 = createdOscillators[0].start.mock.calls[0][0];
+    const start1 = createdOscillators[1].start.mock.calls[0][0];
+    const start2 = createdOscillators[2].start.mock.calls[0][0];
+    expect(start1).toBeGreaterThan(start0 + 0.07);
+    expect(start2).toBeGreaterThan(start1 + 0.07);
+
     expect(resumeService.register).toHaveBeenCalledTimes(1);
   });
 
-  it('plays 3 descending tones on playStreamStopAudio', () => {
+  it('plays 3 descending tones on playStreamStopAudio with pauses between notes', () => {
     service.playStreamStopAudio();
 
     expect(createdOscillators).toHaveLength(3);
     expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(
-      880,
+      1174.66,
       expect.any(Number),
     );
     expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(
-      739.99,
+      880,
       expect.any(Number),
     );
     expect(createdOscillators[2].frequency.setValueAtTime).toHaveBeenCalledWith(
       587.33,
       expect.any(Number),
     );
+
+    const start0 = createdOscillators[0].start.mock.calls[0][0];
+    const start1 = createdOscillators[1].start.mock.calls[0][0];
+    const start2 = createdOscillators[2].start.mock.calls[0][0];
+    expect(start1).toBeGreaterThan(start0 + 0.07);
+    expect(start2).toBeGreaterThan(start1 + 0.07);
   });
 
   it('plays join and leave audio with expected tones', () => {
@@ -138,30 +152,34 @@ describe('AudioService', () => {
       {
         name: 'playUnmuteAudio',
         method: (s: AudioService) => s.playUnmuteAudio(),
-        expectedFreqs: [659.25, 880],
+        expectedFreqs: [523.25, 880],
         direction: 'ascending',
+        hasPause: true,
       },
       {
         name: 'playMuteAudio',
         method: (s: AudioService) => s.playMuteAudio(),
-        expectedFreqs: [880, 659.25],
+        expectedFreqs: [880, 523.25],
         direction: 'descending',
+        hasPause: true,
       },
       {
         name: 'playUndeafenAudio',
         method: (s: AudioService) => s.playUndeafenAudio(),
-        expectedFreqs: [440, 659.25],
+        expectedFreqs: [261.63, 440],
         direction: 'ascending',
+        hasPause: true,
       },
       {
         name: 'playDeafenAudio',
         method: (s: AudioService) => s.playDeafenAudio(),
-        expectedFreqs: [659.25, 440],
+        expectedFreqs: [440, 261.63],
         direction: 'descending',
+        hasPause: true,
       },
     ])(
       'plays $direction 2-tone sequence for $name',
-      ({ method, expectedFreqs }) => {
+      ({ method, expectedFreqs, hasPause }) => {
         method(service);
         expect(createdOscillators).toHaveLength(2);
         expect(
@@ -170,6 +188,12 @@ describe('AudioService', () => {
         expect(
           createdOscillators[1].frequency.setValueAtTime,
         ).toHaveBeenCalledWith(expectedFreqs[1], expect.any(Number));
+
+        if (hasPause) {
+          const start0 = createdOscillators[0].start.mock.calls[0][0];
+          const start1 = createdOscillators[1].start.mock.calls[0][0];
+          expect(start1).toBeGreaterThan(start0 + 0.06);
+        }
       },
     );
   });
