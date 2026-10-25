@@ -99,6 +99,7 @@ sequenceDiagram
 ## Audio
 
 - **Microphone**: `MicrophoneService` builds the capture pipeline. Input level is an in-app `GainNode` only; browser `autoGainControl` stays off so Chromium does not change the OS microphone volume. Mute is applied to the producer track and stored in `VoiceAudioPreferencesStore`. Mute and deafen changes are sent to session peers and, through entity sync, to the lobby.
+- **Adaptive audio**: `VoiceQualityService` monitors uplink health via sender statistics and server producer scores. It scales Opus microphone bitrate down from `VOICE_MAX_BITRATE_KBPS` under poor network conditions and throttles or pauses outgoing video to protect voice intelligibility, recovering when the uplink stabilizes.
 - **Device changes**: On device connect or disconnect, the client re-evaluates the active microphone, camera and audio output. It prefers the selected device (matching by id or label), then browser `communications` and `default` devices; the camera falls back to the first available camera. A toast appears when the active device changes.
 - **Remote audio**: consumed tracks play through `PeerPlaybackService` (deafen combined with per-peer gain).
 - **Speaking indicator**: `AudioActivityService` polls the registered analysers; the local analyser is registered only while the mic is unmuted in an active session.
@@ -112,7 +113,8 @@ sequenceDiagram
 
 - Stores: `apps/frontend/src/app/core/{stores,voice,chat}/`
 - API: `apps/frontend/src/app/core/api/`
-- Services (session, mediasoup, peers, calls, entity sync): `apps/frontend/src/app/core/services/`
+- Services (session, mediasoup, voice quality, peers, calls, entity sync): `apps/frontend/src/app/core/services/`
 - Navigation: `apps/frontend/src/app/features/rooms/room-navigation.service.ts`
 - Shared UI: `apps/frontend/src/app/shared/components/voice-room/`
+- Shared contracts and voice ladder: `libs/shared/`
 - Routes: `features/voice-room/`, `features/direct/`

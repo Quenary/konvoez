@@ -267,6 +267,14 @@ export const voiceRoomErrorSchema = z.object({
 });
 export type TVoiceRoomError = z.infer<typeof voiceRoomErrorSchema>;
 
+export const voiceRoomProducerScoreSchema = z.object({
+  producerId: z.string().min(1),
+  score: z.number().int().min(0).max(10),
+});
+export type TVoiceRoomProducerScore = z.infer<
+  typeof voiceRoomProducerScoreSchema
+>;
+
 export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.JOIN_ROOM]: TVoiceRoomJoin;
   [EVoiceRoomEvent.LEAVE_ROOM]: void;
@@ -281,6 +289,7 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.PRODUCE]: TVoiceRoomProduce;
   [EVoiceRoomEvent.PRODUCER_CREATED]: TVoiceRoomProduceResult;
   [EVoiceRoomEvent.PRODUCER_CLOSED]: TVoiceRoomProducerClosed;
+  [EVoiceRoomEvent.PRODUCER_SCORE]: TVoiceRoomProducerScore;
   [EVoiceRoomEvent.CLOSE_PRODUCER]: TVoiceRoomCloseProducer;
   [EVoiceRoomEvent.CONSUME]: TVoiceRoomConsume;
   [EVoiceRoomEvent.CLOSE_CONSUMER]: TVoiceRoomCloseConsumer;
@@ -307,6 +316,7 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.PRODUCE]: TVoiceRoomProduceResult;
   [EVoiceRoomEvent.PRODUCER_CREATED]: void;
   [EVoiceRoomEvent.PRODUCER_CLOSED]: void;
+  [EVoiceRoomEvent.PRODUCER_SCORE]: void;
   [EVoiceRoomEvent.CLOSE_PRODUCER]: object;
   [EVoiceRoomEvent.CONSUME]: TVoiceRoomConsumeResult;
   [EVoiceRoomEvent.CLOSE_CONSUMER]: object;

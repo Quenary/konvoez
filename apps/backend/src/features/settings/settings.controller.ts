@@ -11,6 +11,7 @@ import {
   InviteOnlySignUpSettingDto,
   PasswordRecoveryCodeTtlSettingDto,
   SettingsUpdateDto,
+  VoiceMaxBitrateKbpsSettingDto,
 } from './settings.dto';
 import {
   ESettingKey,
@@ -28,6 +29,7 @@ const settingResponseModels = [
   { $ref: getSchemaPath(AttachmentsMaxFileSizeSettingDto) },
   { $ref: getSchemaPath(AttachmentsMaxFilesPerMessageSettingDto) },
   { $ref: getSchemaPath(AttachmentsStripImageMetadataSettingDto) },
+  { $ref: getSchemaPath(VoiceMaxBitrateKbpsSettingDto) },
 ] as const;
 
 @Controller('settings')
@@ -40,6 +42,7 @@ const settingResponseModels = [
   AttachmentsMaxFileSizeSettingDto,
   AttachmentsMaxFilesPerMessageSettingDto,
   AttachmentsStripImageMetadataSettingDto,
+  VoiceMaxBitrateKbpsSettingDto,
 )
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}

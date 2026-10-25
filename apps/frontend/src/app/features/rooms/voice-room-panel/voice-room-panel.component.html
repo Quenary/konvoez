@@ -4,13 +4,16 @@
     [orientation]="collapsed() ? 'vertical' : 'horizontal'">
     <button
       tuiButton
-      [iconStart]="icons['audio-lines']"
-      appearance="positive"
+      appearance="neutral"
       type="button"
       tuiHintAppearance="floating"
-      [tuiHint]="collapsed() ? (sessionTitle() | translate) : null"
+      [tuiHint]="qualityHintTemplate"
+      [attr.aria-label]="qualityAriaLabel()"
       class="panel-button-spaced"
       (click)="clickSession()">
+      <tui-icon
+        [icon]="icons['audio-lines']"
+        [style.color]="qualityColor()"></tui-icon>
       @if (!collapsed()) {
         <span tuiFade>{{ sessionTitle() | translate }}</span>
       }
@@ -26,6 +29,15 @@
       (click)="leaveSession()">
     </button>
   </div>
+
+  <ng-template #qualityHintTemplate>
+    @if (collapsed()) {
+      <div>{{ sessionTitle() | translate }}</div>
+    }
+    <div>
+      {{ qualityHintKey() | translate: { kbps: qualityBitrateKbps() } }}
+    </div>
+  </ng-template>
 }
 
 <div

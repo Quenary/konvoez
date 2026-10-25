@@ -1,7 +1,11 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  buildVoiceLadder,
+  EVoiceQualityTier,
   EVoiceRoomEvent,
+  TVoiceLadderEntry,
+  TVoiceQualitySample,
   TVoiceRoomCloseProducer,
   TVoiceRoomConnectTransport,
   TVoiceRoomConsume,
@@ -10,9 +14,11 @@ import {
   TVoiceRoomCreateTransportResult,
   TVoiceRoomMediaTag,
   TVoiceRoomProduce,
+  TVoiceRoomProducerScore,
   TVoiceRoomProduceResult,
   TVoiceRoomRestartIce,
   TVoiceRoomRestartIceResult,
+  VOICE_QUALITY_VIDEO_CAPS,
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
 import type { Device } from 'mediasoup-client';
@@ -41,6 +47,7 @@ import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { ConsumerRegistry } from './consumer-registry';
 import { PeerVideoService } from './peer-video.service';
 import { AudioService } from './audio.service';
+import { VoiceQualityService } from './voice-quality.service';
 
 export interface IConsumePeerContext {
   gain: number;
@@ -66,12 +73,14 @@ export class MediasoupSessionService {
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly switchNotifier = inject(MediaDeviceSwitchNotifierService);
   private readonly consumerRegistry = inject(ConsumerRegistry);
+  private readonly voiceQualityService = inject(VoiceQualityService);
 
   private readonly sessionMutex = new Mutex();
   private readonly microphoneMutex = new Mutex();
   private readonly cameraMutex = new Mutex();
   private readonly screenMutex = new Mutex();
   private readonly consumeMutex = new Mutex();
+  private readonly qualityMutex = new Mutex();
 
   private device: Device | null = null;
   private sendTransport: Transport | null = null;
@@ -80,6 +89,10 @@ export class MediasoupSessionService {
   private cameraProducer: Producer | null = null;
   private screenVideoProducer: Producer | null = null;
   private screenAudioProducer: Producer | null = null;
+  private lastProducerScore: number | null = null;
+  private activeBaseKbps: number | null = null;
+  private activeLadder: TVoiceLadderEntry[] = [];
+  private currentQualityLevel: TVoiceLadderEntry | null = null;
   private microphoneMuted = false;
   private readonly consuming = new Set<string>();
   private pendingConsumes: TVoiceRoomProduceResult[] = [];
@@ -94,6 +107,19 @@ export class MediasoupSessionService {
       .subscribe(() => {
         void this.switchCamera();
       });
+
+    this.socket.on(
+      EVoiceRoomEvent.PRODUCER_SCORE,
+      (data: TVoiceRoomProducerScore) => {
+        if (
+          this.microphoneProducer &&
+          !this.microphoneProducer.closed &&
+          data.producerId === this.microphoneProducer.id
+        ) {
+          this.lastProducerScore = data.score;
+        }
+      },
+    );
   }
 
   public setMicrophoneMuted(muted: boolean): void {
@@ -126,6 +152,11 @@ export class MediasoupSessionService {
     this.peerScreenAudioService.clear();
     this.cameraService.release();
     this.screenCaptureService.release();
+    this.voiceQualityService.stop();
+    this.lastProducerScore = null;
+    this.activeBaseKbps = null;
+    this.activeLadder = [];
+    this.currentQualityLevel = null;
     sendTransport?.close();
     recvTransport?.close();
     micProducer?.close();
@@ -207,6 +238,7 @@ export class MediasoupSessionService {
 
     const previous = this.microphoneProducer;
     this.microphoneProducer = null;
+    this.voiceQualityService.stop();
     previous?.close();
 
     try {
@@ -218,15 +250,41 @@ export class MediasoupSessionService {
 
       await waitForTrackUnmute(track);
       track.enabled = !this.microphoneMuted;
+
+      const base = this.settingsStore.voiceMaxBitrateKbps();
+      this.activeBaseKbps = base;
+      this.activeLadder = buildVoiceLadder(base);
+      this.currentQualityLevel = this.activeLadder[0];
+      this.lastProducerScore = null;
+
       const producer = await sendTransport.produce({
         track,
         stopTracks: false,
         appData: { mediaTag: 'mic' },
+        codecOptions: {
+          opusStereo: false,
+          opusFec: true,
+          opusDtx: true,
+          opusMaxPlaybackRate: 48000,
+          opusMaxAverageBitrate: base * 1000,
+          opusPtime: 20,
+        },
+        encodings: [
+          {
+            priority: 'high',
+            networkPriority: 'high',
+          },
+        ],
       });
       if (producer.track) {
         producer.track.enabled = !this.microphoneMuted;
       }
       this.microphoneProducer = producer;
+      this.voiceQualityService.start(this.activeLadder, {
+        readSample: () => this.readQualitySample(),
+        applyQualityLevel: (entry) => this.applyQualityLevel(entry),
+      });
+
       producer.on('trackended', () => {
         if (this.microphoneProducer !== producer) {
           return;
@@ -234,6 +292,7 @@ export class MediasoupSessionService {
         this.onProducerTrackEnded();
       });
     } catch (error) {
+      this.voiceQualityService.stop();
       console.error('Failed to produce microphone\n', error);
     }
   }
@@ -253,6 +312,7 @@ export class MediasoupSessionService {
   }
 
   private onProducerTrackEnded(): void {
+    this.voiceQualityService.stop();
     const producer = this.microphoneProducer;
     this.microphoneProducer = null;
     if (producer && !producer.closed) {
@@ -356,11 +416,39 @@ export class MediasoupSessionService {
       });
 
       if (audioTrack) {
+        const base =
+          this.activeBaseKbps ?? this.settingsStore.voiceMaxBitrateKbps();
         const audioProducer = await sendTransport.produce({
           track: audioTrack,
           stopTracks: false,
           appData: { mediaTag: 'screen-audio' },
+          codecOptions: {
+            opusStereo: false,
+            opusFec: true,
+            opusDtx: true,
+            opusMaxPlaybackRate: 48000,
+            opusMaxAverageBitrate: base * 1000,
+            opusPtime: 20,
+          },
+          encodings: [
+            {
+              priority: 'medium',
+              networkPriority: 'medium',
+            },
+          ],
         });
+        if (
+          this.currentQualityLevel &&
+          this.currentQualityLevel.tier !== EVoiceQualityTier.EXCELLENT
+        ) {
+          void audioProducer
+            .setRtpEncodingParameters({
+              maxBitrate: this.currentQualityLevel.kbps * 1000,
+            })
+            .catch((err) =>
+              console.warn('Failed to set screen audio bitrate', err),
+            );
+        }
         this.screenAudioProducer = audioProducer;
         audioProducer.on('trackended', () => {
           if (this.screenAudioProducer !== audioProducer) {
@@ -413,12 +501,33 @@ export class MediasoupSessionService {
     const sendTransport = this.requireSendTransport();
     await this.loadDevice();
     const codec = this.pickVideoCodec(tag);
-    return sendTransport.produce({
+    const producer = await sendTransport.produce({
       track,
       codec,
       stopTracks: false,
       appData: { mediaTag: tag },
+      encodings: [
+        {
+          priority: 'low',
+          networkPriority: 'low',
+        },
+      ],
     });
+
+    const currentTier =
+      this.currentQualityLevel?.tier ?? EVoiceQualityTier.EXCELLENT;
+    if (currentTier === EVoiceQualityTier.BAD) {
+      producer.pause();
+    } else {
+      const cap = VOICE_QUALITY_VIDEO_CAPS[currentTier];
+      if (cap !== null && cap !== undefined) {
+        await producer
+          .setRtpEncodingParameters({ maxBitrate: cap })
+          .catch((err) => console.warn('Failed to cap video bitrate', err));
+      }
+    }
+
+    return producer;
   }
 
   private requireSendTransport(): Transport {
@@ -481,6 +590,88 @@ export class MediasoupSessionService {
     return this.sessionMutex.runExclusive(() =>
       this.ensureRecvTransportLocked(),
     );
+  }
+
+  public async applyQualityLevel(entry: TVoiceLadderEntry): Promise<void> {
+    return this.qualityMutex.runExclusive(async () => {
+      this.currentQualityLevel = entry;
+
+      const audioMaxBitrate = entry.kbps * 1000;
+      const mic = this.microphoneProducer;
+      if (mic && !mic.closed) {
+        await mic
+          .setRtpEncodingParameters({ maxBitrate: audioMaxBitrate })
+          .catch((err) => console.warn('Failed to set mic bitrate', err));
+      }
+
+      const screenAudio = this.screenAudioProducer;
+      if (screenAudio && !screenAudio.closed) {
+        await screenAudio
+          .setRtpEncodingParameters({ maxBitrate: audioMaxBitrate })
+          .catch((err) =>
+            console.warn('Failed to set screen audio bitrate', err),
+          );
+      }
+
+      const videoProducers = [
+        this.cameraProducer,
+        this.screenVideoProducer,
+      ].filter((p): p is Producer => p !== null && !p.closed);
+
+      if (entry.tier === EVoiceQualityTier.BAD) {
+        for (const video of videoProducers) {
+          if (!video.paused) {
+            video.pause();
+          }
+        }
+      } else {
+        const cap = VOICE_QUALITY_VIDEO_CAPS[entry.tier];
+        for (const video of videoProducers) {
+          if (video.paused) {
+            video.resume();
+          }
+          await video
+            .setRtpEncodingParameters({ maxBitrate: cap ?? undefined })
+            .catch((err) => console.warn('Failed to set video bitrate', err));
+        }
+      }
+    });
+  }
+
+  public async readQualitySample(): Promise<TVoiceQualitySample> {
+    const producer = this.microphoneProducer;
+    let loss: number | null = null;
+    let rttMs: number | null = null;
+    let jitterMs: number | null = null;
+
+    if (producer && !producer.closed) {
+      try {
+        const stats = await producer.getStats();
+        for (const report of stats.values()) {
+          if (report.type === 'remote-inbound-rtp') {
+            if (typeof report.fractionLost === 'number') {
+              loss = Math.max(0, report.fractionLost * 100);
+            }
+            if (typeof report.roundTripTime === 'number') {
+              rttMs = Math.round(report.roundTripTime * 1000);
+            }
+            if (typeof report.jitter === 'number') {
+              jitterMs = Math.round(report.jitter * 1000);
+            }
+            break;
+          }
+        }
+      } catch {
+        // Stats read failed or producer was closed during query
+      }
+    }
+
+    return {
+      score: this.lastProducerScore,
+      loss,
+      rttMs,
+      jitterMs,
+    };
   }
 
   private async ensureSendTransportLocked(): Promise<void> {

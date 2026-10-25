@@ -7,23 +7,24 @@ import {
 } from '@angular/core';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomNavigationService } from '../room-navigation.service';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
+import { VoiceQualityService } from '@core/services/voice-quality.service';
+import { TuiButton, TuiGroup, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { EVoiceSessionType } from '@konvoez/shared';
+import { EVoiceQualityTier, EVoiceSessionType } from '@konvoez/shared';
 import { TuiFade } from '@taiga-ui/kit';
 
 import { icons } from '@constants';
 
 @Component({
   selector: 'app-voice-room-panel',
-  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint, TuiFade],
+  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint, TuiFade, TuiIcon],
   templateUrl: './voice-room-panel.component.html',
   styleUrl: './voice-room-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +41,8 @@ export class VoiceRoomPanelComponent {
   private readonly directCallService = inject(DirectCallService);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly voiceQualityService = inject(VoiceQualityService);
+  private readonly translateService = inject(TranslateService);
 
   protected readonly icons = icons;
   public readonly collapsed = input.required<boolean>();
@@ -64,6 +67,48 @@ export class VoiceRoomPanelComponent {
   );
 
   protected readonly isDirectCall = this.directCallService.isDirectCallContext;
+
+  protected readonly qualityTier = this.voiceQualityService.tier;
+  protected readonly qualityBitrateKbps = this.voiceQualityService.bitrateKbps;
+
+  protected readonly qualityColor = computed(() => {
+    switch (this.qualityTier()) {
+      case EVoiceQualityTier.EXCELLENT:
+        return 'var(--tui-status-positive)';
+      case EVoiceQualityTier.GOOD:
+        return 'var(--tui-status-warning)';
+      case EVoiceQualityTier.UNSTABLE:
+        return 'var(--tui-chart-state-warning-accent, var(--tui-const-orange-darker-48, #f59200))';
+      case EVoiceQualityTier.BAD:
+        return 'var(--tui-status-negative)';
+    }
+  });
+
+  protected readonly qualityHintKey = computed(() => {
+    switch (this.qualityTier()) {
+      case EVoiceQualityTier.EXCELLENT:
+        return 'CALL.QUALITY.LEVEL_0';
+      case EVoiceQualityTier.GOOD:
+        return 'CALL.QUALITY.LEVEL_1';
+      case EVoiceQualityTier.UNSTABLE:
+        return 'CALL.QUALITY.LEVEL_2';
+      case EVoiceQualityTier.BAD:
+        return 'CALL.QUALITY.LEVEL_3';
+    }
+  });
+
+  protected readonly qualityAriaLabel = computed(() => {
+    const titleKey = this.sessionTitle();
+    const hintKey = this.qualityHintKey();
+    const kbps = this.qualityBitrateKbps();
+
+    const qualityText = this.translateService.instant(hintKey, { kbps });
+    if (titleKey) {
+      const titleText = this.translateService.instant(titleKey);
+      return `${titleText}. ${qualityText}`;
+    }
+    return qualityText;
+  });
 
   protected readonly isSessionActive = computed(() => {
     const session = this.activeSession();

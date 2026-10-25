@@ -169,6 +169,13 @@ export const SettingsStore = signalStore(
           defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
         );
       }),
+      voiceMaxBitrateKbps: computed(() => {
+        const item = entityMap()[ESettingKey.VOICE_MAX_BITRATE_KBPS];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.VOICE_MAX_BITRATE_KBPS]
+        );
+      }),
       needsInitialSetup: computed(
         () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
       ),

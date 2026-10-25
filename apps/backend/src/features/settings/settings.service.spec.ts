@@ -34,6 +34,7 @@ import {
   attachmentsDefaultMaxFilesPerMessage,
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  DEFAULT_VOICE_MAX_BITRATE_KBPS,
   defaultSettingValues,
   ESettingKey,
 } from '@konvoez/shared';
@@ -106,6 +107,10 @@ describe('SettingsService', () => {
       expect(repo.create).toHaveBeenCalledWith({
         key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
         value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+        value: DEFAULT_VOICE_MAX_BITRATE_KBPS,
       });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
@@ -253,6 +258,10 @@ describe('SettingsService', () => {
       expect(repo.create).toHaveBeenCalledWith({
         key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
         value: DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+        value: DEFAULT_VOICE_MAX_BITRATE_KBPS,
       });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
@@ -447,6 +456,79 @@ describe('SettingsService', () => {
             code: 'VALIDATION.TTL_RANGE',
           }),
         ]),
+      });
+    });
+
+    it('should validate VOICE_MAX_BITRATE_KBPS bounds', async () => {
+      const existingVoiceSetting = {
+        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+        value: 64,
+      } as SettingsEntity;
+
+      repo.findOne.mockResolvedValue(existingVoiceSetting);
+
+      // Valid bounds: 8 and 384
+      await service.update(ESettingKey.VOICE_MAX_BITRATE_KBPS, { value: 8 });
+      expect(repo.assign).toHaveBeenCalledWith(existingVoiceSetting, {
+        value: 8,
+      });
+
+      await service.update(ESettingKey.VOICE_MAX_BITRATE_KBPS, { value: 384 });
+      expect(repo.assign).toHaveBeenCalledWith(existingVoiceSetting, {
+        value: 384,
+      });
+
+      // Invalid bounds: 7 and 385
+      await expect(
+        service.update(ESettingKey.VOICE_MAX_BITRATE_KBPS, { value: 7 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VALIDATION_FAILED,
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            code: 'VALIDATION.VOICE_MAX_BITRATE_RANGE',
+          }),
+        ]),
+      });
+
+      await expect(
+        service.update(ESettingKey.VOICE_MAX_BITRATE_KBPS, { value: 385 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VALIDATION_FAILED,
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            code: 'VALIDATION.VOICE_MAX_BITRATE_RANGE',
+          }),
+        ]),
+      });
+    });
+
+    it('should lock VOICE_MAX_BITRATE_KBPS when loaded from env and reject update with 409', async () => {
+      process.env[ESettingKey.VOICE_MAX_BITRATE_KBPS] = '128';
+      repo.findOne.mockResolvedValue(null);
+
+      await service.onApplicationBootstrap();
+
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+        value: 128,
+      });
+
+      await expect(
+        service.update(ESettingKey.VOICE_MAX_BITRATE_KBPS, { value: 96 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.SETTING_ENV_LOCKED,
+      });
+    });
+
+    it('should ignore invalid VOICE_MAX_BITRATE_KBPS env value', async () => {
+      process.env[ESettingKey.VOICE_MAX_BITRATE_KBPS] = 'invalid-val';
+      repo.findOne.mockResolvedValue(null);
+
+      await service.onApplicationBootstrap();
+
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+        value: DEFAULT_VOICE_MAX_BITRATE_KBPS,
       });
     });
   });
