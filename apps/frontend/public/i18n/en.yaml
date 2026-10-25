@@ -98,6 +98,11 @@ CALL:
   VIDEO_LIMIT_REACHED: Room video limit reached
   WAITING_FOR_CONNECTION: Waiting for connection…
   PARTICIPANTS: '{{count}} participants'
+  QUALITY:
+    LEVEL_0: 'Connection: excellent. Voice bitrate: {{kbps}} kbps'
+    LEVEL_1: 'Connection: good. Voice bitrate reduced to {{kbps}} kbps'
+    LEVEL_2: 'Connection: unstable. Voice bitrate reduced to {{kbps}} kbps, video restricted'
+    LEVEL_3: 'Connection: bad. Voice bitrate: {{kbps}} kbps, video paused'
   YOU: You
   VOLUME: Volume
   MUTE_MICROPHONE: Mute microphone
@@ -339,6 +344,9 @@ SETTINGS:
     ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC: How many files one message may include (1–10)
     ATTACHMENTS_STRIP_IMAGE_METADATA: Strip image metadata
     ATTACHMENTS_STRIP_IMAGE_METADATA_DESC: Off by default, so recipients download the exact original. Applies only to new uploads; existing files are not changed.
+    VOICE: Voice
+    VOICE_MAX_BITRATE: Voice bitrate (kbps)
+    VOICE_MAX_BITRATE_DESC: 'Base (maximum) microphone bitrate, from 8 to 384, defaults to 64. Server outbound load is bitrate × listeners: at 64 kbps and 9 listeners, this is about 0.6 Mbps per speaker. Applies to new connections; open clients pick up the value upon reloading the app.'
     SAVED_SUCCESS: Settings saved successfully
 USER_DELETE:
   TITLE: Account deletion
@@ -348,6 +356,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  VOICE_MAX_BITRATE_RANGE: Voice bitrate must be between 8 and 384 kbps
   LOGIN: Enter a valid username or email
   FILE_TOO_BIG: File is too big
   STRING: Value must be a string

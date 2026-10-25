@@ -78,3 +78,15 @@ export const INLINE_AUDIO_MIMES = [
   'audio/aac',
   'audio/flac',
 ] as const;
+
+/**
+ * Lower bound of the admin setting `VOICE_MAX_BITRATE_KBPS`.
+ * Opus voice cannot be set lower than this in settings or env.
+ */
+export const voiceBitrateMinKbps = 8;
+/** Upper bound of the admin setting `VOICE_MAX_BITRATE_KBPS`. */
+export const voiceBitrateMaxKbps = 384;
+/** Default for the admin setting `VOICE_MAX_BITRATE_KBPS`. */
+export const voiceBitrateDefaultKbps = 64;
+/** Absolute minimum bitrate floor for degraded audio adaptation. */
+export const voiceBitrateFloorKbps = 8;

@@ -128,6 +128,14 @@ Set `COOKIE_SECURE=true` when the instance is served over HTTPS. See [Attachment
 | **Bridge** (default)            | Publish `80` and `40000-40100` (UDP and TCP) in `docker-compose.yml` | Works on Linux, Windows (WSL2 / Docker Desktop) and macOS. A narrow range avoids the `docker-proxy` overhead. |
 | **Host** (`network_mode: host`) | Remove the `ports` section                                           | Linux only. Removes Docker NAT overhead; best for dedicated servers with many participants.                   |
 
+## Voice bandwidth
+
+Outbound media bandwidth from the Mediasoup SFU scales with the number of concurrent speakers and listeners:
+
+- Base microphone bitrate defaults to 64 kbit/s and is configured in server settings (`VOICE_MAX_BITRATE_KBPS`, range 8–384 kbit/s).
+- At 64 kbit/s, one active speaker with 9 listeners requires approximately 0.6 Mbit/s outbound server bandwidth.
+- Sender-side dynamic adaptation steps degraded clients down upon packet loss or high RTT, reducing client uplink and server fanout.
+
 ## Troubleshooting
 
 | Symptom                                       | Cause                                                                      | Fix                                                                                                                                                        |

@@ -55,6 +55,7 @@ export enum ESettingKey {
   ATTACHMENTS_MAX_FILE_SIZE = 'ATTACHMENTS_MAX_FILE_SIZE',
   ATTACHMENTS_MAX_FILES_PER_MESSAGE = 'ATTACHMENTS_MAX_FILES_PER_MESSAGE',
   ATTACHMENTS_STRIP_IMAGE_METADATA = 'ATTACHMENTS_STRIP_IMAGE_METADATA',
+  VOICE_MAX_BITRATE_KBPS = 'VOICE_MAX_BITRATE_KBPS',
 }
 
 export enum EAttachmentKind {
@@ -99,6 +100,8 @@ export enum EVoiceRoomEvent {
   PRODUCE = 'produce',
   PRODUCER_CREATED = 'producer-created',
   PRODUCER_CLOSED = 'producer-closed',
+  /** Producer uplink score (0-10) emitted to the producing socket. */
+  PRODUCER_SCORE = 'producer-score',
   CLOSE_PRODUCER = 'close-producer',
   CONSUME = 'consume',
   CLOSE_CONSUMER = 'close-consumer',

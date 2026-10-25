@@ -607,6 +607,19 @@ export class VoiceRoomsGateway
       peer.producers.set(producer.id, producer);
       room.producers.set(producer.id, producer);
 
+      if (body.mediaTag === 'mic') {
+        producer.on('score', (scores) => {
+          if (socket.connected && !producer.closed) {
+            const score =
+              scores.length > 0 ? Math.min(...scores.map((s) => s.score)) : 10;
+            socket.emit(EVoiceRoomEvent.PRODUCER_SCORE, {
+              producerId: producer.id,
+              score,
+            });
+          }
+        });
+      }
+
       const onClosed = () => {
         this.finalizeProducerClosed(
           room,

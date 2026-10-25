@@ -23,3 +23,4 @@ export * from './desktop';
 export * from './errors';
 export * from './mentions';
 export * from './room-access';
+export * from './voice-adaptation';

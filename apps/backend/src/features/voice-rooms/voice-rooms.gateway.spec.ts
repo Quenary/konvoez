@@ -1106,6 +1106,83 @@ describe('VoiceRoomsGateway', () => {
       });
     });
 
+    it('subscribes to producer score for mic and emits minimum score to owner socket only', async () => {
+      const room = createRoom();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+      };
+      room.peers.set('socket-1', peer);
+
+      let scoreHandler:
+        ((scores: Array<{ score: number }>) => void) | undefined;
+      const micProducer = {
+        id: 'mic-1',
+        kind: 'audio',
+        closed: false,
+        appData: { mediaTag: 'mic', peerId: 'socket-1' },
+        close: jest.fn(),
+        observer: { on: jest.fn() },
+        on: jest.fn(
+          (
+            event: string,
+            handler: (scores: Array<{ score: number }>) => void,
+          ) => {
+            if (event === 'score') {
+              scoreHandler = handler;
+            }
+          },
+        ),
+      };
+
+      const sendTransport = {
+        produce: jest.fn().mockResolvedValue(micProducer),
+      };
+      (
+        peer as unknown as { sendTransport: typeof sendTransport }
+      ).sendTransport = sendTransport;
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = joinedSocket();
+      socket.connected = true;
+      (socket.to as jest.Mock).mockReturnValue({ emit: jest.fn() });
+
+      await gateway.produce(socket as never, {
+        transportId: 't',
+        kind: 'audio',
+        mediaTag: 'mic',
+        rtpParameters: {},
+      });
+
+      expect(micProducer.on).toHaveBeenCalledWith(
+        'score',
+        expect.any(Function),
+      );
+      expect(scoreHandler).toBeDefined();
+
+      // Trigger score with multiple consumer scores; minimum should be picked
+      scoreHandler?.([{ score: 9 }, { score: 4 }, { score: 7 }]);
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_SCORE, {
+        producerId: 'mic-1',
+        score: 4,
+      });
+
+      // Empty scores default to 10
+      scoreHandler?.([]);
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_SCORE, {
+        producerId: 'mic-1',
+        score: 10,
+      });
+
+      // Emitted only to owner socket, not fan-out to room
+      expect(socket.to('room:1').emit).not.toHaveBeenCalledWith(
+        EVoiceRoomEvent.PRODUCER_SCORE,
+        expect.anything(),
+      );
+    });
+
     it('closing screen also closes screen-audio and emits PRODUCER_CLOSED for both', async () => {
       const screenAudio = {
         id: 'screen-audio-1',

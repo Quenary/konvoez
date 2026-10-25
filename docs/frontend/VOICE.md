@@ -104,6 +104,22 @@ sequenceDiagram
 - **Speaking indicator**: `AudioActivityService` polls the registered analysers; the local analyser is registered only while the mic is unmuted in an active session.
 - **Sounds**: capture, playback and UI sound effects use separate audio contexts; resuming them after a user gesture is handled by `AudioContextResumeService`. Effects are synthesized with Web Audio (positive cues rise, negative cues fall): join/leave, mute/unmute, deafen/undeafen, and stream start/stop for local and remote peers.
 
+### Adaptive audio
+
+`VoiceQualityService` polls sender WebRTC statistics (`remote-inbound-rtp`) and server producer scores every 2 seconds to adapt outgoing media. Because Mediasoup audio consumers ignore `setPriority`, sender-side uplink adaptation is the sole mechanism ensuring voice intelligibility.
+
+- **Base bitrate**: `VOICE_MAX_BITRATE_KBPS` (8–384, default 64 kbit/s). Changes apply on the next microphone produce or reconnect; receivers play Opus as-is.
+- **Tiers and protection**:
+
+| Tier | Name        | Factor                | Video protection                                         |
+| ---- | ----------- | --------------------- | -------------------------------------------------------- |
+| 0    | `EXCELLENT` | 1.0                   | Uncapped                                                 |
+| 1    | `GOOD`      | 0.625                 | Capped at 1.2 Mbit/s                                     |
+| 2    | `UNSTABLE`  | 0.375                 | Capped at 400 kbit/s                                     |
+| 3    | `BAD`       | 0.25 (floor 8 kbit/s) | Paused locally (`producer.pause()`, resumed on recovery) |
+
+- **Hysteresis**: degradation (loss ≥ 5%, RTT ≥ 300 ms, jitter ≥ 50 ms, score ≤ 7) steps down after 2 bad samples; recovery requires 8 stable samples, a 10 s dwell time, and a 20% margin.
+
 ## Direct calls
 
 `DirectCallService` handles call signaling. The UI lives on `/direct/:id` (`DirectComponent` with `app-voice-room-shell`) and in the sidebar. The user dialog offers direct-message navigation, call initiation and per-user volume. The grid and overlay are shared with group rooms (`shared/components/voice-room/`).
@@ -112,7 +128,8 @@ sequenceDiagram
 
 - Stores: `apps/frontend/src/app/core/{stores,voice,chat}/`
 - API: `apps/frontend/src/app/core/api/`
-- Services (session, mediasoup, peers, calls, entity sync): `apps/frontend/src/app/core/services/`
+- Services (session, mediasoup, voice quality, peers, calls, entity sync): `apps/frontend/src/app/core/services/`
 - Navigation: `apps/frontend/src/app/features/rooms/room-navigation.service.ts`
 - Shared UI: `apps/frontend/src/app/shared/components/voice-room/`
+- Shared contracts and voice ladder: `libs/shared/`
 - Routes: `features/voice-room/`, `features/direct/`

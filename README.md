@@ -110,7 +110,6 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 - 2FA
 - Per-user notification settings (topics)
-- Audio streaming adaptive (for potato internet)
 - Video streaming simulcast & adaptive:
   - Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
   - Bitrate caps tied to capture height; optional `maxIncomingBitrate` on the receive transport
