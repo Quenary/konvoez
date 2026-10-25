@@ -319,18 +319,16 @@ describe('VoiceRoomPanelComponent', () => {
     expect(instance['qualityColor']()).toBe('var(--tui-status-positive)');
 
     qualityTier.set(EVoiceQualityTier.GOOD);
-    expect(instance['qualityColor']()).toBe('var(--tui-status-warning)');
+    expect(instance['qualityColor']()).toBe('var(--tui-status-info)');
 
     qualityTier.set(EVoiceQualityTier.UNSTABLE);
-    expect(instance['qualityColor']()).toBe(
-      'var(--tui-chart-state-warning-accent, var(--tui-const-orange-darker-48, #f59200))',
-    );
+    expect(instance['qualityColor']()).toBe('var(--tui-status-warning)');
 
     qualityTier.set(EVoiceQualityTier.BAD);
     expect(instance['qualityColor']()).toBe('var(--tui-status-negative)');
   });
 
-  it('computes qualityHintKey and qualityAriaLabel', () => {
+  it('computes qualityHintKey and qualityAriaLabel and updates on language change', () => {
     const { instance } = createComponent();
 
     qualityTier.set(EVoiceQualityTier.EXCELLENT);
@@ -351,6 +349,10 @@ describe('VoiceRoomPanelComponent', () => {
     isConnected.set(true);
     expect(instance['qualityAriaLabel']()).toContain('Direct Call');
     expect(instance['qualityAriaLabel']()).toContain('Voice quality: poor');
+
+    translate.use('ru');
+    expect(instance['qualityAriaLabel']()).toContain('Прямой звонок');
+    expect(instance['qualityAriaLabel']()).toContain('Связь: плохая');
   });
 
   it('binds quality color and neutral appearance on session button', () => {

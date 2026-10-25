@@ -5,6 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomNavigationService } from '../room-navigation.service';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -76,9 +77,9 @@ export class VoiceRoomPanelComponent {
       case EVoiceQualityTier.EXCELLENT:
         return 'var(--tui-status-positive)';
       case EVoiceQualityTier.GOOD:
-        return 'var(--tui-status-warning)';
+        return 'var(--tui-status-info)';
       case EVoiceQualityTier.UNSTABLE:
-        return 'var(--tui-chart-state-warning-accent, var(--tui-const-orange-darker-48, #f59200))';
+        return 'var(--tui-status-warning)';
       case EVoiceQualityTier.BAD:
         return 'var(--tui-status-negative)';
     }
@@ -98,6 +99,7 @@ export class VoiceRoomPanelComponent {
   });
 
   protected readonly qualityAriaLabel = computed(() => {
+    this.currentLang();
     const titleKey = this.sessionTitle();
     const hintKey = this.qualityHintKey();
     const kbps = this.qualityBitrateKbps();
@@ -132,6 +134,7 @@ export class VoiceRoomPanelComponent {
 
   private readonly rooms = this.roomsStore.roomsDict;
   private readonly activeSession = this.voiceSessionStore.activeSession;
+  private readonly currentLang = toSignal(this.translateService.onLangChange);
 
   protected clickSession(): void {
     if (this.isDirectCall()) {
