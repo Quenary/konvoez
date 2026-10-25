@@ -35,6 +35,7 @@ import { Migration20261009130000_MessageReactions } from './migrations/Migration
 import { Migration20261017170127_RolesAndRoomAccess } from './migrations/Migration20261017170127_RolesAndRoomAccess';
 import { Migration20261019120000_MentionableRoles } from './migrations/Migration20261019120000_MentionableRoles';
 import { Migration20261019130000_MessageMentions } from './migrations/Migration20261019130000_MessageMentions';
+import { Migration20261026090000_SessionVersion } from './migrations/Migration20261026090000_SessionVersion';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -82,6 +83,7 @@ export async function createMikroOrmConfig() {
         Migration20261017170127_RolesAndRoomAccess,
         Migration20261019120000_MentionableRoles,
         Migration20261019130000_MessageMentions,
+        Migration20261026090000_SessionVersion,
       ],
     },
   } satisfies Partial<Options>;

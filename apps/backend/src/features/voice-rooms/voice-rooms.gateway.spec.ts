@@ -213,6 +213,7 @@ describe('VoiceRoomsGateway', () => {
       to: jest.fn().mockReturnThis(),
       emit: jest.fn(),
       in: jest.fn().mockReturnValue({ fetchSockets }),
+      fetchSockets,
       sockets: { sockets: new Map() },
     };
     Object.assign(gateway, { server: serverMock as unknown as Server });
@@ -2099,6 +2100,25 @@ describe('VoiceRoomsGateway', () => {
       expect(voiceRoomsStateService.removeRoom).toHaveBeenCalledWith(
         sessionKey,
       );
+    });
+  });
+
+  describe('onUserSessionsRevoked', () => {
+    it('should disconnect matching user sockets and keep other sockets connected', async () => {
+      const targetSocket = {
+        data: { user: alice },
+        disconnect: jest.fn(),
+      };
+      const otherSocket = {
+        data: { user: bob },
+        disconnect: jest.fn(),
+      };
+      fetchSockets.mockResolvedValueOnce([targetSocket, otherSocket]);
+
+      await gateway.onUserSessionsRevoked({ id: alice.id });
+
+      expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(otherSocket.disconnect).not.toHaveBeenCalled();
     });
   });
 });

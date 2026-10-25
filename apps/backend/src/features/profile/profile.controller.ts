@@ -6,15 +6,18 @@ import {
   HttpStatus,
   Patch,
   Post,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { avatarUploadLimits } from '@shared/services/file.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
+import { AuthService } from '../auth/auth.service';
 import { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { UsersAvatarsService } from '../users/users-avatars.service';
@@ -30,6 +33,7 @@ export class ProfileController {
     private readonly profileService: ProfileService,
     private readonly usersService: UsersService,
     private readonly usersAvatarsService: UsersAvatarsService,
+    private readonly authService: AuthService,
   ) {}
 
   @Patch()
@@ -40,8 +44,16 @@ export class ProfileController {
   async update(
     @Body() dto: UpdateProfileDto,
     @Author() author: GetUserSafeDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<GetUserFullDto> {
-    return await this.profileService.updateSelf(author, dto);
+    const { user, sessionVersion } = await this.profileService.updateSelf(
+      author,
+      dto,
+    );
+    if (sessionVersion !== undefined) {
+      this.authService.setAuthCookies(user.id, sessionVersion, res);
+    }
+    return user;
   }
 
   @Post('anonymize')

@@ -13,7 +13,7 @@ import { Server } from 'socket.io';
 
 describe('NotificationsGateway', () => {
   let gateway: NotificationsGateway;
-  let serverMock: { emit: jest.Mock; to: jest.Mock };
+  let serverMock: { emit: jest.Mock; to: jest.Mock; fetchSockets: jest.Mock };
   let authServiceMock: { getUserFromRawCookies: jest.Mock };
   let toMock: jest.Mock;
 
@@ -39,6 +39,7 @@ describe('NotificationsGateway', () => {
     serverMock = {
       emit: jest.fn(),
       to: toMock,
+      fetchSockets: jest.fn().mockResolvedValue([]),
     };
 
     authServiceMock = {
@@ -125,6 +126,28 @@ describe('NotificationsGateway', () => {
         ENotificationsEvent.NOTIFICATION,
         payload,
       );
+    });
+  });
+
+  describe('onUserSessionsRevoked', () => {
+    it('should disconnect matching user sockets and keep other sockets connected', async () => {
+      const targetSocket = {
+        data: { userId: 1 },
+        disconnect: jest.fn(),
+      };
+      const otherSocket = {
+        data: { userId: 2 },
+        disconnect: jest.fn(),
+      };
+      serverMock.fetchSockets.mockResolvedValueOnce([
+        targetSocket,
+        otherSocket,
+      ]);
+
+      await gateway.onUserSessionsRevoked({ id: 1 });
+
+      expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(otherSocket.disconnect).not.toHaveBeenCalled();
     });
   });
 });

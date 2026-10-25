@@ -36,7 +36,7 @@ flowchart TD
 | **Logical** (default) | `POST …/anonymize` (`/user-management/:id` or `/profile`) | The row, roles, rooms and messages stay. Username becomes `deleted-{id}`, full name `Deleted user`, email `deleted-{id}@users.invalid`; avatar is removed, password replaced with a random hash, `deletedAt` set once. |
 | **Physical**          | `DELETE …` (`/user-management/:id` or `/profile`)         | One transaction removes the user, their avatar, messages they sent, direct messages sent to them, and every room they created with its messages and avatar. Replies to removed messages lose their reply link.         |
 
-- **Anonymized accounts** cannot log in, refresh a session, open a socket or recover a password; failures look like bad credentials or an unknown email. An access cookie that is still valid fails on the next authenticated request.
+- **Anonymized accounts** cannot log in, refresh a session, open a socket or recover a password; failures look like bad credentials or an unknown email. Both anonymization and physical deletion end every session and live connection of the user immediately.
 - **Physical deletion** also removes invites, recovery codes, push subscriptions, notifications and read receipts through foreign keys. Rooms created by other people stay.
 - The delete dialog has a **Full deletion** switch that is off by default; the dialog only returns the choice and the caller sends the request.
 - After self-deletion the client logs out and clears the session.

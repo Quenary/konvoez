@@ -11,6 +11,7 @@ export const UsersDomainEvents = {
   USER_DELETED: 'user.deleted',
   USER_PRESENCE_CHANGED: 'user.presence-changed',
   USER_PERMISSIONS_CHANGED: 'user.permissions-changed',
+  USER_SESSIONS_REVOKED: 'user.sessions-revoked',
 } as const;
 
 export type TUsersDomainEvent =
@@ -22,6 +23,7 @@ export type TUsersDomainPayloadMap = {
   [UsersDomainEvents.USER_DELETED]: IUserDeleted;
   [UsersDomainEvents.USER_PRESENCE_CHANGED]: IUserPresenceChanged;
   [UsersDomainEvents.USER_PERMISSIONS_CHANGED]: { userIds: number[] };
+  [UsersDomainEvents.USER_SESSIONS_REVOKED]: { id: number };
 };
 
 export const emitUsersDomainEvent =

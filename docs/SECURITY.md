@@ -40,14 +40,26 @@ flowchart TD
 
 ### Authentication
 
-- Sessions are JWTs delivered in secure HTTP cookies. Passwords are stored as Argon2 hashes.
-- Password recovery uses emailed one-time codes. See [Password recovery](PASSWORD_RECOVERY.md).
+- Sessions are JWTs delivered in secure HTTP cookies. Tokens expire on the server together with their cookies; refresh is sliding.
+- A per-user session version lets password changes, 2FA changes, anonymize and delete end all sessions and live connections at once.
+- Passwords are stored as Argon2 hashes. Password recovery uses emailed one-time codes. See [Password recovery](PASSWORD_RECOVERY.md).
 - An account with `deletedAt` set cannot log in, refresh a session, open a socket or recover its password. See [User management](USER_MANAGEMENT.md).
+- The first deploy with session versions signs out all active sessions once.
+
+```mermaid
+flowchart TD
+  R[Request / socket connect / refresh] --> V{Valid signature and unexpired?}
+  V -- no --> X[Reject: 401]
+  V -- yes --> U[Load user row]
+  U --> D{Deleted, or session version mismatch?}
+  D -- yes --> X
+  D -- no --> OK[Allow]
+```
 
 ## In scope
 
 - Unauthenticated access to private rooms, message streams or user details.
-- Authentication or authorization bypass, such as impersonation or forged JWT cookies.
+- Authentication or authorization bypass, such as impersonation, forged JWT cookies, or using an expired or revoked token.
 - Bypassing the `OWNER` bootstrap token, or claiming `OWNER` after the initial setup.
 - Bypassing invite-only registration: missing, reused, expired or revoked codes, or ignoring email binding.
 - Creating, revoking or listing invites without `MANAGE_INVITES`.
