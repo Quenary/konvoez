@@ -596,6 +596,22 @@ describe('AuthService', () => {
       });
     });
 
+    it('should propagate database or unexpected errors when user lookup fails', async () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      const dbError = new Error('SQLITE_BUSY: database is locked');
+      usersService.findOneBy.mockRejectedValueOnce(dbError);
+
+      await expect(
+        service.getUserFromAccessToken('valid_token'),
+      ).rejects.toThrow('SQLITE_BUSY: database is locked');
+    });
+
     it('should reject a refresh token presented as an access token', async () => {
       jwtService.verify.mockReturnValueOnce({
         type: 'refresh',
@@ -645,6 +661,15 @@ describe('AuthService', () => {
       await expect(service.getActiveUserById(999)).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
+    });
+
+    it('should propagate database or unexpected errors when user lookup fails', async () => {
+      const dbError = new Error('SQLITE_BUSY: database is locked');
+      usersService.findOneBy.mockRejectedValueOnce(dbError);
+
+      await expect(service.getActiveUserById(1)).rejects.toThrow(
+        'SQLITE_BUSY: database is locked',
+      );
     });
   });
 
@@ -1223,6 +1248,41 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
+    });
+
+    it('should throw UnauthorizedException when user is not found', async () => {
+      const payload = {
+        type: 'refresh' as const,
+        userId: 999,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneBy.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('should propagate database or unexpected errors when user lookup fails', async () => {
+      const payload = {
+        type: 'refresh' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      const dbError = new Error('SQLITE_BUSY: database is locked');
+      usersService.findOneBy.mockRejectedValueOnce(dbError);
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toThrow('SQLITE_BUSY: database is locked');
     });
 
     it('should reject an access token presented as a refresh token', async () => {

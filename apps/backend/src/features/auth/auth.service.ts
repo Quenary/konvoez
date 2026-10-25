@@ -473,11 +473,17 @@ ${token}
       user = await this.usersService.findOneBy({
         id: userId,
       });
-    } catch {
-      throw AppException.unauthorized(
-        ApiErrorCode.UNAUTHORIZED,
-        'Unauthorized',
-      );
+    } catch (error) {
+      if (
+        error instanceof AppException &&
+        error.code === ApiErrorCode.USER_NOT_FOUND
+      ) {
+        throw AppException.unauthorized(
+          ApiErrorCode.UNAUTHORIZED,
+          'Unauthorized',
+        );
+      }
+      throw error;
     }
     if (user.deletedAt) {
       throw AppException.unauthorized(
