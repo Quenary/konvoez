@@ -13,6 +13,7 @@ export const UserEntitySchema = defineEntity({
     id: p.integer().primary().autoincrement(),
     username: p.string().length(32).index().unique(),
     password: p.string().length(128).hidden(),
+    sessionVersion: p.integer().default(0).hidden(),
     fullname: p.string().length(128).index(),
     email: p.string().length(128).index().unique(),
     isOwner: p.boolean().default(false),

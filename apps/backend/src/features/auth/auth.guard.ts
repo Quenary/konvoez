@@ -100,8 +100,9 @@ export class AuthGuard implements CanActivate {
           'Unauthorized',
         );
       }
-      const user = await this.authService.resolveRefreshToken(refreshToken);
-      this.authService.setAuthCookies(user.id, response);
+      const { user, sessionVersion } =
+        await this.authService.resolveRefreshToken(refreshToken);
+      this.authService.setAuthCookies(user.id, sessionVersion, response);
       return user;
     }
     return await this.authService.getMe(request);

@@ -161,13 +161,30 @@ export class UsersService {
     return em.count(UserEntity);
   }
 
-  async setPassword(userId: number, password: string): Promise<UserEntity> {
+  async revokeSessions(user: UserEntity): Promise<number> {
     return ensureRequestContext(this.em, async () => {
-      const user = await this.findOne(userId);
-      const passwordHash = await this.passwordService.hashPassword(password);
-      this.repo.assign(user, { password: passwordHash });
+      user.sessionVersion = (user.sessionVersion ?? 0) + 1;
       this.em.persist(user);
       await this.em.flush();
+      emitUsersDomainEvent(
+        this.eventEmitter,
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: user.id },
+      );
+      return user.sessionVersion;
+    });
+  }
+
+  async setPassword(
+    userOrId: number | UserEntity,
+    password: string,
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      const user =
+        typeof userOrId === 'number' ? await this.findOne(userOrId) : userOrId;
+      const passwordHash = await this.passwordService.hashPassword(password);
+      this.repo.assign(user, { password: passwordHash });
+      await this.revokeSessions(user);
       return user;
     });
   }
@@ -185,8 +202,7 @@ export class UsersService {
       password,
       deletedAt: user.deletedAt ?? new Date(),
     });
-    this.em.persist(user);
-    await this.em.flush();
+    await this.revokeSessions(user);
     await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
     const publicDto = this.toSafeDto(user);
     emitUsersDomainEvent(
@@ -239,6 +255,11 @@ export class UsersService {
     emitUsersDomainEvent(this.eventEmitter, UsersDomainEvents.USER_DELETED, {
       id,
     });
+    emitUsersDomainEvent(
+      this.eventEmitter,
+      UsersDomainEvents.USER_SESSIONS_REVOKED,
+      { id },
+    );
   }
 
   toSafeDto(user: UserEntity, permissions?: EPermission[]): GetUserSafeDto {

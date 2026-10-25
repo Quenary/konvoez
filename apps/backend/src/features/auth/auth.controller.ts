@@ -9,7 +9,7 @@ import {
   PasswordRecoveryRequestDto,
 } from './auth.dto';
 import type { Request, Response } from 'express';
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
+import { REFRESH_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserFullDto } from '../users/users.dto';
 
@@ -25,8 +25,11 @@ export class AuthController {
     @Body() dto: AuthLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = await this.authService.validateUser(dto.login, dto.password);
-    this.authService.setAuthCookies(user.id, res);
+    const { user, sessionVersion } = await this.authService.validateUser(
+      dto.login,
+      dto.password,
+    );
+    this.authService.setAuthCookies(user.id, sessionVersion, res);
     return user;
   }
 
@@ -42,15 +45,15 @@ export class AuthController {
         'No refresh token',
       );
     }
-    const user = await this.authService.resolveRefreshToken(refreshToken);
-    this.authService.setAuthCookies(user.id, res);
+    const { user, sessionVersion } =
+      await this.authService.resolveRefreshToken(refreshToken);
+    this.authService.setAuthCookies(user.id, sessionVersion, res);
     return { ok: true };
   }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(ACCESS_TOKEN_KEY);
-    res.clearCookie(REFRESH_TOKEN_KEY);
+    this.authService.clearAuthCookies(res);
     return { ok: true };
   }
 

@@ -5,7 +5,6 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
-import { PasswordService } from '../../shared/services/password.service';
 import { UserEntity } from '../users/users.entity';
 import { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
@@ -21,7 +20,6 @@ export class ProfileService {
     private readonly repo: EntityRepository<UserEntity>,
     private readonly usersService: UsersService,
     private readonly roomsFacade: RoomsFacade,
-    private readonly passwordService: PasswordService,
     private readonly eventEmitter: EventEmitter2,
   ) {
     this.em = this.repo.getEntityManager();
@@ -30,7 +28,7 @@ export class ProfileService {
   async updateSelf(
     author: GetUserSafeDto,
     dto: UpdateProfileDto,
-  ): Promise<GetUserFullDto> {
+  ): Promise<{ user: GetUserFullDto; sessionVersion?: number }> {
     if (dto.username) {
       const existingUsername = await this.repo.findOne({
         username: dto.username,
@@ -57,25 +55,28 @@ export class ProfileService {
     }
 
     const { password, ...data } = dto;
-    let assignData: Partial<UserEntity> = { ...data };
+    const user = await this.usersService.findOne(author.id);
+    this.repo.assign(user, data);
+
+    let sessionVersion: number | undefined;
     if (password) {
-      assignData = {
-        ...assignData,
-        password: await this.passwordService.hashPassword(password),
-      };
+      await this.usersService.setPassword(user, password);
+      sessionVersion = user.sessionVersion;
+    } else {
+      this.em.persist(user);
+      await this.em.flush();
     }
 
-    const user = await this.usersService.findOne(author.id);
-    this.repo.assign(user, assignData);
-    this.em.persist(user);
-    await this.em.flush();
     const publicDto = await this.usersService.toSafeDtoWithPermissions(user);
     emitUsersDomainEvent(
       this.eventEmitter,
       UsersDomainEvents.USER_UPDATED,
       publicDto,
     );
-    return this.usersService.toFullDto(user, publicDto.permissions);
+    return {
+      user: this.usersService.toFullDto(user, publicDto.permissions),
+      sessionVersion,
+    };
   }
 
   async anonymizeSelf(author: GetUserSafeDto): Promise<GetUserFullDto> {

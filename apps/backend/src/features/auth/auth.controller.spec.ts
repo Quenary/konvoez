@@ -61,10 +61,11 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             validateUser: jest.fn(),
-            generateToken: jest.fn(),
+            signToken: jest.fn(),
             verifyToken: jest.fn(),
             resolveRefreshToken: jest.fn(),
             setAuthCookies: jest.fn(),
+            clearAuthCookies: jest.fn(),
             getMe: jest.fn(),
             isOwnerSetupRequired: jest.fn(),
             register: jest.fn(),
@@ -83,7 +84,10 @@ describe('AuthController', () => {
         login: 'testuser',
         password: 'password123',
       };
-      authService.validateUser.mockResolvedValueOnce(mockUser);
+      authService.validateUser.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 0,
+      });
 
       const result = await controller.login(
         dto,
@@ -96,6 +100,7 @@ describe('AuthController', () => {
       );
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
+        0,
         mockResponse,
       );
 
@@ -119,7 +124,10 @@ describe('AuthController', () => {
       const req = {
         cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
       } as unknown as Request;
-      authService.resolveRefreshToken.mockResolvedValueOnce(mockUser);
+      authService.resolveRefreshToken.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 1,
+      });
 
       const result = await controller.refresh(
         req,
@@ -131,6 +139,7 @@ describe('AuthController', () => {
       );
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
+        1,
         mockResponse,
       );
       expect(result).toEqual({ ok: true });
@@ -141,8 +150,7 @@ describe('AuthController', () => {
     it('should clear access and refresh cookies and return ok: true', () => {
       const result = controller.logout(mockResponse as unknown as Response);
 
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith(ACCESS_TOKEN_KEY);
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith(REFRESH_TOKEN_KEY);
+      expect(authService.clearAuthCookies).toHaveBeenCalledWith(mockResponse);
       expect(result).toEqual({ ok: true });
     });
   });

@@ -22,6 +22,7 @@ describe('EntitySyncGateway', () => {
     emit: jest.Mock;
     to: jest.Mock;
     sockets: { sockets: Map<string, unknown> };
+    fetchSockets: jest.Mock;
   };
   let authServiceMock: { getUserFromRawCookies: jest.Mock };
   let userPresenceServiceMock: {
@@ -72,6 +73,7 @@ describe('EntitySyncGateway', () => {
       emit: jest.fn(),
       to: toMock,
       sockets: { sockets: new Map() },
+      fetchSockets: jest.fn().mockResolvedValue([]),
     };
     authServiceMock = { getUserFromRawCookies: jest.fn() };
     userPresenceServiceMock = {
@@ -529,6 +531,28 @@ describe('EntitySyncGateway', () => {
         EEntitySyncEvent.USER_UPDATED,
         user9Updated,
       );
+    });
+  });
+
+  describe('onUserSessionsRevoked', () => {
+    it('should disconnect matching user sockets and keep other sockets connected', async () => {
+      const targetSocket = {
+        data: { user: { id: 1 } },
+        disconnect: jest.fn(),
+      };
+      const otherSocket = {
+        data: { user: { id: 2 } },
+        disconnect: jest.fn(),
+      };
+      serverMock.fetchSockets.mockResolvedValueOnce([
+        targetSocket,
+        otherSocket,
+      ]);
+
+      await gateway.onUserSessionsRevoked({ id: 1 });
+
+      expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(otherSocket.disconnect).not.toHaveBeenCalled();
     });
   });
 });

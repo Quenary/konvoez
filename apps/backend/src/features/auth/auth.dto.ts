@@ -21,4 +21,5 @@ export class PasswordRecoveryConfirmDto extends createZodDto(
 export class AuthJWTData {
   type!: 'access' | 'refresh';
   userId!: number;
+  sv!: number;
 }

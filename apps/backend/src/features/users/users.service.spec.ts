@@ -48,6 +48,7 @@ describe('UsersService', () => {
     email: 'test@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
+    sessionVersion: 0,
     avatar: null,
     deletedAt: null,
     createdAt: new Date(),
@@ -182,6 +183,7 @@ describe('UsersService', () => {
       expect(dto.deletedAt).toEqual(deletedAt);
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('email');
+      expect(dto).not.toHaveProperty('sessionVersion');
     });
   });
 
@@ -191,6 +193,43 @@ describe('UsersService', () => {
 
       expect(dto.email).toBe('test@example.com');
       expect(dto).not.toHaveProperty('password');
+      expect(dto).not.toHaveProperty('sessionVersion');
+    });
+  });
+
+  describe('revokeSessions', () => {
+    it('should increment sessionVersion, persist, flush, and emit USER_SESSIONS_REVOKED', async () => {
+      const target = { ...mockUser, id: 10, sessionVersion: 3 } as UserEntity;
+
+      const newVersion = await service.revokeSessions(target);
+
+      expect(newVersion).toBe(4);
+      expect(target.sessionVersion).toBe(4);
+      expect(mockEm.persist).toHaveBeenCalledWith(target);
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 10 },
+      );
+    });
+  });
+
+  describe('setPassword', () => {
+    it('should hash password, revoke sessions, and return user', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockUser);
+
+      const result = await service.setPassword(1, 'NewPass123!');
+
+      expect(passwordService.hashPassword).toHaveBeenCalledWith('NewPass123!');
+      expect(mockRepo.assign).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({ password: 'hashed_new_password' }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 1 },
+      );
+      expect(result).toBe(mockUser);
     });
   });
 
@@ -201,6 +240,7 @@ describe('UsersService', () => {
         id: 5,
         role: EUserRole.ADMIN,
         avatar: 'avatar-key',
+        sessionVersion: 0,
       } as UserEntity;
 
       const result = await service.anonymizeLoaded(target);
@@ -213,6 +253,11 @@ describe('UsersService', () => {
         password: 'hashed_new_password',
         deletedAt: expect.any(Date),
       });
+      expect(target.sessionVersion).toBe(1);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 5 },
+      );
       expect(mockRepo.assign).not.toHaveBeenCalledWith(
         target,
         expect.objectContaining({ role: expect.anything() }),
@@ -273,6 +318,10 @@ describe('UsersService', () => {
         UsersDomainEvents.USER_DELETED,
         { id: 5 },
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 5 },
+      );
     });
 
     it('should handle user deletion when user has no messages', async () => {
@@ -299,6 +348,10 @@ describe('UsersService', () => {
       expect(fileService.delete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_DELETED,
+        { id: 5 },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
         { id: 5 },
       );
     });

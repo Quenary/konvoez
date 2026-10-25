@@ -238,7 +238,10 @@ describe('AuthGuard', () => {
         if (key === AuthRefreshFallback) return true;
         return undefined;
       });
-      authService.resolveRefreshToken.mockResolvedValueOnce(mockUser);
+      authService.resolveRefreshToken.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 0,
+      });
 
       const result = await guard.canActivate(context);
 
@@ -248,6 +251,7 @@ describe('AuthGuard', () => {
       );
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
+        0,
         response,
       );
       expect(request['author']).toEqual(mockUser);

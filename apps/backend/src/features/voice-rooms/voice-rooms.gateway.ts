@@ -66,6 +66,10 @@ import {
 } from './voice-rooms.events';
 import { RoomsDomainEvents } from '../rooms/rooms.events';
 import {
+  UsersDomainEvents,
+  type TUsersDomainPayloadMap,
+} from '../users/users.events';
+import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
 } from './voice-rooms.state';
@@ -111,12 +115,12 @@ const DIRECT_CALL_CALLER_RECONNECT_GRACE_MS = 5_000;
 export class VoiceRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
 {
+  @WebSocketServer()
+  private readonly server!: Server<TVoiceRoomEventMap>;
+
   private readonly logger = new Logger(VoiceRoomsGateway.name);
   private readonly ringTimers = new Map<string, NodeJS.Timeout>();
   private readonly callerDisconnectTimers = new Map<string, NodeJS.Timeout>();
-
-  @WebSocketServer()
-  private readonly server!: Server<TVoiceRoomEventMap>;
 
   constructor(
     private readonly authService: AuthService,
@@ -1008,6 +1012,19 @@ export class VoiceRoomsGateway
       recipientId: call.recipientId,
     };
   }
+
+  @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)
+  async onUserSessionsRevoked(
+    payload: TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_SESSIONS_REVOKED],
+  ): Promise<void> {
+    const sockets = await this.server.fetchSockets();
+    for (const socket of sockets) {
+      if (socket.data.user?.id === payload.id) {
+        socket.disconnect(true);
+      }
+    }
+  }
+
   private resolveSessionKey(socket: TSocket): string | undefined {
     if (socket.data.sessionKey) {
       return socket.data.sessionKey;

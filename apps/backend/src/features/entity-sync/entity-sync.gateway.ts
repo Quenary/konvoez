@@ -105,10 +105,6 @@ export class EntitySyncGateway
     }
   }
 
-  private canUserAccessRoom(user: GetUserSafeDto, room: IRoom): boolean {
-    return this.roomsFacade.canAccessRoom(user, room);
-  }
-
   @OnEvent(UsersDomainEvents.USER_CREATED)
   onUserCreated(
     payload: TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_CREATED],
@@ -263,5 +259,24 @@ export class EntitySyncGateway
     for (const updated of updatedById.values()) {
       this.server.emit(EEntitySyncEvent.USER_UPDATED, updated);
     }
+  }
+
+  @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)
+  async onUserSessionsRevoked(
+    payload: TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_SESSIONS_REVOKED],
+  ): Promise<void> {
+    const sockets = await this.server.fetchSockets();
+    for (const socket of sockets) {
+      if (
+        socket.data.user?.id === payload.id ||
+        socket.data.userId === payload.id
+      ) {
+        socket.disconnect(true);
+      }
+    }
+  }
+
+  private canUserAccessRoom(user: GetUserSafeDto, room: IRoom): boolean {
+    return this.roomsFacade.canAccessRoom(user, room);
   }
 }
