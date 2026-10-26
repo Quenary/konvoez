@@ -54,9 +54,25 @@
         </div>
       }
 
+      @if (settingsLoadFailed()) {
+        <div class="settings-load-error">
+          <p class="settings-load-error-message">
+            {{ 'SETTINGS.NOTIFICATIONS.LOAD_ERROR' | translate }}
+          </p>
+          <button
+            tuiButton
+            type="button"
+            size="s"
+            appearance="secondary"
+            (click)="loadSettings()">
+            {{ 'GENERAL.RETRY' | translate }}
+          </button>
+        </div>
+      }
+
       <fieldset
         class="setting-group"
-        [disabled]="isSettingsLoading()">
+        [disabled]="isSettingsLoading() || settingsLoadFailed()">
         <legend tuiTitle>
           {{ 'SETTINGS.NOTIFICATIONS.TOPICS_TITLE' | translate }}
         </legend>

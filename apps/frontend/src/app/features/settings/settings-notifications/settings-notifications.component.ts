@@ -62,6 +62,7 @@ export class SettingsNotificationsComponent {
   );
   protected readonly isLoading = signal(false);
   protected readonly isSettingsLoading = signal(true);
+  protected readonly settingsLoadFailed = signal(false);
   protected readonly isEnabled = this.pushNotificationService.isEnabled;
   protected readonly serverKeyLoaded =
     this.pushNotificationService.serverKeyLoaded;
@@ -84,6 +85,13 @@ export class SettingsNotificationsComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
 
+    this.loadSettings();
+  }
+
+  protected loadSettings(): void {
+    this.isSettingsLoading.set(true);
+    this.settingsLoadFailed.set(false);
+
     this.notificationsApiService
       .getSettings()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -94,6 +102,8 @@ export class SettingsNotificationsComponent {
         },
         error: () => {
           this.isSettingsLoading.set(false);
+          this.settingsLoadFailed.set(true);
+          this.showError('SETTINGS.NOTIFICATIONS.LOAD_ERROR');
         },
       });
   }
@@ -153,19 +163,18 @@ export class SettingsNotificationsComponent {
       .subscribe({
         error: () => {
           this.settings.set(prev);
-          this.tuiNotificationService
-            .open(
-              this.translateService.instant(
-                'SETTINGS.NOTIFICATIONS.UPDATE_ERROR',
-              ),
-              {
-                appearance: 'negative',
-                autoClose: 5000,
-                closable: true,
-              },
-            )
-            .subscribe();
+          this.showError('SETTINGS.NOTIFICATIONS.UPDATE_ERROR');
         },
       });
+  }
+
+  private showError(key: string): void {
+    this.tuiNotificationService
+      .open(this.translateService.instant(key), {
+        appearance: 'negative',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
   }
 }

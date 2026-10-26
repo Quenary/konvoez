@@ -246,6 +246,7 @@ SETTINGS:
     MENTIONS_EVERYONE: '@everyone mentions'
     MENTIONS_EVERYONE_DESC: Notifications when someone mentions @everyone
     UPDATE_ERROR: Could not save notification settings
+    LOAD_ERROR: Could not load notification settings
   DEVICES:
     TITLE: Device settings
     AUDIO_INPUT: Microphone

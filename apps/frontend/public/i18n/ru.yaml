@@ -246,6 +246,7 @@ SETTINGS:
     MENTIONS_EVERYONE: 'Упоминания @everyone'
     MENTIONS_EVERYONE_DESC: Уведомления при массовом упоминании всех участников
     UPDATE_ERROR: Не удалось сохранить настройки уведомлений
+    LOAD_ERROR: Не удалось загрузить настройки уведомлений
   DEVICES:
     TITLE: Настройки устройств
     AUDIO_INPUT: Микрофон

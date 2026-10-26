@@ -134,6 +134,60 @@ describe('SettingsNotificationsComponent', () => {
     expect(compiled.querySelector('fieldset.setting-group')).not.toBeNull();
   });
 
+  it('shows error state, disables fieldset, and shows retry button when settings fail to load', () => {
+    getSettings.mockClear();
+    getSettings.mockReturnValueOnce(throwError(() => new Error('Load failed')));
+
+    const freshFixture = TestBed.createComponent(
+      SettingsNotificationsComponent,
+    );
+    const freshComponent = freshFixture.componentInstance;
+    freshFixture.detectChanges();
+
+    expect(freshComponent['settingsLoadFailed']()).toBe(true);
+    expect(openNotification).toHaveBeenCalled();
+
+    const compiled = freshFixture.nativeElement as HTMLElement;
+    const fieldset = compiled.querySelector('fieldset.setting-group');
+    expect(fieldset?.hasAttribute('disabled')).toBe(true);
+
+    const retryButton = compiled.querySelector(
+      '.settings-load-error button[tuiButton]',
+    );
+    expect(retryButton).not.toBeNull();
+  });
+
+  it('retries loading settings when clicking retry button', () => {
+    getSettings.mockClear();
+    getSettings.mockReturnValueOnce(throwError(() => new Error('Load failed')));
+
+    const freshFixture = TestBed.createComponent(
+      SettingsNotificationsComponent,
+    );
+    const freshComponent = freshFixture.componentInstance;
+    freshFixture.detectChanges();
+
+    expect(freshComponent['settingsLoadFailed']()).toBe(true);
+
+    getSettings.mockReturnValueOnce(
+      of({ ...DEFAULT_USER_NOTIFICATION_SETTINGS, directCalls: false }),
+    );
+
+    const compiled = freshFixture.nativeElement as HTMLElement;
+    const retryButton = compiled.querySelector(
+      '.settings-load-error button[tuiButton]',
+    ) as HTMLButtonElement;
+    retryButton.click();
+    freshFixture.detectChanges();
+
+    expect(getSettings).toHaveBeenCalledTimes(2);
+    expect(freshComponent['settings']().directCalls).toBe(false);
+    expect(freshComponent['settingsLoadFailed']()).toBe(false);
+
+    const fieldset = compiled.querySelector('fieldset.setting-group');
+    expect(fieldset?.hasAttribute('disabled')).toBe(false);
+  });
+
   it('updates direct messages setting and calls api', () => {
     component['onUpdateDirectMessages'](false);
 
