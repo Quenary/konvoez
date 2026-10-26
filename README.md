@@ -17,6 +17,7 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 - [Key Features](#key-features)
 - [Deployment](#deployment)
 - [Documentation](#documentation)
+- [Screenshots](#screenshots)
 
 ## Key Features
 
@@ -108,3 +109,11 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 - [Frontend noise suppression](docs/frontend/NOISE_SUPPRESSION.md)
 - [Frontend chat list](docs/frontend/CHAT_LIST.md)
 - Libraries: [shared](libs/shared/README.md), [client-shell](libs/client-shell/README.md), [ui-kit](libs/ui-kit/README.md), [client-dialogs](libs/client-dialogs/README.md)
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/chat-v1.25.0-desktop.png" alt="Konvoez on desktop" height="420">
+  &nbsp;
+  <img src="assets/screenshots/chat-v1.25.0-mobile.png" alt="Konvoez on mobile" height="420">
+</p>
