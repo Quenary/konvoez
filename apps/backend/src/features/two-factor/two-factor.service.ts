@@ -288,6 +288,12 @@ export class TwoFactorService {
     await this.recoveryCodeRepo.nativeDelete({ user: userId });
   }
 
+  @OnEvent(UsersDomainEvents.USER_DELETED)
+  async handleUserDeleted(payload: { id: number }): Promise<void> {
+    await this.deleteRecoveryCodes(payload.id);
+    await this.clearLockout(payload.id);
+  }
+
   @OnEvent(UsersDomainEvents.USER_UPDATED)
   async handleUserUpdated(payload: IUserSafe): Promise<void> {
     if (payload.deletedAt) {

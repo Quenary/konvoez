@@ -402,6 +402,26 @@ describe('TwoFactorService', () => {
     });
   });
 
+  describe('handleUserDeleted event', () => {
+    it('deletes recovery codes and clears lockout when user is deleted', async () => {
+      storedRecoveryCodes.push({
+        id: 1,
+        createdAt: new Date(),
+        updatedAt: null,
+        usedAt: null,
+        user: { id: 7 } as UserEntity,
+        codeHash: 'hash',
+      } as TwoFactorRecoveryCodeEntity);
+
+      await service.handleUserDeleted({ id: 7 });
+
+      expect(fakeRecoveryCodeRepo.nativeDelete).toHaveBeenCalledWith({
+        user: 7,
+      });
+      expect(fakeCacheManager.del).toHaveBeenCalled();
+    });
+  });
+
   describe('handleUserUpdated event', () => {
     it('deletes recovery codes when user is deleted/anonymized', async () => {
       storedRecoveryCodes.push({
