@@ -1,11 +1,20 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { MikroORM, type Options } from '@mikro-orm/core';
-
-const { createMikroOrmConfig } = require('../mikro-orm.config') as {
-  createMikroOrmConfig: () => Promise<Options>;
-};
+import { MikroORM } from '@mikro-orm/core';
+import { getRepositoryToken } from '@mikro-orm/nestjs';
+import { Test } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { DEFAULT_USER_NOTIFICATION_SETTINGS, EUserRole } from '@konvoez/shared';
+import { createMikroOrmConfig } from '../mikro-orm.config';
+import { NotificationsService } from '../features/notifications/notifications.service';
+import {
+  PushSubscriptionEntity,
+  UserNotificationSettingsEntity,
+} from '../features/notifications/notifications.entity';
+import { VapidKeyStorageService } from '../features/notifications/vapid-key-storage.service';
+import { SettingsService } from '../features/settings/settings.service';
+import { GetUserSafeDto } from '../features/users/users.dto';
 
 describe('UserNotificationSettings migration', () => {
   let tmpDir: string;
@@ -31,12 +40,10 @@ describe('UserNotificationSettings migration', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('creates user_notification_settings table and rolls back cleanly', async () => {
-    // 1. Run migrations up to TwoFactor
+  it('creates the table with a single unique index on user_id and rolls back cleanly', async () => {
     await orm.migrator.up({ to: 'Migration20261026100000_TwoFactor' });
 
     const conn = orm.em.getConnection() as unknown as {
-      executeDump: (sql: string) => Promise<void>;
       getNativeClient: () => Promise<{
         prepare: (sql: string) => {
           all: () => unknown[];
@@ -45,13 +52,18 @@ describe('UserNotificationSettings migration', () => {
         };
       }>;
     };
+    const client = await conn.getNativeClient();
 
-    // 2. Run migration to UserNotificationSettings
+    client
+      .prepare(
+        `insert into users (id, created_at, username, password, session_version, fullname, email, is_owner) values (1, datetime('now'), 'alice', 'hash', 0, 'Alice', 'alice@test.com', 0);`,
+      )
+      .run();
+
     await orm.migrator.up({
       to: 'Migration20261026172220_UserNotificationSettings',
     });
 
-    const client = await conn.getNativeClient();
     const columns = client
       .prepare(`pragma table_info(user_notification_settings);`)
       .all() as { name: string; dflt_value: unknown }[];
@@ -65,80 +77,15 @@ describe('UserNotificationSettings migration', () => {
     expect(colNames).toContain('mention_role');
     expect(colNames).toContain('mention_everyone');
 
-    // 3. Verify upsert against real SQLite table
-    client
-      .prepare(
-        `insert into users (id, created_at, username, password, session_version, fullname, email, is_owner) values (1, datetime('now'), 'alice', 'hash', 0, 'Alice', 'alice@test.com', 0);`,
-      )
-      .run();
+    const indexes = client
+      .prepare(`pragma index_list(user_notification_settings);`)
+      .all() as { name: string }[];
+    expect(indexes).toHaveLength(1);
+    expect(indexes[0]?.name).toBe('user_notification_settings_user_id_unique');
 
-    const {
-      UserNotificationSettingsEntity,
-    } = require('../features/notifications/notifications.entity');
-    const { UserEntity } = require('../features/users/users.entity');
+    const updateSql = await orm.schema.getUpdateSchemaSQL();
+    expect(updateSql).not.toContain('user_notification_settings');
 
-    const em = orm.em.fork();
-    const userRef = em.getReference(UserEntity, 1);
-    await em.upsert(
-      UserNotificationSettingsEntity,
-      {
-        user: userRef,
-        directMessages: false,
-        directCalls: true,
-        mentionUsername: true,
-        mentionRole: true,
-        mentionEveryone: false,
-      },
-      {
-        onConflictFields: ['user'],
-        onConflictAction: 'merge',
-        onConflictMergeFields: [
-          'directMessages',
-          'mentionEveryone',
-          'updatedAt',
-        ],
-      },
-    );
-    await em.flush();
-
-    // Secondary upsert updates directCalls and mentionRole without overwriting directMessages or mentionEveryone
-    await em.upsert(
-      UserNotificationSettingsEntity,
-      {
-        user: userRef,
-        directMessages: true,
-        directCalls: false,
-        mentionUsername: true,
-        mentionRole: false,
-        mentionEveryone: true,
-      },
-      {
-        onConflictFields: ['user'],
-        onConflictAction: 'merge',
-        onConflictMergeFields: ['directCalls', 'mentionRole', 'updatedAt'],
-      },
-    );
-    await em.flush();
-
-    const row = client
-      .prepare(
-        `select direct_messages, direct_calls, mention_username, mention_role, mention_everyone from user_notification_settings where user_id = 1;`,
-      )
-      .get() as {
-      direct_messages: number;
-      direct_calls: number;
-      mention_username: number;
-      mention_role: number;
-      mention_everyone: number;
-    };
-
-    expect(row.direct_messages).toBe(0);
-    expect(row.direct_calls).toBe(0);
-    expect(row.mention_username).toBe(1);
-    expect(row.mention_role).toBe(0);
-    expect(row.mention_everyone).toBe(0);
-
-    // 4. Roll back
     await orm.migrator.down({
       to: 'Migration20261026100000_TwoFactor',
     });
@@ -149,5 +96,115 @@ describe('UserNotificationSettings migration', () => {
       )
       .all();
     expect(tablesAfterDown).toHaveLength(0);
+  });
+
+  it('reads defaults and upserts partial updates through the service', async () => {
+    await orm.migrator.up({
+      to: 'Migration20261026172220_UserNotificationSettings',
+    });
+
+    const conn = orm.em.getConnection() as unknown as {
+      getNativeClient: () => Promise<{
+        prepare: (sql: string) => {
+          all: () => unknown[];
+          get: () => unknown;
+          run: () => void;
+        };
+      }>;
+    };
+    const client = await conn.getNativeClient();
+
+    client
+      .prepare(
+        `insert into users (id, created_at, username, password, session_version, fullname, email, is_owner) values (1, datetime('now'), 'alice', 'hash', 0, 'Alice', 'alice@test.com', 0);`,
+      )
+      .run();
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        NotificationsService,
+        EventEmitter2,
+        {
+          provide: getRepositoryToken(PushSubscriptionEntity),
+          useValue: orm.em.getRepository(PushSubscriptionEntity),
+        },
+        {
+          provide: getRepositoryToken(UserNotificationSettingsEntity),
+          useValue: orm.em.getRepository(UserNotificationSettingsEntity),
+        },
+        {
+          provide: SettingsService,
+          useValue: { getValue: jest.fn() },
+        },
+        {
+          provide: VapidKeyStorageService,
+          useValue: {},
+        },
+      ],
+    }).compile();
+
+    const notificationsService = moduleRef.get(NotificationsService);
+
+    const user: GetUserSafeDto = {
+      id: 1,
+      username: 'alice',
+      fullname: 'Alice Smith',
+      role: EUserRole.MEMBER,
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      avatarUrl: null,
+      createdAt: new Date(),
+      updatedAt: null,
+    };
+
+    const initialSettings =
+      await notificationsService.getUserNotificationSettings(user.id);
+    expect(initialSettings).toEqual(DEFAULT_USER_NOTIFICATION_SETTINGS);
+
+    const afterFirstUpdate =
+      await notificationsService.updateUserNotificationSettings(user, {
+        directMessages: false,
+      });
+    expect(afterFirstUpdate).toEqual({
+      ...DEFAULT_USER_NOTIFICATION_SETTINGS,
+      directMessages: false,
+    });
+
+    const afterSecondUpdate =
+      await notificationsService.updateUserNotificationSettings(user, {
+        mentions: { role: false },
+      });
+    expect(afterSecondUpdate).toEqual({
+      directMessages: false,
+      directCalls: true,
+      mentions: {
+        username: true,
+        role: false,
+        everyone: true,
+      },
+    });
+
+    const rows = client
+      .prepare(`select * from user_notification_settings where user_id = 1;`)
+      .all();
+    expect(rows).toHaveLength(1);
+
+    const batch = await notificationsService.getUserNotificationSettingsBatch([
+      user.id,
+      999,
+    ]);
+    expect(batch.get(user.id)).toEqual({
+      directMessages: false,
+      directCalls: true,
+      mentions: {
+        username: true,
+        role: false,
+        everyone: true,
+      },
+    });
+    expect(batch.get(999)).toEqual(DEFAULT_USER_NOTIFICATION_SETTINGS);
+
+    await moduleRef.close();
   });
 });
