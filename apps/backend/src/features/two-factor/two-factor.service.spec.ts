@@ -348,6 +348,31 @@ describe('TwoFactorService', () => {
         expect.objectContaining({ code: ApiErrorCode.AUTH_TWO_FACTOR_LOCKED }),
       );
     });
+
+    it('allows exactly one to resolve when 2 parallel calls submit the same valid TOTP', async () => {
+      const user = makeUser();
+      const { secret } = await service.beginSetup(user, 'correct_pass');
+      const currentStep = Math.floor(Date.now() / 1000 / 30);
+      const validCode = totpAt(secret, currentStep);
+      await service.confirmSetup(user, validCode);
+
+      (fakeUsersService.findOne as jest.Mock).mockResolvedValue(user);
+
+      const nextCode = totpAt(secret, currentStep + 1);
+      const results = await Promise.allSettled([
+        service.verifyLoginCode(user.id, nextCode),
+        service.verifyLoginCode(user.id, nextCode),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+
+      expect(fulfilled.length).toBe(1);
+      expect(rejected.length).toBe(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+        code: ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
+      });
+    });
   });
 
   describe('disable and regenerate', () => {
@@ -364,6 +389,36 @@ describe('TwoFactorService', () => {
       expect(newSv).toBe(3);
       expect(fakeUsersService.clearTwoFactor).toHaveBeenCalledWith(user);
       expect(storedRecoveryCodes.length).toBe(0);
+    });
+
+    it('locks out user when 10 parallel disable calls are made with a wrong code', async () => {
+      const user = makeUser();
+      const { secret } = await service.beginSetup(user, 'correct_pass');
+      const currentStep = Math.floor(Date.now() / 1000 / 30);
+      const validCode = totpAt(secret, currentStep);
+      await service.confirmSetup(user, validCode);
+
+      const results = await Promise.allSettled(
+        Array.from({ length: 10 }, () =>
+          service.disable(user, 'correct_pass', '000000'),
+        ),
+      );
+
+      const invalidCodeErrors = results.filter(
+        (r) =>
+          r.status === 'rejected' &&
+          (r.reason as { code?: string }).code ===
+            ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
+      );
+      const lockedErrors = results.filter(
+        (r) =>
+          r.status === 'rejected' &&
+          (r.reason as { code?: string }).code ===
+            ApiErrorCode.AUTH_TWO_FACTOR_LOCKED,
+      );
+
+      expect(invalidCodeErrors.length).toBe(5);
+      expect(lockedErrors.length).toBe(5);
     });
 
     it('regenerates recovery codes, invalidating previous set', async () => {

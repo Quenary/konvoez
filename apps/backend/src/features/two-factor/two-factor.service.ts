@@ -27,10 +27,12 @@ import {
 } from './two-factor.const';
 import { buildOtpAuthUri, generateSecret, verifyTotp } from './totp.util';
 import { TwoFactorRecoveryCodeEntity } from './two-factor-recovery-code.entity';
+import { PerUserMutex } from './per-user-mutex';
 
 @Injectable()
 export class TwoFactorService {
   private readonly logger = new Logger(TwoFactorService.name);
+  private readonly mutex = new PerUserMutex();
   private readonly em: EntityManager;
 
   constructor(
@@ -88,70 +90,100 @@ export class TwoFactorService {
     user: UserEntity,
     code: string,
   ): Promise<{ recoveryCodes: string[]; sessionVersion: number }> {
-    await this.assertNotLocked(user.id);
+    return this.mutex.runExclusive(user.id, async () => {
+      await this.assertNotLocked(user.id);
 
-    if (!user.twoFactorSecret || user.twoFactorEnabledAt != null) {
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_SETUP_NOT_STARTED,
-        'Two-factor setup has not been started',
-      );
-    }
+      if (!user.twoFactorSecret || user.twoFactorEnabledAt != null) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_SETUP_NOT_STARTED,
+          'Two-factor setup has not been started',
+        );
+      }
 
-    const plainSecret = this.secretBoxService.decrypt(
-      user.twoFactorSecret,
-      TWO_FACTOR_SECRET_KEY_INFO,
-    );
-
-    const matchedStep = verifyTotp(
-      plainSecret,
-      code,
-      Date.now(),
-      user.twoFactorLastStep,
-    );
-
-    if (matchedStep === null) {
-      await this.recordFailure(user.id);
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
-        'Invalid two-factor code',
-      );
-    }
-
-    await this.clearLockout(user.id);
-    await this.usersService.enableTwoFactor(user, matchedStep);
-
-    const recoveryCodes = await this.generateAndStoreRecoveryCodes(user);
-    const sessionVersion = await this.usersService.revokeSessions(user);
-
-    return { recoveryCodes, sessionVersion };
-  }
-
-  async verifyLoginCode(userId: number, code: string): Promise<void> {
-    await this.assertNotLocked(userId);
-
-    const user = await this.usersService.findOne(userId);
-    if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_NOT_ENABLED,
-        'Two-factor authentication is not enabled',
-      );
-    }
-
-    const cleanCode = code.trim();
-
-    if (/^\d{6}$/.test(cleanCode)) {
       const plainSecret = this.secretBoxService.decrypt(
         user.twoFactorSecret,
         TWO_FACTOR_SECRET_KEY_INFO,
       );
+
       const matchedStep = verifyTotp(
         plainSecret,
-        cleanCode,
+        code,
         Date.now(),
         user.twoFactorLastStep,
       );
 
       if (matchedStep === null) {
+        await this.recordFailure(user.id);
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
+          'Invalid two-factor code',
+        );
+      }
+
+      await this.clearLockout(user.id);
+      await this.usersService.enableTwoFactor(user, matchedStep);
+
+      const recoveryCodes = await this.generateAndStoreRecoveryCodes(user);
+      const sessionVersion = await this.usersService.revokeSessions(user);
+
+      return { recoveryCodes, sessionVersion };
+    });
+  }
+
+  async verifyLoginCode(userId: number, code: string): Promise<void> {
+    return this.mutex.runExclusive(userId, async () => {
+      await this.assertNotLocked(userId);
+
+      const user = await this.usersService.findOne(userId);
+      if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_NOT_ENABLED,
+          'Two-factor authentication is not enabled',
+        );
+      }
+
+      const cleanCode = code.trim();
+
+      if (/^\d{6}$/.test(cleanCode)) {
+        const plainSecret = this.secretBoxService.decrypt(
+          user.twoFactorSecret,
+          TWO_FACTOR_SECRET_KEY_INFO,
+        );
+        const matchedStep = verifyTotp(
+          plainSecret,
+          cleanCode,
+          Date.now(),
+          user.twoFactorLastStep,
+        );
+
+        if (matchedStep === null) {
+          await this.recordFailure(userId);
+          throw AppException.unauthorized(
+            ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
+            'Invalid two-factor code',
+          );
+        }
+
+        await this.clearLockout(userId);
+        await this.usersService.touchTwoFactorStep(user, matchedStep);
+        return;
+      }
+
+      const normalizedCode = cleanCode.replace(/[-\s]/g, '').toUpperCase();
+      const codeHash = this.hashCode(normalizedCode);
+
+      const affected = await this.recoveryCodeRepo.nativeUpdate(
+        {
+          user: user.id,
+          codeHash,
+          usedAt: null,
+        },
+        {
+          usedAt: new Date(),
+        },
+      );
+
+      if (affected === 0) {
         await this.recordFailure(userId);
         throw AppException.unauthorized(
           ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
@@ -160,33 +192,7 @@ export class TwoFactorService {
       }
 
       await this.clearLockout(userId);
-      await this.usersService.touchTwoFactorStep(user, matchedStep);
-      return;
-    }
-
-    const normalizedCode = cleanCode.replace(/[-\s]/g, '').toUpperCase();
-    const codeHash = this.hashCode(normalizedCode);
-
-    const affected = await this.recoveryCodeRepo.nativeUpdate(
-      {
-        user: user.id,
-        codeHash,
-        usedAt: null,
-      },
-      {
-        usedAt: new Date(),
-      },
-    );
-
-    if (affected === 0) {
-      await this.recordFailure(userId);
-      throw AppException.unauthorized(
-        ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
-        'Invalid two-factor code',
-      );
-    }
-
-    await this.clearLockout(userId);
+    });
   }
 
   async disable(
@@ -194,39 +200,41 @@ export class TwoFactorService {
     password: string,
     code: string,
   ): Promise<number> {
-    await this.assertNotLocked(user.id);
+    return this.mutex.runExclusive(user.id, async () => {
+      await this.assertNotLocked(user.id);
 
-    const validPassword = await this.passwordService.comparePassword(
-      password,
-      user.password,
-    );
-    if (!validPassword) {
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_INVALID_CREDENTIALS,
-        'Invalid password',
+      const validPassword = await this.passwordService.comparePassword(
+        password,
+        user.password,
       );
-    }
+      if (!validPassword) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Invalid password',
+        );
+      }
 
-    if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_NOT_ENABLED,
-        'Two-factor authentication is not enabled',
-      );
-    }
+      if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_NOT_ENABLED,
+          'Two-factor authentication is not enabled',
+        );
+      }
 
-    const ok = await this.validateCodeWithoutThrow(user, code);
-    if (!ok) {
-      await this.recordFailure(user.id);
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
-        'Invalid two-factor code',
-      );
-    }
+      const ok = await this.validateCodeWithoutThrow(user, code);
+      if (!ok) {
+        await this.recordFailure(user.id);
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
+          'Invalid two-factor code',
+        );
+      }
 
-    await this.clearLockout(user.id);
-    await this.usersService.clearTwoFactor(user);
-    await this.deleteRecoveryCodes(user.id);
-    return await this.usersService.revokeSessions(user);
+      await this.clearLockout(user.id);
+      await this.usersService.clearTwoFactor(user);
+      await this.deleteRecoveryCodes(user.id);
+      return await this.usersService.revokeSessions(user);
+    });
   }
 
   async regenerateRecoveryCodes(
@@ -234,40 +242,42 @@ export class TwoFactorService {
     password: string,
     code: string,
   ): Promise<{ recoveryCodes: string[]; sessionVersion: number }> {
-    await this.assertNotLocked(user.id);
+    return this.mutex.runExclusive(user.id, async () => {
+      await this.assertNotLocked(user.id);
 
-    const validPassword = await this.passwordService.comparePassword(
-      password,
-      user.password,
-    );
-    if (!validPassword) {
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_INVALID_CREDENTIALS,
-        'Invalid password',
+      const validPassword = await this.passwordService.comparePassword(
+        password,
+        user.password,
       );
-    }
+      if (!validPassword) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_INVALID_CREDENTIALS,
+          'Invalid password',
+        );
+      }
 
-    if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_NOT_ENABLED,
-        'Two-factor authentication is not enabled',
-      );
-    }
+      if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_NOT_ENABLED,
+          'Two-factor authentication is not enabled',
+        );
+      }
 
-    const ok = await this.validateCodeWithoutThrow(user, code);
-    if (!ok) {
-      await this.recordFailure(user.id);
-      throw AppException.badRequest(
-        ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
-        'Invalid two-factor code',
-      );
-    }
+      const ok = await this.validateCodeWithoutThrow(user, code);
+      if (!ok) {
+        await this.recordFailure(user.id);
+        throw AppException.badRequest(
+          ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
+          'Invalid two-factor code',
+        );
+      }
 
-    await this.clearLockout(user.id);
-    const recoveryCodes = await this.generateAndStoreRecoveryCodes(user);
-    const sessionVersion = await this.usersService.revokeSessions(user);
+      await this.clearLockout(user.id);
+      const recoveryCodes = await this.generateAndStoreRecoveryCodes(user);
+      const sessionVersion = await this.usersService.revokeSessions(user);
 
-    return { recoveryCodes, sessionVersion };
+      return { recoveryCodes, sessionVersion };
+    });
   }
 
   async adminReset(
