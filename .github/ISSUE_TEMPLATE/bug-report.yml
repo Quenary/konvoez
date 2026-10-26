@@ -1,0 +1,103 @@
+name: 🐞 Bug report
+description: Create a bug report and help improve the application
+title: '[Bug] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Security issues must not be reported here, see the security policy: https://github.com/Quenary/konvoez/blob/HEAD/docs/SECURITY.md
+
+  - type: input
+    id: summary
+    attributes:
+      label: What’s the bug?
+      description: A short one-liner describing what went wrong
+      placeholder: No sound from other participants in a voice room
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Joining a voice room works, but I can't hear anyone and they can't hear me
+    validations:
+      required: true
+
+  - type: input
+    id: expected_behaviour
+    attributes:
+      label: Expected behaviour
+      description: A clear and concise description of what you expected to happen.
+      placeholder: Participants should hear each other after joining
+    validations:
+      required: true
+
+  - type: textarea
+    id: to_reproduce
+    attributes:
+      label: To reproduce
+      description: Steps to reproduce the bug
+      placeholder: |
+        1. Open the app via https
+        2. Join a voice room
+        3. Speak into the microphone
+        4. Other participants hear nothing
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Where does it happen?
+      description: The client you are using when the bug occurs
+      options:
+        - Web browser / PWA
+        - Desktop client (Windows)
+        - Desktop client (Linux)
+        - Server only (Docker, no client involved)
+    validations:
+      required: true
+
+  - type: textarea
+    id: platform
+    attributes:
+      label: Platform
+      description: The platform you are using the app on
+      placeholder: |
+        OS: Windows 11
+        Browser: Chrome 122.1
+    validations:
+      required: false
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Docker image version and, for the desktop client, its version. Add the reverse proxy and how the server is exposed (HTTPS, ports) if the bug is about voice, video or connection.
+      placeholder: |
+        Docker image: 1.2.0
+        Desktop client: 1.0.3
+        Reverse proxy: Caddy, UDP/TCP 40000-40100 forwarded
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Server logs (`docker compose logs`) and the browser or desktop console. Please copy and paste any relevant output. This will be automatically formatted into code, so no need for backticks. Remove secrets before posting.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra
+      description: Screenshots, environment (for example SMTP or `.env` options that matter), or other related things that can help identify the bug
+    validations:
+      required: false

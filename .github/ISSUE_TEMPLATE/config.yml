@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/Quenary/konvoez#documentation
+    about: Deployment, networking (voice ports, HTTPS, reverse proxy) and feature guides
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/Quenary/konvoez/security/advisories/new
+    about: Please read the security policy first and report privately, not in a public issue
