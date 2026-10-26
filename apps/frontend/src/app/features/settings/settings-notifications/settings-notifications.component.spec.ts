@@ -211,14 +211,21 @@ describe('SettingsNotificationsComponent', () => {
     });
   });
 
-  it('reverts settings and shows notification when update fails', () => {
+  it('reloads settings from the server and shows notification when update fails', () => {
     updateSettings.mockReturnValueOnce(
       throwError(() => new Error('Save failed')),
+    );
+    getSettings.mockReturnValueOnce(
+      of({ ...DEFAULT_USER_NOTIFICATION_SETTINGS, directCalls: false }),
     );
 
     component['onUpdateDirectMessages'](false);
 
-    expect(component['settings']().directMessages).toBe(true);
+    expect(getSettings).toHaveBeenCalledTimes(2);
+    expect(component['settings']()).toEqual({
+      ...DEFAULT_USER_NOTIFICATION_SETTINGS,
+      directCalls: false,
+    });
     expect(openNotification).toHaveBeenCalled();
   });
 });

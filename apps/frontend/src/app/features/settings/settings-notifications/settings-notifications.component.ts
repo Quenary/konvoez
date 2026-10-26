@@ -162,7 +162,7 @@ export class SettingsNotificationsComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         error: () => {
-          this.settings.set(prev);
+          this.loadSettings();
           this.showError('SETTINGS.NOTIFICATIONS.UPDATE_ERROR');
         },
       });
