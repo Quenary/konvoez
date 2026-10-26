@@ -1,43 +1,43 @@
 # Notifications
 
-Konvoez delivers outbound notifications across two channels: browser Web Push and native desktop notifications.
+Konvoez delivers outbound notifications to users through two channels: browser push notifications and native desktop notifications. Each user controls which events produce a notification.
 
 ## Channels
 
-| Channel  | Transport                                   | Consumer                                       |
-| -------- | ------------------------------------------- | ---------------------------------------------- |
-| Web Push | Encrypted payload via VAPID (`web-push`)    | Browser Service Worker                         |
-| Desktop  | Realtime WebSocket (`/ws/v1/notifications`) | Electron Main Process (`DesktopBridgeService`) |
+| Channel | Used by                                     |
+| ------- | ------------------------------------------- |
+| Push    | Browsers that the user subscribed           |
+| Desktop | The desktop app while the user is signed in |
 
-## Granular topics
+## Topics
 
-Users can configure their notification preferences per topic in **Settings → Notifications**. Settings are stored per user on the server (`user_notification_settings` table) and apply to both Web Push and desktop notifications.
+The server stores the settings per user and applies them to both channels. All topics are enabled by default.
 
-| Topic               | Description                           | Default |
-| ------------------- | ------------------------------------- | ------- |
-| `directMessages`    | Direct messages in private chats      | `true`  |
-| `directCalls`       | Incoming direct voice calls           | `true`  |
-| `mentions.username` | Personal `@username` mentions         | `true`  |
-| `mentions.role`     | Mentions of the user's assigned roles | `true`  |
-| `mentions.everyone` | Room-wide `@everyone` mentions        | `true`  |
+| Topic            | Triggers a notification when                    |
+| ---------------- | ----------------------------------------------- |
+| Direct messages  | The user receives a direct message              |
+| Direct calls     | The user receives an incoming direct voice call |
+| Username mention | The message mentions the user by name           |
+| Role mention     | The message mentions a role the user has        |
+| Everyone mention | The message mentions everyone in the room       |
 
 ## Delivery flow
 
-Notification filtering happens in a single location: `NotificationsService` on the backend. Incoming domain events are evaluated against the recipient's preferences before dispatching to delivery transports.
+The server checks the recipient's settings before every delivery. A suppressed event produces no push and no desktop notification.
 
 ```mermaid
 flowchart TD
-  Event[Incoming Event: Direct Msg / Call / Mention] --> Check[NotificationsService: check recipient preferences]
-  Check --> Match{Topic enabled for recipient?}
-  Match -- No --> Drop[Suppress notification]
-  Match -- Yes --> Deliver[NotificationsService.deliver]
-  Deliver --> Push[Web Push Service Worker]
-  Deliver --> WS[Notifications Gateway: /ws/v1/notifications]
-  WS --> Desktop[Desktop OS Notification]
+  Event[Direct message, call or mention] --> Check{Topic enabled for the recipient?}
+  Check -- No --> Drop[Notification suppressed]
+  Check -- Yes --> Deliver[Notification delivered]
+  Deliver --> Push[Push]
+  Deliver --> Desktop[Desktop]
 ```
 
-### Multi-mention resolution
+### Several mentions in one message
 
-When a message contains several mentions that apply to a recipient (for example, `@everyone` and `<@userId>`), the notification is delivered if **at least one** of the matching topics is enabled in the recipient's settings. A notification is suppressed only when all applicable topics are disabled.
+When one message mentions a recipient in several ways (for example by name and through everyone), the recipient is notified if at least one of the matching topics is enabled. The notification is suppressed only when all matching topics are disabled.
 
-Notification preferences only govern outbound push and desktop notifications; in-app room message delivery, unread counts, and room `@` badges remain unaffected.
+## Scope of the settings
+
+The settings affect only outbound push and desktop notifications. Message delivery inside the app, unread counts and mention badges do not depend on them.
