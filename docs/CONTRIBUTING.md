@@ -85,6 +85,8 @@ The Electron client has its own [guide](../apps/desktop/README.md). Run it with 
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(backend): add message encryption`. Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. Keep commits focused; Husky and lint-staged format and lint staged files before each commit.
 
+AI tools may assist, but the human author is responsible for every change. Commit messages, PR titles and descriptions contain no `Co-authored-by` trailers, agent mentions (such as `@cursor`) or "Generated with …" lines, and AI tools are not listed as authors, so the contributors list stays clean.
+
 Nx publishes two independent release groups. The paths touched by a commit decide which group is bumped:
 
 | Group     | Projects                                              | Tag                  | Changelog                   |
@@ -116,5 +118,6 @@ Nx publishes two independent release groups. The paths touched by a commit decid
 
 - Describe what changed and why; reference related issues (`Closes #123`).
 - Keep each pull request focused on a single responsibility.
+- Titles and descriptions follow the AI attribution rule from Commits and releases.
 - Discuss significant features or breaking architectural changes in an issue first.
 - Update the documentation, including `README.md`, when behavior or configuration changes.
