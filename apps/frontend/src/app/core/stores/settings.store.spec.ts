@@ -483,6 +483,7 @@ describe('SettingsStore', () => {
           avatarUrl: null,
           createdAt: new Date(),
           updatedAt: null,
+          twoFactorEnabled: false,
         },
       }),
     );

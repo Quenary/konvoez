@@ -1,0 +1,14 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.qr-code {
+  &-svg {
+    display: block;
+  }
+}

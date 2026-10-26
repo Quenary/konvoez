@@ -1,0 +1,76 @@
+<div
+  appearance="floating"
+  tuiCardLarge
+  class="security-card">
+  <header tuiHeader>
+    <h2 tuiTitle>
+      <tui-icon [icon]="icons['settings-security']" />
+      {{ 'SETTINGS.SECURITY.TITLE' | translate }}
+    </h2>
+  </header>
+
+  <tui-scrollbar>
+    <div class="security-card-content">
+      <section class="security-section">
+        <div class="security-section-header">
+          <div class="security-section-header-title">
+            <h3 class="tui-text_h6">
+              {{ 'SETTINGS.SECURITY.TWO_FACTOR.TITLE' | translate }}
+            </h3>
+            @if (twoFactorEnabled()) {
+              <span
+                tuiBadge
+                appearance="positive"
+                size="s">
+                {{ 'GENERAL.ENABLED' | translate }}
+              </span>
+            } @else {
+              <span
+                tuiBadge
+                appearance="neutral"
+                size="s">
+                {{ 'GENERAL.DISABLED' | translate }}
+              </span>
+            }
+          </div>
+          <p class="tui-text_body-s security-section-description">
+            {{ 'SETTINGS.SECURITY.TWO_FACTOR.DESCRIPTION' | translate }}
+          </p>
+        </div>
+
+        <div class="security-section-actions">
+          @if (!twoFactorEnabled()) {
+            <button
+              tuiButton
+              type="button"
+              appearance="primary"
+              size="m"
+              (click)="openSetup()">
+              <tui-icon [icon]="icons['shield-check'] || icons.key" />
+              {{ 'SETTINGS.SECURITY.TWO_FACTOR.ENABLE' | translate }}
+            </button>
+          } @else {
+            <button
+              tuiButton
+              type="button"
+              appearance="secondary"
+              size="m"
+              (click)="openRegenerate()">
+              <tui-icon [icon]="icons.refresh" />
+              {{ 'SETTINGS.SECURITY.TWO_FACTOR.REGENERATE' | translate }}
+            </button>
+
+            <button
+              tuiButton
+              type="button"
+              appearance="secondary-destructive"
+              size="m"
+              (click)="openDisable()">
+              {{ 'SETTINGS.SECURITY.TWO_FACTOR.DISABLE' | translate }}
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+  </tui-scrollbar>
+</div>

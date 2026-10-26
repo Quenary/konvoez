@@ -35,6 +35,7 @@ describe('ownerGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   });
 
   beforeEach(() => {
@@ -66,6 +67,7 @@ describe('ownerGuard', () => {
       init: true,
       user: createMockUser(true),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -78,6 +80,7 @@ describe('ownerGuard', () => {
       init: true,
       user: createMockUser(false),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 

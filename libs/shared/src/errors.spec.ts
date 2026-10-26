@@ -14,8 +14,8 @@ describe('ApiErrorCode', () => {
     }
   });
 
-  it('contains all 69 expected error codes', () => {
-    expect(Object.keys(ApiErrorCode).length).toBe(69);
+  it('contains all 74 expected error codes', () => {
+    expect(Object.keys(ApiErrorCode).length).toBe(74);
   });
 });
 

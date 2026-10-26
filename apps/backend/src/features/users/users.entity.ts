@@ -25,6 +25,9 @@ export const UserEntitySchema = defineEntity({
         .inverseJoinColumn('role_id'),
     avatar: p.string().length(512).nullable(),
     deletedAt: p.datetime().nullable(),
+    twoFactorSecret: p.text().nullable().hidden(),
+    twoFactorEnabledAt: p.datetime().nullable().hidden(),
+    twoFactorLastStep: p.integer().nullable().hidden(),
 
     rooms: () =>
       p

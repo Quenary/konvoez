@@ -39,6 +39,16 @@ export class UserManagementApiService {
     );
   }
 
+  resetTwoFactor(id: number): Observable<IUserFull> {
+    return this.http.post<IUserFull>(
+      `${this.baseUrl}/${id}/2fa/reset`,
+      {},
+      {
+        withCredentials: true,
+      },
+    );
+  }
+
   remove(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`, {
       withCredentials: true,

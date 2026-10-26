@@ -43,6 +43,7 @@ flowchart TD
 - Sessions are JWTs delivered in secure HTTP cookies. Tokens expire on the server together with their cookies; refresh is sliding.
 - A per-user session version lets password changes, 2FA changes, anonymize and delete end all sessions and live connections at once.
 - Passwords are stored as Argon2 hashes. Password recovery uses emailed one-time codes. See [Password recovery](PASSWORD_RECOVERY.md).
+- Two-factor authentication (TOTP RFC 6238) protects accounts with authenticator apps and hashed recovery codes. See [Two-factor authentication](TWO_FACTOR.md).
 - An account with `deletedAt` set cannot log in, refresh a session, open a socket or recover its password. See [User management](USER_MANAGEMENT.md).
 - The first deploy with session versions signs out all active sessions once.
 

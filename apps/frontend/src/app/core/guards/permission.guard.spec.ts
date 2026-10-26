@@ -38,6 +38,7 @@ describe('permissionGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
     ...overrides,
   });
 
@@ -70,6 +71,7 @@ describe('permissionGuard', () => {
       init: true,
       user: createMockUser({ permissions: [EPermission.MANAGE_ROLES] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -82,6 +84,7 @@ describe('permissionGuard', () => {
       init: true,
       user: createMockUser({ isOwner: true, permissions: [] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -94,6 +97,7 @@ describe('permissionGuard', () => {
       init: true,
       user: createMockUser({ permissions: [EPermission.SEND_MESSAGES] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 

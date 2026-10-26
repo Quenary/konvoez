@@ -12,6 +12,7 @@ import { ImageProcessingService } from './services/image-processing.service';
 import { VideoProcessingService } from './services/video-processing.service';
 import { MailService } from './services/mail.service';
 import { StorageNamingService } from './services/storage-naming.service';
+import { SecretBoxService } from './services/secret-box.service';
 
 @Global()
 @Module({
@@ -20,6 +21,7 @@ import { StorageNamingService } from './services/storage-naming.service';
     PasswordService,
     MailService,
     EncryptionService,
+    SecretBoxService,
     StorageNamingService,
     LocalObjectStorageService,
     S3Service,
@@ -63,6 +65,7 @@ import { StorageNamingService } from './services/storage-naming.service';
     MailService,
     FileServiceInjectionToken,
     EncryptionService,
+    SecretBoxService,
     ImageProcessingService,
     VideoProcessingService,
   ],

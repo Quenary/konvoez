@@ -1,0 +1,19 @@
+@if (qr(); as data) {
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    class="qr-code-svg"
+    [attr.viewBox]="'0 0 ' + data.size + ' ' + data.size"
+    [attr.width]="size()"
+    [attr.height]="size()"
+    shape-rendering="crispEdges">
+    <rect
+      x="0"
+      y="0"
+      [attr.width]="data.size"
+      [attr.height]="data.size"
+      fill="#ffffff" />
+    <path
+      [attr.d]="data.d"
+      fill="#000000" />
+  </svg>
+}

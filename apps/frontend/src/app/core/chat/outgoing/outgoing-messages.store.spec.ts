@@ -55,6 +55,7 @@ describe('OutgoingMessagesStore', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   function attachment(id: string, name: string): IAttachment {

@@ -75,6 +75,19 @@ export class UserManagementController {
     return await this.userManagementService.anonymize(id, author);
   }
 
+  @Post(':id/2fa/reset')
+  @RequirePermissions([EPermission.MANAGE_USERS])
+  @ApiOkResponse({
+    type: GetUserFullDto,
+    description: 'Reset two-factor authentication for a user',
+  })
+  async resetTwoFactor(
+    @Param('id', ParseIntPipe) id: number,
+    @Author() author: GetUserSafeDto,
+  ): Promise<GetUserFullDto> {
+    return await this.userManagementService.resetTwoFactor(id, author);
+  }
+
   @Delete(':id')
   @RequirePermissions([EPermission.MANAGE_USERS])
   @HttpCode(HttpStatus.NO_CONTENT)

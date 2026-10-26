@@ -33,6 +33,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 
 import { AppService } from '@shared/services/app.service';
 import { PasswordService } from '@shared/services/password.service';
@@ -69,6 +70,7 @@ describe('AuthService', () => {
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let twoFactorService: { verifyLoginCode: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
   let userRepo: {
     findOne: jest.Mock;
@@ -95,6 +97,7 @@ describe('AuthService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const mockUserEntity = {
@@ -228,6 +231,12 @@ describe('AuthService', () => {
           useValue: recoveryCodeRepo,
         },
         {
+          provide: TwoFactorService,
+          useValue: {
+            verifyLoginCode: jest.fn(),
+          },
+        },
+        {
           provide: Cache,
           useValue: {
             get: jest.fn(),
@@ -243,6 +252,7 @@ describe('AuthService', () => {
     appService = module.get(AppService);
     passwordService = module.get(PasswordService);
     usersService = module.get(UsersService);
+    twoFactorService = module.get(TwoFactorService);
     cacheManager = module.get(Cache);
   });
 
@@ -1299,6 +1309,67 @@ describe('AuthService', () => {
         code: ApiErrorCode.UNAUTHORIZED,
       });
       expect(usersService.findOneBy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Two-factor challenge & completion', () => {
+    it('startTwoFactorChallenge stores pending challenge in cache and sets cookie', async () => {
+      const mockRes = { cookie: jest.fn() } as unknown as Response;
+
+      await service.startTwoFactorChallenge(42, mockRes);
+
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        expect.stringMatching(/^auth:2fa-pending:[a-f0-9]{64}$/),
+        42,
+        5 * 60 * 1000,
+      );
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'two-factor-token',
+        expect.any(String),
+        expect.objectContaining({
+          httpOnly: true,
+          maxAge: 5 * 60 * 1000,
+        }),
+      );
+    });
+
+    it('completeTwoFactorLogin resolves pending challenge, verifies code, and cleans up cache', async () => {
+      (cacheManager.get as jest.Mock).mockResolvedValue(42);
+
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        id: 42,
+        sessionVersion: 3,
+        deletedAt: null,
+      } as UserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce({
+        ...mockUserDto,
+        id: 42,
+        twoFactorEnabled: true,
+      });
+
+      const result = await service.completeTwoFactorLogin(
+        'valid_token',
+        '123456',
+      );
+
+      expect(twoFactorService.verifyLoginCode).toHaveBeenCalledWith(
+        42,
+        '123456',
+      );
+      expect(cacheManager.del).toHaveBeenCalled();
+      expect(result.user.id).toBe(42);
+      expect(result.sessionVersion).toBe(3);
+    });
+
+    it('completeTwoFactorLogin throws 401 on missing or expired pending challenge', async () => {
+      (cacheManager.get as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.completeTwoFactorLogin('expired_token', '123456'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
   });
 });

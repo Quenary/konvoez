@@ -1,0 +1,66 @@
+<form
+  tuiForm="m"
+  novalidate
+  [formGroup]="form"
+  (ngSubmit)="onSubmit()">
+  <tui-textfield [iconStart]="icons.lock">
+    <label
+      tuiLabel
+      for="confirm-password">
+      {{ 'PROFILE.PASSWORD' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="confirm-password"
+      type="password"
+      autocomplete="current-password"
+      formControlName="password" />
+    <tui-icon tuiPassword />
+  </tui-textfield>
+  @if (errors().password; as err) {
+    <tui-error [error]="err | translate" />
+  }
+
+  <tui-textfield [iconStart]="icons.key">
+    <label
+      tuiLabel
+      for="confirm-code">
+      {{ 'SETTINGS.SECURITY.TWO_FACTOR.SETUP.CODE' | translate }}
+    </label>
+    <input
+      tuiInput
+      id="confirm-code"
+      type="text"
+      autocomplete="one-time-code"
+      formControlName="code" />
+  </tui-textfield>
+  @if (errors().code; as err) {
+    <tui-error [error]="err | translate" />
+  }
+
+  <footer class="confirm-dialog-footer">
+    <button
+      tuiButton
+      type="button"
+      appearance="flat"
+      (click)="context.completeWith(null)">
+      {{ 'GENERAL.CANCEL' | translate }}
+    </button>
+
+    <button
+      tuiButton
+      type="submit"
+      [appearance]="
+        context.data.action === 'disable' ? 'secondary-destructive' : 'primary'
+      "
+      [disabled]="!form.dirty"
+      [loading]="loading()">
+      {{
+        (context.data.action === 'disable'
+          ? 'SETTINGS.SECURITY.TWO_FACTOR.DISABLE'
+          : 'GENERAL.CONFIRM'
+        ) | translate
+      }}
+    </button>
+  </footer>
+</form>

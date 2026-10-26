@@ -21,6 +21,7 @@ import { AttachmentsModule } from './features/attachments/attachments.module';
 import { EntitySyncModule } from './features/entity-sync/entity-sync.module';
 import { PermissionsModule } from './features/permissions/permissions.module';
 import { RolesModule } from './features/roles/roles.module';
+import { TwoFactorModule } from './features/two-factor/two-factor.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
@@ -34,6 +35,7 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     VoiceRoomsModule,
     PermissionsModule,
     RolesModule,
+    TwoFactorModule,
     AuthModule,
     RoomsModule,
     UsersModule,

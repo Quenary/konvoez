@@ -81,6 +81,7 @@ describe('EntitySyncService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const otherUser: IUserSafe = {
@@ -235,7 +236,11 @@ describe('EntitySyncService', () => {
     expect(voiceLobbyStore.applyUserEntityUpdate).toHaveBeenCalledWith(updated);
     expect(store.dispatch).toHaveBeenCalledWith(
       AuthActions.requestPatchUserSuccess({
-        user: { ...updated, email: me.email },
+        user: {
+          ...updated,
+          email: me.email,
+          twoFactorEnabled: me.twoFactorEnabled,
+        },
       }),
     );
   });

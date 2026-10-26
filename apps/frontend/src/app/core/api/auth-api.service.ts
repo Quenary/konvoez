@@ -4,6 +4,8 @@ import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import {
   IAuthLogin,
+  IAuthLoginResponse,
+  IAuthLoginTwoFactor,
   IPasswordRecoveryConfirm,
   IPasswordRecoveryRequest,
   IUserFull,
@@ -16,10 +18,18 @@ import {
 export class AuthApiService {
   private readonly httpClient = inject(HttpClient);
 
-  login(body: IAuthLogin): Observable<IUserFull> {
-    return this.httpClient.post<IUserFull>(
+  login(body: IAuthLogin): Observable<IAuthLoginResponse> {
+    return this.httpClient.post<IAuthLoginResponse>(
       `${environment.apiPath}/auth/login`,
       body,
+    );
+  }
+
+  loginTwoFactor(body: IAuthLoginTwoFactor): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
+      `${environment.apiPath}/auth/login/2fa`,
+      body,
+      { withCredentials: true },
     );
   }
 

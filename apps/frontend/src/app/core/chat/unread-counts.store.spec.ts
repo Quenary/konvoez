@@ -57,6 +57,7 @@ describe('UnreadCountsStore', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const incomingRoomMessage = (

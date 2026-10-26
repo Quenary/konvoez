@@ -86,6 +86,13 @@ export const routes: Routes = [
               ),
           },
           {
+            path: 'security',
+            loadComponent: () =>
+              import('./features/settings/settings-security/settings-security.component').then(
+                (m) => m.SettingsSecurityComponent,
+              ),
+          },
+          {
             path: 'devices',
             loadComponent: () =>
               import('./features/settings/settings-devices/settings-devices.component').then(

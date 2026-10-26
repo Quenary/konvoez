@@ -1,0 +1,33 @@
+.setup-dialog {
+  &-qr {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 16px 0;
+  }
+
+  &-secret {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+
+    &-text {
+      padding: 4px 8px;
+      background: var(--tui-background-neutral-1);
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+  }
+
+  &-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+}

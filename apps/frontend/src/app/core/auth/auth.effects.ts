@@ -59,8 +59,26 @@ export class AuthEffects {
       ofType(AuthActions.requestLogin),
       switchMap((action) =>
         this.authApiService.login(action.body).pipe(
-          map((user) => AuthActions.requestLoginSuccess({ user })),
+          map((result) =>
+            'twoFactorRequired' in result
+              ? AuthActions.requestLoginTwoFactorRequired()
+              : AuthActions.requestLoginSuccess({ user: result }),
+          ),
           catchError((error) => of(AuthActions.requestLoginError({ error }))),
+        ),
+      ),
+    ),
+  );
+
+  readonly requestLoginTwoFactor$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.requestLoginTwoFactor),
+      switchMap((action) =>
+        this.authApiService.loginTwoFactor(action.body).pipe(
+          map((user) => AuthActions.requestLoginTwoFactorSuccess({ user })),
+          catchError((error) =>
+            of(AuthActions.requestLoginTwoFactorError({ error })),
+          ),
         ),
       ),
     ),
@@ -69,7 +87,11 @@ export class AuthEffects {
   readonly syncPushSubscription$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(AuthActions.initEnd, AuthActions.requestLoginSuccess),
+        ofType(
+          AuthActions.initEnd,
+          AuthActions.requestLoginSuccess,
+          AuthActions.requestLoginTwoFactorSuccess,
+        ),
         map((action) => action.user),
         filter((user): user is IUserFull => user != null),
         switchMap(() =>
@@ -82,7 +104,10 @@ export class AuthEffects {
   readonly requestLoginSuccess$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(AuthActions.requestLoginSuccess),
+        ofType(
+          AuthActions.requestLoginSuccess,
+          AuthActions.requestLoginTwoFactorSuccess,
+        ),
         tap(() => {
           this.router.navigate(['/']);
         }),
@@ -208,6 +233,7 @@ export class AuthEffects {
       this.actions$.pipe(
         ofType(
           AuthActions.requestLoginError,
+          AuthActions.requestLoginTwoFactorError,
           AuthActions.requestLogoutError,
           AuthActions.requestRegisterError,
           AuthActions.requestPatchUserError,

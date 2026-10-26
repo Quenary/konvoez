@@ -121,7 +121,11 @@ export class EntitySyncService {
         }
         this.store.dispatch(
           AuthActions.requestPatchUserSuccess({
-            user: { ...user, email: currentUser.email },
+            user: {
+              ...user,
+              email: currentUser.email,
+              twoFactorEnabled: currentUser.twoFactorEnabled,
+            },
           }),
         );
       });

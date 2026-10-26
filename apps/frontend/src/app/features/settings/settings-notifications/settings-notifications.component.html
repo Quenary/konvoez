@@ -31,10 +31,7 @@
             [class.enabled]="isEnabled()"
             [class.disabled]="!isEnabled()">
             {{
-              (isEnabled()
-                ? 'SETTINGS.NOTIFICATIONS.ENABLED'
-                : 'SETTINGS.NOTIFICATIONS.DISABLED'
-              ) | translate
+              (isEnabled() ? 'GENERAL.ENABLED' : 'GENERAL.DISABLED') | translate
             }}
           </span>
         </div>

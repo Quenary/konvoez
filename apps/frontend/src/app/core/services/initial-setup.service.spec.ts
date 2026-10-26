@@ -36,6 +36,7 @@ describe('InitialSetupService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const configure = (seedLocalSettings?: object) => {

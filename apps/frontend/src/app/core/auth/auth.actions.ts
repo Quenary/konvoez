@@ -2,6 +2,7 @@ import { createActionGroup, emptyProps, props } from '@ngrx/store';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   IAuthLogin,
+  IAuthLoginTwoFactor,
   IUserFull,
   IAuthRegister,
   IProfileUpdate,
@@ -15,6 +16,12 @@ export const AuthActions = createActionGroup({
     requestLogin: props<{ body: IAuthLogin }>(),
     requestLoginSuccess: props<{ user: IUserFull }>(),
     requestLoginError: props<{ error: HttpErrorResponse }>(),
+    requestLoginTwoFactorRequired: emptyProps(),
+    requestLoginTwoFactor: props<{ body: IAuthLoginTwoFactor }>(),
+    requestLoginTwoFactorSuccess: props<{ user: IUserFull }>(),
+    requestLoginTwoFactorError: props<{ error: HttpErrorResponse }>(),
+    cancelLoginTwoFactor: emptyProps(),
+    setTwoFactorEnabled: props<{ enabled: boolean }>(),
     requestLogout: emptyProps(),
     requestLogoutSuccess: emptyProps(),
     requestLogoutError: props<{ error: HttpErrorResponse }>(),

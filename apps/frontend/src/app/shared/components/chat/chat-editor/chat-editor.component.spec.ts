@@ -42,6 +42,7 @@ describe('ChatEditorComponent', () => {
     permissions: [],
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const alice: IUserSafe = {
