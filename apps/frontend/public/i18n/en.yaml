@@ -435,7 +435,6 @@ AUTH:
     CODE: Two-factor code
     HINT_RECOVERY: You can also enter one of your 10-character recovery codes.
     VERIFY: Verify
-    BACK: Back to password
 EXTERNAL_LINK:
   TITLE: External link
   CONTENT: 'You are about to open an external link: {{ url }}'

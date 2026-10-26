@@ -88,11 +88,20 @@
     [formGroup]="twoFactorForm"
     (ngSubmit)="onTwoFactorSubmit()">
     <header tuiHeader>
-      <h2 tuiTitle>
-        {{ 'AUTH.TWO_FACTOR.TITLE' | translate }}
-        <span tuiSubtitle>{{ 'AUTH.TWO_FACTOR.SUBTITLE' | translate }}</span>
-      </h2>
+      <button
+        appearance="flat"
+        tuiButton
+        type="button"
+        (click)="onCancelTwoFactor()">
+        <tui-icon [icon]="icons['chevron-left']" />
+        {{ 'GENERAL.GO_BACK' | translate }}
+      </button>
     </header>
+
+    <h2 tuiTitle>
+      {{ 'AUTH.TWO_FACTOR.TITLE' | translate }}
+      <span tuiSubtitle>{{ 'AUTH.TWO_FACTOR.SUBTITLE' | translate }}</span>
+    </h2>
 
     <tui-textfield [iconStart]="icons.key">
       <label
@@ -125,15 +134,6 @@
         [loading]="loading()">
         <tui-icon [icon]="icons.key" />
         {{ 'AUTH.TWO_FACTOR.VERIFY' | translate }}
-      </button>
-
-      <button
-        appearance="flat"
-        tuiButton
-        type="button"
-        (click)="onCancelTwoFactor()">
-        <tui-icon [icon]="icons['chevron-left']" />
-        {{ 'AUTH.TWO_FACTOR.BACK' | translate }}
       </button>
     </footer>
   </form>
