@@ -35,6 +35,7 @@ describe('authGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   beforeEach(() => {
@@ -66,6 +67,7 @@ describe('authGuard', () => {
       init: true,
       user: mockUser,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -78,6 +80,7 @@ describe('authGuard', () => {
       init: true,
       user: null,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -98,6 +101,7 @@ describe('authGuard', () => {
       init: true,
       user: mockUser,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 

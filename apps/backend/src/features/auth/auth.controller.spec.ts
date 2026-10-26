@@ -44,6 +44,7 @@ describe('AuthController', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   let mockResponse: jest.Mocked<Partial<Response>>;
@@ -66,6 +67,9 @@ describe('AuthController', () => {
             resolveRefreshToken: jest.fn(),
             setAuthCookies: jest.fn(),
             clearAuthCookies: jest.fn(),
+            startTwoFactorChallenge: jest.fn(),
+            completeTwoFactorLogin: jest.fn(),
+            clearTwoFactorPendingCookie: jest.fn(),
             getMe: jest.fn(),
             isOwnerSetupRequired: jest.fn(),
             register: jest.fn(),
@@ -105,6 +109,74 @@ describe('AuthController', () => {
       );
 
       expect(result).toEqual(mockUser);
+    });
+
+    it('should start 2FA challenge and return twoFactorRequired without setting auth cookies when 2FA enabled', async () => {
+      const dto: AuthLoginDto = {
+        login: 'testuser',
+        password: 'password123',
+      };
+      authService.validateUser.mockResolvedValueOnce({
+        user: { ...mockUser, twoFactorEnabled: true },
+        sessionVersion: 0,
+      });
+
+      const result = await controller.login(
+        dto,
+        mockResponse as unknown as Response,
+      );
+
+      expect(authService.startTwoFactorChallenge).toHaveBeenCalledWith(
+        mockUser.id,
+        mockResponse,
+      );
+      expect(authService.setAuthCookies).not.toHaveBeenCalled();
+      expect(result).toEqual({ twoFactorRequired: true });
+    });
+  });
+
+  describe('loginTwoFactor', () => {
+    it('throws unauthorized when pending cookie is missing', async () => {
+      const req = { cookies: {} } as unknown as Request;
+      await expect(
+        controller.loginTwoFactor(
+          req,
+          { code: '123456' },
+          mockResponse as unknown as Response,
+        ),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('completes 2FA login, sets auth cookies, clears pending cookie, and returns user', async () => {
+      const req = {
+        cookies: { 'two-factor-token': 'pending_123' },
+      } as unknown as Request;
+      authService.completeTwoFactorLogin.mockResolvedValueOnce({
+        user: { ...mockUser, twoFactorEnabled: true },
+        sessionVersion: 2,
+      });
+
+      const result = await controller.loginTwoFactor(
+        req,
+        { code: '123456' },
+        mockResponse as unknown as Response,
+      );
+
+      expect(authService.completeTwoFactorLogin).toHaveBeenCalledWith(
+        'pending_123',
+        '123456',
+      );
+      expect(authService.setAuthCookies).toHaveBeenCalledWith(
+        mockUser.id,
+        2,
+        mockResponse,
+      );
+      expect(authService.clearTwoFactorPendingCookie).toHaveBeenCalledWith(
+        mockResponse,
+      );
+      expect(result).toEqual({ ...mockUser, twoFactorEnabled: true });
     });
   });
 

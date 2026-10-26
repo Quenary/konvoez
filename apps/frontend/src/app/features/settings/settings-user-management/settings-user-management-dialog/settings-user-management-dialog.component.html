@@ -53,6 +53,37 @@
       </dd>
     </div>
     <div class="field">
+      <dt>{{ 'SETTINGS.USERS.TWO_FACTOR' | translate }}</dt>
+      <dd class="field-two-factor">
+        @if (user.twoFactorEnabled) {
+          <span
+            tuiBadge
+            appearance="positive"
+            size="s">
+            {{ 'GENERAL.ENABLED' | translate }}
+          </span>
+          @if (canManage() && !user.isOwner) {
+            <button
+              tuiButton
+              type="button"
+              appearance="secondary-destructive"
+              size="xs"
+              [loading]="resetting2fa()"
+              (click)="resetTwoFactor(user.id)">
+              {{ 'SETTINGS.USERS.TWO_FACTOR_RESET' | translate }}
+            </button>
+          }
+        } @else {
+          <span
+            tuiBadge
+            appearance="neutral"
+            size="s">
+            {{ 'GENERAL.DISABLED' | translate }}
+          </span>
+        }
+      </dd>
+    </div>
+    <div class="field">
       <dt>{{ 'SETTINGS.USERS.ROLES' | translate }}</dt>
       <dd>
         @if (user.isOwner) {

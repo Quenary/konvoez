@@ -12,6 +12,10 @@ export const selectAuthLoading = createSelector(
   _selectAuth,
   (auth) => auth.loading,
 );
+export const selectAuthTwoFactorPending = createSelector(
+  _selectAuth,
+  (auth) => auth.twoFactorPending,
+);
 export const selectCurrentUser = createSelector(
   _selectAuth,
   (state) => state.user,

@@ -35,6 +35,7 @@ describe('adminGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
     ...overrides,
   });
 
@@ -67,6 +68,7 @@ describe('adminGuard', () => {
       init: true,
       user: createMockUser({ permissions: [EPermission.MANAGE_SETTINGS] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -79,6 +81,7 @@ describe('adminGuard', () => {
       init: true,
       user: createMockUser({ isOwner: true }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -91,6 +94,7 @@ describe('adminGuard', () => {
       init: true,
       user: createMockUser({ permissions: [] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -103,6 +107,7 @@ describe('adminGuard', () => {
       init: true,
       user: null,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -123,6 +128,7 @@ describe('adminGuard', () => {
       init: true,
       user: createMockUser({ isOwner: true }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 

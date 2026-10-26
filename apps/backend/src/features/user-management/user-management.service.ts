@@ -9,6 +9,7 @@ import { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 import { UserManagementUpdateDto } from './user-management.dto';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class UserManagementService {
     private readonly usersService: UsersService,
     private readonly permissionsFacade: PermissionsFacade,
     private readonly roomsFacade: RoomsFacade,
+    private readonly twoFactorService: TwoFactorService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -78,6 +80,21 @@ export class UserManagementService {
     this.assertManageableTarget(id, author, user);
     await this.roomsFacade.deleteRoomsByAuthor(id);
     await this.usersService.removeLoaded(id);
+  }
+
+  async resetTwoFactor(
+    id: number,
+    author: GetUserSafeDto,
+  ): Promise<GetUserFullDto> {
+    const user = await this.usersService.findOne(id);
+    this.assertManageableTarget(id, author, user);
+    if (user.deletedAt) {
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'User not found',
+      );
+    }
+    return await this.twoFactorService.adminReset(user, author.id);
   }
 
   private assertManageableTarget(

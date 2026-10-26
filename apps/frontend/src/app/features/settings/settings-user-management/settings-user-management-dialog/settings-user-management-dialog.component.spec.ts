@@ -58,6 +58,7 @@ describe('SettingsUserManagementDialogComponent', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const targetUser: IUserFull = {
@@ -80,6 +81,7 @@ describe('SettingsUserManagementDialogComponent', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const rolesList: IRole[] = [

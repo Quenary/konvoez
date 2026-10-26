@@ -28,6 +28,7 @@ describe('SettingsUserManagementComponent', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-02T03:04:00.000Z'),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const setup = async (users: IUserFull[] = []) => {

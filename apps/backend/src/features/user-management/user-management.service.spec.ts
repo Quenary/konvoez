@@ -30,9 +30,11 @@ import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { UsersDomainEvents } from '../users/users.events';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
+  let twoFactorService: jest.Mocked<Pick<TwoFactorService, 'adminReset'>>;
   let usersService: jest.Mocked<
     Pick<
       UsersService,
@@ -118,12 +120,17 @@ describe('UserManagementService', () => {
       deleteRoomsByAuthor: jest.fn().mockResolvedValue(undefined),
     };
 
+    twoFactorService = {
+      adminReset: jest.fn().mockResolvedValue(mockUserDto),
+    };
+
     eventEmitter = { emit: jest.fn() };
 
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
       roomsFacade as unknown as RoomsFacade,
+      twoFactorService as unknown as TwoFactorService,
       eventEmitter as never,
     );
   });
@@ -446,6 +453,79 @@ describe('UserManagementService', () => {
       });
       expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetTwoFactor', () => {
+    const adminAuthor: GetUserSafeDto = {
+      id: 2,
+      username: 'admin',
+      fullname: 'Admin',
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      createdAt: new Date(),
+      updatedAt: null,
+      avatar: null,
+      avatarUrl: null,
+      deletedAt: null,
+    };
+
+    it('rejects resetting owner 2FA', async () => {
+      const ownerTarget = { ...mockUser, id: 1, isOwner: true } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(ownerTarget);
+
+      await expect(
+        service.resetTwoFactor(1, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+      expect(twoFactorService.adminReset).not.toHaveBeenCalled();
+    });
+
+    it('rejects self-reset via admin endpoint', async () => {
+      const selfTarget = { ...mockUser, id: 2 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(selfTarget);
+
+      await expect(
+        service.resetTwoFactor(2, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+      expect(twoFactorService.adminReset).not.toHaveBeenCalled();
+    });
+
+    it('rejects resetting deleted user with 404', async () => {
+      const deletedTarget = {
+        ...mockUser,
+        id: 5,
+        deletedAt: new Date(),
+      } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(deletedTarget);
+
+      await expect(
+        service.resetTwoFactor(5, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
+      expect(twoFactorService.adminReset).not.toHaveBeenCalled();
+    });
+
+    it('successfully resets 2FA for manageable user', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+
+      const result = await service.resetTwoFactor(5, adminAuthor);
+
+      expect(permissionsFacade.assertCanManageUser).toHaveBeenCalledWith(
+        adminAuthor,
+        target,
+      );
+      expect(twoFactorService.adminReset).toHaveBeenCalledWith(
+        target,
+        adminAuthor.id,
+      );
+      expect(result).toBeDefined();
     });
   });
 });

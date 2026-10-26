@@ -173,27 +173,42 @@ describe('UsersService', () => {
   });
 
   describe('toSafeDto', () => {
-    it('should map deletedAt and omit email', () => {
+    it('should map deletedAt and omit email and twoFactorEnabled', () => {
       const deletedAt = new Date('2026-09-30T12:00:00.000Z');
       const dto = service.toSafeDto({
         ...mockUser,
         deletedAt,
+        twoFactorSecret: 'enc_secret',
+        twoFactorEnabledAt: new Date(),
+        twoFactorLastStep: 100,
       } as UserEntity);
 
       expect(dto.deletedAt).toEqual(deletedAt);
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('email');
       expect(dto).not.toHaveProperty('sessionVersion');
+      expect(dto).not.toHaveProperty('twoFactorEnabled');
+      expect(dto).not.toHaveProperty('twoFactorSecret');
+      expect(dto).not.toHaveProperty('twoFactorEnabledAt');
+      expect(dto).not.toHaveProperty('twoFactorLastStep');
     });
   });
 
   describe('toFullDto', () => {
-    it('should include email for self and admin responses', () => {
+    it('should include email and twoFactorEnabled for self and admin responses', () => {
       const dto = service.toFullDto(mockUser);
 
       expect(dto.email).toBe('test@example.com');
+      expect(dto.twoFactorEnabled).toBe(false);
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('sessionVersion');
+      expect(dto).not.toHaveProperty('twoFactorSecret');
+
+      const enabledDto = service.toFullDto({
+        ...mockUser,
+        twoFactorEnabledAt: new Date(),
+      } as UserEntity);
+      expect(enabledDto.twoFactorEnabled).toBe(true);
     });
   });
 
@@ -252,6 +267,9 @@ describe('UsersService', () => {
         avatar: null,
         password: 'hashed_new_password',
         deletedAt: expect.any(Date),
+        twoFactorSecret: null,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
       });
       expect(target.sessionVersion).toBe(1);
       expect(eventEmitter.emit).toHaveBeenCalledWith(

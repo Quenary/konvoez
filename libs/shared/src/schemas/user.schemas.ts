@@ -23,6 +23,7 @@ export const userFullSchema = baseEntitySchema.extend({
   avatar: stringSchema.nullish(),
   avatarUrl: stringSchema.nullish(),
   deletedAt: z.coerce.date().nullish(),
+  twoFactorEnabled: z.boolean().default(false),
 });
 
 export type IUserFull = z.infer<typeof userFullSchema>;
@@ -30,6 +31,7 @@ export type IUserFull = z.infer<typeof userFullSchema>;
 /** Public user for general API/sockets/sync. Omit PII from full. */
 export const userSafeSchema = userFullSchema.omit({
   email: true,
+  twoFactorEnabled: true,
 });
 
 export type IUserSafe = z.infer<typeof userSafeSchema>;

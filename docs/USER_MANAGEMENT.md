@@ -7,6 +7,7 @@ The app supports administrators managing other accounts from **Settings → User
 | Action                  | Requires                         |
 | ----------------------- | -------------------------------- |
 | Open and manage users   | `MANAGE_USERS` or `OWNER`        |
+| Reset a user's 2FA      | `MANAGE_USERS` or `OWNER`        |
 | Change a user's roles   | `MANAGE_ROLES` or `OWNER`        |
 | Delete your own account | Any authenticated non-owner user |
 

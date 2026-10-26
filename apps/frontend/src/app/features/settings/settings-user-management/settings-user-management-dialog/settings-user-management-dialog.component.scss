@@ -23,6 +23,12 @@
   dd {
     margin: 0;
   }
+
+  &-two-factor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 }
 
 .roles-checklist {

@@ -105,6 +105,17 @@ export class AppException extends HttpException {
     );
   }
 
+  static tooManyRequests(
+    code: ApiErrorCode,
+    options?: AppExceptionOptions | string,
+  ): AppException {
+    return new AppException(
+      code,
+      HttpStatus.TOO_MANY_REQUESTS,
+      normalizeOptions(options),
+    );
+  }
+
   static serviceUnavailable(
     code: ApiErrorCode,
     options?: AppExceptionOptions | string,

@@ -201,6 +201,9 @@ export class UsersService {
       avatar: null,
       password,
       deletedAt: user.deletedAt ?? new Date(),
+      twoFactorSecret: null,
+      twoFactorEnabledAt: null,
+      twoFactorLastStep: null,
     });
     await this.revokeSessions(user);
     await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
@@ -295,7 +298,63 @@ export class UsersService {
     return {
       ...this.toSafeDto(user, permissions),
       email: user.email,
+      twoFactorEnabled: user.twoFactorEnabledAt != null,
     };
+  }
+
+  async setTwoFactorSecret(
+    user: UserEntity,
+    secret: string,
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorSecret: secret,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async enableTwoFactor(user: UserEntity, step: number): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorEnabledAt: new Date(),
+        twoFactorLastStep: step,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async clearTwoFactor(user: UserEntity): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorSecret: null,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async touchTwoFactorStep(
+    user: UserEntity,
+    step: number,
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorLastStep: step,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
   }
 
   async toSafeDtoWithPermissions(user: UserEntity): Promise<GetUserSafeDto> {

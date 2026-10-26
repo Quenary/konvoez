@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import {
   authLoginSchema,
+  authLoginTwoFactorSchema,
   authRegisterSchema,
   emailSchema,
   fullnameSchema,
@@ -33,6 +34,8 @@ export const authLoginFormSchema = authLoginSchema.extend({
     error: 'VALIDATION.LOGIN',
   }),
 });
+
+export const authLoginTwoFactorFormSchema = authLoginTwoFactorSchema;
 
 export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;

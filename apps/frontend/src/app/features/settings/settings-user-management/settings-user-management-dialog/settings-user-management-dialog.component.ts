@@ -25,7 +25,13 @@ import {
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import type { TuiDialogContext } from '@taiga-ui/core';
-import { TuiAutoColorPipe, TuiBadge, TuiButtonLoading } from '@taiga-ui/kit';
+import {
+  TuiAutoColorPipe,
+  TuiBadge,
+  TuiButtonLoading,
+  TUI_CONFIRM,
+  type TuiConfirmData,
+} from '@taiga-ui/kit';
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, of } from 'rxjs';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
@@ -75,6 +81,7 @@ export class SettingsUserManagementDialogComponent {
 
   protected readonly saving = signal(false);
   protected readonly deleting = signal(false);
+  protected readonly resetting2fa = signal(false);
 
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
@@ -175,6 +182,36 @@ export class SettingsUserManagementDialogComponent {
         this.notify(err);
       },
     });
+  }
+
+  protected resetTwoFactor(id: number): void {
+    this.dialogService
+      .open<boolean>(TUI_CONFIRM, {
+        label: this.translateService.instant(
+          'SETTINGS.USERS.TWO_FACTOR_RESET_CONFIRM',
+        ),
+        data: {
+          yes: this.translateService.instant('SETTINGS.USERS.TWO_FACTOR_RESET'),
+          no: this.translateService.instant('GENERAL.CANCEL'),
+          appearance: 'secondary-destructive',
+        } satisfies TuiConfirmData,
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) {
+          return;
+        }
+        this.resetting2fa.set(true);
+        this.userManagementApiService.resetTwoFactor(id).subscribe({
+          next: () => {
+            this.resetting2fa.set(false);
+            this.userResource.reload();
+          },
+          error: (err) => {
+            this.resetting2fa.set(false);
+            this.notify(err);
+          },
+        });
+      });
   }
 
   protected openDelete(): void {

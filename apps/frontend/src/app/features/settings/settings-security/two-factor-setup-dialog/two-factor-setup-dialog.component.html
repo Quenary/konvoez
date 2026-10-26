@@ -1,0 +1,120 @@
+@if (step() === 1) {
+  <form
+    tuiForm="m"
+    novalidate
+    [formGroup]="passwordForm"
+    (ngSubmit)="onPasswordSubmit()">
+    <p class="tui-text_body-m">
+      {{ 'SETTINGS.SECURITY.TWO_FACTOR.SETUP.STEP_PASSWORD' | translate }}
+    </p>
+
+    <tui-textfield [iconStart]="icons.lock">
+      <label
+        tuiLabel
+        for="setup-password">
+        {{ 'PROFILE.PASSWORD' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="setup-password"
+        type="password"
+        autocomplete="current-password"
+        formControlName="password" />
+      <tui-icon tuiPassword />
+    </tui-textfield>
+
+    <footer class="setup-dialog-footer">
+      <button
+        tuiButton
+        type="button"
+        appearance="flat"
+        (click)="context.completeWith(null)">
+        {{ 'GENERAL.CANCEL' | translate }}
+      </button>
+
+      <button
+        tuiButton
+        type="submit"
+        [disabled]="!passwordForm.controls.password.value"
+        [loading]="loading()">
+        {{ 'GENERAL.NEXT' | translate }}
+      </button>
+    </footer>
+  </form>
+} @else {
+  <form
+    tuiForm="m"
+    novalidate
+    [formGroup]="codeForm"
+    (ngSubmit)="onCodeSubmit()">
+    <p class="tui-text_body-m">
+      {{ 'SETTINGS.SECURITY.TWO_FACTOR.SETUP.STEP_SCAN' | translate }}
+    </p>
+
+    <div class="setup-dialog-qr">
+      @if (otpauthUri(); as uri) {
+        <app-qr-code
+          [value]="uri"
+          [size]="180" />
+      }
+    </div>
+
+    @if (secret(); as sec) {
+      <div class="setup-dialog-secret">
+        <span class="tui-text_body-s">
+          {{ 'SETTINGS.SECURITY.TWO_FACTOR.SETUP.SECRET' | translate }}:
+        </span>
+        <tui-copy>
+          <code
+            class="setup-dialog-secret-text"
+            [tuiSensitive]="isSecretHidden()">
+            {{ sec }}
+          </code>
+        </tui-copy>
+        <button
+          tuiButton
+          type="button"
+          appearance="flat"
+          size="xs"
+          (click)="toggleSecretVisibility()">
+          <tui-icon [icon]="isSecretHidden() ? icons.eye : icons['eye-off']" />
+          {{ (isSecretHidden() ? 'GENERAL.SHOW' : 'GENERAL.HIDE') | translate }}
+        </button>
+      </div>
+    }
+
+    <tui-textfield [iconStart]="icons.key">
+      <label
+        tuiLabel
+        for="setup-code">
+        {{ 'SETTINGS.SECURITY.TWO_FACTOR.SETUP.CODE' | translate }}
+      </label>
+      <input
+        tuiInput
+        id="setup-code"
+        type="text"
+        inputmode="numeric"
+        maxlength="6"
+        autocomplete="one-time-code"
+        formControlName="code" />
+    </tui-textfield>
+
+    <footer class="setup-dialog-footer">
+      <button
+        tuiButton
+        type="button"
+        appearance="flat"
+        (click)="context.completeWith(null)">
+        {{ 'GENERAL.CANCEL' | translate }}
+      </button>
+
+      <button
+        tuiButton
+        type="submit"
+        [disabled]="codeForm.controls.code.value.length < 6"
+        [loading]="loading()">
+        {{ 'SETTINGS.SECURITY.TWO_FACTOR.ENABLE' | translate }}
+      </button>
+    </footer>
+  </form>
+}

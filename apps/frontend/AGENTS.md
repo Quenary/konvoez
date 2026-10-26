@@ -82,6 +82,7 @@ computed(() => {
 
 - Use reactive forms with Zod schemas from `@konvoez/shared`: `createZodFieldValidator`, `createZodFormValidator` and `createZodError` (a `computed`, not a template function). Do not hand-write `Validators.*` when a shared schema exists.
 - Prefer Taiga UI components over custom controls when they fit. Match existing SCSS patterns and mixins; do not add a new styling approach.
+- Structure SCSS classes hierarchically using SASS parent selector nesting (`&-element` / `&-modifier`) under the root element class (e.g. `.setting-item { &-description { ... } }`), keeping classes BEM-style and DRY (see `settings-admin.component.scss`).
 - User-facing strings go through ngx-translate (`TranslatePipe` / `TranslateService`), never hard-coded in templates.
 
 ## Testing

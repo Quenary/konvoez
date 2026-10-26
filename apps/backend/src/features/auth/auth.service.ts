@@ -14,9 +14,18 @@ import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
 import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 import { CookieOptions, Request, Response } from 'express';
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
+import {
+  ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+  TWO_FACTOR_TOKEN_KEY,
+} from './auth.const';
 import { AuthJWTData, AuthRegisterDto } from './auth.dto';
 import { UsersService } from '../users/users.service';
+import { TwoFactorService } from '../two-factor/two-factor.service';
+import {
+  get2faPendingCacheKey,
+  TWO_FACTOR_PENDING_TTL_MS,
+} from '../two-factor/two-factor.const';
 import * as cookie from 'cookie';
 import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
@@ -53,6 +62,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly usersService: UsersService,
     private readonly settingsService: SettingsService,
     private readonly invitesService: InvitesService,
+    private readonly twoFactorService: TwoFactorService,
     private readonly eventEmitter: EventEmitter2,
     @InjectRepository(UserEntity)
     private readonly userRepo: EntityRepository<UserEntity>,
@@ -353,6 +363,51 @@ export class AuthService implements OnApplicationBootstrap {
     res.clearCookie(REFRESH_TOKEN_KEY, this.cookieOptions('refresh', false));
   }
 
+  async startTwoFactorChallenge(userId: number, res: Response): Promise<void> {
+    const pendingId = crypto.randomBytes(32).toString('base64url');
+    const sha256PendingId = crypto
+      .createHash('sha256')
+      .update(pendingId)
+      .digest('hex');
+    const cacheKey = get2faPendingCacheKey(sha256PendingId);
+
+    await this.cacheManager.set(cacheKey, userId, TWO_FACTOR_PENDING_TTL_MS);
+
+    res.cookie(TWO_FACTOR_TOKEN_KEY, pendingId, {
+      ...this.baseCookieOptions(),
+      maxAge: TWO_FACTOR_PENDING_TTL_MS,
+    });
+  }
+
+  async completeTwoFactorLogin(
+    pendingId: string,
+    code: string,
+  ): Promise<{ user: GetUserFullDto; sessionVersion: number }> {
+    const sha256PendingId = crypto
+      .createHash('sha256')
+      .update(pendingId)
+      .digest('hex');
+    const cacheKey = get2faPendingCacheKey(sha256PendingId);
+
+    const userId = await this.cacheManager.get<number>(cacheKey);
+    if (!userId) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+
+    const { user, sessionVersion } = await this.requireActiveUser(userId);
+    await this.twoFactorService.verifyLoginCode(userId, code);
+    await this.cacheManager.del(cacheKey);
+
+    return { user, sessionVersion };
+  }
+
+  clearTwoFactorPendingCookie(res: Response): void {
+    res.clearCookie(TWO_FACTOR_TOKEN_KEY, this.baseCookieOptions());
+  }
+
   verifyToken(
     token: string,
     type: AuthJWTData['type'],
@@ -566,17 +621,21 @@ ${token}
     return minutes * 60;
   }
 
-  private cookieOptions(
-    type: 'access' | 'refresh',
-    withMaxAge = false,
-  ): CookieOptions {
-    const options: CookieOptions = {
+  private baseCookieOptions(): CookieOptions {
+    return {
       httpOnly: true,
       sameSite: this.appService.COOKIE_SAME_SITE,
       secure: this.appService.COOKIE_SECURE,
       domain: this.appService.COOKIE_DOMAIN,
       path: '/',
     };
+  }
+
+  private cookieOptions(
+    type: 'access' | 'refresh',
+    withMaxAge = false,
+  ): CookieOptions {
+    const options: CookieOptions = this.baseCookieOptions();
     if (withMaxAge) {
       options.maxAge = this.tokenTtlSeconds(type) * 1000;
     }

@@ -4,12 +4,13 @@ import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from './auth.service';
 import {
   AuthLoginDto,
+  AuthLoginTwoFactorDto,
   AuthRegisterDto,
   PasswordRecoveryConfirmDto,
   PasswordRecoveryRequestDto,
 } from './auth.dto';
 import type { Request, Response } from 'express';
-import { REFRESH_TOKEN_KEY } from './auth.const';
+import { REFRESH_TOKEN_KEY, TWO_FACTOR_TOKEN_KEY } from './auth.const';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserFullDto } from '../users/users.dto';
 
@@ -19,7 +20,7 @@ export class AuthController {
 
   @Post('login')
   @ApiOkResponse({
-    type: GetUserFullDto,
+    description: 'Logged in user or two-factor requirement indicator',
   })
   async login(
     @Body() dto: AuthLoginDto,
@@ -29,7 +30,35 @@ export class AuthController {
       dto.login,
       dto.password,
     );
+    if (user.twoFactorEnabled) {
+      await this.authService.startTwoFactorChallenge(user.id, res);
+      return { twoFactorRequired: true };
+    }
     this.authService.setAuthCookies(user.id, sessionVersion, res);
+    return user;
+  }
+
+  @Post('login/2fa')
+  @ApiOkResponse({
+    type: GetUserFullDto,
+    description: 'Complete two-factor authentication challenge',
+  })
+  async loginTwoFactor(
+    @Req() req: Request,
+    @Body() dto: AuthLoginTwoFactorDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const pendingId = req.cookies?.[TWO_FACTOR_TOKEN_KEY];
+    if (!pendingId) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+    const { user, sessionVersion } =
+      await this.authService.completeTwoFactorLogin(pendingId, dto.code);
+    this.authService.setAuthCookies(user.id, sessionVersion, res);
+    this.authService.clearTwoFactorPendingCookie(res);
     return user;
   }
 
