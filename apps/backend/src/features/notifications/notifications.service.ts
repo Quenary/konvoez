@@ -192,10 +192,7 @@ export class NotificationsService {
 
     const em = this.em.fork();
     const repo = em.getRepository(UserNotificationSettingsEntity);
-    const rows = await repo.find(
-      { user: { $in: userIds } },
-      { populate: ['user'] },
-    );
+    const rows = await repo.find({ user: { $in: userIds } });
     const rowsByUserId = new Map<number, UserNotificationSettingsEntity>();
     for (const row of rows) {
       rowsByUserId.set(row.user.id, row);
