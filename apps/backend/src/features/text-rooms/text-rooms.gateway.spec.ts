@@ -27,6 +27,7 @@ describe('TextRoomsGateway', () => {
     to: jest.Mock;
     except: jest.Mock;
     emit: jest.Mock;
+    fetchSockets: jest.Mock;
   };
   let roomsFacadeMock: {
     assertCanAccessRoom: jest.Mock;
@@ -243,6 +244,7 @@ describe('TextRoomsGateway', () => {
       clientId: null,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
     gateway.onMessageCreated(body);
@@ -269,6 +271,7 @@ describe('TextRoomsGateway', () => {
       clientId: null,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
     gateway.onMessageCreated(body);
@@ -296,6 +299,7 @@ describe('TextRoomsGateway', () => {
       clientId: null,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
     gateway.onMessageUpdated(body);
@@ -322,6 +326,7 @@ describe('TextRoomsGateway', () => {
       clientId: null,
       replyTo: null,
       reactions: [],
+      mentions: { userIds: [], roleIds: [], everyone: false },
     };
 
     gateway.onMessageUpdated(body);

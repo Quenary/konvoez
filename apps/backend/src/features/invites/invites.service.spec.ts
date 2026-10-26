@@ -35,7 +35,6 @@ describe('InvitesService', () => {
     id: 1,
     username: 'admin',
     fullname: 'Administrator',
-    email: 'admin@example.com',
     role: EUserRole.ADMIN,
     isOwner: false,
     roles: [],

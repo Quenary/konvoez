@@ -2,6 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "types": ["vitest/globals", "node"]
   },
   "include": [

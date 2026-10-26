@@ -1463,8 +1463,8 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
-      messageRepository.assign.mockImplementation((target, patch) =>
-        Object.assign(target, patch),
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
       );
 
       mentionsService.resolve.mockResolvedValueOnce({
@@ -1525,8 +1525,8 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
-      messageRepository.assign.mockImplementation((target, patch) =>
-        Object.assign(target, patch),
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
       );
 
       mentionsService.resolve.mockResolvedValueOnce({
@@ -1562,8 +1562,8 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
-      messageRepository.assign.mockImplementation((target, patch) =>
-        Object.assign(target, patch),
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
       );
 
       const result = await service.updateMessage(mockUser, msgId, {

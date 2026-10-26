@@ -130,6 +130,7 @@ describe('VoiceRoomsGateway', () => {
     to: jest.Mock;
     emit: jest.Mock;
     in: jest.Mock;
+    fetchSockets?: jest.Mock;
     sockets: { sockets: Map<string, Socket> };
   };
   let fetchSockets: jest.Mock;

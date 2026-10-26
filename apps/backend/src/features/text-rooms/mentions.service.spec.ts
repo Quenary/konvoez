@@ -27,7 +27,6 @@ describe('MentionsService', () => {
     id,
     username: `author${id}`,
     fullname: `Author ${id}`,
-    email: `author${id}@test.com`,
     isOwner,
     roles: [],
     permissions,
@@ -101,9 +100,7 @@ describe('MentionsService', () => {
       );
 
       // User 3 cannot access the room
-      roomsFacade.canAccessRoom.mockImplementation(
-        (dto: GetUserSafeDto) => dto.id === 2,
-      );
+      roomsFacade.canAccessRoom.mockImplementation((user) => user.id === 2);
 
       const html = '<p>Hello &lt;@2&gt; and &lt;@3&gt; and &lt;@1&gt;!</p>';
       const result = await service.resolve(author, dummyRoom, html);

@@ -142,6 +142,7 @@ describe('mentions', () => {
             if (seg.type === 'user') return formatUserMention(seg.id);
             if (seg.type === 'role') return formatRoleMention(seg.id);
             if (seg.type === 'everyone') return MENTION_EVERYONE;
+            return '';
           })
           .join('');
 

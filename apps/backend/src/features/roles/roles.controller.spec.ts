@@ -53,7 +53,9 @@ describe('RolesController', () => {
     username: 'author',
     fullname: 'Author',
     isOwner: false,
-    roles: [{ id: 10, name: 'Admin', color: null, priority: 50 }],
+    roles: [
+      { id: 10, name: 'Admin', color: null, priority: 50, mentionable: false },
+    ],
     permissions: [EPermission.MANAGE_ROLES, EPermission.MANAGE_ROOMS],
     avatar: null,
     avatarUrl: null,
@@ -67,6 +69,7 @@ describe('RolesController', () => {
     color: '#00ff00',
     priority: 20,
     isDefault: false,
+    mentionable: false,
     permissions: [EPermission.MODERATE_MESSAGES],
   } as RoleEntity;
 
@@ -76,6 +79,7 @@ describe('RolesController', () => {
     color: '#00ff00',
     priority: 20,
     isDefault: false,
+    mentionable: false,
     permissions: [EPermission.MODERATE_MESSAGES],
     createdAt: new Date(),
     updatedAt: null,

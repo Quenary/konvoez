@@ -154,6 +154,7 @@ describe('RolesService', () => {
         color: '#ff0000',
         priority: 10,
         isDefault: false,
+        mentionable: false,
         permissions: [EPermission.MODERATE_MESSAGES],
       });
 
@@ -198,6 +199,7 @@ describe('RolesService', () => {
           name: 'Moderator',
           priority: 0,
           isDefault: false,
+          mentionable: false,
           permissions: [],
         }),
       ).rejects.toMatchObject({
@@ -217,6 +219,7 @@ describe('RolesService', () => {
           name: 'Moderator',
           priority: 0,
           isDefault: false,
+          mentionable: false,
           permissions: [],
         }),
       ).rejects.toMatchObject({
