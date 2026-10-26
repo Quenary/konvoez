@@ -15,7 +15,6 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 - [Key Features](#key-features)
 - [Deployment](#deployment)
 - [Documentation](#documentation)
-- [TODO](#todo)
 
 ## Key Features
 
@@ -107,18 +106,3 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 - [Frontend noise suppression](docs/frontend/NOISE_SUPPRESSION.md)
 - [Frontend chat list](docs/frontend/CHAT_LIST.md)
 - Libraries: [shared](libs/shared/README.md), [client-shell](libs/client-shell/README.md), [ui-kit](libs/ui-kit/README.md), [client-dialogs](libs/client-dialogs/README.md)
-
-## TODO
-
-- Per-user notification settings (topics)
-- Video streaming simulcast & adaptive:
-  - Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
-  - Bitrate caps tied to capture height; optional `maxIncomingBitrate` on the receive transport
-  - Pause or reduce offscreen / hidden video consumers (adaptive downlink)
-  - Optional viewer-side quality picker (layer selection when simulcast exists)
-  - Optional stream viewer count (needs signaling)
-  - Codec auto-pick for screen (e.g. VP9/AV1) when all consumers `canConsume`, still without server transcoding
-  - Mid-share height/FPS change via `replaceTrack` (quality dialog on the tile / controls bar)
-- Invite emails (if the user email is set)
-- Emojis and customizable emoji/sticker packs
-- Swipe to reply
