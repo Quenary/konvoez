@@ -1,6 +1,8 @@
 # Konvoez
 
-Konvoez is a self-hosted, single-server voice and text communication platform. It is a Discord-like alternative where the deployed application instance acts as the server itself. It is designed for friends to hang out, not for production use.
+<img src="assets/social-preview/konvoez-social-preview.svg" width="100%">
+
+Konvoez is a self-hosted, single-server voice and text communication application. It is a lightweight Discord-like alternative where the deployed instance acts as the server itself: one Docker container, minimal resource usage and a quick setup.
 
 ## Desktop App
 
