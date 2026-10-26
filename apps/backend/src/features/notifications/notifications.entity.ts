@@ -31,7 +31,7 @@ export const UserNotificationSettingsEntitySchema = defineEntity({
   properties: {
     id: p.integer().primary().autoincrement(),
     user: () =>
-      p.manyToOne(UserEntitySchema).index().unique().deleteRule('cascade'),
+      p.manyToOne(UserEntitySchema).index(false).unique().deleteRule('cascade'),
     directMessages: p.boolean().default(true),
     directCalls: p.boolean().default(true),
     mentionUsername: p.boolean().default(true),
