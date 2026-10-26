@@ -249,6 +249,34 @@ describe('MentionsService', () => {
       expect(result.effective.everyone).toBe(true);
       expect(result.effective.roleIds).toEqual([5]);
     });
+
+    it('populates recipients with correct types per recipient', async () => {
+      const owner = createAuthor(1, true);
+      const user2 = createUser(2);
+      const user3 = createUser(3);
+      const role = { id: 5, name: 'Devs', mentionable: true } as RoleEntity;
+
+      permissionsFacade.findRolesByIds.mockResolvedValue([role]);
+      usersService.findMentionCandidates.mockResolvedValue([user2, user3]);
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) => {
+        if (u.id === 2) {
+          return {
+            ...createAuthor(2),
+            roles: [{ id: 5, name: 'Devs', priority: 1, permissions: [] }],
+          };
+        }
+        return createAuthor(3);
+      });
+
+      // Message mentions user 3 directly and role 5 (which user 2 has)
+      const html = '<p>&lt;@3&gt; and &lt;@&amp;5&gt;</p>';
+      const result = await service.resolve(owner, dummyRoom, html);
+
+      expect(result.recipients).toEqual([
+        { userId: 2, types: ['role'] },
+        { userId: 3, types: ['username'] },
+      ]);
+    });
   });
 
   describe('replace', () => {

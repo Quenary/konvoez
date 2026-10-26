@@ -1,4 +1,8 @@
 import * as z from 'zod';
+import type {
+  TMentionType,
+  TUserNotificationSettings,
+} from './schemas/notification.schemas';
 
 export const MENTION_EVERYONE = '@everyone';
 
@@ -50,6 +54,37 @@ export function isMessageMentioningUser(
     return user.roles.some((r) => roleIdSet.has(r.id));
   }
   return false;
+}
+
+export function getMentionTypesForUser(
+  mentions: IMentionSet | null | undefined,
+  user:
+    { id: number; roles?: readonly { id: number }[] | null } | null | undefined,
+): TMentionType[] {
+  if (!mentions || !user) {
+    return [];
+  }
+  const types: TMentionType[] = [];
+  if (mentions.userIds.includes(user.id)) {
+    types.push('username');
+  }
+  if (user.roles && user.roles.length > 0) {
+    const roleIdSet = new Set(mentions.roleIds);
+    if (user.roles.some((r) => roleIdSet.has(r.id))) {
+      types.push('role');
+    }
+  }
+  if (mentions.everyone) {
+    types.push('everyone');
+  }
+  return types;
+}
+
+export function shouldDeliverMentionNotification(
+  settings: TUserNotificationSettings,
+  types: readonly TMentionType[],
+): boolean {
+  return types.some((type) => settings.mentions[type]);
 }
 
 export function splitMentionSegments(text: string): TMentionSegment[] {

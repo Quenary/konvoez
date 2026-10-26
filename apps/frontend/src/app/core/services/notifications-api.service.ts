@@ -4,6 +4,8 @@ import { environment } from '@environments/environment';
 import {
   TPushSubscription,
   TPushSubscriptionEndpoint,
+  TUpdateUserNotificationSettings,
+  TUserNotificationSettings,
   TVapidPublicKey,
 } from '@konvoez/shared';
 import { Observable } from 'rxjs';
@@ -16,6 +18,27 @@ export class NotificationsApiService {
   getPublicKey(): Observable<TVapidPublicKey> {
     return this.httpClient.get<TVapidPublicKey>(
       `${this.basePath}/vapid-public-key`,
+      {
+        withCredentials: true,
+      },
+    );
+  }
+
+  getSettings(): Observable<TUserNotificationSettings> {
+    return this.httpClient.get<TUserNotificationSettings>(
+      `${this.basePath}/settings`,
+      {
+        withCredentials: true,
+      },
+    );
+  }
+
+  updateSettings(
+    payload: TUpdateUserNotificationSettings,
+  ): Observable<TUserNotificationSettings> {
+    return this.httpClient.patch<TUserNotificationSettings>(
+      `${this.basePath}/settings`,
+      payload,
       {
         withCredentials: true,
       },

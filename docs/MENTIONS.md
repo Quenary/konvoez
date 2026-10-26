@@ -33,7 +33,7 @@ flowchart LR
   Push --> Link["Notification opens<br/>/text-room/:roomId?message=:messageId"]
 ```
 
-- Push notifications go to every eligible member mentioned directly, through a mentionable role or through `@everyone`.
+- Push notifications go to every eligible member mentioned directly, through a mentionable role or through `@everyone`, respecting each recipient's granular notification settings (see [Notifications](NOTIFICATIONS.md)).
 - `GET /api/v1/text-rooms/unread-counts` returns unread mention counts per room in addition to message counts.
 
 ## UI

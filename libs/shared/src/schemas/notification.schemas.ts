@@ -50,6 +50,27 @@ export const pushNotificationPayloadSchema = z.object({
   data: pushNotificationDataSchema.optional(),
 });
 
+export const userNotificationMentionsSettingsSchema = z.object({
+  username: z.boolean(),
+  role: z.boolean(),
+  everyone: z.boolean(),
+});
+
+export const userNotificationSettingsSchema = z.object({
+  directMessages: z.boolean(),
+  directCalls: z.boolean(),
+  mentions: userNotificationMentionsSettingsSchema,
+});
+
+export const updateUserNotificationMentionsSettingsSchema =
+  userNotificationMentionsSettingsSchema.partial();
+
+export const updateUserNotificationSettingsSchema = z.object({
+  directMessages: z.boolean().optional(),
+  directCalls: z.boolean().optional(),
+  mentions: updateUserNotificationMentionsSettingsSchema.optional(),
+});
+
 export type TVapidPublicKey = z.infer<typeof vapidPublicKeySchema>;
 export type TPushSubscription = z.infer<typeof pushSubscriptionSchema>;
 export type TPushSubscriptionEndpoint = z.infer<
@@ -62,6 +83,36 @@ export type TPushNotificationData = z.infer<typeof pushNotificationDataSchema>;
 export type TPushNotificationPayload = z.infer<
   typeof pushNotificationPayloadSchema
 >;
+
+export type TUserNotificationMentionsSettings = z.infer<
+  typeof userNotificationMentionsSettingsSchema
+>;
+export type TUserNotificationSettings = z.infer<
+  typeof userNotificationSettingsSchema
+>;
+export type TUpdateUserNotificationMentionsSettings = z.infer<
+  typeof updateUserNotificationMentionsSettingsSchema
+>;
+export type TUpdateUserNotificationSettings = z.infer<
+  typeof updateUserNotificationSettingsSchema
+>;
+
+export const DEFAULT_USER_NOTIFICATION_SETTINGS: TUserNotificationSettings = {
+  directMessages: true,
+  directCalls: true,
+  mentions: {
+    username: true,
+    role: true,
+    everyone: true,
+  },
+};
+
+export type TMentionType = 'username' | 'role' | 'everyone';
+
+export type TMentionRecipient = {
+  userId: number;
+  types: TMentionType[];
+};
 
 export type TNotificationsEventPayloadMap = {
   [ENotificationsEvent.NOTIFICATION]: TPushNotificationPayload;

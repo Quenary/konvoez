@@ -1,4 +1,7 @@
-import type { TPushNotificationPayload } from '@konvoez/shared';
+import type {
+  TMentionRecipient,
+  TPushNotificationPayload,
+} from '@konvoez/shared';
 import { createDomainEventEmitter } from '@shared/events';
 
 export const NotificationsDomainEvents = {
@@ -20,7 +23,7 @@ export type IDirectMessageNotificationPayload = {
 };
 
 export type IMentionNotificationPayload = {
-  recipientIds: number[];
+  recipients: TMentionRecipient[];
   senderId: number;
   senderUsername: string;
   roomId: number;

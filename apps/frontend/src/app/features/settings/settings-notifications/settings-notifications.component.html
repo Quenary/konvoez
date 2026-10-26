@@ -7,52 +7,151 @@
     <h2 tuiTitle>
       <tui-icon [icon]="icons['settings-notifications']" />
       {{ 'SETTINGS.NOTIFICATIONS.TITLE' | translate }}
-      <span tuiSubtitle>
-        {{ 'SETTINGS.NOTIFICATIONS.SUBTITLE' | translate }}
-      </span>
     </h2>
   </header>
 
   <tui-scrollbar>
     <div class="scroll-content">
-      @if (serverKeyLoaded() && !serverAvailable()) {
-        <p class="setting-description">
-          {{ 'SETTINGS.NOTIFICATIONS.SERVER_DISABLED' | translate }}
-        </p>
+      @if (isSupported()) {
+        <div class="push-section">
+          @if (serverKeyLoaded() && !serverAvailable()) {
+            <p class="push-section-description">
+              {{ 'SETTINGS.NOTIFICATIONS.SERVER_DISABLED' | translate }}
+            </p>
+          }
+
+          <div class="setting-item">
+            <div class="status-row">
+              <span class="status-label">{{
+                'SETTINGS.NOTIFICATIONS.STATUS' | translate
+              }}</span>
+              <span
+                class="status-badge"
+                [class.enabled]="isEnabled()"
+                [class.disabled]="!isEnabled()">
+                {{
+                  (isEnabled() ? 'GENERAL.ENABLED' : 'GENERAL.DISABLED')
+                    | translate
+                }}
+              </span>
+            </div>
+          </div>
+
+          <div class="push-section-actions">
+            <button
+              tuiButton
+              type="button"
+              size="m"
+              [appearance]="isEnabled() ? 'accent' : 'primary'"
+              [disabled]="!canToggle()"
+              [loading]="isLoading()"
+              (click)="onToggle()">
+              {{
+                (isEnabled() ? 'GENERAL.DISABLE' : 'GENERAL.ENABLE') | translate
+              }}
+            </button>
+          </div>
+        </div>
       }
 
-      <div class="setting-item">
-        <div class="status-row">
-          <span class="status-label">{{
-            'SETTINGS.NOTIFICATIONS.STATUS' | translate
-          }}</span>
-          <span
-            class="status-badge"
-            [class.enabled]="isEnabled()"
-            [class.disabled]="!isEnabled()">
-            {{
-              (isEnabled() ? 'GENERAL.ENABLED' : 'GENERAL.DISABLED') | translate
-            }}
-          </span>
+      @if (settingsLoadFailed()) {
+        <div class="settings-load-error">
+          <p class="settings-load-error-message">
+            {{ 'SETTINGS.NOTIFICATIONS.LOAD_ERROR' | translate }}
+          </p>
+          <button
+            tuiButton
+            type="button"
+            size="s"
+            appearance="secondary"
+            (click)="loadSettings()">
+            {{ 'GENERAL.RETRY' | translate }}
+          </button>
         </div>
-      </div>
+      }
+
+      <fieldset
+        class="setting-group"
+        [disabled]="isSettingsLoading() || settingsLoadFailed()">
+        <legend tuiTitle>
+          {{ 'SETTINGS.NOTIFICATIONS.TOPICS_TITLE' | translate }}
+        </legend>
+
+        <div class="setting-item">
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().directMessages"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateDirectMessages($event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_MESSAGES' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_MESSAGES_DESC' | translate }}
+          </p>
+        </div>
+
+        <div class="setting-item">
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().directCalls"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateDirectCalls($event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_CALLS' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_CALLS_DESC' | translate }}
+          </p>
+        </div>
+
+        <div class="setting-item">
+          <span class="setting-item-subtitle">{{
+            'SETTINGS.NOTIFICATIONS.MENTIONS_TITLE' | translate
+          }}</span>
+
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().mentions.username"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateMention('username', $event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME_DESC' | translate }}
+          </p>
+
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().mentions.role"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateMention('role', $event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE_DESC' | translate }}
+          </p>
+
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().mentions.everyone"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateMention('everyone', $event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_EVERYONE' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_EVERYONE_DESC' | translate }}
+          </p>
+        </div>
+      </fieldset>
     </div>
   </tui-scrollbar>
-
-  <footer>
-    <button
-      tuiButton
-      type="button"
-      [appearance]="isEnabled() ? 'accent' : 'primary'"
-      [disabled]="!canToggle()"
-      [loading]="isLoading()"
-      (click)="onToggle()">
-      {{
-        (isEnabled()
-          ? 'SETTINGS.NOTIFICATIONS.DISABLE'
-          : 'SETTINGS.NOTIFICATIONS.ENABLE'
-        ) | translate
-      }}
-    </button>
-  </footer>
 </form>
