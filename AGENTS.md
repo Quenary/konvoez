@@ -69,3 +69,5 @@ These rules apply to every project, specs included.
 ## Checks
 
 After substantive edits, run the checks for the touched projects: tests, ESLint and Prettier. Commands and project names are in `docs/CONTRIBUTING.md` (Tests). Commit messages follow Conventional Commits with the project scope (see Commits and releases there).
+
+No AI attribution anywhere: commit messages, PR titles and descriptions must not contain `Co-authored-by` trailers, `@cursor` or other agent mentions, or "Generated with …" lines, and an AI tool is never listed as an author. The agent is an assistant; the human author is responsible for the change.
