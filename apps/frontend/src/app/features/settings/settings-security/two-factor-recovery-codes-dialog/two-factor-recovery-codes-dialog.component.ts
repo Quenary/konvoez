@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +15,7 @@ import {
   TuiIcon,
   TuiLabel,
 } from '@taiga-ui/core';
+import { DownloadService } from '@core/services/download.service';
 import { icons } from '@constants';
 
 export interface ITwoFactorRecoveryCodesDialogData {
@@ -35,10 +37,12 @@ export interface ITwoFactorRecoveryCodesDialogData {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TwoFactorRecoveryCodesDialogComponent {
-  protected readonly icons = icons;
   public readonly context =
     injectContext<TuiDialogContext<void, ITwoFactorRecoveryCodesDialogData>>();
 
+  private readonly downloadService = inject(DownloadService);
+
+  protected readonly icons = icons;
   protected readonly saved = signal(false);
   protected readonly codes = computed(
     () => this.context.data.recoveryCodes ?? [],
@@ -59,11 +63,10 @@ export class TwoFactorRecoveryCodesDialogComponent {
       type: 'text/plain;charset=utf-8',
     });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'konvoez-recovery-codes.txt';
-    link.click();
-    URL.revokeObjectURL(url);
+    this.downloadService.downloadUrl(url, 'konvoez-recovery-codes.txt');
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 5000);
   }
 
   protected onClose(): void {
