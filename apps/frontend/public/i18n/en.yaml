@@ -220,7 +220,6 @@ SETTINGS:
         COPY: Copy
         DOWNLOAD: Download .txt
         SAVED: I have saved these recovery codes in a safe place
-        CLOSE: Done
   INITIAL_SETUP:
     TITLE: Initial setup
     CONTINUE: Continue
@@ -426,7 +425,6 @@ AUTH:
     SEND_CODE: Send code
     CODE: Recovery code
     RESET: Reset password
-    BACK: Back
     CODE_SENT: If an account exists for this email, a recovery code has been sent
     SUCCESS: Password updated. You can sign in now
   TWO_FACTOR:
@@ -434,7 +432,6 @@ AUTH:
     SUBTITLE: Enter the 6-digit code from your authenticator app
     CODE: Two-factor code
     HINT_RECOVERY: You can also enter one of your 10-character recovery codes.
-    VERIFY: Verify
 EXTERNAL_LINK:
   TITLE: External link
   CONTENT: 'You are about to open an external link: {{ url }}'
