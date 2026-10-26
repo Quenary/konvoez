@@ -35,14 +35,21 @@ import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
 import { NotificationsDomainEvents } from './notifications.events';
 import { GetUserSafeDto } from '../users/users.dto';
-import { PushSubscriptionEntity } from './notifications.entity';
+import {
+  PushSubscriptionEntity,
+  UserNotificationSettingsEntity,
+} from './notifications.entity';
 import { NotificationsService } from './notifications.service';
+import { SettingsService } from '../settings/settings.service';
 import { VapidKeyStorageService } from './vapid-key-storage.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let subscriptionRepository: jest.Mocked<
     EntityRepository<PushSubscriptionEntity>
+  >;
+  let userSettingsRepository: jest.Mocked<
+    EntityRepository<UserNotificationSettingsEntity>
   >;
   let vapidKeyStorageService: jest.Mocked<
     Pick<
@@ -86,6 +93,7 @@ describe('NotificationsService', () => {
       getReference: jest.fn().mockImplementation((_entity, id) => ({ id })),
       fork: jest.fn(),
       getRepository: jest.fn(),
+      upsert: jest.fn().mockImplementation((_entity, data) => data),
     } as unknown as jest.Mocked<EntityManager>;
 
     subscriptionRepository = {
@@ -95,10 +103,22 @@ describe('NotificationsService', () => {
       create: jest.fn().mockImplementation((data) => data),
     } as unknown as jest.Mocked<EntityRepository<PushSubscriptionEntity>>;
 
+    userSettingsRepository = {
+      getEntityManager: jest.fn().mockReturnValue(em),
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockImplementation((data) => data),
+    } as unknown as jest.Mocked<
+      EntityRepository<UserNotificationSettingsEntity>
+    >;
+
     em.fork.mockReturnValue(em);
-    em.getRepository.mockReturnValue(
-      subscriptionRepository as unknown as EntityRepository<object>,
-    );
+    em.getRepository.mockImplementation((entity: unknown) => {
+      if (entity === UserNotificationSettingsEntity) {
+        return userSettingsRepository as unknown as EntityRepository<object>;
+      }
+      return subscriptionRepository as unknown as EntityRepository<object>;
+    });
 
     vapidKeyStorageService = {
       readVapidKeysFromDisk: jest.fn().mockReturnValue({
@@ -114,9 +134,10 @@ describe('NotificationsService', () => {
 
     service = new NotificationsService(
       subscriptionRepository,
+      userSettingsRepository,
       {
         getValue: jest.fn().mockResolvedValue('konvoez@invalid.email'),
-      } as unknown as any,
+      } as unknown as SettingsService,
       vapidKeyStorageService as unknown as VapidKeyStorageService,
       eventEmitter,
     );
@@ -659,6 +680,248 @@ describe('NotificationsService', () => {
       expect(loggerSpy).toHaveBeenCalledWith(
         'Failed to send mention push notification',
         error.stack,
+      );
+    });
+  });
+
+  describe('user notification settings', () => {
+    it('returns default settings when user has no stored settings', async () => {
+      userSettingsRepository.findOne.mockResolvedValue(null);
+
+      const settings = await service.getUserNotificationSettings(1);
+
+      expect(settings).toEqual({
+        directMessages: true,
+        directCalls: true,
+        mentions: {
+          username: true,
+          role: true,
+          everyone: true,
+        },
+      });
+    });
+
+    it('returns custom settings when stored in DB', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        id: 1,
+        directMessages: false,
+        directCalls: true,
+        mentionUsername: true,
+        mentionRole: false,
+        mentionEveryone: false,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const settings = await service.getUserNotificationSettings(1);
+
+      expect(settings).toEqual({
+        directMessages: false,
+        directCalls: true,
+        mentions: {
+          username: true,
+          role: false,
+          everyone: false,
+        },
+      });
+    });
+
+    it('creates new settings entity via upsert when updating for the first time', async () => {
+      userSettingsRepository.findOne.mockResolvedValue(null);
+
+      const updated = await service.updateUserNotificationSettings(mockUser, {
+        directMessages: false,
+        mentions: {
+          everyone: false,
+        },
+      });
+
+      expect(em.upsert).toHaveBeenCalledWith(
+        UserNotificationSettingsEntity,
+        expect.objectContaining({
+          directMessages: false,
+          directCalls: true,
+          mentionUsername: true,
+          mentionRole: true,
+          mentionEveryone: false,
+        }),
+        expect.objectContaining({
+          onConflictFields: ['user'],
+          onConflictAction: 'merge',
+          onConflictMergeFields: expect.arrayContaining([
+            'directMessages',
+            'mentionEveryone',
+            'updatedAt',
+          ]),
+        }),
+      );
+      expect(em.flush).toHaveBeenCalled();
+      expect(updated.directMessages).toBe(false);
+      expect(updated.mentions.everyone).toBe(false);
+    });
+
+    it('updates existing settings entity via upsert', async () => {
+      const existing = {
+        id: 1,
+        directMessages: true,
+        directCalls: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity;
+      userSettingsRepository.findOne.mockResolvedValue(existing);
+
+      const updated = await service.updateUserNotificationSettings(mockUser, {
+        directCalls: false,
+        mentions: {
+          role: false,
+        },
+      });
+
+      expect(em.upsert).toHaveBeenCalledWith(
+        UserNotificationSettingsEntity,
+        expect.objectContaining({
+          directMessages: true,
+          directCalls: false,
+          mentionUsername: true,
+          mentionRole: false,
+          mentionEveryone: true,
+        }),
+        expect.objectContaining({
+          onConflictFields: ['user'],
+          onConflictAction: 'merge',
+          onConflictMergeFields: expect.arrayContaining([
+            'directCalls',
+            'mentionRole',
+            'updatedAt',
+          ]),
+        }),
+      );
+      expect(em.flush).toHaveBeenCalled();
+      expect(updated.directCalls).toBe(false);
+      expect(updated.mentions.role).toBe(false);
+    });
+  });
+
+  describe('granular notification suppression', () => {
+    it('suppresses direct message notification when directMessages is false', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: false,
+        directCalls: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest.spyOn(service, 'deliver');
+
+      await service.sendDirectMessageNotification(
+        2,
+        1,
+        'alice',
+        'Hello',
+        'msg-1',
+      );
+
+      expect(deliverSpy).not.toHaveBeenCalled();
+    });
+
+    it('suppresses direct call notification when directCalls is false', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: false,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest.spyOn(service, 'deliver');
+
+      await service.sendDirectCallNotification(2, 1, 'alice', 'call-1');
+
+      expect(deliverSpy).not.toHaveBeenCalled();
+    });
+
+    it('filters mention recipients based on mention types and user settings', async () => {
+      userSettingsRepository.find.mockResolvedValue([
+        {
+          user: { id: 2 },
+          directMessages: true,
+          directCalls: true,
+          mentionUsername: true,
+          mentionRole: false,
+          mentionEveryone: false,
+        } as unknown as UserNotificationSettingsEntity,
+        {
+          user: { id: 3 },
+          directMessages: true,
+          directCalls: true,
+          mentionUsername: false,
+          mentionRole: true,
+          mentionEveryone: false,
+        } as unknown as UserNotificationSettingsEntity,
+      ]);
+
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendMentionNotification({
+        recipients: [
+          { userId: 2, types: ['everyone'] }, // user 2 disabled everyone -> should be filtered
+          { userId: 3, types: ['role'] }, // user 3 enabled role -> should be delivered
+        ],
+        recipientIds: [2, 3],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Hello everyone',
+      });
+
+      expect(deliverSpy).toHaveBeenCalledTimes(1);
+      expect(deliverSpy).toHaveBeenCalledWith(
+        3,
+        expect.objectContaining({
+          tag: 'mention:msg-1',
+        }),
+      );
+    });
+
+    it('delivers mention notification if user matches multiple types and at least one is enabled', async () => {
+      userSettingsRepository.find.mockResolvedValue([
+        {
+          user: { id: 2 },
+          directMessages: true,
+          directCalls: true,
+          mentionUsername: true,
+          mentionRole: false,
+          mentionEveryone: false,
+        } as unknown as UserNotificationSettingsEntity,
+      ]);
+
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendMentionNotification({
+        recipients: [
+          { userId: 2, types: ['everyone', 'username'] }, // username is enabled
+        ],
+        recipientIds: [2],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Hello @everyone and @bob',
+      });
+
+      expect(deliverSpy).toHaveBeenCalledTimes(1);
+      expect(deliverSpy).toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({
+          tag: 'mention:msg-1',
+        }),
       );
     });
   });

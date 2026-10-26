@@ -5,9 +5,12 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import webPush from 'web-push';
 import {
   ApiErrorCode,
+  DEFAULT_USER_NOTIFICATION_SETTINGS,
   ESettingKey,
   pushNotificationBodyMaxLength,
+  shouldDeliverMentionNotification,
   toVapidSubject,
+  type TUserNotificationSettings,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { htmlToPlainText } from '../../shared/utils/html-text.util';
@@ -24,8 +27,12 @@ import { UserEntity } from '../users/users.entity';
 import {
   PushNotificationPayloadDto,
   PushSubscriptionDto,
+  UpdateUserNotificationSettingsDto,
 } from './notifications.dto';
-import { PushSubscriptionEntity } from './notifications.entity';
+import {
+  PushSubscriptionEntity,
+  UserNotificationSettingsEntity,
+} from './notifications.entity';
 import { VapidKeyStorageService } from './vapid-key-storage.service';
 import {
   getBrowserName,
@@ -43,6 +50,8 @@ export class NotificationsService {
   constructor(
     @InjectRepository(PushSubscriptionEntity)
     private readonly subscriptionRepository: EntityRepository<PushSubscriptionEntity>,
+    @InjectRepository(UserNotificationSettingsEntity)
+    private readonly userSettingsRepository: EntityRepository<UserNotificationSettingsEntity>,
     private readonly settingsService: SettingsService,
     private readonly vapidKeyStorageService: VapidKeyStorageService,
     private readonly eventEmitter: EventEmitter2,
@@ -147,6 +156,123 @@ export class NotificationsService {
     });
   }
 
+  public toSettingsDto(
+    entity: UserNotificationSettingsEntity | null,
+  ): TUserNotificationSettings {
+    if (!entity) {
+      return { ...DEFAULT_USER_NOTIFICATION_SETTINGS };
+    }
+    return {
+      directMessages: entity.directMessages,
+      directCalls: entity.directCalls,
+      mentions: {
+        username: entity.mentionUsername,
+        role: entity.mentionRole,
+        everyone: entity.mentionEveryone,
+      },
+    };
+  }
+
+  public async getUserNotificationSettings(
+    userId: number,
+  ): Promise<TUserNotificationSettings> {
+    const em = this.em.fork();
+    const repo = em.getRepository(UserNotificationSettingsEntity);
+    const existing = await repo.findOne({ user: userId });
+    return this.toSettingsDto(existing);
+  }
+
+  public async getUserNotificationSettingsBatch(
+    userIds: number[],
+  ): Promise<Map<number, TUserNotificationSettings>> {
+    const result = new Map<number, TUserNotificationSettings>();
+    if (userIds.length === 0) {
+      return result;
+    }
+
+    const em = this.em.fork();
+    const repo = em.getRepository(UserNotificationSettingsEntity);
+    const rows = await repo.find(
+      { user: { $in: userIds } },
+      { populate: ['user'] },
+    );
+    const rowsByUserId = new Map<number, UserNotificationSettingsEntity>();
+    for (const row of rows) {
+      rowsByUserId.set(row.user.id, row);
+    }
+
+    for (const id of userIds) {
+      const row = rowsByUserId.get(id) ?? null;
+      result.set(id, this.toSettingsDto(row));
+    }
+
+    return result;
+  }
+
+  public async updateUserNotificationSettings(
+    user: GetUserSafeDto,
+    dto: UpdateUserNotificationSettingsDto,
+  ): Promise<TUserNotificationSettings> {
+    const em = this.em.fork();
+    const repo = em.getRepository(UserNotificationSettingsEntity);
+    const existing = await repo.findOne({ user: user.id });
+
+    const mergeFields: (keyof UserNotificationSettingsEntity & string)[] = [
+      'updatedAt',
+    ];
+    if (dto.directMessages !== undefined) {
+      mergeFields.push('directMessages');
+    }
+    if (dto.directCalls !== undefined) {
+      mergeFields.push('directCalls');
+    }
+    if (dto.mentions?.username !== undefined) {
+      mergeFields.push('mentionUsername');
+    }
+    if (dto.mentions?.role !== undefined) {
+      mergeFields.push('mentionRole');
+    }
+    if (dto.mentions?.everyone !== undefined) {
+      mergeFields.push('mentionEveryone');
+    }
+
+    const userRef = em.getReference(UserEntity, user.id);
+    const settings = await em.upsert(
+      UserNotificationSettingsEntity,
+      {
+        user: userRef,
+        directMessages:
+          dto.directMessages ??
+          existing?.directMessages ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.directMessages,
+        directCalls:
+          dto.directCalls ??
+          existing?.directCalls ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.directCalls,
+        mentionUsername:
+          dto.mentions?.username ??
+          existing?.mentionUsername ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.mentions.username,
+        mentionRole:
+          dto.mentions?.role ??
+          existing?.mentionRole ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.mentions.role,
+        mentionEveryone:
+          dto.mentions?.everyone ??
+          existing?.mentionEveryone ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.mentions.everyone,
+      },
+      {
+        onConflictFields: ['user'],
+        onConflictAction: 'merge',
+        onConflictMergeFields: mergeFields,
+      },
+    );
+
+    await em.flush();
+    return this.toSettingsDto(settings);
+  }
+
   public async deliver(
     userId: number,
     payload: PushNotificationPayloadDto,
@@ -242,6 +368,11 @@ export class NotificationsService {
     messagePreview: string,
     messageId: string,
   ): Promise<void> {
+    const settings = await this.getUserNotificationSettings(recipientId);
+    if (!settings.directMessages) {
+      return;
+    }
+
     const body = htmlToPlainText(messagePreview, pushNotificationBodyMaxLength);
     if (!body) {
       return;
@@ -274,6 +405,11 @@ export class NotificationsService {
     callerUsername: string,
     callId: string,
   ): Promise<void> {
+    const settings = await this.getUserNotificationSettings(recipientId);
+    if (!settings.directCalls) {
+      return;
+    }
+
     const url = `/direct/${callerId}`;
     await this.deliver(recipientId, {
       title: callerUsername,
@@ -302,7 +438,30 @@ export class NotificationsService {
       payload.messagePreview,
       pushNotificationBodyMaxLength,
     );
-    if (!body || payload.recipientIds.length === 0) {
+    if (!body) {
+      return;
+    }
+
+    const recipients =
+      payload.recipients ??
+      payload.recipientIds.map((id) => ({
+        userId: id,
+        types: ['username' as const],
+      }));
+    if (recipients.length === 0) {
+      return;
+    }
+
+    const settingsMap = await this.getUserNotificationSettingsBatch(
+      recipients.map((r) => r.userId),
+    );
+    const eligibleRecipients = recipients.filter((r) => {
+      const settings =
+        settingsMap.get(r.userId) ?? DEFAULT_USER_NOTIFICATION_SETTINGS;
+      return shouldDeliverMentionNotification(settings, r.types);
+    });
+
+    if (eligibleRecipients.length === 0) {
       return;
     }
 
@@ -310,8 +469,8 @@ export class NotificationsService {
     const url = `/text-room/${payload.roomId}?message=${payload.messageId}`;
 
     await Promise.allSettled(
-      payload.recipientIds.map((recipientId) =>
-        this.deliver(recipientId, {
+      eligibleRecipients.map((recipient) =>
+        this.deliver(recipient.userId, {
           title,
           body,
           tag: `mention:${payload.messageId}`,

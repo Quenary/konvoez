@@ -766,7 +766,7 @@ describe('TextRoomsService', () => {
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         NotificationsDomainEvents.MENTION,
-        {
+        expect.objectContaining({
           recipientIds: [2, 3],
           senderId: mockUser.id,
           senderUsername: mockUser.username,
@@ -774,7 +774,7 @@ describe('TextRoomsService', () => {
           roomName: 'general',
           messageId: result.id,
           messagePreview: 'Hey @user2 and @role5',
-        },
+        }),
       );
       expect(result.mentions).toEqual({
         userIds: [2],
@@ -1494,7 +1494,7 @@ describe('TextRoomsService', () => {
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         NotificationsDomainEvents.MENTION,
-        {
+        expect.objectContaining({
           recipientIds: [4],
           senderId: mockUser.id,
           senderUsername: mockUser.username,
@@ -1502,7 +1502,7 @@ describe('TextRoomsService', () => {
           roomName: 'general',
           messageId: result.id,
           messagePreview: 'Edited @user3 @everyone',
-        },
+        }),
       );
       expect(result.mentions).toEqual({
         userIds: [3],

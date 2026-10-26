@@ -26,7 +26,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Client UI kit, Lit primitives (`libs/ui-kit`) — `libs/ui-kit/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Client dialogs, desktop Lit dialogs (`libs/client-dialogs`) — `libs/client-dialogs/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
-- Feature behavior (rooms, mentions, attachments, reactions, chat reading, user management, password recovery, two-factor authentication) — the matching `docs/*.md`
+- Feature behavior (rooms, mentions, notifications, attachments, reactions, chat reading, user management, password recovery, two-factor authentication) — the matching `docs/*.md`
 - Networking, WebRTC ports, Docker — `docs/NETWORKING.md`
 
 General and cross-cutting docs live in `docs/`. App and library docs live beside the code. The root `README.md` is the product overview and doc index. Extend the matching doc above rather than duplicating long explanations in comments only.

@@ -23,3 +23,24 @@ export class PushSubscriptionEntity
   extends PushSubscriptionEntitySchema.class {}
 
 PushSubscriptionEntitySchema.setClass(PushSubscriptionEntity);
+
+export const UserNotificationSettingsEntitySchema = defineEntity({
+  name: 'UserNotificationSettingsEntity',
+  tableName: 'user_notification_settings',
+  extends: KonvoezBaseEntitySchema,
+  properties: {
+    id: p.integer().primary().autoincrement(),
+    user: () =>
+      p.manyToOne(UserEntitySchema).index().unique().deleteRule('cascade'),
+    directMessages: p.boolean().default(true),
+    directCalls: p.boolean().default(true),
+    mentionUsername: p.boolean().default(true),
+    mentionRole: p.boolean().default(true),
+    mentionEveryone: p.boolean().default(true),
+  },
+});
+
+export class UserNotificationSettingsEntity
+  extends UserNotificationSettingsEntitySchema.class {}
+
+UserNotificationSettingsEntitySchema.setClass(UserNotificationSettingsEntity);

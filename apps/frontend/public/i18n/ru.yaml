@@ -31,6 +31,8 @@ GENERAL:
   CONFIRM: Подтвердить
   ENABLED: Включено
   DISABLED: Отключено
+  ENABLE: Включить
+  DISABLE: Отключить
 CONNECTION:
   PROBLEMS: Проблемы с подключением
 PROFILE:
@@ -225,15 +227,25 @@ SETTINGS:
     CONTINUE: Продолжить
   NOTIFICATIONS:
     TITLE: Уведомления
-    SUBTITLE: Управление push-уведомлениями браузера
-    STATUS: Статус
-    ENABLE: Включить уведомления
-    DISABLE: Отключить уведомления
+    STATUS: Статус Push-уведомлений
     UNSUPPORTED: Этот браузер не поддерживает уведомления.
     PERMISSION_DENIED: Доступ не был предоставлен. Попробуйте ещё раз.
     ENABLE_ERROR: Не удалось включить уведомления. Попробуйте ещё раз.
     DISABLE_ERROR: Не удалось отключить уведомления. Попробуйте ещё раз.
     SERVER_DISABLED: Push-уведомления не настроены на этом сервере.
+    TOPICS_TITLE: Категории уведомлений
+    DIRECT_MESSAGES: Личные сообщения
+    DIRECT_MESSAGES_DESC: Уведомления о новых личных сообщениях
+    DIRECT_CALLS: Входящие звонки
+    DIRECT_CALLS_DESC: Уведомления о входящих прямых вызовах
+    MENTIONS_TITLE: Упоминания
+    MENTIONS_USERNAME: Личные упоминания
+    MENTIONS_USERNAME_DESC: Уведомления при упоминании вашего имени через @username
+    MENTIONS_ROLE: Упоминания ролей
+    MENTIONS_ROLE_DESC: Уведомления при упоминании одной из ваших ролей
+    MENTIONS_EVERYONE: 'Упоминания @everyone'
+    MENTIONS_EVERYONE_DESC: Уведомления при массовом упоминании всех участников
+    UPDATE_ERROR: Не удалось сохранить настройки уведомлений
   DEVICES:
     TITLE: Настройки устройств
     AUDIO_INPUT: Микрофон
