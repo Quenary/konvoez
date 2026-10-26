@@ -16,7 +16,7 @@ import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { GetRoomDto } from '../rooms/rooms.dto';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { RoleEntity } from '../roles/roles.entity';
 import { MessageEntity, MessageMentionEntity } from './text-rooms.entity';
 
@@ -34,7 +34,7 @@ export class MentionsService {
   ) {}
 
   async resolve(
-    author: GetUserDto,
+    author: GetUserSafeDto,
     room: RoomEntity | GetRoomDto,
     html: string,
   ): Promise<{
@@ -84,7 +84,7 @@ export class MentionsService {
       if (candidate.deletedAt !== null) {
         continue;
       }
-      const dto = await this.usersService.toDtoWithPermissions(candidate);
+      const dto = await this.usersService.toSafeDtoWithPermissions(candidate);
       if (dto.id !== author.id && this.roomsFacade.canAccessRoom(dto, room)) {
         recipientIdsSet.add(dto.id);
         if (parsed.userIds.includes(dto.id)) {

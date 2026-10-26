@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import {
   authLoginSchema,
+  authLoginTwoFactorSchema,
   authRegisterSchema,
   emailSchema,
   fullnameSchema,
@@ -12,6 +13,9 @@ import {
   roomTypeSchema,
   SCHEMA_ERROR,
   stringSchema,
+  twoFactorConfirmSchema,
+  twoFactorEnableSchema,
+  twoFactorSetupSchema,
   usernameSchema,
 } from '@konvoez/shared';
 
@@ -33,6 +37,11 @@ export const authLoginFormSchema = authLoginSchema.extend({
     error: 'VALIDATION.LOGIN',
   }),
 });
+
+export const authLoginTwoFactorFormSchema = authLoginTwoFactorSchema;
+export const twoFactorSetupFormSchema = twoFactorSetupSchema;
+export const twoFactorEnableFormSchema = twoFactorEnableSchema;
+export const twoFactorConfirmFormSchema = twoFactorConfirmSchema;
 
 export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;

@@ -3,7 +3,7 @@ import { inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
-import { ETextRoomEvent, ITextRoomMessage, IUser } from '@konvoez/shared';
+import { ETextRoomEvent, ITextRoomMessage, IUserSafe } from '@konvoez/shared';
 import {
   patchState,
   signalStore,
@@ -36,7 +36,7 @@ export const DirectChatsStore = signalStore(
     loading: false,
     loaded: false,
   }),
-  withEntities<IUser>(),
+  withEntities<IUserSafe>(),
   withMethods(
     (
       store,
@@ -64,7 +64,7 @@ export const DirectChatsStore = signalStore(
           });
         },
 
-        addOrUpdateChat(user: IUser): void {
+        addOrUpdateChat(user: IUserSafe): void {
           patchState(store, setEntity(user));
         },
 

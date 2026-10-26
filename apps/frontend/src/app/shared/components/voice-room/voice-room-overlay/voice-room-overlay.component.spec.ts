@@ -4,7 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Store } from '@ngrx/store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { TVoiceRoomTile } from '../voice-room-tiles';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -28,7 +28,7 @@ const stageTile = (
   previewPaused = false,
 ): TVoiceRoomTile => ({
   key: `${peerId}:${streamKind ?? 'voice'}`,
-  peer: { id: peerId, username: `u${peerId}` } as IUser,
+  peer: { id: peerId, username: `u${peerId}` } as IUserSafe,
   peerId,
   streamKind,
   videoTrack,
@@ -63,7 +63,7 @@ describe('VoiceRoomOverlayComponent', () => {
           provide: Store,
           useValue: {
             selectSignal: () =>
-              signal({ id: 1, username: 'me' } as IUser).asReadonly(),
+              signal({ id: 1, username: 'me' } as IUserSafe).asReadonly(),
           },
         },
         {

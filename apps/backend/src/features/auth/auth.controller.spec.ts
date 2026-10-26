@@ -23,7 +23,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthLoginDto } from './auth.dto';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import type { Request, Response } from 'express';
 
@@ -31,7 +31,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<AuthService>;
 
-  const mockUser: GetUserDto = {
+  const mockUser: GetUserFullDto = {
     id: 10,
     username: 'testuser',
     fullname: 'Test User',
@@ -44,6 +44,7 @@ describe('AuthController', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   let mockResponse: jest.Mocked<Partial<Response>>;
@@ -61,10 +62,14 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             validateUser: jest.fn(),
-            generateToken: jest.fn(),
+            signToken: jest.fn(),
             verifyToken: jest.fn(),
             resolveRefreshToken: jest.fn(),
             setAuthCookies: jest.fn(),
+            clearAuthCookies: jest.fn(),
+            startTwoFactorChallenge: jest.fn(),
+            completeTwoFactorLogin: jest.fn(),
+            clearTwoFactorPendingCookie: jest.fn(),
             getMe: jest.fn(),
             isOwnerSetupRequired: jest.fn(),
             register: jest.fn(),
@@ -83,7 +88,10 @@ describe('AuthController', () => {
         login: 'testuser',
         password: 'password123',
       };
-      authService.validateUser.mockResolvedValueOnce(mockUser);
+      authService.validateUser.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 0,
+      });
 
       const result = await controller.login(
         dto,
@@ -96,10 +104,79 @@ describe('AuthController', () => {
       );
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
+        0,
         mockResponse,
       );
 
       expect(result).toEqual(mockUser);
+    });
+
+    it('should start 2FA challenge and return twoFactorRequired without setting auth cookies when 2FA enabled', async () => {
+      const dto: AuthLoginDto = {
+        login: 'testuser',
+        password: 'password123',
+      };
+      authService.validateUser.mockResolvedValueOnce({
+        user: { ...mockUser, twoFactorEnabled: true },
+        sessionVersion: 0,
+      });
+
+      const result = await controller.login(
+        dto,
+        mockResponse as unknown as Response,
+      );
+
+      expect(authService.startTwoFactorChallenge).toHaveBeenCalledWith(
+        mockUser.id,
+        mockResponse,
+      );
+      expect(authService.setAuthCookies).not.toHaveBeenCalled();
+      expect(result).toEqual({ twoFactorRequired: true });
+    });
+  });
+
+  describe('loginTwoFactor', () => {
+    it('throws unauthorized when pending cookie is missing', async () => {
+      const req = { cookies: {} } as unknown as Request;
+      await expect(
+        controller.loginTwoFactor(
+          req,
+          { code: '123456' },
+          mockResponse as unknown as Response,
+        ),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('completes 2FA login, sets auth cookies, clears pending cookie, and returns user', async () => {
+      const req = {
+        cookies: { 'two-factor-token': 'pending_123' },
+      } as unknown as Request;
+      authService.completeTwoFactorLogin.mockResolvedValueOnce({
+        user: { ...mockUser, twoFactorEnabled: true },
+        sessionVersion: 2,
+      });
+
+      const result = await controller.loginTwoFactor(
+        req,
+        { code: '123456' },
+        mockResponse as unknown as Response,
+      );
+
+      expect(authService.completeTwoFactorLogin).toHaveBeenCalledWith(
+        'pending_123',
+        '123456',
+      );
+      expect(authService.setAuthCookies).toHaveBeenCalledWith(
+        mockUser.id,
+        2,
+        mockResponse,
+      );
+      expect(authService.clearTwoFactorPendingCookie).toHaveBeenCalledWith(
+        mockResponse,
+      );
+      expect(result).toEqual({ ...mockUser, twoFactorEnabled: true });
     });
   });
 
@@ -119,7 +196,10 @@ describe('AuthController', () => {
       const req = {
         cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
       } as unknown as Request;
-      authService.resolveRefreshToken.mockResolvedValueOnce(mockUser);
+      authService.resolveRefreshToken.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 1,
+      });
 
       const result = await controller.refresh(
         req,
@@ -131,6 +211,7 @@ describe('AuthController', () => {
       );
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
+        1,
         mockResponse,
       );
       expect(result).toEqual({ ok: true });
@@ -141,8 +222,7 @@ describe('AuthController', () => {
     it('should clear access and refresh cookies and return ok: true', () => {
       const result = controller.logout(mockResponse as unknown as Response);
 
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith(ACCESS_TOKEN_KEY);
-      expect(mockResponse.clearCookie).toHaveBeenCalledWith(REFRESH_TOKEN_KEY);
+      expect(authService.clearAuthCookies).toHaveBeenCalledWith(mockResponse);
       expect(result).toEqual({ ok: true });
     });
   });

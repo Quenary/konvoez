@@ -23,11 +23,15 @@ import {
 import { AppException } from '@shared/errors/app.exception';
 import { toApiErrorResponse } from '@shared/errors/to-api-error';
 import { TextRoomJoinDto } from './text-rooms.dto';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 import {
   TextRoomsDomainEvents,
   type TTextRoomsDomainPayloadMap,
 } from './text-rooms.events';
+import {
+  UsersDomainEvents,
+  type TUsersDomainPayloadMap,
+} from '../users/users.events';
 
 import { RoomsFacade } from '../rooms/rooms.facade';
 
@@ -133,7 +137,7 @@ export class TextRoomsGateway
       return;
     }
 
-    let fresh: GetUserDto;
+    let fresh: GetUserSafeDto;
     try {
       fresh = await this.authService.getActiveUserById(current.id);
     } catch (error) {
@@ -161,11 +165,6 @@ export class TextRoomsGateway
     this.logger.debug(
       `handleJoin: socketId=${client.id}, userId=${peer.id}, roomId=${roomId}, recipientId=${recipientId}`,
     );
-  }
-
-  private emitError(client: TSocket, exception: unknown): void {
-    const { body } = toApiErrorResponse(exception);
-    client.emit(ETextRoomEvent.ERROR, body);
   }
 
   @SubscribeMessage(ETextRoomEvent.LEAVE)
@@ -314,5 +313,22 @@ export class TextRoomsGateway
     return this.server
       .to(String(payload.userId))
       .emit(ETextRoomEvent.UNREAD_COUNTS_CHANGED, payload.counts);
+  }
+
+  @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)
+  async onUserSessionsRevoked(
+    payload: TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_SESSIONS_REVOKED],
+  ): Promise<void> {
+    const sockets = await this.server.fetchSockets();
+    for (const socket of sockets) {
+      if (socket.data.peer?.id === payload.id) {
+        socket.disconnect(true);
+      }
+    }
+  }
+
+  private emitError(client: TSocket, exception: unknown): void {
+    const { body } = toApiErrorResponse(exception);
+    client.emit(ETextRoomEvent.ERROR, body);
   }
 }

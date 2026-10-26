@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,11 +9,10 @@ describe('UserDialogService', () => {
   let service: UserDialogService;
   let dialogService: { open: ReturnType<typeof vi.fn> };
 
-  const user: IUser = {
+  const user: IUserSafe = {
     id: 42,
     username: 'alice',
     fullname: 'Alice Example',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -22,7 +21,7 @@ describe('UserDialogService', () => {
     updatedAt: null,
   };
 
-  const me: IUser = {
+  const me: IUserSafe = {
     ...user,
     id: 1,
     username: 'me',

@@ -1,5 +1,5 @@
 import { Directive, input, inject } from '@angular/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 
 @Directive({
@@ -13,7 +13,7 @@ export class WithUserDialogDirective {
   private readonly userDialogService = inject(UserDialogService);
 
   public readonly appWithUserDialog = input.required<
-    IUser | null | undefined
+    IUserSafe | null | undefined
   >();
 
   protected openDialog(): void {

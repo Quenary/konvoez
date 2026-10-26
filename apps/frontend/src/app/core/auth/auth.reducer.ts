@@ -1,16 +1,18 @@
 import { createReducer, on } from '@ngrx/store';
 import { AuthActions } from './auth.actions';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 
 export interface IAuthState {
   init: boolean;
   loading: boolean;
-  user: IUser | null;
+  twoFactorPending: boolean;
+  user: IUserFull | null;
 }
 
 export const initialState: IAuthState = {
   init: false,
   loading: false,
+  twoFactorPending: false,
   user: null,
 };
 
@@ -25,16 +27,48 @@ export const authReducer = createReducer(
   on(AuthActions.requestLogin, (state) => ({
     ...state,
     loading: true,
+    twoFactorPending: false,
   })),
   on(AuthActions.requestLoginSuccess, (state, payload) => ({
     ...state,
     loading: false,
+    twoFactorPending: false,
     user: payload.user,
   })),
   on(AuthActions.requestLoginError, (state) => ({
     ...state,
     loading: false,
+    twoFactorPending: false,
     user: null,
+  })),
+  // Two-factor login
+  on(AuthActions.requestLoginTwoFactorRequired, (state) => ({
+    ...state,
+    loading: false,
+    twoFactorPending: true,
+  })),
+  on(AuthActions.requestLoginTwoFactor, (state) => ({
+    ...state,
+    loading: true,
+  })),
+  on(AuthActions.requestLoginTwoFactorSuccess, (state, payload) => ({
+    ...state,
+    loading: false,
+    twoFactorPending: false,
+    user: payload.user,
+  })),
+  on(AuthActions.requestLoginTwoFactorError, (state, { error }) => ({
+    ...state,
+    loading: false,
+    twoFactorPending: error.status === 401 ? false : state.twoFactorPending,
+  })),
+  on(AuthActions.cancelLoginTwoFactor, (state) => ({
+    ...state,
+    twoFactorPending: false,
+  })),
+  on(AuthActions.setTwoFactorEnabled, (state, { enabled }) => ({
+    ...state,
+    user: state.user ? { ...state.user, twoFactorEnabled: enabled } : null,
   })),
   // Logout
   on(AuthActions.requestLogout, (state) => ({
@@ -48,6 +82,7 @@ export const authReducer = createReducer(
     (state) => ({
       ...state,
       loading: false,
+      twoFactorPending: false,
       user: null,
     }),
   ),

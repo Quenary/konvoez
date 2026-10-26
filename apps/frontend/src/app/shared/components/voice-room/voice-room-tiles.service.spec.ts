@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -10,8 +10,8 @@ import { VoiceRoomTilesService } from './voice-room-tiles.service';
 import { VoiceRoomViewService } from './voice-room-view.service';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
 
-const user = (id: number): IUser =>
-  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
+const user = (id: number): IUserSafe =>
+  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUserSafe;
 
 describe('VoiceRoomTilesService', () => {
   beforeEach(() => {

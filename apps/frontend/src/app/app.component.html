@@ -48,6 +48,14 @@
                 <button
                   tuiAsideItem
                   type="button"
+                  [iconStart]="icons['settings-security']"
+                  [routerLink]="'/settings/security'">
+                  {{ 'MENU.SETTINGS.SECURITY' | translate }}
+                </button>
+
+                <button
+                  tuiAsideItem
+                  type="button"
                   [iconStart]="icons['settings-devices']"
                   [routerLink]="'/settings/devices'">
                   {{ 'MENU.SETTINGS.DEVICES' | translate }}

@@ -11,7 +11,7 @@ import {
   isMessageMentioningUser,
   ITextRoomMessage,
   ITextRoomUnreadCounts,
-  IUser,
+  IUserSafe,
 } from '@konvoez/shared';
 import {
   patchState,
@@ -144,7 +144,7 @@ export const UnreadCountsStore = signalStore(
 
       handleNewMessage(
         message: ITextRoomMessage,
-        currentUser: Pick<IUser, 'id' | 'roles'> | number,
+        currentUser: Pick<IUserSafe, 'id' | 'roles'> | number,
       ): void {
         const userObj =
           typeof currentUser === 'number'

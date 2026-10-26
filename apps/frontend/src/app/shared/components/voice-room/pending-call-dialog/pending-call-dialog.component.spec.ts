@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PendingCallDialogComponent } from './pending-call-dialog.component';
@@ -10,19 +10,18 @@ const interlocutor = {
   id: 2,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 describe('PendingCallDialogComponent', () => {
   let fixture: ComponentFixture<PendingCallDialogComponent>;
   let isRinging: ReturnType<typeof signal<boolean>>;
-  let interlocutorSignal: ReturnType<typeof signal<IUser | null>>;
+  let interlocutorSignal: ReturnType<typeof signal<IUserSafe | null>>;
   let isInGroupRoom: ReturnType<typeof signal<boolean>>;
   let activeCall: ReturnType<typeof signal<{ isCaller: boolean } | null>>;
   let acceptCall: ReturnType<typeof vi.fn>;
@@ -31,7 +30,7 @@ describe('PendingCallDialogComponent', () => {
 
   beforeEach(async () => {
     isRinging = signal(false);
-    interlocutorSignal = signal<IUser | null>(null);
+    interlocutorSignal = signal<IUserSafe | null>(null);
     isInGroupRoom = signal(false);
     activeCall = signal(null);
     acceptCall = vi.fn();

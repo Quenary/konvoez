@@ -17,7 +17,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { Author, RequirePermissions } from '../auth/auth.decorator';
 import { InvitesService } from './invites.service';
 import { InviteCreateDto, InviteDto } from './invites.dto';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 
 @ApiTags('invites')
 @Controller('invites')
@@ -43,7 +43,7 @@ export class InvitesController {
   })
   async create(
     @Body() dto: InviteCreateDto,
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
   ): Promise<InviteDto> {
     return await this.invitesService.create(dto, author);
   }

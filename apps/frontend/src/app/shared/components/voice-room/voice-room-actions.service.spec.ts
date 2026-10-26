@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -13,8 +13,8 @@ import { VoiceRoomTilesService } from './voice-room-tiles.service';
 import { VoiceRoomViewService } from './voice-room-view.service';
 import type { TVoiceRoomTile } from './voice-room-tiles';
 
-const user = (id: number): IUser =>
-  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
+const user = (id: number): IUserSafe =>
+  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUserSafe;
 
 const tile = (
   peerId: number,

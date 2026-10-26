@@ -5,7 +5,13 @@
   [class.strip-right]="stripRight()"
   [class.strip-bottom]="!stripRight()">
   <div class="stage-cell">
-    <div class="stage">
+    <div
+      class="stage"
+      role="button"
+      tabindex="0"
+      (click)="onStageClick()"
+      (keydown.enter)="onStageClick()"
+      (keydown.space)="$event.preventDefault(); onStageClick()">
       @if (videoTrack()) {
         <video
           class="stage-video"

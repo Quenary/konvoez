@@ -38,7 +38,7 @@ import {
 } from '@mikro-orm/core';
 import { parse, v7, stringify as uuidStringify } from 'uuid';
 import { ConflictException } from '@nestjs/common';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import {
   ApiErrorCode,
@@ -79,11 +79,10 @@ describe('TextRoomsService', () => {
   };
   let settingsService: { getValue: jest.Mock };
 
-  const mockUser: GetUserDto = {
+  const mockUser: GetUserSafeDto = {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    email: 'test@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
@@ -164,7 +163,7 @@ describe('TextRoomsService', () => {
 
     usersService = {
       findOne: jest.fn(),
-      toDto: jest.fn(),
+      toSafeDto: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
     roomsFacade = {
@@ -1714,12 +1713,12 @@ describe('TextRoomsService', () => {
       ] as unknown as MessageEntity[];
 
       messageRepository.find.mockResolvedValue(messages);
-      usersService.toDto.mockImplementation(
+      usersService.toSafeDto.mockImplementation(
         (u) =>
           ({
             id: u.id,
             username: u.username,
-          }) as unknown as GetUserDto,
+          }) as unknown as GetUserSafeDto,
       );
 
       const result = await service.getDirectChats(mockUser);
@@ -2217,10 +2216,10 @@ describe('TextRoomsService', () => {
       messageReadRepository.find.mockResolvedValue([
         { reader } as unknown as MessageReadEntity,
       ]);
-      usersService.toDto.mockReturnValue({
+      usersService.toSafeDto.mockReturnValue({
         id: 2,
         username: 'bob',
-      } as unknown as GetUserDto);
+      } as unknown as GetUserSafeDto);
 
       const result = await service.getReaders(mockUser, msgId);
 

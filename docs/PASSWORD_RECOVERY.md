@@ -29,4 +29,6 @@ sequenceDiagram
 - **Hashed codes**: only the Argon2id hash is stored; the plaintext exists only in the email.
 - **Single use**: a new request invalidates earlier unused codes, and a used code cannot be reused.
 - **Rate limit**: about a 60-second cooldown per email for requests.
+- **Session invalidation**: confirming a password reset signs out all active sessions.
+- **Two-factor authentication**: resetting a password does not disable or bypass 2FA; logging in after a reset still requires a TOTP or recovery code if 2FA is enabled (see [Two-factor authentication](TWO_FACTOR.md)).
 - **Deleted accounts** cannot recover a password (see [User management](USER_MANAGEMENT.md)).

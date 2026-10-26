@@ -10,7 +10,8 @@ import { roleSummarySchema } from './role.schemas';
 
 export const userRoleSchema = z.enum(EUserRole);
 
-export const userSchema = baseEntitySchema.extend({
+/** Complete user (includes email). Self/admin only. */
+export const userFullSchema = baseEntitySchema.extend({
   id: z.number().int(),
   username: usernameSchema,
   fullname: fullnameSchema,
@@ -22,11 +23,20 @@ export const userSchema = baseEntitySchema.extend({
   avatar: stringSchema.nullish(),
   avatarUrl: stringSchema.nullish(),
   deletedAt: z.coerce.date().nullish(),
+  twoFactorEnabled: z.boolean().default(false),
 });
 
-export type IUser = z.infer<typeof userSchema>;
+export type IUserFull = z.infer<typeof userFullSchema>;
 
-export const userBriefSchema = userSchema.pick({
+/** Public user for general API/sockets/sync. Omit PII from full. */
+export const userSafeSchema = userFullSchema.omit({
+  email: true,
+  twoFactorEnabled: true,
+});
+
+export type IUserSafe = z.infer<typeof userSafeSchema>;
+
+export const userBriefSchema = userFullSchema.pick({
   id: true,
   username: true,
   fullname: true,

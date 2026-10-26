@@ -1,4 +1,4 @@
-import { EVoiceRoomEvent } from '@konvoez/shared';
+import { EVoiceQualityTier, EVoiceRoomEvent } from '@konvoez/shared';
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +13,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { AudioService } from './audio.service';
 import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
+import { VoiceQualityService } from './voice-quality.service';
 
 describe('MediasoupSessionService', () => {
   let service: MediasoupSessionService;
@@ -24,6 +25,12 @@ describe('MediasoupSessionService', () => {
   let emitWithAck: ReturnType<typeof vi.fn>;
   let socketTimeout: ReturnType<typeof vi.fn>;
   let releaseScreen: ReturnType<typeof vi.fn>;
+  let socketOn: ReturnType<typeof vi.fn>;
+  let socketOff: ReturnType<typeof vi.fn>;
+  let voiceQualityService: {
+    start: ReturnType<typeof vi.fn>;
+    stop: ReturnType<typeof vi.fn>;
+  };
   let audioService: {
     playStreamStartAudio: ReturnType<typeof vi.fn>;
     playStreamStopAudio: ReturnType<typeof vi.fn>;
@@ -38,6 +45,12 @@ describe('MediasoupSessionService', () => {
     emitWithAck = vi.fn().mockResolvedValue({});
     socketTimeout = vi.fn().mockReturnValue({ emitWithAck });
     releaseScreen = vi.fn();
+    socketOn = vi.fn();
+    socketOff = vi.fn();
+    voiceQualityService = {
+      start: vi.fn(),
+      stop: vi.fn(),
+    };
     audioService = {
       playStreamStartAudio: vi.fn(),
       playStreamStopAudio: vi.fn(),
@@ -54,10 +67,16 @@ describe('MediasoupSessionService', () => {
           useValue: audioService,
         },
         {
+          provide: VoiceQualityService,
+          useValue: voiceQualityService,
+        },
+        {
           provide: VoiceRoomSocketToken,
           useValue: {
             emitWithAck,
             timeout: socketTimeout,
+            on: socketOn,
+            off: socketOff,
           },
         },
         {
@@ -114,6 +133,7 @@ describe('MediasoupSessionService', () => {
           provide: SettingsStore,
           useValue: {
             iceServers: vi.fn().mockReturnValue([]),
+            voiceMaxBitrateKbps: vi.fn().mockReturnValue(64),
           },
         },
       ],
@@ -661,6 +681,184 @@ describe('MediasoupSessionService', () => {
     trackEndedHandler?.();
     await vi.waitFor(() => {
       expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('produces microphone with Opus codecOptions and starts VoiceQualityService', async () => {
+    const track = {
+      enabled: true,
+      muted: false,
+      readyState: 'live',
+    } as MediaStreamTrack;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'mic-prod-1',
+      track,
+      on: vi.fn(),
+      closed: false,
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    getStream.mockResolvedValue({
+      getAudioTracks: () => [track],
+    });
+
+    await service.produceMicrophone();
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appData: { mediaTag: 'mic' },
+        codecOptions: {
+          opusStereo: false,
+          opusFec: true,
+          opusDtx: true,
+          opusMaxPlaybackRate: 48000,
+          opusMaxAverageBitrate: 64000,
+          opusPtime: 20,
+        },
+        encodings: [
+          {
+            priority: 'high',
+            networkPriority: 'high',
+          },
+        ],
+      }),
+    );
+    expect(voiceQualityService.start).toHaveBeenCalledTimes(1);
+    expect(voiceQualityService.start).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tier: EVoiceQualityTier.EXCELLENT,
+          kbps: 64,
+        }),
+      ]),
+      expect.objectContaining({
+        readSample: expect.any(Function),
+        applyQualityLevel: expect.any(Function),
+      }),
+    );
+  });
+
+  it('stops VoiceQualityService on cleanup', () => {
+    service.cleanup();
+    expect(voiceQualityService.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops VoiceQualityService if produceMicrophone fails', async () => {
+    service['sendTransport'] = {
+      produce: vi.fn().mockRejectedValue(new Error('produce failed')),
+      closed: false,
+    } as never;
+    getStream.mockResolvedValue({
+      getAudioTracks: () => [
+        { enabled: true, muted: false, readyState: 'live' },
+      ],
+    });
+
+    await service.produceMicrophone();
+
+    expect(voiceQualityService.stop).toHaveBeenCalled();
+  });
+
+  it('applies quality levels to audio and video producers', async () => {
+    const setMicEncoding = vi.fn().mockResolvedValue(undefined);
+    const setCamEncoding = vi.fn().mockResolvedValue(undefined);
+    const camPause = vi.fn();
+    const camResume = vi.fn();
+
+    const micProducer = {
+      id: 'mic-1',
+      closed: false,
+      setRtpEncodingParameters: setMicEncoding,
+    };
+    const camProducer = {
+      id: 'cam-1',
+      closed: false,
+      paused: false,
+      pause: camPause,
+      resume: camResume,
+      setRtpEncodingParameters: setCamEncoding,
+    };
+
+    service['microphoneProducer'] = micProducer as never;
+    service['cameraProducer'] = camProducer as never;
+
+    // Apply Tier 1 (GOOD, 40 kbps, 1.2M video cap)
+    await service.applyQualityLevel({
+      tier: EVoiceQualityTier.GOOD,
+      kbps: 40,
+    });
+    expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 40000 });
+    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: 1200000 });
+    expect(camPause).not.toHaveBeenCalled();
+
+    // Apply Tier 2 (UNSTABLE, 24 kbps, 400k video cap)
+    await service.applyQualityLevel({
+      tier: EVoiceQualityTier.UNSTABLE,
+      kbps: 24,
+    });
+    expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 24000 });
+    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: 400000 });
+    expect(camPause).not.toHaveBeenCalled();
+
+    // Apply Tier 3 (BAD / POOR, 16 kbps -> pause video)
+    await service.applyQualityLevel({
+      tier: EVoiceQualityTier.BAD,
+      kbps: 16,
+    });
+    expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 16000 });
+    expect(camPause).toHaveBeenCalledTimes(1);
+    camProducer.paused = true;
+
+    // Recover to Tier 0 (EXCELLENT, 64 kbps -> resume video and clear cap)
+    await service.applyQualityLevel({
+      tier: EVoiceQualityTier.EXCELLENT,
+      kbps: 64,
+    });
+    expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 64000 });
+    expect(camResume).toHaveBeenCalledTimes(1);
+    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: undefined });
+  });
+
+  it('reads quality sample from mic producer stats and producer score', async () => {
+    const statsMap = new Map<string, Record<string, unknown>>([
+      [
+        'remote-rtp-1',
+        {
+          type: 'remote-inbound-rtp',
+          fractionLost: 0.05,
+          roundTripTime: 0.12,
+          jitter: 0.03,
+        },
+      ],
+    ]);
+
+    const micProducer = {
+      id: 'mic-1',
+      closed: false,
+      getStats: vi.fn().mockResolvedValue(statsMap),
+    };
+    service['microphoneProducer'] = micProducer as never;
+
+    // Find the PRODUCER_SCORE listener passed to socket.on
+    const scoreCall = socketOn.mock.calls.find(
+      (call) => call[0] === EVoiceRoomEvent.PRODUCER_SCORE,
+    );
+    expect(scoreCall).toBeDefined();
+    const scoreListener = scoreCall?.[1];
+
+    // Emit score for different producer -> ignored
+    scoreListener({ producerId: 'other-id', score: 5 });
+    let sample = await service.readQualitySample();
+    expect(sample.score).toBeNull();
+
+    // Emit score for active mic producer -> updated
+    scoreListener({ producerId: 'mic-1', score: 8 });
+    sample = await service.readQualitySample();
+
+    expect(sample).toEqual({
+      score: 8,
+      loss: 5,
+      rttMs: 120,
+      jitterMs: 30,
     });
   });
 });

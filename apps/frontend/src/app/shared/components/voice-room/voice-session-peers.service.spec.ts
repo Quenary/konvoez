@@ -1,28 +1,27 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { VoiceSessionPeersService } from './voice-session-peers.service';
 
-const user = (id: number, username: string): IUser =>
+const user = (id: number, username: string): IUserSafe =>
   ({
     id,
     username,
     fullname: username,
-    email: `${username}@example.com`,
     isOwner: false,
     roles: [],
     permissions: [],
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  }) as IUser;
+  }) as IUserSafe;
 
 describe('VoiceSessionPeersService', () => {
-  const me = signal<IUser | null>(user(1, 'me'));
-  const remotePeers = signal<IUser[]>([]);
+  const me = signal<IUserSafe | null>(user(1, 'me'));
+  const remotePeers = signal<IUserSafe[]>([]);
   const activeSession = signal<
     | { type: EVoiceSessionType.GROUP_ROOM; roomId: number }
     | {

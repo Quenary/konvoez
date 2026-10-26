@@ -1,6 +1,6 @@
 import { ApiErrorCode, ERoomType } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { GetRoomDto } from './rooms.dto';
 import { RoomEntity } from './rooms.entity';
 import { RoomsFacade } from './rooms.facade';
@@ -10,11 +10,10 @@ describe('RoomsFacade', () => {
   let facade: RoomsFacade;
   let roomsService: jest.Mocked<RoomsService>;
 
-  const mockUser: GetUserDto = {
+  const mockUser: GetUserSafeDto = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Tester',
-    email: 'alice@example.com',
     isOwner: false,
     permissions: [],
     avatar: null,
@@ -56,9 +55,9 @@ describe('RoomsFacade', () => {
     roomsService = {
       canAccessRoom: jest.fn(),
       findOne: jest.fn(),
-      findOneAsDto: jest.fn(),
+      findOneAsSafeDto: jest.fn(),
       findAll: jest.fn(),
-      findAllAsDto: jest.fn(),
+      findAllAsSafeDto: jest.fn(),
       findPrivateRooms: jest.fn(),
       deleteRoomsByAuthor: jest.fn(),
       findAvatarKeys: jest.fn(),
@@ -156,22 +155,22 @@ describe('RoomsFacade', () => {
   });
 
   describe('findById and findAll', () => {
-    it('should delegate findById to roomsService.findOneAsDto', async () => {
-      roomsService.findOneAsDto.mockResolvedValue(mockRoomDto);
+    it('should delegate findById to roomsService.findOneAsSafeDto', async () => {
+      roomsService.findOneAsSafeDto.mockResolvedValue(mockRoomDto);
 
       const result = await facade.findById(10, mockUser);
 
       expect(result).toBe(mockRoomDto);
-      expect(roomsService.findOneAsDto).toHaveBeenCalledWith(10, mockUser);
+      expect(roomsService.findOneAsSafeDto).toHaveBeenCalledWith(10, mockUser);
     });
 
-    it('should delegate findAll to roomsService.findAllAsDto', async () => {
-      roomsService.findAllAsDto.mockResolvedValue([mockRoomDto]);
+    it('should delegate findAll to roomsService.findAllAsSafeDto', async () => {
+      roomsService.findAllAsSafeDto.mockResolvedValue([mockRoomDto]);
 
       const result = await facade.findAll(mockUser);
 
       expect(result).toEqual([mockRoomDto]);
-      expect(roomsService.findAllAsDto).toHaveBeenCalledWith(mockUser);
+      expect(roomsService.findAllAsSafeDto).toHaveBeenCalledWith(mockUser);
     });
 
     it('should delegate findPrivateRooms to roomsService.findPrivateRooms', async () => {

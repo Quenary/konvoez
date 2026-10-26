@@ -33,7 +33,7 @@ import { AttachmentsService } from './attachments.service';
 import { sanitizeAttachmentName } from './attachments.http';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { EUserRole } from '@konvoez/shared';
 
 describe('sanitizeAttachmentName', () => {
@@ -55,11 +55,10 @@ describe('sanitizeAttachmentName', () => {
 });
 
 describe('AttachmentsService', () => {
-  const author: GetUserDto = {
+  const author: GetUserSafeDto = {
     id: 1,
     username: 'author',
     fullname: 'Author',
-    email: 'author@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
@@ -68,7 +67,7 @@ describe('AttachmentsService', () => {
     createdAt: new Date(),
     updatedAt: null,
   };
-  const outsider: GetUserDto = { ...author, id: 2, username: 'other' };
+  const outsider: GetUserSafeDto = { ...author, id: 2, username: 'other' };
 
   let repo: {
     getEntityManager: jest.Mock;

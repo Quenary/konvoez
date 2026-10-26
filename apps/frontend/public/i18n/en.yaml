@@ -25,6 +25,12 @@ GENERAL:
   CLOSE: Close
   MORE: More
   REFRESH: Refresh
+  NEXT: Next
+  SHOW: Show
+  HIDE: Hide
+  CONFIRM: Confirm
+  ENABLED: Enabled
+  DISABLED: Disabled
 CONNECTION:
   PROBLEMS: Connection problems
 PROFILE:
@@ -50,6 +56,7 @@ MENU:
   SETTINGS:
     TITLE: Settings
     PROFILE: Profile
+    SECURITY: Security
     DEVICES: Devices
     NOTIFICATIONS: Notifications
     INVITES: Invites
@@ -98,6 +105,11 @@ CALL:
   VIDEO_LIMIT_REACHED: Room video limit reached
   WAITING_FOR_CONNECTION: Waiting for connection…
   PARTICIPANTS: '{{count}} participants'
+  QUALITY:
+    LEVEL_0: 'Connection: excellent. Voice bitrate: {{kbps}} kbps'
+    LEVEL_1: 'Connection: good. Voice bitrate reduced to {{kbps}} kbps'
+    LEVEL_2: 'Connection: unstable. Voice bitrate reduced to {{kbps}} kbps, video restricted'
+    LEVEL_3: 'Connection: bad. Voice bitrate: {{kbps}} kbps, video paused'
   YOU: You
   VOLUME: Volume
   MUTE_MICROPHONE: Mute microphone
@@ -189,6 +201,25 @@ SETTINGS:
   PROFILE:
     TITLE: Profile settings
     DELETE: Delete account
+  SECURITY:
+    TITLE: Security
+    TWO_FACTOR:
+      TITLE: Two-factor authentication (TOTP)
+      DESCRIPTION: Protect your account with a time-based one-time password (TOTP) from an authenticator app (such as Ente Auth, Authy, Aegis).
+      ENABLE: Enable 2FA
+      DISABLE: Disable 2FA
+      REGENERATE: Regenerate recovery codes
+      SETUP:
+        STEP_PASSWORD: Enter your current password to start two-factor authentication setup.
+        STEP_SCAN: 'Scan this QR code with your authenticator app, or enter the secret key manually:'
+        SECRET: Secret key
+        CODE: 6-digit verification code
+      RECOVERY:
+        TITLE: Recovery codes
+        DESCRIPTION: Save these recovery codes in a secure place. If you lose access to your authenticator app, each code can be used once to sign in to your account.
+        COPY: Copy
+        DOWNLOAD: Download .txt
+        SAVED: I have saved these recovery codes in a safe place
   INITIAL_SETUP:
     TITLE: Initial setup
     CONTINUE: Continue
@@ -196,8 +227,6 @@ SETTINGS:
     TITLE: Notifications
     SUBTITLE: Manage browser push notifications
     STATUS: Status
-    ENABLED: Enabled
-    DISABLED: Disabled
     ENABLE: Enable notifications
     DISABLE: Disable notifications
     UNSUPPORTED: This browser does not support notifications.
@@ -282,6 +311,9 @@ SETTINGS:
     OWNER_BADGE: Owner
     NO_ROLES_ASSIGNED: No assigned roles
     ASSIGNED_ROLES: Assigned roles
+    TWO_FACTOR: Two-factor authentication
+    TWO_FACTOR_RESET: Reset 2FA
+    TWO_FACTOR_RESET_CONFIRM: Are you sure you want to reset two-factor authentication for this user? All of their active sessions will be terminated.
   ROLES:
     TITLE: Roles
     SUBTITLE: Manage roles, permissions and room access
@@ -339,6 +371,9 @@ SETTINGS:
     ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC: How many files one message may include (1–10)
     ATTACHMENTS_STRIP_IMAGE_METADATA: Strip image metadata
     ATTACHMENTS_STRIP_IMAGE_METADATA_DESC: Off by default, so recipients download the exact original. Applies only to new uploads; existing files are not changed.
+    VOICE: Voice
+    VOICE_MAX_BITRATE: Voice bitrate (kbps)
+    VOICE_MAX_BITRATE_DESC: 'Base (maximum) microphone bitrate, from 8 to 384, defaults to 64. Server outbound load is bitrate × listeners: at 64 kbps and 9 listeners, this is about 0.6 Mbps per speaker. Applies to new connections; open clients pick up the value upon reloading the app.'
     SAVED_SUCCESS: Settings saved successfully
 USER_DELETE:
   TITLE: Account deletion
@@ -348,6 +383,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  VOICE_MAX_BITRATE_RANGE: Voice bitrate must be between 8 and 384 kbps
   LOGIN: Enter a valid username or email
   FILE_TOO_BIG: File is too big
   STRING: Value must be a string
@@ -389,9 +425,13 @@ AUTH:
     SEND_CODE: Send code
     CODE: Recovery code
     RESET: Reset password
-    BACK: Back
     CODE_SENT: If an account exists for this email, a recovery code has been sent
     SUCCESS: Password updated. You can sign in now
+  TWO_FACTOR:
+    TITLE: Two-factor authentication
+    SUBTITLE: Enter the 6-digit code from your authenticator app
+    CODE: Two-factor code
+    HINT_RECOVERY: You can also enter one of your 10-character recovery codes.
 EXTERNAL_LINK:
   TITLE: External link
   CONTENT: 'You are about to open an external link: {{ url }}'
@@ -439,6 +479,11 @@ ERRORS:
   AUTH_SETUP_REQUIRED: Initial server setup is required
   AUTH_SETUP_TOKEN_INVALID: Invalid setup token
   AUTH_SETUP_TOKEN_EXPIRED: Setup token has expired
+  AUTH_TWO_FACTOR_INVALID_CODE: Invalid two-factor or recovery code
+  AUTH_TWO_FACTOR_LOCKED: Too many failed two-factor attempts. Temporarily locked for 15 minutes
+  AUTH_TWO_FACTOR_ALREADY_ENABLED: Two-factor authentication is already enabled
+  AUTH_TWO_FACTOR_NOT_ENABLED: Two-factor authentication is not enabled
+  AUTH_TWO_FACTOR_SETUP_NOT_STARTED: Two-factor setup has not been started
   EMAIL_NOT_CONFIGURED: Email service is not configured
   EMAIL_SEND_FAILED: Failed to send email
   INVITE_INVALID: Invalid invitation code

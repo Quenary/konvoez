@@ -7,7 +7,7 @@ import { AppException } from '@shared/errors/app.exception';
 import { InviteEntity } from './invites.entity';
 import { InviteCreateDto, InviteDto } from './invites.dto';
 import { UserEntity } from '../users/users.entity';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 
 @Injectable()
 export class InvitesService {
@@ -63,7 +63,7 @@ export class InvitesService {
 
   async create(
     dto: InviteCreateDto,
-    authorUser: GetUserDto,
+    authorUser: GetUserSafeDto,
   ): Promise<InviteDto> {
     const code = crypto.randomBytes(16).toString('hex');
     const ttlMs = dto.ttl ?? inviteDefaultTtl;

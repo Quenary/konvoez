@@ -5,7 +5,7 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EPermission, ERoomType, IUser } from '@konvoez/shared';
+import { EPermission, ERoomType, IUserSafe, IUserFull } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import { RoomsComponent } from './rooms.component';
@@ -33,11 +33,11 @@ describe('RoomsComponent', () => {
   let store: MockStore;
   let router: Router;
 
-  const me: IUser = {
+  const me: IUserFull = {
     id: 1,
     username: 'alice',
+    email: 'test@example.com',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -45,13 +45,13 @@ describe('RoomsComponent', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
-  const bob: IUser = {
+  const bob: IUserSafe = {
     id: 2,
     username: 'bob',
     fullname: 'Bob',
-    email: 'bob@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -89,12 +89,12 @@ describe('RoomsComponent', () => {
     updatedAt: null,
   };
 
-  const roomsState = signal<Record<number, Record<number, IUser>>>({});
+  const roomsState = signal<Record<number, Record<number, IUserSafe>>>({});
   const hangingCallUserId = signal<number | null>(null);
-  const interlocutor = signal<IUser | null>(null);
+  const interlocutor = signal<IUserSafe | null>(null);
   const roomMentions = signal<Record<number, number>>({});
   const roomUnreadCount = vi.fn().mockReturnValue(0);
-  const entityMap = signal<Record<number, IUser>>({
+  const entityMap = signal<Record<number, IUserSafe>>({
     [me.id]: me,
     [bob.id]: bob,
   });

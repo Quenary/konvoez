@@ -25,6 +25,7 @@ All versions: [desktop releases](https://github.com/Quenary/konvoez/releases?q=d
 - **Direct Messages & Calls**: Private one-to-one chats and calls.
 - **Text Chat**: Rich-text messages with replies, reactions, `@mentions` and file attachments.
 - **Encrypted Messages**: Message text is encrypted at rest on the server with AES-256-GCM.
+- **Two-Factor Authentication**: TOTP (RFC 6238) with authenticator apps and single-use recovery codes.
 - **Notifications**: Web Push and native desktop notifications.
 - **PWA & Desktop Client**: An installable web app and a desktop app for Windows and Linux.
 - **Roles & Administration**: A single `OWNER`, configurable roles with granular permissions (seeded `Admin`, `Moderator`, `User`), private rooms, user management and invite-only registration.
@@ -90,6 +91,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 **Features**
 
 - [User Management](docs/USER_MANAGEMENT.md)
+- [Two-Factor Authentication](docs/TWO_FACTOR.md)
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
 - [Rooms](docs/ROOMS.md)
 - [Chat reading](docs/CHAT_READING.md)
@@ -108,9 +110,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 ## TODO
 
-- 2FA
 - Per-user notification settings (topics)
-- Audio streaming adaptive (for potato internet)
 - Video streaming simulcast & adaptive:
   - Simulcast encode layers on producers; `setPreferredLayers` per consumer (tile size / theatre focus)
   - Bitrate caps tied to capture height; optional `maxIncomingBitrate` on the receive transport

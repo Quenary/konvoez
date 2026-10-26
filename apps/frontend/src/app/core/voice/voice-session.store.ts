@@ -1,7 +1,7 @@
 import { computed } from '@angular/core';
 import {
   EVoiceSessionType,
-  IUser,
+  IUserSafe,
   TVoiceRoomPeerUser,
   TVoiceSessionTarget,
 } from '@konvoez/shared';
@@ -61,11 +61,11 @@ export const VoiceSessionStore = signalStore(
       patchState(store, { joiningTarget });
     },
 
-    setPeers(users: IUser[]): void {
+    setPeers(users: IUserSafe[]): void {
       patchState(store, setAllEntities(users.map(toPeerUser)));
     },
 
-    upsertPeer(user: IUser): void {
+    upsertPeer(user: IUserSafe): void {
       patchState(store, setEntity(toPeerUser(user)));
     },
 
@@ -88,7 +88,7 @@ export const VoiceSessionStore = signalStore(
       patchState(store, removeAllEntities());
     },
 
-    applyUserEntityUpdate(user: IUser): void {
+    applyUserEntityUpdate(user: IUserSafe): void {
       patchState(store, updateEntity({ id: user.id, changes: user }));
     },
 

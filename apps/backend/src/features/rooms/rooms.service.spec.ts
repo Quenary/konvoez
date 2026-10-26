@@ -33,7 +33,7 @@ import { RoomsService } from './rooms.service';
 import { RoomEntity } from './rooms.entity';
 import { RoomsDomainEvents } from './rooms.events';
 import { ROOM_AVATARS_BUCKET } from '@shared/services/file.service';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 
 describe('RoomsService', () => {
   let service: RoomsService;
@@ -46,7 +46,6 @@ describe('RoomsService', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice Example',
-    email: 'alice@example.com',
     role: EUserRole.OWNER,
     isOwner: true,
     roles: [],
@@ -55,7 +54,7 @@ describe('RoomsService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
-  } as unknown as GetUserDto;
+  } as unknown as GetUserSafeDto;
 
   const room = {
     id: 1,
@@ -185,7 +184,7 @@ describe('RoomsService', () => {
         isOwner: false,
         permissions: [EPermission.MANAGE_ROOMS],
         roles: [],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       const privateRoom = {
         ...room,
@@ -203,7 +202,7 @@ describe('RoomsService', () => {
         isOwner: false,
         permissions: [EPermission.SEND_MESSAGES],
         roles: [{ id: 10 }],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       const privateRoom = {
         ...room,
@@ -221,7 +220,7 @@ describe('RoomsService', () => {
         isOwner: false,
         permissions: [],
         roles: [],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       const privateRoom = {
         ...room,
@@ -239,7 +238,7 @@ describe('RoomsService', () => {
         isOwner: false,
         permissions: [],
         roles: [{ id: 42 }],
-      } as unknown as GetUserDto;
+      } as unknown as GetUserSafeDto;
 
       const privateRoom = {
         ...room,

@@ -30,7 +30,7 @@ import { VideoProcessingService } from '@shared/services/video-processing.servic
 import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
 import { RoomsFacade, type TRoomAccessTarget } from '../rooms/rooms.facade';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { sanitizeAttachmentName } from './attachments.http';
@@ -76,7 +76,7 @@ export class AttachmentsService {
   }
 
   public async createPending(
-    author: GetUserDto,
+    author: GetUserSafeDto,
     file: { path?: string; size: number; originalname?: string } | undefined,
     extras?: IUploadExtras,
   ): Promise<IAttachment> {
@@ -153,7 +153,10 @@ export class AttachmentsService {
     return result;
   }
 
-  public async deletePending(id: string, author: GetUserDto): Promise<void> {
+  public async deletePending(
+    id: string,
+    author: GetUserSafeDto,
+  ): Promise<void> {
     const row = await this.repo.findOne({
       id: parse(id),
       uploader: author.id,
@@ -185,7 +188,7 @@ export class AttachmentsService {
 
   public async resolveReadable(
     id: string,
-    author: GetUserDto,
+    author: GetUserSafeDto,
     thumbnail: boolean,
   ): Promise<{
     entity: MessageAttachmentEntity;
@@ -249,7 +252,7 @@ export class AttachmentsService {
       sender: { id: number };
       recipient?: { id: number } | null;
     },
-    user: GetUserDto,
+    user: GetUserSafeDto,
   ): boolean {
     if (message.room) {
       return this.roomsFacade.canAccessRoom(user, message.room);
@@ -293,7 +296,7 @@ export class AttachmentsService {
 
   private canRead(
     entity: MessageAttachmentEntity,
-    author: GetUserDto,
+    author: GetUserSafeDto,
   ): boolean {
     if (entity.status === EAttachmentStatus.PENDING) {
       return entity.uploader?.id === author.id;
@@ -305,7 +308,7 @@ export class AttachmentsService {
   }
 
   private async storePending(
-    author: GetUserDto,
+    author: GetUserSafeDto,
     file: { path: string; size: number; originalname?: string },
     extras?: IUploadExtras,
   ): Promise<IAttachment> {

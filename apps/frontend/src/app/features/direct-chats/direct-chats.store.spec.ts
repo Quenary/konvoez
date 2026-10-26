@@ -7,7 +7,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { DirectChatsStore } from './direct-chats.store';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 
 describe('DirectChatsStore', () => {
   let store: InstanceType<typeof DirectChatsStore>;
@@ -21,12 +21,11 @@ describe('DirectChatsStore', () => {
   };
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
 
-  const mockUsers: IUser[] = [
+  const mockUsers: IUserSafe[] = [
     {
       id: 2,
       username: 'alice',
       fullname: 'Alice Smith',
-      email: 'alice@example.com',
       isOwner: false,
       roles: [],
       permissions: [],
@@ -39,7 +38,6 @@ describe('DirectChatsStore', () => {
       id: 3,
       username: 'bob',
       fullname: 'Bob Jones',
-      email: 'bob@example.com',
       isOwner: false,
       roles: [],
       permissions: [],
@@ -108,11 +106,10 @@ describe('DirectChatsStore', () => {
   });
 
   it('should add or update a chat', () => {
-    const newUser: IUser = {
+    const newUser: IUserSafe = {
       id: 99,
       username: 'charlie',
       fullname: 'Charlie Brown',
-      email: 'charlie@example.com',
       isOwner: false,
       roles: [],
       permissions: [],

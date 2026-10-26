@@ -26,7 +26,7 @@ import { ApiErrorCode, EPermission, createRoleSchema } from '@konvoez/shared';
 import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 import type { RoleEntity } from './roles.entity';
 import type { CreateRoleDto } from './roles.dto';
 import type { RoleDto } from './roles.dto';
@@ -36,18 +36,22 @@ describe('RolesController', () => {
   let rolesService: jest.Mocked<
     Pick<
       RolesService,
-      'findAll' | 'findOne' | 'findOneAsDto' | 'create' | 'update' | 'remove'
+      | 'findAll'
+      | 'findOne'
+      | 'findOneAsSafeDto'
+      | 'create'
+      | 'update'
+      | 'remove'
     >
   >;
   let permissionsFacade: jest.Mocked<
     Pick<PermissionsFacade, 'assertCanManageRole' | 'assertCanGrantPermissions'>
   >;
 
-  const mockAuthor: GetUserDto = {
+  const mockAuthor: GetUserSafeDto = {
     id: 1,
     username: 'author',
     fullname: 'Author',
-    email: 'author@example.com',
     isOwner: false,
     roles: [{ id: 10, name: 'Admin', color: null, priority: 50 }],
     permissions: [EPermission.MANAGE_ROLES, EPermission.MANAGE_ROOMS],
@@ -81,7 +85,7 @@ describe('RolesController', () => {
     rolesService = {
       findAll: jest.fn().mockResolvedValue([roleDto]),
       findOne: jest.fn().mockResolvedValue(existingRole),
-      findOneAsDto: jest.fn().mockResolvedValue(roleDto),
+      findOneAsSafeDto: jest.fn().mockResolvedValue(roleDto),
       create: jest.fn().mockResolvedValue(roleDto),
       update: jest.fn().mockResolvedValue(roleDto),
       remove: jest.fn().mockResolvedValue(undefined),
@@ -108,7 +112,7 @@ describe('RolesController', () => {
   describe('findOne', () => {
     it('returns one role by id from service', async () => {
       await expect(controller.findOne(5)).resolves.toEqual(roleDto);
-      expect(rolesService.findOneAsDto).toHaveBeenCalledWith(5);
+      expect(rolesService.findOneAsSafeDto).toHaveBeenCalledWith(5);
     });
   });
 

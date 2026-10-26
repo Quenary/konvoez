@@ -4,9 +4,11 @@ import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import {
   IAuthLogin,
+  IAuthLoginResponse,
+  IAuthLoginTwoFactor,
   IPasswordRecoveryConfirm,
   IPasswordRecoveryRequest,
-  IUser,
+  IUserFull,
   IAuthRegister,
 } from '@konvoez/shared';
 
@@ -16,10 +18,18 @@ import {
 export class AuthApiService {
   private readonly httpClient = inject(HttpClient);
 
-  login(body: IAuthLogin): Observable<IUser> {
-    return this.httpClient.post<IUser>(
+  login(body: IAuthLogin): Observable<IAuthLoginResponse> {
+    return this.httpClient.post<IAuthLoginResponse>(
       `${environment.apiPath}/auth/login`,
       body,
+    );
+  }
+
+  loginTwoFactor(body: IAuthLoginTwoFactor): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
+      `${environment.apiPath}/auth/login/2fa`,
+      body,
+      { withCredentials: true },
     );
   }
 
@@ -39,8 +49,8 @@ export class AuthApiService {
     );
   }
 
-  register(body: IAuthRegister): Observable<IUser> {
-    return this.httpClient.post<IUser>(
+  register(body: IAuthRegister): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
       `${environment.apiPath}/auth/register`,
       body,
     );
@@ -68,8 +78,8 @@ export class AuthApiService {
    * Get current user
    * @returns
    */
-  me(): Observable<IUser> {
-    return this.httpClient.get<IUser>(`${environment.apiPath}/auth/me`, {
+  me(): Observable<IUserFull> {
+    return this.httpClient.get<IUserFull>(`${environment.apiPath}/auth/me`, {
       withCredentials: true,
     });
   }

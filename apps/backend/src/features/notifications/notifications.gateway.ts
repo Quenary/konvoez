@@ -14,6 +14,10 @@ import {
 } from '@konvoez/shared';
 import { AuthService } from '../auth/auth.service';
 import {
+  UsersDomainEvents,
+  type TUsersDomainPayloadMap,
+} from '../users/users.events';
+import {
   NotificationsDomainEvents,
   type INotificationDeliverPayload,
 } from './notifications.events';
@@ -64,5 +68,17 @@ export class NotificationsGateway implements OnGatewayConnection {
     this.server
       .to(`user:${userId}`)
       .emit(ENotificationsEvent.NOTIFICATION, payload);
+  }
+
+  @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)
+  async onUserSessionsRevoked(
+    payload: TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_SESSIONS_REVOKED],
+  ): Promise<void> {
+    const sockets = await this.server.fetchSockets();
+    for (const socket of sockets) {
+      if (socket.data.userId === payload.id) {
+        socket.disconnect(true);
+      }
+    }
   }
 }

@@ -9,7 +9,7 @@ import {
   ERoomType,
   EUserRole,
   type IRoom,
-  type IUser,
+  type IUserSafe,
 } from '@konvoez/shared';
 import { Server } from 'socket.io';
 import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
@@ -22,6 +22,7 @@ describe('EntitySyncGateway', () => {
     emit: jest.Mock;
     to: jest.Mock;
     sockets: { sockets: Map<string, unknown> };
+    fetchSockets: jest.Mock;
   };
   let authServiceMock: { getUserFromRawCookies: jest.Mock };
   let userPresenceServiceMock: {
@@ -36,11 +37,10 @@ describe('EntitySyncGateway', () => {
     canAccessRoom: jest.Mock;
   };
 
-  const user: IUser = {
+  const user: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    email: 'alice@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
@@ -73,6 +73,7 @@ describe('EntitySyncGateway', () => {
       emit: jest.fn(),
       to: toMock,
       sockets: { sockets: new Map() },
+      fetchSockets: jest.fn().mockResolvedValue([]),
     };
     authServiceMock = { getUserFromRawCookies: jest.fn() };
     userPresenceServiceMock = {
@@ -82,7 +83,7 @@ describe('EntitySyncGateway', () => {
       getOnlineUserIds: jest.fn().mockReturnValue([1, 2]),
     };
     const usersServiceMock = {
-      findOneAsDto: jest.fn().mockResolvedValue(user),
+      findOneAsSafeDto: jest.fn().mockResolvedValue(user),
     };
     roomsFacadeMock = {
       findPrivateRooms: jest.fn().mockResolvedValue([]),
@@ -348,7 +349,7 @@ describe('EntitySyncGateway', () => {
         allowedRoleIds: [10],
       };
 
-      const updatedUser: IUser = {
+      const updatedUser: IUserSafe = {
         ...user,
         id: 5,
         roles: [{ id: 10, name: 'VIP', color: null, priority: 1 }],
@@ -356,7 +357,7 @@ describe('EntitySyncGateway', () => {
       };
 
       const usersServiceMock = {
-        findOneAsDto: jest.fn().mockResolvedValue(updatedUser),
+        findOneAsSafeDto: jest.fn().mockResolvedValue(updatedUser),
       };
       Object.assign(gateway, {
         usersService: usersServiceMock,
@@ -368,7 +369,7 @@ describe('EntitySyncGateway', () => {
 
       await gateway.onUserPermissionsChanged({ userIds: [5] });
 
-      expect(usersServiceMock.findOneAsDto).toHaveBeenCalledWith(5);
+      expect(usersServiceMock.findOneAsSafeDto).toHaveBeenCalledWith(5);
       expect(clientMock.data.user).toBe(updatedUser);
       expect(clientEmit).not.toHaveBeenCalledWith(
         EEntitySyncEvent.USER_UPDATED,
@@ -409,7 +410,7 @@ describe('EntitySyncGateway', () => {
         allowedRoleIds: [10],
       };
 
-      const revokedUser: IUser = {
+      const revokedUser: IUserSafe = {
         ...user,
         id: 7,
         roles: [],
@@ -417,7 +418,7 @@ describe('EntitySyncGateway', () => {
       };
 
       const usersServiceMock = {
-        findOneAsDto: jest.fn().mockResolvedValue(revokedUser),
+        findOneAsSafeDto: jest.fn().mockResolvedValue(revokedUser),
       };
       Object.assign(gateway, {
         usersService: usersServiceMock,
@@ -443,13 +444,13 @@ describe('EntitySyncGateway', () => {
       const client2Emit = jest.fn();
       const client3Emit = jest.fn();
 
-      const user5Original: IUser = {
+      const user5Original: IUserSafe = {
         ...user,
         id: 5,
         roles: [],
         permissions: [],
       };
-      const user7Original: IUser = {
+      const user7Original: IUserSafe = {
         ...user,
         id: 7,
         roles: [],
@@ -476,12 +477,12 @@ describe('EntitySyncGateway', () => {
       serverMock.sockets.sockets.set('s-5b', client2);
       serverMock.sockets.sockets.set('s-7', client3);
 
-      const user5Updated: IUser = {
+      const user5Updated: IUserSafe = {
         ...user5Original,
         permissions: [EPermission.CONNECT_VOICE],
       };
       const usersServiceMock = {
-        findOneAsDto: jest.fn().mockResolvedValue(user5Updated),
+        findOneAsSafeDto: jest.fn().mockResolvedValue(user5Updated),
       };
       Object.assign(gateway, {
         usersService: usersServiceMock,
@@ -493,8 +494,8 @@ describe('EntitySyncGateway', () => {
 
       await gateway.onUserPermissionsChanged({ userIds: [5] });
 
-      expect(usersServiceMock.findOneAsDto).toHaveBeenCalledTimes(1);
-      expect(usersServiceMock.findOneAsDto).toHaveBeenCalledWith(5);
+      expect(usersServiceMock.findOneAsSafeDto).toHaveBeenCalledTimes(1);
+      expect(usersServiceMock.findOneAsSafeDto).toHaveBeenCalledWith(5);
       expect(serverMock.emit).toHaveBeenCalledTimes(1);
       expect(serverMock.emit).toHaveBeenCalledWith(
         EEntitySyncEvent.USER_UPDATED,
@@ -507,13 +508,13 @@ describe('EntitySyncGateway', () => {
     });
 
     it('loads and broadcasts offline affected users in payload.userIds', async () => {
-      const user9Updated: IUser = {
+      const user9Updated: IUserSafe = {
         ...user,
         id: 9,
         permissions: [EPermission.MANAGE_ROOMS],
       };
       const usersServiceMock = {
-        findOneAsDto: jest.fn().mockResolvedValue(user9Updated),
+        findOneAsSafeDto: jest.fn().mockResolvedValue(user9Updated),
       };
       Object.assign(gateway, {
         usersService: usersServiceMock,
@@ -525,11 +526,33 @@ describe('EntitySyncGateway', () => {
 
       await gateway.onUserPermissionsChanged({ userIds: [9] });
 
-      expect(usersServiceMock.findOneAsDto).toHaveBeenCalledWith(9);
+      expect(usersServiceMock.findOneAsSafeDto).toHaveBeenCalledWith(9);
       expect(serverMock.emit).toHaveBeenCalledWith(
         EEntitySyncEvent.USER_UPDATED,
         user9Updated,
       );
+    });
+  });
+
+  describe('onUserSessionsRevoked', () => {
+    it('should disconnect matching user sockets and keep other sockets connected', async () => {
+      const targetSocket = {
+        data: { user: { id: 1 } },
+        disconnect: jest.fn(),
+      };
+      const otherSocket = {
+        data: { user: { id: 2 } },
+        disconnect: jest.fn(),
+      };
+      serverMock.fetchSockets.mockResolvedValueOnce([
+        targetSocket,
+        otherSocket,
+      ]);
+
+      await gateway.onUserSessionsRevoked({ id: 1 });
+
+      expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(otherSocket.disconnect).not.toHaveBeenCalled();
     });
   });
 });

@@ -2,7 +2,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WithUserDialogDirective } from './with-user-dialog.directive';
 
@@ -11,11 +11,10 @@ import { WithUserDialogDirective } from './with-user-dialog.directive';
   template: '<div [appWithUserDialog]="user">Open user</div>',
 })
 class HostComponent {
-  readonly user: IUser = {
+  readonly user: IUserSafe = {
     id: 42,
     username: 'alice',
     fullname: 'Alice Example',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],

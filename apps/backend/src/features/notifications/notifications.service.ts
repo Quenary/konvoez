@@ -19,7 +19,7 @@ import {
   type IDirectMessageNotificationPayload,
   type IMentionNotificationPayload,
 } from './notifications.events';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import {
   PushNotificationPayloadDto,
@@ -74,7 +74,7 @@ export class NotificationsService {
   }
 
   public async saveSubscription(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     dto: PushSubscriptionDto,
   ): Promise<void> {
     const em = this.em.fork();
@@ -115,7 +115,7 @@ export class NotificationsService {
   }
 
   public async removeSubscription(
-    user: GetUserDto,
+    user: GetUserSafeDto,
     endpoint: string,
   ): Promise<void> {
     const em = this.em.fork();

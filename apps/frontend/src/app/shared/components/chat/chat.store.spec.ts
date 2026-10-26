@@ -16,8 +16,8 @@ import {
   ITextRoomListResponse,
   ITextRoomMessage,
   ITextRoomReactionGroup,
-  IUser,
   MESSAGE_PAGE_SIZE,
+  IUserFull,
 } from '@konvoez/shared';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
@@ -77,11 +77,11 @@ describe('ChatStore', () => {
     enqueue: ReturnType<typeof vi.fn>;
   };
 
-  const currentUser: IUser = {
+  const currentUser: IUserFull = {
     id: 1,
     username: 'alice',
+    email: 'test@example.com',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -89,6 +89,7 @@ describe('ChatStore', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const message1: ITextRoomMessage = {

@@ -5,7 +5,7 @@ import { RoomsFacade } from '../rooms/rooms.facade';
 import { EntityRepository, EntityManager } from '@mikro-orm/core';
 import { MessageMentionEntity } from './text-rooms.entity';
 import { EPermission } from '@konvoez/shared';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { RoleEntity } from '../roles/roles.entity';
 import { RoomEntity } from '../rooms/rooms.entity';
@@ -23,7 +23,7 @@ describe('MentionsService', () => {
     id: number,
     isOwner = false,
     permissions: EPermission[] = [],
-  ): GetUserDto => ({
+  ): GetUserSafeDto => ({
     id,
     username: `author${id}`,
     fullname: `Author ${id}`,
@@ -66,7 +66,7 @@ describe('MentionsService', () => {
   beforeEach(() => {
     usersService = {
       findMentionCandidates: jest.fn(),
-      toDtoWithPermissions: jest.fn(),
+      toSafeDtoWithPermissions: jest.fn(),
     } as unknown as jest.Mocked<UsersService>;
 
     permissionsFacade = {
@@ -96,13 +96,13 @@ describe('MentionsService', () => {
       const user3 = createUser(3);
 
       usersService.findMentionCandidates.mockResolvedValue([user2, user3]);
-      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) =>
         createAuthor(u.id),
       );
 
       // User 3 cannot access the room
       roomsFacade.canAccessRoom.mockImplementation(
-        (dto: GetUserDto) => dto.id === 2,
+        (dto: GetUserSafeDto) => dto.id === 2,
       );
 
       const html = '<p>Hello &lt;@2&gt; and &lt;@3&gt; and &lt;@1&gt;!</p>';
@@ -122,7 +122,7 @@ describe('MentionsService', () => {
       const user2 = createUser(2, new Date()); // deleted
 
       usersService.findMentionCandidates.mockResolvedValue([user1, user2]);
-      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) =>
         createAuthor(u.id),
       );
 
@@ -174,7 +174,7 @@ describe('MentionsService', () => {
         user2,
         user3,
       ]);
-      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) =>
         createAuthor(u.id),
       );
 
@@ -200,7 +200,7 @@ describe('MentionsService', () => {
         user2,
         user3,
       ]);
-      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) =>
         createAuthor(u.id),
       );
 
@@ -220,7 +220,7 @@ describe('MentionsService', () => {
 
       const user2 = createUser(2);
       usersService.findMentionCandidates.mockResolvedValue([user2]);
-      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) =>
         createAuthor(u.id),
       );
 
@@ -242,7 +242,7 @@ describe('MentionsService', () => {
 
       permissionsFacade.findRolesByIds.mockResolvedValue([role1]);
       usersService.findMentionCandidates.mockResolvedValue([createUser(2)]);
-      usersService.toDtoWithPermissions.mockImplementation(async (u) =>
+      usersService.toSafeDtoWithPermissions.mockImplementation(async (u) =>
         createAuthor(u.id),
       );
 

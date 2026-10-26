@@ -1,0 +1,60 @@
+<div class="recovery-dialog">
+  <p class="tui-text_body-m">
+    {{ 'SETTINGS.SECURITY.TWO_FACTOR.RECOVERY.DESCRIPTION' | translate }}
+  </p>
+
+  <div class="recovery-dialog-grid">
+    @for (code of codes(); track code) {
+      <div class="recovery-dialog-item">
+        <code>{{ code }}</code>
+      </div>
+    }
+  </div>
+
+  <div class="recovery-dialog-actions">
+    <button
+      tuiButton
+      type="button"
+      appearance="flat"
+      size="s"
+      (click)="copyCodes()">
+      <tui-icon [icon]="icons.copy" />
+      {{ 'SETTINGS.SECURITY.TWO_FACTOR.RECOVERY.COPY' | translate }}
+    </button>
+
+    <button
+      tuiButton
+      type="button"
+      appearance="flat"
+      size="s"
+      (click)="downloadTxt()">
+      <tui-icon [icon]="icons.download" />
+      {{ 'SETTINGS.SECURITY.TWO_FACTOR.RECOVERY.DOWNLOAD' | translate }}
+    </button>
+  </div>
+
+  <div class="recovery-dialog-saved">
+    <label
+      tuiLabel
+      class="recovery-dialog-checkbox">
+      <input
+        tuiCheckbox
+        type="checkbox"
+        [ngModel]="saved()"
+        (ngModelChange)="saved.set($event)" />
+      <span>{{
+        'SETTINGS.SECURITY.TWO_FACTOR.RECOVERY.SAVED' | translate
+      }}</span>
+    </label>
+  </div>
+
+  <footer class="recovery-dialog-footer">
+    <button
+      tuiButton
+      type="button"
+      [disabled]="!saved()"
+      (click)="onClose()">
+      {{ 'GENERAL.CLOSE' | translate }}
+    </button>
+  </footer>
+</div>

@@ -18,7 +18,7 @@ import {
   ERoomType,
   IRoom,
   IRoomCreate,
-  IUser,
+  IUserSafe,
   TVoiceRoomPeerUser,
 } from '@konvoez/shared';
 import { RoomPeerComponent } from './room-peer/room-peer.component';
@@ -169,7 +169,7 @@ export class RoomsComponent implements OnInit {
     this.destroyRef.onDestroy(() => this.clearRoomClickSuppression());
   }
 
-  protected openHangingCall(peer: IUser): void {
+  protected openHangingCall(peer: IUserSafe): void {
     void this.router.navigate(['/direct', peer.id]);
   }
 

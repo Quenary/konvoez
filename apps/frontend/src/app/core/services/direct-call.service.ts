@@ -12,7 +12,7 @@ import {
   TCallInitiatePayload,
   TCallInitiateResult,
   TCallRejectedPayload,
-  IUser,
+  IUserSafe,
   TVoiceSessionTarget,
   DIRECT_CALL_RING_TIMEOUT_MS,
 } from '@konvoez/shared';
@@ -39,7 +39,7 @@ export enum ECallStatus {
 
 export interface IActiveCall {
   callId: string;
-  interlocutor: IUser;
+  interlocutor: IUserSafe;
   isCaller: boolean;
   status: ECallStatus;
 }
@@ -161,7 +161,7 @@ export class DirectCallService {
     }
   }
 
-  public async initiateCall(recipient: IUser): Promise<void> {
+  public async initiateCall(recipient: IUserSafe): Promise<void> {
     if (this._activeCall()) {
       return;
     }
@@ -427,7 +427,7 @@ export class DirectCallService {
 
   public async rejoinCall(
     call: TCallGetActiveResult,
-    interlocutor: IUser,
+    interlocutor: IUserSafe,
   ): Promise<void> {
     const me = this.currentUser();
     if (!me) {

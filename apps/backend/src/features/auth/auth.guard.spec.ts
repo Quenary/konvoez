@@ -33,7 +33,7 @@ import {
   RequirePermissions,
 } from './auth.decorator';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import type { Response } from 'express';
 
@@ -43,7 +43,7 @@ describe('AuthGuard', () => {
   let reflector: jest.Mocked<Reflector>;
   let permissionsFacade: jest.Mocked<PermissionsFacade>;
 
-  const mockUser: GetUserDto = {
+  const mockUser: GetUserFullDto = {
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
@@ -238,7 +238,10 @@ describe('AuthGuard', () => {
         if (key === AuthRefreshFallback) return true;
         return undefined;
       });
-      authService.resolveRefreshToken.mockResolvedValueOnce(mockUser);
+      authService.resolveRefreshToken.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 0,
+      });
 
       const result = await guard.canActivate(context);
 
@@ -248,6 +251,7 @@ describe('AuthGuard', () => {
       );
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
+        0,
         response,
       );
       expect(request['author']).toEqual(mockUser);

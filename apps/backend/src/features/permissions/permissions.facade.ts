@@ -7,7 +7,7 @@ import { RoleEntity } from '../roles/roles.entity';
 import { RoleDto } from '../roles/roles.dto';
 import { RolesService } from '../roles/roles.service';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 
 @Injectable()
 export class PermissionsFacade {
@@ -53,7 +53,7 @@ export class PermissionsFacade {
   async getUserPermissions(
     user:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | {
           id: number;
           isOwner: boolean;
@@ -108,7 +108,7 @@ export class PermissionsFacade {
   async hasPermission(
     user:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | { id: number; isOwner: boolean; permissions?: EPermission[] },
     permission: EPermission,
   ): Promise<boolean> {
@@ -125,7 +125,7 @@ export class PermissionsFacade {
   async hasAllPermissions(
     user:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | { id: number; isOwner: boolean; permissions?: EPermission[] },
     permissions: readonly EPermission[],
   ): Promise<boolean> {
@@ -150,7 +150,7 @@ export class PermissionsFacade {
   getUserMaxPriority(
     user:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | {
           id: number;
           isOwner: boolean;
@@ -193,7 +193,7 @@ export class PermissionsFacade {
   assertCanManageRole(
     author:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | { id: number; isOwner: boolean; roles?: { priority?: number }[] },
     rolePriority: number,
   ): void {
@@ -213,7 +213,7 @@ export class PermissionsFacade {
   async assertCanGrantPermissions(
     author:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | { id: number; isOwner: boolean; permissions?: EPermission[] },
     permissions: readonly EPermission[],
   ): Promise<void> {
@@ -237,11 +237,11 @@ export class PermissionsFacade {
   assertCanManageUser(
     author:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | { id: number; isOwner: boolean; roles?: { priority?: number }[] },
     target:
       | UserEntity
-      | GetUserDto
+      | GetUserSafeDto
       | { id: number; isOwner: boolean; roles?: { priority?: number }[] },
   ): void {
     if (author.isOwner) {

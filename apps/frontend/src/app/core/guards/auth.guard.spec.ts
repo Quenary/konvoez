@@ -11,7 +11,7 @@ import { selectAuth } from '@core/auth/auth.selectors';
 import { authGuard } from './auth.guard';
 import { firstValueFrom, Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 
 describe('authGuard', () => {
   let store: MockStore;
@@ -23,11 +23,11 @@ describe('authGuard', () => {
     ) as Observable<boolean | UrlTree>;
   };
 
-  const mockUser: IUser = {
+  const mockUser: IUserFull = {
     id: 1,
     username: 'testuser',
-    fullname: 'Test User',
     email: 'test@example.com',
+    fullname: 'Test User',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -35,6 +35,7 @@ describe('authGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   beforeEach(() => {
@@ -66,6 +67,7 @@ describe('authGuard', () => {
       init: true,
       user: mockUser,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -78,6 +80,7 @@ describe('authGuard', () => {
       init: true,
       user: null,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -98,6 +101,7 @@ describe('authGuard', () => {
       init: true,
       user: mockUser,
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 

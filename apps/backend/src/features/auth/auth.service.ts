@@ -13,14 +13,23 @@ import { PasswordService } from '@shared/services/password.service';
 import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
 import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
-import { Request, Response } from 'express';
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
+import { CookieOptions, Request, Response } from 'express';
+import {
+  ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+  TWO_FACTOR_TOKEN_KEY,
+} from './auth.const';
 import { AuthJWTData, AuthRegisterDto } from './auth.dto';
 import { UsersService } from '../users/users.service';
+import { TwoFactorService } from '../two-factor/two-factor.service';
+import {
+  get2faPendingCacheKey,
+  TWO_FACTOR_PENDING_TTL_MS,
+} from '../two-factor/two-factor.const';
 import * as cookie from 'cookie';
 import * as crypto from 'crypto';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import {
   ESettingKey,
   IPasswordRecoveryConfirm,
@@ -53,6 +62,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly usersService: UsersService,
     private readonly settingsService: SettingsService,
     private readonly invitesService: InvitesService,
+    private readonly twoFactorService: TwoFactorService,
     private readonly eventEmitter: EventEmitter2,
     @InjectRepository(UserEntity)
     private readonly userRepo: EntityRepository<UserEntity>,
@@ -72,7 +82,7 @@ export class AuthService implements OnApplicationBootstrap {
     return count === 0;
   }
 
-  async register(dto: AuthRegisterDto): Promise<GetUserDto> {
+  async register(dto: AuthRegisterDto): Promise<GetUserFullDto> {
     const isOwnerSetup = await this.isOwnerSetupRequired();
     if (isOwnerSetup) {
       const cachedToken = await this.cacheManager.get<string>(
@@ -121,68 +131,17 @@ export class AuthService implements OnApplicationBootstrap {
     return await this.emitUserCreated(user);
   }
 
-  private async emitUserCreated(user: UserEntity): Promise<GetUserDto> {
-    const result = await this.usersService.toDtoWithPermissions(user);
-    emitUsersDomainEvent(
-      this.eventEmitter,
-      UsersDomainEvents.USER_CREATED,
-      result,
-    );
-    return result;
-  }
-
-  private async createUser(
-    dto: AuthRegisterDto,
-    isOwner: boolean,
-  ): Promise<UserEntity> {
-    const existingUsername = await this.userRepo.findOne({
-      username: dto.username,
-    });
-    if (existingUsername) {
-      throw AppException.conflict(
-        ApiErrorCode.AUTH_USERNAME_TAKEN,
-        'Username already taken',
-      );
-    }
-
-    const existingEmail = await this.userRepo.findOne({ email: dto.email });
-    if (existingEmail) {
-      throw AppException.conflict(
-        ApiErrorCode.AUTH_EMAIL_TAKEN,
-        'Email already taken',
-      );
-    }
-
-    const anyUser = (await this.usersService.count()) > 0;
-    if (!anyUser && !isOwner) {
-      throw AppException.forbidden(
-        ApiErrorCode.AUTH_SETUP_REQUIRED,
-        'Initial setup required: first user must be registered as OWNER with a valid setup token',
-      );
-    }
-
-    const password = await this.passwordService.hashPassword(dto.password);
-    const { setupToken: _, inviteCode: __, ...userData } = dto;
-    const user = this.userRepo.create(
-      {
-        ...userData,
-        password,
-        isOwner,
-      },
-      { persist: true },
-    );
-    await this.em.flush();
-    return user;
-  }
-
   /**
    * Verify user credentials by username or email
    * @param login username or email
    * @param password
-   * @returns UserEntity
+   * @returns User DTO and current session version
    * @throws AppException
    */
-  async validateUser(login: string, password: string): Promise<GetUserDto> {
+  async validateUser(
+    login: string,
+    password: string,
+  ): Promise<{ user: GetUserFullDto; sessionVersion: number }> {
     let user: UserEntity | null;
     try {
       user = await this.usersService.findOneByUsernameOrEmail(login.trim());
@@ -208,7 +167,8 @@ export class AuthService implements OnApplicationBootstrap {
         'Invalid credentials',
       );
     }
-    return await this.usersService.toDtoWithPermissions(user);
+    const fullDto = await this.usersService.toFullDtoWithPermissions(user);
+    return { user: fullDto, sessionVersion: user.sessionVersion };
   }
 
   async requestPasswordRecovery(
@@ -370,43 +330,97 @@ export class AuthService implements OnApplicationBootstrap {
     return { ok: true };
   }
 
-  generateToken(payload: AuthJWTData): string {
+  signToken(userId: number, sv: number, type: 'access' | 'refresh'): string {
+    const payload: AuthJWTData = {
+      type,
+      userId,
+      sv,
+    };
     return this.jwt.sign(payload, {
       secret: this.appService.JWT_SECRET,
+      expiresIn: this.tokenTtlSeconds(type),
+      algorithm: 'HS256',
     });
   }
 
-  setAuthCookies(userId: number, res: Response): void {
-    const accessToken = this.generateToken({
-      type: 'access',
-      userId,
-    });
-    const refreshToken = this.generateToken({
-      type: 'refresh',
-      userId,
-    });
-    res.cookie(ACCESS_TOKEN_KEY, accessToken, {
-      httpOnly: true,
-      sameSite: this.appService.COOKIE_SAME_SITE,
-      secure: this.appService.COOKIE_SECURE,
-      domain: this.appService.COOKIE_DOMAIN,
-      maxAge: this.appService.ACCESS_TTL * 60 * 1000,
-    });
-    res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
-      httpOnly: true,
-      sameSite: this.appService.COOKIE_SAME_SITE,
-      secure: this.appService.COOKIE_SECURE,
-      domain: this.appService.COOKIE_DOMAIN,
-      maxAge: this.appService.REFRESH_TTL * 60 * 1000,
+  setAuthCookies(userId: number, sessionVersion: number, res: Response): void {
+    const accessToken = this.signToken(userId, sessionVersion, 'access');
+    const refreshToken = this.signToken(userId, sessionVersion, 'refresh');
+    res.cookie(
+      ACCESS_TOKEN_KEY,
+      accessToken,
+      this.cookieOptions('access', true),
+    );
+    res.cookie(
+      REFRESH_TOKEN_KEY,
+      refreshToken,
+      this.cookieOptions('refresh', true),
+    );
+  }
+
+  clearAuthCookies(res: Response): void {
+    res.clearCookie(ACCESS_TOKEN_KEY, this.cookieOptions('access', false));
+    res.clearCookie(REFRESH_TOKEN_KEY, this.cookieOptions('refresh', false));
+  }
+
+  async startTwoFactorChallenge(userId: number, res: Response): Promise<void> {
+    const pendingId = crypto.randomBytes(32).toString('base64url');
+    const sha256PendingId = crypto
+      .createHash('sha256')
+      .update(pendingId)
+      .digest('hex');
+    const cacheKey = get2faPendingCacheKey(sha256PendingId);
+
+    await this.cacheManager.set(cacheKey, userId, TWO_FACTOR_PENDING_TTL_MS);
+
+    res.cookie(TWO_FACTOR_TOKEN_KEY, pendingId, {
+      ...this.baseCookieOptions(),
+      maxAge: TWO_FACTOR_PENDING_TTL_MS,
     });
   }
 
-  verifyToken(token: string, type: AuthJWTData['type']): AuthJWTData {
-    let data: AuthJWTData;
+  async completeTwoFactorLogin(
+    pendingId: string,
+    code: string,
+  ): Promise<{ user: GetUserFullDto; sessionVersion: number }> {
+    const sha256PendingId = crypto
+      .createHash('sha256')
+      .update(pendingId)
+      .digest('hex');
+    const cacheKey = get2faPendingCacheKey(sha256PendingId);
+
+    const userId = await this.cacheManager.get<number>(cacheKey);
+    if (!userId) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+
+    const { user, sessionVersion } = await this.requireActiveUser(userId);
+    await this.twoFactorService.verifyLoginCode(userId, code);
+    await this.cacheManager.del(cacheKey);
+
+    return { user, sessionVersion };
+  }
+
+  clearTwoFactorPendingCookie(res: Response): void {
+    res.clearCookie(TWO_FACTOR_TOKEN_KEY, this.baseCookieOptions());
+  }
+
+  verifyToken(
+    token: string,
+    type: AuthJWTData['type'],
+  ): AuthJWTData & { exp: number; iat: number } {
+    let data: (AuthJWTData & { exp?: number; iat?: number }) | undefined;
     try {
-      data = this.jwt.verify<AuthJWTData>(token, {
-        secret: this.appService.JWT_SECRET,
-      });
+      data = this.jwt.verify<AuthJWTData & { exp?: number; iat?: number }>(
+        token,
+        {
+          secret: this.appService.JWT_SECRET,
+          algorithms: ['HS256'],
+        },
+      );
     } catch (error) {
       if (error instanceof JsonWebTokenError) {
         throw AppException.unauthorized(
@@ -416,13 +430,18 @@ export class AuthService implements OnApplicationBootstrap {
       }
       throw error;
     }
-    if (data.type !== type) {
+    if (
+      !data ||
+      data.type !== type ||
+      typeof data.exp !== 'number' ||
+      typeof data.sv !== 'number'
+    ) {
       throw AppException.unauthorized(
         ApiErrorCode.UNAUTHORIZED,
         'Unauthorized',
       );
     }
-    return data;
+    return data as AuthJWTData & { exp: number; iat: number };
   }
 
   /**
@@ -430,7 +449,7 @@ export class AuthService implements OnApplicationBootstrap {
    * @param req request
    * @returns
    */
-  async getMe(req: Request): Promise<GetUserDto> {
+  async getMe(req: Request): Promise<GetUserFullDto> {
     const accessToken = req.cookies?.[ACCESS_TOKEN_KEY];
     if (!accessToken) {
       throw AppException.unauthorized(
@@ -442,23 +461,27 @@ export class AuthService implements OnApplicationBootstrap {
     return await this.getUserFromAccessToken(accessToken);
   }
 
-  async getUserFromAccessToken(accessToken: string): Promise<GetUserDto> {
+  async getUserFromAccessToken(accessToken: string): Promise<GetUserFullDto> {
     const res = this.verifyToken(accessToken, 'access');
-    return await this.requireActiveUser(res.userId);
+    const { user } = await this.requireActiveUser(res.userId, res.sv);
+    return user;
   }
 
-  async getActiveUserById(userId: number): Promise<GetUserDto> {
-    return await this.requireActiveUser(userId);
+  async getActiveUserById(userId: number): Promise<GetUserFullDto> {
+    const { user } = await this.requireActiveUser(userId);
+    return user;
   }
 
-  async resolveRefreshToken(refreshToken: string): Promise<GetUserDto> {
+  async resolveRefreshToken(
+    refreshToken: string,
+  ): Promise<{ user: GetUserFullDto; sessionVersion: number }> {
     const data = this.verifyToken(refreshToken, 'refresh');
-    return await this.requireActiveUser(data.userId);
+    return await this.requireActiveUser(data.userId, data.sv);
   }
 
   async getUserFromRawCookies(
     cookies: string | null | undefined,
-  ): Promise<GetUserDto | null> {
+  ): Promise<GetUserFullDto | null> {
     if (!cookies) {
       return null;
     }
@@ -496,14 +519,126 @@ ${token}
     return num.toString().padStart(passwordRecoveryCodeLength, '0');
   }
 
-  private async requireActiveUser(userId: number): Promise<GetUserDto> {
-    const user = await this.usersService.findOneByAsDto({ id: userId });
+  private async requireActiveUser(
+    userId: number,
+    sessionVersion?: number,
+  ): Promise<{ user: GetUserFullDto; sessionVersion: number }> {
+    let user: UserEntity;
+    try {
+      user = await this.usersService.findOneBy({
+        id: userId,
+      });
+    } catch (error) {
+      if (
+        error instanceof AppException &&
+        error.code === ApiErrorCode.USER_NOT_FOUND
+      ) {
+        throw AppException.unauthorized(
+          ApiErrorCode.UNAUTHORIZED,
+          'Unauthorized',
+        );
+      }
+      throw error;
+    }
     if (user.deletedAt) {
       throw AppException.unauthorized(
         ApiErrorCode.UNAUTHORIZED,
         'Unauthorized',
       );
     }
+    if (
+      sessionVersion !== undefined &&
+      user.sessionVersion !== sessionVersion
+    ) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+    const fullDto = await this.usersService.toFullDtoWithPermissions(user);
+    return { user: fullDto, sessionVersion: user.sessionVersion };
+  }
+
+  private async emitUserCreated(user: UserEntity): Promise<GetUserFullDto> {
+    const publicDto = await this.usersService.toSafeDtoWithPermissions(user);
+    emitUsersDomainEvent(
+      this.eventEmitter,
+      UsersDomainEvents.USER_CREATED,
+      publicDto,
+    );
+    return this.usersService.toFullDto(user, publicDto.permissions);
+  }
+
+  private async createUser(
+    dto: AuthRegisterDto,
+    isOwner: boolean,
+  ): Promise<UserEntity> {
+    const existingUsername = await this.userRepo.findOne({
+      username: dto.username,
+    });
+    if (existingUsername) {
+      throw AppException.conflict(
+        ApiErrorCode.AUTH_USERNAME_TAKEN,
+        'Username already taken',
+      );
+    }
+
+    const existingEmail = await this.userRepo.findOne({ email: dto.email });
+    if (existingEmail) {
+      throw AppException.conflict(
+        ApiErrorCode.AUTH_EMAIL_TAKEN,
+        'Email already taken',
+      );
+    }
+
+    const anyUser = (await this.usersService.count()) > 0;
+    if (!anyUser && !isOwner) {
+      throw AppException.forbidden(
+        ApiErrorCode.AUTH_SETUP_REQUIRED,
+        'Initial setup required: first user must be registered as OWNER with a valid setup token',
+      );
+    }
+
+    const password = await this.passwordService.hashPassword(dto.password);
+    const { setupToken: _, inviteCode: __, ...userData } = dto;
+    const user = this.userRepo.create(
+      {
+        ...userData,
+        password,
+        isOwner,
+      },
+      { persist: true },
+    );
+    await this.em.flush();
     return user;
+  }
+
+  private tokenTtlSeconds(type: 'access' | 'refresh'): number {
+    const minutes =
+      type === 'access'
+        ? this.appService.ACCESS_TTL
+        : this.appService.REFRESH_TTL;
+    return minutes * 60;
+  }
+
+  private baseCookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      sameSite: this.appService.COOKIE_SAME_SITE,
+      secure: this.appService.COOKIE_SECURE,
+      domain: this.appService.COOKIE_DOMAIN,
+      path: '/',
+    };
+  }
+
+  private cookieOptions(
+    type: 'access' | 'refresh',
+    withMaxAge = false,
+  ): CookieOptions {
+    const options: CookieOptions = this.baseCookieOptions();
+    if (withMaxAge) {
+      options.maxAge = this.tokenTtlSeconds(type) * 1000;
+    }
+    return options;
   }
 }

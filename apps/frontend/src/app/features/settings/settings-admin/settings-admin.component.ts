@@ -22,12 +22,16 @@ import {
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
   DEFAULT_VAPID_EMAIL,
+  DEFAULT_VOICE_MAX_BITRATE_KBPS,
   ESettingKey,
   iceServersSettingValueSchema,
   passwordRecoveryCodeTtlSettingValueSchema,
   SCHEMA_ERROR,
   TSettingsUpdate,
   vapidEmailSettingValueSchema,
+  voiceBitrateMaxKbps,
+  voiceBitrateMinKbps,
+  voiceMaxBitrateKbpsSettingValueSchema,
 } from '@konvoez/shared';
 import {
   TuiButton,
@@ -36,11 +40,12 @@ import {
   TuiInput,
   TuiLabel,
   TuiScrollbar,
+  TuiSlider,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
+import { TuiInputSlider, TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
 import { SettingsStore } from '@core/stores/settings.store';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
@@ -78,8 +83,10 @@ function iceServersJsonValidator(
     TuiForm,
     TuiHeader,
     TuiInput,
+    TuiInputSlider,
     TuiLabel,
     TuiScrollbar,
+    TuiSlider,
     TuiSwitch,
     TuiTextarea,
     TuiTextfield,
@@ -95,6 +102,9 @@ export class SettingsAdminComponent {
   protected readonly pushNotificationService = inject(PushNotificationService);
 
   protected readonly icons = icons;
+  protected readonly voiceBitrateMinKbps = voiceBitrateMinKbps;
+  protected readonly voiceBitrateMaxKbps = voiceBitrateMaxKbps;
+  protected readonly voiceBitrateStep = 8;
   private readonly controlKeys = {
     inviteOnlySignUp: ESettingKey.INVITE_ONLY_SIGN_UP,
     passwordRecoveryCodeTtl: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
@@ -105,6 +115,7 @@ export class SettingsAdminComponent {
     attachmentsMaxFilesPerMessage:
       ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
     attachmentsStripImageMetadata: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
+    voiceMaxBitrateKbps: ESettingKey.VOICE_MAX_BITRATE_KBPS,
   } as const;
 
   protected readonly form = new FormGroup({
@@ -161,6 +172,12 @@ export class SettingsAdminComponent {
       DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
       { nonNullable: true },
     ),
+    voiceMaxBitrateKbps: new FormControl(DEFAULT_VOICE_MAX_BITRATE_KBPS, {
+      nonNullable: true,
+      validators: [
+        createZodFieldValidator(voiceMaxBitrateKbpsSettingValueSchema),
+      ],
+    }),
   });
 
   protected readonly defaultIceServers = this.stringify(DEFAULT_ICE_SERVERS);
@@ -179,6 +196,7 @@ export class SettingsAdminComponent {
         envLocked[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE],
       attachmentsStripImageMetadata:
         envLocked[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA],
+      voiceMaxBitrateKbps: envLocked[ESettingKey.VOICE_MAX_BITRATE_KBPS],
     };
   });
 
@@ -194,6 +212,7 @@ export class SettingsAdminComponent {
       const attachmentsMaxFiles =
         this.settingsStore.attachmentsMaxFilesPerMessage();
       const stripMetadata = this.settingsStore.attachmentsStripImageMetadata();
+      const voiceMaxBitrate = this.settingsStore.voiceMaxBitrateKbps();
       const envLocked = this.settingsStore.envLocked();
 
       this.form.controls.inviteOnlySignUp.setValue(inviteOnly, {
@@ -220,6 +239,9 @@ export class SettingsAdminComponent {
       this.form.controls.attachmentsStripImageMetadata.setValue(stripMetadata, {
         emitEvent: false,
       });
+      this.form.controls.voiceMaxBitrateKbps.setValue(voiceMaxBitrate, {
+        emitEvent: false,
+      });
 
       for (const [name, key] of Object.entries(this.controlKeys) as Array<
         [keyof typeof this.form.controls, ESettingKey]
@@ -239,7 +261,19 @@ export class SettingsAdminComponent {
   }
 
   protected get vapidEmailError(): string | null {
-    return this.form.controls.vapidEmail.errors?.['invalidSchema'] ?? null;
+    return (
+      this.form.controls.vapidEmail.errors?.['zod'] ??
+      this.form.controls.vapidEmail.errors?.['invalidSchema'] ??
+      null
+    );
+  }
+
+  protected get voiceMaxBitrateError(): string | null {
+    return (
+      this.form.controls.voiceMaxBitrateKbps.errors?.['zod'] ??
+      this.form.controls.voiceMaxBitrateKbps.errors?.['invalidSchema'] ??
+      null
+    );
   }
 
   protected onSubmit(): void {
@@ -305,6 +339,13 @@ export class SettingsAdminComponent {
       updates.push({
         key: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
         value: this.form.controls.attachmentsStripImageMetadata.getRawValue(),
+      });
+    }
+
+    if (this.form.controls.voiceMaxBitrateKbps.dirty) {
+      updates.push({
+        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+        value: Number(this.form.controls.voiceMaxBitrateKbps.getRawValue()),
       });
     }
 

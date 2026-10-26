@@ -1,8 +1,8 @@
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 
 /** Full name when it is present and different from the username. */
 export function distinctFullname(
-  peer: Pick<IUser, 'fullname' | 'username'>,
+  peer: Pick<IUserSafe, 'fullname' | 'username'>,
 ): string | null {
   if (peer.fullname && peer.fullname !== peer.username) {
     return peer.fullname;

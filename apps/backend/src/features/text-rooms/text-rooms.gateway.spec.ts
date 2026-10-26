@@ -43,6 +43,7 @@ describe('TextRoomsGateway', () => {
       to: jest.fn().mockReturnThis(),
       except: jest.fn().mockReturnThis(),
       emit: jest.fn(),
+      fetchSockets: jest.fn().mockResolvedValue([]),
     };
 
     roomsFacadeMock = {
@@ -459,5 +460,27 @@ describe('TextRoomsGateway', () => {
 
   it('acknowledges the liveness ping', () => {
     expect(gateway.handlePing()).toEqual({});
+  });
+
+  describe('onUserSessionsRevoked', () => {
+    it('should disconnect matching user sockets and keep other sockets connected', async () => {
+      const targetSocket = {
+        data: { peer: { id: 42 } },
+        disconnect: jest.fn(),
+      };
+      const otherSocket = {
+        data: { peer: { id: 99 } },
+        disconnect: jest.fn(),
+      };
+      serverMock.fetchSockets.mockResolvedValueOnce([
+        targetSocket,
+        otherSocket,
+      ]);
+
+      await gateway.onUserSessionsRevoked({ id: 42 });
+
+      expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(otherSocket.disconnect).not.toHaveBeenCalled();
+    });
   });
 });

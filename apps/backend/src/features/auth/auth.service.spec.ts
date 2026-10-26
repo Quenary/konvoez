@@ -33,13 +33,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 
 import { AppService } from '@shared/services/app.service';
 import { PasswordService } from '@shared/services/password.service';
 import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserFullDto } from '../users/users.dto';
 import {
   ApiErrorCode,
   ESettingKey,
@@ -48,7 +49,6 @@ import {
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
-import { AuthJWTData } from './auth.dto';
 import { Request, Response } from 'express';
 import { Cache } from '@nestjs/cache-manager';
 import { SettingsService } from '../settings/settings.service';
@@ -70,6 +70,7 @@ describe('AuthService', () => {
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
   let cacheManager: jest.Mocked<Pick<Cache, 'get' | 'set' | 'del'>>;
+  let twoFactorService: { verifyLoginCode: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
   let userRepo: {
     findOne: jest.Mock;
@@ -83,7 +84,7 @@ describe('AuthService', () => {
   };
   let em: { persist: jest.Mock; flush: jest.Mock };
 
-  const mockUserDto: GetUserDto = {
+  const mockUserDto: GetUserFullDto = {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
@@ -96,6 +97,7 @@ describe('AuthService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const mockUserEntity = {
@@ -106,6 +108,7 @@ describe('AuthService', () => {
     email: 'test@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
+    sessionVersion: 0,
     avatar: null,
     createdAt: new Date(),
     updatedAt: null,
@@ -179,9 +182,30 @@ describe('AuthService', () => {
           useValue: {
             findOneBy: jest.fn(),
             findOneByUsernameOrEmail: jest.fn(),
-            findOneByAsDto: jest.fn(),
-            toDto: jest.fn(),
-            toDtoWithPermissions: jest.fn(),
+            findOneByAsFullDto: jest.fn(),
+            toSafeDto: jest.fn(),
+            toSafeDtoWithPermissions: jest.fn(),
+            toFullDtoWithPermissions: jest.fn(),
+            toFullDto: jest.fn(
+              (
+                user: {
+                  id: number;
+                  email: string;
+                  username: string;
+                  fullname: string;
+                  isOwner: boolean;
+                },
+                permissions?: unknown,
+              ) => ({
+                ...mockUserDto,
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                fullname: user.fullname,
+                isOwner: user.isOwner,
+                permissions: permissions ?? mockUserDto.permissions,
+              }),
+            ),
             count: jest.fn(),
             setPassword: jest.fn(),
           },
@@ -207,6 +231,12 @@ describe('AuthService', () => {
           useValue: recoveryCodeRepo,
         },
         {
+          provide: TwoFactorService,
+          useValue: {
+            verifyLoginCode: jest.fn(),
+          },
+        },
+        {
           provide: Cache,
           useValue: {
             get: jest.fn(),
@@ -222,6 +252,7 @@ describe('AuthService', () => {
     appService = module.get(AppService);
     passwordService = module.get(PasswordService);
     usersService = module.get(UsersService);
+    twoFactorService = module.get(TwoFactorService);
     cacheManager = module.get(Cache);
   });
 
@@ -231,7 +262,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
 
@@ -242,10 +273,10 @@ describe('AuthService', () => {
         'password123',
         mockUserEntity.password,
       );
-      expect(usersService.toDtoWithPermissions).toHaveBeenCalledWith(
+      expect(usersService.toFullDtoWithPermissions).toHaveBeenCalledWith(
         mockUserEntity,
       );
-      expect(result).toEqual(mockUserDto);
+      expect(result).toEqual({ user: mockUserDto, sessionVersion: 0 });
     });
 
     it('should return user DTO when credentials are valid by email', async () => {
@@ -253,7 +284,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser(
         'test@example.com',
@@ -263,7 +294,7 @@ describe('AuthService', () => {
       expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
         'test@example.com',
       );
-      expect(result).toEqual(mockUserDto);
+      expect(result).toEqual({ user: mockUserDto, sessionVersion: 0 });
     });
 
     it('should pass mixed-case email login through to lookup', async () => {
@@ -271,7 +302,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('User@Example.COM', 'password123');
 
@@ -285,7 +316,7 @@ describe('AuthService', () => {
         mockUserEntity,
       );
       passwordService.comparePassword.mockResolvedValueOnce(true);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('  test_user  ', 'password123');
 
@@ -343,32 +374,36 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.AUTH_INVALID_CREDENTIALS,
       });
-      expect(usersService.toDtoWithPermissions).not.toHaveBeenCalled();
+      expect(usersService.toFullDtoWithPermissions).not.toHaveBeenCalled();
     });
   });
 
-  describe('generateToken', () => {
-    it('should call jwt.sign with payload and JWT_SECRET', () => {
-      const payload: AuthJWTData = { type: 'access', userId: 1 };
+  describe('signToken', () => {
+    it('should call jwt.sign with payload, expiresIn and JWT_SECRET', () => {
       jwtService.sign.mockReturnValueOnce('mocked_token');
 
-      const token = service.generateToken(payload);
+      const token = service.signToken(1, 0, 'access');
 
-      expect(jwtService.sign).toHaveBeenCalledWith(payload, {
-        secret: appService.JWT_SECRET,
-      });
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        { type: 'access', userId: 1, sv: 0 },
+        {
+          secret: appService.JWT_SECRET,
+          expiresIn: 15 * 60,
+          algorithm: 'HS256',
+        },
+      );
       expect(token).toBe('mocked_token');
     });
   });
 
   describe('setAuthCookies', () => {
-    it('should set access and refresh cookies from generated tokens', () => {
+    it('should set access and refresh cookies from signed tokens with matching TTL', () => {
       const res = { cookie: jest.fn() } as unknown as Response;
       jwtService.sign
         .mockReturnValueOnce('access_token_123')
         .mockReturnValueOnce('refresh_token_123');
 
-      service.setAuthCookies(1, res);
+      service.setAuthCookies(1, 2, res);
 
       expect(res.cookie).toHaveBeenNthCalledWith(
         1,
@@ -379,6 +414,7 @@ describe('AuthService', () => {
           sameSite: 'lax',
           secure: false,
           domain: undefined,
+          path: '/',
           maxAge: 15 * 60 * 1000,
         },
       );
@@ -391,64 +427,156 @@ describe('AuthService', () => {
           sameSite: 'lax',
           secure: false,
           domain: undefined,
+          path: '/',
           maxAge: 10080 * 60 * 1000,
         },
       );
     });
   });
 
+  describe('clearAuthCookies', () => {
+    it('should clear both auth cookies with matching options', () => {
+      const res = { clearCookie: jest.fn() } as unknown as Response;
+
+      service.clearAuthCookies(res);
+
+      expect(res.clearCookie).toHaveBeenNthCalledWith(1, ACCESS_TOKEN_KEY, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false,
+        domain: undefined,
+        path: '/',
+      });
+      expect(res.clearCookie).toHaveBeenNthCalledWith(2, REFRESH_TOKEN_KEY, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false,
+        domain: undefined,
+        path: '/',
+      });
+    });
+  });
+
   describe('verifyToken', () => {
-    it('should call jwt.verify with token and JWT_SECRET', () => {
-      const payload: AuthJWTData = { type: 'access', userId: 1 };
+    it('should verify token with algorithms HS256 and return valid payload with exp and sv', () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+        iat: 1234500,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
 
       const result = service.verifyToken('valid_token', 'access');
 
       expect(jwtService.verify).toHaveBeenCalledWith('valid_token', {
         secret: appService.JWT_SECRET,
+        algorithms: ['HS256'],
       });
       expect(result).toEqual(payload);
     });
 
     it('should reject a token of the wrong type', () => {
-      jwtService.verify.mockReturnValueOnce({ type: 'refresh', userId: 1 });
+      jwtService.verify.mockReturnValueOnce({
+        type: 'refresh',
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      });
 
       expect(() => service.verifyToken('refresh_token', 'access')).toThrow(
         AppException,
       );
     });
 
-    it('should reject a malformed token', () => {
-      jwtService.verify.mockImplementationOnce(() => {
-        throw new JsonWebTokenError('jwt malformed');
+    it('should reject a token missing exp', () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 1,
+        sv: 0,
       });
 
-      expect(() => service.verifyToken('garbage', 'access')).toThrow(
+      expect(() => service.verifyToken('no_exp_token', 'access')).toThrow(
+        AppException,
+      );
+    });
+
+    it('should reject a token missing sv', () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 1,
+        exp: 1234567,
+      });
+
+      expect(() => service.verifyToken('no_sv_token', 'access')).toThrow(
+        AppException,
+      );
+    });
+
+    it('should reject a malformed or expired token', () => {
+      jwtService.verify.mockImplementationOnce(() => {
+        throw new JsonWebTokenError('jwt expired');
+      });
+
+      expect(() => service.verifyToken('expired_or_garbage', 'access')).toThrow(
         AppException,
       );
     });
   });
 
   describe('getUserFromAccessToken', () => {
-    it('should verify token and return user DTO by user id', async () => {
-      const payload: AuthJWTData = { type: 'access', userId: 1 };
+    it('should verify token and return user DTO by user id and sv', async () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getUserFromAccessToken('valid_token');
 
       expect(jwtService.verify).toHaveBeenCalledWith('valid_token', {
         secret: appService.JWT_SECRET,
+        algorithms: ['HS256'],
       });
-      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(usersService.findOneBy).toHaveBeenCalledWith({ id: 1 });
       expect(result).toEqual(mockUserDto);
     });
 
-    it('should throw UnauthorizedException when the account is deleted', async () => {
-      const payload: AuthJWTData = { type: 'access', userId: 1 };
+    it('should throw UnauthorizedException when sessionVersion mismatches', async () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce({
-        ...mockUserDto,
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        sessionVersion: 1,
+      });
+
+      await expect(
+        service.getUserFromAccessToken('valid_token'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('should throw UnauthorizedException when the account is deleted', async () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
         deletedAt: new Date(),
       });
 
@@ -459,31 +587,74 @@ describe('AuthService', () => {
       });
     });
 
+    it('should throw UnauthorizedException when user is not found', async () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 999,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneBy.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      await expect(
+        service.getUserFromAccessToken('valid_token'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('should propagate database or unexpected errors when user lookup fails', async () => {
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      const dbError = new Error('SQLITE_BUSY: database is locked');
+      usersService.findOneBy.mockRejectedValueOnce(dbError);
+
+      await expect(
+        service.getUserFromAccessToken('valid_token'),
+      ).rejects.toThrow('SQLITE_BUSY: database is locked');
+    });
+
     it('should reject a refresh token presented as an access token', async () => {
-      jwtService.verify.mockReturnValueOnce({ type: 'refresh', userId: 1 });
+      jwtService.verify.mockReturnValueOnce({
+        type: 'refresh',
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      });
 
       await expect(
         service.getUserFromAccessToken('refresh_token'),
       ).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
-      expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
+      expect(usersService.findOneBy).not.toHaveBeenCalled();
     });
   });
 
   describe('getActiveUserById', () => {
     it('should return user DTO by user id when active', async () => {
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getActiveUserById(1);
 
-      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(usersService.findOneBy).toHaveBeenCalledWith({
+        id: 1,
+      });
       expect(result).toEqual(mockUserDto);
     });
 
     it('should throw UnauthorizedException when the account is deleted', async () => {
-      usersService.findOneByAsDto.mockResolvedValueOnce({
-        ...mockUserDto,
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
         deletedAt: new Date(),
       });
 
@@ -492,14 +663,23 @@ describe('AuthService', () => {
       });
     });
 
-    it('should propagate not found error when user does not exist', async () => {
-      usersService.findOneByAsDto.mockRejectedValueOnce(
+    it('should throw UnauthorizedException when user does not exist', async () => {
+      usersService.findOneBy.mockRejectedValueOnce(
         AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
       );
 
       await expect(service.getActiveUserById(999)).rejects.toMatchObject({
-        code: ApiErrorCode.USER_NOT_FOUND,
+        code: ApiErrorCode.UNAUTHORIZED,
       });
+    });
+
+    it('should propagate database or unexpected errors when user lookup fails', async () => {
+      const dbError = new Error('SQLITE_BUSY: database is locked');
+      usersService.findOneBy.mockRejectedValueOnce(dbError);
+
+      await expect(service.getActiveUserById(1)).rejects.toThrow(
+        'SQLITE_BUSY: database is locked',
+      );
     });
   });
 
@@ -524,9 +704,15 @@ describe('AuthService', () => {
       const req = {
         cookies: { [ACCESS_TOKEN_KEY]: 'valid_access_token' },
       } as unknown as Request;
-      const payload: AuthJWTData = { type: 'access', userId: 1 };
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getMe(req);
 
@@ -549,9 +735,15 @@ describe('AuthService', () => {
     });
 
     it('should return user DTO when cookies string contains valid access token', async () => {
-      const payload: AuthJWTData = { type: 'access', userId: 1 };
+      const payload = {
+        type: 'access' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.getUserFromRawCookies(
         `foo=bar; ${ACCESS_TOKEN_KEY}=raw_valid_token; baz=qux`,
@@ -559,8 +751,11 @@ describe('AuthService', () => {
 
       expect(jwtService.verify).toHaveBeenCalledWith('raw_valid_token', {
         secret: appService.JWT_SECRET,
+        algorithms: ['HS256'],
       });
-      expect(usersService.findOneByAsDto).toHaveBeenCalledWith({ id: 1 });
+      expect(usersService.findOneBy).toHaveBeenCalledWith({
+        id: 1,
+      });
       expect(result).toEqual(mockUserDto);
     });
   });
@@ -646,8 +841,11 @@ describe('AuthService', () => {
       usersService.count.mockResolvedValue(0);
       cacheManager.get.mockResolvedValue(validToken);
 
-      const ownerDto = { ...mockUserDto, isOwner: true };
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(ownerDto);
+      const { email: _ownerEmail, ...ownerPublic } = {
+        ...mockUserDto,
+        isOwner: true,
+      };
+      usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(ownerPublic);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
@@ -670,16 +868,20 @@ describe('AuthService', () => {
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_CREATED,
-        ownerDto,
+        ownerPublic,
       );
       expect(result.isOwner).toBe(true);
+      expect(result.email).toBe(createDto.email);
     });
 
     it('should create MEMBER user and not require setup token when users already exist', async () => {
       usersService.count.mockResolvedValue(1);
-      const memberDto = { ...mockUserDto, isOwner: false };
+      const { email: _memberEmail, ...memberPublic } = {
+        ...mockUserDto,
+        isOwner: false,
+      };
 
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
+      usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(memberPublic);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
@@ -693,9 +895,10 @@ describe('AuthService', () => {
       expect(cacheManager.get).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_CREATED,
-        memberDto,
+        memberPublic,
       );
       expect(result.role).toBe(EUserRole.MEMBER);
+      expect(result.email).toBe(createDto.email);
     });
 
     it('should throw ConflictException when username is already taken', async () => {
@@ -742,10 +945,13 @@ describe('AuthService', () => {
         ...mockUserEntity,
         role: EUserRole.MEMBER,
       } as unknown as UserEntity;
-      const memberDto = { ...mockUserDto, role: EUserRole.MEMBER };
+      const { email: _inviteEmail, ...memberPublic } = {
+        ...mockUserDto,
+        role: EUserRole.MEMBER,
+      };
 
       userRepo.create.mockReturnValueOnce(createdMember);
-      usersService.toDtoWithPermissions.mockResolvedValueOnce(memberDto);
+      usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(memberPublic);
       passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
@@ -998,21 +1204,52 @@ describe('AuthService', () => {
   });
 
   describe('resolveRefreshToken', () => {
-    it('should return the active user when the account is active', async () => {
-      const payload: AuthJWTData = { type: 'refresh', userId: 1 };
+    it('should return user DTO and sessionVersion when the account is active and sv matches', async () => {
+      const payload = {
+        type: 'refresh' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await expect(
         service.resolveRefreshToken('refresh_token'),
-      ).resolves.toEqual(mockUserDto);
+      ).resolves.toEqual({ user: mockUserDto, sessionVersion: 0 });
+    });
+
+    it('should throw UnauthorizedException when sessionVersion mismatches', async () => {
+      const payload = {
+        type: 'refresh' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        sessionVersion: 1,
+      });
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
 
     it('should throw UnauthorizedException when the account is deleted', async () => {
-      const payload: AuthJWTData = { type: 'refresh', userId: 1 };
+      const payload = {
+        type: 'refresh' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
       jwtService.verify.mockReturnValueOnce(payload);
-      usersService.findOneByAsDto.mockResolvedValueOnce({
-        ...mockUserDto,
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
         deletedAt: new Date(),
       });
 
@@ -1023,15 +1260,116 @@ describe('AuthService', () => {
       });
     });
 
+    it('should throw UnauthorizedException when user is not found', async () => {
+      const payload = {
+        type: 'refresh' as const,
+        userId: 999,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      usersService.findOneBy.mockRejectedValueOnce(
+        AppException.notFound(ApiErrorCode.USER_NOT_FOUND, 'User not found'),
+      );
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('should propagate database or unexpected errors when user lookup fails', async () => {
+      const payload = {
+        type: 'refresh' as const,
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      };
+      jwtService.verify.mockReturnValueOnce(payload);
+      const dbError = new Error('SQLITE_BUSY: database is locked');
+      usersService.findOneBy.mockRejectedValueOnce(dbError);
+
+      await expect(
+        service.resolveRefreshToken('refresh_token'),
+      ).rejects.toThrow('SQLITE_BUSY: database is locked');
+    });
+
     it('should reject an access token presented as a refresh token', async () => {
-      jwtService.verify.mockReturnValueOnce({ type: 'access', userId: 1 });
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 1,
+        sv: 0,
+        exp: 1234567,
+      });
 
       await expect(
         service.resolveRefreshToken('access_token'),
       ).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
-      expect(usersService.findOneByAsDto).not.toHaveBeenCalled();
+      expect(usersService.findOneBy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Two-factor challenge & completion', () => {
+    it('startTwoFactorChallenge stores pending challenge in cache and sets cookie', async () => {
+      const mockRes = { cookie: jest.fn() } as unknown as Response;
+
+      await service.startTwoFactorChallenge(42, mockRes);
+
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        expect.stringMatching(/^auth:2fa-pending:[a-f0-9]{64}$/),
+        42,
+        5 * 60 * 1000,
+      );
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'two-factor-token',
+        expect.any(String),
+        expect.objectContaining({
+          httpOnly: true,
+          maxAge: 5 * 60 * 1000,
+        }),
+      );
+    });
+
+    it('completeTwoFactorLogin resolves pending challenge, verifies code, and cleans up cache', async () => {
+      (cacheManager.get as jest.Mock).mockResolvedValue(42);
+
+      usersService.findOneBy.mockResolvedValueOnce({
+        ...mockUserEntity,
+        id: 42,
+        sessionVersion: 3,
+        deletedAt: null,
+      } as UserEntity);
+      usersService.toFullDtoWithPermissions.mockResolvedValueOnce({
+        ...mockUserDto,
+        id: 42,
+        twoFactorEnabled: true,
+      });
+
+      const result = await service.completeTwoFactorLogin(
+        'valid_token',
+        '123456',
+      );
+
+      expect(twoFactorService.verifyLoginCode).toHaveBeenCalledWith(
+        42,
+        '123456',
+      );
+      expect(cacheManager.del).toHaveBeenCalled();
+      expect(result.user.id).toBe(42);
+      expect(result.sessionVersion).toBe(3);
+    });
+
+    it('completeTwoFactorLogin throws 401 on missing or expired pending challenge', async () => {
+      (cacheManager.get as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.completeTwoFactorLogin('expired_token', '123456'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
     });
   });
 });

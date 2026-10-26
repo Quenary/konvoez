@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import {
   PushSubscriptionDto,
@@ -29,7 +29,7 @@ export class NotificationsController {
   @Post('subscription')
   @ApiOkResponse({ description: 'Create or update push subscription' })
   async upsertSubscription(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Body() body: PushSubscriptionDto,
   ): Promise<void> {
     await this.notificationsService.saveSubscription(author, body);
@@ -38,7 +38,7 @@ export class NotificationsController {
   @Post('subscription/unsubscribe')
   @ApiOkResponse({ description: 'Delete push subscription' })
   async unsubscribe(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Body() body: PushSubscriptionEndpointDto,
   ): Promise<void> {
     await this.notificationsService.removeSubscription(author, body.endpoint);

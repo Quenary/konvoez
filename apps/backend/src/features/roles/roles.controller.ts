@@ -15,7 +15,7 @@ import { ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { EPermission } from '@konvoez/shared';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author, RequirePermissions } from '../auth/auth.decorator';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RolesService } from './roles.service';
 import { CreateRoleDto, RoleDto, UpdateRoleDto } from './roles.dto';
@@ -38,14 +38,14 @@ export class RolesController {
   @Get(':id')
   @ApiOkResponse({ type: RoleDto })
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<RoleDto> {
-    return this.rolesService.findOneAsDto(id);
+    return this.rolesService.findOneAsSafeDto(id);
   }
 
   @Post()
   @RequirePermissions([EPermission.MANAGE_ROLES])
   @ApiOkResponse({ type: RoleDto })
   async create(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Body() dto: CreateRoleDto,
   ): Promise<RoleDto> {
     this.permissionsFacade.assertCanManageRole(author, dto.priority ?? 0);
@@ -62,7 +62,7 @@ export class RolesController {
   @RequirePermissions([EPermission.MANAGE_ROLES])
   @ApiOkResponse({ type: RoleDto })
   async update(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateRoleDto,
   ): Promise<RoleDto> {
@@ -85,7 +85,7 @@ export class RolesController {
   @RequirePermissions([EPermission.MANAGE_ROLES])
   @ApiNoContentResponse()
   async remove(
-    @Author() author: GetUserDto,
+    @Author() author: GetUserSafeDto,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<void> {
     const existingRole = await this.rolesService.findOne(id);

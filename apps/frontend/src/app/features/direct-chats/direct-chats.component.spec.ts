@@ -9,18 +9,17 @@ import { DirectChatsComponent } from './direct-chats.component';
 import { DirectChatsStore } from './direct-chats.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 
 describe('DirectChatsComponent', () => {
   let component: DirectChatsComponent;
   let fixture: ComponentFixture<DirectChatsComponent>;
   let router: Router;
 
-  const mockUser: IUser = {
+  const mockUser: IUserSafe = {
     id: 10,
     username: 'john_doe',
     fullname: 'John Doe',
-    email: 'john@example.com',
     isOwner: false,
     roles: [],
     permissions: [],

@@ -8,9 +8,15 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { EVoiceSessionType, IRoom, TVoiceSessionTarget } from '@konvoez/shared';
+import {
+  EVoiceQualityTier,
+  EVoiceSessionType,
+  IRoom,
+  TVoiceSessionTarget,
+} from '@konvoez/shared';
 import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { VoiceQualityService } from '@core/services/voice-quality.service';
 import { RoomNavigationService } from '../room-navigation.service';
 import { VoiceRoomPanelComponent } from './voice-room-panel.component';
 describe('VoiceRoomPanelComponent', () => {
@@ -35,6 +41,8 @@ describe('VoiceRoomPanelComponent', () => {
 
   let localCamTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
+  let qualityTier: ReturnType<typeof signal<EVoiceQualityTier>>;
+  let qualityBitrateKbps: ReturnType<typeof signal<number>>;
   let translate: TranslateService;
 
   beforeEach(() => {
@@ -61,6 +69,8 @@ describe('VoiceRoomPanelComponent', () => {
 
     localCamTrack = signal(null);
     localScreenTrack = signal(null);
+    qualityTier = signal(EVoiceQualityTier.EXCELLENT);
+    qualityBitrateKbps = signal(64);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomPanelComponent],
@@ -70,6 +80,13 @@ describe('VoiceRoomPanelComponent', () => {
         { provide: RoomNavigationService, useValue: roomNavigationService },
         { provide: VoiceLeaveService, useValue: voiceLeaveService },
         { provide: VoiceSessionService, useValue: voiceSessionService },
+        {
+          provide: VoiceQualityService,
+          useValue: {
+            tier: qualityTier.asReadonly(),
+            bitrateKbps: qualityBitrateKbps.asReadonly(),
+          },
+        },
         {
           provide: RoomsStore,
           useValue: { roomsDict: roomsDict.asReadonly() },
@@ -117,6 +134,17 @@ describe('VoiceRoomPanelComponent', () => {
         CAMERA_OFF: 'Stop camera',
         SCREEN_OFF: 'Stop screen',
         OPEN_DEVICES_SETTINGS: 'Open device settings',
+        QUALITY: {
+          LEVEL_0: 'Voice quality: excellent. {{kbps}} kbps',
+          LEVEL_1: 'Voice quality: good. {{kbps}} kbps',
+          LEVEL_2: 'Voice quality: degraded. {{kbps}} kbps',
+          LEVEL_3: 'Voice quality: poor. {{kbps}} kbps',
+        },
+      },
+      SETTINGS: {
+        ADMIN: {
+          VOICE_MAX_BITRATE: 'Voice bitrate (kbps)',
+        },
       },
     });
     translate.setTranslation('ru', {
@@ -130,6 +158,17 @@ describe('VoiceRoomPanelComponent', () => {
         CAMERA_OFF: 'Выключить камеру',
         SCREEN_OFF: 'Остановить демонстрацию',
         OPEN_DEVICES_SETTINGS: 'Открыть настройки устройств',
+        QUALITY: {
+          LEVEL_0: 'Связь: отличная. Битрейт голоса: {{kbps}} кбит/с',
+          LEVEL_1: 'Связь: хорошая. Битрейт голоса: {{kbps}} кбит/с',
+          LEVEL_2: 'Связь: нестабильная. Битрейт голоса: {{kbps}} кбит/с',
+          LEVEL_3: 'Связь: плохая. Битрейт голоса: {{kbps}} кбит/с',
+        },
+      },
+      SETTINGS: {
+        ADMIN: {
+          VOICE_MAX_BITRATE: 'Битрейт голоса (кбит/с)',
+        },
       },
     });
     translate.use('en');
@@ -271,5 +310,66 @@ describe('VoiceRoomPanelComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelectorAll('button').length).toBe(5);
+  });
+
+  it('computes qualityColor token for each tier', () => {
+    const { instance } = createComponent();
+
+    qualityTier.set(EVoiceQualityTier.EXCELLENT);
+    expect(instance['qualityColor']()).toBe('var(--tui-status-positive)');
+
+    qualityTier.set(EVoiceQualityTier.GOOD);
+    expect(instance['qualityColor']()).toBe('var(--tui-status-info)');
+
+    qualityTier.set(EVoiceQualityTier.UNSTABLE);
+    expect(instance['qualityColor']()).toBe('var(--tui-status-warning)');
+
+    qualityTier.set(EVoiceQualityTier.BAD);
+    expect(instance['qualityColor']()).toBe('var(--tui-status-negative)');
+  });
+
+  it('computes qualityHintKey and qualityAriaLabel and updates on language change', () => {
+    const { instance } = createComponent();
+
+    qualityTier.set(EVoiceQualityTier.EXCELLENT);
+    qualityBitrateKbps.set(64);
+    expect(instance['qualityHintKey']()).toBe('CALL.QUALITY.LEVEL_0');
+    expect(instance['qualityAriaLabel']()).toContain(
+      'Voice quality: excellent',
+    );
+    expect(instance['qualityAriaLabel']()).toContain('64 kbps');
+
+    qualityTier.set(EVoiceQualityTier.BAD);
+    qualityBitrateKbps.set(16);
+    expect(instance['qualityHintKey']()).toBe('CALL.QUALITY.LEVEL_3');
+    expect(instance['qualityAriaLabel']()).toContain('Voice quality: poor');
+    expect(instance['qualityAriaLabel']()).toContain('16 kbps');
+
+    isDirectCallContext.set(true);
+    isConnected.set(true);
+    expect(instance['qualityAriaLabel']()).toContain('Direct Call');
+    expect(instance['qualityAriaLabel']()).toContain('Voice quality: poor');
+
+    translate.use('ru');
+    expect(instance['qualityAriaLabel']()).toContain('Прямой звонок');
+    expect(instance['qualityAriaLabel']()).toContain('Связь: плохая');
+  });
+
+  it('binds quality color and neutral appearance on session button', () => {
+    activeSession.set({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+    qualityTier.set(EVoiceQualityTier.EXCELLENT);
+    const { fixture } = createComponent();
+    const sessionButton = fixture.nativeElement.querySelector(
+      'button.panel-button-spaced',
+    ) as HTMLElement;
+
+    expect(sessionButton).toBeTruthy();
+    expect(sessionButton.getAttribute('appearance')).toBe('neutral');
+    const icon = sessionButton.querySelector('tui-icon') as HTMLElement;
+    expect(icon).toBeTruthy();
+    expect(icon.style.color).toBe('var(--tui-status-positive)');
   });
 });

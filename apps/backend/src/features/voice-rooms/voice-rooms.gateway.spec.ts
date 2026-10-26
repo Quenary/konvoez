@@ -39,7 +39,7 @@ import {
   ApiErrorCode,
   EPermission,
   EVoiceSessionType,
-  type IUser,
+  type IUserSafe,
   type TVoiceRoomProduce,
 } from '@konvoez/shared';
 import { NotificationsDomainEvents } from '../notifications/notifications.events';
@@ -48,11 +48,10 @@ import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
 import { Server, Socket } from 'socket.io';
 
-const alice: IUser = {
+const alice: IUserSafe = {
   id: 7,
   username: 'alice',
   fullname: 'Alice',
-  email: 'alice@example.com',
   avatarUrl: null,
   role: EUserRole.MEMBER,
   isOwner: false,
@@ -62,12 +61,11 @@ const alice: IUser = {
   updatedAt: new Date(),
 };
 
-const bob: IUser = {
+const bob: IUserSafe = {
   ...alice,
   id: 8,
   username: 'bob',
   fullname: 'Bob',
-  email: 'bob@example.com',
 };
 
 function createRoom(peers: Map<string, unknown> = new Map()) {
@@ -156,7 +154,7 @@ describe('VoiceRoomsGateway', () => {
         type: EVoiceSessionType.GROUP_ROOM,
         roomId,
       })),
-      createLobbyPeerJoined: jest.fn((roomId: number, user: IUser) => ({
+      createLobbyPeerJoined: jest.fn((roomId: number, user: IUserSafe) => ({
         roomId,
         user,
         epoch: 'epoch-1',
@@ -215,6 +213,7 @@ describe('VoiceRoomsGateway', () => {
       to: jest.fn().mockReturnThis(),
       emit: jest.fn(),
       in: jest.fn().mockReturnValue({ fetchSockets }),
+      fetchSockets,
       sockets: { sockets: new Map() },
     };
     Object.assign(gateway, { server: serverMock as unknown as Server });
@@ -943,7 +942,7 @@ describe('VoiceRoomsGateway', () => {
 
       const sockets: Socket[] = [];
       for (let i = 0; i < 5; i += 1) {
-        const user: IUser = { ...alice, id: 10 + i, username: `user-${i}` };
+        const user: IUserSafe = { ...alice, id: 10 + i, username: `user-${i}` };
         const peer = {
           id: `socket-${i}`,
           user,
@@ -1106,6 +1105,83 @@ describe('VoiceRoomsGateway', () => {
         producerId: 'cam-1',
         userId: alice.id,
       });
+    });
+
+    it('subscribes to producer score for mic and emits minimum score to owner socket only', async () => {
+      const room = createRoom();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+      };
+      room.peers.set('socket-1', peer);
+
+      let scoreHandler:
+        ((scores: Array<{ score: number }>) => void) | undefined;
+      const micProducer = {
+        id: 'mic-1',
+        kind: 'audio',
+        closed: false,
+        appData: { mediaTag: 'mic', peerId: 'socket-1' },
+        close: jest.fn(),
+        observer: { on: jest.fn() },
+        on: jest.fn(
+          (
+            event: string,
+            handler: (scores: Array<{ score: number }>) => void,
+          ) => {
+            if (event === 'score') {
+              scoreHandler = handler;
+            }
+          },
+        ),
+      };
+
+      const sendTransport = {
+        produce: jest.fn().mockResolvedValue(micProducer),
+      };
+      (
+        peer as unknown as { sendTransport: typeof sendTransport }
+      ).sendTransport = sendTransport;
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      const socket = joinedSocket();
+      socket.connected = true;
+      (socket.to as jest.Mock).mockReturnValue({ emit: jest.fn() });
+
+      await gateway.produce(socket as never, {
+        transportId: 't',
+        kind: 'audio',
+        mediaTag: 'mic',
+        rtpParameters: {},
+      });
+
+      expect(micProducer.on).toHaveBeenCalledWith(
+        'score',
+        expect.any(Function),
+      );
+      expect(scoreHandler).toBeDefined();
+
+      // Trigger score with multiple consumer scores; minimum should be picked
+      scoreHandler?.([{ score: 9 }, { score: 4 }, { score: 7 }]);
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_SCORE, {
+        producerId: 'mic-1',
+        score: 4,
+      });
+
+      // Empty scores default to 10
+      scoreHandler?.([]);
+      expect(socket.emit).toHaveBeenCalledWith(EVoiceRoomEvent.PRODUCER_SCORE, {
+        producerId: 'mic-1',
+        score: 10,
+      });
+
+      // Emitted only to owner socket, not fan-out to room
+      expect(socket.to('room:1').emit).not.toHaveBeenCalledWith(
+        EVoiceRoomEvent.PRODUCER_SCORE,
+        expect.anything(),
+      );
     });
 
     it('closing screen also closes screen-audio and emits PRODUCER_CLOSED for both', async () => {
@@ -2024,6 +2100,25 @@ describe('VoiceRoomsGateway', () => {
       expect(voiceRoomsStateService.removeRoom).toHaveBeenCalledWith(
         sessionKey,
       );
+    });
+  });
+
+  describe('onUserSessionsRevoked', () => {
+    it('should disconnect matching user sockets and keep other sockets connected', async () => {
+      const targetSocket = {
+        data: { user: alice },
+        disconnect: jest.fn(),
+      };
+      const otherSocket = {
+        data: { user: bob },
+        disconnect: jest.fn(),
+      };
+      fetchSockets.mockResolvedValueOnce([targetSocket, otherSocket]);
+
+      await gateway.onUserSessionsRevoked({ id: alice.id });
+
+      expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+      expect(otherSocket.disconnect).not.toHaveBeenCalled();
     });
   });
 });

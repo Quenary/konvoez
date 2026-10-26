@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { of } from 'rxjs';
@@ -14,11 +14,10 @@ describe('UsersStore', () => {
   };
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
 
-  const userAlice: IUser = {
+  const userAlice: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -29,11 +28,10 @@ describe('UsersStore', () => {
     updatedAt: null,
   };
 
-  const userBob: IUser = {
+  const userBob: IUserSafe = {
     id: 2,
     username: 'bob',
     fullname: 'Bob',
-    email: 'bob@example.com',
     isOwner: false,
     roles: [],
     permissions: [],

@@ -36,17 +36,31 @@ flowchart TD
 - **Stored files**: attachments, avatars and other uploads are not encrypted by the app. Encryption is the operator's job at the storage layer (for example LUKS or S3 server-side encryption).
 - **Voice and video**: WebRTC through the Mediasoup SFU, encrypted in transit with DTLS-SRTP.
 - **Web Push**: optional, for direct messages. Payloads are encrypted for the browser subscription, so push services cannot read them. The payload carries a plaintext preview so the OS can render the notification; the server and the recipient device can see it. VAPID keys live on disk next to SQLite and are encrypted with `MASTER_KEY`; operators may mount their own `vapid.json`.
+- **User email**: treated as PII. General HTTP, WebSocket and entity-sync user payloads use `userSafeSchema` / `GetUserSafeDto` (PII omitted). Self auth/profile and admin `user-management` responses use `userFullSchema` / `GetUserFullDto` (includes email).
 
 ### Authentication
 
-- Sessions are JWTs delivered in secure HTTP cookies. Passwords are stored as Argon2 hashes.
-- Password recovery uses emailed one-time codes. See [Password recovery](PASSWORD_RECOVERY.md).
+- Sessions are JWTs delivered in secure HTTP cookies. Tokens expire on the server together with their cookies; refresh is sliding.
+- A per-user session version lets password changes, 2FA changes, anonymize and delete end all sessions and live connections at once.
+- Passwords are stored as Argon2 hashes. Password recovery uses emailed one-time codes. See [Password recovery](PASSWORD_RECOVERY.md).
+- Two-factor authentication (TOTP RFC 6238) protects accounts with authenticator apps and hashed recovery codes. See [Two-factor authentication](TWO_FACTOR.md).
 - An account with `deletedAt` set cannot log in, refresh a session, open a socket or recover its password. See [User management](USER_MANAGEMENT.md).
+- The first deploy with session versions signs out all active sessions once.
+
+```mermaid
+flowchart TD
+  R[Request / socket connect / refresh] --> V{Valid signature and unexpired?}
+  V -- no --> X[Reject: 401]
+  V -- yes --> U[Load user row]
+  U --> D{Deleted, or session version mismatch?}
+  D -- yes --> X
+  D -- no --> OK[Allow]
+```
 
 ## In scope
 
 - Unauthenticated access to private rooms, message streams or user details.
-- Authentication or authorization bypass, such as impersonation or forged JWT cookies.
+- Authentication or authorization bypass, such as impersonation, forged JWT cookies, or using an expired or revoked token.
 - Bypassing the `OWNER` bootstrap token, or claiming `OWNER` after the initial setup.
 - Bypassing invite-only registration: missing, reused, expired or revoked codes, or ignoring email binding.
 - Creating, revoking or listing invites without `MANAGE_INVITES`.

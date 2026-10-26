@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { IUser } from '@konvoez/shared';
+import { IUserFull } from '@konvoez/shared';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { SettingsUserManagementComponent } from './settings-user-management.component';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
@@ -16,7 +16,7 @@ describe('SettingsUserManagementComponent', () => {
     list: vi.fn(),
   };
 
-  const sampleUser: IUser = {
+  const sampleUser: IUserFull = {
     id: 5,
     username: 'alice',
     fullname: 'Alice Wonderland',
@@ -28,9 +28,10 @@ describe('SettingsUserManagementComponent', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-02T03:04:00.000Z'),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
-  const setup = async (users: IUser[] = []) => {
+  const setup = async (users: IUserFull[] = []) => {
     mockApi.list.mockReturnValue(of(users));
 
     await TestBed.configureTestingModule({

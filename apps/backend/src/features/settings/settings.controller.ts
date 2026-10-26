@@ -11,6 +11,7 @@ import {
   InviteOnlySignUpSettingDto,
   PasswordRecoveryCodeTtlSettingDto,
   SettingsUpdateDto,
+  VoiceMaxBitrateKbpsSettingDto,
 } from './settings.dto';
 import {
   ESettingKey,
@@ -28,6 +29,7 @@ const settingResponseModels = [
   { $ref: getSchemaPath(AttachmentsMaxFileSizeSettingDto) },
   { $ref: getSchemaPath(AttachmentsMaxFilesPerMessageSettingDto) },
   { $ref: getSchemaPath(AttachmentsStripImageMetadataSettingDto) },
+  { $ref: getSchemaPath(VoiceMaxBitrateKbpsSettingDto) },
 ] as const;
 
 @Controller('settings')
@@ -40,6 +42,7 @@ const settingResponseModels = [
   AttachmentsMaxFileSizeSettingDto,
   AttachmentsMaxFilesPerMessageSettingDto,
   AttachmentsStripImageMetadataSettingDto,
+  VoiceMaxBitrateKbpsSettingDto,
 )
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
@@ -55,7 +58,7 @@ export class SettingsController {
     description: 'Get all settings',
   })
   async getAll(): Promise<TSetting[]> {
-    return await this.settingsService.findAllAsDto();
+    return await this.settingsService.findAllAsSafeDto();
   }
 
   @Get(':key')
@@ -68,7 +71,7 @@ export class SettingsController {
   async getOne<K extends ESettingKey>(
     @Param('key') key: K,
   ): Promise<TSettingByKey<K>> {
-    return await this.settingsService.findOneAsDto(key);
+    return await this.settingsService.findOneAsSafeDto(key);
   }
 
   @Put()

@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
@@ -13,11 +13,12 @@ import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/l
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
-const user = (id: number): IUser =>
-  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUser;
+
+const user = (id: number): IUserSafe =>
+  ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUserSafe;
 
 describe('VoiceRoomTileComponent', () => {
-  let currentUser: ReturnType<typeof signal<IUser | null>>;
+  let currentUser: ReturnType<typeof signal<IUserSafe | null>>;
   let autoPauseWhenHidden: ReturnType<typeof signal<boolean>>;
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let setScreenPreviewAutoPauseWhenHidden: ReturnType<typeof vi.fn>;

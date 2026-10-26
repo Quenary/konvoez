@@ -8,21 +8,21 @@ import { provideStore } from '@ngrx/store';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { DirectStore } from './direct.store';
 
 describe('DirectStore', () => {
   let store: InstanceType<typeof DirectStore>;
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
-  const mockUser: IUser = {
+  const mockUser: IUserSafe = {
     id: 99,
     username: 'bob',
     fullname: 'Bob',
     avatarUrl: 'https://example.com/avatar.png',
-  } as IUser;
+  } as IUserSafe;
 
-  const interlocutor = signal<IUser | null>(null);
+  const interlocutor = signal<IUserSafe | null>(null);
   const isCallActive = signal(false);
   const callWithUserId = signal<number | null>(null);
   const rejoinableCall = signal<{
@@ -41,7 +41,7 @@ describe('DirectStore', () => {
     refreshActiveCall: vi.fn().mockResolvedValue(null),
   };
 
-  const usersEntityMap = signal<Record<number, IUser>>({ 99: mockUser });
+  const usersEntityMap = signal<Record<number, IUserSafe>>({ 99: mockUser });
   const usersOnlineMap = signal<Record<number, boolean>>({});
   const mockUsersStore = {
     loadAll: vi.fn(),
@@ -91,7 +91,7 @@ describe('DirectStore', () => {
       {
         scenario: 'regular user chat',
         recipientId: '99',
-        users: { 99: mockUser } as Record<number, IUser>,
+        users: { 99: mockUser } as Record<number, IUserSafe>,
         expectedIsSelf: false,
         expectedTitle: 'bob',
         expectedAvatarUrl: 'https://example.com/avatar.png',
@@ -106,8 +106,8 @@ describe('DirectStore', () => {
             username: 'alice',
             fullname: 'Alice',
             avatarUrl: 'https://example.com/alice.png',
-          } as IUser,
-        } as Record<number, IUser>,
+          } as IUserSafe,
+        } as Record<number, IUserSafe>,
         expectedIsSelf: true,
         expectedTitle: 'DIRECT.SAVED_MESSAGES',
         expectedAvatarUrl: null,
@@ -116,7 +116,7 @@ describe('DirectStore', () => {
       {
         scenario: 'user not found in UsersStore',
         recipientId: '42',
-        users: {} as Record<number, IUser>,
+        users: {} as Record<number, IUserSafe>,
         expectedIsSelf: false,
         expectedTitle: '',
         expectedAvatarUrl: null,

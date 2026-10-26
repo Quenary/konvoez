@@ -78,7 +78,7 @@ export class RolesService {
     });
   }
 
-  async findOneAsDto(id: number): Promise<RoleDto> {
+  async findOneAsSafeDto(id: number): Promise<RoleDto> {
     const role = await this.findOne(id);
     return this.toDto(role);
   }

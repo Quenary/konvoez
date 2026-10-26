@@ -15,7 +15,7 @@ import {
 import { UsersDomainEvents, emitUsersDomainEvent } from './users.events';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import { UserEntity } from './users.entity';
-import { GetUserDto } from './users.dto';
+import { GetUserSafeDto, GetUserFullDto } from './users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import type { RoleEntity } from '../roles/roles.entity';
 
@@ -48,9 +48,9 @@ export class UsersService {
     });
   }
 
-  async findOneAsDto(id: number): Promise<GetUserDto> {
+  async findOneAsSafeDto(id: number): Promise<GetUserSafeDto> {
     const user = await this.findOne(id);
-    return this.toDtoWithPermissions(user);
+    return this.toSafeDtoWithPermissions(user);
   }
 
   async findOneBy(where: Partial<UserEntity>): Promise<UserEntity> {
@@ -83,9 +83,11 @@ export class UsersService {
     return user;
   }
 
-  async findOneByAsDto(where: Partial<UserEntity>): Promise<GetUserDto> {
+  async findOneByAsSafeDto(
+    where: Partial<UserEntity>,
+  ): Promise<GetUserSafeDto> {
     const user = await this.findOneBy(where);
-    return this.toDtoWithPermissions(user);
+    return this.toSafeDtoWithPermissions(user);
   }
 
   async findAll(): Promise<UserEntity[]> {
@@ -94,9 +96,11 @@ export class UsersService {
     });
   }
 
-  async findAllAsDto(): Promise<GetUserDto[]> {
+  async findAllAsSafeDto(): Promise<GetUserSafeDto[]> {
     const users = await this.findAll();
-    return Promise.all(users.map((user) => this.toDtoWithPermissions(user)));
+    return Promise.all(
+      users.map((user) => this.toSafeDtoWithPermissions(user)),
+    );
   }
 
   async findByIds(ids: number[]): Promise<UserEntity[]> {
@@ -157,18 +161,35 @@ export class UsersService {
     return em.count(UserEntity);
   }
 
-  async setPassword(userId: number, password: string): Promise<UserEntity> {
+  async revokeSessions(user: UserEntity): Promise<number> {
     return ensureRequestContext(this.em, async () => {
-      const user = await this.findOne(userId);
-      const passwordHash = await this.passwordService.hashPassword(password);
-      this.repo.assign(user, { password: passwordHash });
+      user.sessionVersion = (user.sessionVersion ?? 0) + 1;
       this.em.persist(user);
       await this.em.flush();
+      emitUsersDomainEvent(
+        this.eventEmitter,
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: user.id },
+      );
+      return user.sessionVersion;
+    });
+  }
+
+  async setPassword(
+    userOrId: number | UserEntity,
+    password: string,
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      const user =
+        typeof userOrId === 'number' ? await this.findOne(userOrId) : userOrId;
+      const passwordHash = await this.passwordService.hashPassword(password);
+      this.repo.assign(user, { password: passwordHash });
+      await this.revokeSessions(user);
       return user;
     });
   }
 
-  async anonymizeLoaded(user: UserEntity): Promise<GetUserDto> {
+  async anonymizeLoaded(user: UserEntity): Promise<GetUserFullDto> {
     const previousAvatar = user.avatar;
     const password = await this.passwordService.hashPassword(
       randomBytes(24).toString('base64url'),
@@ -180,17 +201,19 @@ export class UsersService {
       avatar: null,
       password,
       deletedAt: user.deletedAt ?? new Date(),
+      twoFactorSecret: null,
+      twoFactorEnabledAt: null,
+      twoFactorLastStep: null,
     });
-    this.em.persist(user);
-    await this.em.flush();
+    await this.revokeSessions(user);
     await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
-    const result = this.toDto(user);
+    const publicDto = this.toSafeDto(user);
     emitUsersDomainEvent(
       this.eventEmitter,
       UsersDomainEvents.USER_UPDATED,
-      result,
+      publicDto,
     );
-    return result;
+    return this.toFullDto(user);
   }
 
   async removeLoaded(id: number): Promise<void> {
@@ -235,9 +258,14 @@ export class UsersService {
     emitUsersDomainEvent(this.eventEmitter, UsersDomainEvents.USER_DELETED, {
       id,
     });
+    emitUsersDomainEvent(
+      this.eventEmitter,
+      UsersDomainEvents.USER_SESSIONS_REVOKED,
+      { id },
+    );
   }
 
-  toDto(user: UserEntity, permissions?: EPermission[]): GetUserDto {
+  toSafeDto(user: UserEntity, permissions?: EPermission[]): GetUserSafeDto {
     const roles = user.roles?.isInitialized?.()
       ? user.roles.getItems().map((r) => ({
           id: r.id,
@@ -255,7 +283,6 @@ export class UsersService {
       id: user.id,
       username: user.username,
       fullname: user.fullname,
-      email: user.email,
       isOwner: user.isOwner,
       roles,
       permissions: effectivePermissions,
@@ -267,12 +294,102 @@ export class UsersService {
     };
   }
 
-  async toDtoWithPermissions(user: UserEntity): Promise<GetUserDto> {
+  toFullDto(user: UserEntity, permissions?: EPermission[]): GetUserFullDto {
+    return {
+      ...this.toSafeDto(user, permissions),
+      email: user.email,
+      twoFactorEnabled: user.twoFactorEnabledAt != null,
+    };
+  }
+
+  async setTwoFactorSecret(
+    user: UserEntity,
+    secret: string,
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorSecret: secret,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async enableTwoFactor(user: UserEntity, step: number): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorEnabledAt: new Date(),
+        twoFactorLastStep: step,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async clearTwoFactor(user: UserEntity): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorSecret: null,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async touchTwoFactorStep(
+    user: UserEntity,
+    step: number,
+  ): Promise<UserEntity> {
+    return ensureRequestContext(this.em, async () => {
+      this.repo.assign(user, {
+        twoFactorLastStep: step,
+      });
+      this.em.persist(user);
+      await this.em.flush();
+      return user;
+    });
+  }
+
+  async toSafeDtoWithPermissions(user: UserEntity): Promise<GetUserSafeDto> {
     if (!user.roles?.isInitialized?.()) {
       await this.em.populate(user, ['roles']);
     }
     const permissions = await this.permissionsFacade.getUserPermissions(user);
-    return this.toDto(user, permissions);
+    return this.toSafeDto(user, permissions);
+  }
+
+  async toFullDtoWithPermissions(user: UserEntity): Promise<GetUserFullDto> {
+    if (!user.roles?.isInitialized?.()) {
+      await this.em.populate(user, ['roles']);
+    }
+    const permissions = await this.permissionsFacade.getUserPermissions(user);
+    return this.toFullDto(user, permissions);
+  }
+
+  async findOneAsFullDto(id: number): Promise<GetUserFullDto> {
+    const user = await this.findOne(id);
+    return this.toFullDtoWithPermissions(user);
+  }
+
+  async findOneByAsFullDto(
+    where: Partial<UserEntity>,
+  ): Promise<GetUserFullDto> {
+    const user = await this.findOneBy(where);
+    return this.toFullDtoWithPermissions(user);
+  }
+
+  async findAllAsFullDto(): Promise<GetUserFullDto[]> {
+    const users = await this.findAll();
+    return Promise.all(
+      users.map((user) => this.toFullDtoWithPermissions(user)),
+    );
   }
 
   getAvatarUrl(key: string | null | undefined): string | null {

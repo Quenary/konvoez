@@ -1,12 +1,17 @@
 import { createZodDto } from 'nestjs-zod';
 import {
   authLoginSchema,
+  authLoginTwoFactorSchema,
   authRegisterSchema,
   passwordRecoveryConfirmSchema,
   passwordRecoveryRequestSchema,
 } from '@konvoez/shared';
 
 export class AuthLoginDto extends createZodDto(authLoginSchema) {}
+
+export class AuthLoginTwoFactorDto extends createZodDto(
+  authLoginTwoFactorSchema,
+) {}
 
 export class AuthRegisterDto extends createZodDto(authRegisterSchema) {}
 
@@ -21,4 +26,5 @@ export class PasswordRecoveryConfirmDto extends createZodDto(
 export class AuthJWTData {
   type!: 'access' | 'refresh';
   userId!: number;
+  sv!: number;
 }

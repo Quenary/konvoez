@@ -19,7 +19,7 @@ import {
 } from '@taiga-ui/kit';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
 import { icons } from '@constants';
@@ -48,8 +48,8 @@ export class DirectChatItemComponent {
   protected readonly usersStore = inject(UsersStore);
 
   protected readonly icons = icons;
-  readonly user = input.required<IUser>();
-  readonly selected = output<IUser>();
+  readonly user = input.required<IUserSafe>();
+  readonly selected = output<IUserSafe>();
 
   protected readonly isSelf = computed(() => {
     const current = this.currentUser();

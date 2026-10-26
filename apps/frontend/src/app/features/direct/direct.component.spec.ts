@@ -6,7 +6,7 @@ import { ChatComponent } from '@shared/components/chat/chat.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { DirectComponent } from './direct.component';
 import { DirectStore } from './direct.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { icons } from '@constants';
 
 @Component({
@@ -33,15 +33,15 @@ describe('DirectComponent', () => {
   let component: DirectComponent;
   let fixture: ComponentFixture<DirectComponent>;
 
-  const mockUser: IUser = {
+  const mockUser: IUserSafe = {
     id: 99,
     username: 'bob',
     fullname: 'Bob',
     avatarUrl: null,
-  } as IUser;
+  } as IUserSafe;
 
   const recipientId = signal<number | null>(99);
-  const user = signal<IUser | null>(mockUser);
+  const user = signal<IUserSafe | null>(mockUser);
   const isSelf = signal(false);
   const isCurrentDirectCallActive = signal(false);
   const canRejoinCall = signal(false);

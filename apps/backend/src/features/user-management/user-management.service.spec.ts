@@ -23,23 +23,26 @@ jest.mock('@mikro-orm/core', () => {
 
 import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import type { GetUserDto } from '../users/users.dto';
+import type { GetUserSafeDto } from '../users/users.dto';
 import type { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { UsersDomainEvents } from '../users/users.events';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
+  let twoFactorService: jest.Mocked<Pick<TwoFactorService, 'adminReset'>>;
   let usersService: jest.Mocked<
     Pick<
       UsersService,
-      | 'findAllAsDto'
+      | 'findAllAsFullDto'
       | 'findOne'
-      | 'findOneAsDto'
-      | 'toDtoWithPermissions'
+      | 'findOneAsFullDto'
+      | 'toSafeDtoWithPermissions'
+      | 'toFullDto'
       | 'updateUserRoles'
       | 'anonymizeLoaded'
       | 'removeLoaded'
@@ -70,7 +73,7 @@ describe('UserManagementService', () => {
     updatedAt: null,
   } as unknown as UserEntity;
 
-  const mockUserDto: GetUserDto = {
+  const mockUserDto: GetUserFullDto = {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
@@ -87,11 +90,19 @@ describe('UserManagementService', () => {
 
   beforeEach(() => {
     usersService = {
-      findAllAsDto: jest.fn(),
+      findAllAsFullDto: jest.fn(),
       findOne: jest.fn(),
-      findOneAsDto: jest.fn(),
-      toDtoWithPermissions: jest.fn(
-        async (user: UserEntity) => user as unknown as GetUserDto,
+      findOneAsFullDto: jest.fn(),
+      toSafeDtoWithPermissions: jest.fn(
+        async (user: UserEntity) => user as unknown as GetUserSafeDto,
+      ),
+      toFullDto: jest.fn(
+        (user: UserEntity, permissions?: unknown) =>
+          ({
+            ...(user as unknown as GetUserSafeDto),
+            email: user.email,
+            permissions: permissions ?? [],
+          }) as never,
       ),
       updateUserRoles: jest.fn(),
       anonymizeLoaded: jest.fn(),
@@ -109,33 +120,38 @@ describe('UserManagementService', () => {
       deleteRoomsByAuthor: jest.fn().mockResolvedValue(undefined),
     };
 
+    twoFactorService = {
+      adminReset: jest.fn().mockResolvedValue(mockUserDto),
+    };
+
     eventEmitter = { emit: jest.fn() };
 
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
       roomsFacade as unknown as RoomsFacade,
+      twoFactorService as unknown as TwoFactorService,
       eventEmitter as never,
     );
   });
 
   describe('reads', () => {
     it('should list users through UsersService', async () => {
-      usersService.findAllAsDto.mockResolvedValueOnce([mockUserDto]);
+      usersService.findAllAsFullDto.mockResolvedValueOnce([mockUserDto]);
 
       await expect(service.findAll()).resolves.toEqual([mockUserDto]);
     });
 
     it('should read one user through UsersService', async () => {
-      usersService.findOneAsDto.mockResolvedValueOnce(mockUserDto);
+      usersService.findOneAsFullDto.mockResolvedValueOnce(mockUserDto);
 
       await expect(service.findOne(1)).resolves.toBe(mockUserDto);
-      expect(usersService.findOneAsDto).toHaveBeenCalledWith(1);
+      expect(usersService.findOneAsFullDto).toHaveBeenCalledWith(1);
     });
   });
 
   describe('updateRole', () => {
-    const ownerAuthor: GetUserDto = {
+    const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
       role: EUserRole.OWNER,
@@ -260,7 +276,7 @@ describe('UserManagementService', () => {
 
     it('should reject when assigning a role containing permissions the author cannot grant', async () => {
       const target = { ...mockUser, id: 5 } as UserEntity;
-      const adminAuthor: GetUserDto = {
+      const adminAuthor: GetUserFullDto = {
         ...mockUserDto,
         id: 2,
         isOwner: false,
@@ -291,7 +307,7 @@ describe('UserManagementService', () => {
 
     it('should succeed when author holds all permissions of the assigned role', async () => {
       const target = { ...mockUser, id: 5 } as UserEntity;
-      const adminAuthor: GetUserDto = {
+      const adminAuthor: GetUserFullDto = {
         ...mockUserDto,
         id: 2,
         isOwner: false,
@@ -335,7 +351,7 @@ describe('UserManagementService', () => {
   });
 
   describe('anonymize', () => {
-    const ownerAuthor: GetUserDto = {
+    const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
       role: EUserRole.OWNER,
@@ -386,7 +402,7 @@ describe('UserManagementService', () => {
   });
 
   describe('removePhysically', () => {
-    const ownerAuthor: GetUserDto = {
+    const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
       role: EUserRole.OWNER,
@@ -437,6 +453,79 @@ describe('UserManagementService', () => {
       });
       expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetTwoFactor', () => {
+    const adminAuthor: GetUserSafeDto = {
+      id: 2,
+      username: 'admin',
+      fullname: 'Admin',
+      isOwner: false,
+      roles: [],
+      permissions: [],
+      createdAt: new Date(),
+      updatedAt: null,
+      avatar: null,
+      avatarUrl: null,
+      deletedAt: null,
+    };
+
+    it('rejects resetting owner 2FA', async () => {
+      const ownerTarget = { ...mockUser, id: 1, isOwner: true } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(ownerTarget);
+
+      await expect(
+        service.resetTwoFactor(1, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+      expect(twoFactorService.adminReset).not.toHaveBeenCalled();
+    });
+
+    it('rejects self-reset via admin endpoint', async () => {
+      const selfTarget = { ...mockUser, id: 2 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(selfTarget);
+
+      await expect(
+        service.resetTwoFactor(2, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+      expect(twoFactorService.adminReset).not.toHaveBeenCalled();
+    });
+
+    it('rejects resetting deleted user with 404', async () => {
+      const deletedTarget = {
+        ...mockUser,
+        id: 5,
+        deletedAt: new Date(),
+      } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(deletedTarget);
+
+      await expect(
+        service.resetTwoFactor(5, adminAuthor),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
+      expect(twoFactorService.adminReset).not.toHaveBeenCalled();
+    });
+
+    it('successfully resets 2FA for manageable user', async () => {
+      const target = { ...mockUser, id: 5 } as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(target);
+
+      const result = await service.resetTwoFactor(5, adminAuthor);
+
+      expect(permissionsFacade.assertCanManageUser).toHaveBeenCalledWith(
+        adminAuthor,
+        target,
+      );
+      expect(twoFactorService.adminReset).toHaveBeenCalledWith(
+        target,
+        adminAuthor.id,
+      );
+      expect(result).toBeDefined();
     });
   });
 });

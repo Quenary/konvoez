@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { IRoleSummary, IUser } from '@konvoez/shared';
+import { IRoleSummary, IUserSafe } from '@konvoez/shared';
 import { tuiAutoColor } from '@taiga-ui/kit';
 import { buildMentionChipVm, IMentionChipContext } from './mention-chip.vm';
 
 describe('buildMentionChipVm', () => {
-  const alice: IUser = {
+  const alice: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     avatar: 'avatar1.png',
     avatarUrl: 'https://example.com/avatar1.png',
     isOwner: false,
@@ -26,11 +25,10 @@ describe('buildMentionChipVm', () => {
     updatedAt: null,
   };
 
-  const bob: IUser = {
+  const bob: IUserSafe = {
     id: 2,
     username: 'bob',
     fullname: 'Bob Ross',
-    email: 'bob@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,

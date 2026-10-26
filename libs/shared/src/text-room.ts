@@ -1,12 +1,12 @@
 import { EPermission, EUserRole } from './enums';
 import { ITextRoomMessage } from './schemas/text-room.schemas';
-import { IUser } from './schemas/user.schemas';
+import { IUserSafe } from './schemas/user.schemas';
 
 export function canDeleteTextRoomMessage(
   message: Pick<ITextRoomMessage, 'senderId' | 'recipientId' | 'roomId'>,
   user:
-    | (Pick<IUser, 'id'> &
-        Partial<Pick<IUser, 'role' | 'isOwner' | 'permissions'>>)
+    | (Pick<IUserSafe, 'id'> &
+        Partial<Pick<IUserSafe, 'role' | 'isOwner' | 'permissions'>>)
     | null
     | undefined,
 ): boolean {

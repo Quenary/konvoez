@@ -8,6 +8,7 @@ import {
   attachmentsMaxFileSizeSettingSchema,
   attachmentsMaxFilesPerMessageSettingSchema,
   attachmentsStripImageMetadataSettingSchema,
+  voiceMaxBitrateKbpsSettingSchema,
   TSetting,
   TSettingByKey,
 } from '@konvoez/shared';
@@ -43,4 +44,8 @@ export class AttachmentsMaxFilesPerMessageSettingDto extends createZodDto(
 
 export class AttachmentsStripImageMetadataSettingDto extends createZodDto(
   attachmentsStripImageMetadataSettingSchema,
+) {}
+
+export class VoiceMaxBitrateKbpsSettingDto extends createZodDto(
+  voiceMaxBitrateKbpsSettingSchema,
 ) {}

@@ -1,80 +1,140 @@
-<form
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m"
-  novalidate
-  [formGroup]="form"
-  (ngSubmit)="onSubmit()">
-  <header tuiHeader>
+@if (!twoFactorPending()) {
+  <form
+    appearance="floating"
+    tuiCardLarge
+    tuiForm="m"
+    novalidate
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()">
+    <header tuiHeader>
+      <h2 tuiTitle>
+        {{ 'GENERAL.HELLO' | translate }}
+      </h2>
+    </header>
+
+    <tui-textfield [iconStart]="icons.user">
+      <label
+        tuiLabel
+        for="login">
+        {{ 'AUTH.LOGIN' | translate }}
+      </label>
+
+      <input
+        tuiInput
+        id="login"
+        autocomplete="username"
+        formControlName="login"
+        type="text" />
+    </tui-textfield>
+    @if (errors().login; as err) {
+      <tui-error [error]="err | translate" />
+    }
+
+    <tui-textfield [iconStart]="icons.lock">
+      <label
+        tuiLabel
+        for="password">
+        {{ 'PROFILE.PASSWORD' | translate }}
+      </label>
+
+      <input
+        tuiInput
+        id="password"
+        autocomplete="current-password"
+        formControlName="password"
+        type="password" />
+
+      <tui-icon tuiPassword />
+    </tui-textfield>
+    @if (errors().password; as err) {
+      <tui-error [error]="err | translate" />
+    }
+
+    <footer>
+      <button
+        tuiButton
+        type="submit"
+        [disabled]="!form.dirty"
+        [loading]="loading()">
+        <tui-icon [icon]="icons['log-in']" />
+        {{ 'GENERAL.SIGN_IN' | translate }}
+      </button>
+
+      <button
+        appearance="flat"
+        tuiButton
+        type="button"
+        routerLink="/auth/register">
+        <tui-icon [icon]="icons['user-plus']" />
+        {{ 'GENERAL.SIGN_UP' | translate }}
+      </button>
+
+      <button
+        appearance="flat"
+        tuiButton
+        type="button"
+        routerLink="/auth/password-recovery">
+        <tui-icon [icon]="icons.help" />
+        {{ 'AUTH.PASSWORD_RECOVERY.FORGOT' | translate }}
+      </button>
+    </footer>
+  </form>
+} @else {
+  <form
+    appearance="floating"
+    tuiCardLarge
+    tuiForm="m"
+    novalidate
+    [formGroup]="twoFactorForm"
+    (ngSubmit)="onTwoFactorSubmit()">
+    <header tuiHeader>
+      <button
+        appearance="flat"
+        tuiButton
+        type="button"
+        (click)="onCancelTwoFactor()">
+        <tui-icon [icon]="icons['chevron-left']" />
+        {{ 'GENERAL.GO_BACK' | translate }}
+      </button>
+    </header>
+
     <h2 tuiTitle>
-      {{ 'GENERAL.HELLO' | translate }}
+      {{ 'AUTH.TWO_FACTOR.TITLE' | translate }}
+      <span tuiSubtitle>{{ 'AUTH.TWO_FACTOR.SUBTITLE' | translate }}</span>
     </h2>
-  </header>
 
-  <tui-textfield [iconStart]="icons.user">
-    <label
-      tuiLabel
-      for="login">
-      {{ 'AUTH.LOGIN' | translate }}
-    </label>
+    <tui-textfield [iconStart]="icons.key">
+      <label
+        tuiLabel
+        for="two-factor-code">
+        {{ 'AUTH.TWO_FACTOR.CODE' | translate }}
+      </label>
 
-    <input
-      tuiInput
-      id="login"
-      autocomplete="username"
-      formControlName="login"
-      type="text" />
-  </tui-textfield>
-  @if (errors().login; as err) {
-    <tui-error [error]="err | translate" />
-  }
+      <input
+        tuiInput
+        id="two-factor-code"
+        autocomplete="one-time-code"
+        inputmode="text"
+        formControlName="code"
+        type="text" />
+    </tui-textfield>
+    @if (twoFactorErrors().code; as err) {
+      <tui-error [error]="err | translate" />
+    }
 
-  <tui-textfield [iconStart]="icons.lock">
-    <label
-      tuiLabel
-      for="password">
-      {{ 'PROFILE.PASSWORD' | translate }}
-    </label>
+    <p class="tui-text_body-s tui-space_vertical-2">
+      {{ 'AUTH.TWO_FACTOR.HINT_RECOVERY' | translate }}
+    </p>
 
-    <input
-      tuiInput
-      id="password"
-      autocomplete="current-password"
-      formControlName="password"
-      type="password" />
-
-    <tui-icon tuiPassword />
-  </tui-textfield>
-  @if (errors().password; as err) {
-    <tui-error [error]="err | translate" />
-  }
-
-  <footer>
-    <button
-      tuiButton
-      type="submit"
-      [disabled]="!form.dirty"
-      [loading]="loading()">
-      <tui-icon [icon]="icons['log-in']" />
-      {{ 'GENERAL.SIGN_IN' | translate }}
-    </button>
-
-    <button
-      appearance="flat"
-      tuiButton
-      type="button"
-      routerLink="/auth/register">
-      <tui-icon [icon]="icons['user-plus']" />
-      {{ 'GENERAL.SIGN_UP' | translate }}
-    </button>
-
-    <button
-      appearance="flat"
-      tuiButton
-      type="button"
-      routerLink="/auth/password-recovery">
-      <tui-icon [icon]="icons.help" />
-      {{ 'AUTH.PASSWORD_RECOVERY.FORGOT' | translate }}
-    </button>
-  </footer>
-</form>
+    <footer>
+      <button
+        tuiButton
+        type="submit"
+        [disabled]="!twoFactorForm.dirty"
+        [loading]="loading()">
+        <tui-icon [icon]="icons.key" />
+        {{ 'GENERAL.CONFIRM' | translate }}
+      </button>
+    </footer>
+  </form>
+}

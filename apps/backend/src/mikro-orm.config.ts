@@ -17,6 +17,7 @@ import {
 import { InviteEntitySchema } from './features/invites/invites.entity';
 import { PushSubscriptionEntitySchema } from './features/notifications/notifications.entity';
 import { PasswordRecoveryCodeEntitySchema } from './features/auth/password-recovery-code.entity';
+import { TwoFactorRecoveryCodeEntitySchema } from './features/two-factor/two-factor-recovery-code.entity';
 import { MessageAttachmentEntitySchema } from './features/attachments/attachments.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { Migration20260801010402_InitialSchema } from './migrations/Migration20260801010402_InitialSchema';
@@ -35,6 +36,8 @@ import { Migration20261009130000_MessageReactions } from './migrations/Migration
 import { Migration20261017170127_RolesAndRoomAccess } from './migrations/Migration20261017170127_RolesAndRoomAccess';
 import { Migration20261019120000_MentionableRoles } from './migrations/Migration20261019120000_MentionableRoles';
 import { Migration20261019130000_MessageMentions } from './migrations/Migration20261019130000_MessageMentions';
+import { Migration20261026090000_SessionVersion } from './migrations/Migration20261026090000_SessionVersion';
+import { Migration20261026100000_TwoFactor } from './migrations/Migration20261026100000_TwoFactor';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -55,6 +58,7 @@ export async function createMikroOrmConfig() {
       MessageReadEntitySchema,
       PushSubscriptionEntitySchema,
       PasswordRecoveryCodeEntitySchema,
+      TwoFactorRecoveryCodeEntitySchema,
       MessageAttachmentEntitySchema,
       MessageReactionEntitySchema,
     ],
@@ -82,6 +86,8 @@ export async function createMikroOrmConfig() {
         Migration20261017170127_RolesAndRoomAccess,
         Migration20261019120000_MentionableRoles,
         Migration20261019130000_MessageMentions,
+        Migration20261026090000_SessionVersion,
+        Migration20261026100000_TwoFactor,
       ],
     },
   } satisfies Partial<Options>;

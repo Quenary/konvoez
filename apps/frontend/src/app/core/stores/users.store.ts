@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import {
   removeAllEntities,
@@ -28,7 +28,7 @@ export const UsersStore = signalStore(
     loaded: false,
     onlineMap: {},
   }),
-  withEntities<IUser>(),
+  withEntities<IUserSafe>(),
   withMethods(
     (
       store,
@@ -73,7 +73,7 @@ export const UsersStore = signalStore(
         patchState(store, { onlineMap });
       },
 
-      upsertOne(user: IUser): void {
+      upsertOne(user: IUserSafe): void {
         patchState(store, setEntity(user));
       },
 

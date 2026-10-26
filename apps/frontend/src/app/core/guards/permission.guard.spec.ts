@@ -11,7 +11,7 @@ import { selectAuth } from '@core/auth/auth.selectors';
 import { permissionGuard } from './permission.guard';
 import { firstValueFrom, Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { EPermission, IUser } from '@konvoez/shared';
+import { EPermission, IUserFull } from '@konvoez/shared';
 
 describe('permissionGuard', () => {
   let store: MockStore;
@@ -26,11 +26,11 @@ describe('permissionGuard', () => {
     ) as Observable<boolean | UrlTree>;
   };
 
-  const createMockUser = (overrides: Partial<IUser> = {}): IUser => ({
+  const createMockUser = (overrides: Partial<IUserFull> = {}): IUserFull => ({
     id: 1,
     username: 'testuser',
-    fullname: 'Test User',
     email: 'test@example.com',
+    fullname: 'Test User',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -38,6 +38,7 @@ describe('permissionGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
     ...overrides,
   });
 
@@ -70,6 +71,7 @@ describe('permissionGuard', () => {
       init: true,
       user: createMockUser({ permissions: [EPermission.MANAGE_ROLES] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -82,6 +84,7 @@ describe('permissionGuard', () => {
       init: true,
       user: createMockUser({ isOwner: true, permissions: [] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 
@@ -94,6 +97,7 @@ describe('permissionGuard', () => {
       init: true,
       user: createMockUser({ permissions: [EPermission.SEND_MESSAGES] }),
       loading: false,
+      twoFactorPending: false,
     });
     store.refreshState();
 

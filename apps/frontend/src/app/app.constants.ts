@@ -28,6 +28,7 @@ export const icons = {
   direct: '@tui.messages-square',
   settings: '@tui.settings',
   'settings-profile': '@tui.user-pen',
+  'settings-security': '@tui.shield-user',
   'settings-devices': '@tui.file-headphone',
   'settings-notifications': '@tui.bell-ring',
   'settings-invites': '@tui.mail',
@@ -37,6 +38,7 @@ export const icons = {
   /* Navigation / shell */
   home: '@tui.home',
   info: '@tui.info',
+  copy: '@tui.copy',
   download: '@tui.download',
   'chevron-left': '@tui.chevron-left',
   'chevron-right': '@tui.chevron-right',
@@ -57,6 +59,7 @@ export const icons = {
   key: '@tui.key',
   'key-round': '@tui.key-round',
   'shield-alert': '@tui.shield-alert',
+  'shield-check': '@tui.shield-check',
   ticket: '@tui.ticket',
   clock: '@tui.clock',
   /* Voice / media */
@@ -97,6 +100,8 @@ export const icons = {
   edit: '@tui.edit',
   ban: '@tui.ban',
   play: '@tui.play',
+  eye: '@tui.eye',
+  'eye-off': '@tui.eye-off',
   /* Avatars */
   droplet: '@tui.droplet',
   'cloud-upload': '@tui.cloud-upload',

@@ -7,7 +7,8 @@ import {
   EVoiceRoomEvent,
   ERoomType,
   IRoom,
-  IUser,
+  IUserSafe,
+  IUserFull,
 } from '@konvoez/shared';
 import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
@@ -68,11 +69,11 @@ describe('EntitySyncService', () => {
     timeout: ReturnType<typeof vi.fn>;
   };
 
-  const me: IUser = {
+  const me: IUserFull = {
     id: 1,
     username: 'alice',
+    email: 'test@example.com',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -80,13 +81,13 @@ describe('EntitySyncService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
-  const otherUser: IUser = {
+  const otherUser: IUserSafe = {
     id: 2,
     username: 'bob',
     fullname: 'Bob',
-    email: 'bob@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -234,7 +235,13 @@ describe('EntitySyncService', () => {
     );
     expect(voiceLobbyStore.applyUserEntityUpdate).toHaveBeenCalledWith(updated);
     expect(store.dispatch).toHaveBeenCalledWith(
-      AuthActions.requestPatchUserSuccess({ user: updated }),
+      AuthActions.requestPatchUserSuccess({
+        user: {
+          ...updated,
+          email: me.email,
+          twoFactorEnabled: me.twoFactorEnabled,
+        },
+      }),
     );
   });
 
@@ -243,9 +250,13 @@ describe('EntitySyncService', () => {
     emitter.emit(EEntitySyncEvent.USER_UPDATED, otherUser);
 
     expect(usersStore.upsertOne).toHaveBeenCalledWith(otherUser);
-    expect(store.dispatch).not.toHaveBeenCalledWith(
-      AuthActions.requestPatchUserSuccess({ user: otherUser }),
-    );
+    const patchSuccessType = AuthActions.requestPatchUserSuccess.type;
+    expect(
+      (store.dispatch as ReturnType<typeof vi.fn>).mock.calls.some(
+        (call: unknown[]) =>
+          (call[0] as { type: string }).type === patchSuccessType,
+      ),
+    ).toBe(false);
   });
 
   it('logs out when the current user is deleted', () => {

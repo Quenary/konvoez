@@ -1,5 +1,5 @@
 import { defineEntity, p, Cascade } from '@mikro-orm/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { KonvoezBaseEntitySchema } from '../../shared/types/base.entity';
 import { RoomEntitySchema } from '../rooms/rooms.entity';
 import { MessageEntitySchema } from '../text-rooms/text-rooms.entity';
@@ -13,6 +13,7 @@ export const UserEntitySchema = defineEntity({
     id: p.integer().primary().autoincrement(),
     username: p.string().length(32).index().unique(),
     password: p.string().length(128).hidden(),
+    sessionVersion: p.integer().default(0).hidden(),
     fullname: p.string().length(128).index(),
     email: p.string().length(128).index().unique(),
     isOwner: p.boolean().default(false),
@@ -24,6 +25,9 @@ export const UserEntitySchema = defineEntity({
         .inverseJoinColumn('role_id'),
     avatar: p.string().length(512).nullable(),
     deletedAt: p.datetime().nullable(),
+    twoFactorSecret: p.text().nullable().hidden(),
+    twoFactorEnabledAt: p.datetime().nullable().hidden(),
+    twoFactorLastStep: p.integer().nullable().hidden(),
 
     rooms: () =>
       p
@@ -43,6 +47,6 @@ export const UserEntitySchema = defineEntity({
 
 export class UserEntity
   extends UserEntitySchema.class
-  implements Omit<IUser, 'avatarUrl' | 'roles' | 'permissions'> {}
+  implements Omit<IUserSafe, 'avatarUrl' | 'roles' | 'permissions'> {}
 
 UserEntitySchema.setClass(UserEntity);

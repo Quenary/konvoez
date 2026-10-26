@@ -12,7 +12,7 @@ import {
   TuiEditorSocket,
 } from '@taiga-ui/editor';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { IRoleSummary, IUser } from '@konvoez/shared';
+import { IRoleSummary, IUserSafe } from '@konvoez/shared';
 import { MentionChipsDirective } from './mention-chips.directive';
 import { IMentionChipContext } from './mention-chip.vm';
 
@@ -41,11 +41,10 @@ describe('MentionChipsDirective', () => {
   let host: TestHostComponent;
   let appRef: ApplicationRef;
 
-  const alice: IUser = {
+  const alice: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     avatar: null,
     avatarUrl: 'https://example.com/alice.png',
     isOwner: false,

@@ -6,7 +6,7 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TuiDialogContext, TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
-import { IUser, IRole } from '@konvoez/shared';
+import { IUserFull, IRole } from '@konvoez/shared';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
 import { RolesApiService } from '@core/api/roles-api.service';
@@ -46,7 +46,7 @@ describe('SettingsUserManagementDialogComponent', () => {
     completeWith: vi.fn(),
   };
 
-  const meUser: IUser = {
+  const meUser: IUserFull = {
     id: 1,
     username: 'owner',
     fullname: 'Owner User',
@@ -58,9 +58,10 @@ describe('SettingsUserManagementDialogComponent', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
-  const targetUser: IUser = {
+  const targetUser: IUserFull = {
     id: 2,
     username: 'bob',
     fullname: 'Bob Smith',
@@ -80,6 +81,7 @@ describe('SettingsUserManagementDialogComponent', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const rolesList: IRole[] = [
@@ -149,7 +151,7 @@ describe('SettingsUserManagementDialogComponent', () => {
   });
 
   it('forbids managing owner user', () => {
-    const ownerTarget: IUser = { ...targetUser, isOwner: true };
+    const ownerTarget: IUserFull = { ...targetUser, isOwner: true };
     mockUserManagementApiService.get.mockReturnValue(of(ownerTarget));
     component['userResource'].reload();
     fixture.detectChanges();

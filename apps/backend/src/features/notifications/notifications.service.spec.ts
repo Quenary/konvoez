@@ -34,7 +34,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
 import { NotificationsDomainEvents } from './notifications.events';
-import { GetUserDto } from '../users/users.dto';
+import { GetUserSafeDto } from '../users/users.dto';
 import { PushSubscriptionEntity } from './notifications.entity';
 import { NotificationsService } from './notifications.service';
 import { VapidKeyStorageService } from './vapid-key-storage.service';
@@ -53,11 +53,10 @@ describe('NotificationsService', () => {
   let em: jest.Mocked<EntityManager>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
-  const mockUser: GetUserDto = {
+  const mockUser: GetUserSafeDto = {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    email: 'test@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],

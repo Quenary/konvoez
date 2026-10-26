@@ -1,45 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { EVoiceSessionType, IUser } from '@konvoez/shared';
+import { EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { resolveVoiceSessionPeers } from './voice-session-peers';
 
 const me = {
   id: 1,
   username: 'me',
   fullname: 'Me',
-  email: 'me@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 const interlocutor = {
   id: 2,
   username: 'other',
   fullname: 'Other',
-  email: 'other@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 const groupPeer = {
   id: 3,
   username: 'groupie',
   fullname: 'Groupie',
-  email: 'g@example.com',
   isOwner: false,
   roles: [],
   permissions: [],
   avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-} as IUser;
+} as IUserSafe;
 
 describe('resolveVoiceSessionPeers', () => {
   it('uses real peers for group session', () => {

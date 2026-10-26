@@ -5,7 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
@@ -25,7 +25,7 @@ import { TuiHint } from '@taiga-ui/core';
 export class VoiceRoomTileMiniComponent {
   private readonly audioActivityService = inject(AudioActivityService);
 
-  public readonly peer = input.required<IUser>();
+  public readonly peer = input.required<IUserSafe>();
   public readonly videoTrack = input<MediaStreamTrack | null>(null);
 
   protected readonly hintLabel = computed(() => {

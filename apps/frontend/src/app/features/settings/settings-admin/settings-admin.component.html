@@ -183,6 +183,43 @@
           </p>
         </div>
       </fieldset>
+
+      <fieldset>
+        <legend tuiTitle>{{ 'SETTINGS.ADMIN.VOICE' | translate }}</legend>
+
+        <div class="setting-item">
+          <tui-textfield>
+            <label
+              tuiLabel
+              for="voice-max-bitrate">
+              {{ 'SETTINGS.ADMIN.VOICE_MAX_BITRATE' | translate }}
+            </label>
+            <input
+              id="voice-max-bitrate"
+              tuiInputSlider
+              [min]="voiceBitrateMinKbps"
+              [max]="voiceBitrateMaxKbps"
+              [quantum]="voiceBitrateStep"
+              [step]="voiceBitrateStep"
+              formControlName="voiceMaxBitrateKbps" />
+            <input
+              tuiSlider
+              type="range"
+              [step]="voiceBitrateStep" />
+          </tui-textfield>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.ADMIN.VOICE_MAX_BITRATE_DESC' | translate }}
+          </p>
+          @if (voiceMaxBitrateError; as err) {
+            <tui-error [error]="err | translate" />
+          }
+          @if (locked().voiceMaxBitrateKbps) {
+            <p class="setting-item-description locked">
+              {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+            </p>
+          }
+        </div>
+      </fieldset>
     </div>
   </tui-scrollbar>
 

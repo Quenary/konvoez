@@ -11,7 +11,7 @@ import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
-import { EPermission, IUser } from '@konvoez/shared';
+import { EPermission, IUserSafe, IUserFull } from '@konvoez/shared';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
@@ -55,14 +55,14 @@ describe('ChatMessageComponent', () => {
     open: vi.fn(() => of(undefined)),
   };
   const mockChatApi = {
-    getReaders: vi.fn(() => of<IUser[]>([])),
+    getReaders: vi.fn(() => of<IUserSafe[]>([])),
     markRead: vi.fn(() => of(undefined)),
   };
-  const currentUser: IUser = {
+  const currentUser: IUserFull = {
     id: 1,
     username: 'alice',
+    email: 'test@example.com',
     fullname: 'Alice',
-    email: 'alice@example.com',
     isOwner: false,
     roles: [],
     permissions: [],
@@ -70,6 +70,7 @@ describe('ChatMessageComponent', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-01'),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const testMessage: IMessageEntity = {
@@ -364,7 +365,7 @@ describe('ChatMessageComponent', () => {
       senderUsername: 'bob',
     };
 
-    function loginWith(overrides: Partial<IUser> = {}): void {
+    function loginWith(overrides: Partial<IUserFull> = {}): void {
       TestBed.inject(Store).dispatch(
         AuthActions.requestLoginSuccess({
           user: { ...currentUser, ...overrides },
@@ -429,11 +430,10 @@ describe('ChatMessageComponent', () => {
   });
 
   describe('sender display from UsersStore', () => {
-    const otherUser: IUser = {
+    const otherUser: IUserSafe = {
       id: 2,
       username: 'bob-new',
       fullname: 'Bob New',
-      email: 'bob@example.com',
       isOwner: false,
       roles: [],
       permissions: [],
@@ -587,7 +587,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('sets mention-chip-me and info appearance only for mentions of current user', () => {
-      const bobUser: IUser = { ...currentUser, id: 2, username: 'bob' };
+      const bobUser: IUserSafe = { ...currentUser, id: 2, username: 'bob' };
       mockUsersStore.entityMap.set({
         1: currentUser,
         2: bobUser,

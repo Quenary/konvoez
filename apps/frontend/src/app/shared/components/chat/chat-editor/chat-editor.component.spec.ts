@@ -18,7 +18,8 @@ import {
   IAttachment,
   IRoleSummary,
   IRoom,
-  IUser,
+  IUserSafe,
+  IUserFull,
 } from '@konvoez/shared';
 import { createLocalFile } from '@core/chat/outgoing/outgoing.types';
 import { CHAT_MENTIONS_ENABLED } from './chat-mentions-enabled.token';
@@ -29,11 +30,11 @@ describe('ChatEditorComponent', () => {
   let fixture: ComponentFixture<ChatEditorComponent>;
   let store: MockStore;
 
-  const mockCurrentUser: IUser = {
+  const mockCurrentUser: IUserFull = {
     id: 99,
     username: 'myuser',
+    email: 'test@example.com',
     fullname: 'My User',
-    email: 'my@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,
@@ -41,13 +42,13 @@ describe('ChatEditorComponent', () => {
     permissions: [],
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
-  const alice: IUser = {
+  const alice: IUserSafe = {
     id: 1,
     username: 'alice',
     fullname: 'Alice Wonderland',
-    email: 'alice@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,
@@ -57,11 +58,10 @@ describe('ChatEditorComponent', () => {
     updatedAt: null,
   };
 
-  const bob: IUser = {
+  const bob: IUserSafe = {
     id: 2,
     username: 'bob',
     fullname: 'Bob Builder',
-    email: 'bob@example.com',
     avatar: null,
     avatarUrl: null,
     isOwner: false,
@@ -79,8 +79,8 @@ describe('ChatEditorComponent', () => {
     mentionable: true,
   };
 
-  const usersList = signal<IUser[]>([alice, bob]);
-  const usersMap = signal<Record<number, IUser>>({ 1: alice, 2: bob });
+  const usersList = signal<IUserSafe[]>([alice, bob]);
+  const usersMap = signal<Record<number, IUserSafe>>({ 1: alice, 2: bob });
   const mockUsersStore = {
     entities: usersList,
     entityMap: usersMap,
@@ -537,13 +537,12 @@ describe('ChatEditorComponent', () => {
     });
 
     it('caps suggestions to at most 8 items', () => {
-      const manyUsers: IUser[] = [];
+      const manyUsers: IUserSafe[] = [];
       for (let i = 1; i <= 20; i++) {
         manyUsers.push({
           id: i,
           username: `user_${i}`,
           fullname: `User ${i}`,
-          email: `u${i}@test.com`,
           avatar: null,
           avatarUrl: null,
           isOwner: false,

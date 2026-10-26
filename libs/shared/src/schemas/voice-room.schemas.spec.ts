@@ -15,6 +15,7 @@ import {
   voiceRoomPeerJoinedSchema,
   voiceRoomPeerLeftSchema,
   voiceRoomPeerMutedSchema,
+  voiceRoomProducerScoreSchema,
   voiceRoomProduceSchema,
   voiceRoomSetMuteStateSchema,
 } from './voice-room.schemas';
@@ -25,7 +26,6 @@ describe('VoiceRoom Schemas', () => {
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
-    email: 'test@example.com',
     role: EUserRole.MEMBER,
     avatar: null,
     avatarUrl: null,
@@ -287,6 +287,32 @@ describe('VoiceRoom Schemas', () => {
         revision: 3,
       });
       expect(parsed.success).toBe(true);
+    });
+  });
+
+  describe('voiceRoomProducerScoreSchema', () => {
+    it.each([0, 5, 10])('accepts valid score %d', (score) => {
+      const parsed = voiceRoomProducerScoreSchema.safeParse({
+        producerId: 'prod-123',
+        score,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it.each([-1, 11, 5.5, '10'])('rejects invalid score %s', (score) => {
+      const parsed = voiceRoomProducerScoreSchema.safeParse({
+        producerId: 'prod-123',
+        score,
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it('rejects empty producerId', () => {
+      const parsed = voiceRoomProducerScoreSchema.safeParse({
+        producerId: '',
+        score: 10,
+      });
+      expect(parsed.success).toBe(false);
     });
   });
 });

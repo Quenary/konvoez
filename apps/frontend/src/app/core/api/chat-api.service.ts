@@ -8,7 +8,7 @@ import {
   ITextRoomMessage,
   ITextRoomReactionGroup,
   ITextRoomUnreadCounts,
-  IUser,
+  IUserSafe,
   TTextRoomReadAll,
 } from '@konvoez/shared';
 import { map, Observable } from 'rxjs';
@@ -20,8 +20,8 @@ import { environment } from '@environments/environment';
 export class ChatApiService {
   private readonly httpClient = inject(HttpClient);
 
-  direct(): Observable<IUser[]> {
-    return this.httpClient.get<IUser[]>(
+  direct(): Observable<IUserSafe[]> {
+    return this.httpClient.get<IUserSafe[]>(
       `${environment.apiPath}/text-rooms/direct`,
       {
         withCredentials: true,
@@ -87,8 +87,8 @@ export class ChatApiService {
     );
   }
 
-  getReaders(messageId: string): Observable<IUser[]> {
-    return this.httpClient.get<IUser[]>(
+  getReaders(messageId: string): Observable<IUserSafe[]> {
+    return this.httpClient.get<IUserSafe[]>(
       `${environment.apiPath}/text-rooms/${messageId}/readers`,
     );
   }

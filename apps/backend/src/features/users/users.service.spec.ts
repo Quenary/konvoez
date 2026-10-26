@@ -48,6 +48,7 @@ describe('UsersService', () => {
     email: 'test@example.com',
     role: EUserRole.MEMBER,
     isOwner: false,
+    sessionVersion: 0,
     avatar: null,
     deletedAt: null,
     createdAt: new Date(),
@@ -80,7 +81,9 @@ describe('UsersService', () => {
       findOne: jest.fn(),
       findAll: jest.fn().mockResolvedValue([mockUser]),
       create: jest.fn().mockReturnValue(mockUser),
-      assign: jest.fn().mockReturnValue(mockUser),
+      assign: jest
+        .fn()
+        .mockImplementation((entity, data) => Object.assign(entity, data)),
     } as unknown as jest.Mocked<EntityRepository<UserEntity>>;
 
     passwordService = {
@@ -169,16 +172,79 @@ describe('UsersService', () => {
     });
   });
 
-  describe('toDto', () => {
-    it('should map deletedAt', () => {
+  describe('toSafeDto', () => {
+    it('should map deletedAt and omit email and twoFactorEnabled', () => {
       const deletedAt = new Date('2026-09-30T12:00:00.000Z');
-      const dto = service.toDto({
+      const dto = service.toSafeDto({
         ...mockUser,
         deletedAt,
+        twoFactorSecret: 'enc_secret',
+        twoFactorEnabledAt: new Date(),
+        twoFactorLastStep: 100,
       } as UserEntity);
 
       expect(dto.deletedAt).toEqual(deletedAt);
       expect(dto).not.toHaveProperty('password');
+      expect(dto).not.toHaveProperty('email');
+      expect(dto).not.toHaveProperty('sessionVersion');
+      expect(dto).not.toHaveProperty('twoFactorEnabled');
+      expect(dto).not.toHaveProperty('twoFactorSecret');
+      expect(dto).not.toHaveProperty('twoFactorEnabledAt');
+      expect(dto).not.toHaveProperty('twoFactorLastStep');
+    });
+  });
+
+  describe('toFullDto', () => {
+    it('should include email and twoFactorEnabled for self and admin responses', () => {
+      const dto = service.toFullDto(mockUser);
+
+      expect(dto.email).toBe('test@example.com');
+      expect(dto.twoFactorEnabled).toBe(false);
+      expect(dto).not.toHaveProperty('password');
+      expect(dto).not.toHaveProperty('sessionVersion');
+      expect(dto).not.toHaveProperty('twoFactorSecret');
+
+      const enabledDto = service.toFullDto({
+        ...mockUser,
+        twoFactorEnabledAt: new Date(),
+      } as UserEntity);
+      expect(enabledDto.twoFactorEnabled).toBe(true);
+    });
+  });
+
+  describe('revokeSessions', () => {
+    it('should increment sessionVersion, persist, flush, and emit USER_SESSIONS_REVOKED', async () => {
+      const target = { ...mockUser, id: 10, sessionVersion: 3 } as UserEntity;
+
+      const newVersion = await service.revokeSessions(target);
+
+      expect(newVersion).toBe(4);
+      expect(target.sessionVersion).toBe(4);
+      expect(mockEm.persist).toHaveBeenCalledWith(target);
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 10 },
+      );
+    });
+  });
+
+  describe('setPassword', () => {
+    it('should hash password, revoke sessions, and return user', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(mockUser);
+
+      const result = await service.setPassword(1, 'NewPass123!');
+
+      expect(passwordService.hashPassword).toHaveBeenCalledWith('NewPass123!');
+      expect(mockRepo.assign).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({ password: 'hashed_new_password' }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 1 },
+      );
+      expect(result).toBe(mockUser);
     });
   });
 
@@ -189,6 +255,7 @@ describe('UsersService', () => {
         id: 5,
         role: EUserRole.ADMIN,
         avatar: 'avatar-key',
+        sessionVersion: 0,
       } as UserEntity;
 
       const result = await service.anonymizeLoaded(target);
@@ -200,7 +267,15 @@ describe('UsersService', () => {
         avatar: null,
         password: 'hashed_new_password',
         deletedAt: expect.any(Date),
+        twoFactorSecret: null,
+        twoFactorEnabledAt: null,
+        twoFactorLastStep: null,
       });
+      expect(target.sessionVersion).toBe(1);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 5 },
+      );
       expect(mockRepo.assign).not.toHaveBeenCalledWith(
         target,
         expect.objectContaining({ role: expect.anything() }),
@@ -211,10 +286,15 @@ describe('UsersService', () => {
         USER_AVATARS_BUCKET,
       );
       expect(result.isOwner).toBe(false);
+      expect(result.email).toBe('deleted-5@users.invalid');
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5, isOwner: false }),
       );
+      const emitted = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === UsersDomainEvents.USER_UPDATED,
+      )?.[1];
+      expect(emitted).not.toHaveProperty('email');
     });
   });
 
@@ -256,6 +336,10 @@ describe('UsersService', () => {
         UsersDomainEvents.USER_DELETED,
         { id: 5 },
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
+        { id: 5 },
+      );
     });
 
     it('should handle user deletion when user has no messages', async () => {
@@ -282,6 +366,10 @@ describe('UsersService', () => {
       expect(fileService.delete).not.toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_DELETED,
+        { id: 5 },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_SESSIONS_REVOKED,
         { id: 5 },
       );
     });

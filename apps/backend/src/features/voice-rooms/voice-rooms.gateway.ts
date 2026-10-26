@@ -19,7 +19,7 @@ import {
   type TVoiceRoomProduceResult,
   type TVoiceRoomProducerClosed,
   type TVoiceRoomPeerMuted,
-  type IUser,
+  type IUserSafe,
   EVoiceRoomEvent,
   EDirectCallEvent,
   ESocketEvent,
@@ -66,6 +66,10 @@ import {
 } from './voice-rooms.events';
 import { RoomsDomainEvents } from '../rooms/rooms.events';
 import {
+  UsersDomainEvents,
+  type TUsersDomainPayloadMap,
+} from '../users/users.events';
+import {
   VoiceRoomsStateService,
   VoiceRoomStateMediasoupAppData,
 } from './voice-rooms.state';
@@ -96,7 +100,7 @@ type TSocket = Socket<
     roomId?: number;
     sessionKey?: string;
     sessionTarget?: TVoiceSessionIdentity;
-    user: IUser;
+    user: IUserSafe;
   }
 >;
 
@@ -111,12 +115,12 @@ const DIRECT_CALL_CALLER_RECONNECT_GRACE_MS = 5_000;
 export class VoiceRoomsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
 {
+  @WebSocketServer()
+  private readonly server!: Server<TVoiceRoomEventMap>;
+
   private readonly logger = new Logger(VoiceRoomsGateway.name);
   private readonly ringTimers = new Map<string, NodeJS.Timeout>();
   private readonly callerDisconnectTimers = new Map<string, NodeJS.Timeout>();
-
-  @WebSocketServer()
-  private readonly server!: Server<TVoiceRoomEventMap>;
 
   constructor(
     private readonly authService: AuthService,
@@ -607,6 +611,19 @@ export class VoiceRoomsGateway
       peer.producers.set(producer.id, producer);
       room.producers.set(producer.id, producer);
 
+      if (body.mediaTag === 'mic') {
+        producer.on('score', (scores) => {
+          if (socket.connected && !producer.closed) {
+            const score =
+              scores.length > 0 ? Math.min(...scores.map((s) => s.score)) : 10;
+            socket.emit(EVoiceRoomEvent.PRODUCER_SCORE, {
+              producerId: producer.id,
+              score,
+            });
+          }
+        });
+      }
+
       const onClosed = () => {
         this.finalizeProducerClosed(
           room,
@@ -995,6 +1012,19 @@ export class VoiceRoomsGateway
       recipientId: call.recipientId,
     };
   }
+
+  @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)
+  async onUserSessionsRevoked(
+    payload: TUsersDomainPayloadMap[typeof UsersDomainEvents.USER_SESSIONS_REVOKED],
+  ): Promise<void> {
+    const sockets = await this.server.fetchSockets();
+    for (const socket of sockets) {
+      if (socket.data.user?.id === payload.id) {
+        socket.disconnect(true);
+      }
+    }
+  }
+
   private resolveSessionKey(socket: TSocket): string | undefined {
     if (socket.data.sessionKey) {
       return socket.data.sessionKey;
@@ -1162,7 +1192,7 @@ export class VoiceRoomsGateway
   private removePeerMedia(
     room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
     peer: {
-      user: IUser;
+      user: IUserSafe;
       producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
       consumers: Map<string, Consumer<VoiceRoomStateMediasoupAppData>>;
       sendTransport?: WebRtcTransport;
@@ -1198,7 +1228,7 @@ export class VoiceRoomsGateway
   private closeProducerInternal(
     room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
     peer: {
-      user: IUser;
+      user: IUserSafe;
       producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
     },
     producer: Producer<VoiceRoomStateMediasoupAppData>,
@@ -1244,7 +1274,7 @@ export class VoiceRoomsGateway
   private finalizeProducerClosed(
     room: NonNullable<ReturnType<VoiceRoomsStateService['getRoom']>>,
     peer: {
-      user: IUser;
+      user: IUserSafe;
       producers: Map<string, Producer<VoiceRoomStateMediasoupAppData>>;
     },
     producer: Producer<VoiceRoomStateMediasoupAppData>,

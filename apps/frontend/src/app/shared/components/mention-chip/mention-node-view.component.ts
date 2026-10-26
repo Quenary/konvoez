@@ -15,7 +15,7 @@ import { type Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
-import { IUser } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { MentionChipComponent } from './mention-chip.component';
 import { buildMentionChipVm, IMentionChipContext } from './mention-chip.vm';
 
@@ -45,7 +45,11 @@ export class MentionNodeViewComponent extends TuiNodeViewNg {
 
   @Input()
   override get node(): ProseMirrorNode {
-    return this.nodeSig()!;
+    const current = this.nodeSig();
+    if (current === null) {
+      throw new Error('Mention node view accessed before node is set');
+    }
+    return current;
   }
 
   override set node(n: ProseMirrorNode) {
@@ -67,7 +71,7 @@ export class MentionNodeViewComponent extends TuiNodeViewNg {
     const kind = (node?.attrs?.['kind'] as string) ?? 'unknown';
     const id = (node?.attrs?.['id'] as number | null) ?? null;
     const ctx: IMentionChipContext = {
-      usersById: this.usersStore.entityMap() as Record<number, IUser>,
+      usersById: this.usersStore.entityMap() as Record<number, IUserSafe>,
       rolesById: this.rolesStore.rolesById(),
       me: this.currentUser() ?? null,
       unknownLabel: this.unknownLabel(),

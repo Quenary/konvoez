@@ -483,6 +483,7 @@ describe('SettingsStore', () => {
           avatarUrl: null,
           createdAt: new Date(),
           updatedAt: null,
+          twoFactorEnabled: false,
         },
       }),
     );
@@ -517,5 +518,24 @@ describe('SettingsStore', () => {
       updatedSettings[0],
     );
     expect(mockNotifications.open).toHaveBeenCalled();
+  });
+
+  it('computes voiceMaxBitrateKbps with fallback to default and reflects loaded settings', () => {
+    configureTestBed();
+    expect(store.voiceMaxBitrateKbps()).toBe(64);
+
+    const setting: TSetting = {
+      key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+      value: 128,
+      createdAt: new Date(),
+      updatedAt: null,
+      envLocked: true,
+    };
+    apiService.list.mockReturnValue(of([setting]));
+
+    store.loadAll();
+    TestBed.flushEffects();
+
+    expect(store.voiceMaxBitrateKbps()).toBe(128);
   });
 });

@@ -1,12 +1,12 @@
 import {
   EVoiceSessionType,
-  IUser,
+  IUserSafe,
   TVoiceRoomPeerUser,
   TVoiceSessionTarget,
 } from '@konvoez/shared';
 
 export type TResolveVoiceSessionPeersInput = {
-  me: IUser | null | undefined;
+  me: IUserSafe | null | undefined;
   remotePeers: readonly TVoiceRoomPeerUser[];
   session: TVoiceSessionTarget | null;
 };
