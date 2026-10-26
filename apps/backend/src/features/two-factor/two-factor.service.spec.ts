@@ -140,6 +140,24 @@ describe('TwoFactorService', () => {
           );
         },
       ),
+      nativeUpdate: jest.fn(
+        async (
+          where: { user: number; codeHash: string; usedAt: null },
+          data: { usedAt: Date },
+        ) => {
+          const match = storedRecoveryCodes.find(
+            (c) =>
+              c.user.id === where.user &&
+              c.codeHash === where.codeHash &&
+              c.usedAt === null,
+          );
+          if (match) {
+            match.usedAt = data.usedAt;
+            return 1;
+          }
+          return 0;
+        },
+      ),
       create: (data: unknown) => {
         const entity = {
           id: storedRecoveryCodes.length + 1,

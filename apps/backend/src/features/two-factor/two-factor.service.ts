@@ -167,23 +167,24 @@ export class TwoFactorService {
     const normalizedCode = cleanCode.replace(/[-\s]/g, '').toUpperCase();
     const codeHash = this.hashCode(normalizedCode);
 
-    const candidate = await this.recoveryCodeRepo.findOne({
-      user: user.id,
-      codeHash,
-      usedAt: null,
-    });
+    const affected = await this.recoveryCodeRepo.nativeUpdate(
+      {
+        user: user.id,
+        codeHash,
+        usedAt: null,
+      },
+      {
+        usedAt: new Date(),
+      },
+    );
 
-    if (!candidate) {
+    if (affected === 0) {
       await this.recordFailure(userId);
       throw AppException.unauthorized(
         ApiErrorCode.AUTH_TWO_FACTOR_INVALID_CODE,
         'Invalid two-factor code',
       );
     }
-
-    candidate.usedAt = new Date();
-    this.em.persist(candidate);
-    await this.em.flush();
 
     await this.clearLockout(userId);
   }
@@ -321,19 +322,18 @@ export class TwoFactorService {
 
     const normalizedCode = cleanCode.replace(/[-\s]/g, '').toUpperCase();
     const codeHash = this.hashCode(normalizedCode);
-    const candidate = await this.recoveryCodeRepo.findOne({
-      user: user.id,
-      codeHash,
-      usedAt: null,
-    });
-    if (candidate) {
-      candidate.usedAt = new Date();
-      this.em.persist(candidate);
-      await this.em.flush();
-      return true;
-    }
+    const affected = await this.recoveryCodeRepo.nativeUpdate(
+      {
+        user: user.id,
+        codeHash,
+        usedAt: null,
+      },
+      {
+        usedAt: new Date(),
+      },
+    );
 
-    return false;
+    return affected > 0;
   }
 
   private async generateAndStoreRecoveryCodes(
