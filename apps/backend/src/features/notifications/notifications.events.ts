@@ -23,8 +23,7 @@ export type IDirectMessageNotificationPayload = {
 };
 
 export type IMentionNotificationPayload = {
-  recipients?: TMentionRecipient[];
-  recipientIds: number[];
+  recipients: TMentionRecipient[];
   senderId: number;
   senderUsername: string;
   roomId: number;

@@ -952,17 +952,16 @@ export class TextRoomsService {
     }
 
     if (room && addedRecipientIds.length > 0 && resolvedMentions) {
-      const recipients = addedRecipientIds.map((userId) => ({
-        userId,
-        types: resolvedMentions.recipientTypesMap?.get(userId) ?? ['username'],
-      }));
+      const addedIds = new Set(addedRecipientIds);
+      const recipients = resolvedMentions.recipients.filter((r) =>
+        addedIds.has(r.userId),
+      );
 
       emitNotificationsDomainEvent(
         this.eventEmitter,
         NotificationsDomainEvents.MENTION,
         {
           recipients,
-          recipientIds: addedRecipientIds,
           senderId: messageDto.senderId,
           senderUsername: messageDto.senderUsername,
           roomId: room.id,
@@ -1086,17 +1085,16 @@ export class TextRoomsService {
     );
 
     if (message.room && addedRecipientIds.length > 0 && resolved) {
-      const recipients = addedRecipientIds.map((userId) => ({
-        userId,
-        types: resolved.recipientTypesMap?.get(userId) ?? ['username'],
-      }));
+      const addedIds = new Set(addedRecipientIds);
+      const recipients = resolved.recipients.filter((r) =>
+        addedIds.has(r.userId),
+      );
 
       emitNotificationsDomainEvent(
         this.eventEmitter,
         NotificationsDomainEvents.MENTION,
         {
           recipients,
-          recipientIds: addedRecipientIds,
           senderId: messageDto.senderId,
           senderUsername: messageDto.senderUsername,
           roomId: message.room.id,

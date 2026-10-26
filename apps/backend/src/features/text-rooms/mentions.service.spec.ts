@@ -250,7 +250,7 @@ describe('MentionsService', () => {
       expect(result.effective.roleIds).toEqual([5]);
     });
 
-    it('populates recipientTypesMap with correct types per recipient', async () => {
+    it('populates recipients with correct types per recipient', async () => {
       const owner = createAuthor(1, true);
       const user2 = createUser(2);
       const user3 = createUser(3);
@@ -272,8 +272,10 @@ describe('MentionsService', () => {
       const html = '<p>&lt;@3&gt; and &lt;@&amp;5&gt;</p>';
       const result = await service.resolve(owner, dummyRoom, html);
 
-      expect(result.recipientTypesMap.get(2)).toEqual(['role']);
-      expect(result.recipientTypesMap.get(3)).toEqual(['username']);
+      expect(result.recipients).toEqual([
+        { userId: 2, types: ['role'] },
+        { userId: 3, types: ['username'] },
+      ]);
     });
   });
 

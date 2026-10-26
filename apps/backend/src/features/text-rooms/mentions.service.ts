@@ -5,7 +5,7 @@ import {
   EPermission,
   type IMentionSet,
   MENTION_EVERYONE,
-  type TMentionType,
+  type TMentionRecipient,
   diffMentionedUsers,
   getMentionTypesForUser,
   parseMentions,
@@ -42,7 +42,7 @@ export class MentionsService {
   ): Promise<{
     effective: IMentionSet;
     recipientIds: number[];
-    recipientTypesMap: Map<number, TMentionType[]>;
+    recipients: TMentionRecipient[];
     usersById: Record<number, { username: string }>;
     rolesById: Record<number, { name: string }>;
   }> {
@@ -80,7 +80,7 @@ export class MentionsService {
 
     const recipientIdsSet = new Set<number>();
     const validUserIdsSet = new Set<number>();
-    const recipientTypesMap = new Map<number, TMentionType[]>();
+    const recipients: TMentionRecipient[] = [];
     const usersById: Record<number, { username: string }> = {};
 
     for (const candidate of candidateUsers) {
@@ -102,7 +102,7 @@ export class MentionsService {
           },
           dto,
         );
-        recipientTypesMap.set(dto.id, types);
+        recipients.push({ userId: dto.id, types });
       }
     }
 
@@ -115,7 +115,7 @@ export class MentionsService {
     return {
       effective,
       recipientIds: Array.from(recipientIdsSet).sort((a, b) => a - b),
-      recipientTypesMap,
+      recipients: recipients.sort((a, b) => a.userId - b.userId),
       usersById,
       rolesById,
     };

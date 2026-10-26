@@ -543,7 +543,10 @@ describe('NotificationsService', () => {
         .mockResolvedValue(undefined);
 
       await service.sendMentionNotification({
-        recipientIds: [2, 3],
+        recipients: [
+          { userId: 2, types: ['username'] },
+          { userId: 3, types: ['username'] },
+        ],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,
@@ -588,7 +591,10 @@ describe('NotificationsService', () => {
 
       await expect(
         service.sendMentionNotification({
-          recipientIds: [2, 3],
+          recipients: [
+            { userId: 2, types: ['username'] },
+            { userId: 3, types: ['username'] },
+          ],
           senderId: 1,
           senderUsername: 'alice',
           roomId: 10,
@@ -601,13 +607,13 @@ describe('NotificationsService', () => {
       expect(deliverSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('should return early without deliver if recipientIds is empty or body is empty', async () => {
+    it('should return early without deliver if recipients is empty or body is empty', async () => {
       const deliverSpy = jest
         .spyOn(service, 'deliver')
         .mockResolvedValue(undefined);
 
       await service.sendMentionNotification({
-        recipientIds: [],
+        recipients: [],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,
@@ -617,7 +623,7 @@ describe('NotificationsService', () => {
       });
 
       await service.sendMentionNotification({
-        recipientIds: [2],
+        recipients: [{ userId: 2, types: ['username'] }],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,
@@ -646,7 +652,7 @@ describe('NotificationsService', () => {
         .mockResolvedValue();
 
       const payload = {
-        recipientIds: [2],
+        recipients: [{ userId: 2, types: ['username' as const] }],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,
@@ -668,7 +674,7 @@ describe('NotificationsService', () => {
         .mockImplementation();
 
       await service.onMentionNotification({
-        recipientIds: [2],
+        recipients: [{ userId: 2, types: ['username'] }],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,
@@ -869,7 +875,6 @@ describe('NotificationsService', () => {
           { userId: 2, types: ['everyone'] }, // user 2 disabled everyone -> should be filtered
           { userId: 3, types: ['role'] }, // user 3 enabled role -> should be delivered
         ],
-        recipientIds: [2, 3],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,
@@ -907,7 +912,6 @@ describe('NotificationsService', () => {
         recipients: [
           { userId: 2, types: ['everyone', 'username'] }, // username is enabled
         ],
-        recipientIds: [2],
         senderId: 1,
         senderUsername: 'alice',
         roomId: 10,

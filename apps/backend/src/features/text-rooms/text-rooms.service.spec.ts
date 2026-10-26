@@ -180,6 +180,7 @@ describe('TextRoomsService', () => {
       resolve: jest.fn().mockResolvedValue({
         effective: { userIds: [], roleIds: [], everyone: false },
         recipientIds: [],
+        recipients: [],
       }),
       replace: jest.fn().mockResolvedValue([]),
       renderPlainPreview: jest.fn().mockReturnValue('preview'),
@@ -739,6 +740,10 @@ describe('TextRoomsService', () => {
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [2], roleIds: [5], everyone: false },
         recipientIds: [2, 3],
+        recipients: [
+          { userId: 2, types: ['username'] },
+          { userId: 3, types: ['username'] },
+        ],
         usersById: { 2: { username: 'user2' } },
         rolesById: { 5: { name: 'role5' } },
       });
@@ -767,7 +772,10 @@ describe('TextRoomsService', () => {
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         NotificationsDomainEvents.MENTION,
         expect.objectContaining({
-          recipientIds: [2, 3],
+          recipients: [
+            { userId: 2, types: ['username'] },
+            { userId: 3, types: ['username'] },
+          ],
           senderId: mockUser.id,
           senderUsername: mockUser.username,
           roomId,
@@ -1470,6 +1478,10 @@ describe('TextRoomsService', () => {
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [3], roleIds: [], everyone: true },
         recipientIds: [3, 4],
+        recipients: [
+          { userId: 3, types: ['username'] },
+          { userId: 4, types: ['username'] },
+        ],
         usersById: { 3: { username: 'user3' } },
         rolesById: {},
       });
@@ -1495,7 +1507,7 @@ describe('TextRoomsService', () => {
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         NotificationsDomainEvents.MENTION,
         expect.objectContaining({
-          recipientIds: [4],
+          recipients: [{ userId: 4, types: ['username'] }],
           senderId: mockUser.id,
           senderUsername: mockUser.username,
           roomId: 10,
@@ -1532,6 +1544,7 @@ describe('TextRoomsService', () => {
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [3], roleIds: [], everyone: false },
         recipientIds: [3],
+        recipients: [{ userId: 3, types: ['username'] }],
         usersById: { 3: { username: 'user3' } },
         rolesById: {},
       });

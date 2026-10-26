@@ -435,20 +435,11 @@ export class NotificationsService {
       payload.messagePreview,
       pushNotificationBodyMaxLength,
     );
-    if (!body) {
+    if (!body || payload.recipients.length === 0) {
       return;
     }
 
-    const recipients =
-      payload.recipients ??
-      payload.recipientIds.map((id) => ({
-        userId: id,
-        types: ['username' as const],
-      }));
-    if (recipients.length === 0) {
-      return;
-    }
-
+    const recipients = payload.recipients;
     const settingsMap = await this.getUserNotificationSettingsBatch(
       recipients.map((r) => r.userId),
     );
