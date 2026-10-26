@@ -1,3 +1,17 @@
+## 1.25.0 (2026-10-26)
+
+### Features
+
+- 2FA via TOTP ([4cc6cbd](https://github.com/Quenary/konvoez/commit/4cc6cbd))
+- **backend:** auth session version and jwt exp ([#48](https://github.com/Quenary/konvoez/pull/48))
+- adaptive audio (variable bitrate, connection score) ([5178c47](https://github.com/Quenary/konvoez/commit/5178c47))
+- **frontend:** open grid view on theatre stage click (mirror behavior) ([3d9b0e7](https://github.com/Quenary/konvoez/commit/3d9b0e7))
+- pii brief user schema without email ([9d48307](https://github.com/Quenary/konvoez/commit/9d48307))
+
+### Code Refactoring
+
+- **frontend:** update audio service tones ([6971256](https://github.com/Quenary/konvoez/commit/6971256))
+
 ## 1.24.1 (2026-10-23)
 
 ### Bug Fixes
