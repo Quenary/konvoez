@@ -29,6 +29,7 @@ export class AuthApiService {
     return this.httpClient.post<IUserFull>(
       `${environment.apiPath}/auth/login/2fa`,
       body,
+      { withCredentials: true },
     );
   }
 

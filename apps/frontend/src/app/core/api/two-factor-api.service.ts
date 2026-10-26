@@ -20,6 +20,7 @@ export class TwoFactorApiService {
     return this.httpClient.post<ITwoFactorSetupResponse>(
       `${environment.apiPath}/profile/2fa/setup`,
       body,
+      { withCredentials: true },
     );
   }
 
@@ -27,6 +28,7 @@ export class TwoFactorApiService {
     return this.httpClient.post<ITwoFactorRecoveryCodesResponse>(
       `${environment.apiPath}/profile/2fa/enable`,
       body,
+      { withCredentials: true },
     );
   }
 
@@ -34,6 +36,7 @@ export class TwoFactorApiService {
     return this.httpClient.post<void>(
       `${environment.apiPath}/profile/2fa/disable`,
       body,
+      { withCredentials: true },
     );
   }
 
@@ -43,6 +46,7 @@ export class TwoFactorApiService {
     return this.httpClient.post<ITwoFactorRecoveryCodesResponse>(
       `${environment.apiPath}/profile/2fa/recovery-codes`,
       body,
+      { withCredentials: true },
     );
   }
 }
