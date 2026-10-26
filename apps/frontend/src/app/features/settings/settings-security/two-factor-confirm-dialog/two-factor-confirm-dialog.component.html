@@ -17,6 +17,9 @@
       formControlName="password" />
     <tui-icon tuiPassword />
   </tui-textfield>
+  @if (errors().password; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <tui-textfield [iconStart]="icons.key">
     <label
@@ -31,6 +34,9 @@
       autocomplete="one-time-code"
       formControlName="code" />
   </tui-textfield>
+  @if (errors().code; as err) {
+    <tui-error [error]="err | translate" />
+  }
 
   <footer class="confirm-dialog-footer">
     <button
@@ -47,7 +53,7 @@
       [appearance]="
         context.data.action === 'disable' ? 'secondary-destructive' : 'primary'
       "
-      [disabled]="!form.controls.password.value || !form.controls.code.value"
+      [disabled]="!form.dirty"
       [loading]="loading()">
       {{
         (context.data.action === 'disable'

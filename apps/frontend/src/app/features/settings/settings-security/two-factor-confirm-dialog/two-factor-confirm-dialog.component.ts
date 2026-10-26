@@ -10,6 +10,7 @@ import { injectContext } from '@taiga-ui/polymorpheus';
 import {
   TuiButton,
   TuiDialogContext,
+  TuiError,
   TuiIcon,
   TuiInput,
   TuiLabel,
@@ -20,6 +21,12 @@ import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit';
 import { TuiForm } from '@taiga-ui/layout';
 import { TwoFactorApiService } from '@core/api/two-factor-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
+import {
+  createZodError,
+  createZodFieldValidator,
+  createZodFormValidator,
+} from '@shared/functions/zod-validator.function';
+import { twoFactorConfirmFormSchema } from '@shared/schemas/forms.schema';
 import { icons } from '@constants';
 
 export interface ITwoFactorConfirmDialogData {
@@ -33,6 +40,7 @@ export interface ITwoFactorConfirmDialogData {
     TranslatePipe,
     TuiButton,
     TuiButtonLoading,
+    TuiError,
     TuiForm,
     TuiIcon,
     TuiInput,
@@ -58,17 +66,37 @@ export class TwoFactorConfirmDialogComponent {
 
   protected readonly loading = signal(false);
 
-  protected readonly form = new FormGroup({
-    password: new FormControl('', { nonNullable: true }),
-    code: new FormControl('', { nonNullable: true }),
-  });
+  protected readonly form = new FormGroup(
+    {
+      password: new FormControl('', {
+        nonNullable: true,
+        validators: [
+          createZodFieldValidator(twoFactorConfirmFormSchema.shape.password),
+        ],
+      }),
+      code: new FormControl('', {
+        nonNullable: true,
+        validators: [
+          createZodFieldValidator(twoFactorConfirmFormSchema.shape.code),
+        ],
+      }),
+    },
+    {
+      validators: [createZodFormValidator(twoFactorConfirmFormSchema)],
+    },
+  );
+  protected readonly errors = createZodError(
+    this.form,
+    twoFactorConfirmFormSchema,
+  );
 
   protected onSubmit(): void {
-    const { password, code } = this.form.getRawValue();
-    if (!password || !code) {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       return;
     }
 
+    const { password, code } = this.form.getRawValue();
     this.loading.set(true);
 
     if (this.context.data.action === 'disable') {

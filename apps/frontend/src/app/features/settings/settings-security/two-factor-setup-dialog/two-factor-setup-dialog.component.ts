@@ -27,6 +27,15 @@ import { TuiForm } from '@taiga-ui/layout';
 import { TwoFactorApiService } from '@core/api/two-factor-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { QrCodeComponent } from '@shared/components/qr-code/qr-code.component';
+import {
+  createZodError,
+  createZodFieldValidator,
+  createZodFormValidator,
+} from '@shared/functions/zod-validator.function';
+import {
+  twoFactorEnableFormSchema,
+  twoFactorSetupFormSchema,
+} from '@shared/schemas/forms.schema';
 import { icons } from '@constants';
 
 @Component({
@@ -71,20 +80,49 @@ export class TwoFactorSetupDialogComponent {
     this.isSecretHidden.update((v) => !v);
   }
 
-  protected readonly passwordForm = new FormGroup({
-    password: new FormControl('', { nonNullable: true }),
-  });
+  protected readonly passwordForm = new FormGroup(
+    {
+      password: new FormControl('', {
+        nonNullable: true,
+        validators: [
+          createZodFieldValidator(twoFactorSetupFormSchema.shape.password),
+        ],
+      }),
+    },
+    {
+      validators: [createZodFormValidator(twoFactorSetupFormSchema)],
+    },
+  );
+  protected readonly passwordErrors = createZodError(
+    this.passwordForm,
+    twoFactorSetupFormSchema,
+  );
 
-  protected readonly codeForm = new FormGroup({
-    code: new FormControl('', { nonNullable: true }),
-  });
+  protected readonly codeForm = new FormGroup(
+    {
+      code: new FormControl('', {
+        nonNullable: true,
+        validators: [
+          createZodFieldValidator(twoFactorEnableFormSchema.shape.code),
+        ],
+      }),
+    },
+    {
+      validators: [createZodFormValidator(twoFactorEnableFormSchema)],
+    },
+  );
+  protected readonly codeErrors = createZodError(
+    this.codeForm,
+    twoFactorEnableFormSchema,
+  );
 
   protected onPasswordSubmit(): void {
-    const password = this.passwordForm.controls.password.value;
-    if (!password) {
+    if (this.passwordForm.invalid) {
+      this.passwordForm.markAllAsTouched();
       return;
     }
 
+    const password = this.passwordForm.controls.password.value;
     this.loading.set(true);
     this.twoFactorApiService.setup({ password }).subscribe({
       next: (res) => {
@@ -108,11 +146,12 @@ export class TwoFactorSetupDialogComponent {
   }
 
   protected onCodeSubmit(): void {
-    const code = this.codeForm.controls.code.value.trim();
-    if (!code) {
+    if (this.codeForm.invalid) {
+      this.codeForm.markAllAsTouched();
       return;
     }
 
+    const code = this.codeForm.controls.code.value.trim();
     this.loading.set(true);
     this.twoFactorApiService.enable({ code }).subscribe({
       next: (res) => {

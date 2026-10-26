@@ -13,6 +13,9 @@ import {
   roomTypeSchema,
   SCHEMA_ERROR,
   stringSchema,
+  twoFactorConfirmSchema,
+  twoFactorEnableSchema,
+  twoFactorSetupSchema,
   usernameSchema,
 } from '@konvoez/shared';
 
@@ -36,6 +39,9 @@ export const authLoginFormSchema = authLoginSchema.extend({
 });
 
 export const authLoginTwoFactorFormSchema = authLoginTwoFactorSchema;
+export const twoFactorSetupFormSchema = twoFactorSetupSchema;
+export const twoFactorEnableFormSchema = twoFactorEnableSchema;
+export const twoFactorConfirmFormSchema = twoFactorConfirmSchema;
 
 export function getRegisterFormSchema(options: {
   isOwnerSetupRequired: boolean;

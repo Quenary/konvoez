@@ -22,6 +22,9 @@
         formControlName="password" />
       <tui-icon tuiPassword />
     </tui-textfield>
+    @if (passwordErrors().password; as err) {
+      <tui-error [error]="err | translate" />
+    }
 
     <footer class="setup-dialog-footer">
       <button
@@ -35,7 +38,7 @@
       <button
         tuiButton
         type="submit"
-        [disabled]="!passwordForm.controls.password.value"
+        [disabled]="!passwordForm.dirty"
         [loading]="loading()">
         {{ 'GENERAL.NEXT' | translate }}
       </button>
@@ -98,6 +101,9 @@
         autocomplete="one-time-code"
         formControlName="code" />
     </tui-textfield>
+    @if (codeErrors().code; as err) {
+      <tui-error [error]="err | translate" />
+    }
 
     <footer class="setup-dialog-footer">
       <button
@@ -111,7 +117,7 @@
       <button
         tuiButton
         type="submit"
-        [disabled]="codeForm.controls.code.value.length < 6"
+        [disabled]="!codeForm.dirty"
         [loading]="loading()">
         {{ 'SETTINGS.SECURITY.TWO_FACTOR.ENABLE' | translate }}
       </button>
