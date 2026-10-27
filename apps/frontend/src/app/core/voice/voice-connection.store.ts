@@ -3,7 +3,6 @@ import {
   deriveVoiceConnectionState,
   EVoiceConnectionDeadReason,
   EVoiceConnectionState,
-  EVoiceQualityTier,
   TVoiceTransportState,
 } from '@konvoez/shared';
 import {
@@ -69,15 +68,9 @@ export const VoiceConnectionStore = signalStore(
         const stalled = store.stalled();
         const recovering = store.recovering();
         const dead = store.dead();
-        const qualityTier =
-          typeof voiceQualityService?.tier === 'function'
-            ? voiceQualityService.tier()
-            : EVoiceQualityTier.EXCELLENT;
+        const qualityTier = voiceQualityService.tier();
         const micFailed = store.micFailed();
-        const audioSuspended =
-          typeof audioContextResumeService?.suspended === 'function'
-            ? audioContextResumeService.suspended()
-            : false;
+        const audioSuspended = audioContextResumeService.suspended();
 
         return deriveVoiceConnectionState({
           active,
@@ -92,11 +85,7 @@ export const VoiceConnectionStore = signalStore(
           audioSuspended,
         });
       }),
-      audioSuspended: computed(() =>
-        typeof audioContextResumeService?.suspended === 'function'
-          ? audioContextResumeService.suspended()
-          : false,
-      ),
+      audioSuspended: computed(() => audioContextResumeService.suspended()),
     }),
   ),
   withMethods((store) => ({

@@ -183,12 +183,12 @@ export class MediasoupSessionService {
     this.livenessState = null;
     this.voiceConnectionStore.resetTransports();
     this.voiceConnectionStore.setMicFailed(false);
-    sendTransport?.close?.();
-    recvTransport?.close?.();
-    micProducer?.close?.();
-    camProducer?.close?.();
-    screenVideo?.close?.();
-    screenAudio?.close?.();
+    sendTransport?.close();
+    recvTransport?.close();
+    micProducer?.close();
+    camProducer?.close();
+    screenVideo?.close();
+    screenAudio?.close();
   }
 
   /** Both transports exist and none is failed, disconnected or closed. */

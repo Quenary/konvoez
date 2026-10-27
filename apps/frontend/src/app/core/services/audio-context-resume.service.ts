@@ -31,22 +31,22 @@ export class AudioContextResumeService {
     const onStateChange = (): void => {
       this.updateSuspended();
       if (context.state === 'suspended' || context.state === 'interrupted') {
-        void context.resume?.()?.catch?.(() => undefined);
+        void context.resume().catch(() => undefined);
       }
     };
-    context.addEventListener?.('statechange', onStateChange);
+    context.addEventListener('statechange', onStateChange);
     this.contextListeners.set(context, onStateChange);
 
     this.updateSuspended();
     if (context.state === 'suspended' || context.state === 'interrupted') {
-      void context.resume?.()?.catch?.(() => undefined);
+      void context.resume().catch(() => undefined);
     }
   }
 
   public unregister(context: AudioContext): void {
     const listener = this.contextListeners.get(context);
     if (listener) {
-      context.removeEventListener?.('statechange', listener);
+      context.removeEventListener('statechange', listener);
       this.contextListeners.delete(context);
     }
     this.contexts.delete(context);
@@ -56,7 +56,7 @@ export class AudioContextResumeService {
   private resumeAll(): void {
     for (const context of this.contexts) {
       if (context.state === 'suspended' || context.state === 'interrupted') {
-        void context.resume?.()?.catch?.(() => undefined);
+        void context.resume().catch(() => undefined);
       }
     }
   }

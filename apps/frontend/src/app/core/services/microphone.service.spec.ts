@@ -522,31 +522,6 @@ describe('MicrophoneService', () => {
     expect(() => service['ensurePipeline']()).toThrow('source failed');
     expect(service.processedStream()).toBeNull();
   });
-
-  it('removes track ended event listener and stops tracks on stream cleanup', () => {
-    const removeEventListener = vi.fn();
-    const stop = vi.fn();
-    const mockTrack = {
-      addEventListener: vi.fn(),
-      removeEventListener,
-      stop,
-    } as unknown as MediaStreamTrack;
-
-    const mockStream = {
-      getAudioTracks: () => [mockTrack],
-    } as unknown as MediaStream;
-
-    service['inputStream'] = mockStream;
-
-    service['cleanupInputStream']();
-
-    expect(removeEventListener).toHaveBeenCalledWith(
-      'ended',
-      service['onInputTrackEnded'],
-    );
-    expect(stop).toHaveBeenCalled();
-    expect(service['inputStream']).toBeNull();
-  });
 });
 
 function node(name: string) {

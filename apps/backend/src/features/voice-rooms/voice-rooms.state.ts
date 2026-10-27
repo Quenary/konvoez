@@ -102,7 +102,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
 
   public async onModuleInit(): Promise<void> {
     this.worker = await createWorker();
-    this.worker?.on?.('died', (error) => {
+    this.worker.on('died', (error) => {
       this.logger.error('Mediasoup worker died', error);
       process.exit(1);
     });

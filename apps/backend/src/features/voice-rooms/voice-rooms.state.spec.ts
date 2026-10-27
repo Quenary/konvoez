@@ -108,6 +108,7 @@ describe('VoiceRoomsStateService lobby eviction', () => {
     (createWorker as jest.Mock).mockResolvedValue({
       createRouter,
       close: jest.fn(),
+      on: jest.fn(),
     });
 
     service = new VoiceRoomsStateService(appServiceStub, eventEmitter as never);

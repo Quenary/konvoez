@@ -482,12 +482,12 @@ export class VoiceRoomsGateway
       listenInfos: buildWebRtcListenInfos(announcedAddresses),
     });
 
-    transport.on?.('icestatechange', (iceState) => {
+    transport.on('icestatechange', (iceState) => {
       this.logger.debug(
         `transport icestatechange: socketId=${socket.id}, sessionKey=${sessionKey}, direction=${body.direction}, state=${iceState}`,
       );
     });
-    transport.on?.('dtlsstatechange', (dtlsState) => {
+    transport.on('dtlsstatechange', (dtlsState) => {
       this.logger.debug(
         `transport dtlsstatechange: socketId=${socket.id}, sessionKey=${sessionKey}, direction=${body.direction}, state=${dtlsState}`,
       );

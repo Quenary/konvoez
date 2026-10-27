@@ -463,10 +463,7 @@ export class MicrophoneService {
 
   private cleanupInputStream() {
     const tracks = new Set<MediaStreamTrack>();
-    this.inputStream?.getAudioTracks().forEach((track) => {
-      track.removeEventListener?.('ended', this.onInputTrackEnded);
-      tracks.add(track);
-    });
+    this.inputStream?.getAudioTracks().forEach((track) => tracks.add(track));
     this.processedStream()
       ?.getAudioTracks()
       .forEach((track) => tracks.add(track));
