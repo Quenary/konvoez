@@ -34,6 +34,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode, EUserRole } from '@konvoez/shared';
 import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
 import { NotificationsDomainEvents } from './notifications.events';
+import { TextRoomsDomainEvents } from '../text-rooms/text-rooms.events';
+import { VoiceRoomsDomainEvents } from '../voice-rooms/voice-rooms.events';
 import { GetUserSafeDto } from '../users/users.dto';
 import {
   PushSubscriptionEntity,
@@ -457,6 +459,15 @@ describe('NotificationsService', () => {
   });
 
   describe('onDirectMessageNotification', () => {
+    it('is registered for DIRECT_MESSAGE_CREATED event', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        NotificationsService.prototype.onDirectMessageNotification,
+      );
+      const events = metadata.map((m: { event: string }) => m.event);
+      expect(events).toContain(TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED);
+    });
+
     it('should delegate to sendDirectMessageNotification with payload data', async () => {
       const sendSpy = jest
         .spyOn(service, 'sendDirectMessageNotification')
@@ -498,6 +509,15 @@ describe('NotificationsService', () => {
   });
 
   describe('onDirectCallNotification', () => {
+    it('is registered for DIRECT_CALL_INCOMING event', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        NotificationsService.prototype.onDirectCallNotification,
+      );
+      const events = metadata.map((m: { event: string }) => m.event);
+      expect(events).toContain(VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING);
+    });
+
     it('should delegate to sendDirectCallNotification with payload data', async () => {
       const sendSpy = jest
         .spyOn(service, 'sendDirectCallNotification')
@@ -637,13 +657,13 @@ describe('NotificationsService', () => {
   });
 
   describe('onMentionNotification', () => {
-    it('is registered for MENTION event', () => {
+    it('is registered for MENTION_CREATED event', () => {
       const metadata = Reflect.getMetadata(
         EVENT_LISTENER_METADATA,
         NotificationsService.prototype.onMentionNotification,
       );
       const events = metadata.map((m: { event: string }) => m.event);
-      expect(events).toContain(NotificationsDomainEvents.MENTION);
+      expect(events).toContain(TextRoomsDomainEvents.MENTION_CREATED);
     });
 
     it('should delegate to sendMentionNotification with payload data', async () => {

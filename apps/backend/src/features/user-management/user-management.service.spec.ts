@@ -29,7 +29,6 @@ import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
-import { UsersDomainEvents } from '../users/users.events';
 import { TwoFactorService } from '../two-factor/two-factor.service';
 
 describe('UserManagementService', () => {
@@ -58,7 +57,6 @@ describe('UserManagementService', () => {
     >
   >;
   let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
-  let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
     id: 1,
@@ -126,14 +124,11 @@ describe('UserManagementService', () => {
       adminReset: jest.fn().mockResolvedValue(mockUserDto),
     };
 
-    eventEmitter = { emit: jest.fn() };
-
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
       roomsFacade as unknown as RoomsFacade,
       twoFactorService as unknown as TwoFactorService,
-      eventEmitter as never,
     );
   });
 
@@ -175,14 +170,6 @@ describe('UserManagementService', () => {
       expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
         { id: 2 },
       ]);
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        UsersDomainEvents.USER_UPDATED,
-        expect.objectContaining({ id: 5 }),
-      );
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        UsersDomainEvents.USER_PERMISSIONS_CHANGED,
-        { userIds: [5] },
-      );
     });
 
     it('should reject changing the owner role', async () => {

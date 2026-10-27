@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 
 import { UserEntity } from '../users/users.entity';
 import { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
@@ -19,7 +17,6 @@ export class UserManagementService {
     private readonly permissionsFacade: PermissionsFacade,
     private readonly roomsFacade: RoomsFacade,
     private readonly twoFactorService: TwoFactorService,
-    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findAll(): Promise<GetUserFullDto[]> {
@@ -56,16 +53,6 @@ export class UserManagementService {
     await this.usersService.updateUserRoles(user, roles);
 
     const publicDto = await this.usersService.toSafeDtoWithPermissions(user);
-    emitUsersDomainEvent(
-      this.eventEmitter,
-      UsersDomainEvents.USER_UPDATED,
-      publicDto,
-    );
-    emitUsersDomainEvent(
-      this.eventEmitter,
-      UsersDomainEvents.USER_PERMISSIONS_CHANGED,
-      { userIds: [id] },
-    );
     return this.usersService.toFullDto(user, publicDto.permissions);
   }
 

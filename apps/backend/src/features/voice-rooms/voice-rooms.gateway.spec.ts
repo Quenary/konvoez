@@ -42,7 +42,6 @@ import {
   type IUserSafe,
   type TVoiceRoomProduce,
 } from '@konvoez/shared';
-import { NotificationsDomainEvents } from '../notifications/notifications.events';
 import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
@@ -1698,7 +1697,7 @@ describe('VoiceRoomsGateway', () => {
         { callId: 'c1', caller: alice },
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_CALL,
+        VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING,
         {
           recipientId: bob.id,
           callerId: alice.id,

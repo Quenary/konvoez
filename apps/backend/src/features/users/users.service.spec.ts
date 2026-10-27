@@ -65,6 +65,7 @@ describe('UsersService', () => {
       fork: jest.fn().mockReturnValue(mockForkedEm),
       flush: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
+      populate: jest.fn().mockResolvedValue(undefined),
       remove: jest.fn(),
       findOne: jest.fn(),
       find: jest.fn(),
@@ -209,6 +210,45 @@ describe('UsersService', () => {
         twoFactorEnabledAt: new Date(),
       } as UserEntity);
       expect(enabledDto.twoFactorEnabled).toBe(true);
+    });
+  });
+
+  describe('updateUserRoles', () => {
+    it('should set roles, persist, flush, and emit USER_UPDATED and USER_PERMISSIONS_CHANGED', async () => {
+      const mockSet = jest.fn();
+      const roles = [
+        {
+          id: 2,
+          name: 'Moderator',
+          priority: 10,
+          mentionable: true,
+          color: null,
+        },
+      ] as never[];
+      const target = {
+        ...mockUser,
+        id: 5,
+        roles: {
+          set: mockSet,
+          isInitialized: () => true,
+          getItems: () => roles,
+        },
+      } as unknown as UserEntity;
+
+      const result = await service.updateUserRoles(target, roles);
+
+      expect(result).toBe(target);
+      expect(mockSet).toHaveBeenCalledWith(roles);
+      expect(mockEm.persist).toHaveBeenCalledWith(target);
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_UPDATED,
+        expect.objectContaining({ id: 5 }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        UsersDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds: [5] },
+      );
     });
   });
 

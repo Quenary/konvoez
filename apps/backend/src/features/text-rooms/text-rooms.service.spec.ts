@@ -51,7 +51,6 @@ import {
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
 import { TextRoomsDomainEvents } from './text-rooms.events';
-import { NotificationsDomainEvents } from '../notifications/notifications.events';
 import { MentionsService } from './mentions.service';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { ReadAllDto } from './text-rooms.dto';
@@ -274,7 +273,7 @@ describe('TextRoomsService', () => {
         }),
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         expect.anything(),
       );
     });
@@ -313,7 +312,7 @@ describe('TextRoomsService', () => {
         result,
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         expect.anything(),
       );
     });
@@ -349,7 +348,7 @@ describe('TextRoomsService', () => {
 
       expect(result.recipientId).toBe(2);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         {
           recipientId: 2,
           senderId: 1,
@@ -770,7 +769,7 @@ describe('TextRoomsService', () => {
         [2, 3],
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         expect.objectContaining({
           recipients: [
             { userId: 2, types: ['username'] },
@@ -1505,7 +1504,7 @@ describe('TextRoomsService', () => {
         [3, 4],
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         expect.objectContaining({
           recipients: [{ userId: 4, types: ['username'] }],
           senderId: mockUser.id,
@@ -1555,7 +1554,7 @@ describe('TextRoomsService', () => {
       });
 
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         expect.anything(),
       );
     });
@@ -1586,7 +1585,7 @@ describe('TextRoomsService', () => {
       expect(mentionsService.resolve).not.toHaveBeenCalled();
       expect(mentionsService.replace).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         expect.anything(),
       );
       expect(result.mentions).toEqual({

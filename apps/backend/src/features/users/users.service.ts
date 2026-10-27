@@ -152,6 +152,19 @@ export class UsersService {
       user.roles.set(roles);
       this.em.persist(user);
       await this.em.flush();
+
+      const publicDto = await this.toSafeDtoWithPermissions(user);
+      emitUsersDomainEvent(
+        this.eventEmitter,
+        UsersDomainEvents.USER_UPDATED,
+        publicDto,
+      );
+      emitUsersDomainEvent(
+        this.eventEmitter,
+        UsersDomainEvents.USER_PERMISSIONS_CHANGED,
+        { userIds: [user.id] },
+      );
+
       return user;
     });
   }

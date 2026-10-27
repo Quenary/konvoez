@@ -39,10 +39,6 @@ import {
   TextRoomsDomainEvents,
   emitTextRoomsDomainEvent,
 } from './text-rooms.events';
-import {
-  NotificationsDomainEvents,
-  emitNotificationsDomainEvent,
-} from '../notifications/notifications.events';
 
 import {
   ApiErrorCode,
@@ -935,9 +931,9 @@ export class TextRoomsService {
       messageDto.recipientId &&
       messageDto.senderId !== messageDto.recipientId
     ) {
-      emitNotificationsDomainEvent(
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         {
           recipientId: messageDto.recipientId,
           senderId: messageDto.senderId,
@@ -957,9 +953,9 @@ export class TextRoomsService {
         addedIds.has(r.userId),
       );
 
-      emitNotificationsDomainEvent(
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         {
           recipients,
           senderId: messageDto.senderId,
@@ -1090,9 +1086,9 @@ export class TextRoomsService {
         addedIds.has(r.userId),
       );
 
-      emitNotificationsDomainEvent(
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         {
           recipients,
           senderId: messageDto.senderId,

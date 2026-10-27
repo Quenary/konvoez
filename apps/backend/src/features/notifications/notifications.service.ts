@@ -18,10 +18,16 @@ import { SettingsService } from '../settings/settings.service';
 import {
   NotificationsDomainEvents,
   emitNotificationsDomainEvent,
-  type IDirectCallNotificationPayload,
-  type IDirectMessageNotificationPayload,
-  type IMentionNotificationPayload,
 } from './notifications.events';
+import {
+  TextRoomsDomainEvents,
+  type TTextRoomDirectMessageCreatedPayload,
+  type TTextRoomMentionCreatedPayload,
+} from '../text-rooms/text-rooms.events';
+import {
+  VoiceRoomsDomainEvents,
+  type TVoiceRoomDirectCallIncomingPayload,
+} from '../voice-rooms/voice-rooms.events';
 import { GetUserSafeDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import {
@@ -429,7 +435,7 @@ export class NotificationsService {
   }
 
   public async sendMentionNotification(
-    payload: IMentionNotificationPayload,
+    payload: TTextRoomMentionCreatedPayload,
   ): Promise<void> {
     const body = htmlToPlainText(
       payload.messagePreview,
@@ -480,9 +486,9 @@ export class NotificationsService {
     );
   }
 
-  @OnEvent(NotificationsDomainEvents.MENTION)
+  @OnEvent(TextRoomsDomainEvents.MENTION_CREATED)
   async onMentionNotification(
-    payload: IMentionNotificationPayload,
+    payload: TTextRoomMentionCreatedPayload,
   ): Promise<void> {
     try {
       await this.sendMentionNotification(payload);
@@ -494,9 +500,9 @@ export class NotificationsService {
     }
   }
 
-  @OnEvent(NotificationsDomainEvents.DIRECT_MESSAGE)
+  @OnEvent(TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED)
   async onDirectMessageNotification(
-    payload: IDirectMessageNotificationPayload,
+    payload: TTextRoomDirectMessageCreatedPayload,
   ): Promise<void> {
     try {
       await this.sendDirectMessageNotification(
@@ -514,9 +520,9 @@ export class NotificationsService {
     }
   }
 
-  @OnEvent(NotificationsDomainEvents.DIRECT_CALL)
+  @OnEvent(VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING)
   async onDirectCallNotification(
-    payload: IDirectCallNotificationPayload,
+    payload: TVoiceRoomDirectCallIncomingPayload,
   ): Promise<void> {
     try {
       await this.sendDirectCallNotification(

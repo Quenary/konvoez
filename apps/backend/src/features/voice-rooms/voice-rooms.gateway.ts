@@ -57,10 +57,6 @@ import { RoomsFacade } from '../rooms/rooms.facade';
 import { AppService } from '@shared/services/app.service';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
-  NotificationsDomainEvents,
-  emitNotificationsDomainEvent,
-} from '../notifications/notifications.events';
-import {
   VoiceRoomsDomainEvents,
   emitVoiceRoomsDomainEvent,
 } from './voice-rooms.events';
@@ -861,9 +857,9 @@ export class VoiceRoomsGateway
         caller,
       });
 
-    emitNotificationsDomainEvent(
+    emitVoiceRoomsDomainEvent(
       this.eventEmitter,
-      NotificationsDomainEvents.DIRECT_CALL,
+      VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING,
       {
         recipientId: body.recipientId,
         callerId: caller.id,
