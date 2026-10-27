@@ -22,6 +22,7 @@ type VoiceConnectionState = {
   recvState: TVoiceTransportState | null;
   stalled: boolean;
   recovering: boolean;
+  rejoinFailed: boolean;
   dead: EVoiceConnectionDeadReason | null;
   lossReported: boolean;
   micFailed: boolean;
@@ -33,6 +34,7 @@ const initialVoiceConnectionState: VoiceConnectionState = {
   recvState: null,
   stalled: false,
   recovering: false,
+  rejoinFailed: false,
   dead: null,
   lossReported: false,
   micFailed: false,
@@ -60,6 +62,7 @@ export const VoiceConnectionStore = signalStore(
         const recvState = store.recvState();
         const stalled = store.stalled();
         const recovering = store.recovering();
+        const rejoinFailed = store.rejoinFailed();
         const dead = store.dead();
         const qualityTier = voiceQualityService.tier();
         const micFailed = store.micFailed();
@@ -72,6 +75,7 @@ export const VoiceConnectionStore = signalStore(
           recvState,
           stalled,
           recovering,
+          rejoinFailed,
           dead,
           qualityTier,
           micFailed,
@@ -112,6 +116,10 @@ export const VoiceConnectionStore = signalStore(
       patchState(store, { recovering });
     },
 
+    setRejoinFailed(rejoinFailed: boolean): void {
+      patchState(store, { rejoinFailed });
+    },
+
     setDead(dead: EVoiceConnectionDeadReason | null): void {
       patchState(store, { dead });
     },
@@ -142,6 +150,7 @@ export const VoiceConnectionStore = signalStore(
         recvState: null,
         stalled: false,
         recovering: false,
+        rejoinFailed: false,
         dead: null,
         lossReported: false,
         micFailed: false,

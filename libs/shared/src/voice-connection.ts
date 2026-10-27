@@ -29,6 +29,7 @@ export type TVoiceConnectionInput = {
   recvState: TVoiceTransportState | null;
   stalled: boolean;
   recovering: boolean;
+  rejoinFailed: boolean;
   dead: EVoiceConnectionDeadReason | null;
   qualityTier: EVoiceQualityTier;
   micFailed: boolean;
@@ -61,6 +62,7 @@ export function deriveVoiceConnectionState(
   }
   if (
     input.recovering ||
+    input.rejoinFailed ||
     input.stalled ||
     input.sendState === 'disconnected' ||
     input.sendState === 'connecting' ||

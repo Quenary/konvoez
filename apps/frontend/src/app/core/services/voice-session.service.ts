@@ -307,10 +307,14 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private async rejoinSessionLocked(
     session: TVoiceSessionTarget,
   ): Promise<void> {
+    this.voiceConnectionStore.setRejoinFailed(false);
     this.voiceConnectionStore.setRecovering(true);
     this.mediasoupSessionService.cleanup();
     try {
       await this.joinSessionLocked(session, true);
+    } catch (error) {
+      this.voiceConnectionStore.setRejoinFailed(true);
+      throw error;
     } finally {
       this.voiceConnectionStore.setRecovering(false);
     }
