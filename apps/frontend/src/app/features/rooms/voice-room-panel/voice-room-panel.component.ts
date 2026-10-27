@@ -110,16 +110,20 @@ export class VoiceRoomPanelComponent {
   protected readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
 
   protected readonly indicatorColor = computed(() => {
-    switch (this.connectionState()) {
+    const state = this.connectionState();
+    const qualityColor = this.qualityColor();
+    const qualityTier = this.qualityTier();
+
+    switch (state) {
       case null:
       case EVoiceConnectionState.CONNECTED:
-        return this.qualityColor();
+        return qualityColor;
       case EVoiceConnectionState.DEGRADED:
         if (
-          this.qualityTier() === EVoiceQualityTier.UNSTABLE ||
-          this.qualityTier() === EVoiceQualityTier.BAD
+          qualityTier === EVoiceQualityTier.UNSTABLE ||
+          qualityTier === EVoiceQualityTier.BAD
         ) {
-          return this.qualityColor();
+          return qualityColor;
         }
         return 'var(--tui-status-warning)';
       case EVoiceConnectionState.RECONNECTING:
@@ -131,21 +135,27 @@ export class VoiceRoomPanelComponent {
   });
 
   protected readonly connectionHintKey = computed(() => {
-    switch (this.connectionState()) {
+    const state = this.connectionState();
+    const qualityHint = this.qualityHintKey();
+    const micFailed = this.micFailed();
+    const micInputMuted = this.micInputMuted();
+    const audioSuspended = this.audioSuspended();
+
+    switch (state) {
       case null:
       case EVoiceConnectionState.CONNECTED:
-        return this.qualityHintKey();
+        return qualityHint;
       case EVoiceConnectionState.DEGRADED:
-        if (this.micFailed()) {
+        if (micFailed) {
           return 'CALL.CONNECTION.MIC_FAILED';
         }
-        if (this.micInputMuted()) {
+        if (micInputMuted) {
           return 'CALL.CONNECTION.MIC_MUTED';
         }
-        if (this.audioSuspended()) {
+        if (audioSuspended) {
           return 'CALL.CONNECTION.AUDIO_SUSPENDED';
         }
-        return this.qualityHintKey();
+        return qualityHint;
       case EVoiceConnectionState.RECONNECTING:
         return 'CALL.CONNECTION.RECONNECTING';
       case EVoiceConnectionState.DISCONNECTED:
