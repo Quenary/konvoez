@@ -316,6 +316,7 @@ SETTINGS:
     DIALOG_TITLE: User
     TABLE:
       USER: User
+      ROLE: Role
       EMAIL: Email
       CREATED: Created
     ID: ID

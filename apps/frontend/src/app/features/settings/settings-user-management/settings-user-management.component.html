@@ -26,6 +26,11 @@
             </th>
             <th
               tuiTh
+              class="col-role">
+              {{ 'SETTINGS.USERS.TABLE.ROLE' | translate }}
+            </th>
+            <th
+              tuiTh
               class="col-email">
               {{ 'SETTINGS.USERS.TABLE.EMAIL' | translate }}
             </th>
@@ -63,6 +68,37 @@
               </td>
               <td
                 tuiTd
+                class="col-role">
+                <div class="roles-cell">
+                  @if (user.isOwner) {
+                    <span
+                      tuiBadge
+                      appearance="primary"
+                      size="s">
+                      {{ 'SETTINGS.USERS.OWNER_BADGE' | translate }}
+                    </span>
+                  } @else {
+                    @for (role of user.roles; track role.id) {
+                      <span
+                        tuiBadge
+                        appearance="neutral"
+                        size="s"
+                        class="role-badge">
+                        @if (role.color) {
+                          <span
+                            class="role-badge-dot"
+                            [style.background-color]="role.color"></span>
+                        }
+                        {{ role.name }}
+                      </span>
+                    } @empty {
+                      <span class="empty-role">—</span>
+                    }
+                  }
+                </div>
+              </td>
+              <td
+                tuiTd
                 class="col-email">
                 {{ user.email }}
               </td>
@@ -76,7 +112,7 @@
             <tr>
               <td
                 tuiTd
-                colspan="3"
+                colspan="4"
                 class="empty-cell">
                 {{ 'SETTINGS.USERS.NO_USERS' | translate }}
               </td>
