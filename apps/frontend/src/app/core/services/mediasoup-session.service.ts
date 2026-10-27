@@ -106,6 +106,7 @@ export class MediasoupSessionService {
   private currentQualityLevel: TVoiceLadderEntry | null = null;
   private microphoneMuted = false;
   private readonly consuming = new Set<string>();
+  private readonly liveConsumerIds = new Set<string>();
   private pendingConsumes: TVoiceRoomProduceResult[] = [];
   private watchdogInterval: ReturnType<typeof setInterval> | null = null;
   private livenessState: TVoiceLivenessState | null = null;
@@ -176,6 +177,7 @@ export class MediasoupSessionService {
       this.watchdogInterval = null;
     }
     this.livenessState = null;
+    this.liveConsumerIds.clear();
     this.voiceConnectionStore.resetTransports();
     sendTransport?.close();
     recvTransport?.close();
@@ -912,6 +914,10 @@ export class MediasoupSessionService {
       const consumer = await recvTransport.consume(
         result as unknown as ConsumerOptions,
       );
+      this.liveConsumerIds.add(consumer.id);
+      consumer.observer.once('close', () => {
+        this.liveConsumerIds.delete(consumer.id);
+      });
 
       if (data.mediaTag === 'screen') {
         this.consumerRegistry.add(consumer);
@@ -1017,7 +1023,9 @@ export class MediasoupSessionService {
         this.livenessState ?? createInitialVoiceLiveness(Date.now());
       const now = Date.now();
       const sendConnected = this.sendTransport?.connectionState === 'connected';
-      const recvConnected = this.recvTransport?.connectionState === 'connected';
+      const recvConnected =
+        this.recvTransport?.connectionState === 'connected' &&
+        this.liveConsumerIds.size > 0;
 
       const { state, stalled } = advanceVoiceLiveness(
         previousLiveness,
