@@ -50,6 +50,10 @@ export class MicrophoneService {
   /** True while denoiser assets or capture pipeline are being prepared. */
   public readonly captureLoading = this._captureLoading.asReadonly();
 
+  private readonly _inputMuted = signal(false);
+  /** True while the active input track is hardware/system muted. */
+  public readonly inputMuted = this._inputMuted.asReadonly();
+
   private context: AudioContext | null = null;
   private inputStream: MediaStream | null = null;
 
@@ -72,6 +76,20 @@ export class MicrophoneService {
       return;
     }
     void this.handleDeviceChange();
+  };
+
+  private readonly onInputTrackMute = (event: Event): void => {
+    if (event.target !== this.inputStream?.getAudioTracks()[0]) {
+      return;
+    }
+    this._inputMuted.set(true);
+  };
+
+  private readonly onInputTrackUnmute = (event: Event): void => {
+    if (event.target !== this.inputStream?.getAudioTracks()[0]) {
+      return;
+    }
+    this._inputMuted.set(false);
   };
 
   constructor() {
@@ -352,9 +370,15 @@ export class MicrophoneService {
   }
 
   private watchInputTrack(stream: MediaStream | null): void {
-    stream
-      ?.getAudioTracks()[0]
-      ?.addEventListener?.('ended', this.onInputTrackEnded);
+    const track = stream?.getAudioTracks()[0];
+    if (track) {
+      track.addEventListener?.('ended', this.onInputTrackEnded);
+      track.addEventListener?.('mute', this.onInputTrackMute);
+      track.addEventListener?.('unmute', this.onInputTrackUnmute);
+      this._inputMuted.set(track.muted ?? false);
+    } else {
+      this._inputMuted.set(false);
+    }
   }
 
   private async reacquireInputStream(): Promise<void> {

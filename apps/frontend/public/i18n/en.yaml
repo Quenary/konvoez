@@ -112,6 +112,13 @@ CALL:
     LEVEL_1: 'Connection: good. Voice bitrate reduced to {{kbps}} kbps'
     LEVEL_2: 'Connection: unstable. Voice bitrate reduced to {{kbps}} kbps, video restricted'
     LEVEL_3: 'Connection: bad. Voice bitrate: {{kbps}} kbps, video paused'
+  CONNECTION:
+    RECONNECTING: Reconnecting…
+    DISCONNECTED: Connection lost
+    DEAD: Connection failed
+    MIC_FAILED: Microphone error
+    MIC_MUTED: Hardware microphone muted
+    AUDIO_SUSPENDED: Audio playback suspended
   YOU: You
   VOLUME: Volume
   MUTE_MICROPHONE: Mute microphone
@@ -152,6 +159,10 @@ CALL:
 VOICE:
   JOIN_FAILED: Couldn't join the voice channel
   ROOM_CLOSED: This voice room was closed
+  CONNECTION_LOST: Voice connection lost
+  CONNECTION_RESTORED: Voice connection restored
+  MICROPHONE_FAILED: Couldn't start microphone
+  REJOIN: Reconnect
 ROOMS:
   UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...

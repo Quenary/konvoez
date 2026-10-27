@@ -15,10 +15,15 @@ import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceQualityService } from '@core/services/voice-quality.service';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { TuiButton, TuiGroup, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { EVoiceQualityTier, EVoiceSessionType } from '@konvoez/shared';
+import {
+  EVoiceConnectionState,
+  EVoiceQualityTier,
+  EVoiceSessionType,
+} from '@konvoez/shared';
 import { TuiFade } from '@taiga-ui/kit';
 
 import { icons } from '@constants';
@@ -43,6 +48,7 @@ export class VoiceRoomPanelComponent {
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceQualityService = inject(VoiceQualityService);
+  private readonly voiceConnectionStore = inject(VoiceConnectionStore);
   private readonly translateService = inject(TranslateService);
 
   protected readonly icons = icons;
@@ -98,10 +104,61 @@ export class VoiceRoomPanelComponent {
     }
   });
 
+  protected readonly connectionState = this.voiceConnectionStore.state;
+  protected readonly micFailed = this.voiceConnectionStore.micFailed;
+  protected readonly micInputMuted = this.voiceConnectionStore.micInputMuted;
+  protected readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
+
+  protected readonly indicatorColor = computed(() => {
+    switch (this.connectionState()) {
+      case null:
+      case EVoiceConnectionState.CONNECTED:
+        return this.qualityColor();
+      case EVoiceConnectionState.DEGRADED:
+        if (
+          this.qualityTier() === EVoiceQualityTier.UNSTABLE ||
+          this.qualityTier() === EVoiceQualityTier.BAD
+        ) {
+          return this.qualityColor();
+        }
+        return 'var(--tui-status-warning)';
+      case EVoiceConnectionState.RECONNECTING:
+        return 'var(--tui-text-tertiary)';
+      case EVoiceConnectionState.DISCONNECTED:
+      case EVoiceConnectionState.DEAD:
+        return 'var(--tui-status-negative)';
+    }
+  });
+
+  protected readonly connectionHintKey = computed(() => {
+    switch (this.connectionState()) {
+      case null:
+      case EVoiceConnectionState.CONNECTED:
+        return this.qualityHintKey();
+      case EVoiceConnectionState.DEGRADED:
+        if (this.micFailed()) {
+          return 'CALL.CONNECTION.MIC_FAILED';
+        }
+        if (this.micInputMuted()) {
+          return 'CALL.CONNECTION.MIC_MUTED';
+        }
+        if (this.audioSuspended()) {
+          return 'CALL.CONNECTION.AUDIO_SUSPENDED';
+        }
+        return this.qualityHintKey();
+      case EVoiceConnectionState.RECONNECTING:
+        return 'CALL.CONNECTION.RECONNECTING';
+      case EVoiceConnectionState.DISCONNECTED:
+        return 'CALL.CONNECTION.DISCONNECTED';
+      case EVoiceConnectionState.DEAD:
+        return 'CALL.CONNECTION.DEAD';
+    }
+  });
+
   protected readonly qualityAriaLabel = computed(() => {
     this.currentLang();
     const titleKey = this.sessionTitle();
-    const hintKey = this.qualityHintKey();
+    const hintKey = this.connectionHintKey();
     const kbps = this.qualityBitrateKbps();
 
     const qualityText = this.translateService.instant(hintKey, { kbps });

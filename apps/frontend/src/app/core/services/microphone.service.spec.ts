@@ -522,6 +522,40 @@ describe('MicrophoneService', () => {
     expect(() => service['ensurePipeline']()).toThrow('source failed');
     expect(service.processedStream()).toBeNull();
   });
+
+  it('updates inputMuted from mute and unmute events on the active track only', () => {
+    const listeners: Record<string, (event: Event) => void> = {};
+    const mockTrack = {
+      muted: false,
+      addEventListener: vi.fn(
+        (event: string, callback: (event: Event) => void) => {
+          listeners[event] = callback;
+        },
+      ),
+    } as unknown as MediaStreamTrack;
+
+    const mockStream = {
+      getAudioTracks: () => [mockTrack],
+    } as unknown as MediaStream;
+
+    service['inputStream'] = mockStream;
+    service['watchInputTrack'](mockStream);
+
+    expect(service.inputMuted()).toBe(false);
+
+    // Mute event on the current input track
+    listeners['mute']?.({ target: mockTrack } as unknown as Event);
+    expect(service.inputMuted()).toBe(true);
+
+    // Unmute event on a foreign track is ignored
+    const foreignTrack = {} as MediaStreamTrack;
+    listeners['unmute']?.({ target: foreignTrack } as unknown as Event);
+    expect(service.inputMuted()).toBe(true);
+
+    // Unmute event on the current track
+    listeners['unmute']?.({ target: mockTrack } as unknown as Event);
+    expect(service.inputMuted()).toBe(false);
+  });
 });
 
 function node(name: string) {

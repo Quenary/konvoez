@@ -8,7 +8,9 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import {
+  EVoiceConnectionState,
   EVoiceQualityTier,
   EVoiceSessionType,
   IRoom,
@@ -43,6 +45,10 @@ describe('VoiceRoomPanelComponent', () => {
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let qualityTier: ReturnType<typeof signal<EVoiceQualityTier>>;
   let qualityBitrateKbps: ReturnType<typeof signal<number>>;
+  let connectionState: ReturnType<typeof signal<EVoiceConnectionState | null>>;
+  let micFailed: ReturnType<typeof signal<boolean>>;
+  let micInputMuted: ReturnType<typeof signal<boolean>>;
+  let audioSuspended: ReturnType<typeof signal<boolean>>;
   let translate: TranslateService;
 
   beforeEach(() => {
@@ -71,6 +77,10 @@ describe('VoiceRoomPanelComponent', () => {
     localScreenTrack = signal(null);
     qualityTier = signal(EVoiceQualityTier.EXCELLENT);
     qualityBitrateKbps = signal(64);
+    connectionState = signal<EVoiceConnectionState | null>(null);
+    micFailed = signal(false);
+    micInputMuted = signal(false);
+    audioSuspended = signal(false);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomPanelComponent],
@@ -85,6 +95,15 @@ describe('VoiceRoomPanelComponent', () => {
           useValue: {
             tier: qualityTier.asReadonly(),
             bitrateKbps: qualityBitrateKbps.asReadonly(),
+          },
+        },
+        {
+          provide: VoiceConnectionStore,
+          useValue: {
+            state: connectionState.asReadonly(),
+            micFailed: micFailed.asReadonly(),
+            micInputMuted: micInputMuted.asReadonly(),
+            audioSuspended: audioSuspended.asReadonly(),
           },
         },
         {
@@ -371,5 +390,57 @@ describe('VoiceRoomPanelComponent', () => {
     const icon = sessionButton.querySelector('tui-icon') as HTMLElement;
     expect(icon).toBeTruthy();
     expect(icon.style.color).toBe('var(--tui-status-positive)');
+  });
+
+  it('computes indicatorColor and connectionHintKey across connection states', () => {
+    const { instance } = createComponent();
+
+    // CONNECTED delegates to quality
+    connectionState.set(EVoiceConnectionState.CONNECTED);
+    qualityTier.set(EVoiceQualityTier.EXCELLENT);
+    expect(instance['indicatorColor']()).toBe('var(--tui-status-positive)');
+    expect(instance['connectionHintKey']()).toBe('CALL.QUALITY.LEVEL_0');
+
+    // DEGRADED with UNSTABLE or BAD keeps quality color
+    connectionState.set(EVoiceConnectionState.DEGRADED);
+    qualityTier.set(EVoiceQualityTier.UNSTABLE);
+    expect(instance['indicatorColor']()).toBe('var(--tui-status-warning)');
+    expect(instance['connectionHintKey']()).toBe('CALL.QUALITY.LEVEL_2');
+
+    // DEGRADED with micFailed prioritizes mic failed hint and warning color
+    qualityTier.set(EVoiceQualityTier.EXCELLENT);
+    micFailed.set(true);
+    expect(instance['indicatorColor']()).toBe('var(--tui-status-warning)');
+    expect(instance['connectionHintKey']()).toBe('CALL.CONNECTION.MIC_FAILED');
+
+    // DEGRADED with micInputMuted
+    micFailed.set(false);
+    micInputMuted.set(true);
+    expect(instance['connectionHintKey']()).toBe('CALL.CONNECTION.MIC_MUTED');
+
+    // DEGRADED with audioSuspended
+    micInputMuted.set(false);
+    audioSuspended.set(true);
+    expect(instance['connectionHintKey']()).toBe(
+      'CALL.CONNECTION.AUDIO_SUSPENDED',
+    );
+
+    // RECONNECTING -> grey
+    connectionState.set(EVoiceConnectionState.RECONNECTING);
+    expect(instance['indicatorColor']()).toBe('var(--tui-text-tertiary)');
+    expect(instance['connectionHintKey']()).toBe(
+      'CALL.CONNECTION.RECONNECTING',
+    );
+
+    // DISCONNECTED and DEAD -> red
+    connectionState.set(EVoiceConnectionState.DISCONNECTED);
+    expect(instance['indicatorColor']()).toBe('var(--tui-status-negative)');
+    expect(instance['connectionHintKey']()).toBe(
+      'CALL.CONNECTION.DISCONNECTED',
+    );
+
+    connectionState.set(EVoiceConnectionState.DEAD);
+    expect(instance['indicatorColor']()).toBe('var(--tui-status-negative)');
+    expect(instance['connectionHintKey']()).toBe('CALL.CONNECTION.DEAD');
   });
 });

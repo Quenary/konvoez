@@ -1,7 +1,15 @@
-import { EVoiceQualityTier, EVoiceRoomEvent } from '@konvoez/shared';
+import {
+  EVoiceQualityTier,
+  EVoiceRoomEvent,
+  VOICE_STALL_MS,
+  VOICE_WATCHDOG_INTERVAL_MS,
+} from '@konvoez/shared';
 import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
@@ -134,6 +142,18 @@ describe('MediasoupSessionService', () => {
           useValue: {
             iceServers: vi.fn().mockReturnValue([]),
             voiceMaxBitrateKbps: vi.fn().mockReturnValue(64),
+          },
+        },
+        {
+          provide: TranslateService,
+          useValue: {
+            instant: vi.fn((key: string) => key),
+          },
+        },
+        {
+          provide: TuiNotificationService,
+          useValue: {
+            open: vi.fn().mockReturnValue(of({})),
           },
         },
       ],
@@ -859,6 +879,115 @@ describe('MediasoupSessionService', () => {
       loss: 5,
       rttMs: 120,
       jitterMs: 30,
+    });
+  });
+
+  describe('watchdog and connection health', () => {
+    it('sets stalled flag when stats counters freeze for VOICE_STALL_MS', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const bytes = 1000;
+      const fakeStats = new Map([
+        [
+          'report-1',
+          {
+            type: 'candidate-pair',
+            nominated: true,
+            bytesSent: bytes,
+            bytesReceived: 0,
+          },
+        ],
+      ]);
+
+      const mockTransport = {
+        connectionState: 'connected',
+        closed: false,
+        getStats: vi.fn().mockImplementation(async () => fakeStats),
+        on: vi.fn(),
+        close: vi.fn(),
+      };
+
+      service['sendTransport'] = mockTransport as never;
+      service['startWatchdog']();
+
+      // First tick
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Advance time past stall threshold without byte growth
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(true);
+
+      // Growing bytes clear stall
+      fakeStats.set('report-1', {
+        type: 'candidate-pair',
+        nominated: true,
+        bytesSent: 2000,
+        bytesReceived: 0,
+      });
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Rejection does not cause stall
+      mockTransport.getStats.mockRejectedValueOnce(new Error('stats failed'));
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Cleanup stops interval and resets store
+      service.cleanup();
+      expect(service['watchdogInterval']).toBeNull();
+      expect(connectionStore.stalled()).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it('sets micFailed and notifies on produce failure, clears on success', async () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      const notificationService = TestBed.inject(TuiNotificationService);
+
+      const fakeTrack = {
+        enabled: true,
+        readyState: 'live',
+        muted: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      };
+      const fakeStream = {
+        getAudioTracks: vi.fn().mockReturnValue([fakeTrack]),
+      };
+      getStream.mockResolvedValue(fakeStream);
+
+      service['sendTransport'] = {
+        produce: vi.fn().mockRejectedValue(new Error('Device busy')),
+        closed: false,
+      } as never;
+
+      await service['produceMicrophoneLocked']();
+
+      expect(connectionStore.micFailed()).toBe(true);
+      expect(notificationService.open).toHaveBeenCalledWith(
+        'VOICE.MICROPHONE_FAILED',
+        expect.objectContaining({ appearance: 'negative' }),
+      );
+
+      // Subsequent success clears micFailed
+      const fakeProducer = {
+        id: 'mic-success',
+        track: { enabled: true },
+        on: vi.fn(),
+        closed: false,
+      };
+      service['sendTransport'] = {
+        produce: vi.fn().mockResolvedValue(fakeProducer),
+        closed: false,
+      } as never;
+
+      await service['produceMicrophoneLocked']();
+      expect(connectionStore.micFailed()).toBe(false);
+      expect(service.microphoneProducerId).toBe('mic-success');
     });
   });
 });
