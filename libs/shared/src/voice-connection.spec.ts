@@ -17,9 +17,9 @@ const baseHealthyInput: TVoiceConnectionInput = {
   recvState: 'connected',
   stalled: false,
   recovering: false,
+  rejoinFailed: false,
   dead: null,
   qualityTier: EVoiceQualityTier.EXCELLENT,
-  micFailed: false,
   audioSuspended: false,
 };
 
@@ -128,7 +128,40 @@ describe('voice-connection', () => {
       ).toBe(EVoiceConnectionState.RECONNECTING);
     });
 
-    it('returns DEGRADED when tier is UNSTABLE or BAD, mic failed, or audio suspended', () => {
+    it('returns RECONNECTING when rejoinFailed is true, below DEAD and DISCONNECTED in precedence', () => {
+      expect(
+        deriveVoiceConnectionState({
+          ...baseHealthyInput,
+          rejoinFailed: true,
+        }),
+      ).toBe(EVoiceConnectionState.RECONNECTING);
+
+      expect(
+        deriveVoiceConnectionState({
+          ...baseHealthyInput,
+          rejoinFailed: true,
+          dead: EVoiceConnectionDeadReason.RECOVERY_FAILED,
+        }),
+      ).toBe(EVoiceConnectionState.DEAD);
+
+      expect(
+        deriveVoiceConnectionState({
+          ...baseHealthyInput,
+          rejoinFailed: true,
+          socketConnected: false,
+        }),
+      ).toBe(EVoiceConnectionState.DISCONNECTED);
+
+      expect(
+        deriveVoiceConnectionState({
+          ...baseHealthyInput,
+          rejoinFailed: true,
+          sendState: 'failed',
+        }),
+      ).toBe(EVoiceConnectionState.DISCONNECTED);
+    });
+
+    it('returns DEGRADED when tier is UNSTABLE or BAD, or audio suspended', () => {
       expect(
         deriveVoiceConnectionState({
           ...baseHealthyInput,
@@ -140,13 +173,6 @@ describe('voice-connection', () => {
         deriveVoiceConnectionState({
           ...baseHealthyInput,
           qualityTier: EVoiceQualityTier.BAD,
-        }),
-      ).toBe(EVoiceConnectionState.DEGRADED);
-
-      expect(
-        deriveVoiceConnectionState({
-          ...baseHealthyInput,
-          micFailed: true,
         }),
       ).toBe(EVoiceConnectionState.DEGRADED);
 

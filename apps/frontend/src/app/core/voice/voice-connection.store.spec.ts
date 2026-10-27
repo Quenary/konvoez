@@ -78,6 +78,23 @@ describe('VoiceConnectionStore', () => {
     expect(store.recovering()).toBe(false);
   });
 
+  it('tracks rejoinFailed state and derives RECONNECTING', () => {
+    sessionStore.setActiveSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: 1,
+    });
+    expect(store.rejoinFailed()).toBe(false);
+    expect(store.state()).toBe(EVoiceConnectionState.CONNECTED);
+
+    store.setRejoinFailed(true);
+    expect(store.rejoinFailed()).toBe(true);
+    expect(store.state()).toBe(EVoiceConnectionState.RECONNECTING);
+
+    store.setRejoinFailed(false);
+    expect(store.rejoinFailed()).toBe(false);
+    expect(store.state()).toBe(EVoiceConnectionState.CONNECTED);
+  });
+
   it('resets transports and clears stalled flag', () => {
     store.setTransportState('send', 'connected');
     store.setTransportState('recv', 'connected');
@@ -92,17 +109,17 @@ describe('VoiceConnectionStore', () => {
   it('resets all connection state back to initial values', () => {
     store.setTransportState('send', 'connected');
     store.setRecovering(true);
+    store.setRejoinFailed(true);
     store.setDead(EVoiceConnectionDeadReason.RECOVERY_FAILED);
     store.setLossReported(true);
-    store.setMicFailed(true);
 
     store.reset();
     expect(store.sendState()).toBeNull();
     expect(store.recvState()).toBeNull();
     expect(store.stalled()).toBe(false);
     expect(store.recovering()).toBe(false);
+    expect(store.rejoinFailed()).toBe(false);
     expect(store.dead()).toBeNull();
     expect(store.lossReported()).toBe(false);
-    expect(store.micFailed()).toBe(false);
   });
 });

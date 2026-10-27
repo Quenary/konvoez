@@ -952,51 +952,5 @@ describe('MediasoupSessionService', () => {
 
       vi.useRealTimers();
     });
-
-    it('sets micFailed and notifies on produce failure, clears on success', async () => {
-      const connectionStore = TestBed.inject(VoiceConnectionStore);
-      const notificationService = TestBed.inject(TuiNotificationService);
-
-      const fakeTrack = {
-        enabled: true,
-        readyState: 'live',
-        muted: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      };
-      const fakeStream = {
-        getAudioTracks: vi.fn().mockReturnValue([fakeTrack]),
-      };
-      getStream.mockResolvedValue(fakeStream);
-
-      service['sendTransport'] = {
-        produce: vi.fn().mockRejectedValue(new Error('Device busy')),
-        closed: false,
-      } as never;
-
-      await service['produceMicrophoneLocked']();
-
-      expect(connectionStore.micFailed()).toBe(true);
-      expect(notificationService.open).toHaveBeenCalledWith(
-        'VOICE.MICROPHONE_FAILED',
-        expect.objectContaining({ appearance: 'negative' }),
-      );
-
-      // Subsequent success clears micFailed
-      const fakeProducer = {
-        id: 'mic-success',
-        track: { enabled: true },
-        on: vi.fn(),
-        closed: false,
-      };
-      service['sendTransport'] = {
-        produce: vi.fn().mockResolvedValue(fakeProducer),
-        closed: false,
-      } as never;
-
-      await service['produceMicrophoneLocked']();
-      expect(connectionStore.micFailed()).toBe(false);
-      expect(service.microphoneProducerId).toBe('mic-success');
-    });
   });
 });
