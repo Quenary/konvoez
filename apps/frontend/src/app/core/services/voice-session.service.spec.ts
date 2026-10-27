@@ -99,7 +99,10 @@ describe('VoiceSessionService', () => {
     release: ReturnType<typeof vi.fn>;
     onRemoteProducerClosed: ReturnType<typeof vi.fn>;
   };
-  let peerPlayback: { detach: ReturnType<typeof vi.fn> };
+  let peerPlayback: {
+    detach: ReturnType<typeof vi.fn>;
+    detachAll: ReturnType<typeof vi.fn>;
+  };
   let peerVideo: {
     removeUser: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
@@ -207,7 +210,7 @@ describe('VoiceSessionService', () => {
       release: vi.fn(),
       onRemoteProducerClosed: vi.fn(),
     };
-    peerPlayback = { detach: vi.fn() };
+    peerPlayback = { detach: vi.fn(), detachAll: vi.fn() };
     peerVideo = {
       removeUser: vi.fn(),
       remove: vi.fn(),
@@ -263,7 +266,7 @@ describe('VoiceSessionService', () => {
           useValue: {
             removeConsumer: vi.fn(),
             detach: peerPlayback.detach,
-            detachAll: vi.fn(),
+            detachAll: peerPlayback.detachAll,
           },
         },
         {
@@ -985,6 +988,9 @@ describe('VoiceSessionService', () => {
       });
       expect(connectionStore.dead()).toBe(EVoiceConnectionDeadReason.EVICTED);
       expect(mediasoup.cleanup).toHaveBeenCalled();
+      expect(wakeLock.release).toHaveBeenCalled();
+      expect(peerPlayback.detachAll).toHaveBeenCalled();
+      expect(microphoneService.release).toHaveBeenCalled();
     });
 
     it('triggers immediate rejoin on own mic PRODUCER_CLOSED without peer-left reason', async () => {

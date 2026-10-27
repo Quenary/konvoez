@@ -611,6 +611,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
         this.voiceConnectionStore.setDead(EVoiceConnectionDeadReason.EVICTED);
         this.clearLadderTimers();
         this.mediasoupSessionService.cleanup();
+        this.screenWakeLockService.release();
+        this.peerPlaybackService.detachAll();
+        void this.microphoneService.release();
         return;
       }
 
