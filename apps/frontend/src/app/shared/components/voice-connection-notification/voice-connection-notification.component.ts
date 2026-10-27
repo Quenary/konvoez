@@ -28,8 +28,6 @@ export class VoiceConnectionNotificationComponent {
     this.voiceConnectionStore.lossReported(),
   );
 
-  protected readonly state = this.voiceConnectionStore.state;
-
   protected readonly isDead = computed(
     () => this.state() === EVoiceConnectionState.DEAD,
   );
@@ -51,6 +49,8 @@ export class VoiceConnectionNotificationComponent {
       ? 'warning'
       : 'negative';
   });
+
+  private readonly state = this.voiceConnectionStore.state;
 
   protected rejoin(): void {
     void this.voiceSessionService.rejoin();
