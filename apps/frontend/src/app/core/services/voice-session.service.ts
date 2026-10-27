@@ -370,11 +370,13 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     if (state === EVoiceConnectionState.DEAD) {
       this.clearLadderTimers();
       this.voiceConnectionStore.setRecovering(false);
+      if (!this.voiceConnectionStore.lossReported()) {
+        this.reportConnectionLoss();
+      }
     }
   }
 
-  private onIceTimer(): void {
-    this.iceTimer = null;
+  private reportConnectionLoss(): void {
     this.voiceConnectionStore.setLossReported(true);
     this.audioService.playConnectionLostAudio();
     this.tuiNotificationsService
@@ -384,6 +386,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
         closable: true,
       })
       .subscribe();
+  }
+
+  private onIceTimer(): void {
+    this.iceTimer = null;
+    this.reportConnectionLoss();
 
     if (this.socket.connected) {
       void this.mediasoupSessionService.restartIce().catch((error) => {
