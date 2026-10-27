@@ -128,7 +128,7 @@ describe('voice-connection', () => {
       ).toBe(EVoiceConnectionState.RECONNECTING);
     });
 
-    it('returns DEGRADED when tier is UNSTABLE or BAD, mic failed, mic muted, or audio suspended', () => {
+    it('returns DEGRADED when tier is UNSTABLE or BAD, mic failed, or audio suspended', () => {
       expect(
         deriveVoiceConnectionState({
           ...baseHealthyInput,
