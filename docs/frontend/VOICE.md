@@ -131,7 +131,7 @@ Media liveness and transport health operate independently from adaptive quality.
 | -------------- | ------------------------------------------------------------------------ | --------------------- |
 | `null`         | No active session                                                        | —                     |
 | `CONNECTED`    | All transports healthy and socket connected                              | Green or info         |
-| `DEGRADED`     | Bad or unstable quality tier, mic error, or audio suspended              | Yellow or tier colour |
+| `DEGRADED`     | Bad or unstable quality tier, or audio suspended                         | Yellow or tier colour |
 | `RECONNECTING` | Transport connecting, disconnected, media stalled, or session recovering | Grey                  |
 | `DISCONNECTED` | Socket down or transport failed or closed                                | Red                   |
 | `DEAD`         | Recovery attempts exhausted or session evicted                           | Red                   |

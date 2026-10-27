@@ -26,9 +26,6 @@ import {
   VOICE_WATCHDOG_INTERVAL_MS,
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
-import { TranslateService } from '@ngx-translate/core';
-import { TuiNotificationService } from '@taiga-ui/core';
-import { notifyError } from '@shared/functions/notify-error.function';
 import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import type { Device } from 'mediasoup-client';
 import type {
@@ -84,8 +81,6 @@ export class MediasoupSessionService {
   private readonly consumerRegistry = inject(ConsumerRegistry);
   private readonly voiceQualityService = inject(VoiceQualityService);
   private readonly voiceConnectionStore = inject(VoiceConnectionStore);
-  private readonly tuiNotificationService = inject(TuiNotificationService);
-  private readonly translateService = inject(TranslateService);
 
   public get microphoneProducerId(): string | null {
     return this.microphoneProducer?.id ?? null;
@@ -182,7 +177,6 @@ export class MediasoupSessionService {
     }
     this.livenessState = null;
     this.voiceConnectionStore.resetTransports();
-    this.voiceConnectionStore.setMicFailed(false);
     sendTransport?.close();
     recvTransport?.close();
     micProducer?.close();
@@ -306,7 +300,6 @@ export class MediasoupSessionService {
         producer.track.enabled = !this.microphoneMuted;
       }
       this.microphoneProducer = producer;
-      this.voiceConnectionStore.setMicFailed(false);
       this.voiceQualityService.start(this.activeLadder, {
         readSample: () => this.readQualitySample(),
         applyQualityLevel: (entry) => this.applyQualityLevel(entry),
@@ -320,13 +313,6 @@ export class MediasoupSessionService {
       });
     } catch (error) {
       this.voiceQualityService.stop();
-      this.voiceConnectionStore.setMicFailed(true);
-      notifyError(
-        this.tuiNotificationService,
-        this.translateService,
-        'VOICE.MICROPHONE_FAILED',
-        error,
-      );
       console.error('Failed to produce microphone\n', error);
     }
   }

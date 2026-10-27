@@ -116,7 +116,6 @@ CALL:
     RECONNECTING: Переподключение…
     DISCONNECTED: Связь потеряна
     DEAD: Не удалось восстановить подключение
-    MIC_FAILED: Ошибка микрофона
     AUDIO_SUSPENDED: Воспроизведение звука приостановлено
   YOU: Вы
   VOLUME: Громкость
@@ -160,7 +159,6 @@ VOICE:
   ROOM_CLOSED: Голосовая комната была закрыта
   CONNECTION_LOST: Голосовая связь потеряна
   CONNECTION_RESTORED: Голосовая связь восстановлена
-  MICROPHONE_FAILED: Не удалось запустить микрофон
   REJOIN: Переподключиться
 ROOMS:
   UNREAD_MENTIONS: Непрочитанные упоминания

@@ -103,7 +103,6 @@ export class VoiceRoomPanelComponent {
   protected readonly connectionHintKey = computed(() => {
     const state = this.connectionState();
     const qualityHint = this.qualityHintKey();
-    const micFailed = this.micFailed();
     const audioSuspended = this.audioSuspended();
 
     switch (state) {
@@ -111,9 +110,6 @@ export class VoiceRoomPanelComponent {
       case EVoiceConnectionState.CONNECTED:
         return qualityHint;
       case EVoiceConnectionState.DEGRADED:
-        if (micFailed) {
-          return 'CALL.CONNECTION.MIC_FAILED';
-        }
         if (audioSuspended) {
           return 'CALL.CONNECTION.AUDIO_SUSPENDED';
         }
@@ -168,7 +164,6 @@ export class VoiceRoomPanelComponent {
   private readonly currentLang = toSignal(this.translateService.onLangChange);
 
   private readonly connectionState = this.voiceConnectionStore.state;
-  private readonly micFailed = this.voiceConnectionStore.micFailed;
   private readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
 
   private readonly qualityTier = this.voiceQualityService.tier;

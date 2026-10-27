@@ -25,7 +25,6 @@ type VoiceConnectionState = {
   rejoinFailed: boolean;
   dead: EVoiceConnectionDeadReason | null;
   lossReported: boolean;
-  micFailed: boolean;
 };
 
 const initialVoiceConnectionState: VoiceConnectionState = {
@@ -37,7 +36,6 @@ const initialVoiceConnectionState: VoiceConnectionState = {
   rejoinFailed: false,
   dead: null,
   lossReported: false,
-  micFailed: false,
 };
 
 /**
@@ -65,7 +63,6 @@ export const VoiceConnectionStore = signalStore(
         const rejoinFailed = store.rejoinFailed();
         const dead = store.dead();
         const qualityTier = voiceQualityService.tier();
-        const micFailed = store.micFailed();
         const audioSuspended = audioContextResumeService.suspended();
 
         return deriveVoiceConnectionState({
@@ -78,7 +75,6 @@ export const VoiceConnectionStore = signalStore(
           rejoinFailed,
           dead,
           qualityTier,
-          micFailed,
           audioSuspended,
         });
       }),
@@ -132,10 +128,6 @@ export const VoiceConnectionStore = signalStore(
       patchState(store, { lossReported });
     },
 
-    setMicFailed(micFailed: boolean): void {
-      patchState(store, { micFailed });
-    },
-
     resetTransports(): void {
       patchState(store, {
         sendState: null,
@@ -153,7 +145,6 @@ export const VoiceConnectionStore = signalStore(
         rejoinFailed: false,
         dead: null,
         lossReported: false,
-        micFailed: false,
       });
     },
   })),

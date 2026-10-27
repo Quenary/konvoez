@@ -32,7 +32,6 @@ export type TVoiceConnectionInput = {
   rejoinFailed: boolean;
   dead: EVoiceConnectionDeadReason | null;
   qualityTier: EVoiceQualityTier;
-  micFailed: boolean;
   audioSuspended: boolean;
 };
 
@@ -74,7 +73,6 @@ export function deriveVoiceConnectionState(
   if (
     input.qualityTier === EVoiceQualityTier.UNSTABLE ||
     input.qualityTier === EVoiceQualityTier.BAD ||
-    input.micFailed ||
     input.audioSuspended
   ) {
     return EVoiceConnectionState.DEGRADED;

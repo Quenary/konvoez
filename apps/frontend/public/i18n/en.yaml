@@ -116,7 +116,6 @@ CALL:
     RECONNECTING: Reconnecting…
     DISCONNECTED: Connection lost
     DEAD: Connection failed
-    MIC_FAILED: Microphone error
     AUDIO_SUSPENDED: Audio playback suspended
   YOU: You
   VOLUME: Volume
@@ -160,7 +159,6 @@ VOICE:
   ROOM_CLOSED: This voice room was closed
   CONNECTION_LOST: Voice connection lost
   CONNECTION_RESTORED: Voice connection restored
-  MICROPHONE_FAILED: Couldn't start microphone
   REJOIN: Reconnect
 ROOMS:
   UNREAD_MENTIONS: Unread mentions
