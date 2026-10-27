@@ -1043,12 +1043,8 @@ describe('VoiceSessionService', () => {
       });
       service['addSocketListeners']();
 
-      const rejoinSpy = vi
-        .spyOn(
-          service as unknown as { onRejoinTimer: () => Promise<void> },
-          'onRejoinTimer',
-        )
-        .mockResolvedValue(undefined);
+      const rejoinSpy = vi.fn().mockResolvedValue(undefined);
+      service['onRejoinTimer'] = rejoinSpy;
 
       // PRODUCER_CLOSED with peer-left does not trigger rejoin
       handlers[EVoiceRoomEvent.PRODUCER_CLOSED]?.({
