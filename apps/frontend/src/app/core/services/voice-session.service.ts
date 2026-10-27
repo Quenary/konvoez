@@ -115,10 +115,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
 
     this.socket.on('connect', () => {
       this.voiceConnectionStore.setSocketConnected(true);
-      this.voiceConnectionStore.setRecovering(true);
-      this.mediasoupSessionService.cleanup();
       const session = this.voiceSessionStore.activeSession();
       if (session) {
+        this.voiceConnectionStore.setRecovering(true);
+        this.mediasoupSessionService.cleanup();
         void this.joinSession(session, { force: true }).catch(
           (error: unknown) => {
             this.voiceConnectionStore.reset();

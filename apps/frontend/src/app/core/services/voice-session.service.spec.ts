@@ -1049,5 +1049,28 @@ describe('VoiceSessionService', () => {
       handlers['disconnect']?.();
       expect(connectionStore.socketConnected()).toBe(false);
     });
+
+    it('sets socketConnected to true and does not set recovering when no session is active', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      voiceSessionStore.setActiveSession(null);
+
+      handlers['connect']?.();
+      expect(connectionStore.socketConnected()).toBe(true);
+      expect(connectionStore.recovering()).toBe(false);
+      expect(mediasoup.cleanup).not.toHaveBeenCalled();
+    });
+
+    it('sets recovering to true and rejoins on connect when an active session exists', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+
+      handlers['connect']?.();
+      expect(connectionStore.socketConnected()).toBe(true);
+      expect(connectionStore.recovering()).toBe(true);
+      expect(mediasoup.cleanup).toHaveBeenCalled();
+    });
   });
 });
