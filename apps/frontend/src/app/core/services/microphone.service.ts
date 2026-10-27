@@ -487,13 +487,19 @@ export class MicrophoneService {
 
   private cleanupInputStream() {
     const tracks = new Set<MediaStreamTrack>();
-    this.inputStream?.getAudioTracks().forEach((track) => tracks.add(track));
+    this.inputStream?.getAudioTracks().forEach((track) => {
+      track.removeEventListener?.('ended', this.onInputTrackEnded);
+      track.removeEventListener?.('mute', this.onInputTrackMute);
+      track.removeEventListener?.('unmute', this.onInputTrackUnmute);
+      tracks.add(track);
+    });
     this.processedStream()
       ?.getAudioTracks()
       .forEach((track) => tracks.add(track));
 
     tracks.forEach((track) => track.stop());
     this.inputStream = null;
+    this._inputMuted.set(false);
   }
 
   private cleanupPipeline(): void {

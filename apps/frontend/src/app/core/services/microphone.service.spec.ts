@@ -556,6 +556,42 @@ describe('MicrophoneService', () => {
     listeners['unmute']?.({ target: mockTrack } as unknown as Event);
     expect(service.inputMuted()).toBe(false);
   });
+
+  it('resets inputMuted and removes track event listeners on stream cleanup', () => {
+    const removeEventListener = vi.fn();
+    const stop = vi.fn();
+    const mockTrack = {
+      muted: true,
+      addEventListener: vi.fn(),
+      removeEventListener,
+      stop,
+    } as unknown as MediaStreamTrack;
+
+    const mockStream = {
+      getAudioTracks: () => [mockTrack],
+    } as unknown as MediaStream;
+
+    service['inputStream'] = mockStream;
+    service['_inputMuted'].set(true);
+
+    service['cleanupInputStream']();
+
+    expect(removeEventListener).toHaveBeenCalledWith(
+      'ended',
+      service['onInputTrackEnded'],
+    );
+    expect(removeEventListener).toHaveBeenCalledWith(
+      'mute',
+      service['onInputTrackMute'],
+    );
+    expect(removeEventListener).toHaveBeenCalledWith(
+      'unmute',
+      service['onInputTrackUnmute'],
+    );
+    expect(stop).toHaveBeenCalled();
+    expect(service.inputMuted()).toBe(false);
+    expect(service['inputStream']).toBeNull();
+  });
 });
 
 function node(name: string) {
