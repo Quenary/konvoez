@@ -24,3 +24,4 @@ export * from './errors';
 export * from './mentions';
 export * from './room-access';
 export * from './voice-adaptation';
+export * from './voice-connection';

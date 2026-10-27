@@ -267,6 +267,7 @@ describe('VoiceRoomsGateway', () => {
         iceCandidates: [],
         dtlsParameters: {},
         sctpParameters: undefined,
+        on: jest.fn(),
       };
       const createWebRtcTransport = jest.fn().mockResolvedValue(transport);
       const peer = { id: 'socket-1' };

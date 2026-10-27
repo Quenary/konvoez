@@ -56,6 +56,8 @@ export class AudioService {
   private lastDeafenAt = 0;
   private lastPeerJoinAt = 0;
   private lastPeerLeaveAt = 0;
+  private lastConnectionLostAt = 0;
+  private lastConnectionRestoredAt = 0;
 
   public playStreamStartAudio(): void {
     const now = performance.now();
@@ -104,6 +106,30 @@ export class AudioService {
     this.playNotes([
       { frequency: F.leaveHigh, when: 0, duration: 0.12, peak: 0.1 },
       { frequency: F.leaveLow, when: 0.1, duration: 0.16, peak: 0.09 },
+    ]);
+  }
+
+  public playConnectionLostAudio(): void {
+    const now = performance.now();
+    if (now - this.lastConnectionLostAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastConnectionLostAt = now;
+    this.playNotes([
+      { frequency: F.leaveHigh, when: 0, duration: 0.12, peak: 0.1 },
+      { frequency: F.leaveLow, when: 0.1, duration: 0.16, peak: 0.09 },
+    ]);
+  }
+
+  public playConnectionRestoredAudio(): void {
+    const now = performance.now();
+    if (now - this.lastConnectionRestoredAt < CUE_THROTTLE_MS) {
+      return;
+    }
+    this.lastConnectionRestoredAt = now;
+    this.playNotes([
+      { frequency: F.joinLow, when: 0, duration: 0.12, peak: 0.12 },
+      { frequency: F.joinHigh, when: 0.1, duration: 0.16, peak: 0.11 },
     ]);
   }
 

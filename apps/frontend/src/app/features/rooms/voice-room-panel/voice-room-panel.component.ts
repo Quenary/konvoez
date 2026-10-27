@@ -15,10 +15,15 @@ import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceQualityService } from '@core/services/voice-quality.service';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { TuiButton, TuiGroup, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { Router } from '@angular/router';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { EVoiceQualityTier, EVoiceSessionType } from '@konvoez/shared';
+import {
+  EVoiceConnectionState,
+  EVoiceQualityTier,
+  EVoiceSessionType,
+} from '@konvoez/shared';
 import { TuiFade } from '@taiga-ui/kit';
 
 import { icons } from '@constants';
@@ -43,74 +48,12 @@ export class VoiceRoomPanelComponent {
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly voiceQualityService = inject(VoiceQualityService);
+  private readonly voiceConnectionStore = inject(VoiceConnectionStore);
   private readonly translateService = inject(TranslateService);
 
-  protected readonly icons = icons;
   public readonly collapsed = input.required<boolean>();
 
-  protected readonly microphoneMuted =
-    this.voiceAudioPreferencesStore.microphoneMuted;
-  protected readonly speakerMuted =
-    this.voiceAudioPreferencesStore.speakerMuted;
-
-  protected readonly micHintKey = computed(() =>
-    this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
-  );
-  protected readonly speakerHintKey = computed(() =>
-    this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
-  );
-
-  protected readonly cameraOn = computed(
-    () => this.peerVideoService.localCamTrack() !== null,
-  );
-  protected readonly screenOn = computed(
-    () => this.peerVideoService.localScreenTrack() !== null,
-  );
-
-  protected readonly isDirectCall = this.directCallService.isDirectCallContext;
-
-  protected readonly qualityTier = this.voiceQualityService.tier;
-  protected readonly qualityBitrateKbps = this.voiceQualityService.bitrateKbps;
-
-  protected readonly qualityColor = computed(() => {
-    switch (this.qualityTier()) {
-      case EVoiceQualityTier.EXCELLENT:
-        return 'var(--tui-status-positive)';
-      case EVoiceQualityTier.GOOD:
-        return 'var(--tui-status-info)';
-      case EVoiceQualityTier.UNSTABLE:
-        return 'var(--tui-status-warning)';
-      case EVoiceQualityTier.BAD:
-        return 'var(--tui-status-negative)';
-    }
-  });
-
-  protected readonly qualityHintKey = computed(() => {
-    switch (this.qualityTier()) {
-      case EVoiceQualityTier.EXCELLENT:
-        return 'CALL.QUALITY.LEVEL_0';
-      case EVoiceQualityTier.GOOD:
-        return 'CALL.QUALITY.LEVEL_1';
-      case EVoiceQualityTier.UNSTABLE:
-        return 'CALL.QUALITY.LEVEL_2';
-      case EVoiceQualityTier.BAD:
-        return 'CALL.QUALITY.LEVEL_3';
-    }
-  });
-
-  protected readonly qualityAriaLabel = computed(() => {
-    this.currentLang();
-    const titleKey = this.sessionTitle();
-    const hintKey = this.qualityHintKey();
-    const kbps = this.qualityBitrateKbps();
-
-    const qualityText = this.translateService.instant(hintKey, { kbps });
-    if (titleKey) {
-      const titleText = this.translateService.instant(titleKey);
-      return `${titleText}. ${qualityText}`;
-    }
-    return qualityText;
-  });
+  protected readonly icons = icons;
 
   protected readonly isSessionActive = computed(() => {
     const session = this.activeSession();
@@ -132,9 +75,124 @@ export class VoiceRoomPanelComponent {
     return '';
   });
 
-  private readonly rooms = this.roomsStore.roomsDict;
+  protected readonly indicatorColor = computed(() => {
+    const state = this.connectionState();
+    const qualityColor = this.qualityColor();
+    const qualityTier = this.qualityTier();
+
+    switch (state) {
+      case null:
+      case EVoiceConnectionState.CONNECTED:
+        return qualityColor;
+      case EVoiceConnectionState.DEGRADED:
+        if (
+          qualityTier === EVoiceQualityTier.UNSTABLE ||
+          qualityTier === EVoiceQualityTier.BAD
+        ) {
+          return qualityColor;
+        }
+        return 'var(--tui-status-warning)';
+      case EVoiceConnectionState.RECONNECTING:
+        return 'var(--tui-text-tertiary)';
+      case EVoiceConnectionState.DISCONNECTED:
+      case EVoiceConnectionState.DEAD:
+        return 'var(--tui-status-negative)';
+    }
+  });
+
+  protected readonly connectionHintKey = computed(() => {
+    const state = this.connectionState();
+    const qualityHint = this.qualityHintKey();
+    const audioSuspended = this.audioSuspended();
+
+    switch (state) {
+      case null:
+      case EVoiceConnectionState.CONNECTED:
+        return qualityHint;
+      case EVoiceConnectionState.DEGRADED:
+        if (audioSuspended) {
+          return 'CALL.CONNECTION.AUDIO_SUSPENDED';
+        }
+        return qualityHint;
+      case EVoiceConnectionState.RECONNECTING:
+        return 'CALL.CONNECTION.RECONNECTING';
+      case EVoiceConnectionState.DISCONNECTED:
+        return 'CALL.CONNECTION.DISCONNECTED';
+      case EVoiceConnectionState.DEAD:
+        return 'CALL.CONNECTION.DEAD';
+    }
+  });
+
+  protected readonly qualityBitrateKbps = this.voiceQualityService.bitrateKbps;
+
+  protected readonly qualityAriaLabel = computed(() => {
+    this.currentLang();
+    const titleKey = this.sessionTitle();
+    const hintKey = this.connectionHintKey();
+    const kbps = this.qualityBitrateKbps();
+
+    const qualityText = this.translateService.instant(hintKey, { kbps });
+    if (titleKey) {
+      const titleText = this.translateService.instant(titleKey);
+      return `${titleText}. ${qualityText}`;
+    }
+    return qualityText;
+  });
+
+  protected readonly microphoneMuted =
+    this.voiceAudioPreferencesStore.microphoneMuted;
+  protected readonly speakerMuted =
+    this.voiceAudioPreferencesStore.speakerMuted;
+
+  protected readonly micHintKey = computed(() =>
+    this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
+  );
+  protected readonly speakerHintKey = computed(() =>
+    this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
+  );
+
+  protected readonly cameraOn = computed(
+    () => this.peerVideoService.localCamTrack() !== null,
+  );
+  protected readonly screenOn = computed(
+    () => this.peerVideoService.localScreenTrack() !== null,
+  );
+
+  private readonly isDirectCall = this.directCallService.isDirectCallContext;
   private readonly activeSession = this.voiceSessionStore.activeSession;
+  private readonly rooms = this.roomsStore.roomsDict;
   private readonly currentLang = toSignal(this.translateService.onLangChange);
+
+  private readonly connectionState = this.voiceConnectionStore.state;
+  private readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
+
+  private readonly qualityTier = this.voiceQualityService.tier;
+
+  private readonly qualityColor = computed(() => {
+    switch (this.qualityTier()) {
+      case EVoiceQualityTier.EXCELLENT:
+        return 'var(--tui-status-positive)';
+      case EVoiceQualityTier.GOOD:
+        return 'var(--tui-status-info)';
+      case EVoiceQualityTier.UNSTABLE:
+        return 'var(--tui-status-warning)';
+      case EVoiceQualityTier.BAD:
+        return 'var(--tui-status-negative)';
+    }
+  });
+
+  private readonly qualityHintKey = computed(() => {
+    switch (this.qualityTier()) {
+      case EVoiceQualityTier.EXCELLENT:
+        return 'CALL.QUALITY.LEVEL_0';
+      case EVoiceQualityTier.GOOD:
+        return 'CALL.QUALITY.LEVEL_1';
+      case EVoiceQualityTier.UNSTABLE:
+        return 'CALL.QUALITY.LEVEL_2';
+      case EVoiceQualityTier.BAD:
+        return 'CALL.QUALITY.LEVEL_3';
+    }
+  });
 
   protected clickSession(): void {
     if (this.isDirectCall()) {

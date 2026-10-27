@@ -103,6 +103,8 @@ describe('MicTestService', () => {
       resume = vi.fn();
       close = vi.fn().mockResolvedValue(undefined);
       audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
     }
     vi.stubGlobal('AudioContext', FakeContext);
 
@@ -175,6 +177,8 @@ describe('MicTestService', () => {
       audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
       resume = vi.fn();
       close = contextClose;
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
       createMediaStreamSource = () => source;
       createGain = () => (gainCalls++ === 0 ? gain : makeup);
       createBiquadFilter = () => biquad;
@@ -256,6 +260,8 @@ describe('MicTestService', () => {
       audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
       resume = vi.fn();
       close = vi.fn().mockResolvedValue(undefined);
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
       createMediaStreamSource = () => source;
       createGain = () => (gainCalls++ % 2 === 0 ? gain : makeup);
       createBiquadFilter = () => biquad;
@@ -344,6 +350,8 @@ describe('MicTestService', () => {
       audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
       resume = vi.fn();
       close = vi.fn().mockResolvedValue(undefined);
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
       createMediaStreamSource = () => source;
       createGain = () => (gainCalls++ % 2 === 0 ? gain : makeup);
       createBiquadFilter = () => biquad;
@@ -422,6 +430,8 @@ describe('MicTestService', () => {
       audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
       resume = vi.fn();
       close = vi.fn().mockResolvedValue(undefined);
+      addEventListener = vi.fn();
+      removeEventListener = vi.fn();
       createMediaStreamSource = () => source;
       createGain = () => (gainCalls++ % 2 === 0 ? gain : makeup);
       createBiquadFilter = () => biquad;

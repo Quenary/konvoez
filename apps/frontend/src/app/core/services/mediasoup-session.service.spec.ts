@@ -1,7 +1,15 @@
-import { EVoiceQualityTier, EVoiceRoomEvent } from '@konvoez/shared';
+import {
+  EVoiceQualityTier,
+  EVoiceRoomEvent,
+  VOICE_STALL_MS,
+  VOICE_WATCHDOG_INTERVAL_MS,
+} from '@konvoez/shared';
 import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { MicrophoneService } from './microphone.service';
 import { PeerPlaybackService } from './peer-playback.service';
@@ -134,6 +142,18 @@ describe('MediasoupSessionService', () => {
           useValue: {
             iceServers: vi.fn().mockReturnValue([]),
             voiceMaxBitrateKbps: vi.fn().mockReturnValue(64),
+          },
+        },
+        {
+          provide: TranslateService,
+          useValue: {
+            instant: vi.fn((key: string) => key),
+          },
+        },
+        {
+          provide: TuiNotificationService,
+          useValue: {
+            open: vi.fn().mockReturnValue(of({})),
           },
         },
       ],
@@ -509,6 +529,42 @@ describe('MediasoupSessionService', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('tracks live consumer ids in consume flow and removes on observer close', async () => {
+    let onClose: (() => void) | undefined;
+    const fakeConsumer = {
+      id: 'consumer-42',
+      producerId: 'p-audio',
+      resume: vi.fn(),
+      observer: {
+        once: vi.fn((event: string, handler: () => void) => {
+          if (event === 'close') {
+            onClose = handler;
+          }
+        }),
+      },
+    };
+    service['device'] = { recvRtpCapabilities: {} } as never;
+    service['recvTransport'] = {
+      id: 'recv',
+      closed: false,
+      consume: vi.fn().mockResolvedValue(fakeConsumer),
+    } as never;
+    const data = {
+      producerId: 'p-audio',
+      userId: 2,
+      kind: 'audio' as const,
+      mediaTag: 'mic' as const,
+    };
+    const resolvePeer = () => ({ gain: 1, speakerMuted: false });
+
+    await service.consumeProducer(data, resolvePeer);
+
+    expect(service['liveConsumerIds'].has('consumer-42')).toBe(true);
+
+    onClose?.();
+    expect(service['liveConsumerIds'].has('consumer-42')).toBe(false);
+  });
+
   it('finishes stop screen when the server already closed screen-audio', async () => {
     const videoClose = vi.fn();
     const audioClose = vi.fn();
@@ -859,6 +915,159 @@ describe('MediasoupSessionService', () => {
       loss: 5,
       rttMs: 120,
       jitterMs: 30,
+    });
+  });
+
+  describe('watchdog and connection health', () => {
+    it('sets stalled flag when stats counters freeze for VOICE_STALL_MS', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const fakeStats = new Map([
+        [
+          'report-1',
+          {
+            type: 'candidate-pair',
+            nominated: true,
+            bytesSent: 1000,
+            bytesReceived: 500,
+          },
+        ],
+      ]);
+
+      const mockTransport = {
+        connectionState: 'connected',
+        closed: false,
+        getStats: vi.fn().mockImplementation(async () => fakeStats),
+        on: vi.fn(),
+        close: vi.fn(),
+      };
+
+      service['sendTransport'] = mockTransport as never;
+      service['startWatchdog']();
+
+      // First tick
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Advance time past stall threshold without byte growth
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(true);
+
+      // Growing only bytesSent does not clear stall
+      fakeStats.set('report-1', {
+        type: 'candidate-pair',
+        nominated: true,
+        bytesSent: 2000,
+        bytesReceived: 500,
+      });
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(true);
+
+      // Growing bytesReceived clears stall
+      fakeStats.set('report-1', {
+        type: 'candidate-pair',
+        nominated: true,
+        bytesSent: 2000,
+        bytesReceived: 1000,
+      });
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Rejection does not cause stall
+      mockTransport.getStats.mockRejectedValueOnce(new Error('stats failed'));
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Cleanup stops interval and resets store
+      service.cleanup();
+      expect(service['watchdogInterval']).toBeNull();
+      expect(connectionStore.stalled()).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it('ignores receive liveness while no consumers are alive', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const fakeStats = new Map([
+        [
+          'report-1',
+          {
+            type: 'candidate-pair',
+            nominated: true,
+            bytesReceived: 500,
+          },
+        ],
+      ]);
+
+      const mockRecvTransport = {
+        connectionState: 'connected',
+        closed: false,
+        getStats: vi.fn().mockImplementation(async () => fakeStats),
+        on: vi.fn(),
+        close: vi.fn(),
+      };
+
+      service['recvTransport'] = mockRecvTransport as never;
+      service['startWatchdog']();
+
+      // First tick
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // With connected recv transport, frozen bytesReceived, and no live consumers, stalled() stays false after VOICE_STALL_MS
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(false);
+
+      // After one consumer is added and frozen bytesReceived persists for VOICE_STALL_MS, stalled() becomes true
+      let onClose: (() => void) | undefined;
+      const fakeConsumer = {
+        id: 'consumer-1',
+        observer: {
+          once: vi.fn((event: string, handler: () => void) => {
+            if (event === 'close') {
+              onClose = handler;
+            }
+          }),
+        },
+      };
+
+      service['liveConsumerIds'].add(fakeConsumer.id);
+      fakeConsumer.observer.once('close', () => {
+        service['liveConsumerIds'].delete(fakeConsumer.id);
+      });
+      expect(service['liveConsumerIds'].size).toBe(1);
+
+      // Advance through tick with consumer present
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // Frozen bytesReceived persists for VOICE_STALL_MS
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(true);
+
+      // After that consumer closes (observer close), stalled() returns to false on the next tick
+      onClose?.();
+      expect(service['liveConsumerIds'].size).toBe(0);
+
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(false);
+
+      // cleanup() empties the consumer set
+      service['liveConsumerIds'].add('consumer-2');
+      expect(service['liveConsumerIds'].size).toBe(1);
+      service.cleanup();
+      expect(service['liveConsumerIds'].size).toBe(0);
+
+      vi.useRealTimers();
     });
   });
 });
