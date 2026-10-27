@@ -301,6 +301,8 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       await this.rejoinSessionLocked(session);
     } catch (error) {
       this.reportJoinFailure(error);
+    } finally {
+      this.rearmRejoinTimerIfUnhealthy();
     }
   }
 
@@ -389,14 +391,37 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       });
     }
 
+    this.armRejoinTimer();
+  }
+
+  private armRejoinTimer(): void {
+    if (this.rejoinTimer) {
+      clearTimeout(this.rejoinTimer);
+    }
     this.rejoinTimer = setTimeout(() => {
-      void this.onRejoinTimer();
+      this.rejoinTimer = null;
+      void this.runRejoinStep(true);
     }, VOICE_REJOIN_DELAY_MS);
   }
 
+  private rearmRejoinTimerIfUnhealthy(): void {
+    const isHealthy =
+      this.voiceConnectionStore.state() === EVoiceConnectionState.CONNECTED ||
+      this.voiceConnectionStore.state() === EVoiceConnectionState.DEGRADED;
+    if (this.voiceConnectionStore.dead() === null && !isHealthy) {
+      this.armRejoinTimer();
+    }
+  }
+
   @Mutexed(voiceSessionMutex)
-  private async onRejoinTimer(): Promise<void> {
-    this.rejoinTimer = null;
+  private async runRejoinStep(skipWhenHealthy: boolean): Promise<void> {
+    const isHealthy =
+      this.voiceConnectionStore.state() === EVoiceConnectionState.CONNECTED ||
+      this.voiceConnectionStore.state() === EVoiceConnectionState.DEGRADED;
+    if (skipWhenHealthy && isHealthy) {
+      return;
+    }
+
     const session = this.voiceSessionStore.activeSession();
     if (!session || this.voiceConnectionStore.dead()) {
       return;
@@ -413,15 +438,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       } catch (error) {
         this.reportJoinFailure(error);
       } finally {
-        const state = this.voiceConnectionStore.state();
-        const isHealthy =
-          state === EVoiceConnectionState.CONNECTED ||
-          state === EVoiceConnectionState.DEGRADED;
-        if (!this.voiceConnectionStore.dead() && !isHealthy) {
-          this.rejoinTimer = setTimeout(() => {
-            void this.onRejoinTimer();
-          }, VOICE_REJOIN_DELAY_MS);
-        }
+        this.rearmRejoinTimerIfUnhealthy();
       }
     } else {
       this.voiceConnectionStore.setDead(
@@ -665,7 +682,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
         data.producerId === this.mediasoupSessionService.microphoneProducerId &&
         data.reason !== 'peer-left'
       ) {
-        void this.onRejoinTimer();
+        void this.runRejoinStep(false);
         return;
       }
 
