@@ -925,6 +925,41 @@ describe('VoiceSessionService', () => {
       vi.useRealTimers();
     });
 
+    it('does not rearm rejoin timer if connection becomes connected after rejoin', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      TestBed.flushEffects();
+
+      connectionStore.setTransportState('send', 'connecting');
+      TestBed.flushEffects();
+
+      // At ICE restart delay
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS);
+
+      // In rejoinSessionLocked, simulate connection recovering to connected
+      mediasoup.ensureSendTransport.mockImplementationOnce(async () => {
+        connectionStore.setTransportState('send', 'connected');
+      });
+
+      // Fire rejoin attempt 1
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+
+      // Connection is now CONNECTED, rejoinTimer must NOT be scheduled
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.CONNECTED);
+      expect(service['rejoinTimer']).toBeNull();
+
+      // Advancing further does not trigger additional rejoins or mark DEAD
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS * 3);
+      expect(connectionStore.dead()).toBeNull();
+
+      vi.useRealTimers();
+    });
+
     it('sets dead EVICTED on own PEER_LEFT for the active session and does not auto-rejoin', () => {
       const connectionStore = TestBed.inject(VoiceConnectionStore);
       const currentUser = { id: 99, username: 'me' } as IUserSafe;

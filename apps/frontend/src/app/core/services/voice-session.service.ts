@@ -414,7 +414,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       } catch (error) {
         this.reportJoinFailure(error);
       } finally {
-        if (!this.voiceConnectionStore.dead()) {
+        const state = this.voiceConnectionStore.state();
+        const isHealthy =
+          state === EVoiceConnectionState.CONNECTED ||
+          state === EVoiceConnectionState.DEGRADED;
+        if (!this.voiceConnectionStore.dead() && !isHealthy) {
           this.rejoinTimer = setTimeout(() => {
             void this.onRejoinTimer();
           }, VOICE_REJOIN_DELAY_MS);
