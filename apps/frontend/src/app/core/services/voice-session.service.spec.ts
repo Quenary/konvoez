@@ -896,6 +896,45 @@ describe('VoiceSessionService', () => {
       vi.useRealTimers();
     });
 
+    it('preserves activeSession and marks DEAD when rejoin attempts fail with error', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const targetSession = {
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      };
+      voiceSessionStore.setActiveSession(targetSession);
+      TestBed.flushEffects();
+
+      connectionStore.setTransportState('send', 'connecting');
+      TestBed.flushEffects();
+
+      // Trigger ICE timer
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS);
+      expect(connectionStore.lossReported()).toBe(true);
+
+      // Simulate network error on JOIN_ROOM during rejoin
+      socket.emitWithAck.mockRejectedValue(new Error('Network timeout'));
+
+      // Rejoin attempt 1 fails with network error, activeSession must NOT be wiped
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(voiceSessionStore.activeSession()).toEqual(targetSession);
+
+      // Rejoin attempt 2 fails
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(voiceSessionStore.activeSession()).toEqual(targetSession);
+
+      // Attempts exhausted -> marked DEAD with activeSession still intact
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(connectionStore.dead()).toBe(
+        EVoiceConnectionDeadReason.RECOVERY_FAILED,
+      );
+      expect(voiceSessionStore.activeSession()).toEqual(targetSession);
+
+      vi.useRealTimers();
+    });
+
     it('cancels ladder and plays restored cue when connection recovers', async () => {
       vi.useFakeTimers();
       const connectionStore = TestBed.inject(VoiceConnectionStore);

@@ -119,12 +119,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       if (session) {
         this.voiceConnectionStore.setRecovering(true);
         this.mediasoupSessionService.cleanup();
-        void this.joinSession(session, { force: true }).catch(
-          (error: unknown) => {
-            this.voiceConnectionStore.reset();
-            this.reportJoinFailure(error);
-          },
-        );
+        void this.rejoin();
       }
     });
 
@@ -504,7 +499,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       await this.mediasoupSessionService.ensureRecvTransport();
       void this.screenWakeLockService.acquire();
     } catch (error) {
-      if (this.voiceSessionStore.activeSession()) {
+      if (this.voiceConnectionStore.recovering()) {
+        this.removeSocketListeners();
+      } else if (this.voiceSessionStore.activeSession()) {
         await this.leaveSessionLocked();
       } else {
         this.removeSocketListeners();
@@ -519,7 +516,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     }
 
     this.screenWakeLockService.release();
-    this.voiceSessionStore.setActiveSession(null);
+    if (!this.voiceConnectionStore.recovering()) {
+      this.voiceSessionStore.setActiveSession(null);
+    }
     this.removeSocketListeners();
     this.mediasoupSessionService.clearPendingConsumes();
 
@@ -527,7 +526,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       // A disconnected socket buffers emitWithAck with no ack timeout, and
       // that promise never settles. Skip it, and bound a live socket so local
       // teardown does not wait on the ack.
-      if (this.socket.connected) {
+      if (this.socket.connected && !this.voiceConnectionStore.recovering()) {
         await this.socket.timeout(3000).emitWithAck(EVoiceRoomEvent.LEAVE_ROOM);
       }
     } catch (error) {
