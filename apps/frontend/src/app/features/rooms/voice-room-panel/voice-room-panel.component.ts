@@ -51,62 +51,29 @@ export class VoiceRoomPanelComponent {
   private readonly voiceConnectionStore = inject(VoiceConnectionStore);
   private readonly translateService = inject(TranslateService);
 
-  protected readonly icons = icons;
   public readonly collapsed = input.required<boolean>();
 
-  protected readonly microphoneMuted =
-    this.voiceAudioPreferencesStore.microphoneMuted;
-  protected readonly speakerMuted =
-    this.voiceAudioPreferencesStore.speakerMuted;
+  protected readonly icons = icons;
 
-  protected readonly micHintKey = computed(() =>
-    this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
-  );
-  protected readonly speakerHintKey = computed(() =>
-    this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
-  );
-
-  protected readonly cameraOn = computed(
-    () => this.peerVideoService.localCamTrack() !== null,
-  );
-  protected readonly screenOn = computed(
-    () => this.peerVideoService.localScreenTrack() !== null,
-  );
-
-  protected readonly isDirectCall = this.directCallService.isDirectCallContext;
-
-  protected readonly qualityTier = this.voiceQualityService.tier;
-  protected readonly qualityBitrateKbps = this.voiceQualityService.bitrateKbps;
-
-  protected readonly qualityColor = computed(() => {
-    switch (this.qualityTier()) {
-      case EVoiceQualityTier.EXCELLENT:
-        return 'var(--tui-status-positive)';
-      case EVoiceQualityTier.GOOD:
-        return 'var(--tui-status-info)';
-      case EVoiceQualityTier.UNSTABLE:
-        return 'var(--tui-status-warning)';
-      case EVoiceQualityTier.BAD:
-        return 'var(--tui-status-negative)';
-    }
+  protected readonly isSessionActive = computed(() => {
+    const session = this.activeSession();
+    const isConnected = this.directCallService.isConnected();
+    return session !== null || isConnected;
   });
 
-  protected readonly qualityHintKey = computed(() => {
-    switch (this.qualityTier()) {
-      case EVoiceQualityTier.EXCELLENT:
-        return 'CALL.QUALITY.LEVEL_0';
-      case EVoiceQualityTier.GOOD:
-        return 'CALL.QUALITY.LEVEL_1';
-      case EVoiceQualityTier.UNSTABLE:
-        return 'CALL.QUALITY.LEVEL_2';
-      case EVoiceQualityTier.BAD:
-        return 'CALL.QUALITY.LEVEL_3';
-    }
-  });
+  protected readonly sessionTitle = computed(() => {
+    const isDirectCall = this.isDirectCall();
+    const session = this.activeSession();
+    const rooms = this.rooms();
 
-  protected readonly connectionState = this.voiceConnectionStore.state;
-  protected readonly micFailed = this.voiceConnectionStore.micFailed;
-  protected readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
+    if (isDirectCall) {
+      return 'CALL.DIRECT_CALL';
+    }
+    if (session?.type === EVoiceSessionType.GROUP_ROOM) {
+      return rooms[session.roomId]?.name ?? '';
+    }
+    return '';
+  });
 
   protected readonly indicatorColor = computed(() => {
     const state = this.connectionState();
@@ -160,6 +127,8 @@ export class VoiceRoomPanelComponent {
     }
   });
 
+  protected readonly qualityBitrateKbps = this.voiceQualityService.bitrateKbps;
+
   protected readonly qualityAriaLabel = computed(() => {
     this.currentLang();
     const titleKey = this.sessionTitle();
@@ -174,29 +143,61 @@ export class VoiceRoomPanelComponent {
     return qualityText;
   });
 
-  protected readonly isSessionActive = computed(() => {
-    const session = this.activeSession();
-    const isConnected = this.directCallService.isConnected();
-    return session !== null || isConnected;
-  });
+  protected readonly microphoneMuted =
+    this.voiceAudioPreferencesStore.microphoneMuted;
+  protected readonly speakerMuted =
+    this.voiceAudioPreferencesStore.speakerMuted;
 
-  protected readonly sessionTitle = computed(() => {
-    const isDirectCall = this.isDirectCall();
-    const session = this.activeSession();
-    const rooms = this.rooms();
+  protected readonly micHintKey = computed(() =>
+    this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
+  );
+  protected readonly speakerHintKey = computed(() =>
+    this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
+  );
 
-    if (isDirectCall) {
-      return 'CALL.DIRECT_CALL';
-    }
-    if (session?.type === EVoiceSessionType.GROUP_ROOM) {
-      return rooms[session.roomId]?.name ?? '';
-    }
-    return '';
-  });
+  protected readonly cameraOn = computed(
+    () => this.peerVideoService.localCamTrack() !== null,
+  );
+  protected readonly screenOn = computed(
+    () => this.peerVideoService.localScreenTrack() !== null,
+  );
 
-  private readonly rooms = this.roomsStore.roomsDict;
+  private readonly isDirectCall = this.directCallService.isDirectCallContext;
   private readonly activeSession = this.voiceSessionStore.activeSession;
+  private readonly rooms = this.roomsStore.roomsDict;
   private readonly currentLang = toSignal(this.translateService.onLangChange);
+
+  private readonly connectionState = this.voiceConnectionStore.state;
+  private readonly micFailed = this.voiceConnectionStore.micFailed;
+  private readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
+
+  private readonly qualityTier = this.voiceQualityService.tier;
+
+  private readonly qualityColor = computed(() => {
+    switch (this.qualityTier()) {
+      case EVoiceQualityTier.EXCELLENT:
+        return 'var(--tui-status-positive)';
+      case EVoiceQualityTier.GOOD:
+        return 'var(--tui-status-info)';
+      case EVoiceQualityTier.UNSTABLE:
+        return 'var(--tui-status-warning)';
+      case EVoiceQualityTier.BAD:
+        return 'var(--tui-status-negative)';
+    }
+  });
+
+  private readonly qualityHintKey = computed(() => {
+    switch (this.qualityTier()) {
+      case EVoiceQualityTier.EXCELLENT:
+        return 'CALL.QUALITY.LEVEL_0';
+      case EVoiceQualityTier.GOOD:
+        return 'CALL.QUALITY.LEVEL_1';
+      case EVoiceQualityTier.UNSTABLE:
+        return 'CALL.QUALITY.LEVEL_2';
+      case EVoiceQualityTier.BAD:
+        return 'CALL.QUALITY.LEVEL_3';
+    }
+  });
 
   protected clickSession(): void {
     if (this.isDirectCall()) {
