@@ -887,15 +887,14 @@ describe('MediasoupSessionService', () => {
       vi.useFakeTimers();
       const connectionStore = TestBed.inject(VoiceConnectionStore);
 
-      const bytes = 1000;
       const fakeStats = new Map([
         [
           'report-1',
           {
             type: 'candidate-pair',
             nominated: true,
-            bytesSent: bytes,
-            bytesReceived: 0,
+            bytesSent: 1000,
+            bytesReceived: 500,
           },
         ],
       ]);
@@ -921,12 +920,22 @@ describe('MediasoupSessionService', () => {
       );
       expect(connectionStore.stalled()).toBe(true);
 
-      // Growing bytes clear stall
+      // Growing only bytesSent does not clear stall
       fakeStats.set('report-1', {
         type: 'candidate-pair',
         nominated: true,
         bytesSent: 2000,
-        bytesReceived: 0,
+        bytesReceived: 500,
+      });
+      await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
+      expect(connectionStore.stalled()).toBe(true);
+
+      // Growing bytesReceived clears stall
+      fakeStats.set('report-1', {
+        type: 'candidate-pair',
+        nominated: true,
+        bytesSent: 2000,
+        bytesReceived: 1000,
       });
       await vi.advanceTimersByTimeAsync(VOICE_WATCHDOG_INTERVAL_MS);
       expect(connectionStore.stalled()).toBe(false);

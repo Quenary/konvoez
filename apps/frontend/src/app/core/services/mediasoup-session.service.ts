@@ -1049,11 +1049,9 @@ async function readTransportBytes(
     let totalBytes: number | null = null;
     for (const report of stats.values()) {
       if (report.type === 'candidate-pair' && report.nominated === true) {
-        const sent =
-          typeof report.bytesSent === 'number' ? report.bytesSent : 0;
         const recv =
           typeof report.bytesReceived === 'number' ? report.bytesReceived : 0;
-        totalBytes = (totalBytes ?? 0) + sent + recv;
+        totalBytes = (totalBytes ?? 0) + recv;
       }
     }
     return totalBytes;

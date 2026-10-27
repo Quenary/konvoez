@@ -136,7 +136,7 @@ Media liveness and transport health operate independently from adaptive quality.
 | `DISCONNECTED` | Socket down or transport failed or closed                                | Red                   |
 | `DEAD`         | Recovery attempts exhausted or session evicted                           | Red                   |
 
-Silent media death (such as firewall or UDP drops) is detected by a client watchdog comparing transport candidate-pair byte counters. Unhealthy states trigger an escalation ladder:
+Silent media death (such as firewall or UDP drops) is detected by a client watchdog comparing the received byte counter of the nominated candidate pair. Unhealthy states trigger an escalation ladder:
 
 ```mermaid
 flowchart TD
