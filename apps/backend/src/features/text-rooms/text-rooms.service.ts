@@ -1410,7 +1410,15 @@ export class TextRoomsService {
   ): Promise<GetUserSafeDto[]> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender', 'recipient', 'room'] },
+      {
+        populate: [
+          'sender',
+          'recipient',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+        ],
+      },
     );
 
     if (!message) {
@@ -1448,7 +1456,15 @@ export class TextRoomsService {
   ): Promise<ITextRoomReactionGroup[]> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender', 'recipient', 'room'] },
+      {
+        populate: [
+          'sender',
+          'recipient',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+        ],
+      },
     );
 
     if (!message) {
