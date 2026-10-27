@@ -116,9 +116,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on('connect', () => {
       this.voiceConnectionStore.setSocketConnected(true);
       const session = this.voiceSessionStore.activeSession();
-      if (session) {
-        this.voiceConnectionStore.setRecovering(true);
-        this.mediasoupSessionService.cleanup();
+      if (
+        session &&
+        this.voiceConnectionStore.dead() !== EVoiceConnectionDeadReason.EVICTED
+      ) {
         void this.rejoin();
       }
     });
@@ -256,6 +257,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
    */
   @Mutexed(voiceSessionMutex)
   private async resumeSession(): Promise<void> {
+    if (this.voiceConnectionStore.dead() !== null) {
+      return;
+    }
     const session = this.voiceSessionStore.activeSession();
     if (
       !session ||
