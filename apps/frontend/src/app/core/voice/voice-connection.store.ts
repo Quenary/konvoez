@@ -38,13 +38,6 @@ const initialVoiceConnectionState: VoiceConnectionState = {
   micFailed: false,
 };
 
-const UNHEALTHY_TRANSPORT_STATES: ReadonlySet<TVoiceTransportState> = new Set([
-  'connecting',
-  'disconnected',
-  'failed',
-  'closed',
-]);
-
 /**
  * Connection health, transport liveness, recovery escalation, and silent death state.
  * Separate from adaptive quality tiers.
@@ -100,14 +93,10 @@ export const VoiceConnectionStore = signalStore(
       const nextSendState = direction === 'send' ? state : store.sendState();
       const nextRecvState = direction === 'recv' ? state : store.recvState();
 
-      const isUnhealthy =
-        (nextSendState !== null &&
-          UNHEALTHY_TRANSPORT_STATES.has(nextSendState)) ||
-        (nextRecvState !== null &&
-          UNHEALTHY_TRANSPORT_STATES.has(nextRecvState));
-
       const shouldClearRecovering =
-        store.recovering() && nextSendState === 'connected' && !isUnhealthy;
+        store.recovering() &&
+        nextSendState === 'connected' &&
+        nextRecvState === 'connected';
 
       patchState(store, {
         ...(direction === 'send' ? { sendState: state } : { recvState: state }),

@@ -61,7 +61,7 @@ describe('VoiceConnectionStore', () => {
     expect(store.state()).toBe(EVoiceConnectionState.DEAD);
   });
 
-  it('clears recovering only when send transport is connected and no transport is unhealthy', () => {
+  it('clears recovering only when both send and recv transports are connected', () => {
     store.setRecovering(true);
     expect(store.recovering()).toBe(true);
 
@@ -69,9 +69,8 @@ describe('VoiceConnectionStore', () => {
     expect(store.recovering()).toBe(true);
 
     store.setTransportState('send', 'connected');
-    expect(store.recovering()).toBe(false);
+    expect(store.recovering()).toBe(true);
 
-    store.setRecovering(true);
     store.setTransportState('recv', 'connecting');
     expect(store.recovering()).toBe(true);
 
