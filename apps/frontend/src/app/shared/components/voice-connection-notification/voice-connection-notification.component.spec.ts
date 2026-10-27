@@ -66,6 +66,12 @@ describe('VoiceConnectionNotificationComponent', () => {
     state.set(EVoiceConnectionState.DEAD);
     expect(component()['labelKey']()).toBe('CALL.CONNECTION.DEAD');
     expect(component()['appearance']()).toBe('negative');
+
+    state.set(EVoiceConnectionState.CONNECTED);
+    expect(component()['labelKey']()).toBe('');
+
+    state.set(null);
+    expect(component()['labelKey']()).toBe('');
   });
 
   it('identifies DEAD state and calls rejoin() when triggered', () => {

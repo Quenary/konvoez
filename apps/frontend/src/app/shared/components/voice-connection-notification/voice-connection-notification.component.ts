@@ -36,7 +36,14 @@ export class VoiceConnectionNotificationComponent {
 
   protected readonly labelKey = computed(() => {
     const state = this.state();
-    return state ? `CALL.CONNECTION.${state}` : '';
+    switch (state) {
+      case EVoiceConnectionState.RECONNECTING:
+      case EVoiceConnectionState.DISCONNECTED:
+      case EVoiceConnectionState.DEAD:
+        return `CALL.CONNECTION.${state}`;
+      default:
+        return '';
+    }
   });
 
   protected readonly appearance = computed(() => {
