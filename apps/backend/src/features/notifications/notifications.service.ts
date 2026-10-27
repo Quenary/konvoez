@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -23,6 +23,8 @@ import {
   TextRoomsDomainEvents,
   type TTextRoomDirectMessageCreatedPayload,
   type TTextRoomMentionCreatedPayload,
+  type TTextRoomReactionAddedPayload,
+  type TTextRoomReplyCreatedPayload,
 } from '../text-rooms/text-rooms.events';
 import {
   VoiceRoomsDomainEvents,
@@ -46,8 +48,18 @@ import {
 } from './notifications.utils';
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly recentDeliveries = new Set<string>();
+  private readonly deliveryTimers = new Set<ReturnType<typeof setTimeout>>();
+
+  public onModuleDestroy(): void {
+    for (const timer of this.deliveryTimers) {
+      clearTimeout(timer);
+    }
+    this.deliveryTimers.clear();
+    this.recentDeliveries.clear();
+  }
 
   private get em(): EntityManager {
     return this.subscriptionRepository.getEntityManager();
@@ -171,6 +183,8 @@ export class NotificationsService {
     return {
       directMessages: entity.directMessages,
       directCalls: entity.directCalls,
+      replies: entity.replies,
+      reactions: entity.reactions,
       mentions: {
         username: entity.mentionUsername,
         role: entity.mentionRole,
@@ -229,6 +243,12 @@ export class NotificationsService {
     if (dto.directCalls !== undefined) {
       mergeFields.push('directCalls');
     }
+    if (dto.replies !== undefined) {
+      mergeFields.push('replies');
+    }
+    if (dto.reactions !== undefined) {
+      mergeFields.push('reactions');
+    }
     if (dto.mentions?.username !== undefined) {
       mergeFields.push('mentionUsername');
     }
@@ -252,6 +272,14 @@ export class NotificationsService {
           dto.directCalls ??
           existing?.directCalls ??
           DEFAULT_USER_NOTIFICATION_SETTINGS.directCalls,
+        replies:
+          dto.replies ??
+          existing?.replies ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.replies,
+        reactions:
+          dto.reactions ??
+          existing?.reactions ??
+          DEFAULT_USER_NOTIFICATION_SETTINGS.reactions,
         mentionUsername:
           dto.mentions?.username ??
           existing?.mentionUsername ??
@@ -280,6 +308,24 @@ export class NotificationsService {
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
+    const messageId = payload.data?.messageId;
+    if (messageId) {
+      const isReaction = payload.data?.type === 'reaction';
+      const key = isReaction
+        ? `${userId}:reaction:${payload.data?.senderId ?? 0}:${messageId}`
+        : `${userId}:${messageId}`;
+      if (this.recentDeliveries.has(key)) {
+        return;
+      }
+      this.recentDeliveries.add(key);
+      const timer = setTimeout(() => {
+        this.recentDeliveries.delete(key);
+        this.deliveryTimers.delete(timer);
+      }, 5000);
+      timer.unref?.();
+      this.deliveryTimers.add(timer);
+    }
+
     emitNotificationsDomainEvent(
       this.eventEmitter,
       NotificationsDomainEvents.DELIVER,
@@ -484,6 +530,120 @@ export class NotificationsService {
         }),
       ),
     );
+  }
+
+  public async sendReplyNotification(
+    payload: TTextRoomReplyCreatedPayload,
+  ): Promise<void> {
+    const settings = await this.getUserNotificationSettings(
+      payload.recipientId,
+    );
+    if (!settings.replies) {
+      return;
+    }
+
+    const body = htmlToPlainText(
+      payload.messagePreview,
+      pushNotificationBodyMaxLength,
+    );
+    if (!body) {
+      return;
+    }
+
+    const title = `${payload.senderUsername} · #${payload.roomName}`;
+    const url = `/text-room/${payload.roomId}?message=${payload.messageId}`;
+
+    await this.deliver(payload.recipientId, {
+      title,
+      body,
+      tag: `reply:${payload.messageId}`,
+      data: {
+        type: 'reply',
+        roomId: payload.roomId,
+        messageId: payload.messageId,
+        senderId: payload.senderId,
+        url,
+        onActionClick: {
+          default: {
+            operation: 'focusLastFocusedOrOpen',
+            url,
+          },
+        },
+      },
+    });
+  }
+
+  public async sendReactionNotification(
+    payload: TTextRoomReactionAddedPayload,
+  ): Promise<void> {
+    const settings = await this.getUserNotificationSettings(
+      payload.recipientId,
+    );
+    if (!settings.reactions) {
+      return;
+    }
+
+    const plain = htmlToPlainText(
+      payload.messagePreview,
+      pushNotificationBodyMaxLength,
+    );
+    const body = plain
+      ? `${payload.emoji} ${plain}`.slice(0, pushNotificationBodyMaxLength)
+      : payload.emoji;
+
+    const title = payload.roomName
+      ? `${payload.senderUsername} · #${payload.roomName}`
+      : payload.senderUsername;
+    const url = payload.roomId
+      ? `/text-room/${payload.roomId}?message=${payload.messageId}`
+      : `/direct/${payload.senderId}`;
+
+    await this.deliver(payload.recipientId, {
+      title,
+      body,
+      tag: `reaction:${payload.messageId}`,
+      data: {
+        type: 'reaction',
+        roomId: payload.roomId ?? undefined,
+        messageId: payload.messageId,
+        senderId: payload.senderId,
+        url,
+        onActionClick: {
+          default: {
+            operation: 'focusLastFocusedOrOpen',
+            url,
+          },
+        },
+      },
+    });
+  }
+
+  @OnEvent(TextRoomsDomainEvents.REACTION_ADDED)
+  async onReactionNotification(
+    payload: TTextRoomReactionAddedPayload,
+  ): Promise<void> {
+    try {
+      await this.sendReactionNotification(payload);
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send reaction push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  @OnEvent(TextRoomsDomainEvents.REPLY_CREATED)
+  async onReplyNotification(
+    payload: TTextRoomReplyCreatedPayload,
+  ): Promise<void> {
+    try {
+      await this.sendReplyNotification(payload);
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to send reply push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   @OnEvent(TextRoomsDomainEvents.MENTION_CREATED)

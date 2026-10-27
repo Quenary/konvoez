@@ -16,6 +16,8 @@ export const TextRoomsDomainEvents = {
   UNREAD_COUNTS_CHANGED: 'text-room.unread-counts.changed',
   DIRECT_MESSAGE_CREATED: 'text-room.direct-message.created',
   MENTION_CREATED: 'text-room.mention.created',
+  REPLY_CREATED: 'text-room.reply.created',
+  REACTION_ADDED: 'text-room.reaction.added',
 } as const;
 
 export type TTextRoomsDomainEvent =
@@ -39,6 +41,27 @@ export type TTextRoomMentionCreatedPayload = {
   messagePreview: string;
 };
 
+export type TTextRoomReplyCreatedPayload = {
+  recipientId: number;
+  senderId: number;
+  senderUsername: string;
+  roomId: number;
+  roomName: string;
+  messageId: string;
+  messagePreview: string;
+};
+
+export type TTextRoomReactionAddedPayload = {
+  recipientId: number;
+  senderId: number;
+  senderUsername: string;
+  emoji: string;
+  roomId?: number | null;
+  roomName?: string | null;
+  messageId: string;
+  messagePreview: string;
+};
+
 export type TTextRoomsDomainPayloadMap = {
   [TextRoomsDomainEvents.MESSAGE_CREATED]: ITextRoomMessage;
   [TextRoomsDomainEvents.MESSAGE_UPDATED]: ITextRoomMessage;
@@ -51,6 +74,8 @@ export type TTextRoomsDomainPayloadMap = {
   };
   [TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED]: TTextRoomDirectMessageCreatedPayload;
   [TextRoomsDomainEvents.MENTION_CREATED]: TTextRoomMentionCreatedPayload;
+  [TextRoomsDomainEvents.REPLY_CREATED]: TTextRoomReplyCreatedPayload;
+  [TextRoomsDomainEvents.REACTION_ADDED]: TTextRoomReactionAddedPayload;
 };
 
 export const emitTextRoomsDomainEvent =

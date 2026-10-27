@@ -100,7 +100,7 @@ describe('NotificationsService', () => {
 
     subscriptionRepository = {
       getEntityManager: jest.fn().mockReturnValue(em),
-      find: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((data) => data),
     } as unknown as jest.Mocked<EntityRepository<PushSubscriptionEntity>>;
@@ -143,6 +143,10 @@ describe('NotificationsService', () => {
       vapidKeyStorageService as unknown as VapidKeyStorageService,
       eventEmitter,
     );
+  });
+
+  afterEach(() => {
+    service.onModuleDestroy();
   });
 
   describe('saveSubscription', () => {
@@ -719,6 +723,8 @@ describe('NotificationsService', () => {
       expect(settings).toEqual({
         directMessages: true,
         directCalls: true,
+        replies: true,
+        reactions: true,
         mentions: {
           username: true,
           role: true,
@@ -732,6 +738,8 @@ describe('NotificationsService', () => {
         id: 1,
         directMessages: false,
         directCalls: true,
+        replies: false,
+        reactions: false,
         mentionUsername: true,
         mentionRole: false,
         mentionEveryone: false,
@@ -742,6 +750,8 @@ describe('NotificationsService', () => {
       expect(settings).toEqual({
         directMessages: false,
         directCalls: true,
+        replies: false,
+        reactions: false,
         mentions: {
           username: true,
           role: false,
@@ -765,6 +775,8 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           directMessages: false,
           directCalls: true,
+          replies: true,
+          reactions: true,
           mentionUsername: true,
           mentionRole: true,
           mentionEveryone: false,
@@ -807,6 +819,8 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           directMessages: true,
           directCalls: false,
+          replies: true,
+          reactions: true,
           mentionUsername: true,
           mentionRole: false,
           mentionEveryone: true,
@@ -947,6 +961,357 @@ describe('NotificationsService', () => {
           tag: 'mention:msg-1',
         }),
       );
+    });
+
+    it('suppresses reply notification when replies is false', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: false,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest.spyOn(service, 'deliver');
+
+      await service.sendReplyNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Reply text',
+      });
+
+      expect(deliverSpy).not.toHaveBeenCalled();
+    });
+
+    it('delivers reply notification when replies is true', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendReplyNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Reply text',
+      });
+
+      expect(deliverSpy).toHaveBeenCalledTimes(1);
+      expect(deliverSpy).toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({
+          title: 'alice · #general',
+          body: 'Reply text',
+          tag: 'reply:msg-1',
+          data: expect.objectContaining({
+            type: 'reply',
+            messageId: 'msg-1',
+            roomId: 10,
+            url: '/text-room/10?message=msg-1',
+          }),
+        }),
+      );
+    });
+
+    it('deduplicates delivery when a message triggers both mention and reply for the same recipient', async () => {
+      userSettingsRepository.find.mockResolvedValue([
+        {
+          user: { id: 2 },
+          directMessages: true,
+          directCalls: true,
+          replies: true,
+          mentionUsername: true,
+          mentionRole: true,
+          mentionEveryone: true,
+        } as unknown as UserNotificationSettingsEntity,
+      ]);
+      userSettingsRepository.findOne.mockResolvedValue({
+        user: { id: 2 },
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const emitSpy = jest.spyOn(eventEmitter, 'emit');
+
+      await service.sendMentionNotification({
+        recipients: [{ userId: 2, types: ['username'] }],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-dup-1',
+        messagePreview: 'Hello @bob in reply',
+      });
+
+      await service.sendReplyNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-dup-1',
+        messagePreview: 'Hello @bob in reply',
+      });
+
+      // DELIVER event emitted only once for msg-dup-1
+      expect(emitSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles REPLY_CREATED domain event and delegates to sendReplyNotification', async () => {
+      const sendReplySpy = jest
+        .spyOn(service, 'sendReplyNotification')
+        .mockResolvedValue(undefined);
+
+      await service.onReplyNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Reply text',
+      });
+
+      expect(sendReplySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 2,
+          messageId: 'msg-1',
+        }),
+      );
+    });
+
+    it('suppresses reaction notification when reactions is false', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        reactions: false,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest.spyOn(service, 'deliver');
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '👍',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Nice message',
+      });
+
+      expect(deliverSpy).not.toHaveBeenCalled();
+    });
+
+    it('delivers reaction notification when reactions is true', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        reactions: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '👍',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Nice message',
+      });
+
+      expect(deliverSpy).toHaveBeenCalledTimes(1);
+      expect(deliverSpy).toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({
+          title: 'alice · #general',
+          body: '👍 Nice message',
+          tag: 'reaction:msg-1',
+          data: expect.objectContaining({
+            type: 'reaction',
+            messageId: 'msg-1',
+            roomId: 10,
+            url: '/text-room/10?message=msg-1',
+          }),
+        }),
+      );
+    });
+
+    it('delivers direct reaction notification without roomName', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        reactions: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const deliverSpy = jest
+        .spyOn(service, 'deliver')
+        .mockResolvedValue(undefined);
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '❤️',
+        roomId: null,
+        roomName: null,
+        messageId: 'msg-dm-1',
+        messagePreview: 'Direct message text',
+      });
+
+      expect(deliverSpy).toHaveBeenCalledTimes(1);
+      expect(deliverSpy).toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({
+          title: 'alice',
+          body: '❤️ Direct message text',
+          tag: 'reaction:msg-dm-1',
+          data: expect.objectContaining({
+            type: 'reaction',
+            messageId: 'msg-dm-1',
+            senderId: 1,
+            url: '/direct/1',
+          }),
+        }),
+      );
+    });
+
+    it('handles REACTION_ADDED domain event and delegates to sendReactionNotification', async () => {
+      const sendReactionSpy = jest
+        .spyOn(service, 'sendReactionNotification')
+        .mockResolvedValue(undefined);
+
+      await service.onReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '🔥',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-1',
+        messagePreview: 'Fire message',
+      });
+
+      expect(sendReactionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientId: 2,
+          emoji: '🔥',
+          messageId: 'msg-1',
+        }),
+      );
+    });
+
+    it('delivers reactions from different senders on the same message without dropping', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        reactions: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const emitSpy = jest.spyOn(eventEmitter, 'emit');
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '👍',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-shared-1',
+        messagePreview: 'Shared message',
+      });
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 3,
+        senderUsername: 'bob',
+        emoji: '❤️',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-shared-1',
+        messagePreview: 'Shared message',
+      });
+
+      expect(emitSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('debounces duplicate reaction notification from the same sender on the same message', async () => {
+      userSettingsRepository.findOne.mockResolvedValue({
+        directMessages: true,
+        directCalls: true,
+        replies: true,
+        reactions: true,
+        mentionUsername: true,
+        mentionRole: true,
+        mentionEveryone: true,
+      } as unknown as UserNotificationSettingsEntity);
+
+      const emitSpy = jest.spyOn(eventEmitter, 'emit');
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '👍',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-rapid-1',
+        messagePreview: 'Rapid message',
+      });
+
+      await service.sendReactionNotification({
+        recipientId: 2,
+        senderId: 1,
+        senderUsername: 'alice',
+        emoji: '❤️',
+        roomId: 10,
+        roomName: 'general',
+        messageId: 'msg-rapid-1',
+        messagePreview: 'Rapid message',
+      });
+
+      expect(emitSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

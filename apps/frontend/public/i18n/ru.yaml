@@ -246,6 +246,10 @@ SETTINGS:
     DIRECT_MESSAGES_DESC: Уведомления о новых личных сообщениях
     DIRECT_CALLS: Входящие звонки
     DIRECT_CALLS_DESC: Уведомления о входящих прямых вызовах
+    REPLIES: Ответы
+    REPLIES_DESC: Уведомления при ответе на ваше сообщение
+    REACTIONS: Реакции
+    REACTIONS_DESC: Уведомления о реакциях на ваши сообщения
     MENTIONS_TITLE: Упоминания
     MENTIONS_USERNAME: Личные упоминания
     MENTIONS_USERNAME_DESC: Уведомления при упоминании вашего имени через @username

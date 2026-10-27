@@ -17,6 +17,8 @@ The server stores the settings per user and applies them to both channels. All t
 | ---------------- | ----------------------------------------------- |
 | Direct messages  | The user receives a direct message              |
 | Direct calls     | The user receives an incoming direct voice call |
+| Replies          | The message replies to the user's message       |
+| Reactions        | A reaction is added to the user's message       |
 | Username mention | The message mentions the user by name           |
 | Role mention     | The message mentions a role the user has        |
 | Everyone mention | The message mentions everyone in the room       |
@@ -27,16 +29,16 @@ The server checks the recipient's settings before every delivery. A suppressed e
 
 ```mermaid
 flowchart TD
-  Event[Direct message, call or mention] --> Check{Topic enabled for the recipient?}
+  Event[Direct message, call, mention, reply or reaction] --> Check{Topic enabled for the recipient?}
   Check -- No --> Drop[Notification suppressed]
   Check -- Yes --> Deliver[Notification delivered]
   Deliver --> Push[Push]
   Deliver --> Desktop[Desktop]
 ```
 
-### Several mentions in one message
+### Several triggers in one message
 
-When one message mentions a recipient in several ways (for example by name and through everyone), the recipient is notified if at least one of the matching topics is enabled. The notification is suppressed only when all matching topics are disabled.
+When one message triggers several notification topics for a recipient (for example a mention and a reply, or multiple mentions), the recipient is notified once if at least one of the matching topics is enabled. The notification is suppressed only when all matching topics are disabled.
 
 ## Scope of the settings
 

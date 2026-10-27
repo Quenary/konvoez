@@ -246,6 +246,10 @@ SETTINGS:
     DIRECT_MESSAGES_DESC: Notifications for incoming direct messages
     DIRECT_CALLS: Direct calls
     DIRECT_CALLS_DESC: Notifications for incoming direct calls
+    REPLIES: Replies
+    REPLIES_DESC: Notifications when someone replies to your message
+    REACTIONS: Reactions
+    REACTIONS_DESC: Notifications when someone reacts to your message
     MENTIONS_TITLE: Mentions
     MENTIONS_USERNAME: Personal mentions
     MENTIONS_USERNAME_DESC: Notifications when someone mentions your @username

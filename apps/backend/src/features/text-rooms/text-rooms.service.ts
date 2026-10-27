@@ -973,6 +973,32 @@ export class TextRoomsService {
       );
     }
 
+    if (room && replyTarget && replyTarget.sender.id !== messageDto.senderId) {
+      const replyRecipient = replyTarget.sender;
+      if (!replyRecipient.deletedAt) {
+        const replyRecipientDto =
+          await this.usersService.toSafeDtoWithPermissions(replyRecipient);
+        if (this.roomsFacade.canAccessRoom(replyRecipientDto, room)) {
+          emitTextRoomsDomainEvent(
+            this.eventEmitter,
+            TextRoomsDomainEvents.REPLY_CREATED,
+            {
+              recipientId: replyRecipient.id,
+              senderId: messageDto.senderId,
+              senderUsername: messageDto.senderUsername,
+              roomId: room.id,
+              roomName: room.name,
+              messageId: messageDto.id,
+              messagePreview: this.messagePreview(
+                messageDto.content,
+                messageDto.attachments,
+              ),
+            },
+          );
+        }
+      }
+    }
+
     return messageDto;
   }
 
@@ -1449,11 +1475,13 @@ export class TextRoomsService {
       user: user.id,
     });
 
+    let isAdded = false;
     if (existingReaction) {
       if (existingReaction.emoji === emoji) {
         this.em.remove(existingReaction);
       } else {
         existingReaction.emoji = emoji;
+        isAdded = true;
       }
     } else {
       const newReaction = this.messageReactionRepository.create({
@@ -1462,6 +1490,7 @@ export class TextRoomsService {
         emoji,
       });
       this.em.persist(newReaction);
+      isAdded = true;
     }
 
     await this.em.flush();
@@ -1481,6 +1510,48 @@ export class TextRoomsService {
         reactions: updatedReactions,
       },
     );
+
+    if (isAdded && message.sender.id !== user.id && !message.sender.deletedAt) {
+      let canNotify = false;
+      if (message.room) {
+        const recipientDto = await this.usersService.toSafeDtoWithPermissions(
+          message.sender,
+        );
+        canNotify = this.roomsFacade.canAccessRoom(recipientDto, message.room);
+      } else if (message.recipient) {
+        canNotify = true;
+      }
+
+      if (canNotify) {
+        const content = message.contentEncrypted
+          ? this.encryptionService.decrypt(
+              message.contentEncrypted,
+              message.iv,
+              message.authTag,
+            )
+          : '';
+        const attachments = await this.loadAttachments([message]);
+        const messagePreview = this.messagePreview(
+          content,
+          attachments.get(normalizedMessageId) ?? [],
+        );
+
+        emitTextRoomsDomainEvent(
+          this.eventEmitter,
+          TextRoomsDomainEvents.REACTION_ADDED,
+          {
+            recipientId: message.sender.id,
+            senderId: user.id,
+            senderUsername: user.username,
+            emoji,
+            roomId: message.room?.id ?? null,
+            roomName: message.room?.name ?? null,
+            messageId: normalizedMessageId,
+            messagePreview,
+          },
+        );
+      }
+    }
 
     return updatedReactions;
   }

@@ -202,6 +202,20 @@ describe('SettingsNotificationsComponent', () => {
     expect(updateSettings).toHaveBeenCalledWith({ directCalls: false });
   });
 
+  it('updates replies setting and calls api', () => {
+    component['onUpdateReplies'](false);
+
+    expect(component['settings']().replies).toBe(false);
+    expect(updateSettings).toHaveBeenCalledWith({ replies: false });
+  });
+
+  it('updates reactions setting and calls api', () => {
+    component['onUpdateReactions'](false);
+
+    expect(component['settings']().reactions).toBe(false);
+    expect(updateSettings).toHaveBeenCalledWith({ reactions: false });
+  });
+
   it('updates mention settings and calls api', () => {
     component['onUpdateMention']('everyone', false);
 

@@ -136,6 +136,14 @@ export class SettingsNotificationsComponent {
     this.patchSettings({ directCalls: enabled });
   }
 
+  protected onUpdateReplies(enabled: boolean): void {
+    this.patchSettings({ replies: enabled });
+  }
+
+  protected onUpdateReactions(enabled: boolean): void {
+    this.patchSettings({ reactions: enabled });
+  }
+
   protected onUpdateMention(type: TMentionType, enabled: boolean): void {
     this.patchSettings({
       mentions: {
@@ -149,6 +157,8 @@ export class SettingsNotificationsComponent {
     const next: TUserNotificationSettings = {
       directMessages: partial.directMessages ?? prev.directMessages,
       directCalls: partial.directCalls ?? prev.directCalls,
+      replies: partial.replies ?? prev.replies,
+      reactions: partial.reactions ?? prev.reactions,
       mentions: {
         username: partial.mentions?.username ?? prev.mentions.username,
         role: partial.mentions?.role ?? prev.mentions.role,

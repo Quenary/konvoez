@@ -59,6 +59,8 @@ export const userNotificationMentionsSettingsSchema = z.object({
 export const userNotificationSettingsSchema = z.object({
   directMessages: z.boolean(),
   directCalls: z.boolean(),
+  replies: z.boolean(),
+  reactions: z.boolean(),
   mentions: userNotificationMentionsSettingsSchema,
 });
 
@@ -68,6 +70,8 @@ export const updateUserNotificationMentionsSettingsSchema =
 export const updateUserNotificationSettingsSchema = z.object({
   directMessages: z.boolean().optional(),
   directCalls: z.boolean().optional(),
+  replies: z.boolean().optional(),
+  reactions: z.boolean().optional(),
   mentions: updateUserNotificationMentionsSettingsSchema.optional(),
 });
 
@@ -100,6 +104,8 @@ export type TUpdateUserNotificationSettings = z.infer<
 export const DEFAULT_USER_NOTIFICATION_SETTINGS: TUserNotificationSettings = {
   directMessages: true,
   directCalls: true,
+  replies: true,
+  reactions: true,
   mentions: {
     username: true,
     role: true,

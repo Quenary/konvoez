@@ -144,6 +144,8 @@ describe('Notification Schemas', () => {
       if (parsed.success) {
         expect(parsed.data.directMessages).toBe(true);
         expect(parsed.data.directCalls).toBe(true);
+        expect(parsed.data.replies).toBe(true);
+        expect(parsed.data.reactions).toBe(true);
         expect(parsed.data.mentions.username).toBe(true);
         expect(parsed.data.mentions.role).toBe(true);
         expect(parsed.data.mentions.everyone).toBe(true);
@@ -155,6 +157,8 @@ describe('Notification Schemas', () => {
         userNotificationSettingsSchema.safeParse({
           directMessages: true,
           directCalls: true,
+          replies: true,
+          reactions: true,
         }).success,
       ).toBe(false);
 
@@ -162,6 +166,8 @@ describe('Notification Schemas', () => {
         userNotificationSettingsSchema.safeParse({
           directMessages: 'yes',
           directCalls: true,
+          replies: true,
+          reactions: true,
           mentions: { username: true, role: true, everyone: true },
         }).success,
       ).toBe(false);
@@ -172,6 +178,8 @@ describe('Notification Schemas', () => {
     it('validates partial updates', () => {
       const validPartial = {
         directMessages: false,
+        replies: false,
+        reactions: false,
         mentions: {
           everyone: false,
         },

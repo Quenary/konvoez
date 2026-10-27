@@ -61,7 +61,7 @@ describe('UserNotificationSettings migration', () => {
       .run();
 
     await orm.migrator.up({
-      to: 'Migration20261026172220_UserNotificationSettings',
+      to: 'Migration20261027192655_UserNotificationSettingsReplies',
     });
 
     const columns = client
@@ -73,6 +73,8 @@ describe('UserNotificationSettings migration', () => {
     expect(colNames).toContain('user_id');
     expect(colNames).toContain('direct_messages');
     expect(colNames).toContain('direct_calls');
+    expect(colNames).toContain('replies');
+    expect(colNames).toContain('reactions');
     expect(colNames).toContain('mention_username');
     expect(colNames).toContain('mention_role');
     expect(colNames).toContain('mention_everyone');
@@ -100,7 +102,7 @@ describe('UserNotificationSettings migration', () => {
 
   it('reads defaults and upserts partial updates through the service', async () => {
     await orm.migrator.up({
-      to: 'Migration20261026172220_UserNotificationSettings',
+      to: 'Migration20261027192655_UserNotificationSettingsReplies',
     });
 
     const conn = orm.em.getConnection() as unknown as {
@@ -178,6 +180,8 @@ describe('UserNotificationSettings migration', () => {
     expect(afterSecondUpdate).toEqual({
       directMessages: false,
       directCalls: true,
+      replies: true,
+      reactions: true,
       mentions: {
         username: true,
         role: false,
@@ -197,6 +201,8 @@ describe('UserNotificationSettings migration', () => {
     expect(batch.get(user.id)).toEqual({
       directMessages: false,
       directCalls: true,
+      replies: true,
+      reactions: true,
       mentions: {
         username: true,
         role: false,

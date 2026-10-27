@@ -34,6 +34,8 @@ export const UserNotificationSettingsEntitySchema = defineEntity({
       p.manyToOne(UserEntitySchema).index(false).unique().deleteRule('cascade'),
     directMessages: p.boolean().default(true),
     directCalls: p.boolean().default(true),
+    replies: p.boolean().default(true),
+    reactions: p.boolean().default(true),
     mentionUsername: p.boolean().default(true),
     mentionRole: p.boolean().default(true),
     mentionEveryone: p.boolean().default(true),

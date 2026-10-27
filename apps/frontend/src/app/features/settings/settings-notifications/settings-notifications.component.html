@@ -108,6 +108,36 @@
         </div>
 
         <div class="setting-item">
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().replies"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateReplies($event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.REPLIES' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.REPLIES_DESC' | translate }}
+          </p>
+        </div>
+
+        <div class="setting-item">
+          <label tuiLabel>
+            <input
+              tuiSwitch
+              type="checkbox"
+              [ngModel]="settings().reactions"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onUpdateReactions($event)" />
+            {{ 'SETTINGS.NOTIFICATIONS.REACTIONS' | translate }}
+          </label>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.NOTIFICATIONS.REACTIONS_DESC' | translate }}
+          </p>
+        </div>
+
+        <div class="setting-item">
           <span class="setting-item-subtitle">{{
             'SETTINGS.NOTIFICATIONS.MENTIONS_TITLE' | translate
           }}</span>

@@ -163,6 +163,13 @@ describe('TextRoomsService', () => {
     usersService = {
       findOne: jest.fn(),
       toSafeDto: jest.fn(),
+      toSafeDtoWithPermissions: jest.fn().mockImplementation(async (u) => ({
+        id: u.id,
+        username: u.username,
+        isOwner: false,
+        roles: [],
+        permissions: [],
+      })),
     } as unknown as jest.Mocked<UsersService>;
 
     roomsFacade = {
@@ -406,6 +413,61 @@ describe('TextRoomsService', () => {
         content: 'Decrypted content',
         isDeleted: false,
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REPLY_CREATED,
+        expect.objectContaining({
+          recipientId: 2,
+          senderId: mockUser.id,
+          roomId,
+          messagePreview: 'Decrypted content',
+        }),
+      );
+    });
+
+    it('should not emit REPLY_CREATED event on self-reply', async () => {
+      const roomId = 10;
+      const targetId = v7();
+      const targetEntity = {
+        id: parse(targetId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: roomId },
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(targetEntity);
+
+      const newMsgId = parse(v7());
+      const mockCreated = {
+        id: newMsgId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: roomId },
+        recipient: null,
+        replyToId: parse(targetId),
+        replyTo: targetEntity,
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.create.mockReturnValue(mockCreated);
+
+      await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'Self reply',
+        roomId,
+        recipientId: null,
+        replyToId: targetId,
+      });
+
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REPLY_CREATED,
+        expect.anything(),
+      );
     });
 
     it('should throw AppException if reply target message does not exist', async () => {
@@ -2437,6 +2499,114 @@ describe('TextRoomsService', () => {
       expect(result).toEqual([
         { emoji: '👍', count: 1, userIds: [mockUser.id] },
       ]);
+    });
+
+    it('should emit REACTION_ADDED when reacting to another user message in room', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const otherUser = { id: 2, username: 'bob', deletedAt: null };
+      const message = {
+        id: rawId,
+        sender: otherUser,
+        recipient: null,
+        room: { id: 10, name: 'general' },
+        contentEncrypted: Buffer.from('encrypted'),
+        iv: Buffer.from('iv'),
+        authTag: Buffer.from('authTag'),
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '🎉',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]);
+      encryptionService.decrypt.mockReturnValue('Hello bob!');
+
+      await service.toggleReaction(mockUser, msgId, '🎉');
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_ADDED,
+        expect.objectContaining({
+          recipientId: 2,
+          senderId: mockUser.id,
+          senderUsername: mockUser.username,
+          emoji: '🎉',
+          roomId: 10,
+          roomName: 'general',
+          messageId: msgId,
+          messagePreview: 'Hello bob!',
+        }),
+      );
+    });
+
+    it('should emit REACTION_ADDED when reacting to another user message in DM', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const otherUser = { id: 2, username: 'bob', deletedAt: null };
+      const message = {
+        id: rawId,
+        sender: otherUser,
+        recipient: { id: mockUser.id, username: mockUser.username },
+        room: null,
+        contentEncrypted: Buffer.from('encrypted'),
+        iv: Buffer.from('iv'),
+        authTag: Buffer.from('authTag'),
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '❤️',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]);
+      encryptionService.decrypt.mockReturnValue('Direct message');
+
+      await service.toggleReaction(mockUser, msgId, '❤️');
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_ADDED,
+        expect.objectContaining({
+          recipientId: 2,
+          senderId: mockUser.id,
+          senderUsername: mockUser.username,
+          emoji: '❤️',
+          roomId: null,
+          roomName: null,
+          messageId: msgId,
+          messagePreview: 'Direct message',
+        }),
+      );
+    });
+
+    it('should not emit REACTION_ADDED if recipient cannot access room', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const otherUser = { id: 2, username: 'bob', deletedAt: null };
+      const message = {
+        id: rawId,
+        sender: otherUser,
+        recipient: null,
+        room: { id: 10, name: 'general' },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([]);
+      roomsFacade.canAccessRoom.mockReturnValueOnce(false);
+
+      await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_ADDED,
+        expect.anything(),
+      );
     });
   });
 

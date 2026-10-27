@@ -42,6 +42,7 @@ import { Migration20261019130000_MessageMentions } from './migrations/Migration2
 import { Migration20261026090000_SessionVersion } from './migrations/Migration20261026090000_SessionVersion';
 import { Migration20261026100000_TwoFactor } from './migrations/Migration20261026100000_TwoFactor';
 import { Migration20261026172220_UserNotificationSettings } from './migrations/Migration20261026172220_UserNotificationSettings';
+import { Migration20261027192655_UserNotificationSettingsReplies } from './migrations/Migration20261027192655_UserNotificationSettingsReplies';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -94,6 +95,7 @@ export async function createMikroOrmConfig() {
         Migration20261026090000_SessionVersion,
         Migration20261026100000_TwoFactor,
         Migration20261026172220_UserNotificationSettings,
+        Migration20261027192655_UserNotificationSettingsReplies,
       ],
     },
   } satisfies Partial<Options>;
