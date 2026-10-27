@@ -106,7 +106,6 @@ export class VoiceRoomPanelComponent {
 
   protected readonly connectionState = this.voiceConnectionStore.state;
   protected readonly micFailed = this.voiceConnectionStore.micFailed;
-  protected readonly micInputMuted = this.voiceConnectionStore.micInputMuted;
   protected readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
 
   protected readonly indicatorColor = computed(() => {
@@ -138,7 +137,6 @@ export class VoiceRoomPanelComponent {
     const state = this.connectionState();
     const qualityHint = this.qualityHintKey();
     const micFailed = this.micFailed();
-    const micInputMuted = this.micInputMuted();
     const audioSuspended = this.audioSuspended();
 
     switch (state) {
@@ -148,9 +146,6 @@ export class VoiceRoomPanelComponent {
       case EVoiceConnectionState.DEGRADED:
         if (micFailed) {
           return 'CALL.CONNECTION.MIC_FAILED';
-        }
-        if (micInputMuted) {
-          return 'CALL.CONNECTION.MIC_MUTED';
         }
         if (audioSuspended) {
           return 'CALL.CONNECTION.AUDIO_SUSPENDED';

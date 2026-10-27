@@ -47,7 +47,6 @@ describe('VoiceRoomPanelComponent', () => {
   let qualityBitrateKbps: ReturnType<typeof signal<number>>;
   let connectionState: ReturnType<typeof signal<EVoiceConnectionState | null>>;
   let micFailed: ReturnType<typeof signal<boolean>>;
-  let micInputMuted: ReturnType<typeof signal<boolean>>;
   let audioSuspended: ReturnType<typeof signal<boolean>>;
   let translate: TranslateService;
 
@@ -79,7 +78,6 @@ describe('VoiceRoomPanelComponent', () => {
     qualityBitrateKbps = signal(64);
     connectionState = signal<EVoiceConnectionState | null>(null);
     micFailed = signal(false);
-    micInputMuted = signal(false);
     audioSuspended = signal(false);
 
     TestBed.configureTestingModule({
@@ -102,7 +100,6 @@ describe('VoiceRoomPanelComponent', () => {
           useValue: {
             state: connectionState.asReadonly(),
             micFailed: micFailed.asReadonly(),
-            micInputMuted: micInputMuted.asReadonly(),
             audioSuspended: audioSuspended.asReadonly(),
           },
         },
@@ -413,13 +410,8 @@ describe('VoiceRoomPanelComponent', () => {
     expect(instance['indicatorColor']()).toBe('var(--tui-status-warning)');
     expect(instance['connectionHintKey']()).toBe('CALL.CONNECTION.MIC_FAILED');
 
-    // DEGRADED with micInputMuted
-    micFailed.set(false);
-    micInputMuted.set(true);
-    expect(instance['connectionHintKey']()).toBe('CALL.CONNECTION.MIC_MUTED');
-
     // DEGRADED with audioSuspended
-    micInputMuted.set(false);
+    micFailed.set(false);
     audioSuspended.set(true);
     expect(instance['connectionHintKey']()).toBe(
       'CALL.CONNECTION.AUDIO_SUSPENDED',

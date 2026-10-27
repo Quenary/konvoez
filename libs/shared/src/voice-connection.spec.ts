@@ -20,7 +20,6 @@ const baseHealthyInput: TVoiceConnectionInput = {
   dead: null,
   qualityTier: EVoiceQualityTier.EXCELLENT,
   micFailed: false,
-  micInputMuted: false,
   audioSuspended: false,
 };
 
@@ -148,13 +147,6 @@ describe('voice-connection', () => {
         deriveVoiceConnectionState({
           ...baseHealthyInput,
           micFailed: true,
-        }),
-      ).toBe(EVoiceConnectionState.DEGRADED);
-
-      expect(
-        deriveVoiceConnectionState({
-          ...baseHealthyInput,
-          micInputMuted: true,
         }),
       ).toBe(EVoiceConnectionState.DEGRADED);
 

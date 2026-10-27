@@ -10,19 +10,16 @@ import {
 import { VoiceConnectionStore } from './voice-connection.store';
 import { VoiceSessionStore } from './voice-session.store';
 import { VoiceQualityService } from '../services/voice-quality.service';
-import { MicrophoneService } from '../services/microphone.service';
 import { AudioContextResumeService } from '../services/audio-context-resume.service';
 
 describe('VoiceConnectionStore', () => {
   let store: InstanceType<typeof VoiceConnectionStore>;
   let sessionStore: InstanceType<typeof VoiceSessionStore>;
   let mockQualityTier: ReturnType<typeof signal<EVoiceQualityTier>>;
-  let mockInputMuted: ReturnType<typeof signal<boolean>>;
   let mockSuspended: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
     mockQualityTier = signal(EVoiceQualityTier.EXCELLENT);
-    mockInputMuted = signal(false);
     mockSuspended = signal(false);
 
     TestBed.configureTestingModule({
@@ -30,10 +27,6 @@ describe('VoiceConnectionStore', () => {
         {
           provide: VoiceQualityService,
           useValue: { tier: mockQualityTier },
-        },
-        {
-          provide: MicrophoneService,
-          useValue: { inputMuted: mockInputMuted },
         },
         {
           provide: AudioContextResumeService,

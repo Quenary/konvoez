@@ -50,10 +50,6 @@ export class MicrophoneService {
   /** True while denoiser assets or capture pipeline are being prepared. */
   public readonly captureLoading = this._captureLoading.asReadonly();
 
-  private readonly _inputMuted = signal(false);
-  /** True while the active input track is hardware/system muted. */
-  public readonly inputMuted = this._inputMuted.asReadonly();
-
   private context: AudioContext | null = null;
   private inputStream: MediaStream | null = null;
 
@@ -76,20 +72,6 @@ export class MicrophoneService {
       return;
     }
     void this.handleDeviceChange();
-  };
-
-  private readonly onInputTrackMute = (event: Event): void => {
-    if (event.target !== this.inputStream?.getAudioTracks()[0]) {
-      return;
-    }
-    this._inputMuted.set(true);
-  };
-
-  private readonly onInputTrackUnmute = (event: Event): void => {
-    if (event.target !== this.inputStream?.getAudioTracks()[0]) {
-      return;
-    }
-    this._inputMuted.set(false);
   };
 
   constructor() {
@@ -370,15 +352,9 @@ export class MicrophoneService {
   }
 
   private watchInputTrack(stream: MediaStream | null): void {
-    const track = stream?.getAudioTracks()[0];
-    if (track) {
-      track.addEventListener?.('ended', this.onInputTrackEnded);
-      track.addEventListener?.('mute', this.onInputTrackMute);
-      track.addEventListener?.('unmute', this.onInputTrackUnmute);
-      this._inputMuted.set(track.muted ?? false);
-    } else {
-      this._inputMuted.set(false);
-    }
+    stream
+      ?.getAudioTracks()[0]
+      ?.addEventListener?.('ended', this.onInputTrackEnded);
   }
 
   private async reacquireInputStream(): Promise<void> {
@@ -489,8 +465,6 @@ export class MicrophoneService {
     const tracks = new Set<MediaStreamTrack>();
     this.inputStream?.getAudioTracks().forEach((track) => {
       track.removeEventListener?.('ended', this.onInputTrackEnded);
-      track.removeEventListener?.('mute', this.onInputTrackMute);
-      track.removeEventListener?.('unmute', this.onInputTrackUnmute);
       tracks.add(track);
     });
     this.processedStream()
@@ -499,7 +473,6 @@ export class MicrophoneService {
 
     tracks.forEach((track) => track.stop());
     this.inputStream = null;
-    this._inputMuted.set(false);
   }
 
   private cleanupPipeline(): void {

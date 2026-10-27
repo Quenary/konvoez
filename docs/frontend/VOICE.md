@@ -125,16 +125,16 @@ The voice quality tier describes network throughput and packet health, but quali
 
 ### Connection health
 
-Media liveness and transport health operate independently from adaptive quality. `VoiceConnectionStore` derives connection states from socket status, transport ICE/DTLS states, client watchdog counters, device mute states, and server eviction.
+Media liveness and transport health operate independently from adaptive quality. `VoiceConnectionStore` derives connection states from socket status, transport ICE/DTLS states, client watchdog counters, and server eviction.
 
-| State          | Condition                                                                       | Indicator colour      |
-| -------------- | ------------------------------------------------------------------------------- | --------------------- |
-| `null`         | No active session                                                               | —                     |
-| `CONNECTED`    | All transports healthy and socket connected                                     | Green or info         |
-| `DEGRADED`     | Bad or unstable quality tier, mic error, hardware mic muted, or audio suspended | Yellow or tier colour |
-| `RECONNECTING` | Transport connecting, disconnected, media stalled, or session recovering        | Grey                  |
-| `DISCONNECTED` | Socket down or transport failed or closed                                       | Red                   |
-| `DEAD`         | Recovery attempts exhausted or session evicted                                  | Red                   |
+| State          | Condition                                                                | Indicator colour      |
+| -------------- | ------------------------------------------------------------------------ | --------------------- |
+| `null`         | No active session                                                        | —                     |
+| `CONNECTED`    | All transports healthy and socket connected                              | Green or info         |
+| `DEGRADED`     | Bad or unstable quality tier, mic error, or audio suspended              | Yellow or tier colour |
+| `RECONNECTING` | Transport connecting, disconnected, media stalled, or session recovering | Grey                  |
+| `DISCONNECTED` | Socket down or transport failed or closed                                | Red                   |
+| `DEAD`         | Recovery attempts exhausted or session evicted                           | Red                   |
 
 Silent media death (such as firewall or UDP drops) is detected by a client watchdog comparing transport candidate-pair byte counters. Unhealthy states trigger an escalation ladder:
 

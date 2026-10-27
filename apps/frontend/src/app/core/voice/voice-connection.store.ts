@@ -15,7 +15,6 @@ import {
 } from '@ngrx/signals';
 import { VoiceSessionStore } from './voice-session.store';
 import { VoiceQualityService } from '../services/voice-quality.service';
-import { MicrophoneService } from '../services/microphone.service';
 import { AudioContextResumeService } from '../services/audio-context-resume.service';
 
 type VoiceConnectionState = {
@@ -59,7 +58,6 @@ export const VoiceConnectionStore = signalStore(
       store,
       voiceSessionStore = inject(VoiceSessionStore),
       voiceQualityService = inject(VoiceQualityService),
-      microphoneService = inject(MicrophoneService),
       audioContextResumeService = inject(AudioContextResumeService),
     ) => ({
       state: computed((): EVoiceConnectionState | null => {
@@ -76,10 +74,6 @@ export const VoiceConnectionStore = signalStore(
             ? voiceQualityService.tier()
             : EVoiceQualityTier.EXCELLENT;
         const micFailed = store.micFailed();
-        const micInputMuted =
-          typeof microphoneService?.inputMuted === 'function'
-            ? microphoneService.inputMuted()
-            : false;
         const audioSuspended =
           typeof audioContextResumeService?.suspended === 'function'
             ? audioContextResumeService.suspended()
@@ -95,15 +89,9 @@ export const VoiceConnectionStore = signalStore(
           dead,
           qualityTier,
           micFailed,
-          micInputMuted,
           audioSuspended,
         });
       }),
-      micInputMuted: computed(() =>
-        typeof microphoneService?.inputMuted === 'function'
-          ? microphoneService.inputMuted()
-          : false,
-      ),
       audioSuspended: computed(() =>
         typeof audioContextResumeService?.suspended === 'function'
           ? audioContextResumeService.suspended()

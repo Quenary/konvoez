@@ -523,45 +523,10 @@ describe('MicrophoneService', () => {
     expect(service.processedStream()).toBeNull();
   });
 
-  it('updates inputMuted from mute and unmute events on the active track only', () => {
-    const listeners: Record<string, (event: Event) => void> = {};
-    const mockTrack = {
-      muted: false,
-      addEventListener: vi.fn(
-        (event: string, callback: (event: Event) => void) => {
-          listeners[event] = callback;
-        },
-      ),
-    } as unknown as MediaStreamTrack;
-
-    const mockStream = {
-      getAudioTracks: () => [mockTrack],
-    } as unknown as MediaStream;
-
-    service['inputStream'] = mockStream;
-    service['watchInputTrack'](mockStream);
-
-    expect(service.inputMuted()).toBe(false);
-
-    // Mute event on the current input track
-    listeners['mute']?.({ target: mockTrack } as unknown as Event);
-    expect(service.inputMuted()).toBe(true);
-
-    // Unmute event on a foreign track is ignored
-    const foreignTrack = {} as MediaStreamTrack;
-    listeners['unmute']?.({ target: foreignTrack } as unknown as Event);
-    expect(service.inputMuted()).toBe(true);
-
-    // Unmute event on the current track
-    listeners['unmute']?.({ target: mockTrack } as unknown as Event);
-    expect(service.inputMuted()).toBe(false);
-  });
-
-  it('resets inputMuted and removes track event listeners on stream cleanup', () => {
+  it('removes track ended event listener and stops tracks on stream cleanup', () => {
     const removeEventListener = vi.fn();
     const stop = vi.fn();
     const mockTrack = {
-      muted: true,
       addEventListener: vi.fn(),
       removeEventListener,
       stop,
@@ -572,7 +537,6 @@ describe('MicrophoneService', () => {
     } as unknown as MediaStream;
 
     service['inputStream'] = mockStream;
-    service['_inputMuted'].set(true);
 
     service['cleanupInputStream']();
 
@@ -580,16 +544,7 @@ describe('MicrophoneService', () => {
       'ended',
       service['onInputTrackEnded'],
     );
-    expect(removeEventListener).toHaveBeenCalledWith(
-      'mute',
-      service['onInputTrackMute'],
-    );
-    expect(removeEventListener).toHaveBeenCalledWith(
-      'unmute',
-      service['onInputTrackUnmute'],
-    );
     expect(stop).toHaveBeenCalled();
-    expect(service.inputMuted()).toBe(false);
     expect(service['inputStream']).toBeNull();
   });
 });
