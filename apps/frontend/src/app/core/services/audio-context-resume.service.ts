@@ -9,15 +9,11 @@ import { AppResumeService } from './app-resume.service';
 export class AudioContextResumeService {
   private readonly appResumeService = inject(AppResumeService);
 
-  private readonly contexts = new Set<AudioContext>();
-  private readonly contextListeners = new Map<AudioContext, () => void>();
   private readonly _suspended = signal(false);
-
   public readonly suspended = this._suspended.asReadonly();
 
-  private readonly onClick = (): void => {
-    this.resumeAll();
-  };
+  private readonly contexts = new Set<AudioContext>();
+  private readonly contextListeners = new Map<AudioContext, () => void>();
 
   constructor() {
     window.addEventListener('click', this.onClick);
@@ -67,4 +63,8 @@ export class AudioContextResumeService {
     );
     this._suspended.set(isAnySuspended);
   }
+
+  private readonly onClick = (): void => {
+    this.resumeAll();
+  };
 }

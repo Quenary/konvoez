@@ -87,6 +87,10 @@ export class MediasoupSessionService {
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
 
+  public get microphoneProducerId(): string | null {
+    return this.microphoneProducer?.id ?? null;
+  }
+
   private readonly sessionMutex = new Mutex();
   private readonly microphoneMutex = new Mutex();
   private readonly cameraMutex = new Mutex();
@@ -111,10 +115,6 @@ export class MediasoupSessionService {
   private watchdogInterval: ReturnType<typeof setInterval> | null = null;
   private livenessState: TVoiceLivenessState | null = null;
   private isWatchdogTickRunning = false;
-
-  public get microphoneProducerId(): string | null {
-    return this.microphoneProducer?.id ?? null;
-  }
 
   private get settingsStore(): InstanceType<typeof SettingsStore> {
     return this.injector.get(SettingsStore);
