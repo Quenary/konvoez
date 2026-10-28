@@ -40,6 +40,7 @@ import {
 } from './chat-target';
 import type { IChatEditorSubmission } from './chat-editor/chat-editor.component';
 import { toChatKey } from './composer-drafts';
+import { ComposerFocusService } from './composer-focus.service';
 import { v4 } from 'uuid';
 
 import { icons } from '@constants';
@@ -66,7 +67,7 @@ import { icons } from '@constants';
     TranslatePipe,
     FileDropDirective,
   ],
-  providers: [ChatStore],
+  providers: [ChatStore, ComposerFocusService],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

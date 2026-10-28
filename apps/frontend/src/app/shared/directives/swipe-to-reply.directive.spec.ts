@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SwipeToReplyDirective } from './swipe-to-reply.directive';
 
 @Component({
@@ -135,6 +135,35 @@ describe('SwipeToReplyDirective', () => {
 
     expect(fixture.componentInstance.replyCalls).toBe(1);
   });
+
+  it.each([
+    { toX: 130, cancelsTouchEnd: true, emits: true },
+    { toX: 180, cancelsTouchEnd: false, emits: false },
+  ])(
+    'cancels only a past-threshold touchend (toX=$toX)',
+    ({ toX, cancelsTouchEnd, emits }) => {
+      const t0 = createTouch(1, hostEl, 200, 100);
+      hostEl.dispatchEvent(createTouchEvent('touchstart', [t0]));
+
+      const move = createTouchEvent('touchmove', [
+        createTouch(1, hostEl, toX, 100),
+      ]);
+      const preventMove = vi.spyOn(move, 'preventDefault');
+      window.dispatchEvent(move);
+      expect(preventMove).not.toHaveBeenCalled();
+
+      const end = createTouchEvent(
+        'touchend',
+        [],
+        [createTouch(1, hostEl, toX, 100)],
+      );
+      const preventEnd = vi.spyOn(end, 'preventDefault');
+      window.dispatchEvent(end);
+
+      expect(preventEnd).toHaveBeenCalledTimes(cancelsTouchEnd ? 1 : 0);
+      expect(fixture.componentInstance.replyCalls).toBe(emits ? 1 : 0);
+    },
+  );
 
   it('does not emit appSwipeToReply when swipe distance is below threshold', () => {
     const t0 = createTouch(1, hostEl, 200, 100);

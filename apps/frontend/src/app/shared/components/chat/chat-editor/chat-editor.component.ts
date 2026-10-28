@@ -32,7 +32,9 @@ import {
 } from '@taiga-ui/editor';
 import { TuiAutoColorPipe, TuiButtonLoading } from '@taiga-ui/kit';
 import { Extension } from '@tiptap/core';
-import type { Editor } from '@tiptap/core';
+import type { Editor, FocusPosition } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { Selection, TextSelection } from '@tiptap/pm/state';
 import { firstValueFrom } from 'rxjs';
 import { VideoPosterService } from '@core/services/video-poster.service';
 import { createKeyBindingExtension } from '@core/tiptap/create-key-binding-extension';
@@ -59,6 +61,10 @@ import {
 } from '@konvoez/shared';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { ComposerDraftsService, TChatKey } from '../composer-drafts';
+import {
+  ComposerFocusService,
+  prefersCoarsePointer,
+} from '../composer-focus.service';
 import { ChatComposerAttachmentsComponent } from '../chat-composer-attachments/chat-composer-attachments.component';
 import {
   createLocalFile,
@@ -238,6 +244,9 @@ export class ChatEditorComponent {
   private readonly usersStore = inject(UsersStore);
   private readonly rolesStore = inject(RolesStore);
   private readonly roomsStore = inject(RoomsStore);
+  private readonly composerFocus = inject(ComposerFocusService, {
+    optional: true,
+  });
   protected readonly mentionsEnabled = inject(CHAT_MENTIONS_ENABLED);
 
   protected readonly icons = icons;
@@ -455,6 +464,8 @@ export class ChatEditorComponent {
   );
   private chatKey = this.draftKey();
   private tiptapEditor: Editor | null = null;
+  private detachComposerFocus: (() => void) | null = null;
+  private lastReplyToMessageId: string | null = null;
   private lastEditableMessageKey: string | null = null;
 
   constructor() {
@@ -499,6 +510,25 @@ export class ChatEditorComponent {
           : raw;
 
         this.control.setValue(resolved, { emitEvent: false });
+        this.focus();
+      });
+    });
+
+    effect(() => {
+      const replyTo = this.replyToMessage();
+      const replyId = replyTo?.id ?? null;
+
+      if (replyId === this.lastReplyToMessageId) {
+        return;
+      }
+      this.lastReplyToMessageId = replyId;
+
+      if (!replyTo) {
+        return;
+      }
+
+      untracked(() => {
+        this.focus();
       });
     });
 
@@ -526,6 +556,7 @@ export class ChatEditorComponent {
     });
 
     this.destroyRef.onDestroy(() => {
+      this.detachComposerFocus?.();
       const key = this.chatKey;
       const files = this.files();
       if (key) {
@@ -535,6 +566,19 @@ export class ChatEditorComponent {
       }
       this.files.set([]);
     });
+  }
+
+  public focus(position: FocusPosition = 'end'): void {
+    const editor = this.getTiptapEditor();
+    if (editor && !editor.isDestroyed) {
+      if (prefersCoarsePointer()) {
+        this.focusTouchEditor(editor, position);
+      } else {
+        editor.commands.focus(position);
+      }
+      return;
+    }
+    this.tuiEditor()?.nativeFocusableElement?.focus();
   }
 
   addFiles(list: readonly File[]): boolean {
@@ -724,26 +768,29 @@ export class ChatEditorComponent {
   }
 
   protected onEditorLoaded(): void {
-    if (!this.mentionsEnabled) {
-      return;
-    }
     const origin = this.tuiEditor()?.editor?.getOriginTiptapEditor() ?? null;
-    if (!origin || this.tiptapEditor === origin) {
-      return;
+    if (origin && this.tiptapEditor !== origin) {
+      this.tiptapEditor = origin;
+      this.attachComposer(origin.view.dom);
+
+      if (this.mentionsEnabled) {
+        const onUpdate = (): void => {
+          this.detectMentionTrigger();
+        };
+
+        origin.on('selectionUpdate', onUpdate);
+        origin.on('update', onUpdate);
+
+        this.destroyRef.onDestroy(() => {
+          origin.off('selectionUpdate', onUpdate);
+          origin.off('update', onUpdate);
+        });
+      }
     }
-    this.tiptapEditor = origin;
 
-    const onUpdate = (): void => {
-      this.detectMentionTrigger();
-    };
-
-    origin.on('selectionUpdate', onUpdate);
-    origin.on('update', onUpdate);
-
-    this.destroyRef.onDestroy(() => {
-      origin.off('selectionUpdate', onUpdate);
-      origin.off('update', onUpdate);
-    });
+    if (this.editableMessage() || this.replyToMessage()) {
+      this.focus();
+    }
   }
 
   protected onMentionDropdown(open: boolean): void {
@@ -807,6 +854,45 @@ export class ChatEditorComponent {
     });
   }
 
+  /**
+   * TipTap's focus command ends in `view.focus()`, which calls
+   * `element.focus({ preventScroll: true })`. On a phone that marks the
+   * editor active but does not show the caret or the virtual keyboard.
+   * Reply and edit already focus this element inside the gesture; a later
+   * call only moves the caret and scrolls it into view. The selection is
+   * set once: moving it to the start first makes Safari scroll there.
+   */
+  private focusTouchEditor(editor: Editor, position: FocusPosition): void {
+    const dom = editor.view.dom;
+    if (document.activeElement !== dom) {
+      dom.focus();
+    }
+    const selection = selectionForFocus(editor.state.doc, position);
+    if (!selection) {
+      return;
+    }
+    const same = editor.state.selection.eq(selection);
+    const storedMarks = editor.state.storedMarks;
+    let tr = editor.state.tr.setMeta('addToHistory', false);
+    if (!same) {
+      tr = tr.setSelection(selection);
+    } else if (storedMarks) {
+      // setSelection clears stored marks. Keep an armed mark when the caret
+      // does not move, the same way TipTap's focus command does.
+      tr = tr.setStoredMarks(storedMarks);
+    }
+    editor.view.dispatch(tr.scrollIntoView());
+  }
+
+  private attachComposer(editor: HTMLElement): void {
+    const composerFocus = this.composerFocus;
+    if (!composerFocus) {
+      return;
+    }
+    this.detachComposerFocus?.();
+    this.detachComposerFocus = composerFocus.attach(editor);
+  }
+
   private getTiptapEditor(): Editor | null {
     if (this.tiptapEditor) {
       return this.tiptapEditor;
@@ -852,4 +938,36 @@ export class ChatEditorComponent {
       })
       .subscribe();
   }
+}
+
+function selectionForFocus(
+  doc: ProseMirrorNode,
+  position: FocusPosition,
+): Selection | null {
+  if (!position) {
+    return null;
+  }
+  const atStart = Selection.atStart(doc);
+  const atEnd = Selection.atEnd(doc);
+  if (position === 'start' || position === true) {
+    return atStart;
+  }
+  if (position === 'end') {
+    return atEnd;
+  }
+  const min = atStart.from;
+  const max = atEnd.to;
+  if (position === 'all') {
+    return TextSelection.create(
+      doc,
+      clamp(0, min, max),
+      clamp(doc.content.size, min, max),
+    );
+  }
+  const pos = clamp(position, min, max);
+  return TextSelection.create(doc, pos, pos);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

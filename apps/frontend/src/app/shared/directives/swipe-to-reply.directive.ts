@@ -112,9 +112,9 @@ export class SwipeToReplyDirective {
     }
 
     window.addEventListener('touchmove', this.onTouchMove, {
-      passive: false,
+      passive: true,
     });
-    window.addEventListener('touchend', this.onTouchEnd, { passive: true });
+    window.addEventListener('touchend', this.onTouchEnd, { passive: false });
     window.addEventListener('touchcancel', this.onTouchCancel, {
       passive: true,
     });
@@ -151,10 +151,9 @@ export class SwipeToReplyDirective {
     }
 
     if (this.gestureState === 'swiping') {
-      if (event.cancelable) {
-        event.preventDefault();
-      }
-
+      // Leave the touch uncanceled. iOS will not open the keyboard after
+      // preventDefault() on touchmove. Horizontal scrolling stays off because
+      // the message uses touch-action: pan-y.
       const threshold = this.appSwipeToReplyThreshold();
       const max = this.appSwipeToReplyMax();
       const sign = Math.sign(dx);
@@ -205,13 +204,19 @@ export class SwipeToReplyDirective {
       this.gestureState === 'swiping' &&
       Math.abs(this.currentOffset) >= threshold;
 
-    this.finishGesture();
+    if (shouldReply && event.cancelable) {
+      // A canceled touchend still counts as the gesture, and iOS then shows
+      // the keyboard for the focus that follows. Canceling touchmove does not.
+      event.preventDefault();
+    }
 
     if (shouldReply) {
       this.ngZone.run(() => {
         this.appSwipeToReply.emit();
       });
     }
+
+    this.finishGesture();
   };
 
   private readonly onTouchCancel = (): void => {

@@ -53,7 +53,7 @@ flowchart LR
 
 ## Reply shortcuts
 
-Both gestures set reply to that message in `ChatStore`. They ignore outgoing messages and interactive controls (avatars, reactions, attachments, links, quote replies, user mentions), so audio scrubbing keeps its own drag.
+Both gestures set reply to that message in `ChatStore`. They ignore outgoing messages and interactive controls (avatars, reactions, attachments, links, quote replies, user mentions), so audio scrubbing keeps its own drag. Selecting a message to reply or edit auto-focuses the chat composer with the cursor at the end of the text. On a touch device that focus is the composer itself and runs inside the reply or edit gesture, so the virtual keyboard opens with the caret.
 
 - **Double-click**: the second click on the bubble or the empty space beside it. A touch double-tap does not reply.
 - **Swipe** (`appSwipeToReply`): a horizontal drag in either direction. Vertical scrolling is unaffected.

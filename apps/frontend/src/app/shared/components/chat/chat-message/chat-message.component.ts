@@ -35,6 +35,7 @@ import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
+import { ComposerFocusService } from '../composer-focus.service';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
@@ -102,6 +103,7 @@ import { icons } from '@constants';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatMessageComponent {
+  private readonly composerFocus = inject(ComposerFocusService);
   private readonly store = inject(Store);
   private readonly chatStore = inject(ChatStore);
   private readonly usersStore = inject(UsersStore);
@@ -326,10 +328,12 @@ export class ChatMessageComponent {
 
   protected replyMessage(): void {
     this.chatStore.setReplyToMessageId(this.message().id);
+    this.primeComposerKeyboard();
   }
 
   protected editMessage(): void {
     this.chatStore.setEditableMessageId(this.message().id);
+    this.primeComposerKeyboard();
   }
 
   protected deleteMessage(): void {
@@ -382,6 +386,10 @@ export class ChatMessageComponent {
         size: 's',
       })
       .subscribe();
+  }
+
+  private primeComposerKeyboard(): void {
+    this.composerFocus.focus();
   }
 
   private openMentionUser(chip: HTMLElement): void {
