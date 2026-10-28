@@ -88,7 +88,7 @@ sequenceDiagram
 - `JOIN_ROOM`, `CREATE_TRANSPORT` and `PRODUCE` use a longer timeout (10 s) than other acknowledged events (5 s); `PRODUCE` is retried once.
 - While joining, `VoiceSessionStore.joiningTarget` is set and used by the UI.
 - After a reconnect the stored session is rejoined. On app resume the session is checked with the server and either refreshed (ICE restart) or rejoined: [App resume](APP_RESUME.md).
-- Hangup goes through `VoiceLeaveService.leaveActiveVoice()`: a direct call is left via `DirectCallService`, otherwise via `VoiceSessionService`. Switching sessions leaves the previous one automatically.
+- Hangup goes through `VoiceLeaveService`. `leaveFromVoiceUi()` leaves the media and, when `/voice-room/:id` is open, navigates to `/` before the session ends. `leaveActiveVoice()` only leaves the media: a direct call via `DirectCallService`, otherwise via `VoiceSessionService`. Logout and app quit use `leaveActiveVoice()`. Switching sessions leaves the previous one automatically.
 
 ## Lobby
 

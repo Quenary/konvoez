@@ -5,7 +5,6 @@ import {
   ElementRef,
   inject,
   input,
-  output,
   TemplateRef,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -40,7 +39,6 @@ export class VoiceRoomShellComponent {
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
-  public readonly left = output<void>();
 
   protected readonly fullscreenHost = this.host.nativeElement;
   protected readonly participantsCount = this.voiceSessionPeersService.count;
@@ -57,10 +55,6 @@ export class VoiceRoomShellComponent {
 
   protected revealChrome(): void {
     this.voiceRoomViewService.revealChrome();
-  }
-
-  protected onLeft(): void {
-    this.left.emit();
   }
 
   protected onEscape(event: Event): void {

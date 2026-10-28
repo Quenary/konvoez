@@ -43,7 +43,7 @@ describe('VoiceRoomOverlayComponent', () => {
   let isFullscreen: ReturnType<typeof signal<boolean>>;
   let theatreTile: ReturnType<typeof signal<TVoiceRoomTile | null>>;
   let tiles: ReturnType<typeof signal<TVoiceRoomTile[]>>;
-  let leaveActiveVoice: ReturnType<typeof vi.fn>;
+  let leaveFromVoiceUi: ReturnType<typeof vi.fn>;
   let toggleLayout: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -52,7 +52,7 @@ describe('VoiceRoomOverlayComponent', () => {
     isFullscreen = signal(false);
     theatreTile = signal(null);
     tiles = signal([stageTile(1, null, false)]);
-    leaveActiveVoice = vi.fn().mockResolvedValue(undefined);
+    leaveFromVoiceUi = vi.fn().mockResolvedValue(undefined);
     toggleLayout = vi.fn();
 
     TestBed.configureTestingModule({
@@ -89,7 +89,7 @@ describe('VoiceRoomOverlayComponent', () => {
         },
         {
           provide: VoiceLeaveService,
-          useValue: { leaveActiveVoice },
+          useValue: { leaveFromVoiceUi },
         },
         {
           provide: VoiceAudioPreferencesStore,
@@ -168,28 +168,13 @@ describe('VoiceRoomOverlayComponent', () => {
     vi.restoreAllMocks();
   });
 
-  it('emits left before leave finishes so navigation survives theatre teardown', async () => {
-    let resolveLeave!: () => void;
-    leaveActiveVoice.mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolveLeave = resolve;
-      }),
-    );
-
+  it('leaves through leaveFromVoiceUi on hangup', async () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
     fixture.detectChanges();
 
-    let left = false;
-    fixture.componentInstance.left.subscribe(() => {
-      left = true;
-    });
+    await fixture.componentInstance['onHangup']();
 
-    const hangup = fixture.componentInstance['onHangup']();
-    expect(left).toBe(true);
-    expect(leaveActiveVoice).toHaveBeenCalledTimes(1);
-
-    resolveLeave();
-    await hangup;
+    expect(leaveFromVoiceUi).toHaveBeenCalledTimes(1);
   });
 
   it('shows layout toggle and fullscreen in both layouts', () => {

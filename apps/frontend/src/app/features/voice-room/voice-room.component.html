@@ -1,8 +1,7 @@
 <app-voice-room-shell
   [title]="title()"
   [avatarUrl]="avatarUrl()"
-  [headerActions]="roomHeaderActions"
-  (left)="onLeft()" />
+  [headerActions]="roomHeaderActions" />
 
 <ng-template #roomHeaderActions>
   @if (room(); as manageRoom) {

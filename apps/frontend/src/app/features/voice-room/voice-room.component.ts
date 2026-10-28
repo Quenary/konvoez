@@ -145,8 +145,4 @@ export class VoiceRoomComponent {
   protected deleteRoom(room: IRoom): void {
     this.roomManageService.deleteRoom(room);
   }
-
-  protected onLeft(): void {
-    void this.router.navigate(['/']);
-  }
 }
