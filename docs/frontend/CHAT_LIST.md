@@ -16,19 +16,17 @@ The message list of text rooms and direct chats (`ChatMessagesListComponent`) is
 
 ## Inverted list
 
-- The list is flipped: the scroll container and every row use `scaleY(-1)`. The newest row is first, and the scroll start is the visual bottom.
+- The scroll container and every row use `scaleY(-1)`. The newest row is first, the scroll start is the visual bottom, and a short chat sits there without extra layout.
 - Older pages are added at the far end of the scroll range, so they never shift the viewport and an iOS fling runs on through new history.
 - The virtualizer anchors the row at the scroll position, so newer pages and live messages do not move what the user reads. At the live bottom a new message stays in view. The user's own message always scrolls to the bottom.
-- A short chat sits at the bottom without extra layout.
-- Wheel and keyboard (arrows, PageUp/PageDown, Home/End) are mapped to the visual direction. Touch and the scrollbar work natively.
+- Wheel and keyboard (arrows, PageUp/PageDown, Home/End) follow the visual direction. Touch and the scrollbar work natively.
 - The container uses a thin native scrollbar instead of `tui-scrollbar`, whose custom bars do not render inside a transformed container.
-- Selection, menus and tooltips work as usual. The DOM order is newest first, so screen readers read in reverse.
+- The DOM order is newest first, so screen readers read in reverse. Selection, menus and tooltips work as usual.
 
 ## Loading and jumps
 
 - Pages of `MESSAGE_PAGE_SIZE` load in advance, a few screens before an edge, and keep loading while the user stays close. The loaded window is not capped.
-- No page is requested while a jump or a window reload is in progress.
-- Switching or leaving a chat cancels its pending loads, so a late response never lands in another chat.
+- No page is requested while a jump or a window reload is in progress. Switching or leaving a chat cancels its pending loads, so a late response never lands in another chat.
 
 ```mermaid
 flowchart TD
@@ -50,5 +48,12 @@ flowchart LR
   Q -- "debounced batch" --> API["POST /text-rooms/read"]
 ```
 
-- `IsVisibleDirective` (`appIsVisible`) is a generic directive. It observes its host inside `appIsVisibleRoot` (the list passes its scroll container; without it, the viewport) and emits when the host becomes visible or hidden by `appIsVisibleThreshold`.
+- `IsVisibleDirective` (`appIsVisible`) observes its host inside `appIsVisibleRoot` (the list passes its scroll container; otherwise the viewport) and emits when visibility crosses `appIsVisibleThreshold`.
 - The list enqueues incoming unread messages that stay visible once scrolling and jumps settle, so messages that only flew by are not marked read.
+
+## Reply shortcuts
+
+Both gestures set reply to that message in `ChatStore`. They ignore outgoing messages and interactive controls (avatars, reactions, attachments, links, quote replies, user mentions), so audio scrubbing keeps its own drag.
+
+- **Double-click**: the second click on the bubble or the empty space beside it. A touch double-tap does not reply.
+- **Swipe** (`appSwipeToReply`): a horizontal drag in either direction. Vertical scrolling is unaffected.

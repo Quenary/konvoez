@@ -19,6 +19,19 @@ import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
 import { RolesStore } from '@core/stores/roles.store';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 
+function dispatchSecondClick(
+  target: EventTarget,
+  pointerType: 'mouse' | 'touch',
+): void {
+  target.dispatchEvent(
+    new PointerEvent('click', {
+      bubbles: true,
+      detail: 2,
+      pointerType,
+    }),
+  );
+}
+
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;
   let fixture: ComponentFixture<ChatMessageComponent>;
@@ -682,6 +695,104 @@ describe('ChatMessageComponent', () => {
       chip.click();
 
       expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
+    });
+
+    it('triggers reply on the second desktop click', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      dispatchSecondClick(host, 'mouse');
+
+      expect(mockChatStore.setReplyToMessageId).toHaveBeenCalledWith(
+        testMessage.id,
+      );
+    });
+
+    it('does not trigger reply on a single click', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      host.dispatchEvent(
+        new PointerEvent('click', {
+          bubbles: true,
+          detail: 1,
+          pointerType: 'mouse',
+        }),
+      );
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger reply on double-click if message is outgoing', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        outgoing: {
+          clientId: 'out-1',
+          files: [],
+          state: { phase: 'uploading' },
+        } as unknown as IOutgoingMessage,
+      });
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      dispatchSecondClick(host, 'mouse');
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger reply on double-click if target is an interactive element', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const avatar = fixture.nativeElement.querySelector('app-user-avatar');
+      expect(avatar).toBeInstanceOf(HTMLElement);
+      if (!(avatar instanceof HTMLElement)) {
+        return;
+      }
+      dispatchSecondClick(avatar, 'mouse');
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger reply on double-click of a user mention', () => {
+      mockUsersStore.entityMap.set({ 1: currentUser });
+      mockChatStore.setReplyToMessageId.mockClear();
+      mockUserDialogService.open.mockClear();
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        content: '<p><@1></p>',
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector(
+        'app-mention-chip[data-kind="user"]',
+      );
+      expect(chip).toBeInstanceOf(HTMLElement);
+      if (!(chip instanceof HTMLElement)) {
+        return;
+      }
+      dispatchSecondClick(chip, 'mouse');
+
+      expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('ignores a touch double-tap', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      dispatchSecondClick(host, 'touch');
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
     });
   });
 });

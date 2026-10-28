@@ -53,6 +53,11 @@ import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.di
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { MentionChipsDirective } from '@shared/components/mention-chip/mention-chips.directive';
 import { IMentionChipContext } from '@shared/components/mention-chip/mention-chip.vm';
+import {
+  REPLY_GESTURE_IGNORE_SELECTOR,
+  SwipeToReplyDirective,
+  USER_MENTION_SELECTOR,
+} from '@shared/directives/swipe-to-reply.directive';
 import { insertMentionPlaceholders } from './render-mentions';
 
 const EMPTY_MENTIONS: IMentionSet = {
@@ -86,6 +91,7 @@ import { icons } from '@constants';
     ExternalLinkClickDirective,
     WithUserDialogDirective,
     MentionChipsDirective,
+    SwipeToReplyDirective,
   ],
   host: {
     '(click)': 'onHostClick($event)',
@@ -291,28 +297,24 @@ export class ChatMessageComponent {
   );
 
   protected onHostClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement | null;
-    if (!target) {
+    const target = event.target;
+    if (!(target instanceof Element)) {
       return;
     }
-    const chip = target.closest<HTMLElement>(
-      'app-mention-chip[data-kind="user"], span[data-type="mention"][data-kind="user"]',
-    );
-    if (!chip) {
+
+    const chip = target.closest<HTMLElement>(USER_MENTION_SELECTOR);
+    if (chip) {
+      this.openMentionUser(chip);
       return;
     }
-    const rawId = chip.getAttribute('data-id');
-    if (!rawId) {
+
+    if (event.detail !== 2 || this.outgoing() || isTouchClick(event)) {
       return;
     }
-    const id = parseInt(rawId, 10);
-    if (!Number.isFinite(id)) {
+    if (target.closest(REPLY_GESTURE_IGNORE_SELECTOR)) {
       return;
     }
-    const user = this.usersById()[id];
-    if (user) {
-      this.userDialogService.open(user);
-    }
+    this.replyMessage();
   }
 
   protected onReactionSelect(emoji: string): void {
@@ -381,4 +383,25 @@ export class ChatMessageComponent {
       })
       .subscribe();
   }
+
+  private openMentionUser(chip: HTMLElement): void {
+    const rawId = chip.getAttribute('data-id');
+    if (!rawId) {
+      return;
+    }
+    const id = parseInt(rawId, 10);
+    if (!Number.isFinite(id)) {
+      return;
+    }
+    const user = this.usersById()[id];
+    if (user) {
+      this.userDialogService.open(user);
+    }
+  }
+}
+
+function isTouchClick(event: MouseEvent): boolean {
+  return (
+    'pointerType' in event && (event as PointerEvent).pointerType === 'touch'
+  );
 }
