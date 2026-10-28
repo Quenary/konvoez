@@ -575,6 +575,84 @@ describe('MediasoupSessionService', () => {
     expect(service['liveConsumerIds'].has('consumer-42')).toBe(false);
   });
 
+  it('keeps a video consumer out of the live set until resume', async () => {
+    const fakeConsumer = {
+      id: 'consumer-video',
+      producerId: 'p-cam',
+      kind: 'video',
+      paused: false,
+      closed: false,
+      track: {},
+      pause() {
+        this.paused = true;
+      },
+      resume() {
+        this.paused = false;
+      },
+      observer: { once: vi.fn() },
+    };
+    service['device'] = { recvRtpCapabilities: {} } as never;
+    service['recvTransport'] = {
+      id: 'recv',
+      closed: false,
+      consume: vi.fn().mockResolvedValue(fakeConsumer),
+    } as never;
+
+    await service.consumeProducer(
+      {
+        producerId: 'p-cam',
+        userId: 2,
+        kind: 'video',
+        mediaTag: 'cam',
+      },
+      () => ({ gain: 1, speakerMuted: false }),
+    );
+
+    expect(fakeConsumer.paused).toBe(true);
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+
+    await service.resumeConsumer('consumer-video');
+    expect(emitWithAck).toHaveBeenCalledWith(EVoiceRoomEvent.RESUME_CONSUMER, {
+      consumerId: 'consumer-video',
+    });
+    expect(fakeConsumer.paused).toBe(false);
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(true);
+
+    await service.pauseConsumer('consumer-video');
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+    expect(fakeConsumer.paused).toBe(true);
+
+    await service.resumeConsumer('consumer-video');
+    fakeConsumer.observer.once.mock.calls[0]?.[1]?.();
+    fakeConsumer.observer.once.mock.calls[0]?.[1]?.();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+  });
+
+  it('leaves pause and resume state unchanged when the emit fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const fakeConsumer = {
+      id: 'consumer-video',
+      paused: false,
+      closed: false,
+      pause: vi.fn(),
+      resume: vi.fn(),
+    };
+    service['consumerRegistry'].add(fakeConsumer as never);
+    emitWithAck.mockRejectedValueOnce(new Error('nope'));
+
+    await service.pauseConsumer('consumer-video');
+
+    expect(fakeConsumer.pause).not.toHaveBeenCalled();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+    expect(warn).toHaveBeenCalled();
+
+    fakeConsumer.paused = true;
+    emitWithAck.mockRejectedValueOnce(new Error('nope'));
+    await service.resumeConsumer('consumer-video');
+    expect(fakeConsumer.resume).not.toHaveBeenCalled();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+  });
+
   it('finishes stop screen when the server already closed screen-audio', async () => {
     const videoClose = vi.fn();
     const audioClose = vi.fn();
@@ -1101,6 +1179,47 @@ describe('MediasoupSessionService', () => {
       expect(service['liveConsumerIds'].size).toBe(1);
       service.cleanup();
       expect(service['liveConsumerIds'].size).toBe(0);
+
+      vi.useRealTimers();
+    });
+
+    it('does not stall when video is paused, with or without live audio', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      let bytes = 500;
+      let freeze = false;
+      service['recvTransport'] = {
+        connectionState: 'connected',
+        closed: false,
+        getStats: vi.fn().mockImplementation(async () => {
+          if (!freeze) {
+            bytes += 1;
+          }
+          return new Map([
+            [
+              'report-1',
+              { type: 'candidate-pair', nominated: true, bytesReceived: bytes },
+            ],
+          ]);
+        }),
+        on: vi.fn(),
+        close: vi.fn(),
+      } as never;
+      service['liveConsumerIds'].add('audio-1');
+      service['startWatchdog']();
+
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(false);
+      expect(service['liveConsumerIds'].has('audio-1')).toBe(true);
+
+      service['liveConsumerIds'].clear();
+      freeze = true;
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(false);
 
       vi.useRealTimers();
     });

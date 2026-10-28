@@ -764,6 +764,40 @@ export class MediasoupSessionService {
     }
   }
 
+  public async pauseConsumer(consumerId: string): Promise<void> {
+    const consumer = this.consumerRegistry.get(consumerId);
+    if (!consumer || consumer.paused) {
+      return;
+    }
+    try {
+      await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.PAUSE_CONSUMER, {
+        consumerId,
+      });
+    } catch (error) {
+      console.warn('pause-consumer failed', error);
+      return;
+    }
+    consumer.pause();
+    this.liveConsumerIds.delete(consumerId);
+  }
+
+  public async resumeConsumer(consumerId: string): Promise<void> {
+    const consumer = this.consumerRegistry.get(consumerId);
+    if (!consumer || consumer.closed || !consumer.paused) {
+      return;
+    }
+    try {
+      await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.RESUME_CONSUMER, {
+        consumerId,
+      });
+    } catch (error) {
+      console.warn('resume-consumer failed', error);
+      return;
+    }
+    consumer.resume();
+    this.liveConsumerIds.add(consumerId);
+  }
+
   public async setConsumerPreferredLayer(
     consumerId: string,
     spatialLayer: number,
@@ -1112,7 +1146,12 @@ export class MediasoupSessionService {
       const consumer = await recvTransport.consume(
         result as unknown as ConsumerOptions,
       );
-      this.liveConsumerIds.add(consumer.id);
+      const video = data.kind === 'video';
+      if (video) {
+        consumer.pause();
+      } else {
+        this.liveConsumerIds.add(consumer.id);
+      }
       consumer.observer.once('close', () => {
         this.liveConsumerIds.delete(consumer.id);
       });
@@ -1125,7 +1164,6 @@ export class MediasoupSessionService {
           track: consumer.track,
           mediaTag: 'screen',
         });
-        consumer.resume();
         return;
       }
 
@@ -1146,7 +1184,6 @@ export class MediasoupSessionService {
           track: consumer.track,
           mediaTag: 'cam',
         });
-        consumer.resume();
         return;
       }
 

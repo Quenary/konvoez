@@ -6,6 +6,7 @@ import {
   callInitiatePayloadSchema,
   callRejectPayloadSchema,
   voiceRoomCloseConsumerSchema,
+  voiceRoomConsumerRefSchema,
   voiceRoomCloseProducerSchema,
   voiceRoomConnectTransportSchema,
   voiceRoomConsumeSchema,
@@ -45,6 +46,10 @@ export class VoiceRoomCloseConsumerDto extends createZodDto(
 
 export class VoiceRoomSetConsumerLayersDto extends createZodDto(
   voiceRoomSetConsumerLayersSchema,
+) {}
+
+export class VoiceRoomConsumerRefDto extends createZodDto(
+  voiceRoomConsumerRefSchema,
 ) {}
 
 export class VoiceRoomSetMuteStateDto extends createZodDto(

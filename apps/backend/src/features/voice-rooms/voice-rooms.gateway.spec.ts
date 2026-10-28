@@ -1414,6 +1414,89 @@ describe('VoiceRoomsGateway', () => {
     });
   });
 
+  describe('pauseConsumer and resumeConsumer', () => {
+    const socketFor = () => {
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      socket.rooms.add('room:1');
+      return socket;
+    };
+
+    it('pauses and resumes the calling peer consumer and requests a keyframe for video', async () => {
+      const pause = jest.fn().mockResolvedValue(undefined);
+      const resume = jest.fn().mockResolvedValue(undefined);
+      const requestKeyFrame = jest.fn().mockResolvedValue(undefined);
+      const video = { id: 'c1', kind: 'video', pause, resume, requestKeyFrame };
+      const audio = {
+        id: 'c2',
+        kind: 'audio',
+        pause,
+        resume,
+        requestKeyFrame,
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map<string, unknown>([
+          ['c1', video],
+          ['c2', audio],
+        ]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+      const socket = socketFor();
+
+      await expect(
+        gateway.pauseConsumer(socket as never, { consumerId: 'c1' }),
+      ).resolves.toEqual({});
+      expect(pause).toHaveBeenCalledTimes(1);
+
+      await expect(
+        gateway.resumeConsumer(socket as never, { consumerId: 'c1' }),
+      ).resolves.toEqual({});
+      expect(resume).toHaveBeenCalledTimes(1);
+      expect(requestKeyFrame).toHaveBeenCalledTimes(1);
+
+      await gateway.resumeConsumer(socket as never, { consumerId: 'c2' });
+      expect(requestKeyFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores an unknown consumer and another peer', async () => {
+      const pause = jest.fn();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+      };
+      const other = {
+        id: 'socket-2',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c-other', { pause }]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(
+          new Map<string, unknown>([
+            ['socket-1', peer],
+            ['socket-2', other],
+          ]),
+        ),
+      );
+
+      await expect(
+        gateway.pauseConsumer(socketFor() as never, { consumerId: 'c-other' }),
+      ).resolves.toEqual({});
+      await expect(
+        gateway.resumeConsumer(socketFor() as never, { consumerId: 'missing' }),
+      ).resolves.toEqual({});
+      expect(pause).not.toHaveBeenCalled();
+    });
+  });
+
   describe('SET_MUTE_STATE', () => {
     it('updates peer mute state and broadcasts to session and entity sync', async () => {
       const room = createRoom();
@@ -1699,13 +1782,27 @@ describe('VoiceRoomsGateway', () => {
         mediaTag: 'mic',
         rtpParameters: {},
       });
+      expect(recvTransport.consume).toHaveBeenCalledWith(
+        expect.not.objectContaining({ paused: true }),
+      );
+      producer.kind = 'video';
       producer.appData = { mediaTag: 'cam', sourceHeight: 1080 };
       room.producers.set('p1', producer as never);
+      recvTransport.consume.mockImplementation(
+        async (options: { appData: { mediaTag: string } }) => {
+          consumer.appData = options.appData;
+          consumer.kind = 'video';
+          return consumer;
+        },
+      );
       const videoResult = await gateway.consume(socket as never, {
         transportId: 't',
         producerId: 'p1',
         rtpCapabilities: {} as never,
       });
+      expect(recvTransport.consume).toHaveBeenLastCalledWith(
+        expect.objectContaining({ paused: true }),
+      );
       expect(videoResult).toEqual(
         expect.objectContaining({ sourceHeight: 1080, mediaTag: 'cam' }),
       );

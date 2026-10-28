@@ -43,6 +43,7 @@ import {
   CallInitiateDto,
   CallRejectDto,
   VoiceRoomCloseConsumerDto,
+  VoiceRoomConsumerRefDto,
   VoiceRoomCloseProducerDto,
   VoiceRoomConnectTransportDto,
   VoiceRoomConsumeDto,
@@ -722,6 +723,37 @@ export class VoiceRoomsGateway
     return {};
   }
 
+  @SubscribeMessage(EVoiceRoomEvent.PAUSE_CONSUMER)
+  async pauseConsumer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomConsumerRefDto,
+  ) {
+    const { peer } = this.getSocketRoomPeer(socket);
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer) {
+      return {};
+    }
+    await consumer.pause();
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.RESUME_CONSUMER)
+  async resumeConsumer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomConsumerRefDto,
+  ) {
+    const { peer } = this.getSocketRoomPeer(socket);
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer) {
+      return {};
+    }
+    await consumer.resume();
+    if (consumer.kind === 'video') {
+      await consumer.requestKeyFrame();
+    }
+    return {};
+  }
+
   @SubscribeMessage(EVoiceRoomEvent.SET_MUTE_STATE)
   handleSetMuteState(
     @ConnectedSocket() socket: TSocket,
@@ -811,6 +843,7 @@ export class VoiceRoomsGateway
           peerId: peer.id,
           mediaTag: producer.appData.mediaTag,
         },
+        ...(producer.kind === 'video' ? { paused: true as const } : {}),
       });
 
     peer.consumers.set(consumer.id, consumer);

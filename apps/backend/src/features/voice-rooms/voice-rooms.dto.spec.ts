@@ -6,6 +6,7 @@ import {
   CallInitiateDto,
   CallRejectDto,
   VoiceRoomCloseConsumerDto,
+  VoiceRoomConsumerRefDto,
   VoiceRoomCloseProducerDto,
   VoiceRoomConnectTransportDto,
   VoiceRoomConsumeDto,
@@ -103,6 +104,15 @@ describe('VoiceRooms DTOs', () => {
           dtlsParameters: {},
         }).success,
       ).toBe(false);
+    });
+  });
+
+  describe('VoiceRoomConsumerRefDto', () => {
+    it('requires a consumer id', () => {
+      expect(
+        VoiceRoomConsumerRefDto.schema.safeParse({ consumerId: 'c1' }).success,
+      ).toBe(true);
+      expect(VoiceRoomConsumerRefDto.schema.safeParse({}).success).toBe(false);
     });
   });
 
