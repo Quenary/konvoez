@@ -176,6 +176,13 @@ export const SettingsStore = signalStore(
           defaultSettingValues[ESettingKey.VOICE_MAX_BITRATE_KBPS]
         );
       }),
+      streamMaxBitrateKbps: computed(() => {
+        const item = entityMap()[ESettingKey.STREAM_MAX_BITRATE_KBPS];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.STREAM_MAX_BITRATE_KBPS]
+        );
+      }),
       needsInitialSetup: computed(
         () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
       ),

@@ -400,6 +400,8 @@ SETTINGS:
     VOICE: Voice
     VOICE_MAX_BITRATE: Voice bitrate (kbps)
     VOICE_MAX_BITRATE_DESC: 'Base (maximum) microphone bitrate, from 8 to 384, defaults to 64. Server outbound load is bitrate × listeners: at 64 kbps and 9 listeners, this is about 0.6 Mbps per speaker. Applies to new connections; open clients pick up the value upon reloading the app.'
+    STREAM_MAX_BITRATE: Stream bitrate (kbps)
+    STREAM_MAX_BITRATE_DESC: 'Maximum total bitrate for camera and screen layers, from 1000 to 100000, defaults to 10000. The client clamps the streamer slider to this value. Open clients pick up the value after settings reload.'
     SAVED_SUCCESS: Settings saved successfully
 USER_DELETE:
   TITLE: Account deletion
@@ -410,6 +412,7 @@ USER_DELETE:
 VALIDATION:
   REQUIRED: Field is required
   VOICE_MAX_BITRATE_RANGE: Voice bitrate must be between 8 and 384 kbps
+  STREAM_MAX_BITRATE_RANGE: Stream bitrate must be between 1000 and 100000 kbps
   LOGIN: Enter a valid username or email
   FILE_TOO_BIG: File is too big
   STRING: Value must be a string

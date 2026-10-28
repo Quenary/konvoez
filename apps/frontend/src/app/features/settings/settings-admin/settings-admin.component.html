@@ -219,6 +219,39 @@
             </p>
           }
         </div>
+
+        <div class="setting-item">
+          <tui-textfield>
+            <label
+              tuiLabel
+              for="stream-max-bitrate">
+              {{ 'SETTINGS.ADMIN.STREAM_MAX_BITRATE' | translate }}
+            </label>
+            <input
+              id="stream-max-bitrate"
+              tuiInputSlider
+              [min]="streamBitrateMinKbps"
+              [max]="streamBitrateMaxKbps"
+              [quantum]="streamBitrateStep"
+              [step]="streamBitrateStep"
+              formControlName="streamMaxBitrateKbps" />
+            <input
+              tuiSlider
+              type="range"
+              [step]="streamBitrateStep" />
+          </tui-textfield>
+          <p class="setting-item-description">
+            {{ 'SETTINGS.ADMIN.STREAM_MAX_BITRATE_DESC' | translate }}
+          </p>
+          @if (streamMaxBitrateError; as err) {
+            <tui-error [error]="err | translate" />
+          }
+          @if (locked().streamMaxBitrateKbps) {
+            <p class="setting-item-description locked">
+              {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+            </p>
+          }
+        </div>
       </fieldset>
     </div>
   </tui-scrollbar>

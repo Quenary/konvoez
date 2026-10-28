@@ -88,5 +88,14 @@ export const voiceBitrateMinKbps = 8;
 export const voiceBitrateMaxKbps = 384;
 /** Default for the admin setting `VOICE_MAX_BITRATE_KBPS`. */
 export const voiceBitrateDefaultKbps = 64;
+/**
+ * Lower bound of the admin setting `STREAM_MAX_BITRATE_KBPS`.
+ * Camera and screen publish cannot be capped lower than this in settings or env.
+ */
+export const streamBitrateMinKbps = 1000;
+/** Upper bound of the admin setting `STREAM_MAX_BITRATE_KBPS`. */
+export const streamBitrateMaxKbps = 100000;
+/** Default for the admin setting `STREAM_MAX_BITRATE_KBPS`. */
+export const streamBitrateDefaultKbps = 10000;
 /** Absolute minimum bitrate floor for degraded audio adaptation. */
 export const voiceBitrateFloorKbps = 8;

@@ -34,6 +34,7 @@ import {
   attachmentsDefaultMaxFilesPerMessage,
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
   DEFAULT_VOICE_MAX_BITRATE_KBPS,
   defaultSettingValues,
   ESettingKey,
@@ -111,6 +112,10 @@ describe('SettingsService', () => {
       expect(repo.create).toHaveBeenCalledWith({
         key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
         value: DEFAULT_VOICE_MAX_BITRATE_KBPS,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+        value: DEFAULT_STREAM_MAX_BITRATE_KBPS,
       });
       expect(em.persist).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
@@ -515,6 +520,24 @@ describe('SettingsService', () => {
 
       await expect(
         service.update(ESettingKey.VOICE_MAX_BITRATE_KBPS, { value: 96 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.SETTING_ENV_LOCKED,
+      });
+    });
+
+    it('should lock STREAM_MAX_BITRATE_KBPS when loaded from env', async () => {
+      process.env[ESettingKey.STREAM_MAX_BITRATE_KBPS] = '20000';
+      repo.findOne.mockResolvedValue(null);
+
+      await service.onApplicationBootstrap();
+
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+        value: 20000,
+      });
+
+      await expect(
+        service.update(ESettingKey.STREAM_MAX_BITRATE_KBPS, { value: 5000 }),
       ).rejects.toMatchObject({
         code: ApiErrorCode.SETTING_ENV_LOCKED,
       });

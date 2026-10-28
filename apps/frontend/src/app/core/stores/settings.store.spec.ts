@@ -538,4 +538,23 @@ describe('SettingsStore', () => {
 
     expect(store.voiceMaxBitrateKbps()).toBe(128);
   });
+
+  it('computes streamMaxBitrateKbps with fallback to default and reflects loaded settings', () => {
+    configureTestBed();
+    expect(store.streamMaxBitrateKbps()).toBe(10000);
+
+    const setting: TSetting = {
+      key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+      value: 20000,
+      createdAt: new Date(),
+      updatedAt: null,
+      envLocked: false,
+    };
+    apiService.list.mockReturnValue(of([setting]));
+
+    store.loadAll();
+    TestBed.flushEffects();
+
+    expect(store.streamMaxBitrateKbps()).toBe(20000);
+  });
 });
