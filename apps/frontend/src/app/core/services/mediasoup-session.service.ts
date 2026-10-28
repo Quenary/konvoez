@@ -806,7 +806,7 @@ export class MediasoupSessionService {
   public async setConsumerPreferredLayer(
     consumerId: string,
     spatialLayer: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       await emitVoiceRoomWithAck(
         this.socket,
@@ -815,7 +815,9 @@ export class MediasoupSessionService {
       );
     } catch (error) {
       console.warn('set-consumer-layers failed', error);
+      return false;
     }
+    return true;
   }
 
   public handleConsumerClosed(consumerId: string): void {

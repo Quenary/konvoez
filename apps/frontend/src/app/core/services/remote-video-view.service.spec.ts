@@ -52,7 +52,7 @@ describe('RemoteVideoViewService', () => {
         }
       },
     );
-    setConsumerPreferredLayer = vi.fn().mockResolvedValue(undefined);
+    setConsumerPreferredLayer = vi.fn().mockResolvedValue(true);
     pauseConsumer = vi.fn().mockResolvedValue(true);
     resumeConsumer = vi.fn().mockResolvedValue(true);
     TestBed.configureTestingModule({
@@ -116,9 +116,11 @@ describe('RemoteVideoViewService', () => {
     const order: string[] = [];
     setConsumerPreferredLayer.mockImplementation(async () => {
       order.push('layer');
+      return true;
     });
     resumeConsumer.mockImplementation(async () => {
       order.push('resume');
+      return true;
     });
     service.registerView('c1', { clientHeight: 200 } as HTMLElement);
     show(0);
@@ -201,6 +203,49 @@ describe('RemoteVideoViewService', () => {
     resolvePause(true);
     await vi.advanceTimersByTimeAsync(0);
     expect(resumeConsumer).toHaveBeenCalledWith('c1');
+  });
+
+  it('sends a newer layer only after the in-flight request settles', async () => {
+    addConsumer('c1');
+    let resolveLayer: (accepted: boolean) => void = () => undefined;
+    setConsumerPreferredLayer.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        resolveLayer = resolve;
+      }),
+    );
+    service.registerView('c1', { clientHeight: 200 } as HTMLElement);
+    show(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledTimes(1);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledWith('c1', 0);
+
+    setConsumerPreferredLayer.mockClear();
+    setConsumerPreferredLayer.mockResolvedValue(true);
+    service.setQuality('source');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(setConsumerPreferredLayer).not.toHaveBeenCalled();
+
+    resolveLayer(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledTimes(1);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledWith('c1', 2);
+  });
+
+  it('retries a rejected layer while the view stays visible', async () => {
+    addConsumer('c1');
+    service.registerView('c1', { clientHeight: 200 } as HTMLElement);
+    show(0);
+    await vi.advanceTimersByTimeAsync(300);
+    setConsumerPreferredLayer.mockClear();
+    setConsumerPreferredLayer.mockResolvedValue(false);
+
+    service.setQuality('source');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledTimes(1);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledWith('c1', 2);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(setConsumerPreferredLayer).toHaveBeenCalledTimes(2);
   });
 
   it('retries a failed pause while the view stays hidden', async () => {

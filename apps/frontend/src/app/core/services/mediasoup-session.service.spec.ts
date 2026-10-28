@@ -1379,14 +1379,18 @@ describe('MediasoupSessionService', () => {
 
   it('emits set-consumer-layers and warns when the ack fails', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await service.setConsumerPreferredLayer('c1', 1);
+    await expect(service.setConsumerPreferredLayer('c1', 1)).resolves.toBe(
+      true,
+    );
     expect(emitWithAck).toHaveBeenCalledWith(
       EVoiceRoomEvent.SET_CONSUMER_LAYERS,
       { consumerId: 'c1', spatialLayer: 1 },
     );
 
     emitWithAck.mockRejectedValueOnce(new Error('nope'));
-    await service.setConsumerPreferredLayer('c1', 2);
+    await expect(service.setConsumerPreferredLayer('c1', 2)).resolves.toBe(
+      false,
+    );
     expect(warn).toHaveBeenCalled();
   });
 });

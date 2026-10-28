@@ -32,12 +32,17 @@ export class RemoteVideoViewService implements OnDestroy {
   public readonly quality = this._quality.asReadonly();
 
   private readonly views = new Map<string, Set<TRegisteredView>>();
-  private readonly lastSent = new Map<string, number>();
+  private readonly confirmedLayer = new Map<string, number>();
+  private readonly layerEpoch = new Map<string, number>();
   private readonly pauseTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
   >();
   private readonly playbackRetryTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly layerRetryTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
   >();
@@ -79,6 +84,10 @@ export class RemoteVideoViewService implements OnDestroy {
       clearTimeout(timer);
     }
     this.playbackRetryTimers.clear();
+    for (const timer of this.layerRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.layerRetryTimers.clear();
   }
 
   public setQuality(mode: TViewerQualityMode): void {
@@ -141,6 +150,7 @@ export class RemoteVideoViewService implements OnDestroy {
   private dropConsumer(consumerId: string): void {
     this.clearPauseTimer(consumerId);
     this.clearPlaybackRetry(consumerId);
+    this.clearLayerRetry(consumerId);
     const set = this.views.get(consumerId);
     if (set) {
       for (const view of set) {
@@ -149,7 +159,8 @@ export class RemoteVideoViewService implements OnDestroy {
       }
     }
     this.views.delete(consumerId);
-    this.lastSent.delete(consumerId);
+    this.confirmedLayer.delete(consumerId);
+    this.layerEpoch.delete(consumerId);
     this.watched.delete(consumerId);
   }
 
@@ -173,6 +184,7 @@ export class RemoteVideoViewService implements OnDestroy {
         ]);
     for (const id of ids) {
       this.clearPlaybackRetry(id);
+      this.clearLayerRetry(id);
       if (this.isWanted(id)) {
         this.clearPauseTimer(id);
         this.enqueue(id, () => this.resumeIfWanted(id));
@@ -290,42 +302,87 @@ export class RemoteVideoViewService implements OnDestroy {
       if (!this.isWanted(consumerId)) {
         continue;
       }
-      void this.sendLayer(consumerId);
+      this.enqueue(consumerId, () => this.sendLayer(consumerId));
     }
   }
 
-  private async sendLayer(consumerId: string): Promise<void> {
+  private desiredLayer(consumerId: string): number | null {
     const sourceHeight = this.consumerRegistry.getSourceHeight(consumerId);
     const layerCount = this.consumerRegistry.getLayerCount(consumerId);
     if (sourceHeight == null || layerCount < 2) {
-      return;
+      return null;
     }
     const views = this.views.get(consumerId);
     if (!views || views.size === 0) {
-      return;
+      return null;
     }
     const layerHeights = getLayerHeights(sourceHeight, layerCount);
     const tileHeight = Math.max(
       ...[...views].map((view) => (view.intersecting ? view.height : 0)),
     );
     const mode = this._quality();
-    const desired =
-      mode === 'auto'
-        ? pickAutoLayer({
-            tilePixelHeight: tileHeight * (globalThis.devicePixelRatio || 1),
-            layerHeights,
-            current: this.lastSent.get(consumerId),
-          })
-        : pickFixedLayer(mode, layerHeights);
-    if (this.lastSent.get(consumerId) === desired) {
+    return mode === 'auto'
+      ? pickAutoLayer({
+          tilePixelHeight: tileHeight * (globalThis.devicePixelRatio || 1),
+          layerHeights,
+          current: this.confirmedLayer.get(consumerId),
+        })
+      : pickFixedLayer(mode, layerHeights);
+  }
+
+  private async sendLayer(consumerId: string): Promise<void> {
+    const epoch = (this.layerEpoch.get(consumerId) ?? 0) + 1;
+    this.layerEpoch.set(consumerId, epoch);
+    const desired = this.desiredLayer(consumerId);
+    if (desired == null || this.destroyed) {
       return;
     }
-    this.lastSent.set(consumerId, desired);
+    if (this.confirmedLayer.get(consumerId) === desired) {
+      return;
+    }
     const session = this.session();
     if (!session) {
       return;
     }
-    await session.setConsumerPreferredLayer(consumerId, desired);
+    const accepted = await session.setConsumerPreferredLayer(
+      consumerId,
+      desired,
+    );
+    if (this.layerEpoch.get(consumerId) !== epoch || this.destroyed) {
+      return;
+    }
+    if (!accepted) {
+      if (this.isWanted(consumerId)) {
+        this.scheduleLayerRetry(consumerId);
+      }
+      return;
+    }
+    this.confirmedLayer.set(consumerId, desired);
+  }
+
+  private scheduleLayerRetry(consumerId: string): void {
+    if (this.layerRetryTimers.has(consumerId) || this.destroyed) {
+      return;
+    }
+    this.layerRetryTimers.set(
+      consumerId,
+      setTimeout(() => {
+        this.layerRetryTimers.delete(consumerId);
+        if (this.destroyed || !this.isWanted(consumerId)) {
+          return;
+        }
+        this.enqueue(consumerId, () => this.sendLayer(consumerId));
+      }, RECONCILE_MS),
+    );
+  }
+
+  private clearLayerRetry(consumerId: string): void {
+    const timer = this.layerRetryTimers.get(consumerId);
+    if (timer === undefined) {
+      return;
+    }
+    clearTimeout(timer);
+    this.layerRetryTimers.delete(consumerId);
   }
 
   private session(): MediasoupSessionService | null {
