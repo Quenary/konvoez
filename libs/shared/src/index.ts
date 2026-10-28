@@ -23,5 +23,6 @@ export * from './desktop';
 export * from './errors';
 export * from './mentions';
 export * from './room-access';
+export * from './notification-topic';
 export * from './voice-adaptation';
 export * from './voice-connection';

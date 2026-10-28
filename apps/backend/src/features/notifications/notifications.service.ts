@@ -7,6 +7,9 @@ import {
   ApiErrorCode,
   DEFAULT_USER_NOTIFICATION_SETTINGS,
   ESettingKey,
+  buildCallNotificationTopic,
+  buildMessageNotificationTopic,
+  buildReactionNotificationTopic,
   pushNotificationBodyMaxLength,
   shouldDeliverMentionNotification,
   toVapidSubject,
@@ -25,10 +28,12 @@ import {
   type TTextRoomMentionCreatedPayload,
   type TTextRoomReactionAddedPayload,
   type TTextRoomReplyCreatedPayload,
+  type TTextRoomsDomainPayloadMap,
 } from '../text-rooms/text-rooms.events';
 import {
   VoiceRoomsDomainEvents,
   type TVoiceRoomDirectCallIncomingPayload,
+  type TVoiceRoomsDomainPayloadMap,
 } from '../voice-rooms/voice-rooms.events';
 import { GetUserSafeDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
@@ -371,6 +376,20 @@ export class NotificationsService implements OnModuleDestroy {
       },
     });
 
+    const topic = payload.topic ?? payload.tag;
+    const requestOptions: webPush.RequestOptions = {
+      vapidDetails: {
+        subject,
+        publicKey: keys.publicKey,
+        privateKey: keys.privateKey,
+      },
+      TTL: 2419200,
+      urgency: 'high',
+    };
+    if (topic) {
+      requestOptions.topic = topic;
+    }
+
     await Promise.all(
       subscriptions.map(async (subscription) => {
         try {
@@ -383,13 +402,7 @@ export class NotificationsService implements OnModuleDestroy {
               },
             },
             notificationPayload,
-            {
-              vapidDetails: {
-                subject,
-                publicKey: keys.publicKey,
-                privateKey: keys.privateKey,
-              },
-            },
+            requestOptions,
           );
 
           subscription.lastUsedAt = new Date();
@@ -401,6 +414,94 @@ export class NotificationsService implements OnModuleDestroy {
 
           this.logger.error(
             'Push notification delivery failed',
+            error instanceof Error ? error.stack : String(error),
+          );
+        }
+      }),
+    );
+
+    await em.flush();
+  }
+
+  public async dismiss(
+    userId: number,
+    dismissal: {
+      tag: string;
+      topic?: string;
+      messageId?: string;
+    },
+  ): Promise<void> {
+    emitNotificationsDomainEvent(
+      this.eventEmitter,
+      NotificationsDomainEvents.DISMISS,
+      { userId, ...dismissal },
+    );
+    await this.sendWebPushDismiss(userId, dismissal);
+  }
+
+  private async sendWebPushDismiss(
+    userId: number,
+    dismissal: {
+      tag: string;
+      topic?: string;
+      messageId?: string;
+    },
+  ): Promise<void> {
+    const subject = await this.resolveVapidSubject();
+    if (!subject) {
+      return;
+    }
+
+    const em = this.em.fork();
+    const subscriptions = await this.getSubscriptionsForUser(userId, em);
+    if (subscriptions.length === 0) {
+      return;
+    }
+
+    const keys = this.ensureVapidKeys();
+    const topic = dismissal.topic ?? dismissal.tag;
+
+    const payload = JSON.stringify({
+      action: 'dismiss',
+      tag: dismissal.tag,
+      messageId: dismissal.messageId,
+    });
+
+    const requestOptions: webPush.RequestOptions = {
+      vapidDetails: {
+        subject,
+        publicKey: keys.publicKey,
+        privateKey: keys.privateKey,
+      },
+      topic,
+      TTL: 0,
+      urgency: 'normal',
+    };
+
+    await Promise.all(
+      subscriptions.map(async (subscription) => {
+        try {
+          await webPush.sendNotification(
+            {
+              endpoint: subscription.endpoint,
+              keys: {
+                auth: subscription.auth,
+                p256dh: subscription.p256dh,
+              },
+            },
+            payload,
+            requestOptions,
+          );
+
+          subscription.lastUsedAt = new Date();
+        } catch (error) {
+          if (isUnsubscribablePushError(error)) {
+            subscription.isActive = false;
+            return;
+          }
+
+          this.logger.error(
+            'Push notification dismissal delivery failed',
             error instanceof Error ? error.stack : String(error),
           );
         }
@@ -427,11 +528,13 @@ export class NotificationsService implements OnModuleDestroy {
       return;
     }
 
+    const topic = buildMessageNotificationTopic(messageId);
     const url = `/direct/${senderId}`;
     await this.deliver(recipientId, {
       title: senderUsername,
       body,
-      tag: `direct:${senderId}`,
+      tag: topic,
+      topic,
       data: {
         type: 'direct-message',
         messageId,
@@ -459,11 +562,13 @@ export class NotificationsService implements OnModuleDestroy {
       return;
     }
 
+    const topic = buildCallNotificationTopic(callId);
     const url = `/direct/${callerId}`;
     await this.deliver(recipientId, {
       title: callerUsername,
       body: 'Входящий голосовой звонок...',
-      tag: `call:${callId}`,
+      tag: topic,
+      topic,
       data: {
         type: 'direct-call',
         callId,
@@ -505,6 +610,7 @@ export class NotificationsService implements OnModuleDestroy {
       return;
     }
 
+    const topic = buildMessageNotificationTopic(payload.messageId);
     const title = `${payload.senderUsername} · #${payload.roomName}`;
     const url = `/text-room/${payload.roomId}?message=${payload.messageId}`;
 
@@ -513,7 +619,8 @@ export class NotificationsService implements OnModuleDestroy {
         this.deliver(recipient.userId, {
           title,
           body,
-          tag: `mention:${payload.messageId}`,
+          tag: topic,
+          topic,
           data: {
             type: 'mention',
             roomId: payload.roomId,
@@ -550,13 +657,15 @@ export class NotificationsService implements OnModuleDestroy {
       return;
     }
 
+    const topic = buildMessageNotificationTopic(payload.messageId);
     const title = `${payload.senderUsername} · #${payload.roomName}`;
     const url = `/text-room/${payload.roomId}?message=${payload.messageId}`;
 
     await this.deliver(payload.recipientId, {
       title,
       body,
-      tag: `reply:${payload.messageId}`,
+      tag: topic,
+      topic,
       data: {
         type: 'reply',
         roomId: payload.roomId,
@@ -591,6 +700,10 @@ export class NotificationsService implements OnModuleDestroy {
       ? `${payload.emoji} ${plain}`.slice(0, pushNotificationBodyMaxLength)
       : payload.emoji;
 
+    const topic = buildReactionNotificationTopic(
+      payload.messageId,
+      payload.senderId,
+    );
     const title = payload.roomName
       ? `${payload.senderUsername} · #${payload.roomName}`
       : payload.senderUsername;
@@ -601,7 +714,8 @@ export class NotificationsService implements OnModuleDestroy {
     await this.deliver(payload.recipientId, {
       title,
       body,
-      tag: `reaction:${payload.messageId}`,
+      tag: topic,
+      topic,
       data: {
         type: 'reaction',
         roomId: payload.roomId ?? undefined,
@@ -694,6 +808,88 @@ export class NotificationsService implements OnModuleDestroy {
     } catch (error: unknown) {
       this.logger.error(
         'Failed to send direct call push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  @OnEvent(VoiceRoomsDomainEvents.DIRECT_CALL_ENDED)
+  async onDirectCallEnded(
+    payload: TVoiceRoomsDomainPayloadMap[typeof VoiceRoomsDomainEvents.DIRECT_CALL_ENDED],
+  ): Promise<void> {
+    try {
+      const topic = buildCallNotificationTopic(payload.callId);
+      await this.dismiss(payload.recipientId, {
+        tag: topic,
+        topic,
+        messageId: payload.callId,
+      });
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to dismiss direct call push notification',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_DELETED)
+  async onMessageDeleted(
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_DELETED],
+  ): Promise<void> {
+    try {
+      const topic = buildMessageNotificationTopic(payload.id);
+      const recipientIds = payload.recipientUserIds ?? [];
+      const dismissals: Promise<void>[] = recipientIds.map((userId) =>
+        this.dismiss(userId, {
+          tag: topic,
+          topic,
+          messageId: payload.id,
+        }),
+      );
+      if (payload.senderId) {
+        dismissals.push(
+          this.dismiss(payload.senderId, {
+            tag: topic,
+            topic,
+            messageId: payload.id,
+          }),
+        );
+        for (const reactorId of payload.reactionSenderIds ?? []) {
+          const rxTopic = buildReactionNotificationTopic(payload.id, reactorId);
+          dismissals.push(
+            this.dismiss(payload.senderId, {
+              tag: rxTopic,
+              topic: rxTopic,
+              messageId: payload.id,
+            }),
+          );
+        }
+      }
+      await Promise.allSettled(dismissals);
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to process message deletion notifications',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  @OnEvent(TextRoomsDomainEvents.REACTION_REMOVED)
+  async onReactionRemoved(
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.REACTION_REMOVED],
+  ): Promise<void> {
+    try {
+      const topic = buildReactionNotificationTopic(
+        payload.messageId,
+        payload.senderId,
+      );
+      await this.dismiss(payload.recipientId, {
+        tag: topic,
+        topic,
+      });
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to process reaction removal notification',
         error instanceof Error ? error.stack : String(error),
       );
     }

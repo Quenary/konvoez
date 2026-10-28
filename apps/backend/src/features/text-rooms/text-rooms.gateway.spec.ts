@@ -339,10 +339,14 @@ describe('TextRoomsGateway', () => {
     );
   });
 
-  it('should emit MESSAGE_DELETED in onMessageDeleted', () => {
+  it('should emit MESSAGE_DELETED in onMessageDeleted stripping internal fields', () => {
     const id = v7();
 
-    gateway.onMessageDeleted({ id });
+    gateway.onMessageDeleted({
+      id,
+      recipientUserIds: [2, 3],
+      senderId: 1,
+    });
 
     expect(serverMock.emit).toHaveBeenCalledWith(
       ETextRoomEvent.MESSAGE_DELETED,

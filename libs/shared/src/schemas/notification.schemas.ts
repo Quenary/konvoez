@@ -47,7 +47,14 @@ export const pushNotificationPayloadSchema = z.object({
   body: z.string().min(1).max(pushNotificationBodyMaxLength),
   icon: z.union([z.url(), z.literal('')]).optional(),
   tag: z.string().optional(),
+  topic: z.string().max(32).optional(),
   data: pushNotificationDataSchema.optional(),
+});
+
+export const notificationDismissPayloadSchema = z.object({
+  tag: z.string(),
+  topic: z.string().max(32).optional(),
+  messageId: z.string().optional(),
 });
 
 export const userNotificationMentionsSettingsSchema = z.object({
@@ -87,6 +94,9 @@ export type TPushNotificationData = z.infer<typeof pushNotificationDataSchema>;
 export type TPushNotificationPayload = z.infer<
   typeof pushNotificationPayloadSchema
 >;
+export type TNotificationsDismissPayload = z.infer<
+  typeof notificationDismissPayloadSchema
+>;
 
 export type TUserNotificationMentionsSettings = z.infer<
   typeof userNotificationMentionsSettingsSchema
@@ -122,6 +132,7 @@ export type TMentionRecipient = {
 
 export type TNotificationsEventPayloadMap = {
   [ENotificationsEvent.NOTIFICATION]: TPushNotificationPayload;
+  [ENotificationsEvent.NOTIFICATION_DISMISS]: TNotificationsDismissPayload;
 };
 
 export type TNotificationsEventMap = {

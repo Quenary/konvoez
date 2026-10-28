@@ -1752,6 +1752,10 @@ describe('VoiceRoomsGateway', () => {
         EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
         { callId: 'c1', outcome: 'accepted' },
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        { callId: 'c1', callerId: alice.id, recipientId: bob.id },
+      );
     });
 
     it('rejects accept when the call is missing', () => {
@@ -1797,6 +1801,10 @@ describe('VoiceRoomsGateway', () => {
       expect(elsewhereEmit).toHaveBeenCalledWith(
         EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
         { callId: 'c1', outcome: 'rejected' },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        { callId: 'c1', callerId: alice.id, recipientId: bob.id },
       );
     });
 
@@ -1861,6 +1869,10 @@ describe('VoiceRoomsGateway', () => {
           callId: 'c1',
           byUserId: alice.id,
         },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        { callId: 'c1', callerId: alice.id, recipientId: bob.id },
       );
     });
 

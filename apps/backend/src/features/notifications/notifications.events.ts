@@ -3,6 +3,7 @@ import { createDomainEventEmitter } from '@shared/events';
 
 export const NotificationsDomainEvents = {
   DELIVER: 'notifications.deliver',
+  DISMISS: 'notifications.dismiss',
 } as const;
 
 export type TNotificationsDomainEvent =
@@ -13,8 +14,16 @@ export type INotificationDeliverPayload = {
   payload: TPushNotificationPayload;
 };
 
+export type INotificationDismissPayload = {
+  userId: number;
+  tag: string;
+  topic?: string;
+  messageId?: string;
+};
+
 export type TNotificationsDomainPayloadMap = {
   [NotificationsDomainEvents.DELIVER]: INotificationDeliverPayload;
+  [NotificationsDomainEvents.DISMISS]: INotificationDismissPayload;
 };
 
 export const emitNotificationsDomainEvent =

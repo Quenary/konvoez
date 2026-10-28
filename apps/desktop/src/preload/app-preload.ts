@@ -21,6 +21,9 @@ const bridge: IKonvoezDesktopBridge = {
   notify: (payload: TPushNotificationPayload) => {
     ipcRenderer.send(EDesktopIpc.NOTIFY, payload);
   },
+  dismissNotification: (payload: { tag?: string; messageId?: string }) => {
+    ipcRenderer.send(EDesktopIpc.DISMISS_NOTIFICATION, payload);
+  },
   setVoiceState: (state: TDesktopVoiceState) => {
     ipcRenderer.send(EDesktopIpc.SET_VOICE_STATE, state);
   },

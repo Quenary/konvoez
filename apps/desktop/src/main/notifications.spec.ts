@@ -109,4 +109,111 @@ describe('NotificationManager', () => {
     manager.show({ title: 'Alice', body: 'Msg 2', tag: 'direct:1' }, null);
     expect(firstClose).toHaveBeenCalledTimes(1);
   });
+
+  it('closes active notification by tag', () => {
+    const close = vi.fn();
+    class MockNotification {
+      static isSupported = vi.fn().mockReturnValue(true);
+      show = vi.fn();
+      close = close;
+      on = vi.fn();
+      constructor(public options: unknown) {}
+    }
+
+    const manager = new NotificationManager(
+      MockNotification as unknown as typeof Notification,
+    );
+
+    manager.show({ title: 'Alice', body: 'Msg 1', tag: 'msg_123' }, null);
+    expect(close).not.toHaveBeenCalled();
+
+    manager.close('msg_123');
+    expect(close).toHaveBeenCalledTimes(1);
+
+    // Closing a non-existent or already closed tag is safe no-op
+    manager.close('msg_123');
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes active notifications by messageId', () => {
+    const msgClose = vi.fn();
+    const rxClose = vi.fn();
+
+    let count = 0;
+    class MockNotification {
+      static isSupported = vi.fn().mockReturnValue(true);
+      show = vi.fn();
+      close = count++ === 0 ? msgClose : rxClose;
+      on = vi.fn();
+      constructor(public options: unknown) {}
+    }
+
+    const manager = new NotificationManager(
+      MockNotification as unknown as typeof Notification,
+    );
+
+    manager.show(
+      {
+        title: 'Alice',
+        body: 'Msg',
+        tag: 'msg_1',
+        data: { messageId: 'm-123' },
+      },
+      null,
+    );
+    manager.show(
+      {
+        title: 'Bob',
+        body: '👍',
+        tag: 'rx_1_2',
+        data: { messageId: 'm-123' },
+      },
+      null,
+    );
+
+    manager.closeByMessageId('m-123');
+    expect(msgClose).toHaveBeenCalledTimes(1);
+    expect(rxClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes only the tagged notification when a dismiss includes both tag and messageId', () => {
+    const msgClose = vi.fn();
+    const rxClose = vi.fn();
+
+    let count = 0;
+    class MockNotification {
+      static isSupported = vi.fn().mockReturnValue(true);
+      show = vi.fn();
+      close = count++ === 0 ? msgClose : rxClose;
+      on = vi.fn();
+      constructor(public options: unknown) {}
+    }
+
+    const manager = new NotificationManager(
+      MockNotification as unknown as typeof Notification,
+    );
+
+    manager.show(
+      {
+        title: 'Alice',
+        body: 'Msg',
+        tag: 'msg_1',
+        data: { messageId: 'm-123' },
+      },
+      null,
+    );
+    manager.show(
+      {
+        title: 'Bob',
+        body: '👍',
+        tag: 'rx_1_2',
+        data: { messageId: 'm-123' },
+      },
+      null,
+    );
+
+    manager.dismiss({ tag: 'rx_1_2', messageId: 'm-123' });
+    expect(msgClose).not.toHaveBeenCalled();
+    expect(rxClose).toHaveBeenCalledTimes(1);
+  });
 });

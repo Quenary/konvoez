@@ -18,6 +18,7 @@ export const TextRoomsDomainEvents = {
   MENTION_CREATED: 'text-room.mention.created',
   REPLY_CREATED: 'text-room.reply.created',
   REACTION_ADDED: 'text-room.reaction.added',
+  REACTION_REMOVED: 'text-room.reaction.removed',
 } as const;
 
 export type TTextRoomsDomainEvent =
@@ -62,10 +63,22 @@ export type TTextRoomReactionAddedPayload = {
   messagePreview: string;
 };
 
+export type TTextRoomReactionRemovedPayload = {
+  recipientId: number;
+  senderId: number;
+  messageId: string;
+  roomId?: number | null;
+};
+
 export type TTextRoomsDomainPayloadMap = {
   [TextRoomsDomainEvents.MESSAGE_CREATED]: ITextRoomMessage;
   [TextRoomsDomainEvents.MESSAGE_UPDATED]: ITextRoomMessage;
-  [TextRoomsDomainEvents.MESSAGE_DELETED]: { id: string };
+  [TextRoomsDomainEvents.MESSAGE_DELETED]: {
+    id: string;
+    recipientUserIds?: number[];
+    senderId?: number;
+    reactionSenderIds?: number[];
+  };
   [TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED]: TTextRoomReactionUpdated;
   [TextRoomsDomainEvents.MESSAGES_READ]: TTextRoomMessagesRead;
   [TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED]: {
@@ -76,6 +89,7 @@ export type TTextRoomsDomainPayloadMap = {
   [TextRoomsDomainEvents.MENTION_CREATED]: TTextRoomMentionCreatedPayload;
   [TextRoomsDomainEvents.REPLY_CREATED]: TTextRoomReplyCreatedPayload;
   [TextRoomsDomainEvents.REACTION_ADDED]: TTextRoomReactionAddedPayload;
+  [TextRoomsDomainEvents.REACTION_REMOVED]: TTextRoomReactionRemovedPayload;
 };
 
 export const emitTextRoomsDomainEvent =

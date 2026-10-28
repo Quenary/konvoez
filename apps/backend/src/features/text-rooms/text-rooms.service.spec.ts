@@ -1674,7 +1674,62 @@ describe('TextRoomsService', () => {
       expect(em.flush).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         TextRoomsDomainEvents.MESSAGE_DELETED,
-        { id: msgId },
+        expect.objectContaining({ id: msgId }),
+      );
+    });
+
+    it('should collect recipientUserIds for DM recipient, replyTo sender, and mentions on delete', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: { id: 2 },
+        replyTo: { sender: { id: 3 } },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageMentionRepository.find.mockResolvedValueOnce([
+        { user: { id: 4 } } as MessageMentionEntity,
+        { user: { id: mockUser.id } } as MessageMentionEntity, // self-mention should be skipped
+      ]);
+
+      await service.delete(mockUser, msgId);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_DELETED,
+        expect.objectContaining({
+          id: msgId,
+          recipientUserIds: expect.arrayContaining([2, 3, 4]),
+          senderId: mockUser.id,
+        }),
+      );
+    });
+
+    it('should collect reactionSenderIds on delete', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        replyTo: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageMentionRepository.find.mockResolvedValueOnce([]);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        { user: { id: 5 } } as MessageReactionEntity,
+        { user: { id: 6 } } as MessageReactionEntity,
+        { user: { id: mockUser.id } } as MessageReactionEntity,
+      ]);
+
+      await service.delete(mockUser, msgId);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_DELETED,
+        expect.objectContaining({
+          id: msgId,
+          reactionSenderIds: expect.arrayContaining([5, 6]),
+        }),
       );
     });
 
@@ -1729,7 +1784,7 @@ describe('TextRoomsService', () => {
         expect(em.flush).toHaveBeenCalled();
         expect(eventEmitter.emit).toHaveBeenCalledWith(
           TextRoomsDomainEvents.MESSAGE_DELETED,
-          { id: msgId },
+          expect.objectContaining({ id: msgId }),
         );
       },
     );
@@ -2398,6 +2453,41 @@ describe('TextRoomsService', () => {
         }),
       );
       expect(result).toEqual([]);
+    });
+
+    it('should emit REACTION_REMOVED when removing reaction from another user message', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const message = {
+        id: rawId,
+        sender: { id: 2, username: 'other_user' },
+        recipient: null,
+        room: { id: 10, isPrivate: false },
+      } as unknown as MessageEntity;
+
+      const existingReaction = {
+        id: 1,
+        message: { id: rawId },
+        emoji: '👍',
+        user: { id: mockUser.id },
+      } as unknown as MessageReactionEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(existingReaction);
+      messageReactionRepository.find.mockResolvedValueOnce([]);
+
+      await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(em.remove).toHaveBeenCalledWith(existingReaction);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_REMOVED,
+        {
+          recipientId: 2,
+          senderId: mockUser.id,
+          messageId: msgId,
+          roomId: 10,
+        },
+      );
     });
 
     it('should replace previous reaction when different emoji is clicked (Telegram style)', async () => {

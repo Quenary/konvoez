@@ -2,8 +2,16 @@ import { Notification, type BrowserWindow } from 'electron';
 import { EDesktopIpc, type TPushNotificationPayload } from '@konvoez/shared';
 import { getAppIcon, showMainWindow } from './window';
 
+interface ActiveNotificationEntry {
+  notification: Notification;
+  messageId?: string;
+}
+
 export class NotificationManager {
-  private readonly activeNotifications = new Map<string, Notification>();
+  private readonly activeNotifications = new Map<
+    string,
+    ActiveNotificationEntry
+  >();
 
   constructor(
     private readonly notificationClass: typeof Notification = Notification,
@@ -20,7 +28,7 @@ export class NotificationManager {
     const tag = payload.tag;
     if (tag && this.activeNotifications.has(tag)) {
       try {
-        this.activeNotifications.get(tag)?.close();
+        this.activeNotifications.get(tag)?.notification.close();
       } catch {
         // ignore
       }
@@ -42,9 +50,13 @@ export class NotificationManager {
     });
 
     if (tag) {
-      this.activeNotifications.set(tag, notification);
+      const entry: ActiveNotificationEntry = {
+        notification,
+        messageId: payload.data?.messageId,
+      };
+      this.activeNotifications.set(tag, entry);
       notification.on('close', () => {
-        if (this.activeNotifications.get(tag) === notification) {
+        if (this.activeNotifications.get(tag) === entry) {
           this.activeNotifications.delete(tag);
         }
       });
@@ -54,10 +66,45 @@ export class NotificationManager {
     return notification;
   }
 
-  public clear(): void {
-    for (const n of this.activeNotifications.values()) {
+  public close(tag: string): void {
+    const entry = this.activeNotifications.get(tag);
+    if (entry) {
       try {
-        n.close();
+        entry.notification.close();
+      } catch {
+        // ignore
+      }
+      this.activeNotifications.delete(tag);
+    }
+  }
+
+  public closeByMessageId(messageId: string): void {
+    for (const [tag, entry] of this.activeNotifications.entries()) {
+      if (entry.messageId === messageId) {
+        try {
+          entry.notification.close();
+        } catch {
+          // ignore
+        }
+        this.activeNotifications.delete(tag);
+      }
+    }
+  }
+
+  public dismiss(payload: { tag?: string; messageId?: string }): void {
+    if (payload.tag) {
+      this.close(payload.tag);
+      return;
+    }
+    if (payload.messageId) {
+      this.closeByMessageId(payload.messageId);
+    }
+  }
+
+  public clear(): void {
+    for (const entry of this.activeNotifications.values()) {
+      try {
+        entry.notification.close();
       } catch {
         // ignore
       }
@@ -73,4 +120,11 @@ export function showNotification(
   win: BrowserWindow | null,
 ): void {
   defaultNotificationManager.show(payload, win);
+}
+
+export function dismissNotification(payload: {
+  tag?: string;
+  messageId?: string;
+}): void {
+  defaultNotificationManager.dismiss(payload);
 }

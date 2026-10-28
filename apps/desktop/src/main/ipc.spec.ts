@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { desktopHotkeysSchema, desktopVoiceStateSchema } from '@konvoez/shared';
+import {
+  desktopHotkeysSchema,
+  desktopNotificationDismissSchema,
+  desktopVoiceStateSchema,
+} from '@konvoez/shared';
 import { isTrustedAppSender, isTrustedLocalSender } from './ipc';
 
 describe('IPC security validation', () => {
@@ -80,6 +84,28 @@ describe('IPC security validation', () => {
         toggleSpeaker: null,
       };
       expect(desktopHotkeysSchema.safeParse(invalid).success).toBe(false);
+    });
+
+    it('desktopNotificationDismissSchema validates dismiss payload', () => {
+      expect(
+        desktopNotificationDismissSchema.safeParse({ tag: 'msg_1' }).success,
+      ).toBe(true);
+      expect(
+        desktopNotificationDismissSchema.safeParse({ messageId: 'm-1' })
+          .success,
+      ).toBe(true);
+      expect(
+        desktopNotificationDismissSchema.safeParse({
+          tag: 'msg_1',
+          messageId: 'm-1',
+        }).success,
+      ).toBe(true);
+      expect(desktopNotificationDismissSchema.safeParse({}).success).toBe(
+        false,
+      );
+      expect(
+        desktopNotificationDismissSchema.safeParse({ tag: 123 }).success,
+      ).toBe(false);
     });
   });
 });

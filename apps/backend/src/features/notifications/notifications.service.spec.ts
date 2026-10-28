@@ -31,7 +31,13 @@ jest.mock('web-push', () => ({
 import webPush from 'web-push';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  EUserRole,
+  buildCallNotificationTopic,
+  buildMessageNotificationTopic,
+  buildReactionNotificationTopic,
+} from '@konvoez/shared';
 import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
 import { NotificationsDomainEvents } from './notifications.events';
 import { TextRoomsDomainEvents } from '../text-rooms/text-rooms.events';
@@ -240,13 +246,15 @@ describe('NotificationsService', () => {
           keys: { auth: first.auth, p256dh: first.p256dh },
         },
         expect.stringContaining('"notification"'),
-        {
+        expect.objectContaining({
           vapidDetails: {
             subject: 'mailto:konvoez@invalid.email',
             publicKey: 'stored-pub',
             privateKey: 'stored-priv',
           },
-        },
+          TTL: 2419200,
+          urgency: 'high',
+        }),
       );
       expect(em.flush).toHaveBeenCalledTimes(1);
       expect(first.lastUsedAt).toBeInstanceOf(Date);
@@ -382,7 +390,9 @@ describe('NotificationsService', () => {
       const payload = JSON.parse(
         (webPush.sendNotification as jest.Mock).mock.calls[0][1],
       );
-      expect(payload.notification.tag).toBe('direct:1');
+      expect(payload.notification.tag).toBe(
+        buildMessageNotificationTopic('message-id'),
+      );
       expect(payload.notification.title).toBe('alice');
       expect(payload.notification.body).toBe('Hello there');
       expect(payload.notification.data.senderId).toBe(1);
@@ -411,7 +421,9 @@ describe('NotificationsService', () => {
       const payload = JSON.parse(
         (webPush.sendNotification as jest.Mock).mock.calls[0][1],
       );
-      expect(payload.notification.tag).toBe('call:call-123-abc');
+      expect(payload.notification.tag).toBe(
+        buildCallNotificationTopic('call-123-abc'),
+      );
       expect(payload.notification.title).toBe('alice');
       expect(payload.notification.body).toBe('Входящий голосовой звонок...');
       expect(payload.notification.data.type).toBe('direct-call');
@@ -560,6 +572,53 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('onDirectCallEnded', () => {
+    it('is registered for DIRECT_CALL_ENDED event', () => {
+      const metadata = Reflect.getMetadata(
+        EVENT_LISTENER_METADATA,
+        NotificationsService.prototype.onDirectCallEnded,
+      );
+      const events = metadata.map((m: { event: string }) => m.event);
+      expect(events).toContain(VoiceRoomsDomainEvents.DIRECT_CALL_ENDED);
+    });
+
+    it('should dismiss call notification for recipient', async () => {
+      const dismissSpy = jest.spyOn(service, 'dismiss').mockResolvedValue();
+
+      await service.onDirectCallEnded({
+        recipientId: 2,
+        callerId: 1,
+        callId: 'call-1',
+      });
+
+      const expectedTopic = buildCallNotificationTopic('call-1');
+      expect(dismissSpy).toHaveBeenCalledWith(2, {
+        tag: expectedTopic,
+        topic: expectedTopic,
+        messageId: 'call-1',
+      });
+    });
+
+    it('should catch and log error if dismissing direct call fails', async () => {
+      const error = new Error('Dismiss call failed');
+      jest.spyOn(service, 'dismiss').mockRejectedValue(error);
+      const loggerSpy = jest
+        .spyOn(service['logger'], 'error')
+        .mockImplementation();
+
+      await service.onDirectCallEnded({
+        recipientId: 2,
+        callerId: 1,
+        callId: 'call-1',
+      });
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Failed to dismiss direct call push notification',
+        error.stack,
+      );
+    });
+  });
+
   describe('sendMentionNotification', () => {
     it('should deliver notification to each recipient with mention payload', async () => {
       const deliverSpy = jest
@@ -583,7 +642,8 @@ describe('NotificationsService', () => {
       expect(deliverSpy).toHaveBeenCalledWith(2, {
         title: 'alice · #general',
         body: 'Hello @bob and @charlie',
-        tag: 'mention:msg-1',
+        tag: buildMessageNotificationTopic('msg-1'),
+        topic: buildMessageNotificationTopic('msg-1'),
         data: {
           type: 'mention',
           roomId: 10,
@@ -602,7 +662,8 @@ describe('NotificationsService', () => {
         3,
         expect.objectContaining({
           title: 'alice · #general',
-          tag: 'mention:msg-1',
+          tag: buildMessageNotificationTopic('msg-1'),
+          topic: buildMessageNotificationTopic('msg-1'),
         }),
       );
     });
@@ -921,7 +982,7 @@ describe('NotificationsService', () => {
       expect(deliverSpy).toHaveBeenCalledWith(
         3,
         expect.objectContaining({
-          tag: 'mention:msg-1',
+          tag: buildMessageNotificationTopic('msg-1'),
         }),
       );
     });
@@ -958,7 +1019,7 @@ describe('NotificationsService', () => {
       expect(deliverSpy).toHaveBeenCalledWith(
         2,
         expect.objectContaining({
-          tag: 'mention:msg-1',
+          tag: buildMessageNotificationTopic('msg-1'),
         }),
       );
     });
@@ -1018,7 +1079,7 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           title: 'alice · #general',
           body: 'Reply text',
-          tag: 'reply:msg-1',
+          tag: buildMessageNotificationTopic('msg-1'),
           data: expect.objectContaining({
             type: 'reply',
             messageId: 'msg-1',
@@ -1159,7 +1220,7 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           title: 'alice · #general',
           body: '👍 Nice message',
-          tag: 'reaction:msg-1',
+          tag: buildReactionNotificationTopic('msg-1', 1),
           data: expect.objectContaining({
             type: 'reaction',
             messageId: 'msg-1',
@@ -1202,7 +1263,7 @@ describe('NotificationsService', () => {
         expect.objectContaining({
           title: 'alice',
           body: '❤️ Direct message text',
-          tag: 'reaction:msg-dm-1',
+          tag: buildReactionNotificationTopic('msg-dm-1', 1),
           data: expect.objectContaining({
             type: 'reaction',
             messageId: 'msg-dm-1',
@@ -1312,6 +1373,112 @@ describe('NotificationsService', () => {
       });
 
       expect(emitSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('notification dismissal', () => {
+    it('should emit DISMISS domain event and send push with TTL: 0 and action: dismiss', async () => {
+      subscriptionRepository.find.mockResolvedValue([
+        {
+          endpoint: 'https://push.example/1',
+          auth: 'a1',
+          p256dh: 'p1',
+          isActive: true,
+        } as unknown as PushSubscriptionEntity,
+      ]);
+      const emitSpy = jest.spyOn(eventEmitter, 'emit');
+
+      await service.dismiss(2, {
+        tag: 'msg_test123',
+        topic: 'msg_test123',
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      });
+
+      expect(emitSpy).toHaveBeenCalledWith(
+        NotificationsDomainEvents.DISMISS,
+        expect.objectContaining({
+          userId: 2,
+          tag: 'msg_test123',
+          topic: 'msg_test123',
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        }),
+      );
+
+      expect(webPush.sendNotification).toHaveBeenCalledWith(
+        expect.anything(),
+        JSON.stringify({
+          action: 'dismiss',
+          tag: 'msg_test123',
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        }),
+        expect.objectContaining({
+          topic: 'msg_test123',
+          TTL: 0,
+        }),
+      );
+    });
+
+    it('handles MESSAGE_DELETED domain event and calls dismiss for each recipient and sender', async () => {
+      const dismissSpy = jest
+        .spyOn(service, 'dismiss')
+        .mockResolvedValue(undefined);
+
+      await service.onMessageDeleted({
+        id: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        recipientUserIds: [2, 3],
+        senderId: 1,
+        reactionSenderIds: [5],
+      });
+
+      const expectedTopic = buildMessageNotificationTopic(
+        '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      );
+      const expectedRxTopic = buildReactionNotificationTopic(
+        '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        5,
+      );
+      expect(dismissSpy).toHaveBeenCalledWith(2, {
+        tag: expectedTopic,
+        topic: expectedTopic,
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      });
+      expect(dismissSpy).toHaveBeenCalledWith(3, {
+        tag: expectedTopic,
+        topic: expectedTopic,
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      });
+      expect(dismissSpy).toHaveBeenCalledWith(1, {
+        tag: expectedTopic,
+        topic: expectedTopic,
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      });
+      expect(dismissSpy).toHaveBeenCalledWith(1, {
+        tag: expectedRxTopic,
+        topic: expectedRxTopic,
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      });
+    });
+
+    it('handles REACTION_REMOVED domain event and delegates to dismiss with reaction topic', async () => {
+      const dismissSpy = jest
+        .spyOn(service, 'dismiss')
+        .mockResolvedValue(undefined);
+
+      await service.onReactionRemoved({
+        recipientId: 2,
+        senderId: 1,
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        roomId: 10,
+      });
+
+      const expectedTopic = buildReactionNotificationTopic(
+        '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        1,
+      );
+      expect(dismissSpy).toHaveBeenCalledWith(2, {
+        tag: expectedTopic,
+        topic: expectedTopic,
+      });
     });
   });
 });

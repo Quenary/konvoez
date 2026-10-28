@@ -1,6 +1,7 @@
 import { socketReconnected$ } from '@shared/functions/socket-reconnected.function';
 import { computed, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { closeLocalNotifications } from '@core/services/push-notification.service';
 import { TextRoomSocketToken } from '@core/tokens/text-room-socket.token';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
@@ -1140,6 +1141,7 @@ export const ChatStore = signalStore(
       fromEvent<{ id: string }>(emitter, ETextRoomEvent.MESSAGE_DELETED)
         .pipe(takeUntilDestroyed())
         .subscribe(({ id }) => {
+          void closeLocalNotifications({ messageId: id });
           if (!store.entityMap()[id]) {
             return;
           }

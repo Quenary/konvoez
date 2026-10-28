@@ -51,6 +51,11 @@ export class DesktopBridgeService {
     };
     socket.on(ENotificationsEvent.NOTIFICATION, onNotification);
 
+    const onDismiss = (payload: { tag?: string; messageId?: string }) => {
+      bridge.dismissNotification?.(payload);
+    };
+    socket.on(ENotificationsEvent.NOTIFICATION_DISMISS, onDismiss);
+
     const off = bridge.onCommand(async (command) => {
       switch (command) {
         case EDesktopCommand.TOGGLE_MIC:
@@ -76,6 +81,7 @@ export class DesktopBridgeService {
     this.destroyRef.onDestroy(() => {
       off();
       socket.off(ENotificationsEvent.NOTIFICATION, onNotification);
+      socket.off(ENotificationsEvent.NOTIFICATION_DISMISS, onDismiss);
     });
   }
 

@@ -40,6 +40,30 @@ flowchart TD
 
 When one message triggers several notification topics for a recipient (for example a mention and a reply, or multiple mentions), the recipient is notified once if at least one of the matching topics is enabled. The notification is suppressed only when all matching topics are disabled.
 
+## Notification dismissal and replacement
+
+Notifications are automatically dismissed or replaced when the underlying trigger is removed:
+
+- **Message deleted**: Open notifications for the deleted message are dismissed across all recipients.
+- **Reaction removed**: The reaction notification is dismissed for the message author.
+- **Direct call ended**: Incoming call notifications are dismissed once answered, rejected, or timed out.
+
+### Dismissal flow
+
+```mermaid
+flowchart TD
+  Event[Message deleted or reaction removed] --> Server[Server generates dismiss event]
+  Server --> WebPush[Web Push: TTL 0 with topic]
+  Server --> Socket[WebSocket: notification.dismiss]
+  WebPush --> SW[Service Worker closes matching notification]
+  Socket --> Desktop[Desktop bridge closes native notification]
+  Socket --> Client[Active web client closes local notification]
+```
+
+- **Web Push**: Outbound push notifications use deterministic RFC 8030 topic identifiers (`msg_*`, `rx_*`, `call_*`). When dismissing, a push message with `TTL: 0` and the same topic instructs push services to discard pending deliveries, while service workers close any matching displayed notifications.
+- **Desktop**: The desktop client tracks native notifications and closes them upon receiving a dismissal event over IPC.
+- **Web App**: An open tab closes the displayed notification with the same tag. Deleting a message closes every displayed notification for that message.
+
 ## Scope of the settings
 
 The settings affect only outbound push and desktop notifications. Message delivery inside the app, unread counts and mention badges do not depend on them.

@@ -1,6 +1,7 @@
 import {
   EDesktopIpc,
   desktopHotkeysSchema,
+  desktopNotificationDismissSchema,
   desktopNotificationSchema,
   desktopVoiceStateSchema,
   type TDesktopHotkeys,
@@ -16,7 +17,7 @@ import {
 } from 'electron';
 import type { ConfigStore, TDesktopConfig } from './config-store';
 import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
-import { showNotification } from './notifications';
+import { dismissNotification, showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
 import { getScreenShareAudio } from './display-media';
 import {
@@ -112,6 +113,24 @@ export function registerIpc(
       showNotification(parsed.data as TPushNotificationPayload, win);
     }
   });
+
+  ipcMain.on(
+    EDesktopIpc.DISMISS_NOTIFICATION,
+    (event: IpcMainEvent, rawPayload: unknown) => {
+      if (!validateAppSender(event, configStore)) {
+        return;
+      }
+      const parsed = desktopNotificationDismissSchema.safeParse(rawPayload);
+      if (!parsed.success) {
+        console.warn(
+          '[IPC] Invalid dismiss notification payload:',
+          parsed.error,
+        );
+        return;
+      }
+      dismissNotification(parsed.data);
+    },
+  );
 
   ipcMain.on(
     EDesktopIpc.SET_VOICE_STATE,

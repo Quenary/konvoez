@@ -1136,9 +1136,10 @@ export class TextRoomsService {
   }
 
   async delete(user: GetUserSafeDto, messageId: string): Promise<void> {
+    const rawId = parse(messageId);
     const message = await this.messageRepository.findOne(
-      { id: parse(messageId) },
-      { populate: ['sender'] },
+      { id: rawId },
+      { populate: ['sender', 'recipient', 'replyTo.sender'] },
     );
 
     if (!message) {
@@ -1163,13 +1164,55 @@ export class TextRoomsService {
       );
     }
 
+    const recipientUserIds = new Set<number>();
+    if (message.recipient?.id) {
+      recipientUserIds.add(message.recipient.id);
+    }
+    if (
+      message.replyTo?.sender?.id &&
+      message.replyTo.sender.id !== message.sender.id
+    ) {
+      recipientUserIds.add(message.replyTo.sender.id);
+    }
+
+    const mentions = await this.messageMentionRepository.find(
+      { message: message.id },
+      { populate: ['user'] },
+    );
+    for (const mention of mentions) {
+      if (mention.user?.id && mention.user.id !== message.sender.id) {
+        recipientUserIds.add(mention.user.id);
+      }
+    }
+
+    const senderId = message.sender.id;
+
+    const reactions = await this.messageReactionRepository.find(
+      { message: message.id },
+      { populate: ['user'] },
+    );
+    const reactionSenderIds = Array.from(
+      new Set(
+        reactions
+          .map((r) => r.user?.id)
+          .filter(
+            (id): id is number => typeof id === 'number' && id !== senderId,
+          ),
+      ),
+    );
+
     this.em.remove(message);
     await this.em.flush();
 
     emitTextRoomsDomainEvent(
       this.eventEmitter,
       TextRoomsDomainEvents.MESSAGE_DELETED,
-      { id: messageId },
+      {
+        id: messageId,
+        recipientUserIds: Array.from(recipientUserIds),
+        senderId,
+        reactionSenderIds,
+      },
     );
   }
 
@@ -1492,9 +1535,11 @@ export class TextRoomsService {
     });
 
     let isAdded = false;
+    let isRemoved = false;
     if (existingReaction) {
       if (existingReaction.emoji === emoji) {
         this.em.remove(existingReaction);
+        isRemoved = true;
       } else {
         existingReaction.emoji = emoji;
         isAdded = true;
@@ -1567,6 +1612,23 @@ export class TextRoomsService {
           },
         );
       }
+    }
+
+    if (
+      isRemoved &&
+      message.sender.id !== user.id &&
+      !message.sender.deletedAt
+    ) {
+      emitTextRoomsDomainEvent(
+        this.eventEmitter,
+        TextRoomsDomainEvents.REACTION_REMOVED,
+        {
+          recipientId: message.sender.id,
+          senderId: user.id,
+          messageId: normalizedMessageId,
+          roomId: message.room?.id ?? null,
+        },
+      );
     }
 
     return updatedReactions;
