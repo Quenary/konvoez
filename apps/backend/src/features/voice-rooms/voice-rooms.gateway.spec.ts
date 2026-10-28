@@ -1353,6 +1353,67 @@ describe('VoiceRoomsGateway', () => {
     });
   });
 
+  describe('setConsumerLayers', () => {
+    const socketFor = () => {
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      socket.rooms.add('room:1');
+      return socket;
+    };
+
+    it('sets preferred layers for a simulcast consumer owned by the peer', async () => {
+      const setPreferredLayers = jest.fn().mockResolvedValue(undefined);
+      const consumer = { id: 'c1', type: 'simulcast', setPreferredLayers };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+
+      await expect(
+        gateway.setConsumerLayers(socketFor() as never, {
+          consumerId: 'c1',
+          spatialLayer: 1,
+        }),
+      ).resolves.toEqual({});
+      expect(setPreferredLayers).toHaveBeenCalledWith({ spatialLayer: 1 });
+    });
+
+    it('ignores an unknown consumer, a simple consumer, and another peer', async () => {
+      const setPreferredLayers = jest.fn();
+      const consumer = { id: 'c1', type: 'simple', setPreferredLayers };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+      const socket = socketFor();
+
+      await expect(
+        gateway.setConsumerLayers(socket as never, {
+          consumerId: 'missing',
+          spatialLayer: 0,
+        }),
+      ).resolves.toEqual({});
+      await expect(
+        gateway.setConsumerLayers(socket as never, {
+          consumerId: 'c1',
+          spatialLayer: 0,
+        }),
+      ).resolves.toEqual({});
+      expect(setPreferredLayers).not.toHaveBeenCalled();
+    });
+  });
+
   describe('SET_MUTE_STATE', () => {
     it('updates peer mute state and broadcasts to session and entity sync', async () => {
       const room = createRoom();

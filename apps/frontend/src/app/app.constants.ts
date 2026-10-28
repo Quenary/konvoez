@@ -71,6 +71,7 @@ export const icons = {
   'video-off': '@tui.video-off',
   'screen-share': '@tui.screen-share',
   'screen-share-off': '@tui.screen-share-off',
+  'sliders-horizontal': '@tui.sliders-horizontal',
   phone: '@tui.phone',
   'phone-call': '@tui.phone-call',
   'phone-off': '@tui.phone-off',

@@ -208,6 +208,20 @@ export class PeerVideoService {
     this.setWatching(userId, false);
   }
 
+  public getConsumerIdByTrack(track: MediaStreamTrack): string | null {
+    if (track === this._localCamTrack() || track === this._localScreenTrack()) {
+      return null;
+    }
+    for (const record of [this._remoteCam(), this._remoteScreen()]) {
+      for (const entry of Object.values(record)) {
+        if (entry.track === track) {
+          return entry.consumerId;
+        }
+      }
+    }
+    return null;
+  }
+
   public getScreenConsumerId(userId: number): string | null {
     return this._remoteScreen()[userId]?.consumerId ?? null;
   }

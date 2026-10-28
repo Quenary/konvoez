@@ -40,4 +40,25 @@ describe('ConsumerRegistry', () => {
   it('ignores an unknown id', () => {
     expect(() => registry.close('missing')).not.toThrow();
   });
+
+  it('tracks source height and whether any consumer has multiple layers', () => {
+    const single = consumer('c1');
+    registry.add(single, 720);
+    expect(registry.getSourceHeight('c1')).toBe(720);
+    expect(registry.getLayerCount('c1')).toBe(1);
+    expect(registry.layered()).toBe(false);
+
+    const layered = {
+      id: 'c2',
+      closed: false,
+      close: vi.fn(),
+      rtpParameters: { encodings: [{ scalabilityMode: 'L3T1' }] },
+    } as unknown as Consumer;
+    registry.add(layered, 1080);
+    expect(registry.getLayerCount('c2')).toBe(3);
+    expect(registry.layered()).toBe(true);
+
+    registry.close('c2');
+    expect(registry.layered()).toBe(false);
+  });
 });

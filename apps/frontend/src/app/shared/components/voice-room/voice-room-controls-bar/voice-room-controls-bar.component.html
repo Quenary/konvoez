@@ -54,6 +54,12 @@
     }
   </div>
 
+  @if (layered()) {
+    <div tuiGroup>
+      <app-voice-room-stream-quality />
+    </div>
+  }
+
   <button
     tuiIconButton
     appearance="negative"

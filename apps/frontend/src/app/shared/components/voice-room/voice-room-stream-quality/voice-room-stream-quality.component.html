@@ -1,0 +1,25 @@
+<button
+  tuiIconButton
+  type="button"
+  appearance="neutral"
+  size="m"
+  [iconStart]="icons['sliders-horizontal']"
+  tuiDropdown
+  [tuiDropdown]="menu"
+  tuiHintAppearance="floating"
+  [tuiHint]="'CALL.VIEW_QUALITY' | translate">
+</button>
+
+<ng-template #menu>
+  <tui-data-list>
+    @for (item of modes; track item.mode) {
+      <button
+        tuiOption
+        type="button"
+        [iconStart]="quality() === item.mode ? icons.check : ''"
+        (click)="select(item.mode)">
+        {{ item.labelKey | translate }}
+      </button>
+    }
+  </tui-data-list>
+</ng-template>

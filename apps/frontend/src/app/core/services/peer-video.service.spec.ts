@@ -21,6 +21,18 @@ describe('PeerVideoService', () => {
     service.setLocalScreenTrack(screen);
     expect(service.localCamTrack()).toBe(cam);
     expect(service.localScreenTrack()).toBe(screen);
+    expect(service.getConsumerIdByTrack(cam)).toBeNull();
+  });
+
+  it('resolves a remote track to its consumer id', () => {
+    const track = { id: 'remote' } as MediaStreamTrack;
+    service.attach(4, {
+      producerId: 'p1',
+      consumerId: 'c-remote',
+      track,
+      mediaTag: 'screen',
+    });
+    expect(service.getConsumerIdByTrack(track)).toBe('c-remote');
   });
 
   it('exposes cam and screen remote tracks separately', () => {

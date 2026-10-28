@@ -50,6 +50,7 @@ import {
   VoiceRoomJoinDto,
   VoiceRoomProduceDto,
   VoiceRoomRestartIceDto,
+  VoiceRoomSetConsumerLayersDto,
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 import { AuthService } from '../auth/auth.service';
@@ -704,6 +705,20 @@ export class VoiceRoomsGateway
     if (!consumer.closed) {
       consumer.close();
     }
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.SET_CONSUMER_LAYERS)
+  async setConsumerLayers(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomSetConsumerLayersDto,
+  ) {
+    const { peer } = this.getSocketRoomPeer(socket);
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer || consumer.type === 'simple') {
+      return {};
+    }
+    await consumer.setPreferredLayers({ spatialLayer: body.spatialLayer });
     return {};
   }
 

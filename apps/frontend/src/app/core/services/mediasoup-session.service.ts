@@ -764,6 +764,21 @@ export class MediasoupSessionService {
     }
   }
 
+  public async setConsumerPreferredLayer(
+    consumerId: string,
+    spatialLayer: number,
+  ): Promise<void> {
+    try {
+      await emitVoiceRoomWithAck(
+        this.socket,
+        EVoiceRoomEvent.SET_CONSUMER_LAYERS,
+        { consumerId, spatialLayer },
+      );
+    } catch (error) {
+      console.warn('set-consumer-layers failed', error);
+    }
+  }
+
   public handleConsumerClosed(consumerId: string): void {
     this.peerVideoService.removeByConsumerId(consumerId);
     this.peerScreenAudioService.detachByConsumerId(consumerId);
@@ -1103,7 +1118,7 @@ export class MediasoupSessionService {
       });
 
       if (data.mediaTag === 'screen') {
-        this.consumerRegistry.add(consumer);
+        this.consumerRegistry.add(consumer, result.sourceHeight);
         this.peerVideoService.attach(data.userId, {
           producerId: consumer.producerId,
           consumerId: consumer.id,
@@ -1124,7 +1139,7 @@ export class MediasoupSessionService {
       }
 
       if (data.kind === 'video' || data.mediaTag === 'cam') {
-        this.consumerRegistry.add(consumer);
+        this.consumerRegistry.add(consumer, result.sourceHeight);
         this.peerVideoService.attach(data.userId, {
           producerId: consumer.producerId,
           consumerId: consumer.id,

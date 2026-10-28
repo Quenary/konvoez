@@ -1257,4 +1257,17 @@ describe('MediasoupSessionService', () => {
     expect(getTracks).toHaveBeenCalledWith({ contentMode: 'motion' });
     expect(TestBed.inject(TuiNotificationService).open).not.toHaveBeenCalled();
   });
+
+  it('emits set-consumer-layers and warns when the ack fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await service.setConsumerPreferredLayer('c1', 1);
+    expect(emitWithAck).toHaveBeenCalledWith(
+      EVoiceRoomEvent.SET_CONSUMER_LAYERS,
+      { consumerId: 'c1', spatialLayer: 1 },
+    );
+
+    emitWithAck.mockRejectedValueOnce(new Error('nope'));
+    await service.setConsumerPreferredLayer('c1', 2);
+    expect(warn).toHaveBeenCalled();
+  });
 });

@@ -12,6 +12,7 @@ import {
   VoiceRoomCreateTransportDto,
   VoiceRoomJoinDto,
   VoiceRoomProduceDto,
+  VoiceRoomSetConsumerLayersDto,
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 
@@ -100,6 +101,23 @@ describe('VoiceRooms DTOs', () => {
         VoiceRoomConnectTransportDto.schema.safeParse({
           transportId: '',
           dtlsParameters: {},
+        }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe('VoiceRoomSetConsumerLayersDto', () => {
+    it('accepts a spatial layer and rejects one outside 0..2', () => {
+      expect(
+        VoiceRoomSetConsumerLayersDto.schema.safeParse({
+          consumerId: 'c1',
+          spatialLayer: 2,
+        }).success,
+      ).toBe(true);
+      expect(
+        VoiceRoomSetConsumerLayersDto.schema.safeParse({
+          consumerId: 'c1',
+          spatialLayer: 3,
         }).success,
       ).toBe(false);
     });

@@ -145,17 +145,12 @@ CALL:
   STREAM_BITRATE: Bitrate (kbps)
   STREAM_BITRATE_WARNING: A high bitrate can saturate the upload channel and the viewers' downloads.
   STREAM_SETTINGS_NOT_APPLIED: Could not apply the requested stream settings. Using what the browser provided.
-  STREAM_LAYERS: Layers
-  STREAM_LAYERS_HINT: More layers means higher CPU and upload load
-  STREAM_LAYERS_RESULT: Resulting layers
-  FPS_UNIT: fps
-  STREAM_CONTENT_MODE: Content
-  STREAM_CONTENT_TEXT: Text
-  STREAM_CONTENT_GAME: Game
-  STREAM_CONTENT_HINT: Text keeps sharp detail and lowers frame rate. Game keeps motion smooth.
-  STREAM_BITRATE: Bitrate (kbps)
-  STREAM_BITRATE_WARNING: A high bitrate can saturate the upload channel and the viewers' downloads.
-  STREAM_SETTINGS_NOT_APPLIED: Could not apply the requested stream settings. Using what the browser provided.
+  VIEW_QUALITY: Stream quality
+  VIEW_QUALITY_AUTO: Auto
+  VIEW_QUALITY_LOW: Low
+  VIEW_QUALITY_MEDIUM: Medium
+  VIEW_QUALITY_HIGH: High
+  VIEW_QUALITY_SOURCE: Source
   SCREEN: Screen
   SCREEN_ON: Share screen
   SCREEN_OFF: Stop sharing
