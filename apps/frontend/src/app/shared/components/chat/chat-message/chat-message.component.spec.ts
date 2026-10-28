@@ -594,9 +594,121 @@ describe('ChatMessageComponent', () => {
       fixture.detectChanges();
 
       const el: HTMLElement = fixture.nativeElement;
-      const reactionsEl = el.querySelector('app-chat-message-reactions');
+      const reactionsEl = el.querySelector(
+        '.message-bubble-footer app-chat-message-reactions',
+      );
       expect(reactionsEl).not.toBeNull();
     });
+  });
+
+  describe('sender chrome', () => {
+    it.each([
+      {
+        name: 'own room message',
+        senderId: 1,
+        roomId: 1 as number | null,
+        recipientId: null as number | null,
+        visible: false,
+      },
+      {
+        name: 'another person room message',
+        senderId: 2,
+        roomId: 1 as number | null,
+        recipientId: null as number | null,
+        visible: true,
+      },
+      {
+        name: 'own direct message',
+        senderId: 1,
+        roomId: null as number | null,
+        recipientId: 2 as number | null,
+        visible: false,
+      },
+      {
+        name: 'another person direct message',
+        senderId: 2,
+        roomId: null as number | null,
+        recipientId: 1 as number | null,
+        visible: false,
+      },
+    ])('$name', ({ senderId, roomId, recipientId, visible }) => {
+      TestBed.inject(Store).dispatch(
+        AuthActions.requestLoginSuccess({ user: currentUser }),
+      );
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId,
+        senderUsername: senderId === 1 ? 'alice' : 'bob',
+        roomId,
+        recipientId,
+      });
+      fixture.detectChanges();
+
+      const el: HTMLElement = fixture.nativeElement;
+      const avatar = el.querySelector('app-user-avatar.message-sender');
+      const username = el.querySelector('.message-body-header-username');
+      if (visible) {
+        expect(avatar).not.toBeNull();
+        expect(username?.textContent?.trim()).toBe('bob');
+      } else {
+        expect(avatar).toBeNull();
+        expect(username).toBeNull();
+      }
+    });
+
+    it.each([
+      {
+        series: 'single' as const,
+        avatar: true,
+        username: true,
+        slot: false,
+      },
+      {
+        series: 'first' as const,
+        avatar: false,
+        username: true,
+        slot: true,
+      },
+      {
+        series: 'middle' as const,
+        avatar: false,
+        username: false,
+        slot: true,
+      },
+      {
+        series: 'last' as const,
+        avatar: true,
+        username: false,
+        slot: false,
+      },
+    ])(
+      'places sender chrome for a $series room message',
+      ({ series, avatar, username, slot }) => {
+        TestBed.inject(Store).dispatch(
+          AuthActions.requestLoginSuccess({ user: currentUser }),
+        );
+        fixture.componentRef.setInput('message', {
+          ...testMessage,
+          senderId: 2,
+          senderUsername: 'bob',
+          roomId: 1,
+          recipientId: null,
+        });
+        fixture.componentRef.setInput('series', series);
+        fixture.detectChanges();
+
+        const el: HTMLElement = fixture.nativeElement;
+        expect(
+          el.querySelector('app-user-avatar.message-sender') !== null,
+        ).toBe(avatar);
+        expect(el.querySelector('.message-body-header-username') !== null).toBe(
+          username,
+        );
+        expect(el.querySelector('.message-sender-placeholder') !== null).toBe(
+          slot,
+        );
+      },
+    );
   });
 
   describe('mentions', () => {
@@ -838,6 +950,88 @@ describe('ChatMessageComponent', () => {
       await Promise.resolve();
       await Promise.resolve();
     }
+
+    function renderMenu(): HTMLElement {
+      const template = component['menuTemplateRef']();
+      expect(template).toBeTruthy();
+      if (!template) {
+        throw new Error('menu template missing');
+      }
+      const view = template.createEmbeddedView({
+        $implicit: () => undefined,
+      });
+      view.detectChanges();
+      const root = document.createElement('div');
+      for (const node of view.rootNodes) {
+        if (node instanceof HTMLElement) {
+          root.appendChild(node);
+        }
+      }
+      return root;
+    }
+
+    it('shows a non-interactive message preview only in the narrow menu', () => {
+      const reply = {
+        id: 'target-1',
+        senderId: 2,
+        senderUsername: 'bob',
+        content: 'quoted',
+        isDeleted: false,
+      };
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        content: '<p>Selectable text</p>',
+        reactions: [{ emoji: '👍', count: 1, userIds: [2] }],
+        replyTo: reply,
+        attachments: [
+          {
+            id: 'att-1',
+            kind: 'FILE',
+            name: 'a.txt',
+            mime: 'text/plain',
+            size: 1,
+            width: null,
+            height: null,
+            durationMs: null,
+            url: '/api/v1/attachments/att-1/content',
+            thumbnailUrl: null,
+          },
+        ],
+      });
+
+      isNarrowSignal.set(false);
+      fixture.detectChanges();
+      const wide = renderMenu();
+      expect(wide.querySelector('.message-menu-preview')).toBeNull();
+
+      isNarrowSignal.set(true);
+      fixture.detectChanges();
+      const narrow = renderMenu();
+      const preview = narrow.querySelector('.message-menu-preview');
+      expect(preview).not.toBeNull();
+      expect(preview?.textContent).toContain('Selectable text');
+      expect(preview?.textContent).toContain('quoted');
+      expect(preview?.querySelector('app-chat-message-reactions')).toBeNull();
+      expect(
+        preview?.querySelector('.message-reply')?.getAttribute('role'),
+      ).toBe(null);
+      expect(
+        preview
+          ?.querySelector('app-chat-message-attachments')
+          ?.parentElement?.hasAttribute('inert'),
+      ).toBe(true);
+      expect(
+        fixture.nativeElement
+          .querySelector('.message-body app-chat-message-attachments')
+          ?.parentElement?.hasAttribute('inert'),
+      ).toBe(false);
+
+      mockChatStore.jumpToMessage.mockClear();
+      preview
+        ?.querySelector('.message-reply')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(mockChatStore.jumpToMessage).not.toHaveBeenCalled();
+    });
 
     it('keeps the context menu directive and does not open a dialog on a wide screen', () => {
       isNarrowSignal.set(false);

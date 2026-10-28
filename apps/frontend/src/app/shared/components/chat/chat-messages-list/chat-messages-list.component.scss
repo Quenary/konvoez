@@ -22,8 +22,13 @@
   }
 
   .viewport {
-    padding-right: 0.5rem;
+    padding-inline: 0.75rem;
     overflow-x: hidden;
+
+    // The avatar column already leaves room for an incoming tail.
+    &.viewport-room {
+      padding-inline-start: 0;
+    }
   }
 
   .sizer {

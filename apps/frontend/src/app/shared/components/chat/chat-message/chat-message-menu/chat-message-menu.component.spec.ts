@@ -1,3 +1,4 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +30,7 @@ describe('ChatMessageMenuComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ChatMessageMenuComponent],
+      imports: [ChatMessageMenuComponent, MenuPreviewHostComponent],
       providers: [provideTranslateService()],
     }).compileComponents();
 
@@ -161,4 +162,62 @@ describe('ChatMessageMenuComponent', () => {
       expect(cancelSpy).toHaveBeenCalledOnce();
     });
   });
+
+  it('renders projected preview before the action list', () => {
+    const hostFixture = TestBed.createComponent(MenuPreviewHostComponent);
+    hostFixture.detectChanges();
+
+    const menu = hostFixture.nativeElement.querySelector(
+      '.chat-message-menu',
+    ) as HTMLElement;
+    const preview = menu.querySelector('.preview');
+    const reactions = menu.querySelector('app-chat-message-reactions-bar');
+    expect(preview).toBeInstanceOf(HTMLElement);
+    expect(reactions).toBeInstanceOf(HTMLElement);
+    if (
+      !(preview instanceof HTMLElement) ||
+      !(reactions instanceof HTMLElement)
+    ) {
+      return;
+    }
+    expect(preview.textContent?.trim()).toBe('Hello');
+    expect(
+      preview.compareDocumentPosition(reactions) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });
+
+@Component({
+  imports: [ChatMessageMenuComponent],
+  template: `
+    <app-chat-message-menu
+      [isDialog]="true"
+      [message]="message">
+      <div
+        class="preview"
+        messagePreview>
+        Hello
+      </div>
+    </app-chat-message-menu>
+  `,
+})
+class MenuPreviewHostComponent {
+  protected readonly message: IMessageEntity = {
+    id: 'msg-1',
+    content: '<p>Hello</p>',
+    senderId: 1,
+    senderUsername: 'alice',
+    roomId: 1,
+    recipientId: null,
+    createdAt: new Date('2026-09-15T00:00:00.000Z'),
+    updatedAt: null,
+    isRead: false,
+    attachments: [],
+    clientId: null,
+    status: EMessageStatus.SUCCESS,
+    replyTo: null,
+    reactions: [],
+    mentions: { userIds: [], roleIds: [], everyone: false },
+  };
+}

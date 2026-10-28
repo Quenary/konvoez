@@ -74,6 +74,26 @@ describe('buildChatRows', () => {
 
     expect(rows.map((row) => row.kind)).toEqual(['message']);
   });
+
+  it('groups consecutive messages from one sender and breaks on the divider', () => {
+    const rows = buildChatRows({
+      messages: [
+        message({ id: 'a', senderId: 2 }),
+        message({ id: 'b', senderId: 2 }),
+        message({ id: 'c', senderId: 2 }),
+        message({ id: 'd', senderId: 3 }),
+        message({ id: 'e', senderId: 2 }),
+        message({ id: 'f', senderId: 2 }),
+      ],
+      unreadDividerMessageId: 'e',
+      loadingOlder: true,
+      loadingNewer: false,
+    });
+
+    expect(
+      rows.flatMap((row) => (row.kind === 'message' ? [row.series] : [])),
+    ).toEqual(['first', 'middle', 'last', 'single', 'first', 'last']);
+  });
 });
 
 describe('messageRowKey', () => {
@@ -102,7 +122,12 @@ describe('estimateChatRowSize', () => {
   it('grows with text length up to a cap', () => {
     const row = (content: string) => {
       const m = message({ content });
-      return { kind: 'message' as const, key: messageRowKey(m), message: m };
+      return {
+        kind: 'message' as const,
+        key: messageRowKey(m),
+        message: m,
+        series: 'single' as const,
+      };
     };
     const short = estimateChatRowSize(row('<p>hi</p>'), 600);
     const long = estimateChatRowSize(row('x'.repeat(600)), 600);
@@ -115,7 +140,7 @@ describe('estimateChatRowSize', () => {
   it('reserves the media frame from attachment dimensions', () => {
     const m = message({ attachments: [image(800, 400)] });
     const size = estimateChatRowSize(
-      { kind: 'message', key: messageRowKey(m), message: m },
+      { kind: 'message', key: messageRowKey(m), message: m, series: 'single' },
       1000,
     );
 
@@ -127,7 +152,12 @@ describe('estimateChatRowSize', () => {
 
     expect(
       estimateChatRowSize(
-        { kind: 'message', key: messageRowKey(m), message: m },
+        {
+          kind: 'message',
+          key: messageRowKey(m),
+          message: m,
+          series: 'single',
+        },
         1000,
       ),
     ).toBe(56 + 240);

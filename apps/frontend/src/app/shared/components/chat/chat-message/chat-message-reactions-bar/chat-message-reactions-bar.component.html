@@ -54,28 +54,30 @@
       </button>
     </div>
 
-    <div class="picker-scroll-container">
-      @let activeEmoji = userActiveEmoji();
-      @for (cat of categories; track cat.id) {
-        <div
-          [attr.id]="'emoji-cat-' + cat.id"
-          class="picker-section">
-          <div class="picker-section-title">
-            {{ cat.nameKey | translate }}
+    <tui-scrollbar class="picker-scroll">
+      <div class="picker-scroll-content">
+        @let activeEmoji = userActiveEmoji();
+        @for (cat of categories; track cat.id) {
+          <div
+            [attr.id]="'emoji-cat-' + cat.id"
+            class="picker-section">
+            <div class="picker-section-title">
+              {{ cat.nameKey | translate }}
+            </div>
+            <div class="picker-grid">
+              @for (emoji of cat.emojis; track emoji) {
+                <button
+                  type="button"
+                  class="emoji-grid-btn"
+                  [class.emoji-grid-btn--active]="activeEmoji === emoji"
+                  (click)="onEmojiSelect(emoji)">
+                  {{ emoji }}
+                </button>
+              }
+            </div>
           </div>
-          <div class="picker-grid">
-            @for (emoji of cat.emojis; track emoji) {
-              <button
-                type="button"
-                class="emoji-grid-btn"
-                [class.emoji-grid-btn--active]="activeEmoji === emoji"
-                (click)="onEmojiSelect(emoji)">
-                {{ emoji }}
-              </button>
-            }
-          </div>
-        </div>
-      }
-    </div>
+        }
+      </div>
+    </tui-scrollbar>
   </div>
 }

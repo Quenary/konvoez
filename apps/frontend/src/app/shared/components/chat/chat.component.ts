@@ -24,6 +24,7 @@ import {
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoFocus } from '@taiga-ui/cdk';
 import {
+  TuiAutoColorPipe,
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
@@ -58,6 +59,7 @@ import { icons } from '@constants';
     TuiTextfield,
     TuiInput,
     TuiAutoFocus,
+    TuiAutoColorPipe,
     TuiAvatar,
     TuiBadgedContent,
     TuiBadgeNotification,
@@ -83,6 +85,12 @@ export class ChatComponent {
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
   public readonly initialMessageId = input<string | null>(null);
+  /** Direct chats color the nickname. Saved messages use an icon, not a nick. */
+  protected readonly colorTitle = computed(() => {
+    const recipientId = this.recipientId();
+    const avatarIcon = this.avatarIcon();
+    return recipientId != null && !avatarIcon;
+  });
   protected readonly draftKey = computed(() =>
     toChatKey(this.roomId(), this.recipientId()),
   );

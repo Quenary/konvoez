@@ -52,6 +52,7 @@ describe('ChatMessageReactionsBarComponent', () => {
 
     const picker = el.querySelector('.reactions-picker');
     expect(picker).not.toBeNull();
+    expect(picker?.querySelector('tui-scrollbar.picker-scroll')).not.toBeNull();
 
     const gridButtons = el.querySelectorAll('.emoji-grid-btn');
     expect(gridButtons.length).toBeGreaterThan(50);

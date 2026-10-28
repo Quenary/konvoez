@@ -11,7 +11,7 @@ import {
   TemplateRef,
   viewChild,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -23,6 +23,7 @@ import {
   TuiIcon,
   TuiLoader,
   TuiNotificationService,
+  TuiScrollbar,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiEditorSocket } from '@taiga-ui/editor';
@@ -38,6 +39,7 @@ import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
+import { MessageSeriesPosition } from '../chat-messages-list/chat-rows';
 import { ComposerFocusService } from '../composer-focus.service';
 import { ChatApiService } from '@core/api/chat-api.service';
 import { LayoutService } from '@core/services/layout.service';
@@ -76,6 +78,7 @@ import { icons } from '@constants';
 @Component({
   selector: 'app-chat-message',
   imports: [
+    NgTemplateOutlet,
     TranslatePipe,
     UserAvatarComponent,
     TuiButton,
@@ -84,6 +87,7 @@ import { icons } from '@constants';
     TuiHint,
     TuiIcon,
     TuiLoader,
+    TuiScrollbar,
     TuiAutoColorPipe,
     TextContentPipe,
     ChatMessageAttachmentsComponent,
@@ -123,7 +127,15 @@ export class ChatMessageComponent implements OnDestroy {
   private readonly document = inject(DOCUMENT);
 
   public readonly message = input.required<IMessageEntity>();
+  /** Place in a run of consecutive messages from the same sender. */
+  public readonly series = input<MessageSeriesPosition>('single');
   protected readonly icons = icons;
+  /**
+   * Taiga's default dropdown cap is 400px. An open emoji list plus the actions
+   * is taller than that, so the dropdown scrolls and hides the actions.
+   * This cap fits that menu; the positioner still flips it to the free side.
+   */
+  protected readonly menuDropdownMaxHeight = 640;
   protected readonly menuTemplateRef =
     viewChild<TemplateRef<unknown>>('menuTemplate');
 
@@ -241,11 +253,32 @@ export class ChatMessageComponent implements OnDestroy {
     return this.message().recipientId !== null;
   });
 
-  protected readonly shouldShowAvatar = computed(() => {
-    if (this.isDirectChat()) {
-      return false;
-    }
-    return !this.isOwnMessage();
+  /** Nickname and avatar exist only on someone else's room message. */
+  private readonly showSenderChrome = computed(() => {
+    const isDirectChat = this.isDirectChat();
+    const isOwnMessage = this.isOwnMessage();
+    return !isDirectChat && !isOwnMessage;
+  });
+
+  /** Nickname: a single message, or the first of a series. */
+  protected readonly showNickname = computed(() => {
+    const showSenderChrome = this.showSenderChrome();
+    const series = this.series();
+    return showSenderChrome && (series === 'single' || series === 'first');
+  });
+
+  /** Avatar: a single message, or the last of a series. */
+  protected readonly showAvatar = computed(() => {
+    const showSenderChrome = this.showSenderChrome();
+    const series = this.series();
+    return showSenderChrome && (series === 'single' || series === 'last');
+  });
+
+  /** Keeps the bubble aligned when the avatar sits on a later message. */
+  protected readonly showAvatarSlot = computed(() => {
+    const showSenderChrome = this.showSenderChrome();
+    const series = this.series();
+    return showSenderChrome && (series === 'first' || series === 'middle');
   });
 
   /**
@@ -395,6 +428,16 @@ export class ChatMessageComponent implements OnDestroy {
 
   protected removeOutgoingFile(localId: string): void {
     this.chatStore.removeOutgoingFile(this.message().id, localId);
+  }
+
+  protected onReplyQuoteActivate(
+    reply: ITextRoomMessageReply,
+    interactive: boolean,
+  ): void {
+    if (!interactive) {
+      return;
+    }
+    this.onReplyQuoteClick(reply);
   }
 
   protected onReplyQuoteClick(reply: ITextRoomMessageReply): void {

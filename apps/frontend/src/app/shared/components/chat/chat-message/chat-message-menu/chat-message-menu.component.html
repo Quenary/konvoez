@@ -1,6 +1,7 @@
 <div
   class="chat-message-menu"
   [class.chat-message-menu--dialog]="isDialog()">
+  <ng-content select="[messagePreview]" />
   @if (!outgoing()) {
     <app-chat-message-reactions-bar
       [reactions]="message().reactions"
