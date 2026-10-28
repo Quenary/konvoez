@@ -53,8 +53,8 @@ describe('RemoteVideoViewService', () => {
       },
     );
     setConsumerPreferredLayer = vi.fn().mockResolvedValue(undefined);
-    pauseConsumer = vi.fn().mockResolvedValue(undefined);
-    resumeConsumer = vi.fn().mockResolvedValue(undefined);
+    pauseConsumer = vi.fn().mockResolvedValue(true);
+    resumeConsumer = vi.fn().mockResolvedValue(true);
     TestBed.configureTestingModule({
       providers: [
         RemoteVideoViewService,
@@ -175,6 +175,45 @@ describe('RemoteVideoViewService', () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(pauseConsumer).not.toHaveBeenCalled();
     expect(setConsumerPreferredLayer).toHaveBeenCalledWith('c1', 0);
+  });
+
+  it('resumes only after an in-flight pause settles', async () => {
+    addConsumer('c1');
+    service.registerView('c1', { clientHeight: 200 } as HTMLElement);
+    show(0);
+    await vi.advanceTimersByTimeAsync(0);
+    resumeConsumer.mockClear();
+
+    let resolvePause: (paused: boolean) => void = () => undefined;
+    pauseConsumer.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        resolvePause = resolve;
+      }),
+    );
+    hide(0);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(pauseConsumer).toHaveBeenCalledTimes(1);
+
+    show(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(resumeConsumer).not.toHaveBeenCalled();
+
+    resolvePause(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(resumeConsumer).toHaveBeenCalledWith('c1');
+  });
+
+  it('retries a failed pause while the view stays hidden', async () => {
+    addConsumer('c1');
+    pauseConsumer.mockResolvedValue(false);
+    service.registerView('c1', { clientHeight: 200 } as HTMLElement);
+    show(0);
+    hide(0);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(pauseConsumer).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(pauseConsumer).toHaveBeenCalledTimes(2);
   });
 
   it('pauses after every view is disposed and when a consumer has no views', async () => {

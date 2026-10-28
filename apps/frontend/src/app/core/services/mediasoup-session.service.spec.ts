@@ -611,7 +611,7 @@ describe('MediasoupSessionService', () => {
     expect(fakeConsumer.paused).toBe(true);
     expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
 
-    await service.resumeConsumer('consumer-video');
+    await expect(service.resumeConsumer('consumer-video')).resolves.toBe(true);
     expect(emitWithAck).toHaveBeenCalledWith(EVoiceRoomEvent.RESUME_CONSUMER, {
       consumerId: 'consumer-video',
     });
@@ -640,7 +640,7 @@ describe('MediasoupSessionService', () => {
     service['consumerRegistry'].add(fakeConsumer as never);
     emitWithAck.mockRejectedValueOnce(new Error('nope'));
 
-    await service.pauseConsumer('consumer-video');
+    await expect(service.pauseConsumer('consumer-video')).resolves.toBe(false);
 
     expect(fakeConsumer.pause).not.toHaveBeenCalled();
     expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
@@ -648,7 +648,7 @@ describe('MediasoupSessionService', () => {
 
     fakeConsumer.paused = true;
     emitWithAck.mockRejectedValueOnce(new Error('nope'));
-    await service.resumeConsumer('consumer-video');
+    await expect(service.resumeConsumer('consumer-video')).resolves.toBe(false);
     expect(fakeConsumer.resume).not.toHaveBeenCalled();
     expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
   });

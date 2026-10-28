@@ -37,7 +37,11 @@ export class RemoteVideoViewService implements OnDestroy {
     string,
     ReturnType<typeof setTimeout>
   >();
-  private readonly generation = new Map<string, number>();
+  private readonly playbackRetryTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly syncChains = new Map<string, Promise<void>>();
   private readonly watched = new Set<string>();
   private reconcileTimer: ReturnType<typeof setTimeout> | null = null;
   private tabVisible = true;
@@ -71,6 +75,10 @@ export class RemoteVideoViewService implements OnDestroy {
       clearTimeout(timer);
     }
     this.pauseTimers.clear();
+    for (const timer of this.playbackRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.playbackRetryTimers.clear();
   }
 
   public setQuality(mode: TViewerQualityMode): void {
@@ -132,6 +140,7 @@ export class RemoteVideoViewService implements OnDestroy {
 
   private dropConsumer(consumerId: string): void {
     this.clearPauseTimer(consumerId);
+    this.clearPlaybackRetry(consumerId);
     const set = this.views.get(consumerId);
     if (set) {
       for (const view of set) {
@@ -142,7 +151,6 @@ export class RemoteVideoViewService implements OnDestroy {
     this.views.delete(consumerId);
     this.lastSent.delete(consumerId);
     this.watched.delete(consumerId);
-    this.generation.delete(consumerId);
   }
 
   private scheduleReconcile(): void {
@@ -158,16 +166,18 @@ export class RemoteVideoViewService implements OnDestroy {
   private onVisibilityChange(consumerId?: string): void {
     const ids = consumerId
       ? [consumerId]
-      : new Set([...this.views.keys(), ...this.pauseTimers.keys()]);
+      : new Set([
+          ...this.views.keys(),
+          ...this.pauseTimers.keys(),
+          ...this.playbackRetryTimers.keys(),
+        ]);
     for (const id of ids) {
+      this.clearPlaybackRetry(id);
       if (this.isWanted(id)) {
         this.clearPauseTimer(id);
-        const generation = (this.generation.get(id) ?? 0) + 1;
-        this.generation.set(id, generation);
-        void this.activate(id, generation);
+        this.enqueue(id, () => this.resumeIfWanted(id));
         continue;
       }
-      this.generation.set(id, (this.generation.get(id) ?? 0) + 1);
       if (this.pauseTimers.has(id)) {
         continue;
       }
@@ -175,7 +185,7 @@ export class RemoteVideoViewService implements OnDestroy {
         id,
         setTimeout(() => {
           this.pauseTimers.delete(id);
-          void this.session()?.pauseConsumer(id);
+          this.enqueue(id, () => this.pauseIfHidden(id));
         }, PAUSE_DELAY_MS),
       );
     }
@@ -197,15 +207,79 @@ export class RemoteVideoViewService implements OnDestroy {
     return false;
   }
 
-  private async activate(
-    consumerId: string,
-    generation: number,
-  ): Promise<void> {
-    await this.sendLayer(consumerId);
-    if (this.generation.get(consumerId) !== generation) {
+  private enqueue(consumerId: string, run: () => Promise<void>): void {
+    const previous = this.syncChains.get(consumerId) ?? Promise.resolve();
+    const tracked = previous.then(run, run).then(
+      () => undefined,
+      () => undefined,
+    );
+    this.syncChains.set(consumerId, tracked);
+    void tracked.then(() => {
+      if (this.syncChains.get(consumerId) === tracked) {
+        this.syncChains.delete(consumerId);
+      }
+    });
+  }
+
+  private async resumeIfWanted(consumerId: string): Promise<void> {
+    if (!this.isWanted(consumerId) || this.destroyed) {
       return;
     }
-    await this.session()?.resumeConsumer(consumerId);
+    await this.sendLayer(consumerId);
+    if (!this.isWanted(consumerId) || this.destroyed) {
+      return;
+    }
+    const session = this.session();
+    if (!session) {
+      return;
+    }
+    const resumed = await session.resumeConsumer(consumerId);
+    if (!this.isWanted(consumerId) || this.destroyed) {
+      return;
+    }
+    if (!resumed) {
+      this.schedulePlaybackRetry(consumerId);
+    }
+  }
+
+  private async pauseIfHidden(consumerId: string): Promise<void> {
+    if (this.isWanted(consumerId) || this.destroyed) {
+      return;
+    }
+    const session = this.session();
+    if (!session) {
+      return;
+    }
+    const paused = await session.pauseConsumer(consumerId);
+    if (this.isWanted(consumerId) || this.destroyed) {
+      return;
+    }
+    if (!paused) {
+      this.schedulePlaybackRetry(consumerId);
+    }
+  }
+
+  private schedulePlaybackRetry(consumerId: string): void {
+    if (this.playbackRetryTimers.has(consumerId) || this.destroyed) {
+      return;
+    }
+    this.playbackRetryTimers.set(
+      consumerId,
+      setTimeout(() => {
+        this.playbackRetryTimers.delete(consumerId);
+        if (this.destroyed) {
+          return;
+        }
+        if (this.isWanted(consumerId)) {
+          this.enqueue(consumerId, () => this.resumeIfWanted(consumerId));
+          return;
+        }
+        if (this.pauseTimers.has(consumerId)) {
+          return;
+        }
+        this.enqueue(consumerId, () => this.pauseIfHidden(consumerId));
+      }, RECONCILE_MS),
+    );
   }
 
   private reconcile(): void {
@@ -259,6 +333,15 @@ export class RemoteVideoViewService implements OnDestroy {
       return null;
     }
     return this.injector.get(MediasoupSessionService);
+  }
+
+  private clearPlaybackRetry(consumerId: string): void {
+    const timer = this.playbackRetryTimers.get(consumerId);
+    if (timer === undefined) {
+      return;
+    }
+    clearTimeout(timer);
+    this.playbackRetryTimers.delete(consumerId);
   }
 
   private clearPauseTimer(consumerId: string): void {

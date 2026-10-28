@@ -764,10 +764,10 @@ export class MediasoupSessionService {
     }
   }
 
-  public async pauseConsumer(consumerId: string): Promise<void> {
+  public async pauseConsumer(consumerId: string): Promise<boolean> {
     const consumer = this.consumerRegistry.get(consumerId);
-    if (!consumer || consumer.paused) {
-      return;
+    if (!consumer || consumer.closed || consumer.paused) {
+      return true;
     }
     try {
       await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.PAUSE_CONSUMER, {
@@ -775,16 +775,20 @@ export class MediasoupSessionService {
       });
     } catch (error) {
       console.warn('pause-consumer failed', error);
-      return;
+      return false;
     }
     consumer.pause();
     this.liveConsumerIds.delete(consumerId);
+    return true;
   }
 
-  public async resumeConsumer(consumerId: string): Promise<void> {
+  public async resumeConsumer(consumerId: string): Promise<boolean> {
     const consumer = this.consumerRegistry.get(consumerId);
-    if (!consumer || consumer.closed || !consumer.paused) {
-      return;
+    if (!consumer || consumer.closed) {
+      return true;
+    }
+    if (!consumer.paused) {
+      return true;
     }
     try {
       await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.RESUME_CONSUMER, {
@@ -792,10 +796,11 @@ export class MediasoupSessionService {
       });
     } catch (error) {
       console.warn('resume-consumer failed', error);
-      return;
+      return false;
     }
     consumer.resume();
     this.liveConsumerIds.add(consumerId);
+    return true;
   }
 
   public async setConsumerPreferredLayer(
