@@ -13,7 +13,7 @@
       (click)="clickSession()">
       <tui-icon
         [icon]="icons['audio-lines']"
-        [style.color]="qualityColor()"></tui-icon>
+        [style.color]="indicatorColor()"></tui-icon>
       @if (!collapsed()) {
         <span tuiFade>{{ sessionTitle() | translate }}</span>
       }
@@ -35,7 +35,7 @@
       <div>{{ sessionTitle() | translate }}</div>
     }
     <div>
-      {{ qualityHintKey() | translate: { kbps: qualityBitrateKbps() } }}
+      {{ connectionHintKey() | translate: { kbps: qualityBitrateKbps() } }}
     </div>
   </ng-template>
 }

@@ -235,6 +235,8 @@ function stubSpeaker(addModule: ReturnType<typeof vi.fn>) {
     audioWorklet = { addModule };
     resume = vi.fn();
     close = vi.fn();
+    addEventListener = vi.fn();
+    removeEventListener = vi.fn();
     createGain() {
       return gainCalls++ === 0 ? bus : master;
     }

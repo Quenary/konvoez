@@ -17,6 +17,10 @@
       inline-size: auto;
     }
 
+    .col-role {
+      inline-size: 14rem;
+    }
+
     .col-email {
       inline-size: 16rem;
     }
@@ -34,6 +38,30 @@
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
+    }
+
+    .roles-cell {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+
+      &-dot {
+        inline-size: 0.5rem;
+        block-size: 0.5rem;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+    }
+
+    .empty-role {
+      color: var(--tui-text-tertiary);
     }
 
     .empty-cell {

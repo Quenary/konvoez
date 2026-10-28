@@ -247,7 +247,7 @@ export class TextRoomsGateway
     payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_DELETED],
   ) {
     this.logger.debug(`Fan-out message deleted: messageId=${payload.id}`);
-    return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, payload);
+    return this.server.emit(ETextRoomEvent.MESSAGE_DELETED, { id: payload.id });
   }
 
   @OnEvent(TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED)

@@ -56,6 +56,7 @@ describe('AuthGuard', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   const createMockContext = (

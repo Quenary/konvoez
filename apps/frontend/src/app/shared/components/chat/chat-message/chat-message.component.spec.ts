@@ -13,11 +13,25 @@ import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
 import { EPermission, IUserSafe, IUserFull } from '@konvoez/shared';
 import { ChatApiService } from '@core/api/chat-api.service';
+import { ComposerFocusService } from '../composer-focus.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
 import { RolesStore } from '@core/stores/roles.store';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
+
+function dispatchSecondClick(
+  target: EventTarget,
+  pointerType: 'mouse' | 'touch',
+): void {
+  target.dispatchEvent(
+    new PointerEvent('click', {
+      bubbles: true,
+      detail: 2,
+      pointerType,
+    }),
+  );
+}
 
 describe('ChatMessageComponent', () => {
   let component: ChatMessageComponent;
@@ -103,21 +117,20 @@ describe('ChatMessageComponent', () => {
     }
     vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 
-    if (!window.matchMedia) {
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: vi.fn().mockImplementation((query) => ({
-          matches: false,
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        })),
-      });
-    }
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
 
     await TestBed.configureTestingModule({
       imports: [ChatMessageComponent],
@@ -131,6 +144,7 @@ describe('ChatMessageComponent', () => {
           },
         },
         { provide: ChatStore, useValue: mockChatStore },
+        { provide: ComposerFocusService, useClass: ComposerFocusService },
         {
           provide: OutgoingMessagesStore,
           useValue: { uploadProgress },
@@ -174,6 +188,32 @@ describe('ChatMessageComponent', () => {
   it('should set reply target when replyMessage is called', () => {
     component['replyMessage']();
     expect(mockChatStore.setReplyToMessageId).toHaveBeenCalledWith('msg-1');
+  });
+
+  it('focuses the chat composer on reply and edit when the pointer is coarse', () => {
+    window.matchMedia = (query: string) =>
+      ({
+        matches: query === '(pointer: coarse)',
+        media: query,
+      }) as MediaQueryList;
+    const editor = document.createElement('div');
+    editor.tabIndex = -1;
+    document.body.append(editor);
+    const detach = TestBed.inject(ComposerFocusService).attach(editor);
+    const click = vi.spyOn(editor, 'click');
+
+    component['replyMessage']();
+    expect(document.activeElement).toBe(editor);
+    expect(click).toHaveBeenCalledOnce();
+
+    editor.blur();
+    click.mockClear();
+    component['editMessage']();
+    expect(document.activeElement).toBe(editor);
+    expect(click).toHaveBeenCalledOnce();
+
+    detach();
+    editor.remove();
   });
 
   it('should set editable message when editMessage is called', () => {
@@ -682,6 +722,104 @@ describe('ChatMessageComponent', () => {
       chip.click();
 
       expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
+    });
+
+    it('triggers reply on the second desktop click', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      dispatchSecondClick(host, 'mouse');
+
+      expect(mockChatStore.setReplyToMessageId).toHaveBeenCalledWith(
+        testMessage.id,
+      );
+    });
+
+    it('does not trigger reply on a single click', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      host.dispatchEvent(
+        new PointerEvent('click', {
+          bubbles: true,
+          detail: 1,
+          pointerType: 'mouse',
+        }),
+      );
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger reply on double-click if message is outgoing', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        outgoing: {
+          clientId: 'out-1',
+          files: [],
+          state: { phase: 'uploading' },
+        } as unknown as IOutgoingMessage,
+      });
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      dispatchSecondClick(host, 'mouse');
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger reply on double-click if target is an interactive element', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const avatar = fixture.nativeElement.querySelector('app-user-avatar');
+      expect(avatar).toBeInstanceOf(HTMLElement);
+      if (!(avatar instanceof HTMLElement)) {
+        return;
+      }
+      dispatchSecondClick(avatar, 'mouse');
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger reply on double-click of a user mention', () => {
+      mockUsersStore.entityMap.set({ 1: currentUser });
+      mockChatStore.setReplyToMessageId.mockClear();
+      mockUserDialogService.open.mockClear();
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        roomId: 1,
+        content: '<p><@1></p>',
+      });
+      fixture.detectChanges();
+
+      const chip = fixture.nativeElement.querySelector(
+        'app-mention-chip[data-kind="user"]',
+      );
+      expect(chip).toBeInstanceOf(HTMLElement);
+      if (!(chip instanceof HTMLElement)) {
+        return;
+      }
+      dispatchSecondClick(chip, 'mouse');
+
+      expect(mockUserDialogService.open).toHaveBeenCalledWith(currentUser);
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+
+    it('ignores a touch double-tap', () => {
+      mockChatStore.setReplyToMessageId.mockClear();
+      fixture.componentRef.setInput('message', testMessage);
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      dispatchSecondClick(host, 'touch');
+
+      expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
     });
   });
 });

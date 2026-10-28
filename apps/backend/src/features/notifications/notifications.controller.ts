@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Author } from '../auth/auth.decorator';
@@ -7,6 +7,8 @@ import { ApiOkResponse } from '@nestjs/swagger';
 import {
   PushSubscriptionDto,
   PushSubscriptionEndpointDto,
+  UpdateUserNotificationSettingsDto,
+  UserNotificationSettingsDto,
   VapidPublicKeyDto,
 } from './notifications.dto';
 
@@ -24,6 +26,32 @@ export class NotificationsController {
     return {
       publicKey: await this.notificationsService.getPublicKeyIfEnabled(),
     };
+  }
+
+  @Get('settings')
+  @ApiOkResponse({
+    type: UserNotificationSettingsDto,
+    description: 'Get user notification settings',
+  })
+  async getSettings(
+    @Author() author: GetUserSafeDto,
+  ): Promise<UserNotificationSettingsDto> {
+    return this.notificationsService.getUserNotificationSettings(author.id);
+  }
+
+  @Patch('settings')
+  @ApiOkResponse({
+    type: UserNotificationSettingsDto,
+    description: 'Update user notification settings',
+  })
+  async updateSettings(
+    @Author() author: GetUserSafeDto,
+    @Body() body: UpdateUserNotificationSettingsDto,
+  ): Promise<UserNotificationSettingsDto> {
+    return this.notificationsService.updateUserNotificationSettings(
+      author,
+      body,
+    );
   }
 
   @Post('subscription')

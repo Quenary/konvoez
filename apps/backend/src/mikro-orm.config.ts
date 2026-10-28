@@ -15,7 +15,10 @@ import {
   MessageSearchTokenEntitySchema,
 } from './features/text-rooms/text-rooms.entity';
 import { InviteEntitySchema } from './features/invites/invites.entity';
-import { PushSubscriptionEntitySchema } from './features/notifications/notifications.entity';
+import {
+  PushSubscriptionEntitySchema,
+  UserNotificationSettingsEntitySchema,
+} from './features/notifications/notifications.entity';
 import { PasswordRecoveryCodeEntitySchema } from './features/auth/password-recovery-code.entity';
 import { TwoFactorRecoveryCodeEntitySchema } from './features/two-factor/two-factor-recovery-code.entity';
 import { MessageAttachmentEntitySchema } from './features/attachments/attachments.entity';
@@ -38,6 +41,8 @@ import { Migration20261019120000_MentionableRoles } from './migrations/Migration
 import { Migration20261019130000_MessageMentions } from './migrations/Migration20261019130000_MessageMentions';
 import { Migration20261026090000_SessionVersion } from './migrations/Migration20261026090000_SessionVersion';
 import { Migration20261026100000_TwoFactor } from './migrations/Migration20261026100000_TwoFactor';
+import { Migration20261026172220_UserNotificationSettings } from './migrations/Migration20261026172220_UserNotificationSettings';
+import { Migration20261027192655_UserNotificationSettingsReplies } from './migrations/Migration20261027192655_UserNotificationSettingsReplies';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -57,6 +62,7 @@ export async function createMikroOrmConfig() {
       InviteEntitySchema,
       MessageReadEntitySchema,
       PushSubscriptionEntitySchema,
+      UserNotificationSettingsEntitySchema,
       PasswordRecoveryCodeEntitySchema,
       TwoFactorRecoveryCodeEntitySchema,
       MessageAttachmentEntitySchema,
@@ -88,6 +94,8 @@ export async function createMikroOrmConfig() {
         Migration20261019130000_MessageMentions,
         Migration20261026090000_SessionVersion,
         Migration20261026100000_TwoFactor,
+        Migration20261026172220_UserNotificationSettings,
+        Migration20261027192655_UserNotificationSettingsReplies,
       ],
     },
   } satisfies Partial<Options>;

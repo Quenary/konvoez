@@ -36,5 +36,6 @@ flowchart TD
 ```
 
 - Rejoin uses the regular join flow: new transports, microphone producer from the current track, consumers for current peers.
+- An equivalent escalation (ICE restart followed by rejoin) runs automatically when media stalls without a sleep or resume event: see [Frontend voice](VOICE.md#connection-health).
 - Camera and screen share are not restored after a rejoin, same as after a reconnect.
 - A track that ended during sleep is handled by the device fallback (see [Noise suppression](NOISE_SUPPRESSION.md)).

@@ -14,6 +14,7 @@
     "moduleResolution": "bundler",
     "module": "preserve",
     "resolveJsonModule": true,
+    "rootDir": "../..",
     "paths": {
       "@konvoez/shared": ["../../libs/shared/src/index.ts"],
       "@environments/*": ["./src/environments/*"],

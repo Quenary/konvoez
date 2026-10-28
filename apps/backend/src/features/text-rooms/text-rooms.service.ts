@@ -39,10 +39,6 @@ import {
   TextRoomsDomainEvents,
   emitTextRoomsDomainEvent,
 } from './text-rooms.events';
-import {
-  NotificationsDomainEvents,
-  emitNotificationsDomainEvent,
-} from '../notifications/notifications.events';
 
 import {
   ApiErrorCode,
@@ -935,9 +931,9 @@ export class TextRoomsService {
       messageDto.recipientId &&
       messageDto.senderId !== messageDto.recipientId
     ) {
-      emitNotificationsDomainEvent(
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         {
           recipientId: messageDto.recipientId,
           senderId: messageDto.senderId,
@@ -952,11 +948,16 @@ export class TextRoomsService {
     }
 
     if (room && addedRecipientIds.length > 0 && resolvedMentions) {
-      emitNotificationsDomainEvent(
+      const addedIds = new Set(addedRecipientIds);
+      const recipients = resolvedMentions.recipients.filter((r) =>
+        addedIds.has(r.userId),
+      );
+
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         {
-          recipientIds: addedRecipientIds,
+          recipients,
           senderId: messageDto.senderId,
           senderUsername: messageDto.senderUsername,
           roomId: room.id,
@@ -970,6 +971,32 @@ export class TextRoomsService {
           ),
         },
       );
+    }
+
+    if (room && replyTarget && replyTarget.sender.id !== messageDto.senderId) {
+      const replyRecipient = replyTarget.sender;
+      if (!replyRecipient.deletedAt) {
+        const replyRecipientDto =
+          await this.usersService.toSafeDtoWithPermissions(replyRecipient);
+        if (this.roomsFacade.canAccessRoom(replyRecipientDto, room)) {
+          emitTextRoomsDomainEvent(
+            this.eventEmitter,
+            TextRoomsDomainEvents.REPLY_CREATED,
+            {
+              recipientId: replyRecipient.id,
+              senderId: messageDto.senderId,
+              senderUsername: messageDto.senderUsername,
+              roomId: room.id,
+              roomName: room.name,
+              messageId: messageDto.id,
+              messagePreview: this.messagePreview(
+                messageDto.content,
+                messageDto.attachments,
+              ),
+            },
+          );
+        }
+      }
     }
 
     return messageDto;
@@ -1080,11 +1107,16 @@ export class TextRoomsService {
     );
 
     if (message.room && addedRecipientIds.length > 0 && resolved) {
-      emitNotificationsDomainEvent(
+      const addedIds = new Set(addedRecipientIds);
+      const recipients = resolved.recipients.filter((r) =>
+        addedIds.has(r.userId),
+      );
+
+      emitTextRoomsDomainEvent(
         this.eventEmitter,
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         {
-          recipientIds: addedRecipientIds,
+          recipients,
           senderId: messageDto.senderId,
           senderUsername: messageDto.senderUsername,
           roomId: message.room.id,
@@ -1104,9 +1136,10 @@ export class TextRoomsService {
   }
 
   async delete(user: GetUserSafeDto, messageId: string): Promise<void> {
+    const rawId = parse(messageId);
     const message = await this.messageRepository.findOne(
-      { id: parse(messageId) },
-      { populate: ['sender'] },
+      { id: rawId },
+      { populate: ['sender', 'recipient', 'replyTo.sender'] },
     );
 
     if (!message) {
@@ -1131,13 +1164,55 @@ export class TextRoomsService {
       );
     }
 
+    const recipientUserIds = new Set<number>();
+    if (message.recipient?.id) {
+      recipientUserIds.add(message.recipient.id);
+    }
+    if (
+      message.replyTo?.sender?.id &&
+      message.replyTo.sender.id !== message.sender.id
+    ) {
+      recipientUserIds.add(message.replyTo.sender.id);
+    }
+
+    const mentions = await this.messageMentionRepository.find(
+      { message: message.id },
+      { populate: ['user'] },
+    );
+    for (const mention of mentions) {
+      if (mention.user?.id && mention.user.id !== message.sender.id) {
+        recipientUserIds.add(mention.user.id);
+      }
+    }
+
+    const senderId = message.sender.id;
+
+    const reactions = await this.messageReactionRepository.find(
+      { message: message.id },
+      { populate: ['user'] },
+    );
+    const reactionSenderIds = Array.from(
+      new Set(
+        reactions
+          .map((r) => r.user?.id)
+          .filter(
+            (id): id is number => typeof id === 'number' && id !== senderId,
+          ),
+      ),
+    );
+
     this.em.remove(message);
     await this.em.flush();
 
     emitTextRoomsDomainEvent(
       this.eventEmitter,
       TextRoomsDomainEvents.MESSAGE_DELETED,
-      { id: messageId },
+      {
+        id: messageId,
+        recipientUserIds: Array.from(recipientUserIds),
+        senderId,
+        reactionSenderIds,
+      },
     );
   }
 
@@ -1378,7 +1453,15 @@ export class TextRoomsService {
   ): Promise<GetUserSafeDto[]> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender', 'recipient', 'room'] },
+      {
+        populate: [
+          'sender',
+          'recipient',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+        ],
+      },
     );
 
     if (!message) {
@@ -1416,7 +1499,15 @@ export class TextRoomsService {
   ): Promise<ITextRoomReactionGroup[]> {
     const message = await this.messageRepository.findOne(
       { id: parse(messageId) },
-      { populate: ['sender', 'recipient', 'room'] },
+      {
+        populate: [
+          'sender',
+          'recipient',
+          'room',
+          'room.allowedRoles',
+          'room.allowedUsers',
+        ],
+      },
     );
 
     if (!message) {
@@ -1443,11 +1534,15 @@ export class TextRoomsService {
       user: user.id,
     });
 
+    let isAdded = false;
+    let isRemoved = false;
     if (existingReaction) {
       if (existingReaction.emoji === emoji) {
         this.em.remove(existingReaction);
+        isRemoved = true;
       } else {
         existingReaction.emoji = emoji;
+        isAdded = true;
       }
     } else {
       const newReaction = this.messageReactionRepository.create({
@@ -1456,6 +1551,7 @@ export class TextRoomsService {
         emoji,
       });
       this.em.persist(newReaction);
+      isAdded = true;
     }
 
     await this.em.flush();
@@ -1475,6 +1571,65 @@ export class TextRoomsService {
         reactions: updatedReactions,
       },
     );
+
+    if (isAdded && message.sender.id !== user.id && !message.sender.deletedAt) {
+      let canNotify = false;
+      if (message.room) {
+        const recipientDto = await this.usersService.toSafeDtoWithPermissions(
+          message.sender,
+        );
+        canNotify = this.roomsFacade.canAccessRoom(recipientDto, message.room);
+      } else if (message.recipient) {
+        canNotify = true;
+      }
+
+      if (canNotify) {
+        const content = message.contentEncrypted
+          ? this.encryptionService.decrypt(
+              message.contentEncrypted,
+              message.iv,
+              message.authTag,
+            )
+          : '';
+        const attachments = await this.loadAttachments([message]);
+        const messagePreview = this.messagePreview(
+          content,
+          attachments.get(normalizedMessageId) ?? [],
+        );
+
+        emitTextRoomsDomainEvent(
+          this.eventEmitter,
+          TextRoomsDomainEvents.REACTION_ADDED,
+          {
+            recipientId: message.sender.id,
+            senderId: user.id,
+            senderUsername: user.username,
+            emoji,
+            roomId: message.room?.id ?? null,
+            roomName: message.room?.name ?? null,
+            messageId: normalizedMessageId,
+            messagePreview,
+          },
+        );
+      }
+    }
+
+    if (
+      isRemoved &&
+      message.sender.id !== user.id &&
+      !message.sender.deletedAt
+    ) {
+      emitTextRoomsDomainEvent(
+        this.eventEmitter,
+        TextRoomsDomainEvents.REACTION_REMOVED,
+        {
+          recipientId: message.sender.id,
+          senderId: user.id,
+          messageId: normalizedMessageId,
+          roomId: message.room?.id ?? null,
+        },
+      );
+    }
 
     return updatedReactions;
   }

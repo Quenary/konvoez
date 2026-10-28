@@ -140,7 +140,7 @@ export const appConfig: ApplicationConfig = {
       provide: Sanitizer,
       useClass: NgDompurifySanitizer,
     },
-    provideServiceWorker('ngsw-worker.js', {
+    provideServiceWorker('custom-sw.js', {
       enabled: environment.enableServiceWorker,
       registrationStrategy: environment.enableServiceWorker
         ? 'registerImmediately'

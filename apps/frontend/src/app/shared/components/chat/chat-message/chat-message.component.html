@@ -3,8 +3,17 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
-    [style.--author-color]="senderUsername() | tuiAutoColor">
+    [style.--author-color]="senderUsername() | tuiAutoColor"
+    [appSwipeToReplyDisabled]="outgoing() !== null"
+    (appSwipeToReply)="replyMessage()"
+    appSwipeToReply>
     @let _sender = senderUser();
+
+    <div
+      class="message-swipe-indicator"
+      aria-hidden="true">
+      <tui-icon [icon]="icons.reply" />
+    </div>
 
     <div
       class="message-row"
@@ -184,14 +193,14 @@
           <button
             tuiOption
             [iconEnd]="icons.reply"
-            (click)="replyMessage(); close()">
+            (click)="close(); replyMessage()">
             {{ 'GENERAL.REPLY' | translate }}
           </button>
           @if (canEdit()) {
             <button
               tuiOption
               [iconEnd]="icons.edit"
-              (click)="editMessage(); close()">
+              (click)="close(); editMessage()">
               {{ 'GENERAL.EDIT' | translate }}
             </button>
           }

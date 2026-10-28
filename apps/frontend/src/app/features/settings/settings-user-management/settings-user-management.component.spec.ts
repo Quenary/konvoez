@@ -79,4 +79,52 @@ describe('SettingsUserManagementComponent', () => {
     expect(compiled.textContent).toContain('alice@example.com');
     expect(compiled.textContent).toContain(expectedCreatedAt);
   });
+
+  it('should render a dash when user has no assigned roles and is not owner', async () => {
+    await setup([sampleUser]);
+    const compiled = fixture.nativeElement as HTMLElement;
+    const emptyRole = compiled.querySelector('.empty-role');
+
+    expect(emptyRole).not.toBeNull();
+    expect(emptyRole?.textContent?.trim()).toBe('—');
+  });
+
+  it('should render owner badge when user is owner', async () => {
+    const ownerUser: IUserFull = {
+      ...sampleUser,
+      id: 1,
+      isOwner: true,
+      username: 'owner',
+    };
+    await setup([ownerUser]);
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.textContent).toContain('SETTINGS.USERS.OWNER_BADGE');
+  });
+
+  it('should render role badge and color dot when user has roles', async () => {
+    const userWithRoles: IUserFull = {
+      ...sampleUser,
+      id: 2,
+      roles: [
+        {
+          id: 10,
+          name: 'Admin',
+          color: '#e74c3c',
+          priority: 100,
+          mentionable: false,
+        },
+      ],
+    };
+    await setup([userWithRoles]);
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    const roleBadge = compiled.querySelector('.role-badge');
+    expect(roleBadge).not.toBeNull();
+    expect(roleBadge?.textContent).toContain('Admin');
+
+    const dot = compiled.querySelector('.role-badge-dot') as HTMLElement | null;
+    expect(dot).not.toBeNull();
+    expect(dot?.style.backgroundColor).toBe('rgb(231, 76, 60)');
+  });
 });

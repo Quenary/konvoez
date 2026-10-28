@@ -66,6 +66,24 @@ export class PushNotificationService {
       .subscribe((subscription) => {
         this.subscriptionState.set(subscription);
       });
+
+    this.swPush.messages
+      ?.pipe(takeUntilDestroyed())
+      .subscribe((msg: unknown) => {
+        if (typeof msg === 'object' && msg !== null) {
+          const data = msg as {
+            action?: string;
+            tag?: string;
+            messageId?: string;
+          };
+          if (data.action === 'dismiss') {
+            void closeLocalNotifications({
+              tag: data.tag,
+              messageId: data.messageId,
+            });
+          }
+        }
+      });
   }
 
   public isSupported(): boolean {
@@ -281,4 +299,33 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/g, '');
+}
+
+export async function closeLocalNotifications(filter: {
+  tag?: string;
+  messageId?: string;
+}): Promise<void> {
+  if (
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    navigator.serviceWorker.ready
+  ) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const notifications = await reg.getNotifications();
+      for (const notification of notifications) {
+        const messageId = (
+          notification.data as { messageId?: string } | undefined
+        )?.messageId;
+        const matches = filter.tag
+          ? notification.tag === filter.tag
+          : Boolean(filter.messageId && messageId === filter.messageId);
+        if (matches) {
+          notification.close();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
 }

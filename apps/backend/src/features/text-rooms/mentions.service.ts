@@ -5,7 +5,9 @@ import {
   EPermission,
   type IMentionSet,
   MENTION_EVERYONE,
+  type TMentionRecipient,
   diffMentionedUsers,
+  getMentionTypesForUser,
   parseMentions,
   splitMentionSegments,
 } from '@konvoez/shared';
@@ -40,6 +42,7 @@ export class MentionsService {
   ): Promise<{
     effective: IMentionSet;
     recipientIds: number[];
+    recipients: TMentionRecipient[];
     usersById: Record<number, { username: string }>;
     rolesById: Record<number, { name: string }>;
   }> {
@@ -77,6 +80,7 @@ export class MentionsService {
 
     const recipientIdsSet = new Set<number>();
     const validUserIdsSet = new Set<number>();
+    const recipients: TMentionRecipient[] = [];
     const usersById: Record<number, { username: string }> = {};
 
     for (const candidate of candidateUsers) {
@@ -90,6 +94,15 @@ export class MentionsService {
         if (parsed.userIds.includes(dto.id)) {
           validUserIdsSet.add(dto.id);
         }
+        const types = getMentionTypesForUser(
+          {
+            userIds: parsed.userIds,
+            roleIds: effectiveRoleIds,
+            everyone: parsed.everyone && canMassMention,
+          },
+          dto,
+        );
+        recipients.push({ userId: dto.id, types });
       }
     }
 
@@ -102,6 +115,7 @@ export class MentionsService {
     return {
       effective,
       recipientIds: Array.from(recipientIdsSet).sort((a, b) => a - b),
+      recipients: recipients.sort((a, b) => a.userId - b.userId),
       usersById,
       rolesById,
     };

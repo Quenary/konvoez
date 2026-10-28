@@ -47,7 +47,39 @@ export const pushNotificationPayloadSchema = z.object({
   body: z.string().min(1).max(pushNotificationBodyMaxLength),
   icon: z.union([z.url(), z.literal('')]).optional(),
   tag: z.string().optional(),
+  topic: z.string().max(32).optional(),
   data: pushNotificationDataSchema.optional(),
+});
+
+export const notificationDismissPayloadSchema = z.object({
+  tag: z.string(),
+  topic: z.string().max(32).optional(),
+  messageId: z.string().optional(),
+});
+
+export const userNotificationMentionsSettingsSchema = z.object({
+  username: z.boolean(),
+  role: z.boolean(),
+  everyone: z.boolean(),
+});
+
+export const userNotificationSettingsSchema = z.object({
+  directMessages: z.boolean(),
+  directCalls: z.boolean(),
+  replies: z.boolean(),
+  reactions: z.boolean(),
+  mentions: userNotificationMentionsSettingsSchema,
+});
+
+export const updateUserNotificationMentionsSettingsSchema =
+  userNotificationMentionsSettingsSchema.partial();
+
+export const updateUserNotificationSettingsSchema = z.object({
+  directMessages: z.boolean().optional(),
+  directCalls: z.boolean().optional(),
+  replies: z.boolean().optional(),
+  reactions: z.boolean().optional(),
+  mentions: updateUserNotificationMentionsSettingsSchema.optional(),
 });
 
 export type TVapidPublicKey = z.infer<typeof vapidPublicKeySchema>;
@@ -62,9 +94,45 @@ export type TPushNotificationData = z.infer<typeof pushNotificationDataSchema>;
 export type TPushNotificationPayload = z.infer<
   typeof pushNotificationPayloadSchema
 >;
+export type TNotificationsDismissPayload = z.infer<
+  typeof notificationDismissPayloadSchema
+>;
+
+export type TUserNotificationMentionsSettings = z.infer<
+  typeof userNotificationMentionsSettingsSchema
+>;
+export type TUserNotificationSettings = z.infer<
+  typeof userNotificationSettingsSchema
+>;
+export type TUpdateUserNotificationMentionsSettings = z.infer<
+  typeof updateUserNotificationMentionsSettingsSchema
+>;
+export type TUpdateUserNotificationSettings = z.infer<
+  typeof updateUserNotificationSettingsSchema
+>;
+
+export const DEFAULT_USER_NOTIFICATION_SETTINGS: TUserNotificationSettings = {
+  directMessages: true,
+  directCalls: true,
+  replies: true,
+  reactions: true,
+  mentions: {
+    username: true,
+    role: true,
+    everyone: true,
+  },
+};
+
+export type TMentionType = 'username' | 'role' | 'everyone';
+
+export type TMentionRecipient = {
+  userId: number;
+  types: TMentionType[];
+};
 
 export type TNotificationsEventPayloadMap = {
   [ENotificationsEvent.NOTIFICATION]: TPushNotificationPayload;
+  [ENotificationsEvent.NOTIFICATION_DISMISS]: TNotificationsDismissPayload;
 };
 
 export type TNotificationsEventMap = {

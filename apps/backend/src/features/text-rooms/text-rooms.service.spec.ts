@@ -51,7 +51,6 @@ import {
 import { AttachmentsService } from '../attachments/attachments.service';
 import { SettingsService } from '../settings/settings.service';
 import { TextRoomsDomainEvents } from './text-rooms.events';
-import { NotificationsDomainEvents } from '../notifications/notifications.events';
 import { MentionsService } from './mentions.service';
 import { RoomEntity } from '../rooms/rooms.entity';
 import { ReadAllDto } from './text-rooms.dto';
@@ -164,6 +163,13 @@ describe('TextRoomsService', () => {
     usersService = {
       findOne: jest.fn(),
       toSafeDto: jest.fn(),
+      toSafeDtoWithPermissions: jest.fn().mockImplementation(async (u) => ({
+        id: u.id,
+        username: u.username,
+        isOwner: false,
+        roles: [],
+        permissions: [],
+      })),
     } as unknown as jest.Mocked<UsersService>;
 
     roomsFacade = {
@@ -180,6 +186,7 @@ describe('TextRoomsService', () => {
       resolve: jest.fn().mockResolvedValue({
         effective: { userIds: [], roleIds: [], everyone: false },
         recipientIds: [],
+        recipients: [],
       }),
       replace: jest.fn().mockResolvedValue([]),
       renderPlainPreview: jest.fn().mockReturnValue('preview'),
@@ -273,7 +280,7 @@ describe('TextRoomsService', () => {
         }),
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         expect.anything(),
       );
     });
@@ -312,7 +319,7 @@ describe('TextRoomsService', () => {
         result,
       );
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         expect.anything(),
       );
     });
@@ -348,7 +355,7 @@ describe('TextRoomsService', () => {
 
       expect(result.recipientId).toBe(2);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_MESSAGE,
+        TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED,
         {
           recipientId: 2,
           senderId: 1,
@@ -406,6 +413,61 @@ describe('TextRoomsService', () => {
         content: 'Decrypted content',
         isDeleted: false,
       });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REPLY_CREATED,
+        expect.objectContaining({
+          recipientId: 2,
+          senderId: mockUser.id,
+          roomId,
+          messagePreview: 'Decrypted content',
+        }),
+      );
+    });
+
+    it('should not emit REPLY_CREATED event on self-reply', async () => {
+      const roomId = 10;
+      const targetId = v7();
+      const targetEntity = {
+        id: parse(targetId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: roomId },
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(targetEntity);
+
+      const newMsgId = parse(v7());
+      const mockCreated = {
+        id: newMsgId,
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: roomId },
+        recipient: null,
+        replyToId: parse(targetId),
+        replyTo: targetEntity,
+        createdAt: new Date(),
+        updatedAt: null,
+        contentEncrypted: new Uint8Array([1]),
+        iv: new Uint8Array([2]),
+        authTag: new Uint8Array([3]),
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+
+      messageRepository.create.mockReturnValue(mockCreated);
+
+      await service.create(mockUser, {
+        attachmentIds: [],
+        content: 'Self reply',
+        roomId,
+        recipientId: null,
+        replyToId: targetId,
+      });
+
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REPLY_CREATED,
+        expect.anything(),
+      );
     });
 
     it('should throw AppException if reply target message does not exist', async () => {
@@ -739,6 +801,10 @@ describe('TextRoomsService', () => {
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [2], roleIds: [5], everyone: false },
         recipientIds: [2, 3],
+        recipients: [
+          { userId: 2, types: ['username'] },
+          { userId: 3, types: ['username'] },
+        ],
         usersById: { 2: { username: 'user2' } },
         rolesById: { 5: { name: 'role5' } },
       });
@@ -765,16 +831,19 @@ describe('TextRoomsService', () => {
         [2, 3],
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
-        {
-          recipientIds: [2, 3],
+        TextRoomsDomainEvents.MENTION_CREATED,
+        expect.objectContaining({
+          recipients: [
+            { userId: 2, types: ['username'] },
+            { userId: 3, types: ['username'] },
+          ],
           senderId: mockUser.id,
           senderUsername: mockUser.username,
           roomId,
           roomName: 'general',
           messageId: result.id,
           messagePreview: 'Hey @user2 and @role5',
-        },
+        }),
       );
       expect(result.mentions).toEqual({
         userIds: [2],
@@ -1463,13 +1532,17 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
-      messageRepository.assign.mockImplementation((target, patch) =>
-        Object.assign(target, patch),
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
       );
 
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [3], roleIds: [], everyone: true },
         recipientIds: [3, 4],
+        recipients: [
+          { userId: 3, types: ['username'] },
+          { userId: 4, types: ['username'] },
+        ],
         usersById: { 3: { username: 'user3' } },
         rolesById: {},
       });
@@ -1493,16 +1566,16 @@ describe('TextRoomsService', () => {
         [3, 4],
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
-        {
-          recipientIds: [4],
+        TextRoomsDomainEvents.MENTION_CREATED,
+        expect.objectContaining({
+          recipients: [{ userId: 4, types: ['username'] }],
           senderId: mockUser.id,
           senderUsername: mockUser.username,
           roomId: 10,
           roomName: 'general',
           messageId: result.id,
           messagePreview: 'Edited @user3 @everyone',
-        },
+        }),
       );
       expect(result.mentions).toEqual({
         userIds: [3],
@@ -1525,13 +1598,14 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
-      messageRepository.assign.mockImplementation((target, patch) =>
-        Object.assign(target, patch),
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
       );
 
       mentionsService.resolve.mockResolvedValueOnce({
         effective: { userIds: [3], roleIds: [], everyone: false },
         recipientIds: [3],
+        recipients: [{ userId: 3, types: ['username'] }],
         usersById: { 3: { username: 'user3' } },
         rolesById: {},
       });
@@ -1542,7 +1616,7 @@ describe('TextRoomsService', () => {
       });
 
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         expect.anything(),
       );
     });
@@ -1562,8 +1636,8 @@ describe('TextRoomsService', () => {
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(existing);
-      messageRepository.assign.mockImplementation((target, patch) =>
-        Object.assign(target, patch),
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
       );
 
       const result = await service.updateMessage(mockUser, msgId, {
@@ -1573,7 +1647,7 @@ describe('TextRoomsService', () => {
       expect(mentionsService.resolve).not.toHaveBeenCalled();
       expect(mentionsService.replace).not.toHaveBeenCalled();
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        NotificationsDomainEvents.MENTION,
+        TextRoomsDomainEvents.MENTION_CREATED,
         expect.anything(),
       );
       expect(result.mentions).toEqual({
@@ -1600,7 +1674,62 @@ describe('TextRoomsService', () => {
       expect(em.flush).toHaveBeenCalled();
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         TextRoomsDomainEvents.MESSAGE_DELETED,
-        { id: msgId },
+        expect.objectContaining({ id: msgId }),
+      );
+    });
+
+    it('should collect recipientUserIds for DM recipient, replyTo sender, and mentions on delete', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: { id: 2 },
+        replyTo: { sender: { id: 3 } },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageMentionRepository.find.mockResolvedValueOnce([
+        { user: { id: 4 } } as MessageMentionEntity,
+        { user: { id: mockUser.id } } as MessageMentionEntity, // self-mention should be skipped
+      ]);
+
+      await service.delete(mockUser, msgId);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_DELETED,
+        expect.objectContaining({
+          id: msgId,
+          recipientUserIds: expect.arrayContaining([2, 3, 4]),
+          senderId: mockUser.id,
+        }),
+      );
+    });
+
+    it('should collect reactionSenderIds on delete', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        recipient: null,
+        replyTo: null,
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageMentionRepository.find.mockResolvedValueOnce([]);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        { user: { id: 5 } } as MessageReactionEntity,
+        { user: { id: 6 } } as MessageReactionEntity,
+        { user: { id: mockUser.id } } as MessageReactionEntity,
+      ]);
+
+      await service.delete(mockUser, msgId);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_DELETED,
+        expect.objectContaining({
+          id: msgId,
+          reactionSenderIds: expect.arrayContaining([5, 6]),
+        }),
       );
     });
 
@@ -1655,7 +1784,7 @@ describe('TextRoomsService', () => {
         expect(em.flush).toHaveBeenCalled();
         expect(eventEmitter.emit).toHaveBeenCalledWith(
           TextRoomsDomainEvents.MESSAGE_DELETED,
-          { id: msgId },
+          expect.objectContaining({ id: msgId }),
         );
       },
     );
@@ -2326,6 +2455,41 @@ describe('TextRoomsService', () => {
       expect(result).toEqual([]);
     });
 
+    it('should emit REACTION_REMOVED when removing reaction from another user message', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const message = {
+        id: rawId,
+        sender: { id: 2, username: 'other_user' },
+        recipient: null,
+        room: { id: 10, isPrivate: false },
+      } as unknown as MessageEntity;
+
+      const existingReaction = {
+        id: 1,
+        message: { id: rawId },
+        emoji: '👍',
+        user: { id: mockUser.id },
+      } as unknown as MessageReactionEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(existingReaction);
+      messageReactionRepository.find.mockResolvedValueOnce([]);
+
+      await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(em.remove).toHaveBeenCalledWith(existingReaction);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_REMOVED,
+        {
+          recipientId: 2,
+          senderId: mockUser.id,
+          messageId: msgId,
+          roomId: 10,
+        },
+      );
+    });
+
     it('should replace previous reaction when different emoji is clicked (Telegram style)', async () => {
       const msgId = v7();
       const rawId = parse(msgId);
@@ -2425,6 +2589,114 @@ describe('TextRoomsService', () => {
       expect(result).toEqual([
         { emoji: '👍', count: 1, userIds: [mockUser.id] },
       ]);
+    });
+
+    it('should emit REACTION_ADDED when reacting to another user message in room', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const otherUser = { id: 2, username: 'bob', deletedAt: null };
+      const message = {
+        id: rawId,
+        sender: otherUser,
+        recipient: null,
+        room: { id: 10, name: 'general' },
+        contentEncrypted: Buffer.from('encrypted'),
+        iv: Buffer.from('iv'),
+        authTag: Buffer.from('authTag'),
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '🎉',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]);
+      encryptionService.decrypt.mockReturnValue('Hello bob!');
+
+      await service.toggleReaction(mockUser, msgId, '🎉');
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_ADDED,
+        expect.objectContaining({
+          recipientId: 2,
+          senderId: mockUser.id,
+          senderUsername: mockUser.username,
+          emoji: '🎉',
+          roomId: 10,
+          roomName: 'general',
+          messageId: msgId,
+          messagePreview: 'Hello bob!',
+        }),
+      );
+    });
+
+    it('should emit REACTION_ADDED when reacting to another user message in DM', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const otherUser = { id: 2, username: 'bob', deletedAt: null };
+      const message = {
+        id: rawId,
+        sender: otherUser,
+        recipient: { id: mockUser.id, username: mockUser.username },
+        room: null,
+        contentEncrypted: Buffer.from('encrypted'),
+        iv: Buffer.from('iv'),
+        authTag: Buffer.from('authTag'),
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([
+        {
+          message: { id: rawId },
+          emoji: '❤️',
+          user: { id: mockUser.id },
+        } as unknown as MessageReactionEntity,
+      ]);
+      encryptionService.decrypt.mockReturnValue('Direct message');
+
+      await service.toggleReaction(mockUser, msgId, '❤️');
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_ADDED,
+        expect.objectContaining({
+          recipientId: 2,
+          senderId: mockUser.id,
+          senderUsername: mockUser.username,
+          emoji: '❤️',
+          roomId: null,
+          roomName: null,
+          messageId: msgId,
+          messagePreview: 'Direct message',
+        }),
+      );
+    });
+
+    it('should not emit REACTION_ADDED if recipient cannot access room', async () => {
+      const msgId = v7();
+      const rawId = parse(msgId);
+      const otherUser = { id: 2, username: 'bob', deletedAt: null };
+      const message = {
+        id: rawId,
+        sender: otherUser,
+        recipient: null,
+        room: { id: 10, name: 'general' },
+      } as unknown as MessageEntity;
+
+      messageRepository.findOne.mockResolvedValue(message);
+      messageReactionRepository.findOne.mockResolvedValueOnce(null);
+      messageReactionRepository.find.mockResolvedValueOnce([]);
+      roomsFacade.canAccessRoom.mockReturnValueOnce(false);
+
+      await service.toggleReaction(mockUser, msgId, '👍');
+
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        TextRoomsDomainEvents.REACTION_ADDED,
+        expect.anything(),
+      );
     });
   });
 

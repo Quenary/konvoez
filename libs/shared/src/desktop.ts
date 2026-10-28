@@ -11,6 +11,7 @@ export enum EDesktopCommand {
 
 export enum EDesktopIpc {
   NOTIFY = 'konvoez:notify',
+  DISMISS_NOTIFICATION = 'konvoez:dismiss-notification',
   SET_VOICE_STATE = 'konvoez:set-voice-state',
   QUIT_READY = 'konvoez:quit-ready',
   COMMAND = 'konvoez:command', // main -> renderer
@@ -38,14 +39,27 @@ export const desktopHotkeysSchema = z.object({
 
 export const desktopNotificationSchema = pushNotificationPayloadSchema;
 
+export const desktopNotificationDismissSchema = z
+  .object({
+    tag: z.string().optional(),
+    messageId: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.tag || data.messageId), {
+    message: 'Either tag or messageId must be provided',
+  });
+
 export type TDesktopVoiceState = z.infer<typeof desktopVoiceStateSchema>;
 export type TDesktopHotkeys = z.infer<typeof desktopHotkeysSchema>;
+export type TDesktopNotificationDismiss = z.infer<
+  typeof desktopNotificationDismissSchema
+>;
 
 export interface IKonvoezDesktopBridge {
   readonly apiVersion: typeof DESKTOP_BRIDGE_API_VERSION;
   readonly platform: 'win32' | 'linux';
   readonly appVersion: string;
   notify(payload: z.infer<typeof desktopNotificationSchema>): void;
+  dismissNotification?(payload: TDesktopNotificationDismiss): void;
   setVoiceState(state: TDesktopVoiceState): void;
   onCommand(listener: (command: EDesktopCommand) => void): () => void;
   onNotificationClick?(

@@ -56,6 +56,7 @@ describe('DesktopBridgeService', () => {
       platform: 'linux',
       appVersion: '0.1.0',
       notify: vi.fn(),
+      dismissNotification: vi.fn(),
       setVoiceState: vi.fn(),
       onCommand: vi.fn((listener) => {
         commandHandler = listener;
@@ -234,6 +235,26 @@ describe('DesktopBridgeService', () => {
       expect(notificationHandler).toBeDefined();
       notificationHandler?.(payload);
       expect(fakeBridge.notify).toHaveBeenCalledWith(payload);
+    });
+
+    it('listens for NOTIFICATION_DISMISS and forwards to bridge.dismissNotification', () => {
+      service.init();
+
+      expect(socketMock.on).toHaveBeenCalledWith(
+        ENotificationsEvent.NOTIFICATION_DISMISS,
+        expect.any(Function),
+      );
+
+      const dismissHandler = socketMock.on.mock.calls.find(
+        (call) => call[0] === ENotificationsEvent.NOTIFICATION_DISMISS,
+      )?.[1];
+
+      expect(dismissHandler).toBeDefined();
+      dismissHandler?.({ tag: 'msg_123', messageId: 'm-123' });
+      expect(fakeBridge.dismissNotification).toHaveBeenCalledWith({
+        tag: 'msg_123',
+        messageId: 'm-123',
+      });
     });
 
     it('delegates onNotificationClick to bridge and returns unregister callback', () => {

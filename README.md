@@ -98,6 +98,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 - [Rooms](docs/ROOMS.md)
 - [Chat reading](docs/CHAT_READING.md)
 - [Mentions](docs/MENTIONS.md)
+- [Notifications](docs/NOTIFICATIONS.md)
 - [Message attachments](docs/ATTACHMENTS.md)
 - [Message reactions](docs/MESSAGE_REACTIONS.md)
 

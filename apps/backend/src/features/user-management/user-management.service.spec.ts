@@ -23,13 +23,12 @@ jest.mock('@mikro-orm/core', () => {
 
 import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
-import type { GetUserSafeDto } from '../users/users.dto';
+import type { GetUserFullDto, GetUserSafeDto } from '../users/users.dto';
 import type { UserEntity } from '../users/users.entity';
 import { UserManagementService } from './user-management.service';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
-import { UsersDomainEvents } from '../users/users.events';
 import { TwoFactorService } from '../two-factor/two-factor.service';
 
 describe('UserManagementService', () => {
@@ -58,7 +57,6 @@ describe('UserManagementService', () => {
     >
   >;
   let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
-  let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
     id: 1,
@@ -86,6 +84,7 @@ describe('UserManagementService', () => {
     avatarUrl: null,
     createdAt: new Date(),
     updatedAt: null,
+    twoFactorEnabled: false,
   };
 
   beforeEach(() => {
@@ -97,12 +96,13 @@ describe('UserManagementService', () => {
         async (user: UserEntity) => user as unknown as GetUserSafeDto,
       ),
       toFullDto: jest.fn(
-        (user: UserEntity, permissions?: unknown) =>
+        (user: UserEntity, permissions?: EPermission[]) =>
           ({
             ...(user as unknown as GetUserSafeDto),
             email: user.email,
             permissions: permissions ?? [],
-          }) as never,
+            twoFactorEnabled: false,
+          }) as unknown as GetUserFullDto,
       ),
       updateUserRoles: jest.fn(),
       anonymizeLoaded: jest.fn(),
@@ -124,14 +124,11 @@ describe('UserManagementService', () => {
       adminReset: jest.fn().mockResolvedValue(mockUserDto),
     };
 
-    eventEmitter = { emit: jest.fn() };
-
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
       roomsFacade as unknown as RoomsFacade,
       twoFactorService as unknown as TwoFactorService,
-      eventEmitter as never,
     );
   });
 
@@ -173,14 +170,6 @@ describe('UserManagementService', () => {
       expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
         { id: 2 },
       ]);
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        UsersDomainEvents.USER_UPDATED,
-        expect.objectContaining({ id: 5 }),
-      );
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        UsersDomainEvents.USER_PERMISSIONS_CHANGED,
-        { userIds: [5] },
-      );
     });
 
     it('should reject changing the owner role', async () => {

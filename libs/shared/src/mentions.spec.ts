@@ -3,12 +3,15 @@ import {
   diffMentionedUsers,
   formatRoleMention,
   formatUserMention,
+  getMentionTypesForUser,
   isMessageMentioningUser,
   MENTION_EVERYONE,
   mentionSetSchema,
   parseMentions,
+  shouldDeliverMentionNotification,
   splitMentionSegments,
 } from './mentions';
+import { DEFAULT_USER_NOTIFICATION_SETTINGS } from './schemas/notification.schemas';
 
 describe('mentions', () => {
   describe('formatters', () => {
@@ -142,6 +145,7 @@ describe('mentions', () => {
             if (seg.type === 'user') return formatUserMention(seg.id);
             if (seg.type === 'role') return formatRoleMention(seg.id);
             if (seg.type === 'everyone') return MENTION_EVERYONE;
+            return '';
           })
           .join('');
 
@@ -252,6 +256,88 @@ describe('mentions', () => {
         isMessageMentioningUser(
           { userIds: [], roleIds: [1], everyone: false },
           { id: 10 },
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('getMentionTypesForUser', () => {
+    const user = { id: 10, roles: [{ id: 1 }, { id: 2 }] };
+
+    it('returns empty array when mentions or user is null', () => {
+      expect(getMentionTypesForUser(null, user)).toEqual([]);
+      expect(
+        getMentionTypesForUser(
+          { userIds: [10], roleIds: [], everyone: false },
+          null,
+        ),
+      ).toEqual([]);
+    });
+
+    it('detects username, role and everyone mentions individually and combined', () => {
+      expect(
+        getMentionTypesForUser(
+          { userIds: [10], roleIds: [], everyone: false },
+          user,
+        ),
+      ).toEqual(['username']);
+
+      expect(
+        getMentionTypesForUser(
+          { userIds: [], roleIds: [2], everyone: false },
+          user,
+        ),
+      ).toEqual(['role']);
+
+      expect(
+        getMentionTypesForUser(
+          { userIds: [], roleIds: [], everyone: true },
+          user,
+        ),
+      ).toEqual(['everyone']);
+
+      expect(
+        getMentionTypesForUser(
+          { userIds: [10], roleIds: [1], everyone: true },
+          user,
+        ),
+      ).toEqual(['username', 'role', 'everyone']);
+    });
+  });
+
+  describe('shouldDeliverMentionNotification', () => {
+    it('returns true when all matching types are enabled', () => {
+      expect(
+        shouldDeliverMentionNotification(DEFAULT_USER_NOTIFICATION_SETTINGS, [
+          'username',
+        ]),
+      ).toBe(true);
+    });
+
+    it('returns true if at least one matching type is enabled', () => {
+      const settings = {
+        ...DEFAULT_USER_NOTIFICATION_SETTINGS,
+        mentions: {
+          username: true,
+          role: false,
+          everyone: false,
+        },
+      };
+
+      expect(
+        shouldDeliverMentionNotification(settings, ['everyone', 'username']),
+      ).toBe(true);
+
+      expect(
+        shouldDeliverMentionNotification(settings, ['everyone', 'role']),
+      ).toBe(false);
+    });
+
+    it('returns false when types array is empty', () => {
+      expect(
+        shouldDeliverMentionNotification(
+          DEFAULT_USER_NOTIFICATION_SETTINGS,
+          [],
         ),
       ).toBe(false);
     });

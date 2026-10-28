@@ -1,6 +1,7 @@
 import type {
   ITextRoomMessage,
   ITextRoomUnreadCounts,
+  TMentionRecipient,
   TTextRoomMessagesRead,
   TTextRoomReactionUpdated,
 } from '@konvoez/shared';
@@ -13,21 +14,82 @@ export const TextRoomsDomainEvents = {
   MESSAGE_REACTION_UPDATED: 'text-room.message.reaction.updated',
   MESSAGES_READ: 'text-room.messages.read',
   UNREAD_COUNTS_CHANGED: 'text-room.unread-counts.changed',
+  DIRECT_MESSAGE_CREATED: 'text-room.direct-message.created',
+  MENTION_CREATED: 'text-room.mention.created',
+  REPLY_CREATED: 'text-room.reply.created',
+  REACTION_ADDED: 'text-room.reaction.added',
+  REACTION_REMOVED: 'text-room.reaction.removed',
 } as const;
 
 export type TTextRoomsDomainEvent =
   (typeof TextRoomsDomainEvents)[keyof typeof TextRoomsDomainEvents];
 
+export type TTextRoomDirectMessageCreatedPayload = {
+  recipientId: number;
+  senderId: number;
+  senderUsername: string;
+  messagePreview: string;
+  messageId: string;
+};
+
+export type TTextRoomMentionCreatedPayload = {
+  recipients: TMentionRecipient[];
+  senderId: number;
+  senderUsername: string;
+  roomId: number;
+  roomName: string;
+  messageId: string;
+  messagePreview: string;
+};
+
+export type TTextRoomReplyCreatedPayload = {
+  recipientId: number;
+  senderId: number;
+  senderUsername: string;
+  roomId: number;
+  roomName: string;
+  messageId: string;
+  messagePreview: string;
+};
+
+export type TTextRoomReactionAddedPayload = {
+  recipientId: number;
+  senderId: number;
+  senderUsername: string;
+  emoji: string;
+  roomId?: number | null;
+  roomName?: string | null;
+  messageId: string;
+  messagePreview: string;
+};
+
+export type TTextRoomReactionRemovedPayload = {
+  recipientId: number;
+  senderId: number;
+  messageId: string;
+  roomId?: number | null;
+};
+
 export type TTextRoomsDomainPayloadMap = {
   [TextRoomsDomainEvents.MESSAGE_CREATED]: ITextRoomMessage;
   [TextRoomsDomainEvents.MESSAGE_UPDATED]: ITextRoomMessage;
-  [TextRoomsDomainEvents.MESSAGE_DELETED]: { id: string };
+  [TextRoomsDomainEvents.MESSAGE_DELETED]: {
+    id: string;
+    recipientUserIds?: number[];
+    senderId?: number;
+    reactionSenderIds?: number[];
+  };
   [TextRoomsDomainEvents.MESSAGE_REACTION_UPDATED]: TTextRoomReactionUpdated;
   [TextRoomsDomainEvents.MESSAGES_READ]: TTextRoomMessagesRead;
   [TextRoomsDomainEvents.UNREAD_COUNTS_CHANGED]: {
     userId: number;
     counts: ITextRoomUnreadCounts;
   };
+  [TextRoomsDomainEvents.DIRECT_MESSAGE_CREATED]: TTextRoomDirectMessageCreatedPayload;
+  [TextRoomsDomainEvents.MENTION_CREATED]: TTextRoomMentionCreatedPayload;
+  [TextRoomsDomainEvents.REPLY_CREATED]: TTextRoomReplyCreatedPayload;
+  [TextRoomsDomainEvents.REACTION_ADDED]: TTextRoomReactionAddedPayload;
+  [TextRoomsDomainEvents.REACTION_REMOVED]: TTextRoomReactionRemovedPayload;
 };
 
 export const emitTextRoomsDomainEvent =

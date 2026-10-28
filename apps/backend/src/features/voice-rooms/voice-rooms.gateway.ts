@@ -57,10 +57,6 @@ import { RoomsFacade } from '../rooms/rooms.facade';
 import { AppService } from '@shared/services/app.service';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
-  NotificationsDomainEvents,
-  emitNotificationsDomainEvent,
-} from '../notifications/notifications.events';
-import {
   VoiceRoomsDomainEvents,
   emitVoiceRoomsDomainEvent,
 } from './voice-rooms.events';
@@ -482,6 +478,17 @@ export class VoiceRoomsGateway
       listenInfos: buildWebRtcListenInfos(announcedAddresses),
     });
 
+    transport.on('icestatechange', (iceState) => {
+      this.logger.debug(
+        `transport icestatechange: socketId=${socket.id}, sessionKey=${sessionKey}, direction=${body.direction}, state=${iceState}`,
+      );
+    });
+    transport.on('dtlsstatechange', (dtlsState) => {
+      this.logger.debug(
+        `transport dtlsstatechange: socketId=${socket.id}, sessionKey=${sessionKey}, direction=${body.direction}, state=${dtlsState}`,
+      );
+    });
+
     if (body.direction === 'send') {
       peer.sendTransport = transport;
     } else {
@@ -850,9 +857,9 @@ export class VoiceRoomsGateway
         caller,
       });
 
-    emitNotificationsDomainEvent(
+    emitVoiceRoomsDomainEvent(
       this.eventEmitter,
-      NotificationsDomainEvents.DIRECT_CALL,
+      VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING,
       {
         recipientId: body.recipientId,
         callerId: caller.id,
@@ -896,6 +903,16 @@ export class VoiceRoomsGateway
     this.clearRingTimer(body.callId);
     this.clearCallerDisconnectTimer(body.callId);
 
+    emitVoiceRoomsDomainEvent(
+      this.eventEmitter,
+      VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+      {
+        callId: body.callId,
+        callerId: body.callerId,
+        recipientId: recipient.id,
+      },
+    );
+
     this.server
       .to(body.callerId.toString())
       .emit(EDirectCallEvent.CALL_ACCEPTED, {
@@ -930,6 +947,15 @@ export class VoiceRoomsGateway
     if (call) {
       this.clearRingTimer(body.callId);
       this.clearCallerDisconnectTimer(body.callId);
+      emitVoiceRoomsDomainEvent(
+        this.eventEmitter,
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        {
+          callId: body.callId,
+          callerId: body.callerId,
+          recipientId: recipient.id,
+        },
+      );
       this.logger.debug(
         `Call rejected: callId=${body.callId}, callerId=${body.callerId}, reason=${body.reason ?? 'declined'}`,
       );
@@ -968,6 +994,16 @@ export class VoiceRoomsGateway
 
     this.clearRingTimer(body.callId);
     this.clearCallerDisconnectTimer(body.callId);
+
+    emitVoiceRoomsDomainEvent(
+      this.eventEmitter,
+      VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+      {
+        callId: body.callId,
+        callerId: call.callerId,
+        recipientId: call.recipientId,
+      },
+    );
 
     this.logger.debug(
       `Call hangup: callId=${body.callId}, byUserId=${body.byUserId}`,
@@ -1321,6 +1357,16 @@ export class VoiceRoomsGateway
       .to(callerId.toString())
       .to(recipientId.toString())
       .emit(EDirectCallEvent.CALL_ENDED, payload);
+
+    emitVoiceRoomsDomainEvent(
+      this.eventEmitter,
+      VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+      {
+        callId,
+        callerId,
+        recipientId,
+      },
+    );
   }
 
   private startRingTimer(callId: string): void {
@@ -1388,6 +1434,15 @@ export class VoiceRoomsGateway
     }
     this.directCallsStateService.cancel(callId);
     this.clearRingTimer(callId);
+    emitVoiceRoomsDomainEvent(
+      this.eventEmitter,
+      VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+      {
+        callId,
+        callerId,
+        recipientId: call.recipientId,
+      },
+    );
     this.server
       .to(call.recipientId.toString())
       .emit(EDirectCallEvent.CALL_HANGUP, {

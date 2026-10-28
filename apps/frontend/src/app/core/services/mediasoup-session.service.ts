@@ -1,10 +1,13 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
+  advanceVoiceLiveness,
   buildVoiceLadder,
+  createInitialVoiceLiveness,
   EVoiceQualityTier,
   EVoiceRoomEvent,
   TVoiceLadderEntry,
+  TVoiceLivenessState,
   TVoiceQualitySample,
   TVoiceRoomCloseProducer,
   TVoiceRoomConnectTransport,
@@ -18,9 +21,12 @@ import {
   TVoiceRoomProduceResult,
   TVoiceRoomRestartIce,
   TVoiceRoomRestartIceResult,
+  TVoiceTransportState,
   VOICE_QUALITY_VIDEO_CAPS,
+  VOICE_WATCHDOG_INTERVAL_MS,
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import type { Device } from 'mediasoup-client';
 import type {
   ConsumerOptions,
@@ -74,6 +80,11 @@ export class MediasoupSessionService {
   private readonly switchNotifier = inject(MediaDeviceSwitchNotifierService);
   private readonly consumerRegistry = inject(ConsumerRegistry);
   private readonly voiceQualityService = inject(VoiceQualityService);
+  private readonly voiceConnectionStore = inject(VoiceConnectionStore);
+
+  public get microphoneProducerId(): string | null {
+    return this.microphoneProducer?.id ?? null;
+  }
 
   private readonly sessionMutex = new Mutex();
   private readonly microphoneMutex = new Mutex();
@@ -95,7 +106,11 @@ export class MediasoupSessionService {
   private currentQualityLevel: TVoiceLadderEntry | null = null;
   private microphoneMuted = false;
   private readonly consuming = new Set<string>();
+  private readonly liveConsumerIds = new Set<string>();
   private pendingConsumes: TVoiceRoomProduceResult[] = [];
+  private watchdogInterval: ReturnType<typeof setInterval> | null = null;
+  private livenessState: TVoiceLivenessState | null = null;
+  private isWatchdogTickRunning = false;
 
   private get settingsStore(): InstanceType<typeof SettingsStore> {
     return this.injector.get(SettingsStore);
@@ -157,6 +172,13 @@ export class MediasoupSessionService {
     this.activeBaseKbps = null;
     this.activeLadder = [];
     this.currentQualityLevel = null;
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+      this.watchdogInterval = null;
+    }
+    this.livenessState = null;
+    this.liveConsumerIds.clear();
+    this.voiceConnectionStore.resetTransports();
     sendTransport?.close();
     recvTransport?.close();
     micProducer?.close();
@@ -777,7 +799,17 @@ export class MediasoupSessionService {
       );
     }
 
+    this.voiceConnectionStore.setTransportState(
+      direction,
+      transport.connectionState as TVoiceTransportState,
+    );
+    this.startWatchdog();
+
     transport.on('connectionstatechange', (state) => {
+      this.voiceConnectionStore.setTransportState(
+        direction,
+        state as TVoiceTransportState,
+      );
       if (state !== 'failed') {
         return;
       }
@@ -882,6 +914,10 @@ export class MediasoupSessionService {
       const consumer = await recvTransport.consume(
         result as unknown as ConsumerOptions,
       );
+      this.liveConsumerIds.add(consumer.id);
+      consumer.observer.once('close', () => {
+        this.liveConsumerIds.delete(consumer.id);
+      });
 
       if (data.mediaTag === 'screen') {
         this.consumerRegistry.add(consumer);
@@ -958,6 +994,77 @@ export class MediasoupSessionService {
       routerRtpCapabilities:
         routerRtpCapabilities as unknown as RtpCapabilities,
     });
+  }
+
+  private startWatchdog(): void {
+    if (this.watchdogInterval) {
+      return;
+    }
+    this.livenessState = createInitialVoiceLiveness(Date.now());
+    this.watchdogInterval = setInterval(() => {
+      void this.onWatchdogTick();
+    }, VOICE_WATCHDOG_INTERVAL_MS);
+  }
+
+  private async onWatchdogTick(): Promise<void> {
+    if (this.isWatchdogTickRunning || !this.watchdogInterval) {
+      return;
+    }
+    this.isWatchdogTickRunning = true;
+    try {
+      const sendBytes = await readTransportBytes(this.sendTransport);
+      const recvBytes = await readTransportBytes(this.recvTransport);
+
+      if (!this.watchdogInterval) {
+        return;
+      }
+
+      const previousLiveness =
+        this.livenessState ?? createInitialVoiceLiveness(Date.now());
+      const now = Date.now();
+      const sendConnected = this.sendTransport?.connectionState === 'connected';
+      const recvConnected =
+        this.recvTransport?.connectionState === 'connected' &&
+        this.liveConsumerIds.size > 0;
+
+      const { state, stalled } = advanceVoiceLiveness(
+        previousLiveness,
+        {
+          sendBytes,
+          recvBytes,
+          sendConnected,
+          recvConnected,
+        },
+        now,
+      );
+
+      this.livenessState = state;
+      this.voiceConnectionStore.setStalled(stalled);
+    } finally {
+      this.isWatchdogTickRunning = false;
+    }
+  }
+}
+
+async function readTransportBytes(
+  transport: Transport | null,
+): Promise<number | null> {
+  if (!transport || transport.closed) {
+    return null;
+  }
+  try {
+    const stats = await transport.getStats();
+    let totalBytes: number | null = null;
+    for (const report of stats.values()) {
+      if (report.type === 'candidate-pair' && report.nominated === true) {
+        const recv =
+          typeof report.bytesReceived === 'number' ? report.bytesReceived : 0;
+        totalBytes = (totalBytes ?? 0) + recv;
+      }
+    }
+    return totalBytes;
+  } catch {
+    return null;
   }
 }
 

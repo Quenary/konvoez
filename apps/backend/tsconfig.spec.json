@@ -2,6 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
+    "strict": true,
+    "skipLibCheck": true,
     "module": "commonjs",
     "moduleResolution": "node10",
     "allowJs": true,

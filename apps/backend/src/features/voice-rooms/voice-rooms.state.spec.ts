@@ -1,5 +1,8 @@
 jest.mock('mediasoup', () => ({
-  createWorker: jest.fn(),
+  createWorker: jest.fn().mockResolvedValue({
+    on: jest.fn(),
+    close: jest.fn(),
+  }),
 }));
 jest.mock('mediasoup/types', () => ({}), { virtual: true });
 
@@ -105,6 +108,7 @@ describe('VoiceRoomsStateService lobby eviction', () => {
     (createWorker as jest.Mock).mockResolvedValue({
       createRouter,
       close: jest.fn(),
+      on: jest.fn(),
     });
 
     service = new VoiceRoomsStateService(appServiceStub, eventEmitter as never);
@@ -306,5 +310,38 @@ describe('VoiceRoomsStateService snapshots and peers', () => {
     });
 
     expect(service.getAllPeers()).toEqual({});
+  });
+
+  it('exits the process when the mediasoup worker dies', async () => {
+    const listeners: Record<string, (error: unknown) => void> = {};
+    const mockWorker = {
+      on: jest.fn((event: string, callback: (error: unknown) => void) => {
+        listeners[event] = callback;
+      }),
+      close: jest.fn(),
+    };
+    (createWorker as jest.Mock).mockResolvedValue(mockWorker);
+
+    const exitSpy = jest
+      .spyOn(process, 'exit')
+      .mockImplementation((() => undefined) as never);
+
+    const appService = {
+      MEDIASOUP_ANNOUNCED_ADDRESSES: [],
+    } as unknown as AppService;
+
+    const stateService = new VoiceRoomsStateService(
+      appService,
+      eventEmitter as never,
+    );
+    await stateService.onModuleInit();
+
+    expect(mockWorker.on).toHaveBeenCalledWith('died', expect.any(Function));
+
+    const workerError = new Error('Worker segfault');
+    listeners['died']?.(workerError);
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    exitSpy.mockRestore();
   });
 });

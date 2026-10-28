@@ -42,7 +42,6 @@ import {
   type IUserSafe,
   type TVoiceRoomProduce,
 } from '@konvoez/shared';
-import { NotificationsDomainEvents } from '../notifications/notifications.events';
 import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { AppException } from '@shared/errors/app.exception';
 import { Mutex } from 'async-mutex';
@@ -130,6 +129,7 @@ describe('VoiceRoomsGateway', () => {
     to: jest.Mock;
     emit: jest.Mock;
     in: jest.Mock;
+    fetchSockets?: jest.Mock;
     sockets: { sockets: Map<string, Socket> };
   };
   let fetchSockets: jest.Mock;
@@ -266,6 +266,7 @@ describe('VoiceRoomsGateway', () => {
         iceCandidates: [],
         dtlsParameters: {},
         sctpParameters: undefined,
+        on: jest.fn(),
       };
       const createWebRtcTransport = jest.fn().mockResolvedValue(transport);
       const peer = { id: 'socket-1' };
@@ -1696,7 +1697,7 @@ describe('VoiceRoomsGateway', () => {
         { callId: 'c1', caller: alice },
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
-        NotificationsDomainEvents.DIRECT_CALL,
+        VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING,
         {
           recipientId: bob.id,
           callerId: alice.id,
@@ -1751,6 +1752,10 @@ describe('VoiceRoomsGateway', () => {
         EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
         { callId: 'c1', outcome: 'accepted' },
       );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        { callId: 'c1', callerId: alice.id, recipientId: bob.id },
+      );
     });
 
     it('rejects accept when the call is missing', () => {
@@ -1796,6 +1801,10 @@ describe('VoiceRoomsGateway', () => {
       expect(elsewhereEmit).toHaveBeenCalledWith(
         EDirectCallEvent.CALL_ANSWERED_ELSEWHERE,
         { callId: 'c1', outcome: 'rejected' },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        { callId: 'c1', callerId: alice.id, recipientId: bob.id },
       );
     });
 
@@ -1860,6 +1869,10 @@ describe('VoiceRoomsGateway', () => {
           callId: 'c1',
           byUserId: alice.id,
         },
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.DIRECT_CALL_ENDED,
+        { callId: 'c1', callerId: alice.id, recipientId: bob.id },
       );
     });
 

@@ -5,6 +5,11 @@ import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { EMessageStatus, IMessageEntity } from '../chat.store';
 import { signal } from '@angular/core';
+import { Editor, Mark } from '@tiptap/core';
+import Document from '@tiptap/extension-document';
+import Paragraph from '@tiptap/extension-paragraph';
+import Text from '@tiptap/extension-text';
+import { Selection } from '@tiptap/pm/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '@core/stores/settings.store';
 import { UsersStore } from '@core/stores/users.store';
@@ -244,6 +249,157 @@ describe('ChatEditorComponent', () => {
       content: '<p>Edited content</p>',
     });
     expect(control.value).toBe('');
+  });
+
+  it('should auto-focus when replyToMessage is set, and not when cleared', () => {
+    const focusSpy = vi.spyOn(component, 'focus');
+
+    fixture.componentRef.setInput('replyToMessage', mockReplyMessage);
+    fixture.detectChanges();
+    expect(focusSpy).toHaveBeenCalledOnce();
+
+    focusSpy.mockClear();
+    fixture.componentRef.setInput('replyToMessage', { ...mockReplyMessage });
+    fixture.detectChanges();
+    expect(focusSpy).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('replyToMessage', null);
+    fixture.detectChanges();
+    expect(focusSpy).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('replyToMessage', {
+      ...mockReplyMessage,
+      id: 'reply-target-2',
+    });
+    fixture.detectChanges();
+    expect(focusSpy).toHaveBeenCalledOnce();
+  });
+
+  it('should auto-focus when editableMessage is set, and not when cleared', () => {
+    const focusSpy = vi.spyOn(component, 'focus');
+
+    fixture.componentRef.setInput('editableMessage', mockReplyMessage);
+    fixture.detectChanges();
+    expect(focusSpy).toHaveBeenCalledOnce();
+
+    focusSpy.mockClear();
+    fixture.componentRef.setInput('editableMessage', null);
+    fixture.detectChanges();
+    expect(focusSpy).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('editableMessage', {
+      ...mockReplyMessage,
+      id: 'editable-2',
+    });
+    fixture.detectChanges();
+    expect(focusSpy).toHaveBeenCalledOnce();
+  });
+
+  it('should delegate focus to tiptap editor when available', () => {
+    const mockEditor = {
+      isDestroyed: false,
+      commands: {
+        focus: vi.fn(),
+      },
+    };
+    component['tiptapEditor'] = mockEditor as unknown as Editor;
+
+    component.focus();
+    expect(mockEditor.commands.focus).toHaveBeenCalledWith('end');
+
+    component.focus('start');
+    expect(mockEditor.commands.focus).toHaveBeenCalledWith('start');
+  });
+
+  it('focuses the contenteditable without preventScroll on a coarse pointer', () => {
+    const restoreMedia = stubCoarsePointer();
+    const editor = new Editor({
+      extensions: [Document, Paragraph, Text],
+      content: '<p>hello</p>',
+    });
+    const commandsFocus = vi.spyOn(editor.commands, 'focus');
+    const domFocus = vi.spyOn(editor.view.dom, 'focus');
+    component['tiptapEditor'] = editor;
+
+    try {
+      component.focus();
+
+      expect(commandsFocus).not.toHaveBeenCalled();
+      expect(domFocus.mock.calls.every((args) => args.length === 0)).toBe(true);
+      expect(editor.state.selection.eq(Selection.atEnd(editor.state.doc))).toBe(
+        true,
+      );
+
+      component.focus('start');
+      expect(
+        editor.state.selection.eq(Selection.atStart(editor.state.doc)),
+      ).toBe(true);
+    } finally {
+      editor.destroy();
+      restoreMedia();
+    }
+  });
+
+  it('keeps the caret at the end when it is already there on a coarse pointer', () => {
+    const restoreMedia = stubCoarsePointer();
+    const editor = new Editor({
+      extensions: [Document, Paragraph, Text, Bold],
+      content: '<p>hello</p>',
+    });
+    editor.commands.setTextSelection(Selection.atEnd(editor.state.doc).from);
+    const mark = editor.schema.marks['bold'].create();
+    editor.view.dispatch(
+      editor.state.tr.setStoredMarks([mark]).setMeta('addToHistory', false),
+    );
+    const domFocus = vi.spyOn(editor.view.dom, 'focus');
+    const dispatch = vi.spyOn(editor.view, 'dispatch');
+    component['tiptapEditor'] = editor;
+
+    try {
+      component.focus();
+
+      expect(domFocus.mock.calls.every((args) => args.length === 0)).toBe(true);
+      expect(dispatch).toHaveBeenCalledOnce();
+      const tr = dispatch.mock.calls[0][0];
+      expect(tr.selectionSet).toBe(false);
+      expect(tr.scrolledIntoView).toBe(true);
+      expect(tr.selection.eq(Selection.atEnd(editor.state.doc))).toBe(true);
+      expect(editor.state.selection.eq(Selection.atEnd(editor.state.doc))).toBe(
+        true,
+      );
+      expect(editor.state.storedMarks).toEqual([mark]);
+    } finally {
+      editor.destroy();
+      restoreMedia();
+    }
+  });
+
+  it('should fallback to nativeFocusableElement when tiptap editor is not available', () => {
+    component['tiptapEditor'] = null;
+    const focusNative = vi.fn();
+    Object.defineProperty(component, 'tuiEditor', {
+      configurable: true,
+      value: () => ({
+        nativeFocusableElement: { focus: focusNative },
+      }),
+    });
+
+    component.focus();
+    expect(focusNative).toHaveBeenCalledOnce();
+  });
+
+  it('should focus in onEditorLoaded when editableMessage or replyToMessage is active', () => {
+    const focusSpy = vi.spyOn(component, 'focus');
+
+    component['onEditorLoaded']();
+    expect(focusSpy).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('replyToMessage', mockReplyMessage);
+    fixture.detectChanges();
+    focusSpy.mockClear();
+
+    component['onEditorLoaded']();
+    expect(focusSpy).toHaveBeenCalledOnce();
   });
 
   it('should send a files-only message and keep object urls for the outgoing store', () => {
@@ -764,3 +920,27 @@ describe('ChatEditorComponent', () => {
     });
   });
 });
+
+const Bold = Mark.create({ name: 'bold' });
+
+function stubCoarsePointer(): () => void {
+  const previous = window.matchMedia;
+  window.matchMedia = (query: string) =>
+    ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+  return () => {
+    if (previous) {
+      window.matchMedia = previous;
+    } else {
+      Reflect.deleteProperty(window, 'matchMedia');
+    }
+  };
+}

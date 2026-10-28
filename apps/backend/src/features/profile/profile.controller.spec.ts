@@ -35,6 +35,7 @@ describe('ProfileController', () => {
   const authorFull: GetUserFullDto = {
     ...authorSafe,
     email: 'test@example.com',
+    twoFactorEnabled: false,
   };
 
   beforeEach(async () => {

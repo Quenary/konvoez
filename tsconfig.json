@@ -24,6 +24,8 @@
     }
   ],
   "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
     "paths": {
       "@konvoez/shared": ["./libs/shared/src/index.ts"],
       "@konvoez/client-shell": ["./libs/client-shell/src/index.ts"],

@@ -20,6 +20,7 @@ import {
 import {
   NotificationsDomainEvents,
   type INotificationDeliverPayload,
+  type INotificationDismissPayload,
 } from './notifications.events';
 
 type TSocket = Socket<
@@ -68,6 +69,17 @@ export class NotificationsGateway implements OnGatewayConnection {
     this.server
       .to(`user:${userId}`)
       .emit(ENotificationsEvent.NOTIFICATION, payload);
+  }
+
+  @OnEvent(NotificationsDomainEvents.DISMISS)
+  onNotificationDismiss(payload: INotificationDismissPayload) {
+    this.server
+      .to(`user:${payload.userId}`)
+      .emit(ENotificationsEvent.NOTIFICATION_DISMISS, {
+        tag: payload.tag,
+        topic: payload.topic,
+        messageId: payload.messageId,
+      });
   }
 
   @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)

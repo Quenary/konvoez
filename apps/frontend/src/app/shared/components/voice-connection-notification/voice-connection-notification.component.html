@@ -1,0 +1,19 @@
+<ng-template
+  [tuiNotificationOptions]="{
+    label: (labelKey() | translate),
+    autoClose: 0,
+    closable: false,
+    icon: icons['circle-alert'],
+    appearance: appearance(),
+  }"
+  [(tuiNotification)]="show">
+  @if (isDead()) {
+    <button
+      tuiButton
+      size="s"
+      type="button"
+      (click)="rejoin()">
+      {{ 'VOICE.REJOIN' | translate }}
+    </button>
+  }
+</ng-template>

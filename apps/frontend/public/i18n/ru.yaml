@@ -31,6 +31,8 @@ GENERAL:
   CONFIRM: Подтвердить
   ENABLED: Включено
   DISABLED: Отключено
+  ENABLE: Включить
+  DISABLE: Отключить
 CONNECTION:
   PROBLEMS: Проблемы с подключением
 PROFILE:
@@ -110,6 +112,11 @@ CALL:
     LEVEL_1: 'Связь: хорошая. Битрейт голоса снижен до {{kbps}} кбит/с'
     LEVEL_2: 'Связь: нестабильная. Битрейт голоса снижен до {{kbps}} кбит/с, видео ограничено'
     LEVEL_3: 'Связь: плохая. Битрейт голоса: {{kbps}} кбит/с, видео приостановлено'
+  CONNECTION:
+    RECONNECTING: Переподключение…
+    DISCONNECTED: Связь потеряна
+    DEAD: Не удалось восстановить подключение
+    AUDIO_SUSPENDED: Воспроизведение звука приостановлено
   YOU: Вы
   VOLUME: Громкость
   MUTE_MICROPHONE: Выключить микрофон
@@ -150,6 +157,9 @@ CALL:
 VOICE:
   JOIN_FAILED: Не удалось подключиться к голосовому каналу
   ROOM_CLOSED: Голосовая комната была закрыта
+  CONNECTION_LOST: Голосовая связь потеряна
+  CONNECTION_RESTORED: Голосовая связь восстановлена
+  REJOIN: Переподключиться
 ROOMS:
   UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
@@ -225,15 +235,30 @@ SETTINGS:
     CONTINUE: Продолжить
   NOTIFICATIONS:
     TITLE: Уведомления
-    SUBTITLE: Управление push-уведомлениями браузера
-    STATUS: Статус
-    ENABLE: Включить уведомления
-    DISABLE: Отключить уведомления
+    STATUS: Статус Push-уведомлений
     UNSUPPORTED: Этот браузер не поддерживает уведомления.
     PERMISSION_DENIED: Доступ не был предоставлен. Попробуйте ещё раз.
     ENABLE_ERROR: Не удалось включить уведомления. Попробуйте ещё раз.
     DISABLE_ERROR: Не удалось отключить уведомления. Попробуйте ещё раз.
     SERVER_DISABLED: Push-уведомления не настроены на этом сервере.
+    TOPICS_TITLE: Категории уведомлений
+    DIRECT_MESSAGES: Личные сообщения
+    DIRECT_MESSAGES_DESC: Уведомления о новых личных сообщениях
+    DIRECT_CALLS: Входящие звонки
+    DIRECT_CALLS_DESC: Уведомления о входящих прямых вызовах
+    REPLIES: Ответы
+    REPLIES_DESC: Уведомления при ответе на ваше сообщение
+    REACTIONS: Реакции
+    REACTIONS_DESC: Уведомления о реакциях на ваши сообщения
+    MENTIONS_TITLE: Упоминания
+    MENTIONS_USERNAME: Личные упоминания
+    MENTIONS_USERNAME_DESC: Уведомления при упоминании вашего имени через @username
+    MENTIONS_ROLE: Упоминания ролей
+    MENTIONS_ROLE_DESC: Уведомления при упоминании одной из ваших ролей
+    MENTIONS_EVERYONE: 'Упоминания @everyone'
+    MENTIONS_EVERYONE_DESC: Уведомления при массовом упоминании всех участников
+    UPDATE_ERROR: Не удалось сохранить настройки уведомлений
+    LOAD_ERROR: Не удалось загрузить настройки уведомлений
   DEVICES:
     TITLE: Настройки устройств
     AUDIO_INPUT: Микрофон
@@ -295,6 +320,7 @@ SETTINGS:
     DIALOG_TITLE: Пользователь
     TABLE:
       USER: Пользователь
+      ROLE: Роль
       EMAIL: Email
       CREATED: Создан
     ID: ID

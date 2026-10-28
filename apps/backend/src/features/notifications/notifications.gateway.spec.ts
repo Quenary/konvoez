@@ -127,6 +127,28 @@ describe('NotificationsGateway', () => {
         payload,
       );
     });
+
+    it('should emit NOTIFICATION_DISMISS to user room on dismiss', () => {
+      const roomEmit = jest.fn();
+      toMock.mockReturnValue({ emit: roomEmit });
+
+      gateway.onNotificationDismiss({
+        userId: 1,
+        tag: 'msg_test',
+        topic: 'msg_test',
+        messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      });
+
+      expect(serverMock.to).toHaveBeenCalledWith('user:1');
+      expect(roomEmit).toHaveBeenCalledWith(
+        ENotificationsEvent.NOTIFICATION_DISMISS,
+        {
+          tag: 'msg_test',
+          topic: 'msg_test',
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        },
+      );
+    });
   });
 
   describe('onUserSessionsRevoked', () => {

@@ -23,9 +23,17 @@ describe('TwoFactorService', () => {
   let storedRecoveryCodes: TwoFactorRecoveryCodeEntity[];
   let fakeRecoveryCodeRepo: {
     getEntityManager: () => unknown;
-    findOne: (where: unknown) => Promise<TwoFactorRecoveryCodeEntity | null>;
+    findOne: (where: {
+      user: number;
+      codeHash: string;
+      usedAt: null;
+    }) => Promise<TwoFactorRecoveryCodeEntity | null>;
     create: (data: unknown) => TwoFactorRecoveryCodeEntity;
-    nativeDelete: (where: unknown) => Promise<number>;
+    nativeDelete: (where: { user: number }) => Promise<number>;
+    nativeUpdate?: (
+      where: { user: number; codeHash: string; usedAt: null },
+      data: { usedAt: Date },
+    ) => Promise<number>;
   };
 
   const masterKey = Buffer.alloc(32, 42).toString('base64');
@@ -108,12 +116,13 @@ describe('TwoFactorService', () => {
     };
 
     fakeCacheManager = {
-      get: jest.fn(async (key: string) => inMemoryCache.get(key)),
+      get: jest.fn(async (key: string) => inMemoryCache.get(key) as never),
       set: jest.fn(async (key: string, val: unknown) => {
         inMemoryCache.set(key, val);
+        return val as never;
       }),
       del: jest.fn(async (key: string) => {
-        inMemoryCache.delete(key);
+        return inMemoryCache.delete(key);
       }),
     };
 

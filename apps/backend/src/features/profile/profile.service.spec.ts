@@ -81,6 +81,7 @@ describe('ProfileService', () => {
   const author: GetUserFullDto = {
     ...authorPublic,
     email: 'test@example.com',
+    twoFactorEnabled: false,
   };
 
   beforeEach(() => {

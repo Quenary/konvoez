@@ -2,11 +2,13 @@
   display: block;
 
   .message {
+    position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
     transition: background-color 0.3s ease;
     border-radius: var(--tui-radius-l);
+    touch-action: pan-y;
 
     &.message-highlight {
       animation: message-flash 1.5s ease-out;
@@ -24,6 +26,11 @@
       gap: 0.5rem;
       max-width: 90%;
       min-width: 25%;
+      will-change: transform;
+
+      &.is-releasing {
+        transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+      }
 
       &.message-row-media {
         width: 90%;
@@ -50,6 +57,49 @@
     // Others: align row to the left
     &:not(.message-own) .message-row {
       align-self: flex-start;
+    }
+
+    &-swipe-indicator {
+      position: absolute;
+      top: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 50%;
+      background: var(--tui-background-neutral-2);
+      color: var(--tui-text-primary);
+      opacity: 0;
+      transform: translateY(-50%) scale(0.4);
+      pointer-events: none;
+      z-index: 2;
+      box-shadow: var(--tui-shadow-small);
+      transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+
+      &.is-left {
+        left: 0.75rem;
+      }
+
+      &.is-right {
+        right: 0.75rem;
+      }
+
+      &.is-active {
+        background: var(--tui-background-accent-1);
+        color: var(--tui-text-accent);
+        transform: translateY(-50%) scale(1.15);
+      }
+
+      &.is-releasing {
+        transition:
+          transform 0.2s ease-out,
+          opacity 0.2s ease-out,
+          background-color 0.15s ease,
+          color 0.15s ease;
+      }
     }
 
     &-sender {

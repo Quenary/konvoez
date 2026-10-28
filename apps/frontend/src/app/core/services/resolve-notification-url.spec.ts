@@ -56,13 +56,31 @@ describe('resolveNotificationUrl', () => {
     expect(url).toBe('/text-room/3');
   });
 
-  it('falls back to mention room and message url when type is mention', () => {
+  it('falls back to mention room and message url when type is mention, reply or reaction', () => {
     const url = resolveNotificationUrl({
       type: 'mention',
       roomId: 10,
       messageId: '00000000-0000-7000-8000-000000000001',
     });
     expect(url).toBe(
+      '/text-room/10?message=00000000-0000-7000-8000-000000000001',
+    );
+
+    const replyUrl = resolveNotificationUrl({
+      type: 'reply',
+      roomId: 10,
+      messageId: '00000000-0000-7000-8000-000000000001',
+    });
+    expect(replyUrl).toBe(
+      '/text-room/10?message=00000000-0000-7000-8000-000000000001',
+    );
+
+    const reactionUrl = resolveNotificationUrl({
+      type: 'reaction',
+      roomId: 10,
+      messageId: '00000000-0000-7000-8000-000000000001',
+    });
+    expect(reactionUrl).toBe(
       '/text-room/10?message=00000000-0000-7000-8000-000000000001',
     );
 

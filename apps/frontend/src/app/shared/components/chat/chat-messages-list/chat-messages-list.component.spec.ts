@@ -15,6 +15,7 @@ import { ChatApiService } from '@core/api/chat-api.service';
 import { MessageReadQueueService } from '@core/chat/message-read-queue.service';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { ChatTarget } from '../chat-target';
+import { ComposerFocusService } from '../composer-focus.service';
 import { AuthActions } from '@core/auth/auth.actions';
 import { Store } from '@ngrx/store';
 import {
@@ -223,6 +224,7 @@ describe('ChatMessagesListComponent', () => {
           },
         },
         { provide: ChatStore, useValue: mockChatStore },
+        { provide: ComposerFocusService, useClass: ComposerFocusService },
         { provide: UsersStore, useValue: mockUsersStore },
         { provide: UnreadCountsStore, useValue: mockUnreadCountsStore },
         {

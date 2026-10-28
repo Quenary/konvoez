@@ -249,6 +249,83 @@ describe('RoomsService', () => {
 
       expect(service.canAccessRoom(normalUser, privateRoom)).toBe(true);
     });
+
+    it('allows any user to access public room even when collections are uninitialized', () => {
+      const normalUser = {
+        id: 3,
+        isOwner: false,
+        permissions: [],
+        roles: [],
+      } as unknown as GetUserSafeDto;
+
+      const publicRoom = {
+        ...room,
+        isPrivate: false,
+        allowedUsers: {
+          isInitialized: () => false,
+          getItems: () => {
+            throw new Error('Collection not initialized');
+          },
+        },
+        allowedRoles: {
+          isInitialized: () => false,
+          getItems: () => {
+            throw new Error('Collection not initialized');
+          },
+        },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(normalUser, publicRoom)).toBe(true);
+    });
+
+    it('handles uninitialized collections gracefully for private room', () => {
+      const normalUser = {
+        id: 3,
+        isOwner: false,
+        permissions: [],
+        roles: [],
+      } as unknown as GetUserSafeDto;
+
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: {
+          isInitialized: () => false,
+          getItems: () => {
+            throw new Error('Collection not initialized');
+          },
+        },
+        allowedRoles: {
+          isInitialized: () => false,
+          getItems: () => {
+            throw new Error('Collection not initialized');
+          },
+        },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(normalUser, privateRoom)).toBe(false);
+    });
+
+    it('always allows owner access even when collections are uninitialized', () => {
+      const privateRoom = {
+        ...room,
+        isPrivate: true,
+        allowedUsers: {
+          isInitialized: () => false,
+          getItems: () => {
+            throw new Error('Collection not initialized');
+          },
+        },
+        allowedRoles: {
+          isInitialized: () => false,
+          getItems: () => {
+            throw new Error('Collection not initialized');
+          },
+        },
+      } as unknown as RoomEntity;
+
+      expect(service.canAccessRoom(author, privateRoom)).toBe(true);
+    });
   });
 
   describe('deleteRoomsByAuthor', () => {

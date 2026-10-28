@@ -3,9 +3,12 @@ import { SwPush } from '@angular/service-worker';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BehaviorSubject, firstValueFrom, of, throwError } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { NotificationsApiService } from './notifications-api.service';
-import { PushNotificationService } from './push-notification.service';
+import {
+  closeLocalNotifications,
+  PushNotificationService,
+} from './push-notification.service';
 
 describe('PushNotificationService', () => {
   const vapidPublicKey =
@@ -37,12 +40,14 @@ describe('PushNotificationService', () => {
   const subscriptionSubject = new BehaviorSubject<PushSubscription | null>(
     null,
   );
+  const messagesSubject = new Subject<unknown>();
 
   const swPush = {
     isEnabled: true,
     requestSubscription: vi.fn().mockResolvedValue(mockSubscription),
     unsubscribe: vi.fn().mockResolvedValue(undefined),
     subscription: subscriptionSubject.asObservable(),
+    messages: messagesSubject.asObservable(),
   };
 
   const notificationsApiService = {
@@ -222,5 +227,65 @@ describe('PushNotificationService', () => {
     await expect(firstValueFrom(service.enable())).resolves.toBe('failed');
     expect(mockSubscription.unsubscribe).toHaveBeenCalled();
     expect(service.subscription()).toBeNull();
+  });
+
+  it('should close notifications by tag, or by messageId when tag is absent', async () => {
+    const close1 = vi.fn();
+    const close2 = vi.fn();
+    const close3 = vi.fn();
+    const mockNotifications = [
+      { tag: 'msg_target', data: { messageId: 'm-1' }, close: close1 },
+      { tag: 'msg_other', data: { messageId: 'm-target' }, close: close2 },
+      { tag: 'msg_other2', data: { messageId: 'm-3' }, close: close3 },
+    ];
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          getNotifications: vi.fn().mockResolvedValue(mockNotifications),
+        }),
+      },
+    });
+
+    await closeLocalNotifications({ tag: 'msg_target' });
+    expect(close1).toHaveBeenCalled();
+    expect(close2).not.toHaveBeenCalled();
+    expect(close3).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    await closeLocalNotifications({ messageId: 'm-target' });
+    expect(close1).not.toHaveBeenCalled();
+    expect(close2).toHaveBeenCalled();
+    expect(close3).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    await closeLocalNotifications({
+      tag: 'msg_target',
+      messageId: 'm-target',
+    });
+    expect(close1).toHaveBeenCalled();
+    expect(close2).not.toHaveBeenCalled();
+    expect(close3).not.toHaveBeenCalled();
+  });
+
+  it('should handle dismiss action from swPush.messages', async () => {
+    const closeMock = vi.fn();
+    const mockNotifications = [
+      { tag: 'msg_dismiss', data: { messageId: 'm-99' }, close: closeMock },
+    ];
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          getNotifications: vi.fn().mockResolvedValue(mockNotifications),
+        }),
+      },
+    });
+
+    TestBed.inject(PushNotificationService);
+
+    messagesSubject.next({ action: 'dismiss', tag: 'msg_dismiss' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(closeMock).toHaveBeenCalled();
   });
 });

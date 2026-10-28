@@ -26,6 +26,29 @@ import { GetUserSafeDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 
+function extractEntityIds(source: unknown): number[] {
+  if (!source) {
+    return [];
+  }
+  if (Array.isArray(source)) {
+    return source.map((item: { id: number }) => item.id);
+  }
+  const collection = source as {
+    isInitialized?: () => boolean;
+    getItems?: () => Array<{ id: number }>;
+  };
+  if (typeof collection.getItems === 'function') {
+    if (
+      typeof collection.isInitialized === 'function' &&
+      !collection.isInitialized()
+    ) {
+      return [];
+    }
+    return collection.getItems().map((item) => item.id);
+  }
+  return [];
+}
+
 @Injectable()
 export class RoomsService {
   private readonly em!: EntityManager;
@@ -64,71 +87,38 @@ export class RoomsService {
           allowedUserIds?: number[];
         },
   ): boolean {
+    if (user.isOwner) {
+      return true;
+    }
+
     const permissions =
       'permissions' in user && Array.isArray(user.permissions)
         ? user.permissions
         : [];
-
-    let roleIds: number[] = [];
-    if ('roles' in user && user.roles) {
-      const userRoles: Array<{ id: number }> =
-        typeof (
-          user.roles as unknown as {
-            getItems?: () => Array<{ id: number }>;
-          }
-        ).getItems === 'function'
-          ? (
-              user.roles as unknown as {
-                getItems: () => Array<{ id: number }>;
-              }
-            ).getItems()
-          : Array.isArray(user.roles)
-            ? (user.roles as Array<{ id: number }>)
-            : [];
-      roleIds = userRoles.map((r) => r.id);
+    if (permissions.includes(EPermission.MANAGE_ROOMS)) {
+      return true;
     }
 
-    let allowedUserIds: number[] = [];
-    if ('allowedUserIds' in room && Array.isArray(room.allowedUserIds)) {
-      allowedUserIds = room.allowedUserIds;
-    } else if ('allowedUsers' in room && room.allowedUsers) {
-      const allowedUsers: Array<{ id: number }> =
-        typeof (
-          room.allowedUsers as unknown as {
-            getItems?: () => Array<{ id: number }>;
-          }
-        ).getItems === 'function'
-          ? (
-              room.allowedUsers as unknown as {
-                getItems: () => Array<{ id: number }>;
-              }
-            ).getItems()
-          : Array.isArray(room.allowedUsers)
-            ? (room.allowedUsers as Array<{ id: number }>)
-            : [];
-      allowedUserIds = allowedUsers.map((u) => u.id);
+    if (!room.isPrivate) {
+      return true;
     }
 
-    let allowedRoleIds: number[] = [];
-    if ('allowedRoleIds' in room && Array.isArray(room.allowedRoleIds)) {
-      allowedRoleIds = room.allowedRoleIds;
-    } else if ('allowedRoles' in room && room.allowedRoles) {
-      const allowedRoles: Array<{ id: number }> =
-        typeof (
-          room.allowedRoles as unknown as {
-            getItems?: () => Array<{ id: number }>;
-          }
-        ).getItems === 'function'
-          ? (
-              room.allowedRoles as unknown as {
-                getItems: () => Array<{ id: number }>;
-              }
-            ).getItems()
-          : Array.isArray(room.allowedRoles)
-            ? (room.allowedRoles as Array<{ id: number }>)
-            : [];
-      allowedRoleIds = allowedRoles.map((r) => r.id);
-    }
+    const roleIds =
+      'roles' in user && user.roles ? extractEntityIds(user.roles) : [];
+
+    const allowedUserIds =
+      'allowedUserIds' in room && Array.isArray(room.allowedUserIds)
+        ? room.allowedUserIds
+        : 'allowedUsers' in room && room.allowedUsers
+          ? extractEntityIds(room.allowedUsers)
+          : [];
+
+    const allowedRoleIds =
+      'allowedRoleIds' in room && Array.isArray(room.allowedRoleIds)
+        ? room.allowedRoleIds
+        : 'allowedRoles' in room && room.allowedRoles
+          ? extractEntityIds(room.allowedRoles)
+          : [];
 
     return canAccessRoomSnapshot(
       {

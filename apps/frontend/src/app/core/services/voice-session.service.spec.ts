@@ -4,10 +4,19 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EVoiceRoomEvent, EVoiceSessionType, IUserSafe } from '@konvoez/shared';
+import {
+  EVoiceConnectionDeadReason,
+  EVoiceConnectionState,
+  EVoiceRoomEvent,
+  EVoiceSessionType,
+  IUserSafe,
+  VOICE_ICE_RESTART_DELAY_MS,
+  VOICE_REJOIN_DELAY_MS,
+} from '@konvoez/shared';
 import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { AudioService } from './audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { ScreenWatchService } from './screen-watch.service';
@@ -83,13 +92,17 @@ describe('VoiceSessionService', () => {
     handleConsumerClosed: ReturnType<typeof vi.fn>;
     transportsHealthy: ReturnType<typeof vi.fn>;
     restartIce: ReturnType<typeof vi.fn>;
+    microphoneProducerId?: string | null;
   };
   let resume$: Subject<IAppResume>;
   let screenWatch: {
     release: ReturnType<typeof vi.fn>;
     onRemoteProducerClosed: ReturnType<typeof vi.fn>;
   };
-  let peerPlayback: { detach: ReturnType<typeof vi.fn> };
+  let peerPlayback: {
+    detach: ReturnType<typeof vi.fn>;
+    detachAll: ReturnType<typeof vi.fn>;
+  };
   let peerVideo: {
     removeUser: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
@@ -109,7 +122,10 @@ describe('VoiceSessionService', () => {
     playPeerLeaveAudio: ReturnType<typeof vi.fn>;
     playStreamStartAudio: ReturnType<typeof vi.fn>;
     playStreamStopAudio: ReturnType<typeof vi.fn>;
+    playConnectionLostAudio: ReturnType<typeof vi.fn>;
+    playConnectionRestoredAudio: ReturnType<typeof vi.fn>;
   };
+  let currentUserSignal: ReturnType<typeof signal<IUserSafe | null>>;
   beforeEach(() => {
     handlers = {};
     socket = {
@@ -175,7 +191,9 @@ describe('VoiceSessionService', () => {
     };
 
     mediasoup = {
-      cleanup: vi.fn(),
+      cleanup: vi.fn(() => {
+        TestBed.inject(VoiceConnectionStore).resetTransports();
+      }),
       clearPendingConsumes: vi.fn(),
       ensureDeviceLoaded: vi.fn().mockResolvedValue(undefined),
       setMicrophoneMuted: vi.fn(),
@@ -194,7 +212,7 @@ describe('VoiceSessionService', () => {
       release: vi.fn(),
       onRemoteProducerClosed: vi.fn(),
     };
-    peerPlayback = { detach: vi.fn() };
+    peerPlayback = { detach: vi.fn(), detachAll: vi.fn() };
     peerVideo = {
       removeUser: vi.fn(),
       remove: vi.fn(),
@@ -215,7 +233,11 @@ describe('VoiceSessionService', () => {
       playPeerLeaveAudio: vi.fn(),
       playStreamStartAudio: vi.fn(),
       playStreamStopAudio: vi.fn(),
+      playConnectionLostAudio: vi.fn(),
+      playConnectionRestoredAudio: vi.fn(),
     };
+    currentUserSignal = signal<IUserSafe | null>(null);
+
     TestBed.configureTestingModule({
       providers: [
         VoiceSessionService,
@@ -234,7 +256,7 @@ describe('VoiceSessionService', () => {
         },
         {
           provide: Store,
-          useValue: { selectSignal: () => () => null },
+          useValue: { selectSignal: () => currentUserSignal.asReadonly() },
         },
         { provide: SpeakerService, useValue: { setDevice: vi.fn() } },
         { provide: AudioService, useValue: audioService },
@@ -246,7 +268,7 @@ describe('VoiceSessionService', () => {
           useValue: {
             removeConsumer: vi.fn(),
             detach: peerPlayback.detach,
-            detachAll: vi.fn(),
+            detachAll: peerPlayback.detachAll,
           },
         },
         {
@@ -827,6 +849,472 @@ describe('VoiceSessionService', () => {
         muted: true,
         deafened: true,
       });
+    });
+  });
+
+  describe('connection health and escalation ladder', () => {
+    it('executes escalation ladder through ICE restart, rejoins, and recovery failed', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      TestBed.flushEffects();
+
+      // Trigger RECONNECTING
+      connectionStore.setTransportState('send', 'connecting');
+      mediasoup.ensureSendTransport.mockImplementation(async () => {
+        connectionStore.setTransportState('send', 'connecting');
+      });
+      TestBed.flushEffects();
+
+      // No action before ICE restart delay
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS - 100);
+      expect(audioService.playConnectionLostAudio).not.toHaveBeenCalled();
+      expect(mediasoup.restartIce).not.toHaveBeenCalled();
+
+      // At ICE restart delay
+      await vi.advanceTimersByTimeAsync(100);
+      expect(audioService.playConnectionLostAudio).toHaveBeenCalled();
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.CONNECTION_LOST',
+        expect.anything(),
+      );
+      expect(mediasoup.restartIce).toHaveBeenCalled();
+      expect(connectionStore.lossReported()).toBe(true);
+
+      // Rejoin attempt 1 after VOICE_REJOIN_DELAY_MS
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(mediasoup.cleanup).toHaveBeenCalled();
+
+      // Rejoin attempt 2 after another VOICE_REJOIN_DELAY_MS
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+
+      // Attempts exhausted -> marked DEAD
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(connectionStore.dead()).toBe(
+        EVoiceConnectionDeadReason.RECOVERY_FAILED,
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('preserves activeSession and marks DEAD when rejoin attempts fail with error', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const targetSession = {
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      };
+      voiceSessionStore.setActiveSession(targetSession);
+      TestBed.flushEffects();
+
+      connectionStore.setTransportState('send', 'connecting');
+      TestBed.flushEffects();
+
+      // Trigger ICE timer
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS);
+      expect(connectionStore.lossReported()).toBe(true);
+
+      // Simulate network error on JOIN_ROOM during rejoin
+      socket.emitWithAck.mockRejectedValue(new Error('Network timeout'));
+
+      // Rejoin attempt 1 fails with network error, activeSession must NOT be wiped
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(voiceSessionStore.activeSession()).toEqual(targetSession);
+
+      // Rejoin attempt 2 fails
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(voiceSessionStore.activeSession()).toEqual(targetSession);
+
+      // Attempts exhausted -> marked DEAD with activeSession still intact
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(connectionStore.dead()).toBe(
+        EVoiceConnectionDeadReason.RECOVERY_FAILED,
+      );
+      expect(voiceSessionStore.activeSession()).toEqual(targetSession);
+
+      vi.useRealTimers();
+    });
+
+    it('cancels ladder and plays restored cue when connection recovers', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      TestBed.flushEffects();
+
+      connectionStore.setTransportState('send', 'connecting');
+      TestBed.flushEffects();
+
+      // Let ICE timer fire
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS);
+      expect(connectionStore.lossReported()).toBe(true);
+
+      // Connection recovers to CONNECTED
+      connectionStore.setTransportState('send', 'connected');
+      TestBed.flushEffects();
+
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.CONNECTED);
+      expect(connectionStore.lossReported()).toBe(false);
+      expect(audioService.playConnectionRestoredAudio).toHaveBeenCalledTimes(1);
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.CONNECTION_RESTORED',
+        expect.anything(),
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('does not rearm rejoin timer if connection becomes connected after rejoin', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      TestBed.flushEffects();
+
+      connectionStore.setTransportState('send', 'connecting');
+      TestBed.flushEffects();
+
+      // At ICE restart delay
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS);
+
+      // In rejoinSessionLocked, simulate connection recovering to connected
+      mediasoup.ensureSendTransport.mockImplementationOnce(async () => {
+        connectionStore.setTransportState('send', 'connected');
+      });
+
+      // Fire rejoin attempt 1
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+
+      // Connection is now CONNECTED, rejoinTimer must NOT be scheduled
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.CONNECTED);
+      expect(service['rejoinTimer']).toBeNull();
+
+      // Advancing further does not trigger additional rejoins or mark DEAD
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS * 3);
+      expect(connectionStore.dead()).toBeNull();
+
+      vi.useRealTimers();
+    });
+
+    it('sets dead EVICTED on own PEER_LEFT for the active session and does not auto-rejoin', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      const currentUser = { id: 99, username: 'me' } as IUserSafe;
+      currentUserSignal.set(currentUser);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+      service['addSocketListeners']();
+
+      // Another user leaving does not evict
+      handlers[EVoiceRoomEvent.PEER_LEFT]?.({
+        user: { id: 100 },
+        sessionKey: 'room:5',
+      });
+      expect(connectionStore.dead()).toBeNull();
+
+      // Own user leaving the active session sets EVICTED
+      handlers[EVoiceRoomEvent.PEER_LEFT]?.({
+        user: { id: 99 },
+        sessionKey: 'room:5',
+      });
+      expect(connectionStore.dead()).toBe(EVoiceConnectionDeadReason.EVICTED);
+      expect(mediasoup.cleanup).toHaveBeenCalled();
+      expect(wakeLock.release).toHaveBeenCalled();
+      expect(peerPlayback.detachAll).toHaveBeenCalled();
+      expect(microphoneService.release).toHaveBeenCalled();
+    });
+
+    it('triggers immediate rejoin on own mic PRODUCER_CLOSED without peer-left reason', async () => {
+      const currentUser = { id: 99, username: 'me' } as IUserSafe;
+      currentUserSignal.set(currentUser);
+      mediasoup.microphoneProducerId = 'mic-prod-1';
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+      service['addSocketListeners']();
+
+      const rejoinSpy = vi.fn().mockResolvedValue(undefined);
+      service['runRejoinStep'] = rejoinSpy;
+
+      // PRODUCER_CLOSED with peer-left does not trigger rejoin
+      handlers[EVoiceRoomEvent.PRODUCER_CLOSED]?.({
+        userId: 99,
+        producerId: 'mic-prod-1',
+        reason: 'peer-left',
+      });
+      expect(rejoinSpy).not.toHaveBeenCalled();
+
+      // PRODUCER_CLOSED with other reason triggers rejoin
+      handlers[EVoiceRoomEvent.PRODUCER_CLOSED]?.({
+        userId: 99,
+        producerId: 'mic-prod-1',
+        reason: 'error',
+      });
+      expect(rejoinSpy).toHaveBeenCalledWith(false);
+    });
+
+    it('clears dead and rejoins when rejoin() is invoked', async () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+      connectionStore.setDead(EVoiceConnectionDeadReason.RECOVERY_FAILED);
+
+      await service.rejoin();
+
+      expect(connectionStore.dead()).toBeNull();
+      expect(mediasoup.cleanup).toHaveBeenCalled();
+    });
+
+    it('sets socketConnected to false on socket disconnect', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      expect(connectionStore.socketConnected()).toBe(true);
+
+      handlers['disconnect']?.();
+      expect(connectionStore.socketConnected()).toBe(false);
+    });
+
+    it('sets socketConnected to true and does not set recovering when no session is active', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      voiceSessionStore.setActiveSession(null);
+
+      handlers['connect']?.();
+      expect(connectionStore.socketConnected()).toBe(true);
+      expect(connectionStore.recovering()).toBe(false);
+      expect(mediasoup.cleanup).not.toHaveBeenCalled();
+    });
+
+    it('rejoins on connect when an active session exists', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      const rejoinSpy = vi
+        .spyOn(service, 'rejoin')
+        .mockResolvedValue(undefined);
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+
+      handlers['connect']?.();
+      expect(connectionStore.socketConnected()).toBe(true);
+      expect(rejoinSpy).toHaveBeenCalled();
+    });
+
+    it('keeps state RECONNECTING on failed rejoin, never shows restored toast or cue, and ladder reaches DEAD', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const targetSession = {
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      };
+      voiceSessionStore.setActiveSession(targetSession);
+      TestBed.flushEffects();
+
+      connectionStore.setTransportState('send', 'connecting');
+      TestBed.flushEffects();
+
+      await vi.advanceTimersByTimeAsync(VOICE_ICE_RESTART_DELAY_MS);
+      expect(connectionStore.lossReported()).toBe(true);
+
+      socket.emitWithAck.mockRejectedValue(new Error('join failed'));
+
+      // Rejoin attempt 1 fails
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+      expect(connectionStore.rejoinFailed()).toBe(true);
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.RECONNECTING);
+      expect(audioService.playConnectionRestoredAudio).not.toHaveBeenCalled();
+      expect(notifications.open).not.toHaveBeenCalledWith(
+        'VOICE.CONNECTION_RESTORED',
+        expect.anything(),
+      );
+
+      // Rejoin attempt 2 fails
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.RECONNECTING);
+
+      // Max attempts reached -> transitions to DEAD
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+      expect(connectionStore.dead()).toBe(
+        EVoiceConnectionDeadReason.RECOVERY_FAILED,
+      );
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.DEAD);
+      expect(audioService.playConnectionRestoredAudio).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    it('re-arms rejoin timer on failed rejoin() from DEAD and ends in DEAD again after max attempts', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      const targetSession = {
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      };
+      voiceSessionStore.setActiveSession(targetSession);
+      connectionStore.setDead(EVoiceConnectionDeadReason.RECOVERY_FAILED);
+      TestBed.flushEffects();
+
+      socket.emitWithAck.mockRejectedValue(new Error('join failed'));
+
+      await service.rejoin();
+      TestBed.flushEffects();
+
+      expect(connectionStore.dead()).toBeNull();
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.RECONNECTING);
+      expect(service['rejoinTimer']).not.toBeNull();
+
+      // Step 1
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+
+      // Step 2
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+
+      // Ends in DEAD again after max attempts
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+      expect(connectionStore.dead()).toBe(
+        EVoiceConnectionDeadReason.RECOVERY_FAILED,
+      );
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.DEAD);
+
+      vi.useRealTimers();
+    });
+
+    it('sets lossReported, plays lost cue, and opens negative toast once on own PEER_LEFT', () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      const currentUser = { id: 99, username: 'me' } as IUserSafe;
+      currentUserSignal.set(currentUser);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+      service['addSocketListeners']();
+      TestBed.flushEffects();
+
+      expect(connectionStore.lossReported()).toBe(false);
+
+      handlers[EVoiceRoomEvent.PEER_LEFT]?.({
+        user: currentUser,
+        sessionKey: 'room:5',
+      });
+      TestBed.flushEffects();
+
+      expect(connectionStore.dead()).toBe(EVoiceConnectionDeadReason.EVICTED);
+      expect(connectionStore.lossReported()).toBe(true);
+      expect(audioService.playConnectionLostAudio).toHaveBeenCalledTimes(1);
+      expect(notifications.open).toHaveBeenCalledTimes(1);
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.CONNECTION_LOST',
+        expect.objectContaining({ appearance: 'negative' }),
+      );
+    });
+
+    it('does not rejoin on socket connect and resumeSession when dead is EVICTED, and resumeSession does not rejoin when dead is RECOVERY_FAILED', async () => {
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      const rejoinSpy = vi.spyOn(service, 'rejoin');
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+
+      // EVICTED: socket connect does not rejoin
+      connectionStore.setDead(EVoiceConnectionDeadReason.EVICTED);
+      handlers['connect']?.();
+      expect(rejoinSpy).not.toHaveBeenCalled();
+
+      // EVICTED: resumeSession does not rejoin
+      resume$.next({ sleptMs: 5000 });
+      expect(rejoinSpy).not.toHaveBeenCalled();
+      expect(socket.emitWithAck).not.toHaveBeenCalled();
+
+      // RECOVERY_FAILED: resumeSession does not rejoin
+      connectionStore.setDead(EVoiceConnectionDeadReason.RECOVERY_FAILED);
+      resume$.next({ sleptMs: 5000 });
+      expect(rejoinSpy).not.toHaveBeenCalled();
+      expect(socket.emitWithAck).not.toHaveBeenCalled();
+    });
+
+    it('does not rejoin when timer fires while connection state is healthy', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+      connectionStore.setTransportState('send', 'connected');
+      connectionStore.setTransportState('recv', 'connected');
+      TestBed.flushEffects();
+
+      expect(connectionStore.state()).toBe(EVoiceConnectionState.CONNECTED);
+
+      service['armRejoinTimer']();
+      expect(service['rejoinTimer']).not.toBeNull();
+
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      expect(mediasoup.cleanup).not.toHaveBeenCalled();
+      expect(socket.emitWithAck).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+
+    it('triggers exactly one cleanup and join when own mic PRODUCER_CLOSED occurs while a rejoin timer is armed', async () => {
+      vi.useFakeTimers();
+      const currentUser = { id: 99, username: 'me' } as IUserSafe;
+      currentUserSignal.set(currentUser);
+      mediasoup.microphoneProducerId = 'mic-prod-1';
+
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 5,
+      });
+      service['addSocketListeners']();
+      TestBed.flushEffects();
+
+      service['armRejoinTimer']();
+
+      handlers[EVoiceRoomEvent.PRODUCER_CLOSED]?.({
+        userId: 99,
+        producerId: 'mic-prod-1',
+        reason: 'network-error',
+      });
+
+      // Flush microtasks for the PRODUCER_CLOSED rejoin to complete
+      await vi.advanceTimersByTimeAsync(1);
+      TestBed.flushEffects();
+
+      // Now fire the timer as well (it will skip because state is now healthy)
+      await vi.advanceTimersByTimeAsync(VOICE_REJOIN_DELAY_MS);
+      TestBed.flushEffects();
+
+      expect(mediasoup.cleanup).toHaveBeenCalled();
+      expect(socket.emitWithAck).toHaveBeenCalledTimes(1);
+
+      vi.useRealTimers();
     });
   });
 });

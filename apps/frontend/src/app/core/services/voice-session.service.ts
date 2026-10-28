@@ -1,12 +1,15 @@
-import { computed, effect, inject, Injectable } from '@angular/core';
+import { computed, effect, inject, Injectable, untracked } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
+  EVoiceConnectionDeadReason,
+  EVoiceConnectionState,
   EVoiceRoomEvent,
   EVoiceSessionType,
   TVoiceRoomJoin,
@@ -15,6 +18,9 @@ import {
   TVoiceRoomSetMuteState,
   TVoiceSessionTarget,
   getVoiceSessionKey,
+  VOICE_ICE_RESTART_DELAY_MS,
+  VOICE_REJOIN_DELAY_MS,
+  VOICE_REJOIN_MAX_ATTEMPTS,
 } from '@konvoez/shared';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { notifyError } from '@shared/functions/notify-error.function';
@@ -73,6 +79,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly screenWakeLockService = inject(ScreenWakeLockService);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly voiceConnectionStore = inject(VoiceConnectionStore);
+
+  private iceTimer: ReturnType<typeof setTimeout> | null = null;
+  private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
+  private rejoinAttempts = 0;
 
   private readonly sessionWillChangeSubject = new Subject<{
     previous: TVoiceSessionTarget | null;
@@ -96,16 +107,28 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   constructor() {
+    this.voiceConnectionStore.setSocketConnected(this.socket.connected);
+
+    this.socket.on('disconnect', () => {
+      this.voiceConnectionStore.setSocketConnected(false);
+    });
+
     this.socket.on('connect', () => {
-      this.mediasoupSessionService.cleanup();
+      this.voiceConnectionStore.setSocketConnected(true);
       const session = this.voiceSessionStore.activeSession();
-      if (session) {
-        void this.joinSession(session, { force: true }).catch(
-          (error: unknown) => {
-            this.reportJoinFailure(error);
-          },
-        );
+      if (
+        session &&
+        this.voiceConnectionStore.dead() !== EVoiceConnectionDeadReason.EVICTED
+      ) {
+        void this.rejoin();
       }
+    });
+
+    effect(() => {
+      const state = this.voiceConnectionStore.state();
+      untracked(() => {
+        this.handleConnectionStateChange(state);
+      });
     });
 
     this.appResumeService.resume$.pipe(takeUntilDestroyed()).subscribe(() => {
@@ -234,6 +257,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
    */
   @Mutexed(voiceSessionMutex)
   private async resumeSession(): Promise<void> {
+    if (this.voiceConnectionStore.dead() !== null) {
+      return;
+    }
     const session = this.voiceSessionStore.activeSession();
     if (
       !session ||
@@ -264,8 +290,184 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       }
     }
 
+    await this.rejoinSessionLocked(session);
+  }
+
+  @Mutexed(voiceSessionMutex)
+  public async rejoin(): Promise<void> {
+    const session = this.voiceSessionStore.activeSession();
+    if (!session) {
+      return;
+    }
+    this.voiceConnectionStore.clearDead();
+    this.rejoinAttempts = 0;
+    try {
+      await this.rejoinSessionLocked(session);
+    } catch (error) {
+      this.reportJoinFailure(error);
+    } finally {
+      this.rearmRejoinTimerIfUnhealthy();
+    }
+  }
+
+  private async rejoinSessionLocked(
+    session: TVoiceSessionTarget,
+  ): Promise<void> {
+    this.voiceConnectionStore.setRejoinFailed(false);
+    this.voiceConnectionStore.setRecovering(true);
     this.mediasoupSessionService.cleanup();
-    await this.joinSessionLocked(session, true);
+    try {
+      await this.joinSessionLocked(session, true);
+    } catch (error) {
+      this.voiceConnectionStore.setRejoinFailed(true);
+      throw error;
+    } finally {
+      this.voiceConnectionStore.setRecovering(false);
+    }
+  }
+
+  private handleConnectionStateChange(
+    state: EVoiceConnectionState | null,
+  ): void {
+    if (
+      state === EVoiceConnectionState.RECONNECTING ||
+      state === EVoiceConnectionState.DISCONNECTED
+    ) {
+      if (!this.iceTimer && !this.voiceConnectionStore.lossReported()) {
+        this.iceTimer = setTimeout(() => {
+          this.onIceTimer();
+        }, VOICE_ICE_RESTART_DELAY_MS);
+      }
+      return;
+    }
+
+    if (
+      state === EVoiceConnectionState.CONNECTED ||
+      state === EVoiceConnectionState.DEGRADED
+    ) {
+      this.clearLadderTimers();
+      this.rejoinAttempts = 0;
+      this.voiceConnectionStore.setRecovering(false);
+      if (this.voiceConnectionStore.lossReported()) {
+        this.voiceConnectionStore.setLossReported(false);
+        this.audioService.playConnectionRestoredAudio();
+        this.tuiNotificationsService
+          .open(this.translateService.instant('VOICE.CONNECTION_RESTORED'), {
+            appearance: 'positive',
+            autoClose: 5000,
+            closable: true,
+          })
+          .subscribe();
+      }
+      return;
+    }
+
+    if (state === null) {
+      if (!this.voiceConnectionStore.recovering()) {
+        this.clearLadderTimers();
+        this.rejoinAttempts = 0;
+        this.voiceConnectionStore.setLossReported(false);
+      }
+      return;
+    }
+
+    if (state === EVoiceConnectionState.DEAD) {
+      this.clearLadderTimers();
+      this.voiceConnectionStore.setRecovering(false);
+      if (!this.voiceConnectionStore.lossReported()) {
+        this.reportConnectionLoss();
+      }
+    }
+  }
+
+  private reportConnectionLoss(): void {
+    this.voiceConnectionStore.setLossReported(true);
+    this.audioService.playConnectionLostAudio();
+    this.tuiNotificationsService
+      .open(this.translateService.instant('VOICE.CONNECTION_LOST'), {
+        appearance: 'negative',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
+  }
+
+  private onIceTimer(): void {
+    this.iceTimer = null;
+    this.reportConnectionLoss();
+
+    if (this.socket.connected) {
+      void this.mediasoupSessionService.restartIce().catch((error) => {
+        console.error('ICE restart failed', error);
+      });
+    }
+
+    this.armRejoinTimer();
+  }
+
+  private armRejoinTimer(): void {
+    if (this.rejoinTimer) {
+      clearTimeout(this.rejoinTimer);
+    }
+    this.rejoinTimer = setTimeout(() => {
+      this.rejoinTimer = null;
+      void this.runRejoinStep(true);
+    }, VOICE_REJOIN_DELAY_MS);
+  }
+
+  private rearmRejoinTimerIfUnhealthy(): void {
+    const isHealthy =
+      this.voiceConnectionStore.state() === EVoiceConnectionState.CONNECTED ||
+      this.voiceConnectionStore.state() === EVoiceConnectionState.DEGRADED;
+    if (this.voiceConnectionStore.dead() === null && !isHealthy) {
+      this.armRejoinTimer();
+    }
+  }
+
+  @Mutexed(voiceSessionMutex)
+  private async runRejoinStep(skipWhenHealthy: boolean): Promise<void> {
+    const isHealthy =
+      this.voiceConnectionStore.state() === EVoiceConnectionState.CONNECTED ||
+      this.voiceConnectionStore.state() === EVoiceConnectionState.DEGRADED;
+    if (skipWhenHealthy && isHealthy) {
+      return;
+    }
+
+    const session = this.voiceSessionStore.activeSession();
+    if (!session || this.voiceConnectionStore.dead()) {
+      return;
+    }
+
+    if (!this.socket.connected) {
+      return;
+    }
+
+    if (this.rejoinAttempts < VOICE_REJOIN_MAX_ATTEMPTS) {
+      this.rejoinAttempts++;
+      try {
+        await this.rejoinSessionLocked(session);
+      } catch (error) {
+        this.reportJoinFailure(error);
+      } finally {
+        this.rearmRejoinTimerIfUnhealthy();
+      }
+    } else {
+      this.voiceConnectionStore.setDead(
+        EVoiceConnectionDeadReason.RECOVERY_FAILED,
+      );
+      this.clearLadderTimers();
+    }
+  }
+
+  private clearLadderTimers(): void {
+    if (this.iceTimer) {
+      clearTimeout(this.iceTimer);
+      this.iceTimer = null;
+    }
+    if (this.rejoinTimer) {
+      clearTimeout(this.rejoinTimer);
+      this.rejoinTimer = null;
+    }
   }
 
   private async joinSessionLocked(
@@ -293,7 +495,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     target: TVoiceSessionTarget,
     previous: TVoiceSessionTarget | null,
   ): Promise<void> {
-    this.audioService.playPeerJoinAudio();
+    if (!this.voiceConnectionStore.recovering()) {
+      this.audioService.playPeerJoinAudio();
+    }
     this.sessionWillChangeSubject.next({ previous, next: target });
 
     if (this.voiceSessionStore.activeSession()) {
@@ -327,7 +531,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       await this.mediasoupSessionService.ensureRecvTransport();
       void this.screenWakeLockService.acquire();
     } catch (error) {
-      if (this.voiceSessionStore.activeSession()) {
+      if (this.voiceConnectionStore.recovering()) {
+        this.removeSocketListeners();
+      } else if (this.voiceSessionStore.activeSession()) {
         await this.leaveSessionLocked();
       } else {
         this.removeSocketListeners();
@@ -342,7 +548,9 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     }
 
     this.screenWakeLockService.release();
-    this.voiceSessionStore.setActiveSession(null);
+    if (!this.voiceConnectionStore.recovering()) {
+      this.voiceSessionStore.setActiveSession(null);
+    }
     this.removeSocketListeners();
     this.mediasoupSessionService.clearPendingConsumes();
 
@@ -350,7 +558,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       // A disconnected socket buffers emitWithAck with no ack timeout, and
       // that promise never settles. Skip it, and bound a live socket so local
       // teardown does not wait on the ack.
-      if (this.socket.connected) {
+      if (this.socket.connected && !this.voiceConnectionStore.recovering()) {
         await this.socket.timeout(3000).emitWithAck(EVoiceRoomEvent.LEAVE_ROOM);
       }
     } catch (error) {
@@ -360,7 +568,11 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       this.voiceSessionStore.clearSessionPeers();
       this.mediasoupSessionService.cleanup();
       await this.microphoneService.release();
-      this.audioService.playPeerLeaveAudio();
+      if (!this.voiceConnectionStore.recovering()) {
+        this.clearLadderTimers();
+        this.voiceConnectionStore.reset();
+        this.audioService.playPeerLeaveAudio();
+      }
     }
   }
 
@@ -421,6 +633,21 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PEER_LEFT, (data) => {
+      const activeSession = this.voiceSessionStore.activeSession();
+      if (
+        data.user.id === this.currentUser()?.id &&
+        activeSession &&
+        data.sessionKey === getVoiceSessionKey(activeSession)
+      ) {
+        this.voiceConnectionStore.setDead(EVoiceConnectionDeadReason.EVICTED);
+        this.clearLadderTimers();
+        this.mediasoupSessionService.cleanup();
+        this.screenWakeLockService.release();
+        this.peerPlaybackService.detachAll();
+        void this.microphoneService.release();
+        return;
+      }
+
       const wasInSession = Boolean(
         this.voiceSessionStore.peersDict()[data.user.id],
       );
@@ -461,6 +688,15 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
 
     this.socket.on(EVoiceRoomEvent.PRODUCER_CLOSED, (data) => {
+      if (
+        data.userId === this.currentUser()?.id &&
+        data.producerId === this.mediasoupSessionService.microphoneProducerId &&
+        data.reason !== 'peer-left'
+      ) {
+        void this.runRejoinStep(false);
+        return;
+      }
+
       const isStream = this.peerVideoService.isStreamProducer(
         data.userId,
         data.producerId,

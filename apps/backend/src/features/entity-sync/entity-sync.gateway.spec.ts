@@ -352,7 +352,9 @@ describe('EntitySyncGateway', () => {
       const updatedUser: IUserSafe = {
         ...user,
         id: 5,
-        roles: [{ id: 10, name: 'VIP', color: null, priority: 1 }],
+        roles: [
+          { id: 10, name: 'VIP', color: null, priority: 1, mentionable: false },
+        ],
         permissions: [],
       };
 
@@ -394,7 +396,15 @@ describe('EntitySyncGateway', () => {
           user: {
             ...user,
             id: 7,
-            roles: [{ id: 10, name: 'VIP', color: null, priority: 1 }],
+            roles: [
+              {
+                id: 10,
+                name: 'VIP',
+                color: null,
+                priority: 1,
+                mentionable: false,
+              },
+            ],
             permissions: [],
           },
         },
