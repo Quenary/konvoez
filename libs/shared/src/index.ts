@@ -25,4 +25,5 @@ export * from './mentions';
 export * from './room-access';
 export * from './notification-topic';
 export * from './voice-adaptation';
+export * from './stream-layers';
 export * from './voice-connection';

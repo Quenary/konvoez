@@ -3,6 +3,8 @@ import { EUserRole } from '../enums';
 import {
   voiceRoomCloseConsumerSchema,
   voiceRoomCloseProducerSchema,
+  voiceRoomConsumerRefSchema,
+  voiceRoomConsumeResultSchema,
   voiceRoomConnectTransportSchema,
   voiceRoomConsumeSchema,
   voiceRoomCreateTransportSchema,
@@ -17,6 +19,7 @@ import {
   voiceRoomPeerMutedSchema,
   voiceRoomProducerScoreSchema,
   voiceRoomProduceSchema,
+  voiceRoomSetConsumerLayersSchema,
   voiceRoomSetMuteStateSchema,
 } from './voice-room.schemas';
 import { EVoiceSessionType } from './voice-session.schemas';
@@ -193,6 +196,40 @@ describe('VoiceRoom Schemas', () => {
       expect(parsed.success).toBe(true);
     });
 
+    it('accepts an optional positive sourceHeight', () => {
+      expect(
+        voiceRoomProduceSchema.safeParse({
+          transportId: 'trans-1',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: {},
+          sourceHeight: 720,
+        }).success,
+      ).toBe(true);
+      expect(
+        voiceRoomConsumeResultSchema.safeParse({
+          id: 'c-1',
+          producerId: 'p-1',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: {},
+          sourceHeight: 1080,
+        }).success,
+      ).toBe(true);
+    });
+
+    it('rejects a non-positive sourceHeight', () => {
+      expect(
+        voiceRoomProduceSchema.safeParse({
+          transportId: 'trans-1',
+          kind: 'video',
+          mediaTag: 'screen',
+          rtpParameters: {},
+          sourceHeight: 0,
+        }).success,
+      ).toBe(false);
+    });
+
     it('rejects invalid kind', () => {
       expect(
         voiceRoomProduceSchema.safeParse({
@@ -221,6 +258,35 @@ describe('VoiceRoom Schemas', () => {
       ).toBe(true);
       expect(
         voiceRoomCloseConsumerSchema.safeParse({ consumerId: '' }).success,
+      ).toBe(false);
+    });
+
+    it('accepts a consumer ref for pause and resume', () => {
+      expect(
+        voiceRoomConsumerRefSchema.safeParse({ consumerId: 'c-1' }).success,
+      ).toBe(true);
+      expect(
+        voiceRoomConsumerRefSchema.safeParse({ consumerId: '' }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe('voiceRoomSetConsumerLayersSchema', () => {
+    it.each([0, 1, 2])('accepts spatial layer %i', (spatialLayer) => {
+      expect(
+        voiceRoomSetConsumerLayersSchema.safeParse({
+          consumerId: 'c-1',
+          spatialLayer,
+        }).success,
+      ).toBe(true);
+    });
+
+    it('rejects a spatial layer outside 0..2', () => {
+      expect(
+        voiceRoomSetConsumerLayersSchema.safeParse({
+          consumerId: 'c-1',
+          spatialLayer: 3,
+        }).success,
       ).toBe(false);
     });
   });
