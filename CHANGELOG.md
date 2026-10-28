@@ -1,3 +1,22 @@
+## 1.26.0 (2026-10-28)
+
+### Features
+
+- **frontend:** auto focus on reply/edit ([219e8fc](https://github.com/Quenary/konvoez/commit/219e8fc))
+- **frontend:** swipe/dblclick to reply ([645aa75](https://github.com/Quenary/konvoez/commit/645aa75))
+- dispose notifications on certain events ([18a2d5c](https://github.com/Quenary/konvoez/commit/18a2d5c))
+- **frontend:** display user role on management table ([f8a309a](https://github.com/Quenary/konvoez/commit/f8a309a))
+- voice connection health ([9dd3e97](https://github.com/Quenary/konvoez/commit/9dd3e97))
+- **server:** user notification settings ([51acfa2](https://github.com/Quenary/konvoez/commit/51acfa2))
+
+### Bug Fixes
+
+- **backend:** handle uninitialized collections in room access checks ([4e8a518](https://github.com/Quenary/konvoez/commit/4e8a518))
+
+### Code Refactoring
+
+- **backend:** text/voice/user domain events in modules ([5172363](https://github.com/Quenary/konvoez/commit/5172363))
+
 ## 1.25.0 (2026-10-26)
 
 ### Features
