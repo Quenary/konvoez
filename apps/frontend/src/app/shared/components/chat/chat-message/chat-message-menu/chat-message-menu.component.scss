@@ -1,0 +1,22 @@
+:host {
+  display: block;
+}
+
+.chat-message-menu {
+  box-sizing: border-box;
+  inline-size: auto;
+  min-inline-size: min(12.5rem, calc(100vw - 1rem));
+  max-inline-size: calc(100vw - 1rem);
+
+  &--dialog {
+    padding-top: 2rem;
+  }
+
+  tui-data-list {
+    display: block;
+  }
+
+  button[tuiOption] {
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,53 @@
+<div
+  class="chat-message-menu"
+  [class.chat-message-menu--dialog]="isDialog()">
+  @if (!outgoing()) {
+    <app-chat-message-reactions-bar
+      [reactions]="message().reactions"
+      [currentUserId]="currentUserId()"
+      (react)="onReact($event)" />
+  }
+  <tui-data-list>
+    @if (outgoing()) {
+      @if (canCancelSending()) {
+        <button
+          tuiOption
+          [iconEnd]="icons.close"
+          (click)="onCancelSending()">
+          {{ 'ROOMS.CANCEL_SENDING' | translate }}
+        </button>
+      }
+    } @else {
+      <button
+        tuiOption
+        [iconEnd]="icons.reply"
+        (click)="onReply()">
+        {{ 'GENERAL.REPLY' | translate }}
+      </button>
+      @if (canEdit()) {
+        <button
+          tuiOption
+          [iconEnd]="icons.edit"
+          (click)="onEdit()">
+          {{ 'GENERAL.EDIT' | translate }}
+        </button>
+      }
+      @if (canDelete()) {
+        <button
+          tuiOption
+          [iconEnd]="icons.delete"
+          (click)="onDelete()">
+          {{ 'GENERAL.DELETE' | translate }}
+        </button>
+      }
+      @if (canViewReaders()) {
+        <button
+          tuiOption
+          [iconEnd]="icons.users"
+          (click)="onViewReaders()">
+          {{ 'ROOMS.READ_BY' | translate }}
+        </button>
+      }
+    }
+  </tui-data-list>
+</div>

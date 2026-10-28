@@ -307,18 +307,3 @@
     background-color: var(--tui-background-neutral-1);
   }
 }
-
-.message-context-menu {
-  box-sizing: border-box;
-  inline-size: auto;
-  min-inline-size: min(12.5rem, calc(100vw - 1rem));
-  max-inline-size: calc(100vw - 1rem);
-
-  tui-data-list {
-    display: block;
-  }
-
-  button[tuiOption] {
-    white-space: nowrap;
-  }
-}

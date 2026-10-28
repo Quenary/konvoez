@@ -68,4 +68,20 @@ describe('ChatMessageReactionsBarComponent', () => {
     expect(activeItem).not.toBeNull();
     expect(activeItem?.textContent?.trim()).toBe('👍');
   });
+
+  it('should wrap quick emojis inside tui-scrollbar while keeping expand button outside', () => {
+    const el: HTMLElement = fixture.nativeElement;
+    const scrollbar = el.querySelector('tui-scrollbar.reactions-scrollbar');
+    expect(scrollbar).not.toBeNull();
+
+    const quickListInsideScrollbar = scrollbar?.querySelector(
+      '.reactions-quick-list',
+    );
+    expect(quickListInsideScrollbar).not.toBeNull();
+
+    const expandBtnOutsideScrollbar = el.querySelector(
+      '.reactions-bar > .reaction-expand-btn',
+    );
+    expect(expandBtnOutsideScrollbar).not.toBeNull();
+  });
 });

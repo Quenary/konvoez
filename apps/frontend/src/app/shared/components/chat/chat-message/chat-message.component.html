@@ -34,9 +34,11 @@
       <span
         class="message-body"
         [class.has-media]="hasMedia()"
+        tuiDropdownContext
         tuiDropdownLimitWidth="auto"
-        [tuiDropdown]="contextMenu"
-        tuiDropdownContext>
+        [tuiDropdownAlign]="isOwnMessage() ? 'end' : 'start'"
+        [tuiDropdown]="layoutService.isNarrow() ? null : menuTemplate"
+        (longtap)="onLongTap($event)">
         <span class="message-body-header">
           <span
             class="message-body-header-username"
@@ -170,59 +172,23 @@
   </div>
 
   <ng-template
-    #contextMenu
+    #menuTemplate
     let-close>
-    <div class="message-context-menu">
-      @if (!outgoing()) {
-        <app-chat-message-reactions-bar
-          [reactions]="m.reactions"
-          [currentUserId]="currentUserId()"
-          (react)="onReactionSelect($event); close()" />
-      }
-      <tui-data-list>
-        @if (outgoing()) {
-          @if (canCancelSending()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.close"
-              (click)="cancelSending(); close()">
-              {{ 'ROOMS.CANCEL_SENDING' | translate }}
-            </button>
-          }
-        } @else {
-          <button
-            tuiOption
-            [iconEnd]="icons.reply"
-            (click)="close(); replyMessage()">
-            {{ 'GENERAL.REPLY' | translate }}
-          </button>
-          @if (canEdit()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.edit"
-              (click)="close(); editMessage()">
-              {{ 'GENERAL.EDIT' | translate }}
-            </button>
-          }
-          @if (canDelete()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.delete"
-              (click)="deleteMessage(); close()">
-              {{ 'GENERAL.DELETE' | translate }}
-            </button>
-          }
-          @if (canViewReaders()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.users"
-              (click)="showReadersDialog(readersDialog); close()">
-              {{ 'ROOMS.READ_BY' | translate }}
-            </button>
-          }
-        }
-      </tui-data-list>
-    </div>
+    <app-chat-message-menu
+      [isDialog]="layoutService.isNarrow()"
+      [message]="m"
+      [outgoing]="outgoing()"
+      [canCancelSending]="canCancelSending()"
+      [canEdit]="canEdit()"
+      [canDelete]="canDelete()"
+      [canViewReaders]="canViewReaders()"
+      [currentUserId]="currentUserId()"
+      (react)="onReactionSelect($event); closeSurface(close)"
+      (reply)="replyMessage(close)"
+      (edit)="editMessage(close)"
+      (delete)="deleteMessage(close)"
+      (cancelSending)="cancelSending(close)"
+      (viewReaders)="onViewReaders(close, readersDialog)" />
   </ng-template>
 
   <ng-template #readersDialog>

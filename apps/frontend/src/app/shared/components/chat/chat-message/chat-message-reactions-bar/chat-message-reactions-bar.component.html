@@ -3,18 +3,20 @@
     class="reactions-bar"
     role="toolbar"
     [attr.aria-label]="'REACTIONS.TOOLBAR' | translate">
-    <div class="reactions-quick-list">
-      @let activeEmoji = userActiveEmoji();
-      @for (emoji of quickEmojis(); track emoji) {
-        <button
-          type="button"
-          class="reaction-item"
-          [class.reaction-item--active]="activeEmoji === emoji"
-          (click)="onEmojiSelect(emoji)">
-          {{ emoji }}
-        </button>
-      }
-    </div>
+    <tui-scrollbar class="reactions-scrollbar">
+      <div class="reactions-quick-list">
+        @let activeEmoji = userActiveEmoji();
+        @for (emoji of quickEmojis(); track emoji) {
+          <button
+            type="button"
+            class="reaction-item"
+            [class.reaction-item--active]="activeEmoji === emoji"
+            (click)="onEmojiSelect(emoji)">
+            {{ emoji }}
+          </button>
+        }
+      </div>
+    </tui-scrollbar>
 
     <button
       type="button"

@@ -8,7 +8,7 @@
 
 .reactions-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem;
@@ -23,14 +23,22 @@
   user-select: none;
 }
 
+.reactions-scrollbar {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 .reactions-quick-list {
   display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  align-content: flex-start;
   gap: 0.125rem;
-  min-inline-size: 0;
+  width: max-content;
+  min-inline-size: max-content;
+  padding: 0.25rem 0;
 }
 
 .reaction-item,
