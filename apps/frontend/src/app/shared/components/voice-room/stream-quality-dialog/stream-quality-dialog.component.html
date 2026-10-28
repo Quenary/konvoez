@@ -38,6 +38,87 @@
     </tui-textfield>
   </label>
 
+  <div>
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="stream-layers">
+        {{ 'CALL.STREAM_LAYERS' | translate }}
+      </label>
+      <input
+        id="stream-layers"
+        tuiInputSlider
+        [min]="1"
+        [max]="maxLayers()"
+        [step]="1"
+        [ngModel]="layers()"
+        (ngModelChange)="layers.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <input
+        tuiSlider
+        type="range"
+        [step]="1" />
+    </tui-textfield>
+    <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
+    <p>
+      {{ 'CALL.STREAM_LAYERS_RESULT' | translate }}
+      @for (layer of layerLines(); track $index; let last = $last) {
+        {{ layer.height }}p {{ layer.fps }} {{ 'CALL.FPS_UNIT' | translate }}
+        @if (!last) {
+          ,
+        }
+      }
+    </p>
+  </div>
+
+  @if (isScreen()) {
+    <div>
+      <p>{{ 'CALL.STREAM_CONTENT_MODE' | translate }}</p>
+      <tui-radio-list
+        [items]="contentModes"
+        [itemContent]="contentModeLabel"
+        [ngModel]="contentMode()"
+        (ngModelChange)="contentMode.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <ng-template
+        #contentModeLabel
+        let-mode>
+        {{
+          mode === 'detail'
+            ? ('CALL.STREAM_CONTENT_TEXT' | translate)
+            : ('CALL.STREAM_CONTENT_GAME' | translate)
+        }}
+      </ng-template>
+      <p>{{ 'CALL.STREAM_CONTENT_HINT' | translate }}</p>
+    </div>
+  }
+
+  <div>
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="stream-bitrate">
+        {{ 'CALL.STREAM_BITRATE' | translate }}
+      </label>
+      <input
+        id="stream-bitrate"
+        tuiInputSlider
+        [min]="bitrateMinKbps"
+        [max]="maxBitrateKbps"
+        [step]="bitrateStepKbps"
+        [ngModel]="bitrateKbps()"
+        (ngModelChange)="bitrateKbps.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <input
+        tuiSlider
+        type="range"
+        [step]="bitrateStepKbps" />
+    </tui-textfield>
+    @if (showBitrateWarning()) {
+      <p>{{ 'CALL.STREAM_BITRATE_WARNING' | translate }}</p>
+    }
+  </div>
+
   <footer class="actions">
     <button
       tuiButton

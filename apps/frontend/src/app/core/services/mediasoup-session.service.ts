@@ -3,9 +3,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   advanceVoiceLiveness,
   buildVoiceLadder,
+  clampStreamLayers,
+  computeSimulcastLayers,
   createInitialVoiceLiveness,
   EVoiceQualityTier,
   EVoiceRoomEvent,
+  recommendStreamBitrateKbps,
+  STREAM_BITRATE_SLIDER_MIN_KBPS,
+  TSimulcastLayer,
+  TStreamContentMode,
   TVoiceLadderEntry,
   TVoiceLivenessState,
   TVoiceQualitySample,
@@ -27,6 +33,8 @@ import {
 } from '@konvoez/shared';
 import { Mutex } from 'async-mutex';
 import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import type { Device } from 'mediasoup-client';
 import type {
   ConsumerOptions,
@@ -55,6 +63,14 @@ import { PeerVideoService } from './peer-video.service';
 import { AudioService } from './audio.service';
 import { VoiceQualityService } from './voice-quality.service';
 
+type TVideoPublishInput = {
+  height: number;
+  fps: number;
+  contentMode: TStreamContentMode;
+  layers: number;
+  maxBitrateBps: number;
+};
+
 export interface IConsumePeerContext {
   gain: number;
   speakerMuted: boolean;
@@ -81,6 +97,8 @@ export class MediasoupSessionService {
   private readonly consumerRegistry = inject(ConsumerRegistry);
   private readonly voiceQualityService = inject(VoiceQualityService);
   private readonly voiceConnectionStore = inject(VoiceConnectionStore);
+  private readonly translateService = inject(TranslateService);
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
 
   public get microphoneProducerId(): string | null {
     return this.microphoneProducer?.id ?? null;
@@ -98,8 +116,11 @@ export class MediasoupSessionService {
   private recvTransport: Transport | null = null;
   private microphoneProducer: Producer | null = null;
   private cameraProducer: Producer | null = null;
+  private cameraPublish: TVideoPublishInput | null = null;
   private screenVideoProducer: Producer | null = null;
+  private screenPublish: TVideoPublishInput | null = null;
   private screenAudioProducer: Producer | null = null;
+  private screenSettingsWarned = false;
   private lastProducerScore: number | null = null;
   private activeBaseKbps: number | null = null;
   private activeLadder: TVoiceLadderEntry[] = [];
@@ -159,8 +180,11 @@ export class MediasoupSessionService {
     const recvTransport = this.recvTransport;
     this.microphoneProducer = null;
     this.cameraProducer = null;
+    this.cameraPublish = null;
     this.screenVideoProducer = null;
+    this.screenPublish = null;
     this.screenAudioProducer = null;
+    this.screenSettingsWarned = false;
     this.sendTransport = null;
     this.recvTransport = null;
     this.peerVideoService.clear();
@@ -359,10 +383,20 @@ export class MediasoupSessionService {
     await this.stopCameraLocked({ silent: true });
 
     try {
+      const publishInput = this.videoPublishInput('cam');
       const track = await this.cameraService.getTrack();
       this.peerVideoService.setLocalCamTrack(track);
-      const producer = await this.produceVideo('cam', track);
+      const { producer, plan } = await this.produceVideo(
+        'cam',
+        track,
+        publishInput,
+      );
       this.cameraProducer = producer;
+      this.cameraPublish = {
+        ...publishInput,
+        height: plan.at(-1)?.height ?? publishInput.height,
+        layers: plan.length,
+      };
       this.audioService.playStreamStartAudio();
       producer.on('trackended', () => {
         if (this.cameraProducer !== producer) {
@@ -407,6 +441,7 @@ export class MediasoupSessionService {
   }): Promise<void> {
     const producer = this.cameraProducer;
     this.cameraProducer = null;
+    this.cameraPublish = null;
     this.peerVideoService.setLocalCamTrack(null);
     if (producer && !producer.closed) {
       await this.closeProducerRemote(producer);
@@ -423,12 +458,25 @@ export class MediasoupSessionService {
     await this.stopScreenLocked({ silent: true });
 
     try {
+      const publishInput = this.videoPublishInput('screen');
       const { videoTrack, audioTrack } =
-        await this.screenCaptureService.getTracks();
+        await this.screenCaptureService.getTracks({
+          contentMode: publishInput.contentMode,
+        });
       this.peerVideoService.setLocalScreenTrack(videoTrack);
 
-      const videoProducer = await this.produceVideo('screen', videoTrack);
+      const { producer: videoProducer, plan } = await this.produceVideo(
+        'screen',
+        videoTrack,
+        publishInput,
+      );
       this.screenVideoProducer = videoProducer;
+      this.screenPublish = {
+        ...publishInput,
+        height: plan.at(-1)?.height ?? publishInput.height,
+        layers: plan.length,
+      };
+      this.verifyAppliedEncodings(videoProducer, plan);
       this.audioService.playStreamStartAudio();
       videoProducer.on('trackended', () => {
         if (this.screenVideoProducer !== videoProducer) {
@@ -516,40 +564,161 @@ export class MediasoupSessionService {
     }
   }
 
+  private videoPublishInput(tag: 'cam' | 'screen'): TVideoPublishInput {
+    const screen = tag === 'screen';
+    const height = screen
+      ? this.settingsStore.screenHeight()
+      : this.settingsStore.streamHeight();
+    const fps = screen
+      ? this.settingsStore.screenFps()
+      : this.settingsStore.streamFps();
+    const contentMode: TStreamContentMode = screen
+      ? this.settingsStore.screenContentMode()
+      : 'motion';
+    const layers = screen
+      ? this.settingsStore.screenLayers()
+      : this.settingsStore.streamLayers();
+    const storedBitrate = screen
+      ? this.settingsStore.screenBitrateKbps()
+      : this.settingsStore.streamBitrateKbps();
+    const maxKbps = this.settingsStore.streamMaxBitrateKbps();
+    const recommended = recommendStreamBitrateKbps({
+      height,
+      fps,
+      contentMode,
+      maxKbps,
+    });
+    const bitrateKbps = Math.min(
+      maxKbps,
+      Math.max(STREAM_BITRATE_SLIDER_MIN_KBPS, storedBitrate ?? recommended),
+    );
+    return {
+      height,
+      fps,
+      contentMode,
+      layers,
+      maxBitrateBps: bitrateKbps * 1000,
+    };
+  }
+
+  private videoBudgetBps(userMaxBps: number, tier: EVoiceQualityTier): number {
+    const cap = VOICE_QUALITY_VIDEO_CAPS[tier];
+    if (cap == null) {
+      return userMaxBps;
+    }
+    return Math.min(userMaxBps, cap);
+  }
+
+  private planVideo(
+    input: TVideoPublishInput,
+    height: number,
+    tier: EVoiceQualityTier,
+  ): TSimulcastLayer[] {
+    return computeSimulcastLayers({
+      height,
+      fps: input.fps,
+      contentMode: input.contentMode,
+      layers: clampStreamLayers(input.layers, height),
+      maxBitrateBps: this.videoBudgetBps(input.maxBitrateBps, tier),
+    });
+  }
+
   private async produceVideo(
     tag: 'cam' | 'screen',
     track: MediaStreamTrack,
-  ): Promise<Producer> {
+    input: TVideoPublishInput,
+  ): Promise<{ producer: Producer; plan: TSimulcastLayer[] }> {
     const sendTransport = this.requireSendTransport();
     await this.loadDevice();
     const codec = this.pickVideoCodec(tag);
+    const capturedHeight = track.getSettings?.().height;
+    const height =
+      typeof capturedHeight === 'number' && capturedHeight > 0
+        ? capturedHeight
+        : input.height;
+    const tier = this.currentQualityLevel?.tier ?? EVoiceQualityTier.EXCELLENT;
+    const storedInput: TVideoPublishInput = { ...input, height };
+    const plan = this.planVideo(storedInput, height, tier);
     const producer = await sendTransport.produce({
       track,
       codec,
       stopTracks: false,
-      appData: { mediaTag: tag },
-      encodings: [
-        {
-          priority: 'low',
-          networkPriority: 'low',
-        },
-      ],
+      appData: { mediaTag: tag, sourceHeight: height },
+      encodings: plan.map((layer) => ({
+        scaleResolutionDownBy: layer.scaleResolutionDownBy,
+        maxBitrate: layer.maxBitrate,
+        maxFramerate: layer.maxFramerate,
+        scalabilityMode: 'L1T1',
+        priority: 'low' as const,
+        networkPriority: 'low' as const,
+      })),
     });
 
-    const currentTier =
-      this.currentQualityLevel?.tier ?? EVoiceQualityTier.EXCELLENT;
-    if (currentTier === EVoiceQualityTier.BAD) {
+    if (tier === EVoiceQualityTier.BAD) {
       producer.pause();
-    } else {
-      const cap = VOICE_QUALITY_VIDEO_CAPS[currentTier];
-      if (cap !== null && cap !== undefined) {
-        await producer
-          .setRtpEncodingParameters({ maxBitrate: cap })
-          .catch((err) => console.warn('Failed to cap video bitrate', err));
-      }
     }
 
-    return producer;
+    return { producer, plan };
+  }
+
+  private async applyVideoPlan(
+    producer: Producer,
+    input: TVideoPublishInput,
+    tier: EVoiceQualityTier,
+  ): Promise<void> {
+    const sender = producer.rtpSender;
+    if (!sender) {
+      return;
+    }
+    const plan = this.planVideo(input, input.height, tier);
+    const parameters = sender.getParameters();
+    const encodings = (parameters.encodings ?? []).map((encoding, index) => {
+      const layer = plan[index];
+      if (!layer) {
+        return encoding;
+      }
+      return {
+        ...encoding,
+        maxBitrate: layer.maxBitrate,
+        maxFramerate: layer.maxFramerate,
+      };
+    });
+    await sender.setParameters({ ...parameters, encodings });
+  }
+
+  private verifyAppliedEncodings(
+    producer: Producer,
+    plan: TSimulcastLayer[],
+  ): void {
+    if (this.screenSettingsWarned) {
+      return;
+    }
+    const sender = producer.rtpSender;
+    if (!sender) {
+      return;
+    }
+    const encodings = sender.getParameters().encodings ?? [];
+    const mismatch =
+      encodings.length !== plan.length ||
+      plan.some((layer, index) => {
+        const actual = encodings[index];
+        const scale = actual?.scaleResolutionDownBy ?? 1;
+        return (
+          scale !== layer.scaleResolutionDownBy ||
+          actual?.maxBitrate !== layer.maxBitrate
+        );
+      });
+    if (!mismatch) {
+      return;
+    }
+    this.screenSettingsWarned = true;
+    this.tuiNotificationsService
+      .open(this.translateService.instant('CALL.STREAM_SETTINGS_NOT_APPLIED'), {
+        appearance: 'warning',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
   }
 
   private requireSendTransport(): Transport {
@@ -566,7 +735,9 @@ export class MediasoupSessionService {
     const video = this.screenVideoProducer;
     const audio = this.screenAudioProducer;
     this.screenVideoProducer = null;
+    this.screenPublish = null;
     this.screenAudioProducer = null;
+    this.screenSettingsWarned = false;
     this.peerVideoService.setLocalScreenTrack(null);
     if (video && !video.closed) {
       await this.closeProducerRemote(video);
@@ -647,14 +818,20 @@ export class MediasoupSessionService {
           }
         }
       } else {
-        const cap = VOICE_QUALITY_VIDEO_CAPS[entry.tier];
-        for (const video of videoProducers) {
-          if (video.paused) {
-            video.resume();
+        const publishes = [
+          { producer: this.cameraProducer, input: this.cameraPublish },
+          { producer: this.screenVideoProducer, input: this.screenPublish },
+        ];
+        for (const { producer, input } of publishes) {
+          if (!producer || producer.closed || !input) {
+            continue;
           }
-          await video
-            .setRtpEncodingParameters({ maxBitrate: cap ?? undefined })
-            .catch((err) => console.warn('Failed to set video bitrate', err));
+          if (producer.paused) {
+            producer.resume();
+          }
+          await this.applyVideoPlan(producer, input, entry.tier).catch((err) =>
+            console.warn('Failed to set video bitrate', err),
+          );
         }
       }
     });
@@ -761,11 +938,17 @@ export class MediasoupSessionService {
       transport.on(
         'produce',
         async ({ kind, rtpParameters, appData }, callback, errback) => {
+          const sourceHeight = appData['sourceHeight'];
           const producePayload: TVoiceRoomProduce = {
             kind,
             rtpParameters,
             transportId: transport.id,
             mediaTag: appData['mediaTag'] as TVoiceRoomMediaTag,
+            ...(typeof sourceHeight === 'number' &&
+            Number.isInteger(sourceHeight) &&
+            sourceHeight > 0
+              ? { sourceHeight }
+              : {}),
           };
 
           try {

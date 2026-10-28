@@ -34,9 +34,12 @@ import {
   DEFAULT_NOISE_PROCESSOR,
   DEFAULT_OUTPUT_VOLUME,
   DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+  DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
+  DEFAULT_STREAM_LAYERS,
   LOCAL_SETTINGS_VERSION,
+  TStreamContentMode,
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
@@ -66,6 +69,11 @@ export type SettingsStoreState = {
   streamFps: TStreamFps;
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
+  streamLayers: number;
+  streamBitrateKbps: number | null;
+  screenLayers: number;
+  screenBitrateKbps: number | null;
+  screenContentMode: TStreamContentMode;
   screenPreviewAutoPauseWhenHidden: boolean;
   noiseProcessor: ENoiseProcessor;
   inputGain: number;
@@ -86,6 +94,11 @@ export const SettingsStore = signalStore(
     streamFps: DEFAULT_STREAM_FPS,
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
+    streamLayers: DEFAULT_STREAM_LAYERS,
+    streamBitrateKbps: null,
+    screenLayers: DEFAULT_STREAM_LAYERS,
+    screenBitrateKbps: null,
+    screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
     noiseProcessor: DEFAULT_NOISE_PROCESSOR,
@@ -219,6 +232,11 @@ export const SettingsStore = signalStore(
           streamFps: store.streamFps(),
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
+          streamLayers: store.streamLayers(),
+          streamBitrateKbps: store.streamBitrateKbps(),
+          screenLayers: store.screenLayers(),
+          screenBitrateKbps: store.screenBitrateKbps(),
+          screenContentMode: store.screenContentMode(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
           noiseProcessor: store.noiseProcessor(),
@@ -242,6 +260,11 @@ export const SettingsStore = signalStore(
               streamFps: store.streamFps(),
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
+              streamLayers: store.streamLayers(),
+              streamBitrateKbps: store.streamBitrateKbps(),
+              screenLayers: store.screenLayers(),
+              screenBitrateKbps: store.screenBitrateKbps(),
+              screenContentMode: store.screenContentMode(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
               noiseProcessor: store.noiseProcessor(),
@@ -288,6 +311,31 @@ export const SettingsStore = signalStore(
 
         setScreenFps(screenFps: TStreamFps): void {
           patchState(store, { screenFps });
+          persistLocal();
+        },
+
+        setStreamLayers(streamLayers: number): void {
+          patchState(store, { streamLayers });
+          persistLocal();
+        },
+
+        setStreamBitrateKbps(streamBitrateKbps: number | null): void {
+          patchState(store, { streamBitrateKbps });
+          persistLocal();
+        },
+
+        setScreenLayers(screenLayers: number): void {
+          patchState(store, { screenLayers });
+          persistLocal();
+        },
+
+        setScreenBitrateKbps(screenBitrateKbps: number | null): void {
+          patchState(store, { screenBitrateKbps });
+          persistLocal();
+        },
+
+        setScreenContentMode(screenContentMode: TStreamContentMode): void {
+          patchState(store, { screenContentMode });
           persistLocal();
         },
 
@@ -405,6 +453,12 @@ export const SettingsStore = signalStore(
         streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
+        streamLayers: partial.streamLayers ?? DEFAULT_STREAM_LAYERS,
+        streamBitrateKbps: partial.streamBitrateKbps ?? null,
+        screenLayers: partial.screenLayers ?? DEFAULT_STREAM_LAYERS,
+        screenBitrateKbps: partial.screenBitrateKbps ?? null,
+        screenContentMode:
+          partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,

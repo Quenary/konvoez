@@ -6,10 +6,14 @@ import {
   mediaDeviceInfoSchema,
   noiseProcessorSchema,
   outputVolumeSchema,
+  streamBitrateKbpsSchema,
+  streamContentModeSchema,
   streamFpsSchema,
   streamHeightSchema,
+  streamLayersSchema,
   TLocalSettingsPartial,
   TMediaDeviceInfo,
+  TStreamContentMode,
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
@@ -31,6 +35,21 @@ const parseHeight = (value: unknown): TStreamHeight | undefined => {
 
 const parseFps = (value: unknown): TStreamFps | undefined => {
   const result = streamFpsSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseLayers = (value: unknown): number | undefined => {
+  const result = streamLayersSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseBitrateKbps = (value: unknown): number | undefined => {
+  const result = streamBitrateKbpsSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseContentMode = (value: unknown): TStreamContentMode | undefined => {
+  const result = streamContentModeSchema.safeParse(value);
   return result.success ? result.data : undefined;
 };
 
@@ -63,9 +82,26 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     return {};
   }
 
-  const parsed = localSettingsLooseSchema.safeParse(raw);
-  if (!parsed.success) {
+  if (typeof raw !== 'object') {
     return {};
+  }
+  const record = raw as Record<string, unknown>;
+  const streamFields = {
+    streamLayers: parseLayers(record['streamLayers']),
+    streamBitrateKbps: parseBitrateKbps(record['streamBitrateKbps']),
+    screenLayers: parseLayers(record['screenLayers']),
+    screenBitrateKbps: parseBitrateKbps(record['screenBitrateKbps']),
+    screenContentMode: parseContentMode(record['screenContentMode']),
+  };
+  const withoutStreamFields = { ...record };
+  delete withoutStreamFields['streamLayers'];
+  delete withoutStreamFields['streamBitrateKbps'];
+  delete withoutStreamFields['screenLayers'];
+  delete withoutStreamFields['screenBitrateKbps'];
+  delete withoutStreamFields['screenContentMode'];
+  const parsed = localSettingsLooseSchema.safeParse(withoutStreamFields);
+  if (!parsed.success) {
+    return streamFields;
   }
 
   return {
@@ -77,6 +113,7 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     streamFps: parseFps(parsed.data.streamFps),
     screenHeight: parseHeight(parsed.data.screenHeight),
     screenFps: parseFps(parsed.data.screenFps),
+    ...streamFields,
     screenPreviewAutoPauseWhenHidden:
       typeof parsed.data.screenPreviewAutoPauseWhenHidden === 'boolean'
         ? parsed.data.screenPreviewAutoPauseWhenHidden
@@ -117,6 +154,11 @@ export type TLocalSettingsWrite = {
   streamFps?: TStreamFps | null;
   screenHeight?: TStreamHeight | null;
   screenFps?: TStreamFps | null;
+  streamLayers?: number | null;
+  streamBitrateKbps?: number | null;
+  screenLayers?: number | null;
+  screenBitrateKbps?: number | null;
+  screenContentMode?: TStreamContentMode | null;
   screenPreviewAutoPauseWhenHidden?: boolean;
   noiseProcessor?: ENoiseProcessor | null;
   inputGain?: number | null;
@@ -167,6 +209,26 @@ export const writeLocalSettings = (
     settings.screenFps === undefined
       ? existing.screenFps
       : (settings.screenFps ?? undefined);
+  const nextStreamLayers =
+    settings.streamLayers === undefined
+      ? existing.streamLayers
+      : (settings.streamLayers ?? undefined);
+  const nextStreamBitrate =
+    settings.streamBitrateKbps === undefined
+      ? existing.streamBitrateKbps
+      : (settings.streamBitrateKbps ?? undefined);
+  const nextScreenLayers =
+    settings.screenLayers === undefined
+      ? existing.screenLayers
+      : (settings.screenLayers ?? undefined);
+  const nextScreenBitrate =
+    settings.screenBitrateKbps === undefined
+      ? existing.screenBitrateKbps
+      : (settings.screenBitrateKbps ?? undefined);
+  const nextScreenContentMode =
+    settings.screenContentMode === undefined
+      ? existing.screenContentMode
+      : (settings.screenContentMode ?? undefined);
   const nextScreenPreviewAutoPause =
     settings.screenPreviewAutoPauseWhenHidden === undefined
       ? existing.screenPreviewAutoPauseWhenHidden
@@ -199,6 +261,21 @@ export const writeLocalSettings = (
       ? { screenHeight: nextScreenHeight }
       : {}),
     ...(nextScreenFps !== undefined ? { screenFps: nextScreenFps } : {}),
+    ...(nextStreamLayers !== undefined
+      ? { streamLayers: nextStreamLayers }
+      : {}),
+    ...(nextStreamBitrate !== undefined
+      ? { streamBitrateKbps: nextStreamBitrate }
+      : {}),
+    ...(nextScreenLayers !== undefined
+      ? { screenLayers: nextScreenLayers }
+      : {}),
+    ...(nextScreenBitrate !== undefined
+      ? { screenBitrateKbps: nextScreenBitrate }
+      : {}),
+    ...(nextScreenContentMode !== undefined
+      ? { screenContentMode: nextScreenContentMode }
+      : {}),
     ...(nextScreenPreviewAutoPause !== undefined
       ? { screenPreviewAutoPauseWhenHidden: nextScreenPreviewAutoPause }
       : {}),

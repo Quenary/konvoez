@@ -84,6 +84,7 @@ type VoiceRoomStatePeer = {
 export type VoiceRoomStateMediasoupAppData = {
   peerId: string;
   mediaTag: TVoiceRoomMediaTag;
+  sourceHeight?: number;
 };
 
 @Injectable()

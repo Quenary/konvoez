@@ -122,8 +122,18 @@ describe('VoiceRooms DTOs', () => {
           kind: 'video',
           mediaTag: 'cam',
           rtpParameters: { codecs: [] },
+          sourceHeight: 720,
         }).success,
       ).toBe(true);
+      expect(
+        VoiceRoomProduceDto.schema.safeParse({
+          transportId: 'trans-2',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: { codecs: [] },
+          sourceHeight: 0,
+        }).success,
+      ).toBe(false);
     });
 
     it('should reject invalid kind or mediaTag', () => {

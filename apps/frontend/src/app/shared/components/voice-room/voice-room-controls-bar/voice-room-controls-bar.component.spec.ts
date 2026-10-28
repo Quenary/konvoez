@@ -11,6 +11,9 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import type { Consumer } from 'mediasoup-client/types';
+import { ConsumerRegistry } from '@core/services/consumer-registry';
+import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceRoomControlsBarComponent } from './voice-room-controls-bar.component';
 
 describe('VoiceRoomControlsBarComponent', () => {
@@ -24,6 +27,11 @@ describe('VoiceRoomControlsBarComponent', () => {
   let setStreamFps: ReturnType<typeof vi.fn>;
   let setScreenHeight: ReturnType<typeof vi.fn>;
   let setScreenFps: ReturnType<typeof vi.fn>;
+  let setStreamLayers: ReturnType<typeof vi.fn>;
+  let setStreamBitrateKbps: ReturnType<typeof vi.fn>;
+  let setScreenLayers: ReturnType<typeof vi.fn>;
+  let setScreenBitrateKbps: ReturnType<typeof vi.fn>;
+  let setScreenContentMode: ReturnType<typeof vi.fn>;
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
@@ -44,6 +52,11 @@ describe('VoiceRoomControlsBarComponent', () => {
     setStreamFps = vi.fn();
     setScreenHeight = vi.fn();
     setScreenFps = vi.fn();
+    setStreamLayers = vi.fn();
+    setStreamBitrateKbps = vi.fn();
+    setScreenLayers = vi.fn();
+    setScreenBitrateKbps = vi.fn();
+    setScreenContentMode = vi.fn();
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
@@ -71,12 +84,25 @@ describe('VoiceRoomControlsBarComponent', () => {
           useValue: {
             streamHeight: signal(720).asReadonly(),
             streamFps: signal(30).asReadonly(),
+            streamLayers: signal(2).asReadonly(),
+            streamBitrateKbps: signal<number | null>(2500).asReadonly(),
             screenHeight: signal(1080).asReadonly(),
             screenFps: signal(30).asReadonly(),
+            screenLayers: signal(2).asReadonly(),
+            screenBitrateKbps: signal<number | null>(null).asReadonly(),
+            screenContentMode: signal<'detail' | 'motion'>(
+              'detail',
+            ).asReadonly(),
+            streamMaxBitrateKbps: signal(10000).asReadonly(),
             setStreamHeight,
             setStreamFps,
+            setStreamLayers,
+            setStreamBitrateKbps,
             setScreenHeight,
             setScreenFps,
+            setScreenLayers,
+            setScreenBitrateKbps,
+            setScreenContentMode,
           },
         },
         {
@@ -99,6 +125,13 @@ describe('VoiceRoomControlsBarComponent', () => {
           useValue: {
             localCamTrack: localCamTrack.asReadonly(),
             localScreenTrack: localScreenTrack.asReadonly(),
+          },
+        },
+        {
+          provide: RemoteVideoViewService,
+          useValue: {
+            quality: signal('auto').asReadonly(),
+            setQuality: vi.fn(),
           },
         },
         {
@@ -149,17 +182,59 @@ describe('VoiceRoomControlsBarComponent', () => {
   });
 
   it('starts the camera through the shared dialog', async () => {
-    openDialog.mockReturnValue(of({ height: 480, fps: 15 }));
+    openDialog.mockReturnValue(
+      of({ height: 480, fps: 15, layers: 2, bitrateKbps: 1500 }),
+    );
     const fixture = create();
 
     button(fixture, 2).click();
     await fixture.whenStable();
 
     expect(openDialog).toHaveBeenCalledTimes(1);
+    expect(openDialog.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: 'cam',
+          height: 720,
+          fps: 30,
+          layers: 2,
+          bitrateKbps: 2500,
+          maxBitrateKbps: 10000,
+        }),
+      }),
+    );
     expect(setStreamHeight).toHaveBeenCalledWith(480);
     expect(setStreamFps).toHaveBeenCalledWith(15);
+    expect(setStreamLayers).toHaveBeenCalledWith(2);
+    expect(setStreamBitrateKbps).toHaveBeenCalledWith(1500);
     expect(produceCamera).toHaveBeenCalledTimes(1);
     expect(produceScreen).not.toHaveBeenCalled();
+  });
+
+  it('saves screen layers, bitrate and content mode from the dialog', async () => {
+    openDialog.mockReturnValue(
+      of({
+        height: 1080,
+        fps: 60,
+        layers: 3,
+        bitrateKbps: 8000,
+        contentMode: 'motion',
+      }),
+    );
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getDisplayMedia: vi.fn() },
+    });
+    const fixture = create();
+
+    await fixture.componentInstance['toggleStream']('screen');
+
+    expect(setScreenHeight).toHaveBeenCalledWith(1080);
+    expect(setScreenFps).toHaveBeenCalledWith(60);
+    expect(setScreenLayers).toHaveBeenCalledWith(3);
+    expect(setScreenBitrateKbps).toHaveBeenCalledWith(8000);
+    expect(setScreenContentMode).toHaveBeenCalledWith('motion');
+    expect(produceScreen).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
   });
 
   it('notifies when starting the camera fails', async () => {
@@ -271,5 +346,27 @@ describe('VoiceRoomControlsBarComponent', () => {
     canProduce.set(false);
     expect(cmp['screenHintKey']()).toBe('CALL.WAITING_FOR_CONNECTION');
     expect(cmp['screenDisabled']()).toBe(true);
+  });
+
+  it('shows the viewer quality picker only while a layered stream is watched', () => {
+    const fixture = create();
+    expect(
+      fixture.nativeElement.querySelector('app-voice-room-stream-quality'),
+    ).toBeNull();
+
+    const registry = TestBed.inject(ConsumerRegistry);
+    registry.add(
+      {
+        id: 'c1',
+        closed: false,
+        close: vi.fn(),
+        rtpParameters: { encodings: [{ scalabilityMode: 'L2T1' }] },
+      } as unknown as Consumer,
+      720,
+    );
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('app-voice-room-stream-quality'),
+    ).toBeTruthy();
   });
 });

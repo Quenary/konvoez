@@ -1085,9 +1085,18 @@ describe('VoiceRoomsGateway', () => {
         kind: 'video',
         mediaTag: 'cam',
         rtpParameters: {},
+        sourceHeight: 720,
       });
 
       expect(result.producerId).toBe('cam-1');
+      expect(sendTransport.produce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appData: expect.objectContaining({
+            mediaTag: 'cam',
+            sourceHeight: 720,
+          }),
+        }),
+      );
       expect(peer.producers.get('cam-1')).toBe(producer);
       expect(room.producers.get('cam-1')).toBe(producer);
       expect(toEmit).toHaveBeenCalledWith(
@@ -1629,6 +1638,16 @@ describe('VoiceRoomsGateway', () => {
         mediaTag: 'mic',
         rtpParameters: {},
       });
+      producer.appData = { mediaTag: 'cam', sourceHeight: 1080 };
+      room.producers.set('p1', producer as never);
+      const videoResult = await gateway.consume(socket as never, {
+        transportId: 't',
+        producerId: 'p1',
+        rtpCapabilities: {} as never,
+      });
+      expect(videoResult).toEqual(
+        expect.objectContaining({ sourceHeight: 1080, mediaTag: 'cam' }),
+      );
       expect(peer.consumers.get('c1')).toBe(consumer);
     });
   });

@@ -142,6 +142,16 @@ describe('MediasoupSessionService', () => {
           useValue: {
             iceServers: vi.fn().mockReturnValue([]),
             voiceMaxBitrateKbps: vi.fn().mockReturnValue(64),
+            streamMaxBitrateKbps: vi.fn().mockReturnValue(10000),
+            streamHeight: vi.fn().mockReturnValue(720),
+            streamFps: vi.fn().mockReturnValue(30),
+            streamLayers: vi.fn().mockReturnValue(2),
+            streamBitrateKbps: vi.fn().mockReturnValue(2500),
+            screenHeight: vi.fn().mockReturnValue(1080),
+            screenFps: vi.fn().mockReturnValue(30),
+            screenLayers: vi.fn().mockReturnValue(3),
+            screenBitrateKbps: vi.fn().mockReturnValue(5000),
+            screenContentMode: vi.fn().mockReturnValue('detail'),
           },
         },
         {
@@ -825,6 +835,10 @@ describe('MediasoupSessionService', () => {
       closed: false,
       setRtpEncodingParameters: setMicEncoding,
     };
+    const getParameters = vi.fn().mockReturnValue({
+      encodings: [{ maxBitrate: 2_500_000, maxFramerate: 30 }],
+    });
+    const setParameters = vi.fn().mockResolvedValue(undefined);
     const camProducer = {
       id: 'cam-1',
       closed: false,
@@ -832,10 +846,18 @@ describe('MediasoupSessionService', () => {
       pause: camPause,
       resume: camResume,
       setRtpEncodingParameters: setCamEncoding,
+      rtpSender: { getParameters, setParameters },
     };
 
     service['microphoneProducer'] = micProducer as never;
     service['cameraProducer'] = camProducer as never;
+    service['cameraPublish'] = {
+      height: 720,
+      fps: 30,
+      contentMode: 'motion',
+      layers: 1,
+      maxBitrateBps: 2_500_000,
+    };
 
     // Apply Tier 1 (GOOD, 40 kbps, 1.2M video cap)
     await service.applyQualityLevel({
@@ -843,7 +865,12 @@ describe('MediasoupSessionService', () => {
       kbps: 40,
     });
     expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 40000 });
-    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: 1200000 });
+    expect(setParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ maxBitrate: 1_200_000 })],
+      }),
+    );
+    expect(setCamEncoding).not.toHaveBeenCalled();
     expect(camPause).not.toHaveBeenCalled();
 
     // Apply Tier 2 (UNSTABLE, 24 kbps, 400k video cap)
@@ -852,7 +879,11 @@ describe('MediasoupSessionService', () => {
       kbps: 24,
     });
     expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 24000 });
-    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: 400000 });
+    expect(setParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ maxBitrate: 400_000 })],
+      }),
+    );
     expect(camPause).not.toHaveBeenCalled();
 
     // Apply Tier 3 (BAD / POOR, 16 kbps -> pause video)
@@ -871,7 +902,11 @@ describe('MediasoupSessionService', () => {
     });
     expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 64000 });
     expect(camResume).toHaveBeenCalledTimes(1);
-    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: undefined });
+    expect(setParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ maxBitrate: 2_500_000 })],
+      }),
+    );
   });
 
   it('reads quality sample from mic producer stats and producer score', async () => {
@@ -1069,5 +1104,157 @@ describe('MediasoupSessionService', () => {
 
       vi.useRealTimers();
     });
+  });
+
+  it('publishes per-layer encodings and forwards sourceHeight', async () => {
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: { codecs: [{ mimeType: 'video/VP8' }] },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 360 }),
+    } as MediaStreamTrack);
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamLayers = vi
+      .fn()
+      .mockReturnValue(3) as unknown as typeof settings.streamLayers;
+
+    await service.produceCamera();
+
+    const options = produce.mock.calls[0]?.[0] as {
+      encodings: Array<{
+        scalabilityMode: string;
+        scaleResolutionDownBy: number;
+        maxBitrate: number;
+      }>;
+      appData: { sourceHeight: number };
+    };
+    expect(options.encodings).toHaveLength(2);
+    expect(options.encodings[0]?.scalabilityMode).toBe('L1T1');
+    expect(options.encodings[0]?.scaleResolutionDownBy).toBe(2);
+    expect(options.encodings[1]?.scaleResolutionDownBy).toBe(1);
+    const sum = options.encodings.reduce(
+      (total, encoding) => total + encoding.maxBitrate,
+      0,
+    );
+    expect(sum).toBeLessThanOrEqual(2_500_000);
+    expect(options.appData.sourceHeight).toBe(360);
+
+    const listeners: Record<string, (...args: unknown[]) => unknown> = {};
+    service['sendTransport'] = {
+      produce,
+      closed: false,
+      on: (event: string, handler: (...args: unknown[]) => unknown) => {
+        listeners[event] = handler;
+      },
+    } as never;
+    service['device'] = {
+      loaded: true,
+      createSendTransport: vi
+        .fn()
+        .mockImplementation(() => service['sendTransport']),
+    } as never;
+    await service['createTransport']('send');
+    await listeners['produce']?.(
+      {
+        kind: 'video',
+        rtpParameters: {},
+        appData: { mediaTag: 'cam', sourceHeight: 360 },
+      },
+      vi.fn(),
+      vi.fn(),
+    );
+    expect(emitWithAck).toHaveBeenCalledWith(
+      EVoiceRoomEvent.PRODUCE,
+      expect.objectContaining({ sourceHeight: 360, mediaTag: 'cam' }),
+    );
+  });
+
+  it('warns once when the browser applies different screen encodings', async () => {
+    const open = TestBed.inject(TuiNotificationService).open as ReturnType<
+      typeof vi.fn
+    >;
+    const plan = [
+      {
+        scaleResolutionDownBy: 4,
+        height: 270,
+        maxFramerate: 10,
+        maxBitrate: 200_000,
+      },
+      {
+        scaleResolutionDownBy: 2,
+        height: 540,
+        maxFramerate: 15,
+        maxBitrate: 400_000,
+      },
+      {
+        scaleResolutionDownBy: 1,
+        height: 1080,
+        maxFramerate: 30,
+        maxBitrate: 4_400_000,
+      },
+    ];
+    const producer = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: [{ scaleResolutionDownBy: 1, maxBitrate: 4_400_000 }],
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](producer as never, plan);
+    service['verifyAppliedEncodings'](producer as never, plan);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith(
+      'CALL.STREAM_SETTINGS_NOT_APPLIED',
+      expect.objectContaining({ appearance: 'warning' }),
+    );
+
+    service['screenSettingsWarned'] = false;
+    const top = plan[2];
+    if (!top) {
+      throw new Error('missing top layer');
+    }
+    service['verifyAppliedEncodings'](producer as never, [top]);
+    expect(open).toHaveBeenCalledTimes(1);
+
+    service['verifyAppliedEncodings']({ rtpSender: undefined } as never, plan);
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the screen content mode into capture', async () => {
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: { codecs: [{ mimeType: 'video/VP8' }] },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'scr',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    const getTracks = vi.fn().mockResolvedValue({
+      videoTrack: { getSettings: () => ({ height: 1080 }) },
+      audioTrack: null,
+    });
+    TestBed.inject(ScreenCaptureService).getTracks = getTracks;
+    const screenSettings = TestBed.inject(SettingsStore);
+    screenSettings.screenContentMode = vi
+      .fn()
+      .mockReturnValue(
+        'motion',
+      ) as unknown as typeof screenSettings.screenContentMode;
+
+    await service.produceScreen();
+
+    expect(getTracks).toHaveBeenCalledWith({ contentMode: 'motion' });
+    expect(TestBed.inject(TuiNotificationService).open).not.toHaveBeenCalled();
   });
 });

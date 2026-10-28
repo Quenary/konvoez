@@ -134,6 +134,28 @@ CALL:
   START_CAMERA: Запустить камеру
   STREAM_HEIGHT: Разрешение
   STREAM_FPS: Частота кадров
+  STREAM_LAYERS: Слои
+  STREAM_LAYERS_HINT: Больше слоёв — выше нагрузка на процессор и исходящий канал
+  STREAM_LAYERS_RESULT: Итоговые слои
+  FPS_UNIT: к/с
+  STREAM_CONTENT_MODE: Содержание
+  STREAM_CONTENT_TEXT: Текст
+  STREAM_CONTENT_GAME: Игра
+  STREAM_CONTENT_HINT: Текст сохраняет чёткость и снижает частоту кадров. Игра сохраняет плавность движения.
+  STREAM_BITRATE: Битрейт (кбит/с)
+  STREAM_BITRATE_WARNING: Высокий битрейт может забить исходящий канал и загрузку у зрителей.
+  STREAM_SETTINGS_NOT_APPLIED: Не удалось применить заданные настройки трансляции. Используем то, что предоставил браузер.
+  STREAM_LAYERS: Слои
+  STREAM_LAYERS_HINT: Больше слоёв — выше нагрузка на процессор и исходящий канал
+  STREAM_LAYERS_RESULT: Итоговые слои
+  FPS_UNIT: к/с
+  STREAM_CONTENT_MODE: Содержание
+  STREAM_CONTENT_TEXT: Текст
+  STREAM_CONTENT_GAME: Игра
+  STREAM_CONTENT_HINT: Текст сохраняет чёткость и снижает частоту кадров. Игра сохраняет плавность движения.
+  STREAM_BITRATE: Битрейт (кбит/с)
+  STREAM_BITRATE_WARNING: Высокий битрейт может забить исходящий канал и загрузку у зрителей.
+  STREAM_SETTINGS_NOT_APPLIED: Не удалось применить заданные настройки трансляции. Используем то, что предоставил браузер.
   SCREEN: Экран
   SCREEN_ON: Демонстрация экрана
   SCREEN_OFF: Остановить демонстрацию

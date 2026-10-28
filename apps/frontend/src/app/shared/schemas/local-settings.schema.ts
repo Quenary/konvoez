@@ -1,5 +1,15 @@
+import {
+  DEFAULT_STREAM_LAYERS,
+  STREAM_BITRATE_SLIDER_MIN_KBPS,
+  STREAM_LAYER_COUNT_MAX,
+  STREAM_LAYER_COUNT_MIN,
+  TStreamContentMode,
+} from '@konvoez/shared';
 import * as z from 'zod';
 import { ENoiseProcessor } from '../../app.enums';
+
+export { DEFAULT_STREAM_LAYERS };
+export type { TStreamContentMode };
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
@@ -33,6 +43,18 @@ export const streamFpsSchema = z.union([
   z.literal(60),
 ]);
 
+export const streamLayersSchema = z
+  .number()
+  .int()
+  .min(STREAM_LAYER_COUNT_MIN)
+  .max(STREAM_LAYER_COUNT_MAX);
+export const streamBitrateKbpsSchema = z
+  .number()
+  .int()
+  .min(STREAM_BITRATE_SLIDER_MIN_KBPS);
+export const streamContentModeSchema = z.enum(['detail', 'motion']);
+export const DEFAULT_SCREEN_CONTENT_MODE: TStreamContentMode = 'detail';
+
 export const noiseProcessorSchema = z.enum(ENoiseProcessor);
 export type TNoiseProcessor = z.infer<typeof noiseProcessorSchema>;
 export const DEFAULT_NOISE_PROCESSOR: ENoiseProcessor =
@@ -60,6 +82,11 @@ export const localSettingsSchema = z.object({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
+  streamLayers: streamLayersSchema.optional(),
+  streamBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenLayers: streamLayersSchema.optional(),
+  screenBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenContentMode: streamContentModeSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),
@@ -78,6 +105,11 @@ export const localSettingsLooseSchema = z.looseObject({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
+  streamLayers: streamLayersSchema.optional(),
+  streamBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenLayers: streamLayersSchema.optional(),
+  screenBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenContentMode: streamContentModeSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),

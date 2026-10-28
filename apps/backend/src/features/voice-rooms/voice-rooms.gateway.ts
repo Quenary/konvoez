@@ -612,6 +612,9 @@ export class VoiceRoomsGateway
           appData: {
             peerId: peer.id,
             mediaTag: body.mediaTag,
+            ...(body.sourceHeight !== undefined
+              ? { sourceHeight: body.sourceHeight }
+              : {}),
           },
         });
 
@@ -818,6 +821,9 @@ export class VoiceRoomsGateway
       kind: consumer.kind,
       mediaTag: consumer.appData.mediaTag,
       rtpParameters: consumer.rtpParameters,
+      ...(producer.appData.sourceHeight !== undefined
+        ? { sourceHeight: producer.appData.sourceHeight }
+        : {}),
     } satisfies TVoiceRoomConsumeResult;
   }
 
