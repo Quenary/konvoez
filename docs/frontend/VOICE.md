@@ -86,6 +86,9 @@ sequenceDiagram
 ```
 
 - `JOIN_ROOM`, `CREATE_TRANSPORT` and `PRODUCE` use a longer timeout (10 s) than other acknowledged events (5 s); `PRODUCE` is retried once.
+- The viewer pauses a hidden video consumer with `PAUSE_CONSUMER`.
+- The viewer resumes that consumer with `RESUME_CONSUMER`. The server requests a keyframe for video.
+- The viewer selects a spatial layer with `SET_CONSUMER_LAYERS`.
 - While joining, `VoiceSessionStore.joiningTarget` is set and used by the UI.
 - After a reconnect the stored session is rejoined. On app resume the session is checked with the server and either refreshed (ICE restart) or rejoined: [App resume](APP_RESUME.md).
 - Hangup goes through `VoiceLeaveService`. `leaveFromVoiceUi()` leaves the media and, when `/voice-room/:id` is open, navigates to `/` before the session ends. `leaveActiveVoice()` only leaves the media: a direct call via `DirectCallService`, otherwise via `VoiceSessionService`. Logout and app quit use `leaveActiveVoice()`. Switching sessions leaves the previous one automatically.
@@ -117,8 +120,8 @@ The voice quality tier describes network throughput and packet health, but quali
 | Tier | Name        | Factor                | Video protection                                         |
 | ---- | ----------- | --------------------- | -------------------------------------------------------- |
 | 0    | `EXCELLENT` | 1.0                   | Uncapped                                                 |
-| 1    | `GOOD`      | 0.625                 | Capped at 1.2 Mbit/s                                     |
-| 2    | `UNSTABLE`  | 0.375                 | Capped at 400 kbit/s                                     |
+| 1    | `GOOD`      | 0.625                 | Total budget capped at 1.2 Mbit/s, applied per layer     |
+| 2    | `UNSTABLE`  | 0.375                 | Total budget capped at 400 kbit/s, applied per layer     |
 | 3    | `BAD`       | 0.25 (floor 8 kbit/s) | Paused locally (`producer.pause()`, resumed on recovery) |
 
 - **Hysteresis**: degradation (loss ≥ 5%, RTT ≥ 300 ms, jitter ≥ 50 ms, score ≤ 7) steps down after 2 bad samples; recovery requires 8 stable samples, a 10 s dwell time, and a 20% margin.
@@ -136,7 +139,7 @@ Media liveness and transport health operate independently from adaptive quality.
 | `DISCONNECTED` | Socket down or transport failed or closed                                | Red                   |
 | `DEAD`         | Recovery attempts exhausted or session evicted                           | Red                   |
 
-Silent media death (such as firewall or UDP drops) is detected by a client watchdog comparing the received byte counter of the nominated candidate pair. Unhealthy states trigger an escalation ladder:
+Silent media death (such as firewall or UDP drops) is detected by a client watchdog comparing the received byte counter of the nominated candidate pair. Receive is watched only while a consumer is live. Paused video leaves that set; audio stays. Live audio with every video paused does not stall. With no audio and every video paused, receive is not connected and no stall is declared. Unhealthy states trigger an escalation ladder:
 
 ```mermaid
 flowchart TD
