@@ -1,5 +1,13 @@
+import {
+  STREAM_BITRATE_SLIDER_MIN_KBPS,
+  STREAM_EXTRA_LAYERS_MAX,
+  TStreamContentMode,
+  TStreamLayer,
+} from '@konvoez/shared';
 import * as z from 'zod';
 import { ENoiseProcessor } from '../../app.enums';
+
+export type { TStreamContentMode, TStreamLayer };
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
@@ -33,6 +41,21 @@ export const streamFpsSchema = z.union([
   z.literal(60),
 ]);
 
+export const streamExtraLayersSchema = z
+  .array(
+    z.object({
+      height: z.number().int().positive(),
+      fps: z.number().int().positive(),
+    }),
+  )
+  .max(STREAM_EXTRA_LAYERS_MAX);
+export const streamBitrateKbpsSchema = z
+  .number()
+  .int()
+  .min(STREAM_BITRATE_SLIDER_MIN_KBPS);
+export const streamContentModeSchema = z.enum(['detail', 'motion']);
+export const DEFAULT_SCREEN_CONTENT_MODE: TStreamContentMode = 'detail';
+
 export const noiseProcessorSchema = z.enum(ENoiseProcessor);
 export type TNoiseProcessor = z.infer<typeof noiseProcessorSchema>;
 export const DEFAULT_NOISE_PROCESSOR: ENoiseProcessor =
@@ -60,6 +83,11 @@ export const localSettingsSchema = z.object({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
+  streamExtraLayers: streamExtraLayersSchema.optional(),
+  streamBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenExtraLayers: streamExtraLayersSchema.optional(),
+  screenBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenContentMode: streamContentModeSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),
@@ -78,6 +106,11 @@ export const localSettingsLooseSchema = z.looseObject({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
+  streamExtraLayers: streamExtraLayersSchema.optional(),
+  streamBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenExtraLayers: streamExtraLayersSchema.optional(),
+  screenBitrateKbps: streamBitrateKbpsSchema.optional(),
+  screenContentMode: streamContentModeSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),

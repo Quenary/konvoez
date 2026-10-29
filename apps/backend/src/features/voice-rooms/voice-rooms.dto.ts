@@ -6,6 +6,7 @@ import {
   callInitiatePayloadSchema,
   callRejectPayloadSchema,
   voiceRoomCloseConsumerSchema,
+  voiceRoomConsumerRefSchema,
   voiceRoomCloseProducerSchema,
   voiceRoomConnectTransportSchema,
   voiceRoomConsumeSchema,
@@ -13,6 +14,7 @@ import {
   voiceRoomJoinSchema,
   voiceRoomProduceSchema,
   voiceRoomRestartIceSchema,
+  voiceRoomSetConsumerLayersSchema,
   voiceRoomSetMuteStateSchema,
 } from '@konvoez/shared';
 
@@ -40,6 +42,14 @@ export class VoiceRoomConsumeDto extends createZodDto(voiceRoomConsumeSchema) {}
 
 export class VoiceRoomCloseConsumerDto extends createZodDto(
   voiceRoomCloseConsumerSchema,
+) {}
+
+export class VoiceRoomSetConsumerLayersDto extends createZodDto(
+  voiceRoomSetConsumerLayersSchema,
+) {}
+
+export class VoiceRoomConsumerRefDto extends createZodDto(
+  voiceRoomConsumerRefSchema,
 ) {}
 
 export class VoiceRoomSetMuteStateDto extends createZodDto(

@@ -8,6 +8,7 @@ import {
   attachmentsMaxFileSizeSettingSchema,
   attachmentsMaxFilesPerMessageSettingSchema,
   attachmentsStripImageMetadataSettingSchema,
+  streamMaxBitrateKbpsSettingSchema,
   voiceMaxBitrateKbpsSettingSchema,
   TSetting,
   TSettingByKey,
@@ -48,4 +49,8 @@ export class AttachmentsStripImageMetadataSettingDto extends createZodDto(
 
 export class VoiceMaxBitrateKbpsSettingDto extends createZodDto(
   voiceMaxBitrateKbpsSettingSchema,
+) {}
+
+export class StreamMaxBitrateKbpsSettingDto extends createZodDto(
+  streamMaxBitrateKbpsSettingSchema,
 ) {}

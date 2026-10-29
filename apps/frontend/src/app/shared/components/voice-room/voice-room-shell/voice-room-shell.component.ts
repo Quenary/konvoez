@@ -3,11 +3,15 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  TemplateRef,
+  afterNextRender,
+  computed,
   inject,
   input,
-  TemplateRef,
+  viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { TuiRoot } from '@taiga-ui/core';
 import { VoiceRoomGridComponent } from '../voice-room-grid/voice-room-grid.component';
 import { VoiceRoomTheatreComponent } from '../voice-room-theatre/voice-room-theatre.component';
 import { VoiceRoomOverlayComponent } from '../voice-room-overlay/voice-room-overlay.component';
@@ -22,6 +26,7 @@ import { VoiceRoomViewService } from '../voice-room-view.service';
   },
   imports: [
     NgTemplateOutlet,
+    TuiRoot,
     VoiceRoomGridComponent,
     VoiceRoomTheatreComponent,
     VoiceRoomOverlayComponent,
@@ -34,20 +39,31 @@ export class VoiceRoomShellComponent {
   private readonly voiceSessionPeersService = inject(VoiceSessionPeersService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly host = inject(ElementRef<HTMLElement>);
 
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
 
-  protected readonly fullscreenHost = this.host.nativeElement;
+  protected readonly fullscreenHost = computed(
+    () => this.fullscreenRoot()?.nativeElement ?? null,
+  );
   protected readonly participantsCount = this.voiceSessionPeersService.count;
   protected readonly layout = this.voiceRoomViewService.layout;
 
+  private readonly fullscreenRoot = viewChild<TuiRoot, ElementRef<HTMLElement>>(
+    'fullscreenRoot',
+    { read: ElementRef },
+  );
+  private fullscreenElement: HTMLElement | null = null;
+
   constructor() {
     this.voiceRoomViewService.revealChrome();
+    afterNextRender(() => {
+      this.fullscreenElement = this.fullscreenHost();
+    });
     this.destroyRef.onDestroy(() => {
-      if (document.fullscreenElement === this.fullscreenHost) {
+      const element = this.fullscreenHost() ?? this.fullscreenElement;
+      if (element && document.fullscreenElement === element) {
         void document.exitFullscreen();
       }
     });

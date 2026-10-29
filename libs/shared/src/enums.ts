@@ -56,6 +56,7 @@ export enum ESettingKey {
   ATTACHMENTS_MAX_FILES_PER_MESSAGE = 'ATTACHMENTS_MAX_FILES_PER_MESSAGE',
   ATTACHMENTS_STRIP_IMAGE_METADATA = 'ATTACHMENTS_STRIP_IMAGE_METADATA',
   VOICE_MAX_BITRATE_KBPS = 'VOICE_MAX_BITRATE_KBPS',
+  STREAM_MAX_BITRATE_KBPS = 'STREAM_MAX_BITRATE_KBPS',
 }
 
 export enum EAttachmentKind {
@@ -105,6 +106,9 @@ export enum EVoiceRoomEvent {
   CLOSE_PRODUCER = 'close-producer',
   CONSUME = 'consume',
   CLOSE_CONSUMER = 'close-consumer',
+  PAUSE_CONSUMER = 'pause-consumer',
+  RESUME_CONSUMER = 'resume-consumer',
+  SET_CONSUMER_LAYERS = 'set-consumer-layers',
   CONSUMER_CLOSED = 'consumer-closed',
   SET_MUTE_STATE = 'set-mute-state',
   PEER_MUTE_CHANGED = 'peer-mute-changed',

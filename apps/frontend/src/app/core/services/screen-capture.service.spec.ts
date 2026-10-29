@@ -103,7 +103,7 @@ describe('ScreenCaptureService', () => {
     );
   });
 
-  it('sets motion contentHint when fps is 60 or higher', async () => {
+  it('sets contentHint from the content mode', async () => {
     const mockStream = {
       getVideoTracks: () => [mockVideoTrack],
       getAudioTracks: () => [],
@@ -112,8 +112,11 @@ describe('ScreenCaptureService', () => {
 
     mediaDevicesService.getDisplayMedia.mockResolvedValue(mockStream);
 
-    await service.getTracks({ fps: 60 });
+    await service.getTracks({ contentMode: 'motion' });
     expect(mockVideoTrack.contentHint).toBe('motion');
+
+    await service.getTracks({ contentMode: 'detail', fps: 60 });
+    expect(mockVideoTrack.contentHint).toBe('detail');
   });
 
   it('throws and stops tracks when stream has no video track', async () => {

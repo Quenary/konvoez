@@ -231,6 +231,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
+      screenContentMode: 'detail',
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -252,6 +253,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
+      screenContentMode: 'detail',
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -284,6 +286,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
+      screenContentMode: 'detail',
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -291,6 +294,32 @@ describe('SettingsStore', () => {
       echoCancellation: DEFAULT_ECHO_CANCELLATION,
     });
     expect(store.needsInitialSetup()).toBe(false);
+  });
+
+  it('persists stream layer, bitrate and screen content mode', () => {
+    const extra = [{ height: 480, fps: 30 }];
+    store.setStreamExtraLayers(extra);
+    store.setStreamBitrateKbps(2500);
+    store.setScreenExtraLayers(null);
+    store.setScreenBitrateKbps(null);
+    store.setScreenContentMode('motion');
+
+    expect(store.streamExtraLayers()).toEqual(extra);
+    expect(store.streamBitrateKbps()).toBe(2500);
+    expect(store.screenExtraLayers()).toBeNull();
+    expect(store.screenContentMode()).toBe('motion');
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
+    ).toEqual(
+      expect.objectContaining({
+        streamExtraLayers: extra,
+        streamBitrateKbps: 2500,
+        screenContentMode: 'motion',
+      }),
+    );
+    expect(
+      JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
+    ).not.toHaveProperty('screenBitrateKbps');
   });
 
   it('should update audioOutput, save LOCAL_SETTINGS and call audioDeviceHandler', () => {
@@ -317,6 +346,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
+      screenContentMode: 'detail',
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -537,5 +567,24 @@ describe('SettingsStore', () => {
     TestBed.flushEffects();
 
     expect(store.voiceMaxBitrateKbps()).toBe(128);
+  });
+
+  it('computes streamMaxBitrateKbps with fallback to default and reflects loaded settings', () => {
+    configureTestBed();
+    expect(store.streamMaxBitrateKbps()).toBe(20000);
+
+    const setting: TSetting = {
+      key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+      value: 15000,
+      createdAt: new Date(),
+      updatedAt: null,
+      envLocked: false,
+    };
+    apiService.list.mockReturnValue(of([setting]));
+
+    store.loadAll();
+    TestBed.flushEffects();
+
+    expect(store.streamMaxBitrateKbps()).toBe(15000);
   });
 });

@@ -34,11 +34,14 @@ import {
   DEFAULT_NOISE_PROCESSOR,
   DEFAULT_OUTPUT_VOLUME,
   DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
+  DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
   LOCAL_SETTINGS_VERSION,
+  TStreamContentMode,
   TStreamFps,
   TStreamHeight,
+  TStreamLayer,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
 import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
@@ -66,6 +69,11 @@ export type SettingsStoreState = {
   streamFps: TStreamFps;
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
+  streamExtraLayers: TStreamLayer[] | null;
+  streamBitrateKbps: number | null;
+  screenExtraLayers: TStreamLayer[] | null;
+  screenBitrateKbps: number | null;
+  screenContentMode: TStreamContentMode;
   screenPreviewAutoPauseWhenHidden: boolean;
   noiseProcessor: ENoiseProcessor;
   inputGain: number;
@@ -86,6 +94,11 @@ export const SettingsStore = signalStore(
     streamFps: DEFAULT_STREAM_FPS,
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
+    streamExtraLayers: null,
+    streamBitrateKbps: null,
+    screenExtraLayers: null,
+    screenBitrateKbps: null,
+    screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
     noiseProcessor: DEFAULT_NOISE_PROCESSOR,
@@ -176,6 +189,13 @@ export const SettingsStore = signalStore(
           defaultSettingValues[ESettingKey.VOICE_MAX_BITRATE_KBPS]
         );
       }),
+      streamMaxBitrateKbps: computed(() => {
+        const item = entityMap()[ESettingKey.STREAM_MAX_BITRATE_KBPS];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.STREAM_MAX_BITRATE_KBPS]
+        );
+      }),
       needsInitialSetup: computed(
         () => localSettingsVersion() !== LOCAL_SETTINGS_VERSION,
       ),
@@ -212,6 +232,11 @@ export const SettingsStore = signalStore(
           streamFps: store.streamFps(),
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
+          streamExtraLayers: store.streamExtraLayers(),
+          streamBitrateKbps: store.streamBitrateKbps(),
+          screenExtraLayers: store.screenExtraLayers(),
+          screenBitrateKbps: store.screenBitrateKbps(),
+          screenContentMode: store.screenContentMode(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
           noiseProcessor: store.noiseProcessor(),
@@ -235,6 +260,11 @@ export const SettingsStore = signalStore(
               streamFps: store.streamFps(),
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
+              streamExtraLayers: store.streamExtraLayers(),
+              streamBitrateKbps: store.streamBitrateKbps(),
+              screenExtraLayers: store.screenExtraLayers(),
+              screenBitrateKbps: store.screenBitrateKbps(),
+              screenContentMode: store.screenContentMode(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
               noiseProcessor: store.noiseProcessor(),
@@ -281,6 +311,31 @@ export const SettingsStore = signalStore(
 
         setScreenFps(screenFps: TStreamFps): void {
           patchState(store, { screenFps });
+          persistLocal();
+        },
+
+        setStreamExtraLayers(streamExtraLayers: TStreamLayer[] | null): void {
+          patchState(store, { streamExtraLayers });
+          persistLocal();
+        },
+
+        setStreamBitrateKbps(streamBitrateKbps: number | null): void {
+          patchState(store, { streamBitrateKbps });
+          persistLocal();
+        },
+
+        setScreenExtraLayers(screenExtraLayers: TStreamLayer[] | null): void {
+          patchState(store, { screenExtraLayers });
+          persistLocal();
+        },
+
+        setScreenBitrateKbps(screenBitrateKbps: number | null): void {
+          patchState(store, { screenBitrateKbps });
+          persistLocal();
+        },
+
+        setScreenContentMode(screenContentMode: TStreamContentMode): void {
+          patchState(store, { screenContentMode });
           persistLocal();
         },
 
@@ -398,6 +453,12 @@ export const SettingsStore = signalStore(
         streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
+        streamExtraLayers: partial.streamExtraLayers ?? null,
+        streamBitrateKbps: partial.streamBitrateKbps ?? null,
+        screenExtraLayers: partial.screenExtraLayers ?? null,
+        screenBitrateKbps: partial.screenBitrateKbps ?? null,
+        screenContentMode:
+          partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,

@@ -129,6 +129,7 @@ describe('VoiceRoomOverlayComponent', () => {
           useValue: {
             localCamTrack: signal(null).asReadonly(),
             localScreenTrack: signal(null).asReadonly(),
+            getScreenConsumerId: vi.fn(() => null),
           },
         },
         {

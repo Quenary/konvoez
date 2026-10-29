@@ -6,20 +6,29 @@ import {
   input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TVoiceRoomPeerUser } from '@konvoez/shared';
+import { formatStreamLayer, TVoiceRoomPeerUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { ConsumerRegistry } from '@core/services/consumer-registry';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
+import { PeerVideoService } from '@core/services/peer-video.service';
+import {
+  resolvePreferredLayer,
+  TViewerQualityMode,
+} from '@core/services/remote-video-quality';
+import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
   TuiButton,
   TuiCheckbox,
+  TuiDataList,
   TuiDropdown,
   TuiGroup,
   TuiHint,
   TuiLabel,
+  TuiOption,
 } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -41,9 +50,11 @@ import { icons } from '@constants';
     TuiBadge,
     TuiButton,
     TuiCheckbox,
+    TuiDataList,
     TuiDropdown,
     TuiHint,
     TuiLabel,
+    TuiOption,
     TuiAutoColorPipe,
     TranslatePipe,
     TuiGroup,
@@ -66,8 +77,34 @@ export class VoiceRoomTileComponent {
   );
   private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
+  private readonly consumerRegistry = inject(ConsumerRegistry);
+  private readonly peerVideoService = inject(PeerVideoService);
+  private readonly remoteVideoViewService = inject(RemoteVideoViewService);
 
   protected readonly icons = icons;
+  protected readonly quality = this.remoteVideoViewService.quality;
+  protected readonly qualityLayers = computed(() => {
+    const peerId = this.peer().id;
+    const layersById = this.consumerRegistry.layersById();
+    const consumerId = this.peerVideoService.getScreenConsumerId(peerId);
+    if (!consumerId) {
+      return [];
+    }
+    return layersById[consumerId] ?? [];
+  });
+  protected readonly showQuality = computed(
+    () => this.qualityLayers().length >= 2,
+  );
+  protected readonly qualityItems = computed(() => {
+    const layers = this.qualityLayers();
+    const mode = this.quality();
+    const resolved = mode === 'auto' ? -1 : resolvePreferredLayer(mode, layers);
+    return [...layers].reverse().map((layer, offset) => ({
+      layer,
+      label: formatStreamLayer(layer),
+      checked: layers.length - 1 - offset === resolved,
+    }));
+  });
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly peer = input.required<TVoiceRoomPeerUser>();
@@ -198,6 +235,10 @@ export class VoiceRoomTileComponent {
 
   protected onStopWatchClick(): void {
     void this.voiceRoomActionsService.stopWatchingPeerScreen(this.peer().id);
+  }
+
+  protected onQualitySelect(mode: TViewerQualityMode): void {
+    this.remoteVideoViewService.setQuality(mode);
   }
 
   protected onOpenTheatreClick(): void {

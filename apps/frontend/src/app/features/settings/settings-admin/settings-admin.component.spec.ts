@@ -11,6 +11,7 @@ import {
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
   DEFAULT_VAPID_EMAIL,
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
   DEFAULT_VOICE_MAX_BITRATE_KBPS,
   ESettingKey,
   SCHEMA_ERROR,
@@ -32,6 +33,7 @@ describe('SettingsAdminComponent', () => {
   let attachmentsMaxFilesPerMessage: ReturnType<typeof signal<number>>;
   let attachmentsStripImageMetadata: ReturnType<typeof signal<boolean>>;
   let voiceMaxBitrateKbps: ReturnType<typeof signal<number>>;
+  let streamMaxBitrateKbps: ReturnType<typeof signal<number>>;
   let envLocked: ReturnType<typeof signal<Record<string, boolean>>>;
   let updateSettings: ReturnType<typeof vi.fn>;
 
@@ -49,6 +51,7 @@ describe('SettingsAdminComponent', () => {
       DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
     );
     voiceMaxBitrateKbps = signal(DEFAULT_VOICE_MAX_BITRATE_KBPS);
+    streamMaxBitrateKbps = signal(DEFAULT_STREAM_MAX_BITRATE_KBPS);
     envLocked = signal({});
     updateSettings = vi.fn();
 
@@ -70,6 +73,7 @@ describe('SettingsAdminComponent', () => {
             attachmentsStripImageMetadata:
               attachmentsStripImageMetadata.asReadonly(),
             voiceMaxBitrateKbps: voiceMaxBitrateKbps.asReadonly(),
+            streamMaxBitrateKbps: streamMaxBitrateKbps.asReadonly(),
             envLocked: envLocked.asReadonly(),
             updateSettings,
           },
@@ -147,6 +151,46 @@ describe('SettingsAdminComponent', () => {
   it('does not submit voiceMaxBitrateKbps when pristine', () => {
     component['onSubmit']();
     expect(updateSettings).not.toHaveBeenCalled();
+  });
+
+  it('renders the stream bitrate slider, validates the range, and saves only when dirty', () => {
+    const control = component['form'].controls.streamMaxBitrateKbps;
+    expect(control.value).toBe(DEFAULT_STREAM_MAX_BITRATE_KBPS);
+
+    const inputSlider = fixture.nativeElement.querySelector(
+      'input[tuiInputSlider]#stream-max-bitrate',
+    );
+    expect(inputSlider).toBeTruthy();
+    expect(component['streamBitrateMinKbps']).toBe(1000);
+    expect(component['streamBitrateMaxKbps']).toBe(100000);
+
+    control.setValue(1000);
+    expect(control.valid).toBe(true);
+    control.setValue(999);
+    expect(control.invalid).toBe(true);
+    expect(component['streamMaxBitrateError']).toBe(
+      SCHEMA_ERROR.STREAM_MAX_BITRATE_RANGE,
+    );
+    control.setValue(100001);
+    expect(control.invalid).toBe(true);
+
+    component['onSubmit']();
+    expect(updateSettings).not.toHaveBeenCalled();
+
+    control.setValue(20000);
+    control.markAsDirty();
+    component['onSubmit']();
+    expect(updateSettings).toHaveBeenCalledWith([
+      { key: ESettingKey.STREAM_MAX_BITRATE_KBPS, value: 20000 },
+    ]);
+  });
+
+  it('disables streamMaxBitrateKbps when env-locked', () => {
+    envLocked.set({ [ESettingKey.STREAM_MAX_BITRATE_KBPS]: true });
+    fixture.detectChanges();
+
+    expect(component['form'].controls.streamMaxBitrateKbps.disabled).toBe(true);
+    expect(component['locked']().streamMaxBitrateKbps).toBe(true);
   });
 
   it('renders input slider with step 8, min 8, and max 384', () => {

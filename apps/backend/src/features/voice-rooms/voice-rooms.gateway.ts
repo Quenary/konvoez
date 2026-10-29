@@ -43,6 +43,7 @@ import {
   CallInitiateDto,
   CallRejectDto,
   VoiceRoomCloseConsumerDto,
+  VoiceRoomConsumerRefDto,
   VoiceRoomCloseProducerDto,
   VoiceRoomConnectTransportDto,
   VoiceRoomConsumeDto,
@@ -50,6 +51,7 @@ import {
   VoiceRoomJoinDto,
   VoiceRoomProduceDto,
   VoiceRoomRestartIceDto,
+  VoiceRoomSetConsumerLayersDto,
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 import { AuthService } from '../auth/auth.service';
@@ -605,6 +607,25 @@ export class VoiceRoomsGateway
         }
       }
 
+      if (body.kind === 'audio' && body.layers !== undefined) {
+        throw AppException.badRequest(
+          ApiErrorCode.VOICE_MEDIA_INVALID,
+          'Audio produce cannot include layers',
+        );
+      }
+      const encodings = rtpEncodings(body.rtpParameters);
+      if (
+        body.kind === 'video' &&
+        body.layers !== undefined &&
+        encodings !== undefined &&
+        encodings.length !== body.layers.length
+      ) {
+        throw AppException.badRequest(
+          ApiErrorCode.VOICE_MEDIA_INVALID,
+          'Layer count does not match encodings',
+        );
+      }
+
       const producer: Producer<VoiceRoomStateMediasoupAppData> =
         await transport.produce({
           kind: body.kind,
@@ -612,6 +633,7 @@ export class VoiceRoomsGateway
           appData: {
             peerId: peer.id,
             mediaTag: body.mediaTag,
+            ...(body.layers !== undefined ? { layers: body.layers } : {}),
           },
         });
 
@@ -700,6 +722,51 @@ export class VoiceRoomsGateway
     peer.consumers.delete(consumer.id);
     if (!consumer.closed) {
       consumer.close();
+    }
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.SET_CONSUMER_LAYERS)
+  async setConsumerLayers(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomSetConsumerLayersDto,
+  ) {
+    const { peer } = this.getSocketRoomPeer(socket);
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer || consumer.type === 'simple') {
+      return {};
+    }
+    await consumer.setPreferredLayers({ spatialLayer: body.spatialLayer });
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.PAUSE_CONSUMER)
+  async pauseConsumer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomConsumerRefDto,
+  ) {
+    const { peer } = this.getSocketRoomPeer(socket);
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer) {
+      return {};
+    }
+    await consumer.pause();
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.RESUME_CONSUMER)
+  async resumeConsumer(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomConsumerRefDto,
+  ) {
+    const { peer } = this.getSocketRoomPeer(socket);
+    const consumer = peer.consumers.get(body.consumerId);
+    if (!consumer) {
+      return {};
+    }
+    await consumer.resume();
+    if (consumer.kind === 'video') {
+      await consumer.requestKeyFrame();
     }
     return {};
   }
@@ -793,6 +860,7 @@ export class VoiceRoomsGateway
           peerId: peer.id,
           mediaTag: producer.appData.mediaTag,
         },
+        ...(producer.kind === 'video' ? { paused: true as const } : {}),
       });
 
     peer.consumers.set(consumer.id, consumer);
@@ -818,6 +886,9 @@ export class VoiceRoomsGateway
       kind: consumer.kind,
       mediaTag: consumer.appData.mediaTag,
       rtpParameters: consumer.rtpParameters,
+      ...(producer.appData.layers !== undefined
+        ? { layers: producer.appData.layers }
+        : {}),
     } satisfies TVoiceRoomConsumeResult;
   }
 
@@ -1472,4 +1543,12 @@ export class VoiceRoomsGateway
       this.emitCallEnded(ended.callId, ended.callerId, ended.recipientId);
     }
   }
+}
+
+function rtpEncodings(rtpParameters: unknown): unknown[] | undefined {
+  if (typeof rtpParameters !== 'object' || rtpParameters === null) {
+    return undefined;
+  }
+  const encodings = (rtpParameters as { encodings?: unknown }).encodings;
+  return Array.isArray(encodings) ? encodings : undefined;
 }

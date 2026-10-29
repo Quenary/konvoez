@@ -8,6 +8,8 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
+import { ConsumerRegistry } from '@core/services/consumer-registry';
+import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
@@ -22,6 +24,13 @@ describe('VoiceRoomTileComponent', () => {
   let autoPauseWhenHidden: ReturnType<typeof signal<boolean>>;
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let setScreenPreviewAutoPauseWhenHidden: ReturnType<typeof vi.fn>;
+  let setQuality: ReturnType<typeof vi.fn>;
+  let layersById: ReturnType<
+    typeof signal<Record<string, Array<{ height: number; fps: number }>>>
+  >;
+  let quality: ReturnType<
+    typeof signal<'auto' | { height: number; fps: number }>
+  >;
 
   beforeEach(() => {
     currentUser = signal(user(1));
@@ -30,6 +39,9 @@ describe('VoiceRoomTileComponent', () => {
     setScreenPreviewAutoPauseWhenHidden = vi.fn((value: boolean) => {
       autoPauseWhenHidden.set(value);
     });
+    setQuality = vi.fn();
+    layersById = signal({});
+    quality = signal('auto');
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -77,6 +89,7 @@ describe('VoiceRoomTileComponent', () => {
           provide: PeerVideoService,
           useValue: {
             localScreenTrack: localScreenTrack.asReadonly(),
+            getScreenConsumerId: vi.fn(() => 'screen-2'),
           },
         },
         {
@@ -97,6 +110,18 @@ describe('VoiceRoomTileComponent', () => {
             pause: vi.fn(),
             setAutoPauseWhenHidden: vi.fn(),
             autoPauseWhenHidden: autoPauseWhenHidden.asReadonly(),
+          },
+        },
+        {
+          provide: ConsumerRegistry,
+          useValue: { layersById: layersById.asReadonly() },
+        },
+        {
+          provide: RemoteVideoViewService,
+          useValue: {
+            quality: quality.asReadonly(),
+            setQuality,
+            registerView: vi.fn(() => () => undefined),
           },
         },
       ],
@@ -228,4 +253,44 @@ describe('VoiceRoomTileComponent', () => {
       expect(badges.length).toBe(expectedCount);
     },
   );
+
+  it('puts quality selection after screen volume and drops the theatre button', () => {
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+    fixture.componentRef.setInput('peer', user(2));
+    fixture.componentRef.setInput('streamKind', 'screen');
+    fixture.componentRef.setInput('screenAvailable', true);
+    fixture.componentRef.setInput('watchingScreen', true);
+    fixture.componentRef.setInput('videoTrack', {
+      id: 'scr',
+    } as MediaStreamTrack);
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector(
+      '.info-actions [tuiGroup]',
+    ) as HTMLElement;
+    expect(group.querySelectorAll('button').length).toBe(2);
+
+    layersById.set({
+      'screen-2': [
+        { height: 480, fps: 30 },
+        { height: 1080, fps: 60 },
+      ],
+    });
+    fixture.detectChanges();
+    const buttons = group.querySelectorAll('button');
+    expect(buttons.length).toBe(3);
+    expect(
+      fixture.componentInstance['qualityItems']().map((item) => item.label),
+    ).toEqual(['1080p60', '480p30']);
+
+    quality.set({ height: 720, fps: 30 });
+    fixture.detectChanges();
+    expect(
+      fixture.componentInstance['qualityItems']().find((item) => item.checked)
+        ?.label,
+    ).toBe('480p30');
+
+    fixture.componentInstance['onQualitySelect']({ height: 1080, fps: 60 });
+    expect(setQuality).toHaveBeenCalledWith({ height: 1080, fps: 60 });
+  });
 });
