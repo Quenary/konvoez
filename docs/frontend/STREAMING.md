@@ -13,7 +13,7 @@ Camera and screen sharing run on top of the voice stack ([Voice](./VOICE.md)).
 - Each user has at most one camera and one screen stream; a room allows up to 4 video producers. Video uses VP8.
 - The start dialog sets resolution, frame rate, layer count and a bitrate cap. Screen share also sets content mode: Text keeps detail, Game keeps motion. The screen button is hidden when `getDisplayMedia` is unavailable.
 - Publish uses one encoding per spatial layer (1–3). The streamer's cap, the admin ceiling `STREAM_MAX_BITRATE_KBPS`, and the current quality tier bound the total budget; the tier cap is applied on every layer. When the browser does not apply the requested encodings, the share continues and the client shows one warning.
-- A viewer chooses Auto, Low, Medium, High or Source while a watched stream has more than one layer. Auto follows the largest visible tile. The client asks the server for that spatial layer and does not otherwise limit incoming bandwidth.
+- A viewer chooses Auto, Low, Medium, High or Source from the button beside the screen volume, on the tile and in theatre, while a watched stream has more than one layer. Auto follows the largest visible tile. The client asks the server for that spatial layer and does not otherwise limit incoming bandwidth.
 - A video consumer is created paused. It resumes when at least one of its tiles is on screen and the tab is visible. Hiding every tile, or hiding the tab, pauses it after a short delay. Resume applies the layer first, and the server requests a keyframe. Audio consumers stay active.
 - Stopping a screen share closes its video producer, and the server closes the paired `screen-audio` producer. Duplicate closes are treated as success, so stopping never hangs.
 

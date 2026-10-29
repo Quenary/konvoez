@@ -137,15 +137,6 @@
                   appearance="primary"
                   size="s"
                   type="button"
-                  [iconStart]="icons['gallery-horizontal']"
-                  (click)="onOpenTheatreClick()">
-                </button>
-
-                <button
-                  tuiIconButton
-                  appearance="primary"
-                  size="s"
-                  type="button"
                   tuiDropdownAuto
                   tuiDropdownDirection="top"
                   [iconStart]="icons['volume-2']"
@@ -153,7 +144,37 @@
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
                 </button>
+
+                @if (layered()) {
+                  <button
+                    tuiIconButton
+                    appearance="neutral"
+                    size="s"
+                    type="button"
+                    tuiDropdownAuto
+                    tuiDropdownDirection="top"
+                    [iconStart]="icons['sliders-horizontal']"
+                    [tuiDropdown]="qualityMenu"
+                    tuiHintAppearance="floating"
+                    [tuiHint]="'CALL.VIEW_QUALITY' | translate">
+                  </button>
+                }
               </div>
+
+              <ng-template #qualityMenu>
+                @let selected = quality();
+                <tui-data-list>
+                  @for (item of modes; track item.mode) {
+                    <button
+                      tuiOption
+                      type="button"
+                      [iconStart]="selected === item.mode ? icons.check : ''"
+                      (click)="onQualitySelect(item.mode)">
+                      {{ item.labelKey | translate }}
+                    </button>
+                  }
+                </tui-data-list>
+              </ng-template>
 
               <ng-template #screenVolumeDropdown>
                 <app-volume-control

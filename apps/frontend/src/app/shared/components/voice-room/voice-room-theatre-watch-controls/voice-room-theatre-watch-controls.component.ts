@@ -6,7 +6,20 @@ import {
   input,
 } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiButton, TuiDropdown, TuiGroup, TuiHint } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiGroup,
+  TuiHint,
+  TuiOption,
+} from '@taiga-ui/core';
+import { ConsumerRegistry } from '@core/services/consumer-registry';
+import {
+  TViewerQualityMode,
+  VIEWER_QUALITY_MODES,
+} from '@core/services/remote-video-quality';
+import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VolumeControlComponent } from '../../volume-control/volume-control.component';
@@ -17,9 +30,11 @@ import { icons } from '@constants';
   selector: 'app-voice-room-theatre-watch-controls',
   imports: [
     TuiButton,
+    TuiDataList,
     TuiDropdown,
     TuiGroup,
     TuiHint,
+    TuiOption,
     TranslatePipe,
     VolumeControlComponent,
   ],
@@ -32,9 +47,14 @@ export class VoiceRoomTheatreWatchControlsComponent {
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
   );
+  private readonly consumerRegistry = inject(ConsumerRegistry);
+  private readonly remoteVideoViewService = inject(RemoteVideoViewService);
 
-  protected readonly icons = icons;
   public readonly userId = input<number | null>(null);
+  protected readonly icons = icons;
+  protected readonly modes = VIEWER_QUALITY_MODES;
+  protected readonly layered = this.consumerRegistry.layered;
+  protected readonly quality = this.remoteVideoViewService.quality;
 
   protected readonly screenVolume = computed(() => {
     const id = this.userId();
@@ -51,6 +71,10 @@ export class VoiceRoomTheatreWatchControlsComponent {
       return;
     }
     void this.voiceRoomActionsService.stopWatchingPeerScreen(id);
+  }
+
+  protected onQualitySelect(mode: TViewerQualityMode): void {
+    this.remoteVideoViewService.setQuality(mode);
   }
 
   protected onScreenVolumeChange(value: number): void {

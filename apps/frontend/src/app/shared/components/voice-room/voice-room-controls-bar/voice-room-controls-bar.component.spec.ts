@@ -11,9 +11,6 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import type { Consumer } from 'mediasoup-client/types';
-import { ConsumerRegistry } from '@core/services/consumer-registry';
-import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceRoomControlsBarComponent } from './voice-room-controls-bar.component';
 
 describe('VoiceRoomControlsBarComponent', () => {
@@ -125,13 +122,6 @@ describe('VoiceRoomControlsBarComponent', () => {
           useValue: {
             localCamTrack: localCamTrack.asReadonly(),
             localScreenTrack: localScreenTrack.asReadonly(),
-          },
-        },
-        {
-          provide: RemoteVideoViewService,
-          useValue: {
-            quality: signal('auto').asReadonly(),
-            setQuality: vi.fn(),
           },
         },
         {
@@ -346,27 +336,5 @@ describe('VoiceRoomControlsBarComponent', () => {
     canProduce.set(false);
     expect(cmp['screenHintKey']()).toBe('CALL.WAITING_FOR_CONNECTION');
     expect(cmp['screenDisabled']()).toBe(true);
-  });
-
-  it('shows the viewer quality picker only while a layered stream is watched', () => {
-    const fixture = create();
-    expect(
-      fixture.nativeElement.querySelector('app-voice-room-stream-quality'),
-    ).toBeNull();
-
-    const registry = TestBed.inject(ConsumerRegistry);
-    registry.add(
-      {
-        id: 'c1',
-        closed: false,
-        close: vi.fn(),
-        rtpParameters: { encodings: [{ scalabilityMode: 'L2T1' }] },
-      } as unknown as Consumer,
-      720,
-    );
-    fixture.detectChanges();
-    expect(
-      fixture.nativeElement.querySelector('app-voice-room-stream-quality'),
-    ).toBeTruthy();
   });
 });

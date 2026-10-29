@@ -1,5 +1,16 @@
 export type TViewerQualityMode = 'auto' | 'low' | 'medium' | 'high' | 'source';
 
+export const VIEWER_QUALITY_MODES = [
+  { mode: 'auto', labelKey: 'CALL.VIEW_QUALITY_AUTO' },
+  { mode: 'low', labelKey: 'CALL.VIEW_QUALITY_LOW' },
+  { mode: 'medium', labelKey: 'CALL.VIEW_QUALITY_MEDIUM' },
+  { mode: 'high', labelKey: 'CALL.VIEW_QUALITY_HIGH' },
+  { mode: 'source', labelKey: 'CALL.VIEW_QUALITY_SOURCE' },
+] as const satisfies ReadonlyArray<{
+  mode: TViewerQualityMode;
+  labelKey: string;
+}>;
+
 const FIXED_CAPS = {
   low: 360,
   medium: 720,

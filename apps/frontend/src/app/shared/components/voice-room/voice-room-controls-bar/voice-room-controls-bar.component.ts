@@ -31,20 +31,11 @@ import {
   TStreamQualityKind,
 } from '../stream-quality-dialog/stream-quality-dialog.component';
 
-import { ConsumerRegistry } from '@core/services/consumer-registry';
-import { VoiceRoomStreamQualityComponent } from '../voice-room-stream-quality/voice-room-stream-quality.component';
 import { icons } from '@constants';
 
 @Component({
   selector: 'app-voice-room-controls-bar',
-  imports: [
-    TuiButton,
-    TuiButtonLoading,
-    TuiGroup,
-    TuiHint,
-    TranslatePipe,
-    VoiceRoomStreamQualityComponent,
-  ],
+  imports: [TuiButton, TuiButtonLoading, TuiGroup, TuiHint, TranslatePipe],
   templateUrl: './voice-room-controls-bar.component.html',
   styleUrl: './voice-room-controls-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,7 +46,6 @@ export class VoiceRoomControlsBarComponent {
     VoiceAudioPreferencesStore,
   );
   private readonly settingsStore = inject(SettingsStore);
-  private readonly consumerRegistry = inject(ConsumerRegistry);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly screenCaptureService = inject(ScreenCaptureService);
@@ -65,7 +55,6 @@ export class VoiceRoomControlsBarComponent {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
 
   protected readonly icons = icons;
-  protected readonly layered = this.consumerRegistry.layered;
   public readonly hangup = output<void>();
 
   protected readonly micCaptureLoading = this.microphoneService.captureLoading;
