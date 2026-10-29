@@ -60,6 +60,8 @@ flowchart TB
 | Theatre, chrome, fullscreen              | `VoiceRoomViewService`                         |
 | Grid peer list                           | `VoiceSessionPeersService`                     |
 
+Fullscreen targets a nested `tui-root` in `app-voice-room-shell`, so hints, menus and dialogs stay inside the fullscreen element.
+
 ## Join flow
 
 A session is joined for a `GROUP_ROOM` (through room navigation) or a `DIRECT_CALL` (through `DirectCallService`: call, accept, rejoin).

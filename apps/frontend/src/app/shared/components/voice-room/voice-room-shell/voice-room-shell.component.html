@@ -1,21 +1,25 @@
-<div class="voice-room-body">
-  @if (layout() === 'grid') {
-    <app-voice-room-grid>
-      <ng-container *ngTemplateOutlet="roomChrome" />
-    </app-voice-room-grid>
-  } @else {
-    <app-voice-room-theatre>
-      <ng-container *ngTemplateOutlet="roomChrome" />
-    </app-voice-room-theatre>
-  }
-</div>
+<tui-root
+  #fullscreenRoot
+  class="voice-room-root">
+  <div class="voice-room-body">
+    @if (layout() === 'grid') {
+      <app-voice-room-grid>
+        <ng-container *ngTemplateOutlet="roomChrome" />
+      </app-voice-room-grid>
+    } @else {
+      <app-voice-room-theatre>
+        <ng-container *ngTemplateOutlet="roomChrome" />
+      </app-voice-room-theatre>
+    }
+  </div>
+</tui-root>
 
 <ng-template #roomChrome>
   <app-voice-room-overlay
     [title]="title()"
     [avatarUrl]="avatarUrl()"
     [participantsCount]="participantsCount()"
-    [fullscreenTarget]="fullscreenHost"
+    [fullscreenTarget]="fullscreenHost()"
     [headerActions]="headerActions()"
     [withHide]="layout() === 'theatre'" />
 </ng-template>
