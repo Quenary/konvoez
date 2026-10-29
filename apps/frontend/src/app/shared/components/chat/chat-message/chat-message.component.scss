@@ -1,101 +1,6 @@
-@mixin message-reply {
-  .message-reply {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-    padding: 0.25rem 0.5rem;
-    border-left: 3px solid;
-    border-radius: 0 0.375rem 0.375rem 0;
-    background: var(--tui-background-neutral-2);
-    cursor: pointer;
-    user-select: none;
-    min-width: 0;
-    transition: background-color 0.15s ease;
-
-    &:hover {
-      background: var(
-        --tui-background-neutral-2-hover,
-        rgba(255, 255, 255, 0.08)
-      );
-    }
-
-    &-static {
-      cursor: text;
-      user-select: text;
-
-      &:hover {
-        background: var(--tui-background-neutral-2);
-      }
-    }
-
-    &-deleted {
-      border-left-color: var(--tui-text-tertiary, #708499);
-    }
-
-    &-sender {
-      font-size: 0.8125rem;
-      font-weight: 600;
-      line-height: 1.2;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    &-content {
-      font-size: 0.8125rem;
-      color: var(--tui-text-secondary);
-      line-height: 1.2;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    &-deleted {
-      font-size: 0.8125rem;
-      color: var(--tui-text-tertiary, #708499);
-      font-style: italic;
-      line-height: 1.2;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-}
-
-@mixin message-body-content {
-  .message-body-content {
-    flex: 1;
-
-    ::ng-deep {
-      p,
-      ul,
-      ol,
-      li,
-      blockquote {
-        overflow-wrap: break-word;
-        text-wrap: pretty;
-      }
-      h1,
-      h2,
-      h3,
-      h4,
-      h5,
-      h6 {
-        overflow-wrap: break-word;
-        text-wrap: balance;
-      }
-      a {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-      :not(pre) > code {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-    }
-  }
-}
+// Corner radii and the speech-bubble tail. A series flattens some of them.
+// rit/rib: inner top and bottom (side opposite the tail). rot: outer top.
+// tout/trise/tbend/ttip: tail reach, rise, bend and tip.
 
 :host {
   display: block;
@@ -105,290 +10,344 @@
   &:has(.message-series-first) {
     padding-top: 6px;
   }
+}
 
-  .message {
-    position: relative;
+.message {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: background-color 0.3s ease;
+  border-radius: var(--tui-radius-l);
+  touch-action: pan-y;
+
+  &.message-highlight {
+    animation: message-flash 1.5s ease-out;
+
+    .message-body {
+      animation: message-body-flash 1.5s ease-out;
+    }
+  }
+
+  .message-row {
     display: flex;
-    flex-direction: column;
-    width: 100%;
-    transition: background-color 0.3s ease;
-    border-radius: var(--tui-radius-l);
-    touch-action: pan-y;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0.5rem;
+    max-width: 90%;
+    min-width: 25%;
+    will-change: transform;
 
-    &.message-highlight {
-      animation: message-flash 1.5s ease-out;
-
-      .message-body {
-        animation: message-body-flash 1.5s ease-out;
-      }
+    &.is-releasing {
+      transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     }
 
-    // Row that contains avatar + bubble
-    .message-row {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-end;
-      gap: 0.5rem;
-      max-width: 90%;
-      min-width: 25%;
-      will-change: transform;
-
-      &.is-releasing {
-        transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-      }
-
-      &.message-row-media {
-        width: 90%;
-      }
-
-      &.message-row-sized {
-        min-width: 0;
-        width: min(
-          90%,
-          var(--media-width),
-          calc(min(60vh, 28rem) * var(--media-height-factor))
-        );
-      }
+    &.message-row-media {
+      width: 90%;
     }
 
-    // Own messages: align row to the right
-    &.message-own {
-      .message-row {
-        align-self: flex-end;
-        flex-direction: row-reverse;
-      }
+    &.message-row-sized {
+      min-width: 0;
+      width: min(
+        90%,
+        var(--media-width),
+        calc(min(60vh, 28rem) * var(--media-height-factor))
+      );
+    }
+  }
 
-      .message-body {
-        background: var(--tui-status-info-pale);
-        border-radius: 0;
-        margin-inline-end: calc(var(--tail-out) * -1);
-        padding-inline-end: calc(0.5rem + var(--tail-out));
-        clip-path: shape(
-          from 0 var(--radius-inner-top),
-          curve to var(--radius-inner-top) 0 with 0
-            calc(var(--radius-inner-top) * 0.448) /
-            calc(var(--radius-inner-top) * 0.448) 0,
-          line to calc(100% - var(--tail-out) - var(--radius-outer-top)) 0,
-          curve to calc(100% - var(--tail-out)) var(--radius-outer-top) with
-            calc(100% - var(--tail-out) - var(--radius-outer-top) * 0.448) 0 /
-            calc(100% - var(--tail-out)) calc(var(--radius-outer-top) * 0.552),
-          line to calc(100% - var(--tail-out)) calc(100% - var(--tail-rise)),
-          curve to 100% 100% with calc(100% - var(--tail-out))
-            calc(100% - var(--tail-bend)) /
-            calc(100% - var(--tail-out) + var(--tail-tip))
-            calc(100% - var(--tail-tip)),
-          line to var(--radius-inner-bottom) 100%,
-          curve to 0 calc(100% - var(--radius-inner-bottom)) with
-            calc(var(--radius-inner-bottom) * 0.448) 100% / 0
-            calc(100% - var(--radius-inner-bottom) * 0.448),
-          close
-        );
-      }
+  &.message-own .message-row {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  &:not(.message-own) .message-row {
+    align-self: flex-start;
+  }
+
+  &-swipe-indicator {
+    position: absolute;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--tui-background-neutral-2);
+    color: var(--tui-text-primary);
+    opacity: 0;
+    transform: translateY(-50%) scale(0.4);
+    pointer-events: none;
+    z-index: 2;
+    box-shadow: var(--tui-shadow-small);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+
+    &.is-left {
+      left: 0.75rem;
     }
 
-    // Others: align row to the left
-    &:not(.message-own) {
-      .message-row {
-        align-self: flex-start;
-      }
-
-      .message-body {
-        border-radius: 0;
-        margin-inline-start: calc(var(--tail-out) * -1);
-        padding-inline-start: calc(0.5rem + var(--tail-out));
-        clip-path: shape(
-          from calc(var(--tail-out) + var(--radius-outer-top)) 0,
-          line to calc(100% - var(--radius-inner-top)) 0,
-          curve to 100% var(--radius-inner-top) with
-            calc(100% - var(--radius-inner-top) * 0.448) 0 / 100%
-            calc(var(--radius-inner-top) * 0.552),
-          line to 100% calc(100% - var(--radius-inner-bottom)),
-          curve to calc(100% - var(--radius-inner-bottom)) 100% with 100%
-            calc(100% - var(--radius-inner-bottom) * 0.448) /
-            calc(100% - var(--radius-inner-bottom) * 0.448) 100%,
-          line to 0 100%,
-          curve to var(--tail-out) calc(100% - var(--tail-rise)) with
-            calc(var(--tail-out) - var(--tail-tip))
-            calc(100% - var(--tail-tip)) / var(--tail-out)
-            calc(100% - var(--tail-bend)),
-          line to var(--tail-out) var(--radius-outer-top),
-          curve to calc(var(--tail-out) + var(--radius-outer-top)) 0 with
-            var(--tail-out) calc(var(--radius-outer-top) * 0.448) /
-            calc(var(--tail-out) + var(--radius-outer-top) * 0.448) 0,
-          close
-        );
-      }
+    &.is-right {
+      right: 0.75rem;
     }
 
-    &-swipe-indicator {
-      position: absolute;
-      top: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.25rem;
-      height: 2.25rem;
-      border-radius: 50%;
-      background: var(--tui-background-neutral-2);
-      color: var(--tui-text-primary);
-      opacity: 0;
-      transform: translateY(-50%) scale(0.4);
-      pointer-events: none;
-      z-index: 2;
-      box-shadow: var(--tui-shadow-small);
+    &.is-active {
+      background: var(--tui-background-accent-1);
+      color: var(--tui-text-accent);
+      transform: translateY(-50%) scale(1.15);
+    }
+
+    &.is-releasing {
       transition:
+        transform 0.2s ease-out,
+        opacity 0.2s ease-out,
         background-color 0.15s ease,
         color 0.15s ease;
-
-      &.is-left {
-        left: 0.75rem;
-      }
-
-      &.is-right {
-        right: 0.75rem;
-      }
-
-      &.is-active {
-        background: var(--tui-background-accent-1);
-        color: var(--tui-text-accent);
-        transform: translateY(-50%) scale(1.15);
-      }
-
-      &.is-releasing {
-        transition:
-          transform 0.2s ease-out,
-          opacity 0.2s ease-out,
-          background-color 0.15s ease,
-          color 0.15s ease;
-      }
-    }
-
-    &-sender {
-      flex-shrink: 0;
-    }
-
-    &-sender-placeholder {
-      flex-shrink: 0;
-      // Same size as tui-avatar size="s", so series bubbles share one edge.
-      width: 2rem;
-      height: 2rem;
-    }
-
-    @include message-reply;
-
-    &.message-series-first .message-body {
-      --tail-out: 0px;
-      --tail-rise: 0px;
-      --tail-bend: 0px;
-      --tail-tip: 0px;
-    }
-
-    &.message-series-middle .message-body {
-      --radius-outer-top: 0px;
-      --tail-out: 0px;
-      --tail-rise: 0px;
-      --tail-bend: 0px;
-      --tail-tip: 0px;
-    }
-
-    &.message-series-last .message-body {
-      --radius-outer-top: 0px;
-    }
-
-    &-body {
-      --radius-inner-top: var(--tui-radius-l);
-      --radius-inner-bottom: var(--tui-radius-l);
-      --radius-outer-top: var(--tui-radius-l);
-      --tail-out: 11px;
-      --tail-rise: 19px;
-      --tail-bend: 7px;
-      --tail-tip: 1px;
-
-      position: relative;
-      flex: 1;
-      min-width: 0;
-      max-width: 100%;
-      padding: 0.5rem;
-      display: flex;
-      flex-direction: column;
-      background: var(--tui-background-neutral-1);
-      color: var(--tui-text-primary);
-      border-radius: var(--tui-radius-l);
-      gap: 0.5rem;
-
-      &.has-media {
-        flex: 1 1 auto;
-        width: auto;
-      }
-
-      &-header {
-        display: inline-flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-
-        // When only date is shown, align to the end
-        &--date-only {
-          justify-content: flex-end;
-        }
-
-        &-username {
-          font-weight: 600;
-        }
-      }
-
-      @include message-body-content;
     }
   }
 
-  .message-bubble-footer {
-    display: flex;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.5rem;
-    justify-content: flex-end;
-  }
-
-  .message-footer-reactions {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .message-footer-meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-inline-start: auto;
+  &-sender,
+  &-sender-placeholder {
     flex-shrink: 0;
   }
 
-  .message-date {
-    color: var(--tui-text-secondary);
-    font-size: 0.75rem;
-    line-height: 1;
+  &-sender-placeholder {
+    // Same size as tui-avatar size="s", so series bubbles share one edge.
+    width: 2rem;
+    height: 2rem;
   }
 
-  .message-status-icon {
-    font-size: 0.875rem;
-    color: var(--tui-text-tertiary);
-    line-height: 1;
-
-    &--error {
-      color: var(--tui-status-negative, #e34d4d);
+  &.message-series-first,
+  &.message-series-middle {
+    .message-body {
+      --tout: 0px;
+      --trise: 0px;
+      --tbend: 0px;
+      --ttip: 0px;
     }
   }
 
-  .message-status-loader {
-    color: var(--tui-text-tertiary);
-    font-size: 0.875rem;
+  &.message-series-middle,
+  &.message-series-last {
+    .message-body {
+      --rot: 0px;
+    }
   }
 
-  .message-resend {
-    align-self: flex-end;
-    margin-top: 0.125rem;
+  &-body {
+    --rit: var(--tui-radius-l);
+    --rib: var(--tui-radius-l);
+    --rot: var(--tui-radius-l);
+    --tout: 11px;
+    --trise: 19px;
+    --tbend: 7px;
+    --ttip: 1px;
+    --tail-x: calc(100% - var(--tout));
+
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--tui-background-neutral-1);
+    color: var(--tui-text-primary);
+    border-radius: var(--tui-radius-l);
+    gap: 0.5rem;
+
+    &.has-media {
+      flex: 1 1 auto;
+      width: auto;
+    }
+
+    &-header {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+
+      &-username {
+        font-weight: 600;
+      }
+    }
+  }
+
+  &.message-own &-body {
+    background: var(--tui-status-info-pale);
+    border-radius: 0;
+    margin-inline-end: calc(var(--tout) * -1);
+    padding-inline-end: calc(0.5rem + var(--tout));
+    clip-path: shape(
+      from 0 var(--rit),
+      arc to var(--rit) 0 of var(--rit) cw,
+      line to calc(var(--tail-x) - var(--rot)) 0,
+      arc to var(--tail-x) var(--rot) of var(--rot) cw,
+      line to var(--tail-x) calc(100% - var(--trise)),
+      curve to 100% 100% with var(--tail-x) calc(100% - var(--tbend)) /
+        calc(var(--tail-x) + var(--ttip)) calc(100% - var(--ttip)),
+      line to var(--rib) 100%,
+      arc to 0 calc(100% - var(--rib)) of var(--rib) cw,
+      close
+    );
+  }
+
+  &:not(.message-own) &-body {
+    border-radius: 0;
+    margin-inline-start: calc(var(--tout) * -1);
+    padding-inline-start: calc(0.5rem + var(--tout));
+    clip-path: shape(
+      from calc(var(--tout) + var(--rot)) 0,
+      line to calc(100% - var(--rit)) 0,
+      arc to 100% var(--rit) of var(--rit) cw,
+      line to 100% calc(100% - var(--rib)),
+      arc to calc(100% - var(--rib)) 100% of var(--rib) cw,
+      line to 0 100%,
+      curve to var(--tout) calc(100% - var(--trise)) with
+        calc(var(--tout) - var(--ttip)) calc(100% - var(--ttip)) / var(--tout)
+        calc(100% - var(--tbend)),
+      line to var(--tout) var(--rot),
+      arc to calc(var(--tout) + var(--rot)) 0 of var(--rot) cw,
+      close
+    );
+  }
+}
+
+.message-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.25rem 0.5rem;
+  border-left: 3px solid;
+  border-radius: 0 0.375rem 0.375rem 0;
+  background: var(--tui-background-neutral-2);
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(
+      --tui-background-neutral-2-hover,
+      rgba(255, 255, 255, 0.08)
+    );
+  }
+
+  &-static {
+    cursor: text;
+    user-select: text;
+
+    &:hover {
+      background: var(--tui-background-neutral-2);
+    }
+  }
+
+  &-sender,
+  &-content,
+  &-deleted {
+    font-size: 0.8125rem;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &-sender {
+    font-weight: 600;
+  }
+
+  &-content {
+    color: var(--tui-text-secondary);
+  }
+
+  &-deleted {
+    border-left-color: var(--tui-text-tertiary, #708499);
+    color: var(--tui-text-tertiary, #708499);
+    font-style: italic;
+  }
+}
+
+.message-body-content ::ng-deep {
+  :is(p, ul, ol, li, blockquote) {
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+  }
+
+  :is(h1, h2, h3, h4, h5, h6) {
+    overflow-wrap: break-word;
+    text-wrap: balance;
+  }
+
+  a,
+  :not(pre) > code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  :not(pre) > code {
+    white-space: pre-wrap;
+  }
+}
+
+.message-bubble-footer {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  justify-content: flex-end;
+}
+
+.message-footer-reactions {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.message-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+
+.message-date {
+  color: var(--tui-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.message-status-icon,
+.message-status-loader {
+  color: var(--tui-text-tertiary);
+  font-size: 0.875rem;
+}
+
+.message-status-icon {
+  line-height: 1;
+
+  &--error {
     color: var(--tui-status-negative, #e34d4d);
   }
+}
+
+.message-resend {
+  align-self: flex-end;
+  margin-top: 0.125rem;
+  color: var(--tui-status-negative, #e34d4d);
+}
+
+.message-menu-preview {
+  display: block;
+  box-sizing: border-box;
+  max-block-size: 30vh;
+  margin-block-end: 0.75rem;
+  padding: 0.5rem;
+  border-radius: var(--tui-radius-l);
+  background: var(--tui-background-elevation-3);
+  user-select: text;
 }
 
 @keyframes message-flash {
@@ -402,20 +361,6 @@
   100% {
     background-color: transparent;
   }
-}
-
-.message-menu-preview {
-  display: block;
-  box-sizing: border-box;
-  max-block-size: 30vh;
-  margin-block-end: 0.75rem;
-  padding: 0.5rem;
-  border-radius: var(--tui-radius-l);
-  background: var(--tui-background-elevation-3);
-  user-select: text;
-
-  @include message-reply;
-  @include message-body-content;
 }
 
 @keyframes message-body-flash {
