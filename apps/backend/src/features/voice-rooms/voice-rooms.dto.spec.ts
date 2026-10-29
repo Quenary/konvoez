@@ -150,7 +150,10 @@ describe('VoiceRooms DTOs', () => {
           kind: 'video',
           mediaTag: 'cam',
           rtpParameters: { codecs: [] },
-          sourceHeight: 720,
+          layers: [
+            { height: 480, fps: 30 },
+            { height: 720, fps: 30 },
+          ],
         }).success,
       ).toBe(true);
       expect(
@@ -159,7 +162,7 @@ describe('VoiceRooms DTOs', () => {
           kind: 'video',
           mediaTag: 'cam',
           rtpParameters: { codecs: [] },
-          sourceHeight: 0,
+          layers: [{ height: 0, fps: 30 }],
         }).success,
       ).toBe(false);
     });

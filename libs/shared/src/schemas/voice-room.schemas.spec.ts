@@ -196,14 +196,18 @@ describe('VoiceRoom Schemas', () => {
       expect(parsed.success).toBe(true);
     });
 
-    it('accepts an optional positive sourceHeight', () => {
+    it('accepts a strictly ascending layer list', () => {
+      const layers = [
+        { height: 720, fps: 30 },
+        { height: 1080, fps: 60 },
+      ];
       expect(
         voiceRoomProduceSchema.safeParse({
           transportId: 'trans-1',
           kind: 'video',
           mediaTag: 'cam',
           rtpParameters: {},
-          sourceHeight: 720,
+          layers,
         }).success,
       ).toBe(true);
       expect(
@@ -213,19 +217,44 @@ describe('VoiceRoom Schemas', () => {
           kind: 'video',
           mediaTag: 'cam',
           rtpParameters: {},
-          sourceHeight: 1080,
+          layers,
         }).success,
       ).toBe(true);
     });
 
-    it('rejects a non-positive sourceHeight', () => {
+    it.each([
+      [[], 'empty'],
+      [
+        [
+          { height: 360, fps: 30 },
+          { height: 480, fps: 30 },
+          { height: 720, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+        'more than 3',
+      ],
+      [
+        [
+          { height: 1080, fps: 60 },
+          { height: 720, fps: 30 },
+        ],
+        'unsorted',
+      ],
+      [
+        [
+          { height: 720, fps: 30 },
+          { height: 720, fps: 30 },
+        ],
+        'duplicate',
+      ],
+    ])('rejects a %s layer list', (layers) => {
       expect(
         voiceRoomProduceSchema.safeParse({
           transportId: 'trans-1',
           kind: 'video',
-          mediaTag: 'screen',
+          mediaTag: 'cam',
           rtpParameters: {},
-          sourceHeight: 0,
+          layers,
         }).success,
       ).toBe(false);
     });

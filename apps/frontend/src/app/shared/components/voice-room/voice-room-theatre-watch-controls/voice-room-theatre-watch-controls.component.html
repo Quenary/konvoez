@@ -23,7 +23,7 @@
     [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
   </button>
 
-  @if (layered()) {
+  @if (showQuality()) {
     <button
       tuiIconButton
       appearance="neutral"
@@ -40,15 +40,22 @@
 </div>
 
 <ng-template #qualityMenu>
-  @let selected = quality();
+  @let autoSelected = quality() === 'auto';
   <tui-data-list>
-    @for (item of modes; track item.mode) {
+    <button
+      tuiOption
+      type="button"
+      [iconStart]="autoSelected ? icons.check : ''"
+      (click)="onQualitySelect('auto')">
+      {{ 'CALL.VIEW_QUALITY_AUTO' | translate }}
+    </button>
+    @for (item of qualityItems(); track item.label) {
       <button
         tuiOption
         type="button"
-        [iconStart]="selected === item.mode ? icons.check : ''"
-        (click)="onQualitySelect(item.mode)">
-        {{ item.labelKey | translate }}
+        [iconStart]="item.checked ? icons.check : ''"
+        (click)="onQualitySelect(item.layer)">
+        {{ item.label }}
       </button>
     }
   </tui-data-list>

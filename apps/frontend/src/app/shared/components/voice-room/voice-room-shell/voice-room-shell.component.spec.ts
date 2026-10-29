@@ -111,6 +111,7 @@ describe('VoiceRoomShellComponent', () => {
             remoteScreenTracks: remoteScreenTracks.asReadonly(),
             availableScreens: availableScreens.asReadonly(),
             watchingUserIds: watchingUserIds.asReadonly(),
+            getScreenConsumerId: vi.fn(() => null),
           },
         },
         {

@@ -39,36 +39,26 @@
   </label>
 
   <div>
-    <tui-textfield>
-      <label
-        tuiLabel
-        for="stream-layers">
-        {{ 'CALL.STREAM_LAYERS' | translate }}
-      </label>
-      <input
-        id="stream-layers"
-        tuiInputSlider
-        [min]="1"
-        [max]="maxLayers()"
-        [step]="1"
-        [ngModel]="layers()"
-        (ngModelChange)="layers.set($event)"
-        [ngModelOptions]="{ standalone: true }" />
-      <input
-        tuiSlider
-        type="range"
-        [step]="1" />
-    </tui-textfield>
+    <label tuiLabel>
+      {{ 'CALL.STREAM_EXTRA_LAYERS' | translate }}
+      <tui-textfield
+        multi
+        tuiChevron
+        tuiTextfieldSize="m"
+        [rows]="1"
+        [stringify]="stringifyLayer"
+        [identityMatcher]="matchLayer"
+        [disabledItemHandler]="extraLayerDisabled"
+        [tuiTextfieldCleaner]="false">
+        <select
+          tuiMultiSelect
+          [items]="layerOptions()"
+          [ngModel]="extraLayers()"
+          (ngModelChange)="onExtraLayersChange($event)"
+          [ngModelOptions]="{ standalone: true }"></select>
+      </tui-textfield>
+    </label>
     <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
-    <p>
-      {{ 'CALL.STREAM_LAYERS_RESULT' | translate }}
-      @for (layer of layerLines(); track $index; let last = $last) {
-        {{ layer.height }}p {{ layer.fps }} {{ 'CALL.FPS_UNIT' | translate }}
-        @if (!last) {
-          ,
-        }
-      }
-    </p>
   </div>
 
   @if (isScreen()) {

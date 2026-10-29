@@ -8,15 +8,17 @@ import {
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  clampStreamLayers,
-  computeSimulcastLayers,
-  DEFAULT_STREAM_LAYERS,
-  maxStreamLayersForHeight,
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
+  defaultExtraLayers,
+  formatStreamLayer,
   recommendStreamBitrateKbps,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   STREAM_BITRATE_SLIDER_STEP_KBPS,
   STREAM_BITRATE_WARN_KBPS,
+  STREAM_EXTRA_LAYERS_MAX,
+  streamLayerOptions,
   TStreamContentMode,
+  TStreamLayer,
 } from '@konvoez/shared';
 import {
   DEFAULT_STREAM_FPS,
@@ -28,7 +30,6 @@ import {
 } from '@shared/schemas/local-settings.schema';
 import {
   TuiButton,
-  TuiDataList,
   TuiDropdown,
   TuiLabel,
   TuiSlider,
@@ -39,6 +40,7 @@ import {
   TuiChevron,
   TuiDataListWrapper,
   TuiInputSlider,
+  TuiMultiSelect,
   TuiSelect,
 } from '@taiga-ui/kit';
 import { TuiRadioList } from '@taiga-ui/kit/components/radio-list';
@@ -51,7 +53,7 @@ export type TStreamQualityKind = 'cam' | 'screen';
 export type TStreamQualityDialogResult = {
   height: TStreamHeight;
   fps: TStreamFps;
-  layers: number;
+  extraLayers: TStreamLayer[];
   bitrateKbps: number;
   contentMode?: TStreamContentMode;
 };
@@ -60,7 +62,7 @@ export type TStreamQualityDialogData = {
   kind: TStreamQualityKind;
   height: TStreamHeight;
   fps: TStreamFps;
-  layers: number;
+  extraLayers: TStreamLayer[] | null;
   bitrateKbps: number | null;
   contentMode: TStreamContentMode;
   maxBitrateKbps: number;
@@ -96,8 +98,8 @@ function identityMatchStreamSelectItem(
     TuiButton,
     TuiLabel,
     TuiSelect,
+    TuiMultiSelect,
     TuiTextfield,
-    TuiDataList,
     TuiDropdown,
     TuiDataListWrapper,
     TuiChevron,
@@ -156,34 +158,73 @@ export class StreamQualityDialogComponent {
 
   private readonly initialBitrateKbps = this.context.data?.bitrateKbps ?? null;
   protected readonly maxBitrateKbps =
-    this.context.data?.maxBitrateKbps ?? 10000;
+    this.context.data?.maxBitrateKbps ?? DEFAULT_STREAM_MAX_BITRATE_KBPS;
 
-  protected readonly maxLayers = computed(() =>
-    maxStreamLayersForHeight(this.height()),
-  );
-
-  protected readonly layers = linkedSignal<TStreamHeight, number>({
-    source: this.height,
-    computation: (height, previous) => {
-      const requested =
-        previous?.value ?? this.context.data?.layers ?? DEFAULT_STREAM_LAYERS;
-      return clampStreamLayers(requested, height);
+  protected readonly extraLayers = linkedSignal<
+    { height: TStreamHeight; fps: TStreamFps },
+    TStreamLayer[]
+  >({
+    source: () => ({ height: this.height(), fps: this.fps() }),
+    computation: (source, previous) => {
+      if (previous) {
+        return defaultExtraLayers(source);
+      }
+      const stored = this.context.data?.extraLayers ?? null;
+      if (stored == null) {
+        return defaultExtraLayers(source);
+      }
+      const options = streamLayerOptions(source);
+      return stored
+        .filter((layer) =>
+          options.some(
+            (option) =>
+              option.height === layer.height && option.fps === layer.fps,
+          ),
+        )
+        .slice(0, STREAM_EXTRA_LAYERS_MAX);
     },
   });
+
+  protected readonly layerOptions = computed(() =>
+    streamLayerOptions({ height: this.height(), fps: this.fps() }),
+  );
+
+  protected readonly stringifyLayer = (layer: TStreamLayer): string =>
+    formatStreamLayer(layer);
+
+  protected readonly matchLayer = (
+    left: TStreamLayer,
+    right: TStreamLayer,
+  ): boolean => left.height === right.height && left.fps === right.fps;
+
+  protected readonly extraLayerDisabled = (layer: TStreamLayer): boolean => {
+    const selected = this.extraLayers();
+    const checked = selected.some((item) => this.matchLayer(item, layer));
+    return !checked && selected.length >= STREAM_EXTRA_LAYERS_MAX;
+  };
 
   protected readonly bitrateKbps = linkedSignal<
     {
       height: TStreamHeight;
       fps: TStreamFps;
       contentMode: TStreamContentMode;
+      extra: TStreamLayer[];
     },
     number
   >({
-    source: () => ({
-      height: this.height(),
-      fps: this.fps(),
-      contentMode: this.isScreen() ? this.contentMode() : 'motion',
-    }),
+    source: () => {
+      const height = this.height();
+      const fps = this.fps();
+      const contentMode = this.contentMode();
+      const screen = this.isScreen();
+      const extra = this.extraLayers();
+      return {
+        height,
+        fps,
+        contentMode: screen ? contentMode : 'motion',
+        extra,
+      };
+    },
     computation: (source, previous) => {
       if (!previous && this.initialBitrateKbps != null) {
         return Math.min(
@@ -196,27 +237,18 @@ export class StreamQualityDialogComponent {
         fps: source.fps,
         contentMode: source.contentMode,
         maxKbps: this.maxBitrateKbps,
+        extra: source.extra,
       });
     },
-  });
-
-  protected readonly layerLines = computed(() => {
-    const plan = computeSimulcastLayers({
-      height: this.height(),
-      fps: this.fps(),
-      contentMode: this.isScreen() ? this.contentMode() : 'motion',
-      layers: this.layers(),
-      maxBitrateBps: this.bitrateKbps() * 1000,
-    });
-    return [...plan].reverse().map((layer) => ({
-      height: layer.height,
-      fps: layer.maxFramerate,
-    }));
   });
 
   protected readonly showBitrateWarning = computed(
     () => this.bitrateKbps() > STREAM_BITRATE_WARN_KBPS,
   );
+
+  protected onExtraLayersChange(layers: readonly TStreamLayer[]): void {
+    this.extraLayers.set(layers.slice(0, STREAM_EXTRA_LAYERS_MAX));
+  }
 
   protected onCancel(): void {
     this.context.completeWith(null);
@@ -227,7 +259,7 @@ export class StreamQualityDialogComponent {
     this.context.completeWith({
       height: this.height(),
       fps: this.fps(),
-      layers: this.layers(),
+      extraLayers: this.extraLayers(),
       bitrateKbps: Math.min(this.maxBitrateKbps, this.bitrateKbps()),
       ...(contentMode ? { contentMode } : {}),
     });

@@ -2,9 +2,8 @@ import { Injectable, Injector, OnDestroy, inject, signal } from '@angular/core';
 import { ConsumerRegistry } from './consumer-registry';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import {
-  getLayerHeights,
   pickAutoLayer,
-  pickFixedLayer,
+  resolvePreferredLayer,
   TViewerQualityMode,
 } from './remote-video-quality';
 
@@ -91,6 +90,16 @@ export class RemoteVideoViewService implements OnDestroy {
   }
 
   public setQuality(mode: TViewerQualityMode): void {
+    const current = this._quality();
+    if (
+      current === mode ||
+      (current !== 'auto' &&
+        mode !== 'auto' &&
+        current.height === mode.height &&
+        current.fps === mode.fps)
+    ) {
+      return;
+    }
     this._quality.set(mode);
     this.scheduleReconcile();
   }
@@ -307,16 +316,14 @@ export class RemoteVideoViewService implements OnDestroy {
   }
 
   private desiredLayer(consumerId: string): number | null {
-    const sourceHeight = this.consumerRegistry.getSourceHeight(consumerId);
-    const layerCount = this.consumerRegistry.getLayerCount(consumerId);
-    if (sourceHeight == null || layerCount < 2) {
+    const layers = this.consumerRegistry.getLayers(consumerId);
+    if (layers.length < 2) {
       return null;
     }
     const views = this.views.get(consumerId);
     if (!views || views.size === 0) {
       return null;
     }
-    const layerHeights = getLayerHeights(sourceHeight, layerCount);
     const tileHeight = Math.max(
       ...[...views].map((view) => (view.intersecting ? view.height : 0)),
     );
@@ -324,10 +331,10 @@ export class RemoteVideoViewService implements OnDestroy {
     return mode === 'auto'
       ? pickAutoLayer({
           tilePixelHeight: tileHeight * (globalThis.devicePixelRatio || 1),
-          layerHeights,
+          layers,
           current: this.confirmedLayer.get(consumerId),
         })
-      : pickFixedLayer(mode, layerHeights);
+      : resolvePreferredLayer(mode, layers);
   }
 
   private async sendLayer(consumerId: string): Promise<void> {

@@ -1,10 +1,11 @@
 import { Injectable, signal } from '@angular/core';
+import type { TStreamLayer } from '@konvoez/shared';
 import type { Consumer } from 'mediasoup-client/types';
 import { getConsumerLayerCount } from './remote-video-quality';
 
 type TRegisteredConsumer = {
   consumer: Consumer;
-  sourceHeight?: number;
+  layers?: TStreamLayer[];
 };
 
 /**
@@ -15,20 +16,27 @@ type TRegisteredConsumer = {
 @Injectable({ providedIn: 'root' })
 export class ConsumerRegistry {
   private readonly byId = new Map<string, TRegisteredConsumer>();
-  private readonly _layered = signal(false);
-  public readonly layered = this._layered.asReadonly();
+  private readonly _layersById = signal<Record<string, TStreamLayer[]>>({});
+  public readonly layersById = this._layersById.asReadonly();
 
-  public add(consumer: Consumer, sourceHeight?: number): void {
-    this.byId.set(consumer.id, { consumer, sourceHeight });
-    this.refreshLayered();
+  public add(consumer: Consumer, layers?: TStreamLayer[]): void {
+    this.byId.set(consumer.id, { consumer, layers });
+    this.refreshLayers();
   }
 
   public get(id: string): Consumer | undefined {
     return this.byId.get(id)?.consumer;
   }
 
-  public getSourceHeight(id: string): number | undefined {
-    return this.byId.get(id)?.sourceHeight;
+  public getLayers(id: string): TStreamLayer[] {
+    const entry = this.byId.get(id);
+    if (!entry?.layers) {
+      return [];
+    }
+    if (entry.layers.length !== getConsumerLayerCount(entry.consumer)) {
+      return [];
+    }
+    return entry.layers;
   }
 
   public getLayerCount(id: string): number {
@@ -49,17 +57,17 @@ export class ConsumerRegistry {
       return;
     }
     this.byId.delete(id);
-    this.refreshLayered();
+    this.refreshLayers();
     if (!entry.consumer.closed) {
       entry.consumer.close();
     }
   }
 
-  private refreshLayered(): void {
-    this._layered.set(
-      [...this.byId.values()].some(
-        (entry) => getConsumerLayerCount(entry.consumer) >= 2,
-      ),
-    );
+  private refreshLayers(): void {
+    const next: Record<string, TStreamLayer[]> = {};
+    for (const id of this.byId.keys()) {
+      next[id] = this.getLayers(id);
+    }
+    this._layersById.set(next);
   }
 }

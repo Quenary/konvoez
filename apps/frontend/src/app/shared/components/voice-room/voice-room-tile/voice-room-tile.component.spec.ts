@@ -25,7 +25,12 @@ describe('VoiceRoomTileComponent', () => {
   let localScreenTrack: ReturnType<typeof signal<MediaStreamTrack | null>>;
   let setScreenPreviewAutoPauseWhenHidden: ReturnType<typeof vi.fn>;
   let setQuality: ReturnType<typeof vi.fn>;
-  let layered: ReturnType<typeof signal<boolean>>;
+  let layersById: ReturnType<
+    typeof signal<Record<string, Array<{ height: number; fps: number }>>>
+  >;
+  let quality: ReturnType<
+    typeof signal<'auto' | { height: number; fps: number }>
+  >;
 
   beforeEach(() => {
     currentUser = signal(user(1));
@@ -35,7 +40,8 @@ describe('VoiceRoomTileComponent', () => {
       autoPauseWhenHidden.set(value);
     });
     setQuality = vi.fn();
-    layered = signal(false);
+    layersById = signal({});
+    quality = signal('auto');
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -83,6 +89,7 @@ describe('VoiceRoomTileComponent', () => {
           provide: PeerVideoService,
           useValue: {
             localScreenTrack: localScreenTrack.asReadonly(),
+            getScreenConsumerId: vi.fn(() => 'screen-2'),
           },
         },
         {
@@ -107,12 +114,12 @@ describe('VoiceRoomTileComponent', () => {
         },
         {
           provide: ConsumerRegistry,
-          useValue: { layered: layered.asReadonly() },
+          useValue: { layersById: layersById.asReadonly() },
         },
         {
           provide: RemoteVideoViewService,
           useValue: {
-            quality: signal('auto').asReadonly(),
+            quality: quality.asReadonly(),
             setQuality,
             registerView: vi.fn(() => () => undefined),
           },
@@ -263,12 +270,27 @@ describe('VoiceRoomTileComponent', () => {
     ) as HTMLElement;
     expect(group.querySelectorAll('button').length).toBe(2);
 
-    layered.set(true);
+    layersById.set({
+      'screen-2': [
+        { height: 480, fps: 30 },
+        { height: 1080, fps: 60 },
+      ],
+    });
     fixture.detectChanges();
     const buttons = group.querySelectorAll('button');
     expect(buttons.length).toBe(3);
+    expect(
+      fixture.componentInstance['qualityItems']().map((item) => item.label),
+    ).toEqual(['1080p60', '480p30']);
 
-    fixture.componentInstance['onQualitySelect']('low');
-    expect(setQuality).toHaveBeenCalledWith('low');
+    quality.set({ height: 720, fps: 30 });
+    fixture.detectChanges();
+    expect(
+      fixture.componentInstance['qualityItems']().find((item) => item.checked)
+        ?.label,
+    ).toBe('480p30');
+
+    fixture.componentInstance['onQualitySelect']({ height: 1080, fps: 60 });
+    expect(setQuality).toHaveBeenCalledWith({ height: 1080, fps: 60 });
   });
 });

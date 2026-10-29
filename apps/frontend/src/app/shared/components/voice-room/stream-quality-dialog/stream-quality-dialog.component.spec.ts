@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiDialogContext } from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
-import { STREAM_BITRATE_WARN_KBPS } from '@konvoez/shared';
+import {
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
+  STREAM_BITRATE_WARN_KBPS,
+} from '@konvoez/shared';
 import {
   StreamQualityDialogComponent,
   TStreamQualityDialogData,
@@ -23,10 +26,10 @@ describe('StreamQualityDialogComponent', () => {
       kind: 'cam',
       height: 720,
       fps: 30,
-      layers: 2,
+      extraLayers: null,
       bitrateKbps: 2500,
       contentMode: 'detail',
-      maxBitrateKbps: 10000,
+      maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
       ...overrides,
     };
     completeWith = vi.fn();
@@ -55,17 +58,88 @@ describe('StreamQualityDialogComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  it('follows the height when clamping layers and summarizing them', async () => {
-    await setup({ height: 1080, layers: 3 });
-    expect(component['maxLayers']()).toBe(3);
-    expect(component['layerLines']().map((layer) => layer.height)).toEqual([
-      1080, 540, 270,
+  it('lists 1080p60 options and selects the default layer', async () => {
+    await setup({ height: 1080, fps: 60, extraLayers: null });
+    expect(
+      component['layerOptions']().map(
+        (layer) => `${layer.height}p${layer.fps}`,
+      ),
+    ).toEqual([
+      '1080p30',
+      '720p60',
+      '720p30',
+      '480p60',
+      '480p30',
+      '360p60',
+      '360p30',
+      '160p60',
+      '160p30',
     ]);
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 60 }]);
+    expect(
+      fixture.nativeElement.querySelector('select[tuiMultiSelect]'),
+    ).toBeTruthy();
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'CALL.STREAM_LAYERS_RESULT',
+    );
+  });
+
+  it('disables unselected options after two layers are chosen', async () => {
+    await setup({
+      height: 1080,
+      fps: 60,
+      extraLayers: [
+        { height: 720, fps: 60 },
+        { height: 480, fps: 30 },
+      ],
+    });
+    const options = component['layerOptions']();
+    const unselected = options.filter((layer) =>
+      component['extraLayerDisabled'](layer),
+    );
+    expect(unselected.length).toBe(options.length - 2);
+    expect(component['extraLayerDisabled']({ height: 720, fps: 60 })).toBe(
+      false,
+    );
+    const rendered = [
+      ...fixture.nativeElement.querySelectorAll(
+        'select[tuiMultiSelect] option',
+      ),
+    ] as HTMLOptionElement[];
+    expect(rendered.filter((option) => option.disabled).length).toBe(
+      unselected.length,
+    );
+  });
+
+  it('selects the next lower preset when the max changes in either direction', async () => {
+    await setup({
+      height: 1080,
+      fps: 60,
+      extraLayers: [
+        { height: 720, fps: 60 },
+        { height: 160, fps: 30 },
+      ],
+    });
+    expect(component['extraLayers']()).toEqual([
+      { height: 720, fps: 60 },
+      { height: 160, fps: 30 },
+    ]);
+
+    component['height'].set(720);
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 60 }]);
+
+    component['height'].set(480);
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 360, fps: 60 }]);
 
     component['height'].set(360);
     fixture.detectChanges();
-    expect(component['maxLayers']()).toBe(2);
-    expect(component['layers']()).toBeLessThanOrEqual(2);
+    expect(component['extraLayers']()).toEqual([{ height: 160, fps: 60 }]);
+
+    component['height'].set(1080);
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 60 }]);
   });
 
   it('renders the content radio only for screen share', async () => {
@@ -97,6 +171,25 @@ describe('StreamQualityDialogComponent', () => {
     );
   });
 
+  it('raises and lowers bitrate when extra layers change', async () => {
+    await setup({
+      height: 1080,
+      fps: 60,
+      extraLayers: [],
+      bitrateKbps: 8750,
+      maxBitrateKbps: 20000,
+    });
+    expect(component['bitrateKbps']()).toBe(8750);
+
+    component['onExtraLayersChange']([{ height: 1080, fps: 30 }]);
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(15000);
+
+    component['onExtraLayersChange']([]);
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(8750);
+  });
+
   it('returns the new fields and never exceeds the admin limit', async () => {
     await setup({
       kind: 'screen',
@@ -108,7 +201,7 @@ describe('StreamQualityDialogComponent', () => {
     component['onConfirm']();
     expect(completeWith).toHaveBeenCalledWith(
       expect.objectContaining({
-        layers: component['layers'](),
+        extraLayers: component['extraLayers'](),
         bitrateKbps: 8000,
         contentMode: 'motion',
       }),

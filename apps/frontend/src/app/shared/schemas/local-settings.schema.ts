@@ -1,15 +1,13 @@
 import {
-  DEFAULT_STREAM_LAYERS,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
-  STREAM_LAYER_COUNT_MAX,
-  STREAM_LAYER_COUNT_MIN,
+  STREAM_EXTRA_LAYERS_MAX,
   TStreamContentMode,
+  TStreamLayer,
 } from '@konvoez/shared';
 import * as z from 'zod';
 import { ENoiseProcessor } from '../../app.enums';
 
-export { DEFAULT_STREAM_LAYERS };
-export type { TStreamContentMode };
+export type { TStreamContentMode, TStreamLayer };
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
@@ -43,11 +41,14 @@ export const streamFpsSchema = z.union([
   z.literal(60),
 ]);
 
-export const streamLayersSchema = z
-  .number()
-  .int()
-  .min(STREAM_LAYER_COUNT_MIN)
-  .max(STREAM_LAYER_COUNT_MAX);
+export const streamExtraLayersSchema = z
+  .array(
+    z.object({
+      height: z.number().int().positive(),
+      fps: z.number().int().positive(),
+    }),
+  )
+  .max(STREAM_EXTRA_LAYERS_MAX);
 export const streamBitrateKbpsSchema = z
   .number()
   .int()
@@ -82,9 +83,9 @@ export const localSettingsSchema = z.object({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
-  streamLayers: streamLayersSchema.optional(),
+  streamExtraLayers: streamExtraLayersSchema.optional(),
   streamBitrateKbps: streamBitrateKbpsSchema.optional(),
-  screenLayers: streamLayersSchema.optional(),
+  screenExtraLayers: streamExtraLayersSchema.optional(),
   screenBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenContentMode: streamContentModeSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
@@ -105,9 +106,9 @@ export const localSettingsLooseSchema = z.looseObject({
   streamFps: streamFpsSchema.optional(),
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
-  streamLayers: streamLayersSchema.optional(),
+  streamExtraLayers: streamExtraLayersSchema.optional(),
   streamBitrateKbps: streamBitrateKbpsSchema.optional(),
-  screenLayers: streamLayersSchema.optional(),
+  screenExtraLayers: streamExtraLayersSchema.optional(),
   screenBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenContentMode: streamContentModeSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),

@@ -16,6 +16,7 @@ import {
   TVoiceRoomPeersOnJoin,
   IUserSafe,
   TVoiceRoomMediaTag,
+  TVoiceRoomStreamLayer,
   TVoiceSessionIdentity,
   getVoiceSessionKey,
   isGroupVoiceSession,
@@ -84,7 +85,7 @@ type VoiceRoomStatePeer = {
 export type VoiceRoomStateMediasoupAppData = {
   peerId: string;
   mediaTag: TVoiceRoomMediaTag;
-  sourceHeight?: number;
+  layers?: TVoiceRoomStreamLayer[];
 };
 
 @Injectable()

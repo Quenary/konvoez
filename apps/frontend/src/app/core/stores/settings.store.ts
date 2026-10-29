@@ -37,11 +37,11 @@ import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
-  DEFAULT_STREAM_LAYERS,
   LOCAL_SETTINGS_VERSION,
   TStreamContentMode,
   TStreamFps,
   TStreamHeight,
+  TStreamLayer,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
 import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
@@ -69,9 +69,9 @@ export type SettingsStoreState = {
   streamFps: TStreamFps;
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
-  streamLayers: number;
+  streamExtraLayers: TStreamLayer[] | null;
   streamBitrateKbps: number | null;
-  screenLayers: number;
+  screenExtraLayers: TStreamLayer[] | null;
   screenBitrateKbps: number | null;
   screenContentMode: TStreamContentMode;
   screenPreviewAutoPauseWhenHidden: boolean;
@@ -94,9 +94,9 @@ export const SettingsStore = signalStore(
     streamFps: DEFAULT_STREAM_FPS,
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
-    streamLayers: DEFAULT_STREAM_LAYERS,
+    streamExtraLayers: null,
     streamBitrateKbps: null,
-    screenLayers: DEFAULT_STREAM_LAYERS,
+    screenExtraLayers: null,
     screenBitrateKbps: null,
     screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
     screenPreviewAutoPauseWhenHidden:
@@ -232,9 +232,9 @@ export const SettingsStore = signalStore(
           streamFps: store.streamFps(),
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
-          streamLayers: store.streamLayers(),
+          streamExtraLayers: store.streamExtraLayers(),
           streamBitrateKbps: store.streamBitrateKbps(),
-          screenLayers: store.screenLayers(),
+          screenExtraLayers: store.screenExtraLayers(),
           screenBitrateKbps: store.screenBitrateKbps(),
           screenContentMode: store.screenContentMode(),
           screenPreviewAutoPauseWhenHidden:
@@ -260,9 +260,9 @@ export const SettingsStore = signalStore(
               streamFps: store.streamFps(),
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
-              streamLayers: store.streamLayers(),
+              streamExtraLayers: store.streamExtraLayers(),
               streamBitrateKbps: store.streamBitrateKbps(),
-              screenLayers: store.screenLayers(),
+              screenExtraLayers: store.screenExtraLayers(),
               screenBitrateKbps: store.screenBitrateKbps(),
               screenContentMode: store.screenContentMode(),
               screenPreviewAutoPauseWhenHidden:
@@ -314,8 +314,8 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
-        setStreamLayers(streamLayers: number): void {
-          patchState(store, { streamLayers });
+        setStreamExtraLayers(streamExtraLayers: TStreamLayer[] | null): void {
+          patchState(store, { streamExtraLayers });
           persistLocal();
         },
 
@@ -324,8 +324,8 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
-        setScreenLayers(screenLayers: number): void {
-          patchState(store, { screenLayers });
+        setScreenExtraLayers(screenExtraLayers: TStreamLayer[] | null): void {
+          patchState(store, { screenExtraLayers });
           persistLocal();
         },
 
@@ -453,9 +453,9 @@ export const SettingsStore = signalStore(
         streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
-        streamLayers: partial.streamLayers ?? DEFAULT_STREAM_LAYERS,
+        streamExtraLayers: partial.streamExtraLayers ?? null,
         streamBitrateKbps: partial.streamBitrateKbps ?? null,
-        screenLayers: partial.screenLayers ?? DEFAULT_STREAM_LAYERS,
+        screenExtraLayers: partial.screenExtraLayers ?? null,
         screenBitrateKbps: partial.screenBitrateKbps ?? null,
         screenContentMode:
           partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,

@@ -1084,8 +1084,11 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: {},
-        sourceHeight: 720,
+        rtpParameters: { encodings: [{}, {}] },
+        layers: [
+          { height: 360, fps: 30 },
+          { height: 720, fps: 30 },
+        ],
       });
 
       expect(result.producerId).toBe('cam-1');
@@ -1093,7 +1096,10 @@ describe('VoiceRoomsGateway', () => {
         expect.objectContaining({
           appData: expect.objectContaining({
             mediaTag: 'cam',
-            sourceHeight: 720,
+            layers: [
+              { height: 360, fps: 30 },
+              { height: 720, fps: 30 },
+            ],
           }),
         }),
       );
@@ -1115,6 +1121,37 @@ describe('VoiceRoomsGateway', () => {
         producerId: 'cam-1',
         userId: alice.id,
       });
+    });
+
+    it('rejects layers on audio and a video encoding count mismatch', async () => {
+      const { room, sendTransport } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+
+      await expect(
+        gateway.produce(socket as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'mic',
+          rtpParameters: {},
+          layers: [{ height: 720, fps: 30 }],
+        }),
+      ).rejects.toBeInstanceOf(AppException);
+      expect(sendTransport.produce).not.toHaveBeenCalled();
+
+      await expect(
+        gateway.produce(socket as never, {
+          transportId: 't',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: { encodings: [{}] },
+          layers: [
+            { height: 360, fps: 30 },
+            { height: 720, fps: 30 },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(AppException);
+      expect(sendTransport.produce).not.toHaveBeenCalled();
     });
 
     it('subscribes to producer score for mic and emits minimum score to owner socket only', async () => {
@@ -1786,7 +1823,13 @@ describe('VoiceRoomsGateway', () => {
         expect.not.objectContaining({ paused: true }),
       );
       producer.kind = 'video';
-      producer.appData = { mediaTag: 'cam', sourceHeight: 1080 };
+      producer.appData = {
+        mediaTag: 'cam',
+        layers: [
+          { height: 720, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      };
       room.producers.set('p1', producer as never);
       recvTransport.consume.mockImplementation(
         async (options: { appData: { mediaTag: string } }) => {
@@ -1804,7 +1847,13 @@ describe('VoiceRoomsGateway', () => {
         expect.objectContaining({ paused: true }),
       );
       expect(videoResult).toEqual(
-        expect.objectContaining({ sourceHeight: 1080, mediaTag: 'cam' }),
+        expect.objectContaining({
+          layers: [
+            { height: 720, fps: 30 },
+            { height: 1080, fps: 30 },
+          ],
+          mediaTag: 'cam',
+        }),
       );
       expect(peer.consumers.get('c1')).toBe(consumer);
     });

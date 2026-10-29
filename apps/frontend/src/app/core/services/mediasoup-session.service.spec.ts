@@ -1,4 +1,5 @@
 import {
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
   EVoiceQualityTier,
   EVoiceRoomEvent,
   VOICE_STALL_MS,
@@ -142,14 +143,16 @@ describe('MediasoupSessionService', () => {
           useValue: {
             iceServers: vi.fn().mockReturnValue([]),
             voiceMaxBitrateKbps: vi.fn().mockReturnValue(64),
-            streamMaxBitrateKbps: vi.fn().mockReturnValue(10000),
+            streamMaxBitrateKbps: vi
+              .fn()
+              .mockReturnValue(DEFAULT_STREAM_MAX_BITRATE_KBPS),
             streamHeight: vi.fn().mockReturnValue(720),
             streamFps: vi.fn().mockReturnValue(30),
-            streamLayers: vi.fn().mockReturnValue(2),
+            streamExtraLayers: vi.fn().mockReturnValue(null),
             streamBitrateKbps: vi.fn().mockReturnValue(2500),
             screenHeight: vi.fn().mockReturnValue(1080),
             screenFps: vi.fn().mockReturnValue(30),
-            screenLayers: vi.fn().mockReturnValue(3),
+            screenExtraLayers: vi.fn().mockReturnValue(null),
             screenBitrateKbps: vi.fn().mockReturnValue(5000),
             screenContentMode: vi.fn().mockReturnValue('detail'),
           },
@@ -653,6 +656,57 @@ describe('MediasoupSessionService', () => {
     expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
   });
 
+  it('does not restore a consumer that closed while resume was pending', async () => {
+    vi.useFakeTimers();
+    const connectionStore = TestBed.inject(VoiceConnectionStore);
+    let releaseAck: (() => void) | undefined;
+    emitWithAck.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseAck = () => resolve({});
+        }),
+    );
+    const fakeConsumer = {
+      id: 'consumer-video',
+      paused: true,
+      closed: false,
+      resume: vi.fn(),
+      close: vi.fn(),
+    };
+    service['consumerRegistry'].add(fakeConsumer as never);
+    const pending = service.resumeConsumer('consumer-video');
+    fakeConsumer.closed = true;
+    service['consumerRegistry'].close('consumer-video');
+    releaseAck?.();
+    await expect(pending).resolves.toBe(true);
+    expect(fakeConsumer.resume).not.toHaveBeenCalled();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+
+    service['recvTransport'] = {
+      connectionState: 'connected',
+      closed: false,
+      getStats: vi
+        .fn()
+        .mockResolvedValue(
+          new Map([
+            [
+              'report-1',
+              { type: 'candidate-pair', nominated: true, bytesReceived: 500 },
+            ],
+          ]),
+        ),
+      on: vi.fn(),
+      close: vi.fn(),
+    } as never;
+    service['startWatchdog']();
+    await vi.advanceTimersByTimeAsync(
+      VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+    );
+    expect(service['liveConsumerIds'].size).toBe(0);
+    expect(connectionStore.stalled()).toBe(false);
+    vi.useRealTimers();
+  });
+
   it('finishes stop screen when the server already closed screen-audio', async () => {
     const videoClose = vi.fn();
     const audioClose = vi.fn();
@@ -933,7 +987,7 @@ describe('MediasoupSessionService', () => {
       height: 720,
       fps: 30,
       contentMode: 'motion',
-      layers: 1,
+      extraLayers: [],
       maxBitrateBps: 2_500_000,
     };
 
@@ -1225,7 +1279,7 @@ describe('MediasoupSessionService', () => {
     });
   });
 
-  it('publishes per-layer encodings and forwards sourceHeight', async () => {
+  it('publishes explicit layers and forwards them on produce', async () => {
     service['device'] = {
       loaded: true,
       rtpCapabilities: { codecs: [{ mimeType: 'video/VP8' }] },
@@ -1235,15 +1289,28 @@ describe('MediasoupSessionService', () => {
       closed: false,
       on: vi.fn(),
       close: vi.fn(),
+      pause: vi.fn(),
+      paused: false,
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
     });
     service['sendTransport'] = { produce, closed: false } as never;
-    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
-      getSettings: () => ({ height: 360 }),
-    } as MediaStreamTrack);
     const settings = TestBed.inject(SettingsStore);
-    settings.streamLayers = vi
+    settings.streamHeight = vi
       .fn()
-      .mockReturnValue(3) as unknown as typeof settings.streamLayers;
+      .mockReturnValue(1080) as unknown as typeof settings.streamHeight;
+    settings.streamFps = vi
+      .fn()
+      .mockReturnValue(60) as unknown as typeof settings.streamFps;
+    settings.streamExtraLayers = vi.fn().mockReturnValue([
+      { height: 720, fps: 60 },
+      { height: 480, fps: 30 },
+    ]) as unknown as typeof settings.streamExtraLayers;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 1080 }),
+    } as MediaStreamTrack);
 
     await service.produceCamera();
 
@@ -1252,19 +1319,70 @@ describe('MediasoupSessionService', () => {
         scalabilityMode: string;
         scaleResolutionDownBy: number;
         maxBitrate: number;
+        maxFramerate: number;
       }>;
-      appData: { sourceHeight: number };
+      appData: { layers: Array<{ height: number; fps: number }> };
     };
-    expect(options.encodings).toHaveLength(2);
+    expect(options.encodings).toHaveLength(3);
     expect(options.encodings[0]?.scalabilityMode).toBe('L1T1');
-    expect(options.encodings[0]?.scaleResolutionDownBy).toBe(2);
-    expect(options.encodings[1]?.scaleResolutionDownBy).toBe(1);
-    const sum = options.encodings.reduce(
-      (total, encoding) => total + encoding.maxBitrate,
-      0,
-    );
-    expect(sum).toBeLessThanOrEqual(2_500_000);
-    expect(options.appData.sourceHeight).toBe(360);
+    expect(options.encodings[0]?.scaleResolutionDownBy).toBeCloseTo(1080 / 480);
+    expect(options.encodings[0]?.maxFramerate).toBe(30);
+    expect(options.encodings[1]?.scaleResolutionDownBy).toBe(1.5);
+    expect(options.encodings[1]?.maxFramerate).toBe(60);
+    expect(options.encodings[2]?.scaleResolutionDownBy).toBe(1);
+    expect(options.encodings[2]?.maxFramerate).toBe(60);
+    expect(options.appData.layers).toEqual([
+      { height: 480, fps: 30 },
+      { height: 720, fps: 60 },
+      { height: 1080, fps: 60 },
+    ]);
+
+    settings.streamExtraLayers = vi
+      .fn()
+      .mockReturnValue([
+        { height: 720, fps: 30 },
+      ]) as unknown as typeof settings.streamExtraLayers;
+    settings.streamFps = vi
+      .fn()
+      .mockReturnValue(30) as unknown as typeof settings.streamFps;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 1080 }),
+    } as MediaStreamTrack);
+    await service.produceCamera();
+    const two = produce.mock.calls[1]?.[0] as {
+      encodings: Array<{ scaleResolutionDownBy: number; maxFramerate: number }>;
+    };
+    expect(two.encodings).toHaveLength(2);
+    expect(two.encodings[0]?.scaleResolutionDownBy).toBe(1.5);
+
+    settings.streamExtraLayers = vi
+      .fn()
+      .mockReturnValue([]) as unknown as typeof settings.streamExtraLayers;
+    await service.produceCamera();
+    const one = produce.mock.calls[2]?.[0] as { encodings: unknown[] };
+    expect(one.encodings).toHaveLength(1);
+
+    settings.streamHeight = vi
+      .fn()
+      .mockReturnValue(1080) as unknown as typeof settings.streamHeight;
+    settings.streamFps = vi
+      .fn()
+      .mockReturnValue(60) as unknown as typeof settings.streamFps;
+    settings.streamExtraLayers = vi
+      .fn()
+      .mockReturnValue([
+        { height: 720, fps: 60 },
+      ]) as unknown as typeof settings.streamExtraLayers;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 480 }),
+    } as MediaStreamTrack);
+    await service.produceCamera();
+    const dropped = produce.mock.calls[3]?.[0] as {
+      encodings: unknown[];
+      appData: { layers: Array<{ height: number }> };
+    };
+    expect(dropped.encodings).toHaveLength(1);
+    expect(dropped.appData.layers).toEqual([{ height: 480, fps: 60 }]);
 
     const listeners: Record<string, (...args: unknown[]) => unknown> = {};
     service['sendTransport'] = {
@@ -1280,20 +1398,65 @@ describe('MediasoupSessionService', () => {
         .fn()
         .mockImplementation(() => service['sendTransport']),
     } as never;
+    const layers = [
+      { height: 720, fps: 60 },
+      { height: 1080, fps: 60 },
+    ];
     await service['createTransport']('send');
     await listeners['produce']?.(
       {
         kind: 'video',
-        rtpParameters: {},
-        appData: { mediaTag: 'cam', sourceHeight: 360 },
+        rtpParameters: { encodings: [{}, {}] },
+        appData: { mediaTag: 'cam', layers },
       },
       vi.fn(),
       vi.fn(),
     );
     expect(emitWithAck).toHaveBeenCalledWith(
       EVoiceRoomEvent.PRODUCE,
-      expect.objectContaining({ sourceHeight: 360, mediaTag: 'cam' }),
+      expect.objectContaining({ layers, mediaTag: 'cam' }),
     );
+  });
+
+  it('applies per-layer values when the quality tier changes', async () => {
+    const setParameters = vi.fn().mockResolvedValue(undefined);
+    const producer = {
+      closed: false,
+      paused: false,
+      resume: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({
+          encodings: [{}, {}, {}],
+        }),
+        setParameters,
+      },
+    };
+    service['cameraProducer'] = producer as never;
+    service['cameraPublish'] = {
+      height: 1080,
+      fps: 60,
+      contentMode: 'motion',
+      extraLayers: [
+        { height: 720, fps: 60 },
+        { height: 480, fps: 30 },
+      ],
+      maxBitrateBps: 8_000_000,
+    };
+    await service['applyVideoPlan'](
+      producer as never,
+      service['cameraPublish'],
+      EVoiceQualityTier.GOOD,
+    );
+    const encodings = setParameters.mock.calls[0]?.[0].encodings as Array<{
+      maxBitrate: number;
+      maxFramerate: number;
+    }>;
+    expect(encodings).toHaveLength(3);
+    expect(encodings.map((encoding) => encoding.maxFramerate)).toEqual([
+      30, 60, 60,
+    ]);
+    expect(encodings.every((encoding) => encoding.maxBitrate > 0)).toBe(true);
   });
 
   it('warns once when the browser applies different screen encodings', async () => {
@@ -1302,33 +1465,42 @@ describe('MediasoupSessionService', () => {
     >;
     const plan = [
       {
-        scaleResolutionDownBy: 4,
-        height: 270,
-        maxFramerate: 10,
+        scaleResolutionDownBy: 2.25,
+        height: 480,
+        fps: 30,
+        maxFramerate: 30,
         maxBitrate: 200_000,
       },
       {
-        scaleResolutionDownBy: 2,
-        height: 540,
-        maxFramerate: 15,
+        scaleResolutionDownBy: 1.5,
+        height: 720,
+        fps: 60,
+        maxFramerate: 60,
         maxBitrate: 400_000,
       },
       {
         scaleResolutionDownBy: 1,
         height: 1080,
-        maxFramerate: 30,
+        fps: 60,
+        maxFramerate: 60,
         maxBitrate: 4_400_000,
       },
     ];
-    const producer = {
+    const mismatch = {
       rtpSender: {
         getParameters: () => ({
-          encodings: [{ scaleResolutionDownBy: 1, maxBitrate: 4_400_000 }],
+          encodings: [
+            {
+              scaleResolutionDownBy: 1,
+              maxBitrate: 4_400_000,
+              maxFramerate: 60,
+            },
+          ],
         }),
       },
     };
-    service['verifyAppliedEncodings'](producer as never, plan);
-    service['verifyAppliedEncodings'](producer as never, plan);
+    service['verifyAppliedEncodings'](mismatch as never, plan);
+    service['verifyAppliedEncodings'](mismatch as never, plan);
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith(
       'CALL.STREAM_SETTINGS_NOT_APPLIED',
@@ -1336,15 +1508,70 @@ describe('MediasoupSessionService', () => {
     );
 
     service['screenSettingsWarned'] = false;
+    const scaleMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            scaleResolutionDownBy: layer.scaleResolutionDownBy + 0.1,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](scaleMismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(2);
+
+    service['screenSettingsWarned'] = false;
+    const bitrateMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            maxBitrate: layer.maxBitrate + 1,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](bitrateMismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(3);
+
+    service['screenSettingsWarned'] = false;
+    const framerateMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            maxFramerate: layer.maxFramerate + 1,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](framerateMismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(4);
+
+    service['screenSettingsWarned'] = false;
+    const withinTolerance = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            scaleResolutionDownBy: layer.scaleResolutionDownBy + 1e-4,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](withinTolerance as never, plan);
+    expect(open).toHaveBeenCalledTimes(4);
+
     const top = plan[2];
     if (!top) {
       throw new Error('missing top layer');
     }
-    service['verifyAppliedEncodings'](producer as never, [top]);
-    expect(open).toHaveBeenCalledTimes(1);
+    service['verifyAppliedEncodings'](mismatch as never, [top]);
+    expect(open).toHaveBeenCalledTimes(4);
 
     service['verifyAppliedEncodings']({ rtpSender: undefined } as never, plan);
-    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledTimes(4);
   });
 
   it('passes the screen content mode into capture', async () => {

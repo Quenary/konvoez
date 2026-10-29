@@ -6,14 +6,15 @@ import {
   input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TVoiceRoomPeerUser } from '@konvoez/shared';
+import { formatStreamLayer, TVoiceRoomPeerUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { ConsumerRegistry } from '@core/services/consumer-registry';
 import { LocalScreenPreviewService } from '@core/services/local-screen-preview.service';
+import { PeerVideoService } from '@core/services/peer-video.service';
 import {
+  resolvePreferredLayer,
   TViewerQualityMode,
-  VIEWER_QUALITY_MODES,
 } from '@core/services/remote-video-quality';
 import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -77,12 +78,33 @@ export class VoiceRoomTileComponent {
   private readonly voiceRoomActionsService = inject(VoiceRoomActionsService);
   private readonly voiceRoomViewService = inject(VoiceRoomViewService);
   private readonly consumerRegistry = inject(ConsumerRegistry);
+  private readonly peerVideoService = inject(PeerVideoService);
   private readonly remoteVideoViewService = inject(RemoteVideoViewService);
 
   protected readonly icons = icons;
-  protected readonly modes = VIEWER_QUALITY_MODES;
-  protected readonly layered = this.consumerRegistry.layered;
   protected readonly quality = this.remoteVideoViewService.quality;
+  protected readonly qualityLayers = computed(() => {
+    const peerId = this.peer().id;
+    const layersById = this.consumerRegistry.layersById();
+    const consumerId = this.peerVideoService.getScreenConsumerId(peerId);
+    if (!consumerId) {
+      return [];
+    }
+    return layersById[consumerId] ?? [];
+  });
+  protected readonly showQuality = computed(
+    () => this.qualityLayers().length >= 2,
+  );
+  protected readonly qualityItems = computed(() => {
+    const layers = this.qualityLayers();
+    const mode = this.quality();
+    const resolved = mode === 'auto' ? -1 : resolvePreferredLayer(mode, layers);
+    return [...layers].reverse().map((layer, offset) => ({
+      layer,
+      label: formatStreamLayer(layer),
+      checked: layers.length - 1 - offset === resolved,
+    }));
+  });
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly peer = input.required<TVoiceRoomPeerUser>();

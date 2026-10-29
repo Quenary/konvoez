@@ -108,8 +108,8 @@ describe('Settings Schemas', () => {
       },
     );
 
-    it('has default 10000', () => {
-      expect(DEFAULT_STREAM_MAX_BITRATE_KBPS).toBe(10000);
+    it('has default 20000', () => {
+      expect(DEFAULT_STREAM_MAX_BITRATE_KBPS).toBe(20000);
     });
 
     it('parses stream max bitrate from the setting unions', () => {

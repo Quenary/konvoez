@@ -188,13 +188,42 @@ export type TVoiceRoomConnectTransport = z.infer<
   typeof voiceRoomConnectTransportSchema
 >;
 
+export const voiceRoomStreamLayerSchema = z.object({
+  height: z.number().int().min(1).max(4320),
+  fps: z.number().int().min(1).max(120),
+});
+export type TVoiceRoomStreamLayer = z.infer<typeof voiceRoomStreamLayerSchema>;
+
+export const voiceRoomStreamLayersSchema = z
+  .array(voiceRoomStreamLayerSchema)
+  .min(1)
+  .max(3)
+  .refine((layers) => {
+    for (let index = 1; index < layers.length; index += 1) {
+      const previous = layers[index - 1];
+      const current = layers[index];
+      if (!previous || !current) {
+        return false;
+      }
+      const order =
+        previous.height - current.height || previous.fps - current.fps;
+      if (order >= 0) {
+        return false;
+      }
+    }
+    return true;
+  }, 'layers must be strictly ascending by height, then fps');
+export type TVoiceRoomStreamLayers = z.infer<
+  typeof voiceRoomStreamLayersSchema
+>;
+
 export const voiceRoomProduceSchema = z.object({
   transportId: z.string().min(1),
   kind: z.enum(['audio', 'video']),
   mediaTag: voiceRoomMediaTagSchema,
   /** Opaque mediasoup RtpParameters JSON */
   rtpParameters: z.unknown(),
-  sourceHeight: z.number().int().positive().optional(),
+  layers: voiceRoomStreamLayersSchema.optional(),
 });
 export type TVoiceRoomProduce = z.infer<typeof voiceRoomProduceSchema>;
 
@@ -229,7 +258,7 @@ export const voiceRoomConsumeResultSchema = z.object({
   mediaTag: voiceRoomMediaTagSchema,
   /** Opaque mediasoup RtpParameters JSON */
   rtpParameters: z.unknown(),
-  sourceHeight: z.number().int().positive().optional(),
+  layers: voiceRoomStreamLayersSchema.optional(),
 });
 export type TVoiceRoomConsumeResult = z.infer<
   typeof voiceRoomConsumeResultSchema

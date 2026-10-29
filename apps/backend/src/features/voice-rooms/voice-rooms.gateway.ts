@@ -607,6 +607,25 @@ export class VoiceRoomsGateway
         }
       }
 
+      if (body.kind === 'audio' && body.layers !== undefined) {
+        throw AppException.badRequest(
+          ApiErrorCode.VOICE_MEDIA_INVALID,
+          'Audio produce cannot include layers',
+        );
+      }
+      const encodings = rtpEncodings(body.rtpParameters);
+      if (
+        body.kind === 'video' &&
+        body.layers !== undefined &&
+        encodings !== undefined &&
+        encodings.length !== body.layers.length
+      ) {
+        throw AppException.badRequest(
+          ApiErrorCode.VOICE_MEDIA_INVALID,
+          'Layer count does not match encodings',
+        );
+      }
+
       const producer: Producer<VoiceRoomStateMediasoupAppData> =
         await transport.produce({
           kind: body.kind,
@@ -614,9 +633,7 @@ export class VoiceRoomsGateway
           appData: {
             peerId: peer.id,
             mediaTag: body.mediaTag,
-            ...(body.sourceHeight !== undefined
-              ? { sourceHeight: body.sourceHeight }
-              : {}),
+            ...(body.layers !== undefined ? { layers: body.layers } : {}),
           },
         });
 
@@ -869,8 +886,8 @@ export class VoiceRoomsGateway
       kind: consumer.kind,
       mediaTag: consumer.appData.mediaTag,
       rtpParameters: consumer.rtpParameters,
-      ...(producer.appData.sourceHeight !== undefined
-        ? { sourceHeight: producer.appData.sourceHeight }
+      ...(producer.appData.layers !== undefined
+        ? { layers: producer.appData.layers }
         : {}),
     } satisfies TVoiceRoomConsumeResult;
   }
@@ -1526,4 +1543,12 @@ export class VoiceRoomsGateway
       this.emitCallEnded(ended.callId, ended.callerId, ended.recipientId);
     }
   }
+}
+
+function rtpEncodings(rtpParameters: unknown): unknown[] | undefined {
+  if (typeof rtpParameters !== 'object' || rtpParameters === null) {
+    return undefined;
+  }
+  const encodings = (rtpParameters as { encodings?: unknown }).encodings;
+  return Array.isArray(encodings) ? encodings : undefined;
 }

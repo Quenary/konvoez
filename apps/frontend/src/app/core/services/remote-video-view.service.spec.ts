@@ -88,7 +88,11 @@ describe('RemoteVideoViewService', () => {
         observer: { on: vi.fn() },
         rtpParameters: { encodings: [{ scalabilityMode: 'L3T1' }] },
       } as unknown as Consumer,
-      1080,
+      [
+        { height: 360, fps: 30 },
+        { height: 720, fps: 30 },
+        { height: 1080, fps: 30 },
+      ],
     );
   };
 
@@ -221,7 +225,7 @@ describe('RemoteVideoViewService', () => {
 
     setConsumerPreferredLayer.mockClear();
     setConsumerPreferredLayer.mockResolvedValue(true);
-    service.setQuality('source');
+    service.setQuality({ height: 1080, fps: 30 });
     await vi.advanceTimersByTimeAsync(300);
     expect(setConsumerPreferredLayer).not.toHaveBeenCalled();
 
@@ -239,7 +243,7 @@ describe('RemoteVideoViewService', () => {
     setConsumerPreferredLayer.mockClear();
     setConsumerPreferredLayer.mockResolvedValue(false);
 
-    service.setQuality('source');
+    service.setQuality({ height: 1080, fps: 30 });
     await vi.advanceTimersByTimeAsync(300);
     expect(setConsumerPreferredLayer).toHaveBeenCalledTimes(1);
     expect(setConsumerPreferredLayer).toHaveBeenCalledWith('c1', 2);

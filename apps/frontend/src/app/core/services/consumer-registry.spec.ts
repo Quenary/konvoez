@@ -41,24 +41,42 @@ describe('ConsumerRegistry', () => {
     expect(() => registry.close('missing')).not.toThrow();
   });
 
-  it('tracks source height and whether any consumer has multiple layers', () => {
+  it('keeps signalled layers only when the count matches', () => {
     const single = consumer('c1');
-    registry.add(single, 720);
-    expect(registry.getSourceHeight('c1')).toBe(720);
-    expect(registry.getLayerCount('c1')).toBe(1);
-    expect(registry.layered()).toBe(false);
+    registry.add(single, [{ height: 720, fps: 30 }]);
+    expect(registry.getLayers('c1')).toEqual([{ height: 720, fps: 30 }]);
+    expect(registry.layersById()['c1']).toEqual([{ height: 720, fps: 30 }]);
 
-    const layered = {
+    const mismatch = {
       id: 'c2',
       closed: false,
       close: vi.fn(),
-      rtpParameters: { encodings: [{ scalabilityMode: 'L3T1' }] },
+      rtpParameters: { encodings: [{ scalabilityMode: 'L1T1' }] },
     } as unknown as Consumer;
-    registry.add(layered, 1080);
-    expect(registry.getLayerCount('c2')).toBe(3);
-    expect(registry.layered()).toBe(true);
+    registry.add(mismatch, [
+      { height: 720, fps: 30 },
+      { height: 1080, fps: 30 },
+    ]);
+    expect(registry.getLayers('c2')).toEqual([]);
+    expect(registry.layersById()['c2']).toEqual([]);
 
-    registry.close('c2');
-    expect(registry.layered()).toBe(false);
+    const layered = {
+      id: 'c3',
+      closed: false,
+      close: vi.fn(),
+      rtpParameters: {
+        encodings: [{ scalabilityMode: 'L1T1' }, { scalabilityMode: 'L1T1' }],
+      },
+    } as unknown as Consumer;
+    const layers = [
+      { height: 720, fps: 30 },
+      { height: 1080, fps: 60 },
+    ];
+    registry.add(layered, layers);
+    expect(registry.getLayers('c3')).toEqual(layers);
+    expect(registry.layersById()['c3']).toEqual(layers);
+
+    registry.close('c3');
+    expect(registry.layersById()['c3']).toBeUndefined();
   });
 });

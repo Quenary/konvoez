@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { ConsumerRegistry } from '@core/services/consumer-registry';
+import { PeerVideoService } from '@core/services/peer-video.service';
 import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceRoomTheatreWatchControlsComponent } from './voice-room-theatre-watch-controls.component';
 
@@ -12,14 +13,20 @@ describe('VoiceRoomTheatreWatchControlsComponent', () => {
   let stopWatchingPeerScreen: ReturnType<typeof vi.fn>;
   let setPeerScreenGain: ReturnType<typeof vi.fn>;
   let setQuality: ReturnType<typeof vi.fn>;
-  let layered: ReturnType<typeof signal<boolean>>;
+  let layersById: ReturnType<
+    typeof signal<Record<string, Array<{ height: number; fps: number }>>>
+  >;
+  let quality: ReturnType<
+    typeof signal<'auto' | { height: number; fps: number }>
+  >;
   let peerScreenGainLevels: ReturnType<typeof signal<Record<number, number>>>;
 
   beforeEach(() => {
     stopWatchingPeerScreen = vi.fn().mockResolvedValue(undefined);
     setPeerScreenGain = vi.fn();
     setQuality = vi.fn();
-    layered = signal(false);
+    layersById = signal({});
+    quality = signal('auto');
     peerScreenGainLevels = signal<Record<number, number>>({ 4: 0.5 });
 
     TestBed.configureTestingModule({
@@ -39,12 +46,18 @@ describe('VoiceRoomTheatreWatchControlsComponent', () => {
         },
         {
           provide: ConsumerRegistry,
-          useValue: { layered: layered.asReadonly() },
+          useValue: { layersById: layersById.asReadonly() },
+        },
+        {
+          provide: PeerVideoService,
+          useValue: {
+            getScreenConsumerId: vi.fn(() => 'screen-4'),
+          },
         },
         {
           provide: RemoteVideoViewService,
           useValue: {
-            quality: signal('auto').asReadonly(),
+            quality: quality.asReadonly(),
             setQuality,
           },
         },
@@ -93,14 +106,29 @@ describe('VoiceRoomTheatreWatchControlsComponent', () => {
     ) as HTMLElement;
     expect(hiddenGroup.querySelectorAll('button').length).toBe(2);
 
-    layered.set(true);
+    layersById.set({
+      'screen-4': [
+        { height: 480, fps: 30 },
+        { height: 1080, fps: 60 },
+      ],
+    });
     const fixture = create(4);
     const buttons = (
       fixture.nativeElement.querySelector('[tuiGroup]') as HTMLElement
     ).querySelectorAll('button');
     expect(buttons.length).toBe(3);
+    expect(
+      fixture.componentInstance['qualityItems']().map((item) => item.label),
+    ).toEqual(['1080p60', '480p30']);
 
-    fixture.componentInstance['onQualitySelect']('source');
-    expect(setQuality).toHaveBeenCalledWith('source');
+    quality.set({ height: 1080, fps: 60 });
+    fixture.detectChanges();
+    expect(
+      fixture.componentInstance['qualityItems']().find((item) => item.checked)
+        ?.label,
+    ).toBe('1080p60');
+
+    fixture.componentInstance['onQualitySelect']({ height: 480, fps: 30 });
+    expect(setQuality).toHaveBeenCalledWith({ height: 480, fps: 30 });
   });
 });

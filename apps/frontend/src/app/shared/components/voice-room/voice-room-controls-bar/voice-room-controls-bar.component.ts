@@ -135,7 +135,7 @@ export class VoiceRoomControlsBarComponent {
             kind,
             height: settings.height,
             fps: settings.fps,
-            layers: settings.layers,
+            extraLayers: settings.extraLayers,
             bitrateKbps: settings.bitrateKbps,
             contentMode: settings.contentMode,
             maxBitrateKbps: this.settingsStore.streamMaxBitrateKbps(),
@@ -178,7 +178,7 @@ export class VoiceRoomControlsBarComponent {
         settings: () => {
           height: TStreamQualityDialogResult['height'];
           fps: TStreamQualityDialogResult['fps'];
-          layers: number;
+          extraLayers: TStreamQualityDialogResult['extraLayers'] | null;
           bitrateKbps: number | null;
           contentMode: TStreamQualityDialogResult['contentMode'];
         };
@@ -194,14 +194,14 @@ export class VoiceRoomControlsBarComponent {
         settings: () => ({
           height: this.settingsStore.streamHeight(),
           fps: this.settingsStore.streamFps(),
-          layers: this.settingsStore.streamLayers(),
+          extraLayers: this.settingsStore.streamExtraLayers(),
           bitrateKbps: this.settingsStore.streamBitrateKbps(),
           contentMode: 'motion' as const,
         }),
         save: (result) => {
           this.settingsStore.setStreamHeight(result.height);
           this.settingsStore.setStreamFps(result.fps);
-          this.settingsStore.setStreamLayers(result.layers);
+          this.settingsStore.setStreamExtraLayers(result.extraLayers);
           this.settingsStore.setStreamBitrateKbps(result.bitrateKbps);
         },
         stop: () => this.voiceSessionService.stopCamera(),
@@ -214,14 +214,14 @@ export class VoiceRoomControlsBarComponent {
         settings: () => ({
           height: this.settingsStore.screenHeight(),
           fps: this.settingsStore.screenFps(),
-          layers: this.settingsStore.screenLayers(),
+          extraLayers: this.settingsStore.screenExtraLayers(),
           bitrateKbps: this.settingsStore.screenBitrateKbps(),
           contentMode: this.settingsStore.screenContentMode(),
         }),
         save: (result) => {
           this.settingsStore.setScreenHeight(result.height);
           this.settingsStore.setScreenFps(result.fps);
-          this.settingsStore.setScreenLayers(result.layers);
+          this.settingsStore.setScreenExtraLayers(result.extraLayers);
           this.settingsStore.setScreenBitrateKbps(result.bitrateKbps);
           if (result.contentMode) {
             this.settingsStore.setScreenContentMode(result.contentMode);

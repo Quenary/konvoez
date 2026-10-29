@@ -134,10 +134,8 @@ CALL:
   START_CAMERA: Start camera
   STREAM_HEIGHT: Resolution
   STREAM_FPS: Frame rate
-  STREAM_LAYERS: Layers
+  STREAM_EXTRA_LAYERS: Additional layers
   STREAM_LAYERS_HINT: More layers means higher CPU and upload load
-  STREAM_LAYERS_RESULT: Resulting layers
-  FPS_UNIT: fps
   STREAM_CONTENT_MODE: Content
   STREAM_CONTENT_TEXT: Text
   STREAM_CONTENT_GAME: Game
@@ -147,10 +145,6 @@ CALL:
   STREAM_SETTINGS_NOT_APPLIED: Could not apply the requested stream settings. Using what the browser provided.
   VIEW_QUALITY: Stream quality
   VIEW_QUALITY_AUTO: Auto
-  VIEW_QUALITY_LOW: Low
-  VIEW_QUALITY_MEDIUM: Medium
-  VIEW_QUALITY_HIGH: High
-  VIEW_QUALITY_SOURCE: Source
   SCREEN: Screen
   SCREEN_ON: Share screen
   SCREEN_OFF: Stop sharing
@@ -418,7 +412,7 @@ SETTINGS:
     VOICE_MAX_BITRATE: Voice bitrate (kbps)
     VOICE_MAX_BITRATE_DESC: 'Base (maximum) microphone bitrate, from 8 to 384, defaults to 64. Server outbound load is bitrate × listeners: at 64 kbps and 9 listeners, this is about 0.6 Mbps per speaker. Applies to new connections; open clients pick up the value upon reloading the app.'
     STREAM_MAX_BITRATE: Stream bitrate (kbps)
-    STREAM_MAX_BITRATE_DESC: 'Maximum total bitrate for camera and screen layers, from 1000 to 100000, defaults to 10000. The client clamps the streamer slider to this value. Open clients pick up the value after settings reload.'
+    STREAM_MAX_BITRATE_DESC: 'Maximum total bitrate for camera and screen layers, from 1000 to 100000, defaults to 20000. The client clamps the streamer slider to this value. Open clients pick up the value after settings reload.'
     SAVED_SUCCESS: Settings saved successfully
 USER_DELETE:
   TITLE: Account deletion

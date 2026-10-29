@@ -76,7 +76,6 @@ export const icons = {
   'phone-call': '@tui.phone-call',
   'phone-off': '@tui.phone-off',
   'message-circle': '@tui.message-circle',
-  'gallery-horizontal': '@tui.gallery-horizontal',
   'volume-2': '@tui.volume-2',
   'monitor-pause': '@tui.monitor-pause',
   minimize: '@tui.minimize',

@@ -1,23 +1,27 @@
 export type TStreamContentMode = 'detail' | 'motion';
 
+export type TStreamLayer = {
+  height: number;
+  fps: number;
+};
+
 export type TSimulcastLayer = {
   scaleResolutionDownBy: number;
   height: number;
+  fps: number;
   maxFramerate: number;
   maxBitrate: number;
 };
 
 export type TSimulcastPlanInput = {
-  height: number;
-  fps: number;
+  sourceHeight: number;
+  layers: TStreamLayer[];
   contentMode: TStreamContentMode;
-  layers: number;
   maxBitrateBps: number;
 };
 
-export const STREAM_LAYER_COUNT_MIN = 1;
-export const STREAM_LAYER_COUNT_MAX = 3;
-export const DEFAULT_STREAM_LAYERS = 2;
+export const STREAM_LAYER_HEIGHTS = [1080, 720, 480, 360, 160] as const;
+export const STREAM_EXTRA_LAYERS_MAX = 2;
 
 /** Streamer bitrate slider lower bound, in kbit/s. */
 export const STREAM_BITRATE_SLIDER_MIN_KBPS = 500;
@@ -29,10 +33,6 @@ export const STREAM_BITRATE_WARN_KBPS = 15_000;
 /** Floor for a non-top simulcast layer, in bits per second. */
 export const MIN_LAYER_BITRATE_BPS = 100_000;
 
-const LOWEST_LAYER_MIN_HEIGHT = 180;
-const HEIGHT_FOR_TWO_LAYERS = LOWEST_LAYER_MIN_HEIGHT * 2;
-const HEIGHT_FOR_THREE_LAYERS = LOWEST_LAYER_MIN_HEIGHT * 4;
-
 const STREAM_BITRATE_BASE_KBPS = [
   { height: 360, kbps: 700 },
   { height: 480, kbps: 1200 },
@@ -40,43 +40,74 @@ const STREAM_BITRATE_BASE_KBPS = [
   { height: 1080, kbps: 5000 },
 ] as const;
 
-export function maxStreamLayersForHeight(height: number): number {
-  if (height >= HEIGHT_FOR_THREE_LAYERS) {
-    return STREAM_LAYER_COUNT_MAX;
-  }
-  if (height >= HEIGHT_FOR_TWO_LAYERS) {
-    return 2;
-  }
-  return STREAM_LAYER_COUNT_MIN;
+function sameLayer(left: TStreamLayer, right: TStreamLayer): boolean {
+  return left.height === right.height && left.fps === right.fps;
 }
 
-export function clampStreamLayers(layers: number, height: number): number {
-  const max = maxStreamLayersForHeight(height);
-  const rounded = Number.isFinite(layers)
-    ? Math.round(layers)
-    : STREAM_LAYER_COUNT_MIN;
-  return Math.min(
-    max,
-    Math.max(STREAM_LAYER_COUNT_MIN, Math.min(STREAM_LAYER_COUNT_MAX, rounded)),
+export function streamLayerOptions(max: TStreamLayer): TStreamLayer[] {
+  const fpsChoices = [max.fps, 30].filter(
+    (fps, index, all) => fps <= max.fps && all.indexOf(fps) === index,
+  );
+  const options: TStreamLayer[] = [];
+  for (const height of STREAM_LAYER_HEIGHTS) {
+    if (height > max.height) {
+      continue;
+    }
+    for (const fps of fpsChoices) {
+      if (height === max.height && fps === max.fps) {
+        continue;
+      }
+      options.push({ height, fps });
+    }
+  }
+  return options;
+}
+
+export function defaultExtraLayers(max: TStreamLayer): TStreamLayer[] {
+  const height = STREAM_LAYER_HEIGHTS.find((preset) => preset < max.height);
+  if (height == null) {
+    return [];
+  }
+  return [{ height, fps: max.fps }];
+}
+
+export function sortStreamLayers(
+  layers: readonly TStreamLayer[],
+): TStreamLayer[] {
+  return [...layers].sort(
+    (left, right) => left.height - right.height || left.fps - right.fps,
   );
 }
 
-function layerFramerate(
-  fps: number,
-  scale: number,
-  contentMode: TStreamContentMode,
-  isTop: boolean,
-): number {
-  if (isTop) {
-    return fps;
+export function formatStreamLayer(layer: TStreamLayer): string {
+  return `${layer.height}p${layer.fps}`;
+}
+
+export function resolveStreamLayers(input: {
+  max: TStreamLayer;
+  extra: readonly TStreamLayer[];
+  sourceHeight: number;
+}): TStreamLayer[] {
+  const sourceHeight = Math.max(1, input.sourceHeight);
+  const options = streamLayerOptions(input.max);
+  const resolvedMax = { height: sourceHeight, fps: input.max.fps };
+  const extras: TStreamLayer[] = [];
+  for (const layer of input.extra) {
+    if (layer.height > sourceHeight || sameLayer(layer, resolvedMax)) {
+      continue;
+    }
+    if (!options.some((option) => sameLayer(option, layer))) {
+      continue;
+    }
+    if (extras.some((existing) => sameLayer(existing, layer))) {
+      continue;
+    }
+    extras.push(layer);
+    if (extras.length >= STREAM_EXTRA_LAYERS_MAX) {
+      break;
+    }
   }
-  if (contentMode === 'motion') {
-    return Math.min(fps, 30);
-  }
-  if (scale >= 4) {
-    return Math.min(fps, 10);
-  }
-  return Math.min(fps, 15);
+  return sortStreamLayers([resolvedMax, ...extras]);
 }
 
 function equalBitrates(budget: number, count: number): number[] {
@@ -94,26 +125,32 @@ function equalBitrates(budget: number, count: number): number[] {
 export function computeSimulcastLayers(
   input: TSimulcastPlanInput,
 ): TSimulcastLayer[] {
-  const count = clampStreamLayers(input.layers, input.height);
+  const layers = input.layers;
+  const count = layers.length;
+  if (count === 0) {
+    return [];
+  }
   const budget = Math.max(0, Math.floor(input.maxBitrateBps));
-  const sourceHeight = Math.max(1, input.height);
-  const fps = Math.max(1, input.fps);
+  const sourceHeight = Math.max(1, input.sourceHeight);
+  const top = layers[count - 1];
+  const topHeight = Math.max(1, top?.height ?? sourceHeight);
+  const topFps = Math.max(1, top?.fps ?? 1);
+  const exponent = input.contentMode === 'motion' ? 0.5 : 0.25;
 
-  const planned = Array.from({ length: count }, (_, index) => {
-    const scaleResolutionDownBy = 2 ** (count - 1 - index);
-    const height = Math.round(sourceHeight / scaleResolutionDownBy);
-    const maxFramerate = layerFramerate(
+  const planned = layers.map((layer) => {
+    const height = Math.max(1, layer.height);
+    const fps = Math.max(1, layer.fps);
+    return {
+      height,
       fps,
-      scaleResolutionDownBy,
-      input.contentMode,
-      index === count - 1,
-    );
-    return { scaleResolutionDownBy, height, maxFramerate };
+      scaleResolutionDownBy: sourceHeight / height,
+      maxFramerate: fps,
+    };
   });
 
   const weights = planned.map(
     (layer) =>
-      (layer.height / sourceHeight) ** 2 * Math.sqrt(layer.maxFramerate / fps),
+      (layer.height / topHeight) ** 2 * (layer.fps / topFps) ** exponent,
   );
   const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
   const shares =
@@ -152,20 +189,39 @@ function baseBitrateKbps(height: number): number {
   return base;
 }
 
+function layerBitrateKbps(
+  height: number,
+  fps: number,
+  contentMode: TStreamContentMode,
+): number {
+  const safeFps = Math.max(1, fps);
+  let kbps = baseBitrateKbps(height) * Math.sqrt(safeFps / 30);
+  if (contentMode === 'motion') {
+    kbps *= 1.25;
+  }
+  return (
+    Math.round(kbps / STREAM_BITRATE_SLIDER_STEP_KBPS) *
+    STREAM_BITRATE_SLIDER_STEP_KBPS
+  );
+}
+
 export function recommendStreamBitrateKbps(input: {
   height: number;
   fps: number;
   contentMode: TStreamContentMode;
   maxKbps: number;
+  extra?: readonly TStreamLayer[];
 }): number {
-  const fps = Math.max(1, input.fps);
-  let kbps = baseBitrateKbps(input.height) * Math.sqrt(fps / 30);
-  if (input.contentMode === 'motion') {
-    kbps *= 1.25;
-  }
-  const rounded =
-    Math.round(kbps / STREAM_BITRATE_SLIDER_STEP_KBPS) *
-    STREAM_BITRATE_SLIDER_STEP_KBPS;
+  const layers = resolveStreamLayers({
+    max: { height: input.height, fps: input.fps },
+    extra: input.extra ?? [],
+    sourceHeight: input.height,
+  });
+  const total = layers.reduce(
+    (sum, layer) =>
+      sum + layerBitrateKbps(layer.height, layer.fps, input.contentMode),
+    0,
+  );
   const ceiling = Math.max(0, input.maxKbps);
-  return Math.min(ceiling, Math.max(STREAM_BITRATE_SLIDER_MIN_KBPS, rounded));
+  return Math.min(ceiling, Math.max(STREAM_BITRATE_SLIDER_MIN_KBPS, total));
 }

@@ -1,3 +1,4 @@
+import { DEFAULT_STREAM_MAX_BITRATE_KBPS } from '@konvoez/shared';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService, TranslateService } from '@ngx-translate/core';
@@ -24,9 +25,9 @@ describe('VoiceRoomControlsBarComponent', () => {
   let setStreamFps: ReturnType<typeof vi.fn>;
   let setScreenHeight: ReturnType<typeof vi.fn>;
   let setScreenFps: ReturnType<typeof vi.fn>;
-  let setStreamLayers: ReturnType<typeof vi.fn>;
+  let setStreamExtraLayers: ReturnType<typeof vi.fn>;
   let setStreamBitrateKbps: ReturnType<typeof vi.fn>;
-  let setScreenLayers: ReturnType<typeof vi.fn>;
+  let setScreenExtraLayers: ReturnType<typeof vi.fn>;
   let setScreenBitrateKbps: ReturnType<typeof vi.fn>;
   let setScreenContentMode: ReturnType<typeof vi.fn>;
   let openDialog: ReturnType<typeof vi.fn>;
@@ -49,9 +50,9 @@ describe('VoiceRoomControlsBarComponent', () => {
     setStreamFps = vi.fn();
     setScreenHeight = vi.fn();
     setScreenFps = vi.fn();
-    setStreamLayers = vi.fn();
+    setStreamExtraLayers = vi.fn();
     setStreamBitrateKbps = vi.fn();
-    setScreenLayers = vi.fn();
+    setScreenExtraLayers = vi.fn();
     setScreenBitrateKbps = vi.fn();
     setScreenContentMode = vi.fn();
     openDialog = vi.fn(() => of(null));
@@ -81,23 +82,29 @@ describe('VoiceRoomControlsBarComponent', () => {
           useValue: {
             streamHeight: signal(720).asReadonly(),
             streamFps: signal(30).asReadonly(),
-            streamLayers: signal(2).asReadonly(),
+            streamExtraLayers: signal<{ height: number; fps: number }[] | null>(
+              null,
+            ).asReadonly(),
             streamBitrateKbps: signal<number | null>(2500).asReadonly(),
             screenHeight: signal(1080).asReadonly(),
             screenFps: signal(30).asReadonly(),
-            screenLayers: signal(2).asReadonly(),
+            screenExtraLayers: signal<{ height: number; fps: number }[] | null>(
+              null,
+            ).asReadonly(),
             screenBitrateKbps: signal<number | null>(null).asReadonly(),
             screenContentMode: signal<'detail' | 'motion'>(
               'detail',
             ).asReadonly(),
-            streamMaxBitrateKbps: signal(10000).asReadonly(),
+            streamMaxBitrateKbps: signal(
+              DEFAULT_STREAM_MAX_BITRATE_KBPS,
+            ).asReadonly(),
             setStreamHeight,
             setStreamFps,
-            setStreamLayers,
+            setStreamExtraLayers,
             setStreamBitrateKbps,
             setScreenHeight,
             setScreenFps,
-            setScreenLayers,
+            setScreenExtraLayers,
             setScreenBitrateKbps,
             setScreenContentMode,
           },
@@ -173,7 +180,12 @@ describe('VoiceRoomControlsBarComponent', () => {
 
   it('starts the camera through the shared dialog', async () => {
     openDialog.mockReturnValue(
-      of({ height: 480, fps: 15, layers: 2, bitrateKbps: 1500 }),
+      of({
+        height: 480,
+        fps: 15,
+        extraLayers: [{ height: 360, fps: 15 }],
+        bitrateKbps: 1500,
+      }),
     );
     const fixture = create();
 
@@ -187,15 +199,17 @@ describe('VoiceRoomControlsBarComponent', () => {
           kind: 'cam',
           height: 720,
           fps: 30,
-          layers: 2,
+          extraLayers: null,
           bitrateKbps: 2500,
-          maxBitrateKbps: 10000,
+          maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
         }),
       }),
     );
     expect(setStreamHeight).toHaveBeenCalledWith(480);
     expect(setStreamFps).toHaveBeenCalledWith(15);
-    expect(setStreamLayers).toHaveBeenCalledWith(2);
+    expect(setStreamExtraLayers).toHaveBeenCalledWith([
+      { height: 360, fps: 15 },
+    ]);
     expect(setStreamBitrateKbps).toHaveBeenCalledWith(1500);
     expect(produceCamera).toHaveBeenCalledTimes(1);
     expect(produceScreen).not.toHaveBeenCalled();
@@ -206,7 +220,7 @@ describe('VoiceRoomControlsBarComponent', () => {
       of({
         height: 1080,
         fps: 60,
-        layers: 3,
+        extraLayers: [{ height: 720, fps: 60 }],
         bitrateKbps: 8000,
         contentMode: 'motion',
       }),
@@ -220,7 +234,9 @@ describe('VoiceRoomControlsBarComponent', () => {
 
     expect(setScreenHeight).toHaveBeenCalledWith(1080);
     expect(setScreenFps).toHaveBeenCalledWith(60);
-    expect(setScreenLayers).toHaveBeenCalledWith(3);
+    expect(setScreenExtraLayers).toHaveBeenCalledWith([
+      { height: 720, fps: 60 },
+    ]);
     expect(setScreenBitrateKbps).toHaveBeenCalledWith(8000);
     expect(setScreenContentMode).toHaveBeenCalledWith('motion');
     expect(produceScreen).toHaveBeenCalledTimes(1);

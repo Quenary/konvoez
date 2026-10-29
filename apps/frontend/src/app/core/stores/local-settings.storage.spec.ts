@@ -10,41 +10,69 @@ describe('local-settings.storage stream fields', () => {
     localStorage.clear();
   });
 
-  it('round-trips layers, bitrate and content mode', () => {
+  it('round-trips extra layers, bitrate and content mode', () => {
+    const extra = [{ height: 720, fps: 30 }];
     writeLocalSettings({
-      streamLayers: 3,
+      streamExtraLayers: extra,
       streamBitrateKbps: 2500,
-      screenLayers: 1,
+      screenExtraLayers: [{ height: 360, fps: 15 }],
       screenBitrateKbps: 4000,
       screenContentMode: 'motion',
     });
 
     expect(readLocalSettings()).toEqual(
       expect.objectContaining({
-        streamLayers: 3,
+        streamExtraLayers: extra,
         streamBitrateKbps: 2500,
-        screenLayers: 1,
+        screenExtraLayers: [{ height: 360, fps: 15 }],
         screenBitrateKbps: 4000,
         screenContentMode: 'motion',
       }),
     );
   });
 
+  it('ignores a stored layer count and drops it on the next write', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({
+        streamLayers: 2,
+        streamBitrateKbps: 2500,
+      }),
+    );
+
+    expect(readLocalSettings()).toEqual(
+      expect.objectContaining({ streamBitrateKbps: 2500 }),
+    );
+    expect(readLocalSettings()).not.toHaveProperty('streamLayers');
+
+    writeLocalSettings({ streamBitrateKbps: 2500 });
+    const stored = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    ) as Record<string, unknown>;
+    expect(stored['streamLayers']).toBeUndefined();
+    expect(stored['streamBitrateKbps']).toBe(2500);
+  });
+
   it('drops invalid stream fields', () => {
     localStorage.setItem(
       EStorageKey.LOCAL_SETTINGS,
       JSON.stringify({
-        streamLayers: 9,
-        streamBitrateKbps: 10,
-        screenLayers: 2,
-        screenContentMode: 'cinema',
+        streamExtraLayers: [{ height: 0, fps: 30 }],
+        screenExtraLayers: [{ height: 360, fps: 30 }],
       }),
     );
+    expect(readLocalSettings().streamExtraLayers).toBeUndefined();
 
-    const settings = readLocalSettings();
-    expect(settings.streamLayers).toBeUndefined();
-    expect(settings.streamBitrateKbps).toBeUndefined();
-    expect(settings.screenLayers).toBe(2);
-    expect(settings.screenContentMode).toBeUndefined();
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ streamBitrateKbps: 10 }),
+    );
+    expect(readLocalSettings().streamBitrateKbps).toBeUndefined();
+
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ screenContentMode: 'cinema' }),
+    );
+    expect(readLocalSettings().screenContentMode).toBeUndefined();
   });
 });

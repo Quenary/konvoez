@@ -89,6 +89,7 @@ sequenceDiagram
 - The viewer pauses a hidden video consumer with `PAUSE_CONSUMER`.
 - The viewer resumes that consumer with `RESUME_CONSUMER`. The server requests a keyframe for video.
 - The viewer selects a spatial layer with `SET_CONSUMER_LAYERS`.
+- The producer's layer list reaches viewers on consume.
 - While joining, `VoiceSessionStore.joiningTarget` is set and used by the UI.
 - After a reconnect the stored session is rejoined. On app resume the session is checked with the server and either refreshed (ICE restart) or rejoined: [App resume](APP_RESUME.md).
 - Hangup goes through `VoiceLeaveService`. `leaveFromVoiceUi()` leaves the media and, when `/voice-room/:id` is open, navigates to `/` before the session ends. `leaveActiveVoice()` only leaves the media: a direct call via `DirectCallService`, otherwise via `VoiceSessionService`. Logout and app quit use `leaveActiveVoice()`. Switching sessions leaves the previous one automatically.

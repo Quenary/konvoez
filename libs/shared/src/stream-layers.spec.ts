@@ -1,107 +1,153 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clampStreamLayers,
   computeSimulcastLayers,
-  maxStreamLayersForHeight,
+  defaultExtraLayers,
+  formatStreamLayer,
   MIN_LAYER_BITRATE_BPS,
   recommendStreamBitrateKbps,
+  resolveStreamLayers,
+  sortStreamLayers,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
-  TStreamContentMode,
+  streamLayerOptions,
 } from './stream-layers';
 
 describe('stream-layers', () => {
-  describe('maxStreamLayersForHeight', () => {
-    it.each([
-      [180, 1],
-      [359, 1],
-      [360, 2],
-      [719, 2],
-      [720, 3],
-      [1080, 3],
-    ])('height %i allows %i layers', (height, layers) => {
-      expect(maxStreamLayersForHeight(height)).toBe(layers);
+  describe('streamLayerOptions', () => {
+    it('lists 1080p60 options high to low, excluding the max', () => {
+      expect(streamLayerOptions({ height: 1080, fps: 60 })).toEqual([
+        { height: 1080, fps: 30 },
+        { height: 720, fps: 60 },
+        { height: 720, fps: 30 },
+        { height: 480, fps: 60 },
+        { height: 480, fps: 30 },
+        { height: 360, fps: 60 },
+        { height: 360, fps: 30 },
+        { height: 160, fps: 60 },
+        { height: 160, fps: 30 },
+      ]);
+    });
+
+    it('lists only 30 fps options at or below 720p30', () => {
+      expect(streamLayerOptions({ height: 720, fps: 30 })).toEqual([
+        { height: 480, fps: 30 },
+        { height: 360, fps: 30 },
+        { height: 160, fps: 30 },
+      ]);
+    });
+
+    it('lists only 160p15 below 360p15', () => {
+      expect(streamLayerOptions({ height: 360, fps: 15 })).toEqual([
+        { height: 160, fps: 15 },
+      ]);
     });
   });
 
-  describe('clampStreamLayers', () => {
+  describe('defaultExtraLayers', () => {
     it.each([
-      [3, 360, 2],
-      [3, 720, 3],
-      [1, 1080, 1],
-      [2, 200, 1],
-      [9, 1080, 3],
-    ])('clamps %i layers at height %i to %i', (layers, height, expected) => {
-      expect(clampStreamLayers(layers, height)).toBe(expected);
+      [{ height: 1080, fps: 60 }, [{ height: 720, fps: 60 }]],
+      [{ height: 1080, fps: 30 }, [{ height: 720, fps: 30 }]],
+      [{ height: 720, fps: 60 }, [{ height: 480, fps: 60 }]],
+      [{ height: 720, fps: 15 }, [{ height: 480, fps: 15 }]],
+      [{ height: 480, fps: 30 }, [{ height: 360, fps: 30 }]],
+      [{ height: 360, fps: 15 }, [{ height: 160, fps: 15 }]],
+      [{ height: 160, fps: 30 }, []],
+    ])('default for %j is %j', (max, expected) => {
+      expect(defaultExtraLayers(max)).toEqual(expected);
+    });
+  });
+
+  describe('sortStreamLayers and formatStreamLayer', () => {
+    it('sorts low to high and formats 720p30', () => {
+      expect(
+        sortStreamLayers([
+          { height: 1080, fps: 60 },
+          { height: 1080, fps: 30 },
+          { height: 720, fps: 60 },
+        ]),
+      ).toEqual([
+        { height: 720, fps: 60 },
+        { height: 1080, fps: 30 },
+        { height: 1080, fps: 60 },
+      ]);
+      expect(formatStreamLayer({ height: 720, fps: 30 })).toBe('720p30');
+    });
+  });
+
+  describe('resolveStreamLayers', () => {
+    it('drops layers above the capture height and invalid entries, then sorts', () => {
+      expect(
+        resolveStreamLayers({
+          max: { height: 1080, fps: 60 },
+          extra: [
+            { height: 720, fps: 60 },
+            { height: 999, fps: 30 },
+            { height: 480, fps: 30 },
+            { height: 480, fps: 30 },
+            { height: 360, fps: 30 },
+            { height: 160, fps: 30 },
+          ],
+          sourceHeight: 700,
+        }),
+      ).toEqual([
+        { height: 360, fps: 30 },
+        { height: 480, fps: 30 },
+        { height: 700, fps: 60 },
+      ]);
+    });
+
+    it('keeps a same-height lower fps layer', () => {
+      expect(
+        resolveStreamLayers({
+          max: { height: 1080, fps: 60 },
+          extra: [{ height: 1080, fps: 30 }],
+          sourceHeight: 1080,
+        }),
+      ).toEqual([
+        { height: 1080, fps: 30 },
+        { height: 1080, fps: 60 },
+      ]);
     });
   });
 
   describe('computeSimulcastLayers', () => {
-    const heights = [360, 720, 1080] as const;
-
-    it.each(heights)('plans %i layers worth of scales at %ip', (height) => {
-      const maxLayers = maxStreamLayersForHeight(height);
-      for (let layers = 1; layers <= maxLayers; layers += 1) {
+    it.each([1, 2, 3])(
+      'keeps the bitrate sum within budget for %i layers',
+      (count) => {
+        const presets = [
+          { height: 360, fps: 30 },
+          { height: 720, fps: 30 },
+          { height: 1080, fps: 30 },
+        ];
+        const layers = presets.slice(3 - count);
+        const budget = 2_500_000;
         const plan = computeSimulcastLayers({
-          height,
-          fps: 30,
-          contentMode: 'motion',
+          sourceHeight: 1080,
           layers,
-          maxBitrateBps: 2_500_000,
+          contentMode: 'motion',
+          maxBitrateBps: budget,
         });
-        expect(plan).toHaveLength(layers);
-        expect(plan[0]?.scaleResolutionDownBy).toBe(2 ** (layers - 1));
-        expect(plan[layers - 1]?.scaleResolutionDownBy).toBe(1);
-        expect(plan[layers - 1]?.height).toBe(height);
+        expect(plan).toHaveLength(count);
         const sum = plan.reduce((total, layer) => total + layer.maxBitrate, 0);
-        expect(sum).toBeLessThanOrEqual(2_500_000);
+        expect(sum).toBeLessThanOrEqual(budget);
+        expect(sum).toBe(budget);
         for (const layer of plan.slice(0, -1)) {
           expect(layer.maxBitrate).toBeGreaterThanOrEqual(
             MIN_LAYER_BITRATE_BPS,
           );
         }
-      }
-    });
-
-    it.each([
-      ['motion', 4, 30],
-      ['motion', 2, 30],
-      ['detail', 4, 10],
-      ['detail', 2, 15],
-    ] as const)(
-      '%s scale %i uses %i fps when the source is 60',
-      (contentMode: TStreamContentMode, scale, fps) => {
-        const plan = computeSimulcastLayers({
-          height: 1080,
-          fps: 60,
-          contentMode,
-          layers: 3,
-          maxBitrateBps: 5_000_000,
-        });
-        const layer = plan.find((item) => item.scaleResolutionDownBy === scale);
-        expect(layer?.maxFramerate).toBe(fps);
-        expect(plan[2]?.maxFramerate).toBe(60);
       },
     );
-
-    it('gives the top layer the source fps', () => {
-      const plan = computeSimulcastLayers({
-        height: 720,
-        fps: 15,
-        contentMode: 'detail',
-        layers: 2,
-        maxBitrateBps: 1_000_000,
-      });
-      expect(plan[1]?.maxFramerate).toBe(15);
-      expect(plan[0]?.maxFramerate).toBe(15);
-    });
 
     it('splits a tiny budget equally', () => {
       const budget = 150_000;
       const plan = computeSimulcastLayers({
-        height: 1080,
-        fps: 30,
+        sourceHeight: 1080,
+        layers: [
+          { height: 360, fps: 30 },
+          { height: 720, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
         contentMode: 'motion',
-        layers: 3,
         maxBitrateBps: budget,
       });
       const sum = plan.reduce((total, layer) => total + layer.maxBitrate, 0);
@@ -109,22 +155,36 @@ describe('stream-layers', () => {
       expect(new Set(plan.map((layer) => layer.maxBitrate)).size).toBe(1);
     });
 
-    it('keeps a single layer inside the budget', () => {
+    it('uses a non-integer scale from 1080 to 720', () => {
       const plan = computeSimulcastLayers({
-        height: 720,
-        fps: 30,
+        sourceHeight: 1080,
+        layers: [
+          { height: 720, fps: 60 },
+          { height: 1080, fps: 60 },
+        ],
         contentMode: 'motion',
-        layers: 1,
-        maxBitrateBps: 800_000,
+        maxBitrateBps: 8_000_000,
       });
-      expect(plan).toEqual([
-        {
-          scaleResolutionDownBy: 1,
-          height: 720,
-          maxFramerate: 30,
-          maxBitrate: 800_000,
-        },
-      ]);
+      expect(plan[0]?.scaleResolutionDownBy).toBe(1.5);
+      expect(plan[1]?.scaleResolutionDownBy).toBe(1);
+      expect(plan[0]?.maxFramerate).toBe(60);
+      expect(plan[1]?.maxFramerate).toBe(60);
+    });
+
+    it('gives equal heights scale 1 and orders the lower fps first', () => {
+      const plan = computeSimulcastLayers({
+        sourceHeight: 1080,
+        layers: [
+          { height: 1080, fps: 30 },
+          { height: 1080, fps: 60 },
+        ],
+        contentMode: 'detail',
+        maxBitrateBps: 8_000_000,
+      });
+      expect(plan.map((layer) => layer.fps)).toEqual([30, 60]);
+      expect(plan.every((layer) => layer.scaleResolutionDownBy === 1)).toBe(
+        true,
+      );
     });
   });
 
@@ -158,6 +218,43 @@ describe('stream-layers', () => {
           maxKbps: 100_000,
         }),
       ).toBeGreaterThanOrEqual(STREAM_BITRATE_SLIDER_MIN_KBPS);
+    });
+
+    it('sums the published layers and clamps the total', () => {
+      const alone = recommendStreamBitrateKbps({
+        height: 1080,
+        fps: 60,
+        contentMode: 'motion',
+        maxKbps: 100_000,
+      });
+      expect(alone).toBe(8750);
+      expect(
+        recommendStreamBitrateKbps({
+          height: 1080,
+          fps: 60,
+          contentMode: 'motion',
+          maxKbps: 100_000,
+          extra: [{ height: 1080, fps: 30 }],
+        }),
+      ).toBe(15_000);
+      expect(
+        recommendStreamBitrateKbps({
+          height: 1080,
+          fps: 60,
+          contentMode: 'motion',
+          maxKbps: 10_000,
+          extra: [{ height: 1080, fps: 30 }],
+        }),
+      ).toBe(10_000);
+      expect(
+        recommendStreamBitrateKbps({
+          height: 1080,
+          fps: 60,
+          contentMode: 'motion',
+          maxKbps: 100_000,
+          extra: [{ height: 999, fps: 30 }],
+        }),
+      ).toBe(alone);
     });
   });
 });
