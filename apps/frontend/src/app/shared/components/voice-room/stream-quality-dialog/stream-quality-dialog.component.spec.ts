@@ -140,6 +140,10 @@ describe('StreamQualityDialogComponent', () => {
     component['height'].set(1080);
     fixture.detectChanges();
     expect(component['extraLayers']()).toEqual([{ height: 720, fps: 60 }]);
+
+    component['fps'].set(30);
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
   });
 
   it('renders the content radio only for screen share', async () => {

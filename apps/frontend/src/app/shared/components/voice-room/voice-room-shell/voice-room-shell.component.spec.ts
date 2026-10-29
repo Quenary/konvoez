@@ -9,7 +9,7 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
-import { TuiNotificationService } from '@taiga-ui/core';
+import { TuiNotificationService, provideTaiga } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { SettingsStore } from '@core/stores/settings.store';
 import { RoomManageService } from '@features/rooms/room-manage.service';
@@ -57,6 +57,21 @@ describe('VoiceRoomShellComponent', () => {
       roomId: 1,
     });
 
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }),
+    });
+
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -75,6 +90,7 @@ describe('VoiceRoomShellComponent', () => {
       imports: [VoiceRoomShellComponent],
       providers: [
         provideTranslateService(),
+        provideTaiga(),
         VoiceRoomViewService,
         {
           provide: Store,
