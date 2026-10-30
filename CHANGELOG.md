@@ -1,3 +1,19 @@
+## 1.27.0 (2026-10-30)
+
+### Features
+
+- **voice:** simulcast streams with viewer quality selection ([#52](https://github.com/Quenary/konvoez/issues/52), [#53](https://github.com/Quenary/konvoez/issues/53), [#54](https://github.com/Quenary/konvoez/issues/54))
+
+### Bug Fixes
+
+- **frontend:** improve disposal handling in DeepFilterNet worklet ([603419d](https://github.com/Quenary/konvoez/commit/603419d))
+- **frontend:** voice leave handling from side panel ([5fa67db](https://github.com/Quenary/konvoez/commit/5fa67db))
+
+### Code Refactoring
+
+- **frontend:** chat appearance ([1644bb1](https://github.com/Quenary/konvoez/commit/1644bb1))
+- **frontend:** chat message menu as dialog on narrow screens ([1d121a7](https://github.com/Quenary/konvoez/commit/1d121a7))
+
 ## 1.26.0 (2026-10-28)
 
 ### Features
