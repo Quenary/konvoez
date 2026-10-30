@@ -1084,10 +1084,25 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: {},
+        rtpParameters: { encodings: [{}, {}] },
+        layers: [
+          { height: 360, fps: 30 },
+          { height: 720, fps: 30 },
+        ],
       });
 
       expect(result.producerId).toBe('cam-1');
+      expect(sendTransport.produce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appData: expect.objectContaining({
+            mediaTag: 'cam',
+            layers: [
+              { height: 360, fps: 30 },
+              { height: 720, fps: 30 },
+            ],
+          }),
+        }),
+      );
       expect(peer.producers.get('cam-1')).toBe(producer);
       expect(room.producers.get('cam-1')).toBe(producer);
       expect(toEmit).toHaveBeenCalledWith(
@@ -1106,6 +1121,37 @@ describe('VoiceRoomsGateway', () => {
         producerId: 'cam-1',
         userId: alice.id,
       });
+    });
+
+    it('rejects layers on audio and a video encoding count mismatch', async () => {
+      const { room, sendTransport } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+
+      await expect(
+        gateway.produce(socket as never, {
+          transportId: 't',
+          kind: 'audio',
+          mediaTag: 'mic',
+          rtpParameters: {},
+          layers: [{ height: 720, fps: 30 }],
+        }),
+      ).rejects.toBeInstanceOf(AppException);
+      expect(sendTransport.produce).not.toHaveBeenCalled();
+
+      await expect(
+        gateway.produce(socket as never, {
+          transportId: 't',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: { encodings: [{}] },
+          layers: [
+            { height: 360, fps: 30 },
+            { height: 720, fps: 30 },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(AppException);
+      expect(sendTransport.produce).not.toHaveBeenCalled();
     });
 
     it('subscribes to producer score for mic and emits minimum score to owner socket only', async () => {
@@ -1341,6 +1387,150 @@ describe('VoiceRoomsGateway', () => {
       expect(consumer.close).not.toHaveBeenCalled();
       expect(peer.consumers.has('c1')).toBe(true);
       expect(peer.consumers.size).toBe(1);
+    });
+  });
+
+  describe('setConsumerLayers', () => {
+    const socketFor = () => {
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      socket.rooms.add('room:1');
+      return socket;
+    };
+
+    it('sets preferred layers for a simulcast consumer owned by the peer', async () => {
+      const setPreferredLayers = jest.fn().mockResolvedValue(undefined);
+      const consumer = { id: 'c1', type: 'simulcast', setPreferredLayers };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+
+      await expect(
+        gateway.setConsumerLayers(socketFor() as never, {
+          consumerId: 'c1',
+          spatialLayer: 1,
+        }),
+      ).resolves.toEqual({});
+      expect(setPreferredLayers).toHaveBeenCalledWith({ spatialLayer: 1 });
+    });
+
+    it('ignores an unknown consumer, a simple consumer, and another peer', async () => {
+      const setPreferredLayers = jest.fn();
+      const consumer = { id: 'c1', type: 'simple', setPreferredLayers };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+      const socket = socketFor();
+
+      await expect(
+        gateway.setConsumerLayers(socket as never, {
+          consumerId: 'missing',
+          spatialLayer: 0,
+        }),
+      ).resolves.toEqual({});
+      await expect(
+        gateway.setConsumerLayers(socket as never, {
+          consumerId: 'c1',
+          spatialLayer: 0,
+        }),
+      ).resolves.toEqual({});
+      expect(setPreferredLayers).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('pauseConsumer and resumeConsumer', () => {
+    const socketFor = () => {
+      const socket = createSocket({
+        data: { user: alice, sessionKey: 'room:1', roomId: 1 },
+      });
+      socket.rooms.add('room:1');
+      return socket;
+    };
+
+    it('pauses and resumes the calling peer consumer and requests a keyframe for video', async () => {
+      const pause = jest.fn().mockResolvedValue(undefined);
+      const resume = jest.fn().mockResolvedValue(undefined);
+      const requestKeyFrame = jest.fn().mockResolvedValue(undefined);
+      const video = { id: 'c1', kind: 'video', pause, resume, requestKeyFrame };
+      const audio = {
+        id: 'c2',
+        kind: 'audio',
+        pause,
+        resume,
+        requestKeyFrame,
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map<string, unknown>([
+          ['c1', video],
+          ['c2', audio],
+        ]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+      const socket = socketFor();
+
+      await expect(
+        gateway.pauseConsumer(socket as never, { consumerId: 'c1' }),
+      ).resolves.toEqual({});
+      expect(pause).toHaveBeenCalledTimes(1);
+
+      await expect(
+        gateway.resumeConsumer(socket as never, { consumerId: 'c1' }),
+      ).resolves.toEqual({});
+      expect(resume).toHaveBeenCalledTimes(1);
+      expect(requestKeyFrame).toHaveBeenCalledTimes(1);
+
+      await gateway.resumeConsumer(socket as never, { consumerId: 'c2' });
+      expect(requestKeyFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores an unknown consumer and another peer', async () => {
+      const pause = jest.fn();
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+      };
+      const other = {
+        id: 'socket-2',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c-other', { pause }]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(
+          new Map<string, unknown>([
+            ['socket-1', peer],
+            ['socket-2', other],
+          ]),
+        ),
+      );
+
+      await expect(
+        gateway.pauseConsumer(socketFor() as never, { consumerId: 'c-other' }),
+      ).resolves.toEqual({});
+      await expect(
+        gateway.resumeConsumer(socketFor() as never, { consumerId: 'missing' }),
+      ).resolves.toEqual({});
+      expect(pause).not.toHaveBeenCalled();
     });
   });
 
@@ -1629,6 +1819,42 @@ describe('VoiceRoomsGateway', () => {
         mediaTag: 'mic',
         rtpParameters: {},
       });
+      expect(recvTransport.consume).toHaveBeenCalledWith(
+        expect.not.objectContaining({ paused: true }),
+      );
+      producer.kind = 'video';
+      producer.appData = {
+        mediaTag: 'cam',
+        layers: [
+          { height: 720, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      };
+      room.producers.set('p1', producer as never);
+      recvTransport.consume.mockImplementation(
+        async (options: { appData: { mediaTag: string } }) => {
+          consumer.appData = options.appData;
+          consumer.kind = 'video';
+          return consumer;
+        },
+      );
+      const videoResult = await gateway.consume(socket as never, {
+        transportId: 't',
+        producerId: 'p1',
+        rtpCapabilities: {} as never,
+      });
+      expect(recvTransport.consume).toHaveBeenLastCalledWith(
+        expect.objectContaining({ paused: true }),
+      );
+      expect(videoResult).toEqual(
+        expect.objectContaining({
+          layers: [
+            { height: 720, fps: 30 },
+            { height: 1080, fps: 30 },
+          ],
+          mediaTag: 'cam',
+        }),
+      );
       expect(peer.consumers.get('c1')).toBe(consumer);
     });
   });

@@ -116,9 +116,9 @@ export class App {
     return invites || users || roles || settings;
   });
 
-  protected readonly collapsed = linkedSignal(() =>
-    this.layoutService.isNarrow(),
-  );
+  protected readonly isNarrow = this.layoutService.isNarrow;
+
+  protected readonly collapsed = linkedSignal(this.isNarrow);
 
   protected readonly versionInfo = rxResource({
     stream: () =>
@@ -138,8 +138,7 @@ export class App {
     effect(() => {
       this.navigationEnd();
       untracked(() => {
-        const isNarrow = this.layoutService.isNarrow();
-        if (isNarrow) {
+        if (this.isNarrow()) {
           this.collapsed.set(true);
         }
       });

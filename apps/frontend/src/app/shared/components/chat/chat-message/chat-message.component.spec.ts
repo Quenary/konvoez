@@ -7,7 +7,7 @@ import { UsersStore } from '@core/stores/users.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { computed, signal, Sanitizer } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, Subscription, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
@@ -19,6 +19,7 @@ import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.sto
 import { IOutgoingMessage } from '@core/chat/outgoing/outgoing.types';
 import { RolesStore } from '@core/stores/roles.store';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
+import { LayoutService } from '@core/services/layout.service';
 
 function dispatchSecondClick(
   target: EventTarget,
@@ -68,6 +69,10 @@ describe('ChatMessageComponent', () => {
   const mockDialogService = {
     open: vi.fn(() => of(undefined)),
   };
+  const isNarrowSignal = signal(false);
+  const mockLayoutService = {
+    isNarrow: isNarrowSignal,
+  };
   const mockChatApi = {
     getReaders: vi.fn(() => of<IUserSafe[]>([])),
     markRead: vi.fn(() => of(undefined)),
@@ -107,6 +112,7 @@ describe('ChatMessageComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    isNarrowSignal.set(false);
     uploadProgress.set({});
     mockUsersStore.entityMap.set({});
 
@@ -157,6 +163,7 @@ describe('ChatMessageComponent', () => {
           provide: TuiResponsiveDialogService,
           useValue: mockDialogService,
         },
+        { provide: LayoutService, useValue: mockLayoutService },
         { provide: ChatApiService, useValue: mockChatApi },
         {
           provide: MessageReadQueueService,
@@ -168,6 +175,7 @@ describe('ChatMessageComponent', () => {
     fixture = TestBed.createComponent(ChatMessageComponent);
     fixture.componentRef.setInput('message', testMessage);
     component = fixture.componentInstance;
+
     await fixture.whenStable();
   });
 
@@ -586,9 +594,121 @@ describe('ChatMessageComponent', () => {
       fixture.detectChanges();
 
       const el: HTMLElement = fixture.nativeElement;
-      const reactionsEl = el.querySelector('app-chat-message-reactions');
+      const reactionsEl = el.querySelector(
+        '.message-bubble-footer app-chat-message-reactions',
+      );
       expect(reactionsEl).not.toBeNull();
     });
+  });
+
+  describe('sender chrome', () => {
+    it.each([
+      {
+        name: 'own room message',
+        senderId: 1,
+        roomId: 1 as number | null,
+        recipientId: null as number | null,
+        visible: false,
+      },
+      {
+        name: 'another person room message',
+        senderId: 2,
+        roomId: 1 as number | null,
+        recipientId: null as number | null,
+        visible: true,
+      },
+      {
+        name: 'own direct message',
+        senderId: 1,
+        roomId: null as number | null,
+        recipientId: 2 as number | null,
+        visible: false,
+      },
+      {
+        name: 'another person direct message',
+        senderId: 2,
+        roomId: null as number | null,
+        recipientId: 1 as number | null,
+        visible: false,
+      },
+    ])('$name', ({ senderId, roomId, recipientId, visible }) => {
+      TestBed.inject(Store).dispatch(
+        AuthActions.requestLoginSuccess({ user: currentUser }),
+      );
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        senderId,
+        senderUsername: senderId === 1 ? 'alice' : 'bob',
+        roomId,
+        recipientId,
+      });
+      fixture.detectChanges();
+
+      const el: HTMLElement = fixture.nativeElement;
+      const avatar = el.querySelector('app-user-avatar.message-sender');
+      const username = el.querySelector('.message-body-header-username');
+      if (visible) {
+        expect(avatar).not.toBeNull();
+        expect(username?.textContent?.trim()).toBe('bob');
+      } else {
+        expect(avatar).toBeNull();
+        expect(username).toBeNull();
+      }
+    });
+
+    it.each([
+      {
+        series: 'single' as const,
+        avatar: true,
+        username: true,
+        slot: false,
+      },
+      {
+        series: 'first' as const,
+        avatar: false,
+        username: true,
+        slot: true,
+      },
+      {
+        series: 'middle' as const,
+        avatar: false,
+        username: false,
+        slot: true,
+      },
+      {
+        series: 'last' as const,
+        avatar: true,
+        username: false,
+        slot: false,
+      },
+    ])(
+      'places sender chrome for a $series room message',
+      ({ series, avatar, username, slot }) => {
+        TestBed.inject(Store).dispatch(
+          AuthActions.requestLoginSuccess({ user: currentUser }),
+        );
+        fixture.componentRef.setInput('message', {
+          ...testMessage,
+          senderId: 2,
+          senderUsername: 'bob',
+          roomId: 1,
+          recipientId: null,
+        });
+        fixture.componentRef.setInput('series', series);
+        fixture.detectChanges();
+
+        const el: HTMLElement = fixture.nativeElement;
+        expect(
+          el.querySelector('app-user-avatar.message-sender') !== null,
+        ).toBe(avatar);
+        expect(el.querySelector('.message-body-header-username') !== null).toBe(
+          username,
+        );
+        expect(el.querySelector('.message-sender-placeholder') !== null).toBe(
+          slot,
+        );
+      },
+    );
   });
 
   describe('mentions', () => {
@@ -820,6 +940,291 @@ describe('ChatMessageComponent', () => {
       dispatchSecondClick(host, 'touch');
 
       expect(mockChatStore.setReplyToMessageId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('message menu', () => {
+    async function flushMenuTeardown(): Promise<void> {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    function renderMenu(): HTMLElement {
+      const template = component['menuTemplateRef']();
+      expect(template).toBeTruthy();
+      if (!template) {
+        throw new Error('menu template missing');
+      }
+      const view = template.createEmbeddedView({
+        $implicit: () => undefined,
+      });
+      view.detectChanges();
+      const root = document.createElement('div');
+      for (const node of view.rootNodes) {
+        if (node instanceof HTMLElement) {
+          root.appendChild(node);
+        }
+      }
+      return root;
+    }
+
+    it('shows a non-interactive message preview only in the narrow menu', () => {
+      const reply = {
+        id: 'target-1',
+        senderId: 2,
+        senderUsername: 'bob',
+        content: 'quoted',
+        isDeleted: false,
+      };
+      fixture.componentRef.setInput('message', {
+        ...testMessage,
+        content: '<p>Selectable text</p>',
+        reactions: [{ emoji: '👍', count: 1, userIds: [2] }],
+        replyTo: reply,
+        attachments: [
+          {
+            id: 'att-1',
+            kind: 'FILE',
+            name: 'a.txt',
+            mime: 'text/plain',
+            size: 1,
+            width: null,
+            height: null,
+            durationMs: null,
+            url: '/api/v1/attachments/att-1/content',
+            thumbnailUrl: null,
+          },
+        ],
+      });
+
+      isNarrowSignal.set(false);
+      fixture.detectChanges();
+      const wide = renderMenu();
+      expect(wide.querySelector('.message-menu-preview')).toBeNull();
+
+      isNarrowSignal.set(true);
+      fixture.detectChanges();
+      const narrow = renderMenu();
+      const preview = narrow.querySelector('.message-menu-preview');
+      expect(preview).not.toBeNull();
+      expect(preview?.textContent).toContain('Selectable text');
+      expect(preview?.textContent).toContain('quoted');
+      expect(preview?.querySelector('app-chat-message-reactions')).toBeNull();
+      expect(
+        preview?.querySelector('.message-reply')?.getAttribute('role'),
+      ).toBe(null);
+      expect(
+        preview
+          ?.querySelector('app-chat-message-attachments')
+          ?.parentElement?.hasAttribute('inert'),
+      ).toBe(true);
+      expect(
+        fixture.nativeElement
+          .querySelector('.message-body app-chat-message-attachments')
+          ?.parentElement?.hasAttribute('inert'),
+      ).toBe(false);
+
+      mockChatStore.jumpToMessage.mockClear();
+      preview
+        ?.querySelector('.message-reply')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(mockChatStore.jumpToMessage).not.toHaveBeenCalled();
+    });
+
+    it('keeps the context menu directive and does not open a dialog on a wide screen', () => {
+      isNarrowSignal.set(false);
+      fixture.detectChanges();
+
+      const body = fixture.nativeElement.querySelector('.message-body');
+      expect(body?.hasAttribute('tuiDropdownContext')).toBe(true);
+
+      const event = new CustomEvent('longtap', { cancelable: true });
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+      component['onLongTap'](event);
+
+      expect(preventDefaultSpy).not.toHaveBeenCalled();
+      expect(mockDialogService.open).not.toHaveBeenCalled();
+    });
+
+    it('opens a dialog on a narrow screen when longtap is triggered', () => {
+      isNarrowSignal.set(true);
+      fixture.detectChanges();
+      const event = new CustomEvent('longtap', { cancelable: true });
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+      component['onLongTap'](event);
+
+      expect(preventDefaultSpy).toHaveBeenCalledOnce();
+      expect(mockDialogService.open).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ size: 's' }),
+      );
+      expect(component['menuDialogSub']).not.toBeNull();
+    });
+
+    it('does not open a second dialog while one is already open', () => {
+      isNarrowSignal.set(true);
+      fixture.detectChanges();
+      mockDialogService.open.mockReturnValue(of(undefined));
+
+      component['onLongTap'](new CustomEvent('longtap'));
+      expect(mockDialogService.open).toHaveBeenCalledTimes(1);
+
+      component['onLongTap'](new CustomEvent('longtap'));
+      expect(mockDialogService.open).toHaveBeenCalledTimes(1);
+    });
+
+    it('finishes only the menu modal and leaves inert on the app root', () => {
+      const root = document.createElement('tui-root');
+      const appContainer = document.createElement('div');
+      appContainer.setAttribute('inert', '');
+      root.appendChild(appContainer);
+      document.body.appendChild(root);
+
+      const menuModal = document.createElement('tui-modal');
+      const finishMenu = vi.fn();
+      menuModal.getAnimations = () =>
+        [{ finish: finishMenu }] as unknown as Animation[];
+      const otherModal = document.createElement('tui-modal');
+      const finishOther = vi.fn();
+      otherModal.getAnimations = () =>
+        [{ finish: finishOther }] as unknown as Animation[];
+      document.body.appendChild(menuModal);
+      document.body.appendChild(otherModal);
+
+      const unsubscribeSpy = vi.fn();
+      component['menuDialogSub'] = {
+        unsubscribe: unsubscribeSpy,
+      } as unknown as Subscription;
+      component['menuModal'] = menuModal;
+
+      void component['afterMenuDialog']();
+
+      expect(unsubscribeSpy).toHaveBeenCalledOnce();
+      expect(component['menuDialogSub']).toBeNull();
+      expect(finishMenu).toHaveBeenCalledOnce();
+      expect(finishOther).not.toHaveBeenCalled();
+      expect(appContainer.hasAttribute('inert')).toBe(true);
+
+      menuModal.remove();
+      otherModal.remove();
+      root.remove();
+    });
+
+    function openMenuModal(): HTMLElement {
+      const modal = document.createElement('tui-modal');
+      document.body.appendChild(modal);
+      component['menuModal'] = modal;
+      component['menuDialogSub'] = {
+        unsubscribe: () => modal.remove(),
+      } as unknown as Subscription;
+      return modal;
+    }
+
+    it('focuses the composer only after the menu modal is removed on reply', async () => {
+      const modal = openMenuModal();
+      const editor = document.createElement('div');
+      editor.tabIndex = -1;
+      document.body.appendChild(editor);
+      const detach = TestBed.inject(ComposerFocusService).attach(editor);
+
+      component['replyMessage']();
+
+      expect(document.activeElement).not.toBe(editor);
+
+      await flushMenuTeardown();
+
+      expect(modal.isConnected).toBe(false);
+      expect(document.activeElement).toBe(editor);
+
+      detach();
+      editor.remove();
+    });
+
+    it('does not focus the composer while the menu modal is still open', async () => {
+      const modal = document.createElement('tui-modal');
+      document.body.appendChild(modal);
+      component['menuModal'] = modal;
+      component['menuDialogSub'] = {
+        unsubscribe: () => undefined,
+      } as unknown as Subscription;
+
+      const editor = document.createElement('div');
+      editor.tabIndex = -1;
+      document.body.appendChild(editor);
+      const detach = TestBed.inject(ComposerFocusService).attach(editor);
+
+      component['replyMessage']();
+      await flushMenuTeardown();
+
+      expect(document.activeElement).not.toBe(editor);
+
+      modal.remove();
+      await flushMenuTeardown();
+
+      expect(document.activeElement).toBe(editor);
+
+      detach();
+      editor.remove();
+    });
+
+    it('focuses the composer only after the menu modal is removed on edit', async () => {
+      openMenuModal();
+      const editor = document.createElement('div');
+      editor.tabIndex = -1;
+      document.body.appendChild(editor);
+      const detach = TestBed.inject(ComposerFocusService).attach(editor);
+
+      component['editMessage']();
+
+      expect(document.activeElement).not.toBe(editor);
+
+      await flushMenuTeardown();
+
+      expect(document.activeElement).toBe(editor);
+
+      detach();
+      editor.remove();
+    });
+
+    it('opens the readers dialog only after the menu modal is removed', async () => {
+      const modal = openMenuModal();
+      const template = {};
+
+      component['onViewReaders'](undefined, template);
+
+      expect(mockDialogService.open).not.toHaveBeenCalled();
+
+      await flushMenuTeardown();
+
+      expect(modal.isConnected).toBe(false);
+      expect(mockDialogService.open).toHaveBeenCalledWith(
+        template,
+        expect.objectContaining({ size: 's' }),
+      );
+    });
+
+    it('closes a dropdown through the template close function', () => {
+      const close = vi.fn();
+
+      component['replyMessage'](close);
+
+      expect(close).toHaveBeenCalledOnce();
+      expect(mockChatStore.setReplyToMessageId).toHaveBeenCalledWith('msg-1');
+    });
+
+    it('unsubscribes from the dialog on destroy', () => {
+      const unsubscribeSpy = vi.fn();
+      component['menuDialogSub'] = {
+        unsubscribe: unsubscribeSpy,
+      } as unknown as Subscription;
+
+      component.ngOnDestroy();
+
+      expect(unsubscribeSpy).toHaveBeenCalledOnce();
+      expect(component['menuDialogSub']).toBeNull();
     });
   });
 });

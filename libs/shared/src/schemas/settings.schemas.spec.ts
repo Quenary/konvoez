@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
   DEFAULT_VOICE_MAX_BITRATE_KBPS,
   ESettingKey,
   SCHEMA_ERROR,
   settingItemUpdateSchema,
   settingSchema,
+  streamMaxBitrateKbpsSettingValueSchema,
   voiceMaxBitrateKbpsSettingSchema,
   voiceMaxBitrateKbpsSettingValueSchema,
 } from '../index';
@@ -78,6 +80,54 @@ describe('Settings Schemas', () => {
         value: 96,
       });
       expect(parsed.success).toBe(true);
+    });
+  });
+
+  describe('streamMaxBitrateKbpsSettingValueSchema', () => {
+    it.each([1000, 10000, 15000, 100000])(
+      'accepts valid stream bitrate value %d',
+      (val) => {
+        const result = streamMaxBitrateKbpsSettingValueSchema.safeParse(val);
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data).toBe(val);
+        }
+      },
+    );
+
+    it.each([999, 100001, 0, -10, 10000.5, '10000', null, undefined, NaN])(
+      'rejects invalid stream bitrate value %s',
+      (val) => {
+        const result = streamMaxBitrateKbpsSettingValueSchema.safeParse(val);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0]?.message).toBe(
+            SCHEMA_ERROR.STREAM_MAX_BITRATE_RANGE,
+          );
+        }
+      },
+    );
+
+    it('has default 20000', () => {
+      expect(DEFAULT_STREAM_MAX_BITRATE_KBPS).toBe(20000);
+    });
+
+    it('parses stream max bitrate from the setting unions', () => {
+      expect(
+        settingSchema.safeParse({
+          key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+          value: 20000,
+          envLocked: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+        }).success,
+      ).toBe(true);
+      expect(
+        settingItemUpdateSchema.safeParse({
+          key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+          value: 20000,
+        }).success,
+      ).toBe(true);
     });
   });
 });

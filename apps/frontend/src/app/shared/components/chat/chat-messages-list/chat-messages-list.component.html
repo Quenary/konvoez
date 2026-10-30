@@ -9,7 +9,9 @@
   tabindex="0"
   (wheel)="onWheel($event)"
   (keydown)="onKeydown($event)">
-  <div class="viewport">
+  <div
+    class="viewport"
+    [class.viewport-room]="roomChat()">
     <div
       class="sizer"
       [style.height.px]="totalSize()">
@@ -26,6 +28,7 @@
               appIsVisible
               [appIsVisibleRoot]="scrollContainer"
               [message]="row.message"
+              [series]="row.series"
               (appIsVisible)="onMessageVisibility(row.message, $event)" />
           } @else if (row?.kind === 'divider') {
             <app-chat-system-item id="unread-divider">

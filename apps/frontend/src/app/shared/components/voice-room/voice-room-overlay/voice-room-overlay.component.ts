@@ -4,7 +4,6 @@ import {
   computed,
   inject,
   input,
-  output,
   TemplateRef,
 } from '@angular/core';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
@@ -69,7 +68,6 @@ export class VoiceRoomOverlayComponent {
   public readonly fullscreenTarget = input<HTMLElement | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
   public readonly withHide = input<boolean>(false);
-  public readonly left = output<void>();
 
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly layout = this.voiceRoomViewService.layout;
@@ -117,10 +115,6 @@ export class VoiceRoomOverlayComponent {
   }
 
   protected async onHangup(): Promise<void> {
-    // Emit before leave: leave clears activeSession mid-await, which resets
-    // the layout to grid and re-creates the projected overlay, destroying this
-    // instance. Emitting after await would drop navigation to `/`.
-    this.left.emit();
-    await this.voiceLeaveService.leaveActiveVoice();
+    await this.voiceLeaveService.leaveFromVoiceUi();
   }
 }

@@ -24,7 +24,7 @@ import { VoiceRoomPanelComponent } from './voice-room-panel.component';
 describe('VoiceRoomPanelComponent', () => {
   let router: { navigate: ReturnType<typeof vi.fn> };
   let roomNavigationService: { selectRoom: ReturnType<typeof vi.fn> };
-  let voiceLeaveService: { leaveActiveVoice: ReturnType<typeof vi.fn> };
+  let voiceLeaveService: { leaveFromVoiceUi: ReturnType<typeof vi.fn> };
   let voiceSessionService: {
     stopCamera: ReturnType<typeof vi.fn>;
     stopScreen: ReturnType<typeof vi.fn>;
@@ -53,7 +53,7 @@ describe('VoiceRoomPanelComponent', () => {
     router = { navigate: vi.fn().mockResolvedValue(true) };
     roomNavigationService = { selectRoom: vi.fn() };
     voiceLeaveService = {
-      leaveActiveVoice: vi.fn().mockResolvedValue(undefined),
+      leaveFromVoiceUi: vi.fn().mockResolvedValue(undefined),
     };
     voiceSessionService = {
       stopCamera: vi.fn().mockResolvedValue(undefined),
@@ -292,7 +292,7 @@ describe('VoiceRoomPanelComponent', () => {
     const { instance } = createComponent();
 
     instance['leaveSession']();
-    expect(voiceLeaveService.leaveActiveVoice).toHaveBeenCalledTimes(1);
+    expect(voiceLeaveService.leaveFromVoiceUi).toHaveBeenCalledTimes(1);
 
     instance['toggleMicrophoneMuted']();
     expect(toggleMicrophoneMuted).toHaveBeenCalledTimes(1);

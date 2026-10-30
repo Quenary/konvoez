@@ -763,6 +763,18 @@ describe('ChatMessagesListComponent', () => {
       expect(badge?.textContent?.trim()).toBe('5');
     });
 
+    it('drops the start inset in a room and keeps it in a direct chat', async () => {
+      const viewport = (): HTMLElement =>
+        fixture.nativeElement.querySelector('.viewport');
+
+      expect(viewport().classList.contains('viewport-room')).toBe(true);
+
+      mockChatStore.target.set({ kind: 'direct', id: 2 });
+      await settle();
+
+      expect(viewport().classList.contains('viewport-room')).toBe(false);
+    });
+
     it('shows the unread count of the active direct chat', async () => {
       await scrollAway();
       mockChatStore.target.set({ kind: 'direct', id: 2 });

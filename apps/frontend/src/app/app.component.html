@@ -146,7 +146,9 @@
         </footer>
       </aside>
 
-      <main tuiNavigationMain>
+      <main
+        tuiNavigationMain
+        [class.narrow]="isNarrow()">
         <router-outlet></router-outlet>
       </main>
     </div>

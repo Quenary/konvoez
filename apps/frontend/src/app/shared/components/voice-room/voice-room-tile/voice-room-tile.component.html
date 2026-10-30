@@ -137,15 +137,6 @@
                   appearance="primary"
                   size="s"
                   type="button"
-                  [iconStart]="icons['gallery-horizontal']"
-                  (click)="onOpenTheatreClick()">
-                </button>
-
-                <button
-                  tuiIconButton
-                  appearance="primary"
-                  size="s"
-                  type="button"
                   tuiDropdownAuto
                   tuiDropdownDirection="top"
                   [iconStart]="icons['volume-2']"
@@ -153,7 +144,44 @@
                   tuiHintAppearance="floating"
                   [tuiHint]="'CALL.SCREEN_VOLUME' | translate">
                 </button>
+
+                @if (showQuality()) {
+                  <button
+                    tuiIconButton
+                    appearance="neutral"
+                    size="s"
+                    type="button"
+                    tuiDropdownAuto
+                    tuiDropdownDirection="top"
+                    [iconStart]="icons['sliders-horizontal']"
+                    [tuiDropdown]="qualityMenu"
+                    tuiHintAppearance="floating"
+                    [tuiHint]="'CALL.VIEW_QUALITY' | translate">
+                  </button>
+                }
               </div>
+
+              <ng-template #qualityMenu>
+                @let autoSelected = quality() === 'auto';
+                <tui-data-list>
+                  <button
+                    tuiOption
+                    type="button"
+                    [iconStart]="autoSelected ? icons.check : ''"
+                    (click)="onQualitySelect('auto')">
+                    {{ 'CALL.VIEW_QUALITY_AUTO' | translate }}
+                  </button>
+                  @for (item of qualityItems(); track item.label) {
+                    <button
+                      tuiOption
+                      type="button"
+                      [iconStart]="item.checked ? icons.check : ''"
+                      (click)="onQualitySelect(item.layer)">
+                      {{ item.label }}
+                    </button>
+                  }
+                </tui-data-list>
+              </ng-template>
 
               <ng-template #screenVolumeDropdown>
                 <app-volume-control

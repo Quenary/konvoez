@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiHint, TuiIcon } from '@taiga-ui/core';
+import { TuiHint, TuiIcon, TuiScrollbar } from '@taiga-ui/core';
 import { ITextRoomReactionGroup } from '@konvoez/shared';
 import {
   EMOJI_CATEGORIES,
@@ -21,7 +21,7 @@ import { icons } from '@constants';
 
 @Component({
   selector: 'app-chat-message-reactions-bar',
-  imports: [TranslatePipe, TuiHint, TuiIcon],
+  imports: [TranslatePipe, TuiHint, TuiIcon, TuiScrollbar],
   templateUrl: './chat-message-reactions-bar.component.html',
   styleUrl: './chat-message-reactions-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -3,6 +3,10 @@
     [attr.id]="'message-' + m.id"
     class="message"
     [class.message-own]="isOwnMessage()"
+    [class.message-series-single]="series() === 'single'"
+    [class.message-series-first]="series() === 'first'"
+    [class.message-series-middle]="series() === 'middle'"
+    [class.message-series-last]="series() === 'last'"
     [style.--author-color]="senderUsername() | tuiAutoColor"
     [appSwipeToReplyDisabled]="outgoing() !== null"
     (appSwipeToReply)="replyMessage()"
@@ -21,7 +25,7 @@
       [class.message-row-sized]="mediaFrame() !== null"
       [style.--media-width.px]="mediaFrame()?.width"
       [style.--media-height-factor]="mediaFrame()?.heightFactor">
-      @if (shouldShowAvatar()) {
+      @if (showAvatar()) {
         <app-user-avatar
           size="s"
           class="message-sender"
@@ -29,129 +33,72 @@
           [fullname]="_sender?.fullname ?? senderUsername()"
           [avatarUrl]="avatarUrl()"
           [appWithUserDialog]="_sender" />
+      } @else if (showAvatarSlot()) {
+        <span
+          class="message-sender-placeholder"
+          aria-hidden="true"></span>
       }
 
       <span
         class="message-body"
         [class.has-media]="hasMedia()"
+        tuiDropdownContext
         tuiDropdownLimitWidth="auto"
-        [tuiDropdown]="contextMenu"
-        tuiDropdownContext>
-        <span class="message-body-header">
-          <span
-            class="message-body-header-username"
-            tuiHintAppearance="floating"
-            [style.color]="senderUsername() | tuiAutoColor"
-            [tuiHint]="senderFullnameHint()"
-            [appWithUserDialog]="_sender">
-            {{ senderUsername() }}
+        [tuiDropdownMaxHeight]="menuDropdownMaxHeight"
+        [tuiDropdownAlign]="isOwnMessage() ? 'end' : 'start'"
+        [tuiDropdown]="layoutService.isNarrow() ? null : menuTemplate"
+        (longtap)="onLongTap($event)">
+        @if (showNickname()) {
+          <span class="message-body-header">
+            <span
+              class="message-body-header-username"
+              tuiHintAppearance="floating"
+              [style.color]="senderUsername() | tuiAutoColor"
+              [tuiHint]="senderFullnameHint()"
+              [appWithUserDialog]="_sender">
+              {{ senderUsername() }}
+            </span>
           </span>
-        </span>
-
-        @if (m.replyTo; as reply) {
-          @let replyUser = reply.senderId ? usersById()[reply.senderId] : null;
-          @let replyUsername =
-            replyUser?.username ?? reply.senderUsername ?? '';
-          @let replyFullname = replyUser?.fullname ?? null;
-          @let replyHint =
-            replyFullname && replyUsername && replyFullname !== replyUsername
-              ? replyFullname
-              : null;
-          <div
-            class="message-reply"
-            role="button"
-            tabindex="0"
-            [class.message-reply-deleted]="reply.isDeleted"
-            [style.border-left-color]="
-              reply.isDeleted ? null : (replyUsername | tuiAutoColor)
-            "
-            (click)="onReplyQuoteClick(reply)"
-            (keydown.enter)="onReplyQuoteClick(reply)">
-            @if (reply.isDeleted) {
-              <span class="message-reply-deleted">
-                {{ 'ROOMS.DELETED_MESSAGE' | translate }}
-              </span>
-            } @else {
-              <span
-                class="message-reply-sender"
-                tuiHintAppearance="floating"
-                [style.color]="replyUsername | tuiAutoColor"
-                [tuiHint]="replyHint">
-                {{ replyUsername }}
-              </span>
-              <span class="message-reply-content">
-                @let replyPreview =
-                  reply.content
-                    | textContent
-                      : isRoomMessage()
-                      : usersById()
-                      : rolesStore.rolesById()
-                      : unknownLabel();
-                @if (replyPreview) {
-                  {{ replyPreview }}
-                } @else {
-                  📎 {{ 'ROOMS.ATTACHMENT' | translate }}
-                }
-              </span>
-            }
-          </div>
         }
 
-        @if (showAttachments()) {
-          <app-chat-message-attachments
-            [attachments]="attachmentList()"
-            [outgoing]="outgoing()"
-            [progress]="progress()"
-            (removeFile)="removeOutgoingFile($event)" />
-        }
-
-        @if (hasText()) {
-          @if (isRoomMessage()) {
-            <tui-editor-socket
-              appExternalLinkClick
-              [appMentionChips]="mentionCtx()"
-              class="message-body-content"
-              [content]="contentHtml()">
-            </tui-editor-socket>
-          } @else {
-            <tui-editor-socket
-              appExternalLinkClick
-              class="message-body-content"
-              [content]="contentHtml()">
-            </tui-editor-socket>
-          }
-        }
-
-        <app-chat-message-reactions
-          [reactions]="m.reactions"
-          [currentUserId]="currentUserId()"
-          (react)="onReactionSelect($event)" />
+        <ng-container
+          [ngTemplateOutlet]="messageContent"
+          [ngTemplateOutletContext]="{ interactive: true }" />
 
         <span class="message-bubble-footer">
-          <span class="message-date">{{ m.createdAt | todayDayjs }}</span>
-          @switch (readStatus()) {
-            @case ('loading') {
-              <tui-loader
-                class="message-status-loader"
-                size="xs"
-                [inheritColor]="true" />
-            }
-            @case ('error') {
-              <tui-icon
-                class="message-status-icon message-status-icon--error"
-                [icon]="icons['circle-x']" />
-            }
-            @case ('read') {
-              <tui-icon
-                class="message-status-icon"
-                [icon]="icons['check-check']" />
-            }
-            @case ('sent') {
-              <tui-icon
-                class="message-status-icon"
-                [icon]="icons.check" />
-            }
+          @if (m.reactions.length > 0) {
+            <app-chat-message-reactions
+              class="message-footer-reactions"
+              [reactions]="m.reactions"
+              [currentUserId]="currentUserId()"
+              (react)="onReactionSelect($event)" />
           }
+          <span class="message-footer-meta">
+            <span class="message-date">{{ m.createdAt | todayDayjs }}</span>
+            @switch (readStatus()) {
+              @case ('loading') {
+                <tui-loader
+                  class="message-status-loader"
+                  size="xs"
+                  [inheritColor]="true" />
+              }
+              @case ('error') {
+                <tui-icon
+                  class="message-status-icon message-status-icon--error"
+                  [icon]="icons['circle-x']" />
+              }
+              @case ('read') {
+                <tui-icon
+                  class="message-status-icon"
+                  [icon]="icons['check-check']" />
+              }
+              @case ('sent') {
+                <tui-icon
+                  class="message-status-icon"
+                  [icon]="icons.check" />
+              }
+            }
+          </span>
         </span>
       </span>
     </div>
@@ -170,59 +117,113 @@
   </div>
 
   <ng-template
-    #contextMenu
-    let-close>
-    <div class="message-context-menu">
-      @if (!outgoing()) {
-        <app-chat-message-reactions-bar
-          [reactions]="m.reactions"
-          [currentUserId]="currentUserId()"
-          (react)="onReactionSelect($event); close()" />
-      }
-      <tui-data-list>
-        @if (outgoing()) {
-          @if (canCancelSending()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.close"
-              (click)="cancelSending(); close()">
-              {{ 'ROOMS.CANCEL_SENDING' | translate }}
-            </button>
-          }
+    #messageContent
+    let-interactive="interactive">
+    @if (m.replyTo; as reply) {
+      @let replyUser = reply.senderId ? usersById()[reply.senderId] : null;
+      @let replyUsername = replyUser?.username ?? reply.senderUsername ?? '';
+      @let replyFullname = replyUser?.fullname ?? null;
+      @let replyHint =
+        replyFullname && replyUsername && replyFullname !== replyUsername
+          ? replyFullname
+          : null;
+      <div
+        class="message-reply"
+        [class.message-reply-static]="!interactive"
+        [attr.role]="interactive ? 'button' : null"
+        [attr.tabindex]="interactive ? 0 : null"
+        [class.message-reply-deleted]="reply.isDeleted"
+        [style.border-left-color]="
+          reply.isDeleted ? null : (replyUsername | tuiAutoColor)
+        "
+        (click)="onReplyQuoteActivate(reply, interactive)"
+        (keydown.enter)="onReplyQuoteActivate(reply, interactive)">
+        @if (reply.isDeleted) {
+          <span class="message-reply-deleted">
+            {{ 'ROOMS.DELETED_MESSAGE' | translate }}
+          </span>
         } @else {
-          <button
-            tuiOption
-            [iconEnd]="icons.reply"
-            (click)="close(); replyMessage()">
-            {{ 'GENERAL.REPLY' | translate }}
-          </button>
-          @if (canEdit()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.edit"
-              (click)="close(); editMessage()">
-              {{ 'GENERAL.EDIT' | translate }}
-            </button>
-          }
-          @if (canDelete()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.delete"
-              (click)="deleteMessage(); close()">
-              {{ 'GENERAL.DELETE' | translate }}
-            </button>
-          }
-          @if (canViewReaders()) {
-            <button
-              tuiOption
-              [iconEnd]="icons.users"
-              (click)="showReadersDialog(readersDialog); close()">
-              {{ 'ROOMS.READ_BY' | translate }}
-            </button>
-          }
+          <span
+            class="message-reply-sender"
+            tuiHintAppearance="floating"
+            [style.color]="replyUsername | tuiAutoColor"
+            [tuiHint]="replyHint">
+            {{ replyUsername }}
+          </span>
+          <span class="message-reply-content">
+            @let replyPreview =
+              reply.content
+                | textContent
+                  : isRoomMessage()
+                  : usersById()
+                  : rolesStore.rolesById()
+                  : unknownLabel();
+            @if (replyPreview) {
+              {{ replyPreview }}
+            } @else {
+              📎 {{ 'ROOMS.ATTACHMENT' | translate }}
+            }
+          </span>
         }
-      </tui-data-list>
-    </div>
+      </div>
+    }
+
+    @if (showAttachments()) {
+      <div [attr.inert]="interactive ? null : ''">
+        <app-chat-message-attachments
+          [attachments]="attachmentList()"
+          [outgoing]="outgoing()"
+          [progress]="progress()"
+          (removeFile)="removeOutgoingFile($event)" />
+      </div>
+    }
+
+    @if (hasText()) {
+      @if (isRoomMessage()) {
+        <tui-editor-socket
+          appExternalLinkClick
+          [appMentionChips]="mentionCtx()"
+          class="message-body-content"
+          [content]="contentHtml()">
+        </tui-editor-socket>
+      } @else {
+        <tui-editor-socket
+          appExternalLinkClick
+          class="message-body-content"
+          [content]="contentHtml()">
+        </tui-editor-socket>
+      }
+    }
+  </ng-template>
+
+  <ng-template
+    #menuTemplate
+    let-close>
+    <app-chat-message-menu
+      [isDialog]="layoutService.isNarrow()"
+      [message]="m"
+      [outgoing]="outgoing()"
+      [canCancelSending]="canCancelSending()"
+      [canEdit]="canEdit()"
+      [canDelete]="canDelete()"
+      [canViewReaders]="canViewReaders()"
+      [currentUserId]="currentUserId()"
+      (react)="onReactionSelect($event); closeSurface(close)"
+      (reply)="replyMessage(close)"
+      (edit)="editMessage(close)"
+      (delete)="deleteMessage(close)"
+      (cancelSending)="cancelSending(close)"
+      (viewReaders)="onViewReaders(close, readersDialog)">
+      @if (layoutService.isNarrow()) {
+        <tui-scrollbar
+          messagePreview
+          class="message-menu-preview">
+          <ng-container
+            [ngTemplateOutlet]="messageContent"
+            [ngTemplateOutletContext]="{ interactive: false }" />
+        </tui-scrollbar>
+      }
+    </app-chat-message-menu>
   </ng-template>
 
   <ng-template #readersDialog>

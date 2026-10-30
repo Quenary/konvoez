@@ -38,6 +38,77 @@
     </tui-textfield>
   </label>
 
+  <div>
+    <label tuiLabel>
+      {{ 'CALL.STREAM_EXTRA_LAYERS' | translate }}
+      <tui-textfield
+        multi
+        tuiChevron
+        tuiTextfieldSize="m"
+        [rows]="1"
+        [stringify]="stringifyLayer"
+        [identityMatcher]="matchLayer"
+        [disabledItemHandler]="extraLayerDisabled"
+        [tuiTextfieldCleaner]="false">
+        <select
+          tuiMultiSelect
+          [items]="layerOptions()"
+          [ngModel]="extraLayers()"
+          (ngModelChange)="onExtraLayersChange($event)"
+          [ngModelOptions]="{ standalone: true }"></select>
+      </tui-textfield>
+    </label>
+    <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
+  </div>
+
+  @if (isScreen()) {
+    <div>
+      <p>{{ 'CALL.STREAM_CONTENT_MODE' | translate }}</p>
+      <tui-radio-list
+        [items]="contentModes"
+        [itemContent]="contentModeLabel"
+        [ngModel]="contentMode()"
+        (ngModelChange)="contentMode.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <ng-template
+        #contentModeLabel
+        let-mode>
+        {{
+          mode === 'detail'
+            ? ('CALL.STREAM_CONTENT_TEXT' | translate)
+            : ('CALL.STREAM_CONTENT_GAME' | translate)
+        }}
+      </ng-template>
+      <p>{{ 'CALL.STREAM_CONTENT_HINT' | translate }}</p>
+    </div>
+  }
+
+  <div>
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="stream-bitrate">
+        {{ 'CALL.STREAM_BITRATE' | translate }}
+      </label>
+      <input
+        id="stream-bitrate"
+        tuiInputSlider
+        [min]="bitrateMinKbps"
+        [max]="maxBitrateKbps"
+        [step]="bitrateStepKbps"
+        [ngModel]="bitrateKbps()"
+        (ngModelChange)="bitrateKbps.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <input
+        tuiSlider
+        type="range"
+        [step]="bitrateStepKbps" />
+    </tui-textfield>
+    @if (showBitrateWarning()) {
+      <p>{{ 'CALL.STREAM_BITRATE_WARNING' | translate }}</p>
+    }
+  </div>
+
   <footer class="actions">
     <button
       tuiButton

@@ -213,7 +213,7 @@ export class VoiceRoomPanelComponent {
   }
 
   protected leaveSession(): void {
-    void this.voiceLeaveService.leaveActiveVoice();
+    void this.voiceLeaveService.leaveFromVoiceUi();
   }
 
   protected toggleMicrophoneMuted(): void {

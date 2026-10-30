@@ -4,22 +4,26 @@ import {
   computed,
   inject,
   input,
+  OnDestroy,
   signal,
   Sanitizer,
   SecurityContext,
+  TemplateRef,
+  viewChild,
 } from '@angular/core';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
 import {
   TuiButton,
-  TuiDataList,
   TuiDropdown,
   TuiHint,
   TuiIcon,
   TuiLoader,
   TuiNotificationService,
-  TuiOption,
+  TuiScrollbar,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiEditorSocket } from '@taiga-ui/editor';
@@ -35,8 +39,10 @@ import { RolesStore } from '@core/stores/roles.store';
 import { UsersStore } from '@core/stores/users.store';
 import { TextContentPipe } from '@shared/pipes/text-content.pipe';
 import { EMessageStatus, IMessageEntity, ChatStore } from '../chat.store';
+import { MessageSeriesPosition } from '../chat-messages-list/chat-rows';
 import { ComposerFocusService } from '../composer-focus.service';
 import { ChatApiService } from '@core/api/chat-api.service';
+import { LayoutService } from '@core/services/layout.service';
 import { TuiList } from '@taiga-ui/layout';
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus';
 import {
@@ -45,7 +51,7 @@ import {
 } from '@shared/functions/message-media-frame.function';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { ChatMessageAttachmentsComponent } from '../chat-message-attachments/chat-message-attachments.component';
-import { ChatMessageReactionsBarComponent } from './chat-message-reactions-bar/chat-message-reactions-bar.component';
+import { ChatMessageMenuComponent } from './chat-message-menu/chat-message-menu.component';
 import { ChatMessageReactionsComponent } from './chat-message-reactions/chat-message-reactions.component';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { TodayDayjsPipe } from '@shared/pipes/today-dayjs.pipe';
@@ -72,20 +78,20 @@ import { icons } from '@constants';
 @Component({
   selector: 'app-chat-message',
   imports: [
+    NgTemplateOutlet,
     TranslatePipe,
     UserAvatarComponent,
     TuiButton,
-    TuiDataList,
     TuiDropdown,
     TuiEditorSocket,
     TuiHint,
     TuiIcon,
     TuiLoader,
-    TuiOption,
+    TuiScrollbar,
     TuiAutoColorPipe,
     TextContentPipe,
     ChatMessageAttachmentsComponent,
-    ChatMessageReactionsBarComponent,
+    ChatMessageMenuComponent,
     ChatMessageReactionsComponent,
     TuiList,
     TodayDayjsPipe,
@@ -102,12 +108,13 @@ import { icons } from '@constants';
   styleUrl: './chat-message.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ChatMessageComponent {
+export class ChatMessageComponent implements OnDestroy {
+  protected readonly layoutService = inject(LayoutService);
+  protected readonly rolesStore = inject(RolesStore);
   private readonly composerFocus = inject(ComposerFocusService);
   private readonly store = inject(Store);
   private readonly chatStore = inject(ChatStore);
   private readonly usersStore = inject(UsersStore);
-  protected readonly rolesStore = inject(RolesStore);
   private readonly sanitizer = inject(Sanitizer);
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
@@ -117,9 +124,20 @@ export class ChatMessageComponent {
   private readonly chatApiService = inject(ChatApiService);
   private readonly outgoingStore = inject(OutgoingMessagesStore);
   private readonly userDialogService = inject(UserDialogService);
+  private readonly document = inject(DOCUMENT);
 
-  protected readonly icons = icons;
   public readonly message = input.required<IMessageEntity>();
+  /** Place in a run of consecutive messages from the same sender. */
+  public readonly series = input<MessageSeriesPosition>('single');
+  protected readonly icons = icons;
+  /**
+   * Taiga's default dropdown cap is 400px. An open emoji list plus the actions
+   * is taller than that, so the dropdown scrolls and hides the actions.
+   * This cap fits that menu; the positioner still flips it to the free side.
+   */
+  protected readonly menuDropdownMaxHeight = 640;
+  protected readonly menuTemplateRef =
+    viewChild<TemplateRef<unknown>>('menuTemplate');
 
   protected readonly usersById = computed(() => this.usersStore.entityMap());
 
@@ -235,11 +253,32 @@ export class ChatMessageComponent {
     return this.message().recipientId !== null;
   });
 
-  protected readonly shouldShowAvatar = computed(() => {
-    if (this.isDirectChat()) {
-      return false;
-    }
-    return !this.isOwnMessage();
+  /** Nickname and avatar exist only on someone else's room message. */
+  private readonly showSenderChrome = computed(() => {
+    const isDirectChat = this.isDirectChat();
+    const isOwnMessage = this.isOwnMessage();
+    return !isDirectChat && !isOwnMessage;
+  });
+
+  /** Nickname: a single message, or the first of a series. */
+  protected readonly showNickname = computed(() => {
+    const showSenderChrome = this.showSenderChrome();
+    const series = this.series();
+    return showSenderChrome && (series === 'single' || series === 'first');
+  });
+
+  /** Avatar: a single message, or the last of a series. */
+  protected readonly showAvatar = computed(() => {
+    const showSenderChrome = this.showSenderChrome();
+    const series = this.series();
+    return showSenderChrome && (series === 'single' || series === 'last');
+  });
+
+  /** Keeps the bubble aligned when the avatar sits on a later message. */
+  protected readonly showAvatarSlot = computed(() => {
+    const showSenderChrome = this.showSenderChrome();
+    const series = this.series();
+    return showSenderChrome && (series === 'first' || series === 'middle');
   });
 
   /**
@@ -293,10 +332,29 @@ export class ChatMessageComponent {
     { initialValue: 'unknown' },
   );
   private readonly emptyProgress: Record<string, number> = {};
+  private menuDialogSub: Subscription | null = null;
+  private menuModal: HTMLElement | null = null;
+  private stopWatchingModal: (() => void) | null = null;
 
   protected readonly currentUserId = computed(
     () => this.currentUser()?.id ?? null,
   );
+
+  public ngOnDestroy(): void {
+    this.menuDialogSub?.unsubscribe();
+    this.menuDialogSub = null;
+    this.menuModal = null;
+    this.stopWatchingModal?.();
+    this.stopWatchingModal = null;
+  }
+
+  protected onLongTap(event: Event): void {
+    if (!this.layoutService.isNarrow()) {
+      return;
+    }
+    event.preventDefault();
+    this.openMobileDialog();
+  }
 
   protected onHostClick(event: MouseEvent): void {
     const target = event.target;
@@ -326,17 +384,26 @@ export class ChatMessageComponent {
     this.chatStore.toggleReaction({ messageId: this.message().id, emoji });
   }
 
-  protected replyMessage(): void {
+  protected closeSurface(close?: unknown): void {
+    this.closeDropdown(close);
+    this.dismissMenuDialog();
+  }
+
+  protected replyMessage(close?: unknown): void {
+    this.closeDropdown(close);
     this.chatStore.setReplyToMessageId(this.message().id);
-    this.primeComposerKeyboard();
+    this.focusComposerAfterMenu();
   }
 
-  protected editMessage(): void {
+  protected editMessage(close?: unknown): void {
+    this.closeDropdown(close);
     this.chatStore.setEditableMessageId(this.message().id);
-    this.primeComposerKeyboard();
+    this.focusComposerAfterMenu();
   }
 
-  protected deleteMessage(): void {
+  protected deleteMessage(close?: unknown): void {
+    this.closeDropdown(close);
+    this.dismissMenuDialog();
     this.chatStore.deleteMessage(this.message().id);
   }
 
@@ -344,12 +411,33 @@ export class ChatMessageComponent {
     this.chatStore.retryMessage(this.message().id);
   }
 
-  protected cancelSending(): void {
+  protected cancelSending(close?: unknown): void {
+    this.closeDropdown(close);
+    this.dismissMenuDialog();
     this.chatStore.cancelOutgoing(this.message().id);
+  }
+
+  protected onViewReaders(close: unknown, template: PolymorpheusContent): void {
+    this.closeDropdown(close);
+    if (!this.menuDialogSub) {
+      this.showReadersDialog(template);
+      return;
+    }
+    void this.afterMenuDialog().then(() => this.showReadersDialog(template));
   }
 
   protected removeOutgoingFile(localId: string): void {
     this.chatStore.removeOutgoingFile(this.message().id, localId);
+  }
+
+  protected onReplyQuoteActivate(
+    reply: ITextRoomMessageReply,
+    interactive: boolean,
+  ): void {
+    if (!interactive) {
+      return;
+    }
+    this.onReplyQuoteClick(reply);
   }
 
   protected onReplyQuoteClick(reply: ITextRoomMessageReply): void {
@@ -388,8 +476,104 @@ export class ChatMessageComponent {
       .subscribe();
   }
 
-  private primeComposerKeyboard(): void {
-    this.composerFocus.focus();
+  private openMobileDialog(): void {
+    if (this.menuDialogSub) {
+      return;
+    }
+    const template = this.menuTemplateRef();
+    if (!template) {
+      return;
+    }
+    this.menuDialogSub = this.tuiResponsiveDialogService
+      .open(template, {
+        size: 's',
+      })
+      .subscribe({
+        complete: () => {
+          this.menuDialogSub = null;
+          this.menuModal = null;
+        },
+        error: () => {
+          this.menuDialogSub = null;
+          this.menuModal = null;
+        },
+      });
+    const modals = this.document.querySelectorAll('tui-popups tui-modal');
+    const modal = modals.item(modals.length - 1);
+    this.menuModal = modal instanceof HTMLElement ? modal : null;
+  }
+
+  private closeDropdown(close: unknown): void {
+    if (typeof close === 'function') {
+      close();
+    }
+  }
+
+  private dismissMenuDialog(): void {
+    if (!this.menuDialogSub) {
+      return;
+    }
+    void this.afterMenuDialog();
+  }
+
+  private focusComposerAfterMenu(): void {
+    if (!this.menuDialogSub) {
+      this.composerFocus.focus();
+      return;
+    }
+    void this.afterMenuDialog().then(() => this.composerFocus.focus());
+  }
+
+  /**
+   * Resolves once Taiga has removed this modal. Until then the app root stays
+   * `inert` and the focus trap takes focus back, so the composer cannot be
+   * focused on a timer.
+   */
+  private afterMenuDialog(): Promise<void> {
+    const sub = this.menuDialogSub;
+    const modal = this.menuModal;
+    this.menuDialogSub = null;
+    this.menuModal = null;
+    const removed = this.whenModalRemoved(modal);
+    sub?.unsubscribe();
+    this.finishMenuModalAnimations(modal);
+    // Taiga samples the inner dialog animation in a later microtask.
+    queueMicrotask(() => this.finishMenuModalAnimations(modal));
+    return removed.then(() => undefined);
+  }
+
+  private whenModalRemoved(modal: HTMLElement | null): Promise<void> {
+    this.stopWatchingModal?.();
+    this.stopWatchingModal = null;
+    if (!modal?.isConnected) {
+      return Promise.resolve();
+    }
+    const parent = modal.parentNode;
+    if (!parent) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (modal.isConnected) {
+          return;
+        }
+        this.stopWatchingModal?.();
+        this.stopWatchingModal = null;
+        resolve();
+      });
+      observer.observe(parent, { childList: true });
+      this.stopWatchingModal = () => observer.disconnect();
+    });
+  }
+
+  private finishMenuModalAnimations(modal: HTMLElement | null): void {
+    modal?.getAnimations?.({ subtree: true }).forEach((animation) => {
+      try {
+        animation.finish();
+      } catch {
+        // Already finished or not finishable.
+      }
+    });
   }
 
   private openMentionUser(chip: HTMLElement): void {

@@ -1,6 +1,6 @@
 import { signal, type Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, UrlTree } from '@angular/router';
 import { provideEffects } from '@ngrx/effects';
 import { provideStore, Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -33,7 +33,10 @@ import { ProfileApiService } from '@core/api/profile-api.service';
 
 describe('AuthEffects logout', () => {
   let store: Store;
-  let router: { navigate: ReturnType<typeof vi.fn> };
+  let router: {
+    navigate: ReturnType<typeof vi.fn>;
+    parseUrl: ReturnType<typeof vi.fn>;
+  };
   let microphoneService: {
     release: ReturnType<typeof vi.fn>;
     processedStream: ReturnType<typeof signal<MediaStream | null>>;
@@ -76,6 +79,7 @@ describe('AuthEffects logout', () => {
 
     router = {
       navigate: vi.fn().mockResolvedValue(true),
+      parseUrl: vi.fn(() => new UrlTree()),
     };
     microphoneService = {
       release: vi.fn().mockResolvedValue(undefined),

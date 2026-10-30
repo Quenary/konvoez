@@ -2,8 +2,10 @@
 
 /**
  * Polyfill TextDecoder for AudioWorkletGlobalScope and DeepFilterNet processor.
- * `{ type: 'dispose' }` on the port frees the native WASM DFState and makes process() return false
- * so a disconnected node can be collected while the AudioContext stays open.
+ * `{ type: 'dispose' }` on the port stops the processor and frees the native state with `df_free`.
+ * `process()` then returns false so a disconnected node can be collected while the AudioContext stays open.
+ * The handle from `df_create_default` is not a wasm-bindgen `DFState`; `__wbg_dfstate_free` always
+ * throws "attempted to take ownership of Rust value while it was borrowed" on it.
  *
  * AudioWorkletGlobalScope runs in a specialized real-time audio thread where standard
  * Web APIs (such as TextDecoder, XMLHttpRequest, Blob, timers) are not provided by default.
@@ -279,11 +281,9 @@ if (typeof TextDecoder === 'undefined') {
       }
       this.port.onmessage = (event) => {
         if (event.data?.type === 'dispose') {
-          if (this.#ready) {
-            wasm.__wbg_dfstate_free(this.#handle >>> 0, 0);
-          }
           this.#ready = false;
           this.#disposed = true;
+          this.#releaseHandle();
           this.port.onmessage = null;
           return;
         }
@@ -297,6 +297,16 @@ if (typeof TextDecoder === 'undefined') {
           this.#bypass = event.data.value === false;
         }
       };
+    }
+    #releaseHandle() {
+      const handle = this.#handle;
+      if (!handle) return;
+      this.#handle = 0;
+      try {
+        wasm.df_free(handle >>> 0);
+      } catch {
+        // A second free traps. The processor is already stopped.
+      }
     }
     #available(write, read) {
       return (write - read + this.#input.length) % this.#input.length;

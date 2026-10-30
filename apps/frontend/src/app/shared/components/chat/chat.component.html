@@ -28,7 +28,9 @@
         </div>
       </tui-badged-content>
 
-      {{ currentTitle }}
+      <span [style.color]="colorTitle() ? (currentTitle | tuiAutoColor) : null">
+        {{ currentTitle }}
+      </span>
     </h2>
   }
 

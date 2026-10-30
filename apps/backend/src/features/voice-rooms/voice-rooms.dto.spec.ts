@@ -6,12 +6,14 @@ import {
   CallInitiateDto,
   CallRejectDto,
   VoiceRoomCloseConsumerDto,
+  VoiceRoomConsumerRefDto,
   VoiceRoomCloseProducerDto,
   VoiceRoomConnectTransportDto,
   VoiceRoomConsumeDto,
   VoiceRoomCreateTransportDto,
   VoiceRoomJoinDto,
   VoiceRoomProduceDto,
+  VoiceRoomSetConsumerLayersDto,
   VoiceRoomSetMuteStateDto,
 } from './voice-rooms.dto';
 
@@ -105,6 +107,32 @@ describe('VoiceRooms DTOs', () => {
     });
   });
 
+  describe('VoiceRoomConsumerRefDto', () => {
+    it('requires a consumer id', () => {
+      expect(
+        VoiceRoomConsumerRefDto.schema.safeParse({ consumerId: 'c1' }).success,
+      ).toBe(true);
+      expect(VoiceRoomConsumerRefDto.schema.safeParse({}).success).toBe(false);
+    });
+  });
+
+  describe('VoiceRoomSetConsumerLayersDto', () => {
+    it('accepts a spatial layer and rejects one outside 0..2', () => {
+      expect(
+        VoiceRoomSetConsumerLayersDto.schema.safeParse({
+          consumerId: 'c1',
+          spatialLayer: 2,
+        }).success,
+      ).toBe(true);
+      expect(
+        VoiceRoomSetConsumerLayersDto.schema.safeParse({
+          consumerId: 'c1',
+          spatialLayer: 3,
+        }).success,
+      ).toBe(false);
+    });
+  });
+
   describe('VoiceRoomProduceDto', () => {
     it('should validate transportId, kind, mediaTag, and rtpParameters', () => {
       expect(
@@ -122,8 +150,21 @@ describe('VoiceRooms DTOs', () => {
           kind: 'video',
           mediaTag: 'cam',
           rtpParameters: { codecs: [] },
+          layers: [
+            { height: 480, fps: 30 },
+            { height: 720, fps: 30 },
+          ],
         }).success,
       ).toBe(true);
+      expect(
+        VoiceRoomProduceDto.schema.safeParse({
+          transportId: 'trans-2',
+          kind: 'video',
+          mediaTag: 'cam',
+          rtpParameters: { codecs: [] },
+          layers: [{ height: 0, fps: 30 }],
+        }).success,
+      ).toBe(false);
     });
 
     it('should reject invalid kind or mediaTag', () => {

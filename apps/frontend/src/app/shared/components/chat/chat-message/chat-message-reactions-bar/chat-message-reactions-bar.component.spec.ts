@@ -52,6 +52,7 @@ describe('ChatMessageReactionsBarComponent', () => {
 
     const picker = el.querySelector('.reactions-picker');
     expect(picker).not.toBeNull();
+    expect(picker?.querySelector('tui-scrollbar.picker-scroll')).not.toBeNull();
 
     const gridButtons = el.querySelectorAll('.emoji-grid-btn');
     expect(gridButtons.length).toBeGreaterThan(50);
@@ -67,5 +68,21 @@ describe('ChatMessageReactionsBarComponent', () => {
     const activeItem = el.querySelector('.reaction-item--active');
     expect(activeItem).not.toBeNull();
     expect(activeItem?.textContent?.trim()).toBe('👍');
+  });
+
+  it('should wrap quick emojis inside tui-scrollbar while keeping expand button outside', () => {
+    const el: HTMLElement = fixture.nativeElement;
+    const scrollbar = el.querySelector('tui-scrollbar.reactions-scrollbar');
+    expect(scrollbar).not.toBeNull();
+
+    const quickListInsideScrollbar = scrollbar?.querySelector(
+      '.reactions-quick-list',
+    );
+    expect(quickListInsideScrollbar).not.toBeNull();
+
+    const expandBtnOutsideScrollbar = el.querySelector(
+      '.reactions-bar > .reaction-expand-btn',
+    );
+    expect(expandBtnOutsideScrollbar).not.toBeNull();
   });
 });

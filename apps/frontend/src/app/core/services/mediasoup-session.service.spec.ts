@@ -1,4 +1,5 @@
 import {
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
   EVoiceQualityTier,
   EVoiceRoomEvent,
   VOICE_STALL_MS,
@@ -142,6 +143,18 @@ describe('MediasoupSessionService', () => {
           useValue: {
             iceServers: vi.fn().mockReturnValue([]),
             voiceMaxBitrateKbps: vi.fn().mockReturnValue(64),
+            streamMaxBitrateKbps: vi
+              .fn()
+              .mockReturnValue(DEFAULT_STREAM_MAX_BITRATE_KBPS),
+            streamHeight: vi.fn().mockReturnValue(720),
+            streamFps: vi.fn().mockReturnValue(30),
+            streamExtraLayers: vi.fn().mockReturnValue(null),
+            streamBitrateKbps: vi.fn().mockReturnValue(2500),
+            screenHeight: vi.fn().mockReturnValue(1080),
+            screenFps: vi.fn().mockReturnValue(30),
+            screenExtraLayers: vi.fn().mockReturnValue(null),
+            screenBitrateKbps: vi.fn().mockReturnValue(5000),
+            screenContentMode: vi.fn().mockReturnValue('detail'),
           },
         },
         {
@@ -565,6 +578,135 @@ describe('MediasoupSessionService', () => {
     expect(service['liveConsumerIds'].has('consumer-42')).toBe(false);
   });
 
+  it('keeps a video consumer out of the live set until resume', async () => {
+    const fakeConsumer = {
+      id: 'consumer-video',
+      producerId: 'p-cam',
+      kind: 'video',
+      paused: false,
+      closed: false,
+      track: {},
+      pause() {
+        this.paused = true;
+      },
+      resume() {
+        this.paused = false;
+      },
+      observer: { once: vi.fn() },
+    };
+    service['device'] = { recvRtpCapabilities: {} } as never;
+    service['recvTransport'] = {
+      id: 'recv',
+      closed: false,
+      consume: vi.fn().mockResolvedValue(fakeConsumer),
+    } as never;
+
+    await service.consumeProducer(
+      {
+        producerId: 'p-cam',
+        userId: 2,
+        kind: 'video',
+        mediaTag: 'cam',
+      },
+      () => ({ gain: 1, speakerMuted: false }),
+    );
+
+    expect(fakeConsumer.paused).toBe(true);
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+
+    await expect(service.resumeConsumer('consumer-video')).resolves.toBe(true);
+    expect(emitWithAck).toHaveBeenCalledWith(EVoiceRoomEvent.RESUME_CONSUMER, {
+      consumerId: 'consumer-video',
+    });
+    expect(fakeConsumer.paused).toBe(false);
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(true);
+
+    await service.pauseConsumer('consumer-video');
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+    expect(fakeConsumer.paused).toBe(true);
+
+    await service.resumeConsumer('consumer-video');
+    fakeConsumer.observer.once.mock.calls[0]?.[1]?.();
+    fakeConsumer.observer.once.mock.calls[0]?.[1]?.();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+  });
+
+  it('leaves pause and resume state unchanged when the emit fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const fakeConsumer = {
+      id: 'consumer-video',
+      paused: false,
+      closed: false,
+      pause: vi.fn(),
+      resume: vi.fn(),
+    };
+    service['consumerRegistry'].add(fakeConsumer as never);
+    emitWithAck.mockRejectedValueOnce(new Error('nope'));
+
+    await expect(service.pauseConsumer('consumer-video')).resolves.toBe(false);
+
+    expect(fakeConsumer.pause).not.toHaveBeenCalled();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+    expect(warn).toHaveBeenCalled();
+
+    fakeConsumer.paused = true;
+    emitWithAck.mockRejectedValueOnce(new Error('nope'));
+    await expect(service.resumeConsumer('consumer-video')).resolves.toBe(false);
+    expect(fakeConsumer.resume).not.toHaveBeenCalled();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+  });
+
+  it('does not restore a consumer that closed while resume was pending', async () => {
+    vi.useFakeTimers();
+    const connectionStore = TestBed.inject(VoiceConnectionStore);
+    let releaseAck: (() => void) | undefined;
+    emitWithAck.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseAck = () => resolve({});
+        }),
+    );
+    const fakeConsumer = {
+      id: 'consumer-video',
+      paused: true,
+      closed: false,
+      resume: vi.fn(),
+      close: vi.fn(),
+    };
+    service['consumerRegistry'].add(fakeConsumer as never);
+    const pending = service.resumeConsumer('consumer-video');
+    fakeConsumer.closed = true;
+    service['consumerRegistry'].close('consumer-video');
+    releaseAck?.();
+    await expect(pending).resolves.toBe(true);
+    expect(fakeConsumer.resume).not.toHaveBeenCalled();
+    expect(service['liveConsumerIds'].has('consumer-video')).toBe(false);
+
+    service['recvTransport'] = {
+      connectionState: 'connected',
+      closed: false,
+      getStats: vi
+        .fn()
+        .mockResolvedValue(
+          new Map([
+            [
+              'report-1',
+              { type: 'candidate-pair', nominated: true, bytesReceived: 500 },
+            ],
+          ]),
+        ),
+      on: vi.fn(),
+      close: vi.fn(),
+    } as never;
+    service['startWatchdog']();
+    await vi.advanceTimersByTimeAsync(
+      VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+    );
+    expect(service['liveConsumerIds'].size).toBe(0);
+    expect(connectionStore.stalled()).toBe(false);
+    vi.useRealTimers();
+  });
+
   it('finishes stop screen when the server already closed screen-audio', async () => {
     const videoClose = vi.fn();
     const audioClose = vi.fn();
@@ -825,6 +967,10 @@ describe('MediasoupSessionService', () => {
       closed: false,
       setRtpEncodingParameters: setMicEncoding,
     };
+    const getParameters = vi.fn().mockReturnValue({
+      encodings: [{ maxBitrate: 2_500_000, maxFramerate: 30 }],
+    });
+    const setParameters = vi.fn().mockResolvedValue(undefined);
     const camProducer = {
       id: 'cam-1',
       closed: false,
@@ -832,10 +978,18 @@ describe('MediasoupSessionService', () => {
       pause: camPause,
       resume: camResume,
       setRtpEncodingParameters: setCamEncoding,
+      rtpSender: { getParameters, setParameters },
     };
 
     service['microphoneProducer'] = micProducer as never;
     service['cameraProducer'] = camProducer as never;
+    service['cameraPublish'] = {
+      height: 720,
+      fps: 30,
+      contentMode: 'motion',
+      extraLayers: [],
+      maxBitrateBps: 2_500_000,
+    };
 
     // Apply Tier 1 (GOOD, 40 kbps, 1.2M video cap)
     await service.applyQualityLevel({
@@ -843,7 +997,12 @@ describe('MediasoupSessionService', () => {
       kbps: 40,
     });
     expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 40000 });
-    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: 1200000 });
+    expect(setParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ maxBitrate: 1_200_000 })],
+      }),
+    );
+    expect(setCamEncoding).not.toHaveBeenCalled();
     expect(camPause).not.toHaveBeenCalled();
 
     // Apply Tier 2 (UNSTABLE, 24 kbps, 400k video cap)
@@ -852,7 +1011,11 @@ describe('MediasoupSessionService', () => {
       kbps: 24,
     });
     expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 24000 });
-    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: 400000 });
+    expect(setParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ maxBitrate: 400_000 })],
+      }),
+    );
     expect(camPause).not.toHaveBeenCalled();
 
     // Apply Tier 3 (BAD / POOR, 16 kbps -> pause video)
@@ -871,7 +1034,11 @@ describe('MediasoupSessionService', () => {
     });
     expect(setMicEncoding).toHaveBeenCalledWith({ maxBitrate: 64000 });
     expect(camResume).toHaveBeenCalledTimes(1);
-    expect(setCamEncoding).toHaveBeenCalledWith({ maxBitrate: undefined });
+    expect(setParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ maxBitrate: 2_500_000 })],
+      }),
+    );
   });
 
   it('reads quality sample from mic producer stats and producer score', async () => {
@@ -1069,5 +1236,388 @@ describe('MediasoupSessionService', () => {
 
       vi.useRealTimers();
     });
+
+    it('does not stall when video is paused, with or without live audio', async () => {
+      vi.useFakeTimers();
+      const connectionStore = TestBed.inject(VoiceConnectionStore);
+      let bytes = 500;
+      let freeze = false;
+      service['recvTransport'] = {
+        connectionState: 'connected',
+        closed: false,
+        getStats: vi.fn().mockImplementation(async () => {
+          if (!freeze) {
+            bytes += 1;
+          }
+          return new Map([
+            [
+              'report-1',
+              { type: 'candidate-pair', nominated: true, bytesReceived: bytes },
+            ],
+          ]);
+        }),
+        on: vi.fn(),
+        close: vi.fn(),
+      } as never;
+      service['liveConsumerIds'].add('audio-1');
+      service['startWatchdog']();
+
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(false);
+      expect(service['liveConsumerIds'].has('audio-1')).toBe(true);
+
+      service['liveConsumerIds'].clear();
+      freeze = true;
+      await vi.advanceTimersByTimeAsync(
+        VOICE_STALL_MS + VOICE_WATCHDOG_INTERVAL_MS,
+      );
+      expect(connectionStore.stalled()).toBe(false);
+
+      vi.useRealTimers();
+    });
+  });
+
+  it('publishes explicit layers and forwards them on produce', async () => {
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: { codecs: [{ mimeType: 'video/VP8' }] },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+      pause: vi.fn(),
+      paused: false,
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamHeight = vi
+      .fn()
+      .mockReturnValue(1080) as unknown as typeof settings.streamHeight;
+    settings.streamFps = vi
+      .fn()
+      .mockReturnValue(60) as unknown as typeof settings.streamFps;
+    settings.streamExtraLayers = vi.fn().mockReturnValue([
+      { height: 720, fps: 60 },
+      { height: 480, fps: 30 },
+    ]) as unknown as typeof settings.streamExtraLayers;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 1080 }),
+    } as MediaStreamTrack);
+
+    await service.produceCamera();
+
+    const options = produce.mock.calls[0]?.[0] as {
+      encodings: Array<{
+        scalabilityMode: string;
+        scaleResolutionDownBy: number;
+        maxBitrate: number;
+        maxFramerate: number;
+      }>;
+      appData: { layers: Array<{ height: number; fps: number }> };
+    };
+    expect(options.encodings).toHaveLength(3);
+    expect(options.encodings[0]?.scalabilityMode).toBe('L1T1');
+    expect(options.encodings[0]?.scaleResolutionDownBy).toBeCloseTo(1080 / 480);
+    expect(options.encodings[0]?.maxFramerate).toBe(30);
+    expect(options.encodings[1]?.scaleResolutionDownBy).toBe(1.5);
+    expect(options.encodings[1]?.maxFramerate).toBe(60);
+    expect(options.encodings[2]?.scaleResolutionDownBy).toBe(1);
+    expect(options.encodings[2]?.maxFramerate).toBe(60);
+    expect(options.appData.layers).toEqual([
+      { height: 480, fps: 30 },
+      { height: 720, fps: 60 },
+      { height: 1080, fps: 60 },
+    ]);
+
+    settings.streamExtraLayers = vi
+      .fn()
+      .mockReturnValue([
+        { height: 720, fps: 30 },
+      ]) as unknown as typeof settings.streamExtraLayers;
+    settings.streamFps = vi
+      .fn()
+      .mockReturnValue(30) as unknown as typeof settings.streamFps;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 1080 }),
+    } as MediaStreamTrack);
+    await service.produceCamera();
+    const two = produce.mock.calls[1]?.[0] as {
+      encodings: Array<{ scaleResolutionDownBy: number; maxFramerate: number }>;
+    };
+    expect(two.encodings).toHaveLength(2);
+    expect(two.encodings[0]?.scaleResolutionDownBy).toBe(1.5);
+
+    settings.streamExtraLayers = vi
+      .fn()
+      .mockReturnValue([]) as unknown as typeof settings.streamExtraLayers;
+    await service.produceCamera();
+    const one = produce.mock.calls[2]?.[0] as { encodings: unknown[] };
+    expect(one.encodings).toHaveLength(1);
+
+    settings.streamHeight = vi
+      .fn()
+      .mockReturnValue(1080) as unknown as typeof settings.streamHeight;
+    settings.streamFps = vi
+      .fn()
+      .mockReturnValue(60) as unknown as typeof settings.streamFps;
+    settings.streamExtraLayers = vi
+      .fn()
+      .mockReturnValue([
+        { height: 720, fps: 60 },
+      ]) as unknown as typeof settings.streamExtraLayers;
+    TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
+      getSettings: () => ({ height: 480 }),
+    } as MediaStreamTrack);
+    await service.produceCamera();
+    const dropped = produce.mock.calls[3]?.[0] as {
+      encodings: unknown[];
+      appData: { layers: Array<{ height: number }> };
+    };
+    expect(dropped.encodings).toHaveLength(1);
+    expect(dropped.appData.layers).toEqual([{ height: 480, fps: 60 }]);
+
+    const listeners: Record<string, (...args: unknown[]) => unknown> = {};
+    service['sendTransport'] = {
+      produce,
+      closed: false,
+      on: (event: string, handler: (...args: unknown[]) => unknown) => {
+        listeners[event] = handler;
+      },
+    } as never;
+    service['device'] = {
+      loaded: true,
+      createSendTransport: vi
+        .fn()
+        .mockImplementation(() => service['sendTransport']),
+    } as never;
+    const layers = [
+      { height: 720, fps: 60 },
+      { height: 1080, fps: 60 },
+    ];
+    await service['createTransport']('send');
+    await listeners['produce']?.(
+      {
+        kind: 'video',
+        rtpParameters: { encodings: [{}, {}] },
+        appData: { mediaTag: 'cam', layers },
+      },
+      vi.fn(),
+      vi.fn(),
+    );
+    expect(emitWithAck).toHaveBeenCalledWith(
+      EVoiceRoomEvent.PRODUCE,
+      expect.objectContaining({ layers, mediaTag: 'cam' }),
+    );
+  });
+
+  it('applies per-layer values when the quality tier changes', async () => {
+    const setParameters = vi.fn().mockResolvedValue(undefined);
+    const producer = {
+      closed: false,
+      paused: false,
+      resume: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({
+          encodings: [{}, {}, {}],
+        }),
+        setParameters,
+      },
+    };
+    service['cameraProducer'] = producer as never;
+    service['cameraPublish'] = {
+      height: 1080,
+      fps: 60,
+      contentMode: 'motion',
+      extraLayers: [
+        { height: 720, fps: 60 },
+        { height: 480, fps: 30 },
+      ],
+      maxBitrateBps: 8_000_000,
+    };
+    await service['applyVideoPlan'](
+      producer as never,
+      service['cameraPublish'],
+      EVoiceQualityTier.GOOD,
+    );
+    const encodings = setParameters.mock.calls[0]?.[0].encodings as Array<{
+      maxBitrate: number;
+      maxFramerate: number;
+    }>;
+    expect(encodings).toHaveLength(3);
+    expect(encodings.map((encoding) => encoding.maxFramerate)).toEqual([
+      30, 60, 60,
+    ]);
+    expect(encodings.every((encoding) => encoding.maxBitrate > 0)).toBe(true);
+  });
+
+  it('warns once when the browser applies different screen encodings', async () => {
+    const open = TestBed.inject(TuiNotificationService).open as ReturnType<
+      typeof vi.fn
+    >;
+    const plan = [
+      {
+        scaleResolutionDownBy: 2.25,
+        height: 480,
+        fps: 30,
+        maxFramerate: 30,
+        maxBitrate: 200_000,
+      },
+      {
+        scaleResolutionDownBy: 1.5,
+        height: 720,
+        fps: 60,
+        maxFramerate: 60,
+        maxBitrate: 400_000,
+      },
+      {
+        scaleResolutionDownBy: 1,
+        height: 1080,
+        fps: 60,
+        maxFramerate: 60,
+        maxBitrate: 4_400_000,
+      },
+    ];
+    const mismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: [
+            {
+              scaleResolutionDownBy: 1,
+              maxBitrate: 4_400_000,
+              maxFramerate: 60,
+            },
+          ],
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](mismatch as never, plan);
+    service['verifyAppliedEncodings'](mismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith(
+      'CALL.STREAM_SETTINGS_NOT_APPLIED',
+      expect.objectContaining({ appearance: 'warning' }),
+    );
+
+    service['screenSettingsWarned'] = false;
+    const scaleMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            scaleResolutionDownBy: layer.scaleResolutionDownBy + 0.1,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](scaleMismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(2);
+
+    service['screenSettingsWarned'] = false;
+    const bitrateMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            maxBitrate: layer.maxBitrate + 1,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](bitrateMismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(3);
+
+    service['screenSettingsWarned'] = false;
+    const framerateMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            maxFramerate: layer.maxFramerate + 1,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](framerateMismatch as never, plan);
+    expect(open).toHaveBeenCalledTimes(4);
+
+    service['screenSettingsWarned'] = false;
+    const withinTolerance = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: plan.map((layer) => ({
+            ...layer,
+            scaleResolutionDownBy: layer.scaleResolutionDownBy + 1e-4,
+          })),
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](withinTolerance as never, plan);
+    expect(open).toHaveBeenCalledTimes(4);
+
+    const top = plan[2];
+    if (!top) {
+      throw new Error('missing top layer');
+    }
+    service['verifyAppliedEncodings'](mismatch as never, [top]);
+    expect(open).toHaveBeenCalledTimes(4);
+
+    service['verifyAppliedEncodings']({ rtpSender: undefined } as never, plan);
+    expect(open).toHaveBeenCalledTimes(4);
+  });
+
+  it('passes the screen content mode into capture', async () => {
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: { codecs: [{ mimeType: 'video/VP8' }] },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'scr',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    const getTracks = vi.fn().mockResolvedValue({
+      videoTrack: { getSettings: () => ({ height: 1080 }) },
+      audioTrack: null,
+    });
+    TestBed.inject(ScreenCaptureService).getTracks = getTracks;
+    const screenSettings = TestBed.inject(SettingsStore);
+    screenSettings.screenContentMode = vi
+      .fn()
+      .mockReturnValue(
+        'motion',
+      ) as unknown as typeof screenSettings.screenContentMode;
+
+    await service.produceScreen();
+
+    expect(getTracks).toHaveBeenCalledWith({ contentMode: 'motion' });
+    expect(TestBed.inject(TuiNotificationService).open).not.toHaveBeenCalled();
+  });
+
+  it('emits set-consumer-layers and warns when the ack fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(service.setConsumerPreferredLayer('c1', 1)).resolves.toBe(
+      true,
+    );
+    expect(emitWithAck).toHaveBeenCalledWith(
+      EVoiceRoomEvent.SET_CONSUMER_LAYERS,
+      { consumerId: 'c1', spatialLayer: 1 },
+    );
+
+    emitWithAck.mockRejectedValueOnce(new Error('nope'));
+    await expect(service.setConsumerPreferredLayer('c1', 2)).resolves.toBe(
+      false,
+    );
+    expect(warn).toHaveBeenCalled();
   });
 });

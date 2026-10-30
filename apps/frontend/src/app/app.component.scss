@@ -13,5 +13,12 @@
         padding: 0.125rem;
       }
     }
+
+    [tuiNavigationMain].narrow {
+      $hbw: 0.5rem;
+      transition: border-width 0.3s ease-in-out;
+      border-left-width: $hbw;
+      border-right-width: $hbw;
+    }
   }
 }

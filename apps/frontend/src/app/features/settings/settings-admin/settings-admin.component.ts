@@ -22,11 +22,15 @@ import {
   DEFAULT_ICE_SERVERS,
   DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
   DEFAULT_VAPID_EMAIL,
+  DEFAULT_STREAM_MAX_BITRATE_KBPS,
   DEFAULT_VOICE_MAX_BITRATE_KBPS,
   ESettingKey,
   iceServersSettingValueSchema,
   passwordRecoveryCodeTtlSettingValueSchema,
   SCHEMA_ERROR,
+  streamBitrateMaxKbps,
+  streamBitrateMinKbps,
+  streamMaxBitrateKbpsSettingValueSchema,
   TSettingsUpdate,
   vapidEmailSettingValueSchema,
   voiceBitrateMaxKbps,
@@ -105,6 +109,9 @@ export class SettingsAdminComponent {
   protected readonly voiceBitrateMinKbps = voiceBitrateMinKbps;
   protected readonly voiceBitrateMaxKbps = voiceBitrateMaxKbps;
   protected readonly voiceBitrateStep = 8;
+  protected readonly streamBitrateMinKbps = streamBitrateMinKbps;
+  protected readonly streamBitrateMaxKbps = streamBitrateMaxKbps;
+  protected readonly streamBitrateStep = 500;
   private readonly controlKeys = {
     inviteOnlySignUp: ESettingKey.INVITE_ONLY_SIGN_UP,
     passwordRecoveryCodeTtl: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
@@ -116,6 +123,7 @@ export class SettingsAdminComponent {
       ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
     attachmentsStripImageMetadata: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
     voiceMaxBitrateKbps: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+    streamMaxBitrateKbps: ESettingKey.STREAM_MAX_BITRATE_KBPS,
   } as const;
 
   protected readonly form = new FormGroup({
@@ -178,6 +186,12 @@ export class SettingsAdminComponent {
         createZodFieldValidator(voiceMaxBitrateKbpsSettingValueSchema),
       ],
     }),
+    streamMaxBitrateKbps: new FormControl(DEFAULT_STREAM_MAX_BITRATE_KBPS, {
+      nonNullable: true,
+      validators: [
+        createZodFieldValidator(streamMaxBitrateKbpsSettingValueSchema),
+      ],
+    }),
   });
 
   protected readonly defaultIceServers = this.stringify(DEFAULT_ICE_SERVERS);
@@ -197,6 +211,7 @@ export class SettingsAdminComponent {
       attachmentsStripImageMetadata:
         envLocked[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA],
       voiceMaxBitrateKbps: envLocked[ESettingKey.VOICE_MAX_BITRATE_KBPS],
+      streamMaxBitrateKbps: envLocked[ESettingKey.STREAM_MAX_BITRATE_KBPS],
     };
   });
 
@@ -213,6 +228,7 @@ export class SettingsAdminComponent {
         this.settingsStore.attachmentsMaxFilesPerMessage();
       const stripMetadata = this.settingsStore.attachmentsStripImageMetadata();
       const voiceMaxBitrate = this.settingsStore.voiceMaxBitrateKbps();
+      const streamMaxBitrate = this.settingsStore.streamMaxBitrateKbps();
       const envLocked = this.settingsStore.envLocked();
 
       this.form.controls.inviteOnlySignUp.setValue(inviteOnly, {
@@ -240,6 +256,9 @@ export class SettingsAdminComponent {
         emitEvent: false,
       });
       this.form.controls.voiceMaxBitrateKbps.setValue(voiceMaxBitrate, {
+        emitEvent: false,
+      });
+      this.form.controls.streamMaxBitrateKbps.setValue(streamMaxBitrate, {
         emitEvent: false,
       });
 
@@ -272,6 +291,14 @@ export class SettingsAdminComponent {
     return (
       this.form.controls.voiceMaxBitrateKbps.errors?.['zod'] ??
       this.form.controls.voiceMaxBitrateKbps.errors?.['invalidSchema'] ??
+      null
+    );
+  }
+
+  protected get streamMaxBitrateError(): string | null {
+    return (
+      this.form.controls.streamMaxBitrateKbps.errors?.['zod'] ??
+      this.form.controls.streamMaxBitrateKbps.errors?.['invalidSchema'] ??
       null
     );
   }
@@ -346,6 +373,13 @@ export class SettingsAdminComponent {
       updates.push({
         key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
         value: Number(this.form.controls.voiceMaxBitrateKbps.getRawValue()),
+      });
+    }
+
+    if (this.form.controls.streamMaxBitrateKbps.dirty) {
+      updates.push({
+        key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+        value: Number(this.form.controls.streamMaxBitrateKbps.getRawValue()),
       });
     }
 

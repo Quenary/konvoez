@@ -4,6 +4,9 @@ import {
 } from '@shared/functions/message-media-frame.function';
 import { IMessageEntity } from '../chat.store';
 
+/** Place of a message inside a run of consecutive messages from one sender. */
+export type MessageSeriesPosition = 'single' | 'first' | 'middle' | 'last';
+
 export type ChatRow =
   | { readonly kind: 'skeleton-top'; readonly key: 'skel-top' }
   | { readonly kind: 'divider'; readonly key: 'divider' }
@@ -11,6 +14,7 @@ export type ChatRow =
       readonly kind: 'message';
       readonly key: string;
       readonly message: IMessageEntity;
+      readonly series: MessageSeriesPosition;
     }
   | { readonly kind: 'skeleton-bottom'; readonly key: 'skel-bottom' };
 
@@ -39,12 +43,51 @@ export function buildChatRows(input: ChatRowsInput): ChatRow[] {
     if (message.id === input.unreadDividerMessageId) {
       rows.push({ kind: 'divider', key: 'divider' });
     }
-    rows.push({ kind: 'message', key: messageRowKey(message), message });
+    rows.push({
+      kind: 'message',
+      key: messageRowKey(message),
+      message,
+      series: 'single',
+    });
   }
   if (input.loadingNewer) {
     rows.push({ kind: 'skeleton-bottom', key: 'skel-bottom' });
   }
-  return rows;
+  return applyMessageSeries(rows);
+}
+
+/**
+ * Consecutive messages with the same sender are one series. A skeleton or the
+ * unread divider between them starts a new series.
+ */
+function applyMessageSeries(rows: ChatRow[]): ChatRow[] {
+  return rows.map((row, index) => {
+    if (row.kind !== 'message') {
+      return row;
+    }
+    const prev = adjacentMessage(rows, index, -1);
+    const next = adjacentMessage(rows, index, 1);
+    const continues = prev !== null && prev.senderId === row.message.senderId;
+    const followed = next !== null && next.senderId === row.message.senderId;
+    const series: MessageSeriesPosition =
+      continues && followed
+        ? 'middle'
+        : continues
+          ? 'last'
+          : followed
+            ? 'first'
+            : 'single';
+    return { ...row, series };
+  });
+}
+
+function adjacentMessage(
+  rows: readonly ChatRow[],
+  index: number,
+  step: -1 | 1,
+): IMessageEntity | null {
+  const neighbor = rows[index + step];
+  return neighbor?.kind === 'message' ? neighbor.message : null;
 }
 
 export const SKELETON_ROW_SIZE = 48;

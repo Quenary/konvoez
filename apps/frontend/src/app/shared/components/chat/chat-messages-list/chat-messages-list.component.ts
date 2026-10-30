@@ -46,7 +46,8 @@ const AT_BOTTOM_SLACK_PX = 2;
 const WHEEL_LINE_PX = 16;
 const KEYBOARD_LINE_PX = 40;
 const KEYBOARD_PAGE_SHARE = 0.9;
-const ROW_GAP_PX = 8;
+/** Tight gap inside a series. A new series adds padding on the message host. */
+const ROW_GAP_PX = 2;
 const LIST_PADDING_PX = 8;
 const OVERSCAN_ROWS = 8;
 const SCROLLING_RESET_DELAY_MS = 150;
@@ -142,6 +143,10 @@ export class ChatMessagesListComponent {
   );
   private readonly activeTarget = computed((): ChatTarget | null =>
     this.chatStore.target(),
+  );
+  /** Rooms show an avatar column, which already leaves room for the tail. */
+  protected readonly roomChat = computed(
+    () => this.activeTarget()?.kind === 'room',
   );
   private readonly messagesById = computed(
     () =>

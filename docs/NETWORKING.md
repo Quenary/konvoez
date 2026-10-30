@@ -134,7 +134,9 @@ Outbound media bandwidth from the Mediasoup SFU scales with the number of concur
 
 - Base microphone bitrate defaults to 64 kbit/s and is configured in server settings (`VOICE_MAX_BITRATE_KBPS`, range 8–384 kbit/s).
 - At 64 kbit/s, one active speaker with 9 listeners requires approximately 0.6 Mbit/s outbound server bandwidth.
-- Sender-side dynamic adaptation steps degraded clients down upon packet loss or high RTT, reducing client uplink and server fanout.
+- A video stream publishes one to three explicit layers. Its bitrate follows the streamer's cap, the admin ceiling `STREAM_MAX_BITRATE_KBPS` (default 20000 kbit/s, range 1000–100000), and the layer the viewer selects.
+- The viewer cap is applied on the consumer only. The server does not set a transport incoming bitrate limit.
+- Sender-side dynamic adaptation steps degraded clients down upon packet loss or high RTT, reducing client uplink and server fanout. The video cap bounds the total budget across layers and is applied on each layer.
 
 ## Troubleshooting
 

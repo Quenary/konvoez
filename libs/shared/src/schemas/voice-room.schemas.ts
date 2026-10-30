@@ -188,12 +188,42 @@ export type TVoiceRoomConnectTransport = z.infer<
   typeof voiceRoomConnectTransportSchema
 >;
 
+export const voiceRoomStreamLayerSchema = z.object({
+  height: z.number().int().min(1).max(4320),
+  fps: z.number().int().min(1).max(120),
+});
+export type TVoiceRoomStreamLayer = z.infer<typeof voiceRoomStreamLayerSchema>;
+
+export const voiceRoomStreamLayersSchema = z
+  .array(voiceRoomStreamLayerSchema)
+  .min(1)
+  .max(3)
+  .refine((layers) => {
+    for (let index = 1; index < layers.length; index += 1) {
+      const previous = layers[index - 1];
+      const current = layers[index];
+      if (!previous || !current) {
+        return false;
+      }
+      const order =
+        previous.height - current.height || previous.fps - current.fps;
+      if (order >= 0) {
+        return false;
+      }
+    }
+    return true;
+  }, 'layers must be strictly ascending by height, then fps');
+export type TVoiceRoomStreamLayers = z.infer<
+  typeof voiceRoomStreamLayersSchema
+>;
+
 export const voiceRoomProduceSchema = z.object({
   transportId: z.string().min(1),
   kind: z.enum(['audio', 'video']),
   mediaTag: voiceRoomMediaTagSchema,
   /** Opaque mediasoup RtpParameters JSON */
   rtpParameters: z.unknown(),
+  layers: voiceRoomStreamLayersSchema.optional(),
 });
 export type TVoiceRoomProduce = z.infer<typeof voiceRoomProduceSchema>;
 
@@ -228,6 +258,7 @@ export const voiceRoomConsumeResultSchema = z.object({
   mediaTag: voiceRoomMediaTagSchema,
   /** Opaque mediasoup RtpParameters JSON */
   rtpParameters: z.unknown(),
+  layers: voiceRoomStreamLayersSchema.optional(),
 });
 export type TVoiceRoomConsumeResult = z.infer<
   typeof voiceRoomConsumeResultSchema
@@ -238,6 +269,19 @@ export const voiceRoomCloseConsumerSchema = z.object({
 });
 export type TVoiceRoomCloseConsumer = z.infer<
   typeof voiceRoomCloseConsumerSchema
+>;
+
+export const voiceRoomConsumerRefSchema = z.object({
+  consumerId: z.string().min(1),
+});
+export type TVoiceRoomConsumerRef = z.infer<typeof voiceRoomConsumerRefSchema>;
+
+export const voiceRoomSetConsumerLayersSchema = z.object({
+  consumerId: z.string().min(1),
+  spatialLayer: z.number().int().min(0).max(2),
+});
+export type TVoiceRoomSetConsumerLayers = z.infer<
+  typeof voiceRoomSetConsumerLayersSchema
 >;
 
 export const voiceRoomConsumerClosedSchema = z.object({
@@ -293,6 +337,9 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.CLOSE_PRODUCER]: TVoiceRoomCloseProducer;
   [EVoiceRoomEvent.CONSUME]: TVoiceRoomConsume;
   [EVoiceRoomEvent.CLOSE_CONSUMER]: TVoiceRoomCloseConsumer;
+  [EVoiceRoomEvent.PAUSE_CONSUMER]: TVoiceRoomConsumerRef;
+  [EVoiceRoomEvent.RESUME_CONSUMER]: TVoiceRoomConsumerRef;
+  [EVoiceRoomEvent.SET_CONSUMER_LAYERS]: TVoiceRoomSetConsumerLayers;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: TVoiceRoomConsumerClosed;
   [EVoiceRoomEvent.SET_MUTE_STATE]: TVoiceRoomSetMuteState;
   [EVoiceRoomEvent.PEER_MUTE_CHANGED]: TVoiceRoomPeerMuted;
@@ -320,6 +367,9 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.CLOSE_PRODUCER]: object;
   [EVoiceRoomEvent.CONSUME]: TVoiceRoomConsumeResult;
   [EVoiceRoomEvent.CLOSE_CONSUMER]: object;
+  [EVoiceRoomEvent.PAUSE_CONSUMER]: object;
+  [EVoiceRoomEvent.RESUME_CONSUMER]: object;
+  [EVoiceRoomEvent.SET_CONSUMER_LAYERS]: object;
   [EVoiceRoomEvent.CONSUMER_CLOSED]: void;
   [EVoiceRoomEvent.SET_MUTE_STATE]: object;
   [EVoiceRoomEvent.PEER_MUTE_CHANGED]: void;

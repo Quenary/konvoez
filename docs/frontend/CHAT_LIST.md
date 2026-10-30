@@ -51,6 +51,14 @@ flowchart LR
 - `IsVisibleDirective` (`appIsVisible`) observes its host inside `appIsVisibleRoot` (the list passes its scroll container; otherwise the viewport) and emits when visibility crosses `appIsVisibleThreshold`.
 - The list enqueues incoming unread messages that stay visible once scrolling and jumps settle, so messages that only flew by are not marked read.
 
+## Message chrome
+
+- Consecutive messages from the same sender form a series. The unread divider breaks a series. Only the last message has the tail, and the inner edge stays rounded.
+- A direct chat shows neither the nickname nor the avatar, and the list keeps an inset on both sides so the tail stays inside the viewport.
+- In a room, someone else's series shows the nickname on the first message and the avatar on the last. Middle messages show neither. The avatar column stays reserved so the bubbles line up, and the list has no inset on the start side.
+- Reaction pills sit on the same row as the time and the read status.
+- On a narrow screen the message menu is a dialog. Its top shows the message text, quote and attachments so the text can be selected. That preview does not open the menu again, toggle reactions, follow the quote, or activate attachments. A long message scrolls inside the preview and leaves the actions visible.
+
 ## Reply shortcuts
 
 Both gestures set reply to that message in `ChatStore`. They ignore outgoing messages and interactive controls (avatars, reactions, attachments, links, quote replies, user mentions), so audio scrubbing keeps its own drag. Selecting a message to reply or edit auto-focuses the chat composer with the cursor at the end of the text. On a touch device that focus is the composer itself and runs inside the reply or edit gesture, so the virtual keyboard opens with the caret.

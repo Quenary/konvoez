@@ -209,11 +209,13 @@ describe('deepfilternet worklet', () => {
 
     it('disposes native state and causes process() to return false', () => {
       const freeFn = vi.fn();
+      const wbgFree = vi.fn();
       const mockWasmExports = {
         __wbindgen_start: vi.fn(),
         df_create_default: vi.fn().mockReturnValue(42),
         df_get_frame_length: vi.fn().mockReturnValue(480),
-        __wbg_dfstate_free: freeFn,
+        df_free: freeFn,
+        __wbg_dfstate_free: wbgFree,
       };
 
       const { registeredCtor: Processor } = loadWorklet({
@@ -242,9 +244,52 @@ describe('deepfilternet worklet', () => {
       });
 
       expect(freeFn).toHaveBeenCalledTimes(1);
-      expect(freeFn).toHaveBeenCalledWith(42, 0);
+      expect(freeFn).toHaveBeenCalledWith(42);
+      expect(wbgFree).not.toHaveBeenCalled();
       expect(processor.process([[input]], [[output]])).toBe(false);
       expect(processor.port.onmessage).toBeNull();
+    });
+
+    it('stops the processor when native free throws and does not free twice', () => {
+      const freeFn = vi.fn(() => {
+        throw new Error(
+          'attempted to take ownership of Rust value while it was borrowed',
+        );
+      });
+      const { registeredCtor: Processor } = loadWorklet({
+        WebAssembly: {
+          Module: class MockModule {},
+          Instance: class MockInstance {
+            exports = {
+              __wbindgen_start: vi.fn(),
+              df_create_default: vi.fn().mockReturnValue(42),
+              df_get_frame_length: vi.fn().mockReturnValue(480),
+              df_free: freeFn,
+            };
+          },
+        },
+      });
+
+      const processor = new Processor({
+        processorOptions: {
+          wasmModule: {} as WebAssembly.Module,
+        },
+      });
+      const onmessage = processor.port.onmessage;
+
+      expect(() => {
+        onmessage?.({ data: { type: 'dispose' } });
+      }).not.toThrow();
+
+      const input = new Float32Array([0.1, 0.2]);
+      const output = new Float32Array(2);
+      expect(processor.process([[input]], [[output]])).toBe(false);
+      expect(freeFn).toHaveBeenCalledTimes(1);
+
+      expect(() => {
+        onmessage?.({ data: { type: 'dispose' } });
+      }).not.toThrow();
+      expect(freeFn).toHaveBeenCalledTimes(1);
     });
 
     it('handles dispose safely when uninitialized and does not throw on second call', () => {

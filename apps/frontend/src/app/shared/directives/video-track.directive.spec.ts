@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PeerVideoService } from '@core/services/peer-video.service';
+import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VideoTrackDirective } from './video-track.directive';
 
 @Component({
@@ -16,7 +18,21 @@ class VideoTrackHost {
 }
 
 describe('VideoTrackDirective', () => {
+  let getConsumerIdByTrack: ReturnType<typeof vi.fn>;
+  let registerView: ReturnType<typeof vi.fn>;
+  let dispose: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
+    TestBed.resetTestingModule();
+    dispose = vi.fn();
+    getConsumerIdByTrack = vi.fn().mockReturnValue(null);
+    registerView = vi.fn().mockReturnValue(dispose);
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: PeerVideoService, useValue: { getConsumerIdByTrack } },
+        { provide: RemoteVideoViewService, useValue: { registerView } },
+      ],
+    });
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -55,5 +71,25 @@ describe('VideoTrackDirective', () => {
     fixture.detectChanges();
     TestBed.flushEffects();
     expect(video.srcObject).toBeNull();
+    expect(registerView).not.toHaveBeenCalled();
+  });
+
+  it('registers a remote view and disposes it when the track clears', () => {
+    getConsumerIdByTrack.mockReturnValue('c1');
+    const fixture = TestBed.createComponent(VideoTrackHost);
+    const track = { id: 'remote' } as MediaStreamTrack;
+    fixture.componentInstance.track.set(track);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    expect(registerView).toHaveBeenCalledWith(
+      'c1',
+      expect.any(HTMLVideoElement),
+    );
+
+    fixture.componentInstance.track.set(null);
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 });

@@ -10,6 +10,9 @@ import {
   passwordRecoveryCodeDefaultTtl,
   passwordRecoveryCodeMaxTtl,
   passwordRecoveryCodeMinTtl,
+  streamBitrateDefaultKbps,
+  streamBitrateMaxKbps,
+  streamBitrateMinKbps,
   voiceBitrateDefaultKbps,
   voiceBitrateMaxKbps,
   voiceBitrateMinKbps,
@@ -322,6 +325,39 @@ export type TVoiceMaxBitrateKbpsSetting = z.infer<
 >;
 
 /* ==========================================================================
+   Stream Max Bitrate (Kbps)
+   ========================================================================== */
+
+export const streamMaxBitrateKbpsSettingValueSchema = z
+  .number({ error: SCHEMA_ERROR.STREAM_MAX_BITRATE_RANGE })
+  .int({ error: SCHEMA_ERROR.STREAM_MAX_BITRATE_RANGE })
+  .min(streamBitrateMinKbps, {
+    error: SCHEMA_ERROR.STREAM_MAX_BITRATE_RANGE,
+  })
+  .max(streamBitrateMaxKbps, {
+    error: SCHEMA_ERROR.STREAM_MAX_BITRATE_RANGE,
+  });
+export type TStreamMaxBitrateKbpsSettingValue = z.infer<
+  typeof streamMaxBitrateKbpsSettingValueSchema
+>;
+
+export const DEFAULT_STREAM_MAX_BITRATE_KBPS: TStreamMaxBitrateKbpsSettingValue =
+  streamBitrateDefaultKbps;
+
+export const streamMaxBitrateKbpsSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.STREAM_MAX_BITRATE_KBPS),
+  value: streamMaxBitrateKbpsSettingValueSchema,
+});
+
+export const streamMaxBitrateKbpsSettingSchema =
+  streamMaxBitrateKbpsSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
+export type TStreamMaxBitrateKbpsSetting = z.infer<
+  typeof streamMaxBitrateKbpsSettingSchema
+>;
+
+/* ==========================================================================
    Maps, Unions & Bulk Update Schemas
    ========================================================================== */
 
@@ -339,6 +375,7 @@ export const settingValueSchemas = {
   [ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]:
     attachmentsStripImageMetadataSettingValueSchema,
   [ESettingKey.VOICE_MAX_BITRATE_KBPS]: voiceMaxBitrateKbpsSettingValueSchema,
+  [ESettingKey.STREAM_MAX_BITRATE_KBPS]: streamMaxBitrateKbpsSettingValueSchema,
 } as const;
 
 export const defaultSettingValues = {
@@ -353,6 +390,7 @@ export const defaultSettingValues = {
   [ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]:
     DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
   [ESettingKey.VOICE_MAX_BITRATE_KBPS]: DEFAULT_VOICE_MAX_BITRATE_KBPS,
+  [ESettingKey.STREAM_MAX_BITRATE_KBPS]: DEFAULT_STREAM_MAX_BITRATE_KBPS,
 } as const;
 
 export type TSettingValueMap = {
@@ -387,6 +425,9 @@ const settingSchemaEntries = [
   voiceMaxBitrateKbpsSettingBaseSchema
     .extend(baseEntitySchema.shape)
     .extend(settingMetaSchema.shape),
+  streamMaxBitrateKbpsSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
 ] as const;
 
 export const settingSchema = z.discriminatedUnion('key', settingSchemaEntries);
@@ -406,6 +447,7 @@ export const settingItemUpdateSchema = z.discriminatedUnion('key', [
   attachmentsMaxFilesPerMessageSettingBaseSchema,
   attachmentsStripImageMetadataSettingBaseSchema,
   voiceMaxBitrateKbpsSettingBaseSchema,
+  streamMaxBitrateKbpsSettingBaseSchema,
 ]);
 export type TSettingItemUpdate = z.infer<typeof settingItemUpdateSchema>;
 

@@ -1,4 +1,5 @@
 import { Injectable, Injector, OnDestroy, inject } from '@angular/core';
+import { TStreamContentMode } from '@konvoez/shared';
 import {
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
@@ -42,6 +43,7 @@ export class ScreenCaptureService implements OnDestroy {
   public async getTracks(options?: {
     height?: TStreamHeight;
     fps?: TStreamFps;
+    contentMode?: TStreamContentMode;
   }): Promise<TScreenCaptureResult> {
     const height =
       options?.height ??
@@ -66,7 +68,8 @@ export class ScreenCaptureService implements OnDestroy {
       throw new Error('Screen share has no video track');
     }
 
-    const contentHint = fps >= 60 ? 'motion' : 'detail';
+    const contentMode = options?.contentMode ?? 'detail';
+    const contentHint = contentMode === 'motion' ? 'motion' : 'detail';
     try {
       videoTrack.contentHint = contentHint;
     } catch {

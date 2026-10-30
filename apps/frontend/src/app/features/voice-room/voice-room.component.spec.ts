@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -20,7 +20,6 @@ class MockVoiceRoomShellComponent {
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<unknown>(null);
-  public readonly left = output<void>();
 }
 
 describe('VoiceRoomComponent', () => {
@@ -116,9 +115,6 @@ describe('VoiceRoomComponent', () => {
     selectedRoomId.set(9);
     TestBed.flushEffects();
     expect(joinSession).toHaveBeenCalledTimes(1);
-
-    fixture.componentInstance['onLeft']();
-    expect(navigate).toHaveBeenCalledWith(['/']);
   });
 
   it('skips join when that room is already selected', () => {

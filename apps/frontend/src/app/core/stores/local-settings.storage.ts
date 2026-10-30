@@ -6,12 +6,17 @@ import {
   mediaDeviceInfoSchema,
   noiseProcessorSchema,
   outputVolumeSchema,
+  streamBitrateKbpsSchema,
+  streamContentModeSchema,
+  streamExtraLayersSchema,
   streamFpsSchema,
   streamHeightSchema,
   TLocalSettingsPartial,
   TMediaDeviceInfo,
+  TStreamContentMode,
   TStreamFps,
   TStreamHeight,
+  TStreamLayer,
 } from '@shared/schemas/local-settings.schema';
 import {
   storageGetItemJson,
@@ -31,6 +36,21 @@ const parseHeight = (value: unknown): TStreamHeight | undefined => {
 
 const parseFps = (value: unknown): TStreamFps | undefined => {
   const result = streamFpsSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseExtraLayers = (value: unknown): TStreamLayer[] | undefined => {
+  const result = streamExtraLayersSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseBitrateKbps = (value: unknown): number | undefined => {
+  const result = streamBitrateKbpsSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseContentMode = (value: unknown): TStreamContentMode | undefined => {
+  const result = streamContentModeSchema.safeParse(value);
   return result.success ? result.data : undefined;
 };
 
@@ -63,6 +83,9 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     return {};
   }
 
+  if (typeof raw !== 'object') {
+    return {};
+  }
   const parsed = localSettingsLooseSchema.safeParse(raw);
   if (!parsed.success) {
     return {};
@@ -77,6 +100,11 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     streamFps: parseFps(parsed.data.streamFps),
     screenHeight: parseHeight(parsed.data.screenHeight),
     screenFps: parseFps(parsed.data.screenFps),
+    streamExtraLayers: parseExtraLayers(parsed.data.streamExtraLayers),
+    streamBitrateKbps: parseBitrateKbps(parsed.data.streamBitrateKbps),
+    screenExtraLayers: parseExtraLayers(parsed.data.screenExtraLayers),
+    screenBitrateKbps: parseBitrateKbps(parsed.data.screenBitrateKbps),
+    screenContentMode: parseContentMode(parsed.data.screenContentMode),
     screenPreviewAutoPauseWhenHidden:
       typeof parsed.data.screenPreviewAutoPauseWhenHidden === 'boolean'
         ? parsed.data.screenPreviewAutoPauseWhenHidden
@@ -117,6 +145,11 @@ export type TLocalSettingsWrite = {
   streamFps?: TStreamFps | null;
   screenHeight?: TStreamHeight | null;
   screenFps?: TStreamFps | null;
+  streamExtraLayers?: TStreamLayer[] | null;
+  streamBitrateKbps?: number | null;
+  screenExtraLayers?: TStreamLayer[] | null;
+  screenBitrateKbps?: number | null;
+  screenContentMode?: TStreamContentMode | null;
   screenPreviewAutoPauseWhenHidden?: boolean;
   noiseProcessor?: ENoiseProcessor | null;
   inputGain?: number | null;
@@ -167,6 +200,26 @@ export const writeLocalSettings = (
     settings.screenFps === undefined
       ? existing.screenFps
       : (settings.screenFps ?? undefined);
+  const nextStreamExtraLayers =
+    settings.streamExtraLayers === undefined
+      ? existing.streamExtraLayers
+      : (settings.streamExtraLayers ?? undefined);
+  const nextStreamBitrate =
+    settings.streamBitrateKbps === undefined
+      ? existing.streamBitrateKbps
+      : (settings.streamBitrateKbps ?? undefined);
+  const nextScreenExtraLayers =
+    settings.screenExtraLayers === undefined
+      ? existing.screenExtraLayers
+      : (settings.screenExtraLayers ?? undefined);
+  const nextScreenBitrate =
+    settings.screenBitrateKbps === undefined
+      ? existing.screenBitrateKbps
+      : (settings.screenBitrateKbps ?? undefined);
+  const nextScreenContentMode =
+    settings.screenContentMode === undefined
+      ? existing.screenContentMode
+      : (settings.screenContentMode ?? undefined);
   const nextScreenPreviewAutoPause =
     settings.screenPreviewAutoPauseWhenHidden === undefined
       ? existing.screenPreviewAutoPauseWhenHidden
@@ -199,6 +252,21 @@ export const writeLocalSettings = (
       ? { screenHeight: nextScreenHeight }
       : {}),
     ...(nextScreenFps !== undefined ? { screenFps: nextScreenFps } : {}),
+    ...(nextStreamExtraLayers !== undefined
+      ? { streamExtraLayers: nextStreamExtraLayers }
+      : {}),
+    ...(nextStreamBitrate !== undefined
+      ? { streamBitrateKbps: nextStreamBitrate }
+      : {}),
+    ...(nextScreenExtraLayers !== undefined
+      ? { screenExtraLayers: nextScreenExtraLayers }
+      : {}),
+    ...(nextScreenBitrate !== undefined
+      ? { screenBitrateKbps: nextScreenBitrate }
+      : {}),
+    ...(nextScreenContentMode !== undefined
+      ? { screenContentMode: nextScreenContentMode }
+      : {}),
     ...(nextScreenPreviewAutoPause !== undefined
       ? { screenPreviewAutoPauseWhenHidden: nextScreenPreviewAutoPause }
       : {}),

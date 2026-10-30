@@ -114,6 +114,42 @@ describe('ChatComponent', () => {
     expect(join).toHaveBeenCalledWith({ kind: 'room', id: 1 }, 'msg-target-1');
   });
 
+  it.each([
+    {
+      name: 'room title',
+      roomId: 1 as number | null,
+      recipientId: null as number | null,
+      avatarIcon: null as string | null,
+      color: false,
+    },
+    {
+      name: 'direct nickname',
+      roomId: null as number | null,
+      recipientId: 2 as number | null,
+      avatarIcon: null as string | null,
+      color: true,
+    },
+    {
+      name: 'saved messages',
+      roomId: null as number | null,
+      recipientId: 1 as number | null,
+      avatarIcon: '@tui.bookmark',
+      color: false,
+    },
+  ])(
+    'colorTitle is $color for $name',
+    ({ roomId, recipientId, avatarIcon, color }) => {
+      fixture = TestBed.createComponent(ChatComponent);
+      fixture.componentRef.setInput('roomId', roomId);
+      fixture.componentRef.setInput('recipientId', recipientId);
+      fixture.componentRef.setInput('avatarIcon', avatarIcon);
+      fixture.componentRef.setInput('title', 'title');
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance['colorTitle']()).toBe(color);
+    },
+  );
+
   it('triggers jumpToMessage when initialMessageId changes while already joined', () => {
     target.set({ kind: 'room', id: 1 });
     fixture = TestBed.createComponent(ChatComponent);
