@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { NotificationsApiService } from '@core/services/notifications-api.service';
-import { TuiNotificationService } from '@taiga-ui/core';
+import { TUI_OPTIONS, TuiNotificationService } from '@taiga-ui/core';
 import { SettingsNotificationsComponent } from './settings-notifications.component';
 import { DEFAULT_USER_NOTIFICATION_SETTINGS } from '@konvoez/shared';
 
@@ -36,6 +36,14 @@ describe('SettingsNotificationsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [SettingsNotificationsComponent],
       providers: [
+        {
+          provide: TUI_OPTIONS,
+          useValue: {
+            apis: 'stable',
+            fontScaling: false,
+            scrollbars: 'native',
+          },
+        },
         provideTranslateService(),
         {
           provide: PushNotificationService,

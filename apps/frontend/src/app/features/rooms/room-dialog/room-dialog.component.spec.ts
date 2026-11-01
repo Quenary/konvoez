@@ -2,7 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogContext, TuiNotificationService } from '@taiga-ui/core';
+import {
+  TUI_OPTIONS,
+  TuiDialogContext,
+  TuiNotificationService,
+} from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { ERoomType } from '@konvoez/shared';
 import { RoomsApiService } from '@core/api/rooms-api.service';
@@ -88,6 +92,14 @@ describe('RoomDialogComponent', () => {
     await TestBed.configureTestingModule({
       imports: [RoomDialogComponent],
       providers: [
+        {
+          provide: TUI_OPTIONS,
+          useValue: {
+            apis: 'stable',
+            fontScaling: false,
+            scrollbars: 'native',
+          },
+        },
         provideTranslateService(),
         { provide: RoomsApiService, useValue: mockRoomsApiService },
         { provide: RolesApiService, useValue: mockRolesApiService },

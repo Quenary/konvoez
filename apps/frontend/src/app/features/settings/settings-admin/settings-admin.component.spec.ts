@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
+import { TUI_OPTIONS } from '@taiga-ui/core';
 import {
   DEFAULT_ATTACHMENTS_ENABLED,
   DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
@@ -58,6 +59,14 @@ describe('SettingsAdminComponent', () => {
     await TestBed.configureTestingModule({
       imports: [SettingsAdminComponent],
       providers: [
+        {
+          provide: TUI_OPTIONS,
+          useValue: {
+            apis: 'stable',
+            fontScaling: false,
+            scrollbars: 'native',
+          },
+        },
         provideTranslateService(),
         {
           provide: SettingsStore,

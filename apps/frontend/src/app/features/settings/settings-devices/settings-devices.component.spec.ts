@@ -4,7 +4,11 @@ import { SettingsDevicesComponent } from './settings-devices.component';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
 import { MediaDevicesService } from '@core/services/media-devices.service';
-import { TUI_ITEMS_HANDLERS, TuiNotificationService } from '@taiga-ui/core';
+import {
+  TUI_ITEMS_HANDLERS,
+  TUI_OPTIONS,
+  TuiNotificationService,
+} from '@taiga-ui/core';
 import { TranslateService } from '@ngx-translate/core';
 import { signal } from '@angular/core';
 import { ENoiseProcessor } from '../../../app.enums';
@@ -70,6 +74,14 @@ describe('SettingsDevicesComponent', () => {
     TestBed.configureTestingModule({
       imports: [SettingsDevicesComponent],
       providers: [
+        {
+          provide: TUI_OPTIONS,
+          useValue: {
+            apis: 'stable',
+            fontScaling: false,
+            scrollbars: 'native',
+          },
+        },
         { provide: SettingsStore, useValue: settingsStore },
         { provide: MicTestService, useValue: micTestService },
         {

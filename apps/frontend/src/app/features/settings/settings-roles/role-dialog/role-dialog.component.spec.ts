@@ -2,7 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogContext, TuiNotificationService } from '@taiga-ui/core';
+import {
+  TUI_OPTIONS,
+  TuiDialogContext,
+  TuiNotificationService,
+} from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { EPermission, IRole } from '@konvoez/shared';
 import { RolesApiService } from '@core/api/roles-api.service';
@@ -42,6 +46,14 @@ describe('RoleDialogComponent', () => {
     await TestBed.configureTestingModule({
       imports: [RoleDialogComponent],
       providers: [
+        {
+          provide: TUI_OPTIONS,
+          useValue: {
+            apis: 'stable',
+            fontScaling: false,
+            scrollbars: 'native',
+          },
+        },
         provideTranslateService(),
         { provide: RolesApiService, useValue: mockRolesApiService },
         {
