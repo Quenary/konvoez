@@ -19,7 +19,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
 import { PasswordService } from '../../shared/services/password.service';
@@ -50,7 +50,6 @@ describe('UsersService', () => {
     password: 'hashed_password',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     sessionVersion: 0,
     avatar: null,
@@ -297,13 +296,12 @@ describe('UsersService', () => {
   });
 
   describe('anonymizeLoaded', () => {
-    it('should replace identity fields, keep the role, and keep the user row', async () => {
+    it('should replace identity fields and keep the user row', async () => {
       const target = {
         ...mockUser,
         id: 5,
         email: 'user5@example.com',
         emailVerified: true,
-        role: EUserRole.ADMIN,
         avatar: 'avatar-key',
         sessionVersion: 0,
       } as UserEntity;
@@ -327,10 +325,6 @@ describe('UsersService', () => {
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_SESSIONS_REVOKED,
         { id: 5 },
-      );
-      expect(mockRepo.assign).not.toHaveBeenCalledWith(
-        target,
-        expect.objectContaining({ role: expect.anything() }),
       );
       expect(mockEm.remove).not.toHaveBeenCalled();
       expect(fileService.delete).toHaveBeenCalledWith(
@@ -361,7 +355,6 @@ describe('UsersService', () => {
         id: 5,
         email: 'user5@example.com',
         emailVerified: true,
-        role: EUserRole.MEMBER,
         avatar: 'avatar-key',
       } as UserEntity;
       const messageId = new Uint8Array(16);
@@ -409,7 +402,6 @@ describe('UsersService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
         avatar: null,
       } as UserEntity;
       mockEm.findOne.mockResolvedValueOnce(target);

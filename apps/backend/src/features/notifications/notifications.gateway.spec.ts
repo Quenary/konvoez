@@ -5,7 +5,6 @@ jest.mock('../auth/auth.service', () => ({
 import { NotificationsGateway } from './notifications.gateway';
 import {
   ENotificationsEvent,
-  EUserRole,
   type IUserSafe,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
@@ -21,7 +20,6 @@ describe('NotificationsGateway', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],

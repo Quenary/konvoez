@@ -33,7 +33,6 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ApiErrorCode,
-  EUserRole,
   buildCallNotificationTopic,
   buildMessageNotificationTopic,
   buildReactionNotificationTopic,
@@ -72,7 +71,6 @@ describe('NotificationsService', () => {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],

@@ -19,7 +19,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import type { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
@@ -71,7 +71,6 @@ describe('ProfileService', () => {
     password: 'hashed_password',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     sessionVersion: 0,
     avatar: null,
     deletedAt: null,
@@ -83,7 +82,6 @@ describe('ProfileService', () => {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],
@@ -302,7 +300,7 @@ describe('ProfileService', () => {
 
     it('should reject owner self-anonymize', async () => {
       await expect(
-        service.anonymizeSelf({ ...author, role: EUserRole.OWNER }),
+        service.anonymizeSelf({ ...author, isOwner: true }),
       ).rejects.toMatchObject({
         code: ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
       });
@@ -320,7 +318,7 @@ describe('ProfileService', () => {
 
     it('should reject owner self-removal', async () => {
       await expect(
-        service.removeSelf({ ...author, role: EUserRole.OWNER }),
+        service.removeSelf({ ...author, isOwner: true }),
       ).rejects.toMatchObject({
         code: ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
       });

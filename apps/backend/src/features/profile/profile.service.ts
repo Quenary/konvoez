@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
 import { UserEntity } from '../users/users.entity';
@@ -304,7 +304,7 @@ export class ProfileService {
   }
 
   private assertNotOwner(author: GetUserSafeDto): void {
-    if (author.isOwner || author.role === EUserRole.OWNER) {
+    if (author.isOwner) {
       throw AppException.forbidden(
         ApiErrorCode.USER_OWNER_DELETE_FORBIDDEN,
         'Owner account cannot be deleted',

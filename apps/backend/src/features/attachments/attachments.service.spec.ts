@@ -34,7 +34,6 @@ import { sanitizeAttachmentName } from './attachments.http';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { GetUserSafeDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
 
 describe('sanitizeAttachmentName', () => {
   it('keeps a Cyrillic name', () => {
@@ -59,7 +58,6 @@ describe('AttachmentsService', () => {
     id: 1,
     username: 'author',
     fullname: 'Author',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [EPermission.USE_ATTACHMENTS],

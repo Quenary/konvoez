@@ -24,7 +24,7 @@ import { AuthService } from './auth.service';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from './auth.const';
 import { AuthLoginDto } from './auth.dto';
 import { GetUserFullDto } from '../users/users.dto';
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import type { Request, Response } from 'express';
 
 describe('AuthController', () => {
@@ -36,7 +36,6 @@ describe('AuthController', () => {
     username: 'testuser',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],

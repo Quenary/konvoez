@@ -22,12 +22,11 @@ jest.mock('@mikro-orm/core', () => {
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import {
-  AuthGuardRoles,
   AuthRefreshFallback,
   RequireOwner,
   RequirePermissions,
@@ -48,7 +47,6 @@ describe('AuthGuard', () => {
     username: 'testuser',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],
@@ -113,7 +111,7 @@ describe('AuthGuard', () => {
   });
 
   describe('canActivate', () => {
-    it('should allow access and set request.author when no roles are specified', async () => {
+    it('should allow access and set request.author when no permissions are required', async () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
@@ -122,45 +120,9 @@ describe('AuthGuard', () => {
 
       const result = await guard.canActivate(context);
 
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(AuthGuardRoles, [
-        context.getHandler(),
-        context.getClass(),
-      ]);
       expect(authService.getMe).toHaveBeenCalledWith(request);
       expect(request['author']).toEqual(mockUser);
       expect(result).toBe(true);
-    });
-
-    it('should allow access and set request.author when user has one of allowed roles', async () => {
-      const request: Record<string, unknown> = {};
-      const context = createMockContext(request);
-
-      reflector.getAllAndOverride.mockImplementation((key) => {
-        if (key === AuthGuardRoles) return [EUserRole.MEMBER, EUserRole.ADMIN];
-        return undefined;
-      });
-      authService.getMe.mockResolvedValueOnce(mockUser);
-
-      const result = await guard.canActivate(context);
-
-      expect(request['author']).toEqual(mockUser);
-      expect(result).toBe(true);
-    });
-
-    it('should throw AppException when user does not have an allowed role', async () => {
-      const request: Record<string, unknown> = {};
-      const context = createMockContext(request);
-
-      reflector.getAllAndOverride.mockImplementation((key) => {
-        if (key === AuthGuardRoles) return [EUserRole.ADMIN];
-        return undefined;
-      });
-      authService.getMe.mockResolvedValueOnce(mockUser);
-
-      await expect(guard.canActivate(context)).rejects.toMatchObject({
-        code: ApiErrorCode.AUTH_METHOD_FORBIDDEN,
-      });
-      expect(request['author']).toBeUndefined();
     });
 
     it('should enforce RequireOwner when non-owner accesses', async () => {
@@ -212,10 +174,7 @@ describe('AuthGuard', () => {
       const request: Record<string, unknown> = {};
       const context = createMockContext(request);
 
-      reflector.getAllAndOverride.mockImplementation((key) => {
-        if (key === AuthGuardRoles) return [EUserRole.MEMBER];
-        return undefined;
-      });
+      reflector.getAllAndOverride.mockReturnValue(undefined);
       authService.getMe.mockRejectedValueOnce(
         AppException.unauthorized(ApiErrorCode.UNAUTHORIZED, 'Unauthorized'),
       );

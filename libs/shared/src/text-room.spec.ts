@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { canDeleteTextRoomMessage } from './text-room';
-import { EPermission, EUserRole } from './enums';
+import { EPermission } from './enums';
 
 describe('canDeleteTextRoomMessage', () => {
   const roomMessage = {
@@ -57,18 +57,6 @@ describe('canDeleteTextRoomMessage', () => {
         isOwner: true,
         permissions: [EPermission.MODERATE_MESSAGES],
       }),
-    ).toBe(false);
-  });
-
-  it('still supports legacy EUserRole.OWNER and ADMIN', () => {
-    expect(
-      canDeleteTextRoomMessage(roomMessage, { id: 99, role: EUserRole.OWNER }),
-    ).toBe(true);
-    expect(
-      canDeleteTextRoomMessage(roomMessage, { id: 99, role: EUserRole.ADMIN }),
-    ).toBe(true);
-    expect(
-      canDeleteTextRoomMessage(roomMessage, { id: 99, role: EUserRole.MEMBER }),
     ).toBe(false);
   });
 });

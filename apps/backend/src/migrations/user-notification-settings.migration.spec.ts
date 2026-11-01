@@ -5,7 +5,7 @@ import { MikroORM, type Options } from '@mikro-orm/core';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { Test } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { DEFAULT_USER_NOTIFICATION_SETTINGS, EUserRole } from '@konvoez/shared';
+import { DEFAULT_USER_NOTIFICATION_SETTINGS } from '@konvoez/shared';
 import { NotificationsService } from '../features/notifications/notifications.service';
 
 const { createMikroOrmConfig } = require('../mikro-orm.config') as {
@@ -154,7 +154,6 @@ describe('UserNotificationSettings migration', () => {
       id: 1,
       username: 'alice',
       fullname: 'Alice Smith',
-      role: EUserRole.MEMBER,
       isOwner: false,
       roles: [],
       permissions: [],

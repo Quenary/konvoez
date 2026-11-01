@@ -4,7 +4,6 @@ import { UsersService } from '../users/users.service';
 import { UsersAvatarsService } from '../users/users-avatars.service';
 import { AuthService } from '../auth/auth.service';
 import type { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
-import { EUserRole } from '@konvoez/shared';
 import type { Response } from 'express';
 
 describe('ProfileController', () => {
@@ -21,7 +20,6 @@ describe('ProfileController', () => {
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],

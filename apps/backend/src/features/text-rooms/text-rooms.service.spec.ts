@@ -45,7 +45,6 @@ import {
   EAttachmentKind,
   EPermission,
   ESettingKey,
-  EUserRole,
   IAttachment,
 } from '@konvoez/shared';
 import { AttachmentsService } from '../attachments/attachments.service';
@@ -82,7 +81,6 @@ describe('TextRoomsService', () => {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [EPermission.SEND_MESSAGES, EPermission.USE_ATTACHMENTS],
@@ -1757,9 +1755,16 @@ describe('TextRoomsService', () => {
       });
     });
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
-      'should let %s delete another user room message',
-      async (role) => {
+    it.each([
+      {
+        description: 'moderator',
+        isOwner: false,
+        permissions: [EPermission.MODERATE_MESSAGES],
+      },
+      { description: 'owner', isOwner: true, permissions: [] },
+    ])(
+      'should let $description delete another user room message',
+      async ({ isOwner, permissions }) => {
         const msgId = v7();
         const existing = {
           id: parse(msgId),
@@ -1773,9 +1778,8 @@ describe('TextRoomsService', () => {
         await service.delete(
           {
             ...mockUser,
-            role,
-            isOwner: role === EUserRole.OWNER,
-            permissions: [EPermission.MODERATE_MESSAGES],
+            isOwner,
+            permissions,
           },
           msgId,
         );
@@ -1789,9 +1793,16 @@ describe('TextRoomsService', () => {
       },
     );
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
-      'should throw ForbiddenException when %s deletes another user direct message',
-      async (role) => {
+    it.each([
+      {
+        description: 'moderator',
+        isOwner: false,
+        permissions: [EPermission.MODERATE_MESSAGES],
+      },
+      { description: 'owner', isOwner: true, permissions: [] },
+    ])(
+      'should throw ForbiddenException when $description deletes another user direct message',
+      async ({ isOwner, permissions }) => {
         const msgId = v7();
         const existing = {
           id: parse(msgId),
@@ -1806,9 +1817,8 @@ describe('TextRoomsService', () => {
           service.delete(
             {
               ...mockUser,
-              role,
-              isOwner: role === EUserRole.OWNER,
-              permissions: [EPermission.MODERATE_MESSAGES],
+              isOwner,
+              permissions,
             },
             msgId,
           ),

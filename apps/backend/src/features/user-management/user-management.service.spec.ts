@@ -21,7 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import type { GetUserFullDto, GetUserSafeDto } from '../users/users.dto';
 import type { UserEntity } from '../users/users.entity';
@@ -68,7 +68,6 @@ describe('UserManagementService', () => {
     password: 'hashed_password',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     avatar: null,
     createdAt: new Date(),
@@ -80,7 +79,6 @@ describe('UserManagementService', () => {
     username: 'test_user',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],
@@ -162,7 +160,7 @@ describe('UserManagementService', () => {
     const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
-      role: EUserRole.OWNER,
+      isOwner: true,
     };
 
     it('should assign roles to a user', async () => {
@@ -361,16 +359,15 @@ describe('UserManagementService', () => {
     const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
-      role: EUserRole.OWNER,
+      isOwner: true,
     };
 
     it('should anonymize a manageable user through UsersService', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.ADMIN,
       } as UserEntity;
-      const anonymized = { ...mockUserDto, id: 5, role: EUserRole.ADMIN };
+      const anonymized = { ...mockUserDto, id: 5 };
       usersService.findOne.mockResolvedValueOnce(target);
       usersService.anonymizeLoaded.mockResolvedValueOnce(anonymized);
 
@@ -412,14 +409,13 @@ describe('UserManagementService', () => {
     const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
-      role: EUserRole.OWNER,
+      isOwner: true,
     };
 
     it('should remove a manageable user through UsersService', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
       } as UserEntity;
       usersService.findOne.mockResolvedValueOnce(target);
 

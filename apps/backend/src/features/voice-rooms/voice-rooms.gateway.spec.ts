@@ -34,7 +34,6 @@ import { AuthService } from '../auth/auth.service';
 import {
   DIRECT_CALL_RING_TIMEOUT_MS,
   EDirectCallEvent,
-  EUserRole,
   EVoiceRoomEvent,
   ApiErrorCode,
   EPermission,
@@ -52,7 +51,6 @@ const alice: IUserSafe = {
   username: 'alice',
   fullname: 'Alice',
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   isOwner: false,
   roles: [],
   permissions: [EPermission.CONNECT_VOICE],

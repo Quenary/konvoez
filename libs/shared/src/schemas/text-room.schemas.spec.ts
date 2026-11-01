@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { ApiErrorCode } from '../errors';
-import { EUserRole } from '../enums';
 import { SCHEMA_ERROR } from './base.schemas';
 import {
   messageListResponseSchema,
@@ -21,7 +20,6 @@ describe('TextRoom Schemas', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    role: EUserRole.MEMBER,
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),

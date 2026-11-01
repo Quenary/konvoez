@@ -45,7 +45,6 @@ import { GetUserFullDto } from '../users/users.dto';
 import {
   ApiErrorCode,
   ESettingKey,
-  EUserRole,
   passwordRecoveryRequestCooldownMs,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
@@ -106,7 +105,6 @@ describe('AuthService', () => {
     username: 'test_user',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],
@@ -125,7 +123,6 @@ describe('AuthService', () => {
     password: 'hashed_password',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     sessionVersion: 0,
     avatar: null,
@@ -941,7 +938,6 @@ describe('AuthService', () => {
         UsersDomainEvents.USER_CREATED,
         memberPublic,
       );
-      expect(result.role).toBe(EUserRole.MEMBER);
       expect(result.email).toBe(createDto.email);
     });
 
@@ -987,11 +983,9 @@ describe('AuthService', () => {
 
       const createdMember = {
         ...mockUserEntity,
-        role: EUserRole.MEMBER,
       } as unknown as UserEntity;
       const { email: _inviteEmail, ...memberPublic } = {
         ...mockUserDto,
-        role: EUserRole.MEMBER,
       };
 
       userRepo.create.mockReturnValueOnce(createdMember);

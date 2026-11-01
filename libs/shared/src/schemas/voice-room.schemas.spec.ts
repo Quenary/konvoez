@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { EUserRole } from '../enums';
 import {
   voiceRoomCloseConsumerSchema,
   voiceRoomCloseProducerSchema,
@@ -29,7 +28,6 @@ describe('VoiceRoom Schemas', () => {
     id: 1,
     username: 'testuser',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),
