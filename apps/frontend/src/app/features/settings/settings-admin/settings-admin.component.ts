@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -31,6 +32,7 @@ import {
   streamBitrateMaxKbps,
   streamBitrateMinKbps,
   streamMaxBitrateKbpsSettingValueSchema,
+  TSettingItemUpdate,
   TSettingsUpdate,
   vapidEmailSettingValueSchema,
   voiceBitrateMaxKbps,
@@ -65,20 +67,44 @@ function iceServersJsonValidator(
     const parsed = JSON.parse(value);
     const result = iceServersSettingValueSchema.safeParse(parsed);
     if (!result.success) {
+      const message =
+        result.error.issues[0]?.message ?? SCHEMA_ERROR.INVALID_SCHEMA;
       return {
-        invalidSchema:
-          result.error.issues[0]?.message ?? SCHEMA_ERROR.INVALID_SCHEMA,
+        zod: message,
+        invalidSchema: message,
       };
     }
     return null;
   } catch {
-    return { invalidSchema: SCHEMA_ERROR.INVALID_SCHEMA };
+    return {
+      zod: SCHEMA_ERROR.INVALID_SCHEMA,
+      invalidSchema: SCHEMA_ERROR.INVALID_SCHEMA,
+    };
   }
+}
+
+type AdminFormControlName =
+  | 'inviteOnlySignUp'
+  | 'passwordRecoveryCodeTtl'
+  | 'vapidEmail'
+  | 'iceServersJson'
+  | 'attachmentsEnabled'
+  | 'attachmentsMaxFileSizeMib'
+  | 'attachmentsMaxFilesPerMessage'
+  | 'attachmentsStripImageMetadata'
+  | 'voiceMaxBitrateKbps'
+  | 'streamMaxBitrateKbps';
+
+interface AdminSettingDescriptor {
+  readonly key: ESettingKey;
+  readonly controlName: AdminFormControlName;
+  readonly toDto: (formValue: unknown) => unknown;
 }
 
 @Component({
   selector: 'app-settings-admin',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     TranslatePipe,
     TuiButton,
@@ -112,20 +138,6 @@ export class SettingsAdminComponent {
   protected readonly streamBitrateMinKbps = streamBitrateMinKbps;
   protected readonly streamBitrateMaxKbps = streamBitrateMaxKbps;
   protected readonly streamBitrateStep = 500;
-  private readonly controlKeys = {
-    inviteOnlySignUp: ESettingKey.INVITE_ONLY_SIGN_UP,
-    passwordRecoveryCodeTtl: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
-    vapidEmail: ESettingKey.VAPID_EMAIL,
-    iceServersJson: ESettingKey.ICE_SERVERS,
-    attachmentsEnabled: ESettingKey.ATTACHMENTS_ENABLED,
-    attachmentsMaxFileSizeMib: ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
-    attachmentsMaxFilesPerMessage:
-      ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
-    attachmentsStripImageMetadata: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
-    voiceMaxBitrateKbps: ESettingKey.VOICE_MAX_BITRATE_KBPS,
-    streamMaxBitrateKbps: ESettingKey.STREAM_MAX_BITRATE_KBPS,
-  } as const;
-
   protected readonly form = new FormGroup({
     inviteOnlySignUp: new FormControl(true, { nonNullable: true }),
     passwordRecoveryCodeTtl: new FormControl(
@@ -215,6 +227,59 @@ export class SettingsAdminComponent {
     };
   });
 
+  private readonly settingDescriptors: readonly AdminSettingDescriptor[] = [
+    {
+      key: ESettingKey.INVITE_ONLY_SIGN_UP,
+      controlName: 'inviteOnlySignUp',
+      toDto: (val) => Boolean(val),
+    },
+    {
+      key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
+      controlName: 'passwordRecoveryCodeTtl',
+      toDto: (val) => Number(val),
+    },
+    {
+      key: ESettingKey.VAPID_EMAIL,
+      controlName: 'vapidEmail',
+      toDto: (val) => String(val).trim(),
+    },
+    {
+      key: ESettingKey.ICE_SERVERS,
+      controlName: 'iceServersJson',
+      toDto: (val) => JSON.parse(String(val)),
+    },
+    {
+      key: ESettingKey.ATTACHMENTS_ENABLED,
+      controlName: 'attachmentsEnabled',
+      toDto: (val) => Boolean(val),
+    },
+    {
+      key: ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
+      controlName: 'attachmentsMaxFileSizeMib',
+      toDto: (val) => Number(val) * 1024 * 1024,
+    },
+    {
+      key: ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
+      controlName: 'attachmentsMaxFilesPerMessage',
+      toDto: (val) => Number(val),
+    },
+    {
+      key: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
+      controlName: 'attachmentsStripImageMetadata',
+      toDto: (val) => Boolean(val),
+    },
+    {
+      key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
+      controlName: 'voiceMaxBitrateKbps',
+      toDto: (val) => Number(val),
+    },
+    {
+      key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
+      controlName: 'streamMaxBitrateKbps',
+      toDto: (val) => Number(val),
+    },
+  ];
+
   constructor() {
     effect(() => {
       const inviteOnly = this.settingsStore.inviteOnlySignUp();
@@ -262,11 +327,9 @@ export class SettingsAdminComponent {
         emitEvent: false,
       });
 
-      for (const [name, key] of Object.entries(this.controlKeys) as Array<
-        [keyof typeof this.form.controls, ESettingKey]
-      >) {
-        const control = this.form.controls[name];
-        if (envLocked[key]) {
+      for (const descriptor of this.settingDescriptors) {
+        const control = this.form.controls[descriptor.controlName];
+        if (envLocked[descriptor.key]) {
           control.disable({ emitEvent: false });
         } else {
           control.enable({ emitEvent: false });
@@ -311,86 +374,14 @@ export class SettingsAdminComponent {
 
     const updates: TSettingsUpdate = [];
 
-    // TODO: Refactor, bind controls to keys, use loop over form.controls
-    if (this.form.controls.inviteOnlySignUp.dirty) {
-      updates.push({
-        key: ESettingKey.INVITE_ONLY_SIGN_UP,
-        value: this.form.controls.inviteOnlySignUp.getRawValue(),
-      });
-    }
-
-    if (this.form.controls.passwordRecoveryCodeTtl.dirty) {
-      updates.push({
-        key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
-        value: Number(this.form.controls.passwordRecoveryCodeTtl.getRawValue()),
-      });
-    }
-
-    if (
-      this.form.controls.vapidEmail.dirty &&
-      this.form.controls.vapidEmail.enabled
-    ) {
-      updates.push({
-        key: ESettingKey.VAPID_EMAIL,
-        value: this.form.controls.vapidEmail.getRawValue().trim(),
-      });
-    }
-
-    if (this.form.controls.attachmentsEnabled.dirty) {
-      updates.push({
-        key: ESettingKey.ATTACHMENTS_ENABLED,
-        value: this.form.controls.attachmentsEnabled.getRawValue(),
-      });
-    }
-
-    if (this.form.controls.attachmentsMaxFileSizeMib.dirty) {
-      updates.push({
-        key: ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
-        value:
-          Number(this.form.controls.attachmentsMaxFileSizeMib.getRawValue()) *
-          1024 *
-          1024,
-      });
-    }
-
-    if (this.form.controls.attachmentsMaxFilesPerMessage.dirty) {
-      updates.push({
-        key: ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE,
-        value: Number(
-          this.form.controls.attachmentsMaxFilesPerMessage.getRawValue(),
-        ),
-      });
-    }
-
-    if (this.form.controls.attachmentsStripImageMetadata.dirty) {
-      updates.push({
-        key: ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA,
-        value: this.form.controls.attachmentsStripImageMetadata.getRawValue(),
-      });
-    }
-
-    if (this.form.controls.voiceMaxBitrateKbps.dirty) {
-      updates.push({
-        key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
-        value: Number(this.form.controls.voiceMaxBitrateKbps.getRawValue()),
-      });
-    }
-
-    if (this.form.controls.streamMaxBitrateKbps.dirty) {
-      updates.push({
-        key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
-        value: Number(this.form.controls.streamMaxBitrateKbps.getRawValue()),
-      });
-    }
-
-    if (this.form.controls.iceServersJson.dirty) {
-      const parsedIceServers = JSON.parse(
-        this.form.controls.iceServersJson.getRawValue(),
-      );
-      updates.push({
-        key: ESettingKey.ICE_SERVERS,
-        value: parsedIceServers,
-      });
+    for (const descriptor of this.settingDescriptors) {
+      const control = this.form.controls[descriptor.controlName];
+      if (control.dirty && control.enabled) {
+        updates.push({
+          key: descriptor.key,
+          value: descriptor.toDto(control.getRawValue()),
+        } as TSettingItemUpdate);
+      }
     }
 
     if (updates.length === 0) {

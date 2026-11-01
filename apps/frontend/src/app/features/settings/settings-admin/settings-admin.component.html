@@ -15,68 +15,167 @@
     </h2>
   </header>
 
+  <ng-template
+    #switchItem
+    let-control="control"
+    let-labelKey="labelKey"
+    let-descKey="descKey"
+    let-locked="locked">
+    <div class="setting-item">
+      <label tuiLabel>
+        <input
+          tuiSwitch
+          type="checkbox"
+          [formControl]="control" />
+        {{ labelKey | translate }}
+      </label>
+      <p class="setting-item-description">
+        {{ descKey | translate }}
+      </p>
+      @if (locked) {
+        <p class="setting-item-description locked">
+          {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+        </p>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template
+    #inputItem
+    let-id="id"
+    let-control="control"
+    let-labelKey="labelKey"
+    let-descKey="descKey"
+    let-number="number"
+    let-placeholder="placeholder"
+    let-locked="locked">
+    <div class="setting-item">
+      <tui-textfield>
+        <label
+          tuiLabel
+          [for]="id">
+          {{ labelKey | translate }}
+        </label>
+        @if (number) {
+          <input
+            tuiInput
+            type="number"
+            [id]="id"
+            [formControl]="control" />
+        } @else {
+          <input
+            tuiInput
+            [id]="id"
+            [placeholder]="placeholder || ''"
+            [formControl]="control" />
+        }
+      </tui-textfield>
+      <p class="setting-item-description">
+        {{ descKey | translate }}
+      </p>
+      @if (
+        control.errors?.['zod'] || control.errors?.['invalidSchema'];
+        as err
+      ) {
+        <tui-error [error]="err | translate" />
+      }
+      @if (locked) {
+        <p class="setting-item-description locked">
+          {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+        </p>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template
+    #sliderItem
+    let-id="id"
+    let-control="control"
+    let-labelKey="labelKey"
+    let-descKey="descKey"
+    let-min="min"
+    let-max="max"
+    let-step="step"
+    let-locked="locked">
+    <div class="setting-item">
+      <tui-textfield>
+        <label
+          tuiLabel
+          [for]="id">
+          {{ labelKey | translate }}
+        </label>
+        <input
+          [id]="id"
+          tuiInputSlider
+          [min]="min"
+          [max]="max"
+          [quantum]="step"
+          [step]="step"
+          [formControl]="control" />
+        <input
+          tuiSlider
+          type="range"
+          [step]="step" />
+      </tui-textfield>
+      <p class="setting-item-description">
+        {{ descKey | translate }}
+      </p>
+      @if (
+        control.errors?.['zod'] || control.errors?.['invalidSchema'];
+        as err
+      ) {
+        <tui-error [error]="err | translate" />
+      }
+      @if (locked) {
+        <p class="setting-item-description locked">
+          {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+        </p>
+      }
+    </div>
+  </ng-template>
+
   <tui-scrollbar>
     <div class="scroll-content">
       <fieldset>
         <legend tuiTitle>{{ 'SETTINGS.ADMIN.SECURITY' | translate }}</legend>
 
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              formControlName="inviteOnlySignUp"
-              type="checkbox" />
-            {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP_DESC' | translate }}
-          </p>
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            switchItem;
+            context: {
+              control: form.controls.inviteOnlySignUp,
+              labelKey: 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP',
+              descKey: 'SETTINGS.ADMIN.INVITE_ONLY_SIGN_UP_DESC',
+              locked: locked().inviteOnlySignUp,
+            }
+          " />
 
-        <div class="setting-item">
-          <tui-textfield>
-            <label
-              tuiLabel
-              for="password-recovery-code-ttl">
-              {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL' | translate }}
-            </label>
-            <input
-              tuiInput
-              id="password-recovery-code-ttl"
-              type="number"
-              formControlName="passwordRecoveryCodeTtl" />
-          </tui-textfield>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL_DESC' | translate }}
-          </p>
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            inputItem;
+            context: {
+              id: 'password-recovery-code-ttl',
+              control: form.controls.passwordRecoveryCodeTtl,
+              labelKey: 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL',
+              descKey: 'SETTINGS.ADMIN.PASSWORD_RECOVERY_CODE_TTL_DESC',
+              number: true,
+              locked: locked().passwordRecoveryCodeTtl,
+            }
+          " />
       </fieldset>
 
-      <div class="setting-item">
-        <tui-textfield>
-          <label
-            tuiLabel
-            for="vapid-email">
-            {{ 'SETTINGS.ADMIN.VAPID_EMAIL' | translate }}
-          </label>
-          <input
-            tuiInput
-            id="vapid-email"
-            formControlName="vapidEmail"
-            placeholder="admin@example.com" />
-        </tui-textfield>
-        <p class="setting-item-description">
-          {{ 'SETTINGS.ADMIN.VAPID_EMAIL_DESC' | translate }}
-        </p>
-        @if (locked().vapidEmail) {
-          <p class="setting-item-description locked">
-            {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
-          </p>
-        }
-        @if (vapidEmailError; as err) {
-          <tui-error [error]="err | translate" />
-        }
-      </div>
+      <ng-container
+        *ngTemplateOutlet="
+          inputItem;
+          context: {
+            id: 'vapid-email',
+            control: form.controls.vapidEmail,
+            labelKey: 'SETTINGS.ADMIN.VAPID_EMAIL',
+            descKey: 'SETTINGS.ADMIN.VAPID_EMAIL_DESC',
+            placeholder: 'admin@example.com',
+            locked: locked().vapidEmail,
+          }
+        " />
 
       <div class="setting-item">
         <tui-textfield>
@@ -101,7 +200,11 @@
         <p class="setting-item-description">
           {{ 'SETTINGS.ADMIN.ICE_SERVERS_DESC' | translate }}
         </p>
-        @if (iceServersError; as err) {
+        @if (
+          form.controls.iceServersJson.errors?.['zod'] ||
+            form.controls.iceServersJson.errors?.['invalidSchema'];
+          as err
+        ) {
           <tui-error [error]="err | translate" />
         }
         @if (locked().iceServersJson) {
@@ -114,144 +217,87 @@
       <fieldset>
         <legend tuiTitle>{{ 'SETTINGS.ADMIN.ATTACHMENTS' | translate }}</legend>
 
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              formControlName="attachmentsEnabled"
-              type="checkbox" />
-            {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED_DESC' | translate }}
-          </p>
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            switchItem;
+            context: {
+              control: form.controls.attachmentsEnabled,
+              labelKey: 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED',
+              descKey: 'SETTINGS.ADMIN.ATTACHMENTS_ENABLED_DESC',
+              locked: locked().attachmentsEnabled,
+            }
+          " />
 
-        <div class="setting-item">
-          <tui-textfield>
-            <label
-              tuiLabel
-              for="attachments-max-file-size">
-              {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE' | translate }}
-            </label>
-            <input
-              tuiInput
-              id="attachments-max-file-size"
-              type="number"
-              formControlName="attachmentsMaxFileSizeMib" />
-          </tui-textfield>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE_DESC' | translate }}
-          </p>
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            inputItem;
+            context: {
+              id: 'attachments-max-file-size',
+              control: form.controls.attachmentsMaxFileSizeMib,
+              labelKey: 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE',
+              descKey: 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILE_SIZE_DESC',
+              number: true,
+              locked: locked().attachmentsMaxFileSizeMib,
+            }
+          " />
 
-        <div class="setting-item">
-          <tui-textfield>
-            <label
-              tuiLabel
-              for="attachments-max-files">
-              {{
-                'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE' | translate
-              }}
-            </label>
-            <input
-              tuiInput
-              id="attachments-max-files"
-              type="number"
-              formControlName="attachmentsMaxFilesPerMessage" />
-          </tui-textfield>
-          <p class="setting-item-description">
-            {{
-              'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC'
-                | translate
-            }}
-          </p>
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            inputItem;
+            context: {
+              id: 'attachments-max-files',
+              control: form.controls.attachmentsMaxFilesPerMessage,
+              labelKey: 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE',
+              descKey: 'SETTINGS.ADMIN.ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC',
+              number: true,
+              locked: locked().attachmentsMaxFilesPerMessage,
+            }
+          " />
 
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              formControlName="attachmentsStripImageMetadata"
-              type="checkbox" />
-            {{ 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{
-              'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA_DESC' | translate
-            }}
-          </p>
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            switchItem;
+            context: {
+              control: form.controls.attachmentsStripImageMetadata,
+              labelKey: 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA',
+              descKey: 'SETTINGS.ADMIN.ATTACHMENTS_STRIP_IMAGE_METADATA_DESC',
+              locked: locked().attachmentsStripImageMetadata,
+            }
+          " />
       </fieldset>
 
       <fieldset>
         <legend tuiTitle>{{ 'SETTINGS.ADMIN.VOICE' | translate }}</legend>
 
-        <div class="setting-item">
-          <tui-textfield>
-            <label
-              tuiLabel
-              for="voice-max-bitrate">
-              {{ 'SETTINGS.ADMIN.VOICE_MAX_BITRATE' | translate }}
-            </label>
-            <input
-              id="voice-max-bitrate"
-              tuiInputSlider
-              [min]="voiceBitrateMinKbps"
-              [max]="voiceBitrateMaxKbps"
-              [quantum]="voiceBitrateStep"
-              [step]="voiceBitrateStep"
-              formControlName="voiceMaxBitrateKbps" />
-            <input
-              tuiSlider
-              type="range"
-              [step]="voiceBitrateStep" />
-          </tui-textfield>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.ADMIN.VOICE_MAX_BITRATE_DESC' | translate }}
-          </p>
-          @if (voiceMaxBitrateError; as err) {
-            <tui-error [error]="err | translate" />
-          }
-          @if (locked().voiceMaxBitrateKbps) {
-            <p class="setting-item-description locked">
-              {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
-            </p>
-          }
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            sliderItem;
+            context: {
+              id: 'voice-max-bitrate',
+              control: form.controls.voiceMaxBitrateKbps,
+              labelKey: 'SETTINGS.ADMIN.VOICE_MAX_BITRATE',
+              descKey: 'SETTINGS.ADMIN.VOICE_MAX_BITRATE_DESC',
+              min: voiceBitrateMinKbps,
+              max: voiceBitrateMaxKbps,
+              step: voiceBitrateStep,
+              locked: locked().voiceMaxBitrateKbps,
+            }
+          " />
 
-        <div class="setting-item">
-          <tui-textfield>
-            <label
-              tuiLabel
-              for="stream-max-bitrate">
-              {{ 'SETTINGS.ADMIN.STREAM_MAX_BITRATE' | translate }}
-            </label>
-            <input
-              id="stream-max-bitrate"
-              tuiInputSlider
-              [min]="streamBitrateMinKbps"
-              [max]="streamBitrateMaxKbps"
-              [quantum]="streamBitrateStep"
-              [step]="streamBitrateStep"
-              formControlName="streamMaxBitrateKbps" />
-            <input
-              tuiSlider
-              type="range"
-              [step]="streamBitrateStep" />
-          </tui-textfield>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.ADMIN.STREAM_MAX_BITRATE_DESC' | translate }}
-          </p>
-          @if (streamMaxBitrateError; as err) {
-            <tui-error [error]="err | translate" />
-          }
-          @if (locked().streamMaxBitrateKbps) {
-            <p class="setting-item-description locked">
-              {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
-            </p>
-          }
-        </div>
+        <ng-container
+          *ngTemplateOutlet="
+            sliderItem;
+            context: {
+              id: 'stream-max-bitrate',
+              control: form.controls.streamMaxBitrateKbps,
+              labelKey: 'SETTINGS.ADMIN.STREAM_MAX_BITRATE',
+              descKey: 'SETTINGS.ADMIN.STREAM_MAX_BITRATE_DESC',
+              min: streamBitrateMinKbps,
+              max: streamBitrateMaxKbps,
+              step: streamBitrateStep,
+              locked: locked().streamMaxBitrateKbps,
+            }
+          " />
       </fieldset>
     </div>
   </tui-scrollbar>

@@ -212,4 +212,119 @@ describe('SettingsAdminComponent', () => {
     expect(slider).toBeTruthy();
     expect(slider.getAttribute('step')).toBe('8');
   });
+
+  it('disables controls and displays lock indicator when settings are env-locked', () => {
+    envLocked.set({
+      [ESettingKey.INVITE_ONLY_SIGN_UP]: true,
+      [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]: true,
+      [ESettingKey.ATTACHMENTS_ENABLED]: true,
+      [ESettingKey.ATTACHMENTS_MAX_FILE_SIZE]: true,
+      [ESettingKey.VAPID_EMAIL]: true,
+    });
+    fixture.detectChanges();
+
+    expect(component['form'].controls.inviteOnlySignUp.disabled).toBe(true);
+    expect(component['form'].controls.passwordRecoveryCodeTtl.disabled).toBe(
+      true,
+    );
+    expect(component['form'].controls.attachmentsEnabled.disabled).toBe(true);
+    expect(component['form'].controls.attachmentsMaxFileSizeMib.disabled).toBe(
+      true,
+    );
+    expect(component['form'].controls.vapidEmail.disabled).toBe(true);
+
+    const lockedElements = fixture.nativeElement.querySelectorAll(
+      '.setting-item-description.locked',
+    );
+    expect(lockedElements.length).toBe(5);
+  });
+
+  it('omits disabled env-locked controls from submission even if dirty', () => {
+    envLocked.set({ [ESettingKey.INVITE_ONLY_SIGN_UP]: true });
+    fixture.detectChanges();
+
+    component['form'].controls.inviteOnlySignUp.markAsDirty();
+    component['form'].controls.passwordRecoveryCodeTtl.setValue(120000);
+    component['form'].controls.passwordRecoveryCodeTtl.markAsDirty();
+
+    component['onSubmit']();
+
+    expect(updateSettings).toHaveBeenCalledWith([
+      { key: ESettingKey.PASSWORD_RECOVERY_CODE_TTL, value: 120000 },
+    ]);
+  });
+
+  it('submits multiple updated controls in a single payload', () => {
+    component['form'].controls.attachmentsEnabled.setValue(false);
+    component['form'].controls.attachmentsEnabled.markAsDirty();
+
+    component['form'].controls.attachmentsMaxFileSizeMib.setValue(100);
+    component['form'].controls.attachmentsMaxFileSizeMib.markAsDirty();
+
+    component['onSubmit']();
+
+    expect(updateSettings).toHaveBeenCalledWith([
+      { key: ESettingKey.ATTACHMENTS_ENABLED, value: false },
+      {
+        key: ESettingKey.ATTACHMENTS_MAX_FILE_SIZE,
+        value: 100 * 1024 * 1024,
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      selector: '#password-recovery-code-ttl',
+      controlName: 'passwordRecoveryCodeTtl',
+      raw: '120000',
+      expected: 120000,
+    },
+    {
+      selector: '#attachments-max-file-size',
+      controlName: 'attachmentsMaxFileSizeMib',
+      raw: '50',
+      expected: 50,
+    },
+    {
+      selector: '#attachments-max-files',
+      controlName: 'attachmentsMaxFilesPerMessage',
+      raw: '5',
+      expected: 5,
+    },
+  ] as const)(
+    'stores $controlName as a number after typing',
+    ({ selector, controlName, raw, expected }) => {
+      const input: HTMLInputElement | null =
+        fixture.nativeElement.querySelector(selector);
+      expect(input).toBeTruthy();
+      if (!input) {
+        return;
+      }
+      expect(input.type).toBe('number');
+
+      input.value = raw;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      const control = component['form'].controls[controlName];
+      expect(control.value).toBe(expected);
+      expect(control.valid).toBe(true);
+    },
+  );
+
+  it('validates password recovery code TTL range', () => {
+    const control = component['form'].controls.passwordRecoveryCodeTtl;
+
+    control.setValue(60000);
+    expect(control.valid).toBe(true);
+
+    control.setValue(3600000);
+    expect(control.valid).toBe(true);
+
+    control.setValue(59999);
+    expect(control.invalid).toBe(true);
+
+    control.setValue(3600001);
+    expect(control.invalid).toBe(true);
+  });
 });

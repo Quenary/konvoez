@@ -553,6 +553,37 @@ describe('SettingsService', () => {
         key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
         value: DEFAULT_VOICE_MAX_BITRATE_KBPS,
       });
+      expect(service.isEnvLocked(ESettingKey.VOICE_MAX_BITRATE_KBPS)).toBe(
+        false,
+      );
+    });
+
+    it('should parse case-insensitive boolean env values and report isEnvLocked', async () => {
+      process.env[ESettingKey.INVITE_ONLY_SIGN_UP] = 'False';
+      process.env[ESettingKey.ATTACHMENTS_ENABLED] = 'TRUE';
+      repo.findOne.mockResolvedValue(null);
+
+      await service.onApplicationBootstrap();
+
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.INVITE_ONLY_SIGN_UP,
+        value: false,
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        key: ESettingKey.ATTACHMENTS_ENABLED,
+        value: true,
+      });
+      expect(service.isEnvLocked(ESettingKey.INVITE_ONLY_SIGN_UP)).toBe(true);
+      expect(service.isEnvLocked(ESettingKey.ATTACHMENTS_ENABLED)).toBe(true);
+      expect(service.isEnvLocked(ESettingKey.PASSWORD_RECOVERY_CODE_TTL)).toBe(
+        false,
+      );
+
+      await expect(
+        service.update(ESettingKey.INVITE_ONLY_SIGN_UP, { value: true }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.SETTING_ENV_LOCKED,
+      });
     });
   });
 

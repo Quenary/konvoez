@@ -40,6 +40,12 @@ export class SettingsService implements OnApplicationBootstrap {
 
   private parseEnvValue(raw: string): unknown {
     const trimmed = raw.trim();
+    if (trimmed.toLowerCase() === 'true') {
+      return true;
+    }
+    if (trimmed.toLowerCase() === 'false') {
+      return false;
+    }
     try {
       return JSON.parse(trimmed);
     } catch {
@@ -109,6 +115,10 @@ export class SettingsService implements OnApplicationBootstrap {
 
       await this.em.flush();
     });
+  }
+
+  isEnvLocked(key: ESettingKey): boolean {
+    return this.envLockedKeys.has(key);
   }
 
   toDto<K extends ESettingKey = ESettingKey>(
