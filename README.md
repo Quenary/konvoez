@@ -114,7 +114,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshots/chat-v1.25.0-desktop.png" alt="Konvoez on desktop" height="420">
+  <img src="assets/screenshots/chat-v1.27.0-desktop.png" alt="Konvoez on desktop" height="420">
   &nbsp;
-  <img src="assets/screenshots/chat-v1.25.0-mobile.png" alt="Konvoez on mobile" height="420">
+  <img src="assets/screenshots/chat-v1.27.0-mobile.png" alt="Konvoez on mobile" height="420">
 </p>
