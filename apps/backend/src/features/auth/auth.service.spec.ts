@@ -24,6 +24,7 @@ jest.mock('@mikro-orm/core', () => {
     }),
     p: createProxy(),
     Cascade: {},
+    raw: (sql: string) => ({ sql, params: [] }),
     EntityManager: class EntityManager {},
     UniqueConstraintViolationException: class UniqueConstraintViolationException extends Error {},
   };
@@ -56,6 +57,8 @@ import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
+import { EmailVerificationCodeEntity } from './email-verification-code.entity';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UsersDomainEvents } from '../users/users.events';
@@ -65,7 +68,7 @@ describe('AuthService', () => {
   let jwtService: jest.Mocked<JwtService>;
   let appService: jest.Mocked<AppService>;
   let passwordService: jest.Mocked<PasswordService>;
-  let mailService: jest.Mocked<Pick<MailService, 'isConfigured' | 'sendMail'>>;
+  let mailService: { isConfigured: boolean; sendMail: jest.Mock };
   let usersService: jest.Mocked<UsersService>;
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let invitesService: jest.Mocked<Pick<InvitesService, 'validate' | 'consume'>>;
@@ -82,7 +85,21 @@ describe('AuthService', () => {
     assign: jest.Mock;
     getEntityManager: jest.Mock;
   };
-  let em: { persist: jest.Mock; flush: jest.Mock };
+  let emailVerificationCodeRepo: {
+    find: jest.Mock;
+    create: jest.Mock;
+    assign: jest.Mock;
+    nativeUpdate: jest.Mock;
+    getEntityManager: jest.Mock;
+  };
+  let verifiedMailerService: {
+    sendNotification: jest.Mock;
+  };
+  let em: {
+    persist: jest.Mock;
+    flush: jest.Mock;
+    fork: jest.Mock;
+  };
 
   const mockUserDto: GetUserFullDto = {
     id: 1,
@@ -98,6 +115,8 @@ describe('AuthService', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const mockUserEntity = {
@@ -129,12 +148,29 @@ describe('AuthService', () => {
     em = {
       persist: jest.fn(),
       flush: jest.fn().mockResolvedValue(undefined),
+      fork: jest.fn(),
     };
     recoveryCodeRepo = {
       find: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockImplementation((data) => data),
       assign: jest.fn(),
       getEntityManager: jest.fn().mockReturnValue(em),
+    };
+    emailVerificationCodeRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockImplementation((data) => data),
+      assign: jest.fn(),
+      nativeUpdate: jest.fn().mockResolvedValue(1),
+      getEntityManager: jest.fn().mockReturnValue(em),
+    };
+    em.fork.mockReturnValue({
+      getRepository: () => emailVerificationCodeRepo,
+      getReference: (_entity: unknown, id: number) => ({ id }),
+      persist: em.persist,
+      flush: em.flush,
+    });
+    verifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
     };
     userRepo = {
       findOne: jest.fn().mockResolvedValue(null),
@@ -229,6 +265,14 @@ describe('AuthService', () => {
         {
           provide: getRepositoryToken(PasswordRecoveryCodeEntity),
           useValue: recoveryCodeRepo,
+        },
+        {
+          provide: getRepositoryToken(EmailVerificationCodeEntity),
+          useValue: emailVerificationCodeRepo,
+        },
+        {
+          provide: VerifiedMailerService,
+          useValue: verifiedMailerService,
         },
         {
           provide: TwoFactorService,
@@ -1200,6 +1244,173 @@ describe('AuthService', () => {
       });
       expect(usersService.setPassword).not.toHaveBeenCalled();
       expect(recoveryCodeRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('should mark unverified user verified and send security notification upon successful reset', async () => {
+      const unverifiedUser = {
+        ...mockUserEntity,
+        email: 'unverified@example.com',
+        emailVerified: false,
+        pendingEmail: 'pending@example.com',
+      };
+      usersService.findOneBy.mockResolvedValueOnce(unverifiedUser);
+      recoveryCodeRepo.find.mockResolvedValueOnce([
+        {
+          id: 1,
+          codeHash: 'hashed_123456',
+          user: unverifiedUser,
+          usedAt: null,
+        },
+      ]);
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+
+      const result = await service.confirmPasswordRecovery({
+        email: 'unverified@example.com',
+        code: '123456',
+        password: 'NewStrongPassword123!',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(unverifiedUser.emailVerified).toBe(true);
+      expect(unverifiedUser.pendingEmail).toBeNull();
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        unverifiedUser,
+        expect.objectContaining({
+          subject: 'Password reset',
+        }),
+      );
+    });
+  });
+
+  describe('email verification', () => {
+    it('sendVerificationCodeToEmail creates code and sends mail when SMTP is configured', async () => {
+      mailService.isConfigured = true;
+      const user = { ...mockUserEntity };
+
+      await service.sendVerificationCodeToEmail(user, 'test@example.com');
+
+      expect(emailVerificationCodeRepo.find).toHaveBeenCalledWith({
+        user: user.id,
+        usedAt: null,
+      });
+      expect(emailVerificationCodeRepo.create).toHaveBeenCalled();
+      expect(em.persist).toHaveBeenCalled();
+      expect(em.flush).toHaveBeenCalled();
+      expect(mailService.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'test@example.com',
+          subject: 'Email verification code',
+        }),
+      );
+    });
+
+    it('sendVerificationCodeToEmail does nothing when SMTP is not configured', async () => {
+      mailService.isConfigured = false;
+      const user = { ...mockUserEntity };
+
+      await service.sendVerificationCodeToEmail(user, 'test@example.com');
+
+      expect(emailVerificationCodeRepo.create).not.toHaveBeenCalled();
+      expect(mailService.sendMail).not.toHaveBeenCalled();
+    });
+
+    it('verifyCodeForUser returns true and marks code used when code matches', async () => {
+      const codeRecord = {
+        id: 1,
+        codeHash: 'hashed_code',
+        attempts: 0,
+        usedAt: null,
+      };
+      emailVerificationCodeRepo.find.mockResolvedValueOnce([codeRecord]);
+      passwordService.comparePassword.mockResolvedValueOnce(true);
+
+      const ok = await service.verifyCodeForUser(
+        mockUserEntity.id,
+        mockUserEntity.email,
+        '123456',
+      );
+
+      expect(ok).toBe(true);
+      expect(emailVerificationCodeRepo.nativeUpdate).toHaveBeenNthCalledWith(
+        1,
+        {
+          id: 1,
+          usedAt: null,
+          attempts: { $lt: 5 },
+        },
+        { attempts: expect.objectContaining({ sql: 'attempts + 1' }) },
+      );
+      expect(emailVerificationCodeRepo.nativeUpdate).toHaveBeenNthCalledWith(
+        2,
+        { id: 1, usedAt: null },
+        { usedAt: expect.any(Date) },
+      );
+    });
+
+    it('verifyCodeForUser returns false and reserves an attempt when code is invalid', async () => {
+      const codeRecord = {
+        id: 1,
+        codeHash: 'hashed_code',
+        attempts: 0,
+        usedAt: null,
+      };
+      emailVerificationCodeRepo.find.mockResolvedValueOnce([codeRecord]);
+      passwordService.comparePassword.mockResolvedValueOnce(false);
+
+      const ok = await service.verifyCodeForUser(
+        mockUserEntity.id,
+        mockUserEntity.email,
+        '000000',
+      );
+
+      expect(ok).toBe(false);
+      expect(emailVerificationCodeRepo.nativeUpdate).toHaveBeenCalledTimes(2);
+      expect(emailVerificationCodeRepo.nativeUpdate).toHaveBeenLastCalledWith(
+        {
+          id: 1,
+          usedAt: null,
+          attempts: { $gte: 5 },
+        },
+        { usedAt: expect.any(Date) },
+      );
+    });
+
+    it('verifyCodeForUser skips a code another request already reserved', async () => {
+      emailVerificationCodeRepo.find.mockResolvedValueOnce([
+        { id: 1, codeHash: 'hashed_code', attempts: 4, usedAt: null },
+      ]);
+      emailVerificationCodeRepo.nativeUpdate.mockResolvedValueOnce(0);
+
+      const ok = await service.verifyCodeForUser(
+        mockUserEntity.id,
+        mockUserEntity.email,
+        '123456',
+      );
+
+      expect(ok).toBe(false);
+      expect(passwordService.comparePassword).not.toHaveBeenCalled();
+    });
+
+    it('verifyCodeForUser returns false when no attempt remains', async () => {
+      emailVerificationCodeRepo.find.mockResolvedValueOnce([]);
+
+      const ok = await service.verifyCodeForUser(
+        mockUserEntity.id,
+        mockUserEntity.email,
+        '123456',
+      );
+
+      expect(ok).toBe(false);
+      expect(passwordService.comparePassword).not.toHaveBeenCalled();
+      expect(emailVerificationCodeRepo.nativeUpdate).not.toHaveBeenCalled();
+    });
+
+    it('isUserCoolingDown returns cache state for user', async () => {
+      cacheManager.get.mockResolvedValueOnce(true);
+      expect(await service.isUserCoolingDown(mockUserEntity.id)).toBe(true);
+
+      cacheManager.get.mockResolvedValueOnce(null);
+      expect(await service.isUserCoolingDown(mockUserEntity.id)).toBe(false);
     });
   });
 

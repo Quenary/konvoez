@@ -11,6 +11,7 @@ import { FileServiceInjectionToken } from './tokens/file-service.token';
 import { ImageProcessingService } from './services/image-processing.service';
 import { VideoProcessingService } from './services/video-processing.service';
 import { MailService } from './services/mail.service';
+import { VerifiedMailerService } from './services/verified-mailer.service';
 import { StorageNamingService } from './services/storage-naming.service';
 import { SecretBoxService } from './services/secret-box.service';
 
@@ -20,6 +21,7 @@ import { SecretBoxService } from './services/secret-box.service';
     AppService,
     PasswordService,
     MailService,
+    VerifiedMailerService,
     EncryptionService,
     SecretBoxService,
     StorageNamingService,
@@ -63,6 +65,7 @@ import { SecretBoxService } from './services/secret-box.service';
     AppService,
     PasswordService,
     MailService,
+    VerifiedMailerService,
     FileServiceInjectionToken,
     EncryptionService,
     SecretBoxService,

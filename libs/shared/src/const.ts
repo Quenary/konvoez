@@ -23,6 +23,10 @@ export const passwordRecoveryCodeMaxTtl = 60 * 60 * 1000; // 1 hour in ms
 export const passwordRecoveryCodeDefaultTtl = 10 * 60 * 1000; // 10 minutes in ms
 export const passwordRecoveryCodeLength = 6;
 export const passwordRecoveryRequestCooldownMs = 60_000; // 1 minute
+export const emailVerificationCodeLength = 6;
+export const emailVerificationCodeDefaultTtl = 15 * 60 * 1000; // 15 minutes in ms
+export const emailVerificationRequestCooldownMs = 60_000; // 1 minute
+export const emailVerificationMaxAttempts = 5;
 /** Hard cap on how many files one message may reference. */
 export const attachmentsMaxFilesHardLimit = 10;
 /** Default for the admin setting `ATTACHMENTS_MAX_FILES_PER_MESSAGE`. */

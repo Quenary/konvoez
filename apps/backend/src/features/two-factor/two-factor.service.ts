@@ -28,6 +28,7 @@ import {
 import { buildOtpAuthUri, generateSecret, verifyTotp } from './totp.util';
 import { TwoFactorRecoveryCodeEntity } from './two-factor-recovery-code.entity';
 import { PerUserMutex } from './per-user-mutex';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 @Injectable()
 export class TwoFactorService {
@@ -39,6 +40,7 @@ export class TwoFactorService {
     private readonly appService: AppService,
     private readonly secretBoxService: SecretBoxService,
     private readonly passwordService: PasswordService,
+    private readonly verifiedMailerService: VerifiedMailerService,
     private readonly usersService: UsersService,
     private readonly cacheManager: Cache,
     @InjectRepository(TwoFactorRecoveryCodeEntity)
@@ -126,6 +128,12 @@ export class TwoFactorService {
       const recoveryCodes = await this.generateAndStoreRecoveryCodes(user);
       const sessionVersion = await this.usersService.revokeSessions(user);
 
+      await this.verifiedMailerService.sendNotification(user, {
+        subject: 'Two-factor authentication enabled',
+        text: 'Two-factor authentication has been enabled on your Konvoez account.',
+        html: '<p>Two-factor authentication has been enabled on your Konvoez account.</p>',
+      });
+
       return { recoveryCodes, sessionVersion };
     });
   }
@@ -192,6 +200,17 @@ export class TwoFactorService {
       }
 
       await this.clearLockout(userId);
+
+      const remainingCodesCount = await this.recoveryCodeRepo.count({
+        user: user.id,
+        usedAt: null,
+      });
+
+      await this.verifiedMailerService.sendNotification(user, {
+        subject: 'Two-factor recovery code used',
+        text: `A recovery code was used to log into your Konvoez account. You have ${remainingCodesCount} recovery code(s) remaining.`,
+        html: `<p>A recovery code was used to log into your Konvoez account.</p><p>You have <strong>${remainingCodesCount}</strong> recovery code(s) remaining.</p>`,
+      });
     });
   }
 
@@ -233,7 +252,15 @@ export class TwoFactorService {
       await this.clearLockout(user.id);
       await this.usersService.clearTwoFactor(user);
       await this.deleteRecoveryCodes(user.id);
-      return await this.usersService.revokeSessions(user);
+      const sessionVersion = await this.usersService.revokeSessions(user);
+
+      await this.verifiedMailerService.sendNotification(user, {
+        subject: 'Two-factor authentication disabled',
+        text: 'Two-factor authentication has been disabled on your Konvoez account.',
+        html: '<p>Two-factor authentication has been disabled on your Konvoez account.</p>',
+      });
+
+      return sessionVersion;
     });
   }
 
@@ -276,6 +303,12 @@ export class TwoFactorService {
       const recoveryCodes = await this.generateAndStoreRecoveryCodes(user);
       const sessionVersion = await this.usersService.revokeSessions(user);
 
+      await this.verifiedMailerService.sendNotification(user, {
+        subject: 'Two-factor recovery codes regenerated',
+        text: 'New recovery codes have been generated for your Konvoez account.',
+        html: '<p>New recovery codes have been generated for your Konvoez account.</p>',
+      });
+
       return { recoveryCodes, sessionVersion };
     });
   }
@@ -290,6 +323,12 @@ export class TwoFactorService {
     await this.deleteRecoveryCodes(target.id);
     await this.clearLockout(target.id);
     await this.usersService.revokeSessions(target);
+
+    await this.verifiedMailerService.sendNotification(target, {
+      subject: 'Two-factor authentication reset',
+      text: 'Two-factor authentication was reset by an administrator on your Konvoez account.',
+      html: '<p>Two-factor authentication was reset by an administrator on your Konvoez account.</p>',
+    });
 
     return await this.usersService.toFullDtoWithPermissions(target);
   }
@@ -429,6 +468,19 @@ export class TwoFactorService {
       );
       await this.cacheManager.del(failKey);
       this.logger.warn(`User ${userId} locked out of 2FA for 15 minutes`);
+      try {
+        const user = await this.usersService.findOne(userId);
+        await this.verifiedMailerService.sendNotification(user, {
+          subject: 'Two-factor authentication locked',
+          text: 'Too many failed two-factor authentication attempts. Verification has been temporarily locked for 15 minutes on your Konvoez account.',
+          html: '<p>Too many failed two-factor authentication attempts.</p><p>Verification has been temporarily locked for 15 minutes on your Konvoez account.</p>',
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to deliver 2FA lockout notification to user ${userId}`,
+          error,
+        );
+      }
     } else {
       await this.cacheManager.set(failKey, fails, TWO_FACTOR_LOCKOUT_TTL_MS);
     }

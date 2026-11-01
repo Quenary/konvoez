@@ -1,36 +1,51 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AuthRegisterComponent } from './auth-register.component';
-import { PublicApiService } from '@core/services/public-api.service';
+import { PublicStore } from '@core/stores/public.store';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuthActions } from '@core/auth/auth.actions';
 import { selectAuthLoading } from '@core/auth/auth.selectors';
 import { provideTranslateService } from '@ngx-translate/core';
+import { signal } from '@angular/core';
+import { IPublicSettings } from '@konvoez/shared';
 
 describe('AuthRegisterComponent', () => {
   let component: AuthRegisterComponent;
   let fixture: ComponentFixture<AuthRegisterComponent>;
   let store: MockStore;
-  const mockPublicApiService = {
-    getSettings: vi.fn(),
-  };
 
   const setupTestBed = async (
     isOwnerSetupRequired: boolean,
     inviteOnlySignUp = false,
     queryParams: Record<string, string> = {},
+    isLoading = false,
   ) => {
-    mockPublicApiService.getSettings.mockReturnValue(
-      of({ isOwnerSetupRequired, inviteOnlySignUp }),
-    );
+    const settingsSignal = signal<IPublicSettings>({
+      isOwnerSetupRequired,
+      inviteOnlySignUp,
+      smtpConfigured: false,
+    });
 
     await TestBed.configureTestingModule({
       imports: [AuthRegisterComponent],
       providers: [
         provideTranslateService(),
-        { provide: PublicApiService, useValue: mockPublicApiService },
+        {
+          provide: PublicStore,
+          useValue: {
+            publicSettings: {
+              value: settingsSignal.asReadonly(),
+              isLoading: signal(isLoading).asReadonly(),
+              reload: vi.fn(),
+            },
+            isOwnerSetupRequired: signal(isOwnerSetupRequired).asReadonly(),
+            inviteOnlySignUp: signal(inviteOnlySignUp).asReadonly(),
+            isSmtpConfigured: signal(false).asReadonly(),
+            settings: settingsSignal.asReadonly(),
+            reload: vi.fn(),
+          },
+        },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParams } } },
         provideMockStore({
           selectors: [{ selector: selectAuthLoading, value: false }],
@@ -179,6 +194,38 @@ describe('AuthRegisterComponent', () => {
           },
         }),
       );
+    });
+  });
+
+  describe('query params and loading state', () => {
+    it('should prefill inviteCode and email from query params', async () => {
+      await setupTestBed(false, false, {
+        code: 'param-invite-code',
+        email: 'prefill@example.com',
+      });
+
+      expect(component['form'].controls.inviteCode.value).toBe(
+        'param-invite-code',
+      );
+      expect(component['form'].controls.email.value).toBe(
+        'prefill@example.com',
+      );
+    });
+
+    it('should not dispatch register when settings are loading', async () => {
+      await setupTestBed(false, false, {}, true);
+
+      component['form'].patchValue({
+        username: 'regularmember',
+        password: 'Password123!',
+        confirmPassword: 'Password123!',
+        fullname: 'Regular Member',
+        email: 'member@example.com',
+      });
+
+      component.onSubmit();
+
+      expect(store.dispatch).not.toHaveBeenCalled();
     });
   });
 });

@@ -24,6 +24,8 @@ export const userFullSchema = baseEntitySchema.extend({
   avatarUrl: stringSchema.nullish(),
   deletedAt: z.coerce.date().nullish(),
   twoFactorEnabled: z.boolean().default(false),
+  emailVerified: z.boolean().default(false),
+  pendingEmail: emailSchema.nullish(),
 });
 
 export type IUserFull = z.infer<typeof userFullSchema>;
@@ -32,6 +34,8 @@ export type IUserFull = z.infer<typeof userFullSchema>;
 export const userSafeSchema = userFullSchema.omit({
   email: true,
   twoFactorEnabled: true,
+  emailVerified: true,
+  pendingEmail: true,
 });
 
 export type IUserSafe = z.infer<typeof userSafeSchema>;

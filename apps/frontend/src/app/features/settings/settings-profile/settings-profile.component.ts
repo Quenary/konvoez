@@ -6,8 +6,14 @@ import {
   inject,
   Injector,
   linkedSignal,
+  signal,
 } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -17,6 +23,7 @@ import {
   TuiIcon,
   TuiInput,
   TuiLink,
+  TuiNotification,
   TuiNotificationService,
   TuiScrollbar,
   TuiTextfield,
@@ -27,6 +34,7 @@ import {
   TuiSwitch,
   TuiFiles,
   TuiAvatar,
+  TuiBadge,
   TuiFileLike,
   TuiButtonLoading,
 } from '@taiga-ui/kit';
@@ -38,6 +46,7 @@ import {
 } from '@core/auth/auth.selectors';
 import {
   emailSchema,
+  emailVerificationCodeSchema,
   fullnameSchema,
   IProfileUpdate,
   maxAvatarSize,
@@ -48,6 +57,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ProfileApiService } from '@core/api/profile-api.service';
 import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { ApiErrorService } from '@core/services/api-error.service';
+import { PublicStore } from '@core/stores/public.store';
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
 import {
   createZodError,
@@ -55,13 +65,14 @@ import {
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { getProfileFormSchema } from '@shared/schemas/forms.schema';
-import { map, startWith } from 'rxjs';
+import { finalize, map, startWith } from 'rxjs';
 import { icons } from '@constants';
 import { LayoutService } from '@core/services/layout.service';
 
 @Component({
   selector: 'app-settings-profile',
   imports: [
+    FormsModule,
     ReactiveFormsModule,
     TranslatePipe,
     LowerCasePipe,
@@ -77,10 +88,12 @@ import { LayoutService } from '@core/services/layout.service';
     TuiInput,
     TuiSwitch,
     TuiAvatar,
+    TuiBadge,
     TuiLink,
     TuiButtonLoading,
     TuiIcon,
     TuiHint,
+    TuiNotification,
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',
@@ -95,11 +108,31 @@ export class SettingsProfileComponent {
   private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
   private readonly layoutService = inject(LayoutService);
+  private readonly publicStore = inject(PublicStore);
 
   protected readonly icons = icons;
   protected readonly isNarrow = this.layoutService.isNarrow;
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
   protected readonly maxAvatarSize = maxAvatarSize;
+
+  protected readonly smtpConfigured = this.publicStore.isSmtpConfigured;
+  protected readonly isEmailVerified = computed(() =>
+    Boolean(this.currentUser()?.emailVerified),
+  );
+  protected readonly pendingEmail = computed(
+    () => this.currentUser()?.pendingEmail ?? null,
+  );
+  protected readonly isVerificationCardOpen = signal(false);
+  protected readonly verificationCode = signal('');
+  protected readonly isCodeValid = computed(
+    () =>
+      emailVerificationCodeSchema.safeParse(this.verificationCode().trim())
+        .success,
+  );
+  protected readonly isVerifying = signal(false);
+  protected readonly isResending = signal(false);
+  protected readonly isCancellingChange = signal(false);
+
   protected readonly canDeleteAccount = computed(() => {
     const currentUser = this.currentUser();
     return currentUser != null && !currentUser.isOwner;
@@ -265,12 +298,161 @@ export class SettingsProfileComponent {
     );
   }
 
+  protected openVerificationCard(): void {
+    this.isVerificationCardOpen.set(true);
+  }
+
+  protected requestEmailVerification(): void {
+    this.isResending.set(true);
+    this.profileApiService
+      .requestEmailVerification()
+      .pipe(finalize(() => this.isResending.set(false)))
+      .subscribe({
+        next: () => {
+          this.isVerificationCardOpen.set(true);
+          this.verificationCode.set('');
+          this.tuiNotificationsService
+            .open(
+              this.translateService.instant(
+                'SETTINGS.PROFILE.EMAIL_VERIFICATION.CODE_SENT',
+              ),
+              {
+                appearance: 'positive',
+                autoClose: 3000,
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => this.showError(err),
+      });
+  }
+
+  protected confirmEmailVerification(): void {
+    const code = this.verificationCode().trim();
+    if (code.length !== 6) {
+      return;
+    }
+
+    this.isVerifying.set(true);
+    this.profileApiService
+      .confirmEmailVerification({ code })
+      .pipe(finalize(() => this.isVerifying.set(false)))
+      .subscribe({
+        next: (user) => {
+          this.isVerificationCardOpen.set(false);
+          this.verificationCode.set('');
+          this.store.dispatch(AuthActions.requestPatchUserSuccess({ user }));
+          this.tuiNotificationsService
+            .open(
+              this.translateService.instant(
+                'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED_SUCCESS',
+              ),
+              {
+                appearance: 'positive',
+                autoClose: 3000,
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => this.showError(err),
+      });
+  }
+
+  protected confirmEmailChange(): void {
+    const code = this.verificationCode().trim();
+    if (code.length !== 6) {
+      return;
+    }
+
+    this.isVerifying.set(true);
+    this.profileApiService
+      .confirmEmailChange({ code })
+      .pipe(finalize(() => this.isVerifying.set(false)))
+      .subscribe({
+        next: (user) => {
+          this.verificationCode.set('');
+          this.store.dispatch(AuthActions.requestPatchUserSuccess({ user }));
+          this.tuiNotificationsService
+            .open(
+              this.translateService.instant(
+                'SETTINGS.PROFILE.EMAIL_CHANGE.CONFIRMED_SUCCESS',
+              ),
+              {
+                appearance: 'positive',
+                autoClose: 3000,
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => this.showError(err),
+      });
+  }
+
+  protected resendEmailChange(): void {
+    this.isResending.set(true);
+    this.profileApiService
+      .resendEmailChange()
+      .pipe(finalize(() => this.isResending.set(false)))
+      .subscribe({
+        next: () => {
+          this.tuiNotificationsService
+            .open(
+              this.translateService.instant(
+                'SETTINGS.PROFILE.EMAIL_VERIFICATION.CODE_SENT',
+              ),
+              {
+                appearance: 'positive',
+                autoClose: 3000,
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => this.showError(err),
+      });
+  }
+
+  protected cancelEmailChange(): void {
+    this.isCancellingChange.set(true);
+    this.profileApiService
+      .cancelEmailChange()
+      .pipe(finalize(() => this.isCancellingChange.set(false)))
+      .subscribe({
+        next: (user) => {
+          this.verificationCode.set('');
+          this.store.dispatch(AuthActions.requestPatchUserSuccess({ user }));
+          this.tuiNotificationsService
+            .open(
+              this.translateService.instant(
+                'SETTINGS.PROFILE.EMAIL_CHANGE.CANCELLED_SUCCESS',
+              ),
+              {
+                appearance: 'positive',
+                autoClose: 3000,
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => this.showError(err),
+      });
+  }
+
   protected logout(): void {
     this.store.dispatch(AuthActions.requestLogout());
   }
 
   protected openDelete(): void {
     void this.openDeleteDialog();
+  }
+
+  private showError(err: unknown): void {
+    this.tuiNotificationsService
+      .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+        appearance: 'negative',
+        autoClose: 5000,
+        closable: true,
+        label: this.translateService.instant('GENERAL.REQ_ERR'),
+      })
+      .subscribe();
   }
 
   private async openDeleteDialog(): Promise<void> {

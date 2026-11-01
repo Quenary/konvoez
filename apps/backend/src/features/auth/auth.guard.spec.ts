@@ -57,6 +57,7 @@ describe('AuthGuard', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
   };
 
   const createMockContext = (

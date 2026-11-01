@@ -7,6 +7,7 @@ import { SettingsModule } from '../settings/settings.module';
 import { InvitesModule } from '../invites/invites.module';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
+import { EmailVerificationCodeEntity } from './email-verification-code.entity';
 import { UserEntity } from '../users/users.entity';
 import { TwoFactorModule } from '../two-factor/two-factor.module';
 
@@ -17,7 +18,11 @@ import { TwoFactorModule } from '../two-factor/two-factor.module';
     SettingsModule,
     InvitesModule,
     TwoFactorModule,
-    MikroOrmModule.forFeature([PasswordRecoveryCodeEntity, UserEntity]),
+    MikroOrmModule.forFeature([
+      PasswordRecoveryCodeEntity,
+      EmailVerificationCodeEntity,
+      UserEntity,
+    ]),
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthGuard],

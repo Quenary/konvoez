@@ -262,7 +262,7 @@ describe('MentionsService', () => {
         if (u.id === 2) {
           return {
             ...createAuthor(2),
-            roles: [{ id: 5, name: 'Devs', priority: 1, permissions: [] }],
+            roles: [{ id: 5, name: 'Devs', priority: 1, mentionable: true }],
           };
         }
         return createAuthor(3);

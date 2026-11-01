@@ -34,6 +34,10 @@ import {
   ESettingKey,
   IPasswordRecoveryConfirm,
   IPasswordRecoveryRequest,
+  emailVerificationCodeDefaultTtl,
+  emailVerificationCodeLength,
+  emailVerificationMaxAttempts,
+  emailVerificationRequestCooldownMs,
   passwordRecoveryCodeLength,
   passwordRecoveryRequestCooldownMs,
 } from '@konvoez/shared';
@@ -42,8 +46,10 @@ import { SettingsService } from '../settings/settings.service';
 import { InvitesService } from '../invites/invites.service';
 import { InviteEntity } from '../invites/invites.entity';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { EntityManager, EntityRepository, raw } from '@mikro-orm/core';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
+import { EmailVerificationCodeEntity } from './email-verification-code.entity';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 @Injectable()
 export class AuthService implements OnApplicationBootstrap {
@@ -52,6 +58,8 @@ export class AuthService implements OnApplicationBootstrap {
   private readonly ownerSetupTokenTtl = 5 * 60 * 1000; // 5 minutes
   private readonly passwordRecoveryCooldownKeyPrefix =
     'auth:password_recovery_cooldown:';
+  private readonly emailVerificationCooldownKeyPrefix =
+    'auth:email_verification_cooldown:';
   private readonly em: EntityManager;
 
   constructor(
@@ -59,6 +67,7 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly appService: AppService,
     private readonly passwordService: PasswordService,
     private readonly mailService: MailService,
+    private readonly verifiedMailerService: VerifiedMailerService,
     private readonly usersService: UsersService,
     private readonly settingsService: SettingsService,
     private readonly invitesService: InvitesService,
@@ -68,6 +77,8 @@ export class AuthService implements OnApplicationBootstrap {
     private readonly userRepo: EntityRepository<UserEntity>,
     @InjectRepository(PasswordRecoveryCodeEntity)
     private readonly recoveryCodeRepo: EntityRepository<PasswordRecoveryCodeEntity>,
+    @InjectRepository(EmailVerificationCodeEntity)
+    private readonly emailVerificationCodeRepo: EntityRepository<EmailVerificationCodeEntity>,
     private readonly cacheManager: Cache,
   ) {
     this.em = this.recoveryCodeRepo.getEntityManager();
@@ -103,6 +114,15 @@ export class AuthService implements OnApplicationBootstrap {
       const user = await this.createUser(dto, true);
       await this.cacheManager.del(this.ownerSetupTokenCacheKey);
       this.logger.log(`Owner account created. Setup token consumed.`);
+      if (this.mailService.isConfigured) {
+        try {
+          await this.sendVerificationCodeToEmail(user, user.email);
+        } catch (err) {
+          this.logger.warn(
+            `Failed to send verification email on register: ${err}`,
+          );
+        }
+      }
       return this.emitUserCreated(user);
     }
 
@@ -126,6 +146,16 @@ export class AuthService implements OnApplicationBootstrap {
 
     if (invite) {
       await this.invitesService.consume(invite, user);
+    }
+
+    if (this.mailService.isConfigured) {
+      try {
+        await this.sendVerificationCodeToEmail(user, user.email);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to send verification email on register: ${err}`,
+        );
+      }
     }
 
     return await this.emitUserCreated(user);
@@ -324,9 +354,20 @@ export class AuthService implements OnApplicationBootstrap {
 
     matched.usedAt = new Date();
     this.em.persist(matched);
+
+    user.emailVerified = true;
+    user.pendingEmail = null;
+    this.em.persist(user);
     await this.em.flush();
 
     await this.usersService.setPassword(user.id, dto.password);
+
+    await this.verifiedMailerService.sendNotification(user, {
+      subject: 'Password reset',
+      text: 'The password for your Konvoez account has been reset successfully.',
+      html: '<p>The password for your Konvoez account has been reset successfully.</p>',
+    });
+
     return { ok: true };
   }
 
@@ -517,6 +558,144 @@ ${token}
     const max = 10 ** passwordRecoveryCodeLength;
     const num = crypto.randomInt(0, max);
     return num.toString().padStart(passwordRecoveryCodeLength, '0');
+  }
+
+  generateVerificationCode(): string {
+    const max = 10 ** emailVerificationCodeLength;
+    const num = crypto.randomInt(0, max);
+    return num.toString().padStart(emailVerificationCodeLength, '0');
+  }
+
+  async sendVerificationCodeToEmail(
+    user: UserEntity,
+    email: string,
+  ): Promise<void> {
+    if (!this.mailService.isConfigured) {
+      return;
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const code = this.generateVerificationCode();
+    const codeHash = await this.passwordService.hashPassword(code);
+    const now = new Date();
+
+    const em = this.em.fork();
+    const repo = em.getRepository(EmailVerificationCodeEntity);
+    const unusedCodes = await repo.find({
+      user: user.id,
+      usedAt: null,
+    });
+    for (const existing of unusedCodes) {
+      repo.assign(existing, { usedAt: now });
+    }
+
+    const verificationCode = repo.create({
+      user: em.getReference(UserEntity, user.id),
+      email: normalizedEmail,
+      codeHash,
+      attempts: 0,
+      expiresAt: new Date(now.getTime() + emailVerificationCodeDefaultTtl),
+      usedAt: null,
+    });
+    em.persist(verificationCode);
+    await em.flush();
+
+    const ttlMinutes = Math.max(
+      1,
+      Math.round(emailVerificationCodeDefaultTtl / 60_000),
+    );
+    try {
+      await this.mailService.sendMail({
+        to: normalizedEmail,
+        subject: 'Email verification code',
+        text: `Your Konvoez verification code is ${code}. It expires in ${ttlMinutes} minute(s). If you did not request this, you can ignore this email.`,
+        html: `<p>Your Konvoez verification code is <strong>${code}</strong>.</p><p>It expires in ${ttlMinutes} minute(s).</p><p>If you did not request this, you can ignore this email.</p>`,
+      });
+    } catch (error) {
+      repo.assign(verificationCode, { usedAt: new Date() });
+      await em.flush();
+      throw error;
+    }
+
+    const userCooldownKey = `${this.emailVerificationCooldownKeyPrefix}${user.id}`;
+    await this.cacheManager.set(
+      userCooldownKey,
+      true,
+      emailVerificationRequestCooldownMs,
+    );
+  }
+
+  async isUserCoolingDown(userId: number): Promise<boolean> {
+    const key = `${this.emailVerificationCooldownKeyPrefix}${userId}`;
+    return Boolean(await this.cacheManager.get(key));
+  }
+
+  async verifyCodeForUser(
+    userId: number,
+    email: string,
+    code: string,
+  ): Promise<boolean> {
+    const candidates = await this.emailVerificationCodeRepo.find(
+      {
+        user: userId,
+        email: email.trim().toLowerCase(),
+        usedAt: null,
+        expiresAt: { $gt: new Date() },
+        attempts: { $lt: emailVerificationMaxAttempts },
+      },
+      { orderBy: { createdAt: 'DESC' } },
+    );
+
+    for (const candidate of candidates) {
+      const reserved = await this.emailVerificationCodeRepo.nativeUpdate(
+        {
+          id: candidate.id,
+          usedAt: null,
+          attempts: { $lt: emailVerificationMaxAttempts },
+        },
+        { attempts: raw('attempts + 1') },
+      );
+      if (reserved === 0) {
+        continue;
+      }
+
+      const ok = await this.passwordService.comparePassword(
+        code,
+        candidate.codeHash,
+      );
+      if (ok) {
+        const consumed = await this.emailVerificationCodeRepo.nativeUpdate(
+          { id: candidate.id, usedAt: null },
+          { usedAt: new Date() },
+        );
+        if (consumed > 0) {
+          return true;
+        }
+        continue;
+      }
+
+      await this.emailVerificationCodeRepo.nativeUpdate(
+        {
+          id: candidate.id,
+          usedAt: null,
+          attempts: { $gte: emailVerificationMaxAttempts },
+        },
+        { usedAt: new Date() },
+      );
+    }
+    return false;
+  }
+
+  async cancelPendingVerificationCodes(userId: number): Promise<void> {
+    const unused = await this.emailVerificationCodeRepo.find({
+      user: userId,
+      usedAt: null,
+    });
+    const now = new Date();
+    for (const code of unused) {
+      this.emailVerificationCodeRepo.assign(code, { usedAt: now });
+      this.em.persist(code);
+    }
+    await this.em.flush();
   }
 
   private async requireActiveUser(

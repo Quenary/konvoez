@@ -1,13 +1,16 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { MikroORM } from '@mikro-orm/core';
+import { MikroORM, type Options } from '@mikro-orm/core';
 import { getRepositoryToken } from '@mikro-orm/nestjs';
 import { Test } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DEFAULT_USER_NOTIFICATION_SETTINGS, EUserRole } from '@konvoez/shared';
-import { createMikroOrmConfig } from '../mikro-orm.config';
 import { NotificationsService } from '../features/notifications/notifications.service';
+
+const { createMikroOrmConfig } = require('../mikro-orm.config') as {
+  createMikroOrmConfig: () => Promise<Options>;
+};
 import {
   PushSubscriptionEntity,
   UserNotificationSettingsEntity,

@@ -26,6 +26,9 @@ import type { GetUserSafeDto, GetUserFullDto } from '../users/users.dto';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
+import { AuthService } from '../auth/auth.service';
+import { MailService } from '@shared/services/mail.service';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 import { ProfileService } from './profile.service';
 import type { UpdateProfileDto } from './profile.dto';
 import { UsersDomainEvents } from '../users/users.events';
@@ -47,6 +50,19 @@ describe('ProfileService', () => {
     >
   >;
   let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
+  let authService: jest.Mocked<
+    Pick<
+      AuthService,
+      | 'isUserCoolingDown'
+      | 'sendVerificationCodeToEmail'
+      | 'verifyCodeForUser'
+      | 'cancelPendingVerificationCodes'
+    >
+  >;
+  let mailService: { isConfigured: boolean };
+  let verifiedMailerService: jest.Mocked<
+    Pick<VerifiedMailerService, 'sendNotification'>
+  >;
   let eventEmitter: { emit: jest.Mock };
 
   const mockUser = {
@@ -82,6 +98,8 @@ describe('ProfileService', () => {
     ...authorPublic,
     email: 'test@example.com',
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   beforeEach(() => {
@@ -113,12 +131,27 @@ describe('ProfileService', () => {
     roomsFacade = {
       deleteRoomsByAuthor: jest.fn().mockResolvedValue(undefined),
     };
+    authService = {
+      isUserCoolingDown: jest.fn().mockResolvedValue(false),
+      sendVerificationCodeToEmail: jest.fn().mockResolvedValue(undefined),
+      verifyCodeForUser: jest.fn().mockResolvedValue(true),
+      cancelPendingVerificationCodes: jest.fn().mockResolvedValue(undefined),
+    };
+    mailService = {
+      isConfigured: false,
+    };
+    verifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new ProfileService(
       mockRepo,
       usersService as unknown as UsersService,
       roomsFacade as unknown as RoomsFacade,
       eventEmitter as never,
+      authService as unknown as AuthService,
+      mailService as unknown as MailService,
+      verifiedMailerService as unknown as VerifiedMailerService,
     );
   });
 
@@ -163,10 +196,10 @@ describe('ProfileService', () => {
         mockUser,
         expect.objectContaining({
           username: 'updated',
-          email: 'updated@example.com',
           fullname: 'Updated Name',
         }),
       );
+      expect(mockUser.email).toBe('updated@example.com');
       expect(mockEm.persist).toHaveBeenCalledWith(mockUser);
       expect(mockEm.flush).toHaveBeenCalled();
       expect(usersService.toSafeDtoWithPermissions).toHaveBeenCalledWith(
@@ -181,6 +214,51 @@ describe('ProfileService', () => {
         authorPublic,
       );
       expect(result).toEqual({ user: author, sessionVersion: undefined });
+    });
+
+    it('should hold old email and send verification code when SMTP is configured', async () => {
+      mailService.isConfigured = true;
+      mockRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+      mockUser.email = 'test@example.com';
+      mockUser.pendingEmail = null;
+
+      const dto = {
+        email: 'newemail@example.com',
+      } as UpdateProfileDto;
+
+      await service.updateSelf(author, dto);
+
+      expect(mockUser.email).toBe('test@example.com');
+      expect(mockUser.pendingEmail).toBe('newemail@example.com');
+      expect(authService.sendVerificationCodeToEmail).toHaveBeenCalledWith(
+        mockUser,
+        'newemail@example.com',
+      );
+    });
+
+    it('does not keep a pending email when sending the code fails', async () => {
+      mailService.isConfigured = true;
+      mockUser.email = 'test@example.com';
+      mockUser.pendingEmail = null;
+      mockRepo.findOne.mockResolvedValueOnce(null);
+      authService.sendVerificationCodeToEmail.mockRejectedValueOnce(
+        AppException.serviceUnavailable(
+          ApiErrorCode.EMAIL_SEND_FAILED,
+          'Failed to send email',
+        ),
+      );
+
+      await expect(
+        service.updateSelf(author, {
+          email: 'newemail@example.com',
+        } as UpdateProfileDto),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.EMAIL_SEND_FAILED,
+      });
+
+      expect(mockUser.pendingEmail).toBeNull();
+      expect(mockEm.flush).not.toHaveBeenCalled();
     });
 
     it('should delegate password update to usersService.setPassword and return sessionVersion', async () => {
@@ -248,6 +326,61 @@ describe('ProfileService', () => {
       });
       expect(roomsFacade.deleteRoomsByAuthor).not.toHaveBeenCalled();
       expect(usersService.removeLoaded).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmEmailChange', () => {
+    it('throws AUTH_EMAIL_NO_PENDING_CHANGE when no pending email change exists', async () => {
+      usersService.findOne.mockResolvedValueOnce({
+        ...mockUser,
+        pendingEmail: null,
+      } as unknown as UserEntity);
+
+      await expect(
+        service.confirmEmailChange(author, '123456'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_EMAIL_NO_PENDING_CHANGE,
+      });
+    });
+
+    it('throws invalid code error when verification code does not match', async () => {
+      usersService.findOne.mockResolvedValueOnce({
+        ...mockUser,
+        pendingEmail: 'new@example.com',
+      } as unknown as UserEntity);
+      authService.verifyCodeForUser.mockResolvedValueOnce(false);
+
+      await expect(
+        service.confirmEmailChange(author, 'wrong-code'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_EMAIL_VERIFICATION_CODE_INVALID,
+      });
+    });
+
+    it('updates email, marks verified, and notifies both old and new email addresses', async () => {
+      const user = {
+        ...mockUser,
+        email: 'old@example.com',
+        emailVerified: true,
+        pendingEmail: 'new@example.com',
+      } as unknown as UserEntity;
+      usersService.findOne.mockResolvedValueOnce(user);
+      authService.verifyCodeForUser.mockResolvedValueOnce(true);
+
+      const result = await service.confirmEmailChange(author, '123456');
+
+      expect(user.email).toBe('new@example.com');
+      expect(user.pendingEmail).toBeNull();
+      expect(user.emailVerified).toBe(true);
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        { email: 'old@example.com', emailVerified: true },
+        expect.objectContaining({ subject: 'Email address changed' }),
+      );
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        { email: 'new@example.com', emailVerified: true },
+        expect.objectContaining({ subject: 'Email address updated' }),
+      );
+      expect(result).toBe(author);
     });
   });
 });

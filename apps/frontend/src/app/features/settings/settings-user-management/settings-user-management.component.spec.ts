@@ -29,6 +29,8 @@ describe('SettingsUserManagementComponent', () => {
     createdAt: new Date('2026-01-02T03:04:00.000Z'),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const setup = async (users: IUserFull[] = []) => {
@@ -77,7 +79,19 @@ describe('SettingsUserManagementComponent', () => {
     expect(compiled.querySelector('.empty-cell')).toBeNull();
     expect(compiled.textContent).toContain('alice');
     expect(compiled.textContent).toContain('alice@example.com');
+    expect(compiled.textContent).toContain(
+      'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED',
+    );
     expect(compiled.textContent).toContain(expectedCreatedAt);
+  });
+
+  it('should render an unverified badge when the email is not confirmed', async () => {
+    await setup([{ ...sampleUser, emailVerified: false }]);
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.textContent).toContain(
+      'SETTINGS.PROFILE.EMAIL_VERIFICATION.UNVERIFIED',
+    );
   });
 
   it('should render a dash when user has no assigned roles and is not owner', async () => {

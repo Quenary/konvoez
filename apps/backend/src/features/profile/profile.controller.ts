@@ -23,7 +23,11 @@ import { UsersService } from '../users/users.service';
 import { UsersAvatarsService } from '../users/users-avatars.service';
 import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 import { ProfileService } from './profile.service';
-import { UpdateProfileDto } from './profile.dto';
+import {
+  ProfileEmailChangeConfirmDto,
+  ProfileEmailVerificationConfirmDto,
+  UpdateProfileDto,
+} from './profile.dto';
 
 @ApiTags('profile')
 @Controller('profile')
@@ -88,5 +92,60 @@ export class ProfileController {
       key,
       url: this.usersService.getAvatarUrl(key) as string,
     };
+  }
+
+  @Post('email-verification/request')
+  @ApiOkResponse({
+    description: 'Request email verification code for current email',
+  })
+  async requestEmailVerification(
+    @Author() author: GetUserSafeDto,
+  ): Promise<{ ok: true }> {
+    return await this.profileService.requestEmailVerification(author);
+  }
+
+  @Post('email-verification/confirm')
+  @ApiOkResponse({
+    type: GetUserFullDto,
+    description: 'Confirm current email verification with code',
+  })
+  async confirmEmailVerification(
+    @Body() dto: ProfileEmailVerificationConfirmDto,
+    @Author() author: GetUserSafeDto,
+  ): Promise<GetUserFullDto> {
+    return await this.profileService.confirmEmailVerification(author, dto.code);
+  }
+
+  @Post('email-change/confirm')
+  @ApiOkResponse({
+    type: GetUserFullDto,
+    description: 'Confirm pending email change with code',
+  })
+  async confirmEmailChange(
+    @Body() dto: ProfileEmailChangeConfirmDto,
+    @Author() author: GetUserSafeDto,
+  ): Promise<GetUserFullDto> {
+    return await this.profileService.confirmEmailChange(author, dto.code);
+  }
+
+  @Post('email-change/resend')
+  @ApiOkResponse({
+    description: 'Resend code for pending email change',
+  })
+  async resendEmailChange(
+    @Author() author: GetUserSafeDto,
+  ): Promise<{ ok: true }> {
+    return await this.profileService.resendEmailChange(author);
+  }
+
+  @Post('email-change/cancel')
+  @ApiOkResponse({
+    type: GetUserFullDto,
+    description: 'Cancel pending email change',
+  })
+  async cancelEmailChange(
+    @Author() author: GetUserSafeDto,
+  ): Promise<GetUserFullDto> {
+    return await this.profileService.cancelEmailChange(author);
   }
 }

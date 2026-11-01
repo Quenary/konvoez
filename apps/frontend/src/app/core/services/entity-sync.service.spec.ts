@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -14,6 +15,7 @@ import { EntitySyncSocketToken } from '@core/tokens/entity-sync-socket.token';
 import { VoiceRoomSocketToken } from '@core/tokens/voice-room-socket.token';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { AuthApiService } from '@core/api/auth-api.service';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
   selectCurrentUser,
@@ -27,6 +29,7 @@ import { EntitySyncService, lobbyResyncMutex } from './entity-sync.service';
 
 describe('EntitySyncService', () => {
   let store: MockStore;
+  let authApiService: { me: ReturnType<typeof vi.fn> };
   let emitter: EventEmitter;
   let socket: EventEmitter & {
     connect: ReturnType<typeof vi.fn>;
@@ -82,6 +85,8 @@ describe('EntitySyncService', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const otherUser: IUserSafe = {
@@ -191,6 +196,9 @@ describe('EntitySyncService', () => {
       ],
     });
 
+    authApiService = { me: vi.fn().mockReturnValue(of(me)) };
+    TestBed.overrideProvider(AuthApiService, { useValue: authApiService });
+
     store = TestBed.inject(MockStore);
     vi.spyOn(store, 'dispatch');
   });
@@ -224,7 +232,14 @@ describe('EntitySyncService', () => {
     expect(usersStore.upsertOne).toHaveBeenCalledWith(otherUser);
   });
 
-  it('updates stores and auth when the current user is updated', () => {
+  it('updates stores and reloads auth when the current user is updated', () => {
+    const fresh = {
+      ...me,
+      fullname: 'Alice Updated',
+      emailVerified: true,
+      pendingEmail: 'next@example.com',
+    };
+    authApiService.me.mockReturnValue(of(fresh));
     createService();
     const updated = { ...me, fullname: 'Alice Updated' };
     emitter.emit(EEntitySyncEvent.USER_UPDATED, updated);
@@ -234,13 +249,20 @@ describe('EntitySyncService', () => {
       updated,
     );
     expect(voiceLobbyStore.applyUserEntityUpdate).toHaveBeenCalledWith(updated);
+    expect(authApiService.me).toHaveBeenCalled();
     expect(store.dispatch).toHaveBeenCalledWith(
-      AuthActions.requestPatchUserSuccess({
-        user: {
-          ...updated,
-          email: me.email,
-          twoFactorEnabled: me.twoFactorEnabled,
-        },
+      AuthActions.requestPatchUserSuccess({ user: fresh }),
+    );
+  });
+
+  it('keeps the current session when reloading the user fails', () => {
+    authApiService.me.mockReturnValue(throwError(() => new Error('offline')));
+    createService();
+    emitter.emit(EEntitySyncEvent.USER_UPDATED, { ...me, fullname: 'Alice' });
+
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: AuthActions.requestPatchUserSuccess.type,
       }),
     );
   });

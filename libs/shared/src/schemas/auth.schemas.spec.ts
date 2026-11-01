@@ -2,10 +2,24 @@ import { describe, expect, it } from 'vitest';
 import {
   authLoginResponseSchema,
   authLoginTwoFactorSchema,
+  emailVerificationCodeSchema,
   twoFactorCodeSchema,
   twoFactorEnableSchema,
   twoFactorRequiredSchema,
 } from './auth.schemas';
+
+describe('emailVerificationCodeSchema', () => {
+  it.each(['123456', '000000', '999999'])('accepts 6-digit code %s', (code) => {
+    expect(() => emailVerificationCodeSchema.parse(code)).not.toThrow();
+  });
+
+  it.each(['12345', '1234567', 'abcdef', '12345a', ''])(
+    'rejects invalid code %s',
+    (code) => {
+      expect(() => emailVerificationCodeSchema.parse(code)).toThrow();
+    },
+  );
+});
 
 describe('twoFactorCodeSchema', () => {
   it.each([

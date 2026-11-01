@@ -16,6 +16,8 @@ export const UserEntitySchema = defineEntity({
     sessionVersion: p.integer().default(0).hidden(),
     fullname: p.string().length(128).index(),
     email: p.string().length(128).index().unique(),
+    emailVerified: p.boolean().default(false),
+    pendingEmail: p.string().length(128).nullable().default(null),
     isOwner: p.boolean().default(false),
     roles: () =>
       p

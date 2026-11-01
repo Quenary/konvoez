@@ -46,6 +46,8 @@ describe('RoomsComponent', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const bob: IUserSafe = {

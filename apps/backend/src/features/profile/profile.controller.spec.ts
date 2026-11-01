@@ -36,6 +36,8 @@ describe('ProfileController', () => {
     ...authorSafe,
     email: 'test@example.com',
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   beforeEach(async () => {

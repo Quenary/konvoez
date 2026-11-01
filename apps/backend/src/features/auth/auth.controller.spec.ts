@@ -45,6 +45,8 @@ describe('AuthController', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   let mockResponse: jest.Mocked<Partial<Response>>;

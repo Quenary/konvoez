@@ -30,6 +30,7 @@ import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { TwoFactorService } from '../two-factor/two-factor.service';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
@@ -57,6 +58,9 @@ describe('UserManagementService', () => {
     >
   >;
   let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
+  let verifiedMailerService: jest.Mocked<
+    Pick<VerifiedMailerService, 'sendNotification'>
+  >;
 
   const mockUser = {
     id: 1,
@@ -85,6 +89,8 @@ describe('UserManagementService', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   beforeEach(() => {
@@ -124,11 +130,16 @@ describe('UserManagementService', () => {
       adminReset: jest.fn().mockResolvedValue(mockUserDto),
     };
 
+    verifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
       roomsFacade as unknown as RoomsFacade,
       twoFactorService as unknown as TwoFactorService,
+      verifiedMailerService as unknown as VerifiedMailerService,
     );
   });
 
@@ -161,15 +172,22 @@ describe('UserManagementService', () => {
       } as UserEntity;
       usersService.findOne.mockResolvedValueOnce(target);
       permissionsFacade.findRolesByIds.mockResolvedValueOnce([
-        { id: 2 } as never,
+        { id: 2, name: 'Moderator' } as never,
       ]);
 
       await service.updateRole(5, { roleIds: [2] }, ownerAuthor);
 
       expect(permissionsFacade.findRolesByIds).toHaveBeenCalledWith([2]);
       expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
-        { id: 2 },
+        { id: 2, name: 'Moderator' },
       ]);
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        target,
+        expect.objectContaining({
+          subject: 'Account roles updated',
+          text: expect.stringContaining('Moderator'),
+        }),
+      );
     });
 
     it('should reject changing the owner role', async () => {

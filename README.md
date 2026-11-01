@@ -95,6 +95,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Two-Factor Authentication](docs/TWO_FACTOR.md)
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
+- [Email Verification](docs/EMAIL_VERIFICATION.md)
 - [Rooms](docs/ROOMS.md)
 - [Chat reading](docs/CHAT_READING.md)
 - [Mentions](docs/MENTIONS.md)

@@ -10,6 +10,7 @@ import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
 import { TwoFactorService } from './two-factor.service';
 import { TwoFactorRecoveryCodeEntity } from './two-factor-recovery-code.entity';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 import { totpAt } from './totp.util';
 
 describe('TwoFactorService', () => {
@@ -20,6 +21,9 @@ describe('TwoFactorService', () => {
   let fakeUsersService: Partial<UsersService>;
   let inMemoryCache: Map<string, unknown>;
   let fakeCacheManager: Partial<Cache>;
+  let fakeVerifiedMailerService: {
+    sendNotification: jest.Mock;
+  };
   let storedRecoveryCodes: TwoFactorRecoveryCodeEntity[];
   let fakeRecoveryCodeRepo: {
     getEntityManager: () => unknown;
@@ -28,6 +32,7 @@ describe('TwoFactorService', () => {
       codeHash: string;
       usedAt: null;
     }) => Promise<TwoFactorRecoveryCodeEntity | null>;
+    count: (where: { user: number; usedAt: null }) => Promise<number>;
     create: (data: unknown) => TwoFactorRecoveryCodeEntity;
     nativeDelete: (where: { user: number }) => Promise<number>;
     nativeUpdate?: (
@@ -58,6 +63,9 @@ describe('TwoFactorService', () => {
   beforeEach(async () => {
     inMemoryCache = new Map();
     storedRecoveryCodes = [];
+    fakeVerifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
 
     fakeAppService = {
       MASTER_KEY: masterKey,
@@ -112,6 +120,8 @@ describe('TwoFactorService', () => {
         avatarUrl: null,
         deletedAt: null,
         twoFactorEnabled: user.twoFactorEnabledAt != null,
+        emailVerified: user.emailVerified ?? false,
+        pendingEmail: user.pendingEmail ?? null,
       })),
     };
 
@@ -167,6 +177,11 @@ describe('TwoFactorService', () => {
           return 0;
         },
       ),
+      count: jest.fn(async (where: { user: number; usedAt: null }) => {
+        return storedRecoveryCodes.filter(
+          (c) => c.user.id === where.user && c.usedAt === where.usedAt,
+        ).length;
+      }),
       create: (data: unknown) => {
         const entity = {
           id: storedRecoveryCodes.length + 1,
@@ -195,6 +210,10 @@ describe('TwoFactorService', () => {
         { provide: PasswordService, useValue: fakePasswordService },
         { provide: UsersService, useValue: fakeUsersService },
         { provide: Cache, useValue: fakeCacheManager },
+        {
+          provide: VerifiedMailerService,
+          useValue: fakeVerifiedMailerService,
+        },
         {
           provide: getRepositoryToken(TwoFactorRecoveryCodeEntity),
           useValue: fakeRecoveryCodeRepo,
@@ -317,6 +336,14 @@ describe('TwoFactorService', () => {
         service.verifyLoginCode(user.id, oneRecoveryCode),
       ).resolves.not.toThrow();
 
+      expect(fakeVerifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        user,
+        expect.objectContaining({
+          subject: 'Two-factor recovery code used',
+          text: expect.stringContaining('9 recovery code(s) remaining'),
+        }),
+      );
+
       // Second attempt with same code must fail
       await expect(
         service.verifyLoginCode(user.id, oneRecoveryCode),
@@ -351,6 +378,12 @@ describe('TwoFactorService', () => {
         service.verifyLoginCode(user.id, '999999'),
       ).rejects.toThrow();
       expect(inMemoryCache.get(`auth:2fa-lock:${user.id}`)).toBe(true);
+      expect(fakeVerifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        user,
+        expect.objectContaining({
+          subject: 'Two-factor authentication locked',
+        }),
+      );
 
       // Subsequent attempt returns 429 AUTH_TWO_FACTOR_LOCKED without verifying
       await expect(service.verifyLoginCode(user.id, '999999')).rejects.toThrow(

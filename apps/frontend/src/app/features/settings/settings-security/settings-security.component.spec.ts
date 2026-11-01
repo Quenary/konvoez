@@ -30,6 +30,8 @@ describe('SettingsSecurityComponent', () => {
     updatedAt: null,
     deletedAt: null,
     twoFactorEnabled,
+    emailVerified: true,
+    pendingEmail: null,
   });
 
   const setupTestBed = async (twoFactorEnabled: boolean) => {

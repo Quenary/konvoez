@@ -36,6 +36,8 @@ describe('adminGuard', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
     ...overrides,
   });
 

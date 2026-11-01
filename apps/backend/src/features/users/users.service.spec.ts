@@ -30,6 +30,7 @@ import {
 } from '@shared/services/file.service';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { UsersDomainEvents } from './users.events';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -39,6 +40,9 @@ describe('UsersService', () => {
   let passwordService: jest.Mocked<PasswordService>;
   let fileService: jest.Mocked<FileService>;
   let eventEmitter: { emit: jest.Mock };
+  let verifiedMailerService: jest.Mocked<
+    Pick<VerifiedMailerService, 'sendNotification'>
+  >;
 
   const mockUser: UserEntity = {
     id: 1,
@@ -97,6 +101,9 @@ describe('UsersService', () => {
     } as unknown as jest.Mocked<FileService>;
 
     eventEmitter = { emit: jest.fn() };
+    verifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
     const permissionsFacade = {
       getUserPermissions: jest.fn().mockResolvedValue([]),
       getDefaultPermissions: jest.fn().mockResolvedValue([]),
@@ -111,6 +118,7 @@ describe('UsersService', () => {
       fileService,
       eventEmitter as never,
       permissionsFacade as never,
+      verifiedMailerService as unknown as VerifiedMailerService,
     );
   });
 
@@ -293,6 +301,8 @@ describe('UsersService', () => {
       const target = {
         ...mockUser,
         id: 5,
+        email: 'user5@example.com',
+        emailVerified: true,
         role: EUserRole.ADMIN,
         avatar: 'avatar-key',
         sessionVersion: 0,
@@ -310,6 +320,8 @@ describe('UsersService', () => {
         twoFactorSecret: null,
         twoFactorEnabledAt: null,
         twoFactorLastStep: null,
+        emailVerified: false,
+        pendingEmail: null,
       });
       expect(target.sessionVersion).toBe(1);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
@@ -327,6 +339,10 @@ describe('UsersService', () => {
       );
       expect(result.isOwner).toBe(false);
       expect(result.email).toBe('deleted-5@users.invalid');
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        { email: 'user5@example.com', emailVerified: true },
+        expect.objectContaining({ subject: 'Account deactivated' }),
+      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5, isOwner: false }),
@@ -343,6 +359,8 @@ describe('UsersService', () => {
       const target = {
         ...mockUser,
         id: 5,
+        email: 'user5@example.com',
+        emailVerified: true,
         role: EUserRole.MEMBER,
         avatar: 'avatar-key',
       } as UserEntity;
@@ -351,6 +369,11 @@ describe('UsersService', () => {
       mockEm.find.mockResolvedValueOnce([{ id: messageId }] as never);
 
       await service.removeLoaded(5);
+
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        { email: 'user5@example.com', emailVerified: true },
+        expect.objectContaining({ subject: 'Account permanently deleted' }),
+      );
 
       expect(mockEm.find).toHaveBeenCalledWith(
         MessageEntity,
