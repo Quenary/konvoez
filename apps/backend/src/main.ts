@@ -6,6 +6,7 @@ import { MikroORM } from '@mikro-orm/core';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { NotificationsService } from './features/notifications/notifications.service';
 import { runRotateMasterKeyCommand } from './shared/master-key/rotate-master-key';
+import { loadFileSecrets } from './shared/utils/file-secrets.util';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -41,6 +42,7 @@ async function bootstrap() {
 }
 
 async function main(): Promise<void> {
+  loadFileSecrets();
   if (process.argv[2] === 'rotate-master-key') {
     const code = await runRotateMasterKeyCommand(process.argv.slice(3));
     process.exit(code);

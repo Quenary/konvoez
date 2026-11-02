@@ -53,6 +53,8 @@ Konvoez ships as a single Docker image: Nginx serves the frontend and proxies th
 
    Generate secrets with `openssl rand -base64 32`. All other options are described in [.env.example](.env.example).
 
+   `MASTER_KEY`, `JWT_SECRET`, `SMTP_PASS`, `S3_ACCESS_KEY_ID` and `S3_ACCESS_KEY` can be supplied as a file: set `NAME_FILE` to the path and leave `NAME` empty. An empty file is an error, and so is setting both `NAME` and `NAME_FILE`. Rotation accepts `OLD_MASTER_KEY_FILE` and `NEW_MASTER_KEY_FILE` the same way.
+
 2. Start the server with one of the options below.
 
    **Prebuilt image (recommended)**, via [docker-compose.yml](docker-compose.yml):

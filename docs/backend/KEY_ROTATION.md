@@ -22,7 +22,7 @@ If the key cannot decrypt existing messages, the migration stops and stays pendi
 
 ## Rotation
 
-The app service is stopped first, so it cannot write with the old key while the command runs. `OLD_MASTER_KEY` and `NEW_MASTER_KEY` come from the environment. The command does not apply migrations. It takes an immediate SQLite lock, checks every protected value with the old key, and rewrites the database in one transaction. `vapid.json` is replaced after that commit. `--dry-run` checks every value, rolls the transaction back and does not touch `vapid.json`.
+The app service is stopped first, so it cannot write with the old key while the command runs. `OLD_MASTER_KEY` and `NEW_MASTER_KEY` come from the environment, or from `OLD_MASTER_KEY_FILE` and `NEW_MASTER_KEY_FILE` when the values live in files. The command does not apply migrations. It takes an immediate SQLite lock, checks every protected value with the old key, and rewrites the database in one transaction. `vapid.json` is replaced after that commit. `--dry-run` checks every value, rolls the transaction back and does not touch `vapid.json`.
 
 ```bash
 docker compose stop app

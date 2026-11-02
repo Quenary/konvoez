@@ -38,6 +38,7 @@ flowchart TD
 - **Voice and video**: WebRTC through the Mediasoup SFU, encrypted in transit with DTLS-SRTP.
 - **Web Push**: optional, for direct messages. Payloads are encrypted for the browser subscription, so push services cannot read them. The payload carries a plaintext preview so the OS can render the notification; the server and the recipient device can see it. VAPID keys live on disk next to SQLite and are protected by `MASTER_KEY`. Operators may mount their own `vapid.json`.
 - **Key rotation**: see [Key rotation](backend/KEY_ROTATION.md).
+- **File secrets**: `MASTER_KEY`, `JWT_SECRET`, `SMTP_PASS`, `S3_ACCESS_KEY_ID` and `S3_ACCESS_KEY` may be supplied as `NAME_FILE` paths. The process reads the file at startup. It rejects an empty file and a name that is set both as a value and as a file.
 - **User email**: treated as PII. General HTTP, WebSocket and entity-sync user payloads use `userSafeSchema` / `GetUserSafeDto` (PII omitted). Self auth/profile and admin `user-management` responses use `userFullSchema` / `GetUserFullDto` (includes email).
 
 ### Authentication
