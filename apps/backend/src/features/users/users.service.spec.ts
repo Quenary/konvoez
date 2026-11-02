@@ -22,7 +22,7 @@ jest.mock('@mikro-orm/core', () => {
 import { ApiErrorCode } from '@konvoez/shared';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
-import { PasswordService } from '../../shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import {
   USER_AVATARS_BUCKET,
@@ -37,7 +37,7 @@ describe('UsersService', () => {
   let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
   let mockForkedEm: jest.Mocked<EntityManager>;
-  let passwordService: jest.Mocked<PasswordService>;
+  let hashService: jest.Mocked<HashService>;
   let fileService: jest.Mocked<FileService>;
   let eventEmitter: { emit: jest.Mock };
   let verifiedMailerService: jest.Mocked<
@@ -90,10 +90,10 @@ describe('UsersService', () => {
         .mockImplementation((entity, data) => Object.assign(entity, data)),
     } as unknown as jest.Mocked<EntityRepository<UserEntity>>;
 
-    passwordService = {
-      hashPassword: jest.fn().mockResolvedValue('hashed_new_password'),
-      comparePassword: jest.fn(),
-    } as unknown as jest.Mocked<PasswordService>;
+    hashService = {
+      hash: jest.fn().mockResolvedValue('hashed_new_password'),
+      verify: jest.fn(),
+    } as unknown as jest.Mocked<HashService>;
 
     fileService = {
       delete: jest.fn().mockResolvedValue(undefined),
@@ -113,7 +113,7 @@ describe('UsersService', () => {
 
     service = new UsersService(
       mockRepo,
-      passwordService,
+      hashService,
       fileService,
       eventEmitter as never,
       permissionsFacade as never,
@@ -282,7 +282,7 @@ describe('UsersService', () => {
 
       const result = await service.setPassword(1, 'NewPass123!');
 
-      expect(passwordService.hashPassword).toHaveBeenCalledWith('NewPass123!');
+      expect(hashService.hash).toHaveBeenCalledWith('NewPass123!');
       expect(mockRepo.assign).toHaveBeenCalledWith(
         mockUser,
         expect.objectContaining({ password: 'hashed_new_password' }),

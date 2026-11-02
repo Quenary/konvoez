@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import { ApiErrorCode, type IUserSafe } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { AppService } from '@shared/services/app.service';
-import { PasswordService } from '@shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import { SecretBoxService } from '@shared/services/secret-box.service';
 import { deriveAes256KeyFromMasterKey } from '@shared/utils/master-key.util';
 import { UserEntity } from '../users/users.entity';
@@ -39,7 +39,7 @@ export class TwoFactorService {
   constructor(
     private readonly appService: AppService,
     private readonly secretBoxService: SecretBoxService,
-    private readonly passwordService: PasswordService,
+    private readonly hashService: HashService,
     private readonly verifiedMailerService: VerifiedMailerService,
     private readonly usersService: UsersService,
     private readonly cacheManager: Cache,
@@ -53,7 +53,7 @@ export class TwoFactorService {
     user: UserEntity,
     password: string,
   ): Promise<{ secret: string; otpauthUri: string }> {
-    const validPassword = await this.passwordService.comparePassword(
+    const validPassword = await this.hashService.verify(
       password,
       user.password,
     );
@@ -222,7 +222,7 @@ export class TwoFactorService {
     return this.mutex.runExclusive(user.id, async () => {
       await this.assertNotLocked(user.id);
 
-      const validPassword = await this.passwordService.comparePassword(
+      const validPassword = await this.hashService.verify(
         password,
         user.password,
       );
@@ -272,7 +272,7 @@ export class TwoFactorService {
     return this.mutex.runExclusive(user.id, async () => {
       await this.assertNotLocked(user.id);
 
-      const validPassword = await this.passwordService.comparePassword(
+      const validPassword = await this.hashService.verify(
         password,
         user.password,
       );

@@ -6,7 +6,7 @@ import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
-import { PasswordService } from '../../shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import {
   FileServiceInjectionToken,
   USER_AVATARS_BUCKET,
@@ -27,7 +27,7 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
-    private readonly passwordService: PasswordService,
+    private readonly hashService: HashService,
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
     private readonly eventEmitter: EventEmitter2,
@@ -197,7 +197,7 @@ export class UsersService {
     return ensureRequestContext(this.em, async () => {
       const user =
         typeof userOrId === 'number' ? await this.findOne(userOrId) : userOrId;
-      const passwordHash = await this.passwordService.hashPassword(password);
+      const passwordHash = await this.hashService.hash(password);
       this.repo.assign(user, { password: passwordHash });
       await this.revokeSessions(user);
       return user;
@@ -208,7 +208,7 @@ export class UsersService {
     const originalEmail = user.email;
     const originalEmailVerified = user.emailVerified;
     const previousAvatar = user.avatar;
-    const password = await this.passwordService.hashPassword(
+    const password = await this.hashService.hash(
       randomBytes(24).toString('base64url'),
     );
     this.repo.assign(user, {

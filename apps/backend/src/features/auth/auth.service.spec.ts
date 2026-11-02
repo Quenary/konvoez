@@ -37,7 +37,7 @@ import { AuthService } from './auth.service';
 import { TwoFactorService } from '../two-factor/two-factor.service';
 
 import { AppService } from '@shared/services/app.service';
-import { PasswordService } from '@shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import { MailService } from '@shared/services/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserEntity } from '../users/users.entity';
@@ -66,7 +66,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let jwtService: jest.Mocked<JwtService>;
   let appService: jest.Mocked<AppService>;
-  let passwordService: jest.Mocked<PasswordService>;
+  let hashService: jest.Mocked<HashService>;
   let mailService: { isConfigured: boolean; sendMail: jest.Mock };
   let usersService: jest.Mocked<UsersService>;
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
@@ -200,10 +200,10 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: PasswordService,
+          provide: HashService,
           useValue: {
-            comparePassword: jest.fn(),
-            hashPassword: jest.fn().mockResolvedValue('hashed_code'),
+            verify: jest.fn(),
+            hash: jest.fn().mockResolvedValue('hashed_code'),
           },
         },
         {
@@ -291,7 +291,7 @@ describe('AuthService', () => {
     service = module.get<AuthService>(AuthService);
     jwtService = module.get(JwtService);
     appService = module.get(AppService);
-    passwordService = module.get(PasswordService);
+    hashService = module.get(HashService);
     usersService = module.get(UsersService);
     twoFactorService = module.get(TwoFactorService);
     cacheManager = module.get(Cache);
@@ -302,7 +302,7 @@ describe('AuthService', () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
       );
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
       usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser('test_user', 'password123');
@@ -310,7 +310,7 @@ describe('AuthService', () => {
       expect(usersService.findOneByUsernameOrEmail).toHaveBeenCalledWith(
         'test_user',
       );
-      expect(passwordService.comparePassword).toHaveBeenCalledWith(
+      expect(hashService.verify).toHaveBeenCalledWith(
         'password123',
         mockUserEntity.password,
       );
@@ -324,7 +324,7 @@ describe('AuthService', () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
       );
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
       usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       const result = await service.validateUser(
@@ -342,7 +342,7 @@ describe('AuthService', () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
       );
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
       usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('User@Example.COM', 'password123');
@@ -356,7 +356,7 @@ describe('AuthService', () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
       );
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
       usersService.toFullDtoWithPermissions.mockResolvedValueOnce(mockUserDto);
 
       await service.validateUser('  test_user  ', 'password123');
@@ -394,7 +394,7 @@ describe('AuthService', () => {
       usersService.findOneByUsernameOrEmail.mockResolvedValueOnce(
         mockUserEntity,
       );
-      passwordService.comparePassword.mockResolvedValueOnce(false);
+      hashService.verify.mockResolvedValueOnce(false);
 
       await expect(
         service.validateUser('test_user', 'wrong_password'),
@@ -408,7 +408,7 @@ describe('AuthService', () => {
         ...mockUserEntity,
         deletedAt: new Date(),
       });
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
 
       await expect(
         service.validateUser('test_user', 'password123'),
@@ -887,7 +887,7 @@ describe('AuthService', () => {
         isOwner: true,
       };
       usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(ownerPublic);
-      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
+      hashService.hash.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register({
         ...createDto,
@@ -923,7 +923,7 @@ describe('AuthService', () => {
       };
 
       usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(memberPublic);
-      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
+      hashService.hash.mockResolvedValueOnce('hashed_password');
 
       const result = await service.register(createDto);
 
@@ -990,7 +990,7 @@ describe('AuthService', () => {
 
       userRepo.create.mockReturnValueOnce(createdMember);
       usersService.toSafeDtoWithPermissions.mockResolvedValueOnce(memberPublic);
-      passwordService.hashPassword.mockResolvedValueOnce('hashed_password');
+      hashService.hash.mockResolvedValueOnce('hashed_password');
 
       const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
       const result = await service.register(dtoWithCode);
@@ -1077,7 +1077,7 @@ describe('AuthService', () => {
       expect(settingsService.getValue).toHaveBeenCalledWith(
         ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
       );
-      expect(passwordService.hashPassword).toHaveBeenCalled();
+      expect(hashService.hash).toHaveBeenCalled();
       expect(recoveryCodeRepo.create).toHaveBeenCalled();
       expect(em.flush).toHaveBeenCalled();
       expect(mailService.sendMail).toHaveBeenCalledWith(
@@ -1149,7 +1149,7 @@ describe('AuthService', () => {
           usedAt: null,
         },
       ]);
-      passwordService.comparePassword.mockResolvedValueOnce(false);
+      hashService.verify.mockResolvedValueOnce(false);
 
       await expect(
         service.confirmPasswordRecovery({
@@ -1167,7 +1167,7 @@ describe('AuthService', () => {
       usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
       const matched = { codeHash: 'hash', usedAt: null };
       recoveryCodeRepo.find.mockResolvedValueOnce([matched]);
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
       usersService.setPassword.mockResolvedValueOnce(mockUserEntity);
 
       const result = await service.confirmPasswordRecovery({
@@ -1189,7 +1189,7 @@ describe('AuthService', () => {
       recoveryCodeRepo.find.mockResolvedValueOnce([
         { codeHash: 'hash', usedAt: null },
       ]);
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
       usersService.setPassword.mockResolvedValueOnce(mockUserEntity);
 
       await service.confirmPasswordRecovery({
@@ -1256,7 +1256,7 @@ describe('AuthService', () => {
           usedAt: null,
         },
       ]);
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
 
       const result = await service.confirmPasswordRecovery({
         email: 'unverified@example.com',
@@ -1316,7 +1316,7 @@ describe('AuthService', () => {
         usedAt: null,
       };
       emailVerificationCodeRepo.find.mockResolvedValueOnce([codeRecord]);
-      passwordService.comparePassword.mockResolvedValueOnce(true);
+      hashService.verify.mockResolvedValueOnce(true);
 
       const ok = await service.verifyCodeForUser(
         mockUserEntity.id,
@@ -1349,7 +1349,7 @@ describe('AuthService', () => {
         usedAt: null,
       };
       emailVerificationCodeRepo.find.mockResolvedValueOnce([codeRecord]);
-      passwordService.comparePassword.mockResolvedValueOnce(false);
+      hashService.verify.mockResolvedValueOnce(false);
 
       const ok = await service.verifyCodeForUser(
         mockUserEntity.id,
@@ -1382,7 +1382,7 @@ describe('AuthService', () => {
       );
 
       expect(ok).toBe(false);
-      expect(passwordService.comparePassword).not.toHaveBeenCalled();
+      expect(hashService.verify).not.toHaveBeenCalled();
     });
 
     it('verifyCodeForUser returns false when no attempt remains', async () => {
@@ -1395,7 +1395,7 @@ describe('AuthService', () => {
       );
 
       expect(ok).toBe(false);
-      expect(passwordService.comparePassword).not.toHaveBeenCalled();
+      expect(hashService.verify).not.toHaveBeenCalled();
       expect(emailVerificationCodeRepo.nativeUpdate).not.toHaveBeenCalled();
     });
 

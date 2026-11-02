@@ -4,7 +4,7 @@ import { Cache } from '@nestjs/cache-manager';
 import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { AppService } from '@shared/services/app.service';
-import { PasswordService } from '@shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import { SecretBoxService } from '@shared/services/secret-box.service';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
@@ -17,7 +17,7 @@ describe('TwoFactorService', () => {
   let service: TwoFactorService;
   let fakeAppService: AppService;
   let secretBoxService: SecretBoxService;
-  let fakePasswordService: Partial<PasswordService>;
+  let fakeHashService: Partial<HashService>;
   let fakeUsersService: Partial<UsersService>;
   let inMemoryCache: Map<string, unknown>;
   let fakeCacheManager: Partial<Cache>;
@@ -73,10 +73,8 @@ describe('TwoFactorService', () => {
 
     secretBoxService = new SecretBoxService(fakeAppService);
 
-    fakePasswordService = {
-      comparePassword: jest.fn(
-        async (plain, _hashed) => plain === 'correct_pass',
-      ),
+    fakeHashService = {
+      verify: jest.fn(async (plain, _hashed) => plain === 'correct_pass'),
     };
 
     fakeUsersService = {
@@ -207,7 +205,7 @@ describe('TwoFactorService', () => {
         TwoFactorService,
         { provide: AppService, useValue: fakeAppService },
         { provide: SecretBoxService, useValue: secretBoxService },
-        { provide: PasswordService, useValue: fakePasswordService },
+        { provide: HashService, useValue: fakeHashService },
         { provide: UsersService, useValue: fakeUsersService },
         { provide: Cache, useValue: fakeCacheManager },
         {

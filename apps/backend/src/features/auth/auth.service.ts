@@ -9,7 +9,7 @@ import { AppException } from '@shared/errors/app.exception';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PasswordService } from '@shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
 import { UsersDomainEvents, emitUsersDomainEvent } from '../users/users.events';
@@ -65,7 +65,7 @@ export class AuthService implements OnApplicationBootstrap {
   constructor(
     private readonly jwt: JwtService,
     private readonly appService: AppService,
-    private readonly passwordService: PasswordService,
+    private readonly hashService: HashService,
     private readonly mailService: MailService,
     private readonly verifiedMailerService: VerifiedMailerService,
     private readonly usersService: UsersService,
@@ -187,10 +187,7 @@ export class AuthService implements OnApplicationBootstrap {
         'Invalid credentials',
       );
     }
-    const result = await this.passwordService.comparePassword(
-      password,
-      user.password,
-    );
+    const result = await this.hashService.verify(password, user.password);
     if (!result || user.deletedAt) {
       throw AppException.unauthorized(
         ApiErrorCode.AUTH_INVALID_CREDENTIALS,
@@ -251,7 +248,7 @@ export class AuthService implements OnApplicationBootstrap {
       ESettingKey.PASSWORD_RECOVERY_CODE_TTL,
     );
     const code = this.generateRecoveryCode();
-    const codeHash = await this.passwordService.hashPassword(code);
+    const codeHash = await this.hashService.hash(code);
     const now = new Date();
 
     const unusedCodes = await this.recoveryCodeRepo.find({
@@ -335,10 +332,7 @@ export class AuthService implements OnApplicationBootstrap {
 
     let matched: PasswordRecoveryCodeEntity | null = null;
     for (const candidate of candidates) {
-      const ok = await this.passwordService.comparePassword(
-        dto.code,
-        candidate.codeHash,
-      );
+      const ok = await this.hashService.verify(dto.code, candidate.codeHash);
       if (ok) {
         matched = candidate;
         break;
@@ -575,7 +569,7 @@ ${token}
     }
     const normalizedEmail = email.trim().toLowerCase();
     const code = this.generateVerificationCode();
-    const codeHash = await this.passwordService.hashPassword(code);
+    const codeHash = await this.hashService.hash(code);
     const now = new Date();
 
     const em = this.em.fork();
@@ -658,10 +652,7 @@ ${token}
         continue;
       }
 
-      const ok = await this.passwordService.comparePassword(
-        code,
-        candidate.codeHash,
-      );
+      const ok = await this.hashService.verify(code, candidate.codeHash);
       if (ok) {
         const consumed = await this.emailVerificationCodeRepo.nativeUpdate(
           { id: candidate.id, usedAt: null },
@@ -778,7 +769,7 @@ ${token}
       );
     }
 
-    const password = await this.passwordService.hashPassword(dto.password);
+    const password = await this.hashService.hash(dto.password);
     const { setupToken: _, inviteCode: __, ...userData } = dto;
     const user = this.userRepo.create(
       {

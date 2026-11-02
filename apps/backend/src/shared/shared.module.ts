@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { AppService } from './services/app.service';
-import { PasswordService } from './services/password.service';
+import { HashService } from './services/hash.service';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { S3ClientInjectionToken } from './tokens/s3-client.token';
 import { EncryptionService } from './services/encryption.service';
@@ -19,7 +19,7 @@ import { SecretBoxService } from './services/secret-box.service';
 @Module({
   providers: [
     AppService,
-    PasswordService,
+    HashService,
     MailService,
     VerifiedMailerService,
     EncryptionService,
@@ -63,7 +63,7 @@ import { SecretBoxService } from './services/secret-box.service';
   ],
   exports: [
     AppService,
-    PasswordService,
+    HashService,
     MailService,
     VerifiedMailerService,
     FileServiceInjectionToken,

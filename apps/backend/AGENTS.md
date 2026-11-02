@@ -7,7 +7,7 @@ Rules for `apps/backend` — the NestJS API for Konvoez. General rules (scope, T
 - **NestJS 11**, **MikroORM 7** with `defineEntity` schemas. SQLite is the supported engine; `DB_ENGINE` keeps the option for other drivers open.
 - **nestjs-zod** with Zod schemas from `@konvoez/shared` for DTOs.
 - **Socket.IO** gateways and **mediasoup** (WebRTC SFU).
-- **JWT** in HTTP-only cookies, **Argon2** passwords, **AES-256-GCM** message encryption at rest (`EncryptionService`).
+- **JWT** in HTTP-only cookies, **Argon2** passwords and secret hashing (`HashService`), **AES-256-GCM** message encryption at rest (`EncryptionService`).
 
 HTTP prefix `/api/v1`, Swagger `/docs`. WebSocket paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`, `/ws/v1/notifications`.
 
@@ -31,7 +31,7 @@ The backend is a **modular monolith** in a single process. Organize by feature m
 - **Facades**: a subsystem that spans several entities exposes one facade (`PermissionsFacade`, `RoomsFacade`) and consumers depend only on it.
 - **Domain events**: cross-module side effects and realtime fan-out go through `EventEmitter2`. Services emit with the typed helpers in the feature's `*.events.ts` (built on `createDomainEventEmitter` from `shared/events/`); gateways and listeners subscribe with `@OnEvent`. Event enums and wire payloads live in `@konvoez/shared`.
 - **No transport in domain services**: never inject a gateway (`TextRoomsGateway`, `EntitySyncGateway`, …) or `NotificationsService` into another feature just to notify. Emit an event instead.
-- **Shared infrastructure** (`AppService`, password hashing, encryption, file storage) lives in `shared/` and is provided by `SharedModule`. Alternative implementations use injection tokens (`FileServiceInjectionToken`).
+- **Shared infrastructure** (`AppService`, password/secret hashing (`HashService`), encryption (`EncryptionService`, `SecretBoxService`), file storage) lives in `shared/` and is provided by `SharedModule`. Alternative implementations use injection tokens (`FileServiceInjectionToken`).
 
 ## NestJS conventions
 
