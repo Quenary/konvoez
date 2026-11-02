@@ -110,6 +110,13 @@ describe('TextRoomsService', () => {
       transactional: jest.fn(async (work: (tx: EntityManager) => unknown) =>
         work(em),
       ),
+      createQueryBuilder: jest.fn().mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        having: jest.fn().mockReturnThis(),
+        toRaw: jest.fn().mockReturnValue('raw-search-subquery'),
+      })),
     } as unknown as jest.Mocked<EntityManager>;
 
     messageRepository = {
@@ -994,6 +1001,17 @@ describe('TextRoomsService', () => {
 
     it('should filter messages by search tokens when search parameter is provided', async () => {
       messageRepository.find.mockResolvedValue([]);
+      searchTokenService.hash.mockImplementation(
+        (trigram: string) => `hash:${trigram}`,
+      );
+      const tokenQuery = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        having: jest.fn().mockReturnThis(),
+        toRaw: jest.fn().mockReturnValue('raw-search-subquery'),
+      };
+      em.createQueryBuilder.mockReturnValue(tokenQuery);
 
       await service.list(mockUser, {
         roomId: 10,
@@ -1004,17 +1022,48 @@ describe('TextRoomsService', () => {
         afterId: null,
       });
 
-      expect(searchTokenService.hash).toHaveBeenCalled();
+      expect(em.createQueryBuilder).toHaveBeenCalledWith(
+        MessageSearchTokenEntity,
+        't',
+      );
+      expect(tokenQuery.where).toHaveBeenCalledWith({
+        tokenHash: {
+          $in: ['key', 'eyw', 'ywo', 'wor', 'ord'].map(
+            (trigram) => `hash:${trigram}`,
+          ),
+        },
+      });
+      expect(tokenQuery.groupBy).toHaveBeenCalledWith('t.message');
+      expect(tokenQuery.having).toHaveBeenCalledWith(
+        'count(distinct t.token_hash) = ?',
+        [5],
+      );
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        {
+          room: 10,
+          $and: [{ id: { $in: 'raw-search-subquery' } }],
+        },
+        expect.anything(),
+      );
+    });
+
+    it('keeps the search constraint when paging with beforeId', async () => {
+      messageRepository.find.mockResolvedValue([]);
+
+      await service.list(mockUser, {
+        roomId: 10,
+        recipientId: null,
+        search: 'keyword',
+        limit: 20,
+        beforeId: v7(),
+        afterId: null,
+      });
+
       expect(messageRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           room: 10,
-          $and: expect.arrayContaining([
-            expect.objectContaining({
-              searchTokens: {
-                tokenHash: 'hashedToken',
-              },
-            }),
-          ]),
+          id: { $lt: expect.any(Uint8Array) },
+          $and: [{ id: { $in: 'raw-search-subquery' } }],
         }),
         expect.anything(),
       );

@@ -7,7 +7,7 @@ import {
   raw,
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
-import { SqlEntityRepository } from '@mikro-orm/sql';
+import type { SqlEntityManager, SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
@@ -481,6 +481,22 @@ export class TextRoomsService {
     return baseWhere;
   }
 
+  /**
+   * Ids of messages that contain every trigram hash.
+   * A `searchTokens` condition per trigram is a separate to-many join, and
+   * those joins multiply token rows before the hash predicate is applied.
+   */
+  private messagesMatchingEveryToken(hashes: readonly string[]) {
+    const em = this.em as unknown as SqlEntityManager;
+    return em
+      .createQueryBuilder(MessageSearchTokenEntity, 't')
+      .select('t.message')
+      .where({ tokenHash: { $in: [...hashes] } })
+      .groupBy('t.message')
+      .having('count(distinct t.token_hash) = ?', [hashes.length])
+      .toRaw();
+  }
+
   async list(
     user: GetUserSafeDto,
     dto: MessageListRequestDto,
@@ -502,18 +518,18 @@ export class TextRoomsService {
     });
 
     if (search) {
-      const trigrams = extractTrigrams(search);
-      if (trigrams.length > 0) {
-        const searchConditions: FilterQuery<MessageEntity>[] = trigrams.map(
-          (t) =>
-            ({
-              searchTokens: {
-                tokenHash: this.searchTokenService.hash(t),
-              },
-            }) as FilterQuery<MessageEntity>,
-        );
-
-        baseWhere.$and = [...(baseWhere.$and ?? []), ...searchConditions];
+      const hashes = [
+        ...new Set(
+          extractTrigrams(search).map((trigram) =>
+            this.searchTokenService.hash(trigram),
+          ),
+        ),
+      ];
+      if (hashes.length > 0) {
+        baseWhere.$and = [
+          ...(baseWhere.$and ?? []),
+          { id: { $in: this.messagesMatchingEveryToken(hashes) } },
+        ];
       }
     }
 
