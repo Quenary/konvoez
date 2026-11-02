@@ -1,7 +1,7 @@
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import type { GetUserSafeDto } from '../users/users.dto';
-import { DEFAULT_USER_NOTIFICATION_SETTINGS, EUserRole } from '@konvoez/shared';
+import { DEFAULT_USER_NOTIFICATION_SETTINGS } from '@konvoez/shared';
 
 describe('NotificationsController', () => {
   let controller: NotificationsController;
@@ -20,7 +20,6 @@ describe('NotificationsController', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice Smith',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],

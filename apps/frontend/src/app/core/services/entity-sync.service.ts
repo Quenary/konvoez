@@ -24,6 +24,7 @@ import {
 } from '@core/voice/voice-lobby.store';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { AuthApiService } from '@core/api/auth-api.service';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
   selectCurrentUser,
@@ -36,6 +37,7 @@ import { emitVoiceRoomWithAck } from '@core/services/voice-room-socket-ack';
 import { Mutexed } from '@shared/decorators/mutex.decorator';
 import { Mutex } from 'async-mutex';
 import {
+  catchError,
   EMPTY,
   filter,
   fromEvent,
@@ -64,6 +66,7 @@ const LOBBY_SNAPSHOT_BACKOFF_MS = [1000, 2000] as const;
 @Injectable({ providedIn: 'root' })
 export class EntitySyncService {
   private readonly store = inject(Store);
+  private readonly authApiService = inject(AuthApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly socket = inject(EntitySyncSocketToken);
   private readonly voiceRoomSocket = inject(VoiceRoomSocketToken);
@@ -114,20 +117,10 @@ export class EntitySyncService {
         }),
         withLatestFrom(this.store.select(selectCurrentUser)),
         filter(([user, currentUser]) => currentUser?.id === user.id),
+        switchMap(() => this.authApiService.me().pipe(catchError(() => EMPTY))),
       )
-      .subscribe(([user, currentUser]) => {
-        if (!currentUser) {
-          return;
-        }
-        this.store.dispatch(
-          AuthActions.requestPatchUserSuccess({
-            user: {
-              ...user,
-              email: currentUser.email,
-              twoFactorEnabled: currentUser.twoFactorEnabled,
-            },
-          }),
-        );
+      .subscribe((user) => {
+        this.store.dispatch(AuthActions.requestPatchUserSuccess({ user }));
       });
 
     fromEvent<IUserDeleted>(this.emitter, EEntitySyncEvent.USER_DELETED)

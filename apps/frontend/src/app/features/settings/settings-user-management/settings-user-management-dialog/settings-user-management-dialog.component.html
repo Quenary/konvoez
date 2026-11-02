@@ -18,7 +18,24 @@
   <dl class="fields">
     <div class="field">
       <dt>{{ 'SETTINGS.USERS.EMAIL' | translate }}</dt>
-      <dd>{{ user.email }}</dd>
+      <dd class="field-email">
+        {{ user.email }}
+        @if (user.emailVerified) {
+          <span
+            tuiBadge
+            appearance="positive"
+            size="s">
+            {{ 'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED' | translate }}
+          </span>
+        } @else {
+          <span
+            tuiBadge
+            appearance="neutral"
+            size="s">
+            {{ 'SETTINGS.PROFILE.EMAIL_VERIFICATION.UNVERIFIED' | translate }}
+          </span>
+        }
+      </dd>
     </div>
     <div class="field">
       <dt>{{ 'SETTINGS.USERS.FULLNAME' | translate }}</dt>

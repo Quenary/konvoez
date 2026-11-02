@@ -8,16 +8,16 @@ import { environment } from '@environments/environment';
   providedIn: 'root',
 })
 export class PublicApiService {
-  private readonly http = inject(HttpClient);
+  private readonly httpClient = inject(HttpClient);
 
   getSettings(): Observable<IPublicSettings> {
-    return this.http.get<IPublicSettings>(
+    return this.httpClient.get<IPublicSettings>(
       `${environment.apiPath}/public/settings`,
     );
   }
 
   getVersion(): Observable<IPublicVersion> {
-    return this.http.get<IPublicVersion>(
+    return this.httpClient.get<IPublicVersion>(
       `${environment.apiPath}/public/version`,
     );
   }

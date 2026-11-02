@@ -17,6 +17,8 @@ services:
       # Secrets (required)
       - MASTER_KEY=${MASTER_KEY:-}
       - JWT_SECRET=${JWT_SECRET:-}
+      # Docker secret instead of MASTER_KEY. Leave MASTER_KEY empty.
+      # - MASTER_KEY_FILE=/run/secrets/master_key
       # Cookies
       - COOKIE_SECURE=${COOKIE_SECURE:-}
       - COOKIE_SAME_SITE=${COOKIE_SAME_SITE:-}
@@ -32,6 +34,12 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-}
+    # secrets:
+    #   - master_key
 
 volumes:
   konvoez_data:
+
+# secrets:
+#   master_key:
+#     file: ./secrets/master_key

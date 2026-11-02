@@ -222,6 +222,22 @@ SETTINGS:
   PROFILE:
     TITLE: Настройки профиля
     DELETE: Удалить аккаунт
+    EMAIL_VERIFICATION:
+      VERIFIED: Подтвержден
+      UNVERIFIED: Не подтвержден
+      VERIFY_BTN: Подтвердить email
+      CODE_SENT: Код подтверждения отправлен на вашу почту
+      CODE_ENTER_HINT: Введите 6-значный код, отправленный на вашу почту
+      CONFIRM_BTN: Подтвердить
+      RESEND_BTN: Отправить повторно
+      VERIFIED_SUCCESS: Email успешно подтвержден
+    EMAIL_CHANGE:
+      PENDING_NOTICE: 'Запрос на изменение email на {{email}} ожидает подтверждения'
+      CONFIRM_BTN: Подтвердить изменение
+      RESEND_BTN: Отправить повторно
+      CANCEL_BTN: Отменить изменение
+      CONFIRMED_SUCCESS: Email успешно обновлен
+      CANCELLED_SUCCESS: Запрос на изменение email отменен
   SECURITY:
     TITLE: Безопасность
     TWO_FACTOR:
@@ -422,6 +438,7 @@ USER_DELETE:
     - С флажком безвозвратно удаляются учетная запись, созданные пользователем комнаты и все его сообщения.
 VALIDATION:
   REQUIRED: Обязательное поле
+  VERIFICATION_CODE: Код подтверждения должен состоять из 6 цифр
   VOICE_MAX_BITRATE_RANGE: Битрейт голоса должен быть от 8 до 384 кбит/с
   STREAM_MAX_BITRATE_RANGE: Битрейт трансляции должен быть от 1000 до 100000 кбит/с
   LOGIN: Введите корректное имя пользователя или email
@@ -451,6 +468,7 @@ VALIDATION:
   RECOVERY_CODE: Введите 6-значный код восстановления
   INVALID_CHAT_TARGET: Должен быть указан ровно один чат
 AUTH:
+  REGISTER_SUCCESS: Аккаунт успешно создан
   LOGIN: Имя пользователя или email
   OWNER_SETUP_TITLE: Первичная настройка сервера
   OWNER_SETUP_SUBTITLE: Регистрация первого аккаунта с правами владельца (OWNER)
@@ -524,6 +542,8 @@ ERRORS:
   AUTH_TWO_FACTOR_ALREADY_ENABLED: Двухфакторная аутентификация уже включена
   AUTH_TWO_FACTOR_NOT_ENABLED: Двухфакторная аутентификация не включена
   AUTH_TWO_FACTOR_SETUP_NOT_STARTED: Настройка двухфакторной аутентификации не была начата
+  AUTH_EMAIL_VERIFICATION_CODE_INVALID: Неверный или истекший код подтверждения
+  AUTH_EMAIL_NO_PENDING_CHANGE: Нет ожидающего изменения email
   EMAIL_NOT_CONFIGURED: Почтовый сервис не настроен
   EMAIL_SEND_FAILED: Не удалось отправить письмо
   INVITE_INVALID: Недействительный код приглашения

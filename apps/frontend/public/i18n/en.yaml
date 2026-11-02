@@ -222,6 +222,22 @@ SETTINGS:
   PROFILE:
     TITLE: Profile settings
     DELETE: Delete account
+    EMAIL_VERIFICATION:
+      VERIFIED: Verified
+      UNVERIFIED: Unverified
+      VERIFY_BTN: Verify email
+      CODE_SENT: Verification code sent to your email
+      CODE_ENTER_HINT: Enter the 6-digit code sent to your email
+      CONFIRM_BTN: Confirm
+      RESEND_BTN: Resend code
+      VERIFIED_SUCCESS: Email verified successfully
+    EMAIL_CHANGE:
+      PENDING_NOTICE: 'Email change to {{email}} is pending confirmation'
+      CONFIRM_BTN: Confirm change
+      RESEND_BTN: Resend code
+      CANCEL_BTN: Cancel change
+      CONFIRMED_SUCCESS: Email address updated successfully
+      CANCELLED_SUCCESS: Email change request cancelled
   SECURITY:
     TITLE: Security
     TWO_FACTOR:
@@ -422,6 +438,7 @@ USER_DELETE:
     - With it, the account, rooms they created, and all their messages are permanently deleted.
 VALIDATION:
   REQUIRED: Field is required
+  VERIFICATION_CODE: Verification code must be 6 digits
   VOICE_MAX_BITRATE_RANGE: Voice bitrate must be between 8 and 384 kbps
   STREAM_MAX_BITRATE_RANGE: Stream bitrate must be between 1000 and 100000 kbps
   LOGIN: Enter a valid username or email
@@ -451,6 +468,7 @@ VALIDATION:
   RECOVERY_CODE: Enter the 6-digit recovery code
   INVALID_CHAT_TARGET: Exactly one chat target must be specified
 AUTH:
+  REGISTER_SUCCESS: Account created successfully
   LOGIN: Username or email
   OWNER_SETUP_TITLE: Initial Server Setup
   OWNER_SETUP_SUBTITLE: Register the first account with owner privileges (OWNER)
@@ -524,6 +542,8 @@ ERRORS:
   AUTH_TWO_FACTOR_ALREADY_ENABLED: Two-factor authentication is already enabled
   AUTH_TWO_FACTOR_NOT_ENABLED: Two-factor authentication is not enabled
   AUTH_TWO_FACTOR_SETUP_NOT_STARTED: Two-factor setup has not been started
+  AUTH_EMAIL_VERIFICATION_CODE_INVALID: Invalid or expired verification code
+  AUTH_EMAIL_NO_PENDING_CHANGE: No pending email change found
   EMAIL_NOT_CONFIGURED: Email service is not configured
   EMAIL_SEND_FAILED: Failed to send email
   INVITE_INVALID: Invalid invitation code

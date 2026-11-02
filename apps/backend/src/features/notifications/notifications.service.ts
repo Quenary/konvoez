@@ -87,6 +87,7 @@ export class NotificationsService implements OnModuleDestroy {
   }
 
   public ensureVapidKeys(): { publicKey: string; privateKey: string } {
+    this.vapidKeyStorageService.assertCanGenerateVapidKeys();
     const storedKeys = this.vapidKeyStorageService.readVapidKeysFromDisk();
     if (storedKeys) {
       return storedKeys;

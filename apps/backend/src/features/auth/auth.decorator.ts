@@ -1,14 +1,7 @@
 import { Reflector } from '@nestjs/core';
-import { EPermission, EUserRole } from '@konvoez/shared';
+import { EPermission } from '@konvoez/shared';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { GetUserFullDto } from '../users/users.dto';
-
-/**
- * Special decorator for auth.guard
- * to allow access only to specific roles.
- * @default all roles
- */
-export const AuthGuardRoles = Reflector.createDecorator<EUserRole[]>();
 
 /**
  * Decorator to require specific permissions for the endpoint.

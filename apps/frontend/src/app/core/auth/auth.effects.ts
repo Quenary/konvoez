@@ -185,7 +185,15 @@ export class AuthEffects {
     () =>
       this.actions$.pipe(
         ofType(AuthActions.requestRegisterSuccess),
-        tap(() => this.router.navigate(['/auth'])),
+        tap(() => {
+          this.tuiNotificationsService
+            .open(this.translateService.instant('AUTH.REGISTER_SUCCESS'), {
+              appearance: 'positive',
+              autoClose: 5000,
+            })
+            .subscribe();
+          this.router.navigate(['/auth']);
+        }),
       ),
     { dispatch: false },
   );

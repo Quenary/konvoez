@@ -142,21 +142,159 @@
         <tui-error [error]="err | translate" />
       }
 
-      <tui-textfield [iconStart]="icons.mail">
-        <label
-          tuiLabel
-          for="profile-email">
-          {{ 'PROFILE.EMAIL' | translate }}
-        </label>
-        <input
-          tuiInput
-          id="profile-email"
-          autocomplete="email"
-          formControlName="email"
-          type="text" />
-      </tui-textfield>
+      <div class="profile-email-container">
+        <tui-textfield [iconStart]="icons.mail">
+          <label
+            tuiLabel
+            for="profile-email">
+            {{ 'PROFILE.EMAIL' | translate }}
+          </label>
+          <input
+            tuiInput
+            id="profile-email"
+            autocomplete="email"
+            formControlName="email"
+            type="text" />
+        </tui-textfield>
+
+        <div class="profile-email-status">
+          @if (isEmailVerified()) {
+            <span
+              tuiBadge
+              appearance="positive"
+              size="s">
+              {{ 'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED' | translate }}
+            </span>
+          } @else {
+            <span
+              tuiBadge
+              appearance="neutral"
+              size="s">
+              {{ 'SETTINGS.PROFILE.EMAIL_VERIFICATION.UNVERIFIED' | translate }}
+            </span>
+            @if (
+              smtpConfigured() && !pendingEmail() && !isVerificationCardOpen()
+            ) {
+              <button
+                tuiButton
+                type="button"
+                size="s"
+                appearance="secondary"
+                (click)="openVerificationCard()">
+                {{
+                  'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFY_BTN' | translate
+                }}
+              </button>
+            }
+          }
+        </div>
+      </div>
       @if (errors().email; as err) {
         <tui-error [error]="err | translate" />
+      }
+
+      @if (
+        !isEmailVerified() &&
+        !pendingEmail() &&
+        smtpConfigured() &&
+        isVerificationCardOpen()
+      ) {
+        <div class="profile-verification-card">
+          <p class="tui-text_body-s">
+            {{
+              'SETTINGS.PROFILE.EMAIL_VERIFICATION.CODE_ENTER_HINT' | translate
+            }}
+          </p>
+          <div class="profile-verification-input-group">
+            <tui-textfield class="profile-verification-code-input">
+              <input
+                tuiInput
+                maxlength="6"
+                placeholder="123456"
+                [ngModel]="verificationCode()"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="verificationCode.set($event)"
+                type="text" />
+            </tui-textfield>
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="primary"
+              [disabled]="!isCodeValid()"
+              [loading]="isVerifying()"
+              (click)="confirmEmailVerification()">
+              {{
+                'SETTINGS.PROFILE.EMAIL_VERIFICATION.CONFIRM_BTN' | translate
+              }}
+            </button>
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="flat"
+              [loading]="isResending()"
+              (click)="requestEmailVerification()">
+              {{ 'SETTINGS.PROFILE.EMAIL_VERIFICATION.RESEND_BTN' | translate }}
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (pendingEmail(); as pe) {
+        <aside
+          tuiNotification
+          appearance="info"
+          class="profile-pending-email-notification">
+          <div class="profile-pending-email-content">
+            <p class="tui-text_body-s">
+              {{
+                'SETTINGS.PROFILE.EMAIL_CHANGE.PENDING_NOTICE'
+                  | translate: { email: pe }
+              }}
+            </p>
+            <div class="profile-verification-input-group">
+              <tui-textfield class="profile-verification-code-input">
+                <input
+                  tuiInput
+                  maxlength="6"
+                  placeholder="123456"
+                  [ngModel]="verificationCode()"
+                  [ngModelOptions]="{ standalone: true }"
+                  (ngModelChange)="verificationCode.set($event)"
+                  type="text" />
+              </tui-textfield>
+              <button
+                tuiButton
+                type="button"
+                size="s"
+                appearance="primary"
+                [disabled]="!isCodeValid()"
+                [loading]="isVerifying()"
+                (click)="confirmEmailChange()">
+                {{ 'SETTINGS.PROFILE.EMAIL_CHANGE.CONFIRM_BTN' | translate }}
+              </button>
+              <button
+                tuiButton
+                type="button"
+                size="s"
+                appearance="flat"
+                [loading]="isResending()"
+                (click)="resendEmailChange()">
+                {{ 'SETTINGS.PROFILE.EMAIL_CHANGE.RESEND_BTN' | translate }}
+              </button>
+              <button
+                tuiButton
+                type="button"
+                size="s"
+                appearance="negative"
+                [loading]="isCancellingChange()"
+                (click)="cancelEmailChange()">
+                {{ 'SETTINGS.PROFILE.EMAIL_CHANGE.CANCEL_BTN' | translate }}
+              </button>
+            </div>
+          </div>
+        </aside>
       }
     </div>
   </tui-scrollbar>

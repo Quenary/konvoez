@@ -59,6 +59,8 @@ describe('SettingsUserManagementDialogComponent', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const targetUser: IUserFull = {
@@ -82,6 +84,8 @@ describe('SettingsUserManagementDialogComponent', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const rolesList: IRole[] = [
@@ -148,6 +152,25 @@ describe('SettingsUserManagementDialogComponent', () => {
 
   it('allows managing regular user when logged in as owner', () => {
     expect(component['canManage']()).toBe(true);
+  });
+
+  it('shows a verified badge for a confirmed email', () => {
+    expect(fixture.nativeElement.textContent).toContain(
+      'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED',
+    );
+  });
+
+  it('shows an unverified badge when the email is not confirmed', async () => {
+    mockUserManagementApiService.get.mockReturnValue(
+      of({ ...targetUser, emailVerified: false }),
+    );
+    component['userResource'].reload();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'SETTINGS.PROFILE.EMAIL_VERIFICATION.UNVERIFIED',
+    );
   });
 
   it('forbids managing owner user', () => {

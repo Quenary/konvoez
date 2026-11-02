@@ -21,12 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import {
-  ApiErrorCode,
-  EPermission,
-  ERoomType,
-  EUserRole,
-} from '@konvoez/shared';
+import { ApiErrorCode, EPermission, ERoomType } from '@konvoez/shared';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 
 import { RoomsService } from './rooms.service';
@@ -46,7 +41,6 @@ describe('RoomsService', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice Example',
-    role: EUserRole.OWNER,
     isOwner: true,
     roles: [],
     permissions: Object.values(EPermission),

@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from '../auth/auth.service';
 import { SettingsService } from '../settings/settings.service';
+import { MailService } from '@shared/services/mail.service';
 import { ESettingKey } from '@konvoez/shared';
 import { PublicSettingsDto, PublicVersionDto } from './public.dto';
 import { PublicService } from './public.service';
@@ -12,6 +13,7 @@ export class PublicController {
   constructor(
     private readonly authService: AuthService,
     private readonly settingsService: SettingsService,
+    private readonly mailService: MailService,
     private readonly publicService: PublicService,
   ) {}
 
@@ -28,7 +30,7 @@ export class PublicController {
   @ApiOkResponse({
     type: PublicSettingsDto,
     description:
-      'Get public settings (owner setup required & invite-only mode)',
+      'Get public settings (owner setup required, invite-only mode and SMTP status)',
   })
   async getSettings(): Promise<PublicSettingsDto> {
     const isOwnerSetupRequired = await this.authService.isOwnerSetupRequired();
@@ -38,6 +40,7 @@ export class PublicController {
     return {
       isOwnerSetupRequired,
       inviteOnlySignUp,
+      smtpConfigured: this.mailService.isConfigured,
     };
   }
 

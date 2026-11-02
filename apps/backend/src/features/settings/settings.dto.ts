@@ -4,6 +4,7 @@ import {
   iceServersSettingSchema,
   inviteOnlySignUpSettingSchema,
   passwordRecoveryCodeTtlSettingSchema,
+  vapidEmailSettingSchema,
   attachmentsEnabledSettingSchema,
   attachmentsMaxFileSizeSettingSchema,
   attachmentsMaxFilesPerMessageSettingSchema,
@@ -29,6 +30,10 @@ export class InviteOnlySignUpSettingDto extends createZodDto(
 
 export class PasswordRecoveryCodeTtlSettingDto extends createZodDto(
   passwordRecoveryCodeTtlSettingSchema,
+) {}
+
+export class VapidEmailSettingDto extends createZodDto(
+  vapidEmailSettingSchema,
 ) {}
 
 export class AttachmentsEnabledSettingDto extends createZodDto(

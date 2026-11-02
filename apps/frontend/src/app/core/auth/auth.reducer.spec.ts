@@ -17,6 +17,8 @@ describe('authReducer', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   it('has initial twoFactorPending as false', () => {

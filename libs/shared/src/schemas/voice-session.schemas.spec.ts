@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { EUserRole } from '../enums';
 import {
   callAcceptPayloadSchema,
   callAnsweredElsewherePayloadSchema,
@@ -28,7 +27,6 @@ describe('VoiceSession Schemas & Helpers', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    role: EUserRole.MEMBER,
     avatar: null,
     avatarUrl: null,
     createdAt: new Date(),

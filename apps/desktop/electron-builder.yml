@@ -1,6 +1,6 @@
 appId: com.quenary.konvoez
 productName: Konvoez
-electronVersion: 44.7.0
+electronVersion: 44.10.0
 directories:
   output: ../../dist/apps/desktop/release
   buildResources: build

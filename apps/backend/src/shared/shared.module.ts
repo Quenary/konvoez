@@ -1,9 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { AppService } from './services/app.service';
-import { PasswordService } from './services/password.service';
+import { HashService } from './services/hash.service';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { S3ClientInjectionToken } from './tokens/s3-client.token';
-import { EncryptionService } from './services/encryption.service';
 import { LocalObjectStorageService } from './services/local-object-storage.service';
 import { S3Service } from './services/s3.service';
 import type { FileService } from './services/file.service';
@@ -11,17 +10,20 @@ import { FileServiceInjectionToken } from './tokens/file-service.token';
 import { ImageProcessingService } from './services/image-processing.service';
 import { VideoProcessingService } from './services/video-processing.service';
 import { MailService } from './services/mail.service';
+import { VerifiedMailerService } from './services/verified-mailer.service';
 import { StorageNamingService } from './services/storage-naming.service';
+import { SearchTokenService } from './services/search-token.service';
 import { SecretBoxService } from './services/secret-box.service';
 
 @Global()
 @Module({
   providers: [
     AppService,
-    PasswordService,
+    HashService,
     MailService,
-    EncryptionService,
+    VerifiedMailerService,
     SecretBoxService,
+    SearchTokenService,
     StorageNamingService,
     LocalObjectStorageService,
     S3Service,
@@ -61,11 +63,12 @@ import { SecretBoxService } from './services/secret-box.service';
   ],
   exports: [
     AppService,
-    PasswordService,
+    HashService,
     MailService,
+    VerifiedMailerService,
     FileServiceInjectionToken,
-    EncryptionService,
     SecretBoxService,
+    SearchTokenService,
     ImageProcessingService,
     VideoProcessingService,
   ],

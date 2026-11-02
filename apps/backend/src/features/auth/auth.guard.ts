@@ -1,10 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { EPermission, ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { EPermission, ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from './auth.service';
 import {
-  AuthGuardRoles,
   AuthRefreshFallback,
   RequireOwner,
   RequirePermissions,
@@ -56,21 +55,6 @@ export class AuthGuard implements CanActivate {
         requiredPermissions,
       );
       if (!allowed) {
-        throw AppException.forbidden(
-          ApiErrorCode.AUTH_METHOD_FORBIDDEN,
-          'Method forbidden for the user',
-        );
-      }
-    }
-
-    const roles = this.reflector.getAllAndOverride<EUserRole[]>(
-      AuthGuardRoles,
-      [context.getHandler(), context.getClass()],
-    );
-    if (roles && roles.length > 0) {
-      const isAllowed =
-        user.isOwner || (user.role && roles.includes(user.role));
-      if (!isAllowed) {
         throw AppException.forbidden(
           ApiErrorCode.AUTH_METHOD_FORBIDDEN,
           'Method forbidden for the user',

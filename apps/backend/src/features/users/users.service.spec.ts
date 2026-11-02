@@ -19,10 +19,10 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode } from '@konvoez/shared';
 import { UsersService } from './users.service';
 import { UserEntity } from './users.entity';
-import { PasswordService } from '../../shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import { MessageEntity } from '../text-rooms/text-rooms.entity';
 import {
   USER_AVATARS_BUCKET,
@@ -30,15 +30,19 @@ import {
 } from '@shared/services/file.service';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { UsersDomainEvents } from './users.events';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 describe('UsersService', () => {
   let service: UsersService;
   let mockRepo: jest.Mocked<EntityRepository<UserEntity>>;
   let mockEm: jest.Mocked<EntityManager>;
   let mockForkedEm: jest.Mocked<EntityManager>;
-  let passwordService: jest.Mocked<PasswordService>;
+  let hashService: jest.Mocked<HashService>;
   let fileService: jest.Mocked<FileService>;
   let eventEmitter: { emit: jest.Mock };
+  let verifiedMailerService: jest.Mocked<
+    Pick<VerifiedMailerService, 'sendNotification'>
+  >;
 
   const mockUser: UserEntity = {
     id: 1,
@@ -46,7 +50,6 @@ describe('UsersService', () => {
     password: 'hashed_password',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     sessionVersion: 0,
     avatar: null,
@@ -87,16 +90,19 @@ describe('UsersService', () => {
         .mockImplementation((entity, data) => Object.assign(entity, data)),
     } as unknown as jest.Mocked<EntityRepository<UserEntity>>;
 
-    passwordService = {
-      hashPassword: jest.fn().mockResolvedValue('hashed_new_password'),
-      comparePassword: jest.fn(),
-    } as unknown as jest.Mocked<PasswordService>;
+    hashService = {
+      hash: jest.fn().mockResolvedValue('hashed_new_password'),
+      verify: jest.fn(),
+    } as unknown as jest.Mocked<HashService>;
 
     fileService = {
       delete: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<FileService>;
 
     eventEmitter = { emit: jest.fn() };
+    verifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
     const permissionsFacade = {
       getUserPermissions: jest.fn().mockResolvedValue([]),
       getDefaultPermissions: jest.fn().mockResolvedValue([]),
@@ -107,10 +113,11 @@ describe('UsersService', () => {
 
     service = new UsersService(
       mockRepo,
-      passwordService,
+      hashService,
       fileService,
       eventEmitter as never,
       permissionsFacade as never,
+      verifiedMailerService as unknown as VerifiedMailerService,
     );
   });
 
@@ -275,7 +282,7 @@ describe('UsersService', () => {
 
       const result = await service.setPassword(1, 'NewPass123!');
 
-      expect(passwordService.hashPassword).toHaveBeenCalledWith('NewPass123!');
+      expect(hashService.hash).toHaveBeenCalledWith('NewPass123!');
       expect(mockRepo.assign).toHaveBeenCalledWith(
         mockUser,
         expect.objectContaining({ password: 'hashed_new_password' }),
@@ -289,11 +296,12 @@ describe('UsersService', () => {
   });
 
   describe('anonymizeLoaded', () => {
-    it('should replace identity fields, keep the role, and keep the user row', async () => {
+    it('should replace identity fields and keep the user row', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.ADMIN,
+        email: 'user5@example.com',
+        emailVerified: true,
         avatar: 'avatar-key',
         sessionVersion: 0,
       } as UserEntity;
@@ -310,15 +318,13 @@ describe('UsersService', () => {
         twoFactorSecret: null,
         twoFactorEnabledAt: null,
         twoFactorLastStep: null,
+        emailVerified: false,
+        pendingEmail: null,
       });
       expect(target.sessionVersion).toBe(1);
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_SESSIONS_REVOKED,
         { id: 5 },
-      );
-      expect(mockRepo.assign).not.toHaveBeenCalledWith(
-        target,
-        expect.objectContaining({ role: expect.anything() }),
       );
       expect(mockEm.remove).not.toHaveBeenCalled();
       expect(fileService.delete).toHaveBeenCalledWith(
@@ -327,6 +333,10 @@ describe('UsersService', () => {
       );
       expect(result.isOwner).toBe(false);
       expect(result.email).toBe('deleted-5@users.invalid');
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        { email: 'user5@example.com', emailVerified: true },
+        expect.objectContaining({ subject: 'Account deactivated' }),
+      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         UsersDomainEvents.USER_UPDATED,
         expect.objectContaining({ id: 5, isOwner: false }),
@@ -343,7 +353,8 @@ describe('UsersService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
+        email: 'user5@example.com',
+        emailVerified: true,
         avatar: 'avatar-key',
       } as UserEntity;
       const messageId = new Uint8Array(16);
@@ -351,6 +362,11 @@ describe('UsersService', () => {
       mockEm.find.mockResolvedValueOnce([{ id: messageId }] as never);
 
       await service.removeLoaded(5);
+
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        { email: 'user5@example.com', emailVerified: true },
+        expect.objectContaining({ subject: 'Account permanently deleted' }),
+      );
 
       expect(mockEm.find).toHaveBeenCalledWith(
         MessageEntity,
@@ -386,7 +402,6 @@ describe('UsersService', () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
         avatar: null,
       } as UserEntity;
       mockEm.findOne.mockResolvedValueOnce(target);

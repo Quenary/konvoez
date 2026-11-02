@@ -12,6 +12,7 @@ import {
   PasswordRecoveryCodeTtlSettingDto,
   SettingsUpdateDto,
   StreamMaxBitrateKbpsSettingDto,
+  VapidEmailSettingDto,
   VoiceMaxBitrateKbpsSettingDto,
 } from './settings.dto';
 import {
@@ -26,6 +27,7 @@ const settingResponseModels = [
   { $ref: getSchemaPath(IceServersSettingDto) },
   { $ref: getSchemaPath(InviteOnlySignUpSettingDto) },
   { $ref: getSchemaPath(PasswordRecoveryCodeTtlSettingDto) },
+  { $ref: getSchemaPath(VapidEmailSettingDto) },
   { $ref: getSchemaPath(AttachmentsEnabledSettingDto) },
   { $ref: getSchemaPath(AttachmentsMaxFileSizeSettingDto) },
   { $ref: getSchemaPath(AttachmentsMaxFilesPerMessageSettingDto) },
@@ -40,6 +42,7 @@ const settingResponseModels = [
   IceServersSettingDto,
   InviteOnlySignUpSettingDto,
   PasswordRecoveryCodeTtlSettingDto,
+  VapidEmailSettingDto,
   AttachmentsEnabledSettingDto,
   AttachmentsMaxFileSizeSettingDto,
   AttachmentsMaxFilesPerMessageSettingDto,

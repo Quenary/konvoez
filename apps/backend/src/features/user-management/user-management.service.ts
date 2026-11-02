@@ -9,6 +9,7 @@ import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { TwoFactorService } from '../two-factor/two-factor.service';
 import { UserManagementUpdateDto } from './user-management.dto';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 @Injectable()
 export class UserManagementService {
@@ -17,6 +18,7 @@ export class UserManagementService {
     private readonly permissionsFacade: PermissionsFacade,
     private readonly roomsFacade: RoomsFacade,
     private readonly twoFactorService: TwoFactorService,
+    private readonly verifiedMailerService: VerifiedMailerService,
   ) {}
 
   async findAll(): Promise<GetUserFullDto[]> {
@@ -51,6 +53,13 @@ export class UserManagementService {
       );
     }
     await this.usersService.updateUserRoles(user, roles);
+
+    const roleNames = roles.map((r) => r.name).join(', ') || 'None';
+    await this.verifiedMailerService.sendNotification(user, {
+      subject: 'Account roles updated',
+      text: `Your account roles on Konvoez have been updated to: ${roleNames}.`,
+      html: `<p>Your account roles on Konvoez have been updated to: <strong>${roleNames}</strong>.</p>`,
+    });
 
     const publicDto = await this.usersService.toSafeDtoWithPermissions(user);
     return this.usersService.toFullDto(user, publicDto.permissions);

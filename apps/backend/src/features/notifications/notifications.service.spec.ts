@@ -33,7 +33,6 @@ import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ApiErrorCode,
-  EUserRole,
   buildCallNotificationTopic,
   buildMessageNotificationTopic,
   buildReactionNotificationTopic,
@@ -62,7 +61,9 @@ describe('NotificationsService', () => {
   let vapidKeyStorageService: jest.Mocked<
     Pick<
       VapidKeyStorageService,
-      'readVapidKeysFromDisk' | 'saveVapidKeysToDisk'
+      | 'readVapidKeysFromDisk'
+      | 'saveVapidKeysToDisk'
+      | 'assertCanGenerateVapidKeys'
     >
   >;
   let em: jest.Mocked<EntityManager>;
@@ -72,7 +73,6 @@ describe('NotificationsService', () => {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],
@@ -134,6 +134,7 @@ describe('NotificationsService', () => {
         privateKey: 'stored-priv',
       }),
       saveVapidKeysToDisk: jest.fn(),
+      assertCanGenerateVapidKeys: jest.fn(),
     };
 
     eventEmitter = {

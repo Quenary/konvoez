@@ -25,13 +25,8 @@ export const MessageEntitySchema = defineEntity({
       .primary()
       .onCreate(() => parse(v7())),
 
-    /** Encrypted content */
-    contentEncrypted: p.uint8array(),
-
-    /** initialization vector */
-    iv: p.uint8array(),
-
-    authTag: p.uint8array(),
+    /** Encrypted content (`v1:` secret box) */
+    content: p.text(),
 
     sender: () => p.manyToOne(UserEntitySchema).index(),
 

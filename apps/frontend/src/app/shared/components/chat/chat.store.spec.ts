@@ -90,6 +90,8 @@ describe('ChatStore', () => {
     createdAt: new Date('2026-01-01'),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const message1: ITextRoomMessage = {

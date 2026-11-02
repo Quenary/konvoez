@@ -21,7 +21,7 @@ jest.mock('@mikro-orm/core', () => {
 
 import { InvitesService } from './invites.service';
 import { UserEntity } from '../users/users.entity';
-import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import type { GetUserSafeDto } from '../users/users.dto';
 import type { EntityManager, EntityRepository } from '@mikro-orm/core';
 import type { InviteEntity } from './invites.entity';
@@ -35,7 +35,6 @@ describe('InvitesService', () => {
     id: 1,
     username: 'admin',
     fullname: 'Administrator',
-    role: EUserRole.ADMIN,
     isOwner: false,
     roles: [],
     permissions: [EPermission.MANAGE_INVITES],

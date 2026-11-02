@@ -1,9 +1,3 @@
-export enum EUserRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
-}
-
 export enum EPermission {
   MANAGE_SETTINGS = 'MANAGE_SETTINGS',
   MANAGE_INVITES = 'MANAGE_INVITES',

@@ -6,7 +6,7 @@ import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
-import { PasswordService } from '../../shared/services/password.service';
+import { HashService } from '@shared/services/hash.service';
 import {
   FileServiceInjectionToken,
   USER_AVATARS_BUCKET,
@@ -18,6 +18,7 @@ import { UserEntity } from './users.entity';
 import { GetUserSafeDto, GetUserFullDto } from './users.dto';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import type { RoleEntity } from '../roles/roles.entity';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 @Injectable()
 export class UsersService {
@@ -26,11 +27,12 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly repo: EntityRepository<UserEntity>,
-    private readonly passwordService: PasswordService,
+    private readonly hashService: HashService,
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
     private readonly eventEmitter: EventEmitter2,
     private readonly permissionsFacade: PermissionsFacade,
+    private readonly verifiedMailerService: VerifiedMailerService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -195,7 +197,7 @@ export class UsersService {
     return ensureRequestContext(this.em, async () => {
       const user =
         typeof userOrId === 'number' ? await this.findOne(userOrId) : userOrId;
-      const passwordHash = await this.passwordService.hashPassword(password);
+      const passwordHash = await this.hashService.hash(password);
       this.repo.assign(user, { password: passwordHash });
       await this.revokeSessions(user);
       return user;
@@ -203,8 +205,10 @@ export class UsersService {
   }
 
   async anonymizeLoaded(user: UserEntity): Promise<GetUserFullDto> {
+    const originalEmail = user.email;
+    const originalEmailVerified = user.emailVerified;
     const previousAvatar = user.avatar;
-    const password = await this.passwordService.hashPassword(
+    const password = await this.hashService.hash(
       randomBytes(24).toString('base64url'),
     );
     this.repo.assign(user, {
@@ -217,6 +221,8 @@ export class UsersService {
       twoFactorSecret: null,
       twoFactorEnabledAt: null,
       twoFactorLastStep: null,
+      emailVerified: false,
+      pendingEmail: null,
     });
     await this.revokeSessions(user);
     await this.deleteStoredFile(previousAvatar, USER_AVATARS_BUCKET);
@@ -226,6 +232,18 @@ export class UsersService {
       UsersDomainEvents.USER_UPDATED,
       publicDto,
     );
+
+    if (originalEmailVerified) {
+      await this.verifiedMailerService.sendNotification(
+        { email: originalEmail, emailVerified: true },
+        {
+          subject: 'Account deactivated',
+          text: 'Your Konvoez account has been deleted and anonymized.',
+          html: '<p>Your Konvoez account has been deleted and anonymized.</p>',
+        },
+      );
+    }
+
     return this.toFullDto(user);
   }
 
@@ -238,6 +256,9 @@ export class UsersService {
           'User not found',
         );
       }
+
+      const email = user.email;
+      const emailVerified = user.emailVerified;
 
       const messageFilter: FilterQuery<MessageEntity>[] = [
         { sender: id },
@@ -264,6 +285,8 @@ export class UsersService {
 
       return {
         avatar: user.avatar,
+        email,
+        emailVerified,
       };
     });
 
@@ -276,6 +299,17 @@ export class UsersService {
       UsersDomainEvents.USER_SESSIONS_REVOKED,
       { id },
     );
+
+    if (files.emailVerified && files.email) {
+      await this.verifiedMailerService.sendNotification(
+        { email: files.email, emailVerified: true },
+        {
+          subject: 'Account permanently deleted',
+          text: 'Your Konvoez account and associated data have been permanently deleted.',
+          html: '<p>Your Konvoez account and associated data have been permanently deleted.</p>',
+        },
+      );
+    }
   }
 
   toSafeDto(user: UserEntity, permissions?: EPermission[]): GetUserSafeDto {
@@ -312,6 +346,8 @@ export class UsersService {
       ...this.toSafeDto(user, permissions),
       email: user.email,
       twoFactorEnabled: user.twoFactorEnabledAt != null,
+      emailVerified: user.emailVerified ?? false,
+      pendingEmail: user.pendingEmail ?? null,
     };
   }
 

@@ -50,8 +50,8 @@ sequenceDiagram
 
 - **TOTP algorithm**: RFC 6238 (HMAC-SHA1, 6 digits, 30-second step) with a `±1` step window (current, previous, next).
 - **Replay protection**: The server records the last used time step; a code cannot be reused within the same 30-second window.
-- **Recovery codes**: Enabling 2FA or regenerating codes issues 10 random Crockford Base32 codes (10 characters, grouped as `XXXXX-XXXXX`). Each code is hashed with HMAC-SHA256 using a key derived from `MASTER_KEY`; the plaintext is displayed once. Each recovery code is single-use and marked with its consumption timestamp.
-- **Rate limiting**: 5 consecutive failed code attempts trigger a 15-minute lockout for 2FA verification.
+- **Recovery codes**: Enabling 2FA or regenerating codes issues 10 random Crockford Base32 codes (10 characters, grouped as `XXXXX-XXXXX`). Each code is hashed with HMAC-SHA256. The HMAC key is wrapped with `MASTER_KEY`; the plaintext code is displayed once, and rotating `MASTER_KEY` does not change stored hashes (see [Key rotation](backend/KEY_ROTATION.md)). Each recovery code is single-use and marked with its consumption timestamp. Using a recovery code to log in sends an email notification containing the remaining codes count to verified addresses.
+- **Rate limiting**: 5 consecutive failed code attempts trigger a 15-minute lockout for 2FA verification and dispatch an email alert.
 - **Session invalidation**: Enabling 2FA, disabling 2FA, regenerating recovery codes, or an administrator resetting 2FA invalidates all other active sessions and live socket connections by incrementing the user's `sessionVersion`.
 - **Anonymization and deletion**: Anonymizing or deleting an account purges all 2FA secrets and recovery codes.
 

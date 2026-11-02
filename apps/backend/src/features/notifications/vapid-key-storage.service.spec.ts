@@ -20,17 +20,18 @@ describe('VapidKeyStorageService', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('should save plain JSON when MASTER_KEY is not set', () => {
+  it('throws when saving without MASTER_KEY', () => {
     const plainService = new VapidKeyStorageService({
       VAPID_FILE_DIR: tempDir,
       MASTER_KEY: null,
     } as AppService);
-    const keys = { publicKey: 'plain-public', privateKey: 'plain-private' };
 
-    plainService.saveVapidKeysToDisk(keys);
-
-    const raw = fs.readFileSync(path.join(tempDir, 'vapid.json'), 'utf8');
-    expect(JSON.parse(raw)).toEqual(keys);
+    expect(() =>
+      plainService.saveVapidKeysToDisk({
+        publicKey: 'plain-public',
+        privateKey: 'plain-private',
+      }),
+    ).toThrow(/MASTER_KEY is not configured/);
   });
 
   it('should save encrypted content when MASTER_KEY is set', () => {
@@ -42,7 +43,7 @@ describe('VapidKeyStorageService', () => {
     service.saveVapidKeysToDisk(keys);
 
     const raw = fs.readFileSync(path.join(tempDir, 'vapid.json'), 'utf8');
-    expect(raw).not.toBe(JSON.stringify(keys));
+    expect(raw.startsWith('v1:')).toBe(true);
     expect(service.readVapidKeysFromDisk()).toEqual(keys);
   });
 
@@ -79,5 +80,60 @@ describe('VapidKeyStorageService', () => {
     } as AppService);
 
     expect(otherService.readVapidKeysFromDisk()).toBeNull();
+  });
+
+  it('replaces vapid.json with the staged file when only that file can be read', () => {
+    const keys = { publicKey: 'staged-public', privateKey: 'staged-private' };
+    service.saveVapidKeysToDisk(keys);
+    const filePath = path.join(tempDir, 'vapid.json');
+    fs.renameSync(filePath, `${filePath}.rotate`);
+    fs.writeFileSync(filePath, 'v1:not-a-secret-box', 'utf8');
+
+    service.assertCanGenerateVapidKeys();
+
+    expect(fs.existsSync(`${filePath}.rotate`)).toBe(false);
+    expect(service.readVapidKeysFromDisk()).toEqual(keys);
+  });
+
+  it('leaves the staged file in place when vapid.json can be read', () => {
+    const keys = { publicKey: 'kept-public', privateKey: 'kept-private' };
+    service.saveVapidKeysToDisk(keys);
+    const filePath = path.join(tempDir, 'vapid.json');
+    const current = fs.readFileSync(filePath, 'utf8');
+    fs.writeFileSync(`${filePath}.rotate`, 'pending', 'utf8');
+
+    service.assertCanGenerateVapidKeys();
+
+    expect(fs.readFileSync(`${filePath}.rotate`, 'utf8')).toBe('pending');
+    expect(fs.readFileSync(filePath, 'utf8')).toBe(current);
+    expect(service.readVapidKeysFromDisk()).toEqual(keys);
+  });
+
+  it('does not replace vapid.json when neither file can be read', () => {
+    const filePath = path.join(tempDir, 'vapid.json');
+    fs.writeFileSync(filePath, 'v1:not-a-secret-box', 'utf8');
+    fs.writeFileSync(`${filePath}.rotate`, 'also-unreadable', 'utf8');
+
+    expect(() => service.assertCanGenerateVapidKeys()).toThrow(/neither file/);
+    expect(fs.readFileSync(filePath, 'utf8')).toBe('v1:not-a-secret-box');
+    expect(fs.readFileSync(`${filePath}.rotate`, 'utf8')).toBe(
+      'also-unreadable',
+    );
+  });
+
+  it('does not replace vapid.json when the file cannot be read', () => {
+    const filePath = path.join(tempDir, 'vapid.json');
+    fs.writeFileSync(filePath, 'v1:not-a-secret-box', 'utf8');
+
+    expect(() => service.assertCanGenerateVapidKeys()).toThrow(
+      /cannot be read/,
+    );
+    expect(() =>
+      service.saveVapidKeysToDisk({
+        publicKey: 'new-public',
+        privateKey: 'new-private',
+      }),
+    ).toThrow(/cannot be read/);
+    expect(fs.readFileSync(filePath, 'utf8')).toBe('v1:not-a-secret-box');
   });
 });

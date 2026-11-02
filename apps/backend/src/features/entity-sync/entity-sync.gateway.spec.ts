@@ -7,7 +7,6 @@ import {
   EEntitySyncEvent,
   EPermission,
   ERoomType,
-  EUserRole,
   type IRoom,
   type IUserSafe,
 } from '@konvoez/shared';
@@ -41,7 +40,6 @@ describe('EntitySyncGateway', () => {
     id: 1,
     username: 'alice',
     fullname: 'Alice',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],

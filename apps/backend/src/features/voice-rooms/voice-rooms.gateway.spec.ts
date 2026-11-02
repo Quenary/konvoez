@@ -34,7 +34,6 @@ import { AuthService } from '../auth/auth.service';
 import {
   DIRECT_CALL_RING_TIMEOUT_MS,
   EDirectCallEvent,
-  EUserRole,
   EVoiceRoomEvent,
   ApiErrorCode,
   EPermission,
@@ -52,7 +51,6 @@ const alice: IUserSafe = {
   username: 'alice',
   fullname: 'Alice',
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   isOwner: false,
   roles: [],
   permissions: [EPermission.CONNECT_VOICE],
@@ -1727,7 +1725,14 @@ describe('VoiceRoomsGateway', () => {
     });
 
     it('rejects with AppException when router cannot consume', async () => {
-      const producer = {
+      const producer: {
+        id: string;
+        kind: string;
+        appData: {
+          mediaTag: string;
+          layers?: Array<{ height: number; fps: number }>;
+        };
+      } = {
         id: 'p1',
         kind: 'audio',
         appData: { mediaTag: 'mic' },
@@ -1766,7 +1771,14 @@ describe('VoiceRoomsGateway', () => {
     });
 
     it('creates consumer and stores in peer when valid', async () => {
-      const producer = {
+      const producer: {
+        id: string;
+        kind: string;
+        appData: {
+          mediaTag: string;
+          layers?: Array<{ height: number; fps: number }>;
+        };
+      } = {
         id: 'p1',
         kind: 'audio',
         appData: { mediaTag: 'mic' },

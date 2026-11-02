@@ -7,7 +7,7 @@ import {
   raw,
   UniqueConstraintViolationException,
 } from '@mikro-orm/core';
-import { SqlEntityRepository } from '@mikro-orm/sql';
+import type { SqlEntityManager, SqlEntityRepository } from '@mikro-orm/sql';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import {
   MessageEntity,
@@ -29,7 +29,9 @@ import { extractTrigrams } from '@shared/utils/trigrams.util';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { parse } from 'uuid';
-import { EncryptionService } from '@shared/services/encryption.service';
+import { SecretBoxService } from '@shared/services/secret-box.service';
+import { SearchTokenService } from '@shared/services/search-token.service';
+import { CHAT_MESSAGE_PURPOSE } from '@shared/master-key/master-key.registry';
 import { stringify as uuidStringify } from 'uuid';
 import { UserEntity } from '../users/users.entity';
 import { GetUserSafeDto } from '../users/users.dto';
@@ -77,7 +79,8 @@ export class TextRoomsService {
     private readonly messageMentionRepository: EntityRepository<MessageMentionEntity>,
     private readonly usersService: UsersService,
     private readonly roomsFacade: RoomsFacade,
-    private readonly encryptionService: EncryptionService,
+    private readonly secretBoxService: SecretBoxService,
+    private readonly searchTokenService: SearchTokenService,
     private readonly eventEmitter: EventEmitter2,
     private readonly attachmentsService: AttachmentsService,
     private readonly settingsService: SettingsService,
@@ -90,18 +93,10 @@ export class TextRoomsService {
     attachments: readonly IAttachment[] = [],
     reactions: readonly ITextRoomReactionGroup[] = [],
   ): ITextRoomMessage {
-    const content = this.encryptionService.decrypt(
-      data.contentEncrypted,
-      data.iv,
-      data.authTag,
-    );
+    const content = this.decryptContent(data.content);
     let replyTo: ITextRoomMessageReply | null = null;
     if (data.replyTo) {
-      const replyContent = this.encryptionService.decrypt(
-        data.replyTo.contentEncrypted,
-        data.replyTo.iv,
-        data.replyTo.authTag,
-      );
+      const replyContent = this.decryptContent(data.replyTo.content);
       replyTo = {
         id: uuidStringify(data.replyTo.id),
         senderId: data.replyTo.sender.id,
@@ -486,6 +481,22 @@ export class TextRoomsService {
     return baseWhere;
   }
 
+  /**
+   * Ids of messages that contain every trigram hash.
+   * A `searchTokens` condition per trigram is a separate to-many join, and
+   * those joins multiply token rows before the hash predicate is applied.
+   */
+  private messagesMatchingEveryToken(hashes: readonly string[]) {
+    const em = this.em as unknown as SqlEntityManager;
+    return em
+      .createQueryBuilder(MessageSearchTokenEntity, 't')
+      .select('t.message')
+      .where({ tokenHash: { $in: [...hashes] } })
+      .groupBy('t.message')
+      .having('count(distinct t.token_hash) = ?', [hashes.length])
+      .toRaw();
+  }
+
   async list(
     user: GetUserSafeDto,
     dto: MessageListRequestDto,
@@ -507,18 +518,18 @@ export class TextRoomsService {
     });
 
     if (search) {
-      const trigrams = extractTrigrams(search);
-      if (trigrams.length > 0) {
-        const searchConditions: FilterQuery<MessageEntity>[] = trigrams.map(
-          (t) =>
-            ({
-              searchTokens: {
-                tokenHash: this.encryptionService.hashSearchToken(t),
-              },
-            }) as FilterQuery<MessageEntity>,
-        );
-
-        baseWhere.$and = [...(baseWhere.$and ?? []), ...searchConditions];
+      const hashes = [
+        ...new Set(
+          extractTrigrams(search).map((trigram) =>
+            this.searchTokenService.hash(trigram),
+          ),
+        ),
+      ];
+      if (hashes.length > 0) {
+        baseWhere.$and = [
+          ...(baseWhere.$and ?? []),
+          { id: { $in: this.messagesMatchingEveryToken(hashes) } },
+        ];
       }
     }
 
@@ -835,9 +846,7 @@ export class TextRoomsService {
       }
     }
 
-    const { encrypted, iv, authTag } = this.encryptionService.encrypt(
-      dto.content,
-    );
+    const content = this.encryptContent(dto.content);
 
     let addedRecipientIds: number[] = [];
     let message: MessageEntity;
@@ -850,9 +859,7 @@ export class TextRoomsService {
             room: room ? tx.getReference(RoomEntity, room.id) : null,
             replyToId,
             clientId: dto.clientId ? parse(dto.clientId) : null,
-            contentEncrypted: encrypted,
-            iv,
-            authTag,
+            content,
             mentions: resolvedMentions?.effective ?? {
               userIds: [],
               roleIds: [],
@@ -1045,9 +1052,7 @@ export class TextRoomsService {
       );
     }
 
-    const { encrypted, iv, authTag } = this.encryptionService.encrypt(
-      dto.content,
-    );
+    const content = this.encryptContent(dto.content);
 
     let resolved:
       Awaited<ReturnType<typeof this.mentionsService.resolve>> | undefined;
@@ -1065,9 +1070,7 @@ export class TextRoomsService {
     }
 
     message = this.messageRepository.assign(message, {
-      contentEncrypted: encrypted,
-      iv,
-      authTag,
+      content,
       ...(effectiveMentions ? { mentions: effectiveMentions } : {}),
     });
 
@@ -1216,6 +1219,14 @@ export class TextRoomsService {
     );
   }
 
+  private encryptContent(plain: string): string {
+    return this.secretBoxService.encrypt(plain, CHAT_MESSAGE_PURPOSE);
+  }
+
+  private decryptContent(content: string): string {
+    return this.secretBoxService.decrypt(content, CHAT_MESSAGE_PURPOSE);
+  }
+
   private indexSearchTokens(
     em: EntityManager,
     message: MessageEntity,
@@ -1223,7 +1234,7 @@ export class TextRoomsService {
   ): void {
     const trigrams = extractTrigrams(content);
     trigrams.forEach((t) => {
-      const tokenHash = this.encryptionService.hashSearchToken(t);
+      const tokenHash = this.searchTokenService.hash(t);
       const tokenEntity = em.create(MessageSearchTokenEntity, {
         tokenHash,
         message,
@@ -1584,12 +1595,8 @@ export class TextRoomsService {
       }
 
       if (canNotify) {
-        const content = message.contentEncrypted
-          ? this.encryptionService.decrypt(
-              message.contentEncrypted,
-              message.iv,
-              message.authTag,
-            )
+        const content = message.content
+          ? this.decryptContent(message.content)
           : '';
         const attachments = await this.loadAttachments([message]);
         const messagePreview = this.messagePreview(

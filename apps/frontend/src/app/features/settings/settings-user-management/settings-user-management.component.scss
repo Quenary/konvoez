@@ -22,7 +22,7 @@
     }
 
     .col-email {
-      inline-size: 16rem;
+      inline-size: 20rem;
     }
 
     .col-date {
@@ -34,7 +34,8 @@
       cursor: pointer;
     }
 
-    .user-cell {
+    .user-cell,
+    .email-cell {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;

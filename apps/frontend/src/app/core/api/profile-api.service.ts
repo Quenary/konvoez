@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { IUploadFileResult, IUserFull, IProfileUpdate } from '@konvoez/shared';
+import {
+  IUploadFileResult,
+  IUserFull,
+  IProfileUpdate,
+  IProfileEmailVerificationConfirm,
+  IProfileEmailChangeConfirm,
+} from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
@@ -45,6 +51,48 @@ export class ProfileApiService {
         withCredentials: true,
         headers: uploadRequestHeaders,
       },
+    );
+  }
+
+  requestEmailVerification(): Observable<{ ok: true }> {
+    return this.httpClient.post<{ ok: true }>(
+      `${this.baseUrl}/email-verification/request`,
+      {},
+      { withCredentials: true },
+    );
+  }
+
+  confirmEmailVerification(
+    body: IProfileEmailVerificationConfirm,
+  ): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
+      `${this.baseUrl}/email-verification/confirm`,
+      body,
+      { withCredentials: true },
+    );
+  }
+
+  confirmEmailChange(body: IProfileEmailChangeConfirm): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
+      `${this.baseUrl}/email-change/confirm`,
+      body,
+      { withCredentials: true },
+    );
+  }
+
+  resendEmailChange(): Observable<{ ok: true }> {
+    return this.httpClient.post<{ ok: true }>(
+      `${this.baseUrl}/email-change/resend`,
+      {},
+      { withCredentials: true },
+    );
+  }
+
+  cancelEmailChange(): Observable<IUserFull> {
+    return this.httpClient.post<IUserFull>(
+      `${this.baseUrl}/email-change/cancel`,
+      {},
+      { withCredentials: true },
     );
   }
 }

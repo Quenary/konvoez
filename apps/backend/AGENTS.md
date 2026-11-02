@@ -7,7 +7,7 @@ Rules for `apps/backend` — the NestJS API for Konvoez. General rules (scope, T
 - **NestJS 11**, **MikroORM 7** with `defineEntity` schemas. SQLite is the supported engine; `DB_ENGINE` keeps the option for other drivers open.
 - **nestjs-zod** with Zod schemas from `@konvoez/shared` for DTOs.
 - **Socket.IO** gateways and **mediasoup** (WebRTC SFU).
-- **JWT** in HTTP-only cookies, **Argon2** passwords, **AES-256-GCM** message encryption at rest (`EncryptionService`).
+- **JWT** in HTTP-only cookies, **Argon2** passwords and secret hashing (`HashService`), **AES-256-GCM** message encryption at rest (`SecretBoxService`).
 
 HTTP prefix `/api/v1`, Swagger `/docs`. WebSocket paths: `/ws/v1/text`, `/ws/v1/voice`, `/ws/v1/sync`, `/ws/v1/notifications`.
 
@@ -31,7 +31,7 @@ The backend is a **modular monolith** in a single process. Organize by feature m
 - **Facades**: a subsystem that spans several entities exposes one facade (`PermissionsFacade`, `RoomsFacade`) and consumers depend only on it.
 - **Domain events**: cross-module side effects and realtime fan-out go through `EventEmitter2`. Services emit with the typed helpers in the feature's `*.events.ts` (built on `createDomainEventEmitter` from `shared/events/`); gateways and listeners subscribe with `@OnEvent`. Event enums and wire payloads live in `@konvoez/shared`.
 - **No transport in domain services**: never inject a gateway (`TextRoomsGateway`, `EntitySyncGateway`, …) or `NotificationsService` into another feature just to notify. Emit an event instead.
-- **Shared infrastructure** (`AppService`, password hashing, encryption, file storage) lives in `shared/` and is provided by `SharedModule`. Alternative implementations use injection tokens (`FileServiceInjectionToken`).
+- **Shared infrastructure** (`AppService`, password/secret hashing (`HashService`), encryption (`SecretBoxService`), search-token HMACs (`SearchTokenService`), file storage) lives in `shared/` and is provided by `SharedModule`. Alternative implementations use injection tokens (`FileServiceInjectionToken`).
 
 ## NestJS conventions
 
@@ -60,7 +60,7 @@ The backend is a **modular monolith** in a single process. Organize by feature m
 - Entities use `defineEntity` with `p.*` builders and extend `KonvoezBaseEntitySchema`.
 - Inject `EntityRepository<T>` with `@InjectRepository`; get the `EntityManager` from the repository (`em.fork()` for isolated work). Services own persistence; do not add repository classes unless complexity clearly demands it.
 - Schema changes go through migrations in `src/migrations/`, created only with the CLI, never by hand: `npm run migration:create -- --name DescriptiveSuffix` (the suffix is required). Then add the new migration to `migrationsList` in `mikro-orm.config.ts`, which the webpack bundle needs. Never use ORM `synchronize` instead of migrations.
-- Message content is encrypted through `EncryptionService` before persisting and decrypted on read. Plaintext chat bodies are never stored.
+- Message content is encrypted with `SecretBoxService` before persisting and decrypted on read. Search tokens are HMAC-SHA256 trigrams. Plaintext chat bodies are never stored. Rotation: [Key rotation](../../docs/backend/KEY_ROTATION.md).
 
 ## Realtime and voice
 

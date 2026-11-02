@@ -1,24 +1,16 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   effect,
   inject,
-  resource,
 } from '@angular/core';
 
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { AuthActions } from '@core/auth/auth.actions';
 import { selectAuthLoading } from '@core/auth/auth.selectors';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import {
-  TuiButton,
-  TuiError,
-  TuiIcon,
-  TuiInput,
-  TuiNotificationService,
-} from '@taiga-ui/core';
+import { TranslatePipe } from '@ngx-translate/core';
+import { TuiButton, TuiError, TuiIcon, TuiInput } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiPassword, TuiTooltip } from '@taiga-ui/kit';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -35,9 +27,7 @@ import {
   createZodFieldValidator,
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
-import { PublicApiService } from '@core/services/public-api.service';
-import { catchError, firstValueFrom, of } from 'rxjs';
-import { ApiErrorService } from '@core/services/api-error.service';
+import { PublicStore } from '@core/stores/public.store';
 
 import { icons } from '@constants';
 
@@ -64,45 +54,14 @@ import { icons } from '@constants';
 })
 export class AuthRegisterComponent {
   private readonly store = inject(Store);
-  private readonly publicApiService = inject(PublicApiService);
+  private readonly publicStore = inject(PublicStore);
   private readonly route = inject(ActivatedRoute);
-  private readonly tuiNotificationsService = inject(TuiNotificationService);
-  private readonly translateService = inject(TranslateService);
-  private readonly apiErrorService = inject(ApiErrorService);
 
   protected readonly icons = icons;
-  protected readonly publicSettings = resource({
-    loader: () =>
-      firstValueFrom(
-        this.publicApiService.getSettings().pipe(
-          catchError((err) => {
-            this.tuiNotificationsService
-              .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-                appearance: 'negative',
-                autoClose: 5000,
-                closable: true,
-                label: this.translateService.instant('GENERAL.REQ_ERR'),
-              })
-              .subscribe();
-            return of({
-              isOwnerSetupRequired: false,
-              inviteOnlySignUp: false,
-            });
-          }),
-        ),
-      ),
-    defaultValue: {
-      isOwnerSetupRequired: false,
-      inviteOnlySignUp: false,
-    },
-  });
-
-  protected readonly isOwnerSetupRequired = computed(
-    () => this.publicSettings.value().isOwnerSetupRequired,
-  );
-  protected readonly inviteOnlySignUp = computed(
-    () => this.publicSettings.value().inviteOnlySignUp,
-  );
+  protected readonly publicSettings = this.publicStore.publicSettings;
+  protected readonly isOwnerSetupRequired =
+    this.publicStore.isOwnerSetupRequired;
+  protected readonly inviteOnlySignUp = this.publicStore.inviteOnlySignUp;
 
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
   protected readonly form = new FormGroup(

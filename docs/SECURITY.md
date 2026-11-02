@@ -32,10 +32,13 @@ flowchart TD
 
 ### Data protection
 
-- **Messages at rest**: text is encrypted with AES-256-GCM before it is stored. Keys are derived from `MASTER_KEY` with HKDF-SHA256; every message has its own IV and auth tag. This protects database backups and disk dumps that are obtained without the server environment.
+- **Messages at rest**: text is stored as an AES-256-GCM secret box. Search tokens are HMAC-SHA256 trigrams. Both keys are derived from `MASTER_KEY` with HKDF-SHA256. Plaintext chat bodies are never stored. This protects database backups and disk dumps that are obtained without the server environment.
+- **Two-factor**: the TOTP secret is a secret box. The recovery-code HMAC key is wrapped with `MASTER_KEY`; rotating the master key leaves the code hashes in place.
 - **Stored files**: attachments, avatars and other uploads are not encrypted by the app. Encryption is the operator's job at the storage layer (for example LUKS or S3 server-side encryption).
 - **Voice and video**: WebRTC through the Mediasoup SFU, encrypted in transit with DTLS-SRTP.
-- **Web Push**: optional, for direct messages. Payloads are encrypted for the browser subscription, so push services cannot read them. The payload carries a plaintext preview so the OS can render the notification; the server and the recipient device can see it. VAPID keys live on disk next to SQLite and are encrypted with `MASTER_KEY`; operators may mount their own `vapid.json`.
+- **Web Push**: optional, for direct messages. Payloads are encrypted for the browser subscription, so push services cannot read them. The payload carries a plaintext preview so the OS can render the notification; the server and the recipient device can see it. VAPID keys live on disk next to SQLite and are protected by `MASTER_KEY`. Operators may mount their own `vapid.json`.
+- **Key rotation**: see [Key rotation](backend/KEY_ROTATION.md).
+- **File secrets**: `MASTER_KEY`, `JWT_SECRET`, `SMTP_PASS`, `S3_ACCESS_KEY_ID` and `S3_ACCESS_KEY` may be supplied as `NAME_FILE` paths. The process reads the file at startup. It rejects an empty file and a name that is set both as a value and as a file.
 - **User email**: treated as PII. General HTTP, WebSocket and entity-sync user payloads use `userSafeSchema` / `GetUserSafeDto` (PII omitted). Self auth/profile and admin `user-management` responses use `userFullSchema` / `GetUserFullDto` (includes email).
 
 ### Authentication
@@ -43,6 +46,7 @@ flowchart TD
 - Sessions are JWTs delivered in secure HTTP cookies. Tokens expire on the server together with their cookies; refresh is sliding.
 - A per-user session version lets password changes, 2FA changes, anonymize and delete end all sessions and live connections at once.
 - Passwords are stored as Argon2 hashes. Password recovery uses emailed one-time codes. See [Password recovery](PASSWORD_RECOVERY.md).
+- Email verification uses hashed one-time codes for registration and email updates when SMTP is configured. Security notifications go only to a verified address. An unverified address does not restrict access. See [Email verification](EMAIL_VERIFICATION.md).
 - Two-factor authentication (TOTP RFC 6238) protects accounts with authenticator apps and hashed recovery codes. See [Two-factor authentication](TWO_FACTOR.md).
 - An account with `deletedAt` set cannot log in, refresh a session, open a socket or recover its password. See [User management](USER_MANAGEMENT.md).
 - The first deploy with session versions signs out all active sessions once.

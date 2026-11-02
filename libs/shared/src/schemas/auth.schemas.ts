@@ -6,7 +6,10 @@ import {
   usernameSchema,
 } from './fields.schemas';
 import { userFullSchema } from './user.schemas';
-import { passwordRecoveryCodeLength } from '../const';
+import {
+  emailVerificationCodeLength,
+  passwordRecoveryCodeLength,
+} from '../const';
 import { SCHEMA_ERROR, stringSchema } from './base.schemas';
 
 export const authLoginSchema = z.object({
@@ -46,6 +49,25 @@ export const passwordRecoveryConfirmSchema = z.object({
 });
 export type IPasswordRecoveryConfirm = z.infer<
   typeof passwordRecoveryConfirmSchema
+>;
+
+export const emailVerificationCodeSchema = stringSchema.regex(
+  new RegExp(`^\\d{${emailVerificationCodeLength}}$`),
+  { error: SCHEMA_ERROR.VERIFICATION_CODE },
+);
+
+export const profileEmailVerificationConfirmSchema = z.object({
+  code: emailVerificationCodeSchema,
+});
+export type IProfileEmailVerificationConfirm = z.infer<
+  typeof profileEmailVerificationConfirmSchema
+>;
+
+export const profileEmailChangeConfirmSchema = z.object({
+  code: emailVerificationCodeSchema,
+});
+export type IProfileEmailChangeConfirm = z.infer<
+  typeof profileEmailChangeConfirmSchema
 >;
 
 export const twoFactorCodeRegex =

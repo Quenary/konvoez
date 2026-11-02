@@ -15,7 +15,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 3. When your change affects behavior, configuration, architecture, or contracts between packages, **update the matching documentation in the same change** — do not leave docs stale. Follow [Documentation style](#documentation-style).
 
 - Repo-wide conventions, Nx, scripts, env — `docs/CONTRIBUTING.md`
-- Security, auth, encryption, secrets — `docs/SECURITY.md`
+- Security, auth, encryption, secrets — `docs/SECURITY.md`, `docs/backend/KEY_ROTATION.md`
 - Backend, NestJS (`apps/backend`) — `apps/backend/AGENTS.md`
 - Frontend, Angular (`apps/frontend`) — `apps/frontend/AGENTS.md`
 - Frontend voice, streaming, audio pipeline — `docs/frontend/VOICE.md`, `docs/frontend/STREAMING.md`, `docs/frontend/NOISE_SUPPRESSION.md`
@@ -26,7 +26,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Client UI kit, Lit primitives (`libs/ui-kit`) — `libs/ui-kit/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Client dialogs, desktop Lit dialogs (`libs/client-dialogs`) — `libs/client-dialogs/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
-- Feature behavior (rooms, mentions, notifications, attachments, reactions, chat reading, user management, password recovery, two-factor authentication) — the matching `docs/*.md`
+- Feature behavior (rooms, mentions, notifications, attachments, reactions, chat reading, user management, password recovery, two-factor authentication, email verification) — the matching `docs/*.md`
 - Networking, WebRTC ports, Docker — `docs/NETWORKING.md`
 
 General and cross-cutting docs live in `docs/`. App and library docs live beside the code. The root `README.md` is the product overview and doc index. Extend the matching doc above rather than duplicating long explanations in comments only.

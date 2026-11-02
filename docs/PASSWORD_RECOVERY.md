@@ -30,5 +30,6 @@ sequenceDiagram
 - **Single use**: a new request invalidates earlier unused codes, and a used code cannot be reused.
 - **Rate limit**: about a 60-second cooldown per email for requests.
 - **Session invalidation**: confirming a password reset signs out all active sessions.
+- **Email verification**: confirming a password reset automatically marks an unverified email address as verified and sends a security notification (see [Email verification](EMAIL_VERIFICATION.md)).
 - **Two-factor authentication**: resetting a password does not disable or bypass 2FA; logging in after a reset still requires a TOTP or recovery code if 2FA is enabled (see [Two-factor authentication](TWO_FACTOR.md)).
 - **Deleted accounts** cannot recover a password (see [User management](USER_MANAGEMENT.md)).

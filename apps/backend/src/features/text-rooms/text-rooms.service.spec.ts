@@ -30,7 +30,8 @@ import {
 } from './text-rooms.entity';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
-import { EncryptionService } from '@shared/services/encryption.service';
+import { SecretBoxService } from '@shared/services/secret-box.service';
+import { SearchTokenService } from '@shared/services/search-token.service';
 import {
   EntityRepository,
   EntityManager,
@@ -45,7 +46,6 @@ import {
   EAttachmentKind,
   EPermission,
   ESettingKey,
-  EUserRole,
   IAttachment,
 } from '@konvoez/shared';
 import { AttachmentsService } from '../attachments/attachments.service';
@@ -67,7 +67,8 @@ describe('TextRoomsService', () => {
   >;
   let usersService: jest.Mocked<UsersService>;
   let roomsFacade: jest.Mocked<RoomsFacade>;
-  let encryptionService: jest.Mocked<EncryptionService>;
+  let secretBoxService: jest.Mocked<SecretBoxService>;
+  let searchTokenService: jest.Mocked<SearchTokenService>;
   let mentionsService: jest.Mocked<MentionsService>;
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
@@ -82,7 +83,6 @@ describe('TextRoomsService', () => {
     id: 1,
     username: 'test_user',
     fullname: 'Test User',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [EPermission.SEND_MESSAGES, EPermission.USE_ATTACHMENTS],
@@ -110,6 +110,13 @@ describe('TextRoomsService', () => {
       transactional: jest.fn(async (work: (tx: EntityManager) => unknown) =>
         work(em),
       ),
+      createQueryBuilder: jest.fn().mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        having: jest.fn().mockReturnThis(),
+        toRaw: jest.fn().mockReturnValue('raw-search-subquery'),
+      })),
     } as unknown as jest.Mocked<EntityManager>;
 
     messageRepository = {
@@ -192,15 +199,13 @@ describe('TextRoomsService', () => {
       renderPlainPreview: jest.fn().mockReturnValue('preview'),
     } as unknown as jest.Mocked<MentionsService>;
 
-    encryptionService = {
-      encrypt: jest.fn().mockReturnValue({
-        encrypted: new Uint8Array([1, 2, 3]),
-        iv: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
-      }),
+    secretBoxService = {
+      encrypt: jest.fn().mockReturnValue('v1:boxed'),
       decrypt: jest.fn().mockReturnValue('Decrypted content'),
-      hashSearchToken: jest.fn().mockReturnValue('hashedToken'),
-    } as unknown as jest.Mocked<EncryptionService>;
+    } as unknown as jest.Mocked<SecretBoxService>;
+    searchTokenService = {
+      hash: jest.fn().mockReturnValue('hashedToken'),
+    } as unknown as jest.Mocked<SearchTokenService>;
 
     eventEmitter = { emit: jest.fn() };
     attachmentsService = {
@@ -229,7 +234,8 @@ describe('TextRoomsService', () => {
       messageMentionRepository,
       usersService,
       roomsFacade,
-      encryptionService,
+      secretBoxService,
+      searchTokenService,
       eventEmitter as never,
       attachmentsService as unknown as AttachmentsService,
       settingsService as unknown as SettingsService,
@@ -252,9 +258,7 @@ describe('TextRoomsService', () => {
         recipient: { id: mockUser.id },
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
@@ -296,9 +300,7 @@ describe('TextRoomsService', () => {
         recipient: null,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
@@ -338,9 +340,7 @@ describe('TextRoomsService', () => {
         recipient: { id: 2 },
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
@@ -373,9 +373,7 @@ describe('TextRoomsService', () => {
         id: parse(targetId),
         sender: { id: 2, username: 'other_user' },
         room: { id: roomId },
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(targetEntity);
@@ -390,9 +388,7 @@ describe('TextRoomsService', () => {
         replyTo: targetEntity,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
@@ -431,9 +427,7 @@ describe('TextRoomsService', () => {
         id: parse(targetId),
         sender: { id: mockUser.id, username: mockUser.username },
         room: { id: roomId },
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(targetEntity);
@@ -448,9 +442,7 @@ describe('TextRoomsService', () => {
         replyTo: targetEntity,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
@@ -519,9 +511,7 @@ describe('TextRoomsService', () => {
         recipient: null,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: searchTokensAdd },
       } as unknown as MessageEntity;
 
@@ -534,7 +524,7 @@ describe('TextRoomsService', () => {
         recipientId: null,
       });
 
-      expect(encryptionService.hashSearchToken).toHaveBeenCalled();
+      expect(searchTokenService.hash).toHaveBeenCalled();
       expect(em.create).toHaveBeenCalledWith(
         MessageSearchTokenEntity,
         expect.objectContaining({
@@ -555,9 +545,7 @@ describe('TextRoomsService', () => {
         clientId: clientId ? parse(clientId) : null,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array([1]),
-        iv: new Uint8Array([2]),
-        authTag: new Uint8Array([3]),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
     }
@@ -866,9 +854,7 @@ describe('TextRoomsService', () => {
         recipient: { id: 2 },
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
         mentions: { userIds: [], roleIds: [], everyone: false },
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
@@ -900,9 +886,7 @@ describe('TextRoomsService', () => {
         recipient: null,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([mockItem]);
@@ -930,9 +914,7 @@ describe('TextRoomsService', () => {
         recipient: null,
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([mockItem]);
@@ -963,9 +945,7 @@ describe('TextRoomsService', () => {
         recipient: { id: mockUser.id },
         createdAt: new Date(),
         updatedAt: null,
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.find.mockResolvedValue([mockItem]);
@@ -998,9 +978,7 @@ describe('TextRoomsService', () => {
         recipient: null,
         createdAt: new Date('2026-01-02'),
         updatedAt: null,
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(targetItem);
@@ -1023,6 +1001,17 @@ describe('TextRoomsService', () => {
 
     it('should filter messages by search tokens when search parameter is provided', async () => {
       messageRepository.find.mockResolvedValue([]);
+      searchTokenService.hash.mockImplementation(
+        (trigram: string) => `hash:${trigram}`,
+      );
+      const tokenQuery = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        having: jest.fn().mockReturnThis(),
+        toRaw: jest.fn().mockReturnValue('raw-search-subquery'),
+      };
+      em.createQueryBuilder.mockReturnValue(tokenQuery);
 
       await service.list(mockUser, {
         roomId: 10,
@@ -1033,17 +1022,48 @@ describe('TextRoomsService', () => {
         afterId: null,
       });
 
-      expect(encryptionService.hashSearchToken).toHaveBeenCalled();
+      expect(em.createQueryBuilder).toHaveBeenCalledWith(
+        MessageSearchTokenEntity,
+        't',
+      );
+      expect(tokenQuery.where).toHaveBeenCalledWith({
+        tokenHash: {
+          $in: ['key', 'eyw', 'ywo', 'wor', 'ord'].map(
+            (trigram) => `hash:${trigram}`,
+          ),
+        },
+      });
+      expect(tokenQuery.groupBy).toHaveBeenCalledWith('t.message');
+      expect(tokenQuery.having).toHaveBeenCalledWith(
+        'count(distinct t.token_hash) = ?',
+        [5],
+      );
+      expect(messageRepository.find).toHaveBeenCalledWith(
+        {
+          room: 10,
+          $and: [{ id: { $in: 'raw-search-subquery' } }],
+        },
+        expect.anything(),
+      );
+    });
+
+    it('keeps the search constraint when paging with beforeId', async () => {
+      messageRepository.find.mockResolvedValue([]);
+
+      await service.list(mockUser, {
+        roomId: 10,
+        recipientId: null,
+        search: 'keyword',
+        limit: 20,
+        beforeId: v7(),
+        afterId: null,
+      });
+
       expect(messageRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           room: 10,
-          $and: expect.arrayContaining([
-            expect.objectContaining({
-              searchTokens: {
-                tokenHash: 'hashedToken',
-              },
-            }),
-          ]),
+          id: { $lt: expect.any(Uint8Array) },
+          $and: [{ id: { $in: 'raw-search-subquery' } }],
         }),
         expect.anything(),
       );
@@ -1133,9 +1153,7 @@ describe('TextRoomsService', () => {
           recipient: null,
           createdAt,
           updatedAt: null,
-          contentEncrypted: new Uint8Array(),
-          iv: new Uint8Array(),
-          authTag: new Uint8Array(),
+          content: 'v1:boxed',
         }) as unknown as MessageEntity;
 
       it('never read, 50 unread -> 25 items, first is oldest unread, hasMoreBefore false, hasMoreAfter true, firstUnreadMessageId = first item', async () => {
@@ -1444,9 +1462,7 @@ describe('TextRoomsService', () => {
       const existing = {
         id: parse(msgId),
         sender: { id: mockUser.id, username: mockUser.username },
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
 
@@ -1470,9 +1486,7 @@ describe('TextRoomsService', () => {
       const existing = {
         id: parse(msgId),
         sender: { id: mockUser.id, username: mockUser.username },
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
         searchTokens: { add: searchTokensAdd },
       } as unknown as MessageEntity;
 
@@ -1486,7 +1500,7 @@ describe('TextRoomsService', () => {
       expect(em.nativeDelete).toHaveBeenCalledWith(MessageSearchTokenEntity, {
         message: existing.id,
       });
-      expect(encryptionService.hashSearchToken).toHaveBeenCalled();
+      expect(searchTokenService.hash).toHaveBeenCalled();
       expect(searchTokensAdd).toHaveBeenCalled();
       expect(em.persist).toHaveBeenCalledWith(existing);
       expect(em.flush).toHaveBeenCalled();
@@ -1524,9 +1538,7 @@ describe('TextRoomsService', () => {
         id: parse(msgId),
         sender: { id: mockUser.id, username: mockUser.username },
         room: { id: 10, name: 'general', isPrivate: false },
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
         mentions: { userIds: [], roleIds: [], everyone: false },
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
@@ -1590,9 +1602,7 @@ describe('TextRoomsService', () => {
         id: parse(msgId),
         sender: { id: mockUser.id, username: mockUser.username },
         room: { id: 10, name: 'general', isPrivate: false },
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
         mentions: { userIds: [3], roleIds: [], everyone: false },
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
@@ -1628,9 +1638,7 @@ describe('TextRoomsService', () => {
         sender: { id: mockUser.id, username: mockUser.username },
         room: null,
         recipient: { id: 2 },
-        contentEncrypted: new Uint8Array(),
-        iv: new Uint8Array(),
-        authTag: new Uint8Array(),
+        content: 'v1:boxed',
         mentions: { userIds: [], roleIds: [], everyone: false },
         searchTokens: { add: jest.fn() },
       } as unknown as MessageEntity;
@@ -1757,9 +1765,16 @@ describe('TextRoomsService', () => {
       });
     });
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
-      'should let %s delete another user room message',
-      async (role) => {
+    it.each([
+      {
+        description: 'moderator',
+        isOwner: false,
+        permissions: [EPermission.MODERATE_MESSAGES],
+      },
+      { description: 'owner', isOwner: true, permissions: [] },
+    ])(
+      'should let $description delete another user room message',
+      async ({ isOwner, permissions }) => {
         const msgId = v7();
         const existing = {
           id: parse(msgId),
@@ -1773,9 +1788,8 @@ describe('TextRoomsService', () => {
         await service.delete(
           {
             ...mockUser,
-            role,
-            isOwner: role === EUserRole.OWNER,
-            permissions: [EPermission.MODERATE_MESSAGES],
+            isOwner,
+            permissions,
           },
           msgId,
         );
@@ -1789,9 +1803,16 @@ describe('TextRoomsService', () => {
       },
     );
 
-    it.each([EUserRole.ADMIN, EUserRole.OWNER])(
-      'should throw ForbiddenException when %s deletes another user direct message',
-      async (role) => {
+    it.each([
+      {
+        description: 'moderator',
+        isOwner: false,
+        permissions: [EPermission.MODERATE_MESSAGES],
+      },
+      { description: 'owner', isOwner: true, permissions: [] },
+    ])(
+      'should throw ForbiddenException when $description deletes another user direct message',
+      async ({ isOwner, permissions }) => {
         const msgId = v7();
         const existing = {
           id: parse(msgId),
@@ -1806,9 +1827,8 @@ describe('TextRoomsService', () => {
           service.delete(
             {
               ...mockUser,
-              role,
-              isOwner: role === EUserRole.OWNER,
-              permissions: [EPermission.MODERATE_MESSAGES],
+              isOwner,
+              permissions,
             },
             msgId,
           ),
@@ -2600,9 +2620,7 @@ describe('TextRoomsService', () => {
         sender: otherUser,
         recipient: null,
         room: { id: 10, name: 'general' },
-        contentEncrypted: Buffer.from('encrypted'),
-        iv: Buffer.from('iv'),
-        authTag: Buffer.from('authTag'),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(message);
@@ -2614,7 +2632,7 @@ describe('TextRoomsService', () => {
           user: { id: mockUser.id },
         } as unknown as MessageReactionEntity,
       ]);
-      encryptionService.decrypt.mockReturnValue('Hello bob!');
+      secretBoxService.decrypt.mockReturnValue('Hello bob!');
 
       await service.toggleReaction(mockUser, msgId, '🎉');
 
@@ -2642,9 +2660,7 @@ describe('TextRoomsService', () => {
         sender: otherUser,
         recipient: { id: mockUser.id, username: mockUser.username },
         room: null,
-        contentEncrypted: Buffer.from('encrypted'),
-        iv: Buffer.from('iv'),
-        authTag: Buffer.from('authTag'),
+        content: 'v1:boxed',
       } as unknown as MessageEntity;
 
       messageRepository.findOne.mockResolvedValue(message);
@@ -2656,7 +2672,7 @@ describe('TextRoomsService', () => {
           user: { id: mockUser.id },
         } as unknown as MessageReactionEntity,
       ]);
-      encryptionService.decrypt.mockReturnValue('Direct message');
+      secretBoxService.decrypt.mockReturnValue('Direct message');
 
       await service.toggleReaction(mockUser, msgId, '❤️');
 

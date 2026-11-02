@@ -44,14 +44,16 @@ Konvoez ships as a single Docker image: Nginx serves the frontend and proxies th
    cp .env.example .env
    ```
 
-   | Variable                 | Purpose                                                                                        |
-   | ------------------------ | ---------------------------------------------------------------------------------------------- |
-   | `MASTER_KEY`             | Secret for message encryption and VAPID key storage. Keep it: losing it makes data unreadable. |
-   | `JWT_SECRET`             | Secret for session tokens.                                                                     |
-   | `MEDIASOUP_ANNOUNCED_IP` | Public IPv4 or hostname that browsers use to reach the media server.                           |
-   | `COOKIE_SECURE`          | Set to `true` when the instance is served over HTTPS.                                          |
+   | Variable                 | Purpose                                                                                                                       |
+   | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+   | `MASTER_KEY`             | Secret for message text, search tokens, two-factor data and VAPID key storage. Keep it: losing it makes that data unreadable. |
+   | `JWT_SECRET`             | Secret for session tokens.                                                                                                    |
+   | `MEDIASOUP_ANNOUNCED_IP` | Public IPv4 or hostname that browsers use to reach the media server.                                                          |
+   | `COOKIE_SECURE`          | Set to `true` when the instance is served over HTTPS.                                                                         |
 
    Generate secrets with `openssl rand -base64 32`. All other options are described in [.env.example](.env.example).
+
+   `MASTER_KEY`, `JWT_SECRET`, `SMTP_PASS`, `S3_ACCESS_KEY_ID` and `S3_ACCESS_KEY` can be supplied as a file: set `NAME_FILE` to the path and leave `NAME` empty. An empty file is an error, and so is setting both `NAME` and `NAME_FILE`. Rotation accepts `OLD_MASTER_KEY_FILE` and `NEW_MASTER_KEY_FILE` the same way.
 
 2. Start the server with one of the options below.
 
@@ -87,6 +89,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 - [Networking & Deployment Guide](docs/NETWORKING.md)
 - [Security Policy](docs/SECURITY.md)
+- [Key rotation](docs/backend/KEY_ROTATION.md)
 - [Desktop client](apps/desktop/README.md)
 - [Changelog](CHANGELOG.md)
 
@@ -95,6 +98,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 - [User Management](docs/USER_MANAGEMENT.md)
 - [Two-Factor Authentication](docs/TWO_FACTOR.md)
 - [Password Recovery](docs/PASSWORD_RECOVERY.md)
+- [Email Verification](docs/EMAIL_VERIFICATION.md)
 - [Rooms](docs/ROOMS.md)
 - [Chat reading](docs/CHAT_READING.md)
 - [Mentions](docs/MENTIONS.md)
@@ -114,7 +118,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshots/chat-v1.25.0-desktop.png" alt="Konvoez on desktop" height="420">
+  <img src="assets/screenshots/chat-v1.27.0-desktop.png" alt="Konvoez on desktop" height="420">
   &nbsp;
-  <img src="assets/screenshots/chat-v1.25.0-mobile.png" alt="Konvoez on mobile" height="420">
+  <img src="assets/screenshots/chat-v1.27.0-mobile.png" alt="Konvoez on mobile" height="420">
 </p>

@@ -48,6 +48,8 @@ describe('ChatEditorComponent', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const alice: IUserSafe = {

@@ -6,7 +6,7 @@ jest.mock('mediasoup', () => ({
 }));
 jest.mock('mediasoup/types', () => ({}), { virtual: true });
 
-import { EUserRole, type IUserSafe } from '@konvoez/shared';
+import { type IUserSafe } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
 import { VoiceRoomsDomainEvents } from './voice-rooms.events';
 import { createWorker } from 'mediasoup';
@@ -18,7 +18,6 @@ const alice: IUserSafe = {
   username: 'alice',
   fullname: 'Alice',
   avatarUrl: null,
-  role: EUserRole.MEMBER,
   createdAt: new Date(),
   updatedAt: new Date(),
 } as IUserSafe;

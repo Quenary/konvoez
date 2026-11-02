@@ -21,7 +21,7 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
-import { ApiErrorCode, EPermission, EUserRole } from '@konvoez/shared';
+import { ApiErrorCode, EPermission } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import type { GetUserFullDto, GetUserSafeDto } from '../users/users.dto';
 import type { UserEntity } from '../users/users.entity';
@@ -30,6 +30,7 @@ import { UsersService } from '../users/users.service';
 import { PermissionsFacade } from '../permissions/permissions.facade';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { TwoFactorService } from '../two-factor/two-factor.service';
+import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 describe('UserManagementService', () => {
   let service: UserManagementService;
@@ -57,6 +58,9 @@ describe('UserManagementService', () => {
     >
   >;
   let roomsFacade: jest.Mocked<Pick<RoomsFacade, 'deleteRoomsByAuthor'>>;
+  let verifiedMailerService: jest.Mocked<
+    Pick<VerifiedMailerService, 'sendNotification'>
+  >;
 
   const mockUser = {
     id: 1,
@@ -64,7 +68,6 @@ describe('UserManagementService', () => {
     password: 'hashed_password',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     avatar: null,
     createdAt: new Date(),
@@ -76,7 +79,6 @@ describe('UserManagementService', () => {
     username: 'test_user',
     fullname: 'Test User',
     email: 'test@example.com',
-    role: EUserRole.MEMBER,
     isOwner: false,
     roles: [],
     permissions: [],
@@ -85,6 +87,8 @@ describe('UserManagementService', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   beforeEach(() => {
@@ -124,11 +128,16 @@ describe('UserManagementService', () => {
       adminReset: jest.fn().mockResolvedValue(mockUserDto),
     };
 
+    verifiedMailerService = {
+      sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new UserManagementService(
       usersService as unknown as UsersService,
       permissionsFacade as unknown as PermissionsFacade,
       roomsFacade as unknown as RoomsFacade,
       twoFactorService as unknown as TwoFactorService,
+      verifiedMailerService as unknown as VerifiedMailerService,
     );
   });
 
@@ -151,7 +160,7 @@ describe('UserManagementService', () => {
     const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
-      role: EUserRole.OWNER,
+      isOwner: true,
     };
 
     it('should assign roles to a user', async () => {
@@ -161,15 +170,22 @@ describe('UserManagementService', () => {
       } as UserEntity;
       usersService.findOne.mockResolvedValueOnce(target);
       permissionsFacade.findRolesByIds.mockResolvedValueOnce([
-        { id: 2 } as never,
+        { id: 2, name: 'Moderator' } as never,
       ]);
 
       await service.updateRole(5, { roleIds: [2] }, ownerAuthor);
 
       expect(permissionsFacade.findRolesByIds).toHaveBeenCalledWith([2]);
       expect(usersService.updateUserRoles).toHaveBeenCalledWith(target, [
-        { id: 2 },
+        { id: 2, name: 'Moderator' },
       ]);
+      expect(verifiedMailerService.sendNotification).toHaveBeenCalledWith(
+        target,
+        expect.objectContaining({
+          subject: 'Account roles updated',
+          text: expect.stringContaining('Moderator'),
+        }),
+      );
     });
 
     it('should reject changing the owner role', async () => {
@@ -343,16 +359,15 @@ describe('UserManagementService', () => {
     const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
-      role: EUserRole.OWNER,
+      isOwner: true,
     };
 
     it('should anonymize a manageable user through UsersService', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.ADMIN,
       } as UserEntity;
-      const anonymized = { ...mockUserDto, id: 5, role: EUserRole.ADMIN };
+      const anonymized = { ...mockUserDto, id: 5 };
       usersService.findOne.mockResolvedValueOnce(target);
       usersService.anonymizeLoaded.mockResolvedValueOnce(anonymized);
 
@@ -394,14 +409,13 @@ describe('UserManagementService', () => {
     const ownerAuthor: GetUserFullDto = {
       ...mockUserDto,
       id: 1,
-      role: EUserRole.OWNER,
+      isOwner: true,
     };
 
     it('should remove a manageable user through UsersService', async () => {
       const target = {
         ...mockUser,
         id: 5,
-        role: EUserRole.MEMBER,
       } as UserEntity;
       usersService.findOne.mockResolvedValueOnce(target);
 

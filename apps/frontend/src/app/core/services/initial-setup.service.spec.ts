@@ -37,6 +37,8 @@ describe('InitialSetupService', () => {
     createdAt: new Date(),
     updatedAt: null,
     twoFactorEnabled: false,
+    emailVerified: true,
+    pendingEmail: null,
   };
 
   const configure = (seedLocalSettings?: object) => {
