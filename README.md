@@ -44,12 +44,12 @@ Konvoez ships as a single Docker image: Nginx serves the frontend and proxies th
    cp .env.example .env
    ```
 
-   | Variable                 | Purpose                                                                                        |
-   | ------------------------ | ---------------------------------------------------------------------------------------------- |
-   | `MASTER_KEY`             | Secret for message encryption and VAPID key storage. Keep it: losing it makes data unreadable. |
-   | `JWT_SECRET`             | Secret for session tokens.                                                                     |
-   | `MEDIASOUP_ANNOUNCED_IP` | Public IPv4 or hostname that browsers use to reach the media server.                           |
-   | `COOKIE_SECURE`          | Set to `true` when the instance is served over HTTPS.                                          |
+   | Variable                 | Purpose                                                                                                                       |
+   | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+   | `MASTER_KEY`             | Secret for message text, search tokens, two-factor data and VAPID key storage. Keep it: losing it makes that data unreadable. |
+   | `JWT_SECRET`             | Secret for session tokens.                                                                                                    |
+   | `MEDIASOUP_ANNOUNCED_IP` | Public IPv4 or hostname that browsers use to reach the media server.                                                          |
+   | `COOKIE_SECURE`          | Set to `true` when the instance is served over HTTPS.                                                                         |
 
    Generate secrets with `openssl rand -base64 32`. All other options are described in [.env.example](.env.example).
 
@@ -87,6 +87,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 - [Networking & Deployment Guide](docs/NETWORKING.md)
 - [Security Policy](docs/SECURITY.md)
+- [Key rotation](docs/backend/KEY_ROTATION.md)
 - [Desktop client](apps/desktop/README.md)
 - [Changelog](CHANGELOG.md)
 

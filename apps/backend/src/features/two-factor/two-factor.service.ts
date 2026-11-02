@@ -9,24 +9,26 @@ import { AppException } from '@shared/errors/app.exception';
 import { AppService } from '@shared/services/app.service';
 import { HashService } from '@shared/services/hash.service';
 import { SecretBoxService } from '@shared/services/secret-box.service';
-import { deriveAes256KeyFromMasterKey } from '@shared/utils/master-key.util';
+import {
+  hashRecoveryCode,
+  unwrapRecoveryHmacKey,
+} from '@shared/master-key/hmac';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
 import { UsersDomainEvents } from '../users/users.events';
 import { GetUserFullDto } from '../users/users.dto';
 import {
   CROCKFORD_BASE32_ALPHABET,
-  CURRENT_RECOVERY_CODE_VERSION,
   get2faFailsCacheKey,
   get2faLockCacheKey,
   RECOVERY_CODES_COUNT,
   TWO_FACTOR_FAIL_LIMIT,
   TWO_FACTOR_LOCKOUT_TTL_MS,
-  TWO_FACTOR_RECOVERY_KEY_INFO,
   TWO_FACTOR_SECRET_KEY_INFO,
 } from './two-factor.const';
 import { buildOtpAuthUri, generateSecret, verifyTotp } from './totp.util';
 import { TwoFactorRecoveryCodeEntity } from './two-factor-recovery-code.entity';
+import { TwoFactorRecoveryKeyEntity } from './two-factor-recovery-key.entity';
 import { PerUserMutex } from './per-user-mutex';
 import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
@@ -45,6 +47,8 @@ export class TwoFactorService {
     private readonly cacheManager: Cache,
     @InjectRepository(TwoFactorRecoveryCodeEntity)
     private readonly recoveryCodeRepo: EntityRepository<TwoFactorRecoveryCodeEntity>,
+    @InjectRepository(TwoFactorRecoveryKeyEntity)
+    private readonly recoveryKeyRepo: EntityRepository<TwoFactorRecoveryKeyEntity>,
   ) {
     this.em = this.recoveryCodeRepo.getEntityManager();
   }
@@ -178,7 +182,7 @@ export class TwoFactorService {
       }
 
       const normalizedCode = cleanCode.replace(/[-\s]/g, '').toUpperCase();
-      const codeHash = this.hashCode(normalizedCode);
+      const codeHash = await this.hashCode(normalizedCode);
 
       const affected = await this.recoveryCodeRepo.nativeUpdate(
         {
@@ -376,7 +380,7 @@ export class TwoFactorService {
     }
 
     const normalizedCode = cleanCode.replace(/[-\s]/g, '').toUpperCase();
-    const codeHash = this.hashCode(normalizedCode);
+    const codeHash = await this.hashCode(normalizedCode);
     const affected = await this.recoveryCodeRepo.nativeUpdate(
       {
         user: user.id,
@@ -415,7 +419,7 @@ export class TwoFactorService {
       const formatted = `${part1}-${part2}`;
       plainCodes.push(formatted);
 
-      const codeHash = this.hashCode(`${part1}${part2}`);
+      const codeHash = await this.hashCode(`${part1}${part2}`);
       const entity = this.recoveryCodeRepo.create({
         user: user.id,
         codeHash,
@@ -429,21 +433,19 @@ export class TwoFactorService {
     return plainCodes;
   }
 
-  private hashCode(normalizedCode: string): string {
+  private async hashCode(normalizedCode: string): Promise<string> {
     const masterKey = this.appService.MASTER_KEY;
     if (!masterKey) {
       throw new Error('MASTER_KEY is not configured');
     }
-    const derivedKey = deriveAes256KeyFromMasterKey(
-      masterKey,
-      TWO_FACTOR_RECOVERY_KEY_INFO,
+    const row = await this.recoveryKeyRepo.findOne({ id: 1 });
+    if (!row) {
+      throw new Error('Two-factor recovery key is not configured');
+    }
+    return hashRecoveryCode(
+      unwrapRecoveryHmacKey(masterKey, row.wrapped),
+      normalizedCode,
     );
-    const hmacHex = crypto
-      .createHmac('sha256', derivedKey)
-      .update(normalizedCode, 'utf8')
-      .digest('hex');
-
-    return `${CURRENT_RECOVERY_CODE_VERSION}:${hmacHex}`;
   }
 
   private async assertNotLocked(userId: number): Promise<void> {

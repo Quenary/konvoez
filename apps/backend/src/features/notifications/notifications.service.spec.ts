@@ -61,7 +61,9 @@ describe('NotificationsService', () => {
   let vapidKeyStorageService: jest.Mocked<
     Pick<
       VapidKeyStorageService,
-      'readVapidKeysFromDisk' | 'saveVapidKeysToDisk'
+      | 'readVapidKeysFromDisk'
+      | 'saveVapidKeysToDisk'
+      | 'assertCanGenerateVapidKeys'
     >
   >;
   let em: jest.Mocked<EntityManager>;
@@ -132,6 +134,7 @@ describe('NotificationsService', () => {
         privateKey: 'stored-priv',
       }),
       saveVapidKeysToDisk: jest.fn(),
+      assertCanGenerateVapidKeys: jest.fn(),
     };
 
     eventEmitter = {

@@ -10,8 +10,10 @@ import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
 import { TwoFactorService } from './two-factor.service';
 import { TwoFactorRecoveryCodeEntity } from './two-factor-recovery-code.entity';
+import { TwoFactorRecoveryKeyEntity } from './two-factor-recovery-key.entity';
 import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 import { totpAt } from './totp.util';
+import { wrapRecoveryHmacKey } from '@shared/master-key/hmac';
 
 describe('TwoFactorService', () => {
   let service: TwoFactorService;
@@ -215,6 +217,15 @@ describe('TwoFactorService', () => {
         {
           provide: getRepositoryToken(TwoFactorRecoveryCodeEntity),
           useValue: fakeRecoveryCodeRepo,
+        },
+        {
+          provide: getRepositoryToken(TwoFactorRecoveryKeyEntity),
+          useValue: {
+            findOne: jest.fn(async () => ({
+              id: 1,
+              wrapped: wrapRecoveryHmacKey(masterKey),
+            })),
+          },
         },
       ],
     }).compile();

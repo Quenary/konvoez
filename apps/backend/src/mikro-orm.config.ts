@@ -22,6 +22,7 @@ import {
 import { PasswordRecoveryCodeEntitySchema } from './features/auth/password-recovery-code.entity';
 import { EmailVerificationCodeEntitySchema } from './features/auth/email-verification-code.entity';
 import { TwoFactorRecoveryCodeEntitySchema } from './features/two-factor/two-factor-recovery-code.entity';
+import { TwoFactorRecoveryKeyEntitySchema } from './features/two-factor/two-factor-recovery-key.entity';
 import { MessageAttachmentEntitySchema } from './features/attachments/attachments.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { Migration20260801010402_InitialSchema } from './migrations/Migration20260801010402_InitialSchema';
@@ -45,6 +46,7 @@ import { Migration20261026100000_TwoFactor } from './migrations/Migration2026102
 import { Migration20261026172220_UserNotificationSettings } from './migrations/Migration20261026172220_UserNotificationSettings';
 import { Migration20261027192655_UserNotificationSettingsReplies } from './migrations/Migration20261027192655_UserNotificationSettingsReplies';
 import { Migration20261101000000_EmailVerification } from './migrations/Migration20261101000000_EmailVerification';
+import { Migration20261102004712_MasterKeyMessageContent } from './migrations/Migration20261102004712_MasterKeyMessageContent';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -68,6 +70,7 @@ export async function createMikroOrmConfig() {
       PasswordRecoveryCodeEntitySchema,
       EmailVerificationCodeEntitySchema,
       TwoFactorRecoveryCodeEntitySchema,
+      TwoFactorRecoveryKeyEntitySchema,
       MessageAttachmentEntitySchema,
       MessageReactionEntitySchema,
     ],
@@ -100,6 +103,7 @@ export async function createMikroOrmConfig() {
         Migration20261026172220_UserNotificationSettings,
         Migration20261027192655_UserNotificationSettingsReplies,
         Migration20261101000000_EmailVerification,
+        Migration20261102004712_MasterKeyMessageContent,
       ],
     },
   } satisfies Partial<Options>;

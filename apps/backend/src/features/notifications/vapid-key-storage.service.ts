@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { AppService } from '../../shared/services/app.service';
 import {
-  deriveAes256KeyFromMasterKey,
-  VAPID_KEY_STORAGE_INFO,
-} from '../../shared/utils/master-key.util';
+  decryptSecretBox,
+  encryptSecretBox,
+} from '../../shared/master-key/secret-box';
+import { VAPID_KEY_STORAGE_INFO } from '../../shared/utils/master-key.util';
 
 export type VapidKeyPair = {
   publicKey: string;
@@ -23,9 +23,90 @@ export class VapidKeyStorageService {
     return path.join(dir, 'vapid.json');
   }
 
+  assertCanGenerateVapidKeys(): void {
+    this.reconcileStagedVapidFile();
+    const filePath = this.getVapidFilePath();
+    if (fs.existsSync(filePath) && this.readVapidKeysFromDisk() === null) {
+      throw new Error('vapid.json exists but cannot be read');
+    }
+  }
+
   readVapidKeysFromDisk(): VapidKeyPair | null {
+    return this.readVapidKeysAt(this.getVapidFilePath());
+  }
+
+  saveVapidKeysToDisk(keys: VapidKeyPair): void {
+    this.assertCanGenerateVapidKeys();
+    const masterKey = this.appService.MASTER_KEY;
+    if (!masterKey) {
+      throw new Error('MASTER_KEY is not configured');
+    }
+
+    const filePath = this.getVapidFilePath();
+    const serialized = encryptSecretBox(
+      masterKey,
+      JSON.stringify(keys),
+      VAPID_KEY_STORAGE_INFO,
+    );
+    fs.writeFileSync(filePath, serialized, 'utf8');
+  }
+
+  private parseStoredVapidValue(rawValue: string): VapidKeyPair | null {
     try {
-      const filePath = this.getVapidFilePath();
+      const parsedJson = JSON.parse(rawValue) as VapidKeyPair;
+      if (this.isKeyPair(parsedJson)) {
+        return parsedJson;
+      }
+    } catch {
+      // Encrypted payload.
+    }
+
+    const masterKey = this.appService.MASTER_KEY;
+    if (!masterKey) {
+      return null;
+    }
+
+    if (!rawValue.startsWith('v1:')) {
+      return null;
+    }
+
+    try {
+      const decoded = decryptSecretBox(
+        masterKey,
+        rawValue,
+        VAPID_KEY_STORAGE_INFO,
+      );
+      const parsed = JSON.parse(decoded) as VapidKeyPair;
+      return this.isKeyPair(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private reconcileStagedVapidFile(): void {
+    const filePath = this.getVapidFilePath();
+    const stagedPath = `${filePath}.rotate`;
+    if (!fs.existsSync(stagedPath)) {
+      return;
+    }
+
+    const current = this.readVapidKeysAt(filePath);
+    const staged = this.readVapidKeysAt(stagedPath);
+    if (staged && !current) {
+      fs.renameSync(stagedPath, filePath);
+      return;
+    }
+    if (current) {
+      return;
+    }
+
+    throw new Error(
+      'vapid.json.rotate is present but neither file can be read',
+    );
+  }
+
+  private readVapidKeysAt(filePath: string): VapidKeyPair | null {
+    try {
       if (!fs.existsSync(filePath)) {
         return null;
       }
@@ -41,106 +122,11 @@ export class VapidKeyStorageService {
     }
   }
 
-  saveVapidKeysToDisk(keys: VapidKeyPair): void {
-    const filePath = this.getVapidFilePath();
-    const payload = JSON.stringify(keys);
-    const serialized = this.appService.MASTER_KEY
-      ? this.encryptVapidValue(payload)
-      : payload;
-
-    fs.writeFileSync(filePath, serialized, 'utf8');
-  }
-
-  private parseStoredVapidValue(rawValue: string): VapidKeyPair | null {
-    try {
-      const parsedJson = JSON.parse(rawValue) as {
-        publicKey?: string;
-        privateKey?: string;
-      };
-
-      if (
-        parsedJson &&
-        typeof parsedJson.publicKey === 'string' &&
-        typeof parsedJson.privateKey === 'string'
-      ) {
-        return {
-          publicKey: parsedJson.publicKey,
-          privateKey: parsedJson.privateKey,
-        };
-      }
-    } catch {
-      // Fallback: file may be encrypted with MASTER_KEY.
-    }
-
-    return this.decryptVapidValue(rawValue);
-  }
-
-  private encryptVapidValue(value: string): string {
-    const masterKey = this.appService.MASTER_KEY;
-    if (!masterKey) {
-      return value;
-    }
-
-    const key = deriveAes256KeyFromMasterKey(masterKey, VAPID_KEY_STORAGE_INFO);
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-
-    const encrypted = Buffer.concat([
-      cipher.update(Buffer.from(value, 'utf8')),
-      cipher.final(),
-    ]);
-    const authTag = cipher.getAuthTag();
-
-    return Buffer.concat([iv, authTag, encrypted]).toString('base64');
-  }
-
-  private decryptVapidValue(value: string): VapidKeyPair | null {
-    const masterKey = this.appService.MASTER_KEY;
-    if (!masterKey) {
-      return null;
-    }
-
-    try {
-      const raw = Buffer.from(value, 'base64');
-      if (raw.length <= 28) {
-        return null;
-      }
-
-      const key = deriveAes256KeyFromMasterKey(
-        masterKey,
-        VAPID_KEY_STORAGE_INFO,
-      );
-      const iv = raw.subarray(0, 12);
-      const authTag = raw.subarray(12, 28);
-      const encrypted = raw.subarray(28);
-
-      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-      decipher.setAuthTag(authTag);
-
-      const decoded = Buffer.concat([
-        decipher.update(encrypted),
-        decipher.final(),
-      ]).toString('utf8');
-
-      const parsed = JSON.parse(decoded) as {
-        publicKey?: string;
-        privateKey?: string;
-      };
-
-      if (
-        parsed &&
-        typeof parsed.publicKey === 'string' &&
-        typeof parsed.privateKey === 'string'
-      ) {
-        return {
-          publicKey: parsed.publicKey,
-          privateKey: parsed.privateKey,
-        };
-      }
-    } catch {
-      return null;
-    }
-
-    return null;
+  private isKeyPair(value: VapidKeyPair | null): value is VapidKeyPair {
+    return (
+      !!value &&
+      typeof value.publicKey === 'string' &&
+      typeof value.privateKey === 'string'
+    );
   }
 }

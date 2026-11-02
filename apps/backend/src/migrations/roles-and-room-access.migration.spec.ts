@@ -61,8 +61,8 @@ describe('RolesAndRoomAccess migration', () => {
        (zeroblob(16), 1, CURRENT_TIMESTAMP);`,
     );
 
-    // 3. Run the remaining migrations (including RolesAndRoomAccess)
-    await orm.migrator.up();
+    // 3. Run migrations through RolesAndRoomAccess
+    await orm.migrator.up({ to: 'Migration20261017170127_RolesAndRoomAccess' });
 
     const db = await conn.getNativeClient();
 

@@ -15,7 +15,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 3. When your change affects behavior, configuration, architecture, or contracts between packages, **update the matching documentation in the same change** — do not leave docs stale. Follow [Documentation style](#documentation-style).
 
 - Repo-wide conventions, Nx, scripts, env — `docs/CONTRIBUTING.md`
-- Security, auth, encryption, secrets — `docs/SECURITY.md`
+- Security, auth, encryption, secrets — `docs/SECURITY.md`, `docs/backend/KEY_ROTATION.md`
 - Backend, NestJS (`apps/backend`) — `apps/backend/AGENTS.md`
 - Frontend, Angular (`apps/frontend`) — `apps/frontend/AGENTS.md`
 - Frontend voice, streaming, audio pipeline — `docs/frontend/VOICE.md`, `docs/frontend/STREAMING.md`, `docs/frontend/NOISE_SUPPRESSION.md`

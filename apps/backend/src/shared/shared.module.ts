@@ -3,7 +3,6 @@ import { AppService } from './services/app.service';
 import { HashService } from './services/hash.service';
 import { S3Client, S3ClientConfig } from '@aws-sdk/client-s3';
 import { S3ClientInjectionToken } from './tokens/s3-client.token';
-import { EncryptionService } from './services/encryption.service';
 import { LocalObjectStorageService } from './services/local-object-storage.service';
 import { S3Service } from './services/s3.service';
 import type { FileService } from './services/file.service';
@@ -13,6 +12,7 @@ import { VideoProcessingService } from './services/video-processing.service';
 import { MailService } from './services/mail.service';
 import { VerifiedMailerService } from './services/verified-mailer.service';
 import { StorageNamingService } from './services/storage-naming.service';
+import { SearchTokenService } from './services/search-token.service';
 import { SecretBoxService } from './services/secret-box.service';
 
 @Global()
@@ -22,8 +22,8 @@ import { SecretBoxService } from './services/secret-box.service';
     HashService,
     MailService,
     VerifiedMailerService,
-    EncryptionService,
     SecretBoxService,
+    SearchTokenService,
     StorageNamingService,
     LocalObjectStorageService,
     S3Service,
@@ -67,8 +67,8 @@ import { SecretBoxService } from './services/secret-box.service';
     MailService,
     VerifiedMailerService,
     FileServiceInjectionToken,
-    EncryptionService,
     SecretBoxService,
+    SearchTokenService,
     ImageProcessingService,
     VideoProcessingService,
   ],

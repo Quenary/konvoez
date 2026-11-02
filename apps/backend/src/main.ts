@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { MikroORM } from '@mikro-orm/core';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { NotificationsService } from './features/notifications/notifications.service';
+import { runRotateMasterKeyCommand } from './shared/master-key/rotate-master-key';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -38,4 +39,13 @@ async function bootstrap() {
   server.requestTimeout = 15 * 60 * 1000;
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+
+async function main(): Promise<void> {
+  if (process.argv[2] === 'rotate-master-key') {
+    const code = await runRotateMasterKeyCommand(process.argv.slice(3));
+    process.exit(code);
+  }
+  await bootstrap();
+}
+
+void main();
