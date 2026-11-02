@@ -1,3 +1,21 @@
+## 1.28.0 (2026-11-02)
+
+### Features
+
+- **backend:** file secrets support ([89a7d73](https://github.com/Quenary/konvoez/commit/89a7d73))
+- **backend:** rotate MASTER_KEY without invalidating stored data ([#60](https://github.com/Quenary/konvoez/issues/60))
+- **server:** email verification, email security events ([#61](https://github.com/Quenary/konvoez/issues/61), [#62](https://github.com/Quenary/konvoez/issues/62))
+
+### Bug Fixes
+
+- **backend:** avoid a join per trigram in message search ([3e77508](https://github.com/Quenary/konvoez/commit/3e77508))
+
+### Code Refactoring
+
+- **backend:** replace PasswordService with HashService, add tests for HashService and EncryptionService ([056860e](https://github.com/Quenary/konvoez/commit/056860e))
+- **server:** lock env settings in the admin UI ([7bdda1d](https://github.com/Quenary/konvoez/commit/7bdda1d))
+- rm unused EUserRole ([25867ec](https://github.com/Quenary/konvoez/commit/25867ec))
+
 ## 1.27.0 (2026-10-30)
 
 ### Features
