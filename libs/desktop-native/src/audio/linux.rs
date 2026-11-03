@@ -178,11 +178,23 @@ fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStr
                     if let Some(slice) = data.data() {
                         if slice.len() >= chunk_size && chunk_size >= 4 {
                             let floats_len = chunk_size / 4;
-                            let floats: &[f32] = unsafe {
-                                std::slice::from_raw_parts(slice.as_ptr() as *const f32, floats_len)
-                            };
+                            let ptr = slice.as_ptr();
+                            let is_aligned =
+                                (ptr as usize).is_multiple_of(std::mem::align_of::<f32>());
                             if let Ok(mut q) = queue_clone.lock() {
-                                q.extend_from_slice(floats);
+                                if is_aligned {
+                                    // SAFETY: Checked pointer alignment and slice length
+                                    let floats: &[f32] = unsafe {
+                                        std::slice::from_raw_parts(ptr as *const f32, floats_len)
+                                    };
+                                    q.extend_from_slice(floats);
+                                } else {
+                                    // Fallback for unaligned SPA buffers
+                                    let (chunks, _) = slice[..floats_len * 4].as_chunks::<4>();
+                                    for bytes in chunks {
+                                        q.push(f32::from_ne_bytes(*bytes));
+                                    }
+                                }
                                 const MAX_SAMPLES: usize = 19200;
                                 if q.len() > MAX_SAMPLES {
                                     let overflow = q.len() - MAX_SAMPLES;
@@ -345,6 +357,10 @@ pub fn start_capture(
             let active_streams_timer = active_streams;
             let tsfn_clone = tsfn;
 
+            const CHUNK_FLOATS: usize = 960; // 10 ms at 48000 Hz stereo
+            let mixed_buffer = RefCell::new(vec![0.0f32; CHUNK_FLOATS]);
+            let stream_buffers = RefCell::new(Vec::<Vec<f32>>::new());
+
             let timer = mainloop.loop_().add_timer(move |_| {
                 if stopper_clone.load(Ordering::Relaxed) {
                     if let Some(ml) = ml_weak.upgrade() {
@@ -353,31 +369,37 @@ pub fn start_capture(
                     return;
                 }
 
-                const CHUNK_FLOATS: usize = 960; // 10 ms at 48000 Hz stereo
                 let streams_guard = active_streams_timer.borrow();
+                let mut ready_count = 0;
+                let mut stream_bufs = stream_buffers.borrow_mut();
 
-                let mut available_chunks: Vec<Vec<f32>> = Vec::new();
                 for active in streams_guard.values() {
                     if let Ok(mut q) = active.queue.lock() {
                         if q.len() >= CHUNK_FLOATS {
-                            let chunk: Vec<f32> = q.drain(0..CHUNK_FLOATS).collect();
-                            available_chunks.push(chunk);
+                            if stream_bufs.len() <= ready_count {
+                                stream_bufs.push(vec![0.0f32; CHUNK_FLOATS]);
+                            }
+                            stream_bufs[ready_count].copy_from_slice(&q[..CHUNK_FLOATS]);
+                            q.drain(0..CHUNK_FLOATS);
+                            ready_count += 1;
                         }
                     }
                 }
 
-                if available_chunks.is_empty() {
+                if ready_count == 0 {
                     return;
                 }
 
-                let final_bytes = if available_chunks.len() == 1 {
-                    crate::audio::float32_to_le_bytes(&available_chunks[0])
+                let final_bytes = if ready_count == 1 {
+                    crate::audio::float32_to_le_bytes(&stream_bufs[0])
                 } else {
-                    let mut mixed = vec![0.0f32; CHUNK_FLOATS];
-                    let slices: Vec<&[f32]> =
-                        available_chunks.iter().map(|c| c.as_slice()).collect();
-                    crate::audio::mix_audio_buffers(&slices, &mut mixed);
-                    crate::audio::float32_to_le_bytes(&mixed)
+                    let mut mixed_buf = mixed_buffer.borrow_mut();
+                    let slices: Vec<&[f32]> = stream_bufs[..ready_count]
+                        .iter()
+                        .map(|c| c.as_slice())
+                        .collect();
+                    crate::audio::mix_audio_buffers(&slices, &mut mixed_buf);
+                    crate::audio::float32_to_le_bytes(&mixed_buf)
                 };
 
                 let _ = tsfn_clone.call(
