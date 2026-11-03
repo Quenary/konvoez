@@ -291,6 +291,96 @@ pub fn x11_keycode_to_code(keycode: u8) -> Option<&'static str> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct X11WireKey {
+    pub code: &'static str,
+    pub down: bool,
+    pub time: [u8; 4],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EmittedKey {
+    pub code: &'static str,
+    pub down: bool,
+    pub repeat: bool,
+}
+
+const X11_KEY_PRESS: u8 = 2;
+const X11_KEY_RELEASE: u8 = 3;
+
+/// Reads X11 core key events out of one XRecord reply.
+/// Timestamps are compared as raw wire bytes, so endianness does not matter.
+pub fn parse_x11_record_keys(data: &[u8]) -> Vec<X11WireKey> {
+    let mut events = Vec::new();
+    let mut rest = data;
+    while !rest.is_empty() {
+        let event_type = rest[0];
+        if event_type == X11_KEY_PRESS || event_type == X11_KEY_RELEASE {
+            if rest.len() < 32 {
+                break;
+            }
+            let keycode = rest[1];
+            if let Some(code) = x11_keycode_to_code(keycode) {
+                let mut time = [0u8; 4];
+                time.copy_from_slice(&rest[4..8]);
+                events.push(X11WireKey {
+                    code,
+                    down: event_type == X11_KEY_PRESS,
+                    time,
+                });
+            }
+            rest = &rest[32..];
+        } else if event_type == 0 {
+            if rest.len() < 8 {
+                break;
+            }
+            let Ok(length) = rest[4..8].try_into().map(u32::from_ne_bytes) else {
+                break;
+            };
+            let total = (length as usize).saturating_mul(4).saturating_add(32);
+            if rest.len() < total {
+                break;
+            }
+            rest = &rest[total..];
+        } else if rest.len() < 32 {
+            break;
+        } else {
+            rest = &rest[32..];
+        }
+    }
+    events
+}
+
+/// Collapses X11 detectable autorepeat (release + press, same key, same time)
+/// into one repeated press. A real release stays a release.
+pub fn coalesce_x11_autorepeat(events: &[X11WireKey]) -> Vec<EmittedKey> {
+    let mut emitted = Vec::with_capacity(events.len());
+    let mut index = 0;
+    while index < events.len() {
+        let event = events[index];
+        if !event.down {
+            if let Some(next) = events.get(index + 1) {
+                if next.down && next.code == event.code && next.time == event.time {
+                    emitted.push(EmittedKey {
+                        code: event.code,
+                        down: true,
+                        repeat: true,
+                    });
+                    index += 2;
+                    continue;
+                }
+            }
+        }
+        emitted.push(EmittedKey {
+            code: event.code,
+            down: event.down,
+            repeat: false,
+        });
+        index += 1;
+    }
+    emitted
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,5 +425,44 @@ mod tests {
         assert_eq!(x11_keycode_to_code(104), Some("NumpadEnter"));
         assert_eq!(x11_keycode_to_code(65), Some("Space"));
         assert_eq!(x11_keycode_to_code(255), None);
+    }
+
+    fn wire_key(kind: u8, keycode: u8, time: [u8; 4]) -> [u8; 32] {
+        let mut event = [0u8; 32];
+        event[0] = kind;
+        event[1] = keycode;
+        event[4..8].copy_from_slice(&time);
+        event
+    }
+
+    #[test]
+    fn test_x11_autorepeat_collapses_same_timestamp_pair() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&wire_key(2, 38, [1, 2, 3, 4]));
+        data.extend_from_slice(&wire_key(3, 38, [9, 9, 9, 9]));
+        data.extend_from_slice(&wire_key(2, 38, [9, 9, 9, 9]));
+        data.extend_from_slice(&wire_key(3, 38, [5, 5, 5, 5]));
+
+        let emitted = coalesce_x11_autorepeat(&parse_x11_record_keys(&data));
+        assert_eq!(
+            emitted,
+            vec![
+                EmittedKey {
+                    code: "KeyA",
+                    down: true,
+                    repeat: false,
+                },
+                EmittedKey {
+                    code: "KeyA",
+                    down: true,
+                    repeat: true,
+                },
+                EmittedKey {
+                    code: "KeyA",
+                    down: false,
+                    repeat: false,
+                },
+            ]
+        );
     }
 }

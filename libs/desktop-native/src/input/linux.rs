@@ -1,4 +1,4 @@
-use crate::input::{x11_keycode_to_code, KeyHookThread};
+use crate::input::{coalesce_x11_autorepeat, parse_x11_record_keys, KeyHookThread};
 use crate::KeyEvent;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
@@ -8,7 +8,6 @@ use x11rb::connection::{Connection, RequestConnection};
 use x11rb::protocol::record::{self, ConnectionExt as _};
 use x11rb::protocol::xproto;
 use x11rb::wrapper::ConnectionExt;
-use x11rb::x11_utils::TryParse;
 
 pub fn is_supported() -> bool {
     // Wayland sessions do not support XRecord passive global hooks
@@ -130,45 +129,15 @@ pub fn start_hook(
                 };
 
                 if reply.category == RECORD_FROM_SERVER {
-                    let mut data = &reply.data[..];
-                    while !data.is_empty() {
-                        let event_type = data[0];
-                        if event_type == xproto::KEY_PRESS_EVENT
-                            || event_type == xproto::KEY_RELEASE_EVENT
-                        {
-                            if data.len() < 32 {
-                                break;
-                            }
-                            let keycode = data[1];
-                            let is_down = event_type == xproto::KEY_PRESS_EVENT;
-                            if let Some(code_name) = x11_keycode_to_code(keycode) {
-                                let _ = tsfn.call(
-                                    KeyEvent {
-                                        code: code_name.to_string(),
-                                        down: is_down,
-                                    },
-                                    ThreadsafeFunctionCallMode::NonBlocking,
-                                );
-                            }
-                            data = &data[32..];
-                        } else if event_type == 0 {
-                            if data.len() < 8 {
-                                break;
-                            }
-                            let Ok((length, _)) = u32::try_parse(&data[4..]) else {
-                                break;
-                            };
-                            let total = (length as usize) * 4 + 32;
-                            if data.len() < total {
-                                break;
-                            }
-                            data = &data[total..];
-                        } else {
-                            if data.len() < 32 {
-                                break;
-                            }
-                            data = &data[32..];
-                        }
+                    for event in coalesce_x11_autorepeat(&parse_x11_record_keys(&reply.data)) {
+                        let _ = tsfn.call(
+                            KeyEvent {
+                                code: event.code.to_string(),
+                                down: event.down,
+                                repeat: event.repeat,
+                            },
+                            ThreadsafeFunctionCallMode::NonBlocking,
+                        );
                     }
                 }
             }

@@ -54,6 +54,8 @@ impl Drop for AudioCaptureHandle {
 pub struct KeyEvent {
     pub code: String,
     pub down: bool,
+    /// True when the event is an autorepeat of a key that is already held.
+    pub repeat: bool,
 }
 
 #[napi]

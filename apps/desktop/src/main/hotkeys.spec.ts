@@ -169,6 +169,11 @@ describe('applyHotkeys', () => {
       listener({ code: 'KeyM', down: true });
       expect(onCommand).toHaveBeenCalledTimes(1);
 
+      // X11 detectable autorepeat is release + press. The press is marked repeat.
+      listener({ code: 'KeyM', down: false });
+      listener({ code: 'KeyM', down: true, repeat: true });
+      expect(onCommand).toHaveBeenCalledTimes(1);
+
       // Release KeyM and modifiers
       listener({ code: 'KeyM', down: false });
       listener({ code: 'ControlLeft', down: false });

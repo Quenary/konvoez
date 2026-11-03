@@ -34,6 +34,7 @@ unsafe extern "system" fn ll_keyboard_proc(code: i32, wparam: WPARAM, lparam: LP
                                 KeyEvent {
                                     code: code_name.to_string(),
                                     down: is_down,
+                                    repeat: false,
                                 },
                                 ThreadsafeFunctionCallMode::NonBlocking,
                             );

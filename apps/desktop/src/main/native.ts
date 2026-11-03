@@ -31,7 +31,11 @@ export interface INativeModule {
     callback: (chunk: Buffer) => void,
   ): AudioCaptureHandle;
   startKeyHook(
-    callback: (event: { code: string; down: boolean }) => void,
+    callback: (event: {
+      code: string;
+      down: boolean;
+      repeat?: boolean;
+    }) => void,
   ): KeyHookHandle;
 }
 

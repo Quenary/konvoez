@@ -75,7 +75,7 @@ export function normalizeAccelerator(
 }
 
 export function handleNativeKeyEvent(
-  event: { code: string; down: boolean },
+  event: { code: string; down: boolean; repeat?: boolean },
   onCommand: (command: EDesktopCommand) => void,
 ): void {
   if (!event.down) {
@@ -83,8 +83,10 @@ export function handleNativeKeyEvent(
     return;
   }
 
-  // Prevent auto-repeat while key is held down
-  if (pressedKeys.has(event.code)) {
+  // Windows repeats KEYDOWN while a key is held. X11 detectable autorepeat
+  // is a release plus a press with the same timestamp, marked `repeat`.
+  if (event.repeat || pressedKeys.has(event.code)) {
+    pressedKeys.add(event.code);
     return;
   }
   pressedKeys.add(event.code);
