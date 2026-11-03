@@ -45,7 +45,7 @@ flowchart LR
   desktop --> native
 ```
 
-`apps/frontend` must not import `@konvoez/ui-kit` or `@konvoez/client-dialogs`.
+`apps/frontend` must not import `@konvoez/ui-kit` or `@konvoez/client-dialogs`. `nx build desktop` does not build `desktop-native`; the packaged app includes a `.node` only when that library was built separately.
 
 ## Getting started
 

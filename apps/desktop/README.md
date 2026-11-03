@@ -19,6 +19,8 @@ npx nx run desktop:serve
 npx nx run desktop:package
 ```
 
+`nx build desktop` does not require Rust. `desktop:package` includes `konvoez-native.*.node` when `npx nx run desktop-native:build` has already produced it.
+
 Release tags `desktop-v*` publish installers via GitHub Actions; `electron-updater` checks on startup and in the background (restart prompt deferred during an active voice call).
 
 ## Usage
