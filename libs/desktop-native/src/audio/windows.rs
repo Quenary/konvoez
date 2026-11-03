@@ -8,7 +8,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use windows::Win32::Foundation::NTSTATUS;
-use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND, S_OK};
+use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler, IActivateAudioInterfaceCompletionHandler_Impl,
@@ -79,7 +79,9 @@ impl ComScope {
         // SAFETY: Initializing COM on the background capture thread.
         let hr = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         Self {
-            initialized: hr == S_OK,
+            // S_FALSE means this thread already initialized COM. Both successes
+            // need a matching CoUninitialize.
+            initialized: hr.is_ok(),
         }
     }
 }
