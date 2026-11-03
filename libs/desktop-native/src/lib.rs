@@ -3,6 +3,7 @@ use napi_derive::napi;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 pub mod audio;
 pub mod input;
@@ -83,9 +84,27 @@ impl KeyHookHandle {
         }
         if let Ok(mut guard) = self.thread_handle.lock() {
             if let Some(handle) = guard.take() {
-                let _ = handle.join();
+                // The X11 data thread blocks in the RECORD iterator until disable
+                // returns. Cap the wait so a stuck server cannot freeze the app.
+                join_for(handle, Duration::from_secs(1));
             }
         }
+    }
+}
+
+fn join_for(handle: JoinHandle<()>, timeout: Duration) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let waiter = std::thread::Builder::new()
+        .name("key-hook-join".to_string())
+        .spawn(move || {
+            let _ = handle.join();
+            let _ = tx.send(());
+        });
+    let Ok(waiter) = waiter else {
+        return;
+    };
+    if rx.recv_timeout(timeout).is_ok() {
+        let _ = waiter.join();
     }
 }
 

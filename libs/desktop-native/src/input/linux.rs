@@ -9,6 +9,12 @@ use x11rb::protocol::record::{self, ConnectionExt as _};
 use x11rb::protocol::xproto;
 use x11rb::wrapper::ConnectionExt;
 
+fn release_record_context(conn: &impl Connection, context: u32) {
+    let _ = conn.record_disable_context(context);
+    let _ = conn.record_free_context(context);
+    let _ = conn.sync();
+}
+
 pub fn is_supported() -> bool {
     // Wayland sessions do not support XRecord passive global hooks
     if std::env::var("XDG_SESSION_TYPE")
@@ -88,22 +94,34 @@ pub fn start_hook(
         client_died: false,
     };
 
-    ctrl_conn
+    if let Err(err) = ctrl_conn
         .record_create_context(rc, 0, &[record::CS::ALL_CLIENTS.into()], &[range])
-        .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?
-        .check()
-        .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
+        .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))
+        .and_then(|cookie| {
+            cookie
+                .check()
+                .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))
+        })
+    {
+        release_record_context(&ctrl_conn, rc);
+        return Err(err);
+    }
 
-    let tsfn = Arc::new(
-        callback
-            .build_threadsafe_function()
-            .callee_handled::<false>()
-            .build()?,
-    );
+    let tsfn = match callback
+        .build_threadsafe_function()
+        .callee_handled::<false>()
+        .build()
+    {
+        Ok(tsfn) => Arc::new(tsfn),
+        Err(err) => {
+            release_record_context(&ctrl_conn, rc);
+            return Err(err);
+        }
+    };
 
     let stopper_data = stopper.clone();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
-    let handle = std::thread::Builder::new()
+    let handle = match std::thread::Builder::new()
         .name("x11-key-hook".to_string())
         .spawn(move || {
             const RECORD_FROM_SERVER: u8 = 0;
@@ -147,16 +165,24 @@ pub fn start_hook(
                 Status::GenericFailure,
                 format!("Failed to spawn X11 hook thread: {e}"),
             )
-        })?;
+        }) {
+        Ok(handle) => handle,
+        Err(err) => {
+            release_record_context(&ctrl_conn, rc);
+            return Err(err);
+        }
+    };
 
     match ready_rx.recv() {
         Ok(Ok(())) => {}
         Ok(Err(message)) => {
             let _ = handle.join();
+            release_record_context(&ctrl_conn, rc);
             return Err(Error::new(Status::GenericFailure, message));
         }
         Err(err) => {
             let _ = handle.join();
+            release_record_context(&ctrl_conn, rc);
             return Err(Error::new(
                 Status::GenericFailure,
                 format!("Failed to initialize X11 key hook: {err}"),
@@ -165,8 +191,7 @@ pub fn start_hook(
     }
 
     let on_stop: Box<dyn FnOnce() + Send> = Box::new(move || {
-        let _ = ctrl_conn.record_disable_context(rc);
-        let _ = ctrl_conn.sync();
+        release_record_context(&ctrl_conn, rc);
     });
 
     Ok(KeyHookThread { handle, on_stop })
