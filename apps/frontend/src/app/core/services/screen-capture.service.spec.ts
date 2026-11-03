@@ -333,6 +333,7 @@ describe('ScreenCaptureService', () => {
       service.release();
       expect(mockPort.postMessage).toHaveBeenCalledWith('stop');
       expect(mockPort.close).toHaveBeenCalled();
+      expect(capturedTrack.stop).toHaveBeenCalled();
     });
   });
 });

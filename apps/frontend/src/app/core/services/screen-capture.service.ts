@@ -192,13 +192,12 @@ export class ScreenCaptureService implements OnDestroy {
     if (this.stream) {
       this.stream.getTracks().forEach((t) => t.stop());
       this.stream = null;
-    } else {
-      if (video && video.readyState !== 'ended') {
-        video.stop();
-      }
-      if (audio && audio.readyState !== 'ended') {
-        audio.stop();
-      }
+    }
+    if (video && video.readyState !== 'ended') {
+      video.stop();
+    }
+    if (audio && audio.readyState !== 'ended') {
+      audio.stop();
     }
   }
 }
