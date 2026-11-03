@@ -1,64 +1,90 @@
-use crate::input::{windows_vk_to_code, KeyHookThread};
+use crate::input::{windows_vk_to_code, KeyHookThread, KeySlotQueue};
 use crate::KeyEvent;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, PeekMessageW, PostThreadMessageW,
     SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG,
-    PM_NOREMOVE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    PM_NOREMOVE, WH_KEYBOARD_LL, WM_APP, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
+const KEY_QUEUE_CAP: usize = 256;
+
 type KeyHookTsfn = ThreadsafeFunction<KeyEvent, (), KeyEvent, Status, false>;
-static HOOK_TSFN: Mutex<Option<Arc<KeyHookTsfn>>> = Mutex::new(None);
+
+thread_local! {
+    static KEY_QUEUE: RefCell<KeySlotQueue<KEY_QUEUE_CAP>> =
+        const { RefCell::new(KeySlotQueue::new()) };
+}
+
+fn enqueue_key(code: &'static str, down: bool) {
+    KEY_QUEUE.with(|queue| queue.borrow_mut().push(code, down));
+}
+
+fn drain_keys(tsfn: &KeyHookTsfn) {
+    let mut pending = [None; KEY_QUEUE_CAP];
+    let mut count = 0;
+    KEY_QUEUE.with(|queue| {
+        let mut queue = queue.borrow_mut();
+        while count < pending.len() {
+            let Some(slot) = queue.pop() else {
+                break;
+            };
+            pending[count] = Some(slot);
+            count += 1;
+        }
+    });
+    for slot in pending.into_iter().take(count).flatten() {
+        let _ = tsfn.call(
+            KeyEvent {
+                code: slot.0.to_string(),
+                down: slot.1,
+                repeat: false,
+            },
+            ThreadsafeFunctionCallMode::NonBlocking,
+        );
+    }
+}
 
 // SAFETY: Windows low-level keyboard hook callback.
-// Always calls CallNextHookEx so keys are never consumed or swallowed.
+// The procedure only records the key and wakes the hook thread, then passes
+// the event on. JS runs later, from the message loop, so a slow callback
+// cannot stall the keyboard.
 unsafe extern "system" fn ll_keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let msg = wparam.0 as u32;
         let is_down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
         let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
-
-        if is_down || is_up {
-            if lparam.0 != 0 {
-                let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
-                let extended = (kbd.flags.0 & 1) != 0;
-                if let Some(code_name) = windows_vk_to_code(kbd.vkCode, extended) {
-                    if let Ok(guard) = HOOK_TSFN.lock() {
-                        if let Some(ref tsfn) = *guard {
-                            let _ = tsfn.call(
-                                KeyEvent {
-                                    code: code_name.to_string(),
-                                    down: is_down,
-                                    repeat: false,
-                                },
-                                ThreadsafeFunctionCallMode::NonBlocking,
-                            );
-                        }
-                    }
-                }
+        if (is_down || is_up) && lparam.0 != 0 {
+            // SAFETY: `lparam` points at a `KBDLLHOOKSTRUCT` for a low-level keyboard hook.
+            let kbd = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
+            let extended = (kbd.flags.0 & 1) != 0;
+            if let Some(code_name) = windows_vk_to_code(kbd.vkCode, extended) {
+                enqueue_key(code_name, is_down);
+                // SAFETY: this procedure runs on the thread that installed the hook.
+                let tid = unsafe { GetCurrentThreadId() };
+                let _ = unsafe { PostThreadMessageW(tid, WM_APP, WPARAM(0), LPARAM(0)) };
             }
         }
     }
 
     // SAFETY: Pass event down the hook chain unconditionally
-    CallNextHookEx(None, code, wparam, lparam)
+    unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
 pub fn start_hook(
     callback: Function<KeyEvent, ()>,
     stopper: Arc<AtomicBool>,
 ) -> Result<KeyHookThread> {
-    let tsfn = Arc::new(
-        callback
-            .build_threadsafe_function()
-            .callee_handled::<false>()
-            .build()?,
-    );
+    let tsfn = callback
+        .build_threadsafe_function()
+        .callee_handled::<false>()
+        .build()?;
 
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<u32, String>>();
     let stopper_for_thread = stopper;
@@ -95,9 +121,6 @@ pub fn start_hook(
                     }
                 };
 
-            if let Ok(mut guard) = HOOK_TSFN.lock() {
-                *guard = Some(tsfn);
-            }
             let _ = ready_tx.send(Ok(tid));
 
             // Standard Win32 message loop required for WH_KEYBOARD_LL
@@ -112,11 +135,7 @@ pub fn start_hook(
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
                 }
-            }
-
-            // Cleanup
-            if let Ok(mut guard) = HOOK_TSFN.lock() {
-                *guard = None;
+                drain_keys(&tsfn);
             }
 
             // SAFETY: Unhooking the global keyboard hook

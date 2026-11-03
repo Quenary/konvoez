@@ -381,9 +381,69 @@ pub fn coalesce_x11_autorepeat(events: &[X11WireKey]) -> Vec<EmittedKey> {
     emitted
 }
 
+/// Fixed queue of key events for the low-level hook.
+/// One slot stays empty so full and empty differ. A full queue drops the oldest event.
+/// `N` is at least 2.
+pub struct KeySlotQueue<const N: usize> {
+    slots: [Option<(&'static str, bool)>; N],
+    head: usize,
+    tail: usize,
+}
+
+impl<const N: usize> KeySlotQueue<N> {
+    pub const fn new() -> Self {
+        Self {
+            slots: [None; N],
+            head: 0,
+            tail: 0,
+        }
+    }
+
+    pub fn push(&mut self, code: &'static str, down: bool) {
+        let next = (self.tail + 1) % N;
+        if next == self.head {
+            self.slots[self.head] = None;
+            self.head = (self.head + 1) % N;
+        }
+        self.slots[self.tail] = Some((code, down));
+        self.tail = next;
+    }
+
+    pub fn pop(&mut self) -> Option<(&'static str, bool)> {
+        if self.head == self.tail {
+            return None;
+        }
+        let slot = self.slots[self.head].take();
+        self.head = (self.head + 1) % N;
+        slot
+    }
+}
+
+impl<const N: usize> Default for KeySlotQueue<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_key_slot_queue_drops_oldest_when_full() {
+        let mut queue = KeySlotQueue::<4>::new();
+        assert_eq!(queue.pop(), None);
+
+        queue.push("KeyA", true);
+        queue.push("KeyB", true);
+        queue.push("KeyC", false);
+        queue.push("KeyD", true);
+
+        assert_eq!(queue.pop(), Some(("KeyB", true)));
+        assert_eq!(queue.pop(), Some(("KeyC", false)));
+        assert_eq!(queue.pop(), Some(("KeyD", true)));
+        assert_eq!(queue.pop(), None);
+    }
 
     #[test]
     fn test_windows_vk_mapping() {
