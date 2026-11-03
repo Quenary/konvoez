@@ -74,11 +74,19 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
       ) {
         float32View = new Float32Array(data);
       } else if (ArrayBuffer.isView(data) || data?.buffer) {
-        float32View = new Float32Array(
-          data.buffer,
-          data.byteOffset || 0,
-          Math.floor((data.byteLength || 0) / 4),
-        );
+        const offset = data.byteOffset || 0;
+        const byteLen = data.byteLength || 0;
+        if (offset % 4 === 0) {
+          float32View = new Float32Array(
+            data.buffer,
+            offset,
+            Math.floor(byteLen / 4),
+          );
+        } else {
+          // Unaligned slice: copy bytes into an aligned buffer to avoid RangeError
+          const slice = data.buffer.slice(offset, offset + byteLen);
+          float32View = new Float32Array(slice);
+        }
       }
 
       if (float32View && float32View.length > 0) {
@@ -88,19 +96,33 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
   }
 
   pushSamples(samples) {
-    const len = samples.length;
+    let toPush = samples;
+    // If chunk exceeds total ring buffer capacity, keep only the most recent samples
+    if (toPush.length > this.capacity) {
+      let excess = toPush.length - this.capacity;
+      if (excess % 2 !== 0) {
+        excess += 1; // Preserve stereo interleaved alignment
+      }
+      toPush = toPush.subarray(excess);
+    }
+
+    const len = toPush.length;
     if (len === 0) return;
 
     // Bound latency: if ring buffer would overflow, drop oldest unread samples
     if (this.available + len > this.capacity) {
-      const overflow = this.available + len - this.capacity;
+      let overflow = this.available + len - this.capacity;
+      // Ensure stereo phase alignment: always drop an even number of samples
+      if (overflow % 2 !== 0) {
+        overflow += 1;
+      }
       this.readPos = (this.readPos + overflow) % this.capacity;
-      this.available -= overflow;
+      this.available = Math.max(0, this.available - overflow);
     }
 
     // Write circular
     for (let i = 0; i < len; i++) {
-      this.ringBuffer[this.writePos] = samples[i];
+      this.ringBuffer[this.writePos] = toPush[i];
       this.writePos = (this.writePos + 1) % this.capacity;
     }
     this.available += len;

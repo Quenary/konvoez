@@ -128,6 +128,70 @@ describe('pcm-screen-audio.worklet', () => {
     expect(active).toBe(true);
   });
 
+  it('preserves stereo channel alignment (left/right) when overflow drops samples', () => {
+    const Ctor = loadProcessor();
+    const processor = new Ctor();
+
+    let portMessageListener: ((event: { data?: unknown }) => void) | null =
+      null;
+    const mockAudioPort = {
+      set onmessage(fn: (event: { data?: unknown }) => void) {
+        portMessageListener = fn;
+      },
+      close: vi.fn(),
+    };
+    processor.port.onmessage?.({ data: mockAudioPort });
+
+    // Pre-fill buffer close to capacity: 9500 samples
+    const fill = new Float32Array(9500);
+    for (let i = 0; i < 9500; i += 2) {
+      fill[i] = 1.0; // Left
+      fill[i + 1] = -1.0; // Right
+    }
+    portMessageListener?.({ data: fill });
+
+    // Push odd-length chunk of 201 samples to trigger overflow with odd value
+    const oddChunk = new Float32Array(201);
+    for (let i = 0; i < 200; i += 2) {
+      oddChunk[i] = 0.5; // Left
+      oddChunk[i + 1] = -0.5; // Right
+    }
+    oddChunk[200] = 0.5;
+    portMessageListener?.({ data: oddChunk });
+
+    // Process one quantum (128 frames = 256 samples)
+    const outLeft = new Float32Array(128);
+    const outRight = new Float32Array(128);
+    processor.process([], [[outLeft, outRight]]);
+
+    // Left channel should be positive (1.0 or 0.5), right should be negative (-1.0 or -0.5)
+    expect(outLeft[0]).toBeGreaterThan(0);
+    expect(outRight[0]).toBeLessThan(0);
+  });
+
+  it('handles unaligned byteOffset in views without throwing RangeError', () => {
+    const Ctor = loadProcessor();
+    const processor = new Ctor();
+
+    let portMessageListener: ((event: { data?: unknown }) => void) | null =
+      null;
+    const mockAudioPort = {
+      set onmessage(fn: (event: { data?: unknown }) => void) {
+        portMessageListener = fn;
+      },
+      close: vi.fn(),
+    };
+    processor.port.onmessage?.({ data: mockAudioPort });
+
+    // Create a buffer with unaligned byteOffset (e.g. 1 byte offset)
+    const rawBuffer = new ArrayBuffer(2000);
+    const unalignedView = new Uint8Array(rawBuffer, 1, 1000);
+
+    expect(() => {
+      portMessageListener?.({ data: unalignedView });
+    }).not.toThrow();
+  });
+
   it('stops and returns false when stop command is received', () => {
     const Ctor = loadProcessor();
     const processor = new Ctor();
