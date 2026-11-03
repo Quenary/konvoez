@@ -14,10 +14,15 @@ function resolveAppVersion(): string {
   return arg ? arg.slice(prefix.length) : '0.0.0';
 }
 
+function hasNativeAudio(): boolean {
+  return process.argv.includes('--konvoez-native-audio');
+}
+
 const bridge: IKonvoezDesktopBridge = {
   apiVersion: DESKTOP_BRIDGE_API_VERSION,
   platform: process.platform === 'win32' ? 'win32' : 'linux',
   appVersion: resolveAppVersion(),
+  nativeAudio: hasNativeAudio(),
   notify: (payload: TPushNotificationPayload) => {
     ipcRenderer.send(EDesktopIpc.NOTIFY, payload);
   },
@@ -29,6 +34,17 @@ const bridge: IKonvoezDesktopBridge = {
   },
   quitReady: () => {
     ipcRenderer.send(EDesktopIpc.QUIT_READY);
+  },
+  onScreenAudioPort: (listener: (port: MessagePort) => void) => {
+    const handler = (event: Electron.IpcRendererEvent) => {
+      if (event.ports && event.ports[0]) {
+        listener(event.ports[0]);
+      }
+    };
+    ipcRenderer.on(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
+    return () => {
+      ipcRenderer.removeListener(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
+    };
   },
   onCommand: (listener: (command: EDesktopCommand) => void) => {
     const handler = (_: unknown, command: EDesktopCommand) => listener(command);

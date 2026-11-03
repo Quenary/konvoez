@@ -7,6 +7,8 @@ import {
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
 import { SettingsStore } from '@core/stores/settings.store';
+import { getDesktopBridge } from '@core/desktop/desktop-bridge';
+import { ensureWorkletModule } from '@core/audio/ensure-worklet-module';
 import { MediaDevicesService } from './media-devices.service';
 
 export type TScreenCaptureResult = {
@@ -32,6 +34,10 @@ export class ScreenCaptureService implements OnDestroy {
   private videoTrack: MediaStreamTrack | null = null;
   private audioTrack: MediaStreamTrack | null = null;
 
+  private audioContext: AudioContext | null = null;
+  private workletNode: AudioWorkletNode | null = null;
+  private screenAudioPort: MessagePort | null = null;
+
   public isSupported(): boolean {
     return this.mediaDevicesService.isDisplayMediaSupported();
   }
@@ -54,6 +60,24 @@ export class ScreenCaptureService implements OnDestroy {
 
     this.release();
 
+    const bridge = getDesktopBridge();
+    const useNativeAudio = Boolean(bridge?.nativeAudio);
+
+    let portPromise: Promise<MessagePort | null> | null = null;
+    let cleanupPortListener: (() => void) | undefined;
+
+    if (useNativeAudio) {
+      portPromise = new Promise<MessagePort | null>((resolve) => {
+        const timer = setTimeout(() => {
+          resolve(null);
+        }, 2000);
+        cleanupPortListener = bridge?.onScreenAudioPort?.((port) => {
+          clearTimeout(timer);
+          resolve(port);
+        });
+      });
+    }
+
     const stream = await this.mediaDevicesService.getDisplayMedia({
       video: {
         height: { ideal: height },
@@ -64,6 +88,7 @@ export class ScreenCaptureService implements OnDestroy {
 
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) {
+      cleanupPortListener?.();
       stream.getTracks().forEach((t) => t.stop());
       throw new Error('Screen share has no video track');
     }
@@ -76,7 +101,46 @@ export class ScreenCaptureService implements OnDestroy {
       // best-effort
     }
 
-    const audioTrack = stream.getAudioTracks()[0] ?? null;
+    let audioTrack: MediaStreamTrack | null = null;
+
+    if (useNativeAudio && portPromise) {
+      const port = await portPromise;
+      cleanupPortListener?.();
+
+      if (port) {
+        try {
+          const audioContext = new AudioContext({ sampleRate: 48000 });
+          this.audioContext = audioContext;
+          await ensureWorkletModule(
+            audioContext,
+            'audio/pcm-screen-audio.worklet.js',
+          );
+          const workletNode = new AudioWorkletNode(
+            audioContext,
+            'konvoez/pcm-screen-audio',
+            {
+              numberOfInputs: 0,
+              numberOfOutputs: 1,
+              outputChannelCount: [2],
+            },
+          );
+          workletNode.port.postMessage(port, [port]);
+          const destNode = audioContext.createMediaStreamDestination();
+          workletNode.connect(destNode);
+
+          this.workletNode = workletNode;
+          this.screenAudioPort = port;
+          audioTrack = destNode.stream.getAudioTracks()[0] ?? null;
+        } catch (err) {
+          console.warn(
+            '[ScreenCapture] Failed to initialize native audio worklet:',
+            err,
+          );
+        }
+      }
+    } else {
+      audioTrack = stream.getAudioTracks()[0] ?? null;
+    }
 
     this.stream = stream;
     this.videoTrack = videoTrack;
@@ -96,6 +160,35 @@ export class ScreenCaptureService implements OnDestroy {
     const audio = this.audioTrack;
     this.videoTrack = null;
     this.audioTrack = null;
+
+    if (this.screenAudioPort) {
+      try {
+        this.screenAudioPort.postMessage('stop');
+        this.screenAudioPort.close();
+      } catch {
+        // best-effort
+      }
+      this.screenAudioPort = null;
+    }
+
+    if (this.workletNode) {
+      try {
+        this.workletNode.disconnect();
+      } catch {
+        // best-effort
+      }
+      this.workletNode = null;
+    }
+
+    if (this.audioContext) {
+      try {
+        void this.audioContext.close();
+      } catch {
+        // best-effort
+      }
+      this.audioContext = null;
+    }
+
     if (this.stream) {
       this.stream.getTracks().forEach((t) => t.stop());
       this.stream = null;

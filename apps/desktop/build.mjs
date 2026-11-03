@@ -77,6 +77,24 @@ async function build() {
     fs.copyFileSync(src, dest);
   }
 
+  // Copy native addons if built
+  const nativeDistDir = path.resolve(distDir, 'native');
+  fs.mkdirSync(nativeDistDir, { recursive: true });
+  const rootNativeDist = path.resolve(__dirname, '../../dist/native');
+  const libNativeDir = path.resolve(__dirname, '../../libs/desktop-native');
+  for (const searchDir of [rootNativeDist, libNativeDir]) {
+    if (fs.existsSync(searchDir)) {
+      for (const file of fs.readdirSync(searchDir)) {
+        if (file.endsWith('.node')) {
+          const src = path.resolve(searchDir, file);
+          const dest = path.resolve(nativeDistDir, file);
+          fs.copyFileSync(src, dest);
+          console.log(`[Desktop Build] Copied native addon: ${file}`);
+        }
+      }
+    }
+  }
+
   // 2. Build Main Process
   console.log('[Desktop Build] Bundling main process...');
   await esbuild.build({
@@ -86,7 +104,7 @@ async function build() {
     target: 'node22',
     format: 'cjs',
     outfile: path.resolve(distDir, 'main.js'),
-    external: ['electron'],
+    external: ['electron', '*.node'],
     sourcemap: isDev,
     minify: !isDev,
     alias: libAliases,

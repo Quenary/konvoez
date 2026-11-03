@@ -22,6 +22,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Frontend chat message list (virtual scroll, read receipts) — `docs/frontend/CHAT_LIST.md`
 - Frontend app resume (socket liveness, catch-up, voice rejoin) — `docs/frontend/APP_RESUME.md`
 - Desktop, Electron (`apps/desktop`) — `apps/desktop/README.md`, `docs/CONTRIBUTING.md` (Desktop)
+- Desktop Native Rust Module (`libs/desktop-native`) - `libs/desktop-native/AGENTS.md`
 - Shared contracts: Zod schemas, enums, types (`libs/shared`) — `libs/shared/README.md`
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Client UI kit, Lit primitives (`libs/ui-kit`) — `libs/ui-kit/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)

@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   desktopCapturer,
   ipcMain,
+  MessageChannelMain,
   type DesktopCapturerSource,
   type Session,
 } from 'electron';
@@ -10,6 +11,9 @@ import { EDesktopIpc } from '@konvoez/shared';
 import type { ISerializableSource } from '@konvoez/client-shell';
 import type { ConfigStore } from './config-store';
 import { getAppIcon, getLocalPagePath } from './window';
+import { getNativeModule, type AudioCaptureHandle } from './native';
+
+let activeAudioCapture: AudioCaptureHandle | null = null;
 
 export interface IPickedSourceResult {
   source: DesktopCapturerSource | null;
@@ -81,6 +85,14 @@ export function resetPickerOpenForTests(): void {
   pickerOpen = false;
   reuseVideoSourceId = null;
   displayMediaCancelledAt = 0;
+  if (activeAudioCapture) {
+    try {
+      activeAudioCapture.stop();
+    } catch {
+      // ignore
+    }
+    activeAudioCapture = null;
+  }
 }
 
 export async function openSourcePicker(
@@ -302,17 +314,101 @@ export function installDisplayMediaHandler(
           return;
         }
 
-        const audio =
-          request.audioRequested && withAudio
-            ? getScreenShareAudio(platform)
-            : undefined;
-
         const response: { video: DesktopCapturerSource; audio?: 'loopback' } = {
           video: pickedSource,
         };
-        if (audio) {
-          response.audio = audio;
+
+        const nativeMod = getNativeModule();
+        const hasNativeAudio = nativeMod?.isAudioSupported() ?? false;
+
+        if (
+          request.audioRequested &&
+          withAudio &&
+          hasNativeAudio &&
+          nativeMod
+        ) {
           reuseVideoSourceId = pickedSource.id;
+          const isKonvoezWindow =
+            pickedSource.id.startsWith('window:') &&
+            pickedSource.name === 'Konvoez';
+
+          if (!isKonvoezWindow) {
+            if (activeAudioCapture) {
+              try {
+                activeAudioCapture.stop();
+              } catch {
+                // ignore
+              }
+              activeAudioCapture = null;
+            }
+
+            const { port1, port2 } = new MessageChannelMain();
+            const win = getMainWindow();
+            if (win && !win.isDestroyed()) {
+              win.webContents.postMessage(EDesktopIpc.SCREEN_AUDIO_PORT, null, [
+                port2,
+              ]);
+            }
+
+            const hwndMatch = pickedSource.id.match(/^window:(\d+)/);
+            const hwnd = hwndMatch ? Number(hwndMatch[1]) : undefined;
+            const isScreen = pickedSource.id.startsWith('screen:');
+
+            try {
+              const handle = nativeMod.startAudioCapture(
+                isScreen
+                  ? { mode: 'exclude', targetPid: process.pid }
+                  : { mode: 'include', targetHwnd: hwnd },
+                (chunk: Buffer) => {
+                  try {
+                    port1.postMessage(chunk.buffer, [chunk.buffer]);
+                  } catch {
+                    // port may be closed
+                  }
+                },
+              );
+              activeAudioCapture = handle;
+
+              port1.on('message', (event) => {
+                if (event.data === 'stop') {
+                  try {
+                    handle.stop();
+                  } catch {
+                    // ignore
+                  }
+                  if (activeAudioCapture === handle) {
+                    activeAudioCapture = null;
+                  }
+                  try {
+                    port1.close();
+                  } catch {
+                    // ignore
+                  }
+                }
+              });
+              port1.start();
+            } catch (err) {
+              console.warn(
+                '[DisplayMedia] Failed to start native audio capture:',
+                err,
+              );
+              try {
+                port1.close();
+              } catch {
+                // ignore
+              }
+            }
+          }
+        } else {
+          const audio =
+            request.audioRequested && withAudio
+              ? getScreenShareAudio(platform)
+              : undefined;
+
+          if (audio) {
+            response.audio = audio;
+            reuseVideoSourceId = pickedSource.id;
+          }
         }
 
         callback(response);

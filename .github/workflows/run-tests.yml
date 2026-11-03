@@ -113,21 +113,29 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev
+
       - name: Install dependencies
         env:
           MEDIASOUP_WORKER_BIN: /bin/true
         run: npm ci
 
       - name: Run tests
-        run: npx nx run-many -t test -p desktop ui-kit client-dialogs client-shell
+        run: npx nx run-many -t test -p desktop desktop-native ui-kit client-dialogs client-shell
 
       - name: Run lint
         if: always()
-        run: npx nx run-many -t eslint:lint -p desktop ui-kit client-dialogs client-shell
+        run: |
+          npx nx run-many -t eslint:lint -p desktop ui-kit client-dialogs client-shell
+          npx nx run desktop-native:lint
 
       - name: Run Prettier Check
         if: always()
-        run: npx nx run-many -t format:check -p desktop ui-kit client-dialogs client-shell
+        run: npx nx run-many -t format:check -p desktop desktop-native ui-kit client-dialogs client-shell
 
       - name: Run build
         if: always()

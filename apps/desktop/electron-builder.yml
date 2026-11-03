@@ -10,6 +10,8 @@ files:
 extraMetadata:
   main: dist/main.js
 asar: true
+asarUnpack:
+  - '**/*.node'
 publish:
   provider: generic
   url: https://github.com/Quenary/konvoez/releases/download/desktop-latest/

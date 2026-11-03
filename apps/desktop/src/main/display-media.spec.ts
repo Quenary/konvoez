@@ -36,6 +36,15 @@ vi.mock('electron', () => {
     nativeImage: {
       createFromPath: vi.fn(() => ({ isEmpty: () => false })),
     },
+    MessageChannelMain: class MockMessageChannelMain {
+      port1 = {
+        postMessage: vi.fn(),
+        on: vi.fn(),
+        start: vi.fn(),
+        close: vi.fn(),
+      };
+      port2 = {};
+    },
   };
 });
 
@@ -617,6 +626,166 @@ describe('display-media helpers', () => {
         withAudio: false,
       });
       expect(fakeConfigStore.set).toHaveBeenCalledWith({ shareAudio: false });
+    });
+
+    it('uses native audio capture when available without returning loopback audio to callback', async () => {
+      const nativeMod = await import('./native');
+      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const screenSource = {
+        id: 'screen:0:0',
+        name: 'Screen 0',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([screenSource]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      // Callback does NOT contain audio: 'loopback'
+      expect(callback).toHaveBeenCalledWith({ video: screenSource });
+
+      // Transferred MessagePort to window
+      expect(mockWebContents.postMessage).toHaveBeenCalledWith(
+        'konvoez:screen-audio-port',
+        null,
+        expect.any(Array),
+      );
+
+      // Screen audio captured in exclude mode with current pid
+      expect(startAudioCapture).toHaveBeenCalledWith(
+        { mode: 'exclude', targetPid: process.pid },
+        expect.any(Function),
+      );
+    });
+
+    it('captures window audio in include mode with window HWND', async () => {
+      const nativeMod = await import('./native');
+      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const windowSource = {
+        id: 'window:98765:0',
+        name: 'Game Window',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([windowSource]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({ video: windowSource });
+      expect(startAudioCapture).toHaveBeenCalledWith(
+        { mode: 'include', targetHwnd: 98765 },
+        expect.any(Function),
+      );
+    });
+
+    it('does not capture audio if window is Konvoez itself', async () => {
+      const nativeMod = await import('./native');
+      const startAudioCapture = vi.fn();
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const konvoezWindow = {
+        id: 'window:1111:0',
+        name: 'Konvoez',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([konvoezWindow]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => null,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({ video: konvoezWindow });
+      expect(startAudioCapture).not.toHaveBeenCalled();
     });
   });
 });

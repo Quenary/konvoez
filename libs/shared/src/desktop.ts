@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { pushNotificationPayloadSchema } from './schemas/notification.schemas';
 
-export const DESKTOP_BRIDGE_API_VERSION = 1 as const;
+export const DESKTOP_BRIDGE_API_VERSION = 2 as const;
 
 export enum EDesktopCommand {
   TOGGLE_MIC = 'toggle-mic',
@@ -16,6 +16,7 @@ export enum EDesktopIpc {
   QUIT_READY = 'konvoez:quit-ready',
   COMMAND = 'konvoez:command', // main -> renderer
   NOTIFICATION_CLICK = 'konvoez:notification-click', // main -> renderer
+  SCREEN_AUDIO_PORT = 'konvoez:screen-audio-port', // main -> renderer
   // local pages only
   LOCAL_GET_CONFIG = 'konvoez-local:get-config',
   LOCAL_SAVE_SERVER = 'konvoez-local:save-server',
@@ -58,6 +59,7 @@ export interface IKonvoezDesktopBridge {
   readonly apiVersion: typeof DESKTOP_BRIDGE_API_VERSION;
   readonly platform: 'win32' | 'linux';
   readonly appVersion: string;
+  readonly nativeAudio: boolean;
   notify(payload: z.infer<typeof desktopNotificationSchema>): void;
   dismissNotification?(payload: TDesktopNotificationDismiss): void;
   setVoiceState(state: TDesktopVoiceState): void;
@@ -65,5 +67,6 @@ export interface IKonvoezDesktopBridge {
   onNotificationClick?(
     listener: (payload: z.infer<typeof desktopNotificationSchema>) => void,
   ): () => void;
+  onScreenAudioPort?(listener: (port: MessagePort) => void): () => void;
   quitReady(): void;
 }

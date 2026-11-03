@@ -213,4 +213,126 @@ describe('ScreenCaptureService', () => {
       audio: true,
     });
   });
+
+  describe('desktop native audio support', () => {
+    it('calls getDisplayMedia with no waiting when bridge.nativeAudio is false', async () => {
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: false,
+        },
+      });
+
+      const mockStream = {
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [mockAudioTrack],
+        getTracks: () => [mockVideoTrack, mockAudioTrack],
+      } as unknown as MediaStream;
+      mediaDevicesService.getDisplayMedia.mockResolvedValue(mockStream);
+
+      const result = await service.getTracks();
+      expect(result.videoTrack).toBe(mockVideoTrack);
+      expect(result.audioTrack).toBe(mockAudioTrack);
+    });
+
+    it('falls back to null audioTrack when native audio port times out', async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn(),
+        },
+      });
+
+      const mockStream = {
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [],
+        getTracks: () => [mockVideoTrack],
+      } as unknown as MediaStream;
+      mediaDevicesService.getDisplayMedia.mockResolvedValue(mockStream);
+
+      const promise = service.getTracks();
+      await vi.advanceTimersByTimeAsync(2000);
+      const result = await promise;
+
+      expect(result.videoTrack).toBe(mockVideoTrack);
+      expect(result.audioTrack).toBeNull();
+      vi.useRealTimers();
+    });
+
+    it('connects audio worklet when native audio port is received', async () => {
+      const mockPort = {
+        postMessage: vi.fn(),
+        close: vi.fn(),
+      } as unknown as MessagePort;
+
+      let portListener: ((port: MessagePort) => void) | undefined;
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn((listener) => {
+            portListener = listener;
+            return () => undefined;
+          }),
+        },
+      });
+
+      const mockStream = {
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [],
+        getTracks: () => [mockVideoTrack],
+      } as unknown as MediaStream;
+      mediaDevicesService.getDisplayMedia.mockResolvedValue(mockStream);
+
+      const capturedTrack = {
+        kind: 'audio',
+        stop: vi.fn(),
+        addEventListener: vi.fn(),
+      } as unknown as MediaStreamTrack;
+
+      const mockWorkletPort = { postMessage: vi.fn() };
+      const mockWorkletNode = {
+        port: mockWorkletPort,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      const mockDestNode = {
+        stream: {
+          getAudioTracks: () => [capturedTrack],
+        },
+      };
+
+      class MockAudioContext {
+        sampleRate = 48000;
+        audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+        createMediaStreamDestination = vi.fn().mockReturnValue(mockDestNode);
+        close = vi.fn().mockResolvedValue(undefined);
+      }
+
+      class MockAudioWorkletNode {
+        constructor() {
+          return mockWorkletNode as unknown as AudioWorkletNode;
+        }
+      }
+
+      vi.stubGlobal('AudioContext', MockAudioContext);
+      vi.stubGlobal('AudioWorkletNode', MockAudioWorkletNode);
+
+      const promise = service.getTracks();
+      portListener?.(mockPort);
+
+      const result = await promise;
+      expect(result.videoTrack).toBe(mockVideoTrack);
+      expect(result.audioTrack).toBe(capturedTrack);
+      expect(mockWorkletPort.postMessage).toHaveBeenCalledWith(mockPort, [
+        mockPort,
+      ]);
+
+      service.release();
+      expect(mockPort.postMessage).toHaveBeenCalledWith('stop');
+      expect(mockPort.close).toHaveBeenCalled();
+    });
+  });
 });

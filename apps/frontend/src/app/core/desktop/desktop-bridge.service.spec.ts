@@ -52,9 +52,10 @@ describe('DesktopBridgeService', () => {
     };
 
     fakeBridge = {
-      apiVersion: 1,
+      apiVersion: 2,
       platform: 'linux',
       appVersion: '0.1.0',
+      nativeAudio: false,
       notify: vi.fn(),
       dismissNotification: vi.fn(),
       setVoiceState: vi.fn(),
