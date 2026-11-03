@@ -20,6 +20,7 @@ import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
 import { dismissNotification, showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
 import { getScreenShareAudio } from './display-media';
+import { getNativeModule } from './native';
 import {
   applyHotkeys,
   resumeHotkeys,
@@ -171,6 +172,7 @@ export function registerIpc(
       locale: resolveLanguage(app.getLocale()),
       shareAudio: config.shareAudio,
       audioSupported: getScreenShareAudio() !== undefined,
+      nativeAudio: getNativeModule()?.isAudioSupported() ?? false,
     };
   });
 

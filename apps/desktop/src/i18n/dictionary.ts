@@ -53,9 +53,9 @@ export const translations = {
     'picker.share': 'Share',
     'picker.noScreens': 'No screens available',
     'picker.noWindows': 'No windows available',
-    'picker.shareAudio': 'Share system audio',
+    'picker.shareAudio': 'Share audio',
     'picker.shareAudioHint':
-      'Broadcasts clean system or application audio without participant echo',
+      'Broadcasts all system audio, including other participants (may cause echo)',
     'picker.audioSource': 'Audio source',
     'picker.allAudio': 'All system audio',
     'updater.updateAvailable': 'Update available',
@@ -122,9 +122,9 @@ export const translations = {
     'picker.share': 'Поделиться',
     'picker.noScreens': 'Нет доступных экранов',
     'picker.noWindows': 'Нет доступных окон',
-    'picker.shareAudio': 'Транслировать системный звук',
+    'picker.shareAudio': 'Транслировать звук',
     'picker.shareAudioHint':
-      'Транслируется чистый системный звук или звук приложения без эха собеседников',
+      'Транслируется весь звук системы, включая собеседников (может вызывать эхо)',
     'picker.audioSource': 'Источник звука',
     'picker.allAudio': 'Весь системный звук',
     'updater.updateAvailable': 'Доступно обновление',

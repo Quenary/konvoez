@@ -42,6 +42,7 @@ describe('k-source-picker-dialog', () => {
       sources: mockSources,
       shareAudio: true,
       audioSupported: true,
+      nativeAudio: true,
       locale: 'en',
     }),
     setShareAudio: vi.fn(),
@@ -86,6 +87,7 @@ describe('k-source-picker-dialog', () => {
       sources: mockSources,
       shareAudio: false,
       audioSupported: true,
+      nativeAudio: true,
       locale: 'en' as const,
     };
 
@@ -117,6 +119,7 @@ describe('k-source-picker-dialog', () => {
         ],
         shareAudio: true,
         audioSupported: true,
+        nativeAudio: true,
         locale: 'en',
       }),
     });
@@ -203,12 +206,13 @@ describe('k-source-picker-dialog', () => {
     expect(onCancelled).toHaveBeenCalledTimes(2);
   });
 
-  it('audioSupported:false hides checkbox and shows hint', async () => {
+  it('audioSupported:false hides the checkbox and the loopback hint', async () => {
     const adapter = createMockAdapter({
       getInitial: vi.fn().mockResolvedValue({
         sources: mockSources,
         shareAudio: false,
         audioSupported: false,
+        nativeAudio: false,
         locale: 'en',
       }),
     });
@@ -222,11 +226,33 @@ describe('k-source-picker-dialog', () => {
     await new Promise((r) => setTimeout(r, 10));
     await el.updateComplete;
 
-    const checkbox = el.shadowRoot?.querySelector('k-checkbox');
-    expect(checkbox).toBeNull();
+    expect(el.shadowRoot?.querySelector('k-checkbox')).toBeNull();
+    expect(el.shadowRoot?.querySelector('p.audio-hint')).toBeNull();
+  });
 
-    const hint = el.shadowRoot?.querySelector('p.audio-hint');
-    expect(hint?.textContent).toBe('picker.shareAudioHint');
+  it('warns about echo only when audio will be system loopback', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        sources: mockSources,
+        shareAudio: true,
+        audioSupported: true,
+        nativeAudio: false,
+        locale: 'en',
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    expect(
+      el.shadowRoot?.querySelector('p.audio-hint')?.textContent?.trim(),
+    ).toBe('picker.shareAudioHint');
   });
 
   it('renders audio streams dropdown when streams are provided and audio is enabled', async () => {
@@ -235,6 +261,7 @@ describe('k-source-picker-dialog', () => {
         sources: mockSources,
         shareAudio: true,
         audioSupported: true,
+        nativeAudio: true,
         locale: 'en',
         audioStreams: [
           { id: 'node-1', name: 'Spotify', pid: 1234 },
@@ -252,14 +279,15 @@ describe('k-source-picker-dialog', () => {
     await new Promise((r) => setTimeout(r, 10));
     await el.updateComplete;
 
-    const select = el.shadowRoot?.querySelector(
-      'select.audio-stream-select',
-    ) as HTMLSelectElement | null;
+    const select = el.shadowRoot?.querySelector('k-select');
     expect(select).not.toBeNull();
-    expect(select?.options).toHaveLength(3);
 
-    select!.value = 'node-1';
-    select!.dispatchEvent(new Event('change'));
+    select?.dispatchEvent(
+      new CustomEvent('k-change', {
+        bubbles: true,
+        detail: { value: 'node-1' },
+      }),
+    );
     await el.updateComplete;
 
     const actions = el.shadowRoot?.querySelector('k-dialog-actions');
@@ -268,5 +296,45 @@ describe('k-source-picker-dialog', () => {
     shareBtn?.dispatchEvent(new CustomEvent('k-click', { bubbles: true }));
 
     expect(adapter.pick).toHaveBeenCalledWith('screen:0:0', true, 'node-1');
+  });
+
+  it('clears the chosen audio stream when the source changes', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        sources: mockSources,
+        shareAudio: true,
+        audioSupported: true,
+        nativeAudio: true,
+        locale: 'en',
+        audioStreams: [{ id: 'node-1', name: 'Spotify' }],
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    el.shadowRoot?.querySelector('k-select')?.dispatchEvent(
+      new CustomEvent('k-change', {
+        bubbles: true,
+        detail: { value: 'node-1' },
+      }),
+    );
+    await el.updateComplete;
+    expect(el.selectedAudioStreamId).toBe('node-1');
+
+    el.shadowRoot?.querySelector('k-source-grid')?.dispatchEvent(
+      new CustomEvent('k-select', {
+        bubbles: true,
+        detail: { sourceId: 'screen:0:0' },
+      }),
+    );
+    await el.updateComplete;
+    expect(el.selectedAudioStreamId).toBeNull();
   });
 });

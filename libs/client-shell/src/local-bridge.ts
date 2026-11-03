@@ -31,6 +31,7 @@ export interface ISourcePickerDialogInitial {
   sources: ISerializableSource[];
   shareAudio: boolean;
   audioSupported: boolean;
+  nativeAudio: boolean;
   locale: TLanguage;
   audioStreams?: IAudioStreamInfo[];
 }

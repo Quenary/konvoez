@@ -50,6 +50,7 @@ const localBridge: IKonvoezLocalBridge = {
         sources,
         shareAudio: config.shareAudio,
         audioSupported: Boolean(config.audioSupported),
+        nativeAudio: Boolean(config.nativeAudio),
         locale: config.locale as TLanguage,
         audioStreams,
       };
