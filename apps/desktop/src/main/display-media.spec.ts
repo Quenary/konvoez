@@ -869,6 +869,64 @@ describe('display-media helpers', () => {
       );
     });
 
+    it('reports none when exclude fails for the Konvoez window', async () => {
+      const nativeMod = await import('./native');
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(() => {
+          throw new Error('exclude failed');
+        }),
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const konvoezWindow = {
+        id: 'window:1111:0',
+        name: 'Other title',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([konvoezWindow]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+        getMediaSourceId: () => 'window:1111:0',
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({ video: konvoezWindow });
+      expect(mockWebContents.postMessage).toHaveBeenCalledWith(
+        'konvoez:screen-audio-port',
+        'none',
+      );
+      expect(mockWebContents.postMessage).not.toHaveBeenCalledWith(
+        'konvoez:screen-audio-port',
+        'loopback',
+      );
+    });
+
     it('falls back from window include to exclude and reports that mode', async () => {
       const nativeMod = await import('./native');
       const startAudioCapture = vi

@@ -524,7 +524,12 @@ export function installDisplayMediaHandler(
           }
         }
 
-        if (!nativeStarted && request.audioRequested && withAudio) {
+        if (
+          !nativeStarted &&
+          request.audioRequested &&
+          withAudio &&
+          !ownWindow
+        ) {
           const audio = getScreenShareAudio(platform);
           if (audio) {
             response.audio = audio;
