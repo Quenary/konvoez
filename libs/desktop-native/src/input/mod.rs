@@ -4,6 +4,11 @@ pub mod windows;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+pub struct KeyHookThread {
+    pub handle: std::thread::JoinHandle<()>,
+    pub on_stop: Box<dyn FnOnce() + Send>,
+}
+
 /// Translates a Windows Virtual-Key code and extended flag to a W3C `KeyboardEvent.code` string.
 pub fn windows_vk_to_code(vk: u32, extended: bool) -> Option<&'static str> {
     match vk {

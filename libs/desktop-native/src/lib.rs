@@ -59,6 +59,7 @@ pub struct KeyEvent {
 #[napi]
 pub struct KeyHookHandle {
     stopper: Arc<AtomicBool>,
+    on_stop: Mutex<Option<Box<dyn FnOnce() + Send>>>,
     thread_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -67,6 +68,11 @@ impl KeyHookHandle {
     #[napi]
     pub fn stop(&self) {
         self.stopper.store(true, Ordering::SeqCst);
+        if let Ok(mut guard) = self.on_stop.lock() {
+            if let Some(stop_fn) = guard.take() {
+                stop_fn();
+            }
+        }
         if let Ok(mut guard) = self.thread_handle.lock() {
             if let Some(handle) = guard.take() {
                 let _ = handle.join();
@@ -159,10 +165,10 @@ pub fn start_key_hook(callback: Function<KeyEvent, ()>) -> Result<KeyHookHandle>
     let stopper = Arc::new(AtomicBool::new(false));
 
     #[cfg(target_os = "windows")]
-    let handle = input::windows::start_hook(callback, stopper.clone())?;
+    let hook_thread = input::windows::start_hook(callback, stopper.clone())?;
 
     #[cfg(target_os = "linux")]
-    let handle = input::linux::start_hook(callback, stopper.clone())?;
+    let hook_thread = input::linux::start_hook(callback, stopper.clone())?;
 
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
@@ -176,7 +182,8 @@ pub fn start_key_hook(callback: Function<KeyEvent, ()>) -> Result<KeyHookHandle>
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     Ok(KeyHookHandle {
         stopper,
-        thread_handle: Mutex::new(Some(handle)),
+        on_stop: Mutex::new(Some(hook_thread.on_stop)),
+        thread_handle: Mutex::new(Some(hook_thread.handle)),
     })
 }
 

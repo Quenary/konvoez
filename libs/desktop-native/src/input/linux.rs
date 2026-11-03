@@ -1,11 +1,9 @@
-use crate::input::x11_keycode_to_code;
+use crate::input::{x11_keycode_to_code, KeyHookThread};
 use crate::KeyEvent;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread::JoinHandle;
-use std::time::Duration;
 use x11rb::connection::{Connection, RequestConnection};
 use x11rb::protocol::record::{self, ConnectionExt as _};
 use x11rb::protocol::xproto;
@@ -38,7 +36,7 @@ pub fn is_supported() -> bool {
 pub fn start_hook(
     callback: Function<KeyEvent, ()>,
     stopper: Arc<AtomicBool>,
-) -> Result<JoinHandle<()>> {
+) -> Result<KeyHookThread> {
     let (ctrl_conn, _) = x11rb::connect(None).map_err(|e| {
         Error::new(
             Status::GenericFailure,
@@ -173,15 +171,10 @@ pub fn start_hook(
             )
         })?;
 
-    // Stopper monitor: disables XRecord context to unblock data connection loop
-    let stopper_monitor = stopper;
-    std::thread::spawn(move || {
-        while !stopper_monitor.load(Ordering::Relaxed) {
-            std::thread::sleep(Duration::from_millis(50));
-        }
+    let on_stop: Box<dyn FnOnce() + Send> = Box::new(move || {
         let _ = ctrl_conn.record_disable_context(rc);
         let _ = ctrl_conn.sync();
     });
 
-    Ok(handle)
+    Ok(KeyHookThread { handle, on_stop })
 }

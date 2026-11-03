@@ -1,10 +1,9 @@
-use crate::input::windows_vk_to_code;
+use crate::input::{windows_vk_to_code, KeyHookThread};
 use crate::KeyEvent;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -52,7 +51,7 @@ unsafe extern "system" fn ll_keyboard_proc(code: i32, wparam: WPARAM, lparam: LP
 pub fn start_hook(
     callback: Function<KeyEvent, ()>,
     stopper: Arc<AtomicBool>,
-) -> Result<JoinHandle<()>> {
+) -> Result<KeyHookThread> {
     let tsfn = Arc::new(
         callback
             .build_threadsafe_function()
@@ -60,16 +59,15 @@ pub fn start_hook(
             .build()?,
     );
 
-    let thread_id = Arc::new(AtomicU32::new(0));
-    let thread_id_for_hook = thread_id.clone();
-    let stopper_for_thread = stopper.clone();
+    let (tid_tx, tid_rx) = std::sync::mpsc::channel();
+    let stopper_for_thread = stopper;
 
     let handle = std::thread::Builder::new()
         .name("windows-key-hook".to_string())
         .spawn(move || {
             // SAFETY: Calling Win32 API to get current thread ID for message queue targeting
             let tid = unsafe { GetCurrentThreadId() };
-            thread_id_for_hook.store(tid, Ordering::SeqCst);
+            let _ = tid_tx.send(tid);
 
             // Install hook
             // SAFETY: SetWindowsHookExW installs WH_KEYBOARD_LL hook on the system
@@ -124,20 +122,19 @@ pub fn start_hook(
             )
         })?;
 
-    // Monitor thread to post WM_QUIT when stopper is signaled
-    let stopper_monitor = stopper;
-    std::thread::spawn(move || {
-        while !stopper_monitor.load(Ordering::Relaxed) {
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-        let tid = thread_id.load(Ordering::SeqCst);
-        if tid != 0 {
-            // SAFETY: Posting WM_QUIT to hook thread so GetMessageW wakes up and terminates
-            unsafe {
-                let _ = PostThreadMessageW(tid, WM_QUIT, WPARAM(0), LPARAM(0));
-            }
+    let tid = tid_rx.recv().map_err(|e| {
+        Error::new(
+            Status::GenericFailure,
+            format!("Failed to initialize keyboard hook thread: {e}"),
+        )
+    })?;
+
+    let on_stop: Box<dyn FnOnce() + Send> = Box::new(move || {
+        // SAFETY: Posting WM_QUIT to hook thread so GetMessageW wakes up and terminates immediately
+        unsafe {
+            let _ = PostThreadMessageW(tid, WM_QUIT, WPARAM(0), LPARAM(0));
         }
     });
 
-    Ok(handle)
+    Ok(KeyHookThread { handle, on_stop })
 }
