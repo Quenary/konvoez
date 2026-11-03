@@ -12,7 +12,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub fn is_supported() -> bool {
     pw::init();
@@ -508,39 +508,49 @@ pub fn start_capture(
                     let mut chunks: Vec<Vec<f32>> = Vec::new();
                     let mut mixed = vec![0.0f32; CHUNK_FLOATS];
                     let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
+                    let mut deadline = Instant::now() + Duration::from_millis(10);
                     while !stopper_for_mixer.load(Ordering::Relaxed) {
-                        std::thread::sleep(Duration::from_millis(10));
+                        let now = Instant::now();
+                        if now < deadline {
+                            std::thread::sleep(deadline - now);
+                        }
                         if stopper_for_mixer.load(Ordering::Relaxed) {
                             break;
                         }
-                        let snapshot = rings_for_mixer
-                            .lock()
-                            .unwrap_or_else(|err| err.into_inner())
-                            .clone();
-                        if snapshot.is_empty() {
-                            continue;
+                        while Instant::now() >= deadline {
+                            if stopper_for_mixer.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            let snapshot = rings_for_mixer
+                                .lock()
+                                .unwrap_or_else(|err| err.into_inner())
+                                .clone();
+                            if !snapshot.is_empty() {
+                                if chunks.len() < snapshot.len() {
+                                    chunks
+                                        .resize_with(snapshot.len(), || vec![0.0f32; CHUNK_FLOATS]);
+                                }
+                                for (index, ring) in snapshot.iter().enumerate() {
+                                    ring.pop_chunk_or_silence(&mut chunks[index], MAX_KEEP);
+                                }
+                                let sources: Vec<&[f32]> =
+                                    chunks[..snapshot.len()].iter().map(Vec::as_slice).collect();
+                                if sources.len() == 1 {
+                                    mixed.copy_from_slice(&chunks[0]);
+                                } else {
+                                    crate::audio::mix_audio_buffers(&sources, &mut mixed);
+                                }
+                                bytes.clear();
+                                for sample in &mixed {
+                                    bytes.extend_from_slice(&sample.to_le_bytes());
+                                }
+                                let _ = tsfn_for_mixer.call(
+                                    Buffer::from(bytes.as_slice()),
+                                    ThreadsafeFunctionCallMode::NonBlocking,
+                                );
+                            }
+                            deadline += Duration::from_millis(10);
                         }
-                        if chunks.len() < snapshot.len() {
-                            chunks.resize_with(snapshot.len(), || vec![0.0f32; CHUNK_FLOATS]);
-                        }
-                        for (index, ring) in snapshot.iter().enumerate() {
-                            ring.pop_chunk_or_silence(&mut chunks[index], MAX_KEEP);
-                        }
-                        let sources: Vec<&[f32]> =
-                            chunks[..snapshot.len()].iter().map(Vec::as_slice).collect();
-                        if sources.len() == 1 {
-                            mixed.copy_from_slice(&chunks[0]);
-                        } else {
-                            crate::audio::mix_audio_buffers(&sources, &mut mixed);
-                        }
-                        bytes.clear();
-                        for sample in &mixed {
-                            bytes.extend_from_slice(&sample.to_le_bytes());
-                        }
-                        let _ = tsfn_for_mixer.call(
-                            Buffer::from(bytes.as_slice()),
-                            ThreadsafeFunctionCallMode::NonBlocking,
-                        );
                     }
                 }) {
                 Ok(handle) => handle,
