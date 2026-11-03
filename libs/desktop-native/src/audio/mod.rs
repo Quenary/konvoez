@@ -4,6 +4,107 @@ pub mod windows;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+use std::cell::UnsafeCell;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// Fixed ring of `f32` samples. One producer thread writes, one consumer thread reads.
+/// Neither side allocates. A full ring drops the newest samples; the consumer trims
+/// the oldest ones before taking a chunk.
+pub struct SampleRing {
+    buf: Box<[UnsafeCell<f32>]>,
+    mask: usize,
+    write: AtomicUsize,
+    read: AtomicUsize,
+}
+
+// SAFETY: producer and consumer never touch the same slot. The atomics publish
+// the indices with Release/Acquire, so each side only reads slots it owns.
+unsafe impl Send for SampleRing {}
+unsafe impl Sync for SampleRing {}
+
+impl SampleRing {
+    pub fn with_capacity(min_capacity: usize) -> Self {
+        let cap = min_capacity.max(2).next_power_of_two();
+        let buf = (0..cap).map(|_| UnsafeCell::new(0.0)).collect();
+        Self {
+            buf,
+            mask: cap - 1,
+            write: AtomicUsize::new(0),
+            read: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn push_slice(&self, samples: &[f32]) {
+        if samples.is_empty() {
+            return;
+        }
+        let write = self.write.load(Ordering::Relaxed);
+        let read = self.read.load(Ordering::Acquire);
+        let used = write.wrapping_sub(read);
+        let free = self.buf.len() - 1 - used;
+        let count = samples.len().min(free) & !1;
+        if count == 0 {
+            return;
+        }
+        for (offset, sample) in samples.iter().take(count).enumerate() {
+            let index = write.wrapping_add(offset) & self.mask;
+            // SAFETY: `index` is in the free range owned by the producer.
+            unsafe {
+                *self.buf[index].get() = *sample;
+            }
+        }
+        self.write
+            .store(write.wrapping_add(count), Ordering::Release);
+    }
+
+    /// Copies one chunk, or writes silence when a full chunk is not buffered.
+    /// Oldest samples above `max_keep` are discarded first so streams share a clock.
+    pub fn pop_chunk_or_silence(&self, output: &mut [f32], max_keep: usize) -> bool {
+        let max_keep = max_keep & !1;
+        let write = self.write.load(Ordering::Acquire);
+        let mut read = self.read.load(Ordering::Relaxed);
+        let used = write.wrapping_sub(read);
+        if used > max_keep {
+            let drop_count = (used - max_keep) & !1;
+            read = read.wrapping_add(drop_count);
+        }
+        if write.wrapping_sub(read) < output.len() {
+            self.read.store(read, Ordering::Release);
+            output.fill(0.0);
+            return false;
+        }
+        for (offset, sample) in output.iter_mut().enumerate() {
+            let index = read.wrapping_add(offset) & self.mask;
+            // SAFETY: `index` is in the buffered range owned by the consumer.
+            *sample = unsafe { *self.buf[index].get() };
+        }
+        self.read
+            .store(read.wrapping_add(output.len()), Ordering::Release);
+        true
+    }
+}
+
+/// Copies little-endian f32 frames into `ring` without allocating.
+/// A trailing partial stereo frame is ignored.
+pub fn push_le_f32(ring: &SampleRing, bytes: &[u8]) {
+    let mut offset = 0;
+    let mut batch = [0.0f32; 64];
+    while offset + 8 <= bytes.len() {
+        let mut count = 0;
+        while count + 1 < batch.len() && offset + 8 <= bytes.len() {
+            let mut left = [0u8; 4];
+            let mut right = [0u8; 4];
+            left.copy_from_slice(&bytes[offset..offset + 4]);
+            right.copy_from_slice(&bytes[offset + 4..offset + 8]);
+            batch[count] = f32::from_le_bytes(left);
+            batch[count + 1] = f32::from_le_bytes(right);
+            offset += 8;
+            count += 2;
+        }
+        ring.push_slice(&batch[..count]);
+    }
+}
+
 /// Mixes multiple PCM Float32 audio streams into a destination buffer.
 /// Applies saturation/clamping to [-1.0, 1.0] to prevent clipping distortion.
 pub fn mix_audio_buffers(sources: &[&[f32]], output: &mut [f32]) {
@@ -132,6 +233,47 @@ mod tests {
         assert_eq!(f32_chunk_bytes(&buffer, 4, 10), Some(&buffer[4..12][..]));
         assert_eq!(f32_chunk_bytes(&buffer, 10, 8), None);
         assert_eq!(f32_chunk_bytes(&buffer, 0, 4), None);
+    }
+
+    #[test]
+    fn test_sample_ring_pops_a_chunk_and_silence() {
+        let ring = SampleRing::with_capacity(16);
+        let mut out = [1.0f32; 4];
+        assert!(!ring.pop_chunk_or_silence(&mut out, 16));
+        assert_eq!(out, [0.0, 0.0, 0.0, 0.0]);
+
+        ring.push_slice(&[0.25, -0.5]);
+        assert!(!ring.pop_chunk_or_silence(&mut out, 16));
+
+        ring.push_slice(&[0.25, -0.5]);
+        assert!(ring.pop_chunk_or_silence(&mut out, 16));
+        assert_eq!(out, [0.25, -0.5, 0.25, -0.5]);
+    }
+
+    #[test]
+    fn test_sample_ring_drops_oldest_and_newest() {
+        let ring = SampleRing::with_capacity(8);
+        ring.push_slice(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let mut out = [0.0f32; 2];
+        assert!(ring.pop_chunk_or_silence(&mut out, 2));
+        assert_eq!(out, [5.0, 6.0]);
+
+        ring.push_slice(&[7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0]);
+        assert!(ring.pop_chunk_or_silence(&mut out, 8));
+        assert_eq!(out, [7.0, 8.0]);
+    }
+
+    #[test]
+    fn test_push_le_f32() {
+        let ring = SampleRing::with_capacity(8);
+        push_le_f32(&ring, &1.0f32.to_le_bytes());
+        push_le_f32(
+            &ring,
+            &[1.0f32.to_le_bytes(), (-1.0f32).to_le_bytes()].concat(),
+        );
+        let mut out = [0.0f32; 2];
+        assert!(ring.pop_chunk_or_silence(&mut out, 8));
+        assert_eq!(out, [1.0, -1.0]);
     }
 
     #[test]

@@ -149,12 +149,38 @@ fn is_konvoez_node(props: &spa::utils::dict::DictRef, exclude_pid: u32) -> bool 
 struct ActiveStream {
     _stream: pw::stream::StreamRc,
     _listener: Box<dyn std::any::Any>,
-    queue: Arc<Mutex<Vec<f32>>>,
+    ring: Arc<crate::audio::SampleRing>,
+}
+
+fn track_stream(
+    streams: &RefCell<HashMap<u32, ActiveStream>>,
+    rings: &Mutex<Vec<Arc<crate::audio::SampleRing>>>,
+    id: u32,
+    stream: ActiveStream,
+) {
+    rings
+        .lock()
+        .unwrap_or_else(|err| err.into_inner())
+        .push(Arc::clone(&stream.ring));
+    streams.borrow_mut().insert(id, stream);
+}
+
+fn forget_stream(
+    streams: &RefCell<HashMap<u32, ActiveStream>>,
+    rings: &Mutex<Vec<Arc<crate::audio::SampleRing>>>,
+    id: u32,
+) {
+    if let Some(stream) = streams.borrow_mut().remove(&id) {
+        rings
+            .lock()
+            .unwrap_or_else(|err| err.into_inner())
+            .retain(|ring| !Arc::ptr_eq(ring, &stream.ring));
+    }
 }
 
 fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStream> {
-    let queue = Arc::new(Mutex::new(Vec::with_capacity(4800)));
-    let queue_clone = queue.clone();
+    let ring = Arc::new(crate::audio::SampleRing::with_capacity(32768));
+    let ring_for_callback = Arc::clone(&ring);
 
     let props = properties! {
         *pw::keys::MEDIA_TYPE => "Audio",
@@ -176,30 +202,7 @@ fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStr
                     let size = data.chunk().size() as usize;
                     if let Some(slice) = data.data() {
                         if let Some(bytes) = crate::audio::f32_chunk_bytes(slice, offset, size) {
-                            let floats_len = bytes.len() / 4;
-                            let ptr = bytes.as_ptr();
-                            let is_aligned =
-                                (ptr as usize).is_multiple_of(std::mem::align_of::<f32>());
-                            if let Ok(mut q) = queue_clone.lock() {
-                                if is_aligned {
-                                    // SAFETY: Checked pointer alignment and slice length
-                                    let floats: &[f32] = unsafe {
-                                        std::slice::from_raw_parts(ptr as *const f32, floats_len)
-                                    };
-                                    q.extend_from_slice(floats);
-                                } else {
-                                    // Fallback for unaligned SPA buffers
-                                    let (chunks, _) = bytes[..floats_len * 4].as_chunks::<4>();
-                                    for bytes in chunks {
-                                        q.push(f32::from_ne_bytes(*bytes));
-                                    }
-                                }
-                                const MAX_SAMPLES: usize = 19200;
-                                if q.len() > MAX_SAMPLES {
-                                    let overflow = q.len() - MAX_SAMPLES;
-                                    q.drain(0..overflow);
-                                }
-                            }
+                            crate::audio::push_le_f32(&ring_for_callback, bytes);
                         }
                     }
                 }
@@ -245,7 +248,7 @@ fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStr
     Some(ActiveStream {
         _stream: stream,
         _listener: Box::new(listener),
-        queue,
+        ring,
     })
 }
 
@@ -297,6 +300,8 @@ pub fn start_capture(
 
             let active_streams: Rc<RefCell<HashMap<u32, ActiveStream>>> =
                 Rc::new(RefCell::new(HashMap::new()));
+            let rings: Arc<Mutex<Vec<Arc<crate::audio::SampleRing>>>> =
+                Arc::new(Mutex::new(Vec::new()));
 
             let mut _registry_listener = None;
 
@@ -319,7 +324,7 @@ pub fn start_capture(
 
                 if let Some(node_id) = target_node {
                     if let Some(stream) = create_node_stream(&core, node_id) {
-                        active_streams.borrow_mut().insert(node_id, stream);
+                        track_stream(&active_streams, &rings, node_id, stream);
                     }
                 }
                 if active_streams.borrow().is_empty() {
@@ -329,6 +334,8 @@ pub fn start_capture(
             } else if let Ok(registry) = core.get_registry_rc() {
                 let active_streams_reg = active_streams.clone();
                 let active_streams_rem = active_streams.clone();
+                let rings_reg = Arc::clone(&rings);
+                let rings_rem = Arc::clone(&rings);
                 let core_reg = core.clone();
 
                 _registry_listener = Some(
@@ -345,14 +352,19 @@ pub fn start_capture(
                                     {
                                         if let Some(stream) = create_node_stream(&core_reg, obj.id)
                                         {
-                                            active_streams_reg.borrow_mut().insert(obj.id, stream);
+                                            track_stream(
+                                                &active_streams_reg,
+                                                &rings_reg,
+                                                obj.id,
+                                                stream,
+                                            );
                                         }
                                     }
                                 }
                             }
                         })
                         .global_remove(move |id| {
-                            active_streams_rem.borrow_mut().remove(&id);
+                            forget_stream(&active_streams_rem, &rings_rem, id);
                         })
                         .register(),
                 );
@@ -362,59 +374,68 @@ pub fn start_capture(
             }
 
             let ml_weak = mainloop.downgrade();
-            let stopper_clone = stopper_for_thread;
-            let active_streams_timer = active_streams;
-            let tsfn_clone = tsfn;
+            let stopper_for_timer = Arc::clone(&stopper_for_thread);
+            let stopper_for_mixer = Arc::clone(&stopper_for_thread);
+            let stopper_after_run = stopper_for_thread;
+            let rings_for_mixer = Arc::clone(&rings);
+            let tsfn_for_mixer = Arc::clone(&tsfn);
 
-            const CHUNK_FLOATS: usize = 960; // 10 ms at 48000 Hz stereo
-            let mixed_buffer = RefCell::new(vec![0.0f32; CHUNK_FLOATS]);
-            let stream_buffers = RefCell::new(Vec::<Vec<f32>>::new());
+            let mixer = match std::thread::Builder::new()
+                .name("pipewire-mix".to_string())
+                .spawn(move || {
+                    const CHUNK_FLOATS: usize = 960; // 10 ms at 48000 Hz stereo
+                    const MAX_KEEP: usize = 19200;
+                    let mut chunks: Vec<Vec<f32>> = Vec::new();
+                    let mut mixed = vec![0.0f32; CHUNK_FLOATS];
+                    let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
+                    while !stopper_for_mixer.load(Ordering::Relaxed) {
+                        std::thread::sleep(Duration::from_millis(10));
+                        if stopper_for_mixer.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        let snapshot = rings_for_mixer
+                            .lock()
+                            .unwrap_or_else(|err| err.into_inner())
+                            .clone();
+                        if snapshot.is_empty() {
+                            continue;
+                        }
+                        if chunks.len() < snapshot.len() {
+                            chunks.resize_with(snapshot.len(), || vec![0.0f32; CHUNK_FLOATS]);
+                        }
+                        for (index, ring) in snapshot.iter().enumerate() {
+                            ring.pop_chunk_or_silence(&mut chunks[index], MAX_KEEP);
+                        }
+                        let sources: Vec<&[f32]> =
+                            chunks[..snapshot.len()].iter().map(Vec::as_slice).collect();
+                        if sources.len() == 1 {
+                            mixed.copy_from_slice(&chunks[0]);
+                        } else {
+                            crate::audio::mix_audio_buffers(&sources, &mut mixed);
+                        }
+                        bytes.clear();
+                        for sample in &mixed {
+                            bytes.extend_from_slice(&sample.to_le_bytes());
+                        }
+                        let _ = tsfn_for_mixer.call(
+                            Buffer::from(bytes.as_slice()),
+                            ThreadsafeFunctionCallMode::NonBlocking,
+                        );
+                    }
+                }) {
+                Ok(handle) => handle,
+                Err(err) => {
+                    let _ = ready_tx.send(Err(format!("Failed to start the audio mixer: {err}")));
+                    return;
+                }
+            };
 
             let timer = mainloop.loop_().add_timer(move |_| {
-                if stopper_clone.load(Ordering::Relaxed) {
+                if stopper_for_timer.load(Ordering::Relaxed) {
                     if let Some(ml) = ml_weak.upgrade() {
                         ml.quit();
                     }
-                    return;
                 }
-
-                let streams_guard = active_streams_timer.borrow();
-                let mut ready_count = 0;
-                let mut stream_bufs = stream_buffers.borrow_mut();
-
-                for active in streams_guard.values() {
-                    if let Ok(mut q) = active.queue.lock() {
-                        if q.len() >= CHUNK_FLOATS {
-                            if stream_bufs.len() <= ready_count {
-                                stream_bufs.push(vec![0.0f32; CHUNK_FLOATS]);
-                            }
-                            stream_bufs[ready_count].copy_from_slice(&q[..CHUNK_FLOATS]);
-                            q.drain(0..CHUNK_FLOATS);
-                            ready_count += 1;
-                        }
-                    }
-                }
-
-                if ready_count == 0 {
-                    return;
-                }
-
-                let final_bytes = if ready_count == 1 {
-                    crate::audio::float32_to_le_bytes(&stream_bufs[0])
-                } else {
-                    let mut mixed_buf = mixed_buffer.borrow_mut();
-                    let slices: Vec<&[f32]> = stream_bufs[..ready_count]
-                        .iter()
-                        .map(|c| c.as_slice())
-                        .collect();
-                    crate::audio::mix_audio_buffers(&slices, &mut mixed_buf);
-                    crate::audio::float32_to_le_bytes(&mixed_buf)
-                };
-
-                let _ = tsfn_clone.call(
-                    Buffer::from(final_bytes),
-                    ThreadsafeFunctionCallMode::NonBlocking,
-                );
             });
 
             timer.update_timer(
@@ -424,6 +445,8 @@ pub fn start_capture(
 
             let _ = ready_tx.send(Ok(()));
             mainloop.run();
+            stopper_after_run.store(true, Ordering::SeqCst);
+            let _ = mixer.join();
         })
         .map_err(|e| {
             Error::new(
