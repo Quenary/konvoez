@@ -49,7 +49,7 @@ flowchart LR
 
 ## Getting started
 
-1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Rust is pinned by the root `rust-toolchain.toml` (channel, components and targets are configured automatically). Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH` or `ffmpeg` on `PATH`); without it posters are skipped and the browser poster is used.
+1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Rust is pinned by the root `rust-toolchain.toml`. `rustup show` installs that channel, clippy, rustfmt, and the listed targets. CI uses the same command and does not pin a toolchain in the workflow. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH` or `ffmpeg` on `PATH`); without it posters are skipped and the browser poster is used.
 
    - **Windows**: VS Build Tools (C++ workload) and `rustup`:
 

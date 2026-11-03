@@ -139,7 +139,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
+        run: rustup show
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev
