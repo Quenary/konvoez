@@ -10,19 +10,21 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 pub fn is_supported() -> bool {
+    static SUPPORTED: OnceLock<bool> = OnceLock::new();
+    *SUPPORTED.get_or_init(probe_pipewire)
+}
+
+fn probe_pipewire() -> bool {
     pw::init();
     let Ok(mainloop) = pw::main_loop::MainLoopRc::new(None) else {
         return false;
     };
-    let Ok(context) = pw::context::ContextRc::new(&mainloop, None) else {
-        return false;
-    };
-    context.connect_rc(None).is_ok()
+    pw::context::ContextRc::new(&mainloop, None).is_ok()
 }
 
 pub fn get_audio_streams() -> Vec<AudioStreamInfo> {
