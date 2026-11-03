@@ -242,10 +242,8 @@ pub fn start_capture(
 ) -> Result<(JoinHandle<()>, &'static str)> {
     let target_pid = if let Some(hwnd) = options.target_hwnd {
         resolve_window_pid(hwnd).map(find_root_process_in_tree)
-    } else if let Some(pid) = options.target_pid {
-        Some(find_root_process_in_tree(pid))
     } else {
-        None
+        options.target_pid.map(find_root_process_in_tree)
     };
 
     let self_pid = std::process::id();

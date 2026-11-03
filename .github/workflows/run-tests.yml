@@ -140,3 +140,18 @@ jobs:
       - name: Run build
         if: always()
         run: npx nx run desktop:build
+
+  desktop-native-windows:
+    name: Clippy desktop-native (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        run: rustup show
+
+      - name: Clippy
+        working-directory: libs/desktop-native
+        run: cargo clippy --all-targets --target x86_64-pc-windows-msvc -- -D warnings
