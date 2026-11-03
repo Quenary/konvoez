@@ -174,7 +174,9 @@ pub fn start_capture(
         None
     };
 
-    let pid_to_use = target_pid.unwrap_or_else(std::process::id);
+    let self_pid = std::process::id();
+    let pid_to_use = crate::audio::resolve_capture_pid(&options.mode, target_pid, self_pid)
+        .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
 
     let tsfn = callback.build_threadsafe_function().build()?;
 

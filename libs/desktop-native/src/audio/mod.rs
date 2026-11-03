@@ -30,9 +30,43 @@ pub fn float32_to_le_bytes(samples: &[f32]) -> Vec<u8> {
     bytes
 }
 
+/// Validates process ID to capture based on capture mode and self PID.
+/// In "include" mode: target PID must be provided and must not equal self PID.
+/// In "exclude" mode: target PID defaults to self PID to exclude own process tree.
+pub fn resolve_capture_pid(
+    mode: &str,
+    target_pid: Option<u32>,
+    self_pid: u32,
+) -> std::result::Result<u32, &'static str> {
+    if mode == "exclude" {
+        Ok(target_pid.unwrap_or(self_pid))
+    } else if let Some(pid) = target_pid {
+        if pid == self_pid {
+            Err("Cannot capture audio from Konvoez itself")
+        } else {
+            Ok(pid)
+        }
+    } else {
+        Err("No valid target window or process specified for audio capture")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_resolve_capture_pid_exclude_mode() {
+        assert_eq!(resolve_capture_pid("exclude", None, 100), Ok(100));
+        assert_eq!(resolve_capture_pid("exclude", Some(200), 100), Ok(200));
+    }
+
+    #[test]
+    fn test_resolve_capture_pid_include_mode() {
+        assert_eq!(resolve_capture_pid("include", Some(200), 100), Ok(200));
+        assert!(resolve_capture_pid("include", Some(100), 100).is_err());
+        assert!(resolve_capture_pid("include", None, 100).is_err());
+    }
 
     #[test]
     fn test_mix_audio_buffers_empty() {
