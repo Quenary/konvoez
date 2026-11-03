@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut } from 'electron';
+import { app, BrowserWindow, globalShortcut, powerMonitor } from 'electron';
 import {
   EDesktopCommand,
   EDesktopIpc,
@@ -21,6 +21,13 @@ let storedHotkeys: TDesktopHotkeys | null = null;
 let suspendDepth = 0;
 let activeKeyHookHandle: KeyHookHandle | null = null;
 const pressedKeys = new Set<string>();
+const pressedAt = new Map<string, number>();
+const KEY_HELD_GAP_MS = 2000;
+
+function clearPressedKeys(): void {
+  pressedKeys.clear();
+  pressedAt.clear();
+}
 
 export function resetHotkeyStateForTests(): void {
   storedHotkeys = null;
@@ -33,7 +40,7 @@ export function resetHotkeyStateForTests(): void {
     }
     activeKeyHookHandle = null;
   }
-  pressedKeys.clear();
+  clearPressedKeys();
 }
 
 const MODIFIER_SYNONYMS: Record<string, string> = {
@@ -80,16 +87,30 @@ export function handleNativeKeyEvent(
 ): void {
   if (!event.down) {
     pressedKeys.delete(event.code);
+    pressedAt.delete(event.code);
     return;
+  }
+
+  const now = Date.now();
+  const lastSeen = pressedAt.get(event.code);
+  const heldTooLong =
+    pressedKeys.has(event.code) &&
+    lastSeen !== undefined &&
+    now - lastSeen >= KEY_HELD_GAP_MS;
+  if (heldTooLong) {
+    pressedKeys.delete(event.code);
   }
 
   // Windows repeats KEYDOWN while a key is held. X11 detectable autorepeat
   // is a release plus a press with the same timestamp, marked `repeat`.
-  if (event.repeat || pressedKeys.has(event.code)) {
+  // A down after a long silence is a new press: the release was lost.
+  if (!heldTooLong && (event.repeat || pressedKeys.has(event.code))) {
     pressedKeys.add(event.code);
+    pressedAt.set(event.code, now);
     return;
   }
   pressedKeys.add(event.code);
+  pressedAt.set(event.code, now);
 
   if (suspendDepth > 0 || !storedHotkeys) {
     return;
@@ -154,6 +175,7 @@ export function applyHotkeys(
 
     if (hasAnyHotkey && !activeKeyHookHandle) {
       try {
+        clearPressedKeys();
         activeKeyHookHandle = nativeMod.startKeyHook((event) => {
           handleNativeKeyEvent(event, onCommand);
         });
@@ -168,6 +190,7 @@ export function applyHotkeys(
         // ignore
       }
       activeKeyHookHandle = null;
+      clearPressedKeys();
     }
 
     if (activeKeyHookHandle || !hasAnyHotkey) {
@@ -190,6 +213,7 @@ export function applyHotkeys(
       // ignore
     }
     activeKeyHookHandle = null;
+    clearPressedKeys();
   }
 
   shortcutManager.unregisterAll();
@@ -228,7 +252,7 @@ export function suspendHotkeys(
   shortcutManager: typeof globalShortcut = globalShortcut,
 ): void {
   suspendDepth += 1;
-  pressedKeys.clear();
+  clearPressedKeys();
   if (suspendDepth === 1) {
     shortcutManager.unregisterAll();
   }
@@ -252,7 +276,7 @@ export function resumeHotkeys(
   } else {
     return;
   }
-  pressedKeys.clear();
+  clearPressedKeys();
 
   if (suspendDepth === 0 && storedHotkeys) {
     applyHotkeys(storedHotkeys, shortcutManager, onCommand);
@@ -260,6 +284,9 @@ export function resumeHotkeys(
 }
 
 export function initHotkeys(): void {
+  powerMonitor.on('lock-screen', () => {
+    clearPressedKeys();
+  });
   app.on('will-quit', () => {
     if (activeKeyHookHandle) {
       try {

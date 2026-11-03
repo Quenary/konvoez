@@ -200,6 +200,46 @@ describe('applyHotkeys', () => {
       expect(stopHook).toHaveBeenCalled();
     });
 
+    it('fires again when a held key is pressed after a long gap', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const nativeMod = await import('./native');
+      let hookListener:
+        ((event: { code: string; down: boolean }) => void) | null = null;
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => false,
+        isKeyHookSupported: () => true,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(),
+        startKeyHook: vi.fn().mockImplementation((cb) => {
+          hookListener = cb;
+          return { stop: vi.fn() };
+        }),
+      });
+      const onCommand = vi.fn();
+      const mockManager = {
+        unregisterAll: vi.fn(),
+        register: vi.fn(),
+      } as unknown as typeof globalShortcut;
+      applyHotkeys(
+        { toggleMic: null, toggleSpeaker: 'F12' },
+        mockManager,
+        onCommand,
+      );
+      const listener = hookListener as (event: {
+        code: string;
+        down: boolean;
+      }) => void;
+      listener({ code: 'F12', down: true });
+      listener({ code: 'F12', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(new Date('2026-01-01T00:00:03Z'));
+      listener({ code: 'F12', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
+    });
+
     it('falls back to globalShortcut when the native hook fails to start', async () => {
       const nativeMod = await import('./native');
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
