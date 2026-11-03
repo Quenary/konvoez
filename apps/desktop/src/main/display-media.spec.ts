@@ -787,5 +787,76 @@ describe('display-media helpers', () => {
       expect(callback).toHaveBeenCalledWith({ video: konvoezWindow });
       expect(startAudioCapture).not.toHaveBeenCalled();
     });
+
+    it('captures specific audio stream when audioStreamId is provided', async () => {
+      const nativeMod = await import('./native');
+      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [{ id: '42', name: 'Spotify', pid: 1234 }],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer, ipcMain } = await import('electron');
+      const screen1 = {
+        id: 'screen:0:0',
+        name: 'Screen 1',
+      } as DesktopCapturerSource;
+      const screen2 = {
+        id: 'screen:1:0',
+        name: 'Screen 2',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([
+        screen1,
+        screen2,
+      ]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'linux',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      const p = handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      await new Promise((r) => setTimeout(r, 10));
+      const pickListener = vi
+        .mocked(ipcMain.once)
+        .mock.calls.find(
+          (call) => call[0] === 'konvoez-local:pick-source',
+        )?.[1];
+      expect(pickListener).toBeDefined();
+      pickListener?.({} as never, 'screen:0:0', true, '42');
+
+      await p;
+
+      expect(callback).toHaveBeenCalledWith({ video: screen1 });
+      expect(startAudioCapture).toHaveBeenCalledWith(
+        { mode: 'include', targetStreamId: '42' },
+        expect.any(Function),
+      );
+    });
   });
 });

@@ -55,7 +55,9 @@ export const translations = {
     'picker.noWindows': 'No windows available',
     'picker.shareAudio': 'Share system audio',
     'picker.shareAudioHint':
-      'Broadcasts all system audio, including other participants (may cause echo)',
+      'Broadcasts clean system or application audio without participant echo',
+    'picker.audioSource': 'Audio source',
+    'picker.allAudio': 'All system audio',
     'updater.updateAvailable': 'Update available',
     'updater.downloadPrompt':
       'A new version of Konvoez ({version}) is available. Download now?',
@@ -122,7 +124,9 @@ export const translations = {
     'picker.noWindows': 'Нет доступных окон',
     'picker.shareAudio': 'Транслировать системный звук',
     'picker.shareAudioHint':
-      'Транслируется весь звук системы, включая собеседников (может вызывать эхо)',
+      'Транслируется чистый системный звук или звук приложения без эха собеседников',
+    'picker.audioSource': 'Источник звука',
+    'picker.allAudio': 'Весь системный звук',
     'updater.updateAvailable': 'Доступно обновление',
     'updater.downloadPrompt':
       'Доступна новая версия Konvoez ({version}). Скачать сейчас?',

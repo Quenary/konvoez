@@ -228,4 +228,45 @@ describe('k-source-picker-dialog', () => {
     const hint = el.shadowRoot?.querySelector('p.audio-hint');
     expect(hint?.textContent).toBe('picker.shareAudioHint');
   });
+
+  it('renders audio streams dropdown when streams are provided and audio is enabled', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        sources: mockSources,
+        shareAudio: true,
+        audioSupported: true,
+        locale: 'en',
+        audioStreams: [
+          { id: 'node-1', name: 'Spotify', pid: 1234 },
+          { id: 'node-2', name: 'Firefox', pid: 5678 },
+        ],
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    const select = el.shadowRoot?.querySelector(
+      'select.audio-stream-select',
+    ) as HTMLSelectElement | null;
+    expect(select).not.toBeNull();
+    expect(select?.options).toHaveLength(3);
+
+    select!.value = 'node-1';
+    select!.dispatchEvent(new Event('change'));
+    await el.updateComplete;
+
+    const actions = el.shadowRoot?.querySelector('k-dialog-actions');
+    const buttons = actions?.querySelectorAll('k-button');
+    const shareBtn = buttons?.[1];
+    shareBtn?.dispatchEvent(new CustomEvent('k-click', { bubbles: true }));
+
+    expect(adapter.pick).toHaveBeenCalledWith('screen:0:0', true, 'node-1');
+  });
 });

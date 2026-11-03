@@ -1,6 +1,7 @@
 import { LitElement, css, html, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type {
+  IAudioStreamInfo,
   ISourcePickerDialogAdapter,
   ISourcePickerDialogInitial,
   ISerializableSource,
@@ -24,6 +25,8 @@ export const PICKER_DIALOG_I18N_KEYS = [
   'picker.noWindows',
   'picker.shareAudio',
   'picker.shareAudioHint',
+  'picker.audioSource',
+  'picker.allAudio',
 ] as const;
 export const SOURCE_PICKER_DIALOG_I18N_KEYS = PICKER_DIALOG_I18N_KEYS;
 
@@ -42,12 +45,33 @@ export class KSourcePickerDialog extends LitElement {
     }
     .audio-section {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
     }
     .audio-hint {
       margin: 0;
       font-size: 0.75rem;
       color: var(--tui-text-tertiary);
       line-height: 1.35;
+    }
+    .audio-stream-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .audio-stream-label {
+      font-size: 0.75rem;
+      color: var(--tui-text-secondary);
+    }
+    .audio-stream-select {
+      background: var(--tui-background-base);
+      color: var(--tui-text-primary);
+      border: 1px solid var(--tui-border-normal);
+      border-radius: var(--tui-radius-m);
+      padding: 0.2rem 0.4rem;
+      font-size: 0.75rem;
+      outline: none;
     }
     .button-group {
       display: flex;
@@ -68,6 +92,8 @@ export class KSourcePickerDialog extends LitElement {
   @state() accessor selectedId: string | null = null;
   @state() accessor shareAudio = true;
   @state() accessor audioSupported = true;
+  @state() accessor audioStreams: IAudioStreamInfo[] = [];
+  @state() accessor selectedAudioStreamId: string | null = null;
 
   private readonly i18n = new I18nController(this);
   private initialLoaded = false;
@@ -107,6 +133,8 @@ export class KSourcePickerDialog extends LitElement {
       this.sources = initial.sources;
       this.shareAudio = initial.shareAudio;
       this.audioSupported = initial.audioSupported;
+      this.audioStreams = initial.audioStreams ?? [];
+      this.selectedAudioStreamId = null;
 
       const current = this.currentSources;
       this.selectedId = current.length > 0 ? current[0].id : null;
@@ -141,12 +169,26 @@ export class KSourcePickerDialog extends LitElement {
   private handleShare(): void {
     if (!this.selectedId) return;
     const withAudio = this.audioSupported ? this.shareAudio : false;
-    this.adapter?.pick(this.selectedId, withAudio);
+    if (this.selectedAudioStreamId) {
+      this.adapter?.pick(
+        this.selectedId,
+        withAudio,
+        this.selectedAudioStreamId,
+      );
+    } else {
+      this.adapter?.pick(this.selectedId, withAudio);
+    }
     this.dispatchEvent(
       new CustomEvent('k-picked', {
         bubbles: true,
         composed: true,
-        detail: { sourceId: this.selectedId, withAudio },
+        detail: {
+          sourceId: this.selectedId,
+          withAudio,
+          ...(this.selectedAudioStreamId
+            ? { audioStreamId: this.selectedAudioStreamId }
+            : {}),
+        },
       }),
     );
   }
@@ -214,6 +256,38 @@ export class KSourcePickerDialog extends LitElement {
                       .checked="${this.shareAudio}"
                       @k-change="${(e: CustomEvent<{ checked: boolean }>) =>
                         this.handleAudioChange(e.detail.checked)}"></k-checkbox>
+                    ${
+                      this.shareAudio && this.audioStreams.length > 0
+                        ? html`
+                            <div class="audio-stream-row">
+                              <label
+                                class="audio-stream-label"
+                                for="audio-stream-select">
+                                ${this.t('picker.audioSource')}
+                              </label>
+                              <select
+                                id="audio-stream-select"
+                                class="audio-stream-select"
+                                .value="${this.selectedAudioStreamId ?? ''}"
+                                @change="${(e: Event) => {
+                                  const val = (e.target as HTMLSelectElement)
+                                    .value;
+                                  this.selectedAudioStreamId = val || null;
+                                }}">
+                                <option value="">
+                                  ${this.t('picker.allAudio')}
+                                </option>
+                                ${this.audioStreams.map(
+                                  (stream) =>
+                                    html`<option value="${stream.id}">
+                                      ${stream.name}
+                                    </option>`,
+                                )}
+                              </select>
+                            </div>
+                          `
+                        : null
+                    }
                   `
                 : html`
                     <p class="audio-hint">${this.t('picker.shareAudioHint')}</p>

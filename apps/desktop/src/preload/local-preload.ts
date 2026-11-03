@@ -36,15 +36,22 @@ const localBridge: IKonvoezLocalBridge = {
   },
   picker: {
     async getInitial() {
-      const [config, sources] = await Promise.all([
+      const [config, sourcesData] = await Promise.all([
         ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
         ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
       ]);
+      const sources = Array.isArray(sourcesData)
+        ? sourcesData
+        : (sourcesData?.sources ?? []);
+      const audioStreams = Array.isArray(sourcesData)
+        ? undefined
+        : sourcesData?.audioStreams;
       return {
         sources,
         shareAudio: config.shareAudio,
         audioSupported: Boolean(config.audioSupported),
         locale: config.locale as TLanguage,
+        audioStreams,
       };
     },
     setShareAudio: (value: boolean) => {
@@ -52,8 +59,17 @@ const localBridge: IKonvoezLocalBridge = {
         shareAudio: value,
       });
     },
-    pick: (sourceId: string | null, withAudio: boolean) => {
-      ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId, withAudio);
+    pick: (
+      sourceId: string | null,
+      withAudio: boolean,
+      audioStreamId?: string,
+    ) => {
+      ipcRenderer.send(
+        EDesktopIpc.LOCAL_PICK_SOURCE,
+        sourceId,
+        withAudio,
+        audioStreamId,
+      );
     },
   },
 };

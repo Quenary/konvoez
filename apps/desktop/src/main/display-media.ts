@@ -18,6 +18,7 @@ let activeAudioCapture: AudioCaptureHandle | null = null;
 export interface IPickedSourceResult {
   source: DesktopCapturerSource | null;
   withAudio: boolean;
+  audioStreamId?: string;
 }
 
 export function getScreenShareAudio(
@@ -115,6 +116,7 @@ export async function openSourcePicker(
       _: unknown,
       pickedId: string | null,
       withAudio = configStore?.get().shareAudio ?? true,
+      audioStreamId?: string,
     ) => {
       if (!resolved) {
         resolved = true;
@@ -129,7 +131,7 @@ export async function openSourcePicker(
         if (configStore) {
           configStore.set({ shareAudio: withAudio });
         }
-        resolve({ source: found, withAudio });
+        resolve({ source: found, withAudio, audioStreamId });
       }
     };
 
@@ -175,7 +177,20 @@ export async function openSourcePicker(
     pickerWin.setMenu(null);
     void pickerWin.loadFile(getLocalPagePath('picker'));
 
-    ipcMain.handle(EDesktopIpc.LOCAL_PICKER_SOURCES, () => serializable);
+    ipcMain.handle(EDesktopIpc.LOCAL_PICKER_SOURCES, () => {
+      const nativeMod = getNativeModule();
+      let audioStreams;
+      try {
+        audioStreams = nativeMod?.getAudioStreams?.();
+      } catch {
+        // ignore
+      }
+      return {
+        sources: serializable,
+        audioStreams:
+          audioStreams && audioStreams.length > 0 ? audioStreams : undefined,
+      };
+    });
     ipcMain.once(EDesktopIpc.LOCAL_PICK_SOURCE, handlePick);
 
     pickerWin.on('closed', () => {
@@ -291,6 +306,7 @@ export function installDisplayMediaHandler(
 
         let pickedSource: DesktopCapturerSource | null = null;
         let withAudio = configStore ? configStore.get().shareAudio : true;
+        let audioStreamId: string | undefined;
 
         if (sources.length === 1) {
           pickedSource = sources[0];
@@ -307,6 +323,7 @@ export function installDisplayMediaHandler(
           }
           pickedSource = picked.source;
           withAudio = picked.withAudio;
+          audioStreamId = picked.audioStreamId;
         }
 
         if (!pickedSource) {
@@ -356,9 +373,11 @@ export function installDisplayMediaHandler(
 
             try {
               const handle = nativeMod.startAudioCapture(
-                isScreen
-                  ? { mode: 'exclude', targetPid: process.pid }
-                  : { mode: 'include', targetHwnd: hwnd },
+                audioStreamId
+                  ? { mode: 'include', targetStreamId: audioStreamId }
+                  : isScreen
+                    ? { mode: 'exclude', targetPid: process.pid }
+                    : { mode: 'include', targetHwnd: hwnd },
                 (chunk: Buffer) => {
                   try {
                     port1.postMessage(chunk.buffer, [chunk.buffer]);
