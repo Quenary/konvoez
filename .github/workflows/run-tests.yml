@@ -114,7 +114,7 @@ jobs:
           cache: npm
 
       - name: Setup Rust
-        run: rustup show
+        run: rustup toolchain install
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev
@@ -150,7 +150,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Rust
-        run: rustup show
+        run: rustup toolchain install
 
       - name: Clippy
         working-directory: libs/desktop-native
