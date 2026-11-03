@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use windows::Win32::Foundation::{CloseHandle, HWND};
+use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler, IActivateAudioInterfaceCompletionHandler_Impl,
@@ -15,6 +15,7 @@ use windows::Win32::Media::Audio::{
     AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
     AUDCLNT_STREAMFLAGS_LOOPBACK, WAVEFORMATEX, WAVEFORMATEXTENSIBLE,
 };
+use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
@@ -44,6 +45,38 @@ struct PropVariantBlob {
     w_reserved3: u16,
     cb_size: u32,
     p_blob_data: *mut u8,
+}
+
+struct ComScope;
+impl ComScope {
+    fn new() -> Self {
+        // SAFETY: Initializing COM runtime on background capture thread
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        }
+        Self
+    }
+}
+
+impl Drop for ComScope {
+    fn drop(&mut self) {
+        // SAFETY: Balancing CoInitializeEx
+        unsafe {
+            CoUninitialize();
+        }
+    }
+}
+
+struct AutoCloseHandle(HANDLE);
+impl Drop for AutoCloseHandle {
+    fn drop(&mut self) {
+        if !self.0.is_invalid() {
+            // SAFETY: Closing valid event handle
+            unsafe {
+                let _ = CloseHandle(self.0);
+            }
+        }
+    }
 }
 
 #[implement(IActivateAudioInterfaceCompletionHandler)]
@@ -77,8 +110,7 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for ActivationHandler_Impl {
                         if let Some(u) = unk {
                             let _ = sender.send(Ok(u));
                         } else {
-                            let _ =
-                                sender.send(Err(windows_core::Error::from_hresult(HRESULT(-1))));
+                            let _ = sender.send(Err(windows_core::Error::from_hresult(E_FAIL)));
                         }
                     }
                 }
@@ -139,7 +171,7 @@ pub fn find_root_process_in_tree(pid: u32) -> u32 {
         let _ = CloseHandle(snapshot);
 
         let mut current_pid = pid;
-        loop {
+        for _ in 0..16 {
             let current_info = processes.iter().find(|(p, _, _)| *p == current_pid);
             if let Some((_, parent_pid, exe)) = current_info {
                 if *parent_pid == 0 || *parent_pid == current_pid {
@@ -199,6 +231,8 @@ fn run_capture_loop<F>(
 where
     F: Fn(Vec<u8>),
 {
+    let _com_scope = ComScope::new();
+
     // SAFETY: Initializing WASAPI process loopback capture via COM interface.
     unsafe {
         let mut params = AudioClientActivationParams {
@@ -234,7 +268,7 @@ where
 
         let unk = match rx.recv_timeout(Duration::from_secs(3)) {
             Ok(res) => res?,
-            Err(_) => return Err(windows_core::Error::from_hresult(HRESULT(-1))),
+            Err(_) => return Err(windows_core::Error::from_hresult(E_FAIL)),
         };
 
         let audio_client: IAudioClient = unk.cast()?;
@@ -261,6 +295,7 @@ where
         };
 
         let event = CreateEventW(None, false, false, None)?;
+        let _event_guard = AutoCloseHandle(event);
 
         audio_client.Initialize(
             AUDCLNT_SHAREMODE_SHARED,
@@ -318,7 +353,6 @@ where
         }
 
         let _ = audio_client.Stop();
-        let _ = CloseHandle(event);
 
         Ok(())
     }
