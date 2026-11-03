@@ -265,10 +265,46 @@ pub fn start_capture(
     let stopper_for_thread = Arc::clone(&stopper);
 
     let handle = thread::spawn(move || {
-        let sender = move |chunk: Vec<u8>| {
-            let _ = tsfn.call(Buffer::from(chunk), ThreadsafeFunctionCallMode::NonBlocking);
-        };
-        let _ = run_capture_loop(pid_to_use, is_exclude, sender, stopper_for_thread, ready_tx);
+        let ring = Arc::new(crate::audio::SampleRing::with_capacity(32768));
+        let ring_for_delivery = Arc::clone(&ring);
+        let stopper_for_delivery = Arc::clone(&stopper_for_thread);
+        let delivery = thread::Builder::new()
+            .name("wasapi-deliver".to_string())
+            .spawn(move || {
+                const CHUNK_FLOATS: usize = 960;
+                const MAX_KEEP: usize = 19200;
+                let mut samples = vec![0.0f32; CHUNK_FLOATS];
+                let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
+                loop {
+                    if ring_for_delivery.pop_chunk_or_silence(&mut samples, MAX_KEEP) {
+                        bytes.clear();
+                        for sample in &samples {
+                            bytes.extend_from_slice(&sample.to_le_bytes());
+                        }
+                        let _ = tsfn.call(
+                            Buffer::from(bytes.as_slice()),
+                            ThreadsafeFunctionCallMode::NonBlocking,
+                        );
+                        continue;
+                    }
+                    if stopper_for_delivery.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    thread::sleep(Duration::from_millis(5));
+                }
+            })
+            .ok();
+        let _ = run_capture_loop(
+            pid_to_use,
+            is_exclude,
+            ring,
+            Arc::clone(&stopper_for_thread),
+            ready_tx,
+        );
+        stopper_for_thread.store(true, Ordering::SeqCst);
+        if let Some(delivery) = delivery {
+            let _ = delivery.join();
+        }
     });
 
     match ready_rx.recv() {
@@ -289,16 +325,13 @@ pub fn start_capture(
     }
 }
 
-fn run_capture_loop<F>(
+fn run_capture_loop(
     target_pid: u32,
     is_exclude: bool,
-    on_chunk: F,
+    ring: Arc<crate::audio::SampleRing>,
     stopper: Arc<AtomicBool>,
     ready: std::sync::mpsc::Sender<std::result::Result<(), String>>,
-) -> windows_core::Result<()>
-where
-    F: Fn(Vec<u8>),
-{
+) -> windows_core::Result<()> {
     let _com_scope = ComScope::new();
 
     let init = init_wasapi_client(target_pid, is_exclude);
@@ -313,6 +346,8 @@ where
             return Err(err);
         }
     };
+
+    let silence = [0.0f32; 4096];
 
     // SAFETY: The capture loop uses the client started above. Buffers returned by
     // GetBuffer stay valid until the matching ReleaseBuffer call.
@@ -340,18 +375,24 @@ where
                         break;
                     }
 
-                    let num_bytes = (num_frames_read * 8) as usize;
-                    let chunk = if (flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0 {
-                        vec![0u8; num_bytes]
-                    } else {
-                        std::slice::from_raw_parts(p_data, num_bytes).to_vec()
-                    };
+                    let float_count = (num_frames_read as usize) * 2;
+                    let silent = (flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0;
+                    if silent {
+                        let mut remaining = float_count & !1;
+                        while remaining > 0 {
+                            let count = remaining.min(silence.len()) & !1;
+                            ring.push_slice(&silence[..count]);
+                            remaining -= count;
+                        }
+                    } else if !p_data.is_null() {
+                        let num_bytes = float_count * 4;
+                        // SAFETY: GetBuffer's pointer stays valid until ReleaseBuffer
+                        // and covers `num_frames_read` stereo f32 frames.
+                        let bytes = std::slice::from_raw_parts(p_data, num_bytes);
+                        crate::audio::push_le_f32(&ring, bytes);
+                    }
 
                     let _ = capture_client.ReleaseBuffer(num_frames_read);
-
-                    if !chunk.is_empty() {
-                        on_chunk(chunk);
-                    }
                 }
             }
         }
