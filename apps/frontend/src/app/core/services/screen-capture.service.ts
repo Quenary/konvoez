@@ -65,26 +65,53 @@ export class ScreenCaptureService implements OnDestroy {
 
     let portPromise: Promise<MessagePort | null> | null = null;
     let cleanupPortListener: (() => void) | undefined;
+    let beginPortWait: (() => void) | undefined;
     let portDiscarded = false;
 
     if (useNativeAudio) {
       portPromise = new Promise<MessagePort | null>((resolve) => {
-        const timer = setTimeout(() => {
-          resolve(null);
-        }, 2000);
-        cleanupPortListener = bridge?.onScreenAudioPort?.((port) => {
-          clearTimeout(timer);
-          if (portDiscarded) {
-            try {
-              port.postMessage('stop');
-              port.close();
-            } catch {
-              // best-effort
-            }
-          } else {
-            resolve(port);
+        let settled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+
+        const stopPort = (port: MessagePort): void => {
+          try {
+            port.postMessage('stop');
+            port.close();
+          } catch {
+            // best-effort
           }
+        };
+
+        const finish = (port: MessagePort | null): void => {
+          if (settled) {
+            if (port) {
+              stopPort(port);
+            }
+            return;
+          }
+          settled = true;
+          if (timer !== undefined) {
+            clearTimeout(timer);
+          }
+          if (port && portDiscarded) {
+            stopPort(port);
+            resolve(null);
+            return;
+          }
+          resolve(port);
+        };
+
+        cleanupPortListener = bridge?.onScreenAudioPort?.((port) => {
+          finish(port);
         });
+        // The picker runs inside getDisplayMedia. Arm the timeout only after
+        // that call returns, and stop a port that arrives once the wait is over.
+        beginPortWait = () => {
+          if (settled) {
+            return;
+          }
+          timer = setTimeout(() => finish(null), 2000);
+        };
       });
     }
 
@@ -118,6 +145,8 @@ export class ScreenCaptureService implements OnDestroy {
     } catch {
       // best-effort
     }
+
+    beginPortWait?.();
 
     let audioTrack: MediaStreamTrack | null = null;
 

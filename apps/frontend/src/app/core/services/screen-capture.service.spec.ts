@@ -261,6 +261,73 @@ describe('ScreenCaptureService', () => {
       vi.useRealTimers();
     });
 
+    it('does not time out the port while getDisplayMedia is still pending', async () => {
+      vi.useFakeTimers();
+      let resolveMedia: ((stream: MediaStream) => void) | undefined;
+      mediaDevicesService.getDisplayMedia.mockReturnValue(
+        new Promise<MediaStream>((resolve) => {
+          resolveMedia = resolve;
+        }),
+      );
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn(() => () => undefined),
+        },
+      });
+
+      let settled = false;
+      const promise = service.getTracks().finally(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(settled).toBe(false);
+
+      resolveMedia?.({
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [],
+        getTracks: () => [mockVideoTrack],
+      } as unknown as MediaStream);
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
+      expect(settled).toBe(true);
+      vi.useRealTimers();
+    });
+
+    it('stops a port that arrives after the post-capture wait has ended', async () => {
+      vi.useFakeTimers();
+      let portListener: ((port: MessagePort) => void) | undefined;
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn((listener: (port: MessagePort) => void) => {
+            portListener = listener;
+            return () => undefined;
+          }),
+        },
+      });
+      mediaDevicesService.getDisplayMedia.mockResolvedValue({
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [],
+        getTracks: () => [mockVideoTrack],
+      } as unknown as MediaStream);
+
+      const promise = service.getTracks();
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      const latePort = {
+        postMessage: vi.fn(),
+        close: vi.fn(),
+      } as unknown as MessagePort;
+      portListener?.(latePort);
+      expect(latePort.postMessage).toHaveBeenCalledWith('stop');
+      expect(latePort.close).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
     it('cleans up port listener and closes arriving port when getDisplayMedia fails', async () => {
       const mockPort = {
         postMessage: vi.fn(),
