@@ -17,36 +17,34 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: ${{ github.workflow }}-prod-image-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: konvoez
+
 jobs:
-  build-and-push:
-    name: Build and push prod images
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-prod-image-${{ github.ref_name }}
-      cancel-in-progress: false
-    env:
-      IMAGE_NAME: konvoez
+  build:
+    name: Build prod image (${{ matrix.arch }})
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
 
     steps:
-      - name: Get Tags
-        id: get-tags
-        run: |
-          VERSION="${{ inputs.version }}"
-          MAJOR=$(echo "$VERSION" | cut -d. -f1)
-          PREFIXED=v$VERSION
-
-          echo "full=$VERSION" >> $GITHUB_OUTPUT
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "prefixed=$PREFIXED" >> $GITHUB_OUTPUT
-
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: v${{ steps.get-tags.outputs.full }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+          ref: v${{ inputs.version }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -58,11 +56,6 @@ jobs:
           images: |
             docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
             ghcr.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ steps.get-tags.outputs.full }}
-            type=raw,value=${{ steps.get-tags.outputs.major }}
-            type=raw,value=${{ steps.get-tags.outputs.prefixed }}
-            type=raw,value=latest
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
@@ -77,16 +70,103 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.app-meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           build-args: |
-            VERSION=${{ steps.get-tags.outputs.prefixed }}
-          cache-from: type=gha,scope=prod-image
-          cache-to: type=gha,mode=max,scope=prod-image
-          labels: |
-            ${{ steps.app-meta.outputs.labels }}
+            VERSION=v${{ inputs.version }}
+          labels: ${{ steps.app-meta.outputs.labels }}
+          outputs: 'type=image,"name=docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }},ghcr.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}",push-by-digest=true,name-canonical=true,push=true'
+          cache-from: type=gha,scope=prod-image-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=prod-image-${{ matrix.arch }}
+
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge and push multi-platform prod images
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Tags
+        id: get-tags
+        run: |
+          VERSION="${{ inputs.version }}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          PREFIXED=v$VERSION
+
+          echo "full=$VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "prefixed=$PREFIXED" >> $GITHUB_OUTPUT
+
+      - name: Docker Metadata App
+        id: app-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+            ghcr.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.get-tags.outputs.full }}
+            type=raw,value=${{ steps.get-tags.outputs.major }}
+            type=raw,value=${{ steps.get-tags.outputs.prefixed }}
+            type=raw,value=latest
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.app-meta.outputs.json }}
+          DOCKER_REPO: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+          GHCR_REPO: ghcr.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        run: |
+          for image in "$DOCKER_REPO" "$GHCR_REPO"; do
+            docker buildx imagetools create \
+              $(jq -cr --arg img "$image:" '.tags | map(select(startswith($img)) | "-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+              $(printf "$image@sha256:%s " *)
+          done
+
+      - name: Inspect image
+        env:
+          DOCKER_REPO: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+          GHCR_REPO: ghcr.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        run: |
+          docker buildx imagetools inspect "$DOCKER_REPO:${{ steps.get-tags.outputs.full }}"
+          docker buildx imagetools inspect "$GHCR_REPO:${{ steps.get-tags.outputs.full }}"
