@@ -10,6 +10,7 @@ export interface AudioStreamInfo {
 export interface AudioCaptureOptions {
   mode: 'exclude' | 'include';
   targetPid?: number;
+  targetHwnd?: number;
   targetStreamId?: string;
 }
 

@@ -37,6 +37,7 @@ vi.mock('electron', () => {
       createFromPath: vi.fn(() => ({ isEmpty: () => false })),
     },
     MessageChannelMain: class MockMessageChannelMain {
+      static lastInstance: MockMessageChannelMain | null = null;
       port1 = {
         postMessage: vi.fn(),
         on: vi.fn(),
@@ -44,6 +45,9 @@ vi.mock('electron', () => {
         close: vi.fn(),
       };
       port2 = {};
+      constructor() {
+        MockMessageChannelMain.lastInstance = this;
+      }
     },
   };
 });
@@ -859,6 +863,87 @@ describe('display-media helpers', () => {
         { mode: 'include', targetStreamId: '42' },
         expect.any(Function),
       );
+    });
+
+    it('posts audio chunks without transfer list and cleans up on port close', async () => {
+      const nativeMod = await import('./native');
+      const stopCapture = vi.fn();
+      let chunkCallback: ((chunk: Buffer) => void) | undefined;
+      const startAudioCapture = vi.fn().mockImplementation((_, cb) => {
+        chunkCallback = cb;
+        return { stop: stopCapture };
+      });
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer, MessageChannelMain } = await import('electron');
+      const screenSource = {
+        id: 'screen:0:0',
+        name: 'Screen 1',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([screenSource]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(chunkCallback).toBeDefined();
+      const testBuffer = Buffer.from(new Float32Array([0.5, -0.5]).buffer);
+      chunkCallback!(testBuffer);
+
+      // Verify postMessage called with single argument (no transfer array)
+      const mockChannel = (
+        MessageChannelMain as unknown as {
+          lastInstance: {
+            port1: {
+              postMessage: ReturnType<typeof vi.fn>;
+              on: ReturnType<typeof vi.fn>;
+              close: ReturnType<typeof vi.fn>;
+            };
+          };
+        }
+      ).lastInstance;
+      expect(mockChannel.port1.postMessage).toHaveBeenCalledWith(
+        testBuffer.buffer,
+      );
+
+      // Verify port1 handles 'close' event
+      const closeListener = mockChannel.port1.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'close',
+      )?.[1] as (() => void) | undefined;
+      expect(closeListener).toBeDefined();
+      closeListener?.();
+      expect(stopCapture).toHaveBeenCalled();
+      expect(mockChannel.port1.close).toHaveBeenCalled();
     });
   });
 });

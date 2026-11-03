@@ -380,7 +380,15 @@ export function installDisplayMediaHandler(
                     : { mode: 'include', targetHwnd: hwnd },
                 (chunk: Buffer) => {
                   try {
-                    port1.postMessage(chunk.buffer, [chunk.buffer]);
+                    const arrayBuffer =
+                      chunk.byteOffset === 0 &&
+                      chunk.byteLength === chunk.buffer.byteLength
+                        ? chunk.buffer
+                        : chunk.buffer.slice(
+                            chunk.byteOffset,
+                            chunk.byteOffset + chunk.byteLength,
+                          );
+                    port1.postMessage(arrayBuffer);
                   } catch {
                     // port may be closed
                   }
@@ -388,22 +396,29 @@ export function installDisplayMediaHandler(
               );
               activeAudioCapture = handle;
 
+              const cleanupCapture = () => {
+                try {
+                  handle.stop();
+                } catch {
+                  // ignore
+                }
+                if (activeAudioCapture === handle) {
+                  activeAudioCapture = null;
+                }
+                try {
+                  port1.close();
+                } catch {
+                  // ignore
+                }
+              };
+
               port1.on('message', (event) => {
                 if (event.data === 'stop') {
-                  try {
-                    handle.stop();
-                  } catch {
-                    // ignore
-                  }
-                  if (activeAudioCapture === handle) {
-                    activeAudioCapture = null;
-                  }
-                  try {
-                    port1.close();
-                  } catch {
-                    // ignore
-                  }
+                  cleanupCapture();
                 }
+              });
+              port1.on('close', () => {
+                cleanupCapture();
               });
               port1.start();
             } catch (err) {
