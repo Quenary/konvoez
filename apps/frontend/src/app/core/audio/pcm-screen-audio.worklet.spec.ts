@@ -148,7 +148,9 @@ describe('pcm-screen-audio.worklet', () => {
       fill[i] = 1.0; // Left
       fill[i + 1] = -1.0; // Right
     }
-    portMessageListener?.({ data: fill });
+    const listener = portMessageListener as
+      ((event: { data?: unknown }) => void) | null;
+    listener?.({ data: fill });
 
     // Push odd-length chunk of 201 samples to trigger overflow with odd value
     const oddChunk = new Float32Array(201);
@@ -157,7 +159,7 @@ describe('pcm-screen-audio.worklet', () => {
       oddChunk[i + 1] = -0.5; // Right
     }
     oddChunk[200] = 0.5;
-    portMessageListener?.({ data: oddChunk });
+    listener?.({ data: oddChunk });
 
     // Process one quantum (128 frames = 256 samples)
     const outLeft = new Float32Array(128);
@@ -190,6 +192,28 @@ describe('pcm-screen-audio.worklet', () => {
     expect(() => {
       portMessageListener?.({ data: unalignedView });
     }).not.toThrow();
+  });
+
+  it('forwards stop to the native audio port before closing it', () => {
+    const Ctor = loadProcessor();
+    const processor = new Ctor();
+    const postMessage = vi.fn();
+    const close = vi.fn();
+    const mockAudioPort = {
+      set onmessage(_fn: (event: { data?: unknown }) => void) {
+        // attached
+      },
+      postMessage,
+      close,
+    };
+    processor.port.onmessage?.({ data: mockAudioPort });
+    processor.port.onmessage?.({ data: 'stop' });
+
+    expect(postMessage).toHaveBeenCalledWith('stop');
+    expect(close).toHaveBeenCalled();
+    expect(postMessage.mock.invocationCallOrder[0]).toBeLessThan(
+      close.mock.invocationCallOrder[0],
+    );
   });
 
   it('stops and returns false when stop command is received', () => {

@@ -220,17 +220,14 @@ export class ScreenCaptureService implements OnDestroy {
     this.videoTrack = null;
     this.audioTrack = null;
 
-    if (this.screenAudioPort) {
+    this.screenAudioPort = null;
+
+    if (this.workletNode) {
       try {
-        this.screenAudioPort.postMessage('stop');
-        this.screenAudioPort.close();
+        this.workletNode.port.postMessage('stop');
       } catch {
         // best-effort
       }
-      this.screenAudioPort = null;
-    }
-
-    if (this.workletNode) {
       try {
         this.workletNode.disconnect();
       } catch {

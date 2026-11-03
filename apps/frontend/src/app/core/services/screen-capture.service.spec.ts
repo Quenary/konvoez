@@ -458,8 +458,8 @@ describe('ScreenCaptureService', () => {
       ]);
 
       service.release();
-      expect(mockPort.postMessage).toHaveBeenCalledWith('stop');
-      expect(mockPort.close).toHaveBeenCalled();
+      expect(mockWorkletPort.postMessage).toHaveBeenCalledWith('stop');
+      expect(mockPort.postMessage).not.toHaveBeenCalledWith('stop');
       expect(capturedTrack.stop).toHaveBeenCalled();
     });
   });

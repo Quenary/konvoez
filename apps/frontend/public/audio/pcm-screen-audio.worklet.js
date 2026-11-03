@@ -137,6 +137,7 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
     this.disposed = true;
     if (this.audioPort) {
       try {
+        this.audioPort.postMessage('stop');
         this.audioPort.onmessage = null;
         this.audioPort.close();
       } catch {
