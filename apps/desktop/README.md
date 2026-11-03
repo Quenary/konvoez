@@ -47,7 +47,7 @@ See also: [client-shell](../../libs/client-shell/README.md), [ui-kit](../../libs
 - **Tests**: `npx nx run desktop-native:test`
 - **Lint**: `npx nx run desktop-native:lint`
 
-If the native binary is missing or unsupported on the current host, the desktop app gracefully falls back to `globalShortcut` and standard audio capture. Process loopback audio is available from Windows build 20348.
+If the native binary is missing or unsupported on the current host, the desktop app gracefully falls back to `globalShortcut` and standard audio capture. Linux reports audio support only after a PipeWire connection succeeds. Process loopback audio is available from Windows build 20348.
 
 ## Security
 

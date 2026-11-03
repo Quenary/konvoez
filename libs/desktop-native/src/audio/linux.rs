@@ -24,7 +24,10 @@ fn probe_pipewire() -> bool {
     let Ok(mainloop) = pw::main_loop::MainLoopRc::new(None) else {
         return false;
     };
-    pw::context::ContextRc::new(&mainloop, None).is_ok()
+    let Ok(context) = pw::context::ContextRc::new(&mainloop, None) else {
+        return false;
+    };
+    context.connect_rc(None).is_ok()
 }
 
 pub fn get_audio_streams() -> Vec<AudioStreamInfo> {
