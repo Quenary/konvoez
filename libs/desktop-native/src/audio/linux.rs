@@ -48,8 +48,7 @@ pub fn get_audio_streams() -> Vec<AudioStreamInfo> {
         .global(move |obj| {
             if obj.type_ == pw::types::ObjectType::Node {
                 if let Some(props) = obj.props {
-                    let media_class = props.get(*pw::keys::MEDIA_CLASS).unwrap_or("");
-                    if crate::audio::is_playback_media_class(media_class) {
+                    if allows_playback_node(props, std::process::id()) {
                         let name = props
                             .get(*pw::keys::APP_NAME)
                             .or_else(|| props.get(*pw::keys::NODE_DESCRIPTION))
@@ -124,6 +123,17 @@ fn is_in_process_tree(pid: u32, root_pid: u32) -> bool {
     false
 }
 
+fn node_names(props: &spa::utils::dict::DictRef) -> Vec<String> {
+    [
+        *pw::keys::APP_NAME,
+        *pw::keys::NODE_NAME,
+        *pw::keys::NODE_DESCRIPTION,
+    ]
+    .into_iter()
+    .filter_map(|key| props.get(key).map(str::to_string))
+    .collect()
+}
+
 fn is_konvoez_node(props: &spa::utils::dict::DictRef, exclude_pid: u32) -> bool {
     if let Some(pid_str) = props.get(*pw::keys::APP_PROCESS_ID) {
         if let Ok(pid) = pid_str.parse::<u32>() {
@@ -144,6 +154,96 @@ fn is_konvoez_node(props: &spa::utils::dict::DictRef, exclude_pid: u32) -> bool 
         }
     }
     false
+}
+
+/// Process-tree membership is folded into the pid so the shared filter rejects the node.
+fn allows_playback_node(props: &spa::utils::dict::DictRef, self_pid: u32) -> bool {
+    let media_class = props.get(*pw::keys::MEDIA_CLASS).unwrap_or("");
+    let pid = props
+        .get(*pw::keys::APP_PROCESS_ID)
+        .and_then(|value| value.parse::<u32>().ok());
+    let effective_pid = if is_konvoez_node(props, self_pid) {
+        Some(self_pid)
+    } else {
+        pid
+    };
+    let names = node_names(props);
+    let name_refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    crate::audio::should_capture_playback_node(media_class, effective_pid, self_pid, &name_refs)
+}
+
+#[derive(Clone)]
+struct ListedNode {
+    id: u32,
+    media_class: String,
+    pid: Option<u32>,
+    names: Vec<String>,
+}
+
+fn collect_nodes(core: &pw::core::CoreRc, mainloop: &pw::main_loop::MainLoopRc) -> Vec<ListedNode> {
+    let Ok(registry) = core.get_registry_rc() else {
+        return Vec::new();
+    };
+    let nodes = Rc::new(RefCell::new(Vec::new()));
+    let nodes_clone = nodes.clone();
+    let _listener = registry
+        .add_listener_local()
+        .global(move |obj| {
+            if obj.type_ != pw::types::ObjectType::Node {
+                return;
+            }
+            let Some(props) = obj.props else {
+                return;
+            };
+            nodes_clone.borrow_mut().push(ListedNode {
+                id: obj.id,
+                media_class: props.get(*pw::keys::MEDIA_CLASS).unwrap_or("").to_string(),
+                pid: props
+                    .get(*pw::keys::APP_PROCESS_ID)
+                    .and_then(|value| value.parse().ok()),
+                names: node_names(props),
+            });
+        })
+        .register();
+
+    let ml_weak = mainloop.downgrade();
+    let Ok(sync_seq) = core.sync(0) else {
+        return Vec::new();
+    };
+    let _core_listener = core
+        .add_listener_local()
+        .done(move |_id, seq| {
+            if seq == sync_seq {
+                if let Some(ml) = ml_weak.upgrade() {
+                    ml.quit();
+                }
+            }
+        })
+        .register();
+    mainloop.run();
+    let listed = nodes.borrow().clone();
+    listed
+}
+
+fn listed_node_is_capture_source(node: &ListedNode, self_pid: u32) -> bool {
+    let in_tree = node
+        .pid
+        .is_some_and(|pid| is_in_process_tree(pid, self_pid));
+    let name_refs: Vec<&str> = node.names.iter().map(String::as_str).collect();
+    let name_hit = name_refs
+        .iter()
+        .any(|name| name.to_lowercase().contains("konvoez"));
+    let effective_pid = if in_tree || name_hit {
+        Some(self_pid)
+    } else {
+        node.pid
+    };
+    crate::audio::should_capture_playback_node(
+        &node.media_class,
+        effective_pid,
+        self_pid,
+        &name_refs,
+    )
 }
 
 struct ActiveStream {
@@ -306,25 +406,39 @@ pub fn start_capture(
             let mut _registry_listener = None;
 
             if options.mode == "include" {
-                let mut target_node: Option<u32> = options
+                if let Some(stream_id) = options
                     .target_stream_id
                     .as_deref()
-                    .and_then(|id_str| id_str.parse::<u32>().ok());
-
-                if target_node.is_none() {
-                    if let Some(target_pid) = options.target_pid {
-                        let streams = get_audio_streams();
-                        if let Some(matching) =
-                            streams.into_iter().find(|s| s.pid == Some(target_pid))
-                        {
-                            target_node = matching.id.parse::<u32>().ok();
-                        }
+                    .and_then(|id_str| id_str.parse::<u32>().ok())
+                {
+                    let node = collect_nodes(&core, &mainloop)
+                        .into_iter()
+                        .find(|listed| listed.id == stream_id);
+                    let Some(node) = node else {
+                        let _ = ready_tx.send(Err("No matching audio stream".to_string()));
+                        return;
+                    };
+                    if !crate::audio::is_playback_media_class(&node.media_class)
+                        || !listed_node_is_capture_source(&node, self_pid)
+                    {
+                        let _ = ready_tx
+                            .send(Err("Cannot capture audio from Konvoez itself".to_string()));
+                        return;
                     }
-                }
-
-                if let Some(node_id) = target_node {
-                    if let Some(stream) = create_node_stream(&core, node_id) {
-                        track_stream(&active_streams, &rings, node_id, stream);
+                    if let Some(stream) = create_node_stream(&core, node.id) {
+                        track_stream(&active_streams, &rings, node.id, stream);
+                    }
+                } else if let Some(target_pid) = options.target_pid {
+                    let streams = get_audio_streams();
+                    if let Some(matching) = streams
+                        .into_iter()
+                        .find(|stream| stream.pid == Some(target_pid))
+                    {
+                        if let Ok(node_id) = matching.id.parse::<u32>() {
+                            if let Some(stream) = create_node_stream(&core, node_id) {
+                                track_stream(&active_streams, &rings, node_id, stream);
+                            }
+                        }
                     }
                 }
                 if active_streams.borrow().is_empty() {
@@ -344,10 +458,7 @@ pub fn start_capture(
                         .global(move |obj| {
                             if obj.type_ == pw::types::ObjectType::Node {
                                 if let Some(props) = obj.props {
-                                    let media_class =
-                                        props.get(*pw::keys::MEDIA_CLASS).unwrap_or("");
-                                    if crate::audio::is_playback_media_class(media_class)
-                                        && !is_konvoez_node(props, exclude_pid)
+                                    if allows_playback_node(props, exclude_pid)
                                         && !active_streams_reg.borrow().contains_key(&obj.id)
                                     {
                                         if let Some(stream) = create_node_stream(&core_reg, obj.id)

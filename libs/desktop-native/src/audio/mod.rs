@@ -137,6 +137,24 @@ pub fn is_playback_media_class(media_class: &str) -> bool {
     media_class == "Stream/Output/Audio"
 }
 
+/// Playback nodes that belong to this process, or whose name is Konvoez, are not captured.
+pub fn should_capture_playback_node(
+    media_class: &str,
+    pid: Option<u32>,
+    self_pid: u32,
+    names: &[&str],
+) -> bool {
+    if !is_playback_media_class(media_class) {
+        return false;
+    }
+    if pid == Some(self_pid) {
+        return false;
+    }
+    !names
+        .iter()
+        .any(|name| name.to_lowercase().contains("konvoez"))
+}
+
 /// Bytes of one little-endian f32 stereo chunk, starting at `offset`.
 /// A trailing partial frame is dropped so the channel phase stays even.
 pub fn f32_chunk_bytes(buffer: &[u8], offset: usize, size: usize) -> Option<&[u8]> {
@@ -224,6 +242,46 @@ mod tests {
         assert!(!is_playback_media_class("Stream/Input/Audio"));
         assert!(!is_playback_media_class("Audio/Sink"));
         assert!(!is_playback_media_class("Audio/Source"));
+    }
+
+    #[test]
+    fn test_should_capture_playback_node_rejects_konvoez() {
+        assert!(should_capture_playback_node(
+            "Stream/Output/Audio",
+            Some(5),
+            1,
+            &["Firefox"]
+        ));
+        assert!(should_capture_playback_node(
+            "Stream/Output/Audio",
+            None,
+            1,
+            &["VLC"]
+        ));
+        assert!(!should_capture_playback_node(
+            "Stream/Input/Audio",
+            Some(5),
+            1,
+            &["Firefox"]
+        ));
+        assert!(!should_capture_playback_node(
+            "Stream/Output/Audio",
+            Some(1),
+            1,
+            &["Firefox"]
+        ));
+        assert!(!should_capture_playback_node(
+            "Stream/Output/Audio",
+            Some(5),
+            1,
+            &["KonvoEZ"]
+        ));
+        assert!(!should_capture_playback_node(
+            "Audio/Sink",
+            Some(5),
+            1,
+            &["konvoez"]
+        ));
     }
 
     #[test]
