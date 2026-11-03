@@ -108,6 +108,10 @@ pub fn push_le_f32(ring: &SampleRing, bytes: &[u8]) {
 /// Mixes multiple PCM Float32 audio streams into a destination buffer.
 /// Applies saturation/clamping to [-1.0, 1.0] to prevent clipping distortion.
 pub fn mix_audio_buffers(sources: &[&[f32]], output: &mut [f32]) {
+    mix_audio_slices(sources.iter().copied(), output);
+}
+
+pub fn mix_audio_slices<'a>(sources: impl IntoIterator<Item = &'a [f32]>, output: &mut [f32]) {
     for sample in output.iter_mut() {
         *sample = 0.0;
     }

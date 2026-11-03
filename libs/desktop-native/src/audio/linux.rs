@@ -510,9 +510,11 @@ pub fn start_capture(
                 .spawn(move || {
                     const CHUNK_FLOATS: usize = 960; // 10 ms at 48000 Hz stereo
                     const MAX_KEEP: usize = 19200;
+                    const MAX_CATCH_UP: usize = 20; // 200 ms
                     let mut chunks: Vec<Vec<f32>> = Vec::new();
                     let mut mixed = vec![0.0f32; CHUNK_FLOATS];
                     let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
+                    let mut snapshot: Vec<Arc<crate::audio::SampleRing>> = Vec::new();
                     let mut deadline = Instant::now() + Duration::from_millis(10);
                     while !stopper_for_mixer.load(Ordering::Relaxed) {
                         let now = Instant::now();
@@ -522,14 +524,23 @@ pub fn start_capture(
                         if stopper_for_mixer.load(Ordering::Relaxed) {
                             break;
                         }
+                        let mut emitted = 0;
                         while Instant::now() >= deadline {
                             if stopper_for_mixer.load(Ordering::Relaxed) {
                                 break;
                             }
-                            let snapshot = rings_for_mixer
-                                .lock()
-                                .unwrap_or_else(|err| err.into_inner())
-                                .clone();
+                            if emitted == MAX_CATCH_UP {
+                                deadline = Instant::now() + Duration::from_millis(10);
+                                break;
+                            }
+                            snapshot.clear();
+                            snapshot.extend(
+                                rings_for_mixer
+                                    .lock()
+                                    .unwrap_or_else(|err| err.into_inner())
+                                    .iter()
+                                    .cloned(),
+                            );
                             if !snapshot.is_empty() {
                                 if chunks.len() < snapshot.len() {
                                     chunks
@@ -538,12 +549,13 @@ pub fn start_capture(
                                 for (index, ring) in snapshot.iter().enumerate() {
                                     ring.pop_chunk_or_silence(&mut chunks[index], MAX_KEEP);
                                 }
-                                let sources: Vec<&[f32]> =
-                                    chunks[..snapshot.len()].iter().map(Vec::as_slice).collect();
-                                if sources.len() == 1 {
+                                if snapshot.len() == 1 {
                                     mixed.copy_from_slice(&chunks[0]);
                                 } else {
-                                    crate::audio::mix_audio_buffers(&sources, &mut mixed);
+                                    crate::audio::mix_audio_slices(
+                                        chunks[..snapshot.len()].iter().map(Vec::as_slice),
+                                        &mut mixed,
+                                    );
                                 }
                                 bytes.clear();
                                 for sample in &mixed {
@@ -555,6 +567,7 @@ pub fn start_capture(
                                 );
                             }
                             deadline += Duration::from_millis(10);
+                            emitted += 1;
                         }
                     }
                 }) {
