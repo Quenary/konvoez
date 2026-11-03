@@ -169,25 +169,55 @@ pub fn f32_chunk_bytes(buffer: &[u8], offset: usize, size: usize) -> Option<&[u8
     Some(&buffer[offset..offset + even_bytes])
 }
 
-/// Validates process ID to capture based on capture mode and self PID.
-/// In "include" mode: target PID must be provided and must not equal self PID.
-/// In "exclude" mode: always this process, so a caller cannot exclude someone else and capture Konvoez.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureMode {
+    Include,
+    Exclude,
+}
+
+impl CaptureMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CaptureMode::Include => "include",
+            CaptureMode::Exclude => "exclude",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CaptureTarget {
+    pub mode: CaptureMode,
+    pub pid: u32,
+}
+
+/// Chooses the process loopback target.
+/// Exclude mode always drops this process. Include of this process or one of its
+/// ancestors switches to that same exclude, because those trees contain Konvoez.
 pub fn resolve_capture_pid(
     mode: &str,
     target_pid: Option<u32>,
     self_pid: u32,
-) -> std::result::Result<u32, &'static str> {
+    self_ancestors: &[u32],
+) -> std::result::Result<CaptureTarget, &'static str> {
     if mode == "exclude" {
-        Ok(self_pid)
-    } else if let Some(pid) = target_pid {
-        if pid == self_pid {
-            Err("Cannot capture audio from Konvoez itself")
-        } else {
-            Ok(pid)
-        }
-    } else {
-        Err("No valid target window or process specified for audio capture")
+        return Ok(CaptureTarget {
+            mode: CaptureMode::Exclude,
+            pid: self_pid,
+        });
     }
+    let Some(pid) = target_pid else {
+        return Err("No valid target window or process specified for audio capture");
+    };
+    if pid == self_pid || self_ancestors.contains(&pid) {
+        return Ok(CaptureTarget {
+            mode: CaptureMode::Exclude,
+            pid: self_pid,
+        });
+    }
+    Ok(CaptureTarget {
+        mode: CaptureMode::Include,
+        pid,
+    })
 }
 
 #[cfg(test)]
@@ -196,15 +226,46 @@ mod tests {
 
     #[test]
     fn test_resolve_capture_pid_exclude_mode() {
-        assert_eq!(resolve_capture_pid("exclude", None, 100), Ok(100));
-        assert_eq!(resolve_capture_pid("exclude", Some(200), 100), Ok(100));
+        assert_eq!(
+            resolve_capture_pid("exclude", None, 100, &[]),
+            Ok(CaptureTarget {
+                mode: CaptureMode::Exclude,
+                pid: 100,
+            })
+        );
+        assert_eq!(
+            resolve_capture_pid("exclude", Some(200), 100, &[200]),
+            Ok(CaptureTarget {
+                mode: CaptureMode::Exclude,
+                pid: 100,
+            })
+        );
     }
 
     #[test]
     fn test_resolve_capture_pid_include_mode() {
-        assert_eq!(resolve_capture_pid("include", Some(200), 100), Ok(200));
-        assert!(resolve_capture_pid("include", Some(100), 100).is_err());
-        assert!(resolve_capture_pid("include", None, 100).is_err());
+        assert_eq!(
+            resolve_capture_pid("include", Some(200), 100, &[]),
+            Ok(CaptureTarget {
+                mode: CaptureMode::Include,
+                pid: 200,
+            })
+        );
+        assert_eq!(
+            resolve_capture_pid("include", Some(100), 100, &[]),
+            Ok(CaptureTarget {
+                mode: CaptureMode::Exclude,
+                pid: 100,
+            })
+        );
+        assert_eq!(
+            resolve_capture_pid("include", Some(50), 100, &[50, 10]),
+            Ok(CaptureTarget {
+                mode: CaptureMode::Exclude,
+                pid: 100,
+            })
+        );
+        assert!(resolve_capture_pid("include", None, 100, &[]).is_err());
     }
 
     #[test]

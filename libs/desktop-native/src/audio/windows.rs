@@ -192,12 +192,54 @@ pub fn find_root_process_in_tree(pid: u32) -> u32 {
     }
 }
 
+/// Parent process ids of `pid`, nearest first. Stops at pid 0 or a cycle.
+pub fn ancestor_pids(pid: u32) -> Vec<u32> {
+    // SAFETY: Toolhelp32 process snapshot iteration with proper handle closure.
+    unsafe {
+        let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+            Ok(snapshot) => snapshot,
+            Err(_) => return Vec::new(),
+        };
+        if snapshot.is_invalid() {
+            return Vec::new();
+        }
+
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        let mut parents: Vec<(u32, u32)> = Vec::new();
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                parents.push((entry.th32ProcessID, entry.th32ParentProcessID));
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(snapshot);
+
+        let mut ancestors = Vec::new();
+        let mut current = pid;
+        for _ in 0..16 {
+            let Some((_, parent)) = parents.iter().find(|(process, _)| *process == current) else {
+                break;
+            };
+            if *parent == 0 || *parent == current {
+                break;
+            }
+            ancestors.push(*parent);
+            current = *parent;
+        }
+        ancestors
+    }
+}
+
 pub fn start_capture(
     options: AudioCaptureOptions,
     callback: Function<Buffer, ()>,
     stopper: Arc<AtomicBool>,
-) -> Result<JoinHandle<()>> {
-    let is_exclude = options.mode == "exclude";
+) -> Result<(JoinHandle<()>, &'static str)> {
     let target_pid = if let Some(hwnd) = options.target_hwnd {
         resolve_window_pid(hwnd).map(find_root_process_in_tree)
     } else if let Some(pid) = options.target_pid {
@@ -207,8 +249,12 @@ pub fn start_capture(
     };
 
     let self_pid = std::process::id();
-    let pid_to_use = crate::audio::resolve_capture_pid(&options.mode, target_pid, self_pid)
+    let ancestors = ancestor_pids(self_pid);
+    let target = crate::audio::resolve_capture_pid(&options.mode, target_pid, self_pid, &ancestors)
         .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
+    let is_exclude = target.mode == crate::audio::CaptureMode::Exclude;
+    let pid_to_use = target.pid;
+    let mode = target.mode.as_str();
 
     let tsfn = callback.build_threadsafe_function().build()?;
     let (ready_tx, ready_rx) = channel::<std::result::Result<(), String>>();
@@ -222,7 +268,7 @@ pub fn start_capture(
     });
 
     match ready_rx.recv() {
-        Ok(Ok(())) => Ok(handle),
+        Ok(Ok(())) => Ok((handle, mode)),
         Ok(Err(message)) => {
             stopper.store(true, Ordering::SeqCst);
             let _ = handle.join();

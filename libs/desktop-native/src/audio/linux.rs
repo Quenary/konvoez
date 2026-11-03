@@ -356,9 +356,14 @@ pub fn start_capture(
     options: AudioCaptureOptions,
     callback: Function<Buffer, ()>,
     stopper: Arc<AtomicBool>,
-) -> Result<JoinHandle<()>> {
+) -> Result<(JoinHandle<()>, &'static str)> {
     let self_pid = std::process::id();
     let exclude_pid = self_pid;
+    let capture_mode = if options.mode == "exclude" {
+        "exclude"
+    } else {
+        "include"
+    };
 
     if options.mode == "include" {
         if let Some(pid) = options.target_pid {
@@ -567,7 +572,7 @@ pub fn start_capture(
         })?;
 
     match ready_rx.recv() {
-        Ok(Ok(())) => Ok(handle),
+        Ok(Ok(())) => Ok((handle, capture_mode)),
         Ok(Err(message)) => {
             stopper.store(true, Ordering::SeqCst);
             let _ = handle.join();

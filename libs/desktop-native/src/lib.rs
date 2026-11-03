@@ -28,10 +28,16 @@ pub struct AudioCaptureOptions {
 pub struct AudioCaptureHandle {
     stopper: Arc<AtomicBool>,
     thread_handle: Mutex<Option<JoinHandle<()>>>,
+    mode: String,
 }
 
 #[napi]
 impl AudioCaptureHandle {
+    #[napi]
+    pub fn mode(&self) -> String {
+        self.mode.clone()
+    }
+
     #[napi]
     pub fn stop(&self) {
         self.stopper.store(true, Ordering::SeqCst);
@@ -141,10 +147,10 @@ pub fn start_audio_capture(
     let stopper = Arc::new(AtomicBool::new(false));
 
     #[cfg(target_os = "windows")]
-    let handle = audio::windows::start_capture(options, callback, stopper.clone())?;
+    let (handle, mode) = audio::windows::start_capture(options, callback, stopper.clone())?;
 
     #[cfg(target_os = "linux")]
-    let handle = audio::linux::start_capture(options, callback, stopper.clone())?;
+    let (handle, mode) = audio::linux::start_capture(options, callback, stopper.clone())?;
 
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
@@ -159,6 +165,7 @@ pub fn start_audio_capture(
     Ok(AudioCaptureHandle {
         stopper,
         thread_handle: Mutex::new(Some(handle)),
+        mode: mode.to_string(),
     })
 }
 
