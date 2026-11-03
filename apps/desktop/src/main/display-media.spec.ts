@@ -686,7 +686,7 @@ describe('display-media helpers', () => {
       // Transferred MessagePort to window
       expect(mockWebContents.postMessage).toHaveBeenCalledWith(
         'konvoez:screen-audio-port',
-        null,
+        'exclude',
         expect.any(Array),
       );
 
@@ -750,7 +750,7 @@ describe('display-media helpers', () => {
       });
       expect(mockWebContents.postMessage).toHaveBeenCalledWith(
         'konvoez:screen-audio-port',
-        null,
+        'loopback',
       );
     });
 
@@ -807,9 +807,12 @@ describe('display-media helpers', () => {
       );
     });
 
-    it('does not capture audio if window is Konvoez itself', async () => {
+    it('does not use include when the shared window is Konvoez', async () => {
       const nativeMod = await import('./native');
-      const startAudioCapture = vi.fn();
+      const startAudioCapture = vi.fn().mockReturnValue({
+        stop: vi.fn(),
+        mode: () => 'exclude',
+      });
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
         isKeyHookSupported: () => false,
@@ -821,7 +824,7 @@ describe('display-media helpers', () => {
       const { desktopCapturer } = await import('electron');
       const konvoezWindow = {
         id: 'window:1111:0',
-        name: 'Konvoez',
+        name: 'Other title',
       } as DesktopCapturerSource;
       vi.mocked(desktopCapturer.getSources).mockResolvedValue([konvoezWindow]);
 
@@ -829,11 +832,17 @@ describe('display-media helpers', () => {
       const fakeSession = {
         setDisplayMediaRequestHandler,
       } as unknown as Session;
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+        getMediaSourceId: () => 'window:1111:0',
+      } as unknown as import('electron').BrowserWindow;
 
       installDisplayMediaHandler(
         fakeSession,
         () => 'https://konvoez.example.com',
-        () => null,
+        () => mockMainWindow,
         null,
         'win32',
       );
@@ -848,7 +857,84 @@ describe('display-media helpers', () => {
       );
 
       expect(callback).toHaveBeenCalledWith({ video: konvoezWindow });
-      expect(startAudioCapture).not.toHaveBeenCalled();
+      expect(startAudioCapture).toHaveBeenCalledTimes(1);
+      expect(startAudioCapture).toHaveBeenCalledWith(
+        { mode: 'exclude', targetPid: process.pid },
+        expect.any(Function),
+      );
+      expect(mockWebContents.postMessage).toHaveBeenCalledWith(
+        'konvoez:screen-audio-port',
+        'exclude',
+        expect.any(Array),
+      );
+    });
+
+    it('falls back from window include to exclude and reports that mode', async () => {
+      const nativeMod = await import('./native');
+      const startAudioCapture = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('include failed');
+        })
+        .mockReturnValue({ stop: vi.fn(), mode: () => 'exclude' });
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const windowSource = {
+        id: 'window:98765:0',
+        name: 'Game Window',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([windowSource]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+        getMediaSourceId: () => 'window:1:0',
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(startAudioCapture).toHaveBeenNthCalledWith(
+        1,
+        { mode: 'include', targetHwnd: 98765 },
+        expect.any(Function),
+      );
+      expect(startAudioCapture).toHaveBeenNthCalledWith(
+        2,
+        { mode: 'exclude', targetPid: process.pid },
+        expect.any(Function),
+      );
+      expect(callback).toHaveBeenCalledWith({ video: windowSource });
+      expect(mockWebContents.postMessage).toHaveBeenCalledWith(
+        'konvoez:screen-audio-port',
+        'exclude',
+        expect.any(Array),
+      );
     });
 
     it('captures specific audio stream when audioStreamId is provided', async () => {
@@ -863,16 +949,16 @@ describe('display-media helpers', () => {
       });
 
       const { desktopCapturer, ipcMain } = await import('electron');
-      const screen1 = {
-        id: 'screen:0:0',
-        name: 'Screen 1',
+      const windowSource = {
+        id: 'window:55:0',
+        name: 'Player',
       } as DesktopCapturerSource;
       const screen2 = {
         id: 'screen:1:0',
         name: 'Screen 2',
       } as DesktopCapturerSource;
       vi.mocked(desktopCapturer.getSources).mockResolvedValue([
-        screen1,
+        windowSource,
         screen2,
       ]);
 
@@ -911,11 +997,11 @@ describe('display-media helpers', () => {
           (call) => call[0] === 'konvoez-local:pick-source',
         )?.[1];
       expect(pickListener).toBeDefined();
-      pickListener?.({} as never, 'screen:0:0', true, '42');
+      pickListener?.({} as never, 'window:55:0', true, '42');
 
       await p;
 
-      expect(callback).toHaveBeenCalledWith({ video: screen1 });
+      expect(callback).toHaveBeenCalledWith({ video: windowSource });
       expect(startAudioCapture).toHaveBeenCalledWith(
         { mode: 'include', targetStreamId: '42' },
         expect.any(Function),

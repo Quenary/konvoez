@@ -4,6 +4,7 @@ import {
   EDesktopCommand,
   EDesktopIpc,
   type IKonvoezDesktopBridge,
+  type TScreenAudioMode,
   type TDesktopVoiceState,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
@@ -35,9 +36,15 @@ const bridge: IKonvoezDesktopBridge = {
   quitReady: () => {
     ipcRenderer.send(EDesktopIpc.QUIT_READY);
   },
-  onScreenAudioPort: (listener: (port: MessagePort | null) => void) => {
-    const handler = (event: Electron.IpcRendererEvent) => {
-      listener(event.ports?.[0] ?? null);
+  onScreenAudioPort: (
+    listener: (port: MessagePort | null, mode: TScreenAudioMode) => void,
+  ) => {
+    const handler = (
+      event: Electron.IpcRendererEvent,
+      mode: TScreenAudioMode,
+    ) => {
+      const reported = mode ?? 'none';
+      listener(event.ports?.[0] ?? null, reported);
     };
     ipcRenderer.on(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
     return () => {

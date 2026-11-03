@@ -16,6 +16,7 @@ export interface AudioCaptureOptions {
 
 export interface AudioCaptureHandle {
   stop(): void;
+  mode(): 'include' | 'exclude';
 }
 
 export interface KeyHookHandle {

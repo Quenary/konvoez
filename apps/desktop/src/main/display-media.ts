@@ -5,9 +5,10 @@ import {
   ipcMain,
   MessageChannelMain,
   type DesktopCapturerSource,
+  type MessagePortMain,
   type Session,
 } from 'electron';
-import { EDesktopIpc } from '@konvoez/shared';
+import { EDesktopIpc, type TScreenAudioMode } from '@konvoez/shared';
 import type { ISerializableSource } from '@konvoez/client-shell';
 import type { ConfigStore } from './config-store';
 import { getAppIcon, getLocalPagePath } from './window';
@@ -29,6 +30,60 @@ export function getScreenShareAudio(
   platform: NodeJS.Platform = process.platform,
 ): 'loopback' | undefined {
   return platform === 'win32' ? 'loopback' : undefined;
+}
+
+function isOwnKonvoezWindow(
+  source: DesktopCapturerSource,
+  win: BrowserWindow | null,
+): boolean {
+  if (!source.id.startsWith('window:') || !win || win.isDestroyed()) {
+    return false;
+  }
+  try {
+    return source.id === win.getMediaSourceId();
+  } catch {
+    return false;
+  }
+}
+
+function captureAttempts(
+  source: DesktopCapturerSource,
+  platform: NodeJS.Platform,
+  audioStreamId: string | undefined,
+  ownWindow: boolean,
+): AudioCaptureOptions[] {
+  const exclude: AudioCaptureOptions = {
+    mode: 'exclude',
+    targetPid: process.pid,
+  };
+  if (source.id.startsWith('screen:') || ownWindow) {
+    return [exclude];
+  }
+  if (platform === 'linux') {
+    return audioStreamId
+      ? [{ mode: 'include', targetStreamId: audioStreamId }, exclude]
+      : [exclude];
+  }
+  const hwnd = Number(source.id.match(/^window:(\d+)/)?.[1]);
+  if (!Number.isInteger(hwnd)) {
+    return [exclude];
+  }
+  return [{ mode: 'include', targetHwnd: hwnd }, exclude];
+}
+
+function reportedCaptureMode(
+  handle: AudioCaptureHandle,
+  requested: AudioCaptureOptions,
+): 'include' | 'exclude' {
+  try {
+    const mode = handle.mode();
+    if (mode === 'include' || mode === 'exclude') {
+      return mode;
+    }
+  } catch {
+    // Older binaries only expose stop().
+  }
+  return requested.mode;
 }
 
 export function serializeCapturerSources(
@@ -341,17 +396,37 @@ export function installDisplayMediaHandler(
 
         const nativeMod = getNativeModule();
         const hasNativeAudio = nativeMod?.isAudioSupported() ?? false;
-        const isKonvoezWindow =
-          pickedSource.id.startsWith('window:') &&
-          pickedSource.name === 'Konvoez';
+        const mainWindow = getMainWindow();
+        const ownWindow = isOwnKonvoezWindow(pickedSource, mainWindow);
         let nativeStarted = false;
+        let audioMode: TScreenAudioMode = 'none';
+
+        const postAudioMode = (
+          mode: TScreenAudioMode,
+          port?: MessagePortMain,
+        ) => {
+          if (!mainWindow || mainWindow.isDestroyed()) {
+            return;
+          }
+          if (port) {
+            mainWindow.webContents.postMessage(
+              EDesktopIpc.SCREEN_AUDIO_PORT,
+              mode,
+              [port],
+            );
+            return;
+          }
+          mainWindow.webContents.postMessage(
+            EDesktopIpc.SCREEN_AUDIO_PORT,
+            mode,
+          );
+        };
 
         if (
           request.audioRequested &&
           withAudio &&
           hasNativeAudio &&
-          nativeMod &&
-          !isKonvoezWindow
+          nativeMod
         ) {
           if (activeAudioCapture) {
             try {
@@ -363,36 +438,54 @@ export function installDisplayMediaHandler(
           }
 
           const { port1, port2 } = new MessageChannelMain();
-          const hwndMatch = pickedSource.id.match(/^window:(\d+)/);
-          const hwnd = hwndMatch ? Number(hwndMatch[1]) : undefined;
-          const isScreen = pickedSource.id.startsWith('screen:');
+          const attempts = captureAttempts(
+            pickedSource,
+            platform,
+            audioStreamId,
+            ownWindow,
+          );
+          let started: {
+            handle: AudioCaptureHandle;
+            mode: 'include' | 'exclude';
+          } | null = null;
 
-          const captureOptions: AudioCaptureOptions = audioStreamId
-            ? { mode: 'include', targetStreamId: audioStreamId }
-            : isScreen || platform === 'linux'
-              ? { mode: 'exclude', targetPid: process.pid }
-              : { mode: 'include', targetHwnd: hwnd };
+          for (const captureOptions of attempts) {
+            try {
+              const handle = nativeMod.startAudioCapture(
+                captureOptions,
+                (chunk: Buffer) => {
+                  try {
+                    const arrayBuffer =
+                      chunk.byteOffset === 0 &&
+                      chunk.byteLength === chunk.buffer.byteLength
+                        ? chunk.buffer
+                        : chunk.buffer.slice(
+                            chunk.byteOffset,
+                            chunk.byteOffset + chunk.byteLength,
+                          );
+                    port1.postMessage(arrayBuffer);
+                  } catch {
+                    // port may be closed
+                  }
+                },
+              );
+              started = {
+                handle,
+                mode: reportedCaptureMode(handle, captureOptions),
+              };
+              break;
+            } catch (err) {
+              console.warn(
+                '[DisplayMedia] Failed to start native audio capture:',
+                err,
+              );
+            }
+          }
 
-          try {
-            const handle = nativeMod.startAudioCapture(
-              captureOptions,
-              (chunk: Buffer) => {
-                try {
-                  const arrayBuffer =
-                    chunk.byteOffset === 0 &&
-                    chunk.byteLength === chunk.buffer.byteLength
-                      ? chunk.buffer
-                      : chunk.buffer.slice(
-                          chunk.byteOffset,
-                          chunk.byteOffset + chunk.byteLength,
-                        );
-                  port1.postMessage(arrayBuffer);
-                } catch {
-                  // port may be closed
-                }
-              },
-            );
+          if (started) {
+            const handle = started.handle;
             activeAudioCapture = handle;
+            audioMode = started.mode;
 
             const cleanupCapture = () => {
               try {
@@ -419,20 +512,10 @@ export function installDisplayMediaHandler(
               cleanupCapture();
             });
             port1.start();
-
-            const win = getMainWindow();
-            if (win && !win.isDestroyed()) {
-              win.webContents.postMessage(EDesktopIpc.SCREEN_AUDIO_PORT, null, [
-                port2,
-              ]);
-            }
+            postAudioMode(audioMode, port2);
             nativeStarted = true;
             reuseVideoSourceId = pickedSource.id;
-          } catch (err) {
-            console.warn(
-              '[DisplayMedia] Failed to start native audio capture:',
-              err,
-            );
+          } else {
             try {
               port1.close();
             } catch {
@@ -441,23 +524,17 @@ export function installDisplayMediaHandler(
           }
         }
 
-        if (!nativeStarted && hasNativeAudio && request.audioRequested) {
-          const win = getMainWindow();
-          if (win && !win.isDestroyed()) {
-            win.webContents.postMessage(EDesktopIpc.SCREEN_AUDIO_PORT, null);
+        if (!nativeStarted && request.audioRequested && withAudio) {
+          const audio = getScreenShareAudio(platform);
+          if (audio) {
+            response.audio = audio;
+            audioMode = 'loopback';
+            reuseVideoSourceId = pickedSource.id;
           }
         }
 
-        if (!nativeStarted && !isKonvoezWindow) {
-          const audio =
-            request.audioRequested && withAudio
-              ? getScreenShareAudio(platform)
-              : undefined;
-
-          if (audio) {
-            response.audio = audio;
-            reuseVideoSourceId = pickedSource.id;
-          }
+        if (!nativeStarted && hasNativeAudio && request.audioRequested) {
+          postAudioMode(audioMode);
         }
 
         callback(response);
