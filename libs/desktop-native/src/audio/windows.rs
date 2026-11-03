@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND};
+use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND, S_OK};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler, IActivateAudioInterfaceCompletionHandler_Impl,
@@ -47,20 +47,26 @@ struct PropVariantBlob {
     p_blob_data: *mut u8,
 }
 
-struct ComScope;
+struct ComScope {
+    initialized: bool,
+}
+
 impl ComScope {
     fn new() -> Self {
-        // SAFETY: Initializing COM runtime on background capture thread
-        unsafe {
-            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        // SAFETY: Initializing COM on the background capture thread.
+        let hr = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+        Self {
+            initialized: hr == S_OK,
         }
-        Self
     }
 }
 
 impl Drop for ComScope {
     fn drop(&mut self) {
-        // SAFETY: Balancing CoInitializeEx
+        if !self.initialized {
+            return;
+        }
+        // SAFETY: This thread successfully called CoInitializeEx, so the matching CoUninitialize is required.
         unsafe {
             CoUninitialize();
         }
