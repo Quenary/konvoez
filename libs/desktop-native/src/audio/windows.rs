@@ -293,7 +293,7 @@ pub fn start_capture(
         let ring = Arc::new(crate::audio::SampleRing::with_capacity(32768));
         let ring_for_delivery = Arc::clone(&ring);
         let stopper_for_delivery = Arc::clone(&stopper_for_thread);
-        let delivery = thread::Builder::new()
+        let delivery = match thread::Builder::new()
             .name("wasapi-deliver".to_string())
             .spawn(move || {
                 const CHUNK_FLOATS: usize = 960;
@@ -317,8 +317,13 @@ pub fn start_capture(
                     }
                     thread::sleep(Duration::from_millis(5));
                 }
-            })
-            .ok();
+            }) {
+            Ok(handle) => handle,
+            Err(err) => {
+                let _ = ready_tx.send(Err(format!("Failed to start audio delivery: {err}")));
+                return;
+            }
+        };
         let _ = run_capture_loop(
             pid_to_use,
             is_exclude,
@@ -327,9 +332,7 @@ pub fn start_capture(
             ready_tx,
         );
         stopper_for_thread.store(true, Ordering::SeqCst);
-        if let Some(delivery) = delivery {
-            let _ = delivery.join();
-        }
+        let _ = delivery.join();
     });
 
     match ready_rx.recv() {
