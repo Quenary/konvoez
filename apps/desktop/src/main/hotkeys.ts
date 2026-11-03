@@ -36,13 +36,42 @@ export function resetHotkeyStateForTests(): void {
   pressedKeys.clear();
 }
 
-function normalizeAccelerator(accel: string | null | undefined): string | null {
+const MODIFIER_SYNONYMS: Record<string, string> = {
+  commandorcontrol: 'CommandOrControl',
+  cmdorctrl: 'CommandOrControl',
+  control: 'CommandOrControl',
+  ctrl: 'CommandOrControl',
+  command: 'CommandOrControl',
+  cmd: 'CommandOrControl',
+  alt: 'Alt',
+  option: 'Alt',
+  shift: 'Shift',
+  super: 'Super',
+  meta: 'Super',
+};
+
+export function normalizeAccelerator(
+  accel: string | null | undefined,
+): string | null {
   if (!accel || !accel.trim()) return null;
   const parts = accel.trim().split('+');
-  const mainKey = parts.pop();
-  if (!mainKey) return null;
-  parts.sort();
-  return [...parts, mainKey].join('+');
+  const rawMainKey = parts.pop();
+  if (!rawMainKey || !rawMainKey.trim()) return null;
+
+  const normalizedModifiers = parts.map((part) => {
+    const lower = part.trim().toLowerCase();
+    return MODIFIER_SYNONYMS[lower] ?? part.trim();
+  });
+  normalizedModifiers.sort();
+
+  let mainKey = rawMainKey.trim();
+  if (mainKey.length === 1 && /[a-zA-Z]/.test(mainKey)) {
+    mainKey = mainKey.toUpperCase();
+  } else if (/^f([1-9]|1[0-9]|2[0-4])$/i.test(mainKey)) {
+    mainKey = mainKey.toUpperCase();
+  }
+
+  return [...normalizedModifiers, mainKey].join('+');
 }
 
 export function handleNativeKeyEvent(

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDesktopCommand } from '@konvoez/shared';
 import {
   applyHotkeys,
+  normalizeAccelerator,
   resetHotkeyStateForTests,
   resumeHotkeys,
   suspendHotkeys,
@@ -192,6 +193,71 @@ describe('applyHotkeys', () => {
       // Reset state stops the hook
       resetHotkeyStateForTests();
       expect(stopHook).toHaveBeenCalled();
+    });
+
+    it('matches stored hotkeys using modifier synonyms like Ctrl or CmdOrCtrl', async () => {
+      const nativeMod = await import('./native');
+      let hookListener:
+        ((event: { code: string; down: boolean }) => void) | null = null;
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => false,
+        isKeyHookSupported: () => true,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(),
+        startKeyHook: vi.fn().mockImplementation((cb) => {
+          hookListener = cb;
+          return { stop: vi.fn() };
+        }),
+      });
+
+      const onCommand = vi.fn();
+      const mockManager = {
+        unregisterAll: vi.fn(),
+        register: vi.fn(),
+      } as unknown as typeof globalShortcut;
+
+      applyHotkeys(
+        {
+          toggleMic: 'Ctrl+Shift+M',
+          toggleSpeaker: 'CmdOrCtrl+D',
+        },
+        mockManager,
+        onCommand,
+      );
+
+      const listener = hookListener as unknown as (event: {
+        code: string;
+        down: boolean;
+      }) => void;
+
+      // Press ControlLeft + ShiftLeft + KeyM
+      listener({ code: 'ControlLeft', down: true });
+      listener({ code: 'ShiftLeft', down: true });
+      listener({ code: 'KeyM', down: true });
+      expect(onCommand).toHaveBeenCalledWith(EDesktopCommand.TOGGLE_MIC);
+
+      // Release
+      listener({ code: 'KeyM', down: false });
+      listener({ code: 'ShiftLeft', down: false });
+
+      // Press KeyD with Ctrl still down
+      listener({ code: 'KeyD', down: true });
+      expect(onCommand).toHaveBeenCalledWith(EDesktopCommand.TOGGLE_SPEAKER);
+    });
+  });
+
+  describe('normalizeAccelerator', () => {
+    it('normalizes modifier synonyms and casing', () => {
+      expect(normalizeAccelerator('Ctrl+Shift+M')).toBe(
+        'CommandOrControl+Shift+M',
+      );
+      expect(normalizeAccelerator('cmdorctrl+m')).toBe('CommandOrControl+M');
+      expect(normalizeAccelerator('Command+Option+f9')).toBe(
+        'Alt+CommandOrControl+F9',
+      );
+      expect(normalizeAccelerator('Meta+Shift+Z')).toBe('Shift+Super+Z');
+      expect(normalizeAccelerator(null)).toBeNull();
+      expect(normalizeAccelerator('   ')).toBeNull();
     });
   });
 });
