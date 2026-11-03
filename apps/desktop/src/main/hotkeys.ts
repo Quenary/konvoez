@@ -5,7 +5,9 @@ import {
   type TDesktopHotkeys,
 } from '@konvoez/shared';
 import type { THotkeyStatus } from '@konvoez/client-shell';
+import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
 import { getExistingMainWindow } from './window';
+import { getNativeModule, type KeyHookHandle } from './native';
 
 export interface IDesktopHotkeyStatuses {
   [key: string]: THotkeyStatus;
@@ -17,10 +19,79 @@ export { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
 
 let storedHotkeys: TDesktopHotkeys | null = null;
 let suspendDepth = 0;
+let activeKeyHookHandle: KeyHookHandle | null = null;
+const pressedKeys = new Set<string>();
 
 export function resetHotkeyStateForTests(): void {
   storedHotkeys = null;
   suspendDepth = 0;
+  if (activeKeyHookHandle) {
+    try {
+      activeKeyHookHandle.stop();
+    } catch {
+      // ignore
+    }
+    activeKeyHookHandle = null;
+  }
+  pressedKeys.clear();
+}
+
+function normalizeAccelerator(accel: string | null | undefined): string | null {
+  if (!accel || !accel.trim()) return null;
+  const parts = accel.trim().split('+');
+  const mainKey = parts.pop();
+  if (!mainKey) return null;
+  parts.sort();
+  return [...parts, mainKey].join('+');
+}
+
+export function handleNativeKeyEvent(
+  event: { code: string; down: boolean },
+  onCommand: (command: EDesktopCommand) => void,
+): void {
+  if (!event.down) {
+    pressedKeys.delete(event.code);
+    return;
+  }
+
+  // Prevent auto-repeat while key is held down
+  if (pressedKeys.has(event.code)) {
+    return;
+  }
+  pressedKeys.add(event.code);
+
+  if (suspendDepth > 0 || !storedHotkeys) {
+    return;
+  }
+
+  const ctrlKey =
+    pressedKeys.has('ControlLeft') || pressedKeys.has('ControlRight');
+  const altKey = pressedKeys.has('AltLeft') || pressedKeys.has('AltRight');
+  const shiftKey =
+    pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight');
+  const metaKey = pressedKeys.has('MetaLeft') || pressedKeys.has('MetaRight');
+
+  const accelerator = formatKeyboardEventToAccelerator({
+    code: event.code,
+    ctrlKey,
+    altKey,
+    shiftKey,
+    metaKey,
+  });
+
+  if (!accelerator) {
+    return;
+  }
+
+  const normalizedPressed = normalizeAccelerator(accelerator);
+  const normalizedMic = normalizeAccelerator(storedHotkeys.toggleMic);
+  const normalizedSpeaker = normalizeAccelerator(storedHotkeys.toggleSpeaker);
+
+  if (normalizedMic && normalizedPressed === normalizedMic) {
+    onCommand(EDesktopCommand.TOGGLE_MIC);
+  } else if (normalizedSpeaker && normalizedPressed === normalizedSpeaker) {
+    onCommand(EDesktopCommand.TOGGLE_SPEAKER);
+  }
 }
 
 function sendDesktopCommand(
@@ -39,6 +110,52 @@ export function applyHotkeys(
   onCommand: (command: EDesktopCommand) => void = sendDesktopCommand,
 ): IDesktopHotkeyStatuses {
   storedHotkeys = hotkeys;
+
+  const nativeMod = getNativeModule();
+  const useNative = nativeMod?.isKeyHookSupported() ?? false;
+
+  if (useNative && nativeMod) {
+    shortcutManager.unregisterAll();
+
+    const hasAnyHotkey = Boolean(
+      hotkeys.toggleMic?.trim() || hotkeys.toggleSpeaker?.trim(),
+    );
+
+    if (hasAnyHotkey && !activeKeyHookHandle) {
+      try {
+        activeKeyHookHandle = nativeMod.startKeyHook((event) => {
+          handleNativeKeyEvent(event, onCommand);
+        });
+      } catch (err) {
+        console.warn('[Hotkeys] Failed to start native key hook:', err);
+      }
+    } else if (!hasAnyHotkey && activeKeyHookHandle) {
+      try {
+        activeKeyHookHandle.stop();
+      } catch {
+        // ignore
+      }
+      activeKeyHookHandle = null;
+    }
+
+    const toggleMic: THotkeyStatus = hotkeys.toggleMic?.trim() ? 'ok' : 'unset';
+    const toggleSpeaker: THotkeyStatus = hotkeys.toggleSpeaker?.trim()
+      ? 'ok'
+      : 'unset';
+
+    return { toggleMic, toggleSpeaker };
+  }
+
+  // Fallback to globalShortcut
+  if (activeKeyHookHandle) {
+    try {
+      activeKeyHookHandle.stop();
+    } catch {
+      // ignore
+    }
+    activeKeyHookHandle = null;
+  }
+
   shortcutManager.unregisterAll();
 
   const registerKey = (
@@ -75,6 +192,7 @@ export function suspendHotkeys(
   shortcutManager: typeof globalShortcut = globalShortcut,
 ): void {
   suspendDepth += 1;
+  pressedKeys.clear();
   if (suspendDepth === 1) {
     shortcutManager.unregisterAll();
   }
@@ -98,6 +216,7 @@ export function resumeHotkeys(
   } else {
     return;
   }
+  pressedKeys.clear();
 
   if (suspendDepth === 0 && storedHotkeys) {
     applyHotkeys(storedHotkeys, shortcutManager, onCommand);
@@ -106,6 +225,14 @@ export function resumeHotkeys(
 
 export function initHotkeys(): void {
   app.on('will-quit', () => {
+    if (activeKeyHookHandle) {
+      try {
+        activeKeyHookHandle.stop();
+      } catch {
+        // ignore
+      }
+      activeKeyHookHandle = null;
+    }
     globalShortcut.unregisterAll();
   });
 }
