@@ -40,14 +40,24 @@ export interface INativeModule {
   ): KeyHookHandle;
 }
 
-function getBinaryName(): string {
-  const platform = process.platform;
-  const arch = process.arch;
+export function getBinaryName(
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
+): string {
   if (platform === 'win32' && arch === 'x64') {
     return 'konvoez-native.win32-x64-msvc.node';
   }
+  if (platform === 'win32' && arch === 'arm64') {
+    return 'konvoez-native.win32-arm64-msvc.node';
+  }
   if (platform === 'linux' && arch === 'x64') {
     return 'konvoez-native.linux-x64-gnu.node';
+  }
+  if (platform === 'linux' && arch === 'arm64') {
+    return 'konvoez-native.linux-arm64-gnu.node';
+  }
+  if (platform === 'darwin' && (arch === 'x64' || arch === 'arm64')) {
+    return `konvoez-native.darwin-${arch}.node`;
   }
   return `konvoez-native.${platform}-${arch}.node`;
 }

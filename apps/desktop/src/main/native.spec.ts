@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
-import { getNativeModule, resetNativeModuleForTests } from './native';
+import {
+  getBinaryName,
+  getNativeModule,
+  resetNativeModuleForTests,
+} from './native';
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -8,6 +12,19 @@ vi.mock('node:fs', async (importOriginal) => {
     ...actual,
     existsSync: vi.fn(),
   };
+});
+
+describe('getBinaryName', () => {
+  it.each([
+    ['win32', 'x64', 'konvoez-native.win32-x64-msvc.node'],
+    ['win32', 'arm64', 'konvoez-native.win32-arm64-msvc.node'],
+    ['linux', 'x64', 'konvoez-native.linux-x64-gnu.node'],
+    ['linux', 'arm64', 'konvoez-native.linux-arm64-gnu.node'],
+    ['darwin', 'x64', 'konvoez-native.darwin-x64.node'],
+    ['darwin', 'arm64', 'konvoez-native.darwin-arm64.node'],
+  ] as const)('names the %s-%s napi triple', (platform, arch, expected) => {
+    expect(getBinaryName(platform, arch)).toBe(expected);
+  });
 });
 
 describe('native module loader', () => {
