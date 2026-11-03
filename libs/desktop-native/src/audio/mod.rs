@@ -30,6 +30,26 @@ pub fn float32_to_le_bytes(samples: &[f32]) -> Vec<u8> {
     bytes
 }
 
+/// PipeWire playback streams use this media class. Capture streams
+/// (`Stream/Input/Audio`) are not screen-share sources.
+pub fn is_playback_media_class(media_class: &str) -> bool {
+    media_class == "Stream/Output/Audio"
+}
+
+/// Bytes of one little-endian f32 stereo chunk, starting at `offset`.
+/// A trailing partial frame is dropped so the channel phase stays even.
+pub fn f32_chunk_bytes(buffer: &[u8], offset: usize, size: usize) -> Option<&[u8]> {
+    let end = offset.checked_add(size)?;
+    if end > buffer.len() {
+        return None;
+    }
+    let even_bytes = size & !7;
+    if even_bytes == 0 {
+        return None;
+    }
+    Some(&buffer[offset..offset + even_bytes])
+}
+
 /// Validates process ID to capture based on capture mode and self PID.
 /// In "include" mode: target PID must be provided and must not equal self PID.
 /// In "exclude" mode: target PID defaults to self PID to exclude own process tree.
@@ -95,6 +115,23 @@ mod tests {
         mix_audio_buffers(&[&s1, &s2], &mut out);
         assert_eq!(out[0], 1.0);
         assert_eq!(out[1], -1.0);
+    }
+
+    #[test]
+    fn test_playback_media_class() {
+        assert!(is_playback_media_class("Stream/Output/Audio"));
+        assert!(!is_playback_media_class("Stream/Input/Audio"));
+        assert!(!is_playback_media_class("Audio/Sink"));
+        assert!(!is_playback_media_class("Audio/Source"));
+    }
+
+    #[test]
+    fn test_f32_chunk_bytes_honors_offset_and_stereo_frame() {
+        let buffer = [0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+        assert_eq!(f32_chunk_bytes(&buffer, 4, 8), Some(&buffer[4..12][..]));
+        assert_eq!(f32_chunk_bytes(&buffer, 4, 10), Some(&buffer[4..12][..]));
+        assert_eq!(f32_chunk_bytes(&buffer, 10, 8), None);
+        assert_eq!(f32_chunk_bytes(&buffer, 0, 4), None);
     }
 
     #[test]

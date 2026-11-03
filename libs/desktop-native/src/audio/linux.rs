@@ -49,9 +49,7 @@ pub fn get_audio_streams() -> Vec<AudioStreamInfo> {
             if obj.type_ == pw::types::ObjectType::Node {
                 if let Some(props) = obj.props {
                     let media_class = props.get(*pw::keys::MEDIA_CLASS).unwrap_or("");
-                    if media_class.contains("Audio")
-                        && (media_class.contains("Output") || media_class.contains("Stream"))
-                    {
+                    if crate::audio::is_playback_media_class(media_class) {
                         let name = props
                             .get(*pw::keys::APP_NAME)
                             .or_else(|| props.get(*pw::keys::NODE_DESCRIPTION))
@@ -174,11 +172,12 @@ fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStr
                 let datas = buffer.datas_mut();
                 if !datas.is_empty() {
                     let data = &mut datas[0];
-                    let chunk_size = data.chunk().size() as usize;
+                    let offset = data.chunk().offset() as usize;
+                    let size = data.chunk().size() as usize;
                     if let Some(slice) = data.data() {
-                        if slice.len() >= chunk_size && chunk_size >= 4 {
-                            let floats_len = chunk_size / 4;
-                            let ptr = slice.as_ptr();
+                        if let Some(bytes) = crate::audio::f32_chunk_bytes(slice, offset, size) {
+                            let floats_len = bytes.len() / 4;
+                            let ptr = bytes.as_ptr();
                             let is_aligned =
                                 (ptr as usize).is_multiple_of(std::mem::align_of::<f32>());
                             if let Ok(mut q) = queue_clone.lock() {
@@ -190,7 +189,7 @@ fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStr
                                     q.extend_from_slice(floats);
                                 } else {
                                     // Fallback for unaligned SPA buffers
-                                    let (chunks, _) = slice[..floats_len * 4].as_chunks::<4>();
+                                    let (chunks, _) = bytes[..floats_len * 4].as_chunks::<4>();
                                     for bytes in chunks {
                                         q.push(f32::from_ne_bytes(*bytes));
                                     }
@@ -340,9 +339,7 @@ pub fn start_capture(
                                 if let Some(props) = obj.props {
                                     let media_class =
                                         props.get(*pw::keys::MEDIA_CLASS).unwrap_or("");
-                                    if media_class.contains("Audio")
-                                        && (media_class.contains("Output")
-                                            || media_class.contains("Stream"))
+                                    if crate::audio::is_playback_media_class(media_class)
                                         && !is_konvoez_node(props, exclude_pid)
                                         && !active_streams_reg.borrow().contains_key(&obj.id)
                                     {
