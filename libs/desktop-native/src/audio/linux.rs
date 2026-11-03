@@ -225,6 +225,12 @@ fn collect_nodes(core: &pw::core::CoreRc, mainloop: &pw::main_loop::MainLoopRc) 
     listed
 }
 
+#[derive(Clone, Copy)]
+enum IncludeSelector {
+    Pid(u32),
+    Node(u32),
+}
+
 fn listed_node_is_capture_source(node: &ListedNode, self_pid: u32) -> bool {
     let in_tree = node
         .pid
@@ -408,9 +414,7 @@ pub fn start_capture(
             let rings: Arc<Mutex<Vec<Arc<crate::audio::SampleRing>>>> =
                 Arc::new(Mutex::new(Vec::new()));
 
-            let mut _registry_listener = None;
-
-            if options.mode == "include" {
+            let include_selector = if options.mode == "include" {
                 if let Some(stream_id) = options
                     .target_stream_id
                     .as_deref()
@@ -430,64 +434,64 @@ pub fn start_capture(
                             .send(Err("Cannot capture audio from Konvoez itself".to_string()));
                         return;
                     }
-                    if let Some(stream) = create_node_stream(&core, node.id) {
-                        track_stream(&active_streams, &rings, node.id, stream);
-                    }
+                    Some(match node.pid {
+                        Some(pid) => IncludeSelector::Pid(pid),
+                        None => IncludeSelector::Node(node.id),
+                    })
                 } else if let Some(target_pid) = options.target_pid {
-                    let streams = get_audio_streams();
-                    if let Some(matching) = streams
-                        .into_iter()
-                        .find(|stream| stream.pid == Some(target_pid))
-                    {
-                        if let Ok(node_id) = matching.id.parse::<u32>() {
-                            if let Some(stream) = create_node_stream(&core, node_id) {
-                                track_stream(&active_streams, &rings, node_id, stream);
-                            }
-                        }
-                    }
-                }
-                if active_streams.borrow().is_empty() {
-                    let _ = ready_tx.send(Err("No matching audio stream".to_string()));
+                    Some(IncludeSelector::Pid(target_pid))
+                } else {
+                    let _ = ready_tx.send(Err(
+                        "No valid target window or process specified for audio capture".to_string(),
+                    ));
                     return;
                 }
-            } else if let Ok(registry) = core.get_registry_rc() {
-                let active_streams_reg = active_streams.clone();
-                let active_streams_rem = active_streams.clone();
-                let rings_reg = Arc::clone(&rings);
-                let rings_rem = Arc::clone(&rings);
-                let core_reg = core.clone();
-
-                _registry_listener = Some(
-                    registry
-                        .add_listener_local()
-                        .global(move |obj| {
-                            if obj.type_ == pw::types::ObjectType::Node {
-                                if let Some(props) = obj.props {
-                                    if allows_playback_node(props, exclude_pid)
-                                        && !active_streams_reg.borrow().contains_key(&obj.id)
-                                    {
-                                        if let Some(stream) = create_node_stream(&core_reg, obj.id)
-                                        {
-                                            track_stream(
-                                                &active_streams_reg,
-                                                &rings_reg,
-                                                obj.id,
-                                                stream,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        })
-                        .global_remove(move |id| {
-                            forget_stream(&active_streams_rem, &rings_rem, id);
-                        })
-                        .register(),
-                );
             } else {
+                None
+            };
+
+            let Ok(registry) = core.get_registry_rc() else {
                 let _ = ready_tx.send(Err("Failed to open the PipeWire registry".to_string()));
                 return;
-            }
+            };
+            let active_streams_reg = active_streams.clone();
+            let active_streams_rem = active_streams.clone();
+            let rings_reg = Arc::clone(&rings);
+            let rings_rem = Arc::clone(&rings);
+            let core_reg = core.clone();
+
+            let _registry_listener = registry
+                .add_listener_local()
+                .global(move |obj| {
+                    if obj.type_ != pw::types::ObjectType::Node {
+                        return;
+                    }
+                    let Some(props) = obj.props else {
+                        return;
+                    };
+                    let selected = match include_selector {
+                        None => true,
+                        Some(IncludeSelector::Pid(pid)) => {
+                            props
+                                .get(*pw::keys::APP_PROCESS_ID)
+                                .and_then(|value| value.parse::<u32>().ok())
+                                == Some(pid)
+                        }
+                        Some(IncludeSelector::Node(id)) => obj.id == id,
+                    };
+                    if selected
+                        && allows_playback_node(props, exclude_pid)
+                        && !active_streams_reg.borrow().contains_key(&obj.id)
+                    {
+                        if let Some(stream) = create_node_stream(&core_reg, obj.id) {
+                            track_stream(&active_streams_reg, &rings_reg, obj.id, stream);
+                        }
+                    }
+                })
+                .global_remove(move |id| {
+                    forget_stream(&active_streams_rem, &rings_rem, id);
+                })
+                .register();
 
             let ml_weak = mainloop.downgrade();
             let stopper_for_timer = Arc::clone(&stopper_for_thread);
