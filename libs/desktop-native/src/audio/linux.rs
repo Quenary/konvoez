@@ -358,7 +358,7 @@ pub fn start_capture(
     stopper: Arc<AtomicBool>,
 ) -> Result<JoinHandle<()>> {
     let self_pid = std::process::id();
-    let exclude_pid = options.target_pid.unwrap_or(self_pid);
+    let exclude_pid = self_pid;
 
     if options.mode == "include" {
         if let Some(pid) = options.target_pid {

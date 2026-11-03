@@ -171,14 +171,14 @@ pub fn f32_chunk_bytes(buffer: &[u8], offset: usize, size: usize) -> Option<&[u8
 
 /// Validates process ID to capture based on capture mode and self PID.
 /// In "include" mode: target PID must be provided and must not equal self PID.
-/// In "exclude" mode: target PID defaults to self PID to exclude own process tree.
+/// In "exclude" mode: always this process, so a caller cannot exclude someone else and capture Konvoez.
 pub fn resolve_capture_pid(
     mode: &str,
     target_pid: Option<u32>,
     self_pid: u32,
 ) -> std::result::Result<u32, &'static str> {
     if mode == "exclude" {
-        Ok(target_pid.unwrap_or(self_pid))
+        Ok(self_pid)
     } else if let Some(pid) = target_pid {
         if pid == self_pid {
             Err("Cannot capture audio from Konvoez itself")
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_resolve_capture_pid_exclude_mode() {
         assert_eq!(resolve_capture_pid("exclude", None, 100), Ok(100));
-        assert_eq!(resolve_capture_pid("exclude", Some(200), 100), Ok(200));
+        assert_eq!(resolve_capture_pid("exclude", Some(200), 100), Ok(100));
     }
 
     #[test]
