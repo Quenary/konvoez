@@ -105,7 +105,11 @@ fn join_for(handle: JoinHandle<()>, timeout: Duration) {
     };
     if rx.recv_timeout(timeout).is_ok() {
         let _ = waiter.join();
+        return;
     }
+    // Dropping `waiter` detaches it while it is still joining the hook thread.
+    // That is the accepted exception to "no detached threads": the caller must
+    // return so a stuck hook cannot block Electron.
 }
 
 impl Drop for KeyHookHandle {
