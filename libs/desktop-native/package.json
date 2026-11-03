@@ -3,13 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "napi": {
-    "name": "konvoez-native",
-    "triples": {
-      "defaults": true,
-      "additional": [
-        "x86_64-pc-windows-msvc",
-        "x86_64-unknown-linux-gnu"
-      ]
-    }
+    "binaryName": "konvoez-native",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu"
+    ]
   }
 }

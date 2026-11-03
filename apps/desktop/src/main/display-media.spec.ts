@@ -125,8 +125,10 @@ describe('display-media helpers', () => {
   });
 
   describe('concurrent picker guard', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       resetPickerOpenForTests();
+      const nativeMod = await import('./native');
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue(null);
     });
 
     afterEach(() => {

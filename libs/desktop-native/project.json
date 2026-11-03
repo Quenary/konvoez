@@ -9,7 +9,7 @@
       "executor": "nx:run-commands",
       "outputs": ["{workspaceRoot}/dist/native"],
       "options": {
-        "command": "npx @napi-rs/cli build --platform --release --output-dir ../../dist/native",
+        "command": "npx napi build --platform --release --output-dir ../../dist/native",
         "cwd": "libs/desktop-native"
       }
     },
