@@ -195,6 +195,42 @@ describe('applyHotkeys', () => {
       expect(stopHook).toHaveBeenCalled();
     });
 
+    it('falls back to globalShortcut when the native hook fails to start', async () => {
+      const nativeMod = await import('./native');
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => false,
+        isKeyHookSupported: () => true,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(),
+        startKeyHook: vi.fn(() => {
+          throw new Error('hook rejected');
+        }),
+      });
+
+      const register = vi.fn().mockReturnValue(true);
+      const mockManager = {
+        unregisterAll: vi.fn(),
+        register,
+      } as unknown as typeof globalShortcut;
+
+      const statuses = applyHotkeys(
+        {
+          toggleMic: 'CommandOrControl+Shift+M',
+          toggleSpeaker: null,
+        },
+        mockManager,
+      );
+
+      expect(register).toHaveBeenCalledWith(
+        'CommandOrControl+Shift+M',
+        expect.any(Function),
+      );
+      expect(statuses).toEqual({
+        toggleMic: 'ok',
+        toggleSpeaker: 'unset',
+      });
+    });
+
     it('matches stored hotkeys using modifier synonyms like Ctrl or CmdOrCtrl', async () => {
       const nativeMod = await import('./native');
       let hookListener:

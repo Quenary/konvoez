@@ -157,6 +157,7 @@ export function applyHotkeys(
         });
       } catch (err) {
         console.warn('[Hotkeys] Failed to start native key hook:', err);
+        activeKeyHookHandle = null;
       }
     } else if (!hasAnyHotkey && activeKeyHookHandle) {
       try {
@@ -167,12 +168,16 @@ export function applyHotkeys(
       activeKeyHookHandle = null;
     }
 
-    const toggleMic: THotkeyStatus = hotkeys.toggleMic?.trim() ? 'ok' : 'unset';
-    const toggleSpeaker: THotkeyStatus = hotkeys.toggleSpeaker?.trim()
-      ? 'ok'
-      : 'unset';
+    if (activeKeyHookHandle || !hasAnyHotkey) {
+      const toggleMic: THotkeyStatus = hotkeys.toggleMic?.trim()
+        ? 'ok'
+        : 'unset';
+      const toggleSpeaker: THotkeyStatus = hotkeys.toggleSpeaker?.trim()
+        ? 'ok'
+        : 'unset';
 
-    return { toggleMic, toggleSpeaker };
+      return { toggleMic, toggleSpeaker };
+    }
   }
 
   // Fallback to globalShortcut

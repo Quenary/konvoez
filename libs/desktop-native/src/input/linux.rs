@@ -103,14 +103,23 @@ pub fn start_hook(
     );
 
     let stopper_data = stopper.clone();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
     let handle = std::thread::Builder::new()
         .name("x11-key-hook".to_string())
         .spawn(move || {
             const RECORD_FROM_SERVER: u8 = 0;
             let cookie = match data_conn.record_enable_context(rc) {
                 Ok(c) => c,
-                Err(_) => return,
+                Err(err) => {
+                    let _ = ready_tx.send(Err(err.to_string()));
+                    return;
+                }
             };
+            if let Err(err) = data_conn.flush() {
+                let _ = ready_tx.send(Err(err.to_string()));
+                return;
+            }
+            let _ = ready_tx.send(Ok(()));
 
             for reply in cookie {
                 if stopper_data.load(Ordering::Relaxed) {
@@ -170,6 +179,21 @@ pub fn start_hook(
                 format!("Failed to spawn X11 hook thread: {e}"),
             )
         })?;
+
+    match ready_rx.recv() {
+        Ok(Ok(())) => {}
+        Ok(Err(message)) => {
+            let _ = handle.join();
+            return Err(Error::new(Status::GenericFailure, message));
+        }
+        Err(err) => {
+            let _ = handle.join();
+            return Err(Error::new(
+                Status::GenericFailure,
+                format!("Failed to initialize X11 key hook: {err}"),
+            ));
+        }
+    }
 
     let on_stop: Box<dyn FnOnce() + Send> = Box::new(move || {
         let _ = ctrl_conn.record_disable_context(rc);

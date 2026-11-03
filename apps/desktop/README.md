@@ -25,7 +25,7 @@ Release tags `desktop-v*` publish installers via GitHub Actions; `electron-updat
 
 - **Server URL**: Required on first launch; validated via `/api/v1/public/version`. Production URLs must use `https://` (`http://` only for `localhost` / `127.0.0.1`). Change via tray **Change server…** or Settings.
 - **Tray**: Closing the window hides to tray (`--hidden`); voice stays active. Tray shows mute/deafen state; menu: open, mute mic, deafen, settings, change server, check updates, quit (leaves voice first). Power suspend is blocked while in a voice channel or direct call.
-- **Hotkeys**: Global toggle mic / deafen in Settings. Uses a non-blocking low-level hook on Windows (`WH_KEYBOARD_LL`) and Linux X11 (`XRecord`), ensuring keys are never blocked or swallowed. On Wayland or environments without the native module, falls back to `globalShortcut`.
+- **Hotkeys**: Global toggle mic / deafen in Settings. Uses a non-blocking low-level hook on Windows (`WH_KEYBOARD_LL`) and Linux X11 (`XRecord`), ensuring keys are never blocked or swallowed. On Wayland, when the native module is missing, or when the hook cannot be installed, falls back to `globalShortcut`.
 - **Notifications**: DM/call alerts over the app WebSocket as native OS notifications; Web Push is disabled in the desktop shell to avoid duplicates. Click focuses the window and navigates to the corresponding chat.
 - **Screen share**: Native picker for displays and windows (thumbnails/icons). Per-application and system audio capture via native module: Windows (WASAPI process loopback) and Linux (PipeWire), eliminating Konvoez self-echo. When the native module is unavailable or capture fails to start, falls back to standard loopback on Windows (Linux video-only).
 

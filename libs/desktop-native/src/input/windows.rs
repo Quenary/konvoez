@@ -7,9 +7,9 @@ use std::sync::{Arc, Mutex};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
-    TranslateMessage, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN,
-    WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, DispatchMessageW, GetMessageW, PeekMessageW, PostThreadMessageW,
+    SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSG,
+    PM_NOREMOVE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 type KeyHookTsfn = ThreadsafeFunction<KeyEvent, (), KeyEvent, Status, false>;
@@ -59,7 +59,7 @@ pub fn start_hook(
             .build()?,
     );
 
-    let (tid_tx, tid_rx) = std::sync::mpsc::channel();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<u32, String>>();
     let stopper_for_thread = stopper;
 
     let handle = std::thread::Builder::new()
@@ -67,20 +67,6 @@ pub fn start_hook(
         .spawn(move || {
             // SAFETY: Calling Win32 API to get current thread ID for message queue targeting
             let tid = unsafe { GetCurrentThreadId() };
-            let _ = tid_tx.send(tid);
-
-            // Install hook
-            // SAFETY: SetWindowsHookExW installs WH_KEYBOARD_LL hook on the system
-            let hook: HHOOK =
-                match unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(ll_keyboard_proc), None, 0) }
-                {
-                    Ok(h) => h,
-                    Err(_) => return,
-                };
-
-            if let Ok(mut guard) = HOOK_TSFN.lock() {
-                *guard = Some(tsfn);
-            }
 
             let mut msg = MSG {
                 hwnd: HWND(std::ptr::null_mut()),
@@ -90,6 +76,28 @@ pub fn start_hook(
                 time: 0,
                 pt: windows::Win32::Foundation::POINT { x: 0, y: 0 },
             };
+
+            // SAFETY: PeekMessage creates the thread queue before the hook is reported
+            // ready, so a WM_QUIT posted from stop() is not discarded.
+            unsafe {
+                let _ = PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE);
+            }
+
+            // SAFETY: SetWindowsHookExW installs WH_KEYBOARD_LL hook on the system
+            let hook: HHOOK =
+                match unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(ll_keyboard_proc), None, 0) }
+                {
+                    Ok(h) => h,
+                    Err(err) => {
+                        let _ = ready_tx.send(Err(err.to_string()));
+                        return;
+                    }
+                };
+
+            if let Ok(mut guard) = HOOK_TSFN.lock() {
+                *guard = Some(tsfn);
+            }
+            let _ = ready_tx.send(Ok(tid));
 
             // Standard Win32 message loop required for WH_KEYBOARD_LL
             // SAFETY: GetMessageW pump for the hook thread
@@ -122,12 +130,20 @@ pub fn start_hook(
             )
         })?;
 
-    let tid = tid_rx.recv().map_err(|e| {
-        Error::new(
-            Status::GenericFailure,
-            format!("Failed to initialize keyboard hook thread: {e}"),
-        )
-    })?;
+    let tid = match ready_rx.recv() {
+        Ok(Ok(tid)) => tid,
+        Ok(Err(message)) => {
+            let _ = handle.join();
+            return Err(Error::new(Status::GenericFailure, message));
+        }
+        Err(err) => {
+            let _ = handle.join();
+            return Err(Error::new(
+                Status::GenericFailure,
+                format!("Failed to initialize keyboard hook thread: {err}"),
+            ));
+        }
+    };
 
     let on_stop: Box<dyn FnOnce() + Send> = Box::new(move || {
         // SAFETY: Posting WM_QUIT to hook thread so GetMessageW wakes up and terminates immediately
