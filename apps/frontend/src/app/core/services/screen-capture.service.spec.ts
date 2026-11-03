@@ -1,11 +1,16 @@
 import { TestBed } from '@angular/core/testing';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TScreenAudioMode } from '@konvoez/shared';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MediaDevicesService } from './media-devices.service';
 import { ScreenCaptureService } from './screen-capture.service';
 
 describe('ScreenCaptureService', () => {
   let service: ScreenCaptureService;
+  let notifications: { open: ReturnType<typeof vi.fn> };
+  let translate: { instant: ReturnType<typeof vi.fn> };
   let mediaDevicesService: {
     isDisplayMediaSupported: ReturnType<typeof vi.fn>;
     getDisplayMedia: ReturnType<typeof vi.fn>;
@@ -35,6 +40,12 @@ describe('ScreenCaptureService', () => {
       isDisplayMediaSupported: vi.fn().mockReturnValue(true),
       getDisplayMedia: vi.fn(),
     };
+    notifications = {
+      open: vi.fn(() => ({ subscribe: vi.fn() })),
+    };
+    translate = {
+      instant: vi.fn((key: string) => key),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -50,6 +61,8 @@ describe('ScreenCaptureService', () => {
             screenFps: () => 30,
           },
         },
+        { provide: TuiNotificationService, useValue: notifications },
+        { provide: TranslateService, useValue: translate },
       ],
     });
 
@@ -261,6 +274,70 @@ describe('ScreenCaptureService', () => {
 
       expect(result.videoTrack).toBe(mockVideoTrack);
       expect(result.audioTrack).toBe(mockAudioTrack);
+      expect(notifications.open).not.toHaveBeenCalled();
+    });
+
+    it.each(['include', 'exclude'] as const)(
+      'does not warn when native capture reports %s',
+      async (mode: TScreenAudioMode) => {
+        let portListener:
+          | ((port: MessagePort | null, mode: TScreenAudioMode) => void)
+          | undefined;
+        vi.stubGlobal('window', {
+          konvoezDesktop: {
+            apiVersion: 2,
+            nativeAudio: true,
+            onScreenAudioPort: vi.fn((listener) => {
+              portListener = listener;
+              return () => undefined;
+            }),
+          },
+        });
+        mediaDevicesService.getDisplayMedia.mockResolvedValue({
+          getVideoTracks: () => [mockVideoTrack],
+          getAudioTracks: () => [mockAudioTrack],
+          getTracks: () => [mockVideoTrack, mockAudioTrack],
+        } as unknown as MediaStream);
+
+        const promise = service.getTracks();
+        portListener?.(null, mode);
+        await promise;
+
+        expect(notifications.open).not.toHaveBeenCalled();
+      },
+    );
+
+    it('warns when screen audio falls back to system loopback', async () => {
+      let portListener:
+        | ((port: MessagePort | null, mode: TScreenAudioMode) => void)
+        | undefined;
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn((listener) => {
+            portListener = listener;
+            return () => undefined;
+          }),
+        },
+      });
+      mediaDevicesService.getDisplayMedia.mockResolvedValue({
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [mockAudioTrack],
+        getTracks: () => [mockVideoTrack, mockAudioTrack],
+      } as unknown as MediaStream);
+
+      const promise = service.getTracks();
+      portListener?.(null, 'loopback');
+      await promise;
+
+      expect(translate.instant).toHaveBeenCalledWith(
+        'CALL.SCREEN_AUDIO_LOOPBACK',
+      );
+      expect(notifications.open).toHaveBeenCalledWith(
+        'CALL.SCREEN_AUDIO_LOOPBACK',
+        expect.objectContaining({ appearance: 'warning' }),
+      );
     });
 
     it('falls back to null audioTrack when native audio port times out', async () => {

@@ -1,4 +1,6 @@
 import { Injectable, Injector, OnDestroy, inject } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { TStreamContentMode } from '@konvoez/shared';
 import {
   DEFAULT_STREAM_FPS,
@@ -101,7 +103,10 @@ export class ScreenCaptureService implements OnDestroy {
           resolve(port);
         };
 
-        cleanupPortListener = bridge?.onScreenAudioPort?.((port) => {
+        cleanupPortListener = bridge?.onScreenAudioPort?.((port, mode) => {
+          if (!settled && mode === 'loopback') {
+            this.warnScreenAudioLoopback();
+          }
           finish(port);
         });
         // The picker runs inside getDisplayMedia. Arm the timeout only after
@@ -255,5 +260,17 @@ export class ScreenCaptureService implements OnDestroy {
     if (audio && audio.readyState !== 'ended') {
       audio.stop();
     }
+  }
+
+  private warnScreenAudioLoopback(): void {
+    const notifications = this.injector.get(TuiNotificationService);
+    const translate = this.injector.get(TranslateService);
+    notifications
+      .open(translate.instant('CALL.SCREEN_AUDIO_LOOPBACK'), {
+        appearance: 'warning',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
   }
 }
