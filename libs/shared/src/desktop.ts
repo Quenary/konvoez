@@ -67,6 +67,6 @@ export interface IKonvoezDesktopBridge {
   onNotificationClick?(
     listener: (payload: z.infer<typeof desktopNotificationSchema>) => void,
   ): () => void;
-  onScreenAudioPort?(listener: (port: MessagePort) => void): () => void;
+  onScreenAudioPort?(listener: (port: MessagePort | null) => void): () => void;
   quitReady(): void;
 }

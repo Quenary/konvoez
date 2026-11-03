@@ -275,6 +275,8 @@ pub fn start_capture(
             .callee_handled::<false>()
             .build()?,
     );
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
+    let stopper_for_thread = Arc::clone(&stopper);
 
     let handle = std::thread::Builder::new()
         .name("pipewire-capture".to_string())
@@ -282,12 +284,15 @@ pub fn start_capture(
             pw::init();
 
             let Ok(mainloop) = pw::main_loop::MainLoopRc::new(None) else {
+                let _ = ready_tx.send(Err("Failed to create a PipeWire main loop".to_string()));
                 return;
             };
             let Ok(context) = pw::context::ContextRc::new(&mainloop, None) else {
+                let _ = ready_tx.send(Err("Failed to create a PipeWire context".to_string()));
                 return;
             };
             let Ok(core) = context.connect_rc(None) else {
+                let _ = ready_tx.send(Err("Failed to connect to PipeWire".to_string()));
                 return;
             };
 
@@ -317,6 +322,10 @@ pub fn start_capture(
                     if let Some(stream) = create_node_stream(&core, node_id) {
                         active_streams.borrow_mut().insert(node_id, stream);
                     }
+                }
+                if active_streams.borrow().is_empty() {
+                    let _ = ready_tx.send(Err("No matching audio stream".to_string()));
+                    return;
                 }
             } else if let Ok(registry) = core.get_registry_rc() {
                 let active_streams_reg = active_streams.clone();
@@ -350,10 +359,13 @@ pub fn start_capture(
                         })
                         .register(),
                 );
+            } else {
+                let _ = ready_tx.send(Err("Failed to open the PipeWire registry".to_string()));
+                return;
             }
 
             let ml_weak = mainloop.downgrade();
-            let stopper_clone = stopper;
+            let stopper_clone = stopper_for_thread;
             let active_streams_timer = active_streams;
             let tsfn_clone = tsfn;
 
@@ -413,6 +425,7 @@ pub fn start_capture(
                 Some(Duration::from_millis(10)),
             );
 
+            let _ = ready_tx.send(Ok(()));
             mainloop.run();
         })
         .map_err(|e| {
@@ -422,5 +435,20 @@ pub fn start_capture(
             )
         })?;
 
-    Ok(handle)
+    match ready_rx.recv() {
+        Ok(Ok(())) => Ok(handle),
+        Ok(Err(message)) => {
+            stopper.store(true, Ordering::SeqCst);
+            let _ = handle.join();
+            Err(Error::new(Status::GenericFailure, message))
+        }
+        Err(_) => {
+            stopper.store(true, Ordering::SeqCst);
+            let _ = handle.join();
+            Err(Error::new(
+                Status::GenericFailure,
+                "Audio capture stopped before it started".to_string(),
+            ))
+        }
+    }
 }

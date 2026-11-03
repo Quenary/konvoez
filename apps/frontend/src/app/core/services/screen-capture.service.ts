@@ -148,7 +148,10 @@ export class ScreenCaptureService implements OnDestroy {
 
     beginPortWait?.();
 
-    let audioTrack: MediaStreamTrack | null = null;
+    let audioTrack: MediaStreamTrack | null;
+
+    const displayAudio = (): MediaStreamTrack | null =>
+      stream.getAudioTracks()[0] ?? null;
 
     if (useNativeAudio && portPromise) {
       const port = await portPromise;
@@ -189,10 +192,13 @@ export class ScreenCaptureService implements OnDestroy {
           } catch {
             // best-effort
           }
+          audioTrack = displayAudio();
         }
+      } else {
+        audioTrack = displayAudio();
       }
     } else {
-      audioTrack = stream.getAudioTracks()[0] ?? null;
+      audioTrack = displayAudio();
     }
 
     this.stream = stream;

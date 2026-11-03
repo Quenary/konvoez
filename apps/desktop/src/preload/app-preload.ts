@@ -35,11 +35,9 @@ const bridge: IKonvoezDesktopBridge = {
   quitReady: () => {
     ipcRenderer.send(EDesktopIpc.QUIT_READY);
   },
-  onScreenAudioPort: (listener: (port: MessagePort) => void) => {
+  onScreenAudioPort: (listener: (port: MessagePort | null) => void) => {
     const handler = (event: Electron.IpcRendererEvent) => {
-      if (event.ports && event.ports[0]) {
-        listener(event.ports[0]);
-      }
+      listener(event.ports?.[0] ?? null);
     };
     ipcRenderer.on(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
     return () => {

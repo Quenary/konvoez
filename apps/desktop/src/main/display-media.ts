@@ -11,7 +11,11 @@ import { EDesktopIpc } from '@konvoez/shared';
 import type { ISerializableSource } from '@konvoez/client-shell';
 import type { ConfigStore } from './config-store';
 import { getAppIcon, getLocalPagePath } from './window';
-import { getNativeModule, type AudioCaptureHandle } from './native';
+import {
+  getNativeModule,
+  type AudioCaptureHandle,
+  type AudioCaptureOptions,
+} from './native';
 
 let activeAudioCapture: AudioCaptureHandle | null = null;
 
@@ -337,105 +341,114 @@ export function installDisplayMediaHandler(
 
         const nativeMod = getNativeModule();
         const hasNativeAudio = nativeMod?.isAudioSupported() ?? false;
+        const isKonvoezWindow =
+          pickedSource.id.startsWith('window:') &&
+          pickedSource.name === 'Konvoez';
+        let nativeStarted = false;
 
         if (
           request.audioRequested &&
           withAudio &&
           hasNativeAudio &&
-          nativeMod
+          nativeMod &&
+          !isKonvoezWindow
         ) {
-          reuseVideoSourceId = pickedSource.id;
-          const isKonvoezWindow =
-            pickedSource.id.startsWith('window:') &&
-            pickedSource.name === 'Konvoez';
+          if (activeAudioCapture) {
+            try {
+              activeAudioCapture.stop();
+            } catch {
+              // ignore
+            }
+            activeAudioCapture = null;
+          }
 
-          if (!isKonvoezWindow) {
-            if (activeAudioCapture) {
+          const { port1, port2 } = new MessageChannelMain();
+          const hwndMatch = pickedSource.id.match(/^window:(\d+)/);
+          const hwnd = hwndMatch ? Number(hwndMatch[1]) : undefined;
+          const isScreen = pickedSource.id.startsWith('screen:');
+
+          const captureOptions: AudioCaptureOptions = audioStreamId
+            ? { mode: 'include', targetStreamId: audioStreamId }
+            : isScreen || platform === 'linux'
+              ? { mode: 'exclude', targetPid: process.pid }
+              : { mode: 'include', targetHwnd: hwnd };
+
+          try {
+            const handle = nativeMod.startAudioCapture(
+              captureOptions,
+              (chunk: Buffer) => {
+                try {
+                  const arrayBuffer =
+                    chunk.byteOffset === 0 &&
+                    chunk.byteLength === chunk.buffer.byteLength
+                      ? chunk.buffer
+                      : chunk.buffer.slice(
+                          chunk.byteOffset,
+                          chunk.byteOffset + chunk.byteLength,
+                        );
+                  port1.postMessage(arrayBuffer);
+                } catch {
+                  // port may be closed
+                }
+              },
+            );
+            activeAudioCapture = handle;
+
+            const cleanupCapture = () => {
               try {
-                activeAudioCapture.stop();
+                handle.stop();
               } catch {
                 // ignore
               }
-              activeAudioCapture = null;
-            }
+              if (activeAudioCapture === handle) {
+                activeAudioCapture = null;
+              }
+              try {
+                port1.close();
+              } catch {
+                // ignore
+              }
+            };
 
-            const { port1, port2 } = new MessageChannelMain();
+            port1.on('message', (event) => {
+              if (event.data === 'stop') {
+                cleanupCapture();
+              }
+            });
+            port1.on('close', () => {
+              cleanupCapture();
+            });
+            port1.start();
+
             const win = getMainWindow();
             if (win && !win.isDestroyed()) {
               win.webContents.postMessage(EDesktopIpc.SCREEN_AUDIO_PORT, null, [
                 port2,
               ]);
             }
-
-            const hwndMatch = pickedSource.id.match(/^window:(\d+)/);
-            const hwnd = hwndMatch ? Number(hwndMatch[1]) : undefined;
-            const isScreen = pickedSource.id.startsWith('screen:');
-
-            const captureOptions: AudioCaptureOptions = audioStreamId
-              ? { mode: 'include', targetStreamId: audioStreamId }
-              : isScreen || platform === 'linux'
-                ? { mode: 'exclude', targetPid: process.pid }
-                : { mode: 'include', targetHwnd: hwnd };
-
+            nativeStarted = true;
+            reuseVideoSourceId = pickedSource.id;
+          } catch (err) {
+            console.warn(
+              '[DisplayMedia] Failed to start native audio capture:',
+              err,
+            );
             try {
-              const handle = nativeMod.startAudioCapture(
-                captureOptions,
-                (chunk: Buffer) => {
-                  try {
-                    const arrayBuffer =
-                      chunk.byteOffset === 0 &&
-                      chunk.byteLength === chunk.buffer.byteLength
-                        ? chunk.buffer
-                        : chunk.buffer.slice(
-                            chunk.byteOffset,
-                            chunk.byteOffset + chunk.byteLength,
-                          );
-                    port1.postMessage(arrayBuffer);
-                  } catch {
-                    // port may be closed
-                  }
-                },
-              );
-              activeAudioCapture = handle;
-
-              const cleanupCapture = () => {
-                try {
-                  handle.stop();
-                } catch {
-                  // ignore
-                }
-                if (activeAudioCapture === handle) {
-                  activeAudioCapture = null;
-                }
-                try {
-                  port1.close();
-                } catch {
-                  // ignore
-                }
-              };
-
-              port1.on('message', (event) => {
-                if (event.data === 'stop') {
-                  cleanupCapture();
-                }
-              });
-              port1.on('close', () => {
-                cleanupCapture();
-              });
-              port1.start();
-            } catch (err) {
-              console.warn(
-                '[DisplayMedia] Failed to start native audio capture:',
-                err,
-              );
-              try {
-                port1.close();
-              } catch {
-                // ignore
-              }
+              port1.close();
+            } catch {
+              // ignore
             }
           }
-        } else {
+        }
+
+        if (!nativeStarted && hasNativeAudio && request.audioRequested) {
+          const win = getMainWindow();
+          if (win && !win.isDestroyed()) {
+            win.webContents.postMessage(EDesktopIpc.SCREEN_AUDIO_PORT, null);
+          }
+        }
+
+        if (!nativeStarted && !isKonvoezWindow) {
           const audio =
             request.audioRequested && withAudio
               ? getScreenShareAudio(platform)

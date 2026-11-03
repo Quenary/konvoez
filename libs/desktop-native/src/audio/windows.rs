@@ -211,15 +211,32 @@ pub fn start_capture(
         .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
 
     let tsfn = callback.build_threadsafe_function().build()?;
+    let (ready_tx, ready_rx) = channel::<std::result::Result<(), String>>();
+    let stopper_for_thread = Arc::clone(&stopper);
 
     let handle = thread::spawn(move || {
         let sender = move |chunk: Vec<u8>| {
             let _ = tsfn.call(Buffer::from(chunk), ThreadsafeFunctionCallMode::NonBlocking);
         };
-        let _ = run_capture_loop(pid_to_use, is_exclude, sender, stopper);
+        let _ = run_capture_loop(pid_to_use, is_exclude, sender, stopper_for_thread, ready_tx);
     });
 
-    Ok(handle)
+    match ready_rx.recv() {
+        Ok(Ok(())) => Ok(handle),
+        Ok(Err(message)) => {
+            stopper.store(true, Ordering::SeqCst);
+            let _ = handle.join();
+            Err(Error::new(Status::GenericFailure, message))
+        }
+        Err(_) => {
+            stopper.store(true, Ordering::SeqCst);
+            let _ = handle.join();
+            Err(Error::new(
+                Status::GenericFailure,
+                "Audio capture stopped before it started".to_string(),
+            ))
+        }
+    }
 }
 
 fn run_capture_loop<F>(
@@ -227,13 +244,80 @@ fn run_capture_loop<F>(
     is_exclude: bool,
     on_chunk: F,
     stopper: Arc<AtomicBool>,
+    ready: std::sync::mpsc::Sender<std::result::Result<(), String>>,
 ) -> windows_core::Result<()>
 where
     F: Fn(Vec<u8>),
 {
     let _com_scope = ComScope::new();
 
-    // SAFETY: Initializing WASAPI process loopback capture via COM interface.
+    let init = init_wasapi_client(target_pid, is_exclude);
+
+    let (audio_client, capture_client, _event_guard) = match init {
+        Ok(session) => {
+            let _ = ready.send(Ok(()));
+            session
+        }
+        Err(err) => {
+            let _ = ready.send(Err(err.to_string()));
+            return Err(err);
+        }
+    };
+
+    // SAFETY: The capture loop uses the client started above. Buffers returned by
+    // GetBuffer stay valid until the matching ReleaseBuffer call.
+    unsafe {
+        while !stopper.load(Ordering::Relaxed) {
+            let wait_res = WaitForSingleObject(_event_guard.0, 20);
+            if stopper.load(Ordering::Relaxed) {
+                break;
+            }
+            if wait_res.0 == 0 {
+                loop {
+                    let mut p_data: *mut u8 = std::ptr::null_mut();
+                    let mut num_frames_read: u32 = 0;
+                    let mut flags: u32 = 0;
+
+                    let hr = capture_client.GetBuffer(
+                        &mut p_data,
+                        &mut num_frames_read,
+                        &mut flags,
+                        None,
+                        None,
+                    );
+
+                    if hr.is_err() || num_frames_read == 0 {
+                        break;
+                    }
+
+                    let num_bytes = (num_frames_read * 8) as usize;
+                    let chunk = if (flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0 {
+                        vec![0u8; num_bytes]
+                    } else {
+                        std::slice::from_raw_parts(p_data, num_bytes).to_vec()
+                    };
+
+                    let _ = capture_client.ReleaseBuffer(num_frames_read);
+
+                    if !chunk.is_empty() {
+                        on_chunk(chunk);
+                    }
+                }
+            }
+        }
+
+        let _ = audio_client.Stop();
+    }
+
+    Ok(())
+}
+
+fn init_wasapi_client(
+    target_pid: u32,
+    is_exclude: bool,
+) -> windows_core::Result<(IAudioClient, IAudioCaptureClient, AutoCloseHandle)> {
+    // SAFETY: Activating a process-loopback IAudioClient and initializing it.
+    // `async_op` is held until ActivateCompleted publishes the client.
     unsafe {
         let mut params = AudioClientActivationParams {
             activation_type: 1, // AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK
@@ -258,8 +342,9 @@ where
         }
         .into();
 
-        let mut _async_op: Option<IActivateAudioInterfaceAsyncOperation> = None;
-        ActivateAudioInterfaceAsync(
+        // Hold the operation until ActivateCompleted. Releasing it earlier drops
+        // Windows' reference to the completion handler and cancels activation.
+        let async_op = ActivateAudioInterfaceAsync(
             w!("VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK"),
             &IAudioClient::IID,
             Some(&prop as *const _ as *const _),
@@ -268,8 +353,12 @@ where
 
         let unk = match rx.recv_timeout(Duration::from_secs(3)) {
             Ok(res) => res?,
-            Err(_) => return Err(windows_core::Error::from_hresult(E_FAIL)),
+            Err(_) => {
+                drop(async_op);
+                return Err(windows_core::Error::from_hresult(E_FAIL));
+            }
         };
+        drop(async_op);
 
         let audio_client: IAudioClient = unk.cast()?;
 
@@ -295,7 +384,7 @@ where
         };
 
         let event = CreateEventW(None, false, false, None)?;
-        let _event_guard = AutoCloseHandle(event);
+        let event_guard = AutoCloseHandle(event);
 
         audio_client.Initialize(
             AUDCLNT_SHAREMODE_SHARED,
@@ -312,48 +401,6 @@ where
         let capture_client: IAudioCaptureClient = audio_client.GetService()?;
         audio_client.Start()?;
 
-        while !stopper.load(Ordering::Relaxed) {
-            let wait_res = WaitForSingleObject(event, 20);
-            if stopper.load(Ordering::Relaxed) {
-                break;
-            }
-            if wait_res.0 == 0 {
-                // Event signaled
-                loop {
-                    let mut p_data: *mut u8 = std::ptr::null_mut();
-                    let mut num_frames_read: u32 = 0;
-                    let mut flags: u32 = 0;
-
-                    let hr = capture_client.GetBuffer(
-                        &mut p_data,
-                        &mut num_frames_read,
-                        &mut flags,
-                        None,
-                        None,
-                    );
-
-                    if hr.is_err() || num_frames_read == 0 {
-                        break;
-                    }
-
-                    let num_bytes = (num_frames_read * 8) as usize; // 2 channels * 4 bytes
-                    let chunk = if (flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0 {
-                        vec![0u8; num_bytes]
-                    } else {
-                        std::slice::from_raw_parts(p_data, num_bytes).to_vec()
-                    };
-
-                    let _ = capture_client.ReleaseBuffer(num_frames_read);
-
-                    if !chunk.is_empty() {
-                        on_chunk(chunk);
-                    }
-                }
-            }
-        }
-
-        let _ = audio_client.Stop();
-
-        Ok(())
+        Ok((audio_client, capture_client, event_guard))
     }
 }

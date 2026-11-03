@@ -697,6 +697,63 @@ describe('display-media helpers', () => {
       );
     });
 
+    it('falls back to loopback and tells the renderer when native capture fails', async () => {
+      const nativeMod = await import('./native');
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(() => {
+          throw new Error('wasapi unavailable');
+        }),
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const screenSource = {
+        id: 'screen:0:0',
+        name: 'Screen 0',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([screenSource]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'win32',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith({
+        video: screenSource,
+        audio: 'loopback',
+      });
+      expect(mockWebContents.postMessage).toHaveBeenCalledWith(
+        'konvoez:screen-audio-port',
+        null,
+      );
+    });
+
     it('captures window audio in include mode with window HWND', async () => {
       const nativeMod = await import('./native');
       const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });

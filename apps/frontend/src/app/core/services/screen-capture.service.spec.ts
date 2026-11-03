@@ -235,6 +235,34 @@ describe('ScreenCaptureService', () => {
       expect(result.audioTrack).toBe(mockAudioTrack);
     });
 
+    it('uses the display-media audio track when native capture declines', async () => {
+      let portListener: ((port: MessagePort | null) => void) | undefined;
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn(
+            (listener: (port: MessagePort | null) => void) => {
+              portListener = listener;
+              return () => undefined;
+            },
+          ),
+        },
+      });
+      mediaDevicesService.getDisplayMedia.mockResolvedValue({
+        getVideoTracks: () => [mockVideoTrack],
+        getAudioTracks: () => [mockAudioTrack],
+        getTracks: () => [mockVideoTrack, mockAudioTrack],
+      } as unknown as MediaStream);
+
+      const promise = service.getTracks();
+      portListener?.(null);
+      const result = await promise;
+
+      expect(result.videoTrack).toBe(mockVideoTrack);
+      expect(result.audioTrack).toBe(mockAudioTrack);
+    });
+
     it('falls back to null audioTrack when native audio port times out', async () => {
       vi.useFakeTimers();
       vi.stubGlobal('window', {
