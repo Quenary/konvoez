@@ -371,13 +371,15 @@ export function installDisplayMediaHandler(
             const hwnd = hwndMatch ? Number(hwndMatch[1]) : undefined;
             const isScreen = pickedSource.id.startsWith('screen:');
 
+            const captureOptions: AudioCaptureOptions = audioStreamId
+              ? { mode: 'include', targetStreamId: audioStreamId }
+              : isScreen || platform === 'linux'
+                ? { mode: 'exclude', targetPid: process.pid }
+                : { mode: 'include', targetHwnd: hwnd };
+
             try {
               const handle = nativeMod.startAudioCapture(
-                audioStreamId
-                  ? { mode: 'include', targetStreamId: audioStreamId }
-                  : isScreen
-                    ? { mode: 'exclude', targetPid: process.pid }
-                    : { mode: 'include', targetHwnd: hwnd },
+                captureOptions,
                 (chunk: Buffer) => {
                   try {
                     const arrayBuffer =

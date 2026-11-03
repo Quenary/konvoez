@@ -918,7 +918,7 @@ describe('display-media helpers', () => {
 
       expect(chunkCallback).toBeDefined();
       const testBuffer = Buffer.from(new Float32Array([0.5, -0.5]).buffer);
-      chunkCallback!(testBuffer);
+      chunkCallback?.(testBuffer);
 
       // Verify postMessage called with single argument (no transfer array)
       const mockChannel = (
@@ -944,6 +944,58 @@ describe('display-media helpers', () => {
       closeListener?.();
       expect(stopCapture).toHaveBeenCalled();
       expect(mockChannel.port1.close).toHaveBeenCalled();
+    });
+
+    it('falls back to exclude self PID mode on Linux when capturing window without explicit audio stream', async () => {
+      const nativeMod = await import('./native');
+      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => true,
+        isKeyHookSupported: () => false,
+        getAudioStreams: () => [],
+        startAudioCapture,
+        startKeyHook: vi.fn(),
+      });
+
+      const { desktopCapturer } = await import('electron');
+      const windowSource = {
+        id: 'window:98765:0',
+        name: 'Browser Window',
+      } as DesktopCapturerSource;
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([windowSource]);
+
+      const setDisplayMediaRequestHandler = vi.fn();
+      const fakeSession = {
+        setDisplayMediaRequestHandler,
+      } as unknown as Session;
+
+      const mockWebContents = { postMessage: vi.fn() };
+      const mockMainWindow = {
+        isDestroyed: () => false,
+        webContents: mockWebContents,
+      } as unknown as import('electron').BrowserWindow;
+
+      installDisplayMediaHandler(
+        fakeSession,
+        () => 'https://konvoez.example.com',
+        () => mockMainWindow,
+        null,
+        'linux',
+      );
+
+      const handler = setDisplayMediaRequestHandler.mock
+        .calls[0]?.[0] as DisplayMediaHandler;
+      const callback = vi.fn();
+
+      await handler(
+        { securityOrigin: 'https://konvoez.example.com', audioRequested: true },
+        callback,
+      );
+
+      expect(startAudioCapture).toHaveBeenCalledWith(
+        { mode: 'exclude', targetPid: process.pid },
+        expect.any(Function),
+      );
     });
   });
 });
