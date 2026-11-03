@@ -65,6 +65,7 @@ export class ScreenCaptureService implements OnDestroy {
 
     let portPromise: Promise<MessagePort | null> | null = null;
     let cleanupPortListener: (() => void) | undefined;
+    let portDiscarded = false;
 
     if (useNativeAudio) {
       portPromise = new Promise<MessagePort | null>((resolve) => {
@@ -73,21 +74,38 @@ export class ScreenCaptureService implements OnDestroy {
         }, 2000);
         cleanupPortListener = bridge?.onScreenAudioPort?.((port) => {
           clearTimeout(timer);
-          resolve(port);
+          if (portDiscarded) {
+            try {
+              port.postMessage('stop');
+              port.close();
+            } catch {
+              // best-effort
+            }
+          } else {
+            resolve(port);
+          }
         });
       });
     }
 
-    const stream = await this.mediaDevicesService.getDisplayMedia({
-      video: {
-        height: { ideal: height },
-        frameRate: { ideal: fps },
-      },
-      audio: true,
-    });
+    let stream: MediaStream;
+    try {
+      stream = await this.mediaDevicesService.getDisplayMedia({
+        video: {
+          height: { ideal: height },
+          frameRate: { ideal: fps },
+        },
+        audio: true,
+      });
+    } catch (err) {
+      portDiscarded = true;
+      cleanupPortListener?.();
+      throw err;
+    }
 
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) {
+      portDiscarded = true;
       cleanupPortListener?.();
       stream.getTracks().forEach((t) => t.stop());
       throw new Error('Screen share has no video track');
@@ -136,6 +154,12 @@ export class ScreenCaptureService implements OnDestroy {
             '[ScreenCapture] Failed to initialize native audio worklet:',
             err,
           );
+          try {
+            port.postMessage('stop');
+            port.close();
+          } catch {
+            // best-effort
+          }
         }
       }
     } else {

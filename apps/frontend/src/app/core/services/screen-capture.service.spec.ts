@@ -261,6 +261,38 @@ describe('ScreenCaptureService', () => {
       vi.useRealTimers();
     });
 
+    it('cleans up port listener and closes arriving port when getDisplayMedia fails', async () => {
+      const mockPort = {
+        postMessage: vi.fn(),
+        close: vi.fn(),
+      } as unknown as MessagePort;
+
+      const cleanupListener = vi.fn();
+      let portListener: ((port: MessagePort) => void) | undefined;
+      vi.stubGlobal('window', {
+        konvoezDesktop: {
+          apiVersion: 2,
+          nativeAudio: true,
+          onScreenAudioPort: vi.fn((listener) => {
+            portListener = listener;
+            return cleanupListener;
+          }),
+        },
+      });
+
+      mediaDevicesService.getDisplayMedia.mockRejectedValue(
+        new Error('Permission denied'),
+      );
+
+      await expect(service.getTracks()).rejects.toThrow('Permission denied');
+      expect(cleanupListener).toHaveBeenCalled();
+
+      // If port arrives after failure/cancellation, it should be closed immediately
+      portListener?.(mockPort);
+      expect(mockPort.postMessage).toHaveBeenCalledWith('stop');
+      expect(mockPort.close).toHaveBeenCalled();
+    });
+
     it('connects audio worklet when native audio port is received', async () => {
       const mockPort = {
         postMessage: vi.fn(),
