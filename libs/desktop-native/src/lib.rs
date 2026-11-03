@@ -155,7 +155,7 @@ pub fn start_audio_capture(
 }
 
 #[napi(ts_args_type = "callback: (event: KeyEvent) => void")]
-pub fn start_key_hook(callback: Function) -> Result<KeyHookHandle> {
+pub fn start_key_hook(callback: Function<KeyEvent, ()>) -> Result<KeyHookHandle> {
     let stopper = Arc::new(AtomicBool::new(false));
 
     #[cfg(target_os = "windows")]
