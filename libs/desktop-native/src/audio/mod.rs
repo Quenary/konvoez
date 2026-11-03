@@ -137,6 +137,11 @@ pub fn is_playback_media_class(media_class: &str) -> bool {
     media_class == "Stream/Output/Audio"
 }
 
+/// Process loopback (`AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`) exists from Windows Server 2022.
+pub fn process_loopback_supported(build: u32) -> bool {
+    build >= 20348
+}
+
 /// Playback nodes that belong to this process, or whose name is Konvoez, are not captured.
 pub fn should_capture_playback_node(
     media_class: &str,
@@ -223,6 +228,13 @@ pub fn resolve_capture_pid(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_process_loopback_supported_from_build_20348() {
+        assert!(!process_loopback_supported(20347));
+        assert!(process_loopback_supported(20348));
+        assert!(process_loopback_supported(26100));
+    }
 
     #[test]
     fn test_resolve_capture_pid_exclude_mode() {

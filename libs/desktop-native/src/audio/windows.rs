@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+use windows::Win32::Foundation::NTSTATUS;
 use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND, S_OK};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
@@ -19,11 +20,33 @@ use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITH
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
+use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
 use windows_core::{implement, w, Interface, Ref, HRESULT};
 
 const WAVE_FORMAT_EXTENSIBLE: u16 = 0xFFFE;
+
+pub fn is_audio_supported() -> bool {
+    crate::audio::process_loopback_supported(windows_build_number())
+}
+
+fn windows_build_number() -> u32 {
+    let mut info = OSVERSIONINFOW {
+        dwOSVersionInfoSize: std::mem::size_of::<OSVERSIONINFOW>() as u32,
+        ..Default::default()
+    };
+    // SAFETY: `info` is a writable OSVERSIONINFOW and its size field is set.
+    // RtlGetVersion is the call that reports the real build; GetVersionEx does not.
+    let status = unsafe {
+        windows_core::link!("ntdll.dll" "system" fn RtlGetVersion(info: *mut OSVERSIONINFOW) -> NTSTATUS);
+        RtlGetVersion(&mut info)
+    };
+    if status.is_err() {
+        return 0;
+    }
+    info.dwBuildNumber
+}
 
 #[repr(C)]
 struct AudioClientProcessLoopbackParams {

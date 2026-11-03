@@ -118,7 +118,7 @@ impl Drop for KeyHookHandle {
 pub fn is_audio_supported() -> bool {
     #[cfg(target_os = "windows")]
     {
-        true
+        audio::windows::is_audio_supported()
     }
     #[cfg(target_os = "linux")]
     {
