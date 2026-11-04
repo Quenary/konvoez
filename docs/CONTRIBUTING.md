@@ -54,7 +54,7 @@ flowchart LR
    - **Windows**: VS Build Tools (C++ workload) and `rustup`:
 
      ```bash
-     winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+     winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
      winget install Rustlang.Rustup
      ```
 
