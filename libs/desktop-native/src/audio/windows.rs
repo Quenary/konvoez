@@ -1,3 +1,4 @@
+use crate::audio::{fill_le_bytes, CHUNK_FLOATS, MAX_KEEP_FLOATS};
 use crate::{AudioCaptureOptions, CaptureMode};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
@@ -382,7 +383,10 @@ pub fn start_capture(
     let pid_to_use = target.pid;
     let mode = target.mode;
 
-    let tsfn = callback.build_threadsafe_function().build()?;
+    let tsfn = callback
+        .build_threadsafe_function()
+        .callee_handled::<false>()
+        .build()?;
     let (ready_tx, ready_rx) = channel::<std::result::Result<(), String>>();
     let stopper_for_thread = Arc::clone(&stopper);
 
@@ -395,16 +399,11 @@ pub fn start_capture(
             let delivery = match thread::Builder::new()
                 .name("wasapi-deliver".to_string())
                 .spawn(move || {
-                    const CHUNK_FLOATS: usize = 960;
-                    const MAX_KEEP: usize = 19200;
                     let mut samples = vec![0.0f32; CHUNK_FLOATS];
                     let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
                     loop {
-                        if ring_for_delivery.pop_chunk_or_silence(&mut samples, MAX_KEEP) {
-                            bytes.clear();
-                            for sample in &samples {
-                                bytes.extend_from_slice(&sample.to_le_bytes());
-                            }
+                        if ring_for_delivery.pop_chunk_or_silence(&mut samples, MAX_KEEP_FLOATS) {
+                            fill_le_bytes(&samples, &mut bytes);
                             let _ = tsfn.call(
                                 Buffer::from(bytes.as_slice()),
                                 ThreadsafeFunctionCallMode::NonBlocking,

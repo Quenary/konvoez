@@ -1,3 +1,4 @@
+use crate::audio::{CHUNK_FLOATS, MAX_KEEP_FLOATS};
 use crate::{AudioCaptureOptions, AudioStreamInfo, CaptureMode};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
@@ -505,8 +506,6 @@ pub fn start_capture(
             let mixer = match std::thread::Builder::new()
                 .name("pipewire-mix".to_string())
                 .spawn(move || {
-                    const CHUNK_FLOATS: usize = 960; // 10 ms at 48000 Hz stereo
-                    const MAX_KEEP: usize = 19200;
                     const MAX_CATCH_UP: usize = 20; // 200 ms
                     let mut chunks: Vec<Vec<f32>> = Vec::new();
                     let mut mixed = vec![0.0f32; CHUNK_FLOATS];
@@ -544,7 +543,7 @@ pub fn start_capture(
                                         .resize_with(snapshot.len(), || vec![0.0f32; CHUNK_FLOATS]);
                                 }
                                 for (index, ring) in snapshot.iter().enumerate() {
-                                    ring.pop_chunk_or_silence(&mut chunks[index], MAX_KEEP);
+                                    ring.pop_chunk_or_silence(&mut chunks[index], MAX_KEEP_FLOATS);
                                 }
                                 if snapshot.len() == 1 {
                                     mixed.copy_from_slice(&chunks[0]);
@@ -554,10 +553,7 @@ pub fn start_capture(
                                         &mut mixed,
                                     );
                                 }
-                                bytes.clear();
-                                for sample in &mixed {
-                                    bytes.extend_from_slice(&sample.to_le_bytes());
-                                }
+                                crate::audio::fill_le_bytes(&mixed, &mut bytes);
                                 let _ = tsfn_for_mixer.call(
                                     Buffer::from(bytes.as_slice()),
                                     ThreadsafeFunctionCallMode::NonBlocking,

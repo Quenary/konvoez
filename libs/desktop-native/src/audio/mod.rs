@@ -127,13 +127,18 @@ pub fn mix_audio_slices<'a>(sources: impl IntoIterator<Item = &'a [f32]>, output
     }
 }
 
-/// Converts an f32 stereo slice to raw bytes (little-endian LE).
-pub fn float32_to_le_bytes(samples: &[f32]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(samples.len() * 4);
-    for &s in samples {
-        bytes.extend_from_slice(&s.to_le_bytes());
+/// Samples per delivered chunk: 10 ms of 48 kHz stereo.
+pub const CHUNK_FLOATS: usize = 960;
+
+/// Ring backlog (200 ms) kept before the oldest samples are dropped.
+pub const MAX_KEEP_FLOATS: usize = 19200;
+
+/// Replaces `bytes` with the little-endian encoding of `samples`.
+pub fn fill_le_bytes(samples: &[f32], bytes: &mut Vec<u8>) {
+    bytes.clear();
+    for sample in samples {
+        bytes.extend_from_slice(&sample.to_le_bytes());
     }
-    bytes
 }
 
 /// PipeWire playback streams use this media class. Capture streams
@@ -480,9 +485,10 @@ mod tests {
     }
 
     #[test]
-    fn test_float32_to_le_bytes() {
+    fn test_fill_le_bytes_replaces_previous_content() {
         let samples = [1.0f32, -1.0f32];
-        let bytes = float32_to_le_bytes(&samples);
+        let mut bytes = vec![0xff; 3];
+        fill_le_bytes(&samples, &mut bytes);
         assert_eq!(bytes.len(), 8);
         assert_eq!(bytes, [0x00, 0x00, 0x80, 0x3f, 0x00, 0x00, 0x80, 0xbf]);
     }
