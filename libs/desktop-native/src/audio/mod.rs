@@ -203,6 +203,7 @@ pub struct CaptureTarget {
 /// `children` is `(pid, class, exe)` in child-walk order. The first
 /// `Windows.UI.Core.CoreWindow` of another app process wins; otherwise the
 /// first such child. The frame host and `RuntimeBroker.exe` are not targets.
+#[cfg(any(target_os = "windows", test))]
 pub(crate) fn select_frame_host_child_pid(
     frame_host_pid: u32,
     children: &[(u32, &str, &str)],
@@ -222,6 +223,7 @@ pub(crate) fn select_frame_host_child_pid(
     fallback.ok_or("Packaged app window has no running process")
 }
 
+#[cfg(any(target_os = "windows", test))]
 fn is_hosted_app_process(pid: u32, frame_host_pid: u32, exe: &str) -> bool {
     pid != 0
         && pid != frame_host_pid
