@@ -4,6 +4,7 @@ pub mod windows;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+use napi_derive::napi;
 use std::cell::UnsafeCell;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -178,19 +179,13 @@ pub fn f32_chunk_bytes(buffer: &[u8], offset: usize, size: usize) -> Option<&[u8
     Some(&buffer[offset..offset + even_bytes])
 }
 
+/// Which audio is captured: only the target, or everything except Konvoez.
+/// JS sees it as the string `"include"` or `"exclude"`.
+#[napi(string_enum = "lowercase")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaptureMode {
     Include,
     Exclude,
-}
-
-impl CaptureMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            CaptureMode::Include => "include",
-            CaptureMode::Exclude => "exclude",
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -233,12 +228,12 @@ fn is_hosted_app_process(pid: u32, frame_host_pid: u32, exe: &str) -> bool {
 /// Exclude mode always drops this process. Include of this process or one of its
 /// ancestors switches to that same exclude, because those trees contain Konvoez.
 pub fn resolve_capture_pid(
-    mode: &str,
+    mode: CaptureMode,
     target_pid: Option<u32>,
     self_pid: u32,
     self_ancestors: &[u32],
 ) -> std::result::Result<CaptureTarget, &'static str> {
-    if mode == "exclude" {
+    if mode == CaptureMode::Exclude {
         return Ok(CaptureTarget {
             mode: CaptureMode::Exclude,
             pid: self_pid,
@@ -273,14 +268,14 @@ mod tests {
     #[test]
     fn test_resolve_capture_pid_exclude_mode() {
         assert_eq!(
-            resolve_capture_pid("exclude", None, 100, &[]),
+            resolve_capture_pid(CaptureMode::Exclude, None, 100, &[]),
             Ok(CaptureTarget {
                 mode: CaptureMode::Exclude,
                 pid: 100,
             })
         );
         assert_eq!(
-            resolve_capture_pid("exclude", Some(200), 100, &[200]),
+            resolve_capture_pid(CaptureMode::Exclude, Some(200), 100, &[200]),
             Ok(CaptureTarget {
                 mode: CaptureMode::Exclude,
                 pid: 100,
@@ -334,27 +329,27 @@ mod tests {
     #[test]
     fn test_resolve_capture_pid_include_mode() {
         assert_eq!(
-            resolve_capture_pid("include", Some(200), 100, &[]),
+            resolve_capture_pid(CaptureMode::Include, Some(200), 100, &[]),
             Ok(CaptureTarget {
                 mode: CaptureMode::Include,
                 pid: 200,
             })
         );
         assert_eq!(
-            resolve_capture_pid("include", Some(100), 100, &[]),
+            resolve_capture_pid(CaptureMode::Include, Some(100), 100, &[]),
             Ok(CaptureTarget {
                 mode: CaptureMode::Exclude,
                 pid: 100,
             })
         );
         assert_eq!(
-            resolve_capture_pid("include", Some(50), 100, &[50, 10]),
+            resolve_capture_pid(CaptureMode::Include, Some(50), 100, &[50, 10]),
             Ok(CaptureTarget {
                 mode: CaptureMode::Exclude,
                 pid: 100,
             })
         );
-        assert!(resolve_capture_pid("include", None, 100, &[]).is_err());
+        assert!(resolve_capture_pid(CaptureMode::Include, None, 100, &[]).is_err());
     }
 
     #[test]

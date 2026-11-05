@@ -1,4 +1,4 @@
-use crate::{AudioCaptureOptions, AudioStreamInfo};
+use crate::{AudioCaptureOptions, AudioStreamInfo, CaptureMode};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use pipewire as pw;
@@ -367,16 +367,13 @@ pub fn start_capture(
     options: AudioCaptureOptions,
     callback: Function<Buffer, ()>,
     stopper: Arc<AtomicBool>,
-) -> Result<(JoinHandle<()>, &'static str)> {
+) -> Result<(JoinHandle<()>, CaptureMode)> {
     let self_pid = std::process::id();
     let exclude_pid = self_pid;
-    let capture_mode = if options.mode == "exclude" {
-        "exclude"
-    } else {
-        "include"
-    };
+    let capture_mode = options.mode;
+    let is_include = capture_mode == CaptureMode::Include;
 
-    if options.mode == "include" {
+    if is_include {
         if let Some(pid) = options.target_pid {
             if is_in_process_tree(pid, self_pid) {
                 return Err(Error::new(
@@ -419,7 +416,7 @@ pub fn start_capture(
             let rings: Arc<Mutex<Vec<Arc<crate::audio::SampleRing>>>> =
                 Arc::new(Mutex::new(Vec::new()));
 
-            let include_selector = if options.mode == "include" {
+            let include_selector = if is_include {
                 if let Some(stream_id) = options
                     .target_stream_id
                     .as_deref()

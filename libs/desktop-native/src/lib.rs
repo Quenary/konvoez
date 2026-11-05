@@ -8,6 +8,8 @@ use std::time::Duration;
 pub mod audio;
 pub mod input;
 
+pub use audio::CaptureMode;
+
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct AudioStreamInfo {
@@ -19,7 +21,7 @@ pub struct AudioStreamInfo {
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct AudioCaptureOptions {
-    pub mode: String, // "exclude" | "include"
+    pub mode: CaptureMode,
     pub target_pid: Option<u32>,
     pub target_hwnd: Option<i64>,
     pub target_stream_id: Option<String>,
@@ -29,14 +31,15 @@ pub struct AudioCaptureOptions {
 pub struct AudioCaptureHandle {
     stopper: Arc<AtomicBool>,
     thread_handle: Mutex<Option<JoinHandle<()>>>,
-    mode: String,
+    mode: CaptureMode,
 }
 
 #[napi]
 impl AudioCaptureHandle {
+    /// The mode that actually started. Include of Konvoez itself becomes exclude.
     #[napi]
-    pub fn mode(&self) -> String {
-        self.mode.clone()
+    pub fn mode(&self) -> CaptureMode {
+        self.mode
     }
 
     #[napi]
@@ -187,7 +190,7 @@ pub fn start_audio_capture(
     Ok(AudioCaptureHandle {
         stopper,
         thread_handle: Mutex::new(Some(handle)),
-        mode: mode.to_string(),
+        mode,
     })
 }
 
@@ -225,12 +228,12 @@ mod tests {
     #[test]
     fn test_audio_capture_options() {
         let opts = AudioCaptureOptions {
-            mode: "exclude".to_string(),
+            mode: CaptureMode::Exclude,
             target_pid: Some(1234),
             target_hwnd: None,
             target_stream_id: None,
         };
-        assert_eq!(opts.mode, "exclude");
+        assert_eq!(opts.mode, CaptureMode::Exclude);
         assert_eq!(opts.target_pid, Some(1234));
     }
 

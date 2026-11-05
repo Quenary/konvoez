@@ -1,4 +1,4 @@
-use crate::AudioCaptureOptions;
+use crate::{AudioCaptureOptions, CaptureMode};
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadsafeFunctionCallMode;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -368,7 +368,7 @@ pub fn start_capture(
     options: AudioCaptureOptions,
     callback: Function<Buffer, ()>,
     stopper: Arc<AtomicBool>,
-) -> Result<(JoinHandle<()>, &'static str)> {
+) -> Result<(JoinHandle<()>, CaptureMode)> {
     let target_pid = if let Some(hwnd) = options.target_hwnd {
         Some(find_root_process_in_tree(resolve_window_pid(hwnd)?))
     } else {
@@ -377,11 +377,11 @@ pub fn start_capture(
 
     let self_pid = std::process::id();
     let ancestors = ancestor_pids(self_pid);
-    let target = crate::audio::resolve_capture_pid(&options.mode, target_pid, self_pid, &ancestors)
+    let target = crate::audio::resolve_capture_pid(options.mode, target_pid, self_pid, &ancestors)
         .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
-    let is_exclude = target.mode == crate::audio::CaptureMode::Exclude;
+    let is_exclude = target.mode == CaptureMode::Exclude;
     let pid_to_use = target.pid;
-    let mode = target.mode.as_str();
+    let mode = target.mode;
 
     let tsfn = callback.build_threadsafe_function().build()?;
     let (ready_tx, ready_rx) = channel::<std::result::Result<(), String>>();
