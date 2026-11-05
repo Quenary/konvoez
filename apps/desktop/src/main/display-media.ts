@@ -477,6 +477,7 @@ export function installDisplayMediaHandler(
             } catch (err) {
               console.warn(
                 '[DisplayMedia] Failed to start native audio capture:',
+                captureOptions,
                 err,
               );
             }

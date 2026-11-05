@@ -697,24 +697,28 @@ describe('display-media helpers', () => {
       );
     });
 
-    it('falls back to loopback and tells the renderer when native capture fails', async () => {
+    it('logs failed include and exclude attempts before falling back to loopback', async () => {
+      const startAudioCapture = vi.fn(() => {
+        throw new Error('wasapi unavailable');
+      });
       const nativeMod = await import('./native');
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
         isKeyHookSupported: () => false,
         getAudioStreams: () => [],
-        startAudioCapture: vi.fn(() => {
-          throw new Error('wasapi unavailable');
-        }),
+        startAudioCapture,
         startKeyHook: vi.fn(),
       });
+      const warnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
 
       const { desktopCapturer } = await import('electron');
-      const screenSource = {
-        id: 'screen:0:0',
-        name: 'Screen 0',
+      const windowSource = {
+        id: 'window:98765:0',
+        name: 'Game Window',
       } as DesktopCapturerSource;
-      vi.mocked(desktopCapturer.getSources).mockResolvedValue([screenSource]);
+      vi.mocked(desktopCapturer.getSources).mockResolvedValue([windowSource]);
 
       const setDisplayMediaRequestHandler = vi.fn();
       const fakeSession = {
@@ -744,8 +748,31 @@ describe('display-media helpers', () => {
         callback,
       );
 
+      expect(startAudioCapture).toHaveBeenCalledTimes(2);
+      expect(startAudioCapture).toHaveBeenNthCalledWith(
+        1,
+        { mode: 'include', targetHwnd: 98765 },
+        expect.any(Function),
+      );
+      expect(startAudioCapture).toHaveBeenNthCalledWith(
+        2,
+        { mode: 'exclude', targetPid: process.pid },
+        expect.any(Function),
+      );
+      expect(warnSpy).toHaveBeenNthCalledWith(
+        1,
+        '[DisplayMedia] Failed to start native audio capture:',
+        { mode: 'include', targetHwnd: 98765 },
+        expect.any(Error),
+      );
+      expect(warnSpy).toHaveBeenNthCalledWith(
+        2,
+        '[DisplayMedia] Failed to start native audio capture:',
+        { mode: 'exclude', targetPid: process.pid },
+        expect.any(Error),
+      );
       expect(callback).toHaveBeenCalledWith({
-        video: screenSource,
+        video: windowSource,
         audio: 'loopback',
       });
       expect(mockWebContents.postMessage).toHaveBeenCalledWith(

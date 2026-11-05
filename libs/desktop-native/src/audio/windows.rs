@@ -8,13 +8,14 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use windows::Win32::Foundation::NTSTATUS;
-use windows::Win32::Foundation::{CloseHandle, E_FAIL, HANDLE, HWND};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler, IActivateAudioInterfaceCompletionHandler_Impl,
     IAudioCaptureClient, IAudioClient, AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE_SHARED,
     AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-    AUDCLNT_STREAMFLAGS_LOOPBACK, WAVEFORMATEX, WAVEFORMATEXTENSIBLE,
+    AUDCLNT_STREAMFLAGS_LOOPBACK, VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK, WAVEFORMATEX,
+    WAVEFORMATEXTENSIBLE,
 };
 use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
 use windows::Win32::System::Diagnostics::ToolHelp::{
@@ -23,7 +24,7 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
 use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
-use windows_core::{implement, w, Interface, Ref, HRESULT};
+use windows_core::{implement, Interface, Ref, HRESULT};
 
 const WAVE_FORMAT_EXTENSIBLE: u16 = 0xFFFE;
 
@@ -75,14 +76,15 @@ struct ComScope {
 }
 
 impl ComScope {
-    fn new() -> Self {
+    fn new() -> std::result::Result<Self, String> {
         // SAFETY: Initializing COM on the background capture thread.
         let hr = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
-        Self {
-            // S_FALSE means this thread already initialized COM. Both successes
-            // need a matching CoUninitialize.
-            initialized: hr.is_ok(),
+        if hr.is_err() {
+            return Err(format!("CoInitializeEx failed: {hr:?}"));
         }
+        // S_FALSE means this thread already initialized COM. Both successes
+        // need a matching CoUninitialize.
+        Ok(Self { initialized: true })
     }
 }
 
@@ -113,7 +115,7 @@ impl Drop for AutoCloseHandle {
 #[implement(IActivateAudioInterfaceCompletionHandler)]
 struct ActivationHandler {
     sender: std::sync::Mutex<
-        Option<std::sync::mpsc::Sender<windows_core::Result<windows_core::IUnknown>>>,
+        Option<std::sync::mpsc::Sender<std::result::Result<windows_core::IUnknown, String>>>,
     >,
 }
 
@@ -131,19 +133,30 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for ActivationHandler_Impl {
                     unsafe {
                         let res = op.GetActivateResult(&mut activate_hr, &mut unk);
                         if let Err(e) = res {
-                            let _ = sender.send(Err(e));
+                            let _ = sender.send(Err(format!(
+                                "ActivateAudioInterfaceAsync completion GetActivateResult failed: {e}"
+                            )));
                             return Ok(());
                         }
                         if let Err(e) = activate_hr.ok() {
-                            let _ = sender.send(Err(e));
+                            let _ = sender.send(Err(format!(
+                                "ActivateAudioInterfaceAsync completion failed: {e}"
+                            )));
                             return Ok(());
                         }
                         if let Some(u) = unk {
                             let _ = sender.send(Ok(u));
                         } else {
-                            let _ = sender.send(Err(windows_core::Error::from_hresult(E_FAIL)));
+                            let _ = sender.send(Err(
+                                "ActivateAudioInterfaceAsync completed without an audio interface"
+                                    .to_string(),
+                            ));
                         }
                     }
+                } else {
+                    let _ = sender.send(Err(
+                        "ActivateAudioInterfaceAsync completed without an operation".to_string(),
+                    ));
                 }
             }
         }
@@ -359,8 +372,14 @@ fn run_capture_loop(
     ring: Arc<crate::audio::SampleRing>,
     stopper: Arc<AtomicBool>,
     ready: std::sync::mpsc::Sender<std::result::Result<(), String>>,
-) -> windows_core::Result<()> {
-    let _com_scope = ComScope::new();
+) -> std::result::Result<(), String> {
+    let _com_scope = match ComScope::new() {
+        Ok(scope) => scope,
+        Err(err) => {
+            let _ = ready.send(Err(err.clone()));
+            return Err(err);
+        }
+    };
 
     let init = init_wasapi_client(target_pid, is_exclude);
 
@@ -370,7 +389,7 @@ fn run_capture_loop(
             session
         }
         Err(err) => {
-            let _ = ready.send(Err(err.to_string()));
+            let _ = ready.send(Err(err.clone()));
             return Err(err);
         }
     };
@@ -434,7 +453,7 @@ fn run_capture_loop(
 fn init_wasapi_client(
     target_pid: u32,
     is_exclude: bool,
-) -> windows_core::Result<(IAudioClient, IAudioCaptureClient, AutoCloseHandle)> {
+) -> std::result::Result<(IAudioClient, IAudioCaptureClient, AutoCloseHandle), String> {
     // SAFETY: Activating a process-loopback IAudioClient and initializing it.
     // `async_op` is held until ActivateCompleted publishes the client.
     unsafe {
@@ -464,22 +483,27 @@ fn init_wasapi_client(
         // Hold the operation until ActivateCompleted. Releasing it earlier drops
         // Windows' reference to the completion handler and cancels activation.
         let async_op = ActivateAudioInterfaceAsync(
-            w!("VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK"),
+            VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
             &IAudioClient::IID,
             Some(&prop as *const _ as *const _),
             &handler,
-        )?;
+        )
+        .map_err(|err| format!("ActivateAudioInterfaceAsync failed: {err}"))?;
 
         let unk = match rx.recv_timeout(Duration::from_secs(3)) {
             Ok(res) => res?,
             Err(_) => {
                 drop(async_op);
-                return Err(windows_core::Error::from_hresult(E_FAIL));
+                return Err(
+                    "Timed out waiting for ActivateAudioInterfaceAsync completion".to_string(),
+                );
             }
         };
         drop(async_op);
 
-        let audio_client: IAudioClient = unk.cast()?;
+        let audio_client: IAudioClient = unk
+            .cast()
+            .map_err(|err| format!("Querying IAudioClient failed: {err}"))?;
 
         // Float32 48 kHz stereo WAVEFORMATEXTENSIBLE
         const KSDATAFORMAT_SUBTYPE_IEEE_FLOAT: windows_core::GUID =
@@ -502,23 +526,32 @@ fn init_wasapi_client(
             SubFormat: KSDATAFORMAT_SUBTYPE_IEEE_FLOAT,
         };
 
-        let event = CreateEventW(None, false, false, None)?;
+        let event = CreateEventW(None, false, false, None)
+            .map_err(|err| format!("CreateEventW failed: {err}"))?;
         let event_guard = AutoCloseHandle(event);
 
-        audio_client.Initialize(
-            AUDCLNT_SHAREMODE_SHARED,
-            AUDCLNT_STREAMFLAGS_LOOPBACK
-                | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
-                | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-            200_000, // 20 ms
-            0,
-            &wfx.Format as *const _,
-            None,
-        )?;
+        audio_client
+            .Initialize(
+                AUDCLNT_SHAREMODE_SHARED,
+                AUDCLNT_STREAMFLAGS_LOOPBACK
+                    | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
+                    | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                200_000, // 20 ms
+                0,
+                &wfx.Format as *const _,
+                None,
+            )
+            .map_err(|err| format!("IAudioClient::Initialize failed: {err}"))?;
 
-        audio_client.SetEventHandle(event)?;
-        let capture_client: IAudioCaptureClient = audio_client.GetService()?;
-        audio_client.Start()?;
+        audio_client
+            .SetEventHandle(event)
+            .map_err(|err| format!("IAudioClient::SetEventHandle failed: {err}"))?;
+        let capture_client: IAudioCaptureClient = audio_client
+            .GetService()
+            .map_err(|err| format!("IAudioClient::GetService failed: {err}"))?;
+        audio_client
+            .Start()
+            .map_err(|err| format!("IAudioClient::Start failed: {err}"))?;
 
         Ok((audio_client, capture_client, event_guard))
     }
