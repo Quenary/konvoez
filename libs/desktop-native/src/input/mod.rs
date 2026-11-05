@@ -115,16 +115,19 @@ pub fn windows_vk_to_code(vk: u32, extended: bool) -> Option<&'static str> {
         0x09 => Some("Tab"),
         0x20 => Some("Space"),
         0x08 => Some("Backspace"),
-        0x2E => Some("Delete"),
-        0x2D => Some("Insert"),
-        0x24 => Some("Home"),
-        0x23 => Some("End"),
-        0x21 => Some("PageUp"),
-        0x22 => Some("PageDown"),
-        0x26 => Some("ArrowUp"),
-        0x28 => Some("ArrowDown"),
-        0x25 => Some("ArrowLeft"),
-        0x27 => Some("ArrowRight"),
+        // With NumLock off the numpad sends these VKs without the extended flag,
+        // the dedicated navigation cluster sets it.
+        0x2E => Some(if extended { "Delete" } else { "NumpadDecimal" }),
+        0x2D => Some(if extended { "Insert" } else { "Numpad0" }),
+        0x24 => Some(if extended { "Home" } else { "Numpad7" }),
+        0x23 => Some(if extended { "End" } else { "Numpad1" }),
+        0x21 => Some(if extended { "PageUp" } else { "Numpad9" }),
+        0x22 => Some(if extended { "PageDown" } else { "Numpad3" }),
+        0x26 => Some(if extended { "ArrowUp" } else { "Numpad8" }),
+        0x28 => Some(if extended { "ArrowDown" } else { "Numpad2" }),
+        0x25 => Some(if extended { "ArrowLeft" } else { "Numpad4" }),
+        0x27 => Some(if extended { "ArrowRight" } else { "Numpad6" }),
+        0x0C => Some("Numpad5"),
 
         // Locks & Controls
         0x14 => Some("CapsLock"),
@@ -464,6 +467,27 @@ mod tests {
         assert_eq!(windows_vk_to_code(0x20, false), Some("Space"));
         assert_eq!(windows_vk_to_code(0x1B, false), Some("Escape"));
         assert_eq!(windows_vk_to_code(0xFFFA, false), None);
+    }
+
+    #[test]
+    fn test_windows_numpad_with_numlock_off_is_distinct_from_navigation() {
+        let cases = [
+            (0x2D, "Insert", "Numpad0"),
+            (0x23, "End", "Numpad1"),
+            (0x28, "ArrowDown", "Numpad2"),
+            (0x22, "PageDown", "Numpad3"),
+            (0x25, "ArrowLeft", "Numpad4"),
+            (0x27, "ArrowRight", "Numpad6"),
+            (0x24, "Home", "Numpad7"),
+            (0x26, "ArrowUp", "Numpad8"),
+            (0x21, "PageUp", "Numpad9"),
+            (0x2E, "Delete", "NumpadDecimal"),
+        ];
+        for (vk, navigation, numpad) in cases {
+            assert_eq!(windows_vk_to_code(vk, true), Some(navigation));
+            assert_eq!(windows_vk_to_code(vk, false), Some(numpad));
+        }
+        assert_eq!(windows_vk_to_code(0x0C, false), Some("Numpad5"));
     }
 
     #[test]
