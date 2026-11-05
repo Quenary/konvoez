@@ -1,4 +1,5 @@
 import { app, powerMonitor, session } from 'electron';
+import { resolveAppUserModelId } from './app-user-model-id';
 import { ConfigStore } from './config-store';
 import {
   createMainWindow,
@@ -19,7 +20,7 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.quit();
 } else {
-  app.setAppUserModelId('com.quenary.konvoez');
+  app.setAppUserModelId(resolveAppUserModelId(app.isPackaged));
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
