@@ -1,0 +1,18 @@
+# Cargo build output (Cargo.lock is committed: this crate ships a binary)
+/target/
+debug/
+
+# napi-rs build artifacts
+*.node
+
+# rustfmt backups
+**/*.rs.bk
+
+# MSVC debug info
+*.pdb
+
+# cargo-mutants output
+**/mutants.out*/
+
+# rustc internal compiler error dumps
+rustc-ice-*.txt

@@ -10,6 +10,12 @@ export interface ISerializableSource {
   appIconUrl: string | null;
 }
 
+export interface IAudioStreamInfo {
+  id: string;
+  name: string;
+  pid?: number;
+}
+
 export interface IServerDialogInitial {
   serverOrigin: string | null;
   locale: TLanguage;
@@ -18,6 +24,8 @@ export interface IServerDialogInitial {
 export interface ISettingsDialogInitial {
   hotkeys: TDesktopHotkeys;
   autostart: boolean;
+  /** True when hotkeys use the non-blocking native hook instead of `globalShortcut`. */
+  nativeHotkeys: boolean;
   locale: TLanguage;
 }
 
@@ -25,7 +33,9 @@ export interface ISourcePickerDialogInitial {
   sources: ISerializableSource[];
   shareAudio: boolean;
   audioSupported: boolean;
+  nativeAudio: boolean;
   locale: TLanguage;
+  audioStreams?: IAudioStreamInfo[];
 }
 
 export interface IServerDialogAdapter {
@@ -46,7 +56,11 @@ export interface ISettingsDialogAdapter {
 export interface ISourcePickerDialogAdapter {
   getInitial(): Promise<ISourcePickerDialogInitial>;
   setShareAudio(value: boolean): void;
-  pick(sourceId: string | null, withAudio: boolean): void;
+  pick(
+    sourceId: string | null,
+    withAudio: boolean,
+    audioStreamId?: string,
+  ): void;
 }
 
 export interface IKonvoezLocalBridge {

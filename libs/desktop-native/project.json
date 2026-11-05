@@ -1,0 +1,45 @@
+{
+  "name": "desktop-native",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/desktop-native/src",
+  "projectType": "library",
+  "tags": ["scope:desktop", "type:native"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/native"],
+      "options": {
+        "command": "npx napi build --platform --release --output-dir ../../dist/native",
+        "cwd": "libs/desktop-native"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo test",
+        "cwd": "libs/desktop-native"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo clippy -- -D warnings",
+        "cwd": "libs/desktop-native"
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo fmt -- --check",
+        "cwd": "libs/desktop-native"
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo fmt",
+        "cwd": "libs/desktop-native"
+      }
+    }
+  }
+}

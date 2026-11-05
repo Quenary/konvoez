@@ -31,6 +31,8 @@ export const translations = {
     'settings.title': 'Desktop Settings',
     'settings.hotkeys': 'Global Hotkeys',
     'settings.hotkeysHint':
+      'Hotkeys work system-wide, even when the app is in the background. Keys are not blocked for other applications.',
+    'settings.hotkeysHintExclusive':
       'Hotkeys work system-wide, even when the app is in the background. A key bound without a modifier (Ctrl, Alt, Shift) is captured in all apps and can no longer be typed elsewhere.',
     'settings.toggleMic': 'Toggle microphone',
     'settings.toggleSpeaker': 'Toggle speaker / deafen',
@@ -53,9 +55,11 @@ export const translations = {
     'picker.share': 'Share',
     'picker.noScreens': 'No screens available',
     'picker.noWindows': 'No windows available',
-    'picker.shareAudio': 'Share system audio',
+    'picker.shareAudio': 'Share audio',
     'picker.shareAudioHint':
       'Broadcasts all system audio, including other participants (may cause echo)',
+    'picker.audioSource': 'Audio source',
+    'picker.allAudio': 'All system audio',
     'updater.updateAvailable': 'Update available',
     'updater.downloadPrompt':
       'A new version of Konvoez ({version}) is available. Download now?',
@@ -98,6 +102,8 @@ export const translations = {
     'settings.title': 'Настройки приложения',
     'settings.hotkeys': 'Глобальные горячие клавиши',
     'settings.hotkeysHint':
+      'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Клавиши не блокируются для других приложений.',
+    'settings.hotkeysHintExclusive':
       'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Клавиша без модификатора (Ctrl, Alt, Shift) перехватывается во всех приложениях, и печатать её в других программах будет нельзя.',
     'settings.toggleMic': 'Вкл/выкл микрофон',
     'settings.toggleSpeaker': 'Вкл/выкл звук наушников',
@@ -120,9 +126,11 @@ export const translations = {
     'picker.share': 'Поделиться',
     'picker.noScreens': 'Нет доступных экранов',
     'picker.noWindows': 'Нет доступных окон',
-    'picker.shareAudio': 'Транслировать системный звук',
+    'picker.shareAudio': 'Транслировать звук',
     'picker.shareAudioHint':
       'Транслируется весь звук системы, включая собеседников (может вызывать эхо)',
+    'picker.audioSource': 'Источник звука',
+    'picker.allAudio': 'Весь системный звук',
     'updater.updateAvailable': 'Доступно обновление',
     'updater.downloadPrompt':
       'Доступна новая версия Konvoez ({version}). Скачать сейчас?',

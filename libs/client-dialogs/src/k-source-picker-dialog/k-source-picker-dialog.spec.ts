@@ -42,12 +42,23 @@ describe('k-source-picker-dialog', () => {
       sources: mockSources,
       shareAudio: true,
       audioSupported: true,
+      nativeAudio: true,
       locale: 'en',
     }),
     setShareAudio: vi.fn(),
     pick: vi.fn(),
     ...overrides,
   });
+
+  const openWindowsTab = async (el: KSourcePickerDialog): Promise<void> => {
+    el.shadowRoot?.querySelector('k-tabs')?.dispatchEvent(
+      new CustomEvent('k-change', {
+        bubbles: true,
+        detail: { value: 'windows' },
+      }),
+    );
+    await el.updateComplete;
+  };
 
   it('defines PICKER_DIALOG_I18N_KEYS', () => {
     expect(PICKER_DIALOG_I18N_KEYS).toContain('picker.title');
@@ -86,6 +97,7 @@ describe('k-source-picker-dialog', () => {
       sources: mockSources,
       shareAudio: false,
       audioSupported: true,
+      nativeAudio: true,
       locale: 'en' as const,
     };
 
@@ -117,6 +129,7 @@ describe('k-source-picker-dialog', () => {
         ],
         shareAudio: true,
         audioSupported: true,
+        nativeAudio: true,
         locale: 'en',
       }),
     });
@@ -203,12 +216,13 @@ describe('k-source-picker-dialog', () => {
     expect(onCancelled).toHaveBeenCalledTimes(2);
   });
 
-  it('audioSupported:false hides checkbox and shows hint', async () => {
+  it('audioSupported:false hides the checkbox and the loopback hint', async () => {
     const adapter = createMockAdapter({
       getInitial: vi.fn().mockResolvedValue({
         sources: mockSources,
         shareAudio: false,
         audioSupported: false,
+        nativeAudio: false,
         locale: 'en',
       }),
     });
@@ -222,10 +236,119 @@ describe('k-source-picker-dialog', () => {
     await new Promise((r) => setTimeout(r, 10));
     await el.updateComplete;
 
-    const checkbox = el.shadowRoot?.querySelector('k-checkbox');
-    expect(checkbox).toBeNull();
+    expect(el.shadowRoot?.querySelector('k-checkbox')).toBeNull();
+    expect(el.shadowRoot?.querySelector('p.audio-hint')).toBeNull();
+  });
 
-    const hint = el.shadowRoot?.querySelector('p.audio-hint');
-    expect(hint?.textContent).toBe('picker.shareAudioHint');
+  it('warns about echo only when audio will be system loopback', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        sources: mockSources,
+        shareAudio: true,
+        audioSupported: true,
+        nativeAudio: false,
+        locale: 'en',
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    expect(
+      el.shadowRoot?.querySelector('p.audio-hint')?.textContent?.trim(),
+    ).toBe('picker.shareAudioHint');
+  });
+
+  it('renders audio streams dropdown when streams are provided and audio is enabled', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        sources: mockSources,
+        shareAudio: true,
+        audioSupported: true,
+        nativeAudio: true,
+        locale: 'en',
+        audioStreams: [
+          { id: 'node-1', name: 'Spotify', pid: 1234 },
+          { id: 'node-2', name: 'Firefox', pid: 5678 },
+        ],
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    expect(el.shadowRoot?.querySelector('k-select')).toBeNull();
+    await openWindowsTab(el);
+
+    const select = el.shadowRoot?.querySelector('k-select');
+    expect(select).not.toBeNull();
+
+    select?.dispatchEvent(
+      new CustomEvent('k-change', {
+        bubbles: true,
+        detail: { value: 'node-1' },
+      }),
+    );
+    await el.updateComplete;
+
+    const actions = el.shadowRoot?.querySelector('k-dialog-actions');
+    const buttons = actions?.querySelectorAll('k-button');
+    const shareBtn = buttons?.[1];
+    shareBtn?.dispatchEvent(new CustomEvent('k-click', { bubbles: true }));
+
+    expect(adapter.pick).toHaveBeenCalledWith('window:42', true, 'node-1');
+  });
+
+  it('clears the chosen audio stream when the source changes', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        sources: mockSources,
+        shareAudio: true,
+        audioSupported: true,
+        nativeAudio: true,
+        locale: 'en',
+        audioStreams: [{ id: 'node-1', name: 'Spotify' }],
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSourcePickerDialog>(html`
+      <k-source-picker-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-source-picker-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+    await openWindowsTab(el);
+
+    el.shadowRoot?.querySelector('k-select')?.dispatchEvent(
+      new CustomEvent('k-change', {
+        bubbles: true,
+        detail: { value: 'node-1' },
+      }),
+    );
+    await el.updateComplete;
+    expect(el.selectedAudioStreamId).toBe('node-1');
+
+    el.shadowRoot?.querySelector('k-source-grid')?.dispatchEvent(
+      new CustomEvent('k-select', {
+        bubbles: true,
+        detail: { sourceId: 'window:42' },
+      }),
+    );
+    await el.updateComplete;
+    expect(el.selectedAudioStreamId).toBeNull();
   });
 });

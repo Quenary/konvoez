@@ -3,6 +3,7 @@ import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
 import { getIconPath } from './assets';
 import type { ConfigStore } from './config-store';
 import { isQuitting } from './quit';
+import { getNativeModule } from './native';
 
 let mainWindow: BrowserWindow | null = null;
 let hasTray = true;
@@ -63,7 +64,12 @@ export function createMainWindow(configStore: ConfigStore): BrowserWindow {
       webSecurity: true,
       backgroundThrottling: false,
       spellcheck: true,
-      additionalArguments: [`--konvoez-version=${app.getVersion()}`],
+      additionalArguments: [
+        `--konvoez-version=${app.getVersion()}`,
+        ...(getNativeModule()?.isAudioSupported()
+          ? ['--konvoez-native-audio']
+          : []),
+      ],
     },
   });
 

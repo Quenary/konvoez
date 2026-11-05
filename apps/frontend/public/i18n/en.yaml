@@ -150,6 +150,7 @@ CALL:
   SCREEN_OFF: Stop sharing
   SCREEN_SETTINGS: Screen share settings
   SCREEN_FAILED: Couldn't start screen sharing
+  SCREEN_AUDIO_LOOPBACK: Broadcasts all system audio, including other participants (may cause echo)
   START_SCREEN: Share screen
   WATCH_SCREEN: Start watching
   STOP_WATCH_SCREEN: Stop watching

@@ -11,6 +11,7 @@ Konvoez is an Nx monorepo. The server (backend, frontend) and the desktop client
 | `apps/frontend`       | Angular (Signals, standalone components, SCSS, Taiga UI).                                           |
 | `apps/backend`        | NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, AES-256-GCM message encryption.                |
 | `apps/desktop`        | Electron client wrapping the frontend, built with esbuild and packaged with electron-builder.       |
+| `libs/desktop-native` | Rust native addon (NAPI-RS): per-app audio capture (WASAPI/PipeWire) and non-blocking key hooks.    |
 | `libs/shared`         | TypeScript interfaces, enums, DTOs and Zod schemas shared by all projects.                          |
 | `libs/client-shell`   | Framework-free client utilities: validation, adapter contracts, i18n core.                          |
 | `libs/ui-kit`         | Lit web component primitives styled with Taiga UI design tokens.                                    |
@@ -26,6 +27,7 @@ flowchart LR
   shell[libs/client-shell]
   kit[libs/ui-kit]
   dialogs[libs/client-dialogs]
+  native[libs/desktop-native]
   frontend[apps/frontend]
   backend[apps/backend]
   desktop[apps/desktop]
@@ -40,17 +42,28 @@ flowchart LR
   desktop --> dialogs
   desktop --> shell
   desktop --> kit
+  desktop --> native
 ```
 
-`apps/frontend` must not import `@konvoez/ui-kit` or `@konvoez/client-dialogs`.
+`apps/frontend` must not import `@konvoez/ui-kit` or `@konvoez/client-dialogs`. `nx build desktop` does not build `desktop-native`; the packaged app includes a `.node` only when that library was built separately.
 
 ## Getting started
 
-1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH` or `ffmpeg` on `PATH`); without it posters are skipped and the browser poster is used. On Windows, native dependencies need VS Build Tools:
+1. **Prerequisites**: Node.js `^22.22.3` and npm `>=10.9`. Rust is pinned by the root `rust-toolchain.toml`. `rustup toolchain install` reads that file and installs the channel, clippy, rustfmt, and the listed targets. CI uses the same command and does not pin a toolchain in the workflow. Server video posters use an optional `ffmpeg` binary (`FFMPEG_PATH` or `ffmpeg` on `PATH`); without it posters are skipped and the browser poster is used.
 
-   ```bash
-   winget install Microsoft.VisualStudio.2022.BuildTools --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-   ```
+   - **Windows**: VS Build Tools (C++ workload) and `rustup`:
+
+     ```bash
+     winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+     winget install Rustlang.Rustup
+     ```
+
+   - **Linux (Ubuntu/Debian)**: system libraries for PipeWire/bindgen and `rustup`. The desktop app also needs `libpipewire-0.3` at runtime ([details](../apps/desktop/README.md#native-module-rust)):
+
+     ```bash
+     sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev
+     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+     ```
 
 2. **Install dependencies**:
 
@@ -79,7 +92,7 @@ flowchart LR
 
 ## Desktop
 
-The Electron client has its own [guide](../apps/desktop/README.md). Run it with `npx nx run desktop:serve` and package it with `npx nx run desktop:package`. Installers are built by GitHub Actions on `desktop-v*` tags.
+The Electron client has its own [guide](../apps/desktop/README.md). Build the native module with `npx nx run desktop-native:build`, run tests with `npx nx run desktop-native:test`, and lint with `npx nx run desktop-native:lint`. Run the app with `npx nx run desktop:serve` and package it with `npx nx run desktop:package`. Installers are built by GitHub Actions on `desktop-v*` tags.
 
 ## Commits and releases
 
@@ -89,10 +102,10 @@ AI tools may assist, but the human author is responsible for every change. Commi
 
 Nx publishes two independent release groups. The paths touched by a commit decide which group is bumped:
 
-| Group     | Projects                                              | Tag                  | Changelog                   |
-| --------- | ----------------------------------------------------- | -------------------- | --------------------------- |
-| `server`  | `backend`, `frontend`, `shared`                       | `v{version}`         | `CHANGELOG.md`              |
-| `desktop` | `desktop`, `client-shell`, `ui-kit`, `client-dialogs` | `desktop-v{version}` | `apps/desktop/CHANGELOG.md` |
+| Group     | Projects                                                                | Tag                  | Changelog                   |
+| --------- | ----------------------------------------------------------------------- | -------------------- | --------------------------- |
+| `server`  | `backend`, `frontend`, `shared`                                         | `v{version}`         | `CHANGELOG.md`              |
+| `desktop` | `desktop`, `desktop-native`, `client-shell`, `ui-kit`, `client-dialogs` | `desktop-v{version}` | `apps/desktop/CHANGELOG.md` |
 
 - Changes only in the desktop group bump `desktop`; changes only in `backend` or `frontend` bump `server`.
 - Changes in `libs/shared` bump both groups, because desktop and `client-shell` import it.
@@ -112,7 +125,7 @@ Nx publishes two independent release groups. The paths touched by a commit decid
 - Parameterize cases that differ only by inputs and expected results.
 - Update existing tests when changing existing behavior.
 - Before submitting, run `npm run test`, `npm run lint` and `npm run fmt` (or `npx nx run <project>:format:check` to only check).
-- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `ui-kit`, `client-dialogs`, `desktop`.
+- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `ui-kit`, `client-dialogs`, `desktop`, `desktop-native`.
 
 ## Pull requests
 

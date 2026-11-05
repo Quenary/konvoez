@@ -53,6 +53,7 @@
     "@angular/language-service": "^22.2.4",
     "@angular/pwa": "^22.2.5",
     "@eslint/js": "^10.0.1",
+    "@napi-rs/cli": "~3.10.12",
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.2.8",
     "@nx/angular": "23.3.1",

@@ -24,6 +24,7 @@ const localBridge: IKonvoezLocalBridge = {
       return {
         hotkeys: config.hotkeys,
         autostart: config.autostart,
+        nativeHotkeys: Boolean(config.nativeHotkeys),
         locale: config.locale as TLanguage,
       };
     },
@@ -36,15 +37,17 @@ const localBridge: IKonvoezLocalBridge = {
   },
   picker: {
     async getInitial() {
-      const [config, sources] = await Promise.all([
+      const [config, pickerSources] = await Promise.all([
         ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
         ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
       ]);
       return {
-        sources,
+        sources: pickerSources.sources,
         shareAudio: config.shareAudio,
         audioSupported: Boolean(config.audioSupported),
+        nativeAudio: Boolean(config.nativeAudio),
         locale: config.locale as TLanguage,
+        audioStreams: pickerSources.audioStreams,
       };
     },
     setShareAudio: (value: boolean) => {
@@ -52,8 +55,17 @@ const localBridge: IKonvoezLocalBridge = {
         shareAudio: value,
       });
     },
-    pick: (sourceId: string | null, withAudio: boolean) => {
-      ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId, withAudio);
+    pick: (
+      sourceId: string | null,
+      withAudio: boolean,
+      audioStreamId?: string,
+    ) => {
+      ipcRenderer.send(
+        EDesktopIpc.LOCAL_PICK_SOURCE,
+        sourceId,
+        withAudio,
+        audioStreamId,
+      );
     },
   },
 };
