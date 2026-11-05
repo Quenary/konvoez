@@ -79,21 +79,6 @@ function captureAttempts(
   return [{ mode: 'include', targetHwnd: hwnd }, exclude];
 }
 
-function reportedCaptureMode(
-  handle: AudioCaptureHandle,
-  requested: AudioCaptureOptions,
-): 'include' | 'exclude' {
-  try {
-    const mode = handle.mode();
-    if (mode === 'include' || mode === 'exclude') {
-      return mode;
-    }
-  } catch {
-    // Older binaries only expose stop().
-  }
-  return requested.mode;
-}
-
 export function serializeCapturerSources(
   sources: DesktopCapturerSource[],
 ): ISerializableSource[] {
@@ -248,7 +233,7 @@ export async function openSourcePicker(
       const nativeMod = getNativeModule();
       let audioStreams;
       try {
-        audioStreams = nativeMod?.getAudioStreams?.();
+        audioStreams = nativeMod?.getAudioStreams();
       } catch {
         // ignore
       }
@@ -479,7 +464,7 @@ export function installDisplayMediaHandler(
               );
               started = {
                 handle,
-                mode: reportedCaptureMode(handle, captureOptions),
+                mode: handle.mode(),
               };
               break;
             } catch (err) {

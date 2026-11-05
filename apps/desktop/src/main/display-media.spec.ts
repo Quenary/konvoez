@@ -648,7 +648,9 @@ describe('display-media helpers', () => {
 
     it('uses native audio capture when available without returning loopback audio to callback', async () => {
       const nativeMod = await import('./native');
-      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      const startAudioCapture = vi
+        .fn()
+        .mockReturnValue({ stop: vi.fn(), mode: () => 'exclude' });
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
         isKeyHookSupported: () => false,
@@ -795,7 +797,9 @@ describe('display-media helpers', () => {
 
     it('captures window audio in include mode with window HWND', async () => {
       const nativeMod = await import('./native');
-      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      const startAudioCapture = vi
+        .fn()
+        .mockReturnValue({ stop: vi.fn(), mode: () => 'include' });
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
         isKeyHookSupported: () => false,
@@ -1036,7 +1040,9 @@ describe('display-media helpers', () => {
 
     it('captures specific audio stream when audioStreamId is provided', async () => {
       const nativeMod = await import('./native');
-      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      const startAudioCapture = vi
+        .fn()
+        .mockReturnValue({ stop: vi.fn(), mode: () => 'include' });
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
         isKeyHookSupported: () => false,
@@ -1111,7 +1117,7 @@ describe('display-media helpers', () => {
       let chunkCallback: ((chunk: Buffer) => void) | undefined;
       const startAudioCapture = vi.fn().mockImplementation((_, cb) => {
         chunkCallback = cb;
-        return { stop: stopCapture };
+        return { stop: stopCapture, mode: () => 'exclude' };
       });
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
@@ -1188,7 +1194,9 @@ describe('display-media helpers', () => {
 
     it('falls back to exclude self PID mode on Linux when capturing window without explicit audio stream', async () => {
       const nativeMod = await import('./native');
-      const startAudioCapture = vi.fn().mockReturnValue({ stop: vi.fn() });
+      const startAudioCapture = vi
+        .fn()
+        .mockReturnValue({ stop: vi.fn(), mode: () => 'exclude' });
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => true,
         isKeyHookSupported: () => false,

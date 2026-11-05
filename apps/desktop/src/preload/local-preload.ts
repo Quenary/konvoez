@@ -37,23 +37,17 @@ const localBridge: IKonvoezLocalBridge = {
   },
   picker: {
     async getInitial() {
-      const [config, sourcesData] = await Promise.all([
+      const [config, pickerSources] = await Promise.all([
         ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
         ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
       ]);
-      const sources = Array.isArray(sourcesData)
-        ? sourcesData
-        : (sourcesData?.sources ?? []);
-      const audioStreams = Array.isArray(sourcesData)
-        ? undefined
-        : sourcesData?.audioStreams;
       return {
-        sources,
+        sources: pickerSources.sources,
         shareAudio: config.shareAudio,
         audioSupported: Boolean(config.audioSupported),
         nativeAudio: Boolean(config.nativeAudio),
         locale: config.locale as TLanguage,
-        audioStreams,
+        audioStreams: pickerSources.audioStreams,
       };
     },
     setShareAudio: (value: boolean) => {
