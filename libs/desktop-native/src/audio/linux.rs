@@ -259,8 +259,9 @@ fn listed_node_is_capture_source(node: &ListedNode, self_pid: u32) -> bool {
 }
 
 struct ActiveStream {
-    _stream: pw::stream::StreamRc,
+    // Fields drop in declaration order: the listener must go before its stream.
     _listener: Box<dyn std::any::Any>,
+    _stream: pw::stream::StreamRc,
     ring: Arc<crate::audio::SampleRing>,
 }
 
@@ -358,8 +359,8 @@ fn create_node_stream(core: &pw::core::CoreRc, node_id: u32) -> Option<ActiveStr
     }
 
     Some(ActiveStream {
-        _stream: stream,
         _listener: Box::new(listener),
+        _stream: stream,
         ring,
     })
 }
