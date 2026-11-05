@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { html } from 'lit';
 import type { IServerDialogAdapter, TTranslator } from '@konvoez/client-shell';
-import { fixture } from '../testing/fixture';
+import { fixture } from '../fixture';
 import './k-server-dialog';
 import { KServerDialog, SERVER_DIALOG_I18N_KEYS } from './k-server-dialog';
 

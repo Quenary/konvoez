@@ -25,8 +25,12 @@ export function getAppIcon(): NativeImage | undefined {
   return image;
 }
 
+export function getLocalPagesDir(): string {
+  return path.resolve(__dirname, 'pages');
+}
+
 export function getLocalPagePath(pageName: string): string {
-  return path.resolve(__dirname, 'pages', `${pageName}.html`);
+  return path.resolve(getLocalPagesDir(), pageName, 'index.html');
 }
 
 export function showMainWindow(win?: BrowserWindow | null): void {

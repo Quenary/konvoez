@@ -6,27 +6,25 @@ Contributions are welcome. The guidelines below keep the project consistent and 
 
 Konvoez is an Nx monorepo. The server (backend, frontend) and the desktop client share contracts through `libs/shared`.
 
-| Project               | Description                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------- |
-| `apps/frontend`       | Angular (Signals, standalone components, SCSS, Taiga UI).                                           |
-| `apps/backend`        | NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, AES-256-GCM message encryption.                |
-| `apps/desktop`        | Electron client wrapping the frontend, built with esbuild and packaged with electron-builder.       |
-| `libs/desktop-native` | Rust native addon (NAPI-RS): per-app audio capture (WASAPI/PipeWire) and non-blocking key hooks.    |
-| `libs/shared`         | TypeScript interfaces, enums, DTOs and Zod schemas shared by all projects.                          |
-| `libs/client-shell`   | Framework-free client utilities: validation, adapter contracts, i18n core.                          |
-| `libs/ui-kit`         | Lit web component primitives styled with Taiga UI design tokens.                                    |
-| `libs/client-dialogs` | Lit dialogs for the desktop app (`k-server-dialog`, `k-settings-dialog`, `k-source-picker-dialog`). |
+| Project               | Description                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| `apps/frontend`       | Angular (Signals, standalone components, SCSS, Taiga UI).                                        |
+| `apps/backend`        | NestJS, MikroORM, Mediasoup (WebRTC SFU), Socket.IO, AES-256-GCM message encryption.             |
+| `apps/desktop`        | Electron client wrapping the frontend, built with esbuild and packaged with electron-builder.    |
+| `libs/desktop-native` | Rust native addon (NAPI-RS): per-app audio capture (WASAPI/PipeWire) and non-blocking key hooks. |
+| `libs/shared`         | TypeScript interfaces, enums, DTOs and Zod schemas shared by all projects.                       |
+| `libs/client-shell`   | Framework-free client utilities: validation, adapter contracts, i18n core.                       |
+| `libs/ui-kit`         | Lit web component primitives styled with Taiga UI design tokens.                                 |
 
 ### Client Libraries Rules
 
-Nx lint enforces the dependency direction. Client libraries never import `electron`, Node built-ins, `@angular/*` or `@taiga-ui/*`. Dialogs talk to the host only through adapter contracts from `@konvoez/client-shell`.
+Nx lint enforces the dependency direction. Client libraries never import `electron`, Node built-ins, `@angular/*` or `@taiga-ui/*`.
 
 ```mermaid
 flowchart LR
   shared[libs/shared]
   shell[libs/client-shell]
   kit[libs/ui-kit]
-  dialogs[libs/client-dialogs]
   native[libs/desktop-native]
   frontend[apps/frontend]
   backend[apps/backend]
@@ -34,18 +32,15 @@ flowchart LR
 
   shell --> shared
   kit --> shell
-  dialogs --> shell
-  dialogs --> kit
-  dialogs --> shared
   frontend --> shared
   backend --> shared
-  desktop --> dialogs
+  desktop --> shared
   desktop --> shell
   desktop --> kit
   desktop --> native
 ```
 
-`apps/frontend` must not import `@konvoez/ui-kit` or `@konvoez/client-dialogs`. `nx build desktop` does not build `desktop-native`; the packaged app includes a `.node` only when that library was built separately.
+`apps/frontend` must not import `@konvoez/ui-kit`. `nx build desktop` does not build `desktop-native`; the packaged app includes a `.node` only when that library was built separately. Desktop dialog pages live in `apps/desktop/src/pages` and talk to the host only through adapter contracts from `@konvoez/client-shell`.
 
 ## Getting started
 
@@ -102,10 +97,10 @@ AI tools may assist, but the human author is responsible for every change. Commi
 
 Nx publishes two independent release groups. The paths touched by a commit decide which group is bumped:
 
-| Group     | Projects                                                                | Tag                  | Changelog                   |
-| --------- | ----------------------------------------------------------------------- | -------------------- | --------------------------- |
-| `server`  | `backend`, `frontend`, `shared`                                         | `v{version}`         | `CHANGELOG.md`              |
-| `desktop` | `desktop`, `desktop-native`, `client-shell`, `ui-kit`, `client-dialogs` | `desktop-v{version}` | `apps/desktop/CHANGELOG.md` |
+| Group     | Projects                                              | Tag                  | Changelog                   |
+| --------- | ----------------------------------------------------- | -------------------- | --------------------------- |
+| `server`  | `backend`, `frontend`, `shared`                       | `v{version}`         | `CHANGELOG.md`              |
+| `desktop` | `desktop`, `desktop-native`, `client-shell`, `ui-kit` | `desktop-v{version}` | `apps/desktop/CHANGELOG.md` |
 
 - Changes only in the desktop group bump `desktop`; changes only in `backend` or `frontend` bump `server`.
 - Changes in `libs/shared` bump both groups, because desktop and `client-shell` import it.
@@ -125,7 +120,7 @@ Nx publishes two independent release groups. The paths touched by a commit decid
 - Parameterize cases that differ only by inputs and expected results.
 - Update existing tests when changing existing behavior.
 - Before submitting, run `npm run test`, `npm run lint` and `npm run fmt` (or `npx nx run <project>:format:check` to only check).
-- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `ui-kit`, `client-dialogs`, `desktop`, `desktop-native`.
+- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `ui-kit`, `desktop`, `desktop-native`.
 
 ## Pull requests
 

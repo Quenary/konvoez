@@ -64,13 +64,6 @@ export default defineConfig({
         find: /^@konvoez\/ui-kit\/(.+)$/,
         replacement: path.resolve(__dirname, '../../libs/ui-kit/src/$1/$1.ts'),
       },
-      {
-        find: /^@konvoez\/client-dialogs\/(.+)$/,
-        replacement: path.resolve(
-          __dirname,
-          '../../libs/client-dialogs/src/$1/$1.ts',
-        ),
-      },
     ],
   },
 });

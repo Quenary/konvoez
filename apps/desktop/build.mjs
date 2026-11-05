@@ -26,30 +26,25 @@ const libAliases = {
 const subpathAliasPlugin = {
   name: 'subpath-alias',
   setup(build) {
-    build.onResolve(
-      { filter: /^@konvoez\/(ui-kit|client-dialogs)\/(.+)$/ },
-      (args) => {
-        const match = args.path.match(
-          /^@konvoez\/(ui-kit|client-dialogs)\/(.+)$/,
-        );
-        if (!match) return null;
-        const [, lib, subpath] = match;
-        if (lib === 'ui-kit' && subpath === 'i18n-controller') {
-          return {
-            path: path.resolve(
-              __dirname,
-              '../../libs/ui-kit/src/i18n-controller/i18n-controller.ts',
-            ),
-          };
-        }
+    build.onResolve({ filter: /^@konvoez\/ui-kit\/(.+)$/ }, (args) => {
+      const match = args.path.match(/^@konvoez\/ui-kit\/(.+)$/);
+      if (!match) return null;
+      const subpath = match[1];
+      if (subpath === 'i18n-controller') {
         return {
           path: path.resolve(
             __dirname,
-            `../../libs/${lib}/src/${subpath}/${subpath}.ts`,
+            '../../libs/ui-kit/src/i18n-controller/i18n-controller.ts',
           ),
         };
-      },
-    );
+      }
+      return {
+        path: path.resolve(
+          __dirname,
+          `../../libs/ui-kit/src/${subpath}/${subpath}.ts`,
+        ),
+      };
+    });
   },
 };
 
@@ -62,6 +57,7 @@ async function build() {
   // 1. Ensure output directories exist
   fs.mkdirSync(distDir, { recursive: true });
   fs.mkdirSync(path.resolve(distDir, 'preload'), { recursive: true });
+  fs.rmSync(distPagesDir, { recursive: true, force: true });
   fs.mkdirSync(distPagesDir, { recursive: true });
   const iconsDistDir = path.resolve(distDir, 'icons');
 
@@ -134,9 +130,9 @@ async function build() {
   console.log('[Desktop Build] Bundling dialog pages scripts...');
   await esbuild.build({
     entryPoints: [
-      path.resolve(__dirname, 'src/pages/server.ts'),
-      path.resolve(__dirname, 'src/pages/settings.ts'),
-      path.resolve(__dirname, 'src/pages/picker.ts'),
+      path.resolve(__dirname, 'src/pages/server/main.ts'),
+      path.resolve(__dirname, 'src/pages/settings/main.ts'),
+      path.resolve(__dirname, 'src/pages/picker/main.ts'),
     ],
     bundle: true,
     platform: 'browser',
@@ -160,14 +156,23 @@ async function build() {
 
   console.log('[Desktop Build] Verifying dialog pages have no Node globals...');
   const nodeGlobalsRegex = /\b(process\.|require\(|__dirname)/;
-  for (const file of fs.readdirSync(distPagesDir)) {
-    if (!file.endsWith('.js')) {
-      continue;
+  const collectJsFiles = (dir) => {
+    const files = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...collectJsFiles(fullPath));
+      } else if (entry.isFile() && entry.name.endsWith('.js')) {
+        files.push(fullPath);
+      }
     }
-    const code = fs.readFileSync(path.resolve(distPagesDir, file), 'utf8');
+    return files;
+  };
+  for (const file of collectJsFiles(distPagesDir)) {
+    const code = fs.readFileSync(file, 'utf8');
     if (nodeGlobalsRegex.test(code)) {
       throw new Error(
-        `[Desktop Build] ${file} references Node globals (process.*, require, __dirname) — dialog pages must not use Node globals`,
+        `[Desktop Build] ${path.relative(distPagesDir, file)} references Node globals (process.*, require, __dirname) — dialog pages must not use Node globals`,
       );
     }
   }
@@ -177,16 +182,16 @@ async function build() {
   const pagesSourceDir = path.resolve(__dirname, 'src/pages');
   console.log('[Desktop Build] Compiling Taiga theme...');
   const hostCss = await compileTheme();
-  fs.writeFileSync(path.resolve(distPagesDir, 'host.css'), hostCss, 'utf8');
 
-  for (const file of ['server.html', 'settings.html', 'picker.html']) {
-    const src = path.resolve(pagesSourceDir, file);
-    const dest = path.resolve(distPagesDir, file);
-    if (fs.existsSync(src)) {
-      fs.copyFileSync(src, dest);
-    } else {
-      console.warn(`[Desktop Build] Warning: ${src} not found`);
+  for (const name of ['server', 'settings', 'picker']) {
+    const src = path.resolve(pagesSourceDir, name, 'index.html');
+    const destDir = path.resolve(distPagesDir, name);
+    if (!fs.existsSync(src)) {
+      throw new Error(`[Desktop Build] Missing page: ${src}`);
     }
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copyFileSync(src, path.resolve(destDir, 'index.html'));
+    fs.writeFileSync(path.resolve(destDir, 'host.css'), hostCss, 'utf8');
   }
 
   // 6. Verify Preload Bundle Size

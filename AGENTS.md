@@ -26,7 +26,6 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Shared contracts: Zod schemas, enums, types (`libs/shared`) — `libs/shared/README.md`
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Client UI kit, Lit primitives (`libs/ui-kit`) — `libs/ui-kit/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
-- Client dialogs, desktop Lit dialogs (`libs/client-dialogs`) — `libs/client-dialogs/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
 - Feature behavior (rooms, mentions, notifications, attachments, reactions, chat reading, user management, password recovery, two-factor authentication, email verification) — the matching `docs/*.md`
 - Networking, WebRTC ports, Docker — `docs/NETWORKING.md`
 

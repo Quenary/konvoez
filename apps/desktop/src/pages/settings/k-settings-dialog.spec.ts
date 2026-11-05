@@ -1,10 +1,11 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { html } from 'lit';
 import type {
   ISettingsDialogAdapter,
   TTranslator,
 } from '@konvoez/client-shell';
-import { fixture } from '../testing/fixture';
+import { fixture } from '../fixture';
 import './k-settings-dialog';
 import {
   KSettingsDialog,

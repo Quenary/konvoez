@@ -1,7 +1,7 @@
-import '@konvoez/client-dialogs/k-server-dialog';
-import type { KServerDialog } from '@konvoez/client-dialogs/k-server-dialog';
 import type { IKonvoezLocalBridge } from '@konvoez/client-shell';
-import { mountDialog } from './mount';
+import type { KServerDialog } from './k-server-dialog';
+import './k-server-dialog';
+import { mountDialog } from '../mount';
 
 declare global {
   interface Window {

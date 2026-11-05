@@ -12,7 +12,7 @@ Lit UI primitives for Konvoez. Components use standard TC39 decorators, Shadow D
 
 ## Theme
 
-Taiga UI variables are **not** duplicated in component styles. The desktop app compiles `src/theme/theme.less` (from `@taiga-ui/styles`) at build time into `dist/pages/host.css`. Dialog pages link that stylesheet so Lit components inherit `--tui-*` tokens through the shadow DOM.
+Taiga UI variables are **not** duplicated in component styles. The desktop app compiles `src/theme/theme.less` (from `@taiga-ui/styles`) at build time and writes `host.css` beside each dialog page. Those pages link that stylesheet so Lit components inherit `--tui-*` tokens through the shadow DOM.
 
 - Dark mode follows the OS (`prefers-color-scheme: dark`).
 - Typography uses system UI fonts (`--tui-typography-family-text` / `--tui-typography-family-display`).

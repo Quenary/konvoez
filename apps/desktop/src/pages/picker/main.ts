@@ -1,7 +1,7 @@
-import '@konvoez/client-dialogs/k-source-picker-dialog';
-import type { KSourcePickerDialog } from '@konvoez/client-dialogs/k-source-picker-dialog';
 import type { IKonvoezLocalBridge } from '@konvoez/client-shell';
-import { mountDialog } from './mount';
+import type { KSourcePickerDialog } from './k-source-picker-dialog';
+import './k-source-picker-dialog';
+import { mountDialog } from '../mount';
 
 declare global {
   interface Window {

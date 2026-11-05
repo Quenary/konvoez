@@ -1,7 +1,7 @@
-import '@konvoez/client-dialogs/k-settings-dialog';
-import type { KSettingsDialog } from '@konvoez/client-dialogs/k-settings-dialog';
 import type { IKonvoezLocalBridge } from '@konvoez/client-shell';
-import { mountDialog } from './mount';
+import type { KSettingsDialog } from './k-settings-dialog';
+import './k-settings-dialog';
+import { mountDialog } from '../mount';
 
 declare global {
   interface Window {
