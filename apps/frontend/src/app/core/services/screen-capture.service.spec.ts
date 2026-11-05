@@ -480,6 +480,8 @@ describe('ScreenCaptureService', () => {
 
     it('resumes audio context before connecting native screen audio', async () => {
       const mockPort = {
+        onmessage: null as ((event: MessageEvent<ArrayBuffer>) => void) | null,
+        start: vi.fn(),
         postMessage: vi.fn(),
         close: vi.fn(),
       } as unknown as MessagePort;
@@ -551,9 +553,14 @@ describe('ScreenCaptureService', () => {
       const result = await promise;
       expect(result.videoTrack).toBe(mockVideoTrack);
       expect(result.audioTrack).toBe(capturedTrack);
-      expect(mockWorkletPort.postMessage).toHaveBeenCalledWith(mockPort, [
-        mockPort,
+      const pcmChunk = new Float32Array([0.5, -0.5]).buffer;
+      (mockPort as MessagePort).onmessage?.({
+        data: pcmChunk,
+      } as MessageEvent<ArrayBuffer>);
+      expect(mockWorkletPort.postMessage).toHaveBeenCalledWith(pcmChunk, [
+        pcmChunk,
       ]);
+      expect((mockPort as MessagePort).start).toHaveBeenCalledOnce();
       expect(audioContextResumeService.register).toHaveBeenCalledOnce();
       expect(audioContextResumeService.register).toHaveBeenCalledWith(
         expect.objectContaining({ sampleRate: 48000 }),
@@ -565,7 +572,8 @@ describe('ScreenCaptureService', () => {
       service.release();
       expect(audioContextResumeService.unregister).toHaveBeenCalledOnce();
       expect(mockWorkletPort.postMessage).toHaveBeenCalledWith('stop');
-      expect(mockPort.postMessage).not.toHaveBeenCalledWith('stop');
+      expect(mockPort.postMessage).toHaveBeenCalledWith('stop');
+      expect(mockPort.close).toHaveBeenCalledOnce();
       expect(capturedTrack.stop).toHaveBeenCalled();
     });
   });

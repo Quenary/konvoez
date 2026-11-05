@@ -1,6 +1,6 @@
 /**
  * AudioWorkletProcessor that reads 48 kHz Float32 stereo PCM chunks
- * from a transferred MessagePort (emitted by native desktop capture)
+ * from the renderer's native-capture MessagePort
  * and streams them into the Web Audio graph via a bounded 100 ms ring buffer.
  */
 const PROCESSOR_NAME = 'konvoez/pcm-screen-audio';
@@ -35,6 +35,8 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
         (data && (typeof data.close === 'function' || 'onmessage' in data))
       ) {
         this.attachPort(data);
+      } else {
+        this.pushAudioData(data);
       }
     };
   }
@@ -62,37 +64,40 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
         return;
       }
 
-      let float32View = null;
-      if (
-        data instanceof Float32Array ||
-        data?.constructor?.name === 'Float32Array'
-      ) {
-        float32View = data;
-      } else if (
-        data instanceof ArrayBuffer ||
-        data?.constructor?.name === 'ArrayBuffer'
-      ) {
-        float32View = new Float32Array(data);
-      } else if (ArrayBuffer.isView(data) || data?.buffer) {
-        const offset = data.byteOffset || 0;
-        const byteLen = data.byteLength || 0;
-        if (offset % 4 === 0) {
-          float32View = new Float32Array(
-            data.buffer,
-            offset,
-            Math.floor(byteLen / 4),
-          );
-        } else {
-          // Unaligned slice: copy bytes into an aligned buffer to avoid RangeError
-          const slice = data.buffer.slice(offset, offset + byteLen);
-          float32View = new Float32Array(slice);
-        }
-      }
-
-      if (float32View && float32View.length > 0) {
-        this.pushSamples(float32View);
-      }
+      this.pushAudioData(data);
     };
+  }
+
+  pushAudioData(data) {
+    let float32View = null;
+    if (
+      data instanceof Float32Array ||
+      data?.constructor?.name === 'Float32Array'
+    ) {
+      float32View = data;
+    } else if (
+      data instanceof ArrayBuffer ||
+      data?.constructor?.name === 'ArrayBuffer'
+    ) {
+      float32View = new Float32Array(data);
+    } else if (ArrayBuffer.isView(data) || data?.buffer) {
+      const offset = data.byteOffset || 0;
+      const byteLen = data.byteLength || 0;
+      if (offset % 4 === 0) {
+        float32View = new Float32Array(
+          data.buffer,
+          offset,
+          Math.floor(byteLen / 4),
+        );
+      } else {
+        const slice = data.buffer.slice(offset, offset + byteLen);
+        float32View = new Float32Array(slice);
+      }
+    }
+
+    if (float32View && float32View.length > 0) {
+      this.pushSamples(float32View);
+    }
   }
 
   pushSamples(samples) {

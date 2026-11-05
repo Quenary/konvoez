@@ -167,8 +167,10 @@ export class ScreenCaptureService implements OnDestroy {
       cleanupPortListener?.();
 
       if (port) {
+        let audioContext: AudioContext | null = null;
+        let workletNode: AudioWorkletNode | null = null;
         try {
-          const audioContext = new AudioContext({ sampleRate: 48000 });
+          audioContext = new AudioContext({ sampleRate: 48000 });
           this.audioContext = audioContext;
           this.audioContextResumeService.register(audioContext);
           if (audioContext.state === 'suspended') {
@@ -178,7 +180,7 @@ export class ScreenCaptureService implements OnDestroy {
             audioContext,
             'audio/pcm-screen-audio.worklet.js',
           );
-          const workletNode = new AudioWorkletNode(
+          const node = new AudioWorkletNode(
             audioContext,
             'konvoez/pcm-screen-audio',
             {
@@ -187,11 +189,15 @@ export class ScreenCaptureService implements OnDestroy {
               outputChannelCount: [2],
             },
           );
-          workletNode.port.postMessage(port, [port]);
+          workletNode = node;
+          port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+            node.port.postMessage(event.data, [event.data]);
+          };
+          port.start();
           const destNode = audioContext.createMediaStreamDestination();
-          workletNode.connect(destNode);
+          node.connect(destNode);
 
-          this.workletNode = workletNode;
+          this.workletNode = node;
           this.screenAudioPort = port;
           audioTrack = destNode.stream.getAudioTracks()[0] ?? null;
         } catch (err) {
@@ -204,6 +210,24 @@ export class ScreenCaptureService implements OnDestroy {
             port.close();
           } catch {
             // best-effort
+          }
+          if (workletNode) {
+            try {
+              workletNode.disconnect();
+            } catch {
+              // best-effort
+            }
+          }
+          if (audioContext) {
+            this.audioContextResumeService.unregister(audioContext);
+            try {
+              void audioContext.close();
+            } catch {
+              // best-effort
+            }
+            if (this.audioContext === audioContext) {
+              this.audioContext = null;
+            }
           }
           audioTrack = displayAudio();
         }
@@ -233,8 +257,6 @@ export class ScreenCaptureService implements OnDestroy {
     this.videoTrack = null;
     this.audioTrack = null;
 
-    this.screenAudioPort = null;
-
     if (this.workletNode) {
       try {
         this.workletNode.port.postMessage('stop');
@@ -247,6 +269,17 @@ export class ScreenCaptureService implements OnDestroy {
         // best-effort
       }
       this.workletNode = null;
+    }
+
+    if (this.screenAudioPort) {
+      try {
+        this.screenAudioPort.onmessage = null;
+        this.screenAudioPort.postMessage('stop');
+        this.screenAudioPort.close();
+      } catch {
+        // best-effort
+      }
+      this.screenAudioPort = null;
     }
 
     if (this.audioContext) {

@@ -62,6 +62,24 @@ describe('pcm-screen-audio.worklet', () => {
     expect(outputRight.every((v) => v === 0)).toBe(true);
   });
 
+  it('plays PCM ArrayBuffers sent directly to the worklet port', () => {
+    const Ctor = loadProcessor();
+    const processor = new Ctor();
+    const samples = new Float32Array(2000);
+    for (let i = 0; i < samples.length; i += 2) {
+      samples[i] = 0.5;
+      samples[i + 1] = -0.5;
+    }
+
+    processor.port.onmessage?.({ data: samples.buffer });
+
+    const outputLeft = new Float32Array(128);
+    const outputRight = new Float32Array(128);
+    processor.process([], [[outputLeft, outputRight]]);
+    expect(outputLeft[0]).toBeCloseTo(0.5);
+    expect(outputRight[0]).toBeCloseTo(-0.5);
+  });
+
   it('receives audio port and plays back interleaved stereo samples after pre-buffer threshold', () => {
     const Ctor = loadProcessor();
     const processor = new Ctor();
