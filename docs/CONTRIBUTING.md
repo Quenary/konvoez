@@ -58,7 +58,7 @@ flowchart LR
      winget install Rustlang.Rustup
      ```
 
-   - **Linux (Ubuntu/Debian)**: system libraries for PipeWire/bindgen and `rustup`:
+   - **Linux (Ubuntu/Debian)**: system libraries for PipeWire/bindgen and `rustup`. The desktop app also needs `libpipewire-0.3` at runtime ([details](../apps/desktop/README.md#native-module-rust)):
 
      ```bash
      sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev

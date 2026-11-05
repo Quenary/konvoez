@@ -29,7 +29,26 @@ Release tags `desktop-v*` publish installers via GitHub Actions; `electron-updat
 - **Tray**: Closing the window hides to tray (`--hidden`); voice stays active. Tray shows mute/deafen state; menu: open, mute mic, deafen, settings, change server, check updates, quit (leaves voice first). Power suspend is blocked while in a voice channel or direct call.
 - **Hotkeys**: Global toggle mic / deafen in Settings. Uses a non-blocking low-level hook on Windows (`WH_KEYBOARD_LL`) and Linux X11 (`XRecord`), ensuring keys are never blocked or swallowed. Held keys are forgotten when the hook restarts, the session locks, or a key-down arrives long after the last event for that key. On Wayland, when the native module is missing, or when the hook cannot be installed, falls back to `globalShortcut`, which captures a bound key in all apps. The settings hint follows the active mode.
 - **Notifications**: DM/call alerts over the app WebSocket as native OS notifications; Web Push is disabled in the desktop shell to avoid duplicates. Click focuses the window and navigates to the corresponding chat.
-- **Screen share**: Native picker for displays and windows (thumbnails/icons). A window of another app is captured with native include, then native exclude of Konvoez, then Windows system loopback. A packaged app window belongs to `ApplicationFrameHost.exe`, which plays no audio. Include uses the hosted app process (`RuntimeBroker.exe` is not that process) and falls back to exclude when the hosted process is not running. A screen skips include and can fall back to loopback. The Konvoez window skips include and stays silent when native exclude fails. The renderer receives the mode that actually started (`include`, `exclude`, `loopback`, or `none`). Native PCM crosses into the page on a `MessagePort`. Loopback is the last resort on Windows for other windows and screens; Linux stays video-only when native capture cannot start.
+- **Screen share**: Native picker for displays and windows (thumbnails/icons). Audio follows [Screen share audio](#screen-share-audio).
+
+## Screen share audio
+
+The main process tries the capture modes below in order and tells the renderer which one started: `include`, `exclude`, `loopback` or `none`. Native PCM reaches the page on a `MessagePort`. Konvoez's own audio is never captured.
+
+```mermaid
+flowchart TD
+  pick[Picked source] --> kind{Source}
+  kind -->|window of another app| include[Native include of the app]
+  kind -->|screen or Konvoez window| exclude[Native exclude of Konvoez]
+  include -->|fails| exclude
+  exclude -->|fails, Windows, screen or other window| loopback[System loopback]
+  exclude -->|fails, otherwise| none[No audio]
+  loopback --> warn[Renderer warns about echo]
+```
+
+- **Windows**: include targets the process tree of the window's app. A packaged app window belongs to `ApplicationFrameHost.exe`, so the hosted app process is used instead; if it is not running, include fails.
+- **Linux**: include needs a stream chosen in the picker (windows tab); without one the capture is exclude. There is no loopback fallback, so a failure leaves the share video-only.
+- **Konvoez window**: always exclude, so other apps' audio is shared but Konvoez's is not; a failure leaves it silent.
 
 ## Local dialogs (Lit)
 
@@ -48,6 +67,8 @@ See also: [client-shell](../../libs/client-shell/README.md), [ui-kit](../../libs
 - **Lint**: `npx nx run desktop-native:lint`
 
 If the native binary is missing or unsupported on the current host, the desktop app gracefully falls back to `globalShortcut` and standard audio capture. Linux reports audio support only after a PipeWire connection succeeds. Process loopback audio is available from Windows build 20348.
+
+On Linux the addon links the host `libpipewire-0.3` dynamically. The AppImage does not bundle it, because the client library has to match the host PipeWire daemon, its plugins and its configuration. When the library is missing, the addon does not load at all, so the key hook falls back to `globalShortcut` as well.
 
 ## Security
 
