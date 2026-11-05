@@ -24,6 +24,7 @@ const localBridge: IKonvoezLocalBridge = {
       return {
         hotkeys: config.hotkeys,
         autostart: config.autostart,
+        nativeHotkeys: Boolean(config.nativeHotkeys),
         locale: config.locale as TLanguage,
       };
     },

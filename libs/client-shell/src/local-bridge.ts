@@ -24,6 +24,8 @@ export interface IServerDialogInitial {
 export interface ISettingsDialogInitial {
   hotkeys: TDesktopHotkeys;
   autostart: boolean;
+  /** True when hotkeys use the non-blocking native hook instead of `globalShortcut`. */
+  nativeHotkeys: boolean;
   locale: TLanguage;
 }
 

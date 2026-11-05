@@ -19,6 +19,7 @@ export const SETTINGS_DIALOG_I18N_KEYS = [
   'settings.title',
   'settings.hotkeys',
   'settings.hotkeysHint',
+  'settings.hotkeysHintExclusive',
   'settings.toggleMic',
   'settings.toggleSpeaker',
   'settings.pressKey',
@@ -81,6 +82,7 @@ export class KSettingsDialog extends LitElement {
   @state() accessor micKey: string | null = null;
   @state() accessor speakerKey: string | null = null;
   @state() accessor autostart = false;
+  @state() accessor nativeHotkeys = false;
 
   @state() accessor micError = '';
   @state() accessor micHint = '';
@@ -125,9 +127,16 @@ export class KSettingsDialog extends LitElement {
       this.micKey = initial.hotkeys.toggleMic;
       this.speakerKey = initial.hotkeys.toggleSpeaker;
       this.autostart = initial.autostart;
+      this.nativeHotkeys = initial.nativeHotkeys;
     } catch {
       // defaults
     }
+  }
+
+  private get hotkeysHintKey(): string {
+    return this.nativeHotkeys
+      ? 'settings.hotkeysHint'
+      : 'settings.hotkeysHintExclusive';
   }
 
   private t(key: string, params?: Record<string, string>): string {
@@ -200,7 +209,7 @@ export class KSettingsDialog extends LitElement {
       <k-dialog-layout .heading="${this.t('settings.title')}">
         <section class="section">
           <h2 class="section-title">${this.t('settings.hotkeys')}</h2>
-          <p class="hint-paragraph">${this.t('settings.hotkeysHint')}</p>
+          <p class="hint-paragraph">${this.t(this.hotkeysHintKey)}</p>
 
           <div class="hotkeys-group">
             <k-hotkey-input

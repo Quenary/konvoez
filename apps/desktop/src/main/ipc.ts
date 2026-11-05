@@ -170,6 +170,7 @@ export function registerIpc(
       serverOrigin: config.serverOrigin,
       hotkeys: config.hotkeys,
       autostart: config.autostart,
+      nativeHotkeys: getNativeModule()?.isKeyHookSupported() ?? false,
       locale: resolveLanguage(app.getLocale()),
       shareAudio: config.shareAudio,
       audioSupported: isScreenShareAudioAvailable(nativeAudio),

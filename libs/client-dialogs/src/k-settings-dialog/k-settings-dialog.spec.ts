@@ -28,6 +28,7 @@ describe('k-settings-dialog', () => {
         toggleSpeaker: 'CommandOrControl+Shift+D',
       },
       autostart: true,
+      nativeHotkeys: true,
       locale: 'en',
     }),
     save: vi.fn().mockResolvedValue({
@@ -63,6 +64,29 @@ describe('k-settings-dialog', () => {
 
     const hint = el.shadowRoot?.querySelector('p.hint-paragraph');
     expect(hint?.textContent).toBe('settings.hotkeysHint');
+  });
+
+  it('warns that keys are captured when the native hook is unavailable', async () => {
+    const adapter = createMockAdapter({
+      getInitial: vi.fn().mockResolvedValue({
+        hotkeys: { toggleMic: null, toggleSpeaker: null },
+        autostart: false,
+        nativeHotkeys: false,
+        locale: 'en',
+      }),
+    });
+    const translator = createMockTranslator();
+
+    const el = await fixture<KSettingsDialog>(html`
+      <k-settings-dialog
+        .adapter="${adapter}"
+        .translator="${translator}"></k-settings-dialog>
+    `);
+    await new Promise((r) => setTimeout(r, 10));
+    await el.updateComplete;
+
+    const hint = el.shadowRoot?.querySelector('p.hint-paragraph');
+    expect(hint?.textContent).toBe('settings.hotkeysHintExclusive');
   });
 
   it('start/stop recording calls suspendHotkeys/resumeHotkeys balanced', async () => {
