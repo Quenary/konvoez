@@ -6,6 +6,7 @@ import { TScreenAudioMode } from '@konvoez/shared';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MediaDevicesService } from './media-devices.service';
 import { ScreenCaptureService } from './screen-capture.service';
+import { AudioContextResumeService } from './audio-context-resume.service';
 
 describe('ScreenCaptureService', () => {
   let service: ScreenCaptureService;
@@ -14,6 +15,10 @@ describe('ScreenCaptureService', () => {
   let mediaDevicesService: {
     isDisplayMediaSupported: ReturnType<typeof vi.fn>;
     getDisplayMedia: ReturnType<typeof vi.fn>;
+  };
+  let audioContextResumeService: {
+    register: ReturnType<typeof vi.fn>;
+    unregister: ReturnType<typeof vi.fn>;
   };
 
   const mockVideoTrack = {
@@ -40,6 +45,10 @@ describe('ScreenCaptureService', () => {
       isDisplayMediaSupported: vi.fn().mockReturnValue(true),
       getDisplayMedia: vi.fn(),
     };
+    audioContextResumeService = {
+      register: vi.fn(),
+      unregister: vi.fn(),
+    };
     notifications = {
       open: vi.fn(() => ({ subscribe: vi.fn() })),
     };
@@ -53,6 +62,10 @@ describe('ScreenCaptureService', () => {
         {
           provide: MediaDevicesService,
           useValue: mediaDevicesService,
+        },
+        {
+          provide: AudioContextResumeService,
+          useValue: audioContextResumeService,
         },
         {
           provide: SettingsStore,
@@ -465,7 +478,7 @@ describe('ScreenCaptureService', () => {
       expect(mockPort.close).toHaveBeenCalled();
     });
 
-    it('connects audio worklet when native audio port is received', async () => {
+    it('resumes audio context before connecting native screen audio', async () => {
       const mockPort = {
         postMessage: vi.fn(),
         close: vi.fn(),
@@ -507,11 +520,19 @@ describe('ScreenCaptureService', () => {
           getAudioTracks: () => [capturedTrack],
         },
       };
+      let mockAudioContextState: AudioContextState = 'suspended';
+      const resumeAudioContext = vi.fn(async () => {
+        mockAudioContextState = 'running';
+      });
 
       class MockAudioContext {
         sampleRate = 48000;
+        get state(): AudioContextState {
+          return mockAudioContextState;
+        }
         audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
         createMediaStreamDestination = vi.fn().mockReturnValue(mockDestNode);
+        resume = resumeAudioContext;
         close = vi.fn().mockResolvedValue(undefined);
       }
 
@@ -533,8 +554,16 @@ describe('ScreenCaptureService', () => {
       expect(mockWorkletPort.postMessage).toHaveBeenCalledWith(mockPort, [
         mockPort,
       ]);
+      expect(audioContextResumeService.register).toHaveBeenCalledOnce();
+      expect(audioContextResumeService.register).toHaveBeenCalledWith(
+        expect.objectContaining({ sampleRate: 48000 }),
+      );
+      expect(resumeAudioContext).toHaveBeenCalledOnce();
+      expect(mockAudioContextState).toBe('running');
+      expect(audioContextResumeService.unregister).not.toHaveBeenCalled();
 
       service.release();
+      expect(audioContextResumeService.unregister).toHaveBeenCalledOnce();
       expect(mockWorkletPort.postMessage).toHaveBeenCalledWith('stop');
       expect(mockPort.postMessage).not.toHaveBeenCalledWith('stop');
       expect(capturedTrack.stop).toHaveBeenCalled();

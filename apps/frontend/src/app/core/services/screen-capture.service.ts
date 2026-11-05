@@ -12,6 +12,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { getDesktopBridge } from '@core/desktop/desktop-bridge';
 import { ensureWorkletModule } from '@core/audio/ensure-worklet-module';
 import { MediaDevicesService } from './media-devices.service';
+import { AudioContextResumeService } from './audio-context-resume.service';
 
 export type TScreenCaptureResult = {
   videoTrack: MediaStreamTrack;
@@ -26,6 +27,9 @@ export type TScreenCaptureResult = {
 export class ScreenCaptureService implements OnDestroy {
   private readonly mediaDevicesService = inject(MediaDevicesService);
   private readonly injector = inject(Injector);
+  private readonly audioContextResumeService = inject(
+    AudioContextResumeService,
+  );
 
   /** Lazy: SettingsStore → AUDIO_DEVICE_HANDLER → VoiceSessionService. */
   private get settingsStore(): InstanceType<typeof SettingsStore> {
@@ -166,6 +170,10 @@ export class ScreenCaptureService implements OnDestroy {
         try {
           const audioContext = new AudioContext({ sampleRate: 48000 });
           this.audioContext = audioContext;
+          this.audioContextResumeService.register(audioContext);
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+          }
           await ensureWorkletModule(
             audioContext,
             'audio/pcm-screen-audio.worklet.js',
@@ -242,6 +250,7 @@ export class ScreenCaptureService implements OnDestroy {
     }
 
     if (this.audioContext) {
+      this.audioContextResumeService.unregister(this.audioContext);
       try {
         void this.audioContext.close();
       } catch {
