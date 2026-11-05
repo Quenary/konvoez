@@ -3,7 +3,7 @@ use napi_derive::napi;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub mod audio;
 pub mod input;
@@ -95,23 +95,19 @@ impl KeyHookHandle {
     }
 }
 
+/// Joins `handle` if it finishes within `timeout`. On timeout the handle is
+/// dropped and the thread stays detached. That is the one accepted exception
+/// to "no detached threads" (see `AGENTS.md`): the caller must return so a stuck
+/// hook cannot block Electron.
 fn join_for(handle: JoinHandle<()>, timeout: Duration) {
-    let (tx, rx) = std::sync::mpsc::channel();
-    let waiter = std::thread::Builder::new()
-        .name("key-hook-join".to_string())
-        .spawn(move || {
-            let _ = handle.join();
-            let _ = tx.send(());
-        });
-    let Ok(waiter) = waiter else {
-        return;
-    };
-    if rx.recv_timeout(timeout).is_ok() {
-        let _ = waiter.join();
+    let deadline = Instant::now() + timeout;
+    while !handle.is_finished() {
+        if Instant::now() >= deadline {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(5));
     }
-    // On timeout `waiter` is dropped here and stays detached while it joins the
-    // hook thread. That is the accepted exception to "no detached threads":
-    // the caller must return so a stuck hook cannot block Electron.
+    let _ = handle.join();
 }
 
 impl Drop for KeyHookHandle {
@@ -235,6 +231,27 @@ mod tests {
         };
         assert_eq!(opts.mode, CaptureMode::Exclude);
         assert_eq!(opts.target_pid, Some(1234));
+    }
+
+    #[test]
+    fn test_join_for_waits_for_a_finishing_thread() {
+        let handle = std::thread::spawn(|| std::thread::sleep(Duration::from_millis(30)));
+        let started = Instant::now();
+        join_for(handle, Duration::from_secs(5));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn test_join_for_gives_up_on_a_stuck_thread() {
+        let (release, blocked) = std::sync::mpsc::channel::<()>();
+        let handle = std::thread::spawn(move || {
+            let _ = blocked.recv();
+        });
+        let started = Instant::now();
+        join_for(handle, Duration::from_millis(50));
+        assert!(started.elapsed() >= Duration::from_millis(50));
+        assert!(started.elapsed() < Duration::from_secs(2));
+        drop(release);
     }
 
     #[test]

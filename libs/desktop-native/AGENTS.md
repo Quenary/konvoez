@@ -33,7 +33,7 @@ src/
 
 - No `unwrap()` / `expect()` / `panic!` in runtime paths; a panic in a native thread can kill Electron. Tests may unwrap.
 - `unsafe` only for FFI calls, in the smallest possible block, each with a `// SAFETY:` comment. Wrap OS handles in RAII types that release them in `Drop` (COM objects, hooks, PipeWire streams).
-- Every background thread has an owner (`Handle`) and a stop signal; `stop()` is idempotent, joins the thread, and is also called from `Drop`. No detached threads.
+- Every background thread has an owner (`Handle`) and a stop signal; `stop()` is idempotent, joins the thread, and is also called from `Drop`. No detached threads. The only exception is the key hook thread: the X11 RECORD loop can block on a stuck server, so `KeyHookHandle::stop()` waits up to a second and then leaves that thread detached rather than freezing Electron.
 - Real-time audio callbacks do not allocate, lock contended mutexes, log, or call into JS; they push into a preallocated buffer, and a separate thread delivers chunks.
 - Prefer `std` sync primitives and channels; do not add an async runtime.
 - Keep dependencies minimal, with `~` ranges and only the crate features actually used (e.g. explicit `windows` features).
