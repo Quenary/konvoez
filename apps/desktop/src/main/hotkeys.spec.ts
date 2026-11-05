@@ -10,8 +10,11 @@ import {
 import type { globalShortcut } from 'electron';
 
 describe('applyHotkeys', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     resetHotkeyStateForTests();
+    // A built addon on the dev machine must not switch these tests to the native hook.
+    const nativeMod = await import('./native');
+    vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue(null);
   });
   it('registers accelerators and returns ok on success', () => {
     const unregisterAll = vi.fn();
