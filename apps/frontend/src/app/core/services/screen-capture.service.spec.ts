@@ -2,11 +2,43 @@ import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TScreenAudioMode } from '@konvoez/shared';
+import { EDesktopIpc, TScreenAudioMode } from '@konvoez/shared';
+import { APP_VERSION, withVersion } from '@core/asset-version';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MediaDevicesService } from './media-devices.service';
 import { ScreenCaptureService } from './screen-capture.service';
 import { AudioContextResumeService } from './audio-context-resume.service';
+
+function stubScreenAudioWindow(onScreenAudioPort?: () => () => void): {
+  deliver: (mode: TScreenAudioMode, port?: MessagePort) => void;
+} {
+  let messageListener: ((event: MessageEvent) => void) | undefined;
+  const host = {
+    location: { origin: 'https://konvoez.example' },
+    addEventListener: vi.fn((type: string, listener: EventListener) => {
+      if (type === 'message') {
+        messageListener = listener as (event: MessageEvent) => void;
+      }
+    }),
+    removeEventListener: vi.fn(),
+    konvoezDesktop: {
+      apiVersion: 2,
+      nativeAudio: true,
+      onScreenAudioPort: onScreenAudioPort ?? vi.fn(() => () => undefined),
+    },
+  };
+  vi.stubGlobal('window', host);
+  return {
+    deliver: (mode, port) => {
+      messageListener?.({
+        source: host,
+        origin: host.location.origin,
+        data: { channel: EDesktopIpc.SCREEN_AUDIO_PORT, mode },
+        ports: port ? [port] : [],
+      } as unknown as MessageEvent);
+    },
+  };
+}
 
 describe('ScreenCaptureService', () => {
   let service: ScreenCaptureService;
@@ -262,19 +294,7 @@ describe('ScreenCaptureService', () => {
     });
 
     it('uses the display-media audio track when native capture declines', async () => {
-      let portListener: ((port: MessagePort | null) => void) | undefined;
-      vi.stubGlobal('window', {
-        konvoezDesktop: {
-          apiVersion: 2,
-          nativeAudio: true,
-          onScreenAudioPort: vi.fn(
-            (listener: (port: MessagePort | null) => void) => {
-              portListener = listener;
-              return () => undefined;
-            },
-          ),
-        },
-      });
+      const { deliver } = stubScreenAudioWindow();
       mediaDevicesService.getDisplayMedia.mockResolvedValue({
         getVideoTracks: () => [mockVideoTrack],
         getAudioTracks: () => [mockAudioTrack],
@@ -282,7 +302,7 @@ describe('ScreenCaptureService', () => {
       } as unknown as MediaStream);
 
       const promise = service.getTracks();
-      portListener?.(null);
+      deliver('none');
       const result = await promise;
 
       expect(result.videoTrack).toBe(mockVideoTrack);
@@ -293,19 +313,7 @@ describe('ScreenCaptureService', () => {
     it.each(['include', 'exclude'] as const)(
       'does not warn when native capture reports %s',
       async (mode: TScreenAudioMode) => {
-        let portListener:
-          | ((port: MessagePort | null, mode: TScreenAudioMode) => void)
-          | undefined;
-        vi.stubGlobal('window', {
-          konvoezDesktop: {
-            apiVersion: 2,
-            nativeAudio: true,
-            onScreenAudioPort: vi.fn((listener) => {
-              portListener = listener;
-              return () => undefined;
-            }),
-          },
-        });
+        const { deliver } = stubScreenAudioWindow();
         mediaDevicesService.getDisplayMedia.mockResolvedValue({
           getVideoTracks: () => [mockVideoTrack],
           getAudioTracks: () => [mockAudioTrack],
@@ -313,7 +321,7 @@ describe('ScreenCaptureService', () => {
         } as unknown as MediaStream);
 
         const promise = service.getTracks();
-        portListener?.(null, mode);
+        deliver(mode);
         await promise;
 
         expect(notifications.open).not.toHaveBeenCalled();
@@ -321,19 +329,7 @@ describe('ScreenCaptureService', () => {
     );
 
     it('warns when screen audio falls back to system loopback', async () => {
-      let portListener:
-        | ((port: MessagePort | null, mode: TScreenAudioMode) => void)
-        | undefined;
-      vi.stubGlobal('window', {
-        konvoezDesktop: {
-          apiVersion: 2,
-          nativeAudio: true,
-          onScreenAudioPort: vi.fn((listener) => {
-            portListener = listener;
-            return () => undefined;
-          }),
-        },
-      });
+      const { deliver } = stubScreenAudioWindow();
       mediaDevicesService.getDisplayMedia.mockResolvedValue({
         getVideoTracks: () => [mockVideoTrack],
         getAudioTracks: () => [mockAudioTrack],
@@ -341,7 +337,7 @@ describe('ScreenCaptureService', () => {
       } as unknown as MediaStream);
 
       const promise = service.getTracks();
-      portListener?.(null, 'loopback');
+      deliver('loopback');
       await promise;
 
       expect(translate.instant).toHaveBeenCalledWith(
@@ -415,17 +411,7 @@ describe('ScreenCaptureService', () => {
 
     it('stops a port that arrives after the post-capture wait has ended', async () => {
       vi.useFakeTimers();
-      let portListener: ((port: MessagePort) => void) | undefined;
-      vi.stubGlobal('window', {
-        konvoezDesktop: {
-          apiVersion: 2,
-          nativeAudio: true,
-          onScreenAudioPort: vi.fn((listener: (port: MessagePort) => void) => {
-            portListener = listener;
-            return () => undefined;
-          }),
-        },
-      });
+      const { deliver } = stubScreenAudioWindow();
       mediaDevicesService.getDisplayMedia.mockResolvedValue({
         getVideoTracks: () => [mockVideoTrack],
         getAudioTracks: () => [],
@@ -437,10 +423,11 @@ describe('ScreenCaptureService', () => {
       await promise;
 
       const latePort = {
+        start: vi.fn(),
         postMessage: vi.fn(),
         close: vi.fn(),
       } as unknown as MessagePort;
-      portListener?.(latePort);
+      deliver('exclude', latePort);
       expect(latePort.postMessage).toHaveBeenCalledWith('stop');
       expect(latePort.close).toHaveBeenCalled();
       vi.useRealTimers();
@@ -448,22 +435,13 @@ describe('ScreenCaptureService', () => {
 
     it('cleans up port listener and closes arriving port when getDisplayMedia fails', async () => {
       const mockPort = {
+        start: vi.fn(),
         postMessage: vi.fn(),
         close: vi.fn(),
       } as unknown as MessagePort;
 
       const cleanupListener = vi.fn();
-      let portListener: ((port: MessagePort) => void) | undefined;
-      vi.stubGlobal('window', {
-        konvoezDesktop: {
-          apiVersion: 2,
-          nativeAudio: true,
-          onScreenAudioPort: vi.fn((listener) => {
-            portListener = listener;
-            return cleanupListener;
-          }),
-        },
-      });
+      const { deliver } = stubScreenAudioWindow(() => cleanupListener);
 
       mediaDevicesService.getDisplayMedia.mockRejectedValue(
         new Error('Permission denied'),
@@ -473,7 +451,7 @@ describe('ScreenCaptureService', () => {
       expect(cleanupListener).toHaveBeenCalled();
 
       // If port arrives after failure/cancellation, it should be closed immediately
-      portListener?.(mockPort);
+      deliver('exclude', mockPort);
       expect(mockPort.postMessage).toHaveBeenCalledWith('stop');
       expect(mockPort.close).toHaveBeenCalled();
     });
@@ -486,17 +464,7 @@ describe('ScreenCaptureService', () => {
         close: vi.fn(),
       } as unknown as MessagePort;
 
-      let portListener: ((port: MessagePort) => void) | undefined;
-      vi.stubGlobal('window', {
-        konvoezDesktop: {
-          apiVersion: 2,
-          nativeAudio: true,
-          onScreenAudioPort: vi.fn((listener) => {
-            portListener = listener;
-            return () => undefined;
-          }),
-        },
-      });
+      const { deliver } = stubScreenAudioWindow();
 
       const mockStream = {
         getVideoTracks: () => [mockVideoTrack],
@@ -526,13 +494,14 @@ describe('ScreenCaptureService', () => {
       const resumeAudioContext = vi.fn(async () => {
         mockAudioContextState = 'running';
       });
+      const addModule = vi.fn().mockResolvedValue(undefined);
 
       class MockAudioContext {
         sampleRate = 48000;
         get state(): AudioContextState {
           return mockAudioContextState;
         }
-        audioWorklet = { addModule: vi.fn().mockResolvedValue(undefined) };
+        audioWorklet = { addModule };
         createMediaStreamDestination = vi.fn().mockReturnValue(mockDestNode);
         resume = resumeAudioContext;
         close = vi.fn().mockResolvedValue(undefined);
@@ -548,9 +517,12 @@ describe('ScreenCaptureService', () => {
       vi.stubGlobal('AudioWorkletNode', MockAudioWorkletNode);
 
       const promise = service.getTracks();
-      portListener?.(mockPort);
+      deliver('exclude', mockPort);
 
       const result = await promise;
+      expect(addModule).toHaveBeenCalledWith(
+        withVersion('audio/pcm-screen-audio.worklet.js', APP_VERSION),
+      );
       expect(result.videoTrack).toBe(mockVideoTrack);
       expect(result.audioTrack).toBe(capturedTrack);
       const pcmChunk = new Float32Array([0.5, -0.5]).buffer;

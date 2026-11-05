@@ -8,6 +8,7 @@ import {
   type TDesktopVoiceState,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
+import { deliverScreenAudioToRenderer } from './screen-audio-port';
 
 function resolveAppVersion(): string {
   const prefix = '--konvoez-version=';
@@ -36,15 +37,19 @@ const bridge: IKonvoezDesktopBridge = {
   quitReady: () => {
     ipcRenderer.send(EDesktopIpc.QUIT_READY);
   },
-  onScreenAudioPort: (
-    listener: (port: MessagePort | null, mode: TScreenAudioMode) => void,
-  ) => {
+  onScreenAudioPort: () => {
     const handler = (
       event: Electron.IpcRendererEvent,
       mode: TScreenAudioMode,
     ) => {
-      const reported = mode ?? 'none';
-      listener(event.ports?.[0] ?? null, reported);
+      deliverScreenAudioToRenderer(
+        event.ports?.[0],
+        mode ?? 'none',
+        (message, targetOrigin, transfer) => {
+          window.postMessage(message, targetOrigin, transfer);
+        },
+        window.location.origin,
+      );
     };
     ipcRenderer.on(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
     return () => {

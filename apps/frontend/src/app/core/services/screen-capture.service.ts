@@ -8,11 +8,19 @@ import {
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
+import { APP_VERSION, withVersion } from '@core/asset-version';
 import { SettingsStore } from '@core/stores/settings.store';
 import { getDesktopBridge } from '@core/desktop/desktop-bridge';
+import { subscribeScreenAudioPort } from '@core/desktop/screen-audio-port';
 import { ensureWorkletModule } from '@core/audio/ensure-worklet-module';
 import { MediaDevicesService } from './media-devices.service';
 import { AudioContextResumeService } from './audio-context-resume.service';
+
+/** Classic worklet script served from `public/`. Version query busts the immutable nginx cache. */
+const PCM_SCREEN_AUDIO_WORKLET_URL = withVersion(
+  'audio/pcm-screen-audio.worklet.js',
+  APP_VERSION,
+);
 
 export type TScreenCaptureResult = {
   videoTrack: MediaStreamTrack;
@@ -107,7 +115,7 @@ export class ScreenCaptureService implements OnDestroy {
           resolve(port);
         };
 
-        cleanupPortListener = bridge?.onScreenAudioPort?.((port, mode) => {
+        cleanupPortListener = subscribeScreenAudioPort((port, mode) => {
           if (!settled && mode === 'loopback') {
             this.warnScreenAudioLoopback();
           }
@@ -176,10 +184,7 @@ export class ScreenCaptureService implements OnDestroy {
           if (audioContext.state === 'suspended') {
             await audioContext.resume();
           }
-          await ensureWorkletModule(
-            audioContext,
-            'audio/pcm-screen-audio.worklet.js',
-          );
+          await ensureWorkletModule(audioContext, PCM_SCREEN_AUDIO_WORKLET_URL);
           const node = new AudioWorkletNode(
             audioContext,
             'konvoez/pcm-screen-audio',

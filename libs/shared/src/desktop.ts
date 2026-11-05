@@ -57,6 +57,12 @@ export type TDesktopNotificationDismiss = z.infer<
 
 export type TScreenAudioMode = 'include' | 'exclude' | 'loopback' | 'none';
 
+/** Page message that carries a screen-audio MessagePort across context isolation. */
+export interface IScreenAudioPortMessage {
+  channel: typeof EDesktopIpc.SCREEN_AUDIO_PORT;
+  mode: TScreenAudioMode;
+}
+
 export interface IKonvoezDesktopBridge {
   readonly apiVersion: typeof DESKTOP_BRIDGE_API_VERSION;
   readonly platform: 'win32' | 'linux';
@@ -69,8 +75,7 @@ export interface IKonvoezDesktopBridge {
   onNotificationClick?(
     listener: (payload: z.infer<typeof desktopNotificationSchema>) => void,
   ): () => void;
-  onScreenAudioPort?(
-    listener: (port: MessagePort | null, mode: TScreenAudioMode) => void,
-  ): () => void;
+  /** Starts forwarding screen-audio results into the page via `window.postMessage`. */
+  onScreenAudioPort?(): () => void;
   quitReady(): void;
 }
