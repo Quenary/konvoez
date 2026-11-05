@@ -8,7 +8,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use windows::Win32::Foundation::NTSTATUS;
-use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, TRUE};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler, IActivateAudioInterfaceCompletionHandler_Impl,
@@ -24,7 +24,7 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumChildWindows, GetClassNameW, GetWindowThreadProcessId,
+    FindWindowExW, GetClassNameW, GetWindowThreadProcessId,
 };
 use windows_core::{implement, Interface, Ref, HRESULT};
 
@@ -168,9 +168,11 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for ActivationHandler_Impl {
 }
 
 /// Process id that owns `hwnd`. A packaged app window belongs to
-/// `ApplicationFrameHost.exe`, which plays no audio, so the hosted app process
-/// is used instead. Errors when that process is not running, so include never
-/// targets the frame host.
+/// `ApplicationFrameHost.exe`, which plays no audio. The hosted app is a
+/// direct child (`Windows.UI.Core.CoreWindow`) in another process.
+/// `EnumChildWindows` does not return that child, so the walk uses
+/// `FindWindowExW`. `RuntimeBroker.exe` is not the audio process. Errors when
+/// the hosted process is not running, so include never targets the frame host.
 pub fn resolve_window_pid(hwnd_val: i64) -> Result<u32> {
     if hwnd_val == 0 {
         return Err(Error::new(
@@ -194,9 +196,9 @@ pub fn resolve_window_pid(hwnd_val: i64) -> Result<u32> {
         return Ok(pid);
     }
     let children = child_window_processes(hwnd);
-    let listed: Vec<(u32, &str)> = children
+    let listed: Vec<(u32, &str, &str)> = children
         .iter()
-        .map(|(child_pid, class)| (*child_pid, class.as_str()))
+        .map(|(child_pid, class, exe)| (*child_pid, class.as_str(), exe.as_str()))
         .collect();
     crate::audio::select_frame_host_child_pid(pid, &listed)
         .map_err(|message| Error::new(Status::GenericFailure, message))
@@ -210,38 +212,67 @@ fn is_application_frame_host(pid: u32) -> bool {
     })
 }
 
-fn child_window_processes(hwnd: HWND) -> Vec<(u32, String)> {
+fn child_window_processes(hwnd: HWND) -> Vec<(u32, String, String)> {
+    let snapshot = process_snapshot();
     let mut children = Vec::new();
-    // SAFETY: EnumChildWindows invokes `collect_child_window` synchronously and
-    // does not keep `children`. The callback only appends to that vec.
-    unsafe {
-        let _ = EnumChildWindows(
-            Some(hwnd),
-            Some(collect_child_window),
-            LPARAM(std::ptr::from_mut(&mut children) as isize),
-        );
-    }
+    append_child_windows(hwnd, &snapshot, &mut children, 0);
     children
 }
 
-extern "system" fn collect_child_window(hwnd: HWND, lparam: LPARAM) -> windows_core::BOOL {
-    // SAFETY: `lparam` is the Vec passed by `child_window_processes`.
-    // EnumChildWindows calls this only before returning, so the Vec is alive.
-    // The callback appends one entry and does not free the allocation.
-    let children = unsafe { &mut *(lparam.0 as *mut Vec<(u32, String)>) };
-    let mut pid = 0u32;
-    // SAFETY: `pid` is a writable u32 for the process-id out-parameter.
-    unsafe {
-        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+fn append_child_windows(
+    hwnd: HWND,
+    snapshot: &[ProcessInfo],
+    children: &mut Vec<(u32, String, String)>,
+    depth: u8,
+) {
+    if depth >= 8 || children.len() >= 32 {
+        return;
     }
+    let mut previous = None;
+    for _ in 0..32 {
+        if children.len() >= 32 {
+            break;
+        }
+        // SAFETY: FindWindowExW returns the next direct child of `hwnd`.
+        // Null class and title match every child. `previous` is None or a
+        // child this loop already received. The call does not retain pointers.
+        let next = unsafe {
+            FindWindowExW(
+                Some(hwnd),
+                previous,
+                windows_core::PCWSTR::null(),
+                windows_core::PCWSTR::null(),
+            )
+        };
+        let Ok(child) = next else {
+            break;
+        };
+        previous = Some(child);
+        let mut pid = 0u32;
+        // SAFETY: `pid` is a writable u32 for the process-id out-parameter.
+        unsafe {
+            GetWindowThreadProcessId(child, Some(&mut pid));
+        }
+        children.push((pid, window_class(child), process_exe(snapshot, pid)));
+        append_child_windows(child, snapshot, children, depth + 1);
+    }
+}
+
+fn window_class(hwnd: HWND) -> String {
     let mut class_name = [0u16; 256];
     // SAFETY: `class_name` is a writable 256-WCHAR buffer. The returned length
     // is the number of characters written, excluding the terminating null.
     let len = unsafe { GetClassNameW(hwnd, &mut class_name) };
     let copied = usize::try_from(len).unwrap_or(0).min(class_name.len());
-    let class = String::from_utf16_lossy(&class_name[..copied]);
-    children.push((pid, class));
-    TRUE
+    String::from_utf16_lossy(&class_name[..copied])
+}
+
+fn process_exe(snapshot: &[ProcessInfo], pid: u32) -> String {
+    snapshot
+        .iter()
+        .find(|process| process.pid == pid)
+        .map(|process| String::from_utf16_lossy(&process.exe))
+        .unwrap_or_default()
 }
 
 struct ProcessInfo {

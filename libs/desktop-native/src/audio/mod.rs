@@ -200,16 +200,16 @@ pub struct CaptureTarget {
 }
 
 /// Selects the hosted app behind an ApplicationFrameHost window.
-/// `children` is `(pid, class)` in child-enumeration order. The first
-/// `Windows.UI.Core.CoreWindow` owned by another process wins; otherwise the
-/// first child owned by another process. A frame-host-only list has no target.
+/// `children` is `(pid, class, exe)` in child-walk order. The first
+/// `Windows.UI.Core.CoreWindow` of another app process wins; otherwise the
+/// first such child. The frame host and `RuntimeBroker.exe` are not targets.
 pub(crate) fn select_frame_host_child_pid(
     frame_host_pid: u32,
-    children: &[(u32, &str)],
+    children: &[(u32, &str, &str)],
 ) -> std::result::Result<u32, &'static str> {
     let mut fallback = None;
-    for &(pid, class) in children {
-        if pid == 0 || pid == frame_host_pid {
+    for &(pid, class, exe) in children {
+        if !is_hosted_app_process(pid, frame_host_pid, exe) {
             continue;
         }
         if class.eq_ignore_ascii_case("Windows.UI.Core.CoreWindow") {
@@ -220,6 +220,13 @@ pub(crate) fn select_frame_host_child_pid(
         }
     }
     fallback.ok_or("Packaged app window has no running process")
+}
+
+fn is_hosted_app_process(pid: u32, frame_host_pid: u32, exe: &str) -> bool {
+    pid != 0
+        && pid != frame_host_pid
+        && !exe.eq_ignore_ascii_case("ApplicationFrameHost.exe")
+        && !exe.eq_ignore_ascii_case("RuntimeBroker.exe")
 }
 
 /// Chooses the process loopback target.
@@ -285,24 +292,42 @@ mod tests {
     fn test_select_frame_host_child_pid() {
         let frame_host_pid = 10;
         let core = "Windows.UI.Core.CoreWindow";
-        let expect_pid = |children: &[(u32, &str)], expected: Option<u32>| {
+        let app = "Microsoft.Media.Player.exe";
+        let broker = "RuntimeBroker.exe";
+        let frame = "ApplicationFrameHost.exe";
+        let expect_pid = |children: &[(u32, &str, &str)], expected: Option<u32>| {
             assert_eq!(
                 select_frame_host_child_pid(frame_host_pid, children).ok(),
                 expected
             );
         };
-        expect_pid(&[(11, "Windows.UI.Input.InputSite"), (12, core)], Some(12));
-        expect_pid(&[(12, core), (11, "Windows.UI.Input.InputSite")], Some(12));
-        expect_pid(&[(11, "windows.ui.core.corewindow")], Some(11));
-        expect_pid(&[(11, "ApplicationFrameInputSink")], Some(11));
+        expect_pid(
+            &[(11, "Windows.UI.Input.InputSite", app), (12, core, app)],
+            Some(12),
+        );
+        expect_pid(
+            &[(12, core, app), (11, "Windows.UI.Input.InputSite", app)],
+            Some(12),
+        );
+        expect_pid(&[(11, "windows.ui.core.corewindow", app)], Some(11));
+        expect_pid(&[(11, "ApplicationFrameInputSink", app)], Some(11));
         expect_pid(
             &[
-                (frame_host_pid, core),
-                (frame_host_pid, "ApplicationFrameInputSink"),
+                (frame_host_pid, "ApplicationFrameTitleBarWindow", frame),
+                (13, core, broker),
+                (12, core, app),
+            ],
+            Some(12),
+        );
+        expect_pid(&[(13, core, broker)], None);
+        expect_pid(
+            &[
+                (frame_host_pid, core, frame),
+                (frame_host_pid, "ApplicationFrameInputSink", frame),
             ],
             None,
         );
-        expect_pid(&[(0, core), (frame_host_pid, "Other")], None);
+        expect_pid(&[(0, core, app), (frame_host_pid, "Other", frame)], None);
         expect_pid(&[], None);
     }
 
