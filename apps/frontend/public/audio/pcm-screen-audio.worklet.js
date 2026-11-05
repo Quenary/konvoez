@@ -1,6 +1,6 @@
 /**
  * AudioWorkletProcessor that reads 48 kHz Float32 stereo PCM chunks
- * from the renderer's native-capture MessagePort
+ * posted to this worklet port by the renderer
  * and streams them into the Web Audio graph via a bounded 100 ms ring buffer.
  */
 const PROCESSOR_NAME = 'konvoez/pcm-screen-audio';
@@ -16,7 +16,6 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
     this.readPos = 0;
     this.available = 0;
     this.started = false;
-    this.audioPort = null;
     this.disposed = false;
 
     this.port.onmessage = (event) => {
@@ -24,42 +23,6 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
       if (!data) return;
 
       if (data === 'stop' || data.type === 'stop') {
-        this.dispose();
-        return;
-      }
-
-      if (event.ports && event.ports[0]) {
-        this.attachPort(event.ports[0]);
-      } else if (
-        data instanceof MessagePort ||
-        (data && (typeof data.close === 'function' || 'onmessage' in data))
-      ) {
-        this.attachPort(data);
-      } else {
-        this.pushAudioData(data);
-      }
-    };
-  }
-
-  attachPort(port) {
-    if (this.audioPort) {
-      try {
-        this.audioPort.onmessage = null;
-        this.audioPort.close();
-      } catch {
-        // best-effort
-      }
-    }
-
-    this.audioPort = port;
-    if (!port) return;
-
-    port.onmessage = (event) => {
-      if (this.disposed) return;
-      const data = event.data;
-      if (!data) return;
-
-      if (data === 'stop') {
         this.dispose();
         return;
       }
@@ -140,16 +103,6 @@ class PcmScreenAudioProcessor extends AudioWorkletProcessor {
 
   dispose() {
     this.disposed = true;
-    if (this.audioPort) {
-      try {
-        this.audioPort.postMessage('stop');
-        this.audioPort.onmessage = null;
-        this.audioPort.close();
-      } catch {
-        // best-effort
-      }
-      this.audioPort = null;
-    }
     this.available = 0;
   }
 

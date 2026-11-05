@@ -8,7 +8,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use windows::Win32::Foundation::NTSTATUS;
-use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, TRUE};
 use windows::Win32::Media::Audio::{
     ActivateAudioInterfaceAsync, IActivateAudioInterfaceAsyncOperation,
     IActivateAudioInterfaceCompletionHandler, IActivateAudioInterfaceCompletionHandler_Impl,
@@ -23,10 +23,13 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 };
 use windows::Win32::System::SystemInformation::OSVERSIONINFOW;
 use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
-use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+use windows::Win32::UI::WindowsAndMessaging::{
+    EnumChildWindows, GetClassNameW, GetWindowThreadProcessId,
+};
 use windows_core::{implement, Interface, Ref, HRESULT};
 
 const WAVE_FORMAT_EXTENSIBLE: u16 = 0xFFFE;
+const APPLICATION_FRAME_HOST_EXE: &str = "ApplicationFrameHost.exe";
 
 pub fn is_audio_supported() -> bool {
     crate::audio::process_loopback_supported(windows_build_number())
@@ -164,81 +167,92 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for ActivationHandler_Impl {
     }
 }
 
-pub fn resolve_window_pid(hwnd_val: i64) -> Option<u32> {
+/// Process id that owns `hwnd`. A packaged app window belongs to
+/// `ApplicationFrameHost.exe`, which plays no audio, so the hosted app process
+/// is used instead. Errors when that process is not running, so include never
+/// targets the frame host.
+pub fn resolve_window_pid(hwnd_val: i64) -> Result<u32> {
     if hwnd_val == 0 {
-        return None;
+        return Err(Error::new(
+            Status::GenericFailure,
+            "No valid target window or process specified for audio capture",
+        ));
     }
     let hwnd = HWND(hwnd_val as _);
     let mut pid: u32 = 0;
-    // SAFETY: Calling Win32 API with valid pointer to receive pid.
+    // SAFETY: `pid` is a writable u32 for the process-id out-parameter.
     unsafe {
         GetWindowThreadProcessId(hwnd, Some(&mut pid));
     }
     if pid == 0 {
-        None
-    } else {
-        Some(pid)
+        return Err(Error::new(
+            Status::GenericFailure,
+            "No valid target window or process specified for audio capture",
+        ));
     }
+    if !is_application_frame_host(pid) {
+        return Ok(pid);
+    }
+    let children = child_window_processes(hwnd);
+    let listed: Vec<(u32, &str)> = children
+        .iter()
+        .map(|(child_pid, class)| (*child_pid, class.as_str()))
+        .collect();
+    crate::audio::select_frame_host_child_pid(pid, &listed)
+        .map_err(|message| Error::new(Status::GenericFailure, message))
 }
 
-pub fn find_root_process_in_tree(pid: u32) -> u32 {
-    // SAFETY: Toolhelp32 process snapshot iteration with proper handle closure.
+fn is_application_frame_host(pid: u32) -> bool {
+    process_snapshot().iter().any(|process| {
+        process.pid == pid
+            && String::from_utf16_lossy(&process.exe)
+                .eq_ignore_ascii_case(APPLICATION_FRAME_HOST_EXE)
+    })
+}
+
+fn child_window_processes(hwnd: HWND) -> Vec<(u32, String)> {
+    let mut children = Vec::new();
+    // SAFETY: EnumChildWindows invokes `collect_child_window` synchronously and
+    // does not keep `children`. The callback only appends to that vec.
     unsafe {
-        let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
-            Ok(s) => s,
-            Err(_) => return pid,
-        };
-        if snapshot.is_invalid() {
-            return pid;
-        }
-
-        let mut entry = PROCESSENTRY32W {
-            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
-            ..Default::default()
-        };
-
-        let mut processes: Vec<(u32, u32, Vec<u16>)> = Vec::new();
-        if Process32FirstW(snapshot, &mut entry).is_ok() {
-            loop {
-                let exe_name = entry
-                    .szExeFile
-                    .iter()
-                    .take_while(|&&c| c != 0)
-                    .copied()
-                    .collect::<Vec<u16>>();
-                processes.push((entry.th32ProcessID, entry.th32ParentProcessID, exe_name));
-                if Process32NextW(snapshot, &mut entry).is_err() {
-                    break;
-                }
-            }
-        }
-        let _ = CloseHandle(snapshot);
-
-        let mut current_pid = pid;
-        for _ in 0..16 {
-            let current_info = processes.iter().find(|(p, _, _)| *p == current_pid);
-            if let Some((_, parent_pid, exe)) = current_info {
-                if *parent_pid == 0 || *parent_pid == current_pid {
-                    break;
-                }
-                let parent_info = processes.iter().find(|(p, _, _)| *p == *parent_pid);
-                if let Some((_, _, parent_exe)) = parent_info {
-                    if parent_exe == exe {
-                        current_pid = *parent_pid;
-                        continue;
-                    }
-                }
-            }
-            break;
-        }
-
-        current_pid
+        let _ = EnumChildWindows(
+            Some(hwnd),
+            Some(collect_child_window),
+            LPARAM(std::ptr::from_mut(&mut children) as isize),
+        );
     }
+    children
 }
 
-/// Parent process ids of `pid`, nearest first. Stops at pid 0 or a cycle.
-pub fn ancestor_pids(pid: u32) -> Vec<u32> {
-    // SAFETY: Toolhelp32 process snapshot iteration with proper handle closure.
+extern "system" fn collect_child_window(hwnd: HWND, lparam: LPARAM) -> windows_core::BOOL {
+    // SAFETY: `lparam` is the Vec passed by `child_window_processes`.
+    // EnumChildWindows calls this only before returning, so the Vec is alive.
+    // The callback appends one entry and does not free the allocation.
+    let children = unsafe { &mut *(lparam.0 as *mut Vec<(u32, String)>) };
+    let mut pid = 0u32;
+    // SAFETY: `pid` is a writable u32 for the process-id out-parameter.
+    unsafe {
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+    }
+    let mut class_name = [0u16; 256];
+    // SAFETY: `class_name` is a writable 256-WCHAR buffer. The returned length
+    // is the number of characters written, excluding the terminating null.
+    let len = unsafe { GetClassNameW(hwnd, &mut class_name) };
+    let copied = usize::try_from(len).unwrap_or(0).min(class_name.len());
+    let class = String::from_utf16_lossy(&class_name[..copied]);
+    children.push((pid, class));
+    TRUE
+}
+
+struct ProcessInfo {
+    pid: u32,
+    parent_pid: u32,
+    exe: Vec<u16>,
+}
+
+fn process_snapshot() -> Vec<ProcessInfo> {
+    // SAFETY: Toolhelp32 process snapshot. The snapshot handle is closed when
+    // `guard` drops, including when iteration stops early.
     unsafe {
         let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
             Ok(snapshot) => snapshot,
@@ -247,36 +261,76 @@ pub fn ancestor_pids(pid: u32) -> Vec<u32> {
         if snapshot.is_invalid() {
             return Vec::new();
         }
+        let _guard = AutoCloseHandle(snapshot);
 
         let mut entry = PROCESSENTRY32W {
             dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
             ..Default::default()
         };
-        let mut parents: Vec<(u32, u32)> = Vec::new();
-        if Process32FirstW(snapshot, &mut entry).is_ok() {
-            loop {
-                parents.push((entry.th32ProcessID, entry.th32ParentProcessID));
-                if Process32NextW(snapshot, &mut entry).is_err() {
-                    break;
-                }
+        let mut processes = Vec::new();
+        if Process32FirstW(snapshot, &mut entry).is_err() {
+            return processes;
+        }
+        loop {
+            let exe = entry
+                .szExeFile
+                .iter()
+                .take_while(|&&c| c != 0)
+                .copied()
+                .collect::<Vec<u16>>();
+            processes.push(ProcessInfo {
+                pid: entry.th32ProcessID,
+                parent_pid: entry.th32ParentProcessID,
+                exe,
+            });
+            if Process32NextW(snapshot, &mut entry).is_err() {
+                break;
             }
         }
-        let _ = CloseHandle(snapshot);
-
-        let mut ancestors = Vec::new();
-        let mut current = pid;
-        for _ in 0..16 {
-            let Some((_, parent)) = parents.iter().find(|(process, _)| *process == current) else {
-                break;
-            };
-            if *parent == 0 || *parent == current {
-                break;
-            }
-            ancestors.push(*parent);
-            current = *parent;
-        }
-        ancestors
+        processes
     }
+}
+
+pub fn find_root_process_in_tree(pid: u32) -> u32 {
+    let processes = process_snapshot();
+    let mut current_pid = pid;
+    for _ in 0..16 {
+        let Some(current) = processes.iter().find(|process| process.pid == current_pid) else {
+            break;
+        };
+        if current.parent_pid == 0 || current.parent_pid == current_pid {
+            break;
+        }
+        let Some(parent) = processes
+            .iter()
+            .find(|process| process.pid == current.parent_pid)
+        else {
+            break;
+        };
+        if parent.exe != current.exe {
+            break;
+        }
+        current_pid = current.parent_pid;
+    }
+    current_pid
+}
+
+/// Parent process ids of `pid`, nearest first. Stops at pid 0 or a cycle.
+pub fn ancestor_pids(pid: u32) -> Vec<u32> {
+    let processes = process_snapshot();
+    let mut ancestors = Vec::new();
+    let mut current = pid;
+    for _ in 0..16 {
+        let Some(process) = processes.iter().find(|process| process.pid == current) else {
+            break;
+        };
+        if process.parent_pid == 0 || process.parent_pid == current {
+            break;
+        }
+        ancestors.push(process.parent_pid);
+        current = process.parent_pid;
+    }
+    ancestors
 }
 
 pub fn start_capture(
@@ -285,7 +339,7 @@ pub fn start_capture(
     stopper: Arc<AtomicBool>,
 ) -> Result<(JoinHandle<()>, &'static str)> {
     let target_pid = if let Some(hwnd) = options.target_hwnd {
-        resolve_window_pid(hwnd).map(find_root_process_in_tree)
+        Some(find_root_process_in_tree(resolve_window_pid(hwnd)?))
     } else {
         options.target_pid.map(find_root_process_in_tree)
     };
