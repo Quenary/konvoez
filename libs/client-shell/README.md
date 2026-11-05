@@ -8,7 +8,7 @@ Framework-free client utilities, validation, adapter contracts, and i18n core fo
 - Accelerator normalization and parsing (`formatKeyAccelerator`)
 - Desktop settings schemas and types (`desktopSettingsSchema`, `TDesktopSettings`)
 - Framework-free i18n translator (`createTranslator`, `resolveLanguage`)
-- Dialog adapter contracts (`IServerDialogAdapter`, `ISettingsDialogAdapter`, `ISourcePickerDialogAdapter`), exposed as `server`, `settings`, and `picker` on `IKonvoezLocalBridge`
+- Dialog adapter contracts (`IServerDialogAdapter`, `ISettingsDialogAdapter`, `ISourcePickerDialogAdapter`, `IUpdaterDialogAdapter`), exposed as `server`, `settings`, `picker`, and `updater` on `IKonvoezLocalBridge`
 
 ## Import Rules
 

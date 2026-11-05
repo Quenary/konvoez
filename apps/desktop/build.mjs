@@ -133,6 +133,7 @@ async function build() {
       path.resolve(__dirname, 'src/pages/server/main.ts'),
       path.resolve(__dirname, 'src/pages/settings/main.ts'),
       path.resolve(__dirname, 'src/pages/picker/main.ts'),
+      path.resolve(__dirname, 'src/pages/updater/main.ts'),
     ],
     bundle: true,
     platform: 'browser',
@@ -183,7 +184,7 @@ async function build() {
   console.log('[Desktop Build] Compiling Taiga theme...');
   const hostCss = await compileTheme();
 
-  for (const name of ['server', 'settings', 'picker']) {
+  for (const name of ['server', 'settings', 'picker', 'updater']) {
     const src = path.resolve(pagesSourceDir, name, 'index.html');
     const destDir = path.resolve(distPagesDir, name);
     if (!fs.existsSync(src)) {

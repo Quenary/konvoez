@@ -65,7 +65,7 @@ describe('desktop build', () => {
   });
 
   it('places host.css beside each dialog page', () => {
-    for (const name of ['server', 'settings', 'picker']) {
+    for (const name of ['server', 'settings', 'picker', 'updater']) {
       const css = fs.readFileSync(
         path.resolve(distPagesDir, name, 'host.css'),
         'utf8',

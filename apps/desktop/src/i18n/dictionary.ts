@@ -61,16 +61,25 @@ export const translations = {
     'picker.audioSource': 'Audio source',
     'picker.allAudio': 'All system audio',
     'updater.updateAvailable': 'Update available',
-    'updater.downloadPrompt':
-      'A new version of Konvoez ({version}) is available. Download now?',
-    'updater.download': 'Download',
-    'updater.later': 'Later',
-    'updater.downloaded': 'Update ready',
-    'updater.restartPrompt':
-      'Update has been downloaded. Restart Konvoez to apply?',
-    'updater.restart': 'Restart',
+    'updater.checking': 'Checking for updates…',
     'updater.upToDate': 'Konvoez is up to date',
+    'updater.downloadAndUpdate': 'Download and update',
+    'updater.remindLater': 'Remind later',
+    'updater.downloading': 'Downloading update…',
+    'updater.downloadingHint':
+      'You can close this window. The download continues in the background, and Konvoez restarts to apply the update when it finishes. During a call, the restart waits until you leave.',
+    'updater.readyDeferred':
+      'Update will be installed after you leave the call',
+    'updater.ready': 'Update ready to install',
+    'updater.restartNow': 'Restart now',
+    'updater.later': 'Later',
+    'updater.close': 'Close',
+    'updater.retry': 'Retry',
     'updater.checkFailed': 'Failed to check for updates',
+    'updater.downloadFailed': 'Failed to download update',
+    'updater.disabled':
+      'Running in development mode or non-AppImage installation. Auto-update is disabled.',
+    'updater.version': 'Version {version}',
   },
   ru: {
     'server.title': 'Подключение к Konvoez',
@@ -132,16 +141,24 @@ export const translations = {
     'picker.audioSource': 'Источник звука',
     'picker.allAudio': 'Весь системный звук',
     'updater.updateAvailable': 'Доступно обновление',
-    'updater.downloadPrompt':
-      'Доступна новая версия Konvoez ({version}). Скачать сейчас?',
-    'updater.download': 'Скачать',
-    'updater.later': 'Позже',
-    'updater.downloaded': 'Обновление готово',
-    'updater.restartPrompt':
-      'Обновление скачано. Перезапустить Konvoez для применения?',
-    'updater.restart': 'Перезапустить',
+    'updater.checking': 'Проверка обновлений…',
     'updater.upToDate': 'У вас установлена последняя версия Konvoez',
+    'updater.downloadAndUpdate': 'Скачать и обновить',
+    'updater.remindLater': 'Напомнить позже',
+    'updater.downloading': 'Загрузка обновления…',
+    'updater.downloadingHint':
+      'Окно можно закрыть: загрузка продолжится в фоне. Когда она закончится, Konvoez перезапустится и установит обновление. Во время звонка перезапуск ждёт выхода из звонка.',
+    'updater.readyDeferred': 'Обновление установится после выхода из звонка',
+    'updater.ready': 'Обновление готово к установке',
+    'updater.restartNow': 'Перезапустить сейчас',
+    'updater.later': 'Позже',
+    'updater.close': 'Закрыть',
+    'updater.retry': 'Повторить',
     'updater.checkFailed': 'Не удалось проверить обновления',
+    'updater.downloadFailed': 'Не удалось загрузить обновление',
+    'updater.disabled':
+      'Приложение запущено в режиме разработки или без AppImage. Автообновление отключено.',
+    'updater.version': 'Версия {version}',
   },
 } as const;
 

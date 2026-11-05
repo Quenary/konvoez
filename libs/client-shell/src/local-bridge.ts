@@ -63,8 +63,48 @@ export interface ISourcePickerDialogAdapter {
   ): void;
 }
 
+export type TUpdaterStatus =
+  | 'checking'
+  | 'up-to-date'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'ready-deferred'
+  | 'error'
+  | 'disabled';
+
+export interface IUpdaterProgress {
+  percent: number;
+  bytesPerSecond?: number;
+  transferred?: number;
+  total?: number;
+}
+
+export interface IUpdaterState {
+  status: TUpdaterStatus;
+  version?: string;
+  progress?: IUpdaterProgress;
+  error?: string;
+}
+
+export interface IUpdaterDialogInitial {
+  state: IUpdaterState;
+  locale: TLanguage;
+}
+
+export interface IUpdaterDialogAdapter {
+  getInitial(): Promise<IUpdaterDialogInitial>;
+  getState(): Promise<IUpdaterState>;
+  onState(cb: (state: IUpdaterState) => void): () => void;
+  download(): void;
+  later(): void;
+  restart(): void;
+  retry(): void;
+}
+
 export interface IKonvoezLocalBridge {
   server: IServerDialogAdapter;
   settings: ISettingsDialogAdapter;
   picker: ISourcePickerDialogAdapter;
+  updater: IUpdaterDialogAdapter;
 }

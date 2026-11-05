@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { SERVER_DIALOG_I18N_KEYS } from './server/k-server-dialog';
 import { SETTINGS_DIALOG_I18N_KEYS } from './settings/k-settings-dialog';
 import { SOURCE_PICKER_DIALOG_I18N_KEYS } from './picker/k-source-picker-dialog';
+import { UPDATER_DIALOG_I18N_KEYS } from './updater/k-updater-dialog';
 import { translations } from '../i18n/dictionary';
 
 describe('desktop dialog i18n keys', () => {
@@ -10,6 +11,7 @@ describe('desktop dialog i18n keys', () => {
     { name: 'server', keys: SERVER_DIALOG_I18N_KEYS },
     { name: 'settings', keys: SETTINGS_DIALOG_I18N_KEYS },
     { name: 'source-picker', keys: SOURCE_PICKER_DIALOG_I18N_KEYS },
+    { name: 'updater', keys: UPDATER_DIALOG_I18N_KEYS },
   ];
 
   for (const { name, keys } of dialogKeyGroups) {

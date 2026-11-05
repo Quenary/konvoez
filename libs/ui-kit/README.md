@@ -6,7 +6,7 @@ Lit UI primitives for Konvoez. Components use standard TC39 decorators, Shadow D
 
 - **Buttons & Spinners**: `k-button`, `k-spinner`
 - **Form Controls**: `k-input`, `k-select`, `k-checkbox`, `k-hotkey-input`
-- **Feedback**: `k-message`
+- **Feedback & Progress**: `k-message`, `k-progress-bar`
 - **Navigation & Layout**: `k-dialog-layout`, `k-dialog-actions`, `k-tabs`
 - **Media**: `k-source-card`, `k-source-grid`
 

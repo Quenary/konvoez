@@ -23,7 +23,7 @@ npx nx run desktop:package
 
 `desktop:serve` runs unpackaged Electron. On Windows its AppUserModelID is `com.quenary.konvoez.dev`; the packaged app keeps `com.quenary.konvoez`. A dev run therefore does not replace the installed taskbar icon with the Electron icon.
 
-Release tags `desktop-v*` publish installers via GitHub Actions; `electron-updater` checks on startup and in the background (restart prompt deferred during an active voice call).
+Release tags `desktop-v*` publish installers via GitHub Actions. `electron-updater` checks on startup and in the background. After the user starts the download, the app restarts and installs the update when the download finishes. During a voice call the restart waits until the user leaves; the update dialog stays above the main window and does not block the call.
 
 ## Usage
 
@@ -54,7 +54,7 @@ flowchart TD
 
 ## Local dialogs (Lit)
 
-Server, Settings, and the source picker are separate local windows. Their screens are Lit components built from `@konvoez/ui-kit`. Each screen receives the host only through `IKonvoezLocalBridge` in `@konvoez/client-shell`. The renderer exposes `window.konvoezLocal` from preload. Dialog bundles use a strict CSP and esbuild checks that Node globals do not leak.
+Server, Settings, the source picker, and the update dialog are separate local windows. Their screens are Lit components built from `@konvoez/ui-kit`. Each screen receives the host only through `IKonvoezLocalBridge` in `@konvoez/client-shell`. The renderer exposes `window.konvoezLocal` from preload. Dialog bundles use a strict CSP and esbuild checks that Node globals do not leak.
 
 Each window loads its own `host.css`, produced at build time by compiling Taiga UI LESS (`libs/ui-kit/src/theme/theme.less`) with system UI fonts. Dark mode follows the OS; components inherit `--tui-*` variables from the document (no per-component token sheets).
 

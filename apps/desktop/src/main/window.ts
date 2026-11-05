@@ -124,15 +124,23 @@ export function openLocalModal(
     width?: number;
     height?: number;
     resizable?: boolean;
+    modal?: boolean;
     onClosed?: () => void;
   },
 ): BrowserWindow {
-  const parent = parentWindow ?? mainWindow ?? undefined;
+  const fallbackParent =
+    mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()
+      ? mainWindow
+      : undefined;
+  const parent =
+    parentWindow === null ? undefined : (parentWindow ?? fallbackParent);
+  const hasParent = Boolean(parent && !parent.isDestroyed());
+  const isModal = hasParent && options?.modal !== false;
   const modal = new BrowserWindow({
     width: options?.width ?? 600,
     height: options?.height ?? 500,
-    parent: parent && !parent.isDestroyed() ? parent : undefined,
-    modal: Boolean(parent && !parent.isDestroyed()),
+    parent: hasParent ? parent : undefined,
+    modal: isModal,
     show: false,
     resizable: options?.resizable ?? false,
     icon: getAppIcon(),

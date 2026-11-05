@@ -31,6 +31,14 @@ import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
 import { resolveLanguage } from './i18n';
 import { showMainWindow } from './window';
+import {
+  getUpdaterState,
+  handleUpdaterDownload,
+  handleUpdaterLater,
+  handleUpdaterRestart,
+  handleUpdaterRetry,
+  setUpdaterVoiceActive,
+} from './updater';
 
 export function isTrustedAppSender(
   frameUrl: string | undefined,
@@ -149,6 +157,7 @@ export function registerIpc(
         getMainWindow(),
         configStore,
       );
+      setUpdaterVoiceActive(parsed.data.inVoice);
     },
   );
 
@@ -262,4 +271,42 @@ export function registerIpc(
       };
     },
   );
+
+  ipcMain.handle(
+    EDesktopIpc.LOCAL_UPDATER_GET_STATE,
+    (event: IpcMainInvokeEvent) => {
+      if (!validateLocalSender(event)) {
+        throw new Error('UNAUTHORIZED');
+      }
+      return getUpdaterState();
+    },
+  );
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_DOWNLOAD, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterDownload();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_LATER, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterLater();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_RESTART, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterRestart();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_RETRY, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterRetry();
+  });
 }

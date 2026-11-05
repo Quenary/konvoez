@@ -25,6 +25,12 @@ export enum EDesktopIpc {
   LOCAL_PICKER_SOURCES = 'konvoez-local:picker-sources',
   LOCAL_HOTKEYS_SUSPEND = 'konvoez-local:hotkeys-suspend',
   LOCAL_HOTKEYS_RESUME = 'konvoez-local:hotkeys-resume',
+  LOCAL_UPDATER_GET_STATE = 'konvoez-local:updater-get-state',
+  LOCAL_UPDATER_STATE = 'konvoez-local:updater-state',
+  LOCAL_UPDATER_DOWNLOAD = 'konvoez-local:updater-download',
+  LOCAL_UPDATER_LATER = 'konvoez-local:updater-later',
+  LOCAL_UPDATER_RESTART = 'konvoez-local:updater-restart',
+  LOCAL_UPDATER_RETRY = 'konvoez-local:updater-retry',
 }
 
 export const desktopVoiceStateSchema = z.object({
