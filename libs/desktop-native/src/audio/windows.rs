@@ -282,44 +282,43 @@ struct ProcessInfo {
 }
 
 fn process_snapshot() -> Vec<ProcessInfo> {
-    // SAFETY: Toolhelp32 process snapshot. The snapshot handle is closed when
-    // `guard` drops, including when iteration stops early.
-    unsafe {
-        let snapshot = match CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
-            Ok(snapshot) => snapshot,
-            Err(_) => return Vec::new(),
-        };
-        if snapshot.is_invalid() {
-            return Vec::new();
-        }
-        let _guard = AutoCloseHandle(snapshot);
-
-        let mut entry = PROCESSENTRY32W {
-            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
-            ..Default::default()
-        };
-        let mut processes = Vec::new();
-        if Process32FirstW(snapshot, &mut entry).is_err() {
-            return processes;
-        }
-        loop {
-            let exe = entry
-                .szExeFile
-                .iter()
-                .take_while(|&&c| c != 0)
-                .copied()
-                .collect::<Vec<u16>>();
-            processes.push(ProcessInfo {
-                pid: entry.th32ProcessID,
-                parent_pid: entry.th32ParentProcessID,
-                exe,
-            });
-            if Process32NextW(snapshot, &mut entry).is_err() {
-                break;
-            }
-        }
-        processes
+    // SAFETY: Creates a snapshot handle that `_guard` closes on every return path.
+    let snapshot = match unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) } {
+        Ok(snapshot) => snapshot,
+        Err(_) => return Vec::new(),
+    };
+    if snapshot.is_invalid() {
+        return Vec::new();
     }
+    let _guard = AutoCloseHandle(snapshot);
+
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        ..Default::default()
+    };
+    let mut processes = Vec::new();
+    // SAFETY: `snapshot` is open and `entry.dwSize` is set.
+    if unsafe { Process32FirstW(snapshot, &mut entry) }.is_err() {
+        return processes;
+    }
+    loop {
+        let exe = entry
+            .szExeFile
+            .iter()
+            .take_while(|&&c| c != 0)
+            .copied()
+            .collect::<Vec<u16>>();
+        processes.push(ProcessInfo {
+            pid: entry.th32ProcessID,
+            parent_pid: entry.th32ParentProcessID,
+            exe,
+        });
+        // SAFETY: Same snapshot and entry as above.
+        if unsafe { Process32NextW(snapshot, &mut entry) }.is_err() {
+            break;
+        }
+    }
+    processes
 }
 
 pub fn find_root_process_in_tree(pid: u32) -> u32 {
@@ -387,51 +386,59 @@ pub fn start_capture(
     let (ready_tx, ready_rx) = channel::<std::result::Result<(), String>>();
     let stopper_for_thread = Arc::clone(&stopper);
 
-    let handle = thread::spawn(move || {
-        let ring = Arc::new(crate::audio::SampleRing::with_capacity(32768));
-        let ring_for_delivery = Arc::clone(&ring);
-        let stopper_for_delivery = Arc::clone(&stopper_for_thread);
-        let delivery = match thread::Builder::new()
-            .name("wasapi-deliver".to_string())
-            .spawn(move || {
-                const CHUNK_FLOATS: usize = 960;
-                const MAX_KEEP: usize = 19200;
-                let mut samples = vec![0.0f32; CHUNK_FLOATS];
-                let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
-                loop {
-                    if ring_for_delivery.pop_chunk_or_silence(&mut samples, MAX_KEEP) {
-                        bytes.clear();
-                        for sample in &samples {
-                            bytes.extend_from_slice(&sample.to_le_bytes());
+    let handle = thread::Builder::new()
+        .name("wasapi-capture".to_string())
+        .spawn(move || {
+            let ring = Arc::new(crate::audio::SampleRing::with_capacity(32768));
+            let ring_for_delivery = Arc::clone(&ring);
+            let stopper_for_delivery = Arc::clone(&stopper_for_thread);
+            let delivery = match thread::Builder::new()
+                .name("wasapi-deliver".to_string())
+                .spawn(move || {
+                    const CHUNK_FLOATS: usize = 960;
+                    const MAX_KEEP: usize = 19200;
+                    let mut samples = vec![0.0f32; CHUNK_FLOATS];
+                    let mut bytes = Vec::with_capacity(CHUNK_FLOATS * 4);
+                    loop {
+                        if ring_for_delivery.pop_chunk_or_silence(&mut samples, MAX_KEEP) {
+                            bytes.clear();
+                            for sample in &samples {
+                                bytes.extend_from_slice(&sample.to_le_bytes());
+                            }
+                            let _ = tsfn.call(
+                                Buffer::from(bytes.as_slice()),
+                                ThreadsafeFunctionCallMode::NonBlocking,
+                            );
+                            continue;
                         }
-                        let _ = tsfn.call(
-                            Buffer::from(bytes.as_slice()),
-                            ThreadsafeFunctionCallMode::NonBlocking,
-                        );
-                        continue;
+                        if stopper_for_delivery.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        thread::sleep(Duration::from_millis(5));
                     }
-                    if stopper_for_delivery.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(5));
+                }) {
+                Ok(handle) => handle,
+                Err(err) => {
+                    let _ = ready_tx.send(Err(format!("Failed to start audio delivery: {err}")));
+                    return;
                 }
-            }) {
-            Ok(handle) => handle,
-            Err(err) => {
-                let _ = ready_tx.send(Err(format!("Failed to start audio delivery: {err}")));
-                return;
-            }
-        };
-        let _ = run_capture_loop(
-            pid_to_use,
-            is_exclude,
-            ring,
-            Arc::clone(&stopper_for_thread),
-            ready_tx,
-        );
-        stopper_for_thread.store(true, Ordering::SeqCst);
-        let _ = delivery.join();
-    });
+            };
+            let _ = run_capture_loop(
+                pid_to_use,
+                is_exclude,
+                ring,
+                Arc::clone(&stopper_for_thread),
+                ready_tx,
+            );
+            stopper_for_thread.store(true, Ordering::SeqCst);
+            let _ = delivery.join();
+        })
+        .map_err(|err| {
+            Error::new(
+                Status::GenericFailure,
+                format!("Failed to start audio capture thread: {err}"),
+            )
+        })?;
 
     match ready_rx.recv() {
         Ok(Ok(())) => Ok((handle, mode)),
@@ -468,7 +475,7 @@ fn run_capture_loop(
 
     let init = init_wasapi_client(target_pid, is_exclude);
 
-    let (audio_client, capture_client, _event_guard) = match init {
+    let (audio_client, capture_client, event_guard) = match init {
         Ok(session) => {
             let _ = ready.send(Ok(()));
             session
@@ -479,165 +486,167 @@ fn run_capture_loop(
         }
     };
 
-    let silence = [0.0f32; 4096];
-
-    // SAFETY: The capture loop uses the client started above. Buffers returned by
-    // GetBuffer stay valid until the matching ReleaseBuffer call.
-    unsafe {
-        while !stopper.load(Ordering::Relaxed) {
-            let wait_res = WaitForSingleObject(_event_guard.0, 20);
-            if stopper.load(Ordering::Relaxed) {
-                break;
-            }
-            if wait_res.0 == 0 {
-                loop {
-                    let mut p_data: *mut u8 = std::ptr::null_mut();
-                    let mut num_frames_read: u32 = 0;
-                    let mut flags: u32 = 0;
-
-                    let hr = capture_client.GetBuffer(
-                        &mut p_data,
-                        &mut num_frames_read,
-                        &mut flags,
-                        None,
-                        None,
-                    );
-
-                    if hr.is_err() || num_frames_read == 0 {
-                        break;
-                    }
-
-                    let float_count = (num_frames_read as usize) * 2;
-                    let silent = (flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0;
-                    if silent {
-                        let mut remaining = float_count & !1;
-                        while remaining > 0 {
-                            let count = remaining.min(silence.len()) & !1;
-                            ring.push_slice(&silence[..count]);
-                            remaining -= count;
-                        }
-                    } else if !p_data.is_null() {
-                        let num_bytes = float_count * 4;
-                        // SAFETY: GetBuffer's pointer stays valid until ReleaseBuffer
-                        // and covers `num_frames_read` stereo f32 frames.
-                        let bytes = std::slice::from_raw_parts(p_data, num_bytes);
-                        crate::audio::push_le_f32(&ring, bytes);
-                    }
-
-                    let _ = capture_client.ReleaseBuffer(num_frames_read);
-                }
-            }
+    while !stopper.load(Ordering::Relaxed) {
+        // SAFETY: `event_guard` owns a valid event handle for the whole loop.
+        let wait_res = unsafe { WaitForSingleObject(event_guard.0, 20) };
+        if stopper.load(Ordering::Relaxed) {
+            break;
         }
-
-        let _ = audio_client.Stop();
+        if wait_res.0 == 0 {
+            drain_capture_packets(&capture_client, &ring);
+        }
     }
 
+    // SAFETY: `audio_client` was started by `init_wasapi_client` and is only used on this thread.
+    let _ = unsafe { audio_client.Stop() };
+
     Ok(())
+}
+
+/// Moves every pending packet into `ring`. A silent packet becomes zeros.
+fn drain_capture_packets(capture_client: &IAudioCaptureClient, ring: &crate::audio::SampleRing) {
+    static SILENCE: [f32; 4096] = [0.0; 4096];
+
+    loop {
+        let mut p_data: *mut u8 = std::ptr::null_mut();
+        let mut num_frames_read: u32 = 0;
+        let mut flags: u32 = 0;
+
+        // SAFETY: The out-pointers are valid locals. A buffer returned here is
+        // released by the matching ReleaseBuffer call below.
+        let hr = unsafe {
+            capture_client.GetBuffer(&mut p_data, &mut num_frames_read, &mut flags, None, None)
+        };
+
+        if hr.is_err() || num_frames_read == 0 {
+            break;
+        }
+
+        let float_count = (num_frames_read as usize) * 2;
+        let silent = (flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32) != 0;
+        if silent {
+            let mut remaining = float_count & !1;
+            while remaining > 0 {
+                let count = remaining.min(SILENCE.len()) & !1;
+                ring.push_slice(&SILENCE[..count]);
+                remaining -= count;
+            }
+        } else if !p_data.is_null() {
+            let num_bytes = float_count * 4;
+            // SAFETY: GetBuffer's pointer stays valid until ReleaseBuffer
+            // and covers `num_frames_read` stereo f32 frames.
+            let bytes = unsafe { std::slice::from_raw_parts(p_data, num_bytes) };
+            crate::audio::push_le_f32(ring, bytes);
+        }
+
+        // SAFETY: Releases the buffer from the successful GetBuffer above.
+        let _ = unsafe { capture_client.ReleaseBuffer(num_frames_read) };
+    }
 }
 
 fn init_wasapi_client(
     target_pid: u32,
     is_exclude: bool,
 ) -> std::result::Result<(IAudioClient, IAudioCaptureClient, AutoCloseHandle), String> {
-    // SAFETY: Activating a process-loopback IAudioClient and initializing it.
-    // `async_op` is held until ActivateCompleted publishes the client.
-    unsafe {
-        let mut params = AudioClientActivationParams {
-            activation_type: 1, // AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK
-            loopback_params: AudioClientProcessLoopbackParams {
-                target_process_id: target_pid,
-                process_loopback_mode: if is_exclude { 1 } else { 0 },
-            },
-        };
+    let mut params = AudioClientActivationParams {
+        activation_type: 1, // AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK
+        loopback_params: AudioClientProcessLoopbackParams {
+            target_process_id: target_pid,
+            process_loopback_mode: if is_exclude { 1 } else { 0 },
+        },
+    };
 
-        let prop = PropVariantBlob {
-            vt: 0x0041, // VT_BLOB
-            w_reserved1: 0,
-            w_reserved2: 0,
-            w_reserved3: 0,
-            cb_size: std::mem::size_of::<AudioClientActivationParams>() as u32,
-            p_blob_data: &mut params as *mut _ as *mut u8,
-        };
+    let prop = PropVariantBlob {
+        vt: 0x0041, // VT_BLOB
+        w_reserved1: 0,
+        w_reserved2: 0,
+        w_reserved3: 0,
+        cb_size: std::mem::size_of::<AudioClientActivationParams>() as u32,
+        p_blob_data: &mut params as *mut _ as *mut u8,
+    };
 
-        let (tx, rx) = channel();
-        let handler: IActivateAudioInterfaceCompletionHandler = ActivationHandler {
-            sender: std::sync::Mutex::new(Some(tx)),
-        }
-        .into();
+    let (tx, rx) = channel();
+    let handler: IActivateAudioInterfaceCompletionHandler = ActivationHandler {
+        sender: std::sync::Mutex::new(Some(tx)),
+    }
+    .into();
 
-        // Hold the operation until ActivateCompleted. Releasing it earlier drops
-        // Windows' reference to the completion handler and cancels activation.
-        let async_op = ActivateAudioInterfaceAsync(
+    // Hold the operation until ActivateCompleted. Releasing it earlier drops
+    // Windows' reference to the completion handler and cancels activation.
+    // SAFETY: `prop` points at `params`, and both stay alive until this function
+    // returns, after the activation has completed or timed out.
+    let async_op = unsafe {
+        ActivateAudioInterfaceAsync(
             VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
             &IAudioClient::IID,
             Some(&prop as *const _ as *const _),
             &handler,
         )
-        .map_err(|err| format!("ActivateAudioInterfaceAsync failed: {err}"))?;
-
-        let unk = match rx.recv_timeout(Duration::from_secs(3)) {
-            Ok(res) => res?,
-            Err(_) => {
-                drop(async_op);
-                return Err(
-                    "Timed out waiting for ActivateAudioInterfaceAsync completion".to_string(),
-                );
-            }
-        };
-        drop(async_op);
-
-        let audio_client: IAudioClient = unk
-            .cast()
-            .map_err(|err| format!("Querying IAudioClient failed: {err}"))?;
-
-        // Float32 48 kHz stereo WAVEFORMATEXTENSIBLE
-        const KSDATAFORMAT_SUBTYPE_IEEE_FLOAT: windows_core::GUID =
-            windows_core::GUID::from_u128(0x00000003_0000_0010_8000_00aa00389b71);
-
-        let wfx = WAVEFORMATEXTENSIBLE {
-            Format: WAVEFORMATEX {
-                wFormatTag: WAVE_FORMAT_EXTENSIBLE,
-                nChannels: 2,
-                nSamplesPerSec: 48000,
-                nAvgBytesPerSec: 48000 * 2 * 4,
-                nBlockAlign: 8,
-                wBitsPerSample: 32,
-                cbSize: 22,
-            },
-            Samples: windows::Win32::Media::Audio::WAVEFORMATEXTENSIBLE_0 {
-                wValidBitsPerSample: 32,
-            },
-            dwChannelMask: 0x3, // SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT
-            SubFormat: KSDATAFORMAT_SUBTYPE_IEEE_FLOAT,
-        };
-
-        let event = CreateEventW(None, false, false, None)
-            .map_err(|err| format!("CreateEventW failed: {err}"))?;
-        let event_guard = AutoCloseHandle(event);
-
-        audio_client
-            .Initialize(
-                AUDCLNT_SHAREMODE_SHARED,
-                AUDCLNT_STREAMFLAGS_LOOPBACK
-                    | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
-                    | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-                200_000, // 20 ms
-                0,
-                &wfx.Format as *const _,
-                None,
-            )
-            .map_err(|err| format!("IAudioClient::Initialize failed: {err}"))?;
-
-        audio_client
-            .SetEventHandle(event)
-            .map_err(|err| format!("IAudioClient::SetEventHandle failed: {err}"))?;
-        let capture_client: IAudioCaptureClient = audio_client
-            .GetService()
-            .map_err(|err| format!("IAudioClient::GetService failed: {err}"))?;
-        audio_client
-            .Start()
-            .map_err(|err| format!("IAudioClient::Start failed: {err}"))?;
-
-        Ok((audio_client, capture_client, event_guard))
     }
+    .map_err(|err| format!("ActivateAudioInterfaceAsync failed: {err}"))?;
+
+    let unk = match rx.recv_timeout(Duration::from_secs(3)) {
+        Ok(res) => res?,
+        Err(_) => {
+            drop(async_op);
+            return Err("Timed out waiting for ActivateAudioInterfaceAsync completion".to_string());
+        }
+    };
+    drop(async_op);
+
+    let audio_client: IAudioClient = unk
+        .cast()
+        .map_err(|err| format!("Querying IAudioClient failed: {err}"))?;
+
+    // Float32 48 kHz stereo WAVEFORMATEXTENSIBLE
+    const KSDATAFORMAT_SUBTYPE_IEEE_FLOAT: windows_core::GUID =
+        windows_core::GUID::from_u128(0x00000003_0000_0010_8000_00aa00389b71);
+
+    let wfx = WAVEFORMATEXTENSIBLE {
+        Format: WAVEFORMATEX {
+            wFormatTag: WAVE_FORMAT_EXTENSIBLE,
+            nChannels: 2,
+            nSamplesPerSec: 48000,
+            nAvgBytesPerSec: 48000 * 2 * 4,
+            nBlockAlign: 8,
+            wBitsPerSample: 32,
+            cbSize: 22,
+        },
+        Samples: windows::Win32::Media::Audio::WAVEFORMATEXTENSIBLE_0 {
+            wValidBitsPerSample: 32,
+        },
+        dwChannelMask: 0x3, // SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT
+        SubFormat: KSDATAFORMAT_SUBTYPE_IEEE_FLOAT,
+    };
+
+    // SAFETY: Creates an unnamed auto-reset event; `event_guard` closes it.
+    let event = unsafe { CreateEventW(None, false, false, None) }
+        .map_err(|err| format!("CreateEventW failed: {err}"))?;
+    let event_guard = AutoCloseHandle(event);
+
+    // SAFETY: `wfx` outlives the call, and `Initialize` copies the format.
+    unsafe {
+        audio_client.Initialize(
+            AUDCLNT_SHAREMODE_SHARED,
+            AUDCLNT_STREAMFLAGS_LOOPBACK
+                | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
+                | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+            200_000, // 20 ms
+            0,
+            &wfx.Format as *const _,
+            None,
+        )
+    }
+    .map_err(|err| format!("IAudioClient::Initialize failed: {err}"))?;
+
+    // SAFETY: `event` is a valid handle that `event_guard` keeps open as long as the client runs.
+    unsafe { audio_client.SetEventHandle(event) }
+        .map_err(|err| format!("IAudioClient::SetEventHandle failed: {err}"))?;
+    // SAFETY: The client is initialized above.
+    let capture_client: IAudioCaptureClient = unsafe { audio_client.GetService() }
+        .map_err(|err| format!("IAudioClient::GetService failed: {err}"))?;
+    // SAFETY: The client is initialized and has its event handle set.
+    unsafe { audio_client.Start() }.map_err(|err| format!("IAudioClient::Start failed: {err}"))?;
+
+    Ok((audio_client, capture_client, event_guard))
 }
