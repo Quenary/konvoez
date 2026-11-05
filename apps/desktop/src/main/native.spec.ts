@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   getBinaryName,
   getNativeModule,
+  getNativeSearchDirs,
   resetNativeModuleForTests,
 } from './native';
+
+vi.mock('electron', () => ({ app: { isPackaged: false } }));
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -24,6 +28,36 @@ describe('getBinaryName', () => {
     ['darwin', 'arm64', 'konvoez-native.darwin-arm64.node'],
   ] as const)('names the %s-%s napi triple', (platform, arch, expected) => {
     expect(getBinaryName(platform, arch)).toBe(expected);
+  });
+});
+
+describe('getNativeSearchDirs', () => {
+  const base = {
+    dirname: path.resolve('/app/dist'),
+    cwd: path.resolve('/work'),
+    resourcesPath: path.resolve('/res'),
+  };
+  const cwdDirs = [
+    path.resolve('/work', 'dist', 'native'),
+    path.resolve('/work', 'libs', 'desktop-native'),
+  ];
+
+  it('searches the working directory only when the app is not packaged', () => {
+    const dev = getNativeSearchDirs({ ...base, isPackaged: false });
+    const packaged = getNativeSearchDirs({ ...base, isPackaged: true });
+
+    expect(dev).toEqual(expect.arrayContaining(cwdDirs));
+    for (const dir of cwdDirs) {
+      expect(packaged).not.toContain(dir);
+    }
+  });
+
+  it('prefers the unpacked resources directory', () => {
+    const [first] = getNativeSearchDirs({ ...base, isPackaged: true });
+
+    expect(first).toBe(
+      path.resolve('/res', 'app.asar.unpacked', 'dist', 'native'),
+    );
   });
 });
 

@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { app } from 'electron';
 
 export interface AudioStreamInfo {
   id: string;
@@ -62,25 +63,53 @@ export function getBinaryName(
   return `konvoez-native.${platform}-${arch}.node`;
 }
 
+export interface INativeSearchContext {
+  isPackaged: boolean;
+  dirname: string;
+  cwd: string;
+  resourcesPath?: string;
+}
+
+/**
+ * Directories searched for the addon. A packaged app never looks relative to
+ * the working directory, so a `.node` there cannot be loaded into the main process.
+ */
+export function getNativeSearchDirs(context: INativeSearchContext): string[] {
+  const dirs = [
+    path.resolve(context.dirname, 'native'),
+    path.resolve(context.dirname, '..', 'native'),
+  ];
+  if (context.resourcesPath) {
+    dirs.unshift(
+      path.resolve(
+        context.resourcesPath,
+        'app.asar.unpacked',
+        'dist',
+        'native',
+      ),
+      path.resolve(context.resourcesPath, 'app.asar.unpacked', 'native'),
+    );
+  }
+  if (!context.isPackaged) {
+    dirs.push(
+      path.resolve(context.cwd, 'dist', 'native'),
+      path.resolve(context.cwd, 'libs', 'desktop-native'),
+    );
+  }
+  return dirs;
+}
+
 function resolveNativeBinaryPath(): string | null {
   const binaryName = getBinaryName();
   const candidateNames = [binaryName, 'konvoez-native.node'];
 
-  const candidateDirs: string[] = [
-    path.resolve(__dirname, 'native'),
-    path.resolve(__dirname, '..', 'native'),
-    path.resolve(process.cwd(), 'dist', 'native'),
-    path.resolve(process.cwd(), 'libs', 'desktop-native'),
-  ];
-
-  const resourcesPath = (process as unknown as { resourcesPath?: string })
-    .resourcesPath;
-  if (resourcesPath) {
-    candidateDirs.unshift(
-      path.resolve(resourcesPath, 'app.asar.unpacked', 'dist', 'native'),
-      path.resolve(resourcesPath, 'app.asar.unpacked', 'native'),
-    );
-  }
+  const candidateDirs = getNativeSearchDirs({
+    isPackaged: app.isPackaged,
+    dirname: __dirname,
+    cwd: process.cwd(),
+    resourcesPath: (process as unknown as { resourcesPath?: string })
+      .resourcesPath,
+  });
 
   for (const dir of candidateDirs) {
     for (const name of candidateNames) {
