@@ -150,6 +150,15 @@ export class KSourcePickerDialog extends LitElement {
     ];
   }
 
+  /** A screen is always captured without its own stream, so only windows pick one. */
+  private get showAudioStreamSelect(): boolean {
+    return (
+      this.shareAudio &&
+      this.activeTab === 'windows' &&
+      this.audioStreams.length > 0
+    );
+  }
+
   private get showLoopbackHint(): boolean {
     return this.audioSupported && !this.nativeAudio;
   }
@@ -267,7 +276,7 @@ export class KSourcePickerDialog extends LitElement {
                         : null
                     }
                     ${
-                      this.shareAudio && this.audioStreams.length > 0
+                      this.showAudioStreamSelect
                         ? html`
                             <k-select
                               .label="${this.t('picker.audioSource')}"

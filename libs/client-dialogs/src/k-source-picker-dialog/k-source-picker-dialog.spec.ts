@@ -50,6 +50,16 @@ describe('k-source-picker-dialog', () => {
     ...overrides,
   });
 
+  const openWindowsTab = async (el: KSourcePickerDialog): Promise<void> => {
+    el.shadowRoot?.querySelector('k-tabs')?.dispatchEvent(
+      new CustomEvent('k-change', {
+        bubbles: true,
+        detail: { value: 'windows' },
+      }),
+    );
+    await el.updateComplete;
+  };
+
   it('defines PICKER_DIALOG_I18N_KEYS', () => {
     expect(PICKER_DIALOG_I18N_KEYS).toContain('picker.title');
     expect(PICKER_DIALOG_I18N_KEYS).toContain('picker.screens');
@@ -279,6 +289,9 @@ describe('k-source-picker-dialog', () => {
     await new Promise((r) => setTimeout(r, 10));
     await el.updateComplete;
 
+    expect(el.shadowRoot?.querySelector('k-select')).toBeNull();
+    await openWindowsTab(el);
+
     const select = el.shadowRoot?.querySelector('k-select');
     expect(select).not.toBeNull();
 
@@ -295,7 +308,7 @@ describe('k-source-picker-dialog', () => {
     const shareBtn = buttons?.[1];
     shareBtn?.dispatchEvent(new CustomEvent('k-click', { bubbles: true }));
 
-    expect(adapter.pick).toHaveBeenCalledWith('screen:0:0', true, 'node-1');
+    expect(adapter.pick).toHaveBeenCalledWith('window:42', true, 'node-1');
   });
 
   it('clears the chosen audio stream when the source changes', async () => {
@@ -318,6 +331,7 @@ describe('k-source-picker-dialog', () => {
     `);
     await new Promise((r) => setTimeout(r, 10));
     await el.updateComplete;
+    await openWindowsTab(el);
 
     el.shadowRoot?.querySelector('k-select')?.dispatchEvent(
       new CustomEvent('k-change', {
@@ -331,7 +345,7 @@ describe('k-source-picker-dialog', () => {
     el.shadowRoot?.querySelector('k-source-grid')?.dispatchEvent(
       new CustomEvent('k-select', {
         bubbles: true,
-        detail: { sourceId: 'screen:0:0' },
+        detail: { sourceId: 'window:42' },
       }),
     );
     await el.updateComplete;

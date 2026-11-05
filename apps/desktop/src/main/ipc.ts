@@ -19,7 +19,7 @@ import type { ConfigStore, TDesktopConfig } from './config-store';
 import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
 import { dismissNotification, showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
-import { getScreenShareAudio } from './display-media';
+import { isScreenShareAudioAvailable } from './display-media';
 import { getNativeModule } from './native';
 import {
   applyHotkeys,
@@ -165,14 +165,15 @@ export function registerIpc(
       throw new Error('UNAUTHORIZED');
     }
     const config = configStore.get();
+    const nativeAudio = getNativeModule()?.isAudioSupported() ?? false;
     return {
       serverOrigin: config.serverOrigin,
       hotkeys: config.hotkeys,
       autostart: config.autostart,
       locale: resolveLanguage(app.getLocale()),
       shareAudio: config.shareAudio,
-      audioSupported: getScreenShareAudio() !== undefined,
-      nativeAudio: getNativeModule()?.isAudioSupported() ?? false,
+      audioSupported: isScreenShareAudioAvailable(nativeAudio),
+      nativeAudio,
     };
   });
 

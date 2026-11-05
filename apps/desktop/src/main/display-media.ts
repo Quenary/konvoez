@@ -32,6 +32,14 @@ export function getScreenShareAudio(
   return platform === 'win32' ? 'loopback' : undefined;
 }
 
+/** The picker offers audio when native capture works or the platform has system loopback. */
+export function isScreenShareAudioAvailable(
+  nativeAudio: boolean,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return nativeAudio || getScreenShareAudio(platform) !== undefined;
+}
+
 function isOwnKonvoezWindow(
   source: DesktopCapturerSource,
   win: BrowserWindow | null,

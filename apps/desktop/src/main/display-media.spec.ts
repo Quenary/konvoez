@@ -5,6 +5,7 @@ import {
   getScreenShareAudio,
   installDisplayMediaHandler,
   isPickerOpen,
+  isScreenShareAudioAvailable,
   openSourcePicker,
   resetPickerOpenForTests,
   serializeCapturerSources,
@@ -61,6 +62,17 @@ describe('display-media helpers', () => {
     it('returns undefined on linux and darwin', () => {
       expect(getScreenShareAudio('linux')).toBeUndefined();
       expect(getScreenShareAudio('darwin')).toBeUndefined();
+    });
+  });
+
+  describe('isScreenShareAudioAvailable', () => {
+    it.each([
+      [true, 'linux', true],
+      [false, 'linux', false],
+      [false, 'win32', true],
+      [true, 'win32', true],
+    ] as const)('native=%s on %s -> %s', (nativeAudio, platform, expected) => {
+      expect(isScreenShareAudioAvailable(nativeAudio, platform)).toBe(expected);
     });
   });
 
