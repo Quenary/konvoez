@@ -33,6 +33,8 @@ describe('VoiceRoomControlsBarComponent', () => {
   let setScreenContentMode: ReturnType<typeof vi.fn>;
   let setStreamCodec: ReturnType<typeof vi.fn>;
   let setScreenCodec: ReturnType<typeof vi.fn>;
+  let setStreamSvcMode: ReturnType<typeof vi.fn>;
+  let setScreenSvcMode: ReturnType<typeof vi.fn>;
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
@@ -60,6 +62,8 @@ describe('VoiceRoomControlsBarComponent', () => {
     setScreenContentMode = vi.fn();
     setStreamCodec = vi.fn();
     setScreenCodec = vi.fn();
+    setStreamSvcMode = vi.fn();
+    setScreenSvcMode = vi.fn();
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
@@ -102,6 +106,12 @@ describe('VoiceRoomControlsBarComponent', () => {
             ).asReadonly(),
             streamCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
             screenCodec: signal<'vp8' | 'vp9' | 'av1'>('vp8').asReadonly(),
+            streamSvcMode: signal<'L1T3' | 'L2T3_KEY' | 'L3T3_KEY' | null>(
+              'L3T3_KEY',
+            ).asReadonly(),
+            screenSvcMode: signal<'L1T3' | 'L2T3_KEY' | 'L3T3_KEY' | null>(
+              null,
+            ).asReadonly(),
             streamMaxBitrateKbps: signal(
               DEFAULT_STREAM_MAX_BITRATE_KBPS,
             ).asReadonly(),
@@ -116,6 +126,8 @@ describe('VoiceRoomControlsBarComponent', () => {
             setScreenContentMode,
             setStreamCodec,
             setScreenCodec,
+            setStreamSvcMode,
+            setScreenSvcMode,
           },
         },
         {
@@ -199,6 +211,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         height: 480,
         fps: 15,
         extraLayers: [{ height: 360, fps: 15 }],
+        svcMode: 'L1T3',
         bitrateKbps: 1500,
         codec: 'vp9',
       }),
@@ -216,6 +229,7 @@ describe('VoiceRoomControlsBarComponent', () => {
           height: 720,
           fps: 30,
           extraLayers: null,
+          svcMode: 'L3T3_KEY',
           bitrateKbps: 2500,
           codec: 'vp9',
           codecs: ['vp8', 'vp9'],
@@ -230,6 +244,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     ]);
     expect(setStreamBitrateKbps).toHaveBeenCalledWith(1500);
     expect(setStreamCodec).toHaveBeenCalledWith('vp9');
+    expect(setStreamSvcMode).toHaveBeenCalledWith('L1T3');
     expect(produceCamera).toHaveBeenCalledTimes(1);
     expect(produceScreen).not.toHaveBeenCalled();
   });
@@ -240,6 +255,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         height: 1080,
         fps: 60,
         extraLayers: [{ height: 720, fps: 60 }],
+        svcMode: 'L2T3_KEY',
         bitrateKbps: 8000,
         contentMode: 'motion',
         codec: 'av1',
@@ -260,6 +276,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(setScreenBitrateKbps).toHaveBeenCalledWith(8000);
     expect(setScreenContentMode).toHaveBeenCalledWith('motion');
     expect(setScreenCodec).toHaveBeenCalledWith('av1');
+    expect(setScreenSvcMode).toHaveBeenCalledWith('L2T3_KEY');
     expect(produceScreen).toHaveBeenCalledTimes(1);
     vi.unstubAllGlobals();
   });

@@ -106,6 +106,7 @@ describe('VoiceSessionService', () => {
   let peerVideo: {
     removeUser: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    forgetCamOffer: ReturnType<typeof vi.fn>;
     clear: ReturnType<typeof vi.fn>;
     unregisterAvailableScreenProducer: ReturnType<typeof vi.fn>;
     isStreamProducer: ReturnType<typeof vi.fn>;
@@ -216,6 +217,7 @@ describe('VoiceSessionService', () => {
     peerVideo = {
       removeUser: vi.fn(),
       remove: vi.fn(),
+      forgetCamOffer: vi.fn(),
       clear: vi.fn(),
       unregisterAvailableScreenProducer: vi.fn(),
       isStreamProducer: vi.fn().mockReturnValue(false),

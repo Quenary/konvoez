@@ -2,6 +2,7 @@ import {
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
   EVoiceQualityTier,
   EVoiceRoomEvent,
+  STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI,
   VOICE_STALL_MS,
   VOICE_WATCHDOG_INTERVAL_MS,
 } from '@konvoez/shared';
@@ -157,6 +158,8 @@ describe('MediasoupSessionService', () => {
             screenContentMode: vi.fn().mockReturnValue('detail'),
             streamCodec: vi.fn().mockReturnValue('vp8'),
             screenCodec: vi.fn().mockReturnValue('vp8'),
+            streamSvcMode: vi.fn().mockReturnValue(null),
+            screenSvcMode: vi.fn().mockReturnValue(null),
           },
         },
         {
@@ -916,7 +919,193 @@ describe('MediasoupSessionService', () => {
     expect(produce).toHaveBeenCalledWith(
       expect.objectContaining({
         codec: expect.objectContaining({ mimeType: 'video/VP9' }),
-        encodings: [expect.any(Object)],
+        encodings: [
+          expect.objectContaining({
+            scalabilityMode: 'L2T3_KEY',
+            scaleResolutionDownBy: 1,
+            maxFramerate: 30,
+            maxBitrate: 5_000_000,
+          }),
+        ],
+        appData: expect.objectContaining({
+          layers: [
+            { height: 540, fps: 30 },
+            { height: 1080, fps: 30 },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ['L1T3' as const, [{ height: 721, fps: 30 }]],
+    [
+      'L2T3_KEY' as const,
+      [
+        { height: 360, fps: 30 },
+        { height: 721, fps: 30 },
+      ],
+    ],
+    [
+      'L3T3_KEY' as const,
+      [
+        { height: 180, fps: 30 },
+        { height: 360, fps: 30 },
+        { height: 721, fps: 30 },
+      ],
+    ],
+  ])('publishes VP9 %s from the captured height', async (mode, layers) => {
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamCodec = vi
+      .fn()
+      .mockReturnValue('vp9') as unknown as typeof settings.streamCodec;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: { codecs: [{ mimeType: 'video/VP9' }] },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+
+    await service['produceVideo'](
+      'cam',
+      { getSettings: () => ({ height: 721 }) } as MediaStreamTrack,
+      {
+        height: 1080,
+        fps: 30,
+        contentMode: 'motion',
+        extraLayers: [],
+        svcMode: mode,
+        maxBitrateBps: 4_000_000,
+      },
+    );
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [
+          expect.objectContaining({
+            scalabilityMode: mode,
+            scaleResolutionDownBy: 1,
+            maxBitrate: 4_000_000,
+            maxFramerate: 30,
+          }),
+        ],
+        appData: expect.objectContaining({ layers }),
+      }),
+    );
+  });
+
+  it('keeps AV1 SVC when the dependency descriptor is negotiated', async () => {
+    vi.stubGlobal('RTCRtpSender', {
+      getCapabilities: () => ({
+        headerExtensions: [{ uri: STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI }],
+      }),
+    });
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamCodec = vi
+      .fn()
+      .mockReturnValue('av1') as unknown as typeof settings.streamCodec;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/AV1' }],
+        headerExtensions: [{ uri: STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI }],
+      },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+
+    await service['produceVideo'](
+      'cam',
+      { getSettings: () => ({ height: 720 }) } as MediaStreamTrack,
+      {
+        height: 720,
+        fps: 30,
+        contentMode: 'motion',
+        extraLayers: [],
+        svcMode: 'L3T3_KEY',
+        maxBitrateBps: 2_000_000,
+      },
+    );
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ scalabilityMode: 'L3T3_KEY' })],
+        appData: expect.objectContaining({
+          layers: [
+            { height: 180, fps: 30 },
+            { height: 360, fps: 30 },
+            { height: 720, fps: 30 },
+          ],
+        }),
+      }),
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('falls AV1 back to L1T3 when the dependency descriptor is missing', async () => {
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamCodec = vi
+      .fn()
+      .mockReturnValue('av1') as unknown as typeof settings.streamCodec;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/AV1' }],
+        headerExtensions: [],
+      },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+
+    await service['produceVideo'](
+      'cam',
+      { getSettings: () => ({ height: 720 }) } as MediaStreamTrack,
+      {
+        height: 720,
+        fps: 30,
+        contentMode: 'motion',
+        extraLayers: [],
+        svcMode: 'L3T3_KEY',
+        maxBitrateBps: 2_000_000,
+      },
+    );
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encodings: [expect.objectContaining({ scalabilityMode: 'L1T3' })],
+        appData: expect.objectContaining({
+          layers: [{ height: 720, fps: 30 }],
+        }),
       }),
     );
   });
@@ -1064,6 +1253,7 @@ describe('MediasoupSessionService', () => {
       fps: 30,
       contentMode: 'motion',
       extraLayers: [],
+      svcMode: null,
       maxBitrateBps: 2_500_000,
     };
 
@@ -1518,6 +1708,7 @@ describe('MediasoupSessionService', () => {
         { height: 720, fps: 60 },
         { height: 480, fps: 30 },
       ],
+      svcMode: null,
       maxBitrateBps: 8_000_000,
     };
     await service['applyVideoPlan'](
@@ -1630,6 +1821,19 @@ describe('MediasoupSessionService', () => {
     expect(open).toHaveBeenCalledTimes(4);
 
     service['screenSettingsWarned'] = false;
+    const modeMismatch = {
+      rtpSender: {
+        getParameters: () => ({
+          encodings: [{ ...plan[0], scalabilityMode: 'L1T3' }],
+        }),
+      },
+    };
+    service['verifyAppliedEncodings'](modeMismatch as never, [
+      { ...plan[0], scalabilityMode: 'L2T3_KEY' },
+    ]);
+    expect(open).toHaveBeenCalledTimes(5);
+
+    service['screenSettingsWarned'] = false;
     const withinTolerance = {
       rtpSender: {
         getParameters: () => ({
@@ -1641,17 +1845,17 @@ describe('MediasoupSessionService', () => {
       },
     };
     service['verifyAppliedEncodings'](withinTolerance as never, plan);
-    expect(open).toHaveBeenCalledTimes(4);
+    expect(open).toHaveBeenCalledTimes(5);
 
     const top = plan[2];
     if (!top) {
       throw new Error('missing top layer');
     }
     service['verifyAppliedEncodings'](mismatch as never, [top]);
-    expect(open).toHaveBeenCalledTimes(4);
+    expect(open).toHaveBeenCalledTimes(5);
 
     service['verifyAppliedEncodings']({ rtpSender: undefined } as never, plan);
-    expect(open).toHaveBeenCalledTimes(4);
+    expect(open).toHaveBeenCalledTimes(5);
   });
 
   it('passes the screen content mode into capture', async () => {
@@ -1714,6 +1918,7 @@ describe('MediasoupSessionService', () => {
           fps: 30,
           contentMode,
           extraLayers: [],
+          svcMode: null,
           maxBitrateBps: 2_500_000,
         },
       );

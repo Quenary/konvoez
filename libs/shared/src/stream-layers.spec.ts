@@ -6,10 +6,13 @@ import {
   MIN_LAYER_BITRATE_BPS,
   recommendStreamBitrateKbps,
   resolveStreamLayers,
+  resolveSvcMode,
   sortStreamLayers,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   streamLayerOptions,
   streamSupportsSimulcast,
+  streamSupportsSvc,
+  svcLayers,
 } from './stream-layers';
 
 describe('stream-layers', () => {
@@ -45,15 +48,97 @@ describe('stream-layers', () => {
 
   describe('defaultExtraLayers', () => {
     it.each([
-      [{ height: 1080, fps: 60 }, [{ height: 720, fps: 60 }]],
-      [{ height: 1080, fps: 30 }, [{ height: 720, fps: 30 }]],
-      [{ height: 720, fps: 60 }, [{ height: 480, fps: 60 }]],
-      [{ height: 720, fps: 15 }, [{ height: 480, fps: 15 }]],
-      [{ height: 480, fps: 30 }, [{ height: 360, fps: 30 }]],
+      [{ height: 1080, fps: 60 }, [{ height: 480, fps: 60 }]],
+      [{ height: 1080, fps: 30 }, [{ height: 480, fps: 30 }]],
+      [{ height: 720, fps: 60 }, [{ height: 360, fps: 60 }]],
+      [{ height: 720, fps: 15 }, [{ height: 360, fps: 15 }]],
+      [{ height: 480, fps: 30 }, [{ height: 160, fps: 30 }]],
       [{ height: 360, fps: 15 }, [{ height: 160, fps: 15 }]],
       [{ height: 160, fps: 30 }, []],
     ])('default for %j is %j', (max, expected) => {
       expect(defaultExtraLayers(max)).toEqual(expected);
+    });
+
+    it('breaks a tie toward the lower preset', () => {
+      expect(defaultExtraLayers({ height: 520, fps: 30 })).toEqual([
+        { height: 160, fps: 30 },
+      ]);
+    });
+  });
+
+  describe('svcLayers', () => {
+    it.each([
+      ['L1T3' as const, 1080, 60, [{ height: 1080, fps: 60 }]],
+      [
+        'L2T3_KEY' as const,
+        1080,
+        30,
+        [
+          { height: 540, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      ],
+      [
+        'L3T3_KEY' as const,
+        1080,
+        30,
+        [
+          { height: 270, fps: 30 },
+          { height: 540, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      ],
+    ])('%s of %ip scales from the capture', (mode, height, fps, expected) => {
+      expect(svcLayers(height, fps, mode)).toEqual(expected);
+    });
+
+    it('floors an odd capture and never returns a zero height', () => {
+      expect(svcLayers(1001, 30, 'L3T3_KEY')).toEqual([
+        { height: 250, fps: 30 },
+        { height: 500, fps: 30 },
+        { height: 1001, fps: 30 },
+      ]);
+      expect(svcLayers(1, 15, 'L3T3_KEY')).toEqual([
+        { height: 1, fps: 15 },
+        { height: 1, fps: 15 },
+        { height: 1, fps: 15 },
+      ]);
+    });
+  });
+
+  describe('resolveSvcMode', () => {
+    it('keeps VP9 modes and AV1 modes when the extension is negotiated', () => {
+      expect(
+        resolveSvcMode({
+          codec: 'vp9',
+          mode: 'L3T3_KEY',
+          dependencyDescriptor: false,
+        }),
+      ).toBe('L3T3_KEY');
+      expect(
+        resolveSvcMode({
+          codec: 'av1',
+          mode: 'L2T3_KEY',
+          dependencyDescriptor: true,
+        }),
+      ).toBe('L2T3_KEY');
+    });
+
+    it('falls AV1 back to one spatial layer without the extension', () => {
+      expect(
+        resolveSvcMode({
+          codec: 'av1',
+          mode: 'L3T3_KEY',
+          dependencyDescriptor: false,
+        }),
+      ).toBe('L1T3');
+      expect(
+        resolveSvcMode({
+          codec: 'av1',
+          mode: 'L1T3',
+          dependencyDescriptor: false,
+        }),
+      ).toBe('L1T3');
     });
   });
 
@@ -276,6 +361,30 @@ describe('stream-layers', () => {
       expect(av1).toBeLessThan(vp9);
       expect(vp9).toBeLessThan(vp8);
     });
+
+    it('adds SVC spatial layers without multiplying temporal layers', () => {
+      const base = {
+        height: 1080,
+        fps: 30,
+        contentMode: 'detail' as const,
+        maxKbps: 100_000,
+        codec: 'vp9' as const,
+      };
+      const single = recommendStreamBitrateKbps(base);
+      const one = recommendStreamBitrateKbps({ ...base, svcMode: 'L1T3' });
+      const two = recommendStreamBitrateKbps({ ...base, svcMode: 'L2T3_KEY' });
+      const three = recommendStreamBitrateKbps({
+        ...base,
+        svcMode: 'L3T3_KEY',
+      });
+      expect(single).toBe(3500);
+      expect(one).toBe(single);
+      expect(two).toBe(4250);
+      expect(three).toBe(4750);
+      expect(two).toBeGreaterThan(single);
+      expect(three).toBeGreaterThan(two);
+      expect(three).toBeLessThan(single * 3);
+    });
   });
 
   it('allows simulcast for VP8 and H.264', () => {
@@ -283,5 +392,9 @@ describe('stream-layers', () => {
     expect(streamSupportsSimulcast('h264')).toBe(true);
     expect(streamSupportsSimulcast('vp9')).toBe(false);
     expect(streamSupportsSimulcast('av1')).toBe(false);
+    expect(streamSupportsSvc('vp9')).toBe(true);
+    expect(streamSupportsSvc('av1')).toBe(true);
+    expect(streamSupportsSvc('vp8')).toBe(false);
+    expect(streamSupportsSvc('h264')).toBe(false);
   });
 });

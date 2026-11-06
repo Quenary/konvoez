@@ -2,13 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   linkedSignal,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
+  DEFAULT_STREAM_SVC_MODE,
   DEFAULT_STREAM_VIDEO_CODEC,
   defaultExtraLayers,
   formatStreamLayer,
@@ -17,10 +19,13 @@ import {
   STREAM_BITRATE_SLIDER_STEP_KBPS,
   STREAM_BITRATE_WARN_KBPS,
   STREAM_EXTRA_LAYERS_MAX,
+  STREAM_SVC_MODES,
   streamLayerOptions,
   streamSupportsSimulcast,
+  streamSupportsSvc,
   TStreamContentMode,
   TStreamLayer,
+  TStreamSvcMode,
   TStreamVideoCodec,
 } from '@konvoez/shared';
 import {
@@ -32,12 +37,12 @@ import {
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
 import {
+  TUI_ITEMS_HANDLERS,
   TuiButton,
   TuiDropdown,
   TuiLabel,
   TuiSlider,
   TuiTextfield,
-  tuiItemsHandlersProvider,
 } from '@taiga-ui/core';
 import {
   TuiChevron,
@@ -57,6 +62,7 @@ export type TStreamQualityDialogResult = {
   height: TStreamHeight;
   fps: TStreamFps;
   extraLayers: TStreamLayer[];
+  svcMode: TStreamSvcMode;
   bitrateKbps: number;
   codec: TStreamVideoCodec;
   contentMode?: TStreamContentMode;
@@ -67,6 +73,7 @@ export type TStreamQualityDialogData = {
   height: TStreamHeight;
   fps: TStreamFps;
   extraLayers: TStreamLayer[] | null;
+  svcMode: TStreamSvcMode | null;
   bitrateKbps: number | null;
   contentMode: TStreamContentMode;
   codec: TStreamVideoCodec;
@@ -82,6 +89,16 @@ const CODEC_LABELS: Record<TStreamVideoCodec, string> = {
   vp9: 'VP9',
   av1: 'AV1',
 };
+
+const SVC_MODE_LABELS: Record<TStreamSvcMode, string> = {
+  L1T3: 'CALL.STREAM_SVC_L1',
+  L2T3_KEY: 'CALL.STREAM_SVC_L2',
+  L3T3_KEY: 'CALL.STREAM_SVC_L3',
+};
+
+function isSvcMode(value: string): value is TStreamSvcMode {
+  return (STREAM_SVC_MODES as readonly string[]).includes(value);
+}
 
 function initialCodec(
   codec: TStreamVideoCodec | undefined,
@@ -103,12 +120,16 @@ function initialCodec(
 const CONTENT_MODES = ['detail', 'motion'] as const;
 
 function stringifyStreamSelectItem(
-  item: TStreamSelectValue | null | undefined,
+  item: TStreamSelectValue | TStreamSvcMode | null | undefined,
+  translate: (key: string) => string,
 ): string {
   if (item == null) {
     return '';
   }
   if (typeof item === 'string') {
+    if (isSvcMode(item)) {
+      return translate(SVC_MODE_LABELS[item]);
+    }
     return CODEC_LABELS[item] ?? item;
   }
   return (STREAM_HEIGHTS as readonly number[]).includes(item)
@@ -142,10 +163,22 @@ function identityMatchStreamSelectItem(
     TuiRadioList,
   ],
   providers: [
-    tuiItemsHandlersProvider({
-      stringify: signal(stringifyStreamSelectItem),
-      identityMatcher: signal(identityMatchStreamSelectItem),
-    }),
+    {
+      provide: TUI_ITEMS_HANDLERS,
+      useFactory: () => {
+        const translateService = inject(TranslateService);
+        return {
+          stringify: signal(
+            (item: TStreamSelectValue | TStreamSvcMode | null | undefined) =>
+              stringifyStreamSelectItem(item, (key) =>
+                translateService.instant(key),
+              ),
+          ),
+          identityMatcher: signal(identityMatchStreamSelectItem),
+          disabledItemHandler: signal(() => false),
+        };
+      },
+    },
   ],
   templateUrl: './stream-quality-dialog.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -162,6 +195,7 @@ export class StreamQualityDialogComponent {
   protected readonly heights = [...STREAM_HEIGHTS];
   protected readonly fpsOptions = [...STREAM_FPS_OPTIONS];
   protected readonly contentModes = CONTENT_MODES;
+  protected readonly svcModes = [...STREAM_SVC_MODES];
   protected readonly bitrateMinKbps = STREAM_BITRATE_SLIDER_MIN_KBPS;
   protected readonly bitrateStepKbps = STREAM_BITRATE_SLIDER_STEP_KBPS;
 
@@ -250,6 +284,23 @@ export class StreamQualityDialogComponent {
     streamSupportsSimulcast(this.codec()),
   );
 
+  protected readonly svcMode = linkedSignal<{ svc: boolean }, TStreamSvcMode>({
+    source: () => ({
+      svc: streamSupportsSvc(this.codec()),
+    }),
+    computation: (source, previous) => {
+      const stored = this.context.data?.svcMode;
+      const fallback = stored ?? DEFAULT_STREAM_SVC_MODE;
+      if (!previous) {
+        return fallback;
+      }
+      if (source.svc !== previous.source.svc) {
+        return DEFAULT_STREAM_SVC_MODE;
+      }
+      return previous.value;
+    },
+  });
+
   protected readonly stringifyLayer = (layer: TStreamLayer): string =>
     formatStreamLayer(layer);
 
@@ -271,6 +322,7 @@ export class StreamQualityDialogComponent {
       contentMode: TStreamContentMode;
       extra: TStreamLayer[];
       codec: TStreamVideoCodec;
+      svcMode: TStreamSvcMode;
     },
     number
   >({
@@ -281,12 +333,14 @@ export class StreamQualityDialogComponent {
       const screen = this.isScreen();
       const extra = this.extraLayers();
       const codec = this.codec();
+      const svcMode = this.svcMode();
       return {
         height,
         fps,
         contentMode: screen ? contentMode : 'motion',
         extra,
         codec,
+        svcMode,
       };
     },
     computation: (source, previous) => {
@@ -307,6 +361,7 @@ export class StreamQualityDialogComponent {
         maxKbps: this.maxBitrateKbps,
         extra: source.extra,
         codec: source.codec,
+        svcMode: streamSupportsSvc(source.codec) ? source.svcMode : undefined,
       });
     },
   });
@@ -329,6 +384,7 @@ export class StreamQualityDialogComponent {
       height: this.height(),
       fps: this.fps(),
       extraLayers: this.extraLayers(),
+      svcMode: this.svcMode(),
       bitrateKbps: Math.min(this.maxBitrateKbps, this.bitrateKbps()),
       codec: this.codec(),
       ...(contentMode ? { contentMode } : {}),

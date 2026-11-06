@@ -8,6 +8,9 @@ import {
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
   readProducedVideoCodec,
+  svcPreferredTemporalLayer,
+  svcSpatialLayerCount,
+  videoLayersMatchEncodings,
   VOICE_ROOM_MEDIA_CODECS,
 } from './voice-media.util';
 
@@ -35,6 +38,42 @@ describe('voice-media.util', () => {
       expect(codec.parameters?.['x-google-start-bitrate']).toBe(2500);
     }
   });
+
+  it.each([
+    ['L2T3_KEY', 2],
+    ['L3T3_KEY', 2],
+    ['L1T3', 2],
+    ['L2T1', 0],
+    [undefined, 2],
+  ] as const)('temporal layer for %s is %s', (mode, temporal) => {
+    expect(svcPreferredTemporalLayer(mode)).toBe(temporal);
+  });
+
+  it.each([
+    ['L1T3', 1],
+    ['L2T3_KEY', 2],
+    ['L3T3_KEY', 3],
+    ['S2T3', 2],
+    [undefined, undefined],
+    ['L1T1', 1],
+  ] as const)('spatial count for %s is %s', (mode, spatial) => {
+    expect(svcSpatialLayerCount(mode)).toBe(spatial);
+  });
+
+  it.each([
+    [2, [{ scalabilityMode: 'L2T3_KEY' }], true],
+    [3, [{ scalabilityMode: 'L3T3_KEY' }], true],
+    [1, [{ scalabilityMode: 'L1T3' }], true],
+    [2, [{ scalabilityMode: 'L3T3_KEY' }], false],
+    [2, [{}], false],
+    [2, [{}, {}], true],
+    [3, [{ scalabilityMode: 'L1T1' }, { scalabilityMode: 'L1T1' }], false],
+  ] as const)(
+    'layer count %s matches encodings %j: %s',
+    (layerCount, encodings, matches) => {
+      expect(videoLayersMatchEncodings(layerCount, encodings)).toBe(matches);
+    },
+  );
 
   it('reads H264, VP8, VP9 and AV1 and rejects other video codecs', () => {
     expect(

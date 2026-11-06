@@ -93,6 +93,52 @@ export function assertKnownMediaTag(
   }
 }
 
+const SCALABILITY_MODE = /^[LS](\d+)T(\d+)/;
+
+/** Highest temporal layer index. An unparseable SVC mode stays at T3. */
+export function svcPreferredTemporalLayer(
+  scalabilityMode: string | undefined,
+): number {
+  const match = SCALABILITY_MODE.exec(scalabilityMode ?? '');
+  const temporal = match ? Number(match[2]) : 3;
+  return Math.max(0, temporal - 1);
+}
+
+/** Spatial layer count of an SVC mode. An unparseable mode has none. */
+export function svcSpatialLayerCount(
+  scalabilityMode: string | undefined,
+): number | undefined {
+  const match = SCALABILITY_MODE.exec(scalabilityMode ?? '');
+  if (!match?.[1]) {
+    return undefined;
+  }
+  const spatial = Number(match[1]);
+  return spatial >= 1 ? spatial : undefined;
+}
+
+function encodingScalabilityMode(encoding: unknown): string | undefined {
+  if (typeof encoding !== 'object' || encoding === null) {
+    return undefined;
+  }
+  const mode = (encoding as { scalabilityMode?: unknown }).scalabilityMode;
+  return typeof mode === 'string' ? mode : undefined;
+}
+
+/**
+ * Simulcast publishes one layer per encoding.
+ * One SVC encoding publishes a layer per spatial layer of its mode.
+ */
+export function videoLayersMatchEncodings(
+  layerCount: number,
+  encodings: readonly unknown[],
+): boolean {
+  const spatial =
+    encodings.length === 1
+      ? svcSpatialLayerCount(encodingScalabilityMode(encodings[0]))
+      : undefined;
+  return layerCount === (spatial ?? encodings.length);
+}
+
 export function isVideoMediaTag(mediaTag: TVoiceRoomMediaTag): boolean {
   return mediaTag === 'cam' || mediaTag === 'screen';
 }

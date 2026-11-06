@@ -309,8 +309,12 @@ describe('SettingsStore', () => {
     store.setScreenExtraLayers(null);
     store.setScreenBitrateKbps(null);
     store.setScreenContentMode('motion');
+    store.setStreamSvcMode('L3T3_KEY');
+    store.setScreenSvcMode('L1T3');
 
     expect(store.streamExtraLayers()).toEqual(extra);
+    expect(store.streamSvcMode()).toBe('L3T3_KEY');
+    expect(store.screenSvcMode()).toBe('L1T3');
     expect(store.streamBitrateKbps()).toBe(2500);
     expect(store.screenExtraLayers()).toBeNull();
     expect(store.screenContentMode()).toBe('motion');
@@ -320,6 +324,8 @@ describe('SettingsStore', () => {
       expect.objectContaining({
         streamExtraLayers: extra,
         streamBitrateKbps: 2500,
+        streamSvcMode: 'L3T3_KEY',
+        screenSvcMode: 'L1T3',
         screenContentMode: 'motion',
       }),
     );

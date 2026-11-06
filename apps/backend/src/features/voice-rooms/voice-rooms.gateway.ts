@@ -83,6 +83,8 @@ import {
   assertScreenAudioAllowed,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
+  svcPreferredTemporalLayer,
+  videoLayersMatchEncodings,
 } from './voice-media.util';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 import type {
@@ -620,7 +622,7 @@ export class VoiceRoomsGateway
         body.kind === 'video' &&
         body.layers !== undefined &&
         encodings !== undefined &&
-        encodings.length !== body.layers.length
+        !videoLayersMatchEncodings(body.layers.length, encodings)
       ) {
         throw AppException.badRequest(
           ApiErrorCode.VOICE_MEDIA_INVALID,
@@ -742,6 +744,15 @@ export class VoiceRoomsGateway
     const { peer } = this.getSocketRoomPeer(socket);
     const consumer = peer.consumers.get(body.consumerId);
     if (!consumer || consumer.type === 'simple') {
+      return {};
+    }
+    if (consumer.type === 'svc') {
+      await consumer.setPreferredLayers({
+        spatialLayer: body.spatialLayer,
+        temporalLayer: svcPreferredTemporalLayer(
+          consumer.rtpParameters.encodings?.[0]?.scalabilityMode,
+        ),
+      });
       return {};
     }
     await consumer.setPreferredLayers({ spatialLayer: body.spatialLayer });

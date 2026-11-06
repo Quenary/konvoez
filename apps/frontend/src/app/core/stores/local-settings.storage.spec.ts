@@ -20,6 +20,8 @@ describe('local-settings.storage stream fields', () => {
       screenContentMode: 'motion',
       streamCodec: 'vp9',
       screenCodec: 'av1',
+      streamSvcMode: 'L3T3_KEY',
+      screenSvcMode: 'L1T3',
     });
 
     expect(readLocalSettings()).toEqual(
@@ -31,6 +33,8 @@ describe('local-settings.storage stream fields', () => {
         screenContentMode: 'motion',
         streamCodec: 'vp9',
         screenCodec: 'av1',
+        streamSvcMode: 'L3T3_KEY',
+        screenSvcMode: 'L1T3',
       }),
     );
   });
@@ -78,5 +82,17 @@ describe('local-settings.storage stream fields', () => {
       JSON.stringify({ screenContentMode: 'cinema' }),
     );
     expect(readLocalSettings().screenContentMode).toBeUndefined();
+
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ streamSvcMode: 'L9T9' }),
+    );
+    expect(readLocalSettings().streamSvcMode).toBeUndefined();
+
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ screenSvcMode: 'L2T3_KEY' }),
+    );
+    expect(readLocalSettings().screenSvcMode).toBe('L2T3_KEY');
   });
 });

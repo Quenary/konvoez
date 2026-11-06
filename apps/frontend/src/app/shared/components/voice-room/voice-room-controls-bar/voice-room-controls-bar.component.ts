@@ -138,6 +138,7 @@ export class VoiceRoomControlsBarComponent {
             height: settings.height,
             fps: settings.fps,
             extraLayers: settings.extraLayers,
+            svcMode: settings.svcMode,
             bitrateKbps: settings.bitrateKbps,
             contentMode: settings.contentMode,
             codec: settings.codec,
@@ -183,6 +184,7 @@ export class VoiceRoomControlsBarComponent {
           height: TStreamQualityDialogResult['height'];
           fps: TStreamQualityDialogResult['fps'];
           extraLayers: TStreamQualityDialogResult['extraLayers'] | null;
+          svcMode: TStreamQualityDialogResult['svcMode'] | null;
           bitrateKbps: number | null;
           contentMode: TStreamQualityDialogResult['contentMode'];
           codec: TStreamQualityDialogResult['codec'];
@@ -200,6 +202,7 @@ export class VoiceRoomControlsBarComponent {
           height: this.settingsStore.streamHeight(),
           fps: this.settingsStore.streamFps(),
           extraLayers: this.settingsStore.streamExtraLayers(),
+          svcMode: this.settingsStore.streamSvcMode(),
           bitrateKbps: this.settingsStore.streamBitrateKbps(),
           contentMode: 'motion' as const,
           codec: this.settingsStore.streamCodec(),
@@ -208,6 +211,7 @@ export class VoiceRoomControlsBarComponent {
           this.settingsStore.setStreamHeight(result.height);
           this.settingsStore.setStreamFps(result.fps);
           this.settingsStore.setStreamExtraLayers(result.extraLayers);
+          this.settingsStore.setStreamSvcMode(result.svcMode);
           this.settingsStore.setStreamBitrateKbps(result.bitrateKbps);
           this.settingsStore.setStreamCodec(result.codec);
         },
@@ -222,6 +226,7 @@ export class VoiceRoomControlsBarComponent {
           height: this.settingsStore.screenHeight(),
           fps: this.settingsStore.screenFps(),
           extraLayers: this.settingsStore.screenExtraLayers(),
+          svcMode: this.settingsStore.screenSvcMode(),
           bitrateKbps: this.settingsStore.screenBitrateKbps(),
           contentMode: this.settingsStore.screenContentMode(),
           codec: this.settingsStore.screenCodec(),
@@ -230,6 +235,7 @@ export class VoiceRoomControlsBarComponent {
           this.settingsStore.setScreenHeight(result.height);
           this.settingsStore.setScreenFps(result.fps);
           this.settingsStore.setScreenExtraLayers(result.extraLayers);
+          this.settingsStore.setScreenSvcMode(result.svcMode);
           this.settingsStore.setScreenBitrateKbps(result.bitrateKbps);
           this.settingsStore.setScreenCodec(result.codec);
           if (result.contentMode) {

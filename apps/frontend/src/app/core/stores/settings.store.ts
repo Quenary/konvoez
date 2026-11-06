@@ -43,6 +43,7 @@ import {
   TStreamFps,
   TStreamHeight,
   TStreamLayer,
+  TStreamSvcMode,
   TStreamVideoCodec,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
@@ -72,8 +73,10 @@ export type SettingsStoreState = {
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
   streamExtraLayers: TStreamLayer[] | null;
+  streamSvcMode: TStreamSvcMode | null;
   streamBitrateKbps: number | null;
   screenExtraLayers: TStreamLayer[] | null;
+  screenSvcMode: TStreamSvcMode | null;
   screenBitrateKbps: number | null;
   screenContentMode: TStreamContentMode;
   streamCodec: TStreamVideoCodec;
@@ -99,8 +102,10 @@ export const SettingsStore = signalStore(
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
     streamExtraLayers: null,
+    streamSvcMode: null,
     streamBitrateKbps: null,
     screenExtraLayers: null,
+    screenSvcMode: null,
     screenBitrateKbps: null,
     screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
     streamCodec: DEFAULT_STREAM_VIDEO_CODEC,
@@ -239,8 +244,10 @@ export const SettingsStore = signalStore(
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
           streamExtraLayers: store.streamExtraLayers(),
+          streamSvcMode: store.streamSvcMode(),
           streamBitrateKbps: store.streamBitrateKbps(),
           screenExtraLayers: store.screenExtraLayers(),
+          screenSvcMode: store.screenSvcMode(),
           screenBitrateKbps: store.screenBitrateKbps(),
           screenContentMode: store.screenContentMode(),
           streamCodec: store.streamCodec(),
@@ -269,8 +276,10 @@ export const SettingsStore = signalStore(
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
               streamExtraLayers: store.streamExtraLayers(),
+              streamSvcMode: store.streamSvcMode(),
               streamBitrateKbps: store.streamBitrateKbps(),
               screenExtraLayers: store.screenExtraLayers(),
+              screenSvcMode: store.screenSvcMode(),
               screenBitrateKbps: store.screenBitrateKbps(),
               screenContentMode: store.screenContentMode(),
               streamCodec: store.streamCodec(),
@@ -329,6 +338,11 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
+        setStreamSvcMode(streamSvcMode: TStreamSvcMode | null): void {
+          patchState(store, { streamSvcMode });
+          persistLocal();
+        },
+
         setStreamBitrateKbps(streamBitrateKbps: number | null): void {
           patchState(store, { streamBitrateKbps });
           persistLocal();
@@ -336,6 +350,11 @@ export const SettingsStore = signalStore(
 
         setScreenExtraLayers(screenExtraLayers: TStreamLayer[] | null): void {
           patchState(store, { screenExtraLayers });
+          persistLocal();
+        },
+
+        setScreenSvcMode(screenSvcMode: TStreamSvcMode | null): void {
+          patchState(store, { screenSvcMode });
           persistLocal();
         },
 
@@ -474,8 +493,10 @@ export const SettingsStore = signalStore(
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
         streamExtraLayers: partial.streamExtraLayers ?? null,
+        streamSvcMode: partial.streamSvcMode ?? null,
         streamBitrateKbps: partial.streamBitrateKbps ?? null,
         screenExtraLayers: partial.screenExtraLayers ?? null,
+        screenSvcMode: partial.screenSvcMode ?? null,
         screenBitrateKbps: partial.screenBitrateKbps ?? null,
         screenContentMode:
           partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,

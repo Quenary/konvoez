@@ -10,6 +10,7 @@ import {
   streamContentModeSchema,
   streamExtraLayersSchema,
   streamFpsSchema,
+  streamSvcModeSchema,
   streamHeightSchema,
   streamVideoCodecSchema,
   TLocalSettingsPartial,
@@ -18,6 +19,7 @@ import {
   TStreamFps,
   TStreamHeight,
   TStreamLayer,
+  TStreamSvcMode,
   TStreamVideoCodec,
 } from '@shared/schemas/local-settings.schema';
 import {
@@ -43,6 +45,11 @@ const parseFps = (value: unknown): TStreamFps | undefined => {
 
 const parseExtraLayers = (value: unknown): TStreamLayer[] | undefined => {
   const result = streamExtraLayersSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const parseSvcMode = (value: unknown): TStreamSvcMode | undefined => {
+  const result = streamSvcModeSchema.safeParse(value);
   return result.success ? result.data : undefined;
 };
 
@@ -108,8 +115,10 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     screenHeight: parseHeight(parsed.data.screenHeight),
     screenFps: parseFps(parsed.data.screenFps),
     streamExtraLayers: parseExtraLayers(parsed.data.streamExtraLayers),
+    streamSvcMode: parseSvcMode(parsed.data.streamSvcMode),
     streamBitrateKbps: parseBitrateKbps(parsed.data.streamBitrateKbps),
     screenExtraLayers: parseExtraLayers(parsed.data.screenExtraLayers),
+    screenSvcMode: parseSvcMode(parsed.data.screenSvcMode),
     screenBitrateKbps: parseBitrateKbps(parsed.data.screenBitrateKbps),
     screenContentMode: parseContentMode(parsed.data.screenContentMode),
     streamCodec: parseStreamCodec(parsed.data.streamCodec),
@@ -155,8 +164,10 @@ export type TLocalSettingsWrite = {
   screenHeight?: TStreamHeight | null;
   screenFps?: TStreamFps | null;
   streamExtraLayers?: TStreamLayer[] | null;
+  streamSvcMode?: TStreamSvcMode | null;
   streamBitrateKbps?: number | null;
   screenExtraLayers?: TStreamLayer[] | null;
+  screenSvcMode?: TStreamSvcMode | null;
   screenBitrateKbps?: number | null;
   screenContentMode?: TStreamContentMode | null;
   streamCodec?: TStreamVideoCodec | null;
@@ -215,6 +226,10 @@ export const writeLocalSettings = (
     settings.streamExtraLayers === undefined
       ? existing.streamExtraLayers
       : (settings.streamExtraLayers ?? undefined);
+  const nextStreamSvcMode =
+    settings.streamSvcMode === undefined
+      ? existing.streamSvcMode
+      : (settings.streamSvcMode ?? undefined);
   const nextStreamBitrate =
     settings.streamBitrateKbps === undefined
       ? existing.streamBitrateKbps
@@ -223,6 +238,10 @@ export const writeLocalSettings = (
     settings.screenExtraLayers === undefined
       ? existing.screenExtraLayers
       : (settings.screenExtraLayers ?? undefined);
+  const nextScreenSvcMode =
+    settings.screenSvcMode === undefined
+      ? existing.screenSvcMode
+      : (settings.screenSvcMode ?? undefined);
   const nextScreenBitrate =
     settings.screenBitrateKbps === undefined
       ? existing.screenBitrateKbps
@@ -274,11 +293,17 @@ export const writeLocalSettings = (
     ...(nextStreamExtraLayers !== undefined
       ? { streamExtraLayers: nextStreamExtraLayers }
       : {}),
+    ...(nextStreamSvcMode !== undefined
+      ? { streamSvcMode: nextStreamSvcMode }
+      : {}),
     ...(nextStreamBitrate !== undefined
       ? { streamBitrateKbps: nextStreamBitrate }
       : {}),
     ...(nextScreenExtraLayers !== undefined
       ? { screenExtraLayers: nextScreenExtraLayers }
+      : {}),
+    ...(nextScreenSvcMode !== undefined
+      ? { screenSvcMode: nextScreenSvcMode }
       : {}),
     ...(nextScreenBitrate !== undefined
       ? { screenBitrateKbps: nextScreenBitrate }

@@ -78,6 +78,26 @@
       </label>
       <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
     </div>
+  } @else {
+    <div>
+      <label tuiLabel>
+        {{ 'CALL.STREAM_SVC_LAYERS' | translate }}
+        <tui-textfield
+          tuiChevron
+          tuiTextfieldSize="m"
+          [tuiTextfieldCleaner]="false">
+          <input
+            tuiSelect
+            [ngModel]="svcMode()"
+            (ngModelChange)="svcMode.set($event)"
+            [ngModelOptions]="{ standalone: true }" />
+          <tui-data-list-wrapper
+            *tuiDropdown
+            [items]="svcModes" />
+        </tui-textfield>
+      </label>
+      <p>{{ 'CALL.STREAM_SVC_LAYERS_HINT' | translate }}</p>
+    </div>
   }
 
   @if (isScreen()) {

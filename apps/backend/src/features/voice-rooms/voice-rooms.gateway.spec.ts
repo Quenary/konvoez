@@ -1209,6 +1209,57 @@ describe('VoiceRoomsGateway', () => {
       expect(sendTransport.produce).not.toHaveBeenCalled();
     });
 
+    it.each([
+      [
+        'L2T3_KEY',
+        [
+          { height: 540, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      ],
+      [
+        'L3T3_KEY',
+        [
+          { height: 270, fps: 30 },
+          { height: 540, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      ],
+    ] as const)(
+      'accepts one SVC encoding when layers match %s',
+      async (scalabilityMode, layers) => {
+        const { room, sendTransport } = readyPeer();
+        sendTransport.produce.mockResolvedValue({
+          id: 'cam-svc',
+          kind: 'video',
+          closed: false,
+          appData: { mediaTag: 'cam', peerId: 'socket-1' },
+          close: jest.fn(),
+          observer: { on: jest.fn() },
+          on: jest.fn(),
+        });
+        voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+        await expect(
+          gateway.produce(joinedSocket() as never, {
+            transportId: 't',
+            kind: 'video',
+            mediaTag: 'cam',
+            rtpParameters: {
+              encodings: [{ scalabilityMode }],
+              codecs: [{ mimeType: 'video/VP9' }],
+            },
+            layers: [...layers],
+          }),
+        ).resolves.toEqual(expect.objectContaining({ producerId: 'cam-svc' }));
+        expect(sendTransport.produce).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appData: expect.objectContaining({ layers: [...layers] }),
+          }),
+        );
+      },
+    );
+
     it('subscribes to producer score for mic and emits minimum score to owner socket only', async () => {
       const room = createRoom();
       const peer = {
@@ -1474,6 +1525,67 @@ describe('VoiceRoomsGateway', () => {
         }),
       ).resolves.toEqual({});
       expect(setPreferredLayers).toHaveBeenCalledWith({ spatialLayer: 1 });
+    });
+
+    it.each(['L2T3_KEY', 'L3T3_KEY'])(
+      'sets the highest temporal layer for an SVC consumer (%s)',
+      async (scalabilityMode) => {
+        const setPreferredLayers = jest.fn().mockResolvedValue(undefined);
+        const consumer = {
+          id: 'c1',
+          type: 'svc',
+          rtpParameters: { encodings: [{ scalabilityMode }] },
+          setPreferredLayers,
+        };
+        const peer = {
+          id: 'socket-1',
+          user: alice,
+          producers: new Map(),
+          consumers: new Map([['c1', consumer]]),
+        };
+        voiceRoomsStateService.getRoom.mockReturnValue(
+          createRoom(new Map([['socket-1', peer]])),
+        );
+
+        await expect(
+          gateway.setConsumerLayers(socketFor() as never, {
+            consumerId: 'c1',
+            spatialLayer: 1,
+          }),
+        ).resolves.toEqual({});
+        expect(setPreferredLayers).toHaveBeenCalledWith({
+          spatialLayer: 1,
+          temporalLayer: 2,
+        });
+      },
+    );
+
+    it('uses temporal layer 2 when an SVC mode cannot be parsed', async () => {
+      const setPreferredLayers = jest.fn().mockResolvedValue(undefined);
+      const consumer = {
+        id: 'c1',
+        type: 'svc',
+        rtpParameters: { encodings: [{}] },
+        setPreferredLayers,
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+
+      await gateway.setConsumerLayers(socketFor() as never, {
+        consumerId: 'c1',
+        spatialLayer: 0,
+      });
+      expect(setPreferredLayers).toHaveBeenCalledWith({
+        spatialLayer: 0,
+        temporalLayer: 2,
+      });
     });
 
     it('ignores an unknown consumer, a simple consumer, and another peer', async () => {
