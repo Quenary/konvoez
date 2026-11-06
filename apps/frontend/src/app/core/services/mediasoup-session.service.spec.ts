@@ -1890,7 +1890,7 @@ describe('MediasoupSessionService', () => {
 
   it.each([
     ['detail', 'maintain-resolution'],
-    ['motion', 'balanced'],
+    ['motion', 'maintain-framerate'],
   ] as const)(
     'sets %s content to degradationPreference %s',
     async (contentMode, degradationPreference) => {

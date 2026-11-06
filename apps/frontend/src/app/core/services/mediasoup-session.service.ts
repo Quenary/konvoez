@@ -798,7 +798,7 @@ export class MediasoupSessionService {
     }
     const parameters = sender.getParameters();
     const degradationPreference =
-      contentMode === 'detail' ? 'maintain-resolution' : 'balanced';
+      contentMode === 'detail' ? 'maintain-resolution' : 'maintain-framerate';
     await sender.setParameters({ ...parameters, degradationPreference });
   }
 
