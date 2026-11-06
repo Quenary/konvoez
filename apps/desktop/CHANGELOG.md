@@ -1,3 +1,13 @@
+## 0.12.0 (2026-11-06)
+
+### Features
+
+- **desktop:** updater dialog ([#76](https://github.com/Quenary/konvoez/issues/76))
+
+### Code Refactoring
+
+- **desktop:** fold dialog windows into the desktop app ([a85f0b1](https://github.com/Quenary/konvoez/commit/a85f0b1))
+
 ## 0.11.0 (2026-11-02)
 
 This was a version bump only for desktop to align it with other projects, there were no code changes.

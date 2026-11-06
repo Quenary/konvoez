@@ -1,3 +1,17 @@
+## 1.29.0 (2026-11-06)
+
+### Features
+
+- hardware-aware stream codecs ([2cfa29a](https://github.com/Quenary/konvoez/commit/2cfa29a))
+- implement scalable video coding (SVC) support for video streams ([bf4b500](https://github.com/Quenary/konvoez/commit/bf4b500))
+- update video codec parameters and bitrate settings ([6eccce7](https://github.com/Quenary/konvoez/commit/6eccce7))
+- stream codec selection, av1 and h264 support ([#78](https://github.com/Quenary/konvoez/issues/78))
+- native per-app audio capture and non-blocking hotkeys ([#65](https://github.com/Quenary/konvoez/issues/65), [#66](https://github.com/Quenary/konvoez/issues/66))
+
+### Bug Fixes
+
+- **frontend:** place the theatre strip from the real video frame size ([72ee5ff](https://github.com/Quenary/konvoez/commit/72ee5ff))
+
 ## 1.28.0 (2026-11-02)
 
 ### Features
