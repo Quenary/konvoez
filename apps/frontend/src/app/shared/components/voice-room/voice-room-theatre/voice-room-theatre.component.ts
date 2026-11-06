@@ -64,13 +64,19 @@ export class VoiceRoomTheatreComponent {
     }
   }
 
-  protected onVideoMetadata(event: Event): void {
+  protected onVideoFrameSize(event: Event): void {
     const video = event.target as HTMLVideoElement;
-    if (video.videoWidth > 0 && video.videoHeight > 0) {
-      this.streamWidth = video.videoWidth;
-      this.streamHeight = video.videoHeight;
-      this.updateStripPlacement();
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (width <= 0 || height <= 0) {
+      return;
     }
+    if (width === this.streamWidth && height === this.streamHeight) {
+      return;
+    }
+    this.streamWidth = width;
+    this.streamHeight = height;
+    this.updateStripPlacement();
   }
 
   protected onStageClick(): void {
