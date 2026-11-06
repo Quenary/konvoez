@@ -31,6 +31,8 @@ export class VoiceRoomTilesService {
       remoteScreenTracks: this.peerVideoService.remoteScreenTracks(),
       availableScreens: this.peerVideoService.availableScreens(),
       watchingUserIds: this.peerVideoService.watchingUserIds(),
+      blockedCamUserIds: this.peerVideoService.blockedCamUserIds(),
+      blockedScreenUserIds: this.peerVideoService.blockedScreenUserIds(),
       localScreenPreviewPaused: this.localScreenPreviewService.paused(),
     });
   });

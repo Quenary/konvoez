@@ -1,13 +1,17 @@
 import {
+  DEFAULT_STREAM_VIDEO_CODEC,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   STREAM_EXTRA_LAYERS_MAX,
+  streamVideoCodecSchema,
   TStreamContentMode,
   TStreamLayer,
+  TStreamVideoCodec,
 } from '@konvoez/shared';
 import * as z from 'zod';
 import { ENoiseProcessor } from '../../app.enums';
 
-export type { TStreamContentMode, TStreamLayer };
+export type { TStreamContentMode, TStreamLayer, TStreamVideoCodec };
+export { DEFAULT_STREAM_VIDEO_CODEC, streamVideoCodecSchema };
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
@@ -88,6 +92,8 @@ export const localSettingsSchema = z.object({
   screenExtraLayers: streamExtraLayersSchema.optional(),
   screenBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenContentMode: streamContentModeSchema.optional(),
+  streamCodec: streamVideoCodecSchema.optional(),
+  screenCodec: streamVideoCodecSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),
@@ -111,6 +117,8 @@ export const localSettingsLooseSchema = z.looseObject({
   screenExtraLayers: streamExtraLayersSchema.optional(),
   screenBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenContentMode: streamContentModeSchema.optional(),
+  streamCodec: streamVideoCodecSchema.optional(),
+  screenCodec: streamVideoCodecSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),

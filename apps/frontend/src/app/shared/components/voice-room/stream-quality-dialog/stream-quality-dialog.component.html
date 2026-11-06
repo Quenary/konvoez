@@ -38,28 +38,47 @@
     </tui-textfield>
   </label>
 
-  <div>
-    <label tuiLabel>
-      {{ 'CALL.STREAM_EXTRA_LAYERS' | translate }}
-      <tui-textfield
-        multi
-        tuiChevron
-        tuiTextfieldSize="m"
-        [rows]="1"
-        [stringify]="stringifyLayer"
-        [identityMatcher]="matchLayer"
-        [disabledItemHandler]="extraLayerDisabled"
-        [tuiTextfieldCleaner]="false">
-        <select
-          tuiMultiSelect
-          [items]="layerOptions()"
-          [ngModel]="extraLayers()"
-          (ngModelChange)="onExtraLayersChange($event)"
-          [ngModelOptions]="{ standalone: true }"></select>
-      </tui-textfield>
-    </label>
-    <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
-  </div>
+  <label tuiLabel>
+    {{ 'CALL.STREAM_CODEC' | translate }}
+    <tui-textfield
+      tuiChevron
+      tuiTextfieldSize="m"
+      [tuiTextfieldCleaner]="false">
+      <input
+        tuiSelect
+        [ngModel]="codec()"
+        (ngModelChange)="codec.set($event)"
+        [ngModelOptions]="{ standalone: true }" />
+      <tui-data-list-wrapper
+        *tuiDropdown
+        [items]="codecs" />
+    </tui-textfield>
+  </label>
+
+  @if (simulcastSupported()) {
+    <div>
+      <label tuiLabel>
+        {{ 'CALL.STREAM_EXTRA_LAYERS' | translate }}
+        <tui-textfield
+          multi
+          tuiChevron
+          tuiTextfieldSize="m"
+          [rows]="1"
+          [stringify]="stringifyLayer"
+          [identityMatcher]="matchLayer"
+          [disabledItemHandler]="extraLayerDisabled"
+          [tuiTextfieldCleaner]="false">
+          <select
+            tuiMultiSelect
+            [items]="layerOptions()"
+            [ngModel]="extraLayers()"
+            (ngModelChange)="onExtraLayersChange($event)"
+            [ngModelOptions]="{ standalone: true }"></select>
+        </tui-textfield>
+      </label>
+      <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
+    </div>
+  }
 
   @if (isScreen()) {
     <div>

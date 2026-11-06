@@ -792,6 +792,53 @@ describe('VoiceRoomsGateway', () => {
       ).rejects.toThrow(AppException);
     });
 
+    it('rejects a screen codec outside H264, VP8, VP9 and AV1', async () => {
+      const { room, sendTransport } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'video',
+          mediaTag: 'screen',
+          rtpParameters: { codecs: [{ mimeType: 'video/H265' }] },
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VOICE_MEDIA_INVALID,
+        message: 'Unsupported video codec',
+      });
+      expect(sendTransport.produce).not.toHaveBeenCalled();
+    });
+
+    it('accepts an H264 screen', async () => {
+      const { room, sendTransport } = readyPeer();
+      sendTransport.produce.mockResolvedValue({
+        id: 'screen-1',
+        kind: 'video',
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      });
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+      (socket.to as jest.Mock).mockReturnValue({ emit: jest.fn() });
+
+      const result = await gateway.produce(socket as never, {
+        transportId: 't',
+        kind: 'video',
+        mediaTag: 'screen',
+        rtpParameters: { codecs: [{ mimeType: 'video/H264' }] },
+      });
+
+      expect(result).toEqual(expect.objectContaining({ codec: 'h264' }));
+      expect(sendTransport.produce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appData: expect.objectContaining({
+            mediaTag: 'screen',
+            codec: 'h264',
+          }),
+        }),
+      );
+    });
+
     it('rejects screen-audio without screen with AppException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
@@ -896,7 +943,7 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: {},
+        rtpParameters: { codecs: [{ mimeType: 'video/VP8' }] },
       });
 
       expect(result.producerId).toBe('cam-new');
@@ -970,7 +1017,7 @@ describe('VoiceRoomsGateway', () => {
             transportId: 't',
             kind: 'video',
             mediaTag: 'cam',
-            rtpParameters: {},
+            rtpParameters: { codecs: [{ mimeType: 'video/VP9' }] },
           }),
         ),
       );
@@ -1035,7 +1082,7 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: {},
+        rtpParameters: { codecs: [{ mimeType: 'video/VP8' }] },
       };
 
       const [res1, res2] = await Promise.all([
@@ -1082,7 +1129,10 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: { encodings: [{}, {}] },
+        rtpParameters: {
+          encodings: [{}, {}],
+          codecs: [{ mimeType: 'video/AV1' }],
+        },
         layers: [
           { height: 360, fps: 30 },
           { height: 720, fps: 30 },
@@ -1094,6 +1144,7 @@ describe('VoiceRoomsGateway', () => {
         expect.objectContaining({
           appData: expect.objectContaining({
             mediaTag: 'cam',
+            codec: 'av1',
             layers: [
               { height: 360, fps: 30 },
               { height: 720, fps: 30 },
@@ -1105,8 +1156,13 @@ describe('VoiceRoomsGateway', () => {
       expect(room.producers.get('cam-1')).toBe(producer);
       expect(toEmit).toHaveBeenCalledWith(
         EVoiceRoomEvent.PRODUCER_CREATED,
-        expect.objectContaining({ producerId: 'cam-1', mediaTag: 'cam' }),
+        expect.objectContaining({
+          producerId: 'cam-1',
+          mediaTag: 'cam',
+          codec: 'av1',
+        }),
       );
+      expect(result).toEqual(expect.objectContaining({ codec: 'av1' }));
 
       const serverEmit = jest.fn();
       serverMock.to.mockReturnValue({ emit: serverEmit });

@@ -1,3 +1,5 @@
+import { TStreamVideoCodec } from './schemas/voice-room.schemas';
+
 export type TStreamContentMode = 'detail' | 'motion';
 
 export type TStreamLayer = {
@@ -39,6 +41,22 @@ const STREAM_BITRATE_BASE_KBPS = [
   { height: 720, kbps: 2500 },
   { height: 1080, kbps: 5000 },
 ] as const;
+
+/**
+ * Bitrate needed for the same visual quality, relative to VP8.
+ * VP9 is about 30% more efficient, AV1 about 50%.
+ */
+const STREAM_CODEC_BITRATE_FACTOR: Record<TStreamVideoCodec, number> = {
+  h264: 1,
+  vp8: 1,
+  vp9: 0.7,
+  av1: 0.5,
+};
+
+/** VP9 and AV1 are rejected by the router when a producer has several encodings. */
+export function streamSupportsSimulcast(codec: TStreamVideoCodec): boolean {
+  return codec === 'vp8' || codec === 'h264';
+}
 
 function sameLayer(left: TStreamLayer, right: TStreamLayer): boolean {
   return left.height === right.height && left.fps === right.fps;
@@ -193,12 +211,14 @@ function layerBitrateKbps(
   height: number,
   fps: number,
   contentMode: TStreamContentMode,
+  codec: TStreamVideoCodec,
 ): number {
   const safeFps = Math.max(1, fps);
   let kbps = baseBitrateKbps(height) * Math.sqrt(safeFps / 30);
   if (contentMode === 'motion') {
     kbps *= 1.25;
   }
+  kbps *= STREAM_CODEC_BITRATE_FACTOR[codec];
   return (
     Math.round(kbps / STREAM_BITRATE_SLIDER_STEP_KBPS) *
     STREAM_BITRATE_SLIDER_STEP_KBPS
@@ -211,7 +231,10 @@ export function recommendStreamBitrateKbps(input: {
   contentMode: TStreamContentMode;
   maxKbps: number;
   extra?: readonly TStreamLayer[];
+  /** Omitted codec keeps the historical VP8 recommendation. */
+  codec?: TStreamVideoCodec;
 }): number {
+  const codec = input.codec ?? 'vp8';
   const layers = resolveStreamLayers({
     max: { height: input.height, fps: input.fps },
     extra: input.extra ?? [],
@@ -219,7 +242,7 @@ export function recommendStreamBitrateKbps(input: {
   });
   const total = layers.reduce(
     (sum, layer) =>
-      sum + layerBitrateKbps(layer.height, layer.fps, input.contentMode),
+      sum + layerBitrateKbps(layer.height, layer.fps, input.contentMode, codec),
     0,
   );
   const ceiling = Math.max(0, input.maxKbps);

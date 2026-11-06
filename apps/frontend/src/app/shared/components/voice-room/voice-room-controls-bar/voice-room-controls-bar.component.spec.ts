@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AudioService } from '@core/services/audio.service';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
+import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
@@ -30,6 +31,8 @@ describe('VoiceRoomControlsBarComponent', () => {
   let setScreenExtraLayers: ReturnType<typeof vi.fn>;
   let setScreenBitrateKbps: ReturnType<typeof vi.fn>;
   let setScreenContentMode: ReturnType<typeof vi.fn>;
+  let setStreamCodec: ReturnType<typeof vi.fn>;
+  let setScreenCodec: ReturnType<typeof vi.fn>;
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
@@ -55,6 +58,8 @@ describe('VoiceRoomControlsBarComponent', () => {
     setScreenExtraLayers = vi.fn();
     setScreenBitrateKbps = vi.fn();
     setScreenContentMode = vi.fn();
+    setStreamCodec = vi.fn();
+    setScreenCodec = vi.fn();
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
@@ -95,6 +100,8 @@ describe('VoiceRoomControlsBarComponent', () => {
             screenContentMode: signal<'detail' | 'motion'>(
               'detail',
             ).asReadonly(),
+            streamCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
+            screenCodec: signal<'vp8' | 'vp9' | 'av1'>('vp8').asReadonly(),
             streamMaxBitrateKbps: signal(
               DEFAULT_STREAM_MAX_BITRATE_KBPS,
             ).asReadonly(),
@@ -107,6 +114,8 @@ describe('VoiceRoomControlsBarComponent', () => {
             setScreenExtraLayers,
             setScreenBitrateKbps,
             setScreenContentMode,
+            setStreamCodec,
+            setScreenCodec,
           },
         },
         {
@@ -129,6 +138,12 @@ describe('VoiceRoomControlsBarComponent', () => {
           useValue: {
             localCamTrack: localCamTrack.asReadonly(),
             localScreenTrack: localScreenTrack.asReadonly(),
+          },
+        },
+        {
+          provide: MediasoupSessionService,
+          useValue: {
+            videoCodecOptions: () => ['vp8', 'vp9'],
           },
         },
         {
@@ -185,6 +200,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         fps: 15,
         extraLayers: [{ height: 360, fps: 15 }],
         bitrateKbps: 1500,
+        codec: 'vp9',
       }),
     );
     const fixture = create();
@@ -201,6 +217,8 @@ describe('VoiceRoomControlsBarComponent', () => {
           fps: 30,
           extraLayers: null,
           bitrateKbps: 2500,
+          codec: 'vp9',
+          codecs: ['vp8', 'vp9'],
           maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
         }),
       }),
@@ -211,6 +229,7 @@ describe('VoiceRoomControlsBarComponent', () => {
       { height: 360, fps: 15 },
     ]);
     expect(setStreamBitrateKbps).toHaveBeenCalledWith(1500);
+    expect(setStreamCodec).toHaveBeenCalledWith('vp9');
     expect(produceCamera).toHaveBeenCalledTimes(1);
     expect(produceScreen).not.toHaveBeenCalled();
   });
@@ -223,6 +242,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         extraLayers: [{ height: 720, fps: 60 }],
         bitrateKbps: 8000,
         contentMode: 'motion',
+        codec: 'av1',
       }),
     );
     vi.stubGlobal('navigator', {
@@ -239,6 +259,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     ]);
     expect(setScreenBitrateKbps).toHaveBeenCalledWith(8000);
     expect(setScreenContentMode).toHaveBeenCalledWith('motion');
+    expect(setScreenCodec).toHaveBeenCalledWith('av1');
     expect(produceScreen).toHaveBeenCalledTimes(1);
     vi.unstubAllGlobals();
   });

@@ -2,10 +2,12 @@ import { AppException } from '@shared/errors/app.exception';
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,
+  assertProducedVideoCodec,
   assertScreenAudioAllowed,
   expectedKindForMediaTag,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
+  readProducedVideoCodec,
   VOICE_ROOM_MEDIA_CODECS,
 } from './voice-media.util';
 
@@ -26,6 +28,29 @@ describe('voice-media.util', () => {
     );
     expect(h264?.parameters?.['packetization-mode']).toBe(1);
     expect(h264?.parameters?.['profile-level-id']).toBe('42e01f');
+  });
+
+  it('reads H264, VP8, VP9 and AV1 and rejects other video codecs', () => {
+    expect(
+      readProducedVideoCodec({
+        codecs: [{ mimeType: 'audio/opus' }, { mimeType: 'video/VP9' }],
+      }),
+    ).toBe('vp9');
+    expect(
+      readProducedVideoCodec({ codecs: [{ mimeType: 'video/H264' }] }),
+    ).toBe('h264');
+    expect(
+      readProducedVideoCodec({ codecs: [{ mimeType: 'video/H265' }] }),
+    ).toBeNull();
+    expect(assertProducedVideoCodec('mic', {})).toBeUndefined();
+    expect(() =>
+      assertProducedVideoCodec('cam', { codecs: [{ mimeType: 'video/H265' }] }),
+    ).toThrow(AppException);
+    expect(
+      assertProducedVideoCodec('screen', {
+        codecs: [{ mimeType: 'video/AV1' }],
+      }),
+    ).toBe('av1');
   });
 
   it('maps mediaTag to kind', () => {

@@ -29,6 +29,8 @@ describe('StreamQualityDialogComponent', () => {
       extraLayers: null,
       bitrateKbps: 2500,
       contentMode: 'detail',
+      codec: 'vp8',
+      codecs: ['vp8', 'vp9'],
       maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
       ...overrides,
     };
@@ -146,6 +148,130 @@ describe('StreamQualityDialogComponent', () => {
     expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
   });
 
+  it('offers the same codec list for camera and screen and hides AV1', async () => {
+    await setup({ codec: 'av1', codecs: ['vp8', 'vp9'] });
+    expect(component['codec']()).toBe('vp8');
+    expect(fixture.nativeElement.textContent).toContain('CALL.STREAM_CODEC');
+
+    TestBed.resetTestingModule();
+    await setup({
+      kind: 'screen',
+      codecs: ['vp8', 'vp9', 'av1'],
+      codec: 'av1',
+    });
+    expect(component['codec']()).toBe('av1');
+    expect(fixture.nativeElement.textContent).toContain('CALL.STREAM_CODEC');
+  });
+
+  it('recomputes bitrate when the stored codec is not available', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [],
+      bitrateKbps: 2500,
+      contentMode: 'detail',
+      codec: 'av1',
+      codecs: ['vp8', 'vp9'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['codec']()).toBe('vp8');
+    expect(component['bitrateKbps']()).toBe(5000);
+  });
+
+  it('keeps layers when stored H.264 falls back to VP8', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [{ height: 720, fps: 30 }],
+      bitrateKbps: 8000,
+      contentMode: 'detail',
+      codec: 'h264',
+      codecs: ['vp8', 'vp9'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['codec']()).toBe('vp8');
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
+    expect(component['bitrateKbps']()).toBe(8000);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).not.toBeNull();
+  });
+
+  it('keeps extra layers for H.264', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [{ height: 720, fps: 30 }],
+      bitrateKbps: 7500,
+      contentMode: 'detail',
+      codec: 'h264',
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['codecs'][0]).toBe('av1');
+    expect(component['codec']()).toBe('h264');
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
+  });
+
+  it('clears extra layers when the codec cannot use simulcast', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [{ height: 720, fps: 30 }],
+      bitrateKbps: 8000,
+      contentMode: 'detail',
+      codec: 'vp9',
+      codecs: ['vp8', 'vp9', 'av1'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['extraLayers']()).toEqual([]);
+    expect(component['bitrateKbps']()).toBe(3500);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).toBeNull();
+
+    component['codec'].set('av1');
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([]);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).toBeNull();
+
+    component['codec'].set('vp8');
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).not.toBeNull();
+  });
+
+  it('lowers the recommended bitrate when the codec changes', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [],
+      bitrateKbps: null,
+      contentMode: 'detail',
+      codec: 'vp8',
+      maxBitrateKbps: 20000,
+    });
+    expect(component['bitrateKbps']()).toBe(5000);
+
+    component['codec'].set('vp9');
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(3500);
+
+    component['codec'].set('av1');
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(2500);
+    expect(component['bitrateKbps']()).toBeLessThan(3500);
+  });
+
   it('renders the content radio only for screen share', async () => {
     await setup();
     expect(fixture.nativeElement.querySelector('tui-radio-list')).toBeNull();
@@ -207,6 +333,7 @@ describe('StreamQualityDialogComponent', () => {
       expect.objectContaining({
         extraLayers: component['extraLayers'](),
         bitrateKbps: 8000,
+        codec: 'vp8',
         contentMode: 'motion',
       }),
     );

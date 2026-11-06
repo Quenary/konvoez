@@ -11,12 +11,14 @@ import {
   streamExtraLayersSchema,
   streamFpsSchema,
   streamHeightSchema,
+  streamVideoCodecSchema,
   TLocalSettingsPartial,
   TMediaDeviceInfo,
   TStreamContentMode,
   TStreamFps,
   TStreamHeight,
   TStreamLayer,
+  TStreamVideoCodec,
 } from '@shared/schemas/local-settings.schema';
 import {
   storageGetItemJson,
@@ -47,6 +49,11 @@ const parseExtraLayers = (value: unknown): TStreamLayer[] | undefined => {
 const parseBitrateKbps = (value: unknown): number | undefined => {
   const result = streamBitrateKbpsSchema.safeParse(value);
   return result.success ? result.data : undefined;
+};
+
+const parseStreamCodec = (value: unknown): TStreamVideoCodec | undefined => {
+  const parsed = streamVideoCodecSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 };
 
 const parseContentMode = (value: unknown): TStreamContentMode | undefined => {
@@ -105,6 +112,8 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     screenExtraLayers: parseExtraLayers(parsed.data.screenExtraLayers),
     screenBitrateKbps: parseBitrateKbps(parsed.data.screenBitrateKbps),
     screenContentMode: parseContentMode(parsed.data.screenContentMode),
+    streamCodec: parseStreamCodec(parsed.data.streamCodec),
+    screenCodec: parseStreamCodec(parsed.data.screenCodec),
     screenPreviewAutoPauseWhenHidden:
       typeof parsed.data.screenPreviewAutoPauseWhenHidden === 'boolean'
         ? parsed.data.screenPreviewAutoPauseWhenHidden
@@ -150,6 +159,8 @@ export type TLocalSettingsWrite = {
   screenExtraLayers?: TStreamLayer[] | null;
   screenBitrateKbps?: number | null;
   screenContentMode?: TStreamContentMode | null;
+  streamCodec?: TStreamVideoCodec | null;
+  screenCodec?: TStreamVideoCodec | null;
   screenPreviewAutoPauseWhenHidden?: boolean;
   noiseProcessor?: ENoiseProcessor | null;
   inputGain?: number | null;
@@ -220,6 +231,14 @@ export const writeLocalSettings = (
     settings.screenContentMode === undefined
       ? existing.screenContentMode
       : (settings.screenContentMode ?? undefined);
+  const nextStreamCodec =
+    settings.streamCodec === undefined
+      ? existing.streamCodec
+      : (settings.streamCodec ?? undefined);
+  const nextScreenCodec =
+    settings.screenCodec === undefined
+      ? existing.screenCodec
+      : (settings.screenCodec ?? undefined);
   const nextScreenPreviewAutoPause =
     settings.screenPreviewAutoPauseWhenHidden === undefined
       ? existing.screenPreviewAutoPauseWhenHidden
@@ -267,6 +286,8 @@ export const writeLocalSettings = (
     ...(nextScreenContentMode !== undefined
       ? { screenContentMode: nextScreenContentMode }
       : {}),
+    ...(nextStreamCodec !== undefined ? { streamCodec: nextStreamCodec } : {}),
+    ...(nextScreenCodec !== undefined ? { screenCodec: nextScreenCodec } : {}),
     ...(nextScreenPreviewAutoPause !== undefined
       ? { screenPreviewAutoPauseWhenHidden: nextScreenPreviewAutoPause }
       : {}),

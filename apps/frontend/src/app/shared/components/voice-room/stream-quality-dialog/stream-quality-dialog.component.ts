@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
+  DEFAULT_STREAM_VIDEO_CODEC,
   defaultExtraLayers,
   formatStreamLayer,
   recommendStreamBitrateKbps,
@@ -17,8 +18,10 @@ import {
   STREAM_BITRATE_WARN_KBPS,
   STREAM_EXTRA_LAYERS_MAX,
   streamLayerOptions,
+  streamSupportsSimulcast,
   TStreamContentMode,
   TStreamLayer,
+  TStreamVideoCodec,
 } from '@konvoez/shared';
 import {
   DEFAULT_STREAM_FPS,
@@ -55,6 +58,7 @@ export type TStreamQualityDialogResult = {
   fps: TStreamFps;
   extraLayers: TStreamLayer[];
   bitrateKbps: number;
+  codec: TStreamVideoCodec;
   contentMode?: TStreamContentMode;
 };
 
@@ -65,10 +69,36 @@ export type TStreamQualityDialogData = {
   extraLayers: TStreamLayer[] | null;
   bitrateKbps: number | null;
   contentMode: TStreamContentMode;
+  codec: TStreamVideoCodec;
+  codecs: readonly TStreamVideoCodec[];
   maxBitrateKbps: number;
 };
 
-type TStreamSelectValue = TStreamHeight | TStreamFps;
+type TStreamSelectValue = TStreamHeight | TStreamFps | TStreamVideoCodec;
+
+const CODEC_LABELS: Record<TStreamVideoCodec, string> = {
+  h264: 'H.264',
+  vp8: 'VP8',
+  vp9: 'VP9',
+  av1: 'AV1',
+};
+
+function initialCodec(
+  codec: TStreamVideoCodec | undefined,
+  codecs: readonly TStreamVideoCodec[] | undefined,
+): TStreamVideoCodec {
+  const available = codecs?.length ? codecs : (['vp9', 'vp8'] as const);
+  if (codec && available.includes(codec)) {
+    return codec;
+  }
+  if (available.includes(DEFAULT_STREAM_VIDEO_CODEC)) {
+    return DEFAULT_STREAM_VIDEO_CODEC;
+  }
+  if (available.includes('vp8')) {
+    return 'vp8';
+  }
+  return available[0] ?? 'vp8';
+}
 
 const CONTENT_MODES = ['detail', 'motion'] as const;
 
@@ -77,6 +107,9 @@ function stringifyStreamSelectItem(
 ): string {
   if (item == null) {
     return '';
+  }
+  if (typeof item === 'string') {
+    return CODEC_LABELS[item] ?? item;
   }
   return (STREAM_HEIGHTS as readonly number[]).includes(item)
     ? `${item}p`
@@ -155,17 +188,41 @@ export class StreamQualityDialogComponent {
   protected readonly contentMode = signal<TStreamContentMode>(
     this.context.data?.contentMode ?? 'detail',
   );
+  protected readonly codecs: readonly TStreamVideoCodec[] = this.context.data
+    ?.codecs?.length
+    ? this.context.data.codecs
+    : ['vp9', 'vp8'];
+  protected readonly codec = signal<TStreamVideoCodec>(
+    initialCodec(this.context.data?.codec, this.codecs),
+  );
 
   private readonly initialBitrateKbps = this.context.data?.bitrateKbps ?? null;
+  private readonly dropsStoredLayers =
+    !streamSupportsSimulcast(this.codec()) &&
+    (this.context.data?.extraLayers?.length ?? 1) > 0;
+  private readonly keepStoredBitrate =
+    this.initialBitrateKbps != null &&
+    !this.dropsStoredLayers &&
+    (this.context.data?.codec === this.codec() ||
+      (this.context.data?.codec != null &&
+        streamSupportsSimulcast(this.context.data.codec) &&
+        streamSupportsSimulcast(this.codec())));
   protected readonly maxBitrateKbps =
     this.context.data?.maxBitrateKbps ?? DEFAULT_STREAM_MAX_BITRATE_KBPS;
 
   protected readonly extraLayers = linkedSignal<
-    { height: TStreamHeight; fps: TStreamFps },
+    { height: TStreamHeight; fps: TStreamFps; simulcast: boolean },
     TStreamLayer[]
   >({
-    source: () => ({ height: this.height(), fps: this.fps() }),
+    source: () => ({
+      height: this.height(),
+      fps: this.fps(),
+      simulcast: streamSupportsSimulcast(this.codec()),
+    }),
     computation: (source, previous) => {
+      if (!source.simulcast) {
+        return [];
+      }
       if (previous) {
         return defaultExtraLayers(source);
       }
@@ -189,6 +246,10 @@ export class StreamQualityDialogComponent {
     streamLayerOptions({ height: this.height(), fps: this.fps() }),
   );
 
+  protected readonly simulcastSupported = computed(() =>
+    streamSupportsSimulcast(this.codec()),
+  );
+
   protected readonly stringifyLayer = (layer: TStreamLayer): string =>
     formatStreamLayer(layer);
 
@@ -209,6 +270,7 @@ export class StreamQualityDialogComponent {
       fps: TStreamFps;
       contentMode: TStreamContentMode;
       extra: TStreamLayer[];
+      codec: TStreamVideoCodec;
     },
     number
   >({
@@ -218,15 +280,21 @@ export class StreamQualityDialogComponent {
       const contentMode = this.contentMode();
       const screen = this.isScreen();
       const extra = this.extraLayers();
+      const codec = this.codec();
       return {
         height,
         fps,
         contentMode: screen ? contentMode : 'motion',
         extra,
+        codec,
       };
     },
     computation: (source, previous) => {
-      if (!previous && this.initialBitrateKbps != null) {
+      if (
+        !previous &&
+        this.keepStoredBitrate &&
+        this.initialBitrateKbps != null
+      ) {
         return Math.min(
           this.maxBitrateKbps,
           Math.max(STREAM_BITRATE_SLIDER_MIN_KBPS, this.initialBitrateKbps),
@@ -238,6 +306,7 @@ export class StreamQualityDialogComponent {
         contentMode: source.contentMode,
         maxKbps: this.maxBitrateKbps,
         extra: source.extra,
+        codec: source.codec,
       });
     },
   });
@@ -261,6 +330,7 @@ export class StreamQualityDialogComponent {
       fps: this.fps(),
       extraLayers: this.extraLayers(),
       bitrateKbps: Math.min(this.maxBitrateKbps, this.bitrateKbps()),
+      codec: this.codec(),
       ...(contentMode ? { contentMode } : {}),
     });
   }

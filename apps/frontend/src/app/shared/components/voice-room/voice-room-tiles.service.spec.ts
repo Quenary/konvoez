@@ -49,6 +49,8 @@ describe('VoiceRoomTilesService', () => {
             remoteScreenTracks: signal({}).asReadonly(),
             availableScreens: signal({}).asReadonly(),
             watchingUserIds: signal(new Set<number>()).asReadonly(),
+            blockedCamUserIds: signal(new Set<number>()).asReadonly(),
+            blockedScreenUserIds: signal(new Set<number>()).asReadonly(),
           },
         },
       ],

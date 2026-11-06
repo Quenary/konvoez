@@ -12,6 +12,7 @@ export type TVoiceRoomTile = {
   screenAvailable: boolean;
   watchingScreen: boolean;
   previewPaused: boolean;
+  codecUnsupported: boolean;
 };
 
 export type TBuildVoiceRoomTilesInput = {
@@ -23,6 +24,8 @@ export type TBuildVoiceRoomTilesInput = {
   remoteScreenTracks: Readonly<Record<number, MediaStreamTrack>>;
   availableScreens: Readonly<Record<number, TAvailableScreenShare>>;
   watchingUserIds: ReadonlySet<number>;
+  blockedCamUserIds?: ReadonlySet<number>;
+  blockedScreenUserIds?: ReadonlySet<number>;
   localScreenPreviewPaused?: boolean;
 };
 
@@ -33,6 +36,7 @@ const voiceTile = (
   screenAvailable: boolean,
   watchingScreen: boolean,
   previewPaused = false,
+  codecUnsupported = false,
 ): TVoiceRoomTile => {
   const kindKey = streamKind ?? 'voice';
   return {
@@ -44,6 +48,7 @@ const voiceTile = (
     screenAvailable,
     watchingScreen,
     previewPaused,
+    codecUnsupported,
   };
 };
 
@@ -64,13 +69,17 @@ export function buildVoiceRoomTiles(
 ): TVoiceRoomTile[] {
   const tiles: TVoiceRoomTile[] = [];
   const localScreenPaused = Boolean(input.localScreenPreviewPaused);
+  const blockedCam = input.blockedCamUserIds ?? new Set<number>();
+  const blockedScreen = input.blockedScreenUserIds ?? new Set<number>();
 
   for (const peer of input.peers) {
     const isLocal = input.localUserId !== null && peer.id === input.localUserId;
     const camTrack = isLocal
       ? input.localCamTrack
       : (input.remoteCamTracks[peer.id] ?? null);
-    const hasCam = camTrack !== null;
+    const camBlocked = !isLocal && blockedCam.has(peer.id);
+    const screenBlocked = !isLocal && blockedScreen.has(peer.id);
+    const hasCam = camTrack !== null || camBlocked;
     const screenLive = screenAvailableForPeer(input, peer.id, isLocal);
     const watchingScreen = input.watchingUserIds.has(peer.id);
     const screenTrack = isLocal
@@ -87,7 +96,15 @@ export function buildVoiceRoomTiles(
 
     if (hasCam && screenLive) {
       tiles.push(
-        voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen, false),
+        voiceTile(
+          peer,
+          'cam',
+          camTrack,
+          screenLive,
+          watchingScreen,
+          false,
+          camBlocked,
+        ),
       );
       tiles.push(
         voiceTile(
@@ -97,6 +114,7 @@ export function buildVoiceRoomTiles(
           screenLive,
           watchingScreen,
           screenPreviewPaused,
+          screenBlocked,
         ),
       );
       continue;
@@ -104,7 +122,15 @@ export function buildVoiceRoomTiles(
 
     if (hasCam) {
       tiles.push(
-        voiceTile(peer, 'cam', camTrack, screenLive, watchingScreen, false),
+        voiceTile(
+          peer,
+          'cam',
+          camTrack,
+          screenLive,
+          watchingScreen,
+          false,
+          camBlocked,
+        ),
       );
       continue;
     }
@@ -117,6 +143,7 @@ export function buildVoiceRoomTiles(
         screenLive,
         watchingScreen,
         screenPreviewPaused,
+        screenBlocked,
       ),
     );
   }

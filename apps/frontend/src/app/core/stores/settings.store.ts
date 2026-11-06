@@ -37,11 +37,13 @@ import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
+  DEFAULT_STREAM_VIDEO_CODEC,
   LOCAL_SETTINGS_VERSION,
   TStreamContentMode,
   TStreamFps,
   TStreamHeight,
   TStreamLayer,
+  TStreamVideoCodec,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
 import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
@@ -74,6 +76,8 @@ export type SettingsStoreState = {
   screenExtraLayers: TStreamLayer[] | null;
   screenBitrateKbps: number | null;
   screenContentMode: TStreamContentMode;
+  streamCodec: TStreamVideoCodec;
+  screenCodec: TStreamVideoCodec;
   screenPreviewAutoPauseWhenHidden: boolean;
   noiseProcessor: ENoiseProcessor;
   inputGain: number;
@@ -99,6 +103,8 @@ export const SettingsStore = signalStore(
     screenExtraLayers: null,
     screenBitrateKbps: null,
     screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
+    streamCodec: DEFAULT_STREAM_VIDEO_CODEC,
+    screenCodec: DEFAULT_STREAM_VIDEO_CODEC,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
     noiseProcessor: DEFAULT_NOISE_PROCESSOR,
@@ -237,6 +243,8 @@ export const SettingsStore = signalStore(
           screenExtraLayers: store.screenExtraLayers(),
           screenBitrateKbps: store.screenBitrateKbps(),
           screenContentMode: store.screenContentMode(),
+          streamCodec: store.streamCodec(),
+          screenCodec: store.screenCodec(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
           noiseProcessor: store.noiseProcessor(),
@@ -265,6 +273,8 @@ export const SettingsStore = signalStore(
               screenExtraLayers: store.screenExtraLayers(),
               screenBitrateKbps: store.screenBitrateKbps(),
               screenContentMode: store.screenContentMode(),
+              streamCodec: store.streamCodec(),
+              screenCodec: store.screenCodec(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
               noiseProcessor: store.noiseProcessor(),
@@ -336,6 +346,16 @@ export const SettingsStore = signalStore(
 
         setScreenContentMode(screenContentMode: TStreamContentMode): void {
           patchState(store, { screenContentMode });
+          persistLocal();
+        },
+
+        setStreamCodec(streamCodec: TStreamVideoCodec): void {
+          patchState(store, { streamCodec });
+          persistLocal();
+        },
+
+        setScreenCodec(screenCodec: TStreamVideoCodec): void {
+          patchState(store, { screenCodec });
           persistLocal();
         },
 
@@ -459,6 +479,8 @@ export const SettingsStore = signalStore(
         screenBitrateKbps: partial.screenBitrateKbps ?? null,
         screenContentMode:
           partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,
+        streamCodec: partial.streamCodec ?? DEFAULT_STREAM_VIDEO_CODEC,
+        screenCodec: partial.screenCodec ?? DEFAULT_STREAM_VIDEO_CODEC,
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,

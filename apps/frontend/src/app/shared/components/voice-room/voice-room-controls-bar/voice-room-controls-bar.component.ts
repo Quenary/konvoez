@@ -11,6 +11,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { MicrophoneService } from '@core/services/microphone.service';
+import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { isDisplayMediaUserCancellation } from '@shared/functions/display-media-error.utils';
 import { notifyError } from '@shared/functions/notify-error.function';
@@ -48,6 +49,7 @@ export class VoiceRoomControlsBarComponent {
   private readonly settingsStore = inject(SettingsStore);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly screenCaptureService = inject(ScreenCaptureService);
   private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
@@ -138,6 +140,8 @@ export class VoiceRoomControlsBarComponent {
             extraLayers: settings.extraLayers,
             bitrateKbps: settings.bitrateKbps,
             contentMode: settings.contentMode,
+            codec: settings.codec,
+            codecs: this.mediasoupSessionService.videoCodecOptions(),
             maxBitrateKbps: this.settingsStore.streamMaxBitrateKbps(),
           },
           size: 's',
@@ -181,6 +185,7 @@ export class VoiceRoomControlsBarComponent {
           extraLayers: TStreamQualityDialogResult['extraLayers'] | null;
           bitrateKbps: number | null;
           contentMode: TStreamQualityDialogResult['contentMode'];
+          codec: TStreamQualityDialogResult['codec'];
         };
         save: (result: TStreamQualityDialogResult) => void;
         stop: () => Promise<void>;
@@ -197,12 +202,14 @@ export class VoiceRoomControlsBarComponent {
           extraLayers: this.settingsStore.streamExtraLayers(),
           bitrateKbps: this.settingsStore.streamBitrateKbps(),
           contentMode: 'motion' as const,
+          codec: this.settingsStore.streamCodec(),
         }),
         save: (result) => {
           this.settingsStore.setStreamHeight(result.height);
           this.settingsStore.setStreamFps(result.fps);
           this.settingsStore.setStreamExtraLayers(result.extraLayers);
           this.settingsStore.setStreamBitrateKbps(result.bitrateKbps);
+          this.settingsStore.setStreamCodec(result.codec);
         },
         stop: () => this.voiceSessionService.stopCamera(),
         produce: () => this.voiceSessionService.produceCamera(),
@@ -217,12 +224,14 @@ export class VoiceRoomControlsBarComponent {
           extraLayers: this.settingsStore.screenExtraLayers(),
           bitrateKbps: this.settingsStore.screenBitrateKbps(),
           contentMode: this.settingsStore.screenContentMode(),
+          codec: this.settingsStore.screenCodec(),
         }),
         save: (result) => {
           this.settingsStore.setScreenHeight(result.height);
           this.settingsStore.setScreenFps(result.fps);
           this.settingsStore.setScreenExtraLayers(result.extraLayers);
           this.settingsStore.setScreenBitrateKbps(result.bitrateKbps);
+          this.settingsStore.setScreenCodec(result.codec);
           if (result.contentMode) {
             this.settingsStore.setScreenContentMode(result.contentMode);
           }

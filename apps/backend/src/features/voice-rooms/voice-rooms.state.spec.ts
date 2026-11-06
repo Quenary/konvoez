@@ -267,6 +267,12 @@ describe('VoiceRoomsStateService snapshots and peers', () => {
       },
     });
 
+    peer.producers.set('prod-cam', {
+      id: 'prod-cam',
+      kind: 'video',
+      appData: { mediaTag: 'cam', peerId: 'socket-alice', codec: 'vp9' },
+    } as never);
+
     const peersOnJoin = service.getPeersOnJoin(sessionKey);
     expect(peersOnJoin[alice.id]).toEqual({
       ...alice,
@@ -279,6 +285,14 @@ describe('VoiceRoomsStateService snapshots and peers', () => {
           peerId: 'prod-1',
           kind: 'audio',
           mediaTag: 'mic',
+        },
+        {
+          userId: alice.id,
+          producerId: 'prod-cam',
+          peerId: 'prod-cam',
+          kind: 'video',
+          mediaTag: 'cam',
+          codec: 'vp9',
         },
       ],
     });

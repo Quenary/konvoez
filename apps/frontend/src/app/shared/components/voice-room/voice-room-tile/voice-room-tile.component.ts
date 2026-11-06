@@ -113,6 +113,7 @@ export class VoiceRoomTileComponent {
   public readonly screenAvailable = input(false);
   public readonly watchingScreen = input(false);
   public readonly previewPaused = input(false);
+  public readonly codecUnsupported = input(false);
 
   protected readonly autoPauseWhenHidden =
     this.localScreenPreviewService.autoPauseWhenHidden;
@@ -196,7 +197,10 @@ export class VoiceRoomTileComponent {
   );
 
   protected readonly showWatchButton = computed(
-    () => this.showStreamRow() && !this.watchingScreen(),
+    () =>
+      this.showStreamRow() &&
+      !this.watchingScreen() &&
+      !this.codecUnsupported(),
   );
 
   protected readonly showStopWatchButton = computed(

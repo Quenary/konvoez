@@ -6,14 +6,17 @@ import {
   computeSimulcastLayers,
   createInitialVoiceLiveness,
   defaultExtraLayers,
+  ApiErrorCode,
   EVoiceQualityTier,
   EVoiceRoomEvent,
   recommendStreamBitrateKbps,
+  streamSupportsSimulcast,
   resolveStreamLayers,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   TSimulcastLayer,
   TStreamContentMode,
   TStreamLayer,
+  TStreamVideoCodec,
   voiceRoomStreamLayersSchema,
   TVoiceLadderEntry,
   TVoiceLivenessState,
@@ -62,7 +65,9 @@ import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { ConsumerRegistry } from './consumer-registry';
+import { parseApiError } from './api-error.service';
 import { PeerVideoService } from './peer-video.service';
+import { availableVideoCodecs, deviceCanReceiveCodec } from './video-codec';
 import { AudioService } from './audio.service';
 import { VoiceQualityService } from './voice-quality.service';
 
@@ -535,30 +540,76 @@ export class MediasoupSessionService {
     }
   }
 
+  public videoCodecOptions(): TStreamVideoCodec[] {
+    const senderMimes =
+      typeof RTCRtpSender !== 'undefined' && RTCRtpSender.getCapabilities
+        ? (RTCRtpSender.getCapabilities('video')?.codecs.map(
+            (codec) => codec.mimeType,
+          ) ?? [])
+        : [];
+    const device = this.device;
+    const deviceMimes = device?.loaded
+      ? (device.rtpCapabilities.codecs?.map((codec) => codec.mimeType) ?? [])
+      : null;
+    return availableVideoCodecs({ senderMimes, deviceMimes });
+  }
+
+  public canReceiveVideoCodec(codec: TStreamVideoCodec): boolean {
+    const device = this.device;
+    if (!device?.loaded) {
+      return true;
+    }
+    return deviceCanReceiveCodec(
+      device.rtpCapabilities.codecs?.map((item) => item.mimeType) ?? [],
+      codec,
+    );
+  }
+
   /**
-   * Codec for a video producer. `tag` is the phase-4 hook for a per-stream
-   * choice; camera and screen both use VP8 today.
+   * Codec for a video producer. Uses the saved choice when the device can
+   * send it, then VP9, then VP8.
    */
   private pickVideoCodec(tag: 'cam' | 'screen'): RtpCodecCapability {
     const device = this.device;
     if (!device) {
       throw new Error('mediasoup Device is not loaded');
     }
+    const mime = `video/${this.selectedVideoCodec(tag)}`;
     const codec = device.rtpCapabilities.codecs?.find(
-      (item) => item.mimeType.toLowerCase() === this.videoCodecMimeType(tag),
+      (item) => item.mimeType.toLowerCase() === mime,
     );
     if (!codec) {
-      throw new Error('VP8 codec is not available');
+      throw new Error('Video codec is not available');
     }
     return codec;
   }
 
-  private videoCodecMimeType(tag: 'cam' | 'screen'): string {
-    switch (tag) {
-      case 'cam':
-      case 'screen':
-        return 'video/vp8';
+  private selectedVideoCodec(tag: 'cam' | 'screen'): TStreamVideoCodec {
+    const preferred =
+      tag === 'screen'
+        ? this.settingsStore.screenCodec()
+        : this.settingsStore.streamCodec();
+    const order: TStreamVideoCodec[] = [preferred, 'h264', 'vp8', 'vp9'];
+    const seen = new Set<TStreamVideoCodec>();
+    for (const codec of order) {
+      if (seen.has(codec)) {
+        continue;
+      }
+      seen.add(codec);
+      if (this.deviceHasCodec(codec)) {
+        return codec;
+      }
     }
+    return 'vp8';
+  }
+
+  private deviceHasCodec(codec: TStreamVideoCodec): boolean {
+    const mime = `video/${codec}`;
+    return (
+      this.device?.rtpCapabilities.codecs?.some(
+        (item) => item.mimeType.toLowerCase() === mime,
+      ) ?? false
+    );
   }
 
   private videoPublishInput(tag: 'cam' | 'screen'): TVideoPublishInput {
@@ -575,7 +626,10 @@ export class MediasoupSessionService {
     const storedExtra = screen
       ? this.settingsStore.screenExtraLayers()
       : this.settingsStore.streamExtraLayers();
-    const extraLayers = storedExtra ?? defaultExtraLayers({ height, fps });
+    const codec = this.selectedVideoCodec(tag);
+    const extraLayers = streamSupportsSimulcast(codec)
+      ? (storedExtra ?? defaultExtraLayers({ height, fps }))
+      : [];
     const storedBitrate = screen
       ? this.settingsStore.screenBitrateKbps()
       : this.settingsStore.streamBitrateKbps();
@@ -586,6 +640,7 @@ export class MediasoupSessionService {
       contentMode,
       maxKbps,
       extra: extraLayers,
+      codec,
     });
     const bitrateKbps = Math.min(
       maxKbps,
@@ -1098,7 +1153,9 @@ export class MediasoupSessionService {
         data.userId,
         data.producerId,
         'video',
+        data.codec,
       );
+      this.applyAnnouncedCodec(data);
       return;
     }
     if (data.mediaTag === 'screen-audio') {
@@ -1108,6 +1165,17 @@ export class MediasoupSessionService {
         'audio',
       );
       return;
+    }
+    if (data.mediaTag === 'cam') {
+      this.peerVideoService.registerCamOffer(
+        data.userId,
+        data.producerId,
+        data.codec,
+      );
+      this.applyAnnouncedCodec(data);
+      if (this.peerVideoService.isCodecBlocked(data.userId, 'cam')) {
+        return;
+      }
     }
 
     await this.consumeProducer(data, resolvePeer);
@@ -1145,6 +1213,10 @@ export class MediasoupSessionService {
       const recvTransport = this.recvTransport;
       if (!device || !recvTransport) {
         throw new Error('Recv transport is not ready');
+      }
+
+      if (this.blockUndecodableVideo(data)) {
+        return;
       }
 
       const result: TVoiceRoomConsumeResult = await emitVoiceRoomWithAck(
@@ -1204,6 +1276,14 @@ export class MediasoupSessionService {
       await this.peerPlaybackService.attach(data.userId, consumer, peer);
       consumer.resume();
     } catch (error) {
+      if (this.isCodecConsumeError(data, error)) {
+        this.peerVideoService.setCodecBlocked(
+          data.userId,
+          data.mediaTag === 'screen' ? 'screen' : 'cam',
+          true,
+        );
+        return;
+      }
       console.error('Error while consuming', data, error);
       if (options?.rethrow) {
         throw error;
@@ -1243,6 +1323,52 @@ export class MediasoupSessionService {
       routerRtpCapabilities:
         routerRtpCapabilities as unknown as RtpCapabilities,
     });
+    this.reapplyAnnouncedCodecs();
+  }
+
+  private applyAnnouncedCodec(data: TVoiceRoomProduceResult): void {
+    if (data.mediaTag !== 'cam' && data.mediaTag !== 'screen') {
+      return;
+    }
+    if (!data.codec || !this.device?.loaded) {
+      return;
+    }
+    this.peerVideoService.setCodecBlocked(
+      data.userId,
+      data.mediaTag,
+      !this.canReceiveVideoCodec(data.codec),
+    );
+  }
+
+  private reapplyAnnouncedCodecs(): void {
+    for (const offer of this.peerVideoService.announcedVideoCodecs()) {
+      this.peerVideoService.setCodecBlocked(
+        offer.userId,
+        offer.tag,
+        !this.canReceiveVideoCodec(offer.codec),
+      );
+    }
+  }
+
+  private blockUndecodableVideo(data: TVoiceRoomProduceResult): boolean {
+    if (data.mediaTag !== 'cam' && data.mediaTag !== 'screen') {
+      return false;
+    }
+    if (!data.codec || this.canReceiveVideoCodec(data.codec)) {
+      return false;
+    }
+    this.peerVideoService.setCodecBlocked(data.userId, data.mediaTag, true);
+    return true;
+  }
+
+  private isCodecConsumeError(
+    data: TVoiceRoomProduceResult,
+    error: unknown,
+  ): boolean {
+    if (data.mediaTag !== 'cam' && data.mediaTag !== 'screen') {
+      return false;
+    }
+    return parseApiError(error)?.code === ApiErrorCode.VOICE_CANNOT_CONSUME;
   }
 
   private startWatchdog(): void {

@@ -18,6 +18,8 @@ describe('local-settings.storage stream fields', () => {
       screenExtraLayers: [{ height: 360, fps: 15 }],
       screenBitrateKbps: 4000,
       screenContentMode: 'motion',
+      streamCodec: 'vp9',
+      screenCodec: 'av1',
     });
 
     expect(readLocalSettings()).toEqual(
@@ -27,6 +29,8 @@ describe('local-settings.storage stream fields', () => {
         screenExtraLayers: [{ height: 360, fps: 15 }],
         screenBitrateKbps: 4000,
         screenContentMode: 'motion',
+        streamCodec: 'vp9',
+        screenCodec: 'av1',
       }),
     );
   });

@@ -9,6 +9,7 @@ import {
   sortStreamLayers,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   streamLayerOptions,
+  streamSupportsSimulcast,
 } from './stream-layers';
 
 describe('stream-layers', () => {
@@ -256,5 +257,31 @@ describe('stream-layers', () => {
         }),
       ).toBe(alone);
     });
+
+    it('keeps the VP8 total and lowers VP9 and AV1', () => {
+      const base = {
+        height: 1080,
+        fps: 30,
+        contentMode: 'detail' as const,
+        maxKbps: 100_000,
+      };
+      const vp8 = recommendStreamBitrateKbps({ ...base, codec: 'vp8' });
+      const vp9 = recommendStreamBitrateKbps({ ...base, codec: 'vp9' });
+      const av1 = recommendStreamBitrateKbps({ ...base, codec: 'av1' });
+      expect(vp8).toBe(recommendStreamBitrateKbps(base));
+      expect(vp8).toBe(5000);
+      expect(recommendStreamBitrateKbps({ ...base, codec: 'h264' })).toBe(vp8);
+      expect(vp9).toBe(3500);
+      expect(av1).toBe(2500);
+      expect(av1).toBeLessThan(vp9);
+      expect(vp9).toBeLessThan(vp8);
+    });
+  });
+
+  it('allows simulcast for VP8 and H.264', () => {
+    expect(streamSupportsSimulcast('vp8')).toBe(true);
+    expect(streamSupportsSimulcast('h264')).toBe(true);
+    expect(streamSupportsSimulcast('vp9')).toBe(false);
+    expect(streamSupportsSimulcast('av1')).toBe(false);
   });
 });

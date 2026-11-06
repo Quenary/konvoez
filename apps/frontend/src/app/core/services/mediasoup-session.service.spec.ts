@@ -155,6 +155,8 @@ describe('MediasoupSessionService', () => {
             screenExtraLayers: vi.fn().mockReturnValue(null),
             screenBitrateKbps: vi.fn().mockReturnValue(5000),
             screenContentMode: vi.fn().mockReturnValue('detail'),
+            streamCodec: vi.fn().mockReturnValue('vp8'),
+            screenCodec: vi.fn().mockReturnValue('vp8'),
           },
         },
         {
@@ -880,6 +882,80 @@ describe('MediasoupSessionService', () => {
     await vi.waitFor(() => {
       expect(audioService.playStreamStopAudio).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('produces the screen with the saved codec when the device can send it', async () => {
+    const settings = TestBed.inject(SettingsStore);
+    settings.screenCodec = vi
+      .fn()
+      .mockReturnValue('vp9') as unknown as typeof settings.screenCodec;
+    settings.screenExtraLayers = vi
+      .fn()
+      .mockReturnValue([
+        { height: 720, fps: 30 },
+      ]) as unknown as typeof settings.screenExtraLayers;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/VP8' }, { mimeType: 'video/VP9' }],
+      },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'scr-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    TestBed.inject(ScreenCaptureService).getTracks = vi.fn().mockResolvedValue({
+      videoTrack: { id: 'scr-track' } as MediaStreamTrack,
+    });
+
+    await service.produceScreen();
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codec: expect.objectContaining({ mimeType: 'video/VP9' }),
+        encodings: [expect.any(Object)],
+      }),
+    );
+  });
+
+  it('produces H.264 simulcast when the device can send it', async () => {
+    const settings = TestBed.inject(SettingsStore);
+    settings.screenCodec = vi
+      .fn()
+      .mockReturnValue('h264') as unknown as typeof settings.screenCodec;
+    settings.screenExtraLayers = vi
+      .fn()
+      .mockReturnValue([
+        { height: 720, fps: 30 },
+      ]) as unknown as typeof settings.screenExtraLayers;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/H264' }, { mimeType: 'video/VP8' }],
+      },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'scr-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    TestBed.inject(ScreenCaptureService).getTracks = vi.fn().mockResolvedValue({
+      videoTrack: { id: 'scr-track' } as MediaStreamTrack,
+    });
+
+    await service.produceScreen();
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codec: expect.objectContaining({ mimeType: 'video/H264' }),
+        encodings: [expect.any(Object), expect.any(Object)],
+      }),
+    );
   });
 
   it('produces microphone with Opus codecOptions and starts VoiceQualityService', async () => {

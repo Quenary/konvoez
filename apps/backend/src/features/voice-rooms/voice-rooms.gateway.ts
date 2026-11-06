@@ -79,6 +79,7 @@ import {
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,
+  assertProducedVideoCodec,
   assertScreenAudioAllowed,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
@@ -626,6 +627,10 @@ export class VoiceRoomsGateway
         );
       }
 
+      const codec = isVideoMediaTag(body.mediaTag)
+        ? assertProducedVideoCodec(body.mediaTag, body.rtpParameters)
+        : undefined;
+
       const producer: Producer<VoiceRoomStateMediasoupAppData> =
         await transport.produce({
           kind: body.kind,
@@ -634,6 +639,7 @@ export class VoiceRoomsGateway
             peerId: peer.id,
             mediaTag: body.mediaTag,
             ...(body.layers !== undefined ? { layers: body.layers } : {}),
+            ...(codec ? { codec } : {}),
           },
         });
 
@@ -670,6 +676,7 @@ export class VoiceRoomsGateway
         userId: peer.user.id,
         kind: body.kind,
         mediaTag: body.mediaTag,
+        ...(codec ? { codec } : {}),
       };
 
       const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
