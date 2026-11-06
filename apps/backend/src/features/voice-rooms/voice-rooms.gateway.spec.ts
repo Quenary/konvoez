@@ -280,6 +280,7 @@ describe('VoiceRoomsGateway', () => {
       });
 
       expect(createWebRtcTransport).toHaveBeenCalledWith({
+        initialAvailableOutgoingBitrate: 2_500_000,
         listenInfos: [
           {
             protocol: 'udp',

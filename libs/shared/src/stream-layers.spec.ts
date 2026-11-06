@@ -228,7 +228,7 @@ describe('stream-layers', () => {
         contentMode: 'motion',
         maxKbps: 100_000,
       });
-      expect(alone).toBe(8750);
+      expect(alone).toBe(10500);
       expect(
         recommendStreamBitrateKbps({
           height: 1080,
@@ -237,7 +237,7 @@ describe('stream-layers', () => {
           maxKbps: 100_000,
           extra: [{ height: 1080, fps: 30 }],
         }),
-      ).toBe(15_000);
+      ).toBe(18_000);
       expect(
         recommendStreamBitrateKbps({
           height: 1080,

@@ -306,18 +306,18 @@ describe('StreamQualityDialogComponent', () => {
       height: 1080,
       fps: 60,
       extraLayers: [],
-      bitrateKbps: 8750,
+      bitrateKbps: 10500,
       maxBitrateKbps: 20000,
     });
-    expect(component['bitrateKbps']()).toBe(8750);
+    expect(component['bitrateKbps']()).toBe(10500);
 
     component['onExtraLayersChange']([{ height: 1080, fps: 30 }]);
     fixture.detectChanges();
-    expect(component['bitrateKbps']()).toBe(15000);
+    expect(component['bitrateKbps']()).toBe(18000);
 
     component['onExtraLayersChange']([]);
     fixture.detectChanges();
-    expect(component['bitrateKbps']()).toBe(8750);
+    expect(component['bitrateKbps']()).toBe(10500);
   });
 
   it('returns the new fields and never exceeds the admin limit', async () => {

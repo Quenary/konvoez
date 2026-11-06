@@ -8,6 +8,9 @@ import { AppException } from '@shared/errors/app.exception';
 
 export const MAX_ROOM_VIDEO_PRODUCERS = 4;
 
+/** Initial encoder bitrate hint, in kbit/s. Not a cap. */
+const VIDEO_START_BITRATE_KBPS = 2500;
+
 /**
  * Router codecs: Opus + VP8/H264/VP9/AV1.
  * Camera and screen producers must use H264, VP8, VP9 or AV1.
@@ -26,7 +29,7 @@ export const VOICE_ROOM_MEDIA_CODECS: RtpCodecCapability[] = [
     clockRate: 90000,
     preferredPayloadType: 96,
     parameters: {
-      'x-google-start-bitrate': 1000,
+      'x-google-start-bitrate': VIDEO_START_BITRATE_KBPS,
     },
   },
   {
@@ -38,6 +41,7 @@ export const VOICE_ROOM_MEDIA_CODECS: RtpCodecCapability[] = [
       'packetization-mode': 1,
       'profile-level-id': '42e01f',
       'level-asymmetry-allowed': 1,
+      'x-google-start-bitrate': VIDEO_START_BITRATE_KBPS,
     },
   },
   {
@@ -47,6 +51,7 @@ export const VOICE_ROOM_MEDIA_CODECS: RtpCodecCapability[] = [
     preferredPayloadType: 98,
     parameters: {
       'profile-id': 2,
+      'x-google-start-bitrate': VIDEO_START_BITRATE_KBPS,
     },
   },
   {
@@ -54,6 +59,9 @@ export const VOICE_ROOM_MEDIA_CODECS: RtpCodecCapability[] = [
     mimeType: 'video/AV1',
     clockRate: 90000,
     preferredPayloadType: 99,
+    parameters: {
+      'x-google-start-bitrate': VIDEO_START_BITRATE_KBPS,
+    },
   },
 ];
 

@@ -713,12 +713,27 @@ export class MediasoupSessionService {
         networkPriority: 'low' as const,
       })),
     });
+    await this.applyDegradationPreference(producer, input.contentMode);
 
     if (tier === EVoiceQualityTier.BAD) {
       producer.pause();
     }
 
     return { producer, plan };
+  }
+
+  private async applyDegradationPreference(
+    producer: Producer,
+    contentMode: TStreamContentMode,
+  ): Promise<void> {
+    const sender = producer.rtpSender;
+    if (!sender) {
+      return;
+    }
+    const parameters = sender.getParameters();
+    const degradationPreference =
+      contentMode === 'detail' ? 'maintain-resolution' : 'balanced';
+    await sender.setParameters({ ...parameters, degradationPreference });
   }
 
   private async applyVideoPlan(

@@ -216,7 +216,7 @@ function layerBitrateKbps(
   const safeFps = Math.max(1, fps);
   let kbps = baseBitrateKbps(height) * Math.sqrt(safeFps / 30);
   if (contentMode === 'motion') {
-    kbps *= 1.25;
+    kbps *= 1.5;
   }
   kbps *= STREAM_CODEC_BITRATE_FACTOR[codec];
   return (

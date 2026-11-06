@@ -1503,6 +1503,7 @@ describe('MediasoupSessionService', () => {
       pause: vi.fn(),
       rtpSender: {
         getParameters: () => ({
+          degradationPreference: 'balanced',
           encodings: [{}, {}, {}],
         }),
         setParameters,
@@ -1533,6 +1534,9 @@ describe('MediasoupSessionService', () => {
       30, 60, 60,
     ]);
     expect(encodings.every((encoding) => encoding.maxBitrate > 0)).toBe(true);
+    expect(setParameters.mock.calls[0]?.[0].degradationPreference).toBe(
+      'balanced',
+    );
   });
 
   it('warns once when the browser applies different screen encodings', async () => {
@@ -1679,6 +1683,46 @@ describe('MediasoupSessionService', () => {
     expect(getTracks).toHaveBeenCalledWith({ contentMode: 'motion' });
     expect(TestBed.inject(TuiNotificationService).open).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['detail', 'maintain-resolution'],
+    ['motion', 'balanced'],
+  ] as const)(
+    'sets %s content to degradationPreference %s',
+    async (contentMode, degradationPreference) => {
+      service['device'] = {
+        loaded: true,
+        rtpCapabilities: { codecs: [{ mimeType: 'video/VP8' }] },
+      } as never;
+      const setParameters = vi.fn().mockResolvedValue(undefined);
+      const produce = vi.fn().mockResolvedValue({
+        id: 'video',
+        closed: false,
+        pause: vi.fn(),
+        rtpSender: {
+          getParameters: () => ({ encodings: [{}] }),
+          setParameters,
+        },
+      });
+      service['sendTransport'] = { produce, closed: false } as never;
+
+      await service['produceVideo'](
+        'screen',
+        { getSettings: () => ({ height: 720 }) } as MediaStreamTrack,
+        {
+          height: 720,
+          fps: 30,
+          contentMode,
+          extraLayers: [],
+          maxBitrateBps: 2_500_000,
+        },
+      );
+
+      expect(setParameters).toHaveBeenCalledWith(
+        expect.objectContaining({ degradationPreference }),
+      );
+    },
+  );
 
   it('emits set-consumer-layers and warns when the ack fails', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

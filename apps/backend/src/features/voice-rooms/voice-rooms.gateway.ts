@@ -479,6 +479,7 @@ export class VoiceRoomsGateway
     );
     const transport = await room.router.createWebRtcTransport({
       listenInfos: buildWebRtcListenInfos(announcedAddresses),
+      initialAvailableOutgoingBitrate: 2_500_000,
     });
 
     transport.on('icestatechange', (iceState) => {

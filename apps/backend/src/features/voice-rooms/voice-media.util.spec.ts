@@ -28,6 +28,12 @@ describe('voice-media.util', () => {
     );
     expect(h264?.parameters?.['packetization-mode']).toBe(1);
     expect(h264?.parameters?.['profile-level-id']).toBe('42e01f');
+    for (const codec of VOICE_ROOM_MEDIA_CODECS) {
+      if (codec.kind !== 'video') {
+        continue;
+      }
+      expect(codec.parameters?.['x-google-start-bitrate']).toBe(2500);
+    }
   });
 
   it('reads H264, VP8, VP9 and AV1 and rejects other video codecs', () => {

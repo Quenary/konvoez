@@ -147,7 +147,7 @@ describe('ScreenCaptureService', () => {
     const result = await service.getTracks();
     expect(result.videoTrack).toBe(mockVideoTrack);
     expect(result.audioTrack).toBe(mockAudioTrack);
-    expect(mockVideoTrack.contentHint).toBe('detail');
+    expect(mockVideoTrack.contentHint).toBe('text');
     expect(mediaDevicesService.getDisplayMedia).toHaveBeenCalledWith({
       video: {
         height: { ideal: 720 },
@@ -174,7 +174,7 @@ describe('ScreenCaptureService', () => {
     expect(mockVideoTrack.contentHint).toBe('motion');
 
     await service.getTracks({ contentMode: 'detail', fps: 60 });
-    expect(mockVideoTrack.contentHint).toBe('detail');
+    expect(mockVideoTrack.contentHint).toBe('text');
   });
 
   it('throws and stops tracks when stream has no video track', async () => {

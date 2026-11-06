@@ -156,7 +156,7 @@ export class ScreenCaptureService implements OnDestroy {
     }
 
     const contentMode = options?.contentMode ?? 'detail';
-    const contentHint = contentMode === 'motion' ? 'motion' : 'detail';
+    const contentHint = contentMode === 'motion' ? 'motion' : 'text';
     try {
       videoTrack.contentHint = contentHint;
     } catch {
