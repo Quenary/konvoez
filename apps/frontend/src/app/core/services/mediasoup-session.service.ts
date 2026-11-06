@@ -72,7 +72,17 @@ import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { ConsumerRegistry } from './consumer-registry';
 import { parseApiError } from './api-error.service';
 import { PeerVideoService } from './peer-video.service';
-import { availableVideoCodecs, deviceCanReceiveCodec } from './video-codec';
+import {
+  availableVideoCodecs,
+  cachedH264Profile,
+  cachedHardwareEncoders,
+  deviceCanReceiveCodec,
+  hardwareEncoderProbe,
+  pickDefaultVideoCodec,
+  pickH264Codec,
+  streamProbeBitrateKbps,
+  THardwareEncoderProbe,
+} from './video-codec';
 import { AudioService } from './audio.service';
 import { VoiceQualityService } from './voice-quality.service';
 
@@ -553,7 +563,7 @@ export class MediasoupSessionService {
   public videoCodecOptions(): TStreamVideoCodec[] {
     const senderMimes =
       typeof RTCRtpSender !== 'undefined' && RTCRtpSender.getCapabilities
-        ? (RTCRtpSender.getCapabilities('video')?.codecs.map(
+        ? (RTCRtpSender.getCapabilities('video')?.codecs?.map(
             (codec) => codec.mimeType,
           ) ?? [])
         : [];
@@ -576,18 +586,23 @@ export class MediasoupSessionService {
   }
 
   /**
-   * Codec for a video producer. Uses the saved choice when the device can
-   * send it, then VP9, then VP8.
+   * Codec for a video producer. Uses the saved choice while it is still
+   * offered, otherwise the hardware-aware default.
    */
   private pickVideoCodec(tag: 'cam' | 'screen'): RtpCodecCapability {
     const device = this.device;
     if (!device) {
       throw new Error('mediasoup Device is not loaded');
     }
-    const mime = `video/${this.selectedVideoCodec(tag)}`;
-    const codec = device.rtpCapabilities.codecs?.find(
+    const selected = this.selectedVideoCodec(tag);
+    const mime = `video/${selected}`;
+    const codecs = (device.rtpCapabilities.codecs ?? []).filter(
       (item) => item.mimeType.toLowerCase() === mime,
     );
+    const codec =
+      selected === 'h264'
+        ? pickH264Codec(codecs, cachedH264Profile(this.encoderProbe(tag)))
+        : codecs[0];
     if (!codec) {
       throw new Error('Video codec is not available');
     }
@@ -595,31 +610,41 @@ export class MediasoupSessionService {
   }
 
   private selectedVideoCodec(tag: 'cam' | 'screen'): TStreamVideoCodec {
-    const preferred =
+    const available = this.videoCodecOptions();
+    const stored =
       tag === 'screen'
         ? this.settingsStore.screenCodec()
         : this.settingsStore.streamCodec();
-    const order: TStreamVideoCodec[] = [preferred, 'h264', 'vp8', 'vp9'];
-    const seen = new Set<TStreamVideoCodec>();
-    for (const codec of order) {
-      if (seen.has(codec)) {
-        continue;
-      }
-      seen.add(codec);
-      if (this.deviceHasCodec(codec)) {
-        return codec;
-      }
+    if (stored && available.includes(stored)) {
+      return stored;
     }
-    return 'vp8';
+    return pickDefaultVideoCodec({
+      available,
+      hardware: cachedHardwareEncoders(this.encoderProbe(tag)),
+    });
   }
 
-  private deviceHasCodec(codec: TStreamVideoCodec): boolean {
-    const mime = `video/${codec}`;
-    return (
-      this.device?.rtpCapabilities.codecs?.some(
-        (item) => item.mimeType.toLowerCase() === mime,
-      ) ?? false
-    );
+  private encoderProbe(tag: 'cam' | 'screen'): THardwareEncoderProbe {
+    const screen = tag === 'screen';
+    const height = screen
+      ? this.settingsStore.screenHeight()
+      : this.settingsStore.streamHeight();
+    const fps = screen
+      ? this.settingsStore.screenFps()
+      : this.settingsStore.streamFps();
+    return hardwareEncoderProbe({
+      height,
+      fps,
+      bitrateKbps: streamProbeBitrateKbps({
+        height,
+        fps,
+        contentMode: screen ? this.settingsStore.screenContentMode() : 'motion',
+        maxKbps: this.settingsStore.streamMaxBitrateKbps(),
+        bitrateKbps: screen
+          ? this.settingsStore.screenBitrateKbps()
+          : this.settingsStore.streamBitrateKbps(),
+      }),
+    });
   }
 
   private videoPublishInput(tag: 'cam' | 'screen'): TVideoPublishInput {

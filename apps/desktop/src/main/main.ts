@@ -32,6 +32,13 @@ if (!gotSingleInstanceLock) {
   if (process.platform === 'linux') {
     app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer');
   }
+  // Windows Chromium leaves AV1 out of the WebRTC encoder factory until this is on.
+  if (process.platform === 'win32') {
+    app.commandLine.appendSwitch(
+      'enable-features',
+      'MediaFoundationAV1Encoding',
+    );
+  }
 
   app.on('second-instance', () => {
     const win = getExistingMainWindow();

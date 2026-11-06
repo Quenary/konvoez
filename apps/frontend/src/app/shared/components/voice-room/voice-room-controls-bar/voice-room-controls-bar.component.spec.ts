@@ -43,6 +43,10 @@ describe('VoiceRoomControlsBarComponent', () => {
   let speakerMuted: ReturnType<typeof signal<boolean>>;
   let canProduce: ReturnType<typeof signal<boolean>>;
   let captureLoading: ReturnType<typeof signal<boolean>>;
+  let streamCodec: ReturnType<
+    typeof signal<'vp8' | 'vp9' | 'av1' | 'h264' | null>
+  >;
+  let videoCodecOptions: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localCamTrack = signal<MediaStreamTrack | null>(null);
@@ -72,6 +76,8 @@ describe('VoiceRoomControlsBarComponent', () => {
     speakerMuted = signal(false);
     canProduce = signal(true);
     captureLoading = signal(false);
+    streamCodec = signal<'vp8' | 'vp9' | 'av1' | 'h264' | null>('vp9');
+    videoCodecOptions = vi.fn(() => ['vp8', 'vp9']);
 
     TestBed.configureTestingModule({
       imports: [VoiceRoomControlsBarComponent],
@@ -104,7 +110,7 @@ describe('VoiceRoomControlsBarComponent', () => {
             screenContentMode: signal<'detail' | 'motion'>(
               'detail',
             ).asReadonly(),
-            streamCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
+            streamCodec: streamCodec.asReadonly(),
             screenCodec: signal<'vp8' | 'vp9' | 'av1'>('vp8').asReadonly(),
             streamSvcMode: signal<'L1T3' | 'L2T3_KEY' | 'L3T3_KEY' | null>(
               'L3T3_KEY',
@@ -155,7 +161,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         {
           provide: MediasoupSessionService,
           useValue: {
-            videoCodecOptions: () => ['vp8', 'vp9'],
+            videoCodecOptions,
           },
         },
         {
@@ -247,6 +253,35 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(setStreamSvcMode).toHaveBeenCalledWith('L1T3');
     expect(produceCamera).toHaveBeenCalledTimes(1);
     expect(produceScreen).not.toHaveBeenCalled();
+  });
+
+  it('opens the dialog with an empty codec when none is saved', async () => {
+    streamCodec.set(null);
+    videoCodecOptions.mockReturnValue(['av1', 'h264', 'vp9', 'vp8']);
+    openDialog.mockReturnValue(
+      of({
+        height: 720,
+        fps: 30,
+        extraLayers: [],
+        svcMode: 'L2T3_KEY',
+        bitrateKbps: 2500,
+        codec: 'av1',
+      }),
+    );
+    const fixture = create();
+
+    button(fixture, 2).click();
+    await fixture.whenStable();
+
+    expect(openDialog.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          codec: null,
+          codecs: ['av1', 'h264', 'vp9', 'vp8'],
+        }),
+      }),
+    );
+    expect(setStreamCodec).toHaveBeenCalledWith('av1');
   });
 
   it('saves screen layers, bitrate and content mode from the dialog', async () => {

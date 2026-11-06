@@ -66,7 +66,7 @@ export const streamBitrateKbpsSchema = z
   .int()
   .min(STREAM_BITRATE_SLIDER_MIN_KBPS);
 export const streamContentModeSchema = z.enum(['detail', 'motion']);
-export const DEFAULT_SCREEN_CONTENT_MODE: TStreamContentMode = 'detail';
+export const DEFAULT_SCREEN_CONTENT_MODE: TStreamContentMode = 'motion';
 
 export const noiseProcessorSchema = z.enum(ENoiseProcessor);
 export type TNoiseProcessor = z.infer<typeof noiseProcessorSchema>;

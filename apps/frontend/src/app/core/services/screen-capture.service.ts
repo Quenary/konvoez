@@ -3,6 +3,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TStreamContentMode } from '@konvoez/shared';
 import {
+  DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
   TStreamFps,
@@ -155,7 +156,7 @@ export class ScreenCaptureService implements OnDestroy {
       throw new Error('Screen share has no video track');
     }
 
-    const contentMode = options?.contentMode ?? 'detail';
+    const contentMode = options?.contentMode ?? DEFAULT_SCREEN_CONTENT_MODE;
     const contentHint = contentMode === 'motion' ? 'motion' : 'text';
     try {
       videoTrack.contentHint = contentHint;

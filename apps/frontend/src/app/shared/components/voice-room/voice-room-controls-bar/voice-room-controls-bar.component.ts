@@ -25,6 +25,7 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButtonLoading } from '@taiga-ui/kit';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
+import { TStreamContentMode, TStreamVideoCodec } from '@konvoez/shared';
 import { firstValueFrom } from 'rxjs';
 import {
   StreamQualityDialogComponent,
@@ -186,8 +187,8 @@ export class VoiceRoomControlsBarComponent {
           extraLayers: TStreamQualityDialogResult['extraLayers'] | null;
           svcMode: TStreamQualityDialogResult['svcMode'] | null;
           bitrateKbps: number | null;
-          contentMode: TStreamQualityDialogResult['contentMode'];
-          codec: TStreamQualityDialogResult['codec'];
+          contentMode: TStreamContentMode;
+          codec: TStreamVideoCodec | null;
         };
         save: (result: TStreamQualityDialogResult) => void;
         stop: () => Promise<void>;

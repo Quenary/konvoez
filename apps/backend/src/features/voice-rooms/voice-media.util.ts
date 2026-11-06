@@ -46,6 +46,19 @@ export const VOICE_ROOM_MEDIA_CODECS: RtpCodecCapability[] = [
   },
   {
     kind: 'video',
+    mimeType: 'video/H264',
+    clockRate: 90000,
+    // 100 and 101 are the RTX payload types of the video codecs above.
+    preferredPayloadType: 102,
+    parameters: {
+      'packetization-mode': 1,
+      'profile-level-id': '640032',
+      'level-asymmetry-allowed': 1,
+      'x-google-start-bitrate': VIDEO_START_BITRATE_KBPS,
+    },
+  },
+  {
+    kind: 'video',
     mimeType: 'video/VP9',
     clockRate: 90000,
     preferredPayloadType: 98,

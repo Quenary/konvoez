@@ -26,6 +26,7 @@ import {
   DEFAULT_INPUT_GAIN,
   DEFAULT_NOISE_PROCESSOR,
   DEFAULT_OUTPUT_VOLUME,
+  DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
   LOCAL_SETTINGS_VERSION,
@@ -155,6 +156,8 @@ describe('SettingsStore', () => {
     );
     expect(store.attachmentsStripImageMetadata()).toBe(false);
     expect(store.needsInitialSetup()).toBe(true);
+    expect(store.streamCodec()).toBeNull();
+    expect(store.screenCodec()).toBeNull();
   });
 
   it('should hydrate known fields from LOCAL_SETTINGS', () => {
@@ -177,6 +180,25 @@ describe('SettingsStore', () => {
     expect(hydrated.audioOutput()).toBeNull();
     expect(hydrated.needsInitialSetup()).toBe(false);
     expect(audioDeviceHandler.setAudioInput).toHaveBeenCalledWith(audioInput);
+  });
+
+  it('hydrates a stored h264 choice', () => {
+    localStorage.clear();
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({
+        version: LOCAL_SETTINGS_VERSION,
+        streamCodec: 'h264',
+        screenCodec: 'h264',
+      }),
+    );
+
+    configureTestBed();
+
+    const store = TestBed.inject(SettingsStore);
+    expect(store.streamCodec()).toBe('h264');
+    expect(store.screenCodec()).toBe('h264');
+    expect(store.needsInitialSetup()).toBe(false);
   });
 
   it('should need setup when schema version mismatches', () => {
@@ -231,9 +253,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
-      streamCodec: 'h264',
-      screenCodec: 'h264',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -255,9 +275,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
-      streamCodec: 'h264',
-      screenCodec: 'h264',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -290,9 +308,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
-      streamCodec: 'h264',
-      screenCodec: 'h264',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -358,9 +374,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
-      streamCodec: 'h264',
-      screenCodec: 'h264',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,

@@ -95,4 +95,14 @@ describe('local-settings.storage stream fields', () => {
     );
     expect(readLocalSettings().screenSvcMode).toBe('L2T3_KEY');
   });
+
+  it('leaves an unversioned h264 choice in place', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ streamCodec: 'h264' }),
+    );
+
+    expect(readLocalSettings().streamCodec).toBe('h264');
+    expect(readLocalSettings().version).toBeUndefined();
+  });
 });

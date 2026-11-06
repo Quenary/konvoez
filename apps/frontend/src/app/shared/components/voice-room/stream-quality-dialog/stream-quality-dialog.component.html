@@ -47,7 +47,7 @@
       <input
         tuiSelect
         [ngModel]="codec()"
-        (ngModelChange)="codec.set($event)"
+        (ngModelChange)="onCodecChange($event)"
         [ngModelOptions]="{ standalone: true }" />
       <tui-data-list-wrapper
         *tuiDropdown

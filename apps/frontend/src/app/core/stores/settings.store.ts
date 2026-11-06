@@ -37,7 +37,6 @@ import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
-  DEFAULT_STREAM_VIDEO_CODEC,
   LOCAL_SETTINGS_VERSION,
   TStreamContentMode,
   TStreamFps,
@@ -79,8 +78,8 @@ export type SettingsStoreState = {
   screenSvcMode: TStreamSvcMode | null;
   screenBitrateKbps: number | null;
   screenContentMode: TStreamContentMode;
-  streamCodec: TStreamVideoCodec;
-  screenCodec: TStreamVideoCodec;
+  streamCodec: TStreamVideoCodec | null;
+  screenCodec: TStreamVideoCodec | null;
   screenPreviewAutoPauseWhenHidden: boolean;
   noiseProcessor: ENoiseProcessor;
   inputGain: number;
@@ -108,8 +107,8 @@ export const SettingsStore = signalStore(
     screenSvcMode: null,
     screenBitrateKbps: null,
     screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
-    streamCodec: DEFAULT_STREAM_VIDEO_CODEC,
-    screenCodec: DEFAULT_STREAM_VIDEO_CODEC,
+    streamCodec: null,
+    screenCodec: null,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
     noiseProcessor: DEFAULT_NOISE_PROCESSOR,
@@ -500,8 +499,8 @@ export const SettingsStore = signalStore(
         screenBitrateKbps: partial.screenBitrateKbps ?? null,
         screenContentMode:
           partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,
-        streamCodec: partial.streamCodec ?? DEFAULT_STREAM_VIDEO_CODEC,
-        screenCodec: partial.screenCodec ?? DEFAULT_STREAM_VIDEO_CODEC,
+        streamCodec: partial.streamCodec ?? null,
+        screenCodec: partial.screenCodec ?? null,
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,

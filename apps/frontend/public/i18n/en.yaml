@@ -135,6 +135,7 @@ CALL:
   STREAM_HEIGHT: Resolution
   STREAM_FPS: Frame rate
   STREAM_CODEC: Codec
+  STREAM_CODEC_HARDWARE: hardware
   STREAM_CODEC_UNSUPPORTED: This browser can't decode this stream
   STREAM_EXTRA_LAYERS: Additional layers
   STREAM_LAYERS_HINT: More layers means higher CPU and upload load

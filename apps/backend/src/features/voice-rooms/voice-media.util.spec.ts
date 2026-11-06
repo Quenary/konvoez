@@ -22,15 +22,22 @@ describe('voice-media.util', () => {
         'audio/opus',
         'video/AV1',
         'video/H264',
+        'video/H264',
         'video/VP8',
         'video/VP9',
       ].sort(),
     );
-    const h264 = VOICE_ROOM_MEDIA_CODECS.find(
+    const h264 = VOICE_ROOM_MEDIA_CODECS.filter(
       (c) => c.mimeType === 'video/H264',
     );
-    expect(h264?.parameters?.['packetization-mode']).toBe(1);
-    expect(h264?.parameters?.['profile-level-id']).toBe('42e01f');
+    expect(h264.map((codec) => codec.parameters?.['profile-level-id'])).toEqual(
+      ['42e01f', '640032'],
+    );
+    expect(h264.map((codec) => codec.preferredPayloadType)).toEqual([97, 102]);
+    for (const codec of h264) {
+      expect(codec.parameters?.['packetization-mode']).toBe(1);
+      expect(codec.parameters?.['level-asymmetry-allowed']).toBe(1);
+    }
     for (const codec of VOICE_ROOM_MEDIA_CODECS) {
       if (codec.kind !== 'video') {
         continue;

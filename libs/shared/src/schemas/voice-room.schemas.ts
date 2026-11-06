@@ -18,7 +18,7 @@ export type TVoiceRoomMediaTag = z.infer<typeof voiceRoomMediaTagSchema>;
 export const STREAM_VIDEO_CODECS = ['h264', 'vp8', 'vp9', 'av1'] as const;
 export const streamVideoCodecSchema = z.enum(STREAM_VIDEO_CODECS);
 export type TStreamVideoCodec = z.infer<typeof streamVideoCodecSchema>;
-export const DEFAULT_STREAM_VIDEO_CODEC: TStreamVideoCodec = 'h264';
+export const DEFAULT_STREAM_VIDEO_CODEC: TStreamVideoCodec = 'vp9';
 
 export const voiceRoomJoinSchema = z.object({
   roomId: z.number().int().positive().optional(),

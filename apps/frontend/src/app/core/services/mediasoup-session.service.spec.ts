@@ -21,6 +21,11 @@ import { ScreenCaptureService } from './screen-capture.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MediasoupSessionService } from './mediasoup-session.service';
+import {
+  clearHardwareEncoderCache,
+  detectHardwareEncoders,
+  hardwareEncoderProbe,
+} from './video-codec';
 import { AudioService } from './audio.service';
 import { MediaDeviceSwitchNotifierService } from './media-device-switch-notifier.service';
 import { VoiceQualityService } from './voice-quality.service';
@@ -1007,6 +1012,7 @@ describe('MediasoupSessionService', () => {
   it('keeps AV1 SVC when the dependency descriptor is negotiated', async () => {
     vi.stubGlobal('RTCRtpSender', {
       getCapabilities: () => ({
+        codecs: [{ mimeType: 'video/AV1' }],
         headerExtensions: [{ uri: STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI }],
       }),
     });
@@ -1063,6 +1069,12 @@ describe('MediasoupSessionService', () => {
   });
 
   it('falls AV1 back to L1T3 when the dependency descriptor is missing', async () => {
+    vi.stubGlobal('RTCRtpSender', {
+      getCapabilities: () => ({
+        codecs: [{ mimeType: 'video/AV1' }],
+        headerExtensions: [],
+      }),
+    });
     const settings = TestBed.inject(SettingsStore);
     settings.streamCodec = vi
       .fn()
@@ -1108,9 +1120,15 @@ describe('MediasoupSessionService', () => {
         }),
       }),
     );
+    vi.unstubAllGlobals();
   });
 
   it('produces H.264 simulcast when the device can send it', async () => {
+    vi.stubGlobal('RTCRtpSender', {
+      getCapabilities: () => ({
+        codecs: [{ mimeType: 'video/H264' }, { mimeType: 'video/VP8' }],
+      }),
+    });
     const settings = TestBed.inject(SettingsStore);
     settings.screenCodec = vi
       .fn()
@@ -1145,7 +1163,199 @@ describe('MediasoupSessionService', () => {
         encodings: [expect.any(Object), expect.any(Object)],
       }),
     );
+    vi.unstubAllGlobals();
   });
+
+  it('publishes hardware AV1 when no codec is saved', async () => {
+    clearHardwareEncoderCache();
+    vi.stubGlobal('navigator', {
+      mediaCapabilities: {
+        encodingInfo: async (config: { video: { contentType: string } }) => ({
+          supported: true,
+          powerEfficient: config.video.contentType === 'video/AV1',
+        }),
+      },
+    });
+    vi.stubGlobal('RTCRtpSender', {
+      getCapabilities: () => ({
+        codecs: [{ mimeType: 'video/AV1' }, { mimeType: 'video/VP9' }],
+      }),
+    });
+    await detectHardwareEncoders(
+      hardwareEncoderProbe({ height: 720, fps: 30, bitrateKbps: 2500 }),
+    );
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamCodec = vi
+      .fn()
+      .mockReturnValue(null) as unknown as typeof settings.streamCodec;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: {
+        codecs: [{ mimeType: 'video/AV1' }, { mimeType: 'video/VP9' }],
+      },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+
+    await service['produceVideo'](
+      'cam',
+      { getSettings: () => ({ height: 720 }) } as MediaStreamTrack,
+      {
+        height: 720,
+        fps: 30,
+        contentMode: 'motion',
+        extraLayers: [],
+        svcMode: 'L2T3_KEY',
+        maxBitrateBps: 2_000_000,
+      },
+    );
+
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codec: expect.objectContaining({ mimeType: 'video/AV1' }),
+      }),
+    );
+    clearHardwareEncoderCache();
+    vi.unstubAllGlobals();
+  });
+
+  it('publishes H.264 High when the probe found it and Constrained Baseline otherwise', async () => {
+    clearHardwareEncoderCache();
+    vi.stubGlobal('navigator', {
+      mediaCapabilities: {
+        encodingInfo: async (config: { video: { contentType: string } }) => ({
+          supported: true,
+          powerEfficient: config.video.contentType.includes('640032'),
+        }),
+      },
+    });
+    vi.stubGlobal('RTCRtpSender', {
+      getCapabilities: () => ({
+        codecs: [{ mimeType: 'video/H264' }, { mimeType: 'video/VP8' }],
+      }),
+    });
+    const constrained = {
+      mimeType: 'video/H264',
+      parameters: { 'profile-level-id': '42e01f', 'packetization-mode': 1 },
+    };
+    const high = {
+      mimeType: 'video/H264',
+      parameters: { 'profile-level-id': '640032', 'packetization-mode': 1 },
+    };
+    const settings = TestBed.inject(SettingsStore);
+    settings.streamCodec = vi
+      .fn()
+      .mockReturnValue('h264') as unknown as typeof settings.streamCodec;
+    service['device'] = {
+      loaded: true,
+      rtpCapabilities: { codecs: [constrained, high] },
+    } as never;
+    const produce = vi.fn().mockResolvedValue({
+      id: 'cam-prod',
+      closed: false,
+      on: vi.fn(),
+      close: vi.fn(),
+      pause: vi.fn(),
+      rtpSender: {
+        getParameters: () => ({ encodings: [] }),
+        setParameters: vi.fn(),
+      },
+    });
+    service['sendTransport'] = { produce, closed: false } as never;
+    const publish = {
+      height: 720,
+      fps: 30,
+      contentMode: 'motion' as const,
+      extraLayers: [],
+      svcMode: null,
+      maxBitrateBps: 2_000_000,
+    };
+    const track = { getSettings: () => ({ height: 720 }) } as MediaStreamTrack;
+
+    await service['produceVideo']('cam', track, publish);
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({ codec: constrained }),
+    );
+
+    await detectHardwareEncoders(
+      hardwareEncoderProbe({ height: 720, fps: 30, bitrateKbps: 1 }),
+    );
+    produce.mockClear();
+    await service['produceVideo']('cam', track, publish);
+    expect(produce).toHaveBeenCalledWith(
+      expect.objectContaining({ codec: high }),
+    );
+
+    clearHardwareEncoderCache();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    { name: 'no codec is saved', stored: null },
+    { name: 'the saved codec is VP9', stored: 'vp9' as const },
+  ])(
+    'publishes VP8 when the device cannot send VP9 and $name',
+    async ({ stored }) => {
+      clearHardwareEncoderCache();
+      vi.stubGlobal('RTCRtpSender', {
+        getCapabilities: () => ({
+          codecs: [{ mimeType: 'video/H264' }, { mimeType: 'video/VP8' }],
+        }),
+      });
+      const settings = TestBed.inject(SettingsStore);
+      settings.streamCodec = vi
+        .fn()
+        .mockReturnValue(stored) as unknown as typeof settings.streamCodec;
+      service['device'] = {
+        loaded: true,
+        rtpCapabilities: {
+          codecs: [{ mimeType: 'video/H264' }, { mimeType: 'video/VP8' }],
+        },
+      } as never;
+      const produce = vi.fn().mockResolvedValue({
+        id: 'cam-prod',
+        closed: false,
+        on: vi.fn(),
+        close: vi.fn(),
+        pause: vi.fn(),
+        rtpSender: {
+          getParameters: () => ({ encodings: [] }),
+          setParameters: vi.fn(),
+        },
+      });
+      service['sendTransport'] = { produce, closed: false } as never;
+
+      await service['produceVideo'](
+        'cam',
+        { getSettings: () => ({ height: 720 }) } as MediaStreamTrack,
+        {
+          height: 720,
+          fps: 30,
+          contentMode: 'motion',
+          extraLayers: [],
+          svcMode: 'L1T3',
+          maxBitrateBps: 2_000_000,
+        },
+      );
+
+      expect(produce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          codec: expect.objectContaining({ mimeType: 'video/VP8' }),
+        }),
+      );
+      vi.unstubAllGlobals();
+    },
+  );
 
   it('produces microphone with Opus codecOptions and starts VoiceQualityService', async () => {
     const track = {

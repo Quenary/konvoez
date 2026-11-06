@@ -135,6 +135,7 @@ CALL:
   STREAM_HEIGHT: Разрешение
   STREAM_FPS: Частота кадров
   STREAM_CODEC: Кодек
+  STREAM_CODEC_HARDWARE: аппаратный
   STREAM_CODEC_UNSUPPORTED: Этот браузер не может декодировать эту трансляцию
   STREAM_EXTRA_LAYERS: Дополнительные слои
   STREAM_LAYERS_HINT: Больше слоёв — выше нагрузка на процессор и исходящий канал

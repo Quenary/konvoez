@@ -77,3 +77,7 @@ On Linux the addon links the host `libpipewire-0.3` dynamically. The AppImage do
 Renderer: `contextIsolation`, `sandbox`, `nodeIntegration: false`. Preload exposes a typed IPC bridge (`window.konvoezDesktop`). Navigation stays on the configured server origin; external links open in the default browser. Mic, camera, and notification permissions are granted only for that origin.
 
 Chromium is launched with `WebRtcAllowInputVolumeAdjustment` disabled so WebRTC AGC cannot change the OS microphone volume (Windows/macOS). In-app mic level remains a frontend `GainNode` only.
+
+## Video encode
+
+On Windows, Chromium is launched with `MediaFoundationAV1Encoding` enabled so WebRTC can use a hardware AV1 encoder when the GPU has one. Codec selection is described in [Frontend streaming](../../docs/frontend/STREAMING.md).

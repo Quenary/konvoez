@@ -147,7 +147,7 @@ describe('ScreenCaptureService', () => {
     const result = await service.getTracks();
     expect(result.videoTrack).toBe(mockVideoTrack);
     expect(result.audioTrack).toBe(mockAudioTrack);
-    expect(mockVideoTrack.contentHint).toBe('text');
+    expect(mockVideoTrack.contentHint).toBe('motion');
     expect(mediaDevicesService.getDisplayMedia).toHaveBeenCalledWith({
       video: {
         height: { ideal: 720 },
