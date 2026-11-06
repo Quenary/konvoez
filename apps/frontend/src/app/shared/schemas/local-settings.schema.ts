@@ -1,13 +1,24 @@
 import {
+  DEFAULT_STREAM_VIDEO_CODEC,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   STREAM_EXTRA_LAYERS_MAX,
+  STREAM_SVC_MODES,
+  streamVideoCodecSchema,
   TStreamContentMode,
   TStreamLayer,
+  TStreamSvcMode,
+  TStreamVideoCodec,
 } from '@konvoez/shared';
 import * as z from 'zod';
 import { ENoiseProcessor } from '../../app.enums';
 
-export type { TStreamContentMode, TStreamLayer };
+export type {
+  TStreamContentMode,
+  TStreamLayer,
+  TStreamSvcMode,
+  TStreamVideoCodec,
+};
+export { DEFAULT_STREAM_VIDEO_CODEC, streamVideoCodecSchema };
 
 export const LOCAL_SETTINGS_VERSION = 1 as const;
 
@@ -49,12 +60,13 @@ export const streamExtraLayersSchema = z
     }),
   )
   .max(STREAM_EXTRA_LAYERS_MAX);
+export const streamSvcModeSchema = z.enum(STREAM_SVC_MODES);
 export const streamBitrateKbpsSchema = z
   .number()
   .int()
   .min(STREAM_BITRATE_SLIDER_MIN_KBPS);
 export const streamContentModeSchema = z.enum(['detail', 'motion']);
-export const DEFAULT_SCREEN_CONTENT_MODE: TStreamContentMode = 'detail';
+export const DEFAULT_SCREEN_CONTENT_MODE: TStreamContentMode = 'motion';
 
 export const noiseProcessorSchema = z.enum(ENoiseProcessor);
 export type TNoiseProcessor = z.infer<typeof noiseProcessorSchema>;
@@ -84,10 +96,14 @@ export const localSettingsSchema = z.object({
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
   streamExtraLayers: streamExtraLayersSchema.optional(),
+  streamSvcMode: streamSvcModeSchema.optional(),
   streamBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenExtraLayers: streamExtraLayersSchema.optional(),
+  screenSvcMode: streamSvcModeSchema.optional(),
   screenBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenContentMode: streamContentModeSchema.optional(),
+  streamCodec: streamVideoCodecSchema.optional(),
+  screenCodec: streamVideoCodecSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),
@@ -107,10 +123,14 @@ export const localSettingsLooseSchema = z.looseObject({
   screenHeight: streamHeightSchema.optional(),
   screenFps: streamFpsSchema.optional(),
   streamExtraLayers: streamExtraLayersSchema.optional(),
+  streamSvcMode: streamSvcModeSchema.optional(),
   streamBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenExtraLayers: streamExtraLayersSchema.optional(),
+  screenSvcMode: streamSvcModeSchema.optional(),
   screenBitrateKbps: streamBitrateKbpsSchema.optional(),
   screenContentMode: streamContentModeSchema.optional(),
+  streamCodec: streamVideoCodecSchema.optional(),
+  screenCodec: streamVideoCodecSchema.optional(),
   screenPreviewAutoPauseWhenHidden: z.boolean().optional(),
   noiseProcessor: noiseProcessorSchema.optional(),
   inputGain: inputGainSchema.optional(),

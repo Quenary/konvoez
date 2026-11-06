@@ -8,14 +8,18 @@ const repoRoot = path.resolve(__dirname, '../../../..');
 
 const localTokenDefinition = /--tui-[a-z0-9-]+\s*:/;
 
-function collectTsFiles(dir: string): string[] {
+function collectTsFiles(dir: string, skipSpecs: boolean): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...collectTsFiles(fullPath));
-    } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+      files.push(...collectTsFiles(fullPath, skipSpecs));
+    } else if (
+      entry.isFile() &&
+      entry.name.endsWith('.ts') &&
+      !(skipSpecs && entry.name.endsWith('.spec.ts'))
+    ) {
       files.push(fullPath);
     }
   }
@@ -23,14 +27,17 @@ function collectTsFiles(dir: string): string[] {
 }
 
 describe('no local Taiga token definitions in client components', () => {
-  it('ui-kit and client-dialogs sources only reference inherited variables', () => {
+  it('ui-kit and desktop dialog sources only reference inherited variables', () => {
     const roots = [
-      path.resolve(repoRoot, 'libs/ui-kit/src'),
-      path.resolve(repoRoot, 'libs/client-dialogs/src'),
+      { dir: path.resolve(repoRoot, 'libs/ui-kit/src'), skipSpecs: false },
+      {
+        dir: path.resolve(repoRoot, 'apps/desktop/src/pages'),
+        skipSpecs: true,
+      },
     ];
 
     for (const root of roots) {
-      for (const file of collectTsFiles(root)) {
+      for (const file of collectTsFiles(root.dir, root.skipSpecs)) {
         if (
           file.endsWith('no-local-tokens.spec.ts') ||
           file.includes(`${path.sep}theme${path.sep}generated${path.sep}`)

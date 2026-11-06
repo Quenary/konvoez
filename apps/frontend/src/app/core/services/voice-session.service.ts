@@ -703,6 +703,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       );
 
       this.peerPlaybackService.removeConsumer(data.userId, data.producerId);
+      this.peerVideoService.forgetCamOffer(data.userId, data.producerId);
       this.peerVideoService.remove(data.userId, data.producerId);
       this.screenWatchService.onRemoteProducerClosed(
         data.userId,

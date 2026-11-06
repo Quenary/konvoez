@@ -134,8 +134,16 @@ CALL:
   START_CAMERA: Start camera
   STREAM_HEIGHT: Resolution
   STREAM_FPS: Frame rate
+  STREAM_CODEC: Codec
+  STREAM_CODEC_HARDWARE: hardware
+  STREAM_CODEC_UNSUPPORTED: This browser can't decode this stream
   STREAM_EXTRA_LAYERS: Additional layers
   STREAM_LAYERS_HINT: More layers means higher CPU and upload load
+  STREAM_SVC_LAYERS: Additional layers (SVC)
+  STREAM_SVC_L1: 1 layer (L1T3)
+  STREAM_SVC_L2: 2 layers (L2T3_KEY)
+  STREAM_SVC_L3: 3 layers (L3T3_KEY)
+  STREAM_SVC_LAYERS_HINT: More spatial layers means higher CPU and upload load. Temporal layers stay at 3.
   STREAM_CONTENT_MODE: Content
   STREAM_CONTENT_TEXT: Text
   STREAM_CONTENT_GAME: Game
@@ -150,6 +158,7 @@ CALL:
   SCREEN_OFF: Stop sharing
   SCREEN_SETTINGS: Screen share settings
   SCREEN_FAILED: Couldn't start screen sharing
+  SCREEN_AUDIO_LOOPBACK: Broadcasts all system audio, including other participants (may cause echo)
   START_SCREEN: Share screen
   WATCH_SCREEN: Start watching
   STOP_WATCH_SCREEN: Stop watching

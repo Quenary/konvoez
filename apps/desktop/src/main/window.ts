@@ -3,6 +3,7 @@ import { app, BrowserWindow, nativeImage, type NativeImage } from 'electron';
 import { getIconPath } from './assets';
 import type { ConfigStore } from './config-store';
 import { isQuitting } from './quit';
+import { getNativeModule } from './native';
 
 let mainWindow: BrowserWindow | null = null;
 let hasTray = true;
@@ -24,8 +25,12 @@ export function getAppIcon(): NativeImage | undefined {
   return image;
 }
 
+export function getLocalPagesDir(): string {
+  return path.resolve(__dirname, 'pages');
+}
+
 export function getLocalPagePath(pageName: string): string {
-  return path.resolve(__dirname, 'pages', `${pageName}.html`);
+  return path.resolve(getLocalPagesDir(), pageName, 'index.html');
 }
 
 export function showMainWindow(win?: BrowserWindow | null): void {
@@ -63,7 +68,12 @@ export function createMainWindow(configStore: ConfigStore): BrowserWindow {
       webSecurity: true,
       backgroundThrottling: false,
       spellcheck: true,
-      additionalArguments: [`--konvoez-version=${app.getVersion()}`],
+      additionalArguments: [
+        `--konvoez-version=${app.getVersion()}`,
+        ...(getNativeModule()?.isAudioSupported()
+          ? ['--konvoez-native-audio']
+          : []),
+      ],
     },
   });
 
@@ -114,15 +124,23 @@ export function openLocalModal(
     width?: number;
     height?: number;
     resizable?: boolean;
+    modal?: boolean;
     onClosed?: () => void;
   },
 ): BrowserWindow {
-  const parent = parentWindow ?? mainWindow ?? undefined;
+  const fallbackParent =
+    mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()
+      ? mainWindow
+      : undefined;
+  const parent =
+    parentWindow === null ? undefined : (parentWindow ?? fallbackParent);
+  const hasParent = Boolean(parent && !parent.isDestroyed());
+  const isModal = hasParent && options?.modal !== false;
   const modal = new BrowserWindow({
     width: options?.width ?? 600,
     height: options?.height ?? 500,
-    parent: parent && !parent.isDestroyed() ? parent : undefined,
-    modal: Boolean(parent && !parent.isDestroyed()),
+    parent: hasParent ? parent : undefined,
+    modal: isModal,
     show: false,
     resizable: options?.resizable ?? false,
     icon: getAppIcon(),

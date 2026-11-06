@@ -134,8 +134,16 @@ CALL:
   START_CAMERA: Запустить камеру
   STREAM_HEIGHT: Разрешение
   STREAM_FPS: Частота кадров
+  STREAM_CODEC: Кодек
+  STREAM_CODEC_HARDWARE: аппаратный
+  STREAM_CODEC_UNSUPPORTED: Этот браузер не может декодировать эту трансляцию
   STREAM_EXTRA_LAYERS: Дополнительные слои
   STREAM_LAYERS_HINT: Больше слоёв — выше нагрузка на процессор и исходящий канал
+  STREAM_SVC_LAYERS: Дополнительные слои (SVC)
+  STREAM_SVC_L1: 1 слой (L1T3)
+  STREAM_SVC_L2: 2 слоя (L2T3_KEY)
+  STREAM_SVC_L3: 3 слоя (L3T3_KEY)
+  STREAM_SVC_LAYERS_HINT: Больше пространственных слоёв — выше нагрузка на процессор и исходящий канал. Временных слоёв всегда три.
   STREAM_CONTENT_MODE: Содержание
   STREAM_CONTENT_TEXT: Текст
   STREAM_CONTENT_GAME: Игра
@@ -150,6 +158,7 @@ CALL:
   SCREEN_OFF: Остановить демонстрацию
   SCREEN_SETTINGS: Настройки демонстрации экрана
   SCREEN_FAILED: Не удалось начать демонстрацию экрана
+  SCREEN_AUDIO_LOOPBACK: Транслируется весь звук системы, включая собеседников (может вызывать эхо)
   START_SCREEN: Демонстрировать
   WATCH_SCREEN: Начать просмотр
   STOP_WATCH_SCREEN: Прекратить просмотр

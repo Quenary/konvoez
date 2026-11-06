@@ -2,10 +2,15 @@ import { AppException } from '@shared/errors/app.exception';
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,
+  assertProducedVideoCodec,
   assertScreenAudioAllowed,
   expectedKindForMediaTag,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
+  readProducedVideoCodec,
+  svcPreferredTemporalLayer,
+  svcSpatialLayerCount,
+  videoLayersMatchEncodings,
   VOICE_ROOM_MEDIA_CODECS,
 } from './voice-media.util';
 
@@ -17,15 +22,87 @@ describe('voice-media.util', () => {
         'audio/opus',
         'video/AV1',
         'video/H264',
+        'video/H264',
         'video/VP8',
         'video/VP9',
       ].sort(),
     );
-    const h264 = VOICE_ROOM_MEDIA_CODECS.find(
+    const h264 = VOICE_ROOM_MEDIA_CODECS.filter(
       (c) => c.mimeType === 'video/H264',
     );
-    expect(h264?.parameters?.['packetization-mode']).toBe(1);
-    expect(h264?.parameters?.['profile-level-id']).toBe('42e01f');
+    expect(h264.map((codec) => codec.parameters?.['profile-level-id'])).toEqual(
+      ['42e01f', '640032'],
+    );
+    expect(h264.map((codec) => codec.preferredPayloadType)).toEqual([97, 102]);
+    for (const codec of h264) {
+      expect(codec.parameters?.['packetization-mode']).toBe(1);
+      expect(codec.parameters?.['level-asymmetry-allowed']).toBe(1);
+    }
+    for (const codec of VOICE_ROOM_MEDIA_CODECS) {
+      if (codec.kind !== 'video') {
+        continue;
+      }
+      expect(codec.parameters?.['x-google-start-bitrate']).toBe(2500);
+    }
+  });
+
+  it.each([
+    ['L2T3_KEY', 2],
+    ['L3T3_KEY', 2],
+    ['L1T3', 2],
+    ['L2T1', 0],
+    [undefined, 2],
+  ] as const)('temporal layer for %s is %s', (mode, temporal) => {
+    expect(svcPreferredTemporalLayer(mode)).toBe(temporal);
+  });
+
+  it.each([
+    ['L1T3', 1],
+    ['L2T3_KEY', 2],
+    ['L3T3_KEY', 3],
+    ['S2T3', 2],
+    [undefined, undefined],
+    ['L1T1', 1],
+  ] as const)('spatial count for %s is %s', (mode, spatial) => {
+    expect(svcSpatialLayerCount(mode)).toBe(spatial);
+  });
+
+  it.each([
+    [2, [{ scalabilityMode: 'L2T3_KEY' }], true],
+    [3, [{ scalabilityMode: 'L3T3_KEY' }], true],
+    [1, [{ scalabilityMode: 'L1T3' }], true],
+    [2, [{ scalabilityMode: 'L3T3_KEY' }], false],
+    [2, [{}], false],
+    [2, [{}, {}], true],
+    [3, [{ scalabilityMode: 'L1T1' }, { scalabilityMode: 'L1T1' }], false],
+  ] as const)(
+    'layer count %s matches encodings %j: %s',
+    (layerCount, encodings, matches) => {
+      expect(videoLayersMatchEncodings(layerCount, encodings)).toBe(matches);
+    },
+  );
+
+  it('reads H264, VP8, VP9 and AV1 and rejects other video codecs', () => {
+    expect(
+      readProducedVideoCodec({
+        codecs: [{ mimeType: 'audio/opus' }, { mimeType: 'video/VP9' }],
+      }),
+    ).toBe('vp9');
+    expect(
+      readProducedVideoCodec({ codecs: [{ mimeType: 'video/H264' }] }),
+    ).toBe('h264');
+    expect(
+      readProducedVideoCodec({ codecs: [{ mimeType: 'video/H265' }] }),
+    ).toBeNull();
+    expect(assertProducedVideoCodec('mic', {})).toBeUndefined();
+    expect(() =>
+      assertProducedVideoCodec('cam', { codecs: [{ mimeType: 'video/H265' }] }),
+    ).toThrow(AppException);
+    expect(
+      assertProducedVideoCodec('screen', {
+        codecs: [{ mimeType: 'video/AV1' }],
+      }),
+    ).toBe('av1');
   });
 
   it('maps mediaTag to kind', () => {

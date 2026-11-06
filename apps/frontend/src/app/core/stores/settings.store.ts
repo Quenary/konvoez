@@ -42,6 +42,8 @@ import {
   TStreamFps,
   TStreamHeight,
   TStreamLayer,
+  TStreamSvcMode,
+  TStreamVideoCodec,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
 import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
@@ -70,10 +72,14 @@ export type SettingsStoreState = {
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
   streamExtraLayers: TStreamLayer[] | null;
+  streamSvcMode: TStreamSvcMode | null;
   streamBitrateKbps: number | null;
   screenExtraLayers: TStreamLayer[] | null;
+  screenSvcMode: TStreamSvcMode | null;
   screenBitrateKbps: number | null;
   screenContentMode: TStreamContentMode;
+  streamCodec: TStreamVideoCodec | null;
+  screenCodec: TStreamVideoCodec | null;
   screenPreviewAutoPauseWhenHidden: boolean;
   noiseProcessor: ENoiseProcessor;
   inputGain: number;
@@ -95,10 +101,14 @@ export const SettingsStore = signalStore(
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
     streamExtraLayers: null,
+    streamSvcMode: null,
     streamBitrateKbps: null,
     screenExtraLayers: null,
+    screenSvcMode: null,
     screenBitrateKbps: null,
     screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
+    streamCodec: null,
+    screenCodec: null,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
     noiseProcessor: DEFAULT_NOISE_PROCESSOR,
@@ -233,10 +243,14 @@ export const SettingsStore = signalStore(
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
           streamExtraLayers: store.streamExtraLayers(),
+          streamSvcMode: store.streamSvcMode(),
           streamBitrateKbps: store.streamBitrateKbps(),
           screenExtraLayers: store.screenExtraLayers(),
+          screenSvcMode: store.screenSvcMode(),
           screenBitrateKbps: store.screenBitrateKbps(),
           screenContentMode: store.screenContentMode(),
+          streamCodec: store.streamCodec(),
+          screenCodec: store.screenCodec(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
           noiseProcessor: store.noiseProcessor(),
@@ -261,10 +275,14 @@ export const SettingsStore = signalStore(
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
               streamExtraLayers: store.streamExtraLayers(),
+              streamSvcMode: store.streamSvcMode(),
               streamBitrateKbps: store.streamBitrateKbps(),
               screenExtraLayers: store.screenExtraLayers(),
+              screenSvcMode: store.screenSvcMode(),
               screenBitrateKbps: store.screenBitrateKbps(),
               screenContentMode: store.screenContentMode(),
+              streamCodec: store.streamCodec(),
+              screenCodec: store.screenCodec(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
               noiseProcessor: store.noiseProcessor(),
@@ -319,6 +337,11 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
+        setStreamSvcMode(streamSvcMode: TStreamSvcMode | null): void {
+          patchState(store, { streamSvcMode });
+          persistLocal();
+        },
+
         setStreamBitrateKbps(streamBitrateKbps: number | null): void {
           patchState(store, { streamBitrateKbps });
           persistLocal();
@@ -329,6 +352,11 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
+        setScreenSvcMode(screenSvcMode: TStreamSvcMode | null): void {
+          patchState(store, { screenSvcMode });
+          persistLocal();
+        },
+
         setScreenBitrateKbps(screenBitrateKbps: number | null): void {
           patchState(store, { screenBitrateKbps });
           persistLocal();
@@ -336,6 +364,16 @@ export const SettingsStore = signalStore(
 
         setScreenContentMode(screenContentMode: TStreamContentMode): void {
           patchState(store, { screenContentMode });
+          persistLocal();
+        },
+
+        setStreamCodec(streamCodec: TStreamVideoCodec): void {
+          patchState(store, { streamCodec });
+          persistLocal();
+        },
+
+        setScreenCodec(screenCodec: TStreamVideoCodec): void {
+          patchState(store, { screenCodec });
           persistLocal();
         },
 
@@ -454,11 +492,15 @@ export const SettingsStore = signalStore(
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
         streamExtraLayers: partial.streamExtraLayers ?? null,
+        streamSvcMode: partial.streamSvcMode ?? null,
         streamBitrateKbps: partial.streamBitrateKbps ?? null,
         screenExtraLayers: partial.screenExtraLayers ?? null,
+        screenSvcMode: partial.screenSvcMode ?? null,
         screenBitrateKbps: partial.screenBitrateKbps ?? null,
         screenContentMode:
           partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,
+        streamCodec: partial.streamCodec ?? null,
+        screenCodec: partial.screenCodec ?? null,
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??
           DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,

@@ -11,6 +11,7 @@ import { SettingsStore } from '@core/stores/settings.store';
 import { PeerVideoService } from '@core/services/peer-video.service';
 import { ScreenCaptureService } from '@core/services/screen-capture.service';
 import { MicrophoneService } from '@core/services/microphone.service';
+import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { isDisplayMediaUserCancellation } from '@shared/functions/display-media-error.utils';
 import { notifyError } from '@shared/functions/notify-error.function';
@@ -24,6 +25,7 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButtonLoading } from '@taiga-ui/kit';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
+import { TStreamContentMode, TStreamVideoCodec } from '@konvoez/shared';
 import { firstValueFrom } from 'rxjs';
 import {
   StreamQualityDialogComponent,
@@ -48,6 +50,7 @@ export class VoiceRoomControlsBarComponent {
   private readonly settingsStore = inject(SettingsStore);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly voiceSessionService = inject(VoiceSessionService);
+  private readonly mediasoupSessionService = inject(MediasoupSessionService);
   private readonly screenCaptureService = inject(ScreenCaptureService);
   private readonly dialogService = inject(TuiResponsiveDialogService);
   private readonly injector = inject(Injector);
@@ -136,8 +139,11 @@ export class VoiceRoomControlsBarComponent {
             height: settings.height,
             fps: settings.fps,
             extraLayers: settings.extraLayers,
+            svcMode: settings.svcMode,
             bitrateKbps: settings.bitrateKbps,
             contentMode: settings.contentMode,
+            codec: settings.codec,
+            codecs: this.mediasoupSessionService.videoCodecOptions(),
             maxBitrateKbps: this.settingsStore.streamMaxBitrateKbps(),
           },
           size: 's',
@@ -179,8 +185,10 @@ export class VoiceRoomControlsBarComponent {
           height: TStreamQualityDialogResult['height'];
           fps: TStreamQualityDialogResult['fps'];
           extraLayers: TStreamQualityDialogResult['extraLayers'] | null;
+          svcMode: TStreamQualityDialogResult['svcMode'] | null;
           bitrateKbps: number | null;
-          contentMode: TStreamQualityDialogResult['contentMode'];
+          contentMode: TStreamContentMode;
+          codec: TStreamVideoCodec | null;
         };
         save: (result: TStreamQualityDialogResult) => void;
         stop: () => Promise<void>;
@@ -195,14 +203,18 @@ export class VoiceRoomControlsBarComponent {
           height: this.settingsStore.streamHeight(),
           fps: this.settingsStore.streamFps(),
           extraLayers: this.settingsStore.streamExtraLayers(),
+          svcMode: this.settingsStore.streamSvcMode(),
           bitrateKbps: this.settingsStore.streamBitrateKbps(),
           contentMode: 'motion' as const,
+          codec: this.settingsStore.streamCodec(),
         }),
         save: (result) => {
           this.settingsStore.setStreamHeight(result.height);
           this.settingsStore.setStreamFps(result.fps);
           this.settingsStore.setStreamExtraLayers(result.extraLayers);
+          this.settingsStore.setStreamSvcMode(result.svcMode);
           this.settingsStore.setStreamBitrateKbps(result.bitrateKbps);
+          this.settingsStore.setStreamCodec(result.codec);
         },
         stop: () => this.voiceSessionService.stopCamera(),
         produce: () => this.voiceSessionService.produceCamera(),
@@ -215,14 +227,18 @@ export class VoiceRoomControlsBarComponent {
           height: this.settingsStore.screenHeight(),
           fps: this.settingsStore.screenFps(),
           extraLayers: this.settingsStore.screenExtraLayers(),
+          svcMode: this.settingsStore.screenSvcMode(),
           bitrateKbps: this.settingsStore.screenBitrateKbps(),
           contentMode: this.settingsStore.screenContentMode(),
+          codec: this.settingsStore.screenCodec(),
         }),
         save: (result) => {
           this.settingsStore.setScreenHeight(result.height);
           this.settingsStore.setScreenFps(result.fps);
           this.settingsStore.setScreenExtraLayers(result.extraLayers);
+          this.settingsStore.setScreenSvcMode(result.svcMode);
           this.settingsStore.setScreenBitrateKbps(result.bitrateKbps);
+          this.settingsStore.setScreenCodec(result.codec);
           if (result.contentMode) {
             this.settingsStore.setScreenContentMode(result.contentMode);
           }

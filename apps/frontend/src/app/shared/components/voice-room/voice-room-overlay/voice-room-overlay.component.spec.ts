@@ -11,6 +11,7 @@ import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.
 import { SettingsStore } from '@core/stores/settings.store';
 import { AudioService } from '@core/services/audio.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
+import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -35,6 +36,7 @@ const stageTile = (
   screenAvailable: streamKind === 'screen',
   watchingScreen,
   previewPaused,
+  codecUnsupported: false,
 });
 
 describe('VoiceRoomOverlayComponent', () => {
@@ -113,7 +115,21 @@ describe('VoiceRoomOverlayComponent', () => {
             setStreamFps: vi.fn(),
             setScreenHeight: vi.fn(),
             setScreenFps: vi.fn(),
+            streamCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
+            screenCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
+            streamExtraLayers: signal(null).asReadonly(),
+            screenExtraLayers: signal(null).asReadonly(),
+            streamBitrateKbps: signal<number | null>(null).asReadonly(),
+            screenBitrateKbps: signal<number | null>(null).asReadonly(),
+            screenContentMode: signal<'detail' | 'motion'>(
+              'detail',
+            ).asReadonly(),
+            streamMaxBitrateKbps: signal(8000).asReadonly(),
           },
+        },
+        {
+          provide: MediasoupSessionService,
+          useValue: { videoCodecOptions: () => ['vp8', 'vp9'] },
         },
         {
           provide: AudioService,

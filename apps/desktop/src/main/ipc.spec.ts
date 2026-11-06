@@ -42,10 +42,12 @@ describe('IPC security validation', () => {
 
   describe('isTrustedLocalSender', () => {
     it('returns true for file: URLs', () => {
-      expect(isTrustedLocalSender('file:///dist/pages/server.html')).toBe(true);
-      expect(isTrustedLocalSender('file:///dist/pages/settings.html')).toBe(
+      expect(isTrustedLocalSender('file:///dist/pages/server/index.html')).toBe(
         true,
       );
+      expect(
+        isTrustedLocalSender('file:///dist/pages/settings/index.html'),
+      ).toBe(true);
     });
 
     it('returns false for web URLs or undefined', () => {

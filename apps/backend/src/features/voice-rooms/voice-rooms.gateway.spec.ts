@@ -280,6 +280,7 @@ describe('VoiceRoomsGateway', () => {
       });
 
       expect(createWebRtcTransport).toHaveBeenCalledWith({
+        initialAvailableOutgoingBitrate: 2_500_000,
         listenInfos: [
           {
             protocol: 'udp',
@@ -792,6 +793,53 @@ describe('VoiceRoomsGateway', () => {
       ).rejects.toThrow(AppException);
     });
 
+    it('rejects a screen codec outside H264, VP8, VP9 and AV1', async () => {
+      const { room, sendTransport } = readyPeer();
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      await expect(
+        gateway.produce(joinedSocket() as never, {
+          transportId: 't',
+          kind: 'video',
+          mediaTag: 'screen',
+          rtpParameters: { codecs: [{ mimeType: 'video/H265' }] },
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.VOICE_MEDIA_INVALID,
+        message: 'Unsupported video codec',
+      });
+      expect(sendTransport.produce).not.toHaveBeenCalled();
+    });
+
+    it('accepts an H264 screen', async () => {
+      const { room, sendTransport } = readyPeer();
+      sendTransport.produce.mockResolvedValue({
+        id: 'screen-1',
+        kind: 'video',
+        observer: { on: jest.fn() },
+        on: jest.fn(),
+      });
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      const socket = joinedSocket();
+      (socket.to as jest.Mock).mockReturnValue({ emit: jest.fn() });
+
+      const result = await gateway.produce(socket as never, {
+        transportId: 't',
+        kind: 'video',
+        mediaTag: 'screen',
+        rtpParameters: { codecs: [{ mimeType: 'video/H264' }] },
+      });
+
+      expect(result).toEqual(expect.objectContaining({ codec: 'h264' }));
+      expect(sendTransport.produce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appData: expect.objectContaining({
+            mediaTag: 'screen',
+            codec: 'h264',
+          }),
+        }),
+      );
+    });
+
     it('rejects screen-audio without screen with AppException', async () => {
       const { room } = readyPeer();
       voiceRoomsStateService.getRoom.mockReturnValue(room);
@@ -896,7 +944,7 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: {},
+        rtpParameters: { codecs: [{ mimeType: 'video/VP8' }] },
       });
 
       expect(result.producerId).toBe('cam-new');
@@ -970,7 +1018,7 @@ describe('VoiceRoomsGateway', () => {
             transportId: 't',
             kind: 'video',
             mediaTag: 'cam',
-            rtpParameters: {},
+            rtpParameters: { codecs: [{ mimeType: 'video/VP9' }] },
           }),
         ),
       );
@@ -1035,7 +1083,7 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: {},
+        rtpParameters: { codecs: [{ mimeType: 'video/VP8' }] },
       };
 
       const [res1, res2] = await Promise.all([
@@ -1082,7 +1130,10 @@ describe('VoiceRoomsGateway', () => {
         transportId: 't',
         kind: 'video',
         mediaTag: 'cam',
-        rtpParameters: { encodings: [{}, {}] },
+        rtpParameters: {
+          encodings: [{}, {}],
+          codecs: [{ mimeType: 'video/AV1' }],
+        },
         layers: [
           { height: 360, fps: 30 },
           { height: 720, fps: 30 },
@@ -1094,6 +1145,7 @@ describe('VoiceRoomsGateway', () => {
         expect.objectContaining({
           appData: expect.objectContaining({
             mediaTag: 'cam',
+            codec: 'av1',
             layers: [
               { height: 360, fps: 30 },
               { height: 720, fps: 30 },
@@ -1105,8 +1157,13 @@ describe('VoiceRoomsGateway', () => {
       expect(room.producers.get('cam-1')).toBe(producer);
       expect(toEmit).toHaveBeenCalledWith(
         EVoiceRoomEvent.PRODUCER_CREATED,
-        expect.objectContaining({ producerId: 'cam-1', mediaTag: 'cam' }),
+        expect.objectContaining({
+          producerId: 'cam-1',
+          mediaTag: 'cam',
+          codec: 'av1',
+        }),
       );
+      expect(result).toEqual(expect.objectContaining({ codec: 'av1' }));
 
       const serverEmit = jest.fn();
       serverMock.to.mockReturnValue({ emit: serverEmit });
@@ -1151,6 +1208,57 @@ describe('VoiceRoomsGateway', () => {
       ).rejects.toBeInstanceOf(AppException);
       expect(sendTransport.produce).not.toHaveBeenCalled();
     });
+
+    it.each([
+      [
+        'L2T3_KEY',
+        [
+          { height: 540, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      ],
+      [
+        'L3T3_KEY',
+        [
+          { height: 270, fps: 30 },
+          { height: 540, fps: 30 },
+          { height: 1080, fps: 30 },
+        ],
+      ],
+    ] as const)(
+      'accepts one SVC encoding when layers match %s',
+      async (scalabilityMode, layers) => {
+        const { room, sendTransport } = readyPeer();
+        sendTransport.produce.mockResolvedValue({
+          id: 'cam-svc',
+          kind: 'video',
+          closed: false,
+          appData: { mediaTag: 'cam', peerId: 'socket-1' },
+          close: jest.fn(),
+          observer: { on: jest.fn() },
+          on: jest.fn(),
+        });
+        voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+        await expect(
+          gateway.produce(joinedSocket() as never, {
+            transportId: 't',
+            kind: 'video',
+            mediaTag: 'cam',
+            rtpParameters: {
+              encodings: [{ scalabilityMode }],
+              codecs: [{ mimeType: 'video/VP9' }],
+            },
+            layers: [...layers],
+          }),
+        ).resolves.toEqual(expect.objectContaining({ producerId: 'cam-svc' }));
+        expect(sendTransport.produce).toHaveBeenCalledWith(
+          expect.objectContaining({
+            appData: expect.objectContaining({ layers: [...layers] }),
+          }),
+        );
+      },
+    );
 
     it('subscribes to producer score for mic and emits minimum score to owner socket only', async () => {
       const room = createRoom();
@@ -1417,6 +1525,67 @@ describe('VoiceRoomsGateway', () => {
         }),
       ).resolves.toEqual({});
       expect(setPreferredLayers).toHaveBeenCalledWith({ spatialLayer: 1 });
+    });
+
+    it.each(['L2T3_KEY', 'L3T3_KEY'])(
+      'sets the highest temporal layer for an SVC consumer (%s)',
+      async (scalabilityMode) => {
+        const setPreferredLayers = jest.fn().mockResolvedValue(undefined);
+        const consumer = {
+          id: 'c1',
+          type: 'svc',
+          rtpParameters: { encodings: [{ scalabilityMode }] },
+          setPreferredLayers,
+        };
+        const peer = {
+          id: 'socket-1',
+          user: alice,
+          producers: new Map(),
+          consumers: new Map([['c1', consumer]]),
+        };
+        voiceRoomsStateService.getRoom.mockReturnValue(
+          createRoom(new Map([['socket-1', peer]])),
+        );
+
+        await expect(
+          gateway.setConsumerLayers(socketFor() as never, {
+            consumerId: 'c1',
+            spatialLayer: 1,
+          }),
+        ).resolves.toEqual({});
+        expect(setPreferredLayers).toHaveBeenCalledWith({
+          spatialLayer: 1,
+          temporalLayer: 2,
+        });
+      },
+    );
+
+    it('uses temporal layer 2 when an SVC mode cannot be parsed', async () => {
+      const setPreferredLayers = jest.fn().mockResolvedValue(undefined);
+      const consumer = {
+        id: 'c1',
+        type: 'svc',
+        rtpParameters: { encodings: [{}] },
+        setPreferredLayers,
+      };
+      const peer = {
+        id: 'socket-1',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map([['c1', consumer]]),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(
+        createRoom(new Map([['socket-1', peer]])),
+      );
+
+      await gateway.setConsumerLayers(socketFor() as never, {
+        consumerId: 'c1',
+        spatialLayer: 0,
+      });
+      expect(setPreferredLayers).toHaveBeenCalledWith({
+        spatialLayer: 0,
+        temporalLayer: 2,
+      });
     });
 
     it('ignores an unknown consumer, a simple consumer, and another peer', async () => {

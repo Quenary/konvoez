@@ -8,6 +8,7 @@ import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
 import { DirectCallService } from '@core/services/direct-call.service';
+import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { TuiNotificationService, provideTaiga } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -127,6 +128,8 @@ describe('VoiceRoomShellComponent', () => {
             remoteScreenTracks: remoteScreenTracks.asReadonly(),
             availableScreens: availableScreens.asReadonly(),
             watchingUserIds: watchingUserIds.asReadonly(),
+            blockedCamUserIds: signal(new Set<number>()).asReadonly(),
+            blockedScreenUserIds: signal(new Set<number>()).asReadonly(),
             getScreenConsumerId: vi.fn(() => null),
           },
         },
@@ -193,7 +196,21 @@ describe('VoiceRoomShellComponent', () => {
             setStreamFps: vi.fn(),
             setScreenHeight: vi.fn(),
             setScreenFps: vi.fn(),
+            streamCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
+            screenCodec: signal<'vp8' | 'vp9' | 'av1'>('vp9').asReadonly(),
+            streamExtraLayers: signal(null).asReadonly(),
+            screenExtraLayers: signal(null).asReadonly(),
+            streamBitrateKbps: signal<number | null>(null).asReadonly(),
+            screenBitrateKbps: signal<number | null>(null).asReadonly(),
+            screenContentMode: signal<'detail' | 'motion'>(
+              'detail',
+            ).asReadonly(),
+            streamMaxBitrateKbps: signal(8000).asReadonly(),
           },
+        },
+        {
+          provide: MediasoupSessionService,
+          useValue: { videoCodecOptions: () => ['vp8', 'vp9'] },
         },
       ],
     });

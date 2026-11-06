@@ -1,3 +1,5 @@
+import { TStreamVideoCodec } from './schemas/voice-room.schemas';
+
 export type TStreamContentMode = 'detail' | 'motion';
 
 export type TStreamLayer = {
@@ -23,6 +25,14 @@ export type TSimulcastPlanInput = {
 export const STREAM_LAYER_HEIGHTS = [1080, 720, 480, 360, 160] as const;
 export const STREAM_EXTRA_LAYERS_MAX = 2;
 
+export const STREAM_SVC_MODES = ['L1T3', 'L2T3_KEY', 'L3T3_KEY'] as const;
+export type TStreamSvcMode = (typeof STREAM_SVC_MODES)[number];
+export const DEFAULT_STREAM_SVC_MODE: TStreamSvcMode = 'L2T3_KEY';
+
+/** RTP header extension mediasoup parses so AV1 SVC layers can be selected. */
+export const STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI =
+  'https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension';
+
 /** Streamer bitrate slider lower bound, in kbit/s. */
 export const STREAM_BITRATE_SLIDER_MIN_KBPS = 500;
 /** Streamer bitrate slider step, in kbit/s. */
@@ -39,6 +49,27 @@ const STREAM_BITRATE_BASE_KBPS = [
   { height: 720, kbps: 2500 },
   { height: 1080, kbps: 5000 },
 ] as const;
+
+/**
+ * Bitrate needed for the same visual quality, relative to VP8.
+ * VP9 is about 30% more efficient, AV1 about 50%.
+ */
+const STREAM_CODEC_BITRATE_FACTOR: Record<TStreamVideoCodec, number> = {
+  h264: 1,
+  vp8: 1,
+  vp9: 0.7,
+  av1: 0.5,
+};
+
+/** VP9 and AV1 are rejected by the router when a producer has several encodings. */
+export function streamSupportsSimulcast(codec: TStreamVideoCodec): boolean {
+  return codec === 'vp8' || codec === 'h264';
+}
+
+/** VP9 and AV1 publish one encoding and scale with SVC. */
+export function streamSupportsSvc(codec: TStreamVideoCodec): boolean {
+  return !streamSupportsSimulcast(codec);
+}
 
 function sameLayer(left: TStreamLayer, right: TStreamLayer): boolean {
   return left.height === right.height && left.fps === right.fps;
@@ -64,11 +95,73 @@ export function streamLayerOptions(max: TStreamLayer): TStreamLayer[] {
 }
 
 export function defaultExtraLayers(max: TStreamLayer): TStreamLayer[] {
-  const height = STREAM_LAYER_HEIGHTS.find((preset) => preset < max.height);
-  if (height == null) {
+  const target = max.height / 2;
+  let chosen: number | null = null;
+  let chosenDistance = Number.POSITIVE_INFINITY;
+  for (const height of STREAM_LAYER_HEIGHTS) {
+    if (height >= max.height) {
+      continue;
+    }
+    const distance = Math.abs(height - target);
+    if (
+      chosen == null ||
+      distance < chosenDistance ||
+      (distance === chosenDistance && height < chosen)
+    ) {
+      chosen = height;
+      chosenDistance = distance;
+    }
+  }
+  if (chosen == null) {
     return [];
   }
-  return [{ height, fps: max.fps }];
+  return [{ height: chosen, fps: max.fps }];
+}
+
+function svcSpatialCount(mode: TStreamSvcMode): number {
+  switch (mode) {
+    case 'L1T3':
+      return 1;
+    case 'L2T3_KEY':
+      return 2;
+    case 'L3T3_KEY':
+      return 3;
+  }
+}
+
+/** Spatial layers low to high, scaled from the captured height. Temporal stays at the source fps. */
+export function svcLayers(
+  sourceHeight: number,
+  fps: number,
+  mode: TStreamSvcMode,
+): TStreamLayer[] {
+  const height = Math.max(1, Math.floor(sourceHeight));
+  const safeFps = Math.max(1, fps);
+  const count = svcSpatialCount(mode);
+  const layers: TStreamLayer[] = [];
+  for (let spatial = 0; spatial < count; spatial += 1) {
+    const divisor = 2 ** (count - 1 - spatial);
+    layers.push({
+      height: Math.max(1, Math.floor(height / divisor)),
+      fps: safeFps,
+    });
+  }
+  return layers;
+}
+
+/**
+ * AV1 spatial switching needs the Dependency Descriptor extension.
+ * Without it the encoder stays on one spatial layer.
+ */
+export function resolveSvcMode(input: {
+  codec: TStreamVideoCodec;
+  mode: TStreamSvcMode;
+  dependencyDescriptor: boolean;
+}): TStreamSvcMode {
+  if (input.codec === 'av1' && !input.dependencyDescriptor) {
+    return 'L1T3';
+  }
+  return input.mode;
 }
 
 export function sortStreamLayers(
@@ -193,12 +286,14 @@ function layerBitrateKbps(
   height: number,
   fps: number,
   contentMode: TStreamContentMode,
+  codec: TStreamVideoCodec,
 ): number {
   const safeFps = Math.max(1, fps);
   let kbps = baseBitrateKbps(height) * Math.sqrt(safeFps / 30);
   if (contentMode === 'motion') {
-    kbps *= 1.25;
+    kbps *= 1.5;
   }
+  kbps *= STREAM_CODEC_BITRATE_FACTOR[codec];
   return (
     Math.round(kbps / STREAM_BITRATE_SLIDER_STEP_KBPS) *
     STREAM_BITRATE_SLIDER_STEP_KBPS
@@ -211,15 +306,23 @@ export function recommendStreamBitrateKbps(input: {
   contentMode: TStreamContentMode;
   maxKbps: number;
   extra?: readonly TStreamLayer[];
+  /** Omitted codec keeps the historical VP8 recommendation. */
+  codec?: TStreamVideoCodec;
+  /** Set for VP9 and AV1. Omitted keeps the single-layer recommendation. */
+  svcMode?: TStreamSvcMode;
 }): number {
-  const layers = resolveStreamLayers({
-    max: { height: input.height, fps: input.fps },
-    extra: input.extra ?? [],
-    sourceHeight: input.height,
-  });
+  const codec = input.codec ?? 'vp8';
+  const layers =
+    input.svcMode && streamSupportsSvc(codec)
+      ? svcLayers(input.height, input.fps, input.svcMode)
+      : resolveStreamLayers({
+          max: { height: input.height, fps: input.fps },
+          extra: input.extra ?? [],
+          sourceHeight: input.height,
+        });
   const total = layers.reduce(
     (sum, layer) =>
-      sum + layerBitrateKbps(layer.height, layer.fps, input.contentMode),
+      sum + layerBitrateKbps(layer.height, layer.fps, input.contentMode, codec),
     0,
   );
   const ceiling = Math.max(0, input.maxKbps);

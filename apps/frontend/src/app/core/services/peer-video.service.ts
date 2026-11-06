@@ -1,4 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { TStreamVideoCodec } from '@konvoez/shared';
 import { ConsumerRegistry } from './consumer-registry';
 
 type TRemoteVideo = {
@@ -18,6 +19,20 @@ export type TRemoteVideoAttach = {
 export type TAvailableScreenShare = {
   videoProducerId: string;
   audioProducerId?: string;
+  codec?: TStreamVideoCodec;
+  codecBlocked?: boolean;
+};
+
+export type TAnnouncedVideoCodec = {
+  userId: number;
+  tag: 'cam' | 'screen';
+  codec: TStreamVideoCodec;
+};
+
+type TCamOffer = {
+  producerId: string;
+  codec?: TStreamVideoCodec;
+  blocked: boolean;
 };
 
 type TPeerIdRecord<T> = Record<number, T>;
@@ -53,10 +68,33 @@ export class PeerVideoService {
   private readonly _availableScreens =
     signal<Readonly<TPeerIdRecord<TAvailableScreenShare>>>(emptyPeerRecord());
 
+  private readonly _camOffers =
+    signal<Readonly<TPeerIdRecord<TCamOffer>>>(emptyPeerRecord());
+
   private readonly _watching = signal<ReadonlySet<number>>(new Set());
 
   public readonly availableScreens = this._availableScreens.asReadonly();
   public readonly watchingUserIds = this._watching.asReadonly();
+
+  public readonly blockedCamUserIds = computed(() => {
+    const ids = new Set<number>();
+    for (const [userId, offer] of Object.entries(this._camOffers())) {
+      if (offer.blocked) {
+        ids.add(Number(userId));
+      }
+    }
+    return ids;
+  });
+
+  public readonly blockedScreenUserIds = computed(() => {
+    const ids = new Set<number>();
+    for (const [userId, screen] of Object.entries(this._availableScreens())) {
+      if (screen.codecBlocked) {
+        ids.add(Number(userId));
+      }
+    }
+    return ids;
+  });
 
   public readonly remoteCamTracks = computed(() => {
     const byUserId: TPeerIdRecord<MediaStreamTrack> = {};
@@ -86,16 +124,30 @@ export class PeerVideoService {
     userId: number,
     producerId: string,
     kind: 'video' | 'audio',
+    codec?: TStreamVideoCodec,
   ): void {
     const prev = this._availableScreens();
     const existing = prev[userId] ?? { videoProducerId: '' };
     if (kind === 'video') {
+      const sameProducer =
+        existing.videoProducerId !== '' &&
+        existing.videoProducerId === producerId;
+      const nextCodec = codec ?? (sameProducer ? existing.codec : undefined);
+      const next: TAvailableScreenShare = {
+        videoProducerId: producerId,
+      };
+      if (existing.audioProducerId) {
+        next.audioProducerId = existing.audioProducerId;
+      }
+      if (nextCodec) {
+        next.codec = nextCodec;
+      }
+      if (sameProducer && existing.codecBlocked) {
+        next.codecBlocked = true;
+      }
       this._availableScreens.set({
         ...prev,
-        [userId]: {
-          ...existing,
-          videoProducerId: producerId,
-        },
+        [userId]: next,
       });
       return;
     }
@@ -106,6 +158,94 @@ export class PeerVideoService {
         audioProducerId: producerId,
       },
     });
+  }
+
+  public registerCamOffer(
+    userId: number,
+    producerId: string,
+    codec?: TStreamVideoCodec,
+  ): void {
+    const prev = this._camOffers();
+    const existing = prev[userId];
+    const sameProducer = existing?.producerId === producerId;
+    const next: TCamOffer = {
+      producerId,
+      blocked: sameProducer ? (existing?.blocked ?? false) : false,
+    };
+    const nextCodec = codec ?? (sameProducer ? existing?.codec : undefined);
+    if (nextCodec) {
+      next.codec = nextCodec;
+    }
+    this._camOffers.set({
+      ...prev,
+      [userId]: next,
+    });
+  }
+
+  public isCodecBlocked(userId: number, tag: 'cam' | 'screen'): boolean {
+    if (tag === 'cam') {
+      return this._camOffers()[userId]?.blocked ?? false;
+    }
+    return this._availableScreens()[userId]?.codecBlocked ?? false;
+  }
+
+  public setCodecBlocked(
+    userId: number,
+    tag: 'cam' | 'screen',
+    blocked: boolean,
+  ): void {
+    if (tag === 'cam') {
+      const offer = this._camOffers()[userId];
+      if (!offer || offer.blocked === blocked) {
+        return;
+      }
+      this._camOffers.set({
+        ...this._camOffers(),
+        [userId]: { ...offer, blocked },
+      });
+      return;
+    }
+    const screen = this._availableScreens()[userId];
+    if (!screen || Boolean(screen.codecBlocked) === blocked) {
+      return;
+    }
+    const next: TAvailableScreenShare = { ...screen };
+    if (blocked) {
+      next.codecBlocked = true;
+    } else {
+      delete next.codecBlocked;
+    }
+    this._availableScreens.set({
+      ...this._availableScreens(),
+      [userId]: next,
+    });
+  }
+
+  public announcedVideoCodecs(): TAnnouncedVideoCodec[] {
+    const offers: TAnnouncedVideoCodec[] = [];
+    for (const [userId, offer] of Object.entries(this._camOffers())) {
+      if (offer.codec) {
+        offers.push({ userId: Number(userId), tag: 'cam', codec: offer.codec });
+      }
+    }
+    for (const [userId, screen] of Object.entries(this._availableScreens())) {
+      if (screen.codec) {
+        offers.push({
+          userId: Number(userId),
+          tag: 'screen',
+          codec: screen.codec,
+        });
+      }
+    }
+    return offers;
+  }
+
+  public forgetCamOffer(userId: number, producerId: string): void {
+    const offer = this._camOffers()[userId];
+    if (!offer || offer.producerId !== producerId) {
+      return;
+    }
+    this._camOffers.set(omitPeer(this._camOffers(), userId));
   }
 
   public unregisterAvailableScreenProducer(
@@ -121,9 +261,18 @@ export class PeerVideoService {
       this._availableScreens.set(omitPeer(prev, userId));
       this.setWatching(userId, false);
     } else if (existing.audioProducerId === producerId) {
+      const next: TAvailableScreenShare = {
+        videoProducerId: existing.videoProducerId,
+      };
+      if (existing.codec) {
+        next.codec = existing.codec;
+      }
+      if (existing.codecBlocked) {
+        next.codecBlocked = true;
+      }
       this._availableScreens.set({
         ...prev,
-        [userId]: { videoProducerId: existing.videoProducerId },
+        [userId]: next,
       });
     }
   }
@@ -205,6 +354,7 @@ export class PeerVideoService {
       target.set(omitPeer(target(), userId));
     }
     this._availableScreens.set(omitPeer(this._availableScreens(), userId));
+    this._camOffers.set(omitPeer(this._camOffers(), userId));
     this.setWatching(userId, false);
   }
 
@@ -256,6 +406,7 @@ export class PeerVideoService {
     this._remoteCam.set(emptyPeerRecord());
     this._remoteScreen.set(emptyPeerRecord());
     this._availableScreens.set(emptyPeerRecord());
+    this._camOffers.set(emptyPeerRecord());
     this._watching.set(new Set());
     this._localCamTrack.set(null);
     this._localScreenTrack.set(null);

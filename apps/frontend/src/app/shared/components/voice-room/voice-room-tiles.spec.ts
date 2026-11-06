@@ -172,6 +172,22 @@ describe('buildVoiceRoomTiles', () => {
     });
     expect(tiles.filter((t) => t.peerId === 2)).toHaveLength(2);
   });
+
+  it('keeps a camera tile and a screen tile when the codec cannot be decoded', () => {
+    const tiles = buildVoiceRoomTiles({
+      ...baseInput(),
+      availableScreens: { 2: { videoProducerId: 'screen-1' } },
+      blockedCamUserIds: new Set([2]),
+      blockedScreenUserIds: new Set([2]),
+    });
+    const remote = tiles.filter((tile) => tile.peerId === 2);
+    expect(remote.map((tile) => tile.streamKind)).toEqual(['cam', 'screen']);
+    expect(remote.every((tile) => tile.codecUnsupported)).toBe(true);
+    expect(remote.every((tile) => tile.videoTrack === null)).toBe(true);
+    expect(tiles.find((tile) => tile.peerId === 1)?.codecUnsupported).toBe(
+      false,
+    );
+  });
 });
 
 describe('findVoiceRoomTile', () => {

@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { app, shell, type Session } from 'electron';
-import { getLocalPagePath } from './window';
+import { getLocalPagesDir } from './window';
 
 export const ALLOWED_PERMISSIONS = [
   'media',
@@ -14,7 +14,7 @@ export const ALLOWED_PERMISSIONS = [
 export function isAllowedNavigation(
   targetUrl: string,
   serverOrigin: string | null,
-  allowedPagesDir = path.dirname(getLocalPagePath('server')),
+  allowedPagesDir = getLocalPagesDir(),
 ): boolean {
   try {
     const url = new URL(targetUrl);

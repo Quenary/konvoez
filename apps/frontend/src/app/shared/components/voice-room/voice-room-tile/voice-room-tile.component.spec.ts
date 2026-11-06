@@ -151,6 +151,24 @@ describe('VoiceRoomTileComponent', () => {
     return fixture;
   };
 
+  it('shows a codec placeholder instead of the watch button', () => {
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+    fixture.componentRef.setInput('peer', user(2));
+    fixture.componentRef.setInput('streamKind', 'screen');
+    fixture.componentRef.setInput('screenAvailable', true);
+    fixture.componentRef.setInput('watchingScreen', false);
+    fixture.componentRef.setInput('codecUnsupported', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain(
+      'CALL.STREAM_CODEC_UNSUPPORTED',
+    );
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'CALL.WATCH_SCREEN',
+    );
+  });
+
   it('renders video when preview is not paused', () => {
     const fixture = create('screen', false);
     const cmp = fixture.componentInstance;

@@ -19,7 +19,8 @@ import type { ConfigStore, TDesktopConfig } from './config-store';
 import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
 import { dismissNotification, showNotification } from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
-import { getScreenShareAudio } from './display-media';
+import { isScreenShareAudioAvailable } from './display-media';
+import { getNativeModule } from './native';
 import {
   applyHotkeys,
   resumeHotkeys,
@@ -30,6 +31,14 @@ import { setAutostart } from './autostart';
 import { notifyQuitReady } from './quit';
 import { resolveLanguage } from './i18n';
 import { showMainWindow } from './window';
+import {
+  getUpdaterState,
+  handleUpdaterDownload,
+  handleUpdaterLater,
+  handleUpdaterRestart,
+  handleUpdaterRetry,
+  setUpdaterVoiceActive,
+} from './updater';
 
 export function isTrustedAppSender(
   frameUrl: string | undefined,
@@ -148,6 +157,7 @@ export function registerIpc(
         getMainWindow(),
         configStore,
       );
+      setUpdaterVoiceActive(parsed.data.inVoice);
     },
   );
 
@@ -164,13 +174,16 @@ export function registerIpc(
       throw new Error('UNAUTHORIZED');
     }
     const config = configStore.get();
+    const nativeAudio = getNativeModule()?.isAudioSupported() ?? false;
     return {
       serverOrigin: config.serverOrigin,
       hotkeys: config.hotkeys,
       autostart: config.autostart,
+      nativeHotkeys: getNativeModule()?.isKeyHookSupported() ?? false,
       locale: resolveLanguage(app.getLocale()),
       shareAudio: config.shareAudio,
-      audioSupported: getScreenShareAudio() !== undefined,
+      audioSupported: isScreenShareAudioAvailable(nativeAudio),
+      nativeAudio,
     };
   });
 
@@ -258,4 +271,42 @@ export function registerIpc(
       };
     },
   );
+
+  ipcMain.handle(
+    EDesktopIpc.LOCAL_UPDATER_GET_STATE,
+    (event: IpcMainInvokeEvent) => {
+      if (!validateLocalSender(event)) {
+        throw new Error('UNAUTHORIZED');
+      }
+      return getUpdaterState();
+    },
+  );
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_DOWNLOAD, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterDownload();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_LATER, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterLater();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_RESTART, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterRestart();
+  });
+
+  ipcMain.on(EDesktopIpc.LOCAL_UPDATER_RETRY, (event: IpcMainEvent) => {
+    if (!validateLocalSender(event)) {
+      return;
+    }
+    handleUpdaterRetry();
+  });
 }

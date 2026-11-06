@@ -4,3 +4,6 @@
 /.nx/cache
 /.nx/workspace-data
 .angular
+target
+libs/desktop-native/target
+**/*.node

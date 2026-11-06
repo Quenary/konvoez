@@ -95,6 +95,49 @@ describe('PeerVideoService', () => {
     });
   });
 
+  it('keeps the screen codec when screen-audio closes', () => {
+    service.registerAvailableScreen(3, 'vid', 'video', 'av1');
+    service.registerAvailableScreen(3, 'aud', 'audio');
+    service.setCodecBlocked(3, 'screen', true);
+
+    service.unregisterAvailableScreenProducer(3, 'aud');
+
+    expect(service.availableScreens()[3]).toEqual({
+      videoProducerId: 'vid',
+      codec: 'av1',
+      codecBlocked: true,
+    });
+    expect(service.isCodecBlocked(3, 'screen')).toBe(true);
+    expect(service.announcedVideoCodecs()).toEqual([
+      { userId: 3, tag: 'screen', codec: 'av1' },
+    ]);
+  });
+
+  it('drops the previous codec when a new screen producer has none', () => {
+    service.registerAvailableScreen(3, 'vid-1', 'video', 'av1');
+    service.registerAvailableScreen(3, 'aud', 'audio');
+    service.setCodecBlocked(3, 'screen', true);
+
+    service.registerAvailableScreen(3, 'vid-2', 'video');
+
+    expect(service.availableScreens()[3]).toEqual({
+      videoProducerId: 'vid-2',
+      audioProducerId: 'aud',
+    });
+    expect(service.isCodecBlocked(3, 'screen')).toBe(false);
+    expect(service.announcedVideoCodecs()).toEqual([]);
+
+    service.registerAvailableScreen(3, 'vid-2', 'video', 'vp9');
+    service.setCodecBlocked(3, 'screen', true);
+    service.registerAvailableScreen(3, 'vid-2', 'video');
+    expect(service.availableScreens()[3]).toEqual({
+      videoProducerId: 'vid-2',
+      audioProducerId: 'aud',
+      codec: 'vp9',
+      codecBlocked: true,
+    });
+  });
+
   it('closes a replaced video consumer through the registry', () => {
     const close = vi.fn();
     const registry = TestBed.inject(ConsumerRegistry);
@@ -136,5 +179,26 @@ describe('PeerVideoService', () => {
     service.registerAvailableScreen(11, 'screen-aud', 'audio');
     expect(service.isStreamProducer(11, 'screen-vid')).toBe(true);
     expect(service.isStreamProducer(11, 'screen-aud')).toBe(false);
+  });
+
+  it('tracks a blocked camera and screen codec until the producer is gone', () => {
+    service.registerCamOffer(4, 'cam-1', 'av1');
+    service.registerAvailableScreen(4, 'screen-1', 'video', 'vp9');
+    service.setCodecBlocked(4, 'cam', true);
+    service.setCodecBlocked(4, 'screen', true);
+
+    expect(service.isCodecBlocked(4, 'cam')).toBe(true);
+    expect(service.isCodecBlocked(4, 'screen')).toBe(true);
+    expect(service.blockedCamUserIds().has(4)).toBe(true);
+    expect(service.blockedScreenUserIds().has(4)).toBe(true);
+    expect(service.announcedVideoCodecs()).toEqual([
+      { userId: 4, tag: 'cam', codec: 'av1' },
+      { userId: 4, tag: 'screen', codec: 'vp9' },
+    ]);
+
+    service.forgetCamOffer(4, 'cam-1');
+    service.unregisterAvailableScreenProducer(4, 'screen-1');
+    expect(service.isCodecBlocked(4, 'cam')).toBe(false);
+    expect(service.isCodecBlocked(4, 'screen')).toBe(false);
   });
 });

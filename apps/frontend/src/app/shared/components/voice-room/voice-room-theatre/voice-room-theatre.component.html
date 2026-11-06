@@ -19,7 +19,8 @@
           autoplay
           playsinline
           muted
-          (loadedmetadata)="onVideoMetadata($event)"></video>
+          (loadedmetadata)="onVideoFrameSize($event)"
+          (resize)="onVideoFrameSize($event)"></video>
       } @else if (focus; as tile) {
         <div class="stage-tile">
           <app-voice-room-tile
@@ -28,7 +29,8 @@
             [videoTrack]="tile.videoTrack"
             [screenAvailable]="tile.screenAvailable"
             [watchingScreen]="tile.watchingScreen"
-            [previewPaused]="tile.previewPaused" />
+            [previewPaused]="tile.previewPaused"
+            [codecUnsupported]="tile.codecUnsupported" />
         </div>
       }
     </div>

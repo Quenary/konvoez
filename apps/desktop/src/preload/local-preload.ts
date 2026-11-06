@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { EDesktopIpc, type TDesktopHotkeys } from '@konvoez/shared';
-import type { IKonvoezLocalBridge, TLanguage } from '@konvoez/client-shell';
+import type {
+  IKonvoezLocalBridge,
+  IUpdaterState,
+  TLanguage,
+} from '@konvoez/client-shell';
 
 export type { IKonvoezLocalBridge };
 
@@ -24,6 +28,7 @@ const localBridge: IKonvoezLocalBridge = {
       return {
         hotkeys: config.hotkeys,
         autostart: config.autostart,
+        nativeHotkeys: Boolean(config.nativeHotkeys),
         locale: config.locale as TLanguage,
       };
     },
@@ -36,15 +41,17 @@ const localBridge: IKonvoezLocalBridge = {
   },
   picker: {
     async getInitial() {
-      const [config, sources] = await Promise.all([
+      const [config, pickerSources] = await Promise.all([
         ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
         ipcRenderer.invoke(EDesktopIpc.LOCAL_PICKER_SOURCES),
       ]);
       return {
-        sources,
+        sources: pickerSources.sources,
         shareAudio: config.shareAudio,
         audioSupported: Boolean(config.audioSupported),
+        nativeAudio: Boolean(config.nativeAudio),
         locale: config.locale as TLanguage,
+        audioStreams: pickerSources.audioStreams,
       };
     },
     setShareAudio: (value: boolean) => {
@@ -52,9 +59,46 @@ const localBridge: IKonvoezLocalBridge = {
         shareAudio: value,
       });
     },
-    pick: (sourceId: string | null, withAudio: boolean) => {
-      ipcRenderer.send(EDesktopIpc.LOCAL_PICK_SOURCE, sourceId, withAudio);
+    pick: (
+      sourceId: string | null,
+      withAudio: boolean,
+      audioStreamId?: string,
+    ) => {
+      ipcRenderer.send(
+        EDesktopIpc.LOCAL_PICK_SOURCE,
+        sourceId,
+        withAudio,
+        audioStreamId,
+      );
     },
+  },
+  updater: {
+    async getInitial() {
+      const [config, state] = await Promise.all([
+        ipcRenderer.invoke(EDesktopIpc.LOCAL_GET_CONFIG),
+        ipcRenderer.invoke(EDesktopIpc.LOCAL_UPDATER_GET_STATE),
+      ]);
+      return {
+        state: state as IUpdaterState,
+        locale: config.locale as TLanguage,
+      };
+    },
+    async getState() {
+      return (await ipcRenderer.invoke(
+        EDesktopIpc.LOCAL_UPDATER_GET_STATE,
+      )) as IUpdaterState;
+    },
+    onState(cb: (state: IUpdaterState) => void) {
+      const listener = (_event: unknown, state: IUpdaterState) => cb(state);
+      ipcRenderer.on(EDesktopIpc.LOCAL_UPDATER_STATE, listener);
+      return () => {
+        ipcRenderer.removeListener(EDesktopIpc.LOCAL_UPDATER_STATE, listener);
+      };
+    },
+    download: () => ipcRenderer.send(EDesktopIpc.LOCAL_UPDATER_DOWNLOAD),
+    later: () => ipcRenderer.send(EDesktopIpc.LOCAL_UPDATER_LATER),
+    restart: () => ipcRenderer.send(EDesktopIpc.LOCAL_UPDATER_RESTART),
+    retry: () => ipcRenderer.send(EDesktopIpc.LOCAL_UPDATER_RETRY),
   },
 };
 

@@ -79,9 +79,12 @@ import {
 import {
   assertKindMatchesMediaTag,
   assertKnownMediaTag,
+  assertProducedVideoCodec,
   assertScreenAudioAllowed,
   isVideoMediaTag,
   MAX_ROOM_VIDEO_PRODUCERS,
+  svcPreferredTemporalLayer,
+  videoLayersMatchEncodings,
 } from './voice-media.util';
 import { Consumer, Producer, WebRtcTransport } from 'mediasoup/types';
 import type {
@@ -478,6 +481,7 @@ export class VoiceRoomsGateway
     );
     const transport = await room.router.createWebRtcTransport({
       listenInfos: buildWebRtcListenInfos(announcedAddresses),
+      initialAvailableOutgoingBitrate: 2_500_000,
     });
 
     transport.on('icestatechange', (iceState) => {
@@ -618,13 +622,17 @@ export class VoiceRoomsGateway
         body.kind === 'video' &&
         body.layers !== undefined &&
         encodings !== undefined &&
-        encodings.length !== body.layers.length
+        !videoLayersMatchEncodings(body.layers.length, encodings)
       ) {
         throw AppException.badRequest(
           ApiErrorCode.VOICE_MEDIA_INVALID,
           'Layer count does not match encodings',
         );
       }
+
+      const codec = isVideoMediaTag(body.mediaTag)
+        ? assertProducedVideoCodec(body.mediaTag, body.rtpParameters)
+        : undefined;
 
       const producer: Producer<VoiceRoomStateMediasoupAppData> =
         await transport.produce({
@@ -634,6 +642,7 @@ export class VoiceRoomsGateway
             peerId: peer.id,
             mediaTag: body.mediaTag,
             ...(body.layers !== undefined ? { layers: body.layers } : {}),
+            ...(codec ? { codec } : {}),
           },
         });
 
@@ -670,6 +679,7 @@ export class VoiceRoomsGateway
         userId: peer.user.id,
         kind: body.kind,
         mediaTag: body.mediaTag,
+        ...(codec ? { codec } : {}),
       };
 
       const roomsToEmit = this.getRoomEmitTargets(room.id, socket.data.roomId);
@@ -734,6 +744,15 @@ export class VoiceRoomsGateway
     const { peer } = this.getSocketRoomPeer(socket);
     const consumer = peer.consumers.get(body.consumerId);
     if (!consumer || consumer.type === 'simple') {
+      return {};
+    }
+    if (consumer.type === 'svc') {
+      await consumer.setPreferredLayers({
+        spatialLayer: body.spatialLayer,
+        temporalLayer: svcPreferredTemporalLayer(
+          consumer.rtpParameters.encodings?.[0]?.scalabilityMode,
+        ),
+      });
       return {};
     }
     await consumer.setPreferredLayers({ spatialLayer: body.spatialLayer });

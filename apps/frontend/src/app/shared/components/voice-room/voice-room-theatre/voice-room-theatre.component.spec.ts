@@ -242,4 +242,78 @@ describe('VoiceRoomTheatreComponent', () => {
       fixture.nativeElement.querySelector('.strip-tile-wrap.preview-paused'),
     ).toBeTruthy();
   });
+
+  const stageVideo = (root: HTMLElement): HTMLVideoElement => {
+    const video = root.querySelector('.stage-video');
+    expect(video).toBeInstanceOf(HTMLVideoElement);
+    return video as HTMLVideoElement;
+  };
+
+  const setFrameSize = (
+    video: HTMLVideoElement,
+    width: number,
+    height: number,
+  ): void => {
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      get: () => width,
+    });
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      get: () => height,
+    });
+  };
+
+  const wideStage = (root: HTMLElement): void => {
+    vi.spyOn(root, 'getBoundingClientRect').mockReturnValue({
+      width: 2560,
+      height: 1080,
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 2560,
+      bottom: 1080,
+      toJSON: () => ({}),
+    } as DOMRect);
+  };
+
+  it('keeps the default strip until a resize reports the 32:9 frame', () => {
+    const fixture = create();
+    const root = fixture.nativeElement as HTMLElement;
+    wideStage(root);
+    fixture.componentInstance['updateStripPlacement']();
+    fixture.detectChanges();
+    expect(
+      root.querySelector('.theatre')?.classList.contains('strip-right'),
+    ).toBe(true);
+
+    const video = stageVideo(root);
+    setFrameSize(video, 0, 0);
+    video.dispatchEvent(new Event('loadedmetadata'));
+    fixture.detectChanges();
+    expect(
+      root.querySelector('.theatre')?.classList.contains('strip-right'),
+    ).toBe(true);
+
+    setFrameSize(video, 3840, 1080);
+    video.dispatchEvent(new Event('resize'));
+    fixture.detectChanges();
+    const theatre = root.querySelector('.theatre');
+    expect(theatre?.classList.contains('strip-bottom')).toBe(true);
+    expect(theatre?.classList.contains('strip-right')).toBe(false);
+  });
+
+  it('places the strip from a 32:9 size already present on loadedmetadata', () => {
+    const fixture = create();
+    const root = fixture.nativeElement as HTMLElement;
+    wideStage(root);
+    const video = stageVideo(root);
+    setFrameSize(video, 3840, 1080);
+    video.dispatchEvent(new Event('loadedmetadata'));
+    fixture.detectChanges();
+    const theatre = root.querySelector('.theatre');
+    expect(theatre?.classList.contains('strip-bottom')).toBe(true);
+    expect(theatre?.classList.contains('strip-right')).toBe(false);
+  });
 });

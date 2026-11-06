@@ -138,8 +138,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Setup Rust
+        run: rustup toolchain install
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev
       - name: Install
         run: npm ci
+      - name: Build native module
+        run: npx nx run desktop-native:build
       - name: Package
         run: npx nx run desktop:package
       - name: Upload to desktop-v release and rolling desktop-latest

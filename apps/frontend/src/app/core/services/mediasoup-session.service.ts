@@ -5,15 +5,23 @@ import {
   buildVoiceLadder,
   computeSimulcastLayers,
   createInitialVoiceLiveness,
+  DEFAULT_STREAM_SVC_MODE,
   defaultExtraLayers,
+  ApiErrorCode,
   EVoiceQualityTier,
   EVoiceRoomEvent,
   recommendStreamBitrateKbps,
+  resolveSvcMode,
+  streamSupportsSimulcast,
+  STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI,
   resolveStreamLayers,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
+  svcLayers,
   TSimulcastLayer,
   TStreamContentMode,
   TStreamLayer,
+  TStreamSvcMode,
+  TStreamVideoCodec,
   voiceRoomStreamLayersSchema,
   TVoiceLadderEntry,
   TVoiceLivenessState,
@@ -62,7 +70,19 @@ import { ScreenCaptureService } from './screen-capture.service';
 import { PeerPlaybackService } from './peer-playback.service';
 import { PeerScreenAudioService } from './peer-screen-audio.service';
 import { ConsumerRegistry } from './consumer-registry';
+import { parseApiError } from './api-error.service';
 import { PeerVideoService } from './peer-video.service';
+import {
+  availableVideoCodecs,
+  cachedH264Profile,
+  cachedHardwareEncoders,
+  deviceCanReceiveCodec,
+  hardwareEncoderProbe,
+  pickDefaultVideoCodec,
+  pickH264Codec,
+  streamProbeBitrateKbps,
+  THardwareEncoderProbe,
+} from './video-codec';
 import { AudioService } from './audio.service';
 import { VoiceQualityService } from './voice-quality.service';
 
@@ -71,7 +91,12 @@ type TVideoPublishInput = {
   fps: number;
   contentMode: TStreamContentMode;
   extraLayers: TStreamLayer[];
+  svcMode: TStreamSvcMode | null;
   maxBitrateBps: number;
+};
+
+type TPublishEncoding = TSimulcastLayer & {
+  scalabilityMode: 'L1T1' | TStreamSvcMode;
 };
 
 const SCALE_TOLERANCE = 1e-3;
@@ -391,13 +416,13 @@ export class MediasoupSessionService {
       const publishInput = this.videoPublishInput('cam');
       const track = await this.cameraService.getTrack();
       this.peerVideoService.setLocalCamTrack(track);
-      const { producer, plan } = await this.produceVideo(
+      const { producer, publish } = await this.produceVideo(
         'cam',
         track,
         publishInput,
       );
       this.cameraProducer = producer;
-      this.cameraPublish = storedVideoPublish(publishInput, plan);
+      this.cameraPublish = publish;
       this.audioService.playStreamStartAudio();
       producer.on('trackended', () => {
         if (this.cameraProducer !== producer) {
@@ -466,13 +491,13 @@ export class MediasoupSessionService {
         });
       this.peerVideoService.setLocalScreenTrack(videoTrack);
 
-      const { producer: videoProducer, plan } = await this.produceVideo(
-        'screen',
-        videoTrack,
-        publishInput,
-      );
+      const {
+        producer: videoProducer,
+        plan,
+        publish,
+      } = await this.produceVideo('screen', videoTrack, publishInput);
       this.screenVideoProducer = videoProducer;
-      this.screenPublish = storedVideoPublish(publishInput, plan);
+      this.screenPublish = publish;
       this.verifyAppliedEncodings(videoProducer, plan);
       this.audioService.playStreamStartAudio();
       videoProducer.on('trackended', () => {
@@ -535,30 +560,91 @@ export class MediasoupSessionService {
     }
   }
 
+  public videoCodecOptions(): TStreamVideoCodec[] {
+    const senderMimes =
+      typeof RTCRtpSender !== 'undefined' && RTCRtpSender.getCapabilities
+        ? (RTCRtpSender.getCapabilities('video')?.codecs?.map(
+            (codec) => codec.mimeType,
+          ) ?? [])
+        : [];
+    const device = this.device;
+    const deviceMimes = device?.loaded
+      ? (device.rtpCapabilities.codecs?.map((codec) => codec.mimeType) ?? [])
+      : null;
+    return availableVideoCodecs({ senderMimes, deviceMimes });
+  }
+
+  public canReceiveVideoCodec(codec: TStreamVideoCodec): boolean {
+    const device = this.device;
+    if (!device?.loaded) {
+      return true;
+    }
+    return deviceCanReceiveCodec(
+      device.rtpCapabilities.codecs?.map((item) => item.mimeType) ?? [],
+      codec,
+    );
+  }
+
   /**
-   * Codec for a video producer. `tag` is the phase-4 hook for a per-stream
-   * choice; camera and screen both use VP8 today.
+   * Codec for a video producer. Uses the saved choice while it is still
+   * offered, otherwise the hardware-aware default.
    */
   private pickVideoCodec(tag: 'cam' | 'screen'): RtpCodecCapability {
     const device = this.device;
     if (!device) {
       throw new Error('mediasoup Device is not loaded');
     }
-    const codec = device.rtpCapabilities.codecs?.find(
-      (item) => item.mimeType.toLowerCase() === this.videoCodecMimeType(tag),
+    const selected = this.selectedVideoCodec(tag);
+    const mime = `video/${selected}`;
+    const codecs = (device.rtpCapabilities.codecs ?? []).filter(
+      (item) => item.mimeType.toLowerCase() === mime,
     );
+    const codec =
+      selected === 'h264'
+        ? pickH264Codec(codecs, cachedH264Profile(this.encoderProbe(tag)))
+        : codecs[0];
     if (!codec) {
-      throw new Error('VP8 codec is not available');
+      throw new Error('Video codec is not available');
     }
     return codec;
   }
 
-  private videoCodecMimeType(tag: 'cam' | 'screen'): string {
-    switch (tag) {
-      case 'cam':
-      case 'screen':
-        return 'video/vp8';
+  private selectedVideoCodec(tag: 'cam' | 'screen'): TStreamVideoCodec {
+    const available = this.videoCodecOptions();
+    const stored =
+      tag === 'screen'
+        ? this.settingsStore.screenCodec()
+        : this.settingsStore.streamCodec();
+    if (stored && available.includes(stored)) {
+      return stored;
     }
+    return pickDefaultVideoCodec({
+      available,
+      hardware: cachedHardwareEncoders(this.encoderProbe(tag)),
+    });
+  }
+
+  private encoderProbe(tag: 'cam' | 'screen'): THardwareEncoderProbe {
+    const screen = tag === 'screen';
+    const height = screen
+      ? this.settingsStore.screenHeight()
+      : this.settingsStore.streamHeight();
+    const fps = screen
+      ? this.settingsStore.screenFps()
+      : this.settingsStore.streamFps();
+    return hardwareEncoderProbe({
+      height,
+      fps,
+      bitrateKbps: streamProbeBitrateKbps({
+        height,
+        fps,
+        contentMode: screen ? this.settingsStore.screenContentMode() : 'motion',
+        maxKbps: this.settingsStore.streamMaxBitrateKbps(),
+        bitrateKbps: screen
+          ? this.settingsStore.screenBitrateKbps()
+          : this.settingsStore.streamBitrateKbps(),
+      }),
+    });
   }
 
   private videoPublishInput(tag: 'cam' | 'screen'): TVideoPublishInput {
@@ -575,7 +661,15 @@ export class MediasoupSessionService {
     const storedExtra = screen
       ? this.settingsStore.screenExtraLayers()
       : this.settingsStore.streamExtraLayers();
-    const extraLayers = storedExtra ?? defaultExtraLayers({ height, fps });
+    const codec = this.selectedVideoCodec(tag);
+    const simulcast = streamSupportsSimulcast(codec);
+    const extraLayers = simulcast
+      ? (storedExtra ?? defaultExtraLayers({ height, fps }))
+      : [];
+    const storedSvc = screen
+      ? this.settingsStore.screenSvcMode()
+      : this.settingsStore.streamSvcMode();
+    const svcMode = simulcast ? null : (storedSvc ?? DEFAULT_STREAM_SVC_MODE);
     const storedBitrate = screen
       ? this.settingsStore.screenBitrateKbps()
       : this.settingsStore.streamBitrateKbps();
@@ -586,6 +680,8 @@ export class MediasoupSessionService {
       contentMode,
       maxKbps,
       extra: extraLayers,
+      codec,
+      ...(svcMode ? { svcMode } : {}),
     });
     const bitrateKbps = Math.min(
       maxKbps,
@@ -596,6 +692,7 @@ export class MediasoupSessionService {
       fps,
       contentMode,
       extraLayers,
+      svcMode,
       maxBitrateBps: bitrateKbps * 1000,
     };
   }
@@ -612,7 +709,21 @@ export class MediasoupSessionService {
     input: TVideoPublishInput,
     sourceHeight: number,
     tier: EVoiceQualityTier,
-  ): TSimulcastLayer[] {
+  ): TPublishEncoding[] {
+    const budget = this.videoBudgetBps(input.maxBitrateBps, tier);
+    if (input.svcMode) {
+      const height = Math.max(1, Math.floor(sourceHeight));
+      return [
+        {
+          scaleResolutionDownBy: 1,
+          height,
+          fps: input.fps,
+          maxFramerate: input.fps,
+          maxBitrate: budget,
+          scalabilityMode: input.svcMode,
+        },
+      ];
+    }
     const layers = resolveStreamLayers({
       max: { height: input.height, fps: input.fps },
       extra: input.extraLayers,
@@ -622,15 +733,35 @@ export class MediasoupSessionService {
       sourceHeight,
       layers,
       contentMode: input.contentMode,
-      maxBitrateBps: this.videoBudgetBps(input.maxBitrateBps, tier),
-    });
+      maxBitrateBps: budget,
+    }).map((layer) => ({ ...layer, scalabilityMode: 'L1T1' as const }));
+  }
+
+  private dependencyDescriptorNegotiated(): boolean {
+    const routerHas =
+      this.device?.rtpCapabilities.headerExtensions?.some(
+        (extension) => extension.uri === STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI,
+      ) ?? false;
+    if (!routerHas) {
+      return false;
+    }
+    const capabilities = globalThis.RTCRtpSender?.getCapabilities?.('video');
+    return (
+      capabilities?.headerExtensions?.some(
+        (extension) => extension.uri === STREAM_AV1_DEPENDENCY_DESCRIPTOR_URI,
+      ) ?? false
+    );
   }
 
   private async produceVideo(
     tag: 'cam' | 'screen',
     track: MediaStreamTrack,
     input: TVideoPublishInput,
-  ): Promise<{ producer: Producer; plan: TSimulcastLayer[] }> {
+  ): Promise<{
+    producer: Producer;
+    plan: TPublishEncoding[];
+    publish: TVideoPublishInput;
+  }> {
     const sendTransport = this.requireSendTransport();
     await this.loadDevice();
     const codec = this.pickVideoCodec(tag);
@@ -640,30 +771,60 @@ export class MediasoupSessionService {
         ? capturedHeight
         : input.height;
     const tier = this.currentQualityLevel?.tier ?? EVoiceQualityTier.EXCELLENT;
-    const plan = this.planVideo(input, sourceHeight, tier);
+    const svcMode = input.svcMode
+      ? resolveSvcMode({
+          codec: this.selectedVideoCodec(tag),
+          mode: input.svcMode,
+          dependencyDescriptor: this.dependencyDescriptorNegotiated(),
+        })
+      : null;
+    const resolvedInput = { ...input, svcMode };
+    const plan = this.planVideo(resolvedInput, sourceHeight, tier);
+    const layers = svcMode
+      ? svcLayers(sourceHeight, input.fps, svcMode)
+      : plan.map(({ height, fps }) => ({ height, fps }));
     const producer = await sendTransport.produce({
       track,
       codec,
       stopTracks: false,
       appData: {
         mediaTag: tag,
-        layers: plan.map(({ height, fps }) => ({ height, fps })),
+        layers,
       },
       encodings: plan.map((layer) => ({
         scaleResolutionDownBy: layer.scaleResolutionDownBy,
         maxBitrate: layer.maxBitrate,
         maxFramerate: layer.maxFramerate,
-        scalabilityMode: 'L1T1',
+        scalabilityMode: layer.scalabilityMode,
         priority: 'low' as const,
         networkPriority: 'low' as const,
       })),
     });
+    await this.applyDegradationPreference(producer, input.contentMode);
 
     if (tier === EVoiceQualityTier.BAD) {
       producer.pause();
     }
 
-    return { producer, plan };
+    return {
+      producer,
+      plan,
+      publish: storedVideoPublish(resolvedInput, plan),
+    };
+  }
+
+  private async applyDegradationPreference(
+    producer: Producer,
+    contentMode: TStreamContentMode,
+  ): Promise<void> {
+    const sender = producer.rtpSender;
+    if (!sender) {
+      return;
+    }
+    const parameters = sender.getParameters();
+    const degradationPreference =
+      contentMode === 'detail' ? 'maintain-resolution' : 'maintain-framerate';
+    await sender.setParameters({ ...parameters, degradationPreference });
   }
 
   private async applyVideoPlan(
@@ -693,7 +854,7 @@ export class MediasoupSessionService {
 
   private verifyAppliedEncodings(
     producer: Producer,
-    plan: TSimulcastLayer[],
+    plan: ReadonlyArray<TSimulcastLayer & { scalabilityMode?: string }>,
   ): void {
     if (this.screenSettingsWarned) {
       return;
@@ -708,7 +869,11 @@ export class MediasoupSessionService {
       plan.some((layer, index) => {
         const actual = encodings[index];
         const scale = actual?.scaleResolutionDownBy ?? 1;
+        const modeMismatch =
+          layer.scalabilityMode != null &&
+          readScalabilityMode(actual) !== layer.scalabilityMode;
         return (
+          modeMismatch ||
           Math.abs(scale - layer.scaleResolutionDownBy) > SCALE_TOLERANCE ||
           actual?.maxBitrate !== layer.maxBitrate ||
           actual?.maxFramerate !== layer.maxFramerate
@@ -1098,7 +1263,9 @@ export class MediasoupSessionService {
         data.userId,
         data.producerId,
         'video',
+        data.codec,
       );
+      this.applyAnnouncedCodec(data);
       return;
     }
     if (data.mediaTag === 'screen-audio') {
@@ -1108,6 +1275,17 @@ export class MediasoupSessionService {
         'audio',
       );
       return;
+    }
+    if (data.mediaTag === 'cam') {
+      this.peerVideoService.registerCamOffer(
+        data.userId,
+        data.producerId,
+        data.codec,
+      );
+      this.applyAnnouncedCodec(data);
+      if (this.peerVideoService.isCodecBlocked(data.userId, 'cam')) {
+        return;
+      }
     }
 
     await this.consumeProducer(data, resolvePeer);
@@ -1145,6 +1323,10 @@ export class MediasoupSessionService {
       const recvTransport = this.recvTransport;
       if (!device || !recvTransport) {
         throw new Error('Recv transport is not ready');
+      }
+
+      if (this.blockUndecodableVideo(data)) {
+        return;
       }
 
       const result: TVoiceRoomConsumeResult = await emitVoiceRoomWithAck(
@@ -1204,6 +1386,14 @@ export class MediasoupSessionService {
       await this.peerPlaybackService.attach(data.userId, consumer, peer);
       consumer.resume();
     } catch (error) {
+      if (this.isCodecConsumeError(data, error)) {
+        this.peerVideoService.setCodecBlocked(
+          data.userId,
+          data.mediaTag === 'screen' ? 'screen' : 'cam',
+          true,
+        );
+        return;
+      }
       console.error('Error while consuming', data, error);
       if (options?.rethrow) {
         throw error;
@@ -1243,6 +1433,52 @@ export class MediasoupSessionService {
       routerRtpCapabilities:
         routerRtpCapabilities as unknown as RtpCapabilities,
     });
+    this.reapplyAnnouncedCodecs();
+  }
+
+  private applyAnnouncedCodec(data: TVoiceRoomProduceResult): void {
+    if (data.mediaTag !== 'cam' && data.mediaTag !== 'screen') {
+      return;
+    }
+    if (!data.codec || !this.device?.loaded) {
+      return;
+    }
+    this.peerVideoService.setCodecBlocked(
+      data.userId,
+      data.mediaTag,
+      !this.canReceiveVideoCodec(data.codec),
+    );
+  }
+
+  private reapplyAnnouncedCodecs(): void {
+    for (const offer of this.peerVideoService.announcedVideoCodecs()) {
+      this.peerVideoService.setCodecBlocked(
+        offer.userId,
+        offer.tag,
+        !this.canReceiveVideoCodec(offer.codec),
+      );
+    }
+  }
+
+  private blockUndecodableVideo(data: TVoiceRoomProduceResult): boolean {
+    if (data.mediaTag !== 'cam' && data.mediaTag !== 'screen') {
+      return false;
+    }
+    if (!data.codec || this.canReceiveVideoCodec(data.codec)) {
+      return false;
+    }
+    this.peerVideoService.setCodecBlocked(data.userId, data.mediaTag, true);
+    return true;
+  }
+
+  private isCodecConsumeError(
+    data: TVoiceRoomProduceResult,
+    error: unknown,
+  ): boolean {
+    if (data.mediaTag !== 'cam' && data.mediaTag !== 'screen') {
+      return false;
+    }
+    return parseApiError(error)?.code === ApiErrorCode.VOICE_CANNOT_CONSUME;
   }
 
   private startWatchdog(): void {
@@ -1328,6 +1564,15 @@ function storedVideoPublish(
     fps: top?.fps ?? input.fps,
     extraLayers: plan.slice(0, -1).map(({ height, fps }) => ({ height, fps })),
   };
+}
+
+function readScalabilityMode(
+  encoding: RTCRtpEncodingParameters | undefined,
+): string {
+  const value = (
+    encoding as unknown as { scalabilityMode?: unknown } | undefined
+  )?.scalabilityMode;
+  return typeof value === 'string' ? value : 'L1T1';
 }
 
 const TRACK_UNMUTE_TIMEOUT_MS = 2000;

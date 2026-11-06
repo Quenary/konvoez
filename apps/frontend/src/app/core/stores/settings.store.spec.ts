@@ -26,6 +26,7 @@ import {
   DEFAULT_INPUT_GAIN,
   DEFAULT_NOISE_PROCESSOR,
   DEFAULT_OUTPUT_VOLUME,
+  DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
   LOCAL_SETTINGS_VERSION,
@@ -155,6 +156,8 @@ describe('SettingsStore', () => {
     );
     expect(store.attachmentsStripImageMetadata()).toBe(false);
     expect(store.needsInitialSetup()).toBe(true);
+    expect(store.streamCodec()).toBeNull();
+    expect(store.screenCodec()).toBeNull();
   });
 
   it('should hydrate known fields from LOCAL_SETTINGS', () => {
@@ -177,6 +180,25 @@ describe('SettingsStore', () => {
     expect(hydrated.audioOutput()).toBeNull();
     expect(hydrated.needsInitialSetup()).toBe(false);
     expect(audioDeviceHandler.setAudioInput).toHaveBeenCalledWith(audioInput);
+  });
+
+  it('hydrates a stored h264 choice', () => {
+    localStorage.clear();
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({
+        version: LOCAL_SETTINGS_VERSION,
+        streamCodec: 'h264',
+        screenCodec: 'h264',
+      }),
+    );
+
+    configureTestBed();
+
+    const store = TestBed.inject(SettingsStore);
+    expect(store.streamCodec()).toBe('h264');
+    expect(store.screenCodec()).toBe('h264');
+    expect(store.needsInitialSetup()).toBe(false);
   });
 
   it('should need setup when schema version mismatches', () => {
@@ -231,7 +253,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -253,7 +275,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -286,7 +308,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,
@@ -303,8 +325,12 @@ describe('SettingsStore', () => {
     store.setScreenExtraLayers(null);
     store.setScreenBitrateKbps(null);
     store.setScreenContentMode('motion');
+    store.setStreamSvcMode('L3T3_KEY');
+    store.setScreenSvcMode('L1T3');
 
     expect(store.streamExtraLayers()).toEqual(extra);
+    expect(store.streamSvcMode()).toBe('L3T3_KEY');
+    expect(store.screenSvcMode()).toBe('L1T3');
     expect(store.streamBitrateKbps()).toBe(2500);
     expect(store.screenExtraLayers()).toBeNull();
     expect(store.screenContentMode()).toBe('motion');
@@ -314,6 +340,8 @@ describe('SettingsStore', () => {
       expect.objectContaining({
         streamExtraLayers: extra,
         streamBitrateKbps: 2500,
+        streamSvcMode: 'L3T3_KEY',
+        screenSvcMode: 'L1T3',
         screenContentMode: 'motion',
       }),
     );
@@ -346,7 +374,7 @@ describe('SettingsStore', () => {
       streamFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
-      screenContentMode: 'detail',
+      screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
       screenPreviewAutoPauseWhenHidden: true,
       noiseProcessor: DEFAULT_NOISE_PROCESSOR,
       inputGain: DEFAULT_INPUT_GAIN,

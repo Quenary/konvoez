@@ -15,6 +15,7 @@ import {
   TVoiceRoomGetAllPeersResult,
   TVoiceRoomPeersOnJoin,
   IUserSafe,
+  TStreamVideoCodec,
   TVoiceRoomMediaTag,
   TVoiceRoomStreamLayer,
   TVoiceSessionIdentity,
@@ -86,6 +87,7 @@ export type VoiceRoomStateMediasoupAppData = {
   peerId: string;
   mediaTag: TVoiceRoomMediaTag;
   layers?: TVoiceRoomStreamLayer[];
+  codec?: TStreamVideoCodec;
 };
 
 @Injectable()
@@ -173,6 +175,7 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
           peerId: p.id,
           kind: p.kind,
           mediaTag: p.appData.mediaTag,
+          ...(p.appData.codec ? { codec: p.appData.codec } : {}),
         })),
       };
     }

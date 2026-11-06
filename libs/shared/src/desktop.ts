@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { pushNotificationPayloadSchema } from './schemas/notification.schemas';
 
-export const DESKTOP_BRIDGE_API_VERSION = 1 as const;
+export const DESKTOP_BRIDGE_API_VERSION = 2 as const;
 
 export enum EDesktopCommand {
   TOGGLE_MIC = 'toggle-mic',
@@ -16,6 +16,7 @@ export enum EDesktopIpc {
   QUIT_READY = 'konvoez:quit-ready',
   COMMAND = 'konvoez:command', // main -> renderer
   NOTIFICATION_CLICK = 'konvoez:notification-click', // main -> renderer
+  SCREEN_AUDIO_PORT = 'konvoez:screen-audio-port', // main -> renderer
   // local pages only
   LOCAL_GET_CONFIG = 'konvoez-local:get-config',
   LOCAL_SAVE_SERVER = 'konvoez-local:save-server',
@@ -24,6 +25,12 @@ export enum EDesktopIpc {
   LOCAL_PICKER_SOURCES = 'konvoez-local:picker-sources',
   LOCAL_HOTKEYS_SUSPEND = 'konvoez-local:hotkeys-suspend',
   LOCAL_HOTKEYS_RESUME = 'konvoez-local:hotkeys-resume',
+  LOCAL_UPDATER_GET_STATE = 'konvoez-local:updater-get-state',
+  LOCAL_UPDATER_STATE = 'konvoez-local:updater-state',
+  LOCAL_UPDATER_DOWNLOAD = 'konvoez-local:updater-download',
+  LOCAL_UPDATER_LATER = 'konvoez-local:updater-later',
+  LOCAL_UPDATER_RESTART = 'konvoez-local:updater-restart',
+  LOCAL_UPDATER_RETRY = 'konvoez-local:updater-retry',
 }
 
 export const desktopVoiceStateSchema = z.object({
@@ -54,10 +61,19 @@ export type TDesktopNotificationDismiss = z.infer<
   typeof desktopNotificationDismissSchema
 >;
 
+export type TScreenAudioMode = 'include' | 'exclude' | 'loopback' | 'none';
+
+/** Page message that carries a screen-audio MessagePort across context isolation. */
+export interface IScreenAudioPortMessage {
+  channel: typeof EDesktopIpc.SCREEN_AUDIO_PORT;
+  mode: TScreenAudioMode;
+}
+
 export interface IKonvoezDesktopBridge {
   readonly apiVersion: typeof DESKTOP_BRIDGE_API_VERSION;
   readonly platform: 'win32' | 'linux';
   readonly appVersion: string;
+  readonly nativeAudio: boolean;
   notify(payload: z.infer<typeof desktopNotificationSchema>): void;
   dismissNotification?(payload: TDesktopNotificationDismiss): void;
   setVoiceState(state: TDesktopVoiceState): void;
@@ -65,5 +81,7 @@ export interface IKonvoezDesktopBridge {
   onNotificationClick?(
     listener: (payload: z.infer<typeof desktopNotificationSchema>) => void,
   ): () => void;
+  /** Starts forwarding screen-audio results into the page via `window.postMessage`. */
+  onScreenAudioPort?(): () => void;
   quitReady(): void;
 }

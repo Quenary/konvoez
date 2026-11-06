@@ -42,10 +42,15 @@ export class ScreenWatchService {
         userId,
         kind: 'video',
         mediaTag: 'screen',
+        codec: available.codec,
       },
       resolvePeer,
       { rethrow: true },
     );
+
+    if (!this.peerVideoService.getScreenConsumerId(userId)) {
+      return;
+    }
 
     if (available.audioProducerId) {
       try {

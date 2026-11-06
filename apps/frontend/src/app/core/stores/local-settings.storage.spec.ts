@@ -18,6 +18,10 @@ describe('local-settings.storage stream fields', () => {
       screenExtraLayers: [{ height: 360, fps: 15 }],
       screenBitrateKbps: 4000,
       screenContentMode: 'motion',
+      streamCodec: 'vp9',
+      screenCodec: 'av1',
+      streamSvcMode: 'L3T3_KEY',
+      screenSvcMode: 'L1T3',
     });
 
     expect(readLocalSettings()).toEqual(
@@ -27,6 +31,10 @@ describe('local-settings.storage stream fields', () => {
         screenExtraLayers: [{ height: 360, fps: 15 }],
         screenBitrateKbps: 4000,
         screenContentMode: 'motion',
+        streamCodec: 'vp9',
+        screenCodec: 'av1',
+        streamSvcMode: 'L3T3_KEY',
+        screenSvcMode: 'L1T3',
       }),
     );
   });
@@ -74,5 +82,27 @@ describe('local-settings.storage stream fields', () => {
       JSON.stringify({ screenContentMode: 'cinema' }),
     );
     expect(readLocalSettings().screenContentMode).toBeUndefined();
+
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ streamSvcMode: 'L9T9' }),
+    );
+    expect(readLocalSettings().streamSvcMode).toBeUndefined();
+
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ screenSvcMode: 'L2T3_KEY' }),
+    );
+    expect(readLocalSettings().screenSvcMode).toBe('L2T3_KEY');
+  });
+
+  it('leaves an unversioned h264 choice in place', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ streamCodec: 'h264' }),
+    );
+
+    expect(readLocalSettings().streamCodec).toBe('h264');
+    expect(readLocalSettings().version).toBeUndefined();
   });
 });

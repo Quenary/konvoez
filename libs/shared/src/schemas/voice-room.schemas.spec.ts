@@ -17,7 +17,9 @@ import {
   voiceRoomPeerLeftSchema,
   voiceRoomPeerMutedSchema,
   voiceRoomProducerScoreSchema,
+  voiceRoomProduceResultSchema,
   voiceRoomProduceSchema,
+  streamVideoCodecSchema,
   voiceRoomSetConsumerLayersSchema,
   voiceRoomSetMuteStateSchema,
 } from './voice-room.schemas';
@@ -255,6 +257,29 @@ describe('VoiceRoom Schemas', () => {
           layers,
         }).success,
       ).toBe(false);
+    });
+
+    it('accepts a screen codec and rejects an unknown one', () => {
+      expect(streamVideoCodecSchema.safeParse('h264').success).toBe(true);
+      expect(streamVideoCodecSchema.safeParse('vp9').success).toBe(true);
+      expect(streamVideoCodecSchema.safeParse('h265').success).toBe(false);
+      expect(
+        voiceRoomProduceResultSchema.safeParse({
+          producerId: 'p-1',
+          userId: 1,
+          kind: 'video',
+          mediaTag: 'screen',
+          codec: 'av1',
+        }).success,
+      ).toBe(true);
+      expect(
+        voiceRoomProduceResultSchema.safeParse({
+          producerId: 'p-1',
+          userId: 1,
+          kind: 'video',
+          mediaTag: 'cam',
+        }).success,
+      ).toBe(true);
     });
 
     it('rejects invalid kind', () => {

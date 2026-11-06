@@ -4,9 +4,11 @@ import {
   EDesktopCommand,
   EDesktopIpc,
   type IKonvoezDesktopBridge,
+  type TScreenAudioMode,
   type TDesktopVoiceState,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
+import { deliverScreenAudioToRenderer } from './screen-audio-port';
 
 function resolveAppVersion(): string {
   const prefix = '--konvoez-version=';
@@ -14,10 +16,15 @@ function resolveAppVersion(): string {
   return arg ? arg.slice(prefix.length) : '0.0.0';
 }
 
+function hasNativeAudio(): boolean {
+  return process.argv.includes('--konvoez-native-audio');
+}
+
 const bridge: IKonvoezDesktopBridge = {
   apiVersion: DESKTOP_BRIDGE_API_VERSION,
   platform: process.platform === 'win32' ? 'win32' : 'linux',
   appVersion: resolveAppVersion(),
+  nativeAudio: hasNativeAudio(),
   notify: (payload: TPushNotificationPayload) => {
     ipcRenderer.send(EDesktopIpc.NOTIFY, payload);
   },
@@ -29,6 +36,25 @@ const bridge: IKonvoezDesktopBridge = {
   },
   quitReady: () => {
     ipcRenderer.send(EDesktopIpc.QUIT_READY);
+  },
+  onScreenAudioPort: () => {
+    const handler = (
+      event: Electron.IpcRendererEvent,
+      mode: TScreenAudioMode,
+    ) => {
+      deliverScreenAudioToRenderer(
+        event.ports?.[0],
+        mode ?? 'none',
+        (message, targetOrigin, transfer) => {
+          window.postMessage(message, targetOrigin, transfer);
+        },
+        window.location.origin,
+      );
+    };
+    ipcRenderer.on(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
+    return () => {
+      ipcRenderer.removeListener(EDesktopIpc.SCREEN_AUDIO_PORT, handler);
+    };
   },
   onCommand: (listener: (command: EDesktopCommand) => void) => {
     const handler = (_: unknown, command: EDesktopCommand) => listener(command);

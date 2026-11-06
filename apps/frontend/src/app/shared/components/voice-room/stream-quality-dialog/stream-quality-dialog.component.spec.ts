@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearHardwareEncoderCache } from '@core/services/video-codec';
 import { provideTranslateService } from '@ngx-translate/core';
-import { TuiDialogContext } from '@taiga-ui/core';
+import { TUI_ITEMS_HANDLERS, TuiDialogContext } from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import {
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
@@ -12,6 +13,24 @@ import {
   TStreamQualityDialogData,
   TStreamQualityDialogResult,
 } from './stream-quality-dialog.component';
+
+function stubHardwareProbe(
+  powerEfficient: (config: {
+    video: { contentType: string; height: number };
+  }) => Promise<boolean>,
+): void {
+  vi.stubGlobal('navigator', {
+    userAgent: 'Mozilla/5.0',
+    mediaCapabilities: {
+      encodingInfo: async (config: {
+        video: { contentType: string; height: number };
+      }) => ({
+        supported: true,
+        powerEfficient: await powerEfficient(config),
+      }),
+    },
+  });
+}
 
 describe('StreamQualityDialogComponent', () => {
   let fixture: ComponentFixture<StreamQualityDialogComponent>;
@@ -27,8 +46,11 @@ describe('StreamQualityDialogComponent', () => {
       height: 720,
       fps: 30,
       extraLayers: null,
+      svcMode: null,
       bitrateKbps: 2500,
       contentMode: 'detail',
+      codec: 'vp8',
+      codecs: ['vp8', 'vp9'],
       maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
       ...overrides,
     };
@@ -56,6 +78,14 @@ describe('StreamQualityDialogComponent', () => {
 
   beforeEach(() => {
     TestBed.resetTestingModule();
+    clearHardwareEncoderCache();
+  });
+
+  afterEach(() => {
+    fixture?.destroy();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    clearHardwareEncoderCache();
   });
 
   it('lists 1080p60 options and selects the default layer', async () => {
@@ -75,7 +105,7 @@ describe('StreamQualityDialogComponent', () => {
       '160p60',
       '160p30',
     ]);
-    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 60 }]);
+    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 60 }]);
     expect(
       fixture.nativeElement.querySelector('select[tuiMultiSelect]'),
     ).toBeTruthy();
@@ -127,11 +157,11 @@ describe('StreamQualityDialogComponent', () => {
 
     component['height'].set(720);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 60 }]);
+    expect(component['extraLayers']()).toEqual([{ height: 360, fps: 60 }]);
 
     component['height'].set(480);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 360, fps: 60 }]);
+    expect(component['extraLayers']()).toEqual([{ height: 160, fps: 60 }]);
 
     component['height'].set(360);
     fixture.detectChanges();
@@ -139,11 +169,342 @@ describe('StreamQualityDialogComponent', () => {
 
     component['height'].set(1080);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 60 }]);
+    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 60 }]);
 
     component['fps'].set(30);
     fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 30 }]);
+  });
+
+  it('offers the same codec list for camera and screen and hides AV1', async () => {
+    await setup({ codec: 'av1', codecs: ['vp8', 'vp9'] });
+    expect(component['codec']()).toBe('vp9');
+    expect(fixture.nativeElement.textContent).toContain('CALL.STREAM_CODEC');
+
+    TestBed.resetTestingModule();
+    await setup({
+      kind: 'screen',
+      codecs: ['vp8', 'vp9', 'av1'],
+      codec: 'av1',
+    });
+    expect(component['codec']()).toBe('av1');
+    expect(fixture.nativeElement.textContent).toContain('CALL.STREAM_CODEC');
+  });
+
+  it('recomputes bitrate when the stored codec is not available', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [],
+      bitrateKbps: 2500,
+      contentMode: 'detail',
+      codec: 'av1',
+      codecs: ['vp8', 'vp9'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['codec']()).toBe('vp9');
+    expect(component['bitrateKbps']()).toBe(4250);
+  });
+
+  it('drops simulcast layers when stored H.264 falls back to VP9', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [{ height: 720, fps: 30 }],
+      bitrateKbps: 8000,
+      contentMode: 'detail',
+      codec: 'h264',
+      codecs: ['vp8', 'vp9'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['codec']()).toBe('vp9');
+    expect(component['extraLayers']()).toEqual([]);
+    expect(component['svcMode']()).toBe('L2T3_KEY');
+    expect(component['bitrateKbps']()).toBe(4250);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).toBeNull();
+  });
+
+  it('preselects VP9 until the hardware probe resolves', async () => {
+    await setup({
+      codec: null,
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+    });
+    expect(component['codec']()).toBe('vp9');
+  });
+
+  it('follows the frame size until the user picks a codec', async () => {
+    vi.useFakeTimers();
+    stubHardwareProbe(
+      async (config) =>
+        (config.video.height === 720 &&
+          config.video.contentType === 'video/AV1') ||
+        (config.video.height === 1080 &&
+          config.video.contentType.startsWith('video/H264')),
+    );
+    await setup({
+      codec: null,
+      height: 720,
+      fps: 30,
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+    });
+
+    const stringify = fixture.componentRef.injector
+      .get(TUI_ITEMS_HANDLERS)
+      .stringify();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(component['codec']()).toBe('av1');
+    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE)');
+    expect(stringify('h264')).toBe('H.264');
+
+    component['height'].set(1080);
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(component['codec']()).toBe('h264');
+    expect(stringify('h264')).toBe('H.264 (CALL.STREAM_CODEC_HARDWARE)');
+
+    component['onCodecChange']('vp9');
+    component['height'].set(720);
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(component['codec']()).toBe('vp9');
+    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE)');
+  });
+
+  it('keeps a saved codec and still marks the hardware option', async () => {
+    vi.useFakeTimers();
+    stubHardwareProbe(
+      async (config) => config.video.contentType === 'video/AV1',
+    );
+    await setup({
+      codec: 'vp9',
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+    });
+
+    const stringify = fixture.componentRef.injector
+      .get(TUI_ITEMS_HANDLERS)
+      .stringify();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(component['codec']()).toBe('vp9');
+    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE)');
+    expect(stringify('h264')).toBe('H.264');
+  });
+
+  it('resolves the hardware codec before confirming', async () => {
+    vi.useFakeTimers();
+    stubHardwareProbe(
+      async (config) => config.video.contentType === 'video/AV1',
+    );
+    await setup({
+      codec: null,
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+    });
+
+    const pending = component['onConfirm']();
+    await vi.advanceTimersByTimeAsync(0);
+    await pending;
+
+    expect(completeWith).toHaveBeenCalledWith(
+      expect.objectContaining({ codec: 'av1' }),
+    );
+  });
+
+  it('ignores a second confirm until the probe finishes', async () => {
+    vi.useFakeTimers();
+    let releaseAv1: ((value: boolean) => void) | undefined;
+    stubHardwareProbe(
+      (config) =>
+        new Promise((resolve) => {
+          if (config.video.contentType === 'video/AV1' && releaseAv1 == null) {
+            releaseAv1 = resolve;
+            return;
+          }
+          resolve(config.video.contentType === 'video/AV1');
+        }),
+    );
+    await setup({
+      codec: null,
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+    });
+
+    const first = component['onConfirm']();
+    const second = component['onConfirm']();
+    releaseAv1?.(true);
+    await vi.advanceTimersByTimeAsync(0);
+    await first;
+    await second;
+
+    expect(completeWith).toHaveBeenCalledTimes(1);
+    expect(completeWith).toHaveBeenCalledWith(
+      expect.objectContaining({ codec: 'av1' }),
+    );
+  });
+
+  it('confirms the codec for the size chosen while the probe is in flight', async () => {
+    vi.useFakeTimers();
+    let deferAv1 = true;
+    let releaseAv1: (() => void) | undefined;
+    stubHardwareProbe(
+      (config) =>
+        new Promise((resolve) => {
+          const hardware =
+            (config.video.height === 720 &&
+              config.video.contentType === 'video/AV1') ||
+            (config.video.height === 1080 &&
+              config.video.contentType.startsWith('video/H264'));
+          if (deferAv1 && config.video.contentType === 'video/AV1') {
+            deferAv1 = false;
+            releaseAv1 = () => resolve(hardware);
+            return;
+          }
+          resolve(hardware);
+        }),
+    );
+    await setup({
+      codec: null,
+      height: 720,
+      fps: 30,
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+    });
+
+    const pending = component['onConfirm']();
+    const releaseFirst = releaseAv1;
+    component['height'].set(1080);
+    fixture.detectChanges();
+    releaseFirst?.();
+    await vi.advanceTimersByTimeAsync(0);
+    await pending;
+
+    expect(completeWith).toHaveBeenCalledTimes(1);
+    expect(completeWith).toHaveBeenCalledWith(
+      expect.objectContaining({ codec: 'h264', height: 1080 }),
+    );
+  });
+
+  it('keeps extra layers for H.264', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [{ height: 720, fps: 30 }],
+      bitrateKbps: 7500,
+      contentMode: 'detail',
+      codec: 'h264',
+      codecs: ['av1', 'h264', 'vp9', 'vp8'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['codecs'][0]).toBe('av1');
+    expect(component['codec']()).toBe('h264');
     expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
+  });
+
+  it('clears extra layers when the codec cannot use simulcast', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [{ height: 720, fps: 30 }],
+      bitrateKbps: 8000,
+      contentMode: 'detail',
+      codec: 'vp9',
+      codecs: ['vp8', 'vp9', 'av1'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['extraLayers']()).toEqual([]);
+    expect(component['svcMode']()).toBe('L2T3_KEY');
+    expect(component['bitrateKbps']()).toBe(4250);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain(
+      'CALL.STREAM_SVC_LAYERS',
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      'CALL.STREAM_SVC_LAYERS_HINT',
+    );
+
+    component['codec'].set('av1');
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([]);
+    expect(component['svcMode']()).toBe('L2T3_KEY');
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).toBeNull();
+
+    component['codec'].set('vp8');
+    fixture.detectChanges();
+    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 30 }]);
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).not.toBeNull();
+  });
+
+  it('lowers the recommended bitrate when the codec changes', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [],
+      bitrateKbps: null,
+      contentMode: 'detail',
+      codec: 'vp8',
+      maxBitrateKbps: 20000,
+    });
+    expect(component['bitrateKbps']()).toBe(5000);
+
+    component['codec'].set('vp9');
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(4250);
+
+    component['codec'].set('av1');
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(3000);
+    expect(component['bitrateKbps']()).toBeLessThan(4250);
+  });
+
+  it('keeps the SVC mode across VP9 and AV1 and resets it at the simulcast boundary', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 30,
+      extraLayers: [],
+      svcMode: 'L3T3_KEY',
+      bitrateKbps: null,
+      contentMode: 'detail',
+      codec: 'vp9',
+      codecs: ['vp8', 'vp9', 'av1'],
+      maxBitrateKbps: 20000,
+    });
+    expect(component['svcMode']()).toBe('L3T3_KEY');
+    expect(component['bitrateKbps']()).toBe(4750);
+    expect(fixture.nativeElement.textContent).toContain(
+      'CALL.STREAM_SVC_LAYERS',
+    );
+
+    component['height'].set(720);
+    fixture.detectChanges();
+    expect(component['svcMode']()).toBe('L3T3_KEY');
+
+    component['codec'].set('av1');
+    fixture.detectChanges();
+    expect(component['svcMode']()).toBe('L3T3_KEY');
+
+    component['svcMode'].set('L1T3');
+    fixture.detectChanges();
+    expect(component['bitrateKbps']()).toBe(1250);
+
+    component['codec'].set('vp8');
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('tui-textfield[multi]'),
+    ).not.toBeNull();
+
+    component['codec'].set('vp9');
+    fixture.detectChanges();
+    expect(component['svcMode']()).toBe('L2T3_KEY');
   });
 
   it('renders the content radio only for screen share', async () => {
@@ -180,18 +541,18 @@ describe('StreamQualityDialogComponent', () => {
       height: 1080,
       fps: 60,
       extraLayers: [],
-      bitrateKbps: 8750,
+      bitrateKbps: 10500,
       maxBitrateKbps: 20000,
     });
-    expect(component['bitrateKbps']()).toBe(8750);
+    expect(component['bitrateKbps']()).toBe(10500);
 
     component['onExtraLayersChange']([{ height: 1080, fps: 30 }]);
     fixture.detectChanges();
-    expect(component['bitrateKbps']()).toBe(15000);
+    expect(component['bitrateKbps']()).toBe(18000);
 
     component['onExtraLayersChange']([]);
     fixture.detectChanges();
-    expect(component['bitrateKbps']()).toBe(8750);
+    expect(component['bitrateKbps']()).toBe(10500);
   });
 
   it('returns the new fields and never exceeds the admin limit', async () => {
@@ -202,11 +563,13 @@ describe('StreamQualityDialogComponent', () => {
       contentMode: 'motion',
     });
     expect(component['bitrateKbps']()).toBe(8000);
-    component['onConfirm']();
+    await component['onConfirm']();
     expect(completeWith).toHaveBeenCalledWith(
       expect.objectContaining({
         extraLayers: component['extraLayers'](),
+        svcMode: component['svcMode'](),
         bitrateKbps: 8000,
+        codec: 'vp8',
         contentMode: 'motion',
       }),
     );
