@@ -22,21 +22,21 @@ describe('VoiceRoomControlsBarComponent', () => {
   let stopCamera: ReturnType<typeof vi.fn>;
   let produceScreen: ReturnType<typeof vi.fn>;
   let stopScreen: ReturnType<typeof vi.fn>;
-  let setStreamHeight: ReturnType<typeof vi.fn>;
-  let setStreamFps: ReturnType<typeof vi.fn>;
+  let setCameraHeight: ReturnType<typeof vi.fn>;
+  let setCameraFps: ReturnType<typeof vi.fn>;
   let setScreenHeight: ReturnType<typeof vi.fn>;
   let setScreenFps: ReturnType<typeof vi.fn>;
-  let setStreamExtraLayers: ReturnType<typeof vi.fn>;
-  let setStreamBitrateKbps: ReturnType<typeof vi.fn>;
+  let setCameraExtraLayers: ReturnType<typeof vi.fn>;
+  let setCameraBitrateKbps: ReturnType<typeof vi.fn>;
   let setScreenExtraLayers: ReturnType<typeof vi.fn>;
   let setScreenBitrateKbps: ReturnType<typeof vi.fn>;
   let setScreenContentMode: ReturnType<typeof vi.fn>;
-  let setStreamCodec: ReturnType<typeof vi.fn>;
+  let setCameraCodec: ReturnType<typeof vi.fn>;
   let setScreenCodec: ReturnType<typeof vi.fn>;
-  let setStreamSvcMode: ReturnType<typeof vi.fn>;
+  let setCameraSvcMode: ReturnType<typeof vi.fn>;
   let setScreenSvcMode: ReturnType<typeof vi.fn>;
-  let setVideoInput: ReturnType<typeof vi.fn>;
-  let videoInput: ReturnType<typeof signal<MediaDeviceInfo | null>>;
+  let setCameraInput: ReturnType<typeof vi.fn>;
+  let cameraInput: ReturnType<typeof signal<MediaDeviceInfo | null>>;
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
@@ -45,7 +45,7 @@ describe('VoiceRoomControlsBarComponent', () => {
   let speakerMuted: ReturnType<typeof signal<boolean>>;
   let canProduce: ReturnType<typeof signal<boolean>>;
   let captureLoading: ReturnType<typeof signal<boolean>>;
-  let streamCodec: ReturnType<
+  let cameraCodec: ReturnType<
     typeof signal<'vp8' | 'vp9' | 'av1' | 'h264' | null>
   >;
   let videoCodecOptions: ReturnType<typeof vi.fn>;
@@ -57,21 +57,21 @@ describe('VoiceRoomControlsBarComponent', () => {
     stopCamera = vi.fn().mockResolvedValue(undefined);
     produceScreen = vi.fn().mockResolvedValue(undefined);
     stopScreen = vi.fn().mockResolvedValue(undefined);
-    setStreamHeight = vi.fn();
-    setStreamFps = vi.fn();
+    setCameraHeight = vi.fn();
+    setCameraFps = vi.fn();
     setScreenHeight = vi.fn();
     setScreenFps = vi.fn();
-    setStreamExtraLayers = vi.fn();
-    setStreamBitrateKbps = vi.fn();
+    setCameraExtraLayers = vi.fn();
+    setCameraBitrateKbps = vi.fn();
     setScreenExtraLayers = vi.fn();
     setScreenBitrateKbps = vi.fn();
     setScreenContentMode = vi.fn();
-    setStreamCodec = vi.fn();
+    setCameraCodec = vi.fn();
     setScreenCodec = vi.fn();
-    setStreamSvcMode = vi.fn();
+    setCameraSvcMode = vi.fn();
     setScreenSvcMode = vi.fn();
-    setVideoInput = vi.fn();
-    videoInput = signal<MediaDeviceInfo | null>({
+    setCameraInput = vi.fn();
+    cameraInput = signal<MediaDeviceInfo | null>({
       deviceId: 'cam-stored',
       kind: 'videoinput',
       label: 'Stored',
@@ -85,7 +85,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     speakerMuted = signal(false);
     canProduce = signal(true);
     captureLoading = signal(false);
-    streamCodec = signal<'vp8' | 'vp9' | 'av1' | 'h264' | null>('vp9');
+    cameraCodec = signal<'vp8' | 'vp9' | 'av1' | 'h264' | null>('vp9');
     videoCodecOptions = vi.fn(() => ['vp8', 'vp9']);
 
     TestBed.configureTestingModule({
@@ -104,12 +104,12 @@ describe('VoiceRoomControlsBarComponent', () => {
         {
           provide: SettingsStore,
           useValue: {
-            streamHeight: signal(720).asReadonly(),
-            streamFps: signal(30).asReadonly(),
-            streamExtraLayers: signal<{ height: number; fps: number }[] | null>(
+            cameraHeight: signal(720).asReadonly(),
+            cameraFps: signal(30).asReadonly(),
+            cameraExtraLayers: signal<{ height: number; fps: number }[] | null>(
               null,
             ).asReadonly(),
-            streamBitrateKbps: signal<number | null>(2500).asReadonly(),
+            cameraBitrateKbps: signal<number | null>(2500).asReadonly(),
             screenHeight: signal(1080).asReadonly(),
             screenFps: signal(30).asReadonly(),
             screenExtraLayers: signal<{ height: number; fps: number }[] | null>(
@@ -119,9 +119,9 @@ describe('VoiceRoomControlsBarComponent', () => {
             screenContentMode: signal<'detail' | 'motion'>(
               'detail',
             ).asReadonly(),
-            streamCodec: streamCodec.asReadonly(),
+            cameraCodec: cameraCodec.asReadonly(),
             screenCodec: signal<'vp8' | 'vp9' | 'av1'>('vp8').asReadonly(),
-            streamSvcMode: signal<'L1T3' | 'L2T3_KEY' | 'L3T3_KEY' | null>(
+            cameraSvcMode: signal<'L1T3' | 'L2T3_KEY' | 'L3T3_KEY' | null>(
               'L3T3_KEY',
             ).asReadonly(),
             screenSvcMode: signal<'L1T3' | 'L2T3_KEY' | 'L3T3_KEY' | null>(
@@ -130,20 +130,20 @@ describe('VoiceRoomControlsBarComponent', () => {
             streamMaxBitrateKbps: signal(
               DEFAULT_STREAM_MAX_BITRATE_KBPS,
             ).asReadonly(),
-            videoInput: videoInput.asReadonly(),
-            setVideoInput,
-            setStreamHeight,
-            setStreamFps,
-            setStreamExtraLayers,
-            setStreamBitrateKbps,
+            cameraInput: cameraInput.asReadonly(),
+            setCameraInput,
+            setCameraHeight,
+            setCameraFps,
+            setCameraExtraLayers,
+            setCameraBitrateKbps,
             setScreenHeight,
             setScreenFps,
             setScreenExtraLayers,
             setScreenBitrateKbps,
             setScreenContentMode,
-            setStreamCodec,
+            setCameraCodec,
             setScreenCodec,
-            setStreamSvcMode,
+            setCameraSvcMode,
             setScreenSvcMode,
           },
         },
@@ -231,7 +231,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         svcMode: 'L1T3',
         bitrateKbps: 1500,
         codec: 'vp9',
-        videoInput: {
+        cameraInput: {
           deviceId: 'cam-9',
           kind: 'videoinput',
           label: 'USB',
@@ -258,22 +258,22 @@ describe('VoiceRoomControlsBarComponent', () => {
           codec: 'vp9',
           codecs: ['vp8', 'vp9'],
           maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
-          videoInput: videoInput(),
+          cameraInput: cameraInput(),
         }),
       }),
     );
-    expect(setStreamHeight).toHaveBeenCalledWith(480);
-    expect(setStreamFps).toHaveBeenCalledWith(15);
-    expect(setStreamExtraLayers).toHaveBeenCalledWith([
+    expect(setCameraHeight).toHaveBeenCalledWith(480);
+    expect(setCameraFps).toHaveBeenCalledWith(15);
+    expect(setCameraExtraLayers).toHaveBeenCalledWith([
       { height: 360, fps: 15 },
     ]);
-    expect(setStreamBitrateKbps).toHaveBeenCalledWith(1500);
-    expect(setStreamCodec).toHaveBeenCalledWith('vp9');
-    expect(setStreamSvcMode).toHaveBeenCalledWith('L1T3');
-    expect(setVideoInput).toHaveBeenCalledWith(
+    expect(setCameraBitrateKbps).toHaveBeenCalledWith(1500);
+    expect(setCameraCodec).toHaveBeenCalledWith('vp9');
+    expect(setCameraSvcMode).toHaveBeenCalledWith('L1T3');
+    expect(setCameraInput).toHaveBeenCalledWith(
       expect.objectContaining({ deviceId: 'cam-9' }),
     );
-    expect(setVideoInput.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(setCameraInput.mock.invocationCallOrder[0]).toBeLessThan(
       produceCamera.mock.invocationCallOrder[0],
     );
     expect(produceCamera).toHaveBeenCalledTimes(1);
@@ -281,7 +281,7 @@ describe('VoiceRoomControlsBarComponent', () => {
   });
 
   it('opens the dialog with an empty codec when none is saved', async () => {
-    streamCodec.set(null);
+    cameraCodec.set(null);
     videoCodecOptions.mockReturnValue(['av1', 'h264', 'vp9', 'vp8']);
     openDialog.mockReturnValue(
       of({
@@ -306,7 +306,7 @@ describe('VoiceRoomControlsBarComponent', () => {
         }),
       }),
     );
-    expect(setStreamCodec).toHaveBeenCalledWith('av1');
+    expect(setCameraCodec).toHaveBeenCalledWith('av1');
   });
 
   it('saves screen layers, bitrate and content mode from the dialog', async () => {
@@ -337,7 +337,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(setScreenContentMode).toHaveBeenCalledWith('motion');
     expect(setScreenCodec).toHaveBeenCalledWith('av1');
     expect(setScreenSvcMode).toHaveBeenCalledWith('L2T3_KEY');
-    expect(setVideoInput).not.toHaveBeenCalled();
+    expect(setCameraInput).not.toHaveBeenCalled();
     expect(openDialog.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({ size: 's' }),
     );

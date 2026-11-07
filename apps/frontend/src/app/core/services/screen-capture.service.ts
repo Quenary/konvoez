@@ -4,8 +4,6 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { TStreamContentMode } from '@konvoez/shared';
 import {
   DEFAULT_SCREEN_CONTENT_MODE,
-  DEFAULT_STREAM_FPS,
-  DEFAULT_STREAM_HEIGHT,
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
@@ -66,12 +64,8 @@ export class ScreenCaptureService implements OnDestroy {
     fps?: TStreamFps;
     contentMode?: TStreamContentMode;
   }): Promise<TScreenCaptureResult> {
-    const height =
-      options?.height ??
-      this.settingsStore.screenHeight() ??
-      DEFAULT_STREAM_HEIGHT;
-    const fps =
-      options?.fps ?? this.settingsStore.screenFps() ?? DEFAULT_STREAM_FPS;
+    const height = options?.height ?? this.settingsStore.screenHeight();
+    const fps = options?.fps ?? this.settingsStore.screenFps();
 
     this.release();
 

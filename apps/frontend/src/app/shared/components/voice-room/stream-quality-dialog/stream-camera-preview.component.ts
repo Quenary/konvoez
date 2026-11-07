@@ -69,7 +69,7 @@ export class StreamCameraPreviewComponent {
 
   readonly height = input.required<TStreamHeight>();
   readonly fps = input.required<TStreamFps>();
-  readonly videoInput = input<MediaDeviceInfo | null>(null);
+  readonly cameraInput = input<MediaDeviceInfo | null>(null);
   readonly cameraChange = output<MediaDeviceInfo | null>();
   readonly blockedChange = output<boolean>();
 
@@ -111,7 +111,7 @@ export class StreamCameraPreviewComponent {
     effect(() => {
       const height = this.height();
       const fps = this.fps();
-      const storedId = this.videoInput()?.deviceId ?? null;
+      const storedId = this.cameraInput()?.deviceId ?? null;
       const selectedId = this.camera()?.deviceId ?? null;
       const track = this.previewTrack();
       const deviceId = selectedId ?? storedId;
@@ -313,7 +313,7 @@ export class StreamCameraPreviewComponent {
     deviceId: string | null,
   ): MediaDeviceInfo | null {
     const current = this.camera();
-    const stored = this.videoInput();
+    const stored = this.cameraInput();
     const preferred = deviceId
       ? {
           deviceId,

@@ -152,18 +152,18 @@ describe('MediasoupSessionService', () => {
             streamMaxBitrateKbps: vi
               .fn()
               .mockReturnValue(DEFAULT_STREAM_MAX_BITRATE_KBPS),
-            streamHeight: vi.fn().mockReturnValue(720),
-            streamFps: vi.fn().mockReturnValue(30),
-            streamExtraLayers: vi.fn().mockReturnValue(null),
-            streamBitrateKbps: vi.fn().mockReturnValue(2500),
+            cameraHeight: vi.fn().mockReturnValue(720),
+            cameraFps: vi.fn().mockReturnValue(30),
+            cameraExtraLayers: vi.fn().mockReturnValue(null),
+            cameraBitrateKbps: vi.fn().mockReturnValue(2500),
             screenHeight: vi.fn().mockReturnValue(1080),
             screenFps: vi.fn().mockReturnValue(30),
             screenExtraLayers: vi.fn().mockReturnValue(null),
             screenBitrateKbps: vi.fn().mockReturnValue(5000),
             screenContentMode: vi.fn().mockReturnValue('detail'),
-            streamCodec: vi.fn().mockReturnValue('vp8'),
+            cameraCodec: vi.fn().mockReturnValue('vp8'),
             screenCodec: vi.fn().mockReturnValue('vp8'),
-            streamSvcMode: vi.fn().mockReturnValue(null),
+            cameraSvcMode: vi.fn().mockReturnValue(null),
             screenSvcMode: vi.fn().mockReturnValue(null),
           },
         },
@@ -961,9 +961,9 @@ describe('MediasoupSessionService', () => {
     ],
   ])('publishes VP9 %s from the captured height', async (mode, layers) => {
     const settings = TestBed.inject(SettingsStore);
-    settings.streamCodec = vi
+    settings.cameraCodec = vi
       .fn()
-      .mockReturnValue('vp9') as unknown as typeof settings.streamCodec;
+      .mockReturnValue('vp9') as unknown as typeof settings.cameraCodec;
     service['device'] = {
       loaded: true,
       rtpCapabilities: { codecs: [{ mimeType: 'video/VP9' }] },
@@ -1017,9 +1017,9 @@ describe('MediasoupSessionService', () => {
       }),
     });
     const settings = TestBed.inject(SettingsStore);
-    settings.streamCodec = vi
+    settings.cameraCodec = vi
       .fn()
-      .mockReturnValue('av1') as unknown as typeof settings.streamCodec;
+      .mockReturnValue('av1') as unknown as typeof settings.cameraCodec;
     service['device'] = {
       loaded: true,
       rtpCapabilities: {
@@ -1076,9 +1076,9 @@ describe('MediasoupSessionService', () => {
       }),
     });
     const settings = TestBed.inject(SettingsStore);
-    settings.streamCodec = vi
+    settings.cameraCodec = vi
       .fn()
-      .mockReturnValue('av1') as unknown as typeof settings.streamCodec;
+      .mockReturnValue('av1') as unknown as typeof settings.cameraCodec;
     service['device'] = {
       loaded: true,
       rtpCapabilities: {
@@ -1185,9 +1185,9 @@ describe('MediasoupSessionService', () => {
       hardwareEncoderProbe({ height: 720, fps: 30, bitrateKbps: 2500 }),
     );
     const settings = TestBed.inject(SettingsStore);
-    settings.streamCodec = vi
+    settings.cameraCodec = vi
       .fn()
-      .mockReturnValue(null) as unknown as typeof settings.streamCodec;
+      .mockReturnValue(null) as unknown as typeof settings.cameraCodec;
     service['device'] = {
       loaded: true,
       rtpCapabilities: {
@@ -1253,9 +1253,9 @@ describe('MediasoupSessionService', () => {
       parameters: { 'profile-level-id': '640032', 'packetization-mode': 1 },
     };
     const settings = TestBed.inject(SettingsStore);
-    settings.streamCodec = vi
+    settings.cameraCodec = vi
       .fn()
-      .mockReturnValue('h264') as unknown as typeof settings.streamCodec;
+      .mockReturnValue('h264') as unknown as typeof settings.cameraCodec;
     service['device'] = {
       loaded: true,
       rtpCapabilities: { codecs: [constrained, high] },
@@ -1313,9 +1313,9 @@ describe('MediasoupSessionService', () => {
         }),
       });
       const settings = TestBed.inject(SettingsStore);
-      settings.streamCodec = vi
+      settings.cameraCodec = vi
         .fn()
-        .mockReturnValue(stored) as unknown as typeof settings.streamCodec;
+        .mockReturnValue(stored) as unknown as typeof settings.cameraCodec;
       service['device'] = {
         loaded: true,
         rtpCapabilities: {
@@ -1774,16 +1774,16 @@ describe('MediasoupSessionService', () => {
     });
     service['sendTransport'] = { produce, closed: false } as never;
     const settings = TestBed.inject(SettingsStore);
-    settings.streamHeight = vi
+    settings.cameraHeight = vi
       .fn()
-      .mockReturnValue(1080) as unknown as typeof settings.streamHeight;
-    settings.streamFps = vi
+      .mockReturnValue(1080) as unknown as typeof settings.cameraHeight;
+    settings.cameraFps = vi
       .fn()
-      .mockReturnValue(60) as unknown as typeof settings.streamFps;
-    settings.streamExtraLayers = vi.fn().mockReturnValue([
+      .mockReturnValue(60) as unknown as typeof settings.cameraFps;
+    settings.cameraExtraLayers = vi.fn().mockReturnValue([
       { height: 720, fps: 60 },
       { height: 480, fps: 30 },
-    ]) as unknown as typeof settings.streamExtraLayers;
+    ]) as unknown as typeof settings.cameraExtraLayers;
     TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
       getSettings: () => ({ height: 1080 }),
     } as MediaStreamTrack);
@@ -1813,14 +1813,14 @@ describe('MediasoupSessionService', () => {
       { height: 1080, fps: 60 },
     ]);
 
-    settings.streamExtraLayers = vi
+    settings.cameraExtraLayers = vi
       .fn()
       .mockReturnValue([
         { height: 720, fps: 30 },
-      ]) as unknown as typeof settings.streamExtraLayers;
-    settings.streamFps = vi
+      ]) as unknown as typeof settings.cameraExtraLayers;
+    settings.cameraFps = vi
       .fn()
-      .mockReturnValue(30) as unknown as typeof settings.streamFps;
+      .mockReturnValue(30) as unknown as typeof settings.cameraFps;
     TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
       getSettings: () => ({ height: 1080 }),
     } as MediaStreamTrack);
@@ -1831,24 +1831,24 @@ describe('MediasoupSessionService', () => {
     expect(two.encodings).toHaveLength(2);
     expect(two.encodings[0]?.scaleResolutionDownBy).toBe(1.5);
 
-    settings.streamExtraLayers = vi
+    settings.cameraExtraLayers = vi
       .fn()
-      .mockReturnValue([]) as unknown as typeof settings.streamExtraLayers;
+      .mockReturnValue([]) as unknown as typeof settings.cameraExtraLayers;
     await service.produceCamera();
     const one = produce.mock.calls[2]?.[0] as { encodings: unknown[] };
     expect(one.encodings).toHaveLength(1);
 
-    settings.streamHeight = vi
+    settings.cameraHeight = vi
       .fn()
-      .mockReturnValue(1080) as unknown as typeof settings.streamHeight;
-    settings.streamFps = vi
+      .mockReturnValue(1080) as unknown as typeof settings.cameraHeight;
+    settings.cameraFps = vi
       .fn()
-      .mockReturnValue(60) as unknown as typeof settings.streamFps;
-    settings.streamExtraLayers = vi
+      .mockReturnValue(60) as unknown as typeof settings.cameraFps;
+    settings.cameraExtraLayers = vi
       .fn()
       .mockReturnValue([
         { height: 720, fps: 60 },
-      ]) as unknown as typeof settings.streamExtraLayers;
+      ]) as unknown as typeof settings.cameraExtraLayers;
     TestBed.inject(CameraService).getTrack = vi.fn().mockResolvedValue({
       getSettings: () => ({ height: 480 }),
     } as MediaStreamTrack);

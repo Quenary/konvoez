@@ -45,7 +45,7 @@ describe('StreamCameraPreviewComponent', () => {
   let enumerateDevices: ReturnType<typeof vi.fn>;
 
   async function setup(
-    videoInput: MediaDeviceInfo | null = null,
+    cameraInput: MediaDeviceInfo | null = null,
     height: TStreamHeight = 720,
     fps: TStreamFps = 30,
   ): Promise<void> {
@@ -67,7 +67,7 @@ describe('StreamCameraPreviewComponent', () => {
     fixture = TestBed.createComponent(StreamCameraPreviewComponent);
     fixture.componentRef.setInput('height', height);
     fixture.componentRef.setInput('fps', fps);
-    fixture.componentRef.setInput('videoInput', videoInput);
+    fixture.componentRef.setInput('cameraInput', cameraInput);
     component = fixture.componentInstance;
     fixture.detectChanges();
   }

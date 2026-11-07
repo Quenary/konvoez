@@ -1,8 +1,6 @@
 import { Injectable, Injector, OnDestroy, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
-  DEFAULT_STREAM_FPS,
-  DEFAULT_STREAM_HEIGHT,
   TStreamFps,
   TStreamHeight,
 } from '@shared/schemas/local-settings.schema';
@@ -51,16 +49,12 @@ export class CameraService implements OnDestroy {
     fps?: TStreamFps;
     device?: MediaDeviceInfo | null;
   }): Promise<MediaStreamTrack> {
-    const height =
-      options?.height ??
-      this.settingsStore.streamHeight() ??
-      DEFAULT_STREAM_HEIGHT;
-    const fps =
-      options?.fps ?? this.settingsStore.streamFps() ?? DEFAULT_STREAM_FPS;
+    const height = options?.height ?? this.settingsStore.cameraHeight();
+    const fps = options?.fps ?? this.settingsStore.cameraFps();
     const preferred =
       options?.device !== undefined
         ? options.device
-        : this.settingsStore.videoInput();
+        : this.settingsStore.cameraInput();
     const devices = await this.mediaDevicesService
       .enumerateDevices()
       .catch((): MediaDeviceInfo[] => []);
@@ -134,7 +128,7 @@ export class CameraService implements OnDestroy {
     const desired = resolveMediaDevice(
       devices,
       'videoinput',
-      this.settingsStore.videoInput(),
+      this.settingsStore.cameraInput(),
     );
     if (this.track !== current) {
       return;

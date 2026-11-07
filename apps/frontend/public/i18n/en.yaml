@@ -129,13 +129,13 @@ CALL:
   CAMERA: Camera
   CAMERA_ON: Turn on camera
   CAMERA_OFF: Turn off camera
-  CAMERA_SETTINGS: Camera settings
   CAMERA_FAILED: Couldn't start the camera
   START_CAMERA: Start camera
   STREAM_CAMERA: Camera
   STREAM_CAMERA_UNNAMED: Unnamed camera
   STREAM_CAMERA_PREVIEW_FAILED: Couldn't open the camera preview
   STREAM_NO_CAMERA: No camera found
+  STREAM_DEFAULT_VALUE: '{{value}} (default)'
   STREAM_HEIGHT: Resolution
   STREAM_FPS: Frame rate
   STREAM_CODEC: Codec
@@ -152,6 +152,7 @@ CALL:
   STREAM_CONTENT_TEXT: Text
   STREAM_CONTENT_GAME: Game
   STREAM_CONTENT_HINT: Text keeps sharp detail and lowers frame rate. Game keeps motion smooth.
+  STREAM_RESET: Reset settings
   STREAM_BITRATE: Bitrate (kbps)
   STREAM_BITRATE_WARNING: A high bitrate can saturate the upload channel and the viewers' downloads.
   STREAM_SETTINGS_NOT_APPLIED: Could not apply the requested stream settings. Using what the browser provided.
@@ -160,10 +161,9 @@ CALL:
   SCREEN: Screen
   SCREEN_ON: Share screen
   SCREEN_OFF: Stop sharing
-  SCREEN_SETTINGS: Screen share settings
+  SCREEN_SETTINGS: Screen share
   SCREEN_FAILED: Couldn't start screen sharing
   SCREEN_AUDIO_LOOPBACK: Broadcasts all system audio, including other participants (may cause echo)
-  START_SCREEN: Share screen
   WATCH_SCREEN: Start watching
   STOP_WATCH_SCREEN: Stop watching
   WATCH_SCREEN_FAILED: Couldn't watch the screen share

@@ -614,7 +614,7 @@ export class MediasoupSessionService {
     const stored =
       tag === 'screen'
         ? this.settingsStore.screenCodec()
-        : this.settingsStore.streamCodec();
+        : this.settingsStore.cameraCodec();
     if (stored && available.includes(stored)) {
       return stored;
     }
@@ -628,21 +628,24 @@ export class MediasoupSessionService {
     const screen = tag === 'screen';
     const height = screen
       ? this.settingsStore.screenHeight()
-      : this.settingsStore.streamHeight();
+      : this.settingsStore.cameraHeight();
     const fps = screen
       ? this.settingsStore.screenFps()
-      : this.settingsStore.streamFps();
+      : this.settingsStore.cameraFps();
+    const contentMode: TStreamContentMode = screen
+      ? this.settingsStore.screenContentMode()
+      : 'motion';
     return hardwareEncoderProbe({
       height,
       fps,
       bitrateKbps: streamProbeBitrateKbps({
         height,
         fps,
-        contentMode: screen ? this.settingsStore.screenContentMode() : 'motion',
+        contentMode,
         maxKbps: this.settingsStore.streamMaxBitrateKbps(),
         bitrateKbps: screen
           ? this.settingsStore.screenBitrateKbps()
-          : this.settingsStore.streamBitrateKbps(),
+          : this.settingsStore.cameraBitrateKbps(),
       }),
     });
   }
@@ -651,16 +654,16 @@ export class MediasoupSessionService {
     const screen = tag === 'screen';
     const height = screen
       ? this.settingsStore.screenHeight()
-      : this.settingsStore.streamHeight();
+      : this.settingsStore.cameraHeight();
     const fps = screen
       ? this.settingsStore.screenFps()
-      : this.settingsStore.streamFps();
+      : this.settingsStore.cameraFps();
     const contentMode: TStreamContentMode = screen
       ? this.settingsStore.screenContentMode()
       : 'motion';
     const storedExtra = screen
       ? this.settingsStore.screenExtraLayers()
-      : this.settingsStore.streamExtraLayers();
+      : this.settingsStore.cameraExtraLayers();
     const codec = this.selectedVideoCodec(tag);
     const simulcast = streamSupportsSimulcast(codec);
     const extraLayers = simulcast
@@ -668,11 +671,11 @@ export class MediasoupSessionService {
       : [];
     const storedSvc = screen
       ? this.settingsStore.screenSvcMode()
-      : this.settingsStore.streamSvcMode();
+      : this.settingsStore.cameraSvcMode();
     const svcMode = simulcast ? null : (storedSvc ?? DEFAULT_STREAM_SVC_MODE);
     const storedBitrate = screen
       ? this.settingsStore.screenBitrateKbps()
-      : this.settingsStore.streamBitrateKbps();
+      : this.settingsStore.cameraBitrateKbps();
     const maxKbps = this.settingsStore.streamMaxBitrateKbps();
     const recommended = recommendStreamBitrateKbps({
       height,

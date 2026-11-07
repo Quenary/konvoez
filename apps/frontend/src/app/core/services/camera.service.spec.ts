@@ -9,7 +9,7 @@ import { MediaDevicesService } from './media-devices.service';
 describe('CameraService', () => {
   let service: CameraService;
   let enumerateDevices: ReturnType<typeof vi.fn>;
-  const videoInput = signal<MediaDeviceInfo | null>({
+  const cameraInput = signal<MediaDeviceInfo | null>({
     deviceId: 'cam-1',
     kind: 'videoinput',
   } as MediaDeviceInfo);
@@ -24,7 +24,7 @@ describe('CameraService', () => {
         enumerateDevices,
       },
     });
-    videoInput.set({
+    cameraInput.set({
       deviceId: 'cam-1',
       kind: 'videoinput',
     } as MediaDeviceInfo);
@@ -45,7 +45,7 @@ describe('CameraService', () => {
         {
           provide: SettingsStore,
           useValue: {
-            videoInput: videoInput.asReadonly(),
+            cameraInput: cameraInput.asReadonly(),
           },
         },
       ],
@@ -125,7 +125,7 @@ describe('CameraService', () => {
   });
 
   it('matches the chosen camera by label when its id changed', async () => {
-    videoInput.set({
+    cameraInput.set({
       deviceId: 'old-id',
       label: 'USB cam',
       kind: 'videoinput',
@@ -181,7 +181,7 @@ describe('CameraService', () => {
   });
 
   it('uses the front camera only when no camera id is resolved', async () => {
-    videoInput.set(null);
+    cameraInput.set(null);
     const getUserMedia = vi.fn().mockResolvedValue({
       getVideoTracks: () => [
         {

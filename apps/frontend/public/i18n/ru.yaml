@@ -129,13 +129,13 @@ CALL:
   CAMERA: Камера
   CAMERA_ON: Включить камеру
   CAMERA_OFF: Выключить камеру
-  CAMERA_SETTINGS: Настройки камеры
   CAMERA_FAILED: Не удалось запустить камеру
   START_CAMERA: Запустить камеру
   STREAM_CAMERA: Камера
   STREAM_CAMERA_UNNAMED: Камера без названия
   STREAM_CAMERA_PREVIEW_FAILED: Не удалось открыть предпросмотр камеры
   STREAM_NO_CAMERA: Камера не найдена
+  STREAM_DEFAULT_VALUE: '{{value}} (по умолчанию)'
   STREAM_HEIGHT: Разрешение
   STREAM_FPS: Частота кадров
   STREAM_CODEC: Кодек
@@ -152,6 +152,7 @@ CALL:
   STREAM_CONTENT_TEXT: Текст
   STREAM_CONTENT_GAME: Игра
   STREAM_CONTENT_HINT: Текст сохраняет чёткость и снижает частоту кадров. Игра сохраняет плавность движения.
+  STREAM_RESET: Сбросить настройки
   STREAM_BITRATE: Битрейт (кбит/с)
   STREAM_BITRATE_WARNING: Высокий битрейт может забить исходящий канал и загрузку у зрителей.
   STREAM_SETTINGS_NOT_APPLIED: Не удалось применить заданные настройки трансляции. Используем то, что предоставил браузер.
@@ -160,10 +161,9 @@ CALL:
   SCREEN: Экран
   SCREEN_ON: Демонстрация экрана
   SCREEN_OFF: Остановить демонстрацию
-  SCREEN_SETTINGS: Настройки демонстрации экрана
+  SCREEN_SETTINGS: Демонстрация экрана
   SCREEN_FAILED: Не удалось начать демонстрацию экрана
   SCREEN_AUDIO_LOOPBACK: Транслируется весь звук системы, включая собеседников (может вызывать эхо)
-  START_SCREEN: Демонстрировать
   WATCH_SCREEN: Начать просмотр
   STOP_WATCH_SCREEN: Прекратить просмотр
   WATCH_SCREEN_FAILED: Не удалось подписаться на демонстрацию

@@ -3,7 +3,7 @@ import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MediaDevicesService } from '@core/services/media-devices.service';
 import { clearHardwareEncoderCache } from '@core/services/video-codec';
-import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { TUI_ITEMS_HANDLERS, TuiDialogContext } from '@taiga-ui/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import {
@@ -105,7 +105,7 @@ describe('StreamQualityDialogComponent', () => {
       codec: 'vp8',
       codecs: ['vp8', 'vp9'],
       maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
-      videoInput: null,
+      cameraInput: null,
       ...overrides,
     };
     completeWith = vi.fn();
@@ -135,6 +135,13 @@ describe('StreamQualityDialogComponent', () => {
 
     fixture = TestBed.createComponent(StreamQualityDialogComponent);
     component = fixture.componentInstance;
+    const translate = TestBed.inject(TranslateService);
+    translate.setTranslation(
+      'en',
+      { CALL: { STREAM_DEFAULT_VALUE: '{{value}} (default)' } },
+      true,
+    );
+    translate.use('en');
     fixture.detectChanges();
   }
 
@@ -156,6 +163,36 @@ describe('StreamQualityDialogComponent', () => {
     clearHardwareEncoderCache();
   });
 
+  it('marks the default option in each select', async () => {
+    await setup({
+      kind: 'screen',
+      codec: 'vp8',
+      codecs: ['vp8', 'vp9'],
+      height: 720,
+      fps: 30,
+    });
+    const stringify = fixture.componentRef.injector
+      .get(TUI_ITEMS_HANDLERS)
+      .stringify();
+
+    expect(stringify(720)).toBe('720p (default)');
+    expect(stringify(1080)).toBe('1080p');
+    expect(stringify(30)).toBe('30 (default)');
+    expect(stringify(60)).toBe('60');
+    expect(stringify('motion')).toBe('CALL.STREAM_CONTENT_GAME (default)');
+    expect(stringify('detail')).toBe('CALL.STREAM_CONTENT_TEXT');
+    expect(stringify('L2T3_KEY')).toBe('CALL.STREAM_SVC_L2 (default)');
+    expect(stringify('L1T3')).toBe('CALL.STREAM_SVC_L1');
+    expect(stringify('vp9')).toBe('VP9 (default)');
+    expect(stringify('vp8')).toBe('VP8');
+    expect(component['stringifyLayer']({ height: 360, fps: 30 })).toBe(
+      '360p30 (default)',
+    );
+    expect(component['stringifyLayer']({ height: 160, fps: 30 })).toBe(
+      '160p30',
+    );
+  });
+
   it('lists 1080p60 options and selects the default layer', async () => {
     await setup({ height: 1080, fps: 60, extraLayers: null });
     expect(
@@ -174,6 +211,9 @@ describe('StreamQualityDialogComponent', () => {
       '160p30',
     ]);
     expect(component['extraLayers']()).toEqual([{ height: 480, fps: 60 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 480, fps: 60 },
+    ]);
     expect(
       fixture.nativeElement.querySelector('select[tuiMultiSelect]'),
     ).toBeTruthy();
@@ -226,22 +266,33 @@ describe('StreamQualityDialogComponent', () => {
     component['height'].set(720);
     fixture.detectChanges();
     expect(component['extraLayers']()).toEqual([{ height: 360, fps: 60 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 360, fps: 60 },
+    ]);
 
     component['height'].set(480);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 160, fps: 60 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 160, fps: 60 },
+    ]);
 
     component['height'].set(360);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 160, fps: 60 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 160, fps: 60 },
+    ]);
 
     component['height'].set(1080);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 60 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 480, fps: 60 },
+    ]);
 
     component['fps'].set(30);
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([{ height: 480, fps: 30 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 480, fps: 30 },
+    ]);
   });
 
   it('offers the same codec list for camera and screen and hides AV1', async () => {
@@ -288,8 +339,10 @@ describe('StreamQualityDialogComponent', () => {
       maxBitrateKbps: 20000,
     });
     expect(component['codec']()).toBe('vp9');
-    expect(component['extraLayers']()).toEqual([]);
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([]);
     expect(component['svcMode']()).toBe('L2T3_KEY');
+    expect(component['effectiveSvcMode']()).toBe('L2T3_KEY');
     expect(component['bitrateKbps']()).toBe(4250);
     expect(
       fixture.nativeElement.querySelector('tui-textfield[multi]'),
@@ -325,21 +378,23 @@ describe('StreamQualityDialogComponent', () => {
       .stringify();
     await vi.advanceTimersByTimeAsync(200);
     expect(component['codec']()).toBe('av1');
-    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE)');
+    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE) (default)');
     expect(stringify('h264')).toBe('H.264');
 
     component['height'].set(1080);
     fixture.detectChanges();
     await vi.advanceTimersByTimeAsync(200);
     expect(component['codec']()).toBe('h264');
-    expect(stringify('h264')).toBe('H.264 (CALL.STREAM_CODEC_HARDWARE)');
+    expect(stringify('h264')).toBe(
+      'H.264 (CALL.STREAM_CODEC_HARDWARE) (default)',
+    );
 
     component['onCodecChange']('vp9');
     component['height'].set(720);
     fixture.detectChanges();
     await vi.advanceTimersByTimeAsync(200);
     expect(component['codec']()).toBe('vp9');
-    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE)');
+    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE) (default)');
   });
 
   it('keeps a saved codec and still marks the hardware option', async () => {
@@ -357,7 +412,7 @@ describe('StreamQualityDialogComponent', () => {
       .stringify();
     await vi.advanceTimersByTimeAsync(200);
     expect(component['codec']()).toBe('vp9');
-    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE)');
+    expect(stringify('av1')).toBe('AV1 (CALL.STREAM_CODEC_HARDWARE) (default)');
     expect(stringify('h264')).toBe('H.264');
   });
 
@@ -484,8 +539,10 @@ describe('StreamQualityDialogComponent', () => {
       codecs: ['vp8', 'vp9', 'av1'],
       maxBitrateKbps: 20000,
     });
-    expect(component['extraLayers']()).toEqual([]);
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([]);
     expect(component['svcMode']()).toBe('L2T3_KEY');
+    expect(component['effectiveSvcMode']()).toBe('L2T3_KEY');
     expect(component['bitrateKbps']()).toBe(4250);
     expect(
       fixture.nativeElement.querySelector('tui-textfield[multi]'),
@@ -499,7 +556,7 @@ describe('StreamQualityDialogComponent', () => {
 
     component['codec'].set('av1');
     fixture.detectChanges();
-    expect(component['extraLayers']()).toEqual([]);
+    expect(component['extraLayers']()).toEqual([{ height: 720, fps: 30 }]);
     expect(component['svcMode']()).toBe('L2T3_KEY');
     expect(
       fixture.nativeElement.querySelector('tui-textfield[multi]'),
@@ -508,6 +565,9 @@ describe('StreamQualityDialogComponent', () => {
     component['codec'].set('vp8');
     fixture.detectChanges();
     expect(component['extraLayers']()).toEqual([{ height: 480, fps: 30 }]);
+    expect(component['effectiveExtraLayers']()).toEqual([
+      { height: 480, fps: 30 },
+    ]);
     expect(
       fixture.nativeElement.querySelector('tui-textfield[multi]'),
     ).not.toBeNull();
@@ -576,15 +636,21 @@ describe('StreamQualityDialogComponent', () => {
     component['codec'].set('vp9');
     fixture.detectChanges();
     expect(component['svcMode']()).toBe('L2T3_KEY');
+    expect(component['effectiveSvcMode']()).toBe('L2T3_KEY');
   });
 
-  it('renders the content radio only for screen share', async () => {
+  it('renders the content select only for screen share', async () => {
     await setup();
-    expect(fixture.nativeElement.querySelector('tui-radio-list')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'CALL.STREAM_CONTENT_MODE',
+    );
 
     TestBed.resetTestingModule();
     await setup({ kind: 'screen' });
-    expect(fixture.nativeElement.querySelector('tui-radio-list')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain(
+      'CALL.STREAM_CONTENT_MODE',
+    );
+    expect(fixture.nativeElement.querySelector('tui-radio-list')).toBeNull();
   });
 
   it('resets bitrate when height changes and warns above the threshold', async () => {
@@ -646,6 +712,67 @@ describe('StreamQualityDialogComponent', () => {
     );
   });
 
+  it('resets explicit choices back to defaults', async () => {
+    await setup({
+      kind: 'screen',
+      height: 1080,
+      fps: 60,
+      extraLayers: [{ height: 720, fps: 30 }],
+      svcMode: 'L3T3_KEY',
+      bitrateKbps: 8000,
+      contentMode: 'detail',
+      codec: 'vp9',
+      maxBitrateKbps: 20000,
+    });
+
+    component['onReset']();
+    fixture.detectChanges();
+
+    expect(component['height']()).toBe(720);
+    expect(component['fps']()).toBe(30);
+    expect(component['contentMode']()).toBe('motion');
+    expect(component['codec']()).toBe('vp9');
+    expect(component['extraLayers']()).toEqual([]);
+    expect(component['svcMode']()).toBe('L2T3_KEY');
+
+    await component['onConfirm']();
+
+    expect(completeWith).toHaveBeenCalledWith(
+      expect.objectContaining({
+        height: 720,
+        fps: 30,
+        extraLayers: [],
+        svcMode: 'L2T3_KEY',
+        bitrateKbps: component['bitrateKbps'](),
+        codec: 'vp9',
+        contentMode: 'motion',
+      }),
+    );
+  });
+
+  it('stores the default choices when nothing was saved', async () => {
+    await setup({
+      kind: 'screen',
+      extraLayers: null,
+      svcMode: null,
+      bitrateKbps: null,
+      codec: null,
+    });
+
+    await component['onConfirm']();
+
+    expect(completeWith).toHaveBeenCalledWith({
+      height: 720,
+      fps: 30,
+      extraLayers: [],
+      svcMode: 'L2T3_KEY',
+      bitrateKbps: 2250,
+      codec: 'vp9',
+      contentMode: 'detail',
+      cameraInput: null,
+    });
+  });
+
   it('confirms the selected camera and releases the preview when the dialog closes', async () => {
     vi.useFakeTimers();
     const events: string[] = [];
@@ -680,7 +807,7 @@ describe('StreamQualityDialogComponent', () => {
     expect(cameraPreview()['previewTrack']()).not.toBeNull();
     expect(completeWith).toHaveBeenCalledWith(
       expect.objectContaining({
-        videoInput: expect.objectContaining({ deviceId: 'cam-default' }),
+        cameraInput: expect.objectContaining({ deviceId: 'cam-default' }),
       }),
     );
 

@@ -66,19 +66,19 @@ export type SettingsStoreState = {
   loading: boolean;
   audioInput: MediaDeviceInfo | null;
   audioOutput: MediaDeviceInfo | null;
-  videoInput: MediaDeviceInfo | null;
-  streamHeight: TStreamHeight;
-  streamFps: TStreamFps;
+  cameraInput: MediaDeviceInfo | null;
+  cameraHeight: TStreamHeight;
+  cameraFps: TStreamFps;
   screenHeight: TStreamHeight;
   screenFps: TStreamFps;
-  streamExtraLayers: TStreamLayer[] | null;
-  streamSvcMode: TStreamSvcMode | null;
-  streamBitrateKbps: number | null;
+  cameraExtraLayers: TStreamLayer[] | null;
+  cameraSvcMode: TStreamSvcMode | null;
+  cameraBitrateKbps: number | null;
   screenExtraLayers: TStreamLayer[] | null;
   screenSvcMode: TStreamSvcMode | null;
   screenBitrateKbps: number | null;
   screenContentMode: TStreamContentMode;
-  streamCodec: TStreamVideoCodec | null;
+  cameraCodec: TStreamVideoCodec | null;
   screenCodec: TStreamVideoCodec | null;
   screenPreviewAutoPauseWhenHidden: boolean;
   noiseProcessor: ENoiseProcessor;
@@ -95,19 +95,19 @@ export const SettingsStore = signalStore(
     loading: false,
     audioInput: null,
     audioOutput: null,
-    videoInput: null,
-    streamHeight: DEFAULT_STREAM_HEIGHT,
-    streamFps: DEFAULT_STREAM_FPS,
+    cameraInput: null,
+    cameraHeight: DEFAULT_STREAM_HEIGHT,
+    cameraFps: DEFAULT_STREAM_FPS,
     screenHeight: DEFAULT_STREAM_HEIGHT,
     screenFps: DEFAULT_STREAM_FPS,
-    streamExtraLayers: null,
-    streamSvcMode: null,
-    streamBitrateKbps: null,
+    cameraExtraLayers: null,
+    cameraSvcMode: null,
+    cameraBitrateKbps: null,
     screenExtraLayers: null,
     screenSvcMode: null,
     screenBitrateKbps: null,
     screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
-    streamCodec: null,
+    cameraCodec: null,
     screenCodec: null,
     screenPreviewAutoPauseWhenHidden:
       DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
@@ -237,19 +237,19 @@ export const SettingsStore = signalStore(
         writeLocalSettings({
           audioInput: store.audioInput(),
           audioOutput: store.audioOutput(),
-          videoInput: store.videoInput(),
-          streamHeight: store.streamHeight(),
-          streamFps: store.streamFps(),
+          cameraInput: store.cameraInput(),
+          cameraHeight: store.cameraHeight(),
+          cameraFps: store.cameraFps(),
           screenHeight: store.screenHeight(),
           screenFps: store.screenFps(),
-          streamExtraLayers: store.streamExtraLayers(),
-          streamSvcMode: store.streamSvcMode(),
-          streamBitrateKbps: store.streamBitrateKbps(),
+          cameraExtraLayers: store.cameraExtraLayers(),
+          cameraSvcMode: store.cameraSvcMode(),
+          cameraBitrateKbps: store.cameraBitrateKbps(),
           screenExtraLayers: store.screenExtraLayers(),
           screenSvcMode: store.screenSvcMode(),
           screenBitrateKbps: store.screenBitrateKbps(),
           screenContentMode: store.screenContentMode(),
-          streamCodec: store.streamCodec(),
+          cameraCodec: store.cameraCodec(),
           screenCodec: store.screenCodec(),
           screenPreviewAutoPauseWhenHidden:
             store.screenPreviewAutoPauseWhenHidden(),
@@ -269,19 +269,19 @@ export const SettingsStore = signalStore(
             {
               audioInput: store.audioInput(),
               audioOutput: store.audioOutput(),
-              videoInput: store.videoInput(),
-              streamHeight: store.streamHeight(),
-              streamFps: store.streamFps(),
+              cameraInput: store.cameraInput(),
+              cameraHeight: store.cameraHeight(),
+              cameraFps: store.cameraFps(),
               screenHeight: store.screenHeight(),
               screenFps: store.screenFps(),
-              streamExtraLayers: store.streamExtraLayers(),
-              streamSvcMode: store.streamSvcMode(),
-              streamBitrateKbps: store.streamBitrateKbps(),
+              cameraExtraLayers: store.cameraExtraLayers(),
+              cameraSvcMode: store.cameraSvcMode(),
+              cameraBitrateKbps: store.cameraBitrateKbps(),
               screenExtraLayers: store.screenExtraLayers(),
               screenSvcMode: store.screenSvcMode(),
               screenBitrateKbps: store.screenBitrateKbps(),
               screenContentMode: store.screenContentMode(),
-              streamCodec: store.streamCodec(),
+              cameraCodec: store.cameraCodec(),
               screenCodec: store.screenCodec(),
               screenPreviewAutoPauseWhenHidden:
                 store.screenPreviewAutoPauseWhenHidden(),
@@ -307,18 +307,18 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
-        setVideoInput(videoInput: MediaDeviceInfo | null): void {
-          patchState(store, { videoInput });
+        setCameraInput(cameraInput: MediaDeviceInfo | null): void {
+          patchState(store, { cameraInput });
           persistLocal();
         },
 
-        setStreamHeight(streamHeight: TStreamHeight): void {
-          patchState(store, { streamHeight });
+        setCameraHeight(cameraHeight: TStreamHeight): void {
+          patchState(store, { cameraHeight });
           persistLocal();
         },
 
-        setStreamFps(streamFps: TStreamFps): void {
-          patchState(store, { streamFps });
+        setCameraFps(cameraFps: TStreamFps): void {
+          patchState(store, { cameraFps });
           persistLocal();
         },
 
@@ -332,18 +332,18 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
-        setStreamExtraLayers(streamExtraLayers: TStreamLayer[] | null): void {
-          patchState(store, { streamExtraLayers });
+        setCameraExtraLayers(cameraExtraLayers: TStreamLayer[] | null): void {
+          patchState(store, { cameraExtraLayers });
           persistLocal();
         },
 
-        setStreamSvcMode(streamSvcMode: TStreamSvcMode | null): void {
-          patchState(store, { streamSvcMode });
+        setCameraSvcMode(cameraSvcMode: TStreamSvcMode | null): void {
+          patchState(store, { cameraSvcMode });
           persistLocal();
         },
 
-        setStreamBitrateKbps(streamBitrateKbps: number | null): void {
-          patchState(store, { streamBitrateKbps });
+        setCameraBitrateKbps(cameraBitrateKbps: number | null): void {
+          patchState(store, { cameraBitrateKbps });
           persistLocal();
         },
 
@@ -367,12 +367,12 @@ export const SettingsStore = signalStore(
           persistLocal();
         },
 
-        setStreamCodec(streamCodec: TStreamVideoCodec): void {
-          patchState(store, { streamCodec });
+        setCameraCodec(cameraCodec: TStreamVideoCodec | null): void {
+          patchState(store, { cameraCodec });
           persistLocal();
         },
 
-        setScreenCodec(screenCodec: TStreamVideoCodec): void {
+        setScreenCodec(screenCodec: TStreamVideoCodec | null): void {
           patchState(store, { screenCodec });
           persistLocal();
         },
@@ -471,8 +471,8 @@ export const SettingsStore = signalStore(
         (partial.audioInput as MediaDeviceInfo | undefined) ?? null;
       const audioOutput =
         (partial.audioOutput as MediaDeviceInfo | undefined) ?? null;
-      const videoInput =
-        (partial.videoInput as MediaDeviceInfo | undefined) ?? null;
+      const cameraInput =
+        (partial.cameraInput as MediaDeviceInfo | undefined) ?? null;
       const preferredProcessor =
         partial.noiseProcessor ??
         (isMobileOrIos()
@@ -486,20 +486,20 @@ export const SettingsStore = signalStore(
       patchState(store, {
         audioInput,
         audioOutput,
-        videoInput,
-        streamHeight: partial.streamHeight ?? DEFAULT_STREAM_HEIGHT,
-        streamFps: partial.streamFps ?? DEFAULT_STREAM_FPS,
+        cameraInput,
+        cameraHeight: partial.cameraHeight ?? DEFAULT_STREAM_HEIGHT,
+        cameraFps: partial.cameraFps ?? DEFAULT_STREAM_FPS,
         screenHeight: partial.screenHeight ?? DEFAULT_STREAM_HEIGHT,
         screenFps: partial.screenFps ?? DEFAULT_STREAM_FPS,
-        streamExtraLayers: partial.streamExtraLayers ?? null,
-        streamSvcMode: partial.streamSvcMode ?? null,
-        streamBitrateKbps: partial.streamBitrateKbps ?? null,
+        cameraExtraLayers: partial.cameraExtraLayers ?? null,
+        cameraSvcMode: partial.cameraSvcMode ?? null,
+        cameraBitrateKbps: partial.cameraBitrateKbps ?? null,
         screenExtraLayers: partial.screenExtraLayers ?? null,
         screenSvcMode: partial.screenSvcMode ?? null,
         screenBitrateKbps: partial.screenBitrateKbps ?? null,
         screenContentMode:
           partial.screenContentMode ?? DEFAULT_SCREEN_CONTENT_MODE,
-        streamCodec: partial.streamCodec ?? null,
+        cameraCodec: partial.cameraCodec ?? null,
         screenCodec: partial.screenCodec ?? null,
         screenPreviewAutoPauseWhenHidden:
           partial.screenPreviewAutoPauseWhenHidden ??

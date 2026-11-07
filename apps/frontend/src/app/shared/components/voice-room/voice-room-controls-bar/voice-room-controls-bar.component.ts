@@ -25,10 +25,10 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiButtonLoading } from '@taiga-ui/kit';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { TStreamContentMode, TStreamVideoCodec } from '@konvoez/shared';
 import { firstValueFrom } from 'rxjs';
 import {
   StreamQualityDialogComponent,
+  TStreamQualityDialogData,
   TStreamQualityDialogResult,
   TStreamQualityKind,
 } from '../stream-quality-dialog/stream-quality-dialog.component';
@@ -145,7 +145,7 @@ export class VoiceRoomControlsBarComponent {
             codec: settings.codec,
             codecs: this.mediasoupSessionService.videoCodecOptions(),
             maxBitrateKbps: this.settingsStore.streamMaxBitrateKbps(),
-            videoInput: settings.videoInput,
+            cameraInput: settings.cameraInput,
           },
           size: kind === 'cam' ? 'm' : 's',
           dismissible: true,
@@ -183,14 +183,14 @@ export class VoiceRoomControlsBarComponent {
         failedKey: string;
         active: () => boolean;
         settings: () => {
-          height: TStreamQualityDialogResult['height'];
-          fps: TStreamQualityDialogResult['fps'];
-          extraLayers: TStreamQualityDialogResult['extraLayers'] | null;
-          svcMode: TStreamQualityDialogResult['svcMode'] | null;
-          bitrateKbps: number | null;
-          contentMode: TStreamContentMode;
-          codec: TStreamVideoCodec | null;
-          videoInput: MediaDeviceInfo | null;
+          height: TStreamQualityDialogData['height'];
+          fps: TStreamQualityDialogData['fps'];
+          extraLayers: TStreamQualityDialogData['extraLayers'];
+          svcMode: TStreamQualityDialogData['svcMode'];
+          bitrateKbps: TStreamQualityDialogData['bitrateKbps'];
+          contentMode: TStreamQualityDialogData['contentMode'];
+          codec: TStreamQualityDialogData['codec'];
+          cameraInput: TStreamQualityDialogData['cameraInput'];
         };
         save: (result: TStreamQualityDialogResult) => void;
         stop: () => Promise<void>;
@@ -202,31 +202,31 @@ export class VoiceRoomControlsBarComponent {
         failedKey: 'CALL.CAMERA_FAILED',
         active: () => this.cameraOn(),
         settings: () => ({
-          height: this.settingsStore.streamHeight(),
-          fps: this.settingsStore.streamFps(),
-          extraLayers: this.settingsStore.streamExtraLayers(),
-          svcMode: this.settingsStore.streamSvcMode(),
-          bitrateKbps: this.settingsStore.streamBitrateKbps(),
+          height: this.settingsStore.cameraHeight(),
+          fps: this.settingsStore.cameraFps(),
+          extraLayers: this.settingsStore.cameraExtraLayers(),
+          svcMode: this.settingsStore.cameraSvcMode(),
+          bitrateKbps: this.settingsStore.cameraBitrateKbps(),
           contentMode: 'motion' as const,
-          codec: this.settingsStore.streamCodec(),
-          videoInput: this.settingsStore.videoInput(),
+          codec: this.settingsStore.cameraCodec(),
+          cameraInput: this.settingsStore.cameraInput(),
         }),
         save: (result) => {
-          if (result.videoInput) {
-            this.settingsStore.setVideoInput(result.videoInput);
+          if (result.cameraInput) {
+            this.settingsStore.setCameraInput(result.cameraInput);
           }
-          this.settingsStore.setStreamHeight(result.height);
-          this.settingsStore.setStreamFps(result.fps);
-          this.settingsStore.setStreamExtraLayers(result.extraLayers);
-          this.settingsStore.setStreamSvcMode(result.svcMode);
-          this.settingsStore.setStreamBitrateKbps(result.bitrateKbps);
-          this.settingsStore.setStreamCodec(result.codec);
+          this.settingsStore.setCameraHeight(result.height);
+          this.settingsStore.setCameraFps(result.fps);
+          this.settingsStore.setCameraExtraLayers(result.extraLayers);
+          this.settingsStore.setCameraSvcMode(result.svcMode);
+          this.settingsStore.setCameraBitrateKbps(result.bitrateKbps);
+          this.settingsStore.setCameraCodec(result.codec);
         },
         stop: () => this.voiceSessionService.stopCamera(),
         produce: () => this.voiceSessionService.produceCamera(),
       },
       screen: {
-        labelKey: 'CALL.SCREEN',
+        labelKey: 'CALL.SCREEN_SETTINGS',
         failedKey: 'CALL.SCREEN_FAILED',
         active: () => this.screenOn(),
         settings: () => ({
@@ -237,7 +237,7 @@ export class VoiceRoomControlsBarComponent {
           bitrateKbps: this.settingsStore.screenBitrateKbps(),
           contentMode: this.settingsStore.screenContentMode(),
           codec: this.settingsStore.screenCodec(),
-          videoInput: null,
+          cameraInput: null,
         }),
         save: (result) => {
           this.settingsStore.setScreenHeight(result.height);
