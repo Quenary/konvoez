@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MediaDevicesService } from '@core/services/media-devices.service';
 import { clearHardwareEncoderCache } from '@core/services/video-codec';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TUI_ITEMS_HANDLERS, TuiDialogContext } from '@taiga-ui/core';
@@ -8,11 +10,54 @@ import {
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
   STREAM_BITRATE_WARN_KBPS,
 } from '@konvoez/shared';
+import { EMPTY } from 'rxjs';
 import {
   StreamQualityDialogComponent,
   TStreamQualityDialogData,
   TStreamQualityDialogResult,
 } from './stream-quality-dialog.component';
+import { StreamCameraPreviewComponent } from './stream-camera-preview.component';
+
+function cameraDevice(deviceId: string, label = deviceId): MediaDeviceInfo {
+  return {
+    deviceId,
+    kind: 'videoinput',
+    label,
+    groupId: 'g',
+  } as MediaDeviceInfo;
+}
+
+function requestedDeviceId(constraints: MediaStreamConstraints): string | null {
+  const video = constraints.video;
+  if (!video || typeof video !== 'object' || !('deviceId' in video)) {
+    return null;
+  }
+  const deviceId = video.deviceId;
+  if (typeof deviceId === 'string') {
+    return deviceId;
+  }
+  if (
+    deviceId &&
+    typeof deviceId === 'object' &&
+    'ideal' in deviceId &&
+    typeof deviceId.ideal === 'string'
+  ) {
+    return deviceId.ideal;
+  }
+  return null;
+}
+
+function previewStream(deviceId: string): MediaStream {
+  const track = {
+    readyState: 'live',
+    stop: vi.fn(),
+    getSettings: () => ({ deviceId }),
+  };
+  return {
+    getVideoTracks: () => [track],
+    getTracks: () => [track],
+  } as unknown as MediaStream;
+}
 
 function stubHardwareProbe(
   powerEfficient: (config: {
@@ -37,6 +82,14 @@ describe('StreamQualityDialogComponent', () => {
   let component: StreamQualityDialogComponent;
   let completeWith: ReturnType<typeof vi.fn>;
   let data: TStreamQualityDialogData;
+  let getUserMedia: ReturnType<typeof vi.fn>;
+  let enumerateDevices: ReturnType<typeof vi.fn>;
+
+  function cameraPreview(): StreamCameraPreviewComponent {
+    return fixture.debugElement.query(
+      By.directive(StreamCameraPreviewComponent),
+    ).componentInstance;
+  }
 
   async function setup(
     overrides: Partial<TStreamQualityDialogData> = {},
@@ -52,6 +105,7 @@ describe('StreamQualityDialogComponent', () => {
       codec: 'vp8',
       codecs: ['vp8', 'vp9'],
       maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
+      videoInput: null,
       ...overrides,
     };
     completeWith = vi.fn();
@@ -68,6 +122,14 @@ describe('StreamQualityDialogComponent', () => {
       providers: [
         provideTranslateService(),
         { provide: POLYMORPHEUS_CONTEXT, useValue: context },
+        {
+          provide: MediaDevicesService,
+          useValue: {
+            getUserMedia,
+            enumerateDevices,
+            deviceChange$: EMPTY,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -79,6 +141,12 @@ describe('StreamQualityDialogComponent', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     clearHardwareEncoderCache();
+    getUserMedia = vi.fn(async (constraints: MediaStreamConstraints) =>
+      previewStream(requestedDeviceId(constraints) ?? 'cam-default'),
+    );
+    enumerateDevices = vi.fn(async () => [
+      cameraDevice('cam-default', 'Default camera'),
+    ]);
   });
 
   afterEach(() => {
@@ -299,6 +367,7 @@ describe('StreamQualityDialogComponent', () => {
       async (config) => config.video.contentType === 'video/AV1',
     );
     await setup({
+      kind: 'screen',
       codec: null,
       codecs: ['av1', 'h264', 'vp9', 'vp8'],
     });
@@ -326,6 +395,7 @@ describe('StreamQualityDialogComponent', () => {
         }),
     );
     await setup({
+      kind: 'screen',
       codec: null,
       codecs: ['av1', 'h264', 'vp9', 'vp8'],
     });
@@ -364,6 +434,7 @@ describe('StreamQualityDialogComponent', () => {
         }),
     );
     await setup({
+      kind: 'screen',
       codec: null,
       height: 720,
       fps: 30,
@@ -573,5 +644,83 @@ describe('StreamQualityDialogComponent', () => {
         contentMode: 'motion',
       }),
     );
+  });
+
+  it('confirms the selected camera and releases the preview when the dialog closes', async () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    getUserMedia.mockImplementation(
+      async (constraints: MediaStreamConstraints) => {
+        const deviceId = requestedDeviceId(constraints) ?? 'cam-default';
+        const track = {
+          readyState: 'live',
+          stop: () => {
+            events.push('stop');
+          },
+          getSettings: () => ({ deviceId }),
+        };
+        return {
+          getVideoTracks: () => [track],
+          getTracks: () => [track],
+        };
+      },
+    );
+    completeWith = vi.fn();
+    await setup();
+    completeWith.mockImplementation(() => {
+      events.push('complete');
+    });
+    await vi.advanceTimersByTimeAsync(200);
+    fixture.detectChanges();
+    events.length = 0;
+
+    await component['onConfirm']();
+
+    expect(events).toEqual(['complete']);
+    expect(cameraPreview()['previewTrack']()).not.toBeNull();
+    expect(completeWith).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoInput: expect.objectContaining({ deviceId: 'cam-default' }),
+      }),
+    );
+
+    fixture.destroy();
+    expect(events).toEqual(['complete', 'stop']);
+  });
+
+  it('stops a live preview when the dialog is destroyed', async () => {
+    vi.useFakeTimers();
+    const stop = vi.fn();
+    getUserMedia.mockImplementation(
+      async (constraints: MediaStreamConstraints) => {
+        const deviceId = requestedDeviceId(constraints) ?? 'cam-default';
+        const track = {
+          readyState: 'live',
+          stop,
+          getSettings: () => ({ deviceId }),
+        };
+        return {
+          getVideoTracks: () => [track],
+          getTracks: () => [track],
+        };
+      },
+    );
+    await setup();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(cameraPreview()['previewTrack']()).not.toBeNull();
+
+    fixture.destroy();
+
+    expect(stop).toHaveBeenCalled();
+  });
+
+  it('does not open a camera for screen share', async () => {
+    vi.useFakeTimers();
+    await setup({ kind: 'screen' });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('.preview')).toBeNull();
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
   });
 });

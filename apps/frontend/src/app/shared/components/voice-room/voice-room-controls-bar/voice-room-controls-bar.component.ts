@@ -145,8 +145,9 @@ export class VoiceRoomControlsBarComponent {
             codec: settings.codec,
             codecs: this.mediasoupSessionService.videoCodecOptions(),
             maxBitrateKbps: this.settingsStore.streamMaxBitrateKbps(),
+            videoInput: settings.videoInput,
           },
-          size: 's',
+          size: kind === 'cam' ? 'm' : 's',
           dismissible: true,
           label: this.translateService.instant(start.labelKey),
         },
@@ -189,6 +190,7 @@ export class VoiceRoomControlsBarComponent {
           bitrateKbps: number | null;
           contentMode: TStreamContentMode;
           codec: TStreamVideoCodec | null;
+          videoInput: MediaDeviceInfo | null;
         };
         save: (result: TStreamQualityDialogResult) => void;
         stop: () => Promise<void>;
@@ -207,8 +209,12 @@ export class VoiceRoomControlsBarComponent {
           bitrateKbps: this.settingsStore.streamBitrateKbps(),
           contentMode: 'motion' as const,
           codec: this.settingsStore.streamCodec(),
+          videoInput: this.settingsStore.videoInput(),
         }),
         save: (result) => {
+          if (result.videoInput) {
+            this.settingsStore.setVideoInput(result.videoInput);
+          }
           this.settingsStore.setStreamHeight(result.height);
           this.settingsStore.setStreamFps(result.fps);
           this.settingsStore.setStreamExtraLayers(result.extraLayers);
@@ -231,6 +237,7 @@ export class VoiceRoomControlsBarComponent {
           bitrateKbps: this.settingsStore.screenBitrateKbps(),
           contentMode: this.settingsStore.screenContentMode(),
           codec: this.settingsStore.screenCodec(),
+          videoInput: null,
         }),
         save: (result) => {
           this.settingsStore.setScreenHeight(result.height);

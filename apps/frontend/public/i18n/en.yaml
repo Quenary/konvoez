@@ -132,6 +132,10 @@ CALL:
   CAMERA_SETTINGS: Camera settings
   CAMERA_FAILED: Couldn't start the camera
   START_CAMERA: Start camera
+  STREAM_CAMERA: Camera
+  STREAM_CAMERA_UNNAMED: Unnamed camera
+  STREAM_CAMERA_PREVIEW_FAILED: Couldn't open the camera preview
+  STREAM_NO_CAMERA: No camera found
   STREAM_HEIGHT: Resolution
   STREAM_FPS: Frame rate
   STREAM_CODEC: Codec

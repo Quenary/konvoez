@@ -4,6 +4,15 @@
   (submit)="$event.preventDefault(); onConfirm()">
   <h3>{{ titleKey() | translate }}</h3>
 
+  @if (!isScreen()) {
+    <app-stream-camera-preview
+      [height]="height()"
+      [fps]="fps()"
+      [videoInput]="storedVideoInput"
+      (cameraChange)="selectedCamera.set($event)"
+      (blockedChange)="previewBlocked.set($event)" />
+  }
+
   <label tuiLabel>
     {{ 'CALL.STREAM_HEIGHT' | translate }}
     <tui-textfield
@@ -161,7 +170,8 @@
       tuiButton
       type="submit"
       appearance="primary"
-      size="m">
+      size="m"
+      [disabled]="confirmDisabled()">
       {{ confirmKey() | translate }}
     </button>
   </footer>

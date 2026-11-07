@@ -35,6 +35,7 @@ import {
   resolveDefaultVideoCodec,
   streamProbeBitrateKbps,
 } from '@core/services/video-codec';
+import { StreamCameraPreviewComponent } from './stream-camera-preview.component';
 import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
@@ -74,6 +75,7 @@ export type TStreamQualityDialogResult = {
   bitrateKbps: number;
   codec: TStreamVideoCodec;
   contentMode?: TStreamContentMode;
+  videoInput: MediaDeviceInfo | null;
 };
 
 export type TStreamQualityDialogData = {
@@ -87,6 +89,7 @@ export type TStreamQualityDialogData = {
   codec: TStreamVideoCodec | null;
   codecs: readonly TStreamVideoCodec[];
   maxBitrateKbps: number;
+  videoInput: MediaDeviceInfo | null;
 };
 
 type TStreamSelectValue = TStreamHeight | TStreamFps | TStreamVideoCodec;
@@ -165,6 +168,7 @@ function identityMatchStreamSelectItem(
   selector: 'app-stream-quality-dialog',
   imports: [
     FormsModule,
+    StreamCameraPreviewComponent,
     TranslatePipe,
     TuiButton,
     TuiLabel,
@@ -206,6 +210,7 @@ function identityMatchStreamSelectItem(
     },
   ],
   templateUrl: './stream-quality-dialog.component.html',
+  styleUrl: './stream-quality-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StreamQualityDialogComponent {
@@ -406,6 +411,14 @@ export class StreamQualityDialogComponent {
   protected readonly showBitrateWarning = computed(
     () => this.bitrateKbps() > STREAM_BITRATE_WARN_KBPS,
   );
+  protected readonly storedVideoInput = this.context.data?.videoInput ?? null;
+  protected readonly selectedCamera = signal<MediaDeviceInfo | null>(null);
+  protected readonly previewBlocked = signal(true);
+  protected readonly confirmDisabled = computed(() => {
+    const screen = this.isScreen();
+    const blocked = this.previewBlocked();
+    return !screen && blocked;
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -447,10 +460,11 @@ export class StreamQualityDialogComponent {
     this.confirming = true;
     try {
       await this.flushHardwareProbe();
-      if (this.closed) {
+      if (this.closed || this.confirmDisabled()) {
         return;
       }
       const contentMode = this.isScreen() ? this.contentMode() : undefined;
+      const videoInput = this.isScreen() ? null : this.selectedCamera();
       this.context.completeWith({
         height: this.height(),
         fps: this.fps(),
@@ -458,6 +472,7 @@ export class StreamQualityDialogComponent {
         svcMode: this.svcMode(),
         bitrateKbps: Math.min(this.maxBitrateKbps, this.bitrateKbps()),
         codec: this.codec(),
+        videoInput,
         ...(contentMode ? { contentMode } : {}),
       });
     } finally {

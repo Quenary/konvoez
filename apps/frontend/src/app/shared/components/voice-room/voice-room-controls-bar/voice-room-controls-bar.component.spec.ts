@@ -35,6 +35,8 @@ describe('VoiceRoomControlsBarComponent', () => {
   let setScreenCodec: ReturnType<typeof vi.fn>;
   let setStreamSvcMode: ReturnType<typeof vi.fn>;
   let setScreenSvcMode: ReturnType<typeof vi.fn>;
+  let setVideoInput: ReturnType<typeof vi.fn>;
+  let videoInput: ReturnType<typeof signal<MediaDeviceInfo | null>>;
   let openDialog: ReturnType<typeof vi.fn>;
   let notify: ReturnType<typeof vi.fn>;
   let toggleMicrophoneMuted: ReturnType<typeof vi.fn>;
@@ -68,6 +70,13 @@ describe('VoiceRoomControlsBarComponent', () => {
     setScreenCodec = vi.fn();
     setStreamSvcMode = vi.fn();
     setScreenSvcMode = vi.fn();
+    setVideoInput = vi.fn();
+    videoInput = signal<MediaDeviceInfo | null>({
+      deviceId: 'cam-stored',
+      kind: 'videoinput',
+      label: 'Stored',
+      groupId: 'g',
+    } as MediaDeviceInfo);
     openDialog = vi.fn(() => of(null));
     notify = vi.fn(() => of(null));
     toggleMicrophoneMuted = vi.fn();
@@ -121,6 +130,8 @@ describe('VoiceRoomControlsBarComponent', () => {
             streamMaxBitrateKbps: signal(
               DEFAULT_STREAM_MAX_BITRATE_KBPS,
             ).asReadonly(),
+            videoInput: videoInput.asReadonly(),
+            setVideoInput,
             setStreamHeight,
             setStreamFps,
             setStreamExtraLayers,
@@ -220,6 +231,12 @@ describe('VoiceRoomControlsBarComponent', () => {
         svcMode: 'L1T3',
         bitrateKbps: 1500,
         codec: 'vp9',
+        videoInput: {
+          deviceId: 'cam-9',
+          kind: 'videoinput',
+          label: 'USB',
+          groupId: 'g',
+        },
       }),
     );
     const fixture = create();
@@ -230,6 +247,7 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(openDialog).toHaveBeenCalledTimes(1);
     expect(openDialog.mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({
+        size: 'm',
         data: expect.objectContaining({
           kind: 'cam',
           height: 720,
@@ -240,6 +258,7 @@ describe('VoiceRoomControlsBarComponent', () => {
           codec: 'vp9',
           codecs: ['vp8', 'vp9'],
           maxBitrateKbps: DEFAULT_STREAM_MAX_BITRATE_KBPS,
+          videoInput: videoInput(),
         }),
       }),
     );
@@ -251,6 +270,12 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(setStreamBitrateKbps).toHaveBeenCalledWith(1500);
     expect(setStreamCodec).toHaveBeenCalledWith('vp9');
     expect(setStreamSvcMode).toHaveBeenCalledWith('L1T3');
+    expect(setVideoInput).toHaveBeenCalledWith(
+      expect.objectContaining({ deviceId: 'cam-9' }),
+    );
+    expect(setVideoInput.mock.invocationCallOrder[0]).toBeLessThan(
+      produceCamera.mock.invocationCallOrder[0],
+    );
     expect(produceCamera).toHaveBeenCalledTimes(1);
     expect(produceScreen).not.toHaveBeenCalled();
   });
@@ -312,6 +337,10 @@ describe('VoiceRoomControlsBarComponent', () => {
     expect(setScreenContentMode).toHaveBeenCalledWith('motion');
     expect(setScreenCodec).toHaveBeenCalledWith('av1');
     expect(setScreenSvcMode).toHaveBeenCalledWith('L2T3_KEY');
+    expect(setVideoInput).not.toHaveBeenCalled();
+    expect(openDialog.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({ size: 's' }),
+    );
     expect(produceScreen).toHaveBeenCalledTimes(1);
     vi.unstubAllGlobals();
   });

@@ -132,6 +132,10 @@ CALL:
   CAMERA_SETTINGS: Настройки камеры
   CAMERA_FAILED: Не удалось запустить камеру
   START_CAMERA: Запустить камеру
+  STREAM_CAMERA: Камера
+  STREAM_CAMERA_UNNAMED: Камера без названия
+  STREAM_CAMERA_PREVIEW_FAILED: Не удалось открыть предпросмотр камеры
+  STREAM_NO_CAMERA: Камера не найдена
   STREAM_HEIGHT: Разрешение
   STREAM_FPS: Частота кадров
   STREAM_CODEC: Кодек

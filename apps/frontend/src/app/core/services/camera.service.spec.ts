@@ -146,4 +146,69 @@ describe('CameraService', () => {
 
     expect(changed).not.toHaveBeenCalled();
   });
+
+  it('opens a resolved camera without facingMode', async () => {
+    const getUserMedia = vi.fn().mockResolvedValue({
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({ deviceId: 'cam-1' }),
+          addEventListener: vi.fn(),
+          stop: vi.fn(),
+        },
+      ],
+      getTracks: () => [
+        {
+          readyState: 'live',
+          stop: vi.fn(),
+        },
+      ],
+    });
+    Object.assign(navigator.mediaDevices, { getUserMedia });
+    enumerateDevices.mockResolvedValue([
+      { kind: 'videoinput', deviceId: 'cam-1', label: 'USB cam' },
+    ]);
+
+    await service.getTrack({ height: 720, fps: 30 });
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: false,
+      video: {
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 },
+        deviceId: { ideal: 'cam-1' },
+      },
+    });
+  });
+
+  it('uses the front camera only when no camera id is resolved', async () => {
+    videoInput.set(null);
+    const getUserMedia = vi.fn().mockResolvedValue({
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({}),
+          addEventListener: vi.fn(),
+          stop: vi.fn(),
+        },
+      ],
+      getTracks: () => [
+        {
+          readyState: 'live',
+          stop: vi.fn(),
+        },
+      ],
+    });
+    Object.assign(navigator.mediaDevices, { getUserMedia });
+    enumerateDevices.mockResolvedValue([]);
+
+    await service.getTrack({ height: 480, fps: 15 });
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: false,
+      video: {
+        height: { ideal: 480 },
+        frameRate: { ideal: 15 },
+        facingMode: 'user',
+      },
+    });
+  });
 });

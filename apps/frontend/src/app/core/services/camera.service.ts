@@ -78,10 +78,11 @@ export class CameraService implements OnDestroy {
     const videoConstraints: MediaTrackConstraints = {
       height: { ideal: height },
       frameRate: { ideal: fps },
-      facingMode: 'user',
     };
     if (device?.deviceId) {
       videoConstraints.deviceId = { ideal: device.deviceId };
+    } else {
+      videoConstraints.facingMode = 'user';
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
