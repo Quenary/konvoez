@@ -1,162 +1,167 @@
 <tui-root>
-  @if (isAuthenticated()) {
-    <div
-      [style.display]="'flex'"
-      [style.height.%]="100">
-      <aside [tuiNavigationAside]="!collapsed()">
-        <header>
-          <button
-            tuiAsideItem
-            [iconStart]="icons.home"
-            type="button"
-            [routerLink]="'/'"
-            [routerLinkActiveOptions]="{ exact: true }">
-            @if (!collapsed()) {
-              <app-logo></app-logo>
-            }
-          </button>
-        </header>
-
-        @defer {
-          <app-rooms [collapsed]="collapsed()"></app-rooms>
-        }
-
-        <footer>
-          @defer {
-            <app-voice-room-panel
-              [collapsed]="collapsed()"></app-voice-room-panel>
-          }
-
-          <tui-aside-group>
+  <tui-pull-to-refresh
+    appPullToRefresh
+    [styleHandler]="pullShift"
+    (pulled)="reloadPage()">
+    @if (isAuthenticated()) {
+      <div
+        [style.display]="'flex'"
+        [style.height.%]="100">
+        <aside [tuiNavigationAside]="!collapsed()">
+          <header>
             <button
               tuiAsideItem
-              automation-id="setting"
+              [iconStart]="icons.home"
               type="button"
-              [iconStart]="icons['settings']"
-              tuiChevron>
-              {{ 'MENU.SETTINGS.TITLE' | translate }}
-
-              <ng-template>
-                <button
-                  tuiAsideItem
-                  type="button"
-                  [iconStart]="icons['settings-profile']"
-                  [routerLink]="'/settings/profile'">
-                  {{ 'MENU.SETTINGS.PROFILE' | translate }}
-                </button>
-
-                <button
-                  tuiAsideItem
-                  type="button"
-                  [iconStart]="icons['settings-security']"
-                  [routerLink]="'/settings/security'">
-                  {{ 'MENU.SETTINGS.SECURITY' | translate }}
-                </button>
-
-                <button
-                  tuiAsideItem
-                  type="button"
-                  [iconStart]="icons['settings-devices']"
-                  [routerLink]="'/settings/devices'">
-                  {{ 'MENU.SETTINGS.DEVICES' | translate }}
-                </button>
-
-                <button
-                  tuiAsideItem
-                  type="button"
-                  [iconStart]="icons['settings-notifications']"
-                  [routerLink]="'/settings/notifications'">
-                  {{ 'MENU.SETTINGS.NOTIFICATIONS' | translate }}
-                </button>
-
-                @if (canManageInvites()) {
-                  <button
-                    tuiAsideItem
-                    type="button"
-                    [iconStart]="icons['settings-invites']"
-                    [routerLink]="'/settings/invites'">
-                    {{ 'MENU.SETTINGS.INVITES' | translate }}
-                  </button>
-                }
-
-                @if (canManageUsers()) {
-                  <button
-                    tuiAsideItem
-                    type="button"
-                    [iconStart]="icons['settings-users']"
-                    [routerLink]="'/settings/users'">
-                    {{ 'MENU.SETTINGS.USERS' | translate }}
-                  </button>
-                }
-
-                @if (canManageRoles()) {
-                  <button
-                    tuiAsideItem
-                    type="button"
-                    [iconStart]="icons['settings-roles']"
-                    [routerLink]="'/settings/roles'">
-                    {{ 'MENU.SETTINGS.ROLES' | translate }}
-                  </button>
-                }
-
-                @if (canManageSettings()) {
-                  <button
-                    tuiAsideItem
-                    type="button"
-                    [iconStart]="icons['settings-admin']"
-                    [routerLink]="'/settings/admin'">
-                    {{ 'MENU.SETTINGS.ADMIN' | translate }}
-                  </button>
-                }
-              </ng-template>
+              [routerLink]="'/'"
+              [routerLinkActiveOptions]="{ exact: true }">
+              @if (!collapsed()) {
+                <app-logo></app-logo>
+              }
             </button>
-          </tui-aside-group>
+          </header>
 
-          @if (versionInfo.value(); as v) {
-            @if (v.currentVersion) {
-              <button
-                tuiAsideItem
-                type="button"
-                [iconStart]="icons.info">
-                {{ v.currentVersion }}
-              </button>
-            }
-            @if (v.updateAvailable && v.releaseUrl && canManageSettings()) {
-              <a
-                tuiAsideItem
-                [href]="v.releaseUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                [iconStart]="icons.download"
-                [style.color]="'var(--tui-text-positive)'">
-                {{ 'MENU.UPDATE_AVAILABLE' | translate }}
-              </a>
-            }
+          @defer {
+            <app-rooms [collapsed]="collapsed()"></app-rooms>
           }
 
-          <button
-            tuiAsideItem
-            type="button"
-            [iconStart]="
-              collapsed() ? icons['chevron-right'] : icons['chevron-left']
-            "
-            (click)="collapsed.update((v) => !v)">
-            {{ (collapsed() ? 'MENU.EXPAND' : 'MENU.COLLAPSE') | translate }}
-          </button>
-        </footer>
-      </aside>
+          <footer>
+            @defer {
+              <app-voice-room-panel
+                [collapsed]="collapsed()"></app-voice-room-panel>
+            }
 
-      <main
-        tuiNavigationMain
-        [class.narrow]="isNarrow()">
-        <router-outlet></router-outlet>
-      </main>
-    </div>
-  } @else {
-    <router-outlet></router-outlet>
-  }
-  <app-connection-state-notification />
-  <app-voice-connection-notification />
-  <app-pending-call-dialog />
-  <app-pwa-update-notification />
+            <tui-aside-group>
+              <button
+                tuiAsideItem
+                automation-id="setting"
+                type="button"
+                [iconStart]="icons['settings']"
+                tuiChevron>
+                {{ 'MENU.SETTINGS.TITLE' | translate }}
+
+                <ng-template>
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    [iconStart]="icons['settings-profile']"
+                    [routerLink]="'/settings/profile'">
+                    {{ 'MENU.SETTINGS.PROFILE' | translate }}
+                  </button>
+
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    [iconStart]="icons['settings-security']"
+                    [routerLink]="'/settings/security'">
+                    {{ 'MENU.SETTINGS.SECURITY' | translate }}
+                  </button>
+
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    [iconStart]="icons['settings-devices']"
+                    [routerLink]="'/settings/devices'">
+                    {{ 'MENU.SETTINGS.DEVICES' | translate }}
+                  </button>
+
+                  <button
+                    tuiAsideItem
+                    type="button"
+                    [iconStart]="icons['settings-notifications']"
+                    [routerLink]="'/settings/notifications'">
+                    {{ 'MENU.SETTINGS.NOTIFICATIONS' | translate }}
+                  </button>
+
+                  @if (canManageInvites()) {
+                    <button
+                      tuiAsideItem
+                      type="button"
+                      [iconStart]="icons['settings-invites']"
+                      [routerLink]="'/settings/invites'">
+                      {{ 'MENU.SETTINGS.INVITES' | translate }}
+                    </button>
+                  }
+
+                  @if (canManageUsers()) {
+                    <button
+                      tuiAsideItem
+                      type="button"
+                      [iconStart]="icons['settings-users']"
+                      [routerLink]="'/settings/users'">
+                      {{ 'MENU.SETTINGS.USERS' | translate }}
+                    </button>
+                  }
+
+                  @if (canManageRoles()) {
+                    <button
+                      tuiAsideItem
+                      type="button"
+                      [iconStart]="icons['settings-roles']"
+                      [routerLink]="'/settings/roles'">
+                      {{ 'MENU.SETTINGS.ROLES' | translate }}
+                    </button>
+                  }
+
+                  @if (canManageSettings()) {
+                    <button
+                      tuiAsideItem
+                      type="button"
+                      [iconStart]="icons['settings-admin']"
+                      [routerLink]="'/settings/admin'">
+                      {{ 'MENU.SETTINGS.ADMIN' | translate }}
+                    </button>
+                  }
+                </ng-template>
+              </button>
+            </tui-aside-group>
+
+            @if (versionInfo.value(); as v) {
+              @if (v.currentVersion) {
+                <button
+                  tuiAsideItem
+                  type="button"
+                  [iconStart]="icons.info">
+                  {{ v.currentVersion }}
+                </button>
+              }
+              @if (v.updateAvailable && v.releaseUrl && canManageSettings()) {
+                <a
+                  tuiAsideItem
+                  [href]="v.releaseUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [iconStart]="icons.download"
+                  [style.color]="'var(--tui-text-positive)'">
+                  {{ 'MENU.UPDATE_AVAILABLE' | translate }}
+                </a>
+              }
+            }
+
+            <button
+              tuiAsideItem
+              type="button"
+              [iconStart]="
+                collapsed() ? icons['chevron-right'] : icons['chevron-left']
+              "
+              (click)="collapsed.update((v) => !v)">
+              {{ (collapsed() ? 'MENU.EXPAND' : 'MENU.COLLAPSE') | translate }}
+            </button>
+          </footer>
+        </aside>
+
+        <main
+          tuiNavigationMain
+          [class.narrow]="isNarrow()">
+          <router-outlet></router-outlet>
+        </main>
+      </div>
+    } @else {
+      <router-outlet></router-outlet>
+    }
+    <app-connection-state-notification />
+    <app-voice-connection-notification />
+    <app-pending-call-dialog />
+    <app-pwa-update-notification />
+  </tui-pull-to-refresh>
 </tui-root>

@@ -4,6 +4,8 @@ body {
   margin: 0;
   height: 100dvh;
   width: 100dvw;
+  overflow: hidden;
+  overscroll-behavior: none;
   background-color: var(--tui-theme-color, #000);
 }
 

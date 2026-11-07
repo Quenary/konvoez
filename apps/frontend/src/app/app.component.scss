@@ -7,6 +7,15 @@
   tui-root {
     height: 100%;
 
+    tui-pull-to-refresh {
+      display: block;
+      position: relative;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
     .room-item {
       padding: 0.5rem 1rem;
       &.collapsed {
@@ -21,4 +30,9 @@
       border-right-width: $hbw;
     }
   }
+}
+
+:host ::ng-deep tui-pull-to-refresh > div {
+  height: 100%;
+  min-height: 0;
 }
