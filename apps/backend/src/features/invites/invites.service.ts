@@ -1,9 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import * as crypto from 'crypto';
-import { ApiErrorCode, inviteDefaultTtl, TInviteStatus } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  ESettingKey,
+  inviteDefaultTtl,
+  buildInviteUrl,
+  inviteResendEmailCooldownMs,
+  TInviteStatus,
+} from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
+import { MailService } from '@shared/services/mail.service';
+import { SettingsService } from '../settings/settings.service';
 import { InviteEntity } from './invites.entity';
 import { InviteCreateDto, InviteDto } from './invites.dto';
 import { UserEntity } from '../users/users.entity';
@@ -11,11 +20,14 @@ import type { GetUserSafeDto } from '../users/users.dto';
 
 @Injectable()
 export class InvitesService {
+  private readonly logger = new Logger(InvitesService.name);
   private readonly em: EntityManager;
 
   constructor(
     @InjectRepository(InviteEntity)
     private readonly repo: EntityRepository<InviteEntity>,
+    private readonly mailService: MailService,
+    private readonly settingsService: SettingsService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -35,7 +47,10 @@ export class InvitesService {
     return 'active';
   }
 
-  toDto(invite: InviteEntity): InviteDto {
+  toDto(
+    invite: InviteEntity,
+    options?: { url?: string; emailSendFailed?: boolean },
+  ): InviteDto {
     return {
       id: invite.id,
       code: invite.code,
@@ -56,8 +71,12 @@ export class InvitesService {
         : null,
       revokedAt: invite.revokedAt ?? null,
       status: this.calculateStatus(invite),
+      emailSent: Boolean(invite.emailSent),
+      emailSentAt: invite.emailSentAt ?? null,
       createdAt: invite.createdAt,
       updatedAt: invite.updatedAt ?? null,
+      ...(options?.url ? { url: options.url } : {}),
+      ...(options?.emailSendFailed ? { emailSendFailed: true } : {}),
     } as InviteDto;
   }
 
@@ -68,18 +87,63 @@ export class InvitesService {
     const code = crypto.randomBytes(16).toString('hex');
     const ttlMs = dto.ttl ?? inviteDefaultTtl;
     const expiresAt = new Date(Date.now() + ttlMs);
-    const author = this.em.getReference(UserEntity, authorUser.id);
+    const email = dto.email ? dto.email.trim().toLowerCase() : null;
+    const baseUrl = await this.getBaseUrl();
+    const inviteUrl = baseUrl
+      ? (buildInviteUrl(baseUrl, code, email) ?? undefined)
+      : undefined;
+    const shouldSendEmail = Boolean(dto.sendEmail && email);
 
-    const invite = this.repo.create({
-      code,
-      email: dto.email ? dto.email.trim().toLowerCase() : null,
-      author,
-      expiresAt,
+    if (shouldSendEmail) {
+      this.assertCanSendEmail(inviteUrl);
+    }
+
+    const invite = await this.em.transactional(async (tx) => {
+      if (email) {
+        const existingActive = await tx.findOne(InviteEntity, {
+          email,
+          revokedAt: null,
+          usedAt: null,
+          expiresAt: { $gt: new Date() },
+        });
+        if (existingActive) {
+          throw AppException.conflict(
+            ApiErrorCode.INVITE_EMAIL_EXISTS,
+            'An active invite for this email already exists',
+          );
+        }
+      }
+      const created = tx.create(InviteEntity, {
+        code,
+        email,
+        author: tx.getReference(UserEntity, authorUser.id),
+        expiresAt,
+        emailSent: false,
+        emailSentAt: null,
+      });
+      tx.persist(created);
+      return created;
     });
 
-    this.em.persist(invite);
-    await this.em.flush();
-    return this.toDto(invite);
+    let emailSendFailed = false;
+    if (shouldSendEmail && inviteUrl) {
+      try {
+        await this.sendInviteEmail(invite, authorUser, inviteUrl);
+        const sentAt = new Date();
+        await this.em.nativeUpdate(
+          InviteEntity,
+          { id: invite.id },
+          { emailSent: true, emailSentAt: sentAt },
+        );
+        invite.emailSent = true;
+        invite.emailSentAt = sentAt;
+      } catch (error) {
+        this.logger.warn(`Failed to send invite email to ${email}`, error);
+        emailSendFailed = true;
+      }
+    }
+
+    return this.toDto(invite, { url: inviteUrl, emailSendFailed });
   }
 
   async findAll(): Promise<InviteDto[]> {
@@ -90,7 +154,14 @@ export class InvitesService {
         orderBy: { createdAt: 'DESC' },
       },
     );
-    return invites.map((invite) => this.toDto(invite));
+    const baseUrl = await this.getBaseUrl();
+    return invites.map((invite) =>
+      this.toDto(invite, {
+        url: baseUrl
+          ? (buildInviteUrl(baseUrl, invite.code, invite.email) ?? undefined)
+          : undefined,
+      }),
+    );
   }
 
   async findOne(id: number): Promise<InviteEntity> {
@@ -131,24 +202,7 @@ export class InvitesService {
         'Invalid invite code',
       );
     }
-    if (invite.revokedAt) {
-      throw AppException.forbidden(
-        ApiErrorCode.INVITE_REVOKED,
-        'Invite code has been revoked',
-      );
-    }
-    if (invite.usedAt) {
-      throw AppException.forbidden(
-        ApiErrorCode.INVITE_USED,
-        'Invite code has already been used',
-      );
-    }
-    if (new Date() > new Date(invite.expiresAt)) {
-      throw AppException.forbidden(
-        ApiErrorCode.INVITE_EXPIRED,
-        'Invite code has expired',
-      );
-    }
+    this.assertUsable(invite);
     if (
       invite.email &&
       invite.email.toLowerCase() !== email?.trim().toLowerCase()
@@ -167,5 +221,161 @@ export class InvitesService {
     this.em.persist(invite);
     await this.em.flush();
     return invite;
+  }
+
+  async resend(id: number, currentUser: GetUserSafeDto): Promise<InviteDto> {
+    const invite = await this.findOne(id);
+    this.assertUsable(invite);
+    if (!invite.email) {
+      throw AppException.badRequest(
+        ApiErrorCode.INVITE_INVALID,
+        'Invite is not bound to an email address',
+      );
+    }
+    const baseUrl = await this.getBaseUrl();
+    const inviteUrl = baseUrl
+      ? buildInviteUrl(baseUrl, invite.code, invite.email)
+      : null;
+    this.assertCanSendEmail(inviteUrl ?? undefined);
+
+    // Claim the send slot atomically so concurrent requests cannot bypass the cooldown.
+    const previousSentAt = invite.emailSentAt ?? null;
+    const claimedAt = new Date();
+    const claimed = await this.em.nativeUpdate(
+      InviteEntity,
+      {
+        id,
+        $or: [
+          { emailSentAt: null },
+          {
+            emailSentAt: {
+              $lte: new Date(claimedAt.getTime() - inviteResendEmailCooldownMs),
+            },
+          },
+        ],
+      },
+      { emailSentAt: claimedAt },
+    );
+    if (!claimed) {
+      throw AppException.tooManyRequests(
+        ApiErrorCode.RATE_LIMITED,
+        'Please wait before resending the invite email',
+      );
+    }
+
+    try {
+      await this.sendInviteEmail(invite, currentUser, inviteUrl as string);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to resend invite email to ${invite.email}`,
+        error,
+      );
+      await this.em.nativeUpdate(
+        InviteEntity,
+        { id },
+        { emailSentAt: previousSentAt },
+      );
+      throw AppException.serviceUnavailable(
+        ApiErrorCode.EMAIL_SEND_FAILED,
+        'Failed to send invite email',
+      );
+    }
+
+    await this.em.nativeUpdate(InviteEntity, { id }, { emailSent: true });
+    invite.emailSent = true;
+    invite.emailSentAt = claimedAt;
+    return this.toDto(invite, { url: inviteUrl ?? undefined });
+  }
+
+  private assertUsable(invite: InviteEntity): void {
+    if (invite.revokedAt) {
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_REVOKED,
+        'Invite code has been revoked',
+      );
+    }
+    if (invite.usedAt) {
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_USED,
+        'Invite code has already been used',
+      );
+    }
+    if (new Date() > new Date(invite.expiresAt)) {
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_EXPIRED,
+        'Invite code has expired',
+      );
+    }
+  }
+
+  private assertCanSendEmail(inviteUrl: string | undefined): void {
+    if (!this.mailService.isConfigured) {
+      throw AppException.badRequest(
+        ApiErrorCode.EMAIL_NOT_CONFIGURED,
+        'SMTP is not configured',
+      );
+    }
+    if (!inviteUrl) {
+      throw AppException.badRequest(
+        ApiErrorCode.EMAIL_SEND_FAILED,
+        'APP_URL is not configured',
+      );
+    }
+  }
+
+  private async getBaseUrl(): Promise<string | undefined> {
+    const appUrl = await this.settingsService.getValue(ESettingKey.APP_URL);
+    return appUrl || undefined;
+  }
+
+  private async sendInviteEmail(
+    invite: InviteEntity,
+    author: GetUserSafeDto,
+    inviteUrl: string,
+  ): Promise<void> {
+    if (!invite.email) {
+      return;
+    }
+    const inviterName = author.fullname || author.username;
+    const ttlMs = new Date(invite.expiresAt).getTime() - Date.now();
+    const ttlMinutes = Math.max(1, Math.round(ttlMs / 60_000));
+    const escapedUrl = this.escapeHtml(inviteUrl);
+
+    const subject = 'Invitation to join Konvoez';
+    const textLines = [
+      `You have been invited to join Konvoez by ${inviterName}.`,
+      '',
+      'To accept this invitation and create your account, use the following link:',
+      inviteUrl,
+      '',
+      `Invite code: ${invite.code}`,
+      `This invitation expires in ${ttlMinutes} minute(s).`,
+      'If you were not expecting this invitation, you can ignore this email.',
+    ];
+
+    const htmlParts = [
+      `<p>You have been invited to join Konvoez by <strong>${this.escapeHtml(inviterName)}</strong>.</p>`,
+      `<p>To accept this invitation and create your account, click the link below:</p>`,
+      `<p><a href="${escapedUrl}">${escapedUrl}</a></p>`,
+      `<p>Invite code: <strong>${this.escapeHtml(invite.code)}</strong></p>`,
+      `<p>This invitation expires in ${ttlMinutes} minute(s).</p>`,
+      `<p>If you were not expecting this invitation, you can ignore this email.</p>`,
+    ];
+
+    await this.mailService.sendMail({
+      to: invite.email,
+      subject,
+      text: textLines.join('\n'),
+      html: htmlParts.join(''),
+    });
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 }

@@ -617,4 +617,23 @@ describe('SettingsStore', () => {
 
     expect(store.streamMaxBitrateKbps()).toBe(15000);
   });
+
+  it('computes appUrl with fallback to default and reflects loaded settings', () => {
+    configureTestBed();
+    expect(store.appUrl()).toBe('');
+
+    const setting: TSetting = {
+      key: ESettingKey.APP_URL,
+      value: 'https://konvoez.example.com',
+      createdAt: new Date(),
+      updatedAt: null,
+      envLocked: false,
+    };
+    apiService.list.mockReturnValue(of([setting]));
+
+    store.loadAll();
+    TestBed.flushEffects();
+
+    expect(store.appUrl()).toBe('https://konvoez.example.com');
+  });
 });

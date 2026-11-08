@@ -47,6 +47,7 @@ import { Migration20261026172220_UserNotificationSettings } from './migrations/M
 import { Migration20261027192655_UserNotificationSettingsReplies } from './migrations/Migration20261027192655_UserNotificationSettingsReplies';
 import { Migration20261101000000_EmailVerification } from './migrations/Migration20261101000000_EmailVerification';
 import { Migration20261102004712_MasterKeyMessageContent } from './migrations/Migration20261102004712_MasterKeyMessageContent';
+import { Migration20261108005129_InviteEmailSent } from './migrations/Migration20261108005129_InviteEmailSent';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -104,6 +105,7 @@ export async function createMikroOrmConfig() {
         Migration20261027192655_UserNotificationSettingsReplies,
         Migration20261101000000_EmailVerification,
         Migration20261102004712_MasterKeyMessageContent,
+        Migration20261108005129_InviteEmailSent,
       ],
     },
   } satisfies Partial<Options>;

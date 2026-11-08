@@ -337,10 +337,18 @@ SETTINGS:
     CREATE_TITLE: Создание приглашения
     NO_INVITES: Нет активных приглашений
     BOUND_EMAIL: Привязка к email (опционально)
+    SEND_EMAIL_LABEL: Отправить email
+    EMAIL_SEND_WARNING: Приглашение создано, но письмо отправить не удалось. Скопируйте ссылку и отправьте её вручную.
     TTL_LABEL: Срок действия (в минутах)
-    CREATED_SUCCESS: 'Приглашение успешно создано! Скопируйте ссылку ниже:'
+    CREATED_SUCCESS: 'Приглашение успешно создано!'
+    CREATED_AND_SENT_SUCCESS: 'Приглашение успешно создано и отправлено на {{email}}'
     REVOKE: Отозвать
     DELETE: Удалить
+    COPY_LINK: Скопировать ссылку
+    COPIED_SUCCESS: Ссылка приглашения скопирована в буфер обмена
+    RESEND_EMAIL: Переотправить email
+    RESEND_SUCCESS: Email с приглашением успешно отправлен
+    EMAIL_SENT: Отправлен
     TABLE:
       STATUS: Статус
       EMAIL: Email
@@ -419,6 +427,8 @@ SETTINGS:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
     ENV_LOCKED: Эта настройка заблокирована переменными окружения сервера.
+    APP_URL: URL приложения
+    APP_URL_DESC: Базовый публичный URL приложения (например, https://konvoez.example.com). Необходим для отправки приглашений по email; также используется в ссылках приглашений.
     SECURITY: Безопасность
     INVITE_ONLY_SIGN_UP: Регистрация только по приглашению
     INVITE_ONLY_SIGN_UP_DESC: Разрешать регистрацию новых пользователей только при наличии действующего кода приглашения
@@ -565,6 +575,7 @@ ERRORS:
   INVITE_EXPIRED: Срок действия приглашения истёк
   INVITE_EMAIL_MISMATCH: Приглашение предназначено для другого адреса почты
   INVITE_NOT_FOUND: Приглашение не найдено
+  INVITE_EMAIL_EXISTS: Активное приглашение для этой почты уже существует
   USER_NOT_FOUND: Пользователь не найден
   USER_OWNER_DELETE_FORBIDDEN: Нельзя удалить владельца сервера
   USER_OWNER_ROLE_FORBIDDEN: Нельзя изменить роль владельца сервера

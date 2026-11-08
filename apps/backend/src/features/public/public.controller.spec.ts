@@ -40,6 +40,7 @@ describe('PublicController', () => {
     settingsService = {
       getValue: jest.fn().mockImplementation(async (key) => {
         if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return true;
+        if (key === ESettingKey.APP_URL) return 'https://konvoez.example.com';
         return false;
       }),
     };
@@ -72,22 +73,35 @@ describe('PublicController', () => {
     expect(controller.health()).toEqual({ status: 'ok' });
   });
 
-  it('should return public settings with isOwnerSetupRequired, inviteOnlySignUp and smtpConfigured', async () => {
+  it('should return public settings with isOwnerSetupRequired, inviteOnlySignUp, smtpConfigured and appUrlConfigured', async () => {
     const settings = await controller.getSettings();
     expect(settings).toEqual({
       isOwnerSetupRequired: false,
       inviteOnlySignUp: true,
       smtpConfigured: true,
+      appUrlConfigured: true,
     });
     expect(settingsService.getValue).toHaveBeenCalledWith(
       ESettingKey.INVITE_ONLY_SIGN_UP,
     );
+    expect(settingsService.getValue).toHaveBeenCalledWith(ESettingKey.APP_URL);
   });
 
   it('should report smtpConfigured as false when mail is not configured', async () => {
     mailService.isConfigured = false;
     const settings = await controller.getSettings();
     expect(settings.smtpConfigured).toBe(false);
+  });
+
+  it('should report appUrlConfigured as false when APP_URL setting is empty', async () => {
+    settingsService.getValue.mockImplementation(async (key) => {
+      if (key === ESettingKey.INVITE_ONLY_SIGN_UP) return true;
+      if (key === ESettingKey.APP_URL) return '';
+      return false;
+    });
+
+    const settings = await controller.getSettings();
+    expect(settings.appUrlConfigured).toBe(false);
   });
 
   it('should return version info from PublicService', async () => {

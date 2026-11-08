@@ -337,10 +337,18 @@ SETTINGS:
     CREATE_TITLE: Create invite
     NO_INVITES: No invites found
     BOUND_EMAIL: Bind to email (optional)
+    SEND_EMAIL_LABEL: Send email
+    EMAIL_SEND_WARNING: Invite created, but the email could not be sent. Copy the link and send it manually.
     TTL_LABEL: Lifetime (in minutes)
-    CREATED_SUCCESS: 'Invite created successfully! Copy the link below:'
+    CREATED_SUCCESS: 'Invite created successfully!'
+    CREATED_AND_SENT_SUCCESS: 'Invite created and sent to {{email}}'
     REVOKE: Revoke
     DELETE: Delete
+    COPY_LINK: Copy link
+    COPIED_SUCCESS: Invite link copied to clipboard
+    RESEND_EMAIL: Resend email
+    RESEND_SUCCESS: Invite email resent successfully
+    EMAIL_SENT: Sent
     TABLE:
       STATUS: Status
       EMAIL: Email
@@ -419,6 +427,8 @@ SETTINGS:
     TITLE: Administration
     SUBTITLE: Global server settings
     ENV_LOCKED: This setting is locked by the server environment.
+    APP_URL: Application URL
+    APP_URL_DESC: Base public URL of the application (e.g. https://konvoez.example.com). Required for sending invites by email; also used for invite links.
     SECURITY: Security
     INVITE_ONLY_SIGN_UP: Invite-only registration
     INVITE_ONLY_SIGN_UP_DESC: Restrict new user registration to valid invite codes only
@@ -565,6 +575,7 @@ ERRORS:
   INVITE_EXPIRED: This invitation has expired
   INVITE_EMAIL_MISMATCH: Invitation is intended for a different email address
   INVITE_NOT_FOUND: Invitation not found
+  INVITE_EMAIL_EXISTS: An active invitation for this email already exists
   USER_NOT_FOUND: User not found
   USER_OWNER_DELETE_FORBIDDEN: The server owner cannot be deleted
   USER_OWNER_ROLE_FORBIDDEN: Server owner role cannot be modified

@@ -56,7 +56,7 @@ computed(() => {
 ### Templates
 
 - Use native control flow (`@if`, `@for`, `@switch`) and signals; use the `async` pipe only for Observables that are not signals.
-- Do not call ordinary methods or functions from templates (bindings, interpolations, control flow, `host` bindings). They re-run on every change detection. Precompute values in `computed()` and read the signal. Event bindings such as `(click)="save()"` are fine.
+- Do not call ordinary methods, functions or getters from templates (bindings, interpolations, control flow, `host` bindings). They re-run on every change detection. Precompute values in `computed()` and read the signal. Event bindings such as `(click)="save()"` are fine.
 - When a binding inside `@for` compares each item to one shared signal (the active tile, the selection), read that signal once with `@let` before the loop.
 
 <!-- prettier-ignore -->

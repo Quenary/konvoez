@@ -128,6 +128,7 @@ export const inviteFormTtlSchema = z.coerce
 export const inviteCreateFormSchema = z.object({
   email: inviteFormEmailSchema,
   ttlMinutes: inviteFormTtlSchema,
+  sendEmail: z.boolean().default(false),
 });
 
 export type InviteCreateFormValue = z.infer<typeof inviteCreateFormSchema>;

@@ -22,12 +22,16 @@ export const InviteEntitySchema = defineEntity({
         .updateRule('cascade')
         .deleteRule('set null'),
     revokedAt: p.datetime().nullable().default(null),
+    emailSent: p.boolean().default(false),
+    emailSentAt: p.datetime().nullable().default(null),
   },
 });
 
 export class InviteEntity extends InviteEntitySchema.class {
   declare author: UserEntity;
   declare usedBy: UserEntity | null;
+  declare emailSent: boolean;
+  declare emailSentAt: Date | null;
 }
 
 InviteEntitySchema.setClass(InviteEntity);

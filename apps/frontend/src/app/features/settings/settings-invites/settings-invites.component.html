@@ -82,7 +82,31 @@
               <td
                 tuiTd
                 class="col-email">
-                {{ invite.email }}
+                @if (invite.email) {
+                  <span class="email-cell">
+                    <span
+                      class="email-text"
+                      tuiFade
+                      [tuiHint]="invite.email">
+                      {{ invite.email }}
+                    </span>
+                    @if (invite.emailSent) {
+                      <span
+                        tuiBadge
+                        appearance="positive"
+                        size="s"
+                        [tuiHint]="
+                          invite.emailSentAt
+                            ? (invite.emailSentAt | dayjs)
+                            : null
+                        ">
+                        {{ 'SETTINGS.INVITES.EMAIL_SENT' | translate }}
+                      </span>
+                    }
+                  </span>
+                } @else {
+                  <span class="muted">—</span>
+                }
               </td>
 
               <td
@@ -127,27 +151,59 @@
               <td
                 tuiTd
                 class="col-actions">
-                @if (invite.isActive) {
-                  <button
-                    appearance="action"
-                    size="xs"
-                    tuiButton
-                    [iconStart]="icons.ban"
-                    type="button"
-                    (click)="revoke(invite.id)">
-                    {{ 'SETTINGS.INVITES.REVOKE' | translate }}
-                  </button>
-                } @else {
-                  <button
-                    appearance="action"
-                    size="xs"
-                    tuiButton
-                    [iconStart]="icons.delete"
-                    type="button"
-                    (click)="delete(invite.id)">
-                    {{ 'SETTINGS.INVITES.DELETE' | translate }}
-                  </button>
-                }
+                <button
+                  appearance="flat"
+                  size="s"
+                  tuiIconButton
+                  type="button"
+                  tuiDropdownAuto
+                  [tuiDropdownSided]="true"
+                  [iconStart]="icons['ellipsis-vertical']"
+                  [tuiDropdown]="actionsMenu"
+                  tuiHintAppearance="floating"
+                  [tuiHint]="'GENERAL.MORE' | translate">
+                  {{ 'GENERAL.MORE' | translate }}
+                </button>
+
+                <ng-template
+                  #actionsMenu
+                  let-close>
+                  <tui-data-list>
+                    <button
+                      tuiOption
+                      type="button"
+                      [iconStart]="icons.copy"
+                      (click)="copyLink(invite); close()">
+                      {{ 'SETTINGS.INVITES.COPY_LINK' | translate }}
+                    </button>
+                    @if (invite.canResendEmail) {
+                      <button
+                        tuiOption
+                        type="button"
+                        [iconStart]="icons.mail"
+                        [disabled]="invite.isResendCooldown"
+                        (click)="resendEmail(invite.id); close()">
+                        {{ 'SETTINGS.INVITES.RESEND_EMAIL' | translate }}
+                      </button>
+                    }
+                    @if (invite.isActive) {
+                      <button
+                        tuiOption
+                        type="button"
+                        [iconStart]="icons.ban"
+                        (click)="revoke(invite.id); close()">
+                        {{ 'SETTINGS.INVITES.REVOKE' | translate }}
+                      </button>
+                    }
+                    <button
+                      tuiOption
+                      type="button"
+                      [iconStart]="icons.delete"
+                      (click)="delete(invite.id); close()">
+                      {{ 'SETTINGS.INVITES.DELETE' | translate }}
+                    </button>
+                  </tui-data-list>
+                </ng-template>
               </td>
             </tr>
           } @empty {

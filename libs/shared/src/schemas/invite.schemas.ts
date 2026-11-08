@@ -12,6 +12,7 @@ export const inviteCreateSchema = z.object({
     .min(inviteMinTtl)
     .max(inviteMaxTtl)
     .default(inviteDefaultTtl),
+  sendEmail: z.boolean().optional().default(false),
 });
 export type IInviteCreate = z.infer<typeof inviteCreateSchema>;
 
@@ -36,5 +37,9 @@ export const inviteSchema = baseEntitySchema.extend({
   usedBy: inviteAuthorSchema.nullish(),
   revokedAt: z.coerce.date().nullish(),
   status: inviteStatusSchema,
+  emailSent: z.boolean().default(false),
+  emailSentAt: z.coerce.date().nullish(),
+  url: z.string().optional(),
+  emailSendFailed: z.boolean().optional(),
 });
 export type IInvite = z.infer<typeof inviteSchema>;

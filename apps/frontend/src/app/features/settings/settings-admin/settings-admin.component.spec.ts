@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TUI_OPTIONS } from '@taiga-ui/core';
 import {
+  DEFAULT_APP_URL,
   DEFAULT_ATTACHMENTS_ENABLED,
   DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
   DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE,
@@ -25,6 +26,7 @@ describe('SettingsAdminComponent', () => {
   let fixture: ComponentFixture<SettingsAdminComponent>;
   let component: SettingsAdminComponent;
 
+  let appUrl: ReturnType<typeof signal<string>>;
   let inviteOnlySignUp: ReturnType<typeof signal<boolean>>;
   let passwordRecoveryCodeTtl: ReturnType<typeof signal<number>>;
   let vapidEmail: ReturnType<typeof signal<string>>;
@@ -39,6 +41,7 @@ describe('SettingsAdminComponent', () => {
   let updateSettings: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    appUrl = signal(DEFAULT_APP_URL);
     inviteOnlySignUp = signal(true);
     passwordRecoveryCodeTtl = signal(DEFAULT_PASSWORD_RECOVERY_CODE_TTL);
     vapidEmail = signal(DEFAULT_VAPID_EMAIL);
@@ -71,6 +74,7 @@ describe('SettingsAdminComponent', () => {
         {
           provide: SettingsStore,
           useValue: {
+            appUrl: appUrl.asReadonly(),
             inviteOnlySignUp: inviteOnlySignUp.asReadonly(),
             passwordRecoveryCodeTtl: passwordRecoveryCodeTtl.asReadonly(),
             vapidEmail: vapidEmail.asReadonly(),
@@ -100,6 +104,48 @@ describe('SettingsAdminComponent', () => {
     fixture = TestBed.createComponent(SettingsAdminComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('initializes appUrl control with store value', () => {
+    expect(component['form'].controls.appUrl.value).toBe(DEFAULT_APP_URL);
+  });
+
+  it.each([
+    { url: 'https://konvoez.example.com', valid: true },
+    { url: 'http://localhost:3000', valid: true },
+    { url: '', valid: true },
+    { url: 'not-a-url', valid: false },
+    { url: 'ftp://example.com', valid: false },
+  ])('validates appUrl "$url" (valid: $valid)', ({ url, valid }) => {
+    const control = component['form'].controls.appUrl;
+    control.setValue(url);
+    expect(control.valid).toBe(valid);
+    if (!valid) {
+      expect(control.errors?.['zod']).toBe(SCHEMA_ERROR.INVALID_SCHEMA);
+    }
+  });
+
+  it('disables appUrl control when env-locked', () => {
+    envLocked.set({ [ESettingKey.APP_URL]: true });
+    fixture.detectChanges();
+
+    expect(component['form'].controls.appUrl.disabled).toBe(true);
+    expect(component['locked']().appUrl).toBe(true);
+  });
+
+  it('submits updated appUrl when control is dirty', () => {
+    const control = component['form'].controls.appUrl;
+    control.setValue('https://konvoez.example.com');
+    control.markAsDirty();
+
+    component['onSubmit']();
+
+    expect(updateSettings).toHaveBeenCalledWith([
+      {
+        key: ESettingKey.APP_URL,
+        value: 'https://konvoez.example.com',
+      },
+    ]);
   });
 
   it('initializes voiceMaxBitrateKbps control with store value', () => {
@@ -215,6 +261,7 @@ describe('SettingsAdminComponent', () => {
 
   it('disables controls and displays lock indicator when settings are env-locked', () => {
     envLocked.set({
+      [ESettingKey.APP_URL]: true,
       [ESettingKey.INVITE_ONLY_SIGN_UP]: true,
       [ESettingKey.PASSWORD_RECOVERY_CODE_TTL]: true,
       [ESettingKey.ATTACHMENTS_ENABLED]: true,
@@ -223,6 +270,7 @@ describe('SettingsAdminComponent', () => {
     });
     fixture.detectChanges();
 
+    expect(component['form'].controls.appUrl.disabled).toBe(true);
     expect(component['form'].controls.inviteOnlySignUp.disabled).toBe(true);
     expect(component['form'].controls.passwordRecoveryCodeTtl.disabled).toBe(
       true,
@@ -236,7 +284,7 @@ describe('SettingsAdminComponent', () => {
     const lockedElements = fixture.nativeElement.querySelectorAll(
       '.setting-item-description.locked',
     );
-    expect(lockedElements.length).toBe(5);
+    expect(lockedElements.length).toBe(6);
   });
 
   it('omits disabled env-locked controls from submission even if dirty', () => {

@@ -133,6 +133,13 @@ export const SettingsStore = signalStore(
         }
         return map;
       }),
+      appUrl: computed(() => {
+        const item = entityMap()[ESettingKey.APP_URL];
+        return (
+          (item?.value as string | undefined) ??
+          defaultSettingValues[ESettingKey.APP_URL]
+        );
+      }),
       iceServers: computed(() => {
         const item = entityMap()[ESettingKey.ICE_SERVERS];
         return (item?.value as TIceServersSettingValue | undefined) ?? [];

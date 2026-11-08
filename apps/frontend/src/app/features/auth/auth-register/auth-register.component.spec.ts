@@ -25,6 +25,7 @@ describe('AuthRegisterComponent', () => {
       isOwnerSetupRequired,
       inviteOnlySignUp,
       smtpConfigured: false,
+      appUrlConfigured: false,
     });
 
     await TestBed.configureTestingModule({

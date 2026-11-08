@@ -7,6 +7,7 @@ import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { IInvite } from '@konvoez/shared';
 import { SettingsInvitesComponent } from './settings-invites.component';
 import { InvitesApiService } from '@core/api/invites-api.service';
+import { PublicStore } from '@core/stores/public.store';
 
 describe('SettingsInvitesComponent', () => {
   let component: SettingsInvitesComponent;
@@ -17,6 +18,7 @@ describe('SettingsInvitesComponent', () => {
     create: vi.fn(),
     revoke: vi.fn(),
     delete: vi.fn(),
+    resend: vi.fn(),
   };
 
   const mockDialogService = {
@@ -25,6 +27,11 @@ describe('SettingsInvitesComponent', () => {
 
   const mockNotificationService = {
     open: vi.fn().mockReturnValue(of(undefined)),
+  };
+
+  const mockPublicStore = {
+    isSmtpConfigured: vi.fn().mockReturnValue(true),
+    isAppUrlConfigured: vi.fn().mockReturnValue(true),
   };
 
   const sampleInvite: IInvite = {
@@ -36,6 +43,9 @@ describe('SettingsInvitesComponent', () => {
     expiresAt: new Date(Date.now() + 3600000),
     usedAt: null,
     revokedAt: null,
+    emailSent: true,
+    emailSentAt: new Date(),
+    url: 'https://konvoez.example.com/auth/register?code=abcd1234efgh5678&email=test%40example.com',
     createdAt: new Date(),
     updatedAt: null,
   };
@@ -53,6 +63,7 @@ describe('SettingsInvitesComponent', () => {
           useValue: mockDialogService,
         },
         { provide: TuiNotificationService, useValue: mockNotificationService },
+        { provide: PublicStore, useValue: mockPublicStore },
       ],
     }).compileComponents();
 
@@ -64,6 +75,8 @@ describe('SettingsInvitesComponent', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPublicStore.isSmtpConfigured.mockReturnValue(true);
+    mockPublicStore.isAppUrlConfigured.mockReturnValue(true);
   });
 
   it('should render empty table row when there are no invites without errors', async () => {
@@ -105,6 +118,21 @@ describe('SettingsInvitesComponent', () => {
     expect(item.progressColor).toBe('var(--tui-status-positive)');
     expect(typeof item.remainingText).toBe('string');
   });
+
+  it.each([
+    { smtp: true, appUrl: true, expected: true },
+    { smtp: false, appUrl: true, expected: false },
+    { smtp: true, appUrl: false, expected: false },
+  ])(
+    'should compute canResendEmail=$expected when smtp=$smtp and appUrl=$appUrl',
+    async ({ smtp, appUrl, expected }) => {
+      mockPublicStore.isSmtpConfigured.mockReturnValue(smtp);
+      mockPublicStore.isAppUrlConfigured.mockReturnValue(appUrl);
+      await setupTestBed([sampleInvite]);
+
+      expect(component['invites']()[0].canResendEmail).toBe(expected);
+    },
+  );
 
   it('should map usedByUsername when invite was used', async () => {
     const usedInvite: IInvite = {
@@ -174,5 +202,104 @@ describe('SettingsInvitesComponent', () => {
     component['delete'](1);
 
     expect(mockInvitesApiService.delete).toHaveBeenCalledWith(1);
+  });
+
+  it('should allow delete on revoked or active invite', async () => {
+    mockInvitesApiService.delete.mockReturnValue(of(undefined));
+    await setupTestBed([{ ...sampleInvite, status: 'revoked' }]);
+
+    component['delete'](1);
+    expect(mockInvitesApiService.delete).toHaveBeenCalledWith(1);
+  });
+
+  it('should write url to clipboard and notify when copyLink is called', async () => {
+    await setupTestBed([sampleInvite]);
+    if (!navigator.clipboard) {
+      Object.assign(navigator, { clipboard: { writeText: vi.fn() } });
+    }
+    const writeTextSpy = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue(undefined);
+    const viewItems = component['invites']();
+
+    await component['copyLink'](viewItems[0]);
+
+    expect(writeTextSpy).toHaveBeenCalledWith(sampleInvite.url);
+    expect(mockNotificationService.open).toHaveBeenCalledWith(
+      'SETTINGS.INVITES.COPIED_SUCCESS',
+      expect.objectContaining({ appearance: 'positive' }),
+    );
+  });
+
+  it('should call resend on invitesApiService and notify on success', async () => {
+    mockInvitesApiService.resend.mockReturnValue(of(sampleInvite));
+    await setupTestBed([sampleInvite]);
+
+    component['resendEmail'](1);
+
+    expect(mockInvitesApiService.resend).toHaveBeenCalledWith(1);
+    expect(mockNotificationService.open).toHaveBeenCalledWith(
+      'SETTINGS.INVITES.RESEND_SUCCESS',
+      expect.objectContaining({ appearance: 'positive' }),
+    );
+  });
+
+  it('should compute canResendEmail and isResendCooldown based on emailSentAt and SMTP', async () => {
+    const recentSentDate = new Date(Date.now() - 2 * 60 * 1000); // 2 mins ago
+    const oldSentDate = new Date(Date.now() - 15 * 60 * 1000); // 15 mins ago
+
+    const cooldownInvite: IInvite = {
+      ...sampleInvite,
+      id: 1,
+      emailSent: true,
+      emailSentAt: recentSentDate,
+    };
+    const readyInvite: IInvite = {
+      ...sampleInvite,
+      id: 2,
+      emailSent: true,
+      emailSentAt: oldSentDate,
+    };
+
+    await setupTestBed([cooldownInvite, readyInvite]);
+    const items = component['invites']();
+
+    expect(items[0].canResendEmail).toBe(true);
+    expect(items[0].isResendCooldown).toBe(true);
+
+    expect(items[1].canResendEmail).toBe(true);
+    expect(items[1].isResendCooldown).toBe(false);
+  });
+
+  it('should render email text with tuiFade and positive badge when email was sent', async () => {
+    const sentInvite: IInvite = { ...sampleInvite, id: 1, emailSent: true };
+    const unsentInvite: IInvite = {
+      ...sampleInvite,
+      id: 2,
+      email: 'unsent@example.com',
+      emailSent: false,
+    };
+
+    await setupTestBed([sentInvite, unsentInvite]);
+    const compiled = fixture.nativeElement as HTMLElement;
+    const emailRows = compiled.querySelectorAll('tbody tr .col-email');
+
+    expect(emailRows.length).toBe(2);
+
+    // First row: sent invite has email-text and positive badge
+    const firstRowText = emailRows[0].querySelector('.email-text');
+    expect(firstRowText).not.toBeNull();
+    expect(firstRowText?.textContent).toContain(sampleInvite.email);
+    const firstRowBadge = emailRows[0].querySelector('[tuiBadge]');
+    expect(firstRowBadge).not.toBeNull();
+    expect(firstRowBadge?.getAttribute('appearance')).toBe('positive');
+    expect(firstRowBadge?.textContent).toContain('SETTINGS.INVITES.EMAIL_SENT');
+
+    // Second row: unsent invite has email-text but NO badge
+    const secondRowText = emailRows[1].querySelector('.email-text');
+    expect(secondRowText).not.toBeNull();
+    expect(secondRowText?.textContent).toContain('unsent@example.com');
+    const secondRowBadge = emailRows[1].querySelector('[tuiBadge]');
+    expect(secondRowBadge).toBeNull();
   });
 });

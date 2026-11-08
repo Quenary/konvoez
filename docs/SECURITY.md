@@ -28,7 +28,14 @@ flowchart TD
   C -- no --> X
 ```
 
-`INVITE_ONLY_SIGN_UP` defaults to `true`. It can be set through the environment or toggled in the admin settings by users with `MANAGE_SETTINGS` (or the `OWNER`). Invites are created with `MANAGE_INVITES`, are single-use, expire after a configurable TTL and can be bound to an email address. Expired, revoked and used invites are rejected.
+`INVITE_ONLY_SIGN_UP` defaults to `true`. It can be set through the environment or toggled in the admin settings by users with `MANAGE_SETTINGS` (or the `OWNER`). Invites are created with `MANAGE_INVITES`, are single-use, expire after a configurable TTL and can be bound to an email address.
+
+Invite rules:
+
+- The server allows one active invite per email address; the check and the insert run in one transaction.
+- An invite bound to an email can be sent by email only when SMTP is configured and `APP_URL` is set. The link in the message is built from `APP_URL` only, never from request headers, so a forged `Host` or `Origin` cannot redirect invite codes.
+- If sending fails on creation, the invite is kept and the response carries a warning so the link can be shared manually.
+- Resending is limited by a cooldown. The server claims the send slot atomically before sending and restores it when sending fails.
 
 ### Data protection
 
