@@ -358,6 +358,36 @@ export type TStreamMaxBitrateKbpsSetting = z.infer<
 >;
 
 /* ==========================================================================
+   App URL
+   ========================================================================== */
+
+export const appUrlSettingValueSchema = stringSchema.trim().refine(
+  (value) => {
+    if (!value) return true;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  },
+  { error: SCHEMA_ERROR.INVALID_SCHEMA },
+);
+export type TAppUrlSettingValue = z.infer<typeof appUrlSettingValueSchema>;
+
+export const DEFAULT_APP_URL: TAppUrlSettingValue = '';
+
+export const appUrlSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.APP_URL),
+  value: appUrlSettingValueSchema,
+});
+
+export const appUrlSettingSchema = appUrlSettingBaseSchema
+  .extend(baseEntitySchema.shape)
+  .extend(settingMetaSchema.shape);
+export type TAppUrlSetting = z.infer<typeof appUrlSettingSchema>;
+
+/* ==========================================================================
    Maps, Unions & Bulk Update Schemas
    ========================================================================== */
 
@@ -376,6 +406,7 @@ export const settingValueSchemas = {
     attachmentsStripImageMetadataSettingValueSchema,
   [ESettingKey.VOICE_MAX_BITRATE_KBPS]: voiceMaxBitrateKbpsSettingValueSchema,
   [ESettingKey.STREAM_MAX_BITRATE_KBPS]: streamMaxBitrateKbpsSettingValueSchema,
+  [ESettingKey.APP_URL]: appUrlSettingValueSchema,
 } as const;
 
 export const defaultSettingValues = {
@@ -391,6 +422,7 @@ export const defaultSettingValues = {
     DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
   [ESettingKey.VOICE_MAX_BITRATE_KBPS]: DEFAULT_VOICE_MAX_BITRATE_KBPS,
   [ESettingKey.STREAM_MAX_BITRATE_KBPS]: DEFAULT_STREAM_MAX_BITRATE_KBPS,
+  [ESettingKey.APP_URL]: DEFAULT_APP_URL,
 } as const;
 
 export type TSettingValueMap = {
@@ -428,6 +460,9 @@ const settingSchemaEntries = [
   streamMaxBitrateKbpsSettingBaseSchema
     .extend(baseEntitySchema.shape)
     .extend(settingMetaSchema.shape),
+  appUrlSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
 ] as const;
 
 export const settingSchema = z.discriminatedUnion('key', settingSchemaEntries);
@@ -448,6 +483,7 @@ export const settingItemUpdateSchema = z.discriminatedUnion('key', [
   attachmentsStripImageMetadataSettingBaseSchema,
   voiceMaxBitrateKbpsSettingBaseSchema,
   streamMaxBitrateKbpsSettingBaseSchema,
+  appUrlSettingBaseSchema,
 ]);
 export type TSettingItemUpdate = z.infer<typeof settingItemUpdateSchema>;
 

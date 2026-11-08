@@ -20,6 +20,10 @@ A `connect` that follows a `disconnect` (`socketReconnected$`) refetches what ma
 - The open chat re-sends `JOIN` (the server forgets a dropped socket's room) and loads messages newer than the last known one, using the regular newer-page loading. A chat scrolled into history or in search mode only rejoins.
 - Unread counts, direct chats and rooms are reloaded.
 
+## Pull to refresh
+
+A manual way out of a stuck app: a downward pull on the shell reloads the page in any state, including an active call.
+
 ## Voice
 
 ```mermaid

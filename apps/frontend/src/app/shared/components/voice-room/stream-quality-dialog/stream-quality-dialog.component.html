@@ -2,7 +2,14 @@
   tuiForm="m"
   class="form"
   (submit)="$event.preventDefault(); onConfirm()">
-  <h3>{{ titleKey() | translate }}</h3>
+  @if (!isScreen()) {
+    <app-stream-camera-preview
+      [height]="height()"
+      [fps]="fps()"
+      [cameraInput]="storedCameraInput"
+      (cameraChange)="selectedCamera.set($event)"
+      (blockedChange)="previewBlocked.set($event)" />
+  }
 
   <label tuiLabel>
     {{ 'CALL.STREAM_HEIGHT' | translate }}
@@ -76,7 +83,7 @@
             [ngModelOptions]="{ standalone: true }"></select>
         </tui-textfield>
       </label>
-      <p>{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
+      <p class="field-hint">{{ 'CALL.STREAM_LAYERS_HINT' | translate }}</p>
     </div>
   } @else {
     <div>
@@ -96,29 +103,29 @@
             [items]="svcModes" />
         </tui-textfield>
       </label>
-      <p>{{ 'CALL.STREAM_SVC_LAYERS_HINT' | translate }}</p>
+      <p class="field-hint">{{ 'CALL.STREAM_SVC_LAYERS_HINT' | translate }}</p>
     </div>
   }
 
   @if (isScreen()) {
     <div>
-      <p>{{ 'CALL.STREAM_CONTENT_MODE' | translate }}</p>
-      <tui-radio-list
-        [items]="contentModes"
-        [itemContent]="contentModeLabel"
-        [ngModel]="contentMode()"
-        (ngModelChange)="contentMode.set($event)"
-        [ngModelOptions]="{ standalone: true }" />
-      <ng-template
-        #contentModeLabel
-        let-mode>
-        {{
-          mode === 'detail'
-            ? ('CALL.STREAM_CONTENT_TEXT' | translate)
-            : ('CALL.STREAM_CONTENT_GAME' | translate)
-        }}
-      </ng-template>
-      <p>{{ 'CALL.STREAM_CONTENT_HINT' | translate }}</p>
+      <label tuiLabel>
+        {{ 'CALL.STREAM_CONTENT_MODE' | translate }}
+        <tui-textfield
+          tuiChevron
+          tuiTextfieldSize="m"
+          [tuiTextfieldCleaner]="false">
+          <input
+            tuiSelect
+            [ngModel]="contentMode()"
+            (ngModelChange)="contentMode.set($event)"
+            [ngModelOptions]="{ standalone: true }" />
+          <tui-data-list-wrapper
+            *tuiDropdown
+            [items]="contentModes" />
+        </tui-textfield>
+      </label>
+      <p class="field-hint">{{ 'CALL.STREAM_CONTENT_HINT' | translate }}</p>
     </div>
   }
 
@@ -144,11 +151,23 @@
         [step]="bitrateStepKbps" />
     </tui-textfield>
     @if (showBitrateWarning()) {
-      <p>{{ 'CALL.STREAM_BITRATE_WARNING' | translate }}</p>
+      <p class="field-hint field-hint_warning">
+        {{ 'CALL.STREAM_BITRATE_WARNING' | translate }}
+      </p>
     }
   </div>
 
   <footer class="actions">
+    <button
+      tuiIconButton
+      type="button"
+      appearance="flat"
+      size="m"
+      [iconStart]="icons.eraser"
+      [attr.aria-label]="'CALL.STREAM_RESET' | translate"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.STREAM_RESET' | translate"
+      (click)="onReset()"></button>
     <button
       tuiButton
       type="button"
@@ -161,7 +180,8 @@
       tuiButton
       type="submit"
       appearance="primary"
-      size="m">
+      size="m"
+      [disabled]="confirmDisabled()">
       {{ confirmKey() | translate }}
     </button>
   </footer>

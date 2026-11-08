@@ -1,4 +1,4 @@
-import { TuiButton, TuiRoot } from '@taiga-ui/core';
+import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -8,6 +8,12 @@ import {
   linkedSignal,
   untracked,
 } from '@angular/core';
+import { WA_IS_IOS } from '@ng-web-apis/platform';
+import {
+  TUI_PULL_TO_REFRESH_THRESHOLD,
+  TuiPullToRefresh,
+} from '@taiga-ui/addon-mobile';
+import { TuiButton, TuiRoot } from '@taiga-ui/core';
 import {
   NavigationEnd,
   Router,
@@ -35,6 +41,8 @@ import { PendingCallDialogComponent } from '@shared/components/voice-room/pendin
 import { PublicApiService } from '@core/services/public-api.service';
 import { LayoutService } from '@core/services/layout.service';
 import { icons } from '@constants';
+import { pullDistancePx } from './pull-to-refresh';
+import { PullToRefreshDirective } from './pull-to-refresh.directive';
 
 const DEFAULT_VERSION_INFO = {
   currentVersion: '',
@@ -52,6 +60,8 @@ const DEFAULT_VERSION_INFO = {
     VoiceRoomPanelComponent,
     RouterLink,
     TuiRoot,
+    TuiPullToRefresh,
+    PullToRefreshDirective,
     TuiButton,
     TuiNavigation,
     TuiChevron,
@@ -64,14 +74,39 @@ const DEFAULT_VERSION_INFO = {
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [
+    {
+      provide: TUI_PULL_TO_REFRESH_THRESHOLD,
+      useFactory: () =>
+        pullDistancePx(inject(DOCUMENT).defaultView?.innerHeight ?? 0),
+    },
+  ],
 })
 export class App {
   private readonly store = inject(Store);
   private readonly publicApiService = inject(PublicApiService);
   private readonly router = inject(Router);
   private readonly layoutService = inject(LayoutService);
+  private readonly document = inject(DOCUMENT);
+  private readonly isIos = inject(WA_IS_IOS);
+  private readonly pullThreshold = inject(TUI_PULL_TO_REFRESH_THRESHOLD);
 
   protected readonly icons = icons;
+
+  /**
+   * Taiga follows the finger for the whole drag on iOS (`top: distance / 2`).
+   * Stop the shift at the pull distance, about a tenth of the screen.
+   */
+  protected readonly pullShift = (
+    distance: number,
+  ): Record<string, string> | null => {
+    if (!this.isIos) {
+      return null;
+    }
+    const shift = Math.min(distance / 2, this.pullThreshold);
+    return { top: `${shift}px` };
+  };
+
   protected readonly isAuthenticated =
     this.store.selectSignal(selectIsAuthorized);
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
@@ -143,5 +178,9 @@ export class App {
         }
       });
     });
+  }
+
+  protected reloadPage(): void {
+    this.document.defaultView?.location.reload();
   }
 }

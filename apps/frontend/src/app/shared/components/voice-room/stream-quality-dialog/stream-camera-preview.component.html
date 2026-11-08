@@ -1,0 +1,30 @@
+<div class="preview">
+  @if (previewTrack()) {
+    <video
+      #preview
+      autoplay
+      muted
+      playsinline></video>
+  } @else if (previewError(); as errorKey) {
+    <p>{{ errorKey | translate }}</p>
+  }
+</div>
+
+<label tuiLabel>
+  {{ 'CALL.STREAM_CAMERA' | translate }}
+  <tui-textfield
+    tuiChevron
+    tuiTextfieldSize="m"
+    [stringify]="stringifyCamera"
+    [identityMatcher]="matchCamera"
+    [tuiTextfieldCleaner]="false">
+    <input
+      tuiSelect
+      [ngModel]="camera()"
+      (ngModelChange)="onCameraChange($event)"
+      [ngModelOptions]="{ standalone: true }" />
+    <tui-data-list-wrapper
+      *tuiDropdown
+      [items]="cameras()" />
+  </tui-textfield>
+</label>

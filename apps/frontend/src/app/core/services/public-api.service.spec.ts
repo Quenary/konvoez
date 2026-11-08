@@ -17,6 +17,7 @@ describe('PublicApiService', () => {
     isOwnerSetupRequired: false,
     inviteOnlySignUp: false,
     smtpConfigured: true,
+    appUrlConfigured: false,
   };
 
   const mockVersion: IPublicVersion = {

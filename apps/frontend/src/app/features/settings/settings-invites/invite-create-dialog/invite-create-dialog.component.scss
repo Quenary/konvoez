@@ -14,7 +14,15 @@
   padding: 0.75rem 1rem;
   background: var(--tui-background-neutral-1);
   border-radius: var(--tui-radius-m);
-  word-break: break-all;
+
+  tui-copy span {
+    display: inline-block;
+    max-inline-size: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: text-bottom;
+  }
 }
 
 .dialog-actions {
@@ -22,4 +30,18 @@
   justify-content: flex-end;
   gap: 0.75rem;
   margin-block-start: 1rem;
+}
+
+.checkbox-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-block: 0.25rem;
+}
+
+.send-email-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
 }

@@ -37,10 +37,14 @@ export class PublicController {
     const inviteOnlySignUp = await this.settingsService.getValue(
       ESettingKey.INVITE_ONLY_SIGN_UP,
     );
+    const configuredAppUrl = await this.settingsService.getValue(
+      ESettingKey.APP_URL,
+    );
     return {
       isOwnerSetupRequired,
       inviteOnlySignUp,
       smtpConfigured: this.mailService.isConfigured,
+      appUrlConfigured: Boolean(configuredAppUrl),
     };
   }
 

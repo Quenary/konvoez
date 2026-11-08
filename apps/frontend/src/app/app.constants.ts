@@ -98,6 +98,7 @@ export const icons = {
   help: '@tui.message-circle-question-mark',
   /* Actions */
   edit: '@tui.edit',
+  eraser: '@tui.eraser',
   ban: '@tui.ban',
   play: '@tui.play',
   eye: '@tui.eye',

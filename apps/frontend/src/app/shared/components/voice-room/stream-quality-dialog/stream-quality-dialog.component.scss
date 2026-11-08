@@ -1,0 +1,17 @@
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-block-start: 1.5rem;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--tui-text-secondary);
+
+  &_warning {
+    color: var(--tui-status-warning);
+  }
+}

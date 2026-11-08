@@ -15,7 +15,9 @@ import {
 } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+  appUrlSettingValueSchema,
   attachmentsMaxFilesPerMessageSettingValueSchema,
+  DEFAULT_APP_URL,
   DEFAULT_ATTACHMENTS_ENABLED,
   DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
   DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE,
@@ -84,6 +86,7 @@ function iceServersJsonValidator(
 }
 
 type AdminFormControlName =
+  | 'appUrl'
   | 'inviteOnlySignUp'
   | 'passwordRecoveryCodeTtl'
   | 'vapidEmail'
@@ -139,6 +142,10 @@ export class SettingsAdminComponent {
   protected readonly streamBitrateMaxKbps = streamBitrateMaxKbps;
   protected readonly streamBitrateStep = 500;
   protected readonly form = new FormGroup({
+    appUrl: new FormControl(DEFAULT_APP_URL, {
+      nonNullable: true,
+      validators: [createZodFieldValidator(appUrlSettingValueSchema)],
+    }),
     inviteOnlySignUp: new FormControl(true, { nonNullable: true }),
     passwordRecoveryCodeTtl: new FormControl(
       DEFAULT_PASSWORD_RECOVERY_CODE_TTL,
@@ -210,6 +217,7 @@ export class SettingsAdminComponent {
   protected readonly locked = computed(() => {
     const envLocked = this.settingsStore.envLocked();
     return {
+      appUrl: envLocked[ESettingKey.APP_URL],
       inviteOnlySignUp: envLocked[ESettingKey.INVITE_ONLY_SIGN_UP],
       passwordRecoveryCodeTtl:
         envLocked[ESettingKey.PASSWORD_RECOVERY_CODE_TTL],
@@ -228,6 +236,11 @@ export class SettingsAdminComponent {
   });
 
   private readonly settingDescriptors: readonly AdminSettingDescriptor[] = [
+    {
+      key: ESettingKey.APP_URL,
+      controlName: 'appUrl',
+      toDto: (val) => String(val).trim(),
+    },
     {
       key: ESettingKey.INVITE_ONLY_SIGN_UP,
       controlName: 'inviteOnlySignUp',
@@ -282,6 +295,7 @@ export class SettingsAdminComponent {
 
   constructor() {
     effect(() => {
+      const appUrl = this.settingsStore.appUrl();
       const inviteOnly = this.settingsStore.inviteOnlySignUp();
       const recoveryTtl = this.settingsStore.passwordRecoveryCodeTtl();
       const vapidEmail = this.settingsStore.vapidEmail();
@@ -296,6 +310,7 @@ export class SettingsAdminComponent {
       const streamMaxBitrate = this.settingsStore.streamMaxBitrateKbps();
       const envLocked = this.settingsStore.envLocked();
 
+      this.form.controls.appUrl.setValue(appUrl, { emitEvent: false });
       this.form.controls.inviteOnlySignUp.setValue(inviteOnly, {
         emitEvent: false,
       });

@@ -4,6 +4,7 @@ export const publicSettingsSchema = z.object({
   isOwnerSetupRequired: z.boolean(),
   inviteOnlySignUp: z.boolean(),
   smtpConfigured: z.boolean(),
+  appUrlConfigured: z.boolean(),
 });
 
 export type IPublicSettings = z.infer<typeof publicSettingsSchema>;

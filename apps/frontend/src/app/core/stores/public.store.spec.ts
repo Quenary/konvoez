@@ -15,6 +15,7 @@ describe('PublicStore', () => {
     isOwnerSetupRequired: false,
     inviteOnlySignUp: true,
     smtpConfigured: true,
+    appUrlConfigured: true,
   };
 
   beforeEach(() => {
@@ -44,6 +45,7 @@ describe('PublicStore', () => {
     expect(store.isSmtpConfigured()).toBe(true);
     expect(store.inviteOnlySignUp()).toBe(true);
     expect(store.isOwnerSetupRequired()).toBe(false);
+    expect(store.isAppUrlConfigured()).toBe(true);
   });
 
   it('reloads settings when reload is called', () => {
@@ -73,5 +75,6 @@ describe('PublicStore', () => {
 
     expect(store.publicSettings.value()).toEqual(DEFAULT_PUBLIC_SETTINGS);
     expect(store.isSmtpConfigured()).toBe(false);
+    expect(store.isAppUrlConfigured()).toBe(false);
   });
 });

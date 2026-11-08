@@ -8,23 +8,39 @@ import {
 } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { IInvite, TInviteStatus } from '@konvoez/shared';
+import {
+  buildInviteUrl,
+  IInvite,
+  inviteResendEmailCooldownMs,
+  TInviteStatus,
+} from '@konvoez/shared';
 import { TuiTable } from '@taiga-ui/addon-table';
 import {
   TuiButton,
+  TuiDataList,
+  TuiDropdown,
   TuiHint,
   TuiIcon,
   TuiNotificationService,
+  TuiOption,
   TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { TuiAutoColorPipe, TuiProgressCircle, TuiTooltip } from '@taiga-ui/kit';
+import {
+  TuiAutoColorPipe,
+  TuiBadge,
+  TuiFade,
+  TuiProgressCircle,
+  TuiTooltip,
+} from '@taiga-ui/kit';
 import { InvitesApiService } from '@core/api/invites-api.service';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { LayoutService } from '@core/services/layout.service';
+import { PublicStore } from '@core/stores/public.store';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { icons } from '@constants';
 
 export interface IInviteStatusData {
@@ -35,6 +51,7 @@ export interface IInviteStatusData {
 
 export interface IInviteViewItem {
   readonly id: number;
+  readonly code: string;
   readonly email: string;
   readonly authorUsername: string;
   readonly usedByUsername: string | null;
@@ -44,6 +61,11 @@ export interface IInviteViewItem {
   readonly progress: number;
   readonly progressColor: string;
   readonly remainingText: string;
+  readonly emailSent: boolean;
+  readonly emailSentAt: Date | null;
+  readonly url: string;
+  readonly canResendEmail: boolean;
+  readonly isResendCooldown: boolean;
 }
 
 export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
@@ -72,19 +94,25 @@ export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
 @Component({
   selector: 'app-settings-invites',
   imports: [
+    DayjsPipe,
     TranslatePipe,
     TuiAutoColorPipe,
+    TuiBadge,
     TuiButton,
     TuiCardLarge,
+    TuiDataList,
+    TuiDropdown,
+    TuiFade,
     TuiForm,
     TuiHeader,
-    TuiScrollbar,
-    TuiIcon,
-    TuiProgressCircle,
-    TuiTable,
-    TuiTooltip,
-    TuiTitle,
     TuiHint,
+    TuiIcon,
+    TuiOption,
+    TuiProgressCircle,
+    TuiScrollbar,
+    TuiTable,
+    TuiTitle,
+    TuiTooltip,
   ],
   templateUrl: './settings-invites.component.html',
   styleUrl: './settings-invites.component.scss',
@@ -98,6 +126,7 @@ export class SettingsInvitesComponent {
   private readonly apiErrorService = inject(ApiErrorService);
   private readonly injector = inject(Injector);
   private readonly layoutService = inject(LayoutService);
+  private readonly publicStore = inject(PublicStore);
 
   protected readonly icons = icons;
   protected readonly isNarrow = this.layoutService.isNarrow;
@@ -120,6 +149,9 @@ export class SettingsInvitesComponent {
 
   protected readonly invites = computed<IInviteViewItem[]>(() => {
     const now = Date.now();
+    const canSendEmail =
+      this.publicStore.isSmtpConfigured() &&
+      this.publicStore.isAppUrlConfigured();
     return this.invitesResource.value().map((invite) => {
       const created = new Date(invite.createdAt).getTime();
       const expires = new Date(invite.expiresAt).getTime();
@@ -145,17 +177,33 @@ export class SettingsInvitesComponent {
           hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
       }
 
+      const emailSent = Boolean(invite.emailSent);
+      const emailSentAt = invite.emailSentAt
+        ? new Date(invite.emailSentAt)
+        : null;
+      const isActive = invite.status === 'active';
+      const canResendEmail = isActive && Boolean(invite.email) && canSendEmail;
+      const isResendCooldown = emailSentAt
+        ? now - emailSentAt.getTime() < inviteResendEmailCooldownMs
+        : false;
+
       return {
         id: invite.id,
+        code: invite.code,
         email: invite.email ?? '',
         authorUsername: invite.author.username,
         usedByUsername: invite.usedBy?.username ?? null,
         status: invite.status,
         statusData: this.statusData[invite.status],
-        isActive: invite.status === 'active',
+        isActive,
         progress,
         progressColor,
         remainingText,
+        emailSent,
+        emailSentAt,
+        url: invite.url ?? '',
+        canResendEmail,
+        isResendCooldown,
       };
     });
   });
@@ -177,6 +225,54 @@ export class SettingsInvitesComponent {
           this.invitesResource.reload();
         }
       });
+  }
+
+  protected async copyLink(invite: IInviteViewItem): Promise<void> {
+    const url =
+      invite.url ||
+      buildInviteUrl(
+        window.location.origin,
+        invite.code,
+        invite.email || null,
+      ) ||
+      invite.code;
+    try {
+      await navigator.clipboard.writeText(url);
+      this.notificationService
+        .open(
+          this.translateService.instant('SETTINGS.INVITES.COPIED_SUCCESS'),
+          {
+            appearance: 'positive',
+          },
+        )
+        .subscribe();
+    } catch {
+      // Ignore clipboard error
+    }
+  }
+
+  protected resendEmail(id: number): void {
+    this.invitesApiService.resend(id).subscribe({
+      next: () => {
+        this.notificationService
+          .open(
+            this.translateService.instant('SETTINGS.INVITES.RESEND_SUCCESS'),
+            {
+              appearance: 'positive',
+            },
+          )
+          .subscribe();
+        this.invitesResource.reload();
+      },
+      error: (err) => {
+        this.notificationService
+          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+            appearance: 'negative',
+            label: this.translateService.instant('GENERAL.REQ_ERR'),
+          })
+          .subscribe();
+      },
+    });
   }
 
   protected revoke(id: number): void {

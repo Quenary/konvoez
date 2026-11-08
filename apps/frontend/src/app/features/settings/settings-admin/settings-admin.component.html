@@ -168,6 +168,19 @@
         *ngTemplateOutlet="
           inputItem;
           context: {
+            id: 'app-url',
+            control: form.controls.appUrl,
+            labelKey: 'SETTINGS.ADMIN.APP_URL',
+            descKey: 'SETTINGS.ADMIN.APP_URL_DESC',
+            placeholder: 'https://konvoez.example.com',
+            locked: locked().appUrl,
+          }
+        " />
+
+      <ng-container
+        *ngTemplateOutlet="
+          inputItem;
+          context: {
             id: 'vapid-email',
             control: form.controls.vapidEmail,
             labelKey: 'SETTINGS.ADMIN.VAPID_EMAIL',

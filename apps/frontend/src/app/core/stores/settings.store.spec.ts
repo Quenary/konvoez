@@ -156,7 +156,7 @@ describe('SettingsStore', () => {
     );
     expect(store.attachmentsStripImageMetadata()).toBe(false);
     expect(store.needsInitialSetup()).toBe(true);
-    expect(store.streamCodec()).toBeNull();
+    expect(store.cameraCodec()).toBeNull();
     expect(store.screenCodec()).toBeNull();
   });
 
@@ -188,7 +188,7 @@ describe('SettingsStore', () => {
       EStorageKey.LOCAL_SETTINGS,
       JSON.stringify({
         version: LOCAL_SETTINGS_VERSION,
-        streamCodec: 'h264',
+        cameraCodec: 'h264',
         screenCodec: 'h264',
       }),
     );
@@ -196,7 +196,7 @@ describe('SettingsStore', () => {
     configureTestBed();
 
     const store = TestBed.inject(SettingsStore);
-    expect(store.streamCodec()).toBe('h264');
+    expect(store.cameraCodec()).toBe('h264');
     expect(store.screenCodec()).toBe('h264');
     expect(store.needsInitialSetup()).toBe(false);
   });
@@ -249,8 +249,8 @@ describe('SettingsStore', () => {
         label: 'Microphone 1',
         groupId: 'group',
       },
-      streamHeight: DEFAULT_STREAM_HEIGHT,
-      streamFps: DEFAULT_STREAM_FPS,
+      cameraHeight: DEFAULT_STREAM_HEIGHT,
+      cameraFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
@@ -271,8 +271,8 @@ describe('SettingsStore', () => {
       JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
     ).toEqual({
       version: LOCAL_SETTINGS_VERSION,
-      streamHeight: DEFAULT_STREAM_HEIGHT,
-      streamFps: DEFAULT_STREAM_FPS,
+      cameraHeight: DEFAULT_STREAM_HEIGHT,
+      cameraFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
@@ -304,8 +304,8 @@ describe('SettingsStore', () => {
         label: 'Mic',
         groupId: 'group',
       },
-      streamHeight: DEFAULT_STREAM_HEIGHT,
-      streamFps: DEFAULT_STREAM_FPS,
+      cameraHeight: DEFAULT_STREAM_HEIGHT,
+      cameraFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
@@ -320,27 +320,27 @@ describe('SettingsStore', () => {
 
   it('persists stream layer, bitrate and screen content mode', () => {
     const extra = [{ height: 480, fps: 30 }];
-    store.setStreamExtraLayers(extra);
-    store.setStreamBitrateKbps(2500);
+    store.setCameraExtraLayers(extra);
+    store.setCameraBitrateKbps(2500);
     store.setScreenExtraLayers(null);
     store.setScreenBitrateKbps(null);
     store.setScreenContentMode('motion');
-    store.setStreamSvcMode('L3T3_KEY');
+    store.setCameraSvcMode('L3T3_KEY');
     store.setScreenSvcMode('L1T3');
 
-    expect(store.streamExtraLayers()).toEqual(extra);
-    expect(store.streamSvcMode()).toBe('L3T3_KEY');
+    expect(store.cameraExtraLayers()).toEqual(extra);
+    expect(store.cameraSvcMode()).toBe('L3T3_KEY');
     expect(store.screenSvcMode()).toBe('L1T3');
-    expect(store.streamBitrateKbps()).toBe(2500);
+    expect(store.cameraBitrateKbps()).toBe(2500);
     expect(store.screenExtraLayers()).toBeNull();
     expect(store.screenContentMode()).toBe('motion');
     expect(
       JSON.parse(localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}'),
     ).toEqual(
       expect.objectContaining({
-        streamExtraLayers: extra,
-        streamBitrateKbps: 2500,
-        streamSvcMode: 'L3T3_KEY',
+        cameraExtraLayers: extra,
+        cameraBitrateKbps: 2500,
+        cameraSvcMode: 'L3T3_KEY',
         screenSvcMode: 'L1T3',
         screenContentMode: 'motion',
       }),
@@ -370,8 +370,8 @@ describe('SettingsStore', () => {
         label: 'Speaker 1',
         groupId: 'group',
       },
-      streamHeight: DEFAULT_STREAM_HEIGHT,
-      streamFps: DEFAULT_STREAM_FPS,
+      cameraHeight: DEFAULT_STREAM_HEIGHT,
+      cameraFps: DEFAULT_STREAM_FPS,
       screenHeight: DEFAULT_STREAM_HEIGHT,
       screenFps: DEFAULT_STREAM_FPS,
       screenContentMode: DEFAULT_SCREEN_CONTENT_MODE,
@@ -616,5 +616,24 @@ describe('SettingsStore', () => {
     TestBed.flushEffects();
 
     expect(store.streamMaxBitrateKbps()).toBe(15000);
+  });
+
+  it('computes appUrl with fallback to default and reflects loaded settings', () => {
+    configureTestBed();
+    expect(store.appUrl()).toBe('');
+
+    const setting: TSetting = {
+      key: ESettingKey.APP_URL,
+      value: 'https://konvoez.example.com',
+      createdAt: new Date(),
+      updatedAt: null,
+      envLocked: false,
+    };
+    apiService.list.mockReturnValue(of([setting]));
+
+    store.loadAll();
+    TestBed.flushEffects();
+
+    expect(store.appUrl()).toBe('https://konvoez.example.com');
   });
 });

@@ -14,6 +14,7 @@ export const DEFAULT_PUBLIC_SETTINGS: IPublicSettings = {
   isOwnerSetupRequired: false,
   inviteOnlySignUp: false,
   smtpConfigured: false,
+  appUrlConfigured: false,
 };
 
 export const PublicStore = signalStore(
@@ -36,6 +37,9 @@ export const PublicStore = signalStore(
     ),
     isOwnerSetupRequired: computed(
       () => publicSettings.value()?.isOwnerSetupRequired ?? false,
+    ),
+    isAppUrlConfigured: computed(
+      () => publicSettings.value()?.appUrlConfigured ?? false,
     ),
   })),
   withMethods(({ publicSettings }) => ({

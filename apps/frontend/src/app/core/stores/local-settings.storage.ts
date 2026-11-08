@@ -109,19 +109,19 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     version: parsed.data.version,
     audioInput: parseDevice(parsed.data.audioInput) ?? undefined,
     audioOutput: parseDevice(parsed.data.audioOutput) ?? undefined,
-    videoInput: parseDevice(parsed.data.videoInput) ?? undefined,
-    streamHeight: parseHeight(parsed.data.streamHeight),
-    streamFps: parseFps(parsed.data.streamFps),
+    cameraInput: parseDevice(parsed.data.cameraInput) ?? undefined,
+    cameraHeight: parseHeight(parsed.data.cameraHeight),
+    cameraFps: parseFps(parsed.data.cameraFps),
+    cameraExtraLayers: parseExtraLayers(parsed.data.cameraExtraLayers),
+    cameraSvcMode: parseSvcMode(parsed.data.cameraSvcMode),
+    cameraBitrateKbps: parseBitrateKbps(parsed.data.cameraBitrateKbps),
+    cameraCodec: parseStreamCodec(parsed.data.cameraCodec),
     screenHeight: parseHeight(parsed.data.screenHeight),
     screenFps: parseFps(parsed.data.screenFps),
-    streamExtraLayers: parseExtraLayers(parsed.data.streamExtraLayers),
-    streamSvcMode: parseSvcMode(parsed.data.streamSvcMode),
-    streamBitrateKbps: parseBitrateKbps(parsed.data.streamBitrateKbps),
     screenExtraLayers: parseExtraLayers(parsed.data.screenExtraLayers),
     screenSvcMode: parseSvcMode(parsed.data.screenSvcMode),
     screenBitrateKbps: parseBitrateKbps(parsed.data.screenBitrateKbps),
     screenContentMode: parseContentMode(parsed.data.screenContentMode),
-    streamCodec: parseStreamCodec(parsed.data.streamCodec),
     screenCodec: parseStreamCodec(parsed.data.screenCodec),
     screenPreviewAutoPauseWhenHidden:
       typeof parsed.data.screenPreviewAutoPauseWhenHidden === 'boolean'
@@ -158,19 +158,19 @@ export const needsInitialSetup = (): boolean => {
 export type TLocalSettingsWrite = {
   audioInput?: MediaDeviceInfo | TMediaDeviceInfo | null;
   audioOutput?: MediaDeviceInfo | TMediaDeviceInfo | null;
-  videoInput?: MediaDeviceInfo | TMediaDeviceInfo | null;
-  streamHeight?: TStreamHeight | null;
-  streamFps?: TStreamFps | null;
+  cameraInput?: MediaDeviceInfo | TMediaDeviceInfo | null;
+  cameraHeight?: TStreamHeight | null;
+  cameraFps?: TStreamFps | null;
+  cameraExtraLayers?: TStreamLayer[] | null;
+  cameraSvcMode?: TStreamSvcMode | null;
+  cameraBitrateKbps?: number | null;
+  cameraCodec?: TStreamVideoCodec | null;
   screenHeight?: TStreamHeight | null;
   screenFps?: TStreamFps | null;
-  streamExtraLayers?: TStreamLayer[] | null;
-  streamSvcMode?: TStreamSvcMode | null;
-  streamBitrateKbps?: number | null;
   screenExtraLayers?: TStreamLayer[] | null;
   screenSvcMode?: TStreamSvcMode | null;
   screenBitrateKbps?: number | null;
   screenContentMode?: TStreamContentMode | null;
-  streamCodec?: TStreamVideoCodec | null;
   screenCodec?: TStreamVideoCodec | null;
   screenPreviewAutoPauseWhenHidden?: boolean;
   noiseProcessor?: ENoiseProcessor | null;
@@ -200,20 +200,20 @@ export const writeLocalSettings = (
       : settings.audioOutput
         ? (parseDevice(settings.audioOutput) ?? undefined)
         : undefined;
-  const nextVideoInput =
-    settings.videoInput === undefined
-      ? existing.videoInput
-      : settings.videoInput
-        ? (parseDevice(settings.videoInput) ?? undefined)
+  const nextCameraInput =
+    settings.cameraInput === undefined
+      ? existing.cameraInput
+      : settings.cameraInput
+        ? (parseDevice(settings.cameraInput) ?? undefined)
         : undefined;
   const nextHeight =
-    settings.streamHeight === undefined
-      ? existing.streamHeight
-      : (settings.streamHeight ?? undefined);
+    settings.cameraHeight === undefined
+      ? existing.cameraHeight
+      : (settings.cameraHeight ?? undefined);
   const nextFps =
-    settings.streamFps === undefined
-      ? existing.streamFps
-      : (settings.streamFps ?? undefined);
+    settings.cameraFps === undefined
+      ? existing.cameraFps
+      : (settings.cameraFps ?? undefined);
   const nextScreenHeight =
     settings.screenHeight === undefined
       ? existing.screenHeight
@@ -222,18 +222,18 @@ export const writeLocalSettings = (
     settings.screenFps === undefined
       ? existing.screenFps
       : (settings.screenFps ?? undefined);
-  const nextStreamExtraLayers =
-    settings.streamExtraLayers === undefined
-      ? existing.streamExtraLayers
-      : (settings.streamExtraLayers ?? undefined);
-  const nextStreamSvcMode =
-    settings.streamSvcMode === undefined
-      ? existing.streamSvcMode
-      : (settings.streamSvcMode ?? undefined);
-  const nextStreamBitrate =
-    settings.streamBitrateKbps === undefined
-      ? existing.streamBitrateKbps
-      : (settings.streamBitrateKbps ?? undefined);
+  const nextCameraExtraLayers =
+    settings.cameraExtraLayers === undefined
+      ? existing.cameraExtraLayers
+      : (settings.cameraExtraLayers ?? undefined);
+  const nextCameraSvcMode =
+    settings.cameraSvcMode === undefined
+      ? existing.cameraSvcMode
+      : (settings.cameraSvcMode ?? undefined);
+  const nextCameraBitrate =
+    settings.cameraBitrateKbps === undefined
+      ? existing.cameraBitrateKbps
+      : (settings.cameraBitrateKbps ?? undefined);
   const nextScreenExtraLayers =
     settings.screenExtraLayers === undefined
       ? existing.screenExtraLayers
@@ -250,10 +250,10 @@ export const writeLocalSettings = (
     settings.screenContentMode === undefined
       ? existing.screenContentMode
       : (settings.screenContentMode ?? undefined);
-  const nextStreamCodec =
-    settings.streamCodec === undefined
-      ? existing.streamCodec
-      : (settings.streamCodec ?? undefined);
+  const nextCameraCodec =
+    settings.cameraCodec === undefined
+      ? existing.cameraCodec
+      : (settings.cameraCodec ?? undefined);
   const nextScreenCodec =
     settings.screenCodec === undefined
       ? existing.screenCodec
@@ -283,22 +283,23 @@ export const writeLocalSettings = (
     ...(typeof version === 'number' ? { version } : {}),
     ...(nextAudioInput ? { audioInput: nextAudioInput } : {}),
     ...(nextAudioOutput ? { audioOutput: nextAudioOutput } : {}),
-    ...(nextVideoInput ? { videoInput: nextVideoInput } : {}),
-    ...(nextHeight !== undefined ? { streamHeight: nextHeight } : {}),
-    ...(nextFps !== undefined ? { streamFps: nextFps } : {}),
+    ...(nextCameraInput ? { cameraInput: nextCameraInput } : {}),
+    ...(nextHeight !== undefined ? { cameraHeight: nextHeight } : {}),
+    ...(nextFps !== undefined ? { cameraFps: nextFps } : {}),
+    ...(nextCameraExtraLayers !== undefined
+      ? { cameraExtraLayers: nextCameraExtraLayers }
+      : {}),
+    ...(nextCameraSvcMode !== undefined
+      ? { cameraSvcMode: nextCameraSvcMode }
+      : {}),
+    ...(nextCameraBitrate !== undefined
+      ? { cameraBitrateKbps: nextCameraBitrate }
+      : {}),
+    ...(nextCameraCodec !== undefined ? { cameraCodec: nextCameraCodec } : {}),
     ...(nextScreenHeight !== undefined
       ? { screenHeight: nextScreenHeight }
       : {}),
     ...(nextScreenFps !== undefined ? { screenFps: nextScreenFps } : {}),
-    ...(nextStreamExtraLayers !== undefined
-      ? { streamExtraLayers: nextStreamExtraLayers }
-      : {}),
-    ...(nextStreamSvcMode !== undefined
-      ? { streamSvcMode: nextStreamSvcMode }
-      : {}),
-    ...(nextStreamBitrate !== undefined
-      ? { streamBitrateKbps: nextStreamBitrate }
-      : {}),
     ...(nextScreenExtraLayers !== undefined
       ? { screenExtraLayers: nextScreenExtraLayers }
       : {}),
@@ -311,7 +312,6 @@ export const writeLocalSettings = (
     ...(nextScreenContentMode !== undefined
       ? { screenContentMode: nextScreenContentMode }
       : {}),
-    ...(nextStreamCodec !== undefined ? { streamCodec: nextStreamCodec } : {}),
     ...(nextScreenCodec !== undefined ? { screenCodec: nextScreenCodec } : {}),
     ...(nextScreenPreviewAutoPause !== undefined
       ? { screenPreviewAutoPauseWhenHidden: nextScreenPreviewAutoPause }

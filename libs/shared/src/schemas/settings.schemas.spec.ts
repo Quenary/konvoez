@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  appUrlSettingSchema,
+  appUrlSettingValueSchema,
+  DEFAULT_APP_URL,
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
   DEFAULT_VOICE_MAX_BITRATE_KBPS,
   ESettingKey,
@@ -126,6 +129,62 @@ describe('Settings Schemas', () => {
         settingItemUpdateSchema.safeParse({
           key: ESettingKey.STREAM_MAX_BITRATE_KBPS,
           value: 20000,
+        }).success,
+      ).toBe(true);
+    });
+  });
+
+  describe('appUrlSettingValueSchema', () => {
+    it.each([
+      '',
+      'https://konvoez.example.com',
+      'http://localhost:3000',
+      'https://chat.mycompany.org:8443',
+    ])('accepts valid app URL %s', (val) => {
+      const result = appUrlSettingValueSchema.safeParse(val);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(val);
+      }
+    });
+
+    it.each(['ftp://example.com', 'not-a-url', 'javascript:alert(1)'])(
+      'rejects invalid app URL %s',
+      (val) => {
+        const result = appUrlSettingValueSchema.safeParse(val);
+        expect(result.success).toBe(false);
+      },
+    );
+
+    it('has default empty string', () => {
+      expect(DEFAULT_APP_URL).toBe('');
+    });
+
+    it('accepts valid full appUrl setting entity', () => {
+      const parsed = appUrlSettingSchema.safeParse({
+        key: ESettingKey.APP_URL,
+        value: 'https://konvoez.example.com',
+        envLocked: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('parses app URL from setting unions', () => {
+      expect(
+        settingSchema.safeParse({
+          key: ESettingKey.APP_URL,
+          value: 'https://konvoez.example.com',
+          envLocked: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+        }).success,
+      ).toBe(true);
+      expect(
+        settingItemUpdateSchema.safeParse({
+          key: ESettingKey.APP_URL,
+          value: 'https://konvoez.example.com',
         }).success,
       ).toBe(true);
     });

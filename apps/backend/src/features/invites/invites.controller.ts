@@ -48,6 +48,18 @@ export class InvitesController {
     return await this.invitesService.create(dto, author);
   }
 
+  @Post(':id/resend')
+  @ApiOkResponse({
+    type: InviteDto,
+    description: 'Resend invite email',
+  })
+  async resend(
+    @Param('id', ParseIntPipe) id: number,
+    @Author() author: GetUserSafeDto,
+  ): Promise<InviteDto> {
+    return await this.invitesService.resend(id, author);
+  }
+
   @Patch(':id/revoke')
   @ApiOkResponse({
     type: InviteDto,

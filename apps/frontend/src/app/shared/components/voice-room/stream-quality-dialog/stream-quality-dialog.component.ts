@@ -30,11 +30,13 @@ import {
   TStreamSvcMode,
   TStreamVideoCodec,
 } from '@konvoez/shared';
+import { icons } from '@constants';
 import {
   pickDefaultVideoCodec,
   resolveDefaultVideoCodec,
   streamProbeBitrateKbps,
 } from '@core/services/video-codec';
+import { StreamCameraPreviewComponent } from './stream-camera-preview.component';
 import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
@@ -48,6 +50,7 @@ import {
   TUI_ITEMS_HANDLERS,
   TuiButton,
   TuiDropdown,
+  TuiHint,
   TuiLabel,
   TuiSlider,
   TuiTextfield,
@@ -59,7 +62,6 @@ import {
   TuiMultiSelect,
   TuiSelect,
 } from '@taiga-ui/kit';
-import { TuiRadioList } from '@taiga-ui/kit/components/radio-list';
 import { TuiForm } from '@taiga-ui/layout';
 import type { TuiDialogContext } from '@taiga-ui/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
@@ -74,6 +76,7 @@ export type TStreamQualityDialogResult = {
   bitrateKbps: number;
   codec: TStreamVideoCodec;
   contentMode?: TStreamContentMode;
+  cameraInput: MediaDeviceInfo | null;
 };
 
 export type TStreamQualityDialogData = {
@@ -87,6 +90,7 @@ export type TStreamQualityDialogData = {
   codec: TStreamVideoCodec | null;
   codecs: readonly TStreamVideoCodec[];
   maxBitrateKbps: number;
+  cameraInput: MediaDeviceInfo | null;
 };
 
 type TStreamSelectValue = TStreamHeight | TStreamFps | TStreamVideoCodec;
@@ -96,6 +100,11 @@ const CODEC_LABELS: Record<TStreamVideoCodec, string> = {
   vp8: 'VP8',
   vp9: 'VP9',
   av1: 'AV1',
+};
+
+const CONTENT_MODE_LABELS: Record<TStreamContentMode, string> = {
+  detail: 'CALL.STREAM_CONTENT_TEXT',
+  motion: 'CALL.STREAM_CONTENT_GAME',
 };
 
 const SVC_MODE_LABELS: Record<TStreamSvcMode, string> = {
@@ -108,16 +117,21 @@ function isSvcMode(value: string): value is TStreamSvcMode {
   return (STREAM_SVC_MODES as readonly string[]).includes(value);
 }
 
-function initialCodec(
+function storedCodec(
   codec: TStreamVideoCodec | null | undefined,
-  codecs: readonly TStreamVideoCodec[] | undefined,
-): TStreamVideoCodec {
-  const available = codecs?.length ? codecs : (['vp9', 'vp8'] as const);
-  if (codec && available.includes(codec)) {
+  codecs: readonly TStreamVideoCodec[],
+): TStreamVideoCodec | null {
+  if (codec && codecs.includes(codec)) {
     return codec;
   }
+  return null;
+}
+
+function fallbackCodec(
+  codecs: readonly TStreamVideoCodec[],
+): TStreamVideoCodec {
   return pickDefaultVideoCodec({
-    available,
+    available: codecs,
     hardware: { av1: false, h264: false },
   });
 }
@@ -134,10 +148,30 @@ type THardwareProbeInput = {
 @Injectable()
 class DialogHardwareLabel {
   readonly codec = signal<'av1' | 'h264' | null>(null);
+  readonly defaultCodec = signal<TStreamVideoCodec | null>(null);
+}
+
+function isDefaultSelectItem(
+  item: TStreamSelectValue | TStreamSvcMode | TStreamContentMode,
+  defaultCodec: TStreamVideoCodec | null,
+): boolean {
+  if (typeof item === 'number') {
+    return (STREAM_HEIGHTS as readonly number[]).includes(item)
+      ? item === DEFAULT_STREAM_HEIGHT
+      : item === DEFAULT_STREAM_FPS;
+  }
+  if (isSvcMode(item)) {
+    return item === DEFAULT_STREAM_SVC_MODE;
+  }
+  if (item === 'detail' || item === 'motion') {
+    return item === DEFAULT_SCREEN_CONTENT_MODE;
+  }
+  return item === defaultCodec;
 }
 
 function stringifyStreamSelectItem(
-  item: TStreamSelectValue | TStreamSvcMode | null | undefined,
+  item:
+    TStreamSelectValue | TStreamSvcMode | TStreamContentMode | null | undefined,
   translate: (key: string) => string,
 ): string {
   if (item == null) {
@@ -146,6 +180,9 @@ function stringifyStreamSelectItem(
   if (typeof item === 'string') {
     if (isSvcMode(item)) {
       return translate(SVC_MODE_LABELS[item]);
+    }
+    if (item === 'detail' || item === 'motion') {
+      return translate(CONTENT_MODE_LABELS[item]);
     }
     return CODEC_LABELS[item] ?? item;
   }
@@ -165,8 +202,10 @@ function identityMatchStreamSelectItem(
   selector: 'app-stream-quality-dialog',
   imports: [
     FormsModule,
+    StreamCameraPreviewComponent,
     TranslatePipe,
     TuiButton,
+    TuiHint,
     TuiLabel,
     TuiSelect,
     TuiMultiSelect,
@@ -177,7 +216,6 @@ function identityMatchStreamSelectItem(
     TuiForm,
     TuiSlider,
     TuiInputSlider,
-    TuiRadioList,
   ],
   providers: [
     DialogHardwareLabel,
@@ -188,13 +226,26 @@ function identityMatchStreamSelectItem(
         const hardwareLabel = inject(DialogHardwareLabel);
         return {
           stringify: signal(
-            (item: TStreamSelectValue | TStreamSvcMode | null | undefined) => {
+            (
+              item:
+                | TStreamSelectValue
+                | TStreamSvcMode
+                | TStreamContentMode
+                | null
+                | undefined,
+            ) => {
               const hardwareCodec = hardwareLabel.codec();
-              const label = stringifyStreamSelectItem(item, (key) =>
+              const defaultCodec = hardwareLabel.defaultCodec();
+              let label = stringifyStreamSelectItem(item, (key) =>
                 translateService.instant(key),
               );
               if (item != null && item === hardwareCodec) {
-                return `${label} (${translateService.instant('CALL.STREAM_CODEC_HARDWARE')})`;
+                label = `${label} (${translateService.instant('CALL.STREAM_CODEC_HARDWARE')})`;
+              }
+              if (item != null && isDefaultSelectItem(item, defaultCodec)) {
+                label = translateService.instant('CALL.STREAM_DEFAULT_VALUE', {
+                  value: label,
+                });
               }
               return label;
             },
@@ -206,6 +257,7 @@ function identityMatchStreamSelectItem(
     },
   ],
   templateUrl: './stream-quality-dialog.component.html',
+  styleUrl: './stream-quality-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StreamQualityDialogComponent {
@@ -218,7 +270,9 @@ export class StreamQualityDialogComponent {
     >();
   private readonly hardwareLabel = inject(DialogHardwareLabel);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly translateService = inject(TranslateService);
 
+  protected readonly icons = icons;
   protected readonly heights = [...STREAM_HEIGHTS];
   protected readonly fpsOptions = [...STREAM_FPS_OPTIONS];
   protected readonly contentModes = CONTENT_MODES;
@@ -226,15 +280,8 @@ export class StreamQualityDialogComponent {
   protected readonly bitrateMinKbps = STREAM_BITRATE_SLIDER_MIN_KBPS;
   protected readonly bitrateStepKbps = STREAM_BITRATE_SLIDER_STEP_KBPS;
 
-  protected readonly titleKey = computed(() =>
-    this.context.data?.kind === 'screen'
-      ? 'CALL.SCREEN_SETTINGS'
-      : 'CALL.CAMERA_SETTINGS',
-  );
   protected readonly confirmKey = computed(() =>
-    this.context.data?.kind === 'screen'
-      ? 'CALL.START_SCREEN'
-      : 'CALL.START_CAMERA',
+    this.context.data?.kind === 'screen' ? 'GENERAL.NEXT' : 'CALL.START_CAMERA',
   );
   protected readonly isScreen = computed(
     () => this.context.data?.kind === 'screen',
@@ -254,11 +301,15 @@ export class StreamQualityDialogComponent {
     ? this.context.data.codecs
     : ['vp9', 'vp8'];
   protected readonly codec = signal<TStreamVideoCodec>(
-    initialCodec(this.context.data?.codec, this.codecs),
+    storedCodec(this.context.data?.codec, this.codecs) ??
+      fallbackCodec(this.codecs),
+  );
+  protected readonly probedCodec = signal<TStreamVideoCodec>(
+    fallbackCodec(this.codecs),
   );
   private codecLocked =
-    this.context.data?.codec != null &&
-    this.codecs.includes(this.context.data.codec);
+    storedCodec(this.context.data?.codec, this.codecs) != null;
+  private readonly formReset = signal(0);
   private latestProbe: THardwareProbeInput | null = null;
   private probeTimer: ReturnType<typeof setTimeout> | undefined;
   private probeGeneration = 0;
@@ -270,7 +321,7 @@ export class StreamQualityDialogComponent {
   private readonly initialBitrateKbps = this.context.data?.bitrateKbps ?? null;
   private readonly dropsStoredLayers =
     !streamSupportsSimulcast(this.codec()) &&
-    (this.context.data?.extraLayers?.length ?? 1) > 0;
+    (this.context.data?.extraLayers?.length ?? 0) > 0;
   private readonly keepStoredBitrate =
     this.initialBitrateKbps != null &&
     !this.dropsStoredLayers &&
@@ -281,65 +332,118 @@ export class StreamQualityDialogComponent {
   protected readonly maxBitrateKbps =
     this.context.data?.maxBitrateKbps ?? DEFAULT_STREAM_MAX_BITRATE_KBPS;
 
+  protected readonly effectiveContentMode = computed(() =>
+    this.isScreen() ? this.contentMode() : ('motion' as const),
+  );
+
   protected readonly extraLayers = linkedSignal<
-    { height: TStreamHeight; fps: TStreamFps; simulcast: boolean },
+    {
+      height: TStreamHeight;
+      fps: TStreamFps;
+      simulcast: boolean;
+      reset: number;
+    },
     TStreamLayer[]
   >({
     source: () => ({
       height: this.height(),
       fps: this.fps(),
       simulcast: streamSupportsSimulcast(this.codec()),
+      reset: this.formReset(),
     }),
     computation: (source, previous) => {
-      if (!source.simulcast) {
-        return [];
+      const defaults = defaultExtraLayers(source);
+      if (!previous) {
+        const stored = this.context.data?.extraLayers ?? null;
+        if (!source.simulcast) {
+          return stored ?? [];
+        }
+        if (stored == null) {
+          return defaults;
+        }
+        const options = streamLayerOptions(source);
+        return stored
+          .filter((layer) =>
+            options.some(
+              (option) =>
+                option.height === layer.height && option.fps === layer.fps,
+            ),
+          )
+          .slice(0, STREAM_EXTRA_LAYERS_MAX);
       }
-      if (previous) {
-        return defaultExtraLayers(source);
+      if (
+        source.reset !== previous.source.reset ||
+        source.height !== previous.source.height ||
+        source.fps !== previous.source.fps ||
+        source.simulcast !== previous.source.simulcast
+      ) {
+        return source.simulcast ? defaults : [];
       }
-      const stored = this.context.data?.extraLayers ?? null;
-      if (stored == null) {
-        return defaultExtraLayers(source);
-      }
-      const options = streamLayerOptions(source);
-      return stored
-        .filter((layer) =>
-          options.some(
-            (option) =>
-              option.height === layer.height && option.fps === layer.fps,
-          ),
-        )
-        .slice(0, STREAM_EXTRA_LAYERS_MAX);
+      return previous.value;
     },
   });
 
+  protected readonly effectiveExtraLayers = computed(() => {
+    const extra = this.extraLayers();
+    const simulcast = streamSupportsSimulcast(this.codec());
+    return simulcast ? extra : [];
+  });
+
   protected readonly layerOptions = computed(() =>
-    streamLayerOptions({ height: this.height(), fps: this.fps() }),
+    streamLayerOptions({
+      height: this.height(),
+      fps: this.fps(),
+    }),
   );
 
   protected readonly simulcastSupported = computed(() =>
     streamSupportsSimulcast(this.codec()),
   );
 
-  protected readonly svcMode = linkedSignal<{ svc: boolean }, TStreamSvcMode>({
+  protected readonly svcMode = linkedSignal<
+    { svc: boolean; reset: number },
+    TStreamSvcMode
+  >({
     source: () => ({
       svc: streamSupportsSvc(this.codec()),
+      reset: this.formReset(),
     }),
     computation: (source, previous) => {
-      const stored = this.context.data?.svcMode;
-      const fallback = stored ?? DEFAULT_STREAM_SVC_MODE;
       if (!previous) {
-        return fallback;
+        return this.context.data?.svcMode ?? DEFAULT_STREAM_SVC_MODE;
       }
-      if (source.svc !== previous.source.svc) {
+      if (
+        source.reset !== previous.source.reset ||
+        source.svc !== previous.source.svc
+      ) {
         return DEFAULT_STREAM_SVC_MODE;
       }
       return previous.value;
     },
   });
 
-  protected readonly stringifyLayer = (layer: TStreamLayer): string =>
-    formatStreamLayer(layer);
+  protected readonly effectiveSvcMode = computed(() => {
+    const codec = this.codec();
+    const svcMode = this.svcMode();
+    if (!streamSupportsSvc(codec)) {
+      return null;
+    }
+    return svcMode;
+  });
+
+  protected readonly stringifyLayer = (layer: TStreamLayer): string => {
+    const label = formatStreamLayer(layer);
+    const isDefault = defaultExtraLayers({
+      height: this.height(),
+      fps: this.fps(),
+    }).some((item) => item.height === layer.height && item.fps === layer.fps);
+    if (!isDefault) {
+      return label;
+    }
+    return this.translateService.instant('CALL.STREAM_DEFAULT_VALUE', {
+      value: label,
+    });
+  };
 
   protected readonly matchLayer = (
     left: TStreamLayer,
@@ -359,27 +463,18 @@ export class StreamQualityDialogComponent {
       contentMode: TStreamContentMode;
       extra: TStreamLayer[];
       codec: TStreamVideoCodec;
-      svcMode: TStreamSvcMode;
+      svcMode: TStreamSvcMode | null;
     },
     number
   >({
-    source: () => {
-      const height = this.height();
-      const fps = this.fps();
-      const contentMode = this.contentMode();
-      const screen = this.isScreen();
-      const extra = this.extraLayers();
-      const codec = this.codec();
-      const svcMode = this.svcMode();
-      return {
-        height,
-        fps,
-        contentMode: screen ? contentMode : 'motion',
-        extra,
-        codec,
-        svcMode,
-      };
-    },
+    source: () => ({
+      height: this.height(),
+      fps: this.fps(),
+      contentMode: this.effectiveContentMode(),
+      extra: this.effectiveExtraLayers(),
+      codec: this.codec(),
+      svcMode: this.effectiveSvcMode(),
+    }),
     computation: (source, previous) => {
       if (
         !previous &&
@@ -391,23 +486,24 @@ export class StreamQualityDialogComponent {
           Math.max(STREAM_BITRATE_SLIDER_MIN_KBPS, this.initialBitrateKbps),
         );
       }
-      return recommendStreamBitrateKbps({
-        height: source.height,
-        fps: source.fps,
-        contentMode: source.contentMode,
-        maxKbps: this.maxBitrateKbps,
-        extra: source.extra,
-        codec: source.codec,
-        svcMode: streamSupportsSvc(source.codec) ? source.svcMode : undefined,
-      });
+      return this.recommendedBitrate(source);
     },
   });
 
   protected readonly showBitrateWarning = computed(
     () => this.bitrateKbps() > STREAM_BITRATE_WARN_KBPS,
   );
+  protected readonly storedCameraInput = this.context.data?.cameraInput ?? null;
+  protected readonly selectedCamera = signal<MediaDeviceInfo | null>(null);
+  protected readonly previewBlocked = signal(true);
+  protected readonly confirmDisabled = computed(() => {
+    const screen = this.isScreen();
+    const blocked = this.previewBlocked();
+    return !screen && blocked;
+  });
 
   constructor() {
+    this.hardwareLabel.defaultCodec.set(this.probedCodec());
     this.destroyRef.onDestroy(() => {
       this.closed = true;
       this.probeGeneration += 1;
@@ -417,23 +513,46 @@ export class StreamQualityDialogComponent {
     effect(() => {
       const height = this.height();
       const fps = this.fps();
-      const contentMode = this.contentMode();
-      const screen = this.isScreen();
-      this.scheduleHardwareProbe({
-        height,
-        fps,
-        contentMode: screen ? contentMode : 'motion',
-      });
+      const contentMode = this.effectiveContentMode();
+      this.scheduleHardwareProbe({ height, fps, contentMode });
     });
   }
 
-  protected onCodecChange(codec: TStreamVideoCodec): void {
+  protected onCodecChange(codec: TStreamVideoCodec | null): void {
+    if (codec == null) {
+      return;
+    }
     this.codecLocked = true;
     this.codec.set(codec);
   }
 
-  protected onExtraLayersChange(layers: readonly TStreamLayer[]): void {
-    this.extraLayers.set(layers.slice(0, STREAM_EXTRA_LAYERS_MAX));
+  protected onExtraLayersChange(layers: readonly TStreamLayer[] | null): void {
+    this.extraLayers.set((layers ?? []).slice(0, STREAM_EXTRA_LAYERS_MAX));
+  }
+
+  protected onReset(): void {
+    this.codecLocked = false;
+    this.height.set(DEFAULT_STREAM_HEIGHT);
+    this.fps.set(DEFAULT_STREAM_FPS);
+    this.contentMode.set(DEFAULT_SCREEN_CONTENT_MODE);
+    this.codec.set(this.probedCodec());
+    this.formReset.update((value) => value + 1);
+    const codec = this.probedCodec();
+    this.bitrateKbps.set(
+      this.recommendedBitrate({
+        height: DEFAULT_STREAM_HEIGHT,
+        fps: DEFAULT_STREAM_FPS,
+        contentMode: this.effectiveContentMode(),
+        extra: streamSupportsSimulcast(codec)
+          ? defaultExtraLayers({
+              height: DEFAULT_STREAM_HEIGHT,
+              fps: DEFAULT_STREAM_FPS,
+            })
+          : [],
+        codec,
+        svcMode: streamSupportsSvc(codec) ? DEFAULT_STREAM_SVC_MODE : null,
+      }),
+    );
   }
 
   protected onCancel(): void {
@@ -447,18 +566,20 @@ export class StreamQualityDialogComponent {
     this.confirming = true;
     try {
       await this.flushHardwareProbe();
-      if (this.closed) {
+      if (this.closed || this.confirmDisabled()) {
         return;
       }
-      const contentMode = this.isScreen() ? this.contentMode() : undefined;
+      const screen = this.isScreen();
+      const cameraInput = screen ? null : this.selectedCamera();
       this.context.completeWith({
         height: this.height(),
         fps: this.fps(),
         extraLayers: this.extraLayers(),
         svcMode: this.svcMode(),
-        bitrateKbps: Math.min(this.maxBitrateKbps, this.bitrateKbps()),
+        bitrateKbps: this.confirmedBitrateKbps(),
         codec: this.codec(),
-        ...(contentMode ? { contentMode } : {}),
+        cameraInput,
+        ...(screen ? { contentMode: this.contentMode() } : {}),
       });
     } finally {
       this.confirming = false;
@@ -529,9 +650,37 @@ export class StreamQualityDialogComponent {
       return;
     }
     this.hardwareLabel.codec.set(choice.hardwareCodec);
+    this.hardwareLabel.defaultCodec.set(choice.codec);
+    this.probedCodec.set(choice.codec);
     if (!this.codecLocked) {
       this.codec.set(choice.codec);
     }
+  }
+
+  private recommendedBitrate(source: {
+    height: TStreamHeight;
+    fps: TStreamFps;
+    contentMode: TStreamContentMode;
+    extra: TStreamLayer[];
+    codec: TStreamVideoCodec;
+    svcMode: TStreamSvcMode | null;
+  }): number {
+    return recommendStreamBitrateKbps({
+      height: source.height,
+      fps: source.fps,
+      contentMode: source.contentMode,
+      maxKbps: this.maxBitrateKbps,
+      extra: source.extra,
+      codec: source.codec,
+      svcMode: source.svcMode ?? undefined,
+    });
+  }
+
+  private confirmedBitrateKbps(): number {
+    return Math.min(
+      this.maxBitrateKbps,
+      Math.max(STREAM_BITRATE_SLIDER_MIN_KBPS, this.bitrateKbps()),
+    );
   }
 
   private clearProbeTimer(): void {

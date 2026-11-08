@@ -1,11 +1,22 @@
 @if (createdInvite(); as invite) {
   <div class="result-container">
-    <p class="success-message">
-      {{ 'SETTINGS.INVITES.CREATED_SUCCESS' | translate }}
-    </p>
+    @if (invite.emailSent && invite.email) {
+      <p class="success-message">
+        {{
+          'SETTINGS.INVITES.CREATED_AND_SENT_SUCCESS'
+            | translate: { email: invite.email }
+        }}
+      </p>
+    } @else {
+      <p class="success-message">
+        {{ 'SETTINGS.INVITES.CREATED_SUCCESS' | translate }}
+      </p>
+    }
 
     <div class="copy-wrapper">
-      <tui-copy>{{ inviteUrl() }}</tui-copy>
+      <tui-copy>
+        <span>{{ inviteUrl() }}</span>
+      </tui-copy>
     </div>
 
     <div class="dialog-actions">
@@ -40,6 +51,20 @@
       <tui-error [error]="err | translate" />
     }
 
+    @if (canSendEmail()) {
+      <div class="checkbox-container">
+        <label
+          tuiLabel
+          class="send-email-checkbox">
+          <input
+            tuiCheckbox
+            type="checkbox"
+            formControlName="sendEmail" />
+          <span>{{ 'SETTINGS.INVITES.SEND_EMAIL_LABEL' | translate }}</span>
+        </label>
+      </div>
+    }
+
     <tui-textfield [iconStart]="icons.clock">
       <label
         tuiLabel
@@ -56,10 +81,6 @@
     </tui-textfield>
     @if (errors().ttlMinutes; as err) {
       <tui-error [error]="err | translate" />
-    }
-
-    @if (error(); as err) {
-      <tui-error [error]="err" />
     }
 
     <div class="dialog-actions">
