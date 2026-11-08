@@ -326,6 +326,18 @@ export type TVoiceRoomProducerScore = z.infer<
   typeof voiceRoomProducerScoreSchema
 >;
 
+export const voiceRoomMoveMemberSchema = z.object({
+  userId: z.number().int().positive(),
+  targetRoomId: z.number().int().positive(),
+});
+export type TVoiceRoomMoveMember = z.infer<typeof voiceRoomMoveMemberSchema>;
+
+export const voiceRoomMovedSchema = z.object({
+  roomId: z.number().int().positive(),
+  byUserId: z.number().int().positive(),
+});
+export type TVoiceRoomMoved = z.infer<typeof voiceRoomMovedSchema>;
+
 export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.JOIN_ROOM]: TVoiceRoomJoin;
   [EVoiceRoomEvent.LEAVE_ROOM]: void;
@@ -352,6 +364,8 @@ export type TVoiceRoomEventPayloadMap = {
   [EVoiceRoomEvent.PEER_MUTE_CHANGED]: TVoiceRoomPeerMuted;
   [EVoiceRoomEvent.SESSION_CHECK]: void;
   [EVoiceRoomEvent.RESTART_ICE]: TVoiceRoomRestartIce;
+  [EVoiceRoomEvent.MOVE_MEMBER]: TVoiceRoomMoveMember;
+  [EVoiceRoomEvent.MOVED]: TVoiceRoomMoved;
   [EVoiceRoomEvent.ERROR]: TVoiceRoomError;
 } & TDirectCallEventPayloadMap;
 
@@ -382,6 +396,8 @@ export type TVoiceRoomEventResultMap = {
   [EVoiceRoomEvent.PEER_MUTE_CHANGED]: void;
   [EVoiceRoomEvent.SESSION_CHECK]: TVoiceRoomSessionCheckResult;
   [EVoiceRoomEvent.RESTART_ICE]: TVoiceRoomRestartIceResult;
+  [EVoiceRoomEvent.MOVE_MEMBER]: object;
+  [EVoiceRoomEvent.MOVED]: void;
   [EVoiceRoomEvent.ERROR]: void;
 } & TDirectCallEventResultMap;
 

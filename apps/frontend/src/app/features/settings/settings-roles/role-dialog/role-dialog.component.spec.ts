@@ -83,6 +83,11 @@ describe('RoleDialogComponent', () => {
         (p) => p.permission === EPermission.MENTION_EVERYONE,
       ),
     ).toBe(true);
+    expect(
+      component['availablePermissions'].some(
+        (p) => p.permission === EPermission.MOVE_MEMBERS,
+      ),
+    ).toBe(true);
   });
 
   it('renders interactive permission checkboxes with ngModel', async () => {

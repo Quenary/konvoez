@@ -5,10 +5,11 @@ import { RoomsService } from './rooms.service';
 import { RoomsFacade } from './rooms.facade';
 import { RoomsController } from './rooms.controller';
 import { RoomsAvatarsService } from './rooms-avatars.service';
+import { VoiceRoomGrantsModule } from '../voice-rooms/voice-room-grants.module';
 
 @Global()
 @Module({
-  imports: [MikroOrmModule.forFeature([RoomEntity])],
+  imports: [MikroOrmModule.forFeature([RoomEntity]), VoiceRoomGrantsModule],
   controllers: [RoomsController],
   providers: [RoomsService, RoomsAvatarsService, RoomsFacade],
   exports: [RoomsService, RoomsFacade],

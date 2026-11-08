@@ -1,5 +1,7 @@
 import { computed, effect, inject, Injectable, untracked } from '@angular/core';
+import { isActive, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { UsersStore } from '@core/stores/users.store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
@@ -13,6 +15,7 @@ import {
   EVoiceRoomEvent,
   EVoiceSessionType,
   TVoiceRoomJoin,
+  TVoiceRoomMoved,
   TVoiceRoomProduceResult,
   TVoiceRoomSessionCheckResult,
   TVoiceRoomSetMuteState,
@@ -80,6 +83,8 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly translateService = inject(TranslateService);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly voiceConnectionStore = inject(VoiceConnectionStore);
+  private readonly router = inject(Router);
+  private readonly usersStore = inject(UsersStore);
 
   private iceTimer: ReturnType<typeof setTimeout> | null = null;
   private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
@@ -122,6 +127,10 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       ) {
         void this.rejoin();
       }
+    });
+
+    this.socket.on(EVoiceRoomEvent.MOVED, (data: TVoiceRoomMoved) => {
+      this.handleVoiceMoved(data);
     });
 
     effect(() => {
@@ -234,6 +243,13 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     await this.leaveSessionLocked();
   }
 
+  public async moveMember(userId: number, targetRoomId: number): Promise<void> {
+    await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.MOVE_MEMBER, {
+      userId,
+      targetRoomId,
+    });
+  }
+
   @Mutexed(micControlsMutex)
   public async setAudioInput(device: MediaDeviceInfo | null): Promise<void> {
     await this.microphoneService.setDevice(device);
@@ -308,6 +324,44 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     } finally {
       this.rearmRejoinTimerIfUnhealthy();
     }
+  }
+
+  private handleVoiceMoved(data: TVoiceRoomMoved): void {
+    const session = this.voiceSessionStore.activeSession();
+    if (!session || session.type !== EVoiceSessionType.GROUP_ROOM) {
+      return;
+    }
+
+    const user = this.usersStore.entityMap()[data.byUserId];
+    const name = user?.fullname || user?.username || `#${data.byUserId}`;
+
+    this.tuiNotificationsService
+      .open(this.translateService.instant('VOICE.MOVED_BY', { name }), {
+        appearance: 'info',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
+
+    const voiceRoomOpen = isActive('/voice-room', this.router, {
+      paths: 'subset',
+      queryParams: 'ignored',
+      fragment: 'ignored',
+      matrixParams: 'ignored',
+    })();
+
+    void this.joinSession({
+      type: EVoiceSessionType.GROUP_ROOM,
+      roomId: data.roomId,
+    })
+      .then(() => {
+        if (voiceRoomOpen) {
+          void this.router.navigate(['/voice-room', data.roomId]);
+        }
+      })
+      .catch((error: unknown) => {
+        this.reportJoinFailure(error);
+      });
   }
 
   private async rejoinSessionLocked(

@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   OnGatewayConnection,
@@ -9,11 +9,13 @@ import {
 } from '@nestjs/websockets';
 import { DefaultEventsMap, Server, Socket } from 'socket.io';
 import {
+  ApiErrorCode,
   EEntitySyncEvent,
   ESocketEvent,
   type IRoom,
   type TEntitySyncEventMap,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from '../auth/auth.service';
 import { UserPresenceService } from '../users/user-presence.service';
 import {
@@ -35,6 +37,7 @@ import {
 import { GetUserSafeDto } from '../users/users.dto';
 import { UsersService } from '../users/users.service';
 import { RoomsFacade } from '../rooms/rooms.facade';
+import { VoiceRoomGrantsService } from '../voice-rooms/voice-room-grants.service';
 
 type TSocket = Socket<
   TEntitySyncEventMap,
@@ -64,6 +67,11 @@ export class EntitySyncGateway
 
   @Inject(RoomsFacade)
   private readonly roomsFacade!: RoomsFacade;
+
+  @Inject(VoiceRoomGrantsService)
+  private readonly voiceRoomGrantsService!: VoiceRoomGrantsService;
+
+  private readonly logger = new Logger(EntitySyncGateway.name);
 
   @SubscribeMessage(ESocketEvent.PING)
   handlePing(): object {
@@ -154,11 +162,61 @@ export class EntitySyncGateway
     }
     for (const [_, client] of this.server.sockets.sockets) {
       if (client.data.user) {
-        if (this.canUserAccessRoom(client.data.user, payload)) {
+        const isGuest = this.voiceRoomGrantsService.isUserActiveGuestInRoom(
+          client.data.user.id,
+          payload.id,
+        );
+        if (this.canUserAccessRoom(client.data.user, payload) || isGuest) {
           client.emit(EEntitySyncEvent.ROOM_UPDATED, payload);
         } else {
           client.emit(EEntitySyncEvent.ROOM_DELETED, { id: payload.id });
         }
+      }
+    }
+  }
+
+  @OnEvent(VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_ENTERED)
+  async onVoiceRoomGuestEntered(
+    payload: TVoiceRoomsDomainPayloadMap[typeof VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_ENTERED],
+  ): Promise<void> {
+    try {
+      const room = await this.roomsFacade.findById(payload.roomId);
+      for (const client of this.server.sockets.sockets.values()) {
+        if (client.data.userId === payload.userId) {
+          client.emit(EEntitySyncEvent.ROOM_CREATED, room);
+        }
+      }
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Failed to publish guest room ${payload.roomId} for user ${payload.userId}: ${this.errorMessage(error)}`,
+      );
+    }
+  }
+
+  @OnEvent(VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_LEFT)
+  async onVoiceRoomGuestLeft(
+    payload: TVoiceRoomsDomainPayloadMap[typeof VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_LEFT],
+  ): Promise<void> {
+    try {
+      const room = await this.roomsFacade.findById(payload.roomId);
+      for (const client of this.server.sockets.sockets.values()) {
+        if (client.data.userId !== payload.userId) {
+          continue;
+        }
+        const user = client.data.user;
+        if (!user || !this.canUserAccessRoom(user, room)) {
+          client.emit(EEntitySyncEvent.ROOM_DELETED, { id: payload.roomId });
+        }
+      }
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Failed to hide guest room ${payload.roomId} for user ${payload.userId}: ${this.errorMessage(error)}`,
+      );
+      if (
+        error instanceof AppException &&
+        error.code === ApiErrorCode.ROOM_NOT_FOUND
+      ) {
+        this.hideRoomForUser(payload.userId, payload.roomId);
       }
     }
   }
@@ -278,5 +336,17 @@ export class EntitySyncGateway
 
   private canUserAccessRoom(user: GetUserSafeDto, room: IRoom): boolean {
     return this.roomsFacade.canAccessRoom(user, room);
+  }
+
+  private hideRoomForUser(userId: number, roomId: number): void {
+    for (const client of this.server.sockets.sockets.values()) {
+      if (client.data.userId === userId) {
+        client.emit(EEntitySyncEvent.ROOM_DELETED, { id: roomId });
+      }
+    }
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 }

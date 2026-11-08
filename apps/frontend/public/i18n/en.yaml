@@ -184,6 +184,8 @@ VOICE:
   CONNECTION_LOST: Voice connection lost
   CONNECTION_RESTORED: Voice connection restored
   REJOIN: Reconnect
+  MOVED_BY: You were moved by {{name}}
+  MOVE_TO: Move to...
 ROOMS:
   UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...
@@ -423,6 +425,7 @@ SETTINGS:
       USE_ATTACHMENTS: Use attachments
       MODERATE_MESSAGES: Moderate messages
       MENTION_EVERYONE: Mention @everyone and roles
+      MOVE_MEMBERS: Move members between voice rooms
   ADMIN:
     TITLE: Administration
     SUBTITLE: Global server settings

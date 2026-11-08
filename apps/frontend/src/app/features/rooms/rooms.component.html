@@ -65,6 +65,7 @@
     tuiAsideItem
     [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
     tuiDropdownContext
+    [tuiDropdownSided]="true"
     (longtap)="onRoomLongtap(room)"
     (click)="onRoomClick(room)">
     <tui-badged-content class="aside-badge">
@@ -120,41 +121,89 @@
   }
 </button>
 
-@for (room of voiceRooms(); track room.id) {
-  <button
-    class="room-item"
-    tuiAsideItem
-    [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
-    tuiDropdownContext
-    (longtap)="onRoomLongtap(room)"
-    (click)="onRoomClick(room)">
-    <app-pulse-indicator [isActive]="room.isUserInRoom">
-      <div
-        tuiAvatar
-        size="xs">
-        @if (room.avatarUrl) {
-          <img
-            [alt]="room.name"
-            [ngSrc]="room.avatarUrl"
-            fill
-            priority />
-        } @else {
-          {{ room.name | tuiInitials }}
-        }
-      </div>
-    </app-pulse-indicator>
-    <span tuiFade>{{ room.name }}</span>
-  </button>
+<div
+  class="voice-rooms-group"
+  cdkDropListGroup>
+  @let dropTargetId = dropTargetRoomId();
+  @for (room of voiceRooms(); track room.id) {
+    <div
+      class="voice-room-container"
+      [class.drop-target]="dropTargetId === room.id"
+      cdkDropList
+      [cdkDropListData]="room"
+      [cdkDropListDisabled]="!canMoveMembers()"
+      [cdkDropListSortingDisabled]="true"
+      (cdkDropListEntered)="onMemberDragEntered(room)"
+      (cdkDropListExited)="onMemberDragExited(room)"
+      (cdkDropListDropped)="onMemberDropped($event, room)">
+      <button
+        class="room-item"
+        tuiAsideItem
+        [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
+        tuiDropdownContext
+        [tuiDropdownSided]="true"
+        (longtap)="onRoomLongtap(room)"
+        (click)="onRoomClick(room)">
+        <app-pulse-indicator [isActive]="room.isUserInRoom">
+          <div
+            tuiAvatar
+            size="xs">
+            @if (room.avatarUrl) {
+              <img
+                [alt]="room.name"
+                [ngSrc]="room.avatarUrl"
+                fill
+                priority />
+            } @else {
+              {{ room.name | tuiInitials }}
+            }
+          </div>
+        </app-pulse-indicator>
+        <span tuiFade>{{ room.name }}</span>
+      </button>
 
-  @if (!collapsed()) {
-    @for (peer of room.peers; track peer.id) {
-      <app-room-peer
-        class="room-peer-item"
-        [peer]="peer"
-        [appWithUserDialog]="peer"></app-room-peer>
+      @if (!collapsed()) {
+        @for (peer of room.peers; track peer.id) {
+          <app-room-peer
+            class="room-peer-item"
+            [class.can-move]="peer.canMove"
+            cdkDrag
+            [cdkDragData]="peer"
+            [cdkDragDisabled]="!peer.canMove"
+            [cdkDragStartDelay]="dragStartDelay"
+            (cdkDragEnded)="onMemberDragEnded()"
+            [tuiDropdown]="peer.canMove ? peerContextMenu : null"
+            tuiDropdownContext
+            (longtap)="onPeerLongtap(peer, room)"
+            (click)="onPeerClick(peer)"
+            [peer]="peer"></app-room-peer>
+        }
+      }
+    </div>
+  }
+</div>
+
+<ng-template
+  #peerContextMenu
+  let-close>
+  @if (selectedPeerForMenu(); as selected) {
+    @let targets = moveTargetRooms();
+    @if (targets.length > 0) {
+      <tui-data-list>
+        <tui-opt-group [label]="'VOICE.MOVE_TO' | translate">
+          @for (target of targets; track target.id) {
+            <button
+              tuiOption
+              type="button"
+              (click)="moveMember(selected.peer, target); close()">
+              {{ target.name }}
+            </button>
+          }
+        </tui-opt-group>
+      </tui-data-list>
     }
   }
-}
+</ng-template>
 
 <ng-template
   #roomContextMenu

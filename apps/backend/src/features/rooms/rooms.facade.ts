@@ -75,8 +75,11 @@ export class RoomsFacade {
     return this.roomsService.findOneAsSafeDto(id, author);
   }
 
-  async findAll(author?: GetUserSafeDto): Promise<GetRoomDto[]> {
-    return this.roomsService.findAllAsSafeDto(author);
+  async findAll(
+    author?: GetUserSafeDto,
+    alsoVisibleRoomIds?: readonly number[],
+  ): Promise<GetRoomDto[]> {
+    return this.roomsService.findAllAsSafeDto(author, alsoVisibleRoomIds);
   }
 
   async findPrivateRooms(): Promise<GetRoomDto[]> {

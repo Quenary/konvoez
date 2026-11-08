@@ -164,7 +164,10 @@ export class RoomsService {
     return this.toDto(await this.findOne(id, author));
   }
 
-  async findAll(author?: GetUserSafeDto): Promise<RoomEntity[]> {
+  async findAll(
+    author?: GetUserSafeDto,
+    alsoVisibleRoomIds: readonly number[] = [],
+  ): Promise<RoomEntity[]> {
     return ensureRequestContext(this.em, async () => {
       const rooms = await this.repo.findAll({
         populate: ['author', 'allowedRoles', 'allowedUsers'],
@@ -172,12 +175,18 @@ export class RoomsService {
       if (!author) {
         return rooms.filter((r) => !r.isPrivate);
       }
-      return rooms.filter((r) => this.canAccessRoom(author, r));
+      const extraRoomIds = new Set(alsoVisibleRoomIds);
+      return rooms.filter(
+        (room) => this.canAccessRoom(author, room) || extraRoomIds.has(room.id),
+      );
     });
   }
 
-  async findAllAsSafeDto(author?: GetUserSafeDto): Promise<GetRoomDto[]> {
-    const rooms = await this.findAll(author);
+  async findAllAsSafeDto(
+    author?: GetUserSafeDto,
+    alsoVisibleRoomIds: readonly number[] = [],
+  ): Promise<GetRoomDto[]> {
+    const rooms = await this.findAll(author, alsoVisibleRoomIds);
     return rooms.map((room) => this.toDto(room));
   }
 

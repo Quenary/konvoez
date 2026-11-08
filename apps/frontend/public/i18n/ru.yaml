@@ -184,6 +184,8 @@ VOICE:
   CONNECTION_LOST: Голосовая связь потеряна
   CONNECTION_RESTORED: Голосовая связь восстановлена
   REJOIN: Переподключиться
+  MOVED_BY: Вас переместил {{name}}
+  MOVE_TO: Переместить в...
 ROOMS:
   UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
@@ -423,6 +425,7 @@ SETTINGS:
       USE_ATTACHMENTS: Отправка вложений
       MODERATE_MESSAGES: Модерирование сообщений
       MENTION_EVERYONE: Упоминать @everyone и роли
+      MOVE_MEMBERS: Перемещение участников между голосовыми комнатами
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
