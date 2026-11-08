@@ -1,3 +1,15 @@
+## 1.30.0 (2026-11-08)
+
+### Features
+
+- **server:** send invites by email ([#57](https://github.com/Quenary/konvoez/issues/57))
+- **frontend:** pull to refresh (mobile) ([4fa8d97](https://github.com/Quenary/konvoez/commit/4fa8d97))
+- **frontend:** camera selection with preview ([#79](https://github.com/Quenary/konvoez/issues/79))
+
+### Code Refactoring
+
+- **frontend:** stream start dialog layout and mark default options ([35e7577](https://github.com/Quenary/konvoez/commit/35e7577))
+
 ## 1.29.0 (2026-11-06)
 
 ### Features

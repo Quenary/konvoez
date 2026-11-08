@@ -1,3 +1,7 @@
+## 0.13.0 (2026-11-08)
+
+This was a version bump only for desktop to align it with other projects, there were no code changes.
+
 ## 0.12.0 (2026-11-06)
 
 ### Features
