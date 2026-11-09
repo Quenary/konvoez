@@ -97,3 +97,11 @@
 .cdk-drag-animating {
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
 }
+
+button[tuiOption].destructive {
+  color: var(--tui-text-negative, var(--tui-status-negative));
+
+  &:hover {
+    color: var(--tui-text-negative-hover, var(--tui-status-negative));
+  }
+}

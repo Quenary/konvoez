@@ -186,6 +186,8 @@ VOICE:
   REJOIN: Переподключиться
   MOVED_BY: Вас переместил {{name}}
   MOVE_TO: Переместить в...
+  DISCONNECTED_BY: Вас отключил от голосовой комнаты {{name}}
+  DISCONNECT_FROM_VOICE: Отключить от голосовой комнаты
 ROOMS:
   UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...

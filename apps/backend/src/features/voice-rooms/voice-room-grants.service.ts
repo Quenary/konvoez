@@ -165,6 +165,26 @@ export class VoiceRoomGrantsService implements OnModuleDestroy {
     return retained !== undefined && Date.now() <= retained.expiresAt;
   }
 
+  /**
+   * Revokes any temporary move grant and guest access for a user in a room,
+   * ensuring no retained-guest window or pending grant remains.
+   */
+  public revokeGuestAccess(userId: number, roomId: number): void {
+    const key = this.grantKey(userId, roomId);
+    this.grants.delete(key);
+    const wasRetained = this.retainedGuests.delete(key);
+    let hadSocket = false;
+    for (const [socketId, record] of this.activeGuestsBySocket.entries()) {
+      if (record.userId === userId && record.roomId === roomId) {
+        this.activeGuestsBySocket.delete(socketId);
+        hadSocket = true;
+      }
+    }
+    if (hadSocket || wasRetained) {
+      this.emitGuestLeft(userId, roomId);
+    }
+  }
+
   public getUserActiveGuestRooms(userId: number): number[] {
     const now = Date.now();
     const roomIds = new Set<number>();

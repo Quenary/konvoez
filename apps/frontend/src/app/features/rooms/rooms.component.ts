@@ -391,18 +391,33 @@ export class RoomsComponent implements OnInit {
     try {
       await this.voiceSessionService.moveMember(peer.id, targetRoom.id);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : this.translateService.instant('GENERAL.UNKNOWN_ERROR');
-      this.tuiNotificationsService
-        .open(message, {
-          appearance: 'error',
-          autoClose: 5000,
-          closable: true,
-        })
-        .subscribe();
+      this.notifyError(error);
     }
+  }
+
+  protected async disconnectMember(
+    peer: TVoiceRoomPeerUser,
+    roomId: number,
+  ): Promise<void> {
+    try {
+      await this.voiceSessionService.disconnectMember(peer.id, roomId);
+    } catch (error: unknown) {
+      this.notifyError(error);
+    }
+  }
+
+  private notifyError(error: unknown): void {
+    const message =
+      error instanceof Error
+        ? error.message
+        : this.translateService.instant('GENERAL.UNKNOWN_ERROR');
+    this.tuiNotificationsService
+      .open(message, {
+        appearance: 'error',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
   }
 
   private clearRoomClickSuppression(): void {

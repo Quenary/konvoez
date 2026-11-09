@@ -188,8 +188,8 @@
   let-close>
   @if (selectedPeerForMenu(); as selected) {
     @let targets = moveTargetRooms();
-    @if (targets.length > 0) {
-      <tui-data-list>
+    <tui-data-list>
+      @if (targets.length > 0) {
         <tui-opt-group [label]="'VOICE.MOVE_TO' | translate">
           @for (target of targets; track target.id) {
             <button
@@ -200,8 +200,16 @@
             </button>
           }
         </tui-opt-group>
-      </tui-data-list>
-    }
+        <hr />
+      }
+      <button
+        tuiOption
+        class="destructive"
+        type="button"
+        (click)="disconnectMember(selected.peer, selected.roomId); close()">
+        {{ 'VOICE.DISCONNECT_FROM_VOICE' | translate }}
+      </button>
+    </tui-data-list>
   }
 </ng-template>
 

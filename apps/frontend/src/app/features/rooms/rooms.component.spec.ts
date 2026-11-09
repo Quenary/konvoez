@@ -133,6 +133,7 @@ describe('RoomsComponent', () => {
 
   const voiceSessionService = {
     moveMember: vi.fn().mockResolvedValue(undefined),
+    disconnectMember: vi.fn().mockResolvedValue(undefined),
   };
 
   const userDialogService = {
@@ -684,6 +685,25 @@ describe('RoomsComponent', () => {
       await component['moveMember'](bob, secondVoiceRoom);
       expect(tuiNotificationsService.open).toHaveBeenCalledWith(
         'Forbidden',
+        expect.objectContaining({ appearance: 'error' }),
+      );
+    });
+
+    it('disconnectMember delegates to voiceSessionService.disconnectMember', async () => {
+      await component['disconnectMember'](bob, voiceRoom.id);
+      expect(voiceSessionService.disconnectMember).toHaveBeenCalledWith(
+        bob.id,
+        voiceRoom.id,
+      );
+    });
+
+    it('disconnectMember shows an error notification if disconnectMember rejects', async () => {
+      voiceSessionService.disconnectMember.mockRejectedValueOnce(
+        new Error('Disconnect denied'),
+      );
+      await component['disconnectMember'](bob, voiceRoom.id);
+      expect(tuiNotificationsService.open).toHaveBeenCalledWith(
+        'Disconnect denied',
         expect.objectContaining({ appearance: 'error' }),
       );
     });

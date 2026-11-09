@@ -1390,4 +1390,80 @@ describe('VoiceSessionService', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/voice-room', 15]);
     });
   });
+
+  describe('disconnecting members', () => {
+    it('emits DISCONNECT_MEMBER event on disconnectMember', async () => {
+      socket.connected = true;
+      socket.emitWithAck.mockResolvedValueOnce({ ok: true, data: {} });
+
+      await service.disconnectMember(42, 10);
+
+      expect(socket.emitWithAck).toHaveBeenCalledWith(
+        EVoiceRoomEvent.DISCONNECT_MEMBER,
+        { userId: 42, roomId: 10 },
+      );
+    });
+
+    it('ignores DISCONNECTED when there is no active group voice session', () => {
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 15,
+        byUserId: 42,
+      });
+
+      expect(leaveSpy).not.toHaveBeenCalled();
+      expect(notifications.open).not.toHaveBeenCalled();
+    });
+
+    it('ignores DISCONNECTED when roomId does not match active session', () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 15,
+        byUserId: 42,
+      });
+
+      expect(leaveSpy).not.toHaveBeenCalled();
+      expect(notifications.open).not.toHaveBeenCalled();
+    });
+
+    it('handles DISCONNECTED by notifying user, leaving session, navigating to / and not auto-rejoining', async () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+      const router = TestBed.inject(Router);
+      vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      await router.navigateByUrl('/voice-room/1');
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 1,
+        byUserId: 42,
+      });
+      await Promise.resolve();
+
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.DISCONNECTED_BY',
+        expect.objectContaining({
+          appearance: 'info',
+          autoClose: 5000,
+          closable: true,
+        }),
+      );
+      expect(router.navigate).toHaveBeenCalledWith(['/']);
+      expect(leaveSpy).toHaveBeenCalled();
+    });
+  });
 });

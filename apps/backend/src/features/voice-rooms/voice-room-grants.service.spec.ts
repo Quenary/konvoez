@@ -111,5 +111,44 @@ describe('VoiceRoomGrantsService', () => {
     it('returns null when removing a non-existent guest socket', () => {
       expect(service.removeActiveGuest('unknown-socket')).toBeNull();
     });
+
+    it('revokes active guest, retained guest and pending grants immediately on revokeGuestAccess', () => {
+      service.createGrant(1, 10);
+      service.addActiveGuest(1, 10, 'socket-a');
+      service.addActiveGuest(1, 10, 'socket-b');
+
+      expect(service.hasGrant(1, 10)).toBe(true);
+      expect(service.isUserActiveGuestInRoom(1, 10)).toBe(true);
+
+      service.revokeGuestAccess(1, 10);
+
+      expect(service.hasGrant(1, 10)).toBe(false);
+      expect(service.isUserActiveGuestInRoom(1, 10)).toBe(false);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_LEFT,
+        { userId: 1, roomId: 10 },
+      );
+
+      // Re-calling revoke when user is not a guest does not emit again
+      eventEmitter.emit.mockClear();
+      service.revokeGuestAccess(1, 10);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('revokes retained guest on revokeGuestAccess and emits guest-left', () => {
+      service.addActiveGuest(1, 10, 'socket-a');
+      service.removeActiveGuest('socket-a', true); // retained
+
+      expect(service.isUserActiveGuestInRoom(1, 10)).toBe(true);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+
+      service.revokeGuestAccess(1, 10);
+
+      expect(service.isUserActiveGuestInRoom(1, 10)).toBe(false);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_LEFT,
+        { userId: 1, roomId: 10 },
+      );
+    });
   });
 });

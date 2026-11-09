@@ -13,6 +13,7 @@ import {
   voiceRoomCreateTransportSchema,
   voiceRoomJoinSchema,
   voiceRoomMoveMemberSchema,
+  voiceRoomDisconnectMemberSchema,
   voiceRoomProduceSchema,
   voiceRoomRestartIceSchema,
   voiceRoomSetConsumerLayersSchema,
@@ -71,4 +72,8 @@ export class CallGetActiveDto extends createZodDto(
 
 export class VoiceRoomMoveMemberDto extends createZodDto(
   voiceRoomMoveMemberSchema,
+) {}
+
+export class VoiceRoomDisconnectMemberDto extends createZodDto(
+  voiceRoomDisconnectMemberSchema,
 ) {}

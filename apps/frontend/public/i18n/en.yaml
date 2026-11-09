@@ -186,6 +186,8 @@ VOICE:
   REJOIN: Reconnect
   MOVED_BY: You were moved by {{name}}
   MOVE_TO: Move to...
+  DISCONNECTED_BY: You were disconnected from the voice room by {{name}}
+  DISCONNECT_FROM_VOICE: Disconnect from voice
 ROOMS:
   UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...

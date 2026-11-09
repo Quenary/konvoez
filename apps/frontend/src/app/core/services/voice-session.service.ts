@@ -16,6 +16,7 @@ import {
   EVoiceSessionType,
   TVoiceRoomJoin,
   TVoiceRoomMoved,
+  TVoiceRoomDisconnected,
   TVoiceRoomProduceResult,
   TVoiceRoomSessionCheckResult,
   TVoiceRoomSetMuteState,
@@ -132,6 +133,13 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     this.socket.on(EVoiceRoomEvent.MOVED, (data: TVoiceRoomMoved) => {
       this.handleVoiceMoved(data);
     });
+
+    this.socket.on(
+      EVoiceRoomEvent.DISCONNECTED,
+      (data: TVoiceRoomDisconnected) => {
+        this.handleVoiceDisconnected(data);
+      },
+    );
 
     effect(() => {
       const state = this.voiceConnectionStore.state();
@@ -250,6 +258,16 @@ export class VoiceSessionService implements IAudioDeviceHandler {
     });
   }
 
+  public async disconnectMember(
+    userId: number,
+    roomId?: number,
+  ): Promise<void> {
+    await emitVoiceRoomWithAck(this.socket, EVoiceRoomEvent.DISCONNECT_MEMBER, {
+      userId,
+      ...(roomId !== undefined ? { roomId } : {}),
+    });
+  }
+
   @Mutexed(micControlsMutex)
   public async setAudioInput(device: MediaDeviceInfo | null): Promise<void> {
     await this.microphoneService.setDevice(device);
@@ -362,6 +380,41 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       .catch((error: unknown) => {
         this.reportJoinFailure(error);
       });
+  }
+
+  private handleVoiceDisconnected(data: TVoiceRoomDisconnected): void {
+    const session = this.voiceSessionStore.activeSession();
+    if (
+      !session ||
+      session.type !== EVoiceSessionType.GROUP_ROOM ||
+      session.roomId !== data.roomId
+    ) {
+      return;
+    }
+
+    const user = this.usersStore.entityMap()[data.byUserId];
+    const name = user?.fullname || user?.username || `#${data.byUserId}`;
+
+    this.tuiNotificationsService
+      .open(this.translateService.instant('VOICE.DISCONNECTED_BY', { name }), {
+        appearance: 'info',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
+
+    const voiceRoomOpen = isActive('/voice-room', this.router, {
+      paths: 'subset',
+      queryParams: 'ignored',
+      fragment: 'ignored',
+      matrixParams: 'ignored',
+    })();
+
+    if (voiceRoomOpen) {
+      void this.router.navigate(['/']);
+    }
+
+    void this.leaveSession();
   }
 
   private async rejoinSessionLocked(

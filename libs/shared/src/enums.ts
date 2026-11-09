@@ -115,6 +115,8 @@ export enum EVoiceRoomEvent {
   RESTART_ICE = 'restart-ice',
   MOVE_MEMBER = 'voice:move-member',
   MOVED = 'voice:moved',
+  DISCONNECT_MEMBER = 'voice:disconnect-member',
+  DISCONNECTED = 'voice:disconnected',
   ERROR = 'error',
 }
 
