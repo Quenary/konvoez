@@ -1,3 +1,11 @@
+## 1.31.0 (2026-11-09)
+
+### Features
+
+- media gallery for rooms and direct chats ([#67](https://github.com/Quenary/konvoez/issues/67))
+- disconnect members from voice rooms ([#81](https://github.com/Quenary/konvoez/issues/81))
+- move members between voice rooms ([#80](https://github.com/Quenary/konvoez/issues/80))
+
 ## 1.30.0 (2026-11-08)
 
 ### Features
