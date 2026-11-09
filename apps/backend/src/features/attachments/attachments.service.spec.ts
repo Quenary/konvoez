@@ -14,6 +14,7 @@ jest.mock('@mikro-orm/core', () => {
       addHook: () => undefined,
     }),
     p: createProxy(),
+    raw: (sql: string) => sql,
   };
 });
 
@@ -90,7 +91,8 @@ describe('AttachmentsService', () => {
   };
   let videoProcessingService: { createPoster: jest.Mock };
   let settingsService: { getValue: jest.Mock };
-  let roomsFacade: { canAccessRoom: jest.Mock };
+  let roomsFacade: { canAccessRoom: jest.Mock; assertCanAccessRoom: jest.Mock };
+  let usersService: { findOneAsSafeDto: jest.Mock };
   let service: AttachmentsService;
   let dir: string;
   let filePath: string;
@@ -142,6 +144,10 @@ describe('AttachmentsService', () => {
     };
     roomsFacade = {
       canAccessRoom: jest.fn().mockReturnValue(true),
+      assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+    };
+    usersService = {
+      findOneAsSafeDto: jest.fn().mockResolvedValue({ id: 2 }),
     };
     service = new AttachmentsService(
       repo as never,
@@ -151,6 +157,7 @@ describe('AttachmentsService', () => {
       videoProcessingService as never,
       settingsService as never,
       roomsFacade as never,
+      usersService as never,
     );
   });
 
@@ -842,6 +849,206 @@ describe('AttachmentsService', () => {
           author,
         ),
       ).toBe(false);
+    });
+  });
+
+  describe('getCounts', () => {
+    it('aggregates counts for a room after verifying room access', async () => {
+      const qb = {
+        join: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue([
+          { kind: EAttachmentKind.IMAGE, count: '10' },
+          { kind: EAttachmentKind.VIDEO, count: '2' },
+          { kind: EAttachmentKind.AUDIO, count: '3' },
+          { kind: EAttachmentKind.FILE, count: '1' },
+        ]),
+      };
+      (
+        repo as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const res = await service.getCounts(author, { roomId: 7 });
+
+      expect(roomsFacade.assertCanAccessRoom).toHaveBeenCalledWith(author, 7);
+      expect(qb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: EAttachmentStatus.ATTACHED,
+          'm.room': 7,
+        }),
+      );
+      expect(res).toEqual({
+        image: 10,
+        video: 2,
+        audio: 3,
+        file: 1,
+      });
+    });
+
+    it('aggregates counts for a direct chat after verifying recipient exists', async () => {
+      const qb = {
+        join: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest
+          .fn()
+          .mockResolvedValue([{ kind: EAttachmentKind.IMAGE, count: '5' }]),
+      };
+      (
+        repo as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const res = await service.getCounts(author, { recipientId: 2 });
+
+      expect(usersService.findOneAsSafeDto).toHaveBeenCalledWith(2);
+      expect(qb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: EAttachmentStatus.ATTACHED,
+          $or: [
+            { 'm.sender': author.id, 'm.recipient': 2 },
+            { 'm.sender': 2, 'm.recipient': author.id },
+          ],
+        }),
+      );
+      expect(res).toEqual({
+        image: 5,
+        video: 0,
+        audio: 0,
+        file: 0,
+      });
+    });
+
+    it('handles saved messages (self direct chat)', async () => {
+      const qb = {
+        join: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue([]),
+      };
+      (
+        repo as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const res = await service.getCounts(author, { recipientId: author.id });
+
+      expect(usersService.findOneAsSafeDto).not.toHaveBeenCalled();
+      expect(qb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: EAttachmentStatus.ATTACHED,
+          'm.sender': author.id,
+          'm.recipient': author.id,
+        }),
+      );
+      expect(res).toEqual({
+        image: 0,
+        video: 0,
+        audio: 0,
+        file: 0,
+      });
+    });
+  });
+
+  describe('listMedia', () => {
+    it('returns cursor-paginated media items and nextCursor', async () => {
+      const msgId = parse(v7());
+      const attId1 = parse(v7());
+      const attId2 = parse(v7());
+      const now = new Date('2026-11-09T05:00:00.000Z');
+
+      const mockEntities = [
+        {
+          id: attId1,
+          kind: EAttachmentKind.IMAGE,
+          originalName: 'photo1.jpg',
+          mime: 'image/jpeg',
+          size: 100,
+          width: 800,
+          height: 600,
+          durationMs: null,
+          storageKey: 'key1',
+          thumbnailKey: 'thumb1',
+          message: { id: msgId },
+          createdAt: now,
+        },
+        {
+          id: attId2,
+          kind: EAttachmentKind.IMAGE,
+          originalName: 'photo2.jpg',
+          mime: 'image/jpeg',
+          size: 200,
+          width: 1024,
+          height: 768,
+          durationMs: null,
+          storageKey: 'key2',
+          thumbnailKey: 'thumb2',
+          message: { id: msgId },
+          createdAt: now,
+        },
+      ];
+
+      const qb = {
+        joinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getResultList: jest.fn().mockResolvedValue(mockEntities),
+      };
+      (
+        repo as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const res = await service.listMedia(author, {
+        roomId: 5,
+        type: EAttachmentKind.IMAGE,
+        limit: 1,
+      });
+
+      expect(roomsFacade.assertCanAccessRoom).toHaveBeenCalledWith(author, 5);
+      expect(qb.limit).toHaveBeenCalledWith(2);
+      expect(res.hasMore).toBe(true);
+      expect(res.items).toHaveLength(1);
+      expect(res.items[0]).toMatchObject({
+        name: 'photo1.jpg',
+        kind: EAttachmentKind.IMAGE,
+        messageId: expect.any(String),
+        createdAt: now.toISOString(),
+      });
+      expect(res.nextCursor).toBeDefined();
+    });
+
+    it('passes cursor to where query when provided', async () => {
+      const cursor = v7();
+      const qb = {
+        joinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        getResultList: jest.fn().mockResolvedValue([]),
+      };
+      (
+        repo as unknown as { createQueryBuilder: jest.Mock }
+      ).createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const res = await service.listMedia(author, {
+        roomId: 5,
+        type: EAttachmentKind.VIDEO,
+        cursor,
+        limit: 20,
+      });
+
+      expect(qb.where).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: { $lt: parse(cursor) },
+          kind: EAttachmentKind.VIDEO,
+        }),
+      );
+      expect(res.items).toHaveLength(0);
+      expect(res.hasMore).toBe(false);
+      expect(res.nextCursor).toBeNull();
     });
   });
 });

@@ -95,6 +95,8 @@ sequenceDiagram
 - While joining, `VoiceSessionStore.joiningTarget` is set and used by the UI.
 - After a reconnect the stored session is rejoined. On app resume the session is checked with the server and either refreshed (ICE restart) or rejoined: [App resume](APP_RESUME.md).
 - Hangup goes through `VoiceLeaveService`. `leaveFromVoiceUi()` leaves the media and, when `/voice-room/:id` is open, navigates to `/` before the session ends. `leaveActiveVoice()` only leaves the media: a direct call via `DirectCallService`, otherwise via `VoiceSessionService`. Logout and app quit use `leaveActiveVoice()`. Switching sessions leaves the previous one automatically.
+- When an actor with `MOVE_MEMBERS` moves the user, the voice socket that is in the source room receives `voice:moved`. If a group voice session is active, the client notifies the user and joins the target room with the current mute preferences. After that join succeeds, an open voice room view follows the new room. A client with no active group session ignores the event.
+- When an actor with `MOVE_MEMBERS` disconnects the user, the voice socket in that room receives `voice:disconnected`. If an active group session matches that room, the client notifies the user, executes normal session teardown without auto-reconnecting, and navigates home when `/voice-room/:id` is open. Other application sockets remain unaffected.
 
 ## Lobby
 

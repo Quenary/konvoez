@@ -37,6 +37,7 @@ import {
   EVoiceRoomEvent,
   ApiErrorCode,
   EPermission,
+  ERoomType,
   EVoiceSessionType,
   type IUserSafe,
   type TVoiceRoomProduce,
@@ -123,6 +124,17 @@ describe('VoiceRoomsGateway', () => {
     findActiveForUser: jest.Mock;
     findRingingByCaller: jest.Mock;
   };
+  let voiceRoomGrantsService: {
+    createGrant: jest.Mock;
+    consumeGrant: jest.Mock;
+    hasGrant: jest.Mock;
+    addActiveGuest: jest.Mock;
+    removeActiveGuest: jest.Mock;
+    isUserActiveGuestInRoom: jest.Mock;
+    getUserActiveGuestRooms: jest.Mock;
+    cleanupExpiredGrants: jest.Mock;
+    revokeGuestAccess: jest.Mock;
+  };
   let serverMock: {
     to: jest.Mock;
     emit: jest.Mock;
@@ -131,6 +143,7 @@ describe('VoiceRoomsGateway', () => {
     sockets: { sockets: Map<string, Socket> };
   };
   let fetchSockets: jest.Mock;
+  let inEmit: jest.Mock;
 
   beforeEach(() => {
     authService = {
@@ -179,6 +192,7 @@ describe('VoiceRoomsGateway', () => {
           revision: 1,
         }),
       ),
+      findUserGroupRoom: jest.fn(),
     };
     directCallsStateService = {
       create: jest.fn(),
@@ -195,6 +209,25 @@ describe('VoiceRoomsGateway', () => {
 
     const roomsFacadeMock = {
       assertCanAccessRoom: jest.fn().mockResolvedValue(undefined),
+      canAccessRoom: jest.fn().mockReturnValue(true),
+      findById: jest.fn().mockResolvedValue({
+        id: 1,
+        type: ERoomType.VOICE,
+        isPrivate: false,
+        name: 'Voice Room 1',
+      }),
+    };
+
+    voiceRoomGrantsService = {
+      createGrant: jest.fn(),
+      consumeGrant: jest.fn().mockReturnValue(false),
+      hasGrant: jest.fn().mockReturnValue(false),
+      addActiveGuest: jest.fn(),
+      removeActiveGuest: jest.fn().mockReturnValue(null),
+      isUserActiveGuestInRoom: jest.fn().mockReturnValue(false),
+      getUserActiveGuestRooms: jest.fn().mockReturnValue([]),
+      cleanupExpiredGrants: jest.fn(),
+      revokeGuestAccess: jest.fn(),
     };
 
     gateway = new VoiceRoomsGateway(
@@ -204,13 +237,15 @@ describe('VoiceRoomsGateway', () => {
       voiceRoomsStateService as unknown as VoiceRoomsStateService,
       directCallsStateService as unknown as DirectCallsStateService,
       eventEmitter as never,
+      voiceRoomGrantsService as never,
     );
 
     fetchSockets = jest.fn().mockResolvedValue([]);
+    inEmit = jest.fn();
     serverMock = {
       to: jest.fn().mockReturnThis(),
       emit: jest.fn(),
-      in: jest.fn().mockReturnValue({ fetchSockets }),
+      in: jest.fn().mockReturnValue({ fetchSockets, emit: inEmit }),
       fetchSockets,
       sockets: { sockets: new Map() },
     };
@@ -733,6 +768,644 @@ describe('VoiceRoomsGateway', () => {
         {
           callId: 'c1',
         },
+      );
+    });
+
+    it('rejects join when user has no access and no valid grant', async () => {
+      const socket = createSocket();
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { canAccessRoom: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+      voiceRoomGrantsService.consumeGrant.mockReturnValue(false);
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+    });
+
+    it('bypasses access check when a valid matching grant is consumed', async () => {
+      const socket = createSocket();
+      const room = createRoom();
+      voiceRoomsStateService.ensureRoom.mockResolvedValue(room);
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { canAccessRoom: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+      voiceRoomGrantsService.hasGrant.mockReturnValue(true);
+      voiceRoomGrantsService.consumeGrant.mockReturnValue(true);
+
+      await gateway.handleJoinRoom(socket as never, { roomId: 1 });
+
+      expect(voiceRoomGrantsService.consumeGrant).toHaveBeenCalledWith(
+        alice.id,
+        1,
+      );
+      expect(voiceRoomGrantsService.addActiveGuest).toHaveBeenCalledWith(
+        alice.id,
+        1,
+        socket.id,
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_ENTERED,
+        { userId: alice.id, roomId: 1 },
+      );
+    });
+
+    it('keeps the grant when room setup fails before the peer is registered', async () => {
+      const socket = createSocket();
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { canAccessRoom: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+      voiceRoomGrantsService.hasGrant.mockReturnValue(true);
+      voiceRoomsStateService.ensureRoom.mockRejectedValue(
+        new Error('router failed'),
+      );
+
+      await expect(
+        gateway.handleJoinRoom(socket as never, { roomId: 1 }),
+      ).rejects.toThrow('router failed');
+      expect(voiceRoomGrantsService.consumeGrant).not.toHaveBeenCalled();
+    });
+
+    it('rejoins as an existing guest without consuming a grant', async () => {
+      const socket = createSocket();
+      const room = createRoom();
+      voiceRoomsStateService.ensureRoom.mockResolvedValue(room);
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { canAccessRoom: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+      voiceRoomGrantsService.isUserActiveGuestInRoom.mockReturnValue(true);
+
+      await gateway.handleJoinRoom(socket as never, { roomId: 1 });
+
+      expect(voiceRoomGrantsService.consumeGrant).not.toHaveBeenCalled();
+      expect(voiceRoomGrantsService.addActiveGuest).toHaveBeenCalledWith(
+        alice.id,
+        1,
+        socket.id,
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_ENTERED,
+        expect.anything(),
+      );
+    });
+
+    it('clears active guest membership on leave', () => {
+      const socket = createSocket({
+        data: { sessionKey: 'room:1', roomId: 1 },
+      });
+      const room = createRoom(
+        new Map([
+          [
+            socket.id,
+            {
+              id: socket.id,
+              user: alice,
+              producers: new Map(),
+              consumers: new Map(),
+            },
+          ],
+        ]),
+      );
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      voiceRoomGrantsService.removeActiveGuest.mockReturnValue({
+        userId: alice.id,
+        roomId: 1,
+        socketId: socket.id,
+      });
+
+      gateway.handleLeaveRoom(socket as never);
+
+      expect(voiceRoomGrantsService.removeActiveGuest).toHaveBeenCalledWith(
+        socket.id,
+        false,
+      );
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_LEFT,
+        expect.anything(),
+      );
+    });
+  });
+
+  describe('handleMoveMember', () => {
+    const privilegedUser: IUserSafe = {
+      ...alice,
+      id: 99,
+      permissions: [EPermission.MOVE_MEMBERS, EPermission.CONNECT_VOICE],
+    };
+    const targetMember: IUserSafe = {
+      ...bob,
+      id: 8,
+    };
+    const ownerUser: IUserSafe = {
+      ...alice,
+      id: 1,
+      isOwner: true,
+    };
+
+    beforeEach(() => {
+      authService.getActiveUserById.mockImplementation((id: number) => {
+        if (id === privilegedUser.id) return Promise.resolve(privilegedUser);
+        if (id === targetMember.id) return Promise.resolve(targetMember);
+        if (id === ownerUser.id) return Promise.resolve(ownerUser);
+        return Promise.resolve({ ...bob, id });
+      });
+      voiceRoomsStateService.findUserGroupRoom.mockImplementation(
+        (userId: number) => {
+          if (userId === targetMember.id || userId === ownerUser.id) {
+            return { roomId: 10, socketIds: [`socket-${userId}`] };
+          }
+          return undefined;
+        },
+      );
+      const roomsFacade = (
+        gateway as unknown as {
+          roomsFacade: { findById: jest.Mock; canAccessRoom: jest.Mock };
+        }
+      ).roomsFacade;
+      roomsFacade.findById.mockImplementation((id: number) => {
+        return Promise.resolve({
+          id,
+          type: ERoomType.VOICE,
+          isPrivate: false,
+          name: `Room ${id}`,
+        });
+      });
+      roomsFacade.canAccessRoom.mockReturnValue(true);
+    });
+
+    it('rejects when actor lacks MOVE_MEMBERS permission', async () => {
+      const socket = createSocket({ data: { user: bob } });
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: targetMember.id,
+          targetRoomId: 20,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+    });
+
+    it('rejects when target user is not in a voice room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      voiceRoomsStateService.findUserGroupRoom.mockReturnValue(undefined);
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: 555,
+          targetRoomId: 20,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.BAD_REQUEST,
+      });
+    });
+
+    it('rejects when target room is the same as source room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: targetMember.id,
+          targetRoomId: 10,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.BAD_REQUEST,
+      });
+    });
+
+    it('rejects when target user does not exist', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      authService.getActiveUserById.mockImplementation((id: number) => {
+        if (id === privilegedUser.id) return Promise.resolve(privilegedUser);
+        return Promise.resolve(null);
+      });
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: 999,
+          targetRoomId: 20,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
+    });
+
+    it('rejects when non-owner tries to move owner', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: ownerUser.id,
+          targetRoomId: 20,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+    });
+
+    it('allows owner to move owner', async () => {
+      const socket = createSocket({ data: { user: ownerUser } });
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: ownerUser.id,
+          targetRoomId: 20,
+        }),
+      ).resolves.toEqual({});
+    });
+
+    it('rejects when target room is not a voice room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { findById: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.findById.mockImplementation((id: number) => {
+        if (id === 20) {
+          return Promise.resolve({
+            id: 20,
+            type: ERoomType.TEXT,
+            name: 'Text Room',
+          });
+        }
+        return Promise.resolve({
+          id,
+          type: ERoomType.VOICE,
+          name: `Voice Room ${id}`,
+        });
+      });
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: targetMember.id,
+          targetRoomId: 20,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_NOT_FOUND,
+      });
+    });
+
+    it('rejects when actor cannot access source or target room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { canAccessRoom: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+
+      await expect(
+        gateway.handleMoveMember(socket as never, {
+          userId: targetMember.id,
+          targetRoomId: 20,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+    });
+
+    it('creates a grant and emits voice:moved to target user on success', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+
+      const result = await gateway.handleMoveMember(socket as never, {
+        userId: targetMember.id,
+        targetRoomId: 20,
+      });
+
+      expect(result).toEqual({});
+      expect(voiceRoomGrantsService.createGrant).toHaveBeenCalledWith(
+        targetMember.id,
+        20,
+      );
+      expect(serverMock.to).toHaveBeenCalledWith([`socket-${targetMember.id}`]);
+      expect(serverMock.emit).toHaveBeenCalledWith(EVoiceRoomEvent.MOVED, {
+        roomId: 20,
+        byUserId: privilegedUser.id,
+      });
+    });
+  });
+
+  describe('handleDisconnectMember', () => {
+    const privilegedUser: IUserSafe = {
+      ...alice,
+      id: 99,
+      permissions: [EPermission.MOVE_MEMBERS, EPermission.CONNECT_VOICE],
+    };
+    const targetMember: IUserSafe = {
+      ...bob,
+      id: 8,
+    };
+    const ownerUser: IUserSafe = {
+      ...alice,
+      id: 1,
+      isOwner: true,
+    };
+
+    beforeEach(() => {
+      authService.getActiveUserById.mockImplementation((id: number) => {
+        if (id === privilegedUser.id) return Promise.resolve(privilegedUser);
+        if (id === targetMember.id) return Promise.resolve(targetMember);
+        if (id === ownerUser.id) return Promise.resolve(ownerUser);
+        return Promise.resolve({ ...bob, id });
+      });
+      voiceRoomsStateService.findUserGroupRoom.mockImplementation(
+        (userId: number) => {
+          if (userId === targetMember.id || userId === ownerUser.id) {
+            return { roomId: 10, socketIds: [`socket-${userId}`] };
+          }
+          return undefined;
+        },
+      );
+      voiceRoomsStateService.createGroupIdentity.mockImplementation(
+        (roomId: number) => ({
+          type: EVoiceSessionType.GROUP_ROOM,
+          roomId,
+        }),
+      );
+      const roomsFacade = (
+        gateway as unknown as {
+          roomsFacade: { findById: jest.Mock; canAccessRoom: jest.Mock };
+        }
+      ).roomsFacade;
+      roomsFacade.findById.mockImplementation((id: number) => {
+        return Promise.resolve({
+          id,
+          type: ERoomType.VOICE,
+          isPrivate: false,
+          name: `Room ${id}`,
+        });
+      });
+      roomsFacade.canAccessRoom.mockReturnValue(true);
+    });
+
+    it('rejects when actor lacks MOVE_MEMBERS permission', async () => {
+      const socket = createSocket({ data: { user: bob } });
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: targetMember.id,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+    });
+
+    it('rejects when target user does not exist', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      authService.getActiveUserById.mockImplementation((id: number) => {
+        if (id === privilegedUser.id) return Promise.resolve(privilegedUser);
+        return Promise.resolve(null);
+      });
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: 999,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.USER_NOT_FOUND,
+      });
+    });
+
+    it('rejects when non-owner tries to disconnect owner', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: ownerUser.id,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FORBIDDEN,
+      });
+    });
+
+    it('allows owner to disconnect owner', async () => {
+      const socket = createSocket({ data: { user: ownerUser } });
+      const targetSocket = createSocket({ id: `socket-${ownerUser.id}` });
+      serverMock.sockets.sockets.set(targetSocket.id, targetSocket);
+
+      const sendTransport = { close: jest.fn() };
+      const recvTransport = { close: jest.fn() };
+      const peer = {
+        id: targetSocket.id,
+        user: ownerUser,
+        producers: new Map(),
+        consumers: new Map(),
+        sendTransport,
+        recvTransport,
+      };
+      const room = {
+        id: 'group:10',
+        peers: new Map([[targetSocket.id, peer]]),
+        producers: new Map(),
+        produceMutex: new Mutex(),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: ownerUser.id,
+        }),
+      ).resolves.toEqual({});
+    });
+
+    it('rejects when target user is not connected to a voice room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      voiceRoomsStateService.findUserGroupRoom.mockReturnValue(undefined);
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: 555,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.BAD_REQUEST,
+      });
+    });
+
+    it('rejects when target user is not in the specified room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: targetMember.id,
+          roomId: 999,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.BAD_REQUEST,
+      });
+    });
+
+    it('rejects when target voice room does not exist or is text', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { findById: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.findById.mockImplementation((id: number) => {
+        return Promise.resolve({
+          id,
+          type: ERoomType.TEXT,
+          name: 'Text Room',
+        });
+      });
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: targetMember.id,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_NOT_FOUND,
+      });
+    });
+
+    it('rejects when actor cannot access target room', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      const roomsFacade = (
+        gateway as unknown as { roomsFacade: { canAccessRoom: jest.Mock } }
+      ).roomsFacade;
+      roomsFacade.canAccessRoom.mockReturnValue(false);
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: targetMember.id,
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.ROOM_ACCESS_DENIED,
+      });
+    });
+
+    it('handles concurrent leave or move during async checks safely', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      voiceRoomsStateService.findUserGroupRoom
+        .mockReturnValueOnce({
+          roomId: 10,
+          socketIds: [`socket-${targetMember.id}`],
+        })
+        .mockReturnValueOnce(undefined);
+
+      await expect(
+        gateway.handleDisconnectMember(socket as never, {
+          userId: targetMember.id,
+        }),
+      ).rejects.toMatchObject({ code: ApiErrorCode.BAD_REQUEST });
+      expect(serverMock.to).not.toHaveBeenCalledWith([
+        `socket-${targetMember.id}`,
+      ]);
+    });
+
+    it('authorized disconnect: performs server-authoritative cleanup, notifies target, emits PEER_LEFT and updates lobby', async () => {
+      const socket = createSocket({ data: { user: privilegedUser } });
+      const targetSocketId = `socket-${targetMember.id}`;
+      const targetSocket = createSocket({
+        id: targetSocketId,
+        data: {
+          user: targetMember,
+          sessionKey: 'room:10',
+          roomId: 10,
+        },
+      });
+      const peerLeftEmit = jest.fn();
+      (targetSocket.to as jest.Mock).mockReturnValue({ emit: peerLeftEmit });
+      serverMock.sockets.sockets.set(targetSocketId, targetSocket);
+
+      const sendTransport = { close: jest.fn() };
+      const recvTransport = { close: jest.fn() };
+      const producerClose = jest.fn();
+      const producer = {
+        id: 'prod-mic',
+        appData: { mediaTag: 'mic' },
+        close: producerClose,
+      };
+      const consumerClose = jest.fn();
+      const consumer = {
+        id: 'cons-1',
+        close: consumerClose,
+      };
+
+      const peer = {
+        id: targetSocketId,
+        user: targetMember,
+        producers: new Map([['prod-mic', producer]]),
+        consumers: new Map([['cons-1', consumer]]),
+        sendTransport,
+        recvTransport,
+      };
+      const otherPeer = {
+        id: 'socket-other',
+        user: alice,
+        producers: new Map(),
+        consumers: new Map(),
+      };
+      const room = {
+        id: 'room:10',
+        peers: new Map([
+          [targetSocketId, peer],
+          ['socket-other', otherPeer],
+        ]),
+        producers: new Map([['prod-mic', producer]]),
+        produceMutex: new Mutex(),
+      };
+      voiceRoomsStateService.getRoom.mockReturnValue(room);
+      voiceRoomsStateService.createLobbyPeerLeft.mockReturnValue({
+        roomId: 10,
+        userId: targetMember.id,
+        epoch: 'e1',
+        revision: 1,
+      });
+
+      const result = await gateway.handleDisconnectMember(socket as never, {
+        userId: targetMember.id,
+        roomId: 10,
+      });
+
+      expect(result).toEqual({});
+
+      // 1. Target socket notified with DISCONNECTED
+      expect(serverMock.to).toHaveBeenCalledWith([targetSocketId]);
+      expect(serverMock.emit).toHaveBeenCalledWith(
+        EVoiceRoomEvent.DISCONNECTED,
+        {
+          roomId: 10,
+          byUserId: privilegedUser.id,
+        },
+      );
+
+      // 2. Media cleanup executed
+      expect(consumerClose).toHaveBeenCalled();
+      expect(producerClose).toHaveBeenCalled();
+      expect(sendTransport.close).toHaveBeenCalled();
+      expect(recvTransport.close).toHaveBeenCalled();
+
+      // 3. Peer removed from room
+      expect(room.peers.has(targetSocketId)).toBe(false);
+
+      // 4. Target socket data cleared and left room
+      expect(targetSocket.data.sessionKey).toBeUndefined();
+      expect(targetSocket.data.roomId).toBeUndefined();
+      expect(targetSocket.leave).toHaveBeenCalledWith('room:10');
+      expect(targetSocket.leave).toHaveBeenCalledWith('10');
+
+      // 5. Guest access revoked
+      expect(voiceRoomGrantsService.revokeGuestAccess).toHaveBeenCalledWith(
+        targetMember.id,
+        10,
+      );
+
+      // 6. PEER_LEFT emitted to remaining room participants
+      expect(peerLeftEmit).toHaveBeenCalledWith(EVoiceRoomEvent.PEER_LEFT, {
+        user: targetMember,
+        roomId: 10,
+        sessionKey: 'room:10',
+      });
+
+      // 7. Lobby peer left emitted
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT,
+        expect.objectContaining({
+          roomId: 10,
+          userId: targetMember.id,
+        }),
       );
     });
   });

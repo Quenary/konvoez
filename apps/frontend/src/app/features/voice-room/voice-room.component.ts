@@ -138,6 +138,13 @@ export class VoiceRoomComponent {
       });
   }
 
+  protected openDetails(): void {
+    const room = this.room();
+    if (room) {
+      void this.roomManageService.openRoomDetails(room);
+    }
+  }
+
   protected editRoom(room: IRoom): Promise<void> {
     return this.roomManageService.editRoom(room);
   }

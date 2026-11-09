@@ -62,6 +62,14 @@ describe('ChatComponent', () => {
     expect(leave).not.toHaveBeenCalled();
   });
 
+  it('emits headerClick', () => {
+    mountRoom(1);
+    const spy = vi.fn();
+    fixture.componentInstance.headerClick.subscribe(spy);
+    fixture.componentInstance.headerClick.emit();
+    expect(spy).toHaveBeenCalled();
+  });
+
   it('leaves the previous chat before joining another target', () => {
     mountRoom(1);
     join.mockClear();
@@ -161,5 +169,24 @@ describe('ChatComponent', () => {
     fixture.detectChanges();
 
     expect(jumpToMessage).toHaveBeenCalledWith('msg-target-dynamic');
+  });
+
+  it('jumps again when the same message id arrives after a reset', () => {
+    target.set({ kind: 'room', id: 1 });
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('roomId', 1);
+    fixture.componentRef.setInput('title', 'room');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('initialMessageId', 'msg-again');
+    fixture.detectChanges();
+    fixture.componentRef.setInput('initialMessageId', null);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('initialMessageId', 'msg-again');
+    fixture.detectChanges();
+
+    expect(jumpToMessage).toHaveBeenCalledTimes(2);
+    expect(jumpToMessage).toHaveBeenNthCalledWith(1, 'msg-again');
+    expect(jumpToMessage).toHaveBeenNthCalledWith(2, 'msg-again');
   });
 });

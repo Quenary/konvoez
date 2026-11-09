@@ -18,6 +18,16 @@
       (click)="download()">
     </button>
   }
+  @if (current().messageId && data.onGoToMessage) {
+    <button
+      [iconStart]="icons['message-circle']"
+      tuiIconButton
+      tuiPreviewAction
+      type="button"
+      [attr.aria-label]="'ROOMS.MEDIA.GO_TO_MESSAGE' | translate"
+      (click)="goToMessage()">
+    </button>
+  }
   <button
     [iconStart]="icons.close"
     tuiIconButton

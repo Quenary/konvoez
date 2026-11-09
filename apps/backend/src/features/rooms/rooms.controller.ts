@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { RoomsService } from './rooms.service';
+import { VoiceRoomGrantsService } from '../voice-rooms/voice-room-grants.service';
 import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import {
@@ -37,6 +38,7 @@ export class RoomsController {
   constructor(
     private readonly roomsService: RoomsService,
     private readonly roomsAvatarsService: RoomsAvatarsService,
+    private readonly voiceRoomGrantsService: VoiceRoomGrantsService,
   ) {}
 
   @Post()
@@ -53,7 +55,10 @@ export class RoomsController {
   @Get()
   @ApiOkResponse({ type: GetRoomDto, isArray: true })
   findAll(@Author() author: GetUserSafeDto): Promise<GetRoomDto[]> {
-    return this.roomsService.findAllAsSafeDto(author);
+    return this.roomsService.findAllAsSafeDto(
+      author,
+      this.voiceRoomGrantsService.getUserActiveGuestRooms(author.id),
+    );
   }
 
   @Post('avatar/upload')

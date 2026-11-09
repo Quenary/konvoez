@@ -22,6 +22,8 @@ import {
   streamVideoCodecSchema,
   voiceRoomSetConsumerLayersSchema,
   voiceRoomSetMuteStateSchema,
+  voiceRoomDisconnectMemberSchema,
+  voiceRoomDisconnectedSchema,
 } from './voice-room.schemas';
 import { EVoiceSessionType } from './voice-session.schemas';
 
@@ -431,6 +433,80 @@ describe('VoiceRoom Schemas', () => {
         score: 10,
       });
       expect(parsed.success).toBe(false);
+    });
+  });
+
+  describe('voiceRoomDisconnectMemberSchema', () => {
+    it('accepts valid userId without roomId', () => {
+      const parsed = voiceRoomDisconnectMemberSchema.safeParse({
+        userId: 42,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('accepts valid userId with positive roomId', () => {
+      const parsed = voiceRoomDisconnectMemberSchema.safeParse({
+        userId: 42,
+        roomId: 10,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('rejects non-positive or non-integer userId', () => {
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: 0 }).success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: -1 }).success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: 1.5 }).success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: '42' }).success,
+      ).toBe(false);
+    });
+
+    it('rejects non-positive or non-integer roomId when provided', () => {
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: 42, roomId: 0 })
+          .success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: 42, roomId: -5 })
+          .success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectMemberSchema.safeParse({ userId: 42, roomId: 2.2 })
+          .success,
+      ).toBe(false);
+    });
+  });
+
+  describe('voiceRoomDisconnectedSchema', () => {
+    it('accepts valid roomId and byUserId', () => {
+      const parsed = voiceRoomDisconnectedSchema.safeParse({
+        roomId: 10,
+        byUserId: 5,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('rejects missing or non-positive values', () => {
+      expect(
+        voiceRoomDisconnectedSchema.safeParse({ roomId: 10 }).success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectedSchema.safeParse({ byUserId: 5 }).success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectedSchema.safeParse({ roomId: 0, byUserId: 5 })
+          .success,
+      ).toBe(false);
+      expect(
+        voiceRoomDisconnectedSchema.safeParse({ roomId: 10, byUserId: -1 })
+          .success,
+      ).toBe(false);
     });
   });
 });

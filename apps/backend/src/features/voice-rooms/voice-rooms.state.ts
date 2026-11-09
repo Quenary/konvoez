@@ -234,6 +234,26 @@ export class VoiceRoomsStateService implements OnModuleInit, OnModuleDestroy {
     return { roomId, userId, muted, deafened, ...this.nextLobbyVersion() };
   }
 
+  public findUserGroupRoom(
+    userId: number,
+  ): { roomId: number; socketIds: string[] } | undefined {
+    for (const room of this.rooms.values()) {
+      if (!isGroupVoiceSession(room.target)) {
+        continue;
+      }
+      const socketIds: string[] = [];
+      for (const peer of room.peers.values()) {
+        if (peer.user.id === userId) {
+          socketIds.push(peer.id);
+        }
+      }
+      if (socketIds.length > 0) {
+        return { roomId: room.target.roomId, socketIds };
+      }
+    }
+    return undefined;
+  }
+
   public resolveIdentityFromKey(key: string): TVoiceSessionIdentity | null {
     return parseVoiceSessionKey(key);
   }

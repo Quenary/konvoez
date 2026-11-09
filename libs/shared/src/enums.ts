@@ -9,6 +9,7 @@ export enum EPermission {
   USE_ATTACHMENTS = 'USE_ATTACHMENTS',
   CONNECT_VOICE = 'CONNECT_VOICE',
   MENTION_EVERYONE = 'MENTION_EVERYONE',
+  MOVE_MEMBERS = 'MOVE_MEMBERS',
 }
 
 export const DEFAULT_USER_PERMISSIONS: readonly EPermission[] = [
@@ -24,6 +25,7 @@ export const DEFAULT_MODERATOR_PERMISSIONS: readonly EPermission[] = [
   EPermission.MODERATE_MESSAGES,
   EPermission.MANAGE_ROOMS,
   EPermission.MENTION_EVERYONE,
+  EPermission.MOVE_MEMBERS,
 ] as const;
 
 export const ALL_PERMISSIONS: readonly EPermission[] = Object.values(
@@ -111,6 +113,10 @@ export enum EVoiceRoomEvent {
   SESSION_CHECK = 'session-check',
   /** Restarts ICE on a transport after network loss; returns new ICE parameters. */
   RESTART_ICE = 'restart-ice',
+  MOVE_MEMBER = 'voice:move-member',
+  MOVED = 'voice:moved',
+  DISCONNECT_MEMBER = 'voice:disconnect-member',
+  DISCONNECTED = 'voice:disconnected',
   ERROR = 'error',
 }
 

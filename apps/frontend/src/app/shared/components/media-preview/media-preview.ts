@@ -6,11 +6,13 @@ export interface IMediaPreviewItem {
   readonly src: string;
   readonly name: string;
   readonly downloadUrl: string | null;
+  readonly messageId?: string | null;
 }
 
 export interface IMediaPreviewData {
   readonly items: readonly IMediaPreviewItem[];
   readonly startIndex: number;
+  readonly onGoToMessage?: ((messageId: string) => void) | null;
 }
 
 export const MEDIA_PREVIEW_DATA = new InjectionToken<IMediaPreviewData>(

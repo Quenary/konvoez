@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   input,
+  output,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -85,6 +86,9 @@ export class ChatComponent {
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
   public readonly initialMessageId = input<string | null>(null);
+  public readonly headerClick = output<void>();
+  /** Fired after a non-empty `initialMessageId` is joined or jumped to. */
+  public readonly initialMessageApplied = output<void>();
   /** Direct chats color the nickname. Saved messages use an icon, not a nick. */
   protected readonly colorTitle = computed(() => {
     const recipientId = this.recipientId();
@@ -114,9 +118,14 @@ export class ChatComponent {
       untracked(() => {
         const current = this.chatStore.target();
         if (chatTargetsEqual(current, nextTarget)) {
-          if (initialId && initialId !== this.lastHandledInitialMessageId) {
+          if (!initialId) {
+            this.lastHandledInitialMessageId = null;
+            return;
+          }
+          if (initialId !== this.lastHandledInitialMessageId) {
             this.lastHandledInitialMessageId = initialId;
             this.chatStore.jumpToMessage(initialId);
+            this.initialMessageApplied.emit();
           }
           return;
         }
@@ -127,6 +136,7 @@ export class ChatComponent {
           this.lastHandledInitialMessageId = initialId;
           if (initialId) {
             this.chatStore.join(nextTarget, initialId);
+            this.initialMessageApplied.emit();
           } else {
             this.chatStore.join(nextTarget);
           }

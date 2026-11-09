@@ -15,6 +15,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
 import {
+  EPermission,
   ERoomType,
   IRoom,
   IRoomCreate,
@@ -26,8 +27,18 @@ import { RoomContextMenuComponent } from './room-context-menu/room-context-menu.
 import { RoomManageService } from './room-manage.service';
 import { RoomNavigationService } from './room-navigation.service';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionService } from '@core/services/voice-session.service';
 import { DirectCallService } from '@core/services/direct-call.service';
-import { TuiButton, TuiDropdown, TuiHint, TuiIcon } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiHint,
+  TuiIcon,
+  TuiNotificationService,
+  TuiOptGroup,
+  TuiOption,
+} from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import {
   TuiAutoColorPipe,
@@ -46,12 +57,22 @@ import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
-import { WithUserDialogDirective } from '@shared/user-dialog/with-user-dialog.directive';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { LayoutService } from '@core/services/layout.service';
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDropList,
+  CdkDropListGroup,
+} from '@angular/cdk/drag-drop';
 import { icons } from '@constants';
 
-interface IRoomWithPeers extends IRoom {
-  peers: TVoiceRoomPeerUser[];
+export interface IRoomPeerWithCanMove extends TVoiceRoomPeerUser {
+  canMove: boolean;
+}
+
+export interface IRoomWithPeers extends IRoom {
+  peers: IRoomPeerWithCanMove[];
   isUserInRoom: boolean;
 }
 
@@ -77,10 +98,15 @@ interface IRoomWithPeers extends IRoom {
     TuiNavigation,
     TuiInitialsPipe,
     TuiDropdown,
+    TuiDataList,
+    TuiOptGroup,
+    TuiOption,
     NgOptimizedImage,
     NgTemplateOutlet,
     TuiFade,
-    WithUserDialogDirective,
+    CdkDrag,
+    CdkDropList,
+    CdkDropListGroup,
   ],
   templateUrl: './rooms.component.html',
   styleUrl: './rooms.component.scss',
@@ -92,11 +118,14 @@ export class RoomsComponent implements OnInit {
   private readonly usersStore = inject(UsersStore);
   private readonly translateService = inject(TranslateService);
   private readonly voiceLobbyStore = inject(VoiceLobbyStore);
+  private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly directCallService = inject(DirectCallService);
   private readonly router = inject(Router);
   private readonly tuiResponsiveDialogService = inject(
     TuiResponsiveDialogService,
   );
+  private readonly tuiNotificationsService = inject(TuiNotificationService);
+  private readonly userDialogService = inject(UserDialogService);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly isTouch = inject(WA_IS_TOUCH);
@@ -110,6 +139,7 @@ export class RoomsComponent implements OnInit {
   protected readonly icons = icons;
   protected readonly isNarrow = this.layoutService.isNarrow;
   protected readonly textRooms = this.roomsStore.textRooms;
+  protected readonly dragStartDelay = { touch: 300, mouse: 0 };
 
   protected readonly roomMentionFlags = computed<Record<number, boolean>>(
     () => {
@@ -124,13 +154,27 @@ export class RoomsComponent implements OnInit {
     },
   );
 
+  protected readonly canMoveMembers = computed<boolean>(() => {
+    const user = this.currentUser();
+    return Boolean(
+      user?.isOwner || user?.permissions?.includes(EPermission.MOVE_MEMBERS),
+    );
+  });
+
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
     const voiceRooms = this._voiceRooms();
     const voiceRoomsState = this.voiceLobbyStore.roomsState();
     const currentUser = this.currentUser();
+    const canMove = this.canMoveMembers();
+    const isActorOwner = Boolean(currentUser?.isOwner);
 
     return voiceRooms.map((item) => {
-      const peers = Object.values(voiceRoomsState[item.id] ?? {});
+      const peers = Object.values(voiceRoomsState[item.id] ?? {}).map(
+        (peer) => ({
+          ...peer,
+          canMove: canMove && (!peer.isOwner || isActorOwner),
+        }),
+      );
       const isUserInRoom = peers.some((item) => item.id === currentUser?.id);
       return {
         ...item,
@@ -152,6 +196,23 @@ export class RoomsComponent implements OnInit {
 
   protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);
 
+  protected readonly selectedPeerForMenu = signal<{
+    peer: IRoomPeerWithCanMove;
+    roomId: number;
+  } | null>(null);
+
+  /** Room the dragged member has entered. CDK's dragging class stays on every list. */
+  protected readonly dropTargetRoomId = signal<number | null>(null);
+
+  protected readonly moveTargetRooms = computed<IRoomWithPeers[]>(() => {
+    const selected = this.selectedPeerForMenu();
+    const rooms = this.voiceRooms();
+    if (!selected) {
+      return [];
+    }
+    return rooms.filter((room) => room.id !== selected.roomId);
+  });
+
   protected readonly ERoomType = ERoomType;
 
   protected readonly canManageRooms = this.roomManageService.canManageRooms;
@@ -163,10 +224,16 @@ export class RoomsComponent implements OnInit {
   private suppressNextRoomClick = false;
   private suppressRoomClickTimer: ReturnType<typeof setTimeout> | null = null;
 
+  private suppressNextPeerClick = false;
+  private suppressPeerClickTimer: ReturnType<typeof setTimeout> | null = null;
+
   ngOnInit(): void {
     this.roomsStore.loadAll();
     this.usersStore.loadAll();
-    this.destroyRef.onDestroy(() => this.clearRoomClickSuppression());
+    this.destroyRef.onDestroy(() => {
+      this.clearRoomClickSuppression();
+      this.clearPeerClickSuppression();
+    });
   }
 
   protected openHangingCall(peer: IUserSafe): void {
@@ -208,6 +275,10 @@ export class RoomsComponent implements OnInit {
           this.roomsStore.create(body);
         },
       });
+  }
+
+  protected openRoomDetails(room: IRoom): void {
+    void this.roomManageService.openRoomDetails(room);
   }
 
   protected editRoom(room: IRoom): Promise<void> {
@@ -254,6 +325,108 @@ export class RoomsComponent implements OnInit {
     this.selectRoom(room);
   }
 
+  protected onPeerLongtap(
+    peer: IRoomPeerWithCanMove,
+    room: IRoomWithPeers,
+  ): void {
+    if (!peer.canMove) {
+      return;
+    }
+    this.selectedPeerForMenu.set({ peer, roomId: room.id });
+
+    if (!this.isTouch()) {
+      return;
+    }
+
+    this.suppressNextPeerClick = true;
+    this.clearPeerClickSuppressionTimer();
+
+    this.suppressPeerClickTimer = setTimeout(() => {
+      this.suppressNextPeerClick = false;
+      this.suppressPeerClickTimer = null;
+    }, 1000);
+  }
+
+  protected onPeerClick(peer: TVoiceRoomPeerUser): void {
+    if (this.suppressNextPeerClick) {
+      this.clearPeerClickSuppression();
+      return;
+    }
+
+    void this.userDialogService.open(peer, {
+      withFiles: false,
+      withInput: true,
+    });
+  }
+
+  protected onMemberDragEntered(room: IRoomWithPeers): void {
+    this.dropTargetRoomId.set(room.id);
+  }
+
+  protected onMemberDragExited(room: IRoomWithPeers): void {
+    if (this.dropTargetRoomId() === room.id) {
+      this.dropTargetRoomId.set(null);
+    }
+  }
+
+  protected onMemberDragEnded(): void {
+    this.dropTargetRoomId.set(null);
+  }
+
+  protected onMemberDropped(
+    event: CdkDragDrop<IRoomWithPeers, IRoomWithPeers, IRoomPeerWithCanMove>,
+    targetRoom: IRoomWithPeers,
+  ): void {
+    const peer = event.item.data;
+    const sourceRoom = event.previousContainer.data;
+    if (!peer || !targetRoom || !sourceRoom) {
+      return;
+    }
+    if (sourceRoom.id === targetRoom.id) {
+      return;
+    }
+    if (!peer.canMove) {
+      return;
+    }
+    void this.moveMember(peer, targetRoom);
+  }
+
+  protected async moveMember(
+    peer: TVoiceRoomPeerUser,
+    targetRoom: IRoom,
+  ): Promise<void> {
+    try {
+      await this.voiceSessionService.moveMember(peer.id, targetRoom.id);
+    } catch (error: unknown) {
+      this.notifyError(error);
+    }
+  }
+
+  protected async disconnectMember(
+    peer: TVoiceRoomPeerUser,
+    roomId: number,
+  ): Promise<void> {
+    try {
+      await this.voiceSessionService.disconnectMember(peer.id, roomId);
+    } catch (error: unknown) {
+      this.notifyError(error);
+    }
+  }
+
+  private notifyError(error: unknown): void {
+    const message =
+      error instanceof Error
+        ? error.message
+        : this.translateService.instant('GENERAL.UNKNOWN_ERROR');
+    this.tuiNotificationsService
+      .open(message, {
+        appearance: 'error',
+        autoClose: 5000,
+        closable: true,
+      })
+      .subscribe();
+  }
+
   private clearRoomClickSuppression(): void {
     this.suppressNextRoomClick = false;
     this.clearRoomClickSuppressionTimer();
@@ -266,5 +439,19 @@ export class RoomsComponent implements OnInit {
 
     clearTimeout(this.suppressRoomClickTimer);
     this.suppressRoomClickTimer = null;
+  }
+
+  private clearPeerClickSuppression(): void {
+    this.suppressNextPeerClick = false;
+    this.clearPeerClickSuppressionTimer();
+  }
+
+  private clearPeerClickSuppressionTimer(): void {
+    if (!this.suppressPeerClickTimer) {
+      return;
+    }
+
+    clearTimeout(this.suppressPeerClickTimer);
+    this.suppressPeerClickTimer = null;
   }
 }

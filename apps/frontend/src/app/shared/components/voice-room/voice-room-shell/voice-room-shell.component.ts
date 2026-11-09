@@ -8,6 +8,7 @@ import {
   computed,
   inject,
   input,
+  output,
   viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -43,6 +44,7 @@ export class VoiceRoomShellComponent {
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
+  public readonly headerClick = output<void>();
 
   protected readonly fullscreenHost = computed(
     () => this.fullscreenRoot()?.nativeElement ?? null,

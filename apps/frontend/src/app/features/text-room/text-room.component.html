@@ -3,8 +3,9 @@
     [roomId]="id"
     [title]="title()"
     [avatarUrl]="avatarUrl()"
-    [initialMessageId]="targetMessageId()">
-    @if (canManageRooms() && room(); as manageRoom) {
+    [initialMessageId]="targetMessageId()"
+    (headerClick)="openDetails()">
+    @if (room(); as currentRoom) {
       <div chatHeaderActions>
         <button
           tuiIconButton
@@ -24,9 +25,11 @@
           #roomContextMenu
           let-close>
           <app-room-context-menu
-            [roomName]="manageRoom.name"
-            (edit)="editRoom(manageRoom); close()"
-            (delete)="deleteRoom(manageRoom); close()" />
+            [roomName]="currentRoom.name"
+            [canManage]="canManageRooms()"
+            (details)="openDetails(); close()"
+            (edit)="editRoom(currentRoom); close()"
+            (delete)="deleteRoom(currentRoom); close()" />
         </ng-template>
       </div>
     }

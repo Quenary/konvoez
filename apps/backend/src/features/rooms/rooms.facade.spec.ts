@@ -170,7 +170,10 @@ describe('RoomsFacade', () => {
       const result = await facade.findAll(mockUser);
 
       expect(result).toEqual([mockRoomDto]);
-      expect(roomsService.findAllAsSafeDto).toHaveBeenCalledWith(mockUser);
+      expect(roomsService.findAllAsSafeDto).toHaveBeenCalledWith(
+        mockUser,
+        undefined,
+      );
     });
 
     it('should delegate findPrivateRooms to roomsService.findPrivateRooms', async () => {

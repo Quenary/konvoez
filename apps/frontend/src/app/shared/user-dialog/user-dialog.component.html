@@ -1,4 +1,4 @@
-@let hint = user.fullname !== user.username ? user.fullname : null;
+@let fullname = user.fullname !== user.username ? user.fullname : null;
 
 <div class="identity">
   <app-user-avatar
@@ -6,20 +6,17 @@
     [avatarUrl]="user.avatarUrl"
     [fullname]="user.fullname"
     [username]="user.username" />
-  <span
-    tuiHintAppearance="floating"
-    [style.color]="user.username | tuiAutoColor"
-    [tuiHint]="hint">
-    {{ user.username }}
-  </span>
-</div>
-
-<dl class="fields">
-  <div class="field">
-    <dt>{{ 'USER_DIALOG.FULLNAME' | translate }}</dt>
-    <dd>{{ user.fullname }}</dd>
+  <div class="identity-text">
+    <span
+      class="identity-name"
+      [style.color]="user.username | tuiAutoColor">
+      {{ user.username }}
+    </span>
+    @if (fullname) {
+      <span class="identity-fullname">{{ fullname }}</span>
+    }
   </div>
-</dl>
+</div>
 
 <footer class="footer">
   <div class="footer-actions">
@@ -90,11 +87,24 @@
       (valueChange)="onVolumeChange($event)" />
   </ng-template>
 
-  <span tuiTitle>
-    {{ messageTitleKey() | translate }}
-  </span>
-  <app-chat-editor
-    class="footer-editor"
-    [loading]="sending()"
-    (submitted)="onMessageSubmitted($event)" />
+  @if (withInput) {
+    <span tuiTitle>
+      {{ messageTitleKey() | translate }}
+    </span>
+    <app-chat-editor
+      class="footer-editor"
+      [loading]="sending()"
+      (submitted)="onMessageSubmitted($event)" />
+  }
+
+  @if (withFiles) {
+    <div class="files">
+      <h4 class="files-title">
+        {{ 'ROOMS.MEDIA.SECTION_TITLE' | translate }}
+      </h4>
+      <app-media-gallery
+        [recipientId]="user.id"
+        (goToMessage)="onGoToMessage($event)" />
+    </div>
+  }
 </footer>

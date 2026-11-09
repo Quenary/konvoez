@@ -51,10 +51,10 @@ export class Migration20261017170127_RolesAndRoomAccess extends Migration {
       `insert into \`roles\` (\`name\`, \`color\`, \`priority\`, \`is_default\`, \`permissions\`, \`created_at\`) values ('User', null, 0, 1, '["SEND_MESSAGES","CONNECT_VOICE","USE_ATTACHMENTS"]', CURRENT_TIMESTAMP);`,
     );
     this.addSql(
-      `insert into \`roles\` (\`name\`, \`color\`, \`priority\`, \`is_default\`, \`permissions\`, \`created_at\`) values ('Moderator', '#3498db', 50, 0, '["SEND_MESSAGES","CONNECT_VOICE","USE_ATTACHMENTS","MODERATE_MESSAGES","MANAGE_ROOMS"]', CURRENT_TIMESTAMP);`,
+      `insert into \`roles\` (\`name\`, \`color\`, \`priority\`, \`is_default\`, \`permissions\`, \`created_at\`) values ('Moderator', '#3498db', 50, 0, '["SEND_MESSAGES","CONNECT_VOICE","USE_ATTACHMENTS","MODERATE_MESSAGES","MANAGE_ROOMS","MOVE_MEMBERS"]', CURRENT_TIMESTAMP);`,
     );
     this.addSql(
-      `insert into \`roles\` (\`name\`, \`color\`, \`priority\`, \`is_default\`, \`permissions\`, \`created_at\`) values ('Admin', '#e74c3c', 100, 0, '["MANAGE_SETTINGS","MANAGE_INVITES","MANAGE_USERS","MANAGE_ROLES","MANAGE_ROOMS","SEND_MESSAGES","MODERATE_MESSAGES","USE_ATTACHMENTS","CONNECT_VOICE"]', CURRENT_TIMESTAMP);`,
+      `insert into \`roles\` (\`name\`, \`color\`, \`priority\`, \`is_default\`, \`permissions\`, \`created_at\`) values ('Admin', '#e74c3c', 100, 0, '["MANAGE_SETTINGS","MANAGE_INVITES","MANAGE_USERS","MANAGE_ROLES","MANAGE_ROOMS","SEND_MESSAGES","MODERATE_MESSAGES","USE_ATTACHMENTS","CONNECT_VOICE","MOVE_MEMBERS"]', CURRENT_TIMESTAMP);`,
     );
 
     // Map existing users with role = 'ADMIN' to Admin role

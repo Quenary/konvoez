@@ -48,6 +48,9 @@
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto;
   }
 
   .header-avatar {

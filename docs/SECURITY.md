@@ -7,8 +7,8 @@ Konvoez is a **self-hosted, single-server** voice and text chat platform: the de
 ### Roles and permissions
 
 - **`OWNER`**: the instance creator, stored as an `isOwner` flag. It is assigned only to the first registered user, always holds every permission (current and future) and sees all private rooms. The owner account cannot be transferred, modified or deleted through user management.
-- **Roles**: all other capabilities come from configurable roles with granular permissions (`EPermission`): `MANAGE_SETTINGS`, `MANAGE_USERS`, `MANAGE_ROLES`, `MANAGE_INVITES`, `MANAGE_ROOMS`, `SEND_MESSAGES`, `CONNECT_VOICE`, `USE_ATTACHMENTS`, `MODERATE_MESSAGES`, `MENTION_EVERYONE`.
-- **Seeded roles**: `Admin` (all permissions), `Moderator` (`MANAGE_ROOMS`, `MODERATE_MESSAGES`, `MENTION_EVERYONE`) and `User` (messaging and voice). Default roles apply to every authenticated user.
+- **Roles**: all other capabilities come from configurable roles with granular permissions (`EPermission`): `MANAGE_SETTINGS`, `MANAGE_USERS`, `MANAGE_ROLES`, `MANAGE_INVITES`, `MANAGE_ROOMS`, `SEND_MESSAGES`, `CONNECT_VOICE`, `USE_ATTACHMENTS`, `MODERATE_MESSAGES`, `MENTION_EVERYONE`, `MOVE_MEMBERS`.
+- **Seeded roles**: `Admin` (all permissions), `Moderator` (`MANAGE_ROOMS`, `MODERATE_MESSAGES`, `MENTION_EVERYONE`, `MOVE_MEMBERS`) and `User` (messaging and voice). Default roles apply to every authenticated user. An existing installation keeps the permissions already stored on its roles.
 - **Private rooms** are limited to allowed roles and users; the `OWNER` always has access. In direct chats a user deletes only their own messages. In text rooms, `MODERATE_MESSAGES` or `OWNER` can delete any message.
 
 ### Instance bootstrap and registration

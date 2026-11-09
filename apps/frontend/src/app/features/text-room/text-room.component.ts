@@ -17,6 +17,7 @@ import { ChatComponent } from '@shared/components/chat/chat.component';
 import { TuiButton, TuiDropdown, TuiHint } from '@taiga-ui/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CHAT_MENTIONS_ENABLED } from '@shared/components/chat/chat-editor/chat-mentions-enabled.token';
+import { takeInitialQueryParam } from '@shared/functions/take-initial-query-param.function';
 
 import { icons } from '@constants';
 
@@ -61,15 +62,7 @@ export class TextRoomComponent {
     { initialValue: null },
   );
 
-  protected readonly targetMessageId = toSignal(
-    this.activatedRoute.queryParamMap.pipe(
-      map((params) => {
-        const msg = params.get('message');
-        return msg && msg.trim().length > 0 ? msg.trim() : null;
-      }),
-    ),
-    { initialValue: null },
-  );
+  protected readonly targetMessageId = takeInitialQueryParam('message');
 
   protected readonly room = computed((): IRoom | null => {
     const id = this.roomId();
@@ -114,20 +107,13 @@ export class TextRoomComponent {
         });
       }
     });
+  }
 
-    effect(() => {
-      const messageId = this.targetMessageId();
-      if (messageId) {
-        untracked(() => {
-          void this.router.navigate([], {
-            relativeTo: this.activatedRoute,
-            queryParams: { message: null },
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-          });
-        });
-      }
-    });
+  protected openDetails(): void {
+    const room = this.room();
+    if (room) {
+      void this.roomManageService.openRoomDetails(room);
+    }
   }
 
   protected editRoom(room: IRoom): Promise<void> {

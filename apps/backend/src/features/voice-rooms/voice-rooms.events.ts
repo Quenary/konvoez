@@ -11,6 +11,8 @@ export const VoiceRoomsDomainEvents = {
   VOICE_ROOM_PEER_MUTED: 'voice-room.peer-muted',
   DIRECT_CALL_INCOMING: 'voice-room.direct-call-incoming',
   DIRECT_CALL_ENDED: 'voice-room.direct-call-ended',
+  VOICE_ROOM_GUEST_ENTERED: 'voice-room.guest-entered',
+  VOICE_ROOM_GUEST_LEFT: 'voice-room.guest-left',
 } as const;
 
 export type TVoiceRoomsDomainEvent =
@@ -29,12 +31,19 @@ export type TVoiceRoomDirectCallEndedPayload = {
   callId: string;
 };
 
+export type TVoiceRoomGuestPayload = {
+  userId: number;
+  roomId: number;
+};
+
 export type TVoiceRoomsDomainPayloadMap = {
   [VoiceRoomsDomainEvents.VOICE_ROOM_PEER_JOINED]: TVoiceRoomLobbyPeerJoined;
   [VoiceRoomsDomainEvents.VOICE_ROOM_PEER_LEFT]: TVoiceRoomLobbyPeerLeft;
   [VoiceRoomsDomainEvents.VOICE_ROOM_PEER_MUTED]: TVoiceRoomLobbyPeerMuted;
   [VoiceRoomsDomainEvents.DIRECT_CALL_INCOMING]: TVoiceRoomDirectCallIncomingPayload;
   [VoiceRoomsDomainEvents.DIRECT_CALL_ENDED]: TVoiceRoomDirectCallEndedPayload;
+  [VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_ENTERED]: TVoiceRoomGuestPayload;
+  [VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_LEFT]: TVoiceRoomGuestPayload;
 };
 
 export const emitVoiceRoomsDomainEvent =

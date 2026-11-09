@@ -2,13 +2,12 @@ import { computed, inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslateService } from '@ngx-translate/core';
-import { EPermission } from '@konvoez/shared';
+import { EPermission, IRoom, IRoomUpdate } from '@konvoez/shared';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import type { RoomDialogData } from './room-dialog/room-dialog.component';
-import { IRoom, IRoomUpdate } from '@konvoez/shared';
 
 /**
  * Facade service for managing rooms.
@@ -31,6 +30,21 @@ export class RoomManageService {
       user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_ROOMS),
     );
   });
+
+  public async openRoomDetails(room: IRoom): Promise<void> {
+    const { RoomDetailsDialogComponent } =
+      await import('./room-details-dialog/room-details-dialog.component');
+
+    this.tuiResponsiveDialogService
+      .open<void>(
+        new PolymorpheusComponent(RoomDetailsDialogComponent, this.injector),
+        {
+          closable: true,
+          data: room,
+        },
+      )
+      .subscribe();
+  }
 
   public async editRoom(room: IRoom): Promise<void> {
     const { RoomDialogComponent } =

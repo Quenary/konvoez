@@ -4,12 +4,14 @@ jest.mock('../auth/auth.service', () => ({
 
 import { EntitySyncGateway } from './entity-sync.gateway';
 import {
+  ApiErrorCode,
   EEntitySyncEvent,
   EPermission,
   ERoomType,
   type IRoom,
   type IUserSafe,
 } from '@konvoez/shared';
+import { AppException } from '@shared/errors/app.exception';
 import { Server } from 'socket.io';
 import { EVENT_LISTENER_METADATA } from '@nestjs/event-emitter/dist/constants';
 import { RolesDomainEvents } from '../roles/roles.events';
@@ -33,6 +35,7 @@ describe('EntitySyncGateway', () => {
   let toMock: jest.Mock;
   let roomsFacadeMock: {
     findPrivateRooms: jest.Mock;
+    findById: jest.Mock;
     canAccessRoom: jest.Mock;
   };
 
@@ -83,8 +86,12 @@ describe('EntitySyncGateway', () => {
     const usersServiceMock = {
       findOneAsSafeDto: jest.fn().mockResolvedValue(user),
     };
+    const voiceRoomGrantsServiceMock = {
+      isUserActiveGuestInRoom: jest.fn().mockReturnValue(false),
+    };
     roomsFacadeMock = {
       findPrivateRooms: jest.fn().mockResolvedValue([]),
+      findById: jest.fn().mockResolvedValue(room),
       canAccessRoom: jest.fn().mockImplementation((u, r) => {
         if (u.isOwner) return true;
         if (u.permissions?.includes(EPermission.MANAGE_ROOMS)) return true;
@@ -104,6 +111,7 @@ describe('EntitySyncGateway', () => {
       userPresenceService: userPresenceServiceMock,
       usersService: usersServiceMock,
       roomsFacade: roomsFacadeMock,
+      voiceRoomGrantsService: voiceRoomGrantsServiceMock,
     });
   });
 
@@ -561,6 +569,105 @@ describe('EntitySyncGateway', () => {
 
       expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
       expect(otherSocket.disconnect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('guest visibility events', () => {
+    it('emits ROOM_CREATED to guest sockets on VOICE_ROOM_GUEST_ENTERED', async () => {
+      const clientEmit = jest.fn();
+      const guestClient = {
+        data: { userId: 42 },
+        emit: clientEmit,
+      };
+      serverMock.sockets.sockets.set('sock-1', guestClient as never);
+
+      await gateway.onVoiceRoomGuestEntered({ userId: 42, roomId: 10 });
+
+      expect(clientEmit).toHaveBeenCalledWith(
+        EEntitySyncEvent.ROOM_CREATED,
+        room,
+      );
+    });
+
+    it('emits ROOM_DELETED to guest sockets on VOICE_ROOM_GUEST_LEFT if user lacks normal access', async () => {
+      const clientEmit = jest.fn();
+      const guestClient = {
+        data: {
+          userId: 42,
+          user: { ...user, id: 42 },
+        },
+        emit: clientEmit,
+      };
+      serverMock.sockets.sockets.set('sock-1', guestClient as never);
+      roomsFacadeMock.canAccessRoom.mockReturnValue(false);
+
+      await gateway.onVoiceRoomGuestLeft({ userId: 42, roomId: 10 });
+
+      expect(clientEmit).toHaveBeenCalledWith(EEntitySyncEvent.ROOM_DELETED, {
+        id: 10,
+      });
+    });
+
+    it('does not emit ROOM_DELETED on VOICE_ROOM_GUEST_LEFT if user has normal access', async () => {
+      const clientEmit = jest.fn();
+      const client = {
+        data: {
+          userId: 1,
+          user: { ...user, id: 1 },
+        },
+        emit: clientEmit,
+      };
+      serverMock.sockets.sockets.set('sock-1', client as never);
+      roomsFacadeMock.canAccessRoom.mockReturnValue(true);
+
+      await gateway.onVoiceRoomGuestLeft({ userId: 1, roomId: 10 });
+
+      expect(clientEmit).not.toHaveBeenCalled();
+    });
+
+    it('emits ROOM_DELETED when the guest room no longer exists', async () => {
+      const clientEmit = jest.fn();
+      serverMock.sockets.sockets.set('sock-1', {
+        data: { userId: 42, user: { ...user, id: 42 } },
+        emit: clientEmit,
+      } as never);
+      roomsFacadeMock.findById.mockRejectedValue(
+        AppException.notFound(ApiErrorCode.ROOM_NOT_FOUND, 'Room not found'),
+      );
+
+      await gateway.onVoiceRoomGuestLeft({ userId: 42, roomId: 10 });
+
+      expect(clientEmit).toHaveBeenCalledWith(EEntitySyncEvent.ROOM_DELETED, {
+        id: 10,
+      });
+    });
+
+    it('emits ROOM_UPDATED to active guest even for private room', () => {
+      const clientEmit = jest.fn();
+      const guestClient = {
+        data: {
+          userId: 42,
+          user: { ...user, id: 42 },
+        },
+        emit: clientEmit,
+      };
+      serverMock.sockets.sockets.set('sock-1', guestClient as never);
+      roomsFacadeMock.canAccessRoom.mockReturnValue(false);
+
+      const voiceRoomGrantsServiceMock = {
+        isUserActiveGuestInRoom: jest.fn().mockReturnValue(true),
+      };
+      Object.assign(gateway, {
+        voiceRoomGrantsService: voiceRoomGrantsServiceMock,
+      });
+
+      const privateRoom: IRoom = { ...room, isPrivate: true };
+      gateway.onRoomUpdated(privateRoom);
+
+      expect(clientEmit).toHaveBeenCalledWith(
+        EEntitySyncEvent.ROOM_UPDATED,
+        privateRoom,
+      );
     });
   });
 });

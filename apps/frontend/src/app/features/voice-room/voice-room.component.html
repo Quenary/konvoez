@@ -1,33 +1,34 @@
 <app-voice-room-shell
   [title]="title()"
   [avatarUrl]="avatarUrl()"
-  [headerActions]="roomHeaderActions" />
+  [headerActions]="roomHeaderActions"
+  (headerClick)="openDetails()" />
 
 <ng-template #roomHeaderActions>
-  @if (room(); as manageRoom) {
-    @if (canManageRooms()) {
-      <button
-        tuiIconButton
-        appearance="flat"
-        size="s"
-        [iconStart]="icons['ellipsis-vertical']"
-        type="button"
-        tuiDropdownAuto
-        [tuiDropdown]="roomContextMenu"
-        [tuiDropdownSided]="true"
-        tuiHintAppearance="floating"
-        [tuiHint]="'GENERAL.MORE' | translate">
-        {{ 'GENERAL.MORE' | translate }}
-      </button>
+  @if (room(); as currentRoom) {
+    <button
+      tuiIconButton
+      appearance="flat"
+      size="s"
+      [iconStart]="icons['ellipsis-vertical']"
+      type="button"
+      tuiDropdownAuto
+      [tuiDropdown]="roomContextMenu"
+      [tuiDropdownSided]="true"
+      tuiHintAppearance="floating"
+      [tuiHint]="'GENERAL.MORE' | translate">
+      {{ 'GENERAL.MORE' | translate }}
+    </button>
 
-      <ng-template
-        #roomContextMenu
-        let-close>
-        <app-room-context-menu
-          [roomName]="manageRoom.name"
-          (edit)="editRoom(manageRoom); close()"
-          (delete)="deleteRoom(manageRoom); close()" />
-      </ng-template>
-    }
+    <ng-template
+      #roomContextMenu
+      let-close>
+      <app-room-context-menu
+        [roomName]="currentRoom.name"
+        [canManage]="canManageRooms()"
+        (details)="openDetails(); close()"
+        (edit)="editRoom(currentRoom); close()"
+        (delete)="deleteRoom(currentRoom); close()" />
+    </ng-template>
   }
 </ng-template>

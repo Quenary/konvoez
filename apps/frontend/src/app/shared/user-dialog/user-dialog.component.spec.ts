@@ -19,12 +19,20 @@ import {
   ChatEditorComponent,
   IChatEditorSubmission,
 } from '../components/chat/chat-editor/chat-editor.component';
+import { MediaGalleryComponent } from '../components/media-gallery/media-gallery.component';
 import { UserDialogComponent } from './user-dialog.component';
 
 @Component({ selector: 'app-chat-editor', template: '' })
 class MockChatEditorComponent {
   public readonly loading = input(false);
   public readonly submitted = output<IChatEditorSubmission>();
+}
+
+@Component({ selector: 'app-media-gallery', template: '' })
+class MockMediaGalleryComponent {
+  public readonly roomId = input<number | null>(null);
+  public readonly recipientId = input<number | null>(null);
+  public readonly goToMessage = output<string>();
 }
 
 describe('UserDialogComponent', () => {
@@ -51,12 +59,14 @@ describe('UserDialogComponent', () => {
 
   let currentDialogUser: IUserSafe;
   let currentCompleteWith: ReturnType<typeof vi.fn>;
+  let dialogFlags: { withFiles: boolean; withInput: boolean };
 
   beforeEach(async () => {
     initiateCall = vi.fn().mockResolvedValue(undefined);
     completeWith = vi.fn();
     currentDialogUser = user;
     currentCompleteWith = completeWith;
+    dialogFlags = { withFiles: true, withInput: true };
     send = vi.fn();
     notifications = {
       open: vi.fn(() => ({ subscribe: vi.fn() })),
@@ -76,7 +86,7 @@ describe('UserDialogComponent', () => {
           provide: POLYMORPHEUS_CONTEXT,
           useFactory: () => ({
             get data() {
-              return { user: currentDialogUser };
+              return { user: currentDialogUser, ...dialogFlags };
             },
             completeWith: (...args: unknown[]) =>
               Reflect.apply(currentCompleteWith, null, args),
@@ -97,8 +107,8 @@ describe('UserDialogComponent', () => {
       ],
     })
       .overrideComponent(UserDialogComponent, {
-        remove: { imports: [ChatEditorComponent] },
-        add: { imports: [MockChatEditorComponent] },
+        remove: { imports: [ChatEditorComponent, MediaGalleryComponent] },
+        add: { imports: [MockChatEditorComponent, MockMediaGalleryComponent] },
       })
       .compileComponents();
 
@@ -108,15 +118,77 @@ describe('UserDialogComponent', () => {
     fixture.detectChanges();
   });
 
-  it('shows the avatar, nickname, and full name', () => {
+  it('shows the avatar, nickname, and full name underneath', () => {
     const text = fixture.nativeElement.textContent as string;
     const avatar = fixture.nativeElement.querySelector(
       'app-user-avatar',
     ) as HTMLElement | null;
+    const fullname = fixture.nativeElement.querySelector('.identity-fullname');
 
     expect(avatar).not.toBeNull();
     expect(text).toContain(user.username);
-    expect(text).toContain(user.fullname);
+    expect(fullname?.textContent?.trim()).toBe(user.fullname);
+    expect(text).not.toContain('USER_DIALOG.FULLNAME');
+  });
+
+  it('hides the full name when it matches the nickname', () => {
+    currentDialogUser = { ...user, fullname: user.username };
+    const sameNameFixture = TestBed.createComponent(UserDialogComponent);
+    sameNameFixture.detectChanges();
+
+    expect(
+      sameNameFixture.nativeElement.querySelector('.identity-fullname'),
+    ).toBeNull();
+  });
+
+  it('places the files gallery after the message field', () => {
+    const editor = fixture.nativeElement.querySelector('app-chat-editor');
+    const files = fixture.nativeElement.querySelector('.files');
+
+    expect(editor).not.toBeNull();
+    expect(files).not.toBeNull();
+    expect(
+      (editor as HTMLElement).compareDocumentPosition(files as HTMLElement) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('hides the message field when opened from a chat', () => {
+    dialogFlags = { withFiles: true, withInput: false };
+    const chatFixture = TestBed.createComponent(UserDialogComponent);
+    chatFixture.detectChanges();
+
+    expect(
+      chatFixture.nativeElement.querySelector('app-chat-editor'),
+    ).toBeNull();
+    expect(chatFixture.nativeElement.querySelector('.files')).not.toBeNull();
+  });
+
+  it('hides the files gallery when opened from the sidebar', () => {
+    dialogFlags = { withFiles: false, withInput: true };
+    const sidebarFixture = TestBed.createComponent(UserDialogComponent);
+    sidebarFixture.detectChanges();
+
+    expect(sidebarFixture.nativeElement.querySelector('.files')).toBeNull();
+    expect(
+      sidebarFixture.nativeElement.querySelector('app-chat-editor'),
+    ).not.toBeNull();
+  });
+
+  it('embeds the files gallery and opens the selected message', () => {
+    const media = fixture.debugElement.query(
+      By.directive(MockMediaGalleryComponent),
+    ).componentInstance as MockMediaGalleryComponent;
+
+    expect(media.recipientId()).toBe(user.id);
+
+    media.goToMessage.emit('msg-9');
+
+    expect(router.navigate).toHaveBeenCalledExactlyOnceWith(
+      ['/direct', user.id],
+      { queryParams: { message: 'msg-9' } },
+    );
+    expect(completeWith).toHaveBeenCalledOnce();
   });
 
   it('shows and updates the selected user gain', () => {

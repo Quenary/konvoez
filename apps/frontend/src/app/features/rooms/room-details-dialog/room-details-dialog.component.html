@@ -1,0 +1,59 @@
+<div class="room-details-dialog">
+  <div class="room-details-header">
+    <div
+      tuiAvatar
+      size="l"
+      class="room-details-avatar">
+      @if (room.avatarUrl; as url) {
+        <img
+          [alt]="room.name"
+          [src]="url"
+          class="room-details-avatar-img" />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
+    </div>
+
+    <div class="room-details-info">
+      <h3 class="room-details-title">{{ room.name }}</h3>
+      <span class="room-details-subtitle">{{ typeKey | translate }}</span>
+    </div>
+  </div>
+
+  @if (canManage()) {
+    <div class="room-details-actions">
+      <button
+        tuiIconButton
+        size="s"
+        type="button"
+        [iconStart]="icons.edit"
+        tuiHintAppearance="floating"
+        [attr.aria-label]="'GENERAL.EDIT' | translate"
+        [tuiHint]="'GENERAL.EDIT' | translate"
+        (click)="editRoom()">
+      </button>
+      <button
+        tuiIconButton
+        appearance="negative"
+        size="s"
+        type="button"
+        [iconStart]="icons.delete"
+        tuiHintAppearance="floating"
+        [attr.aria-label]="'GENERAL.DELETE' | translate"
+        [tuiHint]="'GENERAL.DELETE' | translate"
+        (click)="deleteRoom()">
+      </button>
+    </div>
+  }
+
+  @if (isMediaVisible) {
+    <div class="room-details-media-section">
+      <h4 class="room-details-section-title">
+        {{ 'ROOMS.MEDIA.SECTION_TITLE' | translate }}
+      </h4>
+      <app-media-gallery
+        [roomId]="room.id"
+        (goToMessage)="onGoToMessage($event)" />
+    </div>
+  }
+</div>

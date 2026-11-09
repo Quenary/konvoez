@@ -85,6 +85,10 @@ export const AVAILABLE_PERMISSIONS: readonly IPermissionOption[] = [
     permission: EPermission.MENTION_EVERYONE,
     labelKey: 'SETTINGS.ROLES.PERMISSIONS_LIST.MENTION_EVERYONE',
   },
+  {
+    permission: EPermission.MOVE_MEMBERS,
+    labelKey: 'SETTINGS.ROLES.PERMISSIONS_LIST.MOVE_MEMBERS',
+  },
 ];
 
 @Component({

@@ -1,5 +1,6 @@
 import { signal, type Signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
@@ -17,6 +18,7 @@ import { VoiceRoomSocketToken } from '../tokens/voice-room-socket.token';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
+import { UsersStore } from '@core/stores/users.store';
 import { AudioService } from './audio.service';
 import { MediasoupSessionService } from './mediasoup-session.service';
 import { ScreenWatchService } from './screen-watch.service';
@@ -280,9 +282,20 @@ describe('VoiceSessionService', () => {
         { provide: ScreenWakeLockService, useValue: wakeLock },
         {
           provide: TranslateService,
-          useValue: { instant: (key: string) => key },
+          useValue: {
+            instant: (key: string, _params?: Record<string, unknown>) => key,
+          },
         },
         { provide: TuiNotificationService, useValue: notifications },
+        provideRouter([{ path: 'voice-room/:id', children: [] }]),
+        {
+          provide: UsersStore,
+          useValue: {
+            entityMap: signal<Record<number, IUserSafe>>({
+              42: bob,
+            }),
+          },
+        },
       ],
     });
 
@@ -1317,6 +1330,140 @@ describe('VoiceSessionService', () => {
       expect(socket.emitWithAck).toHaveBeenCalledTimes(1);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('moving members', () => {
+    it('emits MOVE_MEMBER event on moveMember', async () => {
+      socket.emitWithAck.mockResolvedValueOnce(undefined);
+      await service.moveMember(42, 10);
+      expect(socket.emitWithAck).toHaveBeenCalledWith(
+        EVoiceRoomEvent.MOVE_MEMBER,
+        { userId: 42, targetRoomId: 10 },
+      );
+    });
+
+    it('ignores MOVED when there is no active group voice session', () => {
+      const joinSpy = vi
+        .spyOn(service, 'joinSession')
+        .mockResolvedValue(undefined);
+
+      handlers[EVoiceRoomEvent.MOVED]?.({
+        roomId: 15,
+        byUserId: 42,
+      });
+
+      expect(joinSpy).not.toHaveBeenCalled();
+      expect(notifications.open).not.toHaveBeenCalled();
+    });
+
+    it('handles MOVED by joining the target room and navigating after a successful join', async () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      const joinSpy = vi
+        .spyOn(service, 'joinSession')
+        .mockResolvedValue(undefined);
+      const router = TestBed.inject(Router);
+      vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      await router.navigateByUrl('/voice-room/1');
+
+      handlers[EVoiceRoomEvent.MOVED]?.({
+        roomId: 15,
+        byUserId: 42,
+      });
+      await Promise.resolve();
+
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.MOVED_BY',
+        expect.objectContaining({
+          appearance: 'info',
+          autoClose: 5000,
+          closable: true,
+        }),
+      );
+      expect(joinSpy).toHaveBeenCalledWith({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 15,
+      });
+      expect(router.navigate).toHaveBeenCalledWith(['/voice-room', 15]);
+    });
+  });
+
+  describe('disconnecting members', () => {
+    it('emits DISCONNECT_MEMBER event on disconnectMember', async () => {
+      socket.connected = true;
+      socket.emitWithAck.mockResolvedValueOnce({ ok: true, data: {} });
+
+      await service.disconnectMember(42, 10);
+
+      expect(socket.emitWithAck).toHaveBeenCalledWith(
+        EVoiceRoomEvent.DISCONNECT_MEMBER,
+        { userId: 42, roomId: 10 },
+      );
+    });
+
+    it('ignores DISCONNECTED when there is no active group voice session', () => {
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 15,
+        byUserId: 42,
+      });
+
+      expect(leaveSpy).not.toHaveBeenCalled();
+      expect(notifications.open).not.toHaveBeenCalled();
+    });
+
+    it('ignores DISCONNECTED when roomId does not match active session', () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 15,
+        byUserId: 42,
+      });
+
+      expect(leaveSpy).not.toHaveBeenCalled();
+      expect(notifications.open).not.toHaveBeenCalled();
+    });
+
+    it('handles DISCONNECTED by notifying user, leaving session, navigating to / and not auto-rejoining', async () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+      const router = TestBed.inject(Router);
+      vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      await router.navigateByUrl('/voice-room/1');
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 1,
+        byUserId: 42,
+      });
+      await Promise.resolve();
+
+      expect(notifications.open).toHaveBeenCalledWith(
+        'VOICE.DISCONNECTED_BY',
+        expect.objectContaining({
+          appearance: 'info',
+          autoClose: 5000,
+          closable: true,
+        }),
+      );
+      expect(router.navigate).toHaveBeenCalledWith(['/']);
+      expect(leaveSpy).toHaveBeenCalled();
     });
   });
 });

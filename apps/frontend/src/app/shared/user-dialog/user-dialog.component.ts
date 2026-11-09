@@ -31,10 +31,18 @@ import { ChatEditorComponent } from '../components/chat/chat-editor/chat-editor.
 import { v4 } from 'uuid';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VolumeControlComponent } from '../components/volume-control/volume-control.component';
+import { MediaGalleryComponent } from '../components/media-gallery/media-gallery.component';
 import { icons } from '@constants';
+
+export interface IUserDialogOptions {
+  readonly withFiles?: boolean;
+  readonly withInput?: boolean;
+}
 
 export interface IUserDialogData {
   readonly user: IUserSafe;
+  readonly withFiles: boolean;
+  readonly withInput: boolean;
 }
 
 @Component({
@@ -52,6 +60,7 @@ export interface IUserDialogData {
     ChatEditorComponent,
     TuiTitle,
     VolumeControlComponent,
+    MediaGalleryComponent,
   ],
 })
 export class UserDialogComponent {
@@ -70,6 +79,8 @@ export class UserDialogComponent {
   protected readonly icons = icons;
 
   protected readonly user = this.context.data.user;
+  protected readonly withFiles = this.context.data.withFiles;
+  protected readonly withInput = this.context.data.withInput;
   protected readonly isSelf = computed(
     () => this.currentUser()?.id === this.user.id,
   );
@@ -162,5 +173,12 @@ export class UserDialogComponent {
 
   protected onVolumeChange(value: number): void {
     this.voiceAudioPreferencesStore.setPeerGain(this.user.id, value / 100);
+  }
+
+  protected onGoToMessage(messageId: string): void {
+    void this.router.navigate(['/direct', this.user.id], {
+      queryParams: { message: messageId },
+    });
+    this.context.completeWith();
   }
 }

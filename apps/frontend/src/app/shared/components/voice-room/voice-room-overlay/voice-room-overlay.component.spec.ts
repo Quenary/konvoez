@@ -194,6 +194,18 @@ describe('VoiceRoomOverlayComponent', () => {
     expect(leaveFromVoiceUi).toHaveBeenCalledTimes(1);
   });
 
+  it('emits headerClick when header title is clicked', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.detectChanges();
+
+    const spy = vi.fn();
+    fixture.componentInstance.headerClick.subscribe(spy);
+    const headerTitle = fixture.nativeElement.querySelector('h2[tuiTitle]');
+    headerTitle?.dispatchEvent(new MouseEvent('click'));
+
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
   it('shows layout toggle and fullscreen in both layouts', () => {
     const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
     fixture.componentRef.setInput('participantsCount', 2);

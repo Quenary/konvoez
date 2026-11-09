@@ -35,6 +35,7 @@ import {
   ApiErrorCode,
   DIRECT_CALL_RING_TIMEOUT_MS,
   EPermission,
+  ERoomType,
 } from '@konvoez/shared';
 import {
   CallAcceptDto,
@@ -49,6 +50,8 @@ import {
   VoiceRoomConsumeDto,
   VoiceRoomCreateTransportDto,
   VoiceRoomJoinDto,
+  VoiceRoomMoveMemberDto,
+  VoiceRoomDisconnectMemberDto,
   VoiceRoomProduceDto,
   VoiceRoomRestartIceDto,
   VoiceRoomSetConsumerLayersDto,
@@ -72,6 +75,7 @@ import {
   VoiceRoomStateMediasoupAppData,
 } from './voice-rooms.state';
 import { DirectCallsStateService } from './direct-calls.state';
+import { VoiceRoomGrantsService } from './voice-room-grants.service';
 import {
   buildWebRtcListenInfos,
   resolveAnnouncedAddresses,
@@ -130,6 +134,7 @@ export class VoiceRoomsGateway
     private readonly voiceRoomsStateService: VoiceRoomsStateService,
     private readonly directCallsStateService: DirectCallsStateService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly voiceRoomGrantsService: VoiceRoomGrantsService,
   ) {}
 
   @OnEvent(RoomsDomainEvents.ROOM_DELETED)
@@ -203,7 +208,7 @@ export class VoiceRoomsGateway
   }
 
   async handleDisconnect(socket: TSocket): Promise<void> {
-    this.handleLeaveRoom(socket);
+    this.leaveRoom(socket, true);
 
     const user = socket.data.user;
     if (!user) {
@@ -324,8 +329,26 @@ export class VoiceRoomsGateway
       );
     }
 
+    let isGuestJoin = false;
+    let consumeGrantAfterJoin = false;
     if (roomId !== undefined) {
-      await this.roomsFacade.assertCanAccessRoom(user, roomId);
+      const roomDto = await this.roomsFacade.findById(roomId);
+      const hasNormalAccess = this.roomsFacade.canAccessRoom(user, roomDto);
+      if (!hasNormalAccess) {
+        if (
+          this.voiceRoomGrantsService.isUserActiveGuestInRoom(user.id, roomId)
+        ) {
+          isGuestJoin = true;
+        } else if (this.voiceRoomGrantsService.hasGrant(user.id, roomId)) {
+          isGuestJoin = true;
+          consumeGrantAfterJoin = true;
+        } else {
+          throw AppException.forbidden(
+            ApiErrorCode.ROOM_ACCESS_DENIED,
+            'Access to room is denied',
+          );
+        }
+      }
     }
 
     // Ensure room + register peer before exposing session on the socket.
@@ -352,9 +375,38 @@ export class VoiceRoomsGateway
       deafened,
     });
 
+    if (isGuestJoin && roomId !== undefined && consumeGrantAfterJoin) {
+      const consumed = this.voiceRoomGrantsService.consumeGrant(
+        user.id,
+        roomId,
+      );
+      if (!consumed) {
+        room.peers.delete(socket.id);
+        throw AppException.forbidden(
+          ApiErrorCode.ROOM_ACCESS_DENIED,
+          'Access to room is denied',
+        );
+      }
+    }
+
     socket.data.sessionKey = sessionKey;
     socket.data.sessionTarget = identity;
     socket.data.roomId = roomId;
+
+    if (isGuestJoin && roomId !== undefined) {
+      const alreadyGuest = this.voiceRoomGrantsService.isUserActiveGuestInRoom(
+        user.id,
+        roomId,
+      );
+      this.voiceRoomGrantsService.addActiveGuest(user.id, roomId, socket.id);
+      if (!alreadyGuest) {
+        emitVoiceRoomsDomainEvent(
+          this.eventEmitter,
+          VoiceRoomsDomainEvents.VOICE_ROOM_GUEST_ENTERED,
+          { userId: user.id, roomId },
+        );
+      }
+    }
 
     if (roomId !== undefined && !userAlreadyInRoom) {
       emitVoiceRoomsDomainEvent(
@@ -392,6 +444,10 @@ export class VoiceRoomsGateway
 
   @SubscribeMessage(EVoiceRoomEvent.LEAVE_ROOM)
   handleLeaveRoom(@ConnectedSocket() socket: TSocket) {
+    return this.leaveRoom(socket, false);
+  }
+
+  private leaveRoom(socket: TSocket, retainGuest: boolean): object {
     const sessionKey = this.resolveSessionKey(socket);
     const roomId = socket.data.roomId;
     const identity = socket.data.sessionTarget;
@@ -416,6 +472,8 @@ export class VoiceRoomsGateway
 
       this.removePeerMedia(room, peer, sessionKey, roomId, socket);
       room.peers.delete(socket.id);
+
+      this.voiceRoomGrantsService.removeActiveGuest(socket.id, retainGuest);
 
       if (roomId !== undefined && !this.isUserInRoom(room, peer.user.id)) {
         emitVoiceRoomsDomainEvent(
@@ -453,6 +511,171 @@ export class VoiceRoomsGateway
     }
 
     return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.MOVE_MEMBER)
+  async handleMoveMember(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomMoveMemberDto,
+  ): Promise<object> {
+    const { actor, sourcePresence, sourceRoom } =
+      await this.resolveMemberAction(socket, body.userId, 'move');
+
+    if (sourcePresence.roomId === body.targetRoomId) {
+      throw AppException.badRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Target room must differ from current room',
+      );
+    }
+
+    const targetRoom = await this.roomsFacade.findById(body.targetRoomId);
+    if (!targetRoom || targetRoom.type !== ERoomType.VOICE) {
+      throw AppException.notFound(
+        ApiErrorCode.ROOM_NOT_FOUND,
+        'Target voice room not found',
+      );
+    }
+
+    if (
+      !this.roomsFacade.canAccessRoom(actor, sourceRoom) ||
+      !this.roomsFacade.canAccessRoom(actor, targetRoom)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Access to room is denied',
+      );
+    }
+
+    this.voiceRoomGrantsService.createGrant(body.userId, body.targetRoomId);
+
+    this.server.to(sourcePresence.socketIds).emit(EVoiceRoomEvent.MOVED, {
+      roomId: body.targetRoomId,
+      byUserId: actor.id,
+    });
+
+    return {};
+  }
+
+  @SubscribeMessage(EVoiceRoomEvent.DISCONNECT_MEMBER)
+  async handleDisconnectMember(
+    @ConnectedSocket() socket: TSocket,
+    @MessageBody() body: VoiceRoomDisconnectMemberDto,
+  ): Promise<object> {
+    const { actor, sourcePresence } = await this.resolveMemberAction(
+      socket,
+      body.userId,
+      'disconnect',
+    );
+    const sourceRoomId = sourcePresence.roomId;
+
+    if (body.roomId !== undefined && sourceRoomId !== body.roomId) {
+      throw AppException.badRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Target user is not connected to that voice room',
+      );
+    }
+
+    // The presence may have changed while the room was being loaded.
+    const currentPresence = this.voiceRoomsStateService.findUserGroupRoom(
+      body.userId,
+    );
+    if (currentPresence?.roomId !== sourceRoomId) {
+      throw AppException.badRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Target user is not connected to that voice room',
+      );
+    }
+
+    this.server
+      .to(currentPresence.socketIds)
+      .emit(EVoiceRoomEvent.DISCONNECTED, {
+        roomId: sourceRoomId,
+        byUserId: actor.id,
+      });
+
+    for (const socketId of currentPresence.socketIds) {
+      const targetSocket = this.server.sockets.sockets.get(socketId) as
+        TSocket | undefined;
+      if (targetSocket) {
+        this.leaveRoom(targetSocket, false);
+      }
+    }
+
+    this.voiceRoomGrantsService.revokeGuestAccess(body.userId, sourceRoomId);
+
+    return {};
+  }
+
+  /**
+   * Shared authorization for actions on another user's voice presence:
+   * the actor needs MOVE_MEMBERS and access to the target's current voice room.
+   */
+  private async resolveMemberAction(
+    socket: TSocket,
+    targetUserId: number,
+    action: 'move' | 'disconnect',
+  ) {
+    const current = socket.data.user;
+    if (!current) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+    const fresh = await this.authService.getActiveUserById(current.id);
+    const actor = { ...current, ...fresh };
+    socket.data.user = actor;
+
+    if (
+      !actor.isOwner &&
+      !actor.permissions?.includes(EPermission.MOVE_MEMBERS)
+    ) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        `Permission denied to ${action} members`,
+      );
+    }
+
+    const targetUser = await this.authService.getActiveUserById(targetUserId);
+    if (!targetUser) {
+      throw AppException.notFound(
+        ApiErrorCode.USER_NOT_FOUND,
+        'Target user not found',
+      );
+    }
+
+    if (targetUser.isOwner && !actor.isOwner) {
+      throw AppException.forbidden(
+        ApiErrorCode.FORBIDDEN,
+        `Only owner can ${action} the owner`,
+      );
+    }
+
+    const sourcePresence =
+      this.voiceRoomsStateService.findUserGroupRoom(targetUserId);
+    if (!sourcePresence) {
+      throw AppException.badRequest(
+        ApiErrorCode.BAD_REQUEST,
+        'Target user is not connected to a voice room',
+      );
+    }
+
+    const sourceRoom = await this.roomsFacade.findById(sourcePresence.roomId);
+    if (!sourceRoom || sourceRoom.type !== ERoomType.VOICE) {
+      throw AppException.notFound(
+        ApiErrorCode.ROOM_NOT_FOUND,
+        'Source voice room not found',
+      );
+    }
+
+    if (!this.roomsFacade.canAccessRoom(actor, sourceRoom)) {
+      throw AppException.forbidden(
+        ApiErrorCode.ROOM_ACCESS_DENIED,
+        'Access to room is denied',
+      );
+    }
+
+    return { actor, sourcePresence, sourceRoom };
   }
 
   @SubscribeMessage(EVoiceRoomEvent.GET_ALL_PEERS)
@@ -1293,6 +1516,7 @@ export class VoiceRoomsGateway
 
       this.removePeerMedia(room, existingPeer, sessionKey, roomId);
       room.peers.delete(existingSocketId);
+      this.voiceRoomGrantsService.removeActiveGuest(existingSocketId, true);
 
       const roomsToEmit = this.getRoomEmitTargets(sessionKey, roomId);
       this.server.to(roomsToEmit).emit(EVoiceRoomEvent.PEER_LEFT, {

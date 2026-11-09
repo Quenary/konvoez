@@ -29,6 +29,8 @@ describe('AttachmentsController', () => {
   };
   const attachmentsService = {
     resolveReadable: jest.fn(),
+    getCounts: jest.fn(),
+    listMedia: jest.fn(),
   };
   const fileService = {
     stat: jest.fn(),
@@ -180,5 +182,33 @@ describe('AttachmentsController', () => {
     res.emit('close');
 
     expect(destroy).toHaveBeenCalled();
+  });
+
+  it('delegates getCounts to attachmentsService.getCounts', async () => {
+    const counts = { image: 5, video: 1, audio: 0, file: 2 };
+    attachmentsService.getCounts.mockResolvedValue(counts);
+
+    const result = await controller.getCounts(author, { roomId: 10 });
+    expect(attachmentsService.getCounts).toHaveBeenCalledWith(author, {
+      roomId: 10,
+    });
+    expect(result).toBe(counts);
+  });
+
+  it('delegates getMediaList to attachmentsService.listMedia', async () => {
+    const list = { items: [], nextCursor: null, hasMore: false };
+    attachmentsService.listMedia.mockResolvedValue(list);
+
+    const result = await controller.getMediaList(author, {
+      roomId: 10,
+      type: EAttachmentKind.IMAGE,
+      limit: 30,
+    });
+    expect(attachmentsService.listMedia).toHaveBeenCalledWith(author, {
+      roomId: 10,
+      type: EAttachmentKind.IMAGE,
+      limit: 30,
+    });
+    expect(result).toBe(list);
   });
 });

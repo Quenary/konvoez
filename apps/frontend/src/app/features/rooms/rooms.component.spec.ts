@@ -7,13 +7,19 @@ import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EPermission, ERoomType, IUserSafe, IUserFull } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import { TuiNotificationService } from '@taiga-ui/core';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
-import { RoomsComponent } from './rooms.component';
+import {
+  IRoomPeerWithCanMove,
+  IRoomWithPeers,
+  RoomsComponent,
+} from './rooms.component';
 import { IRoom } from '@konvoez/shared';
 import { RoomManageService } from './room-manage.service';
 import { RoomNavigationService } from './room-navigation.service';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
+import { VoiceSessionService } from '@core/services/voice-session.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { UsersStore } from '@core/stores/users.store';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
@@ -21,6 +27,8 @@ import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { TuiAsideComponent } from '@taiga-ui/layout';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
+import type { CdkDragDrop } from '@angular/cdk/drag-drop';
 
 vi.hoisted(() => {
   (globalThis as { AudioWorkletNode: unknown }).AudioWorkletNode =
@@ -123,6 +131,19 @@ describe('RoomsComponent', () => {
     selectRoom: vi.fn(),
   };
 
+  const voiceSessionService = {
+    moveMember: vi.fn().mockResolvedValue(undefined),
+    disconnectMember: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const userDialogService = {
+    open: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const tuiNotificationsService = {
+    open: vi.fn().mockReturnValue(of(null)),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
     roomsState.set({});
@@ -149,6 +170,9 @@ describe('RoomsComponent', () => {
         }),
         { provide: RoomsStore, useValue: roomsStore },
         { provide: RoomNavigationService, useValue: roomNavigationService },
+        { provide: VoiceSessionService, useValue: voiceSessionService },
+        { provide: UserDialogService, useValue: userDialogService },
+        { provide: TuiNotificationService, useValue: tuiNotificationsService },
         {
           provide: VoiceLobbyStore,
           useValue: {
@@ -259,7 +283,10 @@ describe('RoomsComponent', () => {
       const rooms = component['voiceRooms']();
       expect(rooms).toHaveLength(1);
       expect(rooms[0].id).toBe(voiceRoom.id);
-      expect(rooms[0].peers).toEqual([me, bob]);
+      expect(rooms[0].peers).toEqual([
+        { ...me, canMove: false },
+        { ...bob, canMove: false },
+      ]);
       expect(rooms[0].isUserInRoom).toBe(true);
     });
 
@@ -387,6 +414,18 @@ describe('RoomsComponent', () => {
     expect(editRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
+  it('should delegate open details to RoomManageService', () => {
+    const openRoomDetails = vi.fn().mockResolvedValue(undefined);
+    const roomManageService = TestBed.inject(RoomManageService);
+    vi.spyOn(roomManageService, 'openRoomDetails').mockImplementation(
+      openRoomDetails,
+    );
+
+    component['openRoomDetails'](textRoom);
+
+    expect(openRoomDetails).toHaveBeenCalledWith(textRoom);
+  });
+
   it('should delegate delete room to RoomManageService', () => {
     const deleteRoom = vi.fn();
     const roomManageService = TestBed.inject(RoomManageService);
@@ -448,5 +487,240 @@ describe('RoomsComponent', () => {
     const roomItem = fixture.nativeElement.querySelector('.room-item');
     const badges = roomItem.querySelectorAll('tui-badge-notification');
     expect(badges.length).toBe(0);
+  });
+
+  describe('move members', () => {
+    const secondVoiceRoom: IRoom = {
+      id: 21,
+      name: 'gaming',
+      type: ERoomType.VOICE,
+      avatar: null,
+      avatarUrl: null,
+      isPrivate: false,
+      allowedRoleIds: [],
+      allowedUserIds: [],
+      author: { id: 1, username: 'alice', fullname: 'Alice' },
+      createdAt: new Date(),
+      updatedAt: null,
+    };
+
+    it('computes canMoveMembers true for users with MOVE_MEMBERS or owners', () => {
+      expect(component['canMoveMembers']()).toBe(false);
+
+      store.overrideSelector(selectCurrentUser, {
+        ...me,
+        permissions: [EPermission.MOVE_MEMBERS],
+      });
+      store.refreshState();
+      fixture.detectChanges();
+      expect(component['canMoveMembers']()).toBe(true);
+
+      store.overrideSelector(selectCurrentUser, {
+        ...me,
+        isOwner: true,
+        permissions: [],
+      });
+      store.refreshState();
+      fixture.detectChanges();
+      expect(component['canMoveMembers']()).toBe(true);
+    });
+
+    it('marks peer.canMove correctly based on actor permissions and target ownership', () => {
+      const ownerUser: IUserSafe = {
+        ...bob,
+        id: 3,
+        username: 'charlie',
+        isOwner: true,
+      };
+      roomsState.set({
+        [voiceRoom.id]: {
+          [bob.id]: bob,
+          [ownerUser.id]: ownerUser,
+        },
+      });
+
+      // Regular member: cannot move anyone
+      store.overrideSelector(selectCurrentUser, me);
+      store.refreshState();
+      fixture.detectChanges();
+      let peers = component['voiceRooms']()[0].peers;
+      expect(peers.find((p) => p.id === bob.id)?.canMove).toBe(false);
+      expect(peers.find((p) => p.id === ownerUser.id)?.canMove).toBe(false);
+
+      // Moderator with MOVE_MEMBERS: can move bob, but cannot move owner
+      store.overrideSelector(selectCurrentUser, {
+        ...me,
+        permissions: [EPermission.MOVE_MEMBERS],
+      });
+      store.refreshState();
+      fixture.detectChanges();
+      peers = component['voiceRooms']()[0].peers;
+      expect(peers.find((p) => p.id === bob.id)?.canMove).toBe(true);
+      expect(peers.find((p) => p.id === ownerUser.id)?.canMove).toBe(false);
+
+      // Server owner: can move both bob and another owner
+      store.overrideSelector(selectCurrentUser, {
+        ...me,
+        isOwner: true,
+      });
+      store.refreshState();
+      fixture.detectChanges();
+      peers = component['voiceRooms']()[0].peers;
+      expect(peers.find((p) => p.id === bob.id)?.canMove).toBe(true);
+      expect(peers.find((p) => p.id === ownerUser.id)?.canMove).toBe(true);
+    });
+
+    it('computes moveTargetRooms excluding the selected peer room', () => {
+      roomsStore.voiceRooms.set([voiceRoom, secondVoiceRoom]);
+      fixture.detectChanges();
+
+      const peer: IRoomPeerWithCanMove = { ...bob, canMove: true };
+      component['selectedPeerForMenu'].set({ peer, roomId: voiceRoom.id });
+      fixture.detectChanges();
+
+      const targets = component['moveTargetRooms']();
+      expect(targets.length).toBe(1);
+      expect(targets[0].id).toBe(secondVoiceRoom.id);
+    });
+
+    it('onPeerLongtap sets selectedPeerForMenu and suppresses click on touch', () => {
+      vi.useFakeTimers();
+      isTouch.set(true);
+      fixture.detectChanges();
+
+      const peer: IRoomPeerWithCanMove = { ...bob, canMove: true };
+      const room = component['voiceRooms']()[0];
+
+      component['onPeerLongtap'](peer, room);
+      expect(component['selectedPeerForMenu']()).toEqual({
+        peer,
+        roomId: room.id,
+      });
+      expect(component['suppressNextPeerClick']).toBe(true);
+
+      // Clicking while suppressed should not open user dialog
+      component['onPeerClick'](peer);
+      expect(userDialogService.open).not.toHaveBeenCalled();
+      expect(component['suppressNextPeerClick']).toBe(false);
+
+      // Subsequent click opens user dialog
+      component['onPeerClick'](peer);
+      expect(userDialogService.open).toHaveBeenCalledWith(peer, {
+        withFiles: false,
+        withInput: true,
+      });
+
+      vi.useRealTimers();
+    });
+
+    it('highlights only the room the drag has entered', () => {
+      const sourceRoom = component['voiceRooms']()[0];
+      const targetRoom: IRoomWithPeers = {
+        ...secondVoiceRoom,
+        peers: [],
+        isUserInRoom: false,
+      };
+
+      component['onMemberDragEntered'](targetRoom);
+      expect(component['dropTargetRoomId']()).toBe(targetRoom.id);
+
+      component['onMemberDragEntered'](sourceRoom);
+      expect(component['dropTargetRoomId']()).toBe(sourceRoom.id);
+
+      component['onMemberDragExited'](targetRoom);
+      expect(component['dropTargetRoomId']()).toBe(sourceRoom.id);
+
+      component['onMemberDragExited'](sourceRoom);
+      expect(component['dropTargetRoomId']()).toBeNull();
+
+      component['onMemberDragEntered'](targetRoom);
+      component['onMemberDragEnded']();
+      expect(component['dropTargetRoomId']()).toBeNull();
+    });
+
+    it('onMemberDropped delegates to voiceSessionService.moveMember when valid', () => {
+      const peer: IRoomPeerWithCanMove = { ...bob, canMove: true };
+      const sourceRoom = component['voiceRooms']()[0];
+      const targetRoom: IRoomWithPeers = {
+        ...secondVoiceRoom,
+        peers: [],
+        isUserInRoom: false,
+      };
+
+      // Dropping into the same room does nothing
+      component['onMemberDropped'](
+        {
+          item: { data: peer },
+          previousContainer: { data: sourceRoom },
+        } as unknown as CdkDragDrop<
+          IRoomWithPeers,
+          IRoomWithPeers,
+          IRoomPeerWithCanMove
+        >,
+        sourceRoom,
+      );
+      expect(voiceSessionService.moveMember).not.toHaveBeenCalled();
+
+      // Dropping with canMove: false does nothing
+      component['onMemberDropped'](
+        {
+          item: { data: { ...peer, canMove: false } },
+          previousContainer: { data: sourceRoom },
+        } as unknown as CdkDragDrop<
+          IRoomWithPeers,
+          IRoomWithPeers,
+          IRoomPeerWithCanMove
+        >,
+        targetRoom,
+      );
+      expect(voiceSessionService.moveMember).not.toHaveBeenCalled();
+
+      // Dropping into another room triggers move
+      component['onMemberDropped'](
+        {
+          item: { data: peer },
+          previousContainer: { data: sourceRoom },
+        } as unknown as CdkDragDrop<
+          IRoomWithPeers,
+          IRoomWithPeers,
+          IRoomPeerWithCanMove
+        >,
+        targetRoom,
+      );
+      expect(voiceSessionService.moveMember).toHaveBeenCalledWith(
+        bob.id,
+        secondVoiceRoom.id,
+      );
+    });
+
+    it('moveMember shows an error notification if moveMember rejects', async () => {
+      voiceSessionService.moveMember.mockRejectedValueOnce(
+        new Error('Forbidden'),
+      );
+      await component['moveMember'](bob, secondVoiceRoom);
+      expect(tuiNotificationsService.open).toHaveBeenCalledWith(
+        'Forbidden',
+        expect.objectContaining({ appearance: 'error' }),
+      );
+    });
+
+    it('disconnectMember delegates to voiceSessionService.disconnectMember', async () => {
+      await component['disconnectMember'](bob, voiceRoom.id);
+      expect(voiceSessionService.disconnectMember).toHaveBeenCalledWith(
+        bob.id,
+        voiceRoom.id,
+      );
+    });
+
+    it('disconnectMember shows an error notification if disconnectMember rejects', async () => {
+      voiceSessionService.disconnectMember.mockRejectedValueOnce(
+        new Error('Disconnect denied'),
+      );
+      await component['disconnectMember'](bob, voiceRoom.id);
+      expect(tuiNotificationsService.open).toHaveBeenCalledWith(
+        'Disconnect denied',
+        expect.objectContaining({ appearance: 'error' }),
+      );
+    });
   });
 });

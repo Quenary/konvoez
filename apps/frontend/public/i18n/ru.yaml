@@ -66,7 +66,6 @@ MENU:
     ROLES: Роли
     ADMIN: Администрирование
 USER_DIALOG:
-  FULLNAME: Полное имя
   OPEN_CHAT: Открыть чат
   CALL: Позвонить
   MESSAGE_SENT: Сообщение отправлено
@@ -184,6 +183,10 @@ VOICE:
   CONNECTION_LOST: Голосовая связь потеряна
   CONNECTION_RESTORED: Голосовая связь восстановлена
   REJOIN: Переподключиться
+  MOVED_BY: Вас переместил {{name}}
+  MOVE_TO: Переместить в...
+  DISCONNECTED_BY: Вас отключил от голосовой комнаты {{name}}
+  DISCONNECT_FROM_VOICE: Отключить от голосовой комнаты
 ROOMS:
   UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
@@ -227,6 +230,32 @@ ROOMS:
     ALLOWED_ROLES: Разрешенные роли
     ALLOWED_USERS: Разрешенные пользователи
     ALLOWED_NONE_HINT: Владелец и администраторы всегда имеют доступ. Выберите роли или пользователей, чтобы открыть доступ остальным.
+  DETAILS: Подробнее
+  MEDIA:
+    SECTION_TITLE: Файлы
+    EMPTY: Нет файлов
+    BACK: Назад
+    GO_TO_MESSAGE: Перейти к сообщению
+    IMAGES:
+      ONE: '{{count}} изображение'
+      FEW: '{{count}} изображения'
+      MANY: '{{count}} изображений'
+      OTHER: '{{count}} изображений'
+    VIDEOS:
+      ONE: '{{count}} видео'
+      FEW: '{{count}} видео'
+      MANY: '{{count}} видео'
+      OTHER: '{{count}} видео'
+    FILES:
+      ONE: '{{count}} файл'
+      FEW: '{{count}} файла'
+      MANY: '{{count}} файлов'
+      OTHER: '{{count}} файлов'
+    AUDIO:
+      ONE: '{{count}} аудио'
+      FEW: '{{count}} аудио'
+      MANY: '{{count}} аудио'
+      OTHER: '{{count}} аудио'
 CHAT:
   MENTION_EVERYONE_HINT: Уведомить всех в комнате
   MENTION_UNKNOWN: неизвестно
@@ -423,6 +452,7 @@ SETTINGS:
       USE_ATTACHMENTS: Отправка вложений
       MODERATE_MESSAGES: Модерирование сообщений
       MENTION_EVERYONE: Упоминать @everyone и роли
+      MOVE_MEMBERS: Перемещение участников между голосовыми комнатами
   ADMIN:
     TITLE: Администрирование
     SUBTITLE: Глобальные настройки сервера
