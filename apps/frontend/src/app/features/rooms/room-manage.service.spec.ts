@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EPermission, ERoomType, IUserSafe } from '@konvoez/shared';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
@@ -12,6 +12,7 @@ import { RoomsStore } from '@core/stores/rooms.store';
 
 describe('RoomManageService', () => {
   let service: RoomManageService;
+  let store: MockStore;
   let roomsStore: {
     update: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
@@ -72,7 +73,11 @@ describe('RoomManageService', () => {
     });
 
     service = TestBed.inject(RoomManageService);
-    TestBed.inject(MockStore);
+    store = TestBed.inject(MockStore);
+  });
+
+  afterEach(() => {
+    store.resetSelectors();
   });
 
   it('should allow room management for admin', () => {

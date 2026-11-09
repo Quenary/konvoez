@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { DirectChatItemComponent } from './direct-chat-item.component';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { UsersStore } from '@core/stores/users.store';
@@ -51,6 +52,10 @@ describe('DirectChatItemComponent', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     onlineMap.set({});
+    // Other specs override this selector through MockStore. With Vitest
+    // isolation disabled, that result survives until resetSelectors().
+    selectCurrentUser.release();
+    selectCurrentUser.clearResult();
 
     await TestBed.configureTestingModule({
       imports: [DirectChatItemComponent],

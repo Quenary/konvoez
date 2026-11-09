@@ -3,7 +3,7 @@ import { AuthRegisterComponent } from './auth-register.component';
 import { PublicStore } from '@core/stores/public.store';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { ActivatedRoute } from '@angular/router';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuthActions } from '@core/auth/auth.actions';
 import { selectAuthLoading } from '@core/auth/auth.selectors';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -62,6 +62,10 @@ describe('AuthRegisterComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
   };
+
+  afterEach(() => {
+    store.resetSelectors();
+  });
 
   describe('when owner setup is required', () => {
     beforeEach(async () => {
