@@ -47,3 +47,58 @@ export const attachmentSchema = z.object({
   thumbnailUrl: stringSchema.nullable(),
 });
 export type IAttachment = z.infer<typeof attachmentSchema>;
+
+export const mediaGalleryItemSchema = attachmentSchema.extend({
+  messageId: z.uuid(),
+  createdAt: z.string().datetime(),
+});
+export type IMediaGalleryItem = z.infer<typeof mediaGalleryItemSchema>;
+
+export const mediaCountsSchema = z.object({
+  image: z.number().int().nonnegative(),
+  video: z.number().int().nonnegative(),
+  audio: z.number().int().nonnegative(),
+  file: z.number().int().nonnegative(),
+});
+export type IMediaCounts = z.infer<typeof mediaCountsSchema>;
+
+export const mediaCountsQuerySchema = z
+  .object({
+    roomId: z.coerce.number().int().positive().optional(),
+    recipientId: z.coerce.number().int().positive().optional(),
+  })
+  .refine(
+    (data) =>
+      (data.roomId !== undefined && data.recipientId === undefined) ||
+      (data.roomId === undefined && data.recipientId !== undefined),
+    { message: 'Exactly one of roomId or recipientId must be provided' },
+  );
+export type IMediaCountsQuery = z.infer<typeof mediaCountsQuerySchema>;
+
+const normalizedKindSchema = z.preprocess(
+  (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+  attachmentKindSchema,
+);
+
+export const mediaListQuerySchema = z
+  .object({
+    roomId: z.coerce.number().int().positive().optional(),
+    recipientId: z.coerce.number().int().positive().optional(),
+    type: normalizedKindSchema,
+    cursor: z.uuid().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(30),
+  })
+  .refine(
+    (data) =>
+      (data.roomId !== undefined && data.recipientId === undefined) ||
+      (data.roomId === undefined && data.recipientId !== undefined),
+    { message: 'Exactly one of roomId or recipientId must be provided' },
+  );
+export type IMediaListQuery = z.infer<typeof mediaListQuerySchema>;
+
+export const mediaListResponseSchema = z.object({
+  items: z.array(mediaGalleryItemSchema),
+  nextCursor: z.uuid().nullable(),
+  hasMore: z.boolean(),
+});
+export type IMediaListResponse = z.infer<typeof mediaListResponseSchema>;

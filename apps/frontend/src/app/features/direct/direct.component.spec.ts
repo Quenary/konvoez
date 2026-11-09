@@ -1,7 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, input, signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { provideMockStore } from '@ngrx/store/testing';
+import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
 import { DirectComponent } from './direct.component';
@@ -20,6 +25,9 @@ class MockChatComponent {
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
+  public readonly initialMessageId = input<string | null>(null);
+  public readonly headerClick = output<void>();
+  public readonly initialMessageApplied = output<void>();
 }
 
 @Component({ selector: 'app-voice-room-shell', template: '' })
@@ -27,6 +35,7 @@ class MockVoiceRoomShellComponent {
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<unknown>(null);
+  public readonly headerClick = output<void>();
 }
 
 describe('DirectComponent', () => {
@@ -71,8 +80,16 @@ describe('DirectComponent', () => {
     hangup: vi.fn(),
   };
 
+  let queryParamMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  let routerNavigate: ReturnType<typeof vi.fn>;
+  const mockUserDialogService = {
+    open: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
+    queryParamMap$ = new BehaviorSubject(convertToParamMap({}));
+    routerNavigate = vi.fn().mockResolvedValue(true);
     recipientId.set(99);
     user.set(mockUser);
     isSelf.set(false);
@@ -87,7 +104,18 @@ describe('DirectComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [DirectComponent],
-      providers: [provideTranslateService()],
+      providers: [
+        provideTranslateService(),
+        provideMockStore({
+          selectors: [{ selector: selectCurrentUser, value: mockUser }],
+        }),
+        {
+          provide: ActivatedRoute,
+          useValue: { queryParamMap: queryParamMap$ },
+        },
+        { provide: Router, useValue: { navigate: routerNavigate } },
+        { provide: UserDialogService, useValue: mockUserDialogService },
+      ],
     })
       .overrideComponent(DirectComponent, {
         set: {
@@ -219,5 +247,71 @@ describe('DirectComponent', () => {
     isOnline.set(false);
     fixture.detectChanges();
     expect(chatDebugEl.componentInstance.isOnline()).toBe(false);
+  });
+
+  it('opens the user dialog for the direct peer', () => {
+    component['openDetails']();
+    expect(mockUserDialogService.open).toHaveBeenCalledWith(mockUser, {
+      withFiles: true,
+      withInput: false,
+    });
+  });
+
+  it('opens the user dialog for the current user in saved messages', () => {
+    user.set(null);
+    isSelf.set(true);
+
+    component['openDetails']();
+
+    expect(mockUserDialogService.open).toHaveBeenCalledWith(mockUser, {
+      withFiles: true,
+      withInput: false,
+    });
+  });
+
+  it('reads message query param and clears it via router navigation', async () => {
+    routerNavigate.mockClear();
+
+    queryParamMap$.next(convertToParamMap({ message: 'msg-456' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component['targetMessageId']()).toBe('msg-456');
+    expect(routerNavigate).toHaveBeenCalledWith([], {
+      relativeTo: expect.anything(),
+      queryParams: { message: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  });
+
+  it('keeps a message id and shows the chat when a call hides it', async () => {
+    view.set('call');
+    fixture.detectChanges();
+    expect(queryChat()).toBeNull();
+
+    queryParamMap$.next(convertToParamMap({ message: 'msg-456' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(mockDirectStore.showChat).toHaveBeenCalled();
+    expect(component['heldMessageId']()).toBe('msg-456');
+
+    queryParamMap$.next(convertToParamMap({}));
+    fixture.detectChanges();
+    expect(component['targetMessageId']()).toBeNull();
+    expect(component['heldMessageId']()).toBe('msg-456');
+
+    view.set('chat');
+    fixture.detectChanges();
+    const chatDebugEl = fixture.debugElement.query(
+      (de) => de.componentInstance instanceof MockChatComponent,
+    );
+    expect(chatDebugEl.componentInstance.initialMessageId()).toBe('msg-456');
+
+    chatDebugEl.componentInstance.initialMessageApplied.emit();
+    fixture.detectChanges();
+    expect(component['heldMessageId']()).toBeNull();
+    expect(chatDebugEl.componentInstance.initialMessageId()).toBeNull();
   });
 });

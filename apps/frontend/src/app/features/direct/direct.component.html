@@ -6,7 +6,8 @@
     <app-voice-room-shell
       [title]="_title"
       [avatarUrl]="_avatarUrl"
-      [headerActions]="toChatActions" />
+      [headerActions]="toChatActions"
+      (headerClick)="openDetails()" />
   } @else {
     @if (recipientId(); as id) {
       <app-chat
@@ -14,7 +15,10 @@
         [title]="_title"
         [avatarUrl]="_avatarUrl"
         [avatarIcon]="avatarIcon()"
-        [isOnline]="isOnline()">
+        [isOnline]="isOnline()"
+        [initialMessageId]="heldMessageId()"
+        (initialMessageApplied)="releaseMessageJump()"
+        (headerClick)="openDetails()">
         <div chatHeaderActions>
           @if (!isSelf() && user(); as directUser) {
             @if (isCurrentDirectCallActive()) {

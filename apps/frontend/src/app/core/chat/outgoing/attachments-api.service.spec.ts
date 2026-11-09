@@ -101,4 +101,62 @@ describe('attachment upload fields', () => {
     expect(part.name).toBe('poster.webp');
     expect(await part.text()).toBe('sliced');
   });
+
+  it('fetches media counts with roomId or recipientId', () => {
+    const get = vi
+      .fn()
+      .mockReturnValue(of({ image: 1, video: 0, audio: 0, file: 0 }));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        AttachmentsApiService,
+        { provide: HttpClient, useValue: { get } },
+      ],
+    });
+
+    const service = TestBed.inject(AttachmentsApiService);
+    service.getCounts({ roomId: 123 }).subscribe();
+    expect(get).toHaveBeenCalledWith(
+      expect.stringContaining('/attachments/counts'),
+      expect.objectContaining({
+        params: { roomId: 123 },
+        withCredentials: true,
+      }),
+    );
+  });
+
+  it('fetches media list with type, cursor, and limit', () => {
+    const get = vi
+      .fn()
+      .mockReturnValue(of({ items: [], nextCursor: null, hasMore: false }));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        AttachmentsApiService,
+        { provide: HttpClient, useValue: { get } },
+      ],
+    });
+
+    const service = TestBed.inject(AttachmentsApiService);
+    service
+      .listMedia({
+        roomId: 123,
+        type: 'IMAGE' as never,
+        cursor: 'cur-1',
+        limit: 10,
+      })
+      .subscribe();
+    expect(get).toHaveBeenCalledWith(
+      expect.stringContaining('/attachments'),
+      expect.objectContaining({
+        params: {
+          roomId: 123,
+          type: 'IMAGE',
+          cursor: 'cur-1',
+          limit: 10,
+        },
+        withCredentials: true,
+      }),
+    );
+  });
 });

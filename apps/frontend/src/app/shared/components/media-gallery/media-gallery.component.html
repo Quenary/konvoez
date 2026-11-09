@@ -1,0 +1,180 @@
+<div class="media-gallery">
+  @if (selectedType() === null) {
+    <div class="media-gallery-categories">
+      @if (loadingCounts()) {
+        <div class="media-gallery-loading">
+          <tui-loader size="m" />
+        </div>
+      } @else if (categories().length === 0) {
+        <div class="media-gallery-empty">
+          <p>{{ 'ROOMS.MEDIA.EMPTY' | translate }}</p>
+        </div>
+      } @else {
+        <div class="media-gallery-list">
+          @for (cat of categories(); track cat.kind) {
+            <button
+              class="media-gallery-category-item"
+              type="button"
+              (click)="selectType(cat.kind)">
+              <div class="media-gallery-category-icon-wrapper">
+                <tui-icon
+                  [icon]="cat.icon"
+                  class="media-gallery-category-icon" />
+              </div>
+              <span class="media-gallery-category-label">{{ cat.label }}</span>
+              <tui-icon
+                [icon]="icons['chevron-right']"
+                class="media-gallery-category-arrow" />
+            </button>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="media-gallery-view">
+      <div class="media-gallery-header">
+        <button
+          tuiIconButton
+          appearance="flat"
+          size="s"
+          type="button"
+          [iconStart]="icons['chevron-left']"
+          [attr.aria-label]="'ROOMS.MEDIA.BACK' | translate"
+          (click)="clearSelectedType()">
+        </button>
+        <span class="media-gallery-header-title">
+          {{ selectedCategoryLabel() }}
+        </span>
+      </div>
+
+      <tui-scrollbar
+        class="media-gallery-scroll"
+        (scroll)="onScroll($event)">
+        @let currentType = selectedType();
+        @if (currentType === kinds.IMAGE || currentType === kinds.VIDEO) {
+          <div class="media-gallery-grid">
+            @for (item of itemViews(); track item.id) {
+              <button
+                class="media-gallery-tile"
+                type="button"
+                (click)="openPreview(item)">
+                <img
+                  [src]="item.thumbnailUrl ?? item.url"
+                  [alt]="item.name"
+                  class="media-gallery-tile-image"
+                  loading="lazy" />
+                @if (item.kind === kinds.VIDEO) {
+                  <div class="media-gallery-tile-video-badge">
+                    <tui-icon
+                      [icon]="icons.play"
+                      class="media-gallery-tile-play-icon" />
+                    @if (item.durationLabel) {
+                      <span>{{ item.durationLabel }}</span>
+                    }
+                  </div>
+                }
+              </button>
+            }
+          </div>
+        } @else if (currentType === kinds.AUDIO) {
+          <div class="media-gallery-audio-list">
+            @for (item of itemViews(); track item.id) {
+              <div class="media-gallery-audio-item">
+                <div class="media-gallery-audio-info">
+                  <div class="media-gallery-audio-icon-box">
+                    <tui-icon icon="@tui.music" />
+                  </div>
+                  <div class="media-gallery-audio-details">
+                    <span class="media-gallery-audio-name">{{
+                      item.name
+                    }}</span>
+                    <span class="media-gallery-audio-meta">{{
+                      item.formattedSize
+                    }}</span>
+                  </div>
+                  <div class="media-gallery-item-actions">
+                    <button
+                      tuiIconButton
+                      appearance="flat"
+                      size="xs"
+                      type="button"
+                      [iconStart]="icons['message-circle']"
+                      tuiHintAppearance="floating"
+                      [tuiHint]="'ROOMS.MEDIA.GO_TO_MESSAGE' | translate"
+                      [attr.aria-label]="
+                        'ROOMS.MEDIA.GO_TO_MESSAGE' | translate
+                      "
+                      (click)="onGoToMessageClick(item.messageId)">
+                    </button>
+                    <button
+                      tuiIconButton
+                      appearance="flat"
+                      size="xs"
+                      type="button"
+                      [iconStart]="icons.download"
+                      tuiHintAppearance="floating"
+                      [tuiHint]="'ROOMS.DOWNLOAD' | translate"
+                      [attr.aria-label]="'ROOMS.DOWNLOAD' | translate"
+                      (click)="downloadItem(item)">
+                    </button>
+                  </div>
+                </div>
+                <audio
+                  class="media-gallery-audio-player"
+                  controls
+                  preload="none"
+                  [src]="item.url"></audio>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="media-gallery-file-list">
+            @for (item of itemViews(); track item.id) {
+              <div class="media-gallery-file-item">
+                <div class="media-gallery-file-icon-box">
+                  <tui-icon icon="@tui.file" />
+                </div>
+                <div class="media-gallery-file-details">
+                  <span class="media-gallery-file-name">{{ item.name }}</span>
+                  <span class="media-gallery-file-meta">{{
+                    item.formattedSize
+                  }}</span>
+                </div>
+                <div class="media-gallery-item-actions">
+                  <button
+                    tuiIconButton
+                    appearance="flat"
+                    size="xs"
+                    type="button"
+                    [iconStart]="icons['message-circle']"
+                    tuiHintAppearance="floating"
+                    [tuiHint]="'ROOMS.MEDIA.GO_TO_MESSAGE' | translate"
+                    [attr.aria-label]="'ROOMS.MEDIA.GO_TO_MESSAGE' | translate"
+                    (click)="onGoToMessageClick(item.messageId)">
+                  </button>
+                  <button
+                    tuiIconButton
+                    appearance="flat"
+                    size="xs"
+                    type="button"
+                    [iconStart]="icons.download"
+                    tuiHintAppearance="floating"
+                    [tuiHint]="'ROOMS.DOWNLOAD' | translate"
+                    [attr.aria-label]="'ROOMS.DOWNLOAD' | translate"
+                    (click)="downloadItem(item)">
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (loadingItems()) {
+          <div class="media-gallery-loading">
+            <tui-loader size="m" />
+          </div>
+        }
+      </tui-scrollbar>
+    </div>
+  }
+</div>

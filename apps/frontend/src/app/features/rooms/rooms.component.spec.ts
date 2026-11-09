@@ -414,6 +414,18 @@ describe('RoomsComponent', () => {
     expect(editRoom).toHaveBeenCalledWith(voiceRoom);
   });
 
+  it('should delegate open details to RoomManageService', () => {
+    const openRoomDetails = vi.fn().mockResolvedValue(undefined);
+    const roomManageService = TestBed.inject(RoomManageService);
+    vi.spyOn(roomManageService, 'openRoomDetails').mockImplementation(
+      openRoomDetails,
+    );
+
+    component['openRoomDetails'](textRoom);
+
+    expect(openRoomDetails).toHaveBeenCalledWith(textRoom);
+  });
+
   it('should delegate delete room to RoomManageService', () => {
     const deleteRoom = vi.fn();
     const roomManageService = TestBed.inject(RoomManageService);
@@ -593,7 +605,10 @@ describe('RoomsComponent', () => {
 
       // Subsequent click opens user dialog
       component['onPeerClick'](peer);
-      expect(userDialogService.open).toHaveBeenCalledWith(peer);
+      expect(userDialogService.open).toHaveBeenCalledWith(peer, {
+        withFiles: false,
+        withInput: true,
+      });
 
       vi.useRealTimers();
     });

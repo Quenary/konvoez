@@ -111,4 +111,18 @@ describe('RoomManageService', () => {
 
     expect(roomsStore.remove).not.toHaveBeenCalled();
   });
+
+  it('should open room details dialog', async () => {
+    responsiveDialogService.open.mockReturnValue(of(undefined));
+
+    await service.openRoomDetails(room);
+
+    expect(responsiveDialogService.open).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        closable: true,
+        data: room,
+      },
+    );
+  });
 });

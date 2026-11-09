@@ -13,13 +13,14 @@ export class MediaPreviewService {
   public open(
     items: readonly IMediaPreviewItem[],
     startIndex: number,
+    onGoToMessage?: (messageId: string) => void,
   ): Observable<void> {
     const injector = Injector.create({
       parent: this.injector,
       providers: [
         {
           provide: MEDIA_PREVIEW_DATA,
-          useValue: { items, startIndex },
+          useValue: { items, startIndex, onGoToMessage },
         },
       ],
     });

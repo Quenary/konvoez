@@ -21,5 +21,6 @@
     [participantsCount]="participantsCount()"
     [fullscreenTarget]="fullscreenHost()"
     [headerActions]="headerActions()"
-    [withHide]="layout() === 'theatre'" />
+    [withHide]="layout() === 'theatre'"
+    (headerClick)="headerClick.emit()" />
 </ng-template>

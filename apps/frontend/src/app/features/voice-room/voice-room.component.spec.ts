@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Component, input, signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -20,6 +20,7 @@ class MockVoiceRoomShellComponent {
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<unknown>(null);
+  public readonly headerClick = output<void>();
 }
 
 describe('VoiceRoomComponent', () => {
@@ -80,6 +81,7 @@ describe('VoiceRoomComponent', () => {
           provide: RoomManageService,
           useValue: {
             canManageRooms: signal(false).asReadonly(),
+            openRoomDetails: vi.fn(),
             editRoom: vi.fn(),
             deleteRoom: vi.fn(),
           },
@@ -213,6 +215,7 @@ describe('VoiceRoomComponent', () => {
             provide: RoomManageService,
             useValue: {
               canManageRooms: signal(false).asReadonly(),
+              openRoomDetails: vi.fn(),
               editRoom: vi.fn(),
               deleteRoom: vi.fn(),
             },
@@ -251,6 +254,20 @@ describe('VoiceRoomComponent', () => {
       expect(shellAfter).toBe(shellBefore);
       expect(shellAfter.title()).toBe('VIP');
       expect(shellAfter.avatarUrl()).toBe('http://avatar');
+    });
+
+    it('opens room details when openDetails is called', () => {
+      roomsDictSignal.set({
+        4: { id: 4, name: 'VIP', avatarUrl: 'http://avatar' } as IRoom,
+      });
+      const fixture = TestBed.createComponent(VoiceRoomComponent);
+      fixture.detectChanges();
+
+      fixture.componentInstance['openDetails']();
+      const roomManageService = TestBed.inject(RoomManageService);
+      expect(roomManageService.openRoomDetails).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 4, name: 'VIP' }),
+      );
     });
   });
 });

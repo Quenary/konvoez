@@ -28,3 +28,4 @@ export * from './notification-topic';
 export * from './voice-adaptation';
 export * from './stream-layers';
 export * from './voice-connection';
+export * from './attachment-classify';

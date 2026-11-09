@@ -277,6 +277,10 @@ export class RoomsComponent implements OnInit {
       });
   }
 
+  protected openRoomDetails(room: IRoom): void {
+    void this.roomManageService.openRoomDetails(room);
+  }
+
   protected editRoom(room: IRoom): Promise<void> {
     return this.roomManageService.editRoom(room);
   }
@@ -349,7 +353,10 @@ export class RoomsComponent implements OnInit {
       return;
     }
 
-    void this.userDialogService.open(peer);
+    void this.userDialogService.open(peer, {
+      withFiles: false,
+      withInput: true,
+    });
   }
 
   protected onMemberDragEntered(room: IRoomWithPeers): void {

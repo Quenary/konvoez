@@ -18,7 +18,9 @@ import { icons } from '@constants';
 export class RoomContextMenuComponent {
   protected readonly icons = icons;
   public readonly roomName = input.required<string>();
+  public readonly canManage = input<boolean>(true);
 
+  public readonly details = output<void>();
   public readonly edit = output<void>();
   public readonly delete = output<void>();
 }

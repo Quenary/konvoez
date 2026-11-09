@@ -63,7 +63,7 @@
   <button
     class="room-item"
     tuiAsideItem
-    [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
+    [tuiDropdown]="roomContextMenu"
     tuiDropdownContext
     [tuiDropdownSided]="true"
     (longtap)="onRoomLongtap(room)"
@@ -139,7 +139,7 @@
       <button
         class="room-item"
         tuiAsideItem
-        [tuiDropdown]="canManageRooms() ? roomContextMenu : null"
+        [tuiDropdown]="roomContextMenu"
         tuiDropdownContext
         [tuiDropdownSided]="true"
         (longtap)="onRoomLongtap(room)"
@@ -219,6 +219,8 @@
   @if (contextMenuOpenedFor(); as room) {
     <app-room-context-menu
       [roomName]="room.name"
+      [canManage]="canManageRooms()"
+      (details)="openRoomDetails(room); close()"
       (edit)="editRoom(room); close()"
       (delete)="deleteRoom(room); close()" />
   }

@@ -11,10 +11,12 @@ describe('MediaPreviewComponent', () => {
   let fixture: ComponentFixture<MediaPreviewComponent>;
   const complete = vi.fn();
   const downloadUrl = vi.fn();
+  const onGoToMessage = vi.fn();
 
   beforeEach(async () => {
     complete.mockClear();
     downloadUrl.mockClear();
+    onGoToMessage.mockClear();
     await TestBed.configureTestingModule({
       imports: [MediaPreviewComponent],
       providers: [
@@ -30,6 +32,7 @@ describe('MediaPreviewComponent', () => {
                 src: 'blob:one',
                 name: 'one.png',
                 downloadUrl: null,
+                messageId: 'msg-123',
               },
               {
                 kind: EAttachmentKind.VIDEO,
@@ -38,6 +41,7 @@ describe('MediaPreviewComponent', () => {
                 downloadUrl: '/file?download=1',
               },
             ],
+            onGoToMessage,
           },
         },
         {
@@ -85,5 +89,11 @@ describe('MediaPreviewComponent', () => {
     button?.click();
 
     expect(downloadUrl).toHaveBeenCalledWith('/file?download=1', 'two.mp4');
+  });
+
+  it('triggers onGoToMessage and closes when goToMessage is called', () => {
+    fixture.componentInstance['goToMessage']();
+    expect(complete).toHaveBeenCalled();
+    expect(onGoToMessage).toHaveBeenCalledWith('msg-123');
   });
 });

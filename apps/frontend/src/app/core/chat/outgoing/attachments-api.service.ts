@@ -1,6 +1,11 @@
 import { HttpClient, HttpEvent } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { IAttachment } from '@konvoez/shared';
+import {
+  EAttachmentKind,
+  IAttachment,
+  IMediaCounts,
+  IMediaListResponse,
+} from '@konvoez/shared';
 import { environment } from '@environments/environment';
 import { Observable } from 'rxjs';
 import { toUploadBlob } from '@shared/functions/upload-blob.function';
@@ -59,5 +64,56 @@ export class AttachmentsApiService {
       reportProgress: true,
       withCredentials: true,
     });
+  }
+
+  getCounts(params: {
+    roomId?: number;
+    recipientId?: number;
+  }): Observable<IMediaCounts> {
+    const httpParams: Record<string, string | number> = {};
+    if (params.roomId != null) {
+      httpParams['roomId'] = params.roomId;
+    }
+    if (params.recipientId != null) {
+      httpParams['recipientId'] = params.recipientId;
+    }
+    return this.httpClient.get<IMediaCounts>(
+      `${environment.apiPath}/attachments/counts`,
+      {
+        params: httpParams,
+        withCredentials: true,
+      },
+    );
+  }
+
+  listMedia(params: {
+    roomId?: number;
+    recipientId?: number;
+    type: EAttachmentKind;
+    cursor?: string;
+    limit?: number;
+  }): Observable<IMediaListResponse> {
+    const httpParams: Record<string, string | number> = {
+      type: params.type,
+    };
+    if (params.roomId != null) {
+      httpParams['roomId'] = params.roomId;
+    }
+    if (params.recipientId != null) {
+      httpParams['recipientId'] = params.recipientId;
+    }
+    if (params.cursor != null) {
+      httpParams['cursor'] = params.cursor;
+    }
+    if (params.limit != null) {
+      httpParams['limit'] = params.limit;
+    }
+    return this.httpClient.get<IMediaListResponse>(
+      `${environment.apiPath}/attachments`,
+      {
+        params: httpParams,
+        withCredentials: true,
+      },
+    );
   }
 }

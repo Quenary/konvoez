@@ -66,7 +66,6 @@ MENU:
     ROLES: Roles
     ADMIN: Administration
 USER_DIALOG:
-  FULLNAME: Full name
   OPEN_CHAT: Open chat
   CALL: Call
   MESSAGE_SENT: Message sent
@@ -231,6 +230,24 @@ ROOMS:
     ALLOWED_ROLES: Allowed roles
     ALLOWED_USERS: Allowed users
     ALLOWED_NONE_HINT: Owner and admins always have access. Select roles or users to grant access to others.
+  DETAILS: Details
+  MEDIA:
+    SECTION_TITLE: Files
+    EMPTY: No files
+    BACK: Back
+    GO_TO_MESSAGE: Go to message
+    IMAGES:
+      ONE: '{{count}} image'
+      OTHER: '{{count}} images'
+    VIDEOS:
+      ONE: '{{count}} video'
+      OTHER: '{{count}} videos'
+    FILES:
+      ONE: '{{count}} file'
+      OTHER: '{{count}} files'
+    AUDIO:
+      ONE: '{{count}} audio'
+      OTHER: '{{count}} audio'
 CHAT:
   MENTION_EVERYONE_HINT: Notify everyone in this room
   MENTION_UNKNOWN: unknown

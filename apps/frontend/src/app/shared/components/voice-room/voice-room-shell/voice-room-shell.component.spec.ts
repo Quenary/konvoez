@@ -260,6 +260,17 @@ describe('VoiceRoomShellComponent', () => {
     expect(revealChrome).toHaveBeenCalledTimes(2);
   });
 
+  it('emits headerClick when overlay header is clicked', () => {
+    const fixture = create();
+    const spy = vi.fn();
+    fixture.componentInstance.headerClick.subscribe(spy);
+
+    const header = fixture.nativeElement.querySelector('h2[tuiTitle]');
+    header?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
   it('switches layouts from the header button and returns to the same stage tile', () => {
     const fixture = create();
     const toggle = () =>

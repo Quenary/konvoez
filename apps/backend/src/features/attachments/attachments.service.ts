@@ -1,5 +1,6 @@
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityManager, EntityRepository } from '@mikro-orm/core';
+import { EntityManager, EntityRepository, raw } from '@mikro-orm/core';
+import type { SqlEntityRepository } from '@mikro-orm/sql';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Semaphore } from 'async-mutex';
 import fs from 'fs';
@@ -10,14 +11,15 @@ import {
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
   attachmentsThumbnailMaxSide,
+  classifyAttachmentKind,
   EAttachmentKind,
   EPermission,
   ESettingKey,
   IAttachment,
   IAttachmentUploadHints,
-  INLINE_AUDIO_MIMES,
-  INLINE_IMAGE_MIMES,
-  INLINE_VIDEO_MIMES,
+  IMediaCounts,
+  IMediaGalleryItem,
+  IMediaListResponse,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import {
@@ -30,11 +32,13 @@ import { VideoProcessingService } from '@shared/services/video-processing.servic
 import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
 import { RoomsFacade, type TRoomAccessTarget } from '../rooms/rooms.facade';
+import { UsersService } from '../users/users.service';
 import { GetUserSafeDto } from '../users/users.dto';
 import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { sanitizeAttachmentName } from './attachments.http';
 import { MimeSnifferService } from './mime-sniffer.service';
+import { MediaCountsQueryDto, MediaListQueryDto } from './attachments.dto';
 
 const processingSemaphore = new Semaphore(2);
 const STRIPPABLE_FORMATS = new Set(['jpeg', 'webp', 'avif', 'png']);
@@ -71,6 +75,7 @@ export class AttachmentsService {
     private readonly videoProcessingService: VideoProcessingService,
     private readonly settingsService: SettingsService,
     private readonly roomsFacade: RoomsFacade,
+    private readonly usersService: UsersService,
   ) {
     this.em = this.repo.getEntityManager();
   }
@@ -184,6 +189,141 @@ export class AttachmentsService {
       );
     }
     await this.removeStored(storageKey, thumbnailKey ?? null);
+  }
+
+  private get attachmentRepository(): SqlEntityRepository<MessageAttachmentEntity> {
+    return this.repo as unknown as SqlEntityRepository<MessageAttachmentEntity>;
+  }
+
+  public async getCounts(
+    user: GetUserSafeDto,
+    query: MediaCountsQueryDto,
+  ): Promise<IMediaCounts> {
+    const { roomId, recipientId } = query;
+    const baseWhere = await this.buildChatMediaWhere(user, {
+      roomId,
+      recipientId,
+    });
+
+    const rows = await this.attachmentRepository
+      .createQueryBuilder('a')
+      .join('a.message', 'm')
+      .select(['a.kind as kind', raw('count(*) as count')])
+      .where({
+        status: EAttachmentStatus.ATTACHED,
+        ...baseWhere,
+      })
+      .groupBy('a.kind')
+      .execute<Array<{ kind: string; count: number }>>('all');
+
+    const counts: IMediaCounts = {
+      image: 0,
+      video: 0,
+      audio: 0,
+      file: 0,
+    };
+
+    for (const row of rows) {
+      const count = Number(row.count);
+      switch (row.kind) {
+        case EAttachmentKind.IMAGE:
+          counts.image = count;
+          break;
+        case EAttachmentKind.VIDEO:
+          counts.video = count;
+          break;
+        case EAttachmentKind.AUDIO:
+          counts.audio = count;
+          break;
+        case EAttachmentKind.FILE:
+          counts.file = count;
+          break;
+      }
+    }
+
+    return counts;
+  }
+
+  public async listMedia(
+    user: GetUserSafeDto,
+    query: MediaListQueryDto,
+  ): Promise<IMediaListResponse> {
+    const { roomId, recipientId, type, cursor, limit } = query;
+    const baseWhere = await this.buildChatMediaWhere(user, {
+      roomId,
+      recipientId,
+    });
+
+    const where: Record<string, unknown> = {
+      status: EAttachmentStatus.ATTACHED,
+      kind: type,
+      ...baseWhere,
+    };
+
+    if (cursor) {
+      where.id = { $lt: parse(cursor) };
+    }
+
+    const rows = await this.attachmentRepository
+      .createQueryBuilder('a')
+      .joinAndSelect('a.message', 'm')
+      .where(where)
+      .orderBy({ 'a.id': 'DESC' })
+      .limit(limit + 1)
+      .getResultList();
+
+    const hasMore = rows.length > limit;
+    const trimmed = rows.slice(0, limit);
+    const nextCursor =
+      hasMore && trimmed.length > 0
+        ? uuidStringify(trimmed[trimmed.length - 1].id)
+        : null;
+
+    const items: IMediaGalleryItem[] = trimmed.map((entity) => {
+      const base = this.toDto(entity);
+      const message = entity.message;
+      if (!message) {
+        throw new Error('Attached media must have an associated message');
+      }
+      return {
+        ...base,
+        messageId: uuidStringify(message.id),
+        createdAt: entity.createdAt.toISOString(),
+      };
+    });
+
+    return {
+      items,
+      nextCursor,
+      hasMore,
+    };
+  }
+
+  private async buildChatMediaWhere(
+    user: GetUserSafeDto,
+    target: { roomId?: number; recipientId?: number },
+  ): Promise<Record<string, unknown>> {
+    const { roomId, recipientId } = target;
+    if (roomId) {
+      await this.roomsFacade.assertCanAccessRoom(user, roomId);
+      return { 'm.room': roomId };
+    }
+    if (recipientId) {
+      if (recipientId !== user.id) {
+        await this.usersService.findOneAsSafeDto(recipientId);
+        return {
+          $or: [
+            { 'm.sender': user.id, 'm.recipient': recipientId },
+            { 'm.sender': recipientId, 'm.recipient': user.id },
+          ],
+        };
+      }
+      return { 'm.sender': user.id, 'm.recipient': user.id };
+    }
+    throw AppException.badRequest(
+      ApiErrorCode.VALIDATION_FAILED,
+      'Either roomId or recipientId must be provided',
+    );
   }
 
   public async resolveReadable(
@@ -393,26 +533,19 @@ export class AttachmentsService {
     poster: { path?: string; size: number } | undefined,
     hints: IAttachmentUploadHints,
   ): Promise<IStoredUpload> {
-    const isVideo =
-      !!sniffed && (INLINE_VIDEO_MIMES as readonly string[]).includes(sniffed);
-    if (!isVideo) {
+    const kind = classifyAttachmentKind(sniffed);
+    if (kind !== EAttachmentKind.VIDEO) {
       await this.discardPoster(poster?.path);
     }
-    if (
-      sniffed &&
-      (INLINE_IMAGE_MIMES as readonly string[]).includes(sniffed)
-    ) {
+    if (kind === EAttachmentKind.IMAGE && sniffed) {
       return processingSemaphore.runExclusive(() =>
         this.processImage(file, sniffed),
       );
     }
-    if (isVideo && sniffed) {
+    if (kind === EAttachmentKind.VIDEO && sniffed) {
       return this.processVideo(file, sniffed, poster, hints);
     }
-    if (
-      sniffed &&
-      (INLINE_AUDIO_MIMES as readonly string[]).includes(sniffed)
-    ) {
+    if (kind === EAttachmentKind.AUDIO && sniffed) {
       return {
         mime: sniffed,
         kind: EAttachmentKind.AUDIO,

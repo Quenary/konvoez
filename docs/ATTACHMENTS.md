@@ -45,7 +45,7 @@ The server sniffs the real type. These types are shown inside the message:
 
 - **Images**: JPEG, PNG, GIF, WebP, AVIF.
 - **Video**: MP4, WebM, QuickTime (`.mov`).
-- **Audio**: MP3, Ogg, WAV, MP4/M4A, AAC, FLAC.
+- **Audio**: any `audio/*` type, including MP3, Ogg, WAV, MP4/M4A, AAC, FLAC and WebM.
 
 Everything else (SVG, HTML, PDF, HEIC/HEIF and so on) is download-only. The server does not convert HEIC or transcode video. HEVC `.mov` plays only in browsers that can decode it; the rest get a download.
 
@@ -93,6 +93,15 @@ Reading an attachment follows the rules for reading its message:
 - Pending uploads: only the uploader.
 
 Every denial returns `404`. Deleting a message follows the usual deletion rules, and a cleanup job removes the files afterward.
+
+## Files gallery
+
+The backend aggregates attachments across non-deleted messages in a room or direct chat for the room details dialog and the user dialog:
+
+- `GET /api/v1/attachments/counts`: Returns counts of shared items partitioned by kind (`image`, `video`, `audio`, `file`). Query parameters: `roomId` or `recipientId`.
+- `GET /api/v1/attachments`: Returns a cursor-paginated list of media gallery items ordered newest first. Query parameters: `roomId` or `recipientId`, `type` (`image`, `video`, `audio`, `file`), `cursor` (id of the last attachment from the previous page), and `limit` (1-100, default 30).
+
+Access rules mirror message history: users must have read access to the specified room or participate in the direct chat. Deleted messages and unattached pending uploads are excluded.
 
 ## Reverse proxy
 

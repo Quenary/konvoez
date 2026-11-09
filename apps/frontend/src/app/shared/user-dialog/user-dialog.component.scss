@@ -3,25 +3,39 @@
   align-items: center;
   gap: 0.75rem;
   margin-block-end: 1rem;
-}
 
-.fields {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.field {
-  display: grid;
-  gap: 0.25rem;
-
-  dt {
-    color: var(--tui-text-secondary);
-    font-size: 0.8125rem;
+  &-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
 
-  dd {
+  &-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &-fullname {
+    font-size: 0.875rem;
+    color: var(--tui-text-secondary);
+  }
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--tui-border-normal);
+
+  &-title {
     margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--tui-text-tertiary);
   }
 }
 

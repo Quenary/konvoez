@@ -23,17 +23,31 @@ describe('RoomContextMenuComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should emit edit and delete', () => {
+  it('should emit details, edit and delete', () => {
+    const details = vi.fn();
     const edit = vi.fn();
     const deleteFn = vi.fn();
+    component.details.subscribe(details);
     component.edit.subscribe(edit);
     component.delete.subscribe(deleteFn);
 
     const buttons = fixture.nativeElement.querySelectorAll('button[tuiOption]');
+    expect(buttons.length).toBe(3);
     buttons[0].click();
     buttons[1].click();
+    buttons[2].click();
 
+    expect(details).toHaveBeenCalledOnce();
     expect(edit).toHaveBeenCalledOnce();
     expect(deleteFn).toHaveBeenCalledOnce();
+  });
+
+  it('should hide edit and delete when canManage is false', () => {
+    fixture.componentRef.setInput('canManage', false);
+    fixture.detectChanges();
+
+    const buttons = fixture.nativeElement.querySelectorAll('button[tuiOption]');
+    expect(buttons.length).toBe(1);
+    expect(buttons[0].textContent).toContain('ROOMS.DETAILS');
   });
 });

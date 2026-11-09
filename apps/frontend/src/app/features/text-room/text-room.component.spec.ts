@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TextRoomComponent } from './text-room.component';
 import { ChatStore } from '@shared/components/chat/chat.store';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { Component, input, signal } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -18,6 +18,7 @@ class MockChatComponent {
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
   public readonly initialMessageId = input<string | null>(null);
+  public readonly headerClick = output<void>();
 }
 
 describe('TextRoomComponent', () => {
@@ -39,6 +40,7 @@ describe('TextRoomComponent', () => {
 
   const mockRoomManageService = {
     canManageRooms: signal(false),
+    openRoomDetails: vi.fn(),
     editRoom: vi.fn(),
     deleteRoom: vi.fn(),
   };
@@ -152,5 +154,12 @@ describe('TextRoomComponent', () => {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+  });
+
+  it('calls openRoomDetails when openDetails is called', () => {
+    component['openDetails']();
+    expect(mockRoomManageService.openRoomDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 42, name: 'General' }),
+    );
   });
 });

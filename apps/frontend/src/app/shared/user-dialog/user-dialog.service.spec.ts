@@ -48,7 +48,9 @@ describe('UserDialogService', () => {
 
     expect(dialogService.open).toHaveBeenCalledExactlyOnceWith(
       expect.anything(),
-      { size: 's', data: { user } },
+      {
+        data: { user, withFiles: false, withInput: true },
+      },
     );
   });
 
@@ -57,7 +59,20 @@ describe('UserDialogService', () => {
 
     expect(dialogService.open).toHaveBeenCalledExactlyOnceWith(
       expect.anything(),
-      { size: 's', data: { user: me } },
+      {
+        data: { user: me, withFiles: false, withInput: true },
+      },
+    );
+  });
+
+  it('forwards the files and input flags', async () => {
+    await service.open(user, { withFiles: true, withInput: false });
+
+    expect(dialogService.open).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      {
+        data: { user, withFiles: true, withInput: false },
+      },
     );
   });
 

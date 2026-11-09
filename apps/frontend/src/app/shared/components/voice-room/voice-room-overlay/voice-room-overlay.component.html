@@ -2,7 +2,12 @@
   tuiHeader
   class="room-header"
   [class.vignette]="isFullscreen()">
-  <h2 tuiTitle>
+  <h2
+    tuiTitle
+    role="button"
+    tabindex="0"
+    (click)="headerClick.emit()"
+    (keydown.enter)="headerClick.emit()">
     <div
       tuiAvatar
       size="s"

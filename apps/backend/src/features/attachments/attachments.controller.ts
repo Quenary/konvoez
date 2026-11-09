@@ -29,7 +29,13 @@ import { AuthRefreshFallback, Author } from '../auth/auth.decorator';
 import { GetUserSafeDto } from '../users/users.dto';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
 import { AttachmentsService } from './attachments.service';
-import { AttachmentDto } from './attachments.dto';
+import {
+  AttachmentDto,
+  MediaCountsQueryDto,
+  MediaCountsResponseDto,
+  MediaListQueryDto,
+  MediaListResponseDto,
+} from './attachments.dto';
 import {
   attachmentEtag,
   contentDisposition,
@@ -97,6 +103,22 @@ export class AttachmentsController {
     @Author() author: GetUserSafeDto,
   ): Promise<void> {
     await this.attachmentsService.deletePending(id, author);
+  }
+
+  @Get('counts')
+  public async getCounts(
+    @Author() author: GetUserSafeDto,
+    @Query() query: MediaCountsQueryDto,
+  ): Promise<MediaCountsResponseDto> {
+    return this.attachmentsService.getCounts(author, query);
+  }
+
+  @Get()
+  public async getMediaList(
+    @Author() author: GetUserSafeDto,
+    @Query() query: MediaListQueryDto,
+  ): Promise<MediaListResponseDto> {
+    return this.attachmentsService.listMedia(author, query);
   }
 
   @Get(':id/content')

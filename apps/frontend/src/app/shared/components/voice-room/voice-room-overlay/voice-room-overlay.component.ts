@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  output,
   TemplateRef,
 } from '@angular/core';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
@@ -68,6 +69,7 @@ export class VoiceRoomOverlayComponent {
   public readonly fullscreenTarget = input<HTMLElement | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
   public readonly withHide = input<boolean>(false);
+  public readonly headerClick = output<void>();
 
   protected readonly chromeVisible = this.voiceRoomViewService.chromeVisible;
   protected readonly layout = this.voiceRoomViewService.layout;

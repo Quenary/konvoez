@@ -25,7 +25,7 @@ import { icons } from '@constants';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MediaPreviewComponent {
-  private readonly data = inject(MEDIA_PREVIEW_DATA);
+  protected readonly data = inject(MEDIA_PREVIEW_DATA);
   protected readonly icons = icons;
   private readonly context = injectContext<TuiContext<Observer<void>>>();
   private readonly downloadService = inject(DownloadService);
@@ -53,6 +53,14 @@ export class MediaPreviewComponent {
     }
 
     this.downloadService.downloadUrl(item.downloadUrl, item.name);
+  }
+
+  protected goToMessage(): void {
+    const item = this.current();
+    if (item.messageId && this.data.onGoToMessage) {
+      this.close();
+      this.data.onGoToMessage(item.messageId);
+    }
   }
 
   protected onIndex(index: number): void {

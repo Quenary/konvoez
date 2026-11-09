@@ -1,10 +1,21 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
+import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiGroup, TuiHint } from '@taiga-ui/core';
 import { IUserSafe } from '@konvoez/shared';
+import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { ChatComponent } from '@shared/components/chat/chat.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { VoiceRoomShellComponent } from '@shared/components/voice-room/voice-room-shell/voice-room-shell.component';
+import { takeInitialQueryParam } from '@shared/functions/take-initial-query-param.function';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { DirectStore } from './direct.store';
 
 import { icons } from '@constants';
@@ -26,7 +37,11 @@ import { icons } from '@constants';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DirectComponent {
+  private readonly ngrxStore = inject(Store);
+  private readonly userDialogService = inject(UserDialogService);
   protected readonly directStore = inject(DirectStore);
+
+  private readonly currentUser = this.ngrxStore.selectSignal(selectCurrentUser);
 
   protected readonly icons = icons;
   protected readonly recipientId = this.directStore.recipientId;
@@ -42,8 +57,40 @@ export class DirectComponent {
   protected readonly canRejoinCall = this.directStore.canRejoinCall;
   protected readonly view = this.directStore.view;
 
+  protected readonly targetMessageId = takeInitialQueryParam('message');
+  /**
+   * Survives the query param being stripped before the chat is created,
+   * including while a direct call hides the chat.
+   */
+  protected readonly heldMessageId = signal<string | null>(null);
+
+  constructor() {
+    effect(() => {
+      const messageId = this.targetMessageId();
+      if (!messageId) {
+        return;
+      }
+      untracked(() => {
+        this.directStore.showChat();
+        this.heldMessageId.set(messageId);
+      });
+    });
+  }
+
+  protected openDetails(): void {
+    const peer = this.user() ?? (this.isSelf() ? this.currentUser() : null);
+    void this.userDialogService.open(peer, {
+      withFiles: true,
+      withInput: false,
+    });
+  }
+
   protected showChat(): void {
     this.directStore.showChat();
+  }
+
+  protected releaseMessageJump(): void {
+    this.heldMessageId.set(null);
   }
 
   protected showCall(): void {
