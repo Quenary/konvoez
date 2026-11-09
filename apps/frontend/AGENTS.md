@@ -87,4 +87,4 @@ computed(() => {
 
 ## Testing
 
-Vitest with Angular TestBed (`@angular/build:unit-test`).
+Vitest with Angular TestBed (`@angular/build:unit-test`). Specs in a worker share one `TestBed` because isolation is off. `src/test-setup.ts` resets that module before every test, so `configureTestingModule` does not depend on which file ran last.

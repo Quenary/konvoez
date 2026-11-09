@@ -56,10 +56,6 @@ describe('AuthEffects logout', () => {
   let directChatsStore: { clear: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    // A previous file in this Vitest worker can leave the testing module
-    // instantiated. Reset before configuring so this file does not depend
-    // on execution order.
-    TestBed.resetTestingModule();
     roomsStore = { clear: vi.fn() };
     directChatsStore = { clear: vi.fn() };
     const hanging = () => new Promise(() => undefined);
