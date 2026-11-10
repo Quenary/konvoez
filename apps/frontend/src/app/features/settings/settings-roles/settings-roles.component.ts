@@ -13,11 +13,10 @@ import {
   TuiHint,
   TuiIcon,
   TuiNotificationService,
-  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiBadge } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -25,18 +24,19 @@ import { catchError, finalize, of } from 'rxjs';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { LayoutService } from '@core/services/layout.service';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-roles',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     TranslatePipe,
     TuiBadge,
     TuiButton,
-    TuiCardLarge,
-    TuiForm,
     TuiHeader,
-    TuiScrollbar,
     TuiTable,
     TuiTitle,
     TuiIcon,

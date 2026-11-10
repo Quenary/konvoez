@@ -65,6 +65,11 @@ MENU:
     USERS: Пользователи
     ROLES: Роли
     ADMIN: Администрирование
+TAB_BAR:
+  DIRECT: Личные
+  TEXT: Текстовые
+  VOICE: Голосовые
+  SETTINGS: Настройки
 USER_DIALOG:
   OPEN_CHAT: Открыть чат
   CALL: Позвонить
@@ -188,6 +193,12 @@ VOICE:
   DISCONNECTED_BY: Вас отключил от голосовой комнаты {{name}}
   DISCONNECT_FROM_VOICE: Отключить от голосовой комнаты
 ROOMS:
+  TEXT_TITLE: Текстовые
+  VOICE_TITLE: Голосовые
+  ADD_TEXT_ROOM: Создать текстовую комнату
+  ADD_VOICE_ROOM: Создать голосовую комнату
+  EMPTY_TEXT_ROOMS: Нет текстовых комнат
+  EMPTY_VOICE_ROOMS: Нет голосовых комнат
   UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
@@ -261,6 +272,7 @@ CHAT:
   MENTION_UNKNOWN: неизвестно
   UNREAD_MESSAGES: Непрочитанные сообщения
 SETTINGS:
+  TITLE: Настройки
   PROFILE:
     TITLE: Настройки профиля
     DELETE: Удалить аккаунт

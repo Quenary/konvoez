@@ -29,7 +29,6 @@ import {
   TuiSlider,
   TuiTextfield,
   TuiHint,
-  TuiScrollbar,
 } from '@taiga-ui/core';
 import {
   TuiSelect,
@@ -41,7 +40,7 @@ import {
   TuiProgressBar,
   TuiInputSlider,
 } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { catchError, EMPTY, finalize, from, map, of, switchMap } from 'rxjs';
 import { SettingsStore } from '@core/stores/settings.store';
 import { MicTestService } from '@core/services/mic-test.service';
@@ -62,12 +61,16 @@ const EMPTY_DEVICES: DevicesLoadResult = {
 
 type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
 
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
+
 @Component({
   selector: 'app-settings-devices',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     FormsModule,
     TranslatePipe,
-    TuiCardLarge,
     TuiForm,
     TuiHeader,
     TuiIcon,
@@ -89,7 +92,6 @@ type SelectableItem = MediaDeviceInfo | ENoiseProcessor;
     TuiTextfield,
     TuiInputSlider,
     TuiHint,
-    TuiScrollbar,
   ],
   providers: [
     {

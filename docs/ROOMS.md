@@ -59,13 +59,26 @@ sequenceDiagram
 
 ## UI
 
-- The **add** buttons (text, voice) in the rooms list are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
+- The navigation tree is hierarchical:
+  - `/direct` lists direct chats; child `:id` opens a direct chat.
+  - `/text-room` lists text rooms; child `:id` opens a text room.
+  - `/voice-room` lists voice rooms; child `:id` opens a voice room.
+  - `/settings` on small screens lists settings sections; child paths open section panels.
+- On a handset (`LayoutService.isMobile()`), the sidebar is replaced by a bottom tab bar (`TuiTabBar`) with Direct, Text rooms, Voice rooms, and Settings tabs:
+  - Tabs display unread badges for Direct and Text rooms, and an in-call indicator for Voice rooms.
+  - The tab bar stays on every authenticated handset screen, including open chats and settings sections. Authorization screens do not show it. Its controls sit above the system safe area, so the home indicator and rounded screen corners do not cover the outer tabs.
+  - Child screens fill the area above the tab bar. The header back button follows the in-app navigation history, and opens the parent list when that history is empty.
+  - An active voice session or direct call shows a compact call bar above the tab bar, except while a voice room screen (`/voice-room/:id`) is open. The bar follows the desktop voice panel: an audio-lines connection indicator, the session name, microphone, speaker, camera and screen share while they are on, device settings, and hang up. A direct call shows the interlocutor name in the panel and in the bar, or the direct-call label when that name is missing.
+- On the next breakpoint (`LayoutService.isSmall()`), the sidebar stays and collapses automatically. Navigation collapses it again.
+- On desktop, the sidebar is retained. Clicking the "Текстовые" or "Голосовые" section headers navigates to `/text-room` or `/voice-room`.
+- The **add** buttons (text, voice) in the rooms list and list screen headers are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
 - The per-room right-click context menu and the header ellipsis menu include a top «Подробнее» action for all users. The edit and delete options are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
 - Clicking a room header (avatar and title) opens the **details dialog** (`room-details-dialog`) without a window title. Clicking a direct chat header opens the **user dialog** (`user-dialog`).
 - The details dialog displays the avatar, the room name, and the room type. Edit and delete, shown to users with `MANAGE_ROOMS` or the `OWNER`, are icon buttons aligned to the right. For text rooms it embeds a **files gallery** (`media-gallery`) with attachment counts by type (images, videos, audio, files). Selecting a type opens an in-dialog grid with newest-first infinite scroll. Clicking an item opens a full preview or downloads the file; "Go to message" opens that message in the chat and scrolls it into view. The gallery is hidden for voice rooms.
 - The user dialog shows the nickname and, when it differs, the full name underneath. Opened from a direct chat header, it shows the files gallery and hides the message field. Opened from a voice-room peer in the sidebar, it shows the message field and hides the gallery. "Go to message" opens the message in the direct chat. An active direct call switches to the chat first.
 - The edit dialog (`room-dialog`) sets privacy, allowed roles and allowed users, and shows the read-only author, created and updated fields.
 - Deleting a voice room closes its active voice session for all participants (see [Voice](frontend/VOICE.md)).
+- The voice room list shows up to two participant avatars and a `+N` count for the rest. Moving and disconnecting participants stays in the sidebar.
 - Users with `MOVE_MEMBERS` or the `OWNER` can move a sidebar member into another accessible voice room or disconnect them from voice via the member context menu. The moved user is notified and joins that room (an open voice room view follows the new room); a disconnected user is notified and navigated home if the voice room view was open.
 
 ## Related

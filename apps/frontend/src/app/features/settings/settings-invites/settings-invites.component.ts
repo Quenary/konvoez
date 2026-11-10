@@ -23,11 +23,10 @@ import {
   TuiIcon,
   TuiNotificationService,
   TuiOption,
-  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiHeader } from '@taiga-ui/layout';
 import {
   TuiAutoColorPipe,
   TuiBadge,
@@ -41,6 +40,8 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import { LayoutService } from '@core/services/layout.service';
 import { PublicStore } from '@core/stores/public.store';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 import { icons } from '@constants';
 
 export interface IInviteStatusData {
@@ -94,22 +95,21 @@ export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
 @Component({
   selector: 'app-settings-invites',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     DayjsPipe,
     TranslatePipe,
     TuiAutoColorPipe,
     TuiBadge,
     TuiButton,
-    TuiCardLarge,
     TuiDataList,
     TuiDropdown,
     TuiFade,
-    TuiForm,
     TuiHeader,
     TuiHint,
     TuiIcon,
     TuiOption,
     TuiProgressCircle,
-    TuiScrollbar,
     TuiTable,
     TuiTitle,
     TuiTooltip,

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
@@ -60,6 +61,7 @@ describe('DirectChatItemComponent', () => {
     await TestBed.configureTestingModule({
       imports: [DirectChatItemComponent],
       providers: [
+        provideRouter([]),
         provideTranslateService(),
         provideStore({
           auth: () => ({ user: currentUser }),

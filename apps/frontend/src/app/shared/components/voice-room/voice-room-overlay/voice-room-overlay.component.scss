@@ -48,9 +48,15 @@
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
+    min-width: 0;
+    flex: 1;
     cursor: pointer;
     user-select: none;
     pointer-events: auto;
+
+    > span[tuiFade] {
+      min-width: 0;
+    }
   }
 
   .header-avatar {

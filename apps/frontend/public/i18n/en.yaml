@@ -65,6 +65,11 @@ MENU:
     USERS: Users
     ROLES: Roles
     ADMIN: Administration
+TAB_BAR:
+  DIRECT: Direct
+  TEXT: Text
+  VOICE: Voice
+  SETTINGS: Settings
 USER_DIALOG:
   OPEN_CHAT: Open chat
   CALL: Call
@@ -188,6 +193,12 @@ VOICE:
   DISCONNECTED_BY: You were disconnected from the voice room by {{name}}
   DISCONNECT_FROM_VOICE: Disconnect from voice
 ROOMS:
+  TEXT_TITLE: Text
+  VOICE_TITLE: Voice
+  ADD_TEXT_ROOM: Create text room
+  ADD_VOICE_ROOM: Create voice room
+  EMPTY_TEXT_ROOMS: No text rooms
+  EMPTY_VOICE_ROOMS: No voice rooms
   UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
@@ -253,6 +264,7 @@ CHAT:
   MENTION_UNKNOWN: unknown
   UNREAD_MESSAGES: Unread messages
 SETTINGS:
+  TITLE: Settings
   PROFILE:
     TITLE: Profile settings
     DELETE: Delete account

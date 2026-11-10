@@ -6,6 +6,7 @@
     <app-voice-room-shell
       [title]="_title"
       [avatarUrl]="_avatarUrl"
+      [backRoute]="'/direct'"
       [headerActions]="toChatActions"
       (headerClick)="openDetails()" />
   } @else {

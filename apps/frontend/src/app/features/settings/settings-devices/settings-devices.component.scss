@@ -1,6 +1,10 @@
-@use 'mixins' as mixins;
-
-@include mixins.scrollable-form;
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 
 .scroll-content {
   display: flex;

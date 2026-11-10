@@ -13,11 +13,10 @@ import {
   TuiIcon,
   TuiLabel,
   TuiNotificationService,
-  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiButtonLoading, TuiSwitch } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   DEFAULT_USER_NOTIFICATION_SETTINGS,
@@ -27,21 +26,23 @@ import {
 } from '@konvoez/shared';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { NotificationsApiService } from '@core/services/notifications-api.service';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-notifications',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     FormsModule,
     TranslatePipe,
     TuiButton,
     TuiButtonLoading,
-    TuiCardLarge,
     TuiForm,
     TuiHeader,
     TuiIcon,
     TuiLabel,
-    TuiScrollbar,
     TuiSwitch,
     TuiTitle,
   ],

@@ -30,8 +30,9 @@ import { TuiNavigation } from '@taiga-ui/layout';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, filter, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { VoiceRoomPanelComponent } from '@features/rooms/voice-room-panel/voice-room-panel.component';
+import { CallControlsAsideComponent } from '@shared/call-controls/call-controls-aside/call-controls-aside.component';
 import { RoomsComponent } from '@features/rooms/rooms.component';
+import { MobileTabBarComponent } from '@shared/components/mobile-tab-bar/mobile-tab-bar.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EPermission } from '@konvoez/shared';
 import { ConnectionStateNotificationComponent } from '@shared/components/connection-state-notification/connection-state-notification.component';
@@ -57,7 +58,8 @@ const DEFAULT_VERSION_INFO = {
     RouterOutlet,
     TranslatePipe,
     RoomsComponent,
-    VoiceRoomPanelComponent,
+    CallControlsAsideComponent,
+    MobileTabBarComponent,
     RouterLink,
     TuiRoot,
     TuiPullToRefresh,
@@ -151,9 +153,10 @@ export class App {
     return invites || users || roles || settings;
   });
 
-  protected readonly isNarrow = this.layoutService.isNarrow;
+  protected readonly isMobile = this.layoutService.isMobile;
+  protected readonly isSmall = this.layoutService.isSmall;
 
-  protected readonly collapsed = linkedSignal(this.isNarrow);
+  protected readonly collapsed = linkedSignal(this.isSmall);
 
   protected readonly versionInfo = rxResource({
     stream: () =>
@@ -173,7 +176,7 @@ export class App {
     effect(() => {
       this.navigationEnd();
       untracked(() => {
-        if (this.isNarrow()) {
+        if (this.isSmall()) {
           this.collapsed.set(true);
         }
       });

@@ -1,140 +1,139 @@
 <form
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m"
   novalidate
+  tuiForm="m"
   [formGroup]="form"
   (ngSubmit)="onSubmit()">
-  <header tuiHeader>
-    <h2 tuiTitle>
-      <tui-icon [icon]="icons['settings-admin']" />
-      {{ 'SETTINGS.ADMIN.TITLE' | translate }}
-      <span tuiSubtitle>
-        {{ 'SETTINGS.ADMIN.SUBTITLE' | translate }}
-      </span>
-    </h2>
-  </header>
+  <app-route-page>
+    <header tuiHeader>
+      <app-header-back-button to="/settings" />
+      <h2 tuiTitle>
+        <tui-icon [icon]="icons['settings-admin']" />
+        {{ 'SETTINGS.ADMIN.TITLE' | translate }}
+        <span tuiSubtitle>
+          {{ 'SETTINGS.ADMIN.SUBTITLE' | translate }}
+        </span>
+      </h2>
+    </header>
 
-  <ng-template
-    #switchItem
-    let-control="control"
-    let-labelKey="labelKey"
-    let-descKey="descKey"
-    let-locked="locked">
-    <div class="setting-item">
-      <label tuiLabel>
-        <input
-          tuiSwitch
-          type="checkbox"
-          [formControl]="control" />
-        {{ labelKey | translate }}
-      </label>
-      <p class="setting-item-description">
-        {{ descKey | translate }}
-      </p>
-      @if (locked) {
-        <p class="setting-item-description locked">
-          {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
-        </p>
-      }
-    </div>
-  </ng-template>
-
-  <ng-template
-    #inputItem
-    let-id="id"
-    let-control="control"
-    let-labelKey="labelKey"
-    let-descKey="descKey"
-    let-number="number"
-    let-placeholder="placeholder"
-    let-locked="locked">
-    <div class="setting-item">
-      <tui-textfield>
-        <label
-          tuiLabel
-          [for]="id">
+    <ng-template
+      #switchItem
+      let-control="control"
+      let-labelKey="labelKey"
+      let-descKey="descKey"
+      let-locked="locked">
+      <div class="setting-item">
+        <label tuiLabel>
+          <input
+            tuiSwitch
+            type="checkbox"
+            [formControl]="control" />
           {{ labelKey | translate }}
         </label>
-        @if (number) {
-          <input
-            tuiInput
-            type="number"
-            [id]="id"
-            [formControl]="control" />
-        } @else {
-          <input
-            tuiInput
-            [id]="id"
-            [placeholder]="placeholder || ''"
-            [formControl]="control" />
+        <p class="setting-item-description">
+          {{ descKey | translate }}
+        </p>
+        @if (locked) {
+          <p class="setting-item-description locked">
+            {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+          </p>
         }
-      </tui-textfield>
-      <p class="setting-item-description">
-        {{ descKey | translate }}
-      </p>
-      @if (
-        control.errors?.['zod'] || control.errors?.['invalidSchema'];
-        as err
-      ) {
-        <tui-error [error]="err | translate" />
-      }
-      @if (locked) {
-        <p class="setting-item-description locked">
-          {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
-        </p>
-      }
-    </div>
-  </ng-template>
+      </div>
+    </ng-template>
 
-  <ng-template
-    #sliderItem
-    let-id="id"
-    let-control="control"
-    let-labelKey="labelKey"
-    let-descKey="descKey"
-    let-min="min"
-    let-max="max"
-    let-step="step"
-    let-locked="locked">
-    <div class="setting-item">
-      <tui-textfield>
-        <label
-          tuiLabel
-          [for]="id">
-          {{ labelKey | translate }}
-        </label>
-        <input
-          [id]="id"
-          tuiInputSlider
-          [min]="min"
-          [max]="max"
-          [quantum]="step"
-          [step]="step"
-          [formControl]="control" />
-        <input
-          tuiSlider
-          type="range"
-          [step]="step" />
-      </tui-textfield>
-      <p class="setting-item-description">
-        {{ descKey | translate }}
-      </p>
-      @if (
-        control.errors?.['zod'] || control.errors?.['invalidSchema'];
-        as err
-      ) {
-        <tui-error [error]="err | translate" />
-      }
-      @if (locked) {
-        <p class="setting-item-description locked">
-          {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+    <ng-template
+      #inputItem
+      let-id="id"
+      let-control="control"
+      let-labelKey="labelKey"
+      let-descKey="descKey"
+      let-number="number"
+      let-placeholder="placeholder"
+      let-locked="locked">
+      <div class="setting-item">
+        <tui-textfield>
+          <label
+            tuiLabel
+            [for]="id">
+            {{ labelKey | translate }}
+          </label>
+          @if (number) {
+            <input
+              tuiInput
+              type="number"
+              [id]="id"
+              [formControl]="control" />
+          } @else {
+            <input
+              tuiInput
+              [id]="id"
+              [placeholder]="placeholder || ''"
+              [formControl]="control" />
+          }
+        </tui-textfield>
+        <p class="setting-item-description">
+          {{ descKey | translate }}
         </p>
-      }
-    </div>
-  </ng-template>
+        @if (
+          control.errors?.['zod'] || control.errors?.['invalidSchema'];
+          as err
+        ) {
+          <tui-error [error]="err | translate" />
+        }
+        @if (locked) {
+          <p class="setting-item-description locked">
+            {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+          </p>
+        }
+      </div>
+    </ng-template>
 
-  <tui-scrollbar>
+    <ng-template
+      #sliderItem
+      let-id="id"
+      let-control="control"
+      let-labelKey="labelKey"
+      let-descKey="descKey"
+      let-min="min"
+      let-max="max"
+      let-step="step"
+      let-locked="locked">
+      <div class="setting-item">
+        <tui-textfield>
+          <label
+            tuiLabel
+            [for]="id">
+            {{ labelKey | translate }}
+          </label>
+          <input
+            [id]="id"
+            tuiInputSlider
+            [min]="min"
+            [max]="max"
+            [quantum]="step"
+            [step]="step"
+            [formControl]="control" />
+          <input
+            tuiSlider
+            type="range"
+            [step]="step" />
+        </tui-textfield>
+        <p class="setting-item-description">
+          {{ descKey | translate }}
+        </p>
+        @if (
+          control.errors?.['zod'] || control.errors?.['invalidSchema'];
+          as err
+        ) {
+          <tui-error [error]="err | translate" />
+        }
+        @if (locked) {
+          <p class="setting-item-description locked">
+            {{ 'SETTINGS.ADMIN.ENV_LOCKED' | translate }}
+          </p>
+        }
+      </div>
+    </ng-template>
+
     <div class="scroll-content">
       <fieldset>
         <legend tuiTitle>{{ 'SETTINGS.ADMIN.SECURITY' | translate }}</legend>
@@ -313,15 +312,15 @@
           " />
       </fieldset>
     </div>
-  </tui-scrollbar>
 
-  <footer>
-    <button
-      tuiButton
-      type="submit"
-      [iconStart]="icons.save"
-      [disabled]="form.invalid || !form.dirty">
-      {{ 'GENERAL.SAVE' | translate }}
-    </button>
-  </footer>
+    <footer>
+      <button
+        tuiButton
+        type="submit"
+        [iconStart]="icons.save"
+        [disabled]="form.invalid || !form.dirty">
+        {{ 'GENERAL.SAVE' | translate }}
+      </button>
+    </footer>
+  </app-route-page>
 </form>

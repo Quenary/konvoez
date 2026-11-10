@@ -1,16 +1,15 @@
 <form
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m"
-  novalidate>
-  <header tuiHeader>
-    <h2 tuiTitle>
-      <tui-icon [icon]="icons['settings-notifications']" />
-      {{ 'SETTINGS.NOTIFICATIONS.TITLE' | translate }}
-    </h2>
-  </header>
+  novalidate
+  tuiForm="m">
+  <app-route-page>
+    <header tuiHeader>
+      <app-header-back-button to="/settings" />
+      <h2 tuiTitle>
+        <tui-icon [icon]="icons['settings-notifications']" />
+        {{ 'SETTINGS.NOTIFICATIONS.TITLE' | translate }}
+      </h2>
+    </header>
 
-  <tui-scrollbar>
     <div class="scroll-content">
       @if (isSupported()) {
         <div class="push-section">
@@ -183,5 +182,5 @@
         </div>
       </fieldset>
     </div>
-  </tui-scrollbar>
+  </app-route-page>
 </form>

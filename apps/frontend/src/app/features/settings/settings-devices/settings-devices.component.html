@@ -1,8 +1,6 @@
-<div
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m">
+<app-route-page>
   <header tuiHeader>
+    <app-header-back-button to="/settings" />
     <h2 tuiTitle>
       <tui-icon [icon]="icons['settings-devices']" />
       {{ 'SETTINGS.DEVICES.TITLE' | translate }}
@@ -39,218 +37,218 @@
     }
   </ng-template>
 
-  <tui-scrollbar>
-    <div class="scroll-content">
-      <!-- Audio Input -->
-      <label tuiLabel>
-        {{ 'SETTINGS.DEVICES.AUDIO_INPUT' | translate }}
-        <tui-textfield
-          [iconStart]="icons.mic"
-          tuiChevron
-          tuiTextfieldSize="m"
-          [tuiTextfieldCleaner]="false">
-          <input
-            tuiSelect
-            [ngModel]="audioInput()"
-            (ngModelChange)="onSelectAudioInput($event)" />
-
-          <tui-data-list-wrapper
-            *tuiDropdown
-            [items]="audioInputList()" />
-
-          <ng-container
-            [ngTemplateOutlet]="deviceStatusIcon"
-            [ngTemplateOutletContext]="{
-              $implicit: audioInputAvailable(),
-            }">
-          </ng-container>
-        </tui-textfield>
-      </label>
-
-      <!-- Input Gain -->
-      <tui-textfield>
-        <label
-          tuiLabel
-          for="input-gain">
-          {{ 'SETTINGS.DEVICES.INPUT_GAIN' | translate }}
-        </label>
-
+  <div
+    class="scroll-content"
+    tuiForm="m">
+    <!-- Audio Input -->
+    <label tuiLabel>
+      {{ 'SETTINGS.DEVICES.AUDIO_INPUT' | translate }}
+      <tui-textfield
+        [iconStart]="icons.mic"
+        tuiChevron
+        tuiTextfieldSize="m"
+        [tuiTextfieldCleaner]="false">
         <input
-          id="input-gain"
-          tuiInputSlider
-          [max]="200"
-          [min]="0"
-          [ngModel]="inputGainPercent()"
-          (ngModelChange)="onInputGainChange($event)" />
+          tuiSelect
+          [ngModel]="audioInput()"
+          (ngModelChange)="onSelectAudioInput($event)" />
 
-        <input
-          tuiSlider
-          type="range"
-          [segments]="20"
-          [step]="1" />
+        <tui-data-list-wrapper
+          *tuiDropdown
+          [items]="audioInputList()" />
+
+        <ng-container
+          [ngTemplateOutlet]="deviceStatusIcon"
+          [ngTemplateOutletContext]="{
+            $implicit: audioInputAvailable(),
+          }">
+        </ng-container>
       </tui-textfield>
+    </label>
 
-      <!-- Noise Suppression -->
-      <label tuiLabel>
-        {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION' | translate }}
-        <tui-textfield
-          [iconStart]="icons.sparkles"
-          tuiChevron
-          tuiTextfieldSize="m"
-          [tuiTextfieldCleaner]="false">
-          <input
-            tuiSelect
-            [ngModel]="noiseProcessor()"
-            (ngModelChange)="onSelectNoiseProcessor($event)" />
-
-          <tui-data-list-wrapper
-            *tuiDropdown
-            [items]="processorOptions"
-            [itemContent]="processorLabel" />
-        </tui-textfield>
-
-        <span tuiSubtitle>
-          {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION_HINT' | translate }}
-        </span>
-      </label>
-
-      <ng-template
-        #processorLabel
-        let-item>
-        @switch (item) {
-          @case ('deepfilter') {
-            {{ 'SETTINGS.DEVICES.PROCESSOR_DEEPFILTER' | translate }}
-            @if (!isSimdSupported) {
-              ({{ 'SETTINGS.DEVICES.PROCESSOR_UNSUPPORTED' | translate }})
-            }
-          }
-          @case ('rnnoise') {
-            {{ 'SETTINGS.DEVICES.PROCESSOR_RNNOISE' | translate }}
-          }
-          @case ('browser') {
-            {{ 'SETTINGS.DEVICES.PROCESSOR_BROWSER' | translate }}
-          }
-          @case ('off') {
-            {{ 'SETTINGS.DEVICES.PROCESSOR_OFF' | translate }}
-          }
-        }
-      </ng-template>
-
-      <!-- Echo Cancellation -->
+    <!-- Input Gain -->
+    <tui-textfield>
       <label
         tuiLabel
-        style="align-items: center">
-        <input
-          tuiSwitch
-          type="checkbox"
-          [ngModel]="echoCancellation()"
-          (ngModelChange)="onEchoCancellationChange($event)" />
-
-        {{ 'SETTINGS.DEVICES.ECHO_CANCELLATION' | translate }}
-
-        <tui-icon
-          [icon]="icons.help"
-          [tuiTooltip]="'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate">
-        </tui-icon>
+        for="input-gain">
+        {{ 'SETTINGS.DEVICES.INPUT_GAIN' | translate }}
       </label>
 
-      <!-- Mic Test -->
-      <div class="mic-test-container">
-        <div class="mic-test-container-header">
-          <button
-            tuiButton
-            type="button"
-            [appearance]="isMicTesting() ? 'negative' : 'primary'"
-            [iconStart]="isMicTesting() ? icons.square : icons.mic"
-            (click)="toggleMicTest()">
-            {{
-              (isMicTesting()
-                ? 'SETTINGS.DEVICES.MIC_TEST_STOP'
-                : 'SETTINGS.DEVICES.MIC_TEST_START'
-              ) | translate
-            }}
-          </button>
+      <input
+        id="input-gain"
+        tuiInputSlider
+        [max]="200"
+        [min]="0"
+        [ngModel]="inputGainPercent()"
+        (ngModelChange)="onInputGainChange($event)" />
 
-          @if (isMicTesting()) {
-            <progress
-              tuiProgressBar
-              size="m"
-              [value]="micTestLevel()"
-              [max]="100"
-              class="mic-test-container-header-bar"></progress>
+      <input
+        tuiSlider
+        type="range"
+        [segments]="20"
+        [step]="1" />
+    </tui-textfield>
+
+    <!-- Noise Suppression -->
+    <label tuiLabel>
+      {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION' | translate }}
+      <tui-textfield
+        [iconStart]="icons.sparkles"
+        tuiChevron
+        tuiTextfieldSize="m"
+        [tuiTextfieldCleaner]="false">
+        <input
+          tuiSelect
+          [ngModel]="noiseProcessor()"
+          (ngModelChange)="onSelectNoiseProcessor($event)" />
+
+        <tui-data-list-wrapper
+          *tuiDropdown
+          [items]="processorOptions"
+          [itemContent]="processorLabel" />
+      </tui-textfield>
+
+      <span tuiSubtitle>
+        {{ 'SETTINGS.DEVICES.NOISE_SUPPRESSION_HINT' | translate }}
+      </span>
+    </label>
+
+    <ng-template
+      #processorLabel
+      let-item>
+      @switch (item) {
+        @case ('deepfilter') {
+          {{ 'SETTINGS.DEVICES.PROCESSOR_DEEPFILTER' | translate }}
+          @if (!isSimdSupported) {
+            ({{ 'SETTINGS.DEVICES.PROCESSOR_UNSUPPORTED' | translate }})
           }
-        </div>
+        }
+        @case ('rnnoise') {
+          {{ 'SETTINGS.DEVICES.PROCESSOR_RNNOISE' | translate }}
+        }
+        @case ('browser') {
+          {{ 'SETTINGS.DEVICES.PROCESSOR_BROWSER' | translate }}
+        }
+        @case ('off') {
+          {{ 'SETTINGS.DEVICES.PROCESSOR_OFF' | translate }}
+        }
+      }
+    </ng-template>
+
+    <!-- Echo Cancellation -->
+    <label
+      tuiLabel
+      style="align-items: center">
+      <input
+        tuiSwitch
+        type="checkbox"
+        [ngModel]="echoCancellation()"
+        (ngModelChange)="onEchoCancellationChange($event)" />
+
+      {{ 'SETTINGS.DEVICES.ECHO_CANCELLATION' | translate }}
+
+      <tui-icon
+        [icon]="icons.help"
+        [tuiTooltip]="'SETTINGS.DEVICES.ECHO_CANCELLATION_HINT' | translate">
+      </tui-icon>
+    </label>
+
+    <!-- Mic Test -->
+    <div class="mic-test-container">
+      <div class="mic-test-container-header">
+        <button
+          tuiButton
+          type="button"
+          [appearance]="isMicTesting() ? 'negative' : 'primary'"
+          [iconStart]="isMicTesting() ? icons.square : icons.mic"
+          (click)="toggleMicTest()">
+          {{
+            (isMicTesting()
+              ? 'SETTINGS.DEVICES.MIC_TEST_STOP'
+              : 'SETTINGS.DEVICES.MIC_TEST_START'
+            ) | translate
+          }}
+        </button>
 
         @if (isMicTesting()) {
-          <aside
-            tuiNotification
-            appearance="warning">
-            {{ 'SETTINGS.DEVICES.MIC_TEST_FEEDBACK_WARNING' | translate }}
-          </aside>
-
-          @if (!isSinkIdSupported()) {
-            <aside
-              tuiNotification
-              appearance="info">
-              {{ 'SETTINGS.DEVICES.MIC_TEST_OUTPUT_HINT' | translate }}
-            </aside>
-          }
+          <progress
+            tuiProgressBar
+            size="m"
+            [value]="micTestLevel()"
+            [max]="100"
+            class="mic-test-container-header-bar"></progress>
         }
       </div>
 
-      <!-- Audio Output -->
-      <label tuiLabel>
-        {{ 'SETTINGS.DEVICES.AUDIO_OUTPUT' | translate }}
-        <tui-textfield
-          [iconStart]="icons.headphones"
-          tuiChevron
-          tuiTextfieldSize="m"
-          [tuiTextfieldCleaner]="false">
-          <input
-            tuiSelect
-            [ngModel]="audioOutput()"
-            (ngModelChange)="onSelectAudioOutput($event)" />
+      @if (isMicTesting()) {
+        <aside
+          tuiNotification
+          appearance="warning">
+          {{ 'SETTINGS.DEVICES.MIC_TEST_FEEDBACK_WARNING' | translate }}
+        </aside>
 
-          <tui-data-list-wrapper
-            *tuiDropdown
-            [items]="audioOutputList()" />
+        @if (!isSinkIdSupported()) {
+          <aside
+            tuiNotification
+            appearance="info">
+            {{ 'SETTINGS.DEVICES.MIC_TEST_OUTPUT_HINT' | translate }}
+          </aside>
+        }
+      }
+    </div>
 
-          <ng-container
-            [ngTemplateOutlet]="deviceStatusIcon"
-            [ngTemplateOutletContext]="{
-              $implicit: audioOutputAvailable(),
-            }">
-          </ng-container>
+    <!-- Audio Output -->
+    <label tuiLabel>
+      {{ 'SETTINGS.DEVICES.AUDIO_OUTPUT' | translate }}
+      <tui-textfield
+        [iconStart]="icons.headphones"
+        tuiChevron
+        tuiTextfieldSize="m"
+        [tuiTextfieldCleaner]="false">
+        <input
+          tuiSelect
+          [ngModel]="audioOutput()"
+          (ngModelChange)="onSelectAudioOutput($event)" />
 
-          <tui-icon
-            [icon]="icons.help"
-            [tuiTooltip]="'SETTINGS.DEVICES.API_NOT_AVAILABLE' | translate">
-          </tui-icon>
-        </tui-textfield>
+        <tui-data-list-wrapper
+          *tuiDropdown
+          [items]="audioOutputList()" />
+
+        <ng-container
+          [ngTemplateOutlet]="deviceStatusIcon"
+          [ngTemplateOutletContext]="{
+            $implicit: audioOutputAvailable(),
+          }">
+        </ng-container>
+
+        <tui-icon
+          [icon]="icons.help"
+          [tuiTooltip]="'SETTINGS.DEVICES.API_NOT_AVAILABLE' | translate">
+        </tui-icon>
+      </tui-textfield>
+    </label>
+
+    <!-- Master Output Volume -->
+    <tui-textfield>
+      <label
+        tuiLabel
+        for="output-volume">
+        {{ 'SETTINGS.DEVICES.OUTPUT_VOLUME' | translate }}
       </label>
 
-      <!-- Master Output Volume -->
-      <tui-textfield>
-        <label
-          tuiLabel
-          for="output-volume">
-          {{ 'SETTINGS.DEVICES.OUTPUT_VOLUME' | translate }}
-        </label>
+      <input
+        id="output-volume"
+        tuiInputSlider
+        [max]="200"
+        [min]="0"
+        [ngModel]="outputVolumePercent()"
+        (ngModelChange)="onOutputVolumeChange($event)" />
 
-        <input
-          id="output-volume"
-          tuiInputSlider
-          [max]="200"
-          [min]="0"
-          [ngModel]="outputVolumePercent()"
-          (ngModelChange)="onOutputVolumeChange($event)" />
-
-        <input
-          tuiSlider
-          type="range"
-          [segments]="20"
-          [step]="1" />
-      </tui-textfield>
-    </div>
-  </tui-scrollbar>
-</div>
+      <input
+        tuiSlider
+        type="range"
+        [segments]="20"
+        [step]="1" />
+    </tui-textfield>
+  </div>
+</app-route-page>

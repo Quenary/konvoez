@@ -1,8 +1,6 @@
-<div
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m">
+<app-route-page>
   <header tuiHeader>
+    <app-header-back-button to="/settings" />
     <h2 tuiTitle>
       <tui-icon [icon]="icons['settings-users']" />
       {{ 'SETTINGS.USERS.TITLE' | translate }}
@@ -12,137 +10,134 @@
     </h2>
   </header>
 
-  <tui-scrollbar>
-    <div class="table-wrapper">
-      <table
-        tuiTable
-        class="users-table">
-        <thead>
-          <tr>
-            <th
-              tuiTh
+  <div class="table-wrapper">
+    <table
+      tuiTable
+      class="users-table">
+      <thead>
+        <tr>
+          <th
+            tuiTh
+            class="col-user">
+            {{ 'SETTINGS.USERS.TABLE.USER' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-role">
+            {{ 'SETTINGS.USERS.TABLE.ROLE' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-email">
+            {{ 'SETTINGS.USERS.TABLE.EMAIL' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-date">
+            {{ 'SETTINGS.USERS.TABLE.CREATED' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody tuiTbody>
+        @for (user of usersResource.value(); track user.id) {
+          @let hint = user.fullname !== user.username ? user.fullname : null;
+          <tr
+            class="user-row"
+            tabindex="0"
+            (click)="openUser(user.id)"
+            (keydown.enter)="openUser(user.id)">
+            <td
+              tuiTd
               class="col-user">
-              {{ 'SETTINGS.USERS.TABLE.USER' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-role">
-              {{ 'SETTINGS.USERS.TABLE.ROLE' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-email">
-              {{ 'SETTINGS.USERS.TABLE.EMAIL' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-date">
-              {{ 'SETTINGS.USERS.TABLE.CREATED' | translate }}
-            </th>
-          </tr>
-        </thead>
-        <tbody tuiTbody>
-          @for (user of usersResource.value(); track user.id) {
-            @let hint = user.fullname !== user.username ? user.fullname : null;
-            <tr
-              class="user-row"
-              tabindex="0"
-              (click)="openUser(user.id)"
-              (keydown.enter)="openUser(user.id)">
-              <td
-                tuiTd
-                class="col-user">
-                <span class="user-cell">
-                  <app-user-avatar
-                    size="s"
-                    [avatarUrl]="user.avatarUrl"
-                    [fullname]="user.fullname"
-                    [username]="user.username" />
-                  <span
-                    tuiHintAppearance="floating"
-                    [style.color]="user.username | tuiAutoColor"
-                    [tuiHint]="hint">
-                    {{ user.username }}
-                  </span>
+              <span class="user-cell">
+                <app-user-avatar
+                  size="s"
+                  [avatarUrl]="user.avatarUrl"
+                  [fullname]="user.fullname"
+                  [username]="user.username" />
+                <span
+                  tuiHintAppearance="floating"
+                  [style.color]="user.username | tuiAutoColor"
+                  [tuiHint]="hint">
+                  {{ user.username }}
                 </span>
-              </td>
-              <td
-                tuiTd
-                class="col-role">
-                <div class="roles-cell">
-                  @if (user.isOwner) {
-                    <span
-                      tuiBadge
-                      appearance="primary"
-                      size="s">
-                      {{ 'SETTINGS.USERS.OWNER_BADGE' | translate }}
-                    </span>
-                  } @else {
-                    @for (role of user.roles; track role.id) {
-                      <span
-                        tuiBadge
-                        appearance="neutral"
-                        size="s"
-                        class="role-badge">
-                        @if (role.color) {
-                          <span
-                            class="role-badge-dot"
-                            [style.background-color]="role.color"></span>
-                        }
-                        {{ role.name }}
-                      </span>
-                    } @empty {
-                      <span class="empty-role">—</span>
-                    }
-                  }
-                </div>
-              </td>
-              <td
-                tuiTd
-                class="col-email">
-                <span class="email-cell">
-                  {{ user.email }}
-                  @if (user.emailVerified) {
-                    <span
-                      tuiBadge
-                      appearance="positive"
-                      size="s">
-                      {{
-                        'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED'
-                          | translate
-                      }}
-                    </span>
-                  } @else {
+              </span>
+            </td>
+            <td
+              tuiTd
+              class="col-role">
+              <div class="roles-cell">
+                @if (user.isOwner) {
+                  <span
+                    tuiBadge
+                    appearance="primary"
+                    size="s">
+                    {{ 'SETTINGS.USERS.OWNER_BADGE' | translate }}
+                  </span>
+                } @else {
+                  @for (role of user.roles; track role.id) {
                     <span
                       tuiBadge
                       appearance="neutral"
-                      size="s">
-                      {{
-                        'SETTINGS.PROFILE.EMAIL_VERIFICATION.UNVERIFIED'
-                          | translate
-                      }}
+                      size="s"
+                      class="role-badge">
+                      @if (role.color) {
+                        <span
+                          class="role-badge-dot"
+                          [style.background-color]="role.color"></span>
+                      }
+                      {{ role.name }}
                     </span>
+                  } @empty {
+                    <span class="empty-role">—</span>
                   }
-                </span>
-              </td>
-              <td
-                tuiTd
-                class="col-date">
-                {{ user.createdAt | dayjs }}
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td
-                tuiTd
-                colspan="4"
-                class="empty-cell">
-                {{ 'SETTINGS.USERS.NO_USERS' | translate }}
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </tui-scrollbar>
-</div>
+                }
+              </div>
+            </td>
+            <td
+              tuiTd
+              class="col-email">
+              <span class="email-cell">
+                {{ user.email }}
+                @if (user.emailVerified) {
+                  <span
+                    tuiBadge
+                    appearance="positive"
+                    size="s">
+                    {{
+                      'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED' | translate
+                    }}
+                  </span>
+                } @else {
+                  <span
+                    tuiBadge
+                    appearance="neutral"
+                    size="s">
+                    {{
+                      'SETTINGS.PROFILE.EMAIL_VERIFICATION.UNVERIFIED'
+                        | translate
+                    }}
+                  </span>
+                }
+              </span>
+            </td>
+            <td
+              tuiTd
+              class="col-date">
+              {{ user.createdAt | dayjs }}
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td
+              tuiTd
+              colspan="4"
+              class="empty-cell">
+              {{ 'SETTINGS.USERS.NO_USERS' | translate }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</app-route-page>

@@ -1,0 +1,19 @@
+<app-route-page>
+  <header tuiHeader>
+    <h2 tuiTitle>
+      <tui-icon [icon]="icons.settings" />
+      {{ 'SETTINGS.TITLE' | translate }}
+    </h2>
+  </header>
+
+  <div class="settings-list">
+    @for (entry of entries(); track entry.link) {
+      <app-list-item [link]="entry.link">
+        <tui-icon
+          listItemLeading
+          [icon]="entry.icon" />
+        <span tuiFade>{{ entry.labelKey | translate }}</span>
+      </app-list-item>
+    }
+  </div>
+</app-route-page>

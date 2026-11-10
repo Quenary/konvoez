@@ -1,12 +1,9 @@
 @let _user = user();
 
-<button
-  style="width: 100%; box-sizing: border-box"
-  tuiCell
-  appearance="whiteblock"
-  type="button"
-  (click)="selected.emit(_user)">
-  <tui-badged-content class="chat-badge">
+<app-list-item (click)="selected.emit(_user)">
+  <tui-badged-content
+    listItemLeading
+    class="chat-badge">
     @if (!isSelf() && unreadCountsStore.directUnreadCount(_user.id); as count) {
       <tui-badge-notification
         size="s"
@@ -33,26 +30,20 @@
     }
   </tui-badged-content>
 
-  <div tuiTitle>
-    @if (isSelf()) {
-      <span tuiFade>
-        {{ 'DIRECT.SAVED_MESSAGES' | translate }}
-      </span>
-    } @else {
-      <span
-        [style.color]="_user.username | tuiAutoColor"
-        tuiFade>
-        {{ _user.username }}
-      </span>
-      <div
-        tuiSubtitle
-        tuiFade>
-        {{ _user.fullname }}
-      </div>
-    }
-  </div>
-
-  <tui-icon
-    [icon]="icons['chevron-right']"
-    tuiAccessories />
-</button>
+  @if (isSelf()) {
+    <span tuiFade>
+      {{ 'DIRECT.SAVED_MESSAGES' | translate }}
+    </span>
+  } @else {
+    <span
+      [style.color]="_user.username | tuiAutoColor"
+      tuiFade>
+      {{ _user.username }}
+    </span>
+    <div
+      tuiSubtitle
+      tuiFade>
+      {{ _user.fullname }}
+    </div>
+  }
+</app-list-item>

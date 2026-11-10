@@ -1,6 +1,7 @@
 <header
   tuiHeader
   class="room-header">
+  <app-header-back-button [to]="backRoute()" />
   @if (title(); as currentTitle) {
     <h2
       tuiTitle
@@ -33,7 +34,9 @@
         </div>
       </tui-badged-content>
 
-      <span [style.color]="colorTitle() ? (currentTitle | tuiAutoColor) : null">
+      <span
+        tuiFade
+        [style.color]="colorTitle() ? (currentTitle | tuiAutoColor) : null">
         {{ currentTitle }}
       </span>
     </h2>

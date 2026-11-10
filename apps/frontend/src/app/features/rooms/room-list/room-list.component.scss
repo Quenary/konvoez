@@ -1,0 +1,25 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  .room-rows {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.125rem;
+  }
+
+  .cell-leading {
+    display: contents;
+  }
+
+  .room-badge {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  tui-avatar-stack {
+    flex-shrink: 0;
+  }
+}

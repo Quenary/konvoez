@@ -1,0 +1,87 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  button[tuiAsideItem] {
+    // overflow-x: clip prevents badge from expanding the item width,
+    // but allows badge to overflow vertically without clipping
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .room-rows,
+  .voice-rooms-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .voice-room-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border-radius: var(--tui-radius-m);
+    transition: background-color var(--tui-duration) ease;
+
+    &.drop-target {
+      background-color: var(--tui-background-accent-1);
+    }
+  }
+
+  .room-peer-item {
+    padding-left: var(--tui-height-s);
+    cursor: pointer;
+
+    &.can-move {
+      cursor: grab;
+
+      &:active {
+        cursor: grabbing;
+      }
+    }
+  }
+
+  .aside-badge {
+    flex: 0 0 auto;
+    // Badge must overflow the avatar container to stay visible
+    overflow: visible;
+  }
+
+  // xs avatar is 1.5rem, size-s icon is 1rem. Shift half the difference
+  // so the avatar is centered on the icon, not aligned by the left edge.
+  .room-item {
+    > .aside-badge,
+    > app-pulse-indicator {
+      margin-inline-start: calc(var(--t-margin) - 0.25rem);
+    }
+  }
+}
+
+.cdk-drag-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--tui-radius-m);
+  background-color: var(--tui-background-elevation-2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0.95;
+  box-sizing: border-box;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.25;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+button[tuiOption].destructive {
+  color: var(--tui-text-negative, var(--tui-status-negative));
+
+  &:hover {
+    color: var(--tui-text-negative-hover, var(--tui-status-negative));
+  }
+}
