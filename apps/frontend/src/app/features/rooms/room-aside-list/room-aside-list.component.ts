@@ -5,10 +5,10 @@ import {
   DestroyRef,
   inject,
   input,
-  OnInit,
   signal,
 } from '@angular/core';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -18,13 +18,17 @@ import {
   CdkDropListGroup,
 } from '@angular/cdk/drag-drop';
 import {
+  TuiButton,
   TuiDataList,
   TuiDropdown,
+  TuiHint,
+  TuiIcon,
   TuiNotificationService,
   TuiOptGroup,
   TuiOption,
 } from '@taiga-ui/core';
 import {
+  TuiAutoColorPipe,
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
@@ -37,21 +41,23 @@ import {
   EPermission,
   ERoomType,
   IRoom,
+  IUserSafe,
   TVoiceRoomPeerUser,
 } from '@konvoez/shared';
-import { RoomsStore } from '@core/stores/rooms.store';
-import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
-import { VoiceSessionService } from '@core/services/voice-session.service';
-import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
+import { UnreadCountsStore } from '@core/chat/unread-counts.store';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
+import { UsersStore } from '@core/stores/users.store';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
+import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
+import { createLongtapClickGuard } from '@shared/functions/longtap-click-guard.function';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
-import { RoomPeerComponent } from '../room-peer/room-peer.component';
+import { icons } from '@constants';
 import { RoomContextMenuComponent } from '../room-context-menu/room-context-menu.component';
 import { RoomManageService } from '../room-manage.service';
-import { RoomNavigationService } from '../room-navigation.service';
-import { createLongtapClickGuard } from '../room-longtap';
-import { buildVoiceRoomRows, IVoiceRoomRow } from '../voice-room-rows';
+import { RoomPeerComponent } from '../room-peer/room-peer.component';
+import { IVoiceRoomRow, RoomViewService } from '../room-view.service';
 
 export interface IRoomPeerWithCanMove extends TVoiceRoomPeerUser {
   canMove: boolean;
@@ -63,17 +69,26 @@ export interface IRoomWithPeers extends IVoiceRoomRow {
 
 @Component({
   selector: 'app-room-aside-list',
+  host: {
+    '[class.collapsed]': 'collapsed()',
+  },
   imports: [
     NgOptimizedImage,
     NgTemplateOutlet,
+    RouterLink,
+    RouterLinkActive,
     TranslatePipe,
     CdkDrag,
     CdkDropList,
     CdkDropListGroup,
+    TuiAutoColorPipe,
     TuiAvatar,
     TuiBadgedContent,
     TuiBadgeNotification,
+    TuiButton,
     TuiFade,
+    TuiHint,
+    TuiIcon,
     TuiInitialsPipe,
     TuiNavigation,
     TuiDropdown,
@@ -81,62 +96,50 @@ export interface IRoomWithPeers extends IVoiceRoomRow {
     TuiOptGroup,
     TuiOption,
     PulseIndicatorComponent,
+    UserAvatarComponent,
     RoomPeerComponent,
     RoomContextMenuComponent,
   ],
+  providers: [RoomViewService],
   templateUrl: './room-aside-list.component.html',
   styleUrl: './room-aside-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RoomAsideListComponent implements OnInit {
-  private readonly store = inject(Store);
-  private readonly roomsStore = inject(RoomsStore);
-  private readonly voiceLobbyStore = inject(VoiceLobbyStore);
-  private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly roomManageService = inject(RoomManageService);
-  private readonly roomNavigationService = inject(RoomNavigationService);
+export class RoomAsideListComponent {
+  protected readonly roomView = inject(RoomViewService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
+  private readonly usersStore = inject(UsersStore);
+  private readonly directCallService = inject(DirectCallService);
+  private readonly router = inject(Router);
+  private readonly roomManageService = inject(RoomManageService);
+  private readonly store = inject(Store);
+  private readonly voiceSessionService = inject(VoiceSessionService);
   private readonly userDialogService = inject(UserDialogService);
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly isTouch = inject(WA_IS_TOUCH);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly roomClickGuard = createLongtapClickGuard(() =>
-    this.isTouch(),
-  );
-  private readonly peerClickGuard = createLongtapClickGuard(() =>
-    this.isTouch(),
-  );
 
-  public readonly type = input.required<ERoomType>();
-  public readonly collapsed = input<boolean>(false);
+  public readonly collapsed = input.required<boolean>();
 
+  protected readonly icons = icons;
   protected readonly ERoomType = ERoomType;
-  protected readonly textRooms = this.roomsStore.textRooms;
   protected readonly dragStartDelay = { touch: 300, mouse: 0 };
-  protected readonly canManageRooms = this.roomManageService.canManageRooms;
-  protected readonly contextMenuOpenedFor = signal<IRoom | null>(null);
   protected readonly selectedPeerForMenu = signal<{
     peer: IRoomPeerWithCanMove;
     roomId: number;
   } | null>(null);
   protected readonly dropTargetRoomId = signal<number | null>(null);
 
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
-  private readonly voiceRoomSource = this.roomsStore.voiceRooms;
-
-  protected readonly roomMentionFlags = computed<Record<number, boolean>>(
-    () => {
-      const mentions = this.unreadCountsStore.roomMentions();
-      const flags: Record<number, boolean> = {};
-      for (const [roomId, count] of Object.entries(mentions)) {
-        if (count > 0) {
-          flags[Number(roomId)] = true;
-        }
-      }
-      return flags;
-    },
-  );
+  protected readonly hangingCallPeer = computed(() => {
+    const userId = this.directCallService.hangingCallUserId();
+    const users = this.usersStore.entityMap();
+    const interlocutor = this.directCallService.interlocutor();
+    if (userId === null) {
+      return null;
+    }
+    return users[userId] ?? (interlocutor?.id === userId ? interlocutor : null);
+  });
 
   protected readonly canMoveMembers = computed<boolean>(() => {
     const user = this.currentUser();
@@ -146,20 +149,17 @@ export class RoomAsideListComponent implements OnInit {
   });
 
   protected readonly voiceRooms = computed<IRoomWithPeers[]>(() => {
-    const rooms = this.voiceRoomSource();
-    const roomsState = this.voiceLobbyStore.roomsState();
+    const rooms = this.roomView.voiceRows();
     const currentUser = this.currentUser();
     const canMove = this.canMoveMembers();
     const isActorOwner = Boolean(currentUser?.isOwner);
-    return buildVoiceRoomRows(rooms, roomsState, currentUser?.id).map(
-      (room) => ({
-        ...room,
-        peers: room.peers.map((peer) => ({
-          ...peer,
-          canMove: canMove && (!peer.isOwner || isActorOwner),
-        })),
-      }),
-    );
+    return rooms.map((room) => ({
+      ...room,
+      peers: room.peers.map((peer) => ({
+        ...peer,
+        canMove: canMove && (!peer.isOwner || isActorOwner),
+      })),
+    }));
   });
 
   protected readonly moveTargetRooms = computed<IRoomWithPeers[]>(() => {
@@ -171,41 +171,24 @@ export class RoomAsideListComponent implements OnInit {
     return rooms.filter((room) => room.id !== selected.roomId);
   });
 
-  ngOnInit(): void {
-    this.roomsStore.loadAll();
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
+  private readonly peerClickGuard = createLongtapClickGuard(() =>
+    this.isTouch(),
+  );
+
+  constructor() {
+    this.usersStore.loadAll();
     this.destroyRef.onDestroy(() => {
-      this.roomClickGuard.destroy();
       this.peerClickGuard.destroy();
     });
   }
 
-  protected openRoomDetails(room: IRoom): void {
-    void this.roomManageService.openRoomDetails(room);
+  protected addRoom(type: ERoomType): Promise<void> {
+    return this.roomManageService.createRoom(type);
   }
 
-  protected editRoom(room: IRoom): Promise<void> {
-    return this.roomManageService.editRoom(room);
-  }
-
-  protected deleteRoom(room: IRoom): void {
-    this.roomManageService.deleteRoom(room);
-  }
-
-  /**
-   * Opens via `tuiDropdownContext` `longtap` (right-click / long-press).
-   * Do not bind `(tuiDropdownOpenChange)`: it activates `TuiDropdownOpen`,
-   * which toggles the menu on left-click and fights room selection.
-   */
-  protected onRoomLongtap(room: IRoom): void {
-    this.contextMenuOpenedFor.set(room);
-    this.roomClickGuard.arm();
-  }
-
-  protected onRoomClick(room: IRoom): void {
-    if (this.roomClickGuard.consume()) {
-      return;
-    }
-    this.roomNavigationService.selectRoom(room);
+  protected openHangingCall(peer: IUserSafe): void {
+    void this.router.navigate(['/direct', peer.id]);
   }
 
   protected onPeerLongtap(

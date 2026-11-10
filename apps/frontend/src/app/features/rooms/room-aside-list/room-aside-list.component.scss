@@ -42,10 +42,35 @@
     }
   }
 
+  .hanging-call {
+    padding-left: var(--tui-height-s);
+  }
+
   .aside-badge {
     flex: 0 0 auto;
     // Badge must overflow the avatar container to stay visible
     overflow: visible;
+  }
+
+  &.collapsed {
+    .hanging-call {
+      // Drop the section indent, keep the size-s inline padding (0.625rem).
+      padding-left: 0.625rem;
+
+      app-pulse-indicator {
+        margin-inline-start: calc(var(--t-margin) - 0.25rem);
+      }
+    }
+  }
+
+  // tui-badged-content sets color to --tui-background-base for badge cutout;
+  // aside item does not pass its color to a nested tui-icon
+  .aside-badge--icon {
+    color: inherit;
+
+    tui-icon {
+      color: currentColor;
+    }
   }
 
   // xs avatar is 1.5rem, size-s icon is 1rem. Shift half the difference

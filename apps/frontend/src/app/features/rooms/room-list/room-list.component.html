@@ -1,12 +1,12 @@
 @if (type() === ERoomType.TEXT) {
   <div class="room-rows">
-    @for (room of textRooms(); track room.id) {
+    @for (room of roomView.textRooms(); track room.id) {
       <app-list-item
         [tuiDropdown]="roomContextMenu"
         tuiDropdownContext
         [tuiDropdownSided]="true"
-        (longtap)="onRoomLongtap(room)"
-        (click)="onRoomClick(room)">
+        (longtap)="roomView.onRoomLongtap(room)"
+        (click)="roomView.onRoomClick(room)">
         <span
           listItemLeading
           class="cell-leading">
@@ -25,8 +25,8 @@
         [tuiDropdown]="roomContextMenu"
         tuiDropdownContext
         [tuiDropdownSided]="true"
-        (longtap)="onRoomLongtap(room)"
-        (click)="onRoomClick(room)">
+        (longtap)="roomView.onRoomLongtap(room)"
+        (click)="roomView.onRoomClick(room)">
         <span
           listItemLeading
           class="cell-leading">
@@ -62,7 +62,7 @@
   #textLeading
   let-room>
   <tui-badged-content class="room-badge">
-    @if (roomMentionFlags()[room.id]) {
+    @if (roomView.mentionFlags()[room.id]) {
       <tui-badge-notification
         size="s"
         appearance="accent"
@@ -116,12 +116,12 @@
 <ng-template
   #roomContextMenu
   let-close>
-  @if (contextMenuOpenedFor(); as room) {
+  @if (roomView.contextMenuRoom(); as room) {
     <app-room-context-menu
       [roomName]="room.name"
-      [canManage]="canManageRooms()"
-      (details)="openRoomDetails(room); close()"
-      (edit)="editRoom(room); close()"
-      (delete)="deleteRoom(room); close()" />
+      [canManage]="roomView.canManageRooms()"
+      (details)="roomView.openRoomDetails(room); close()"
+      (edit)="roomView.editRoom(room); close()"
+      (delete)="roomView.deleteRoom(room); close()" />
   }
 </ng-template>

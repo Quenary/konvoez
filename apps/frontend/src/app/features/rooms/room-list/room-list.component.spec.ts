@@ -146,11 +146,13 @@ describe('RoomListComponent', () => {
   });
 
   it('exposes text rooms when type is TEXT', () => {
-    expect(component['textRooms']()).toEqual([textRoom]);
+    expect(component['roomView'].textRooms()).toEqual([textRoom]);
   });
 
   it('selects a room on click', () => {
-    component['onRoomClick'](textRoom);
+    const item: HTMLElement =
+      fixture.nativeElement.querySelector('app-list-item');
+    item.click();
     expect(mockRoomNavigationService.selectRoom).toHaveBeenCalledWith(textRoom);
   });
 

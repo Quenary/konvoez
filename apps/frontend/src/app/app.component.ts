@@ -31,7 +31,7 @@ import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, filter, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CallControlsAsideComponent } from '@shared/call-controls/call-controls-aside/call-controls-aside.component';
-import { RoomsComponent } from '@features/rooms/rooms.component';
+import { RoomAsideListComponent } from '@features/rooms/room-aside-list/room-aside-list.component';
 import { MobileTabBarComponent } from '@shared/components/mobile-tab-bar/mobile-tab-bar.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EPermission } from '@konvoez/shared';
@@ -57,7 +57,7 @@ const DEFAULT_VERSION_INFO = {
   imports: [
     RouterOutlet,
     TranslatePipe,
-    RoomsComponent,
+    RoomAsideListComponent,
     CallControlsAsideComponent,
     MobileTabBarComponent,
     RouterLink,
