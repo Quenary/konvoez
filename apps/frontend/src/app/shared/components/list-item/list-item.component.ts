@@ -13,5 +13,7 @@ import { icons } from '@constants';
 export class ListItemComponent {
   public readonly link = input<string | null>(null);
 
+  public readonly size = input<ReturnType<TuiCell['size']>>('m');
+
   protected readonly icons = icons;
 }
