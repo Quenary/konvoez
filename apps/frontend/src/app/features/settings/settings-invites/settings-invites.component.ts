@@ -6,7 +6,7 @@ import {
   Injector,
   resource,
 } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { finalize, firstValueFrom } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   buildInviteUrl,
@@ -220,10 +220,10 @@ export class SettingsInvitesComponent {
           size: 'm',
         },
       )
-      .subscribe((res) => {
-        if (res) {
+      .subscribe({
+        complete: () => {
           this.invitesResource.reload();
-        }
+        },
       });
   }
 
@@ -252,58 +252,71 @@ export class SettingsInvitesComponent {
   }
 
   protected resendEmail(id: number): void {
-    this.invitesApiService.resend(id).subscribe({
-      next: () => {
-        this.notificationService
-          .open(
-            this.translateService.instant('SETTINGS.INVITES.RESEND_SUCCESS'),
-            {
-              appearance: 'positive',
-            },
-          )
-          .subscribe();
-        this.invitesResource.reload();
-      },
-      error: (err) => {
-        this.notificationService
-          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-            appearance: 'negative',
-            label: this.translateService.instant('GENERAL.REQ_ERR'),
-          })
-          .subscribe();
-      },
-    });
+    this.invitesApiService
+      .resend(id)
+      .pipe(
+        finalize(() => {
+          this.invitesResource.reload();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.notificationService
+            .open(
+              this.translateService.instant('SETTINGS.INVITES.RESEND_SUCCESS'),
+              {
+                appearance: 'positive',
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => {
+          this.notificationService
+            .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
+        },
+      });
   }
 
   protected revoke(id: number): void {
-    this.invitesApiService.revoke(id).subscribe({
-      next: () => {
-        this.invitesResource.reload();
-      },
-      error: (err) => {
-        this.notificationService
-          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-            appearance: 'negative',
-            label: this.translateService.instant('GENERAL.REQ_ERR'),
-          })
-          .subscribe();
-      },
-    });
+    this.invitesApiService
+      .revoke(id)
+      .pipe(
+        finalize(() => {
+          this.invitesResource.reload();
+        }),
+      )
+      .subscribe({
+        error: (err) => {
+          this.notificationService
+            .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
+        },
+      });
   }
 
   protected delete(id: number): void {
-    this.invitesApiService.delete(id).subscribe({
-      next: () => {
-        this.invitesResource.reload();
-      },
-      error: (err) => {
-        this.notificationService
-          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-            appearance: 'negative',
-            label: this.translateService.instant('GENERAL.REQ_ERR'),
-          })
-          .subscribe();
-      },
-    });
+    this.invitesApiService
+      .delete(id)
+      .pipe(
+        finalize(() => {
+          this.invitesResource.reload();
+        }),
+      )
+      .subscribe({
+        error: (err) => {
+          this.notificationService
+            .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+            })
+            .subscribe();
+        },
+      });
   }
 }
