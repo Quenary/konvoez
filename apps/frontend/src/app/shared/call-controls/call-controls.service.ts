@@ -18,6 +18,7 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { icons } from '@constants';
 
 @Injectable()
 export class CallControlsService {
@@ -62,6 +63,17 @@ export class CallControlsService {
     }
 
     return '';
+  });
+
+  public readonly indicatorIcon = computed(() => {
+    const state = this.connectionState();
+    switch (state) {
+      case EVoiceConnectionState.DISCONNECTED:
+      case EVoiceConnectionState.DEAD:
+        return icons['audio-lines-x'];
+      default:
+        return icons['audio-lines'];
+    }
   });
 
   public readonly indicatorColor = computed(() => {

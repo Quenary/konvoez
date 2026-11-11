@@ -12,7 +12,7 @@
       class="panel-button-spaced"
       (click)="callControlsService.openSession()">
       <tui-icon
-        [icon]="icons['audio-lines']"
+        [icon]="callControlsService.indicatorIcon()"
         [style.color]="callControlsService.indicatorColor()"></tui-icon>
       @if (!collapsed()) {
         <span tuiFade>{{ callControlsService.sessionTitle() }}</span>

@@ -48,6 +48,7 @@ export const icons = {
   /* Rooms menu */
   'text-rooms': '@tui.message-circle-more',
   'audio-lines': '@tui.audio-lines',
+  'audio-lines-x': '@tui.audio-lines-x',
   /* Auth / forms */
   user: '@tui.user',
   lock: '@tui.lock',

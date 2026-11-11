@@ -10,6 +10,7 @@ import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
+import { icons } from '@constants';
 import { RoomNavigationService } from '@features/rooms/room-navigation.service';
 import {
   EVoiceConnectionState,
@@ -235,6 +236,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.EXCELLENT,
       suspended: false,
       color: 'var(--tui-status-positive)',
+      icon: icons['audio-lines'],
       text: 'Voice quality: excellent. 64 kbps',
     },
     {
@@ -242,6 +244,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.GOOD,
       suspended: false,
       color: 'var(--tui-status-info)',
+      icon: icons['audio-lines'],
       text: 'Voice quality: good. 64 kbps',
     },
     {
@@ -249,6 +252,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.UNSTABLE,
       suspended: false,
       color: 'var(--tui-status-warning)',
+      icon: icons['audio-lines'],
       text: 'Voice quality: degraded. 64 kbps',
     },
     {
@@ -256,6 +260,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.BAD,
       suspended: false,
       color: 'var(--tui-status-negative)',
+      icon: icons['audio-lines'],
       text: 'Voice quality: poor. 64 kbps',
     },
     {
@@ -263,6 +268,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.EXCELLENT,
       suspended: false,
       color: 'var(--tui-status-warning)',
+      icon: icons['audio-lines'],
       text: 'Voice quality: excellent. 64 kbps',
     },
     {
@@ -270,6 +276,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.GOOD,
       suspended: true,
       color: 'var(--tui-status-warning)',
+      icon: icons['audio-lines'],
       text: 'Audio suspended',
     },
     {
@@ -277,6 +284,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.EXCELLENT,
       suspended: false,
       color: 'var(--tui-text-tertiary)',
+      icon: icons['audio-lines'],
       text: 'Reconnecting',
     },
     {
@@ -284,6 +292,7 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.EXCELLENT,
       suspended: false,
       color: 'var(--tui-status-negative)',
+      icon: icons['audio-lines-x'],
       text: 'Disconnected',
     },
     {
@@ -291,16 +300,18 @@ describe('CallControlsService', () => {
       tier: EVoiceQualityTier.EXCELLENT,
       suspended: false,
       color: 'var(--tui-status-negative)',
+      icon: icons['audio-lines-x'],
       text: 'Connection lost',
     },
   ])(
-    'colors $state at $tier as $color',
-    ({ state, tier, suspended, color, text }) => {
+    'shows $color and $icon for $state at $tier',
+    ({ state, tier, suspended, color, icon, text }) => {
       connectionState.set(state);
       qualityTier.set(tier);
       audioSuspended.set(suspended);
 
       expect(service.indicatorColor()).toBe(color);
+      expect(service.indicatorIcon()).toBe(icon);
       expect(service.qualityText()).toBe(text);
     },
   );

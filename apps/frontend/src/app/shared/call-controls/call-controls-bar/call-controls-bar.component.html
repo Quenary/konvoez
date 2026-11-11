@@ -5,7 +5,7 @@
     [attr.aria-label]="callControlsService.qualityAriaLabel()"
     (click)="callControlsService.openSession()">
     <tui-icon
-      [icon]="icons['audio-lines']"
+      [icon]="callControlsService.indicatorIcon()"
       [style.color]="callControlsService.indicatorColor()" />
     <span
       class="call-controls-bar-title"
