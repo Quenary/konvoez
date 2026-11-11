@@ -1,0 +1,69 @@
+{
+  "name": "desktop-ui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/desktop-ui/src",
+  "tags": ["scope:client", "type:app", "platform:desktop"],
+  "generators": {
+    "@nx/angular:component": {
+      "style": "scss",
+      "type": "component"
+    }
+  },
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/desktop-ui",
+        "browser": "apps/desktop-ui/src/main.ts",
+        "tsConfig": "apps/desktop-ui/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "baseHref": "./",
+        "styles": ["apps/desktop-ui/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "optimization": {
+            "scripts": true,
+            "styles": {
+              "minify": true,
+              "inlineCritical": false
+            },
+            "fonts": false
+          },
+          "outputHashing": "none",
+          "sourceMap": false,
+          "extractLicenses": false
+        },
+        "development": {
+          "optimization": false,
+          "outputHashing": "none",
+          "sourceMap": true,
+          "extractLicenses": false
+        }
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "watch": false,
+        "setupFiles": ["apps/desktop-ui/src/test-setup.ts"]
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check \"{projectRoot}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"{projectRoot}\""
+      }
+    }
+  }
+}

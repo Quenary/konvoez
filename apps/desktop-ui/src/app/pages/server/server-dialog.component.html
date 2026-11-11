@@ -1,0 +1,41 @@
+<app-dialog-layout [heading]="'server.title' | i18n">
+  <p class="subtitle">{{ 'server.subtitle' | i18n }}</p>
+
+  <tui-textfield class="server-input">
+    <input
+      #inputEl
+      tuiInput
+      type="url"
+      [disabled]="loading()"
+      [placeholder]="'server.placeholder' | i18n"
+      [value]="serverUrl()"
+      (input)="onUrlInput($event)"
+      (keydown.enter)="handleConnect()" />
+  </tui-textfield>
+
+  @if (error(); as err) {
+    <div
+      class="error-banner"
+      role="alert">
+      {{ err }}
+    </div>
+  }
+
+  <button
+    actions
+    tuiButton
+    appearance="primary"
+    size="m"
+    type="button"
+    [disabled]="loading()"
+    (click)="handleConnect()">
+    @if (loading()) {
+      <tui-loader
+        size="s"
+        class="btn-loader" />
+      {{ 'server.connecting' | i18n }}
+    } @else {
+      {{ 'server.connect' | i18n }}
+    }
+  </button>
+</app-dialog-layout>

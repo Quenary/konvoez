@@ -1,0 +1,30 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+p.subtitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--tui-text-secondary);
+  line-height: 1.4;
+}
+
+.server-input {
+  width: 100%;
+}
+
+.error-banner {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--tui-radius-m, 0.5rem);
+  background-color: var(--tui-status-negative-pale);
+  color: var(--tui-status-negative);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.btn-loader {
+  display: inline-block;
+  margin-right: 0.5rem;
+}

@@ -2,7 +2,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { compileTheme } from './tools/compile-theme.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,31 +20,6 @@ const distPagesDir = path.resolve(distDir, 'pages');
 const libAliases = {
   '@konvoez/shared': sharedIndexPath,
   '@konvoez/client-shell': clientShellIndexPath,
-};
-
-const subpathAliasPlugin = {
-  name: 'subpath-alias',
-  setup(build) {
-    build.onResolve({ filter: /^@konvoez\/ui-kit\/(.+)$/ }, (args) => {
-      const match = args.path.match(/^@konvoez\/ui-kit\/(.+)$/);
-      if (!match) return null;
-      const subpath = match[1];
-      if (subpath === 'i18n-controller') {
-        return {
-          path: path.resolve(
-            __dirname,
-            '../../libs/ui-kit/src/i18n-controller/i18n-controller.ts',
-          ),
-        };
-      }
-      return {
-        path: path.resolve(
-          __dirname,
-          `../../libs/ui-kit/src/${subpath}/${subpath}.ts`,
-        ),
-      };
-    });
-  },
 };
 
 async function build() {
@@ -104,7 +78,6 @@ async function build() {
     sourcemap: isDev,
     minify: !isDev,
     alias: libAliases,
-    plugins: [subpathAliasPlugin],
   });
 
   // 3. Build Preload Scripts
@@ -123,38 +96,30 @@ async function build() {
     sourcemap: isDev,
     minify: !isDev,
     alias: libAliases,
-    plugins: [subpathAliasPlugin],
   });
 
-  // 4. Build Dialog Pages Scripts
-  console.log('[Desktop Build] Bundling dialog pages scripts...');
-  await esbuild.build({
-    entryPoints: [
-      path.resolve(__dirname, 'src/pages/server/main.ts'),
-      path.resolve(__dirname, 'src/pages/settings/main.ts'),
-      path.resolve(__dirname, 'src/pages/picker/main.ts'),
-      path.resolve(__dirname, 'src/pages/updater/main.ts'),
-    ],
-    bundle: true,
-    platform: 'browser',
-    target: 'chrome130',
-    format: 'iife',
-    outdir: distPagesDir,
-    sourcemap: isDev,
-    minify: !isDev,
-    treeShaking: true,
-    legalComments: 'none',
-    conditions: ['production'],
-    tsconfigRaw: {
-      compilerOptions: {
-        experimentalDecorators: false,
-        useDefineForClassFields: true,
-      },
-    },
-    alias: libAliases,
-    plugins: [subpathAliasPlugin],
-  });
+  // 4. Copy desktop-ui build output into dist/pages
+  console.log('[Desktop Build] Copying desktop-ui pages...');
+  const desktopUiDist = path.resolve(
+    __dirname,
+    '../../dist/apps/desktop-ui/browser',
+  );
+  if (!fs.existsSync(desktopUiDist)) {
+    throw new Error(
+      `[Desktop Build] desktop-ui output not found at ${desktopUiDist}. Ensure desktop-ui is built first.`,
+    );
+  }
+  for (const entry of fs.readdirSync(desktopUiDist, { withFileTypes: true })) {
+    const src = path.resolve(desktopUiDist, entry.name);
+    const dest = path.resolve(distPagesDir, entry.name);
+    if (entry.isDirectory()) {
+      fs.cpSync(src, dest, { recursive: true });
+    } else {
+      fs.copyFileSync(src, dest);
+    }
+  }
 
+  // 5. Verify Dialog Pages Have No Node Globals
   console.log('[Desktop Build] Verifying dialog pages have no Node globals...');
   const nodeGlobalsRegex = /\b(process\.|require\(|__dirname)/;
   const collectJsFiles = (dir) => {
@@ -176,23 +141,6 @@ async function build() {
         `[Desktop Build] ${path.relative(distPagesDir, file)} references Node globals (process.*, require, __dirname) — dialog pages must not use Node globals`,
       );
     }
-  }
-
-  // 5. Copy Static Page Assets
-  console.log('[Desktop Build] Copying static assets (HTML & CSS)...');
-  const pagesSourceDir = path.resolve(__dirname, 'src/pages');
-  console.log('[Desktop Build] Compiling Taiga theme...');
-  const hostCss = await compileTheme();
-
-  for (const name of ['server', 'settings', 'picker', 'updater']) {
-    const src = path.resolve(pagesSourceDir, name, 'index.html');
-    const destDir = path.resolve(distPagesDir, name);
-    if (!fs.existsSync(src)) {
-      throw new Error(`[Desktop Build] Missing page: ${src}`);
-    }
-    fs.mkdirSync(destDir, { recursive: true });
-    fs.copyFileSync(src, path.resolve(destDir, 'index.html'));
-    fs.writeFileSync(path.resolve(destDir, 'host.css'), hostCss, 'utf8');
   }
 
   // 6. Verify Preload Bundle Size

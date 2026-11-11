@@ -4,10 +4,11 @@
   "sourceRoot": "apps/desktop/src",
   "projectType": "application",
   "tags": ["scope:client", "type:app", "platform:desktop"],
-  "implicitDependencies": ["ui-kit", "client-shell"],
+  "implicitDependencies": ["desktop-ui", "client-shell"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
+      "dependsOn": ["desktop-ui:build"],
       "outputs": ["{projectRoot}/dist"],
       "options": {
         "command": "node build.mjs",
@@ -16,6 +17,7 @@
     },
     "serve": {
       "executor": "nx:run-commands",
+      "dependsOn": ["desktop-ui:build"],
       "options": {
         "command": "node build.mjs && electron .",
         "cwd": "apps/desktop"

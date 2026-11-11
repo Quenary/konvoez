@@ -1,0 +1,97 @@
+<app-dialog-layout
+  [heading]="'picker.title' | i18n"
+  actionsAlign="between">
+  <tui-tabs
+    class="tabs-bar"
+    [(activeItemIndex)]="activeTabIndex"
+    (activeItemIndexChange)="onActiveTabIndexChange($event)"
+    (keydown.arrowRight)="handleArrowNavigation(1)"
+    (keydown.arrowLeft)="handleArrowNavigation(-1)">
+    <button
+      tuiTab
+      type="button"
+      (click)="handleTabChange('screens')">
+      {{ 'picker.screens' | i18n }}
+    </button>
+    <button
+      tuiTab
+      type="button"
+      (click)="handleTabChange('windows')">
+      {{ 'picker.windows' | i18n }}
+    </button>
+  </tui-tabs>
+
+  <app-source-grid
+    [sources]="currentSources()"
+    [value]="selectedId()"
+    (sourceSelect)="onSourceSelected($event)"
+    (sourceActivate)="onSourceActivated($event)">
+    <div empty>
+      {{
+        (activeTab() === 'screens' ? 'picker.noScreens' : 'picker.noWindows')
+          | i18n
+      }}
+    </div>
+  </app-source-grid>
+
+  <div
+    actions
+    class="audio-section">
+    @if (audioSupported()) {
+      <label class="checkbox-label">
+        <input
+          tuiCheckbox
+          type="checkbox"
+          [checked]="shareAudio()"
+          (change)="handleAudioToggle($event)" />
+        <span>{{ 'picker.shareAudio' | i18n }}</span>
+      </label>
+
+      @if (showLoopbackHint()) {
+        <p class="audio-hint">{{ 'picker.shareAudioHint' | i18n }}</p>
+      }
+
+      @if (showAudioStreamSelect()) {
+        <div class="audio-stream-row">
+          <label
+            class="audio-stream-label"
+            for="audio-stream-select">
+            {{ 'picker.audioSource' | i18n }}:
+          </label>
+          <select
+            id="audio-stream-select"
+            class="audio-stream-select"
+            [value]="selectedAudioStreamId() ?? ''"
+            (change)="handleStreamSelect($event)">
+            <option value="">{{ 'picker.allAudio' | i18n }}</option>
+            @for (stream of audioStreams(); track stream.id) {
+              <option [value]="stream.id">{{ stream.name }}</option>
+            }
+          </select>
+        </div>
+      }
+    }
+  </div>
+
+  <div
+    actions
+    class="button-group">
+    <button
+      tuiButton
+      appearance="secondary"
+      size="m"
+      type="button"
+      (click)="handleCancel()">
+      {{ 'picker.cancel' | i18n }}
+    </button>
+    <button
+      tuiButton
+      appearance="primary"
+      size="m"
+      type="button"
+      [disabled]="!selectedId()"
+      (click)="handleShare()">
+      {{ 'picker.share' | i18n }}
+    </button>
+  </div>
+</app-dialog-layout>

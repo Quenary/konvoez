@@ -227,7 +227,7 @@ export async function openSourcePicker(
     }
 
     pickerWin.setMenu(null);
-    void pickerWin.loadFile(getLocalPagePath('picker'));
+    void pickerWin.loadFile(getLocalPagePath(), { hash: '/picker' });
 
     ipcMain.handle(EDesktopIpc.LOCAL_PICKER_SOURCES, () => {
       const nativeMod = getNativeModule();
