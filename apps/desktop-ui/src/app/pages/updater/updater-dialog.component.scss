@@ -5,13 +5,9 @@
 
 p {
   margin: 0;
-  font-size: 0.875rem;
-  color: var(--tui-text-primary);
-  line-height: 1.4;
 
   &.secondary {
     color: var(--tui-text-secondary);
-    font-size: 0.8125rem;
   }
 }
 
@@ -25,15 +21,5 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8125rem;
   color: var(--tui-text-secondary);
-}
-
-.error-banner {
-  padding: 0.75rem 1rem;
-  border-radius: var(--tui-radius-m, 0.5rem);
-  background-color: var(--tui-status-negative-pale);
-  color: var(--tui-status-negative);
-  font-size: 0.8125rem;
-  line-height: 1.4;
 }

@@ -48,27 +48,31 @@
       </label>
 
       @if (showLoopbackHint()) {
-        <p class="audio-hint">{{ 'picker.shareAudioHint' | i18n }}</p>
+        <p class="audio-hint tui-text_body-s">{{
+          'picker.shareAudioHint' | i18n
+        }}</p>
       }
 
       @if (showAudioStreamSelect()) {
-        <div class="audio-stream-row">
-          <label
-            class="audio-stream-label"
-            for="audio-stream-select">
-            {{ 'picker.audioSource' | i18n }}:
-          </label>
-          <select
-            id="audio-stream-select"
-            class="audio-stream-select"
-            [value]="selectedAudioStreamId() ?? ''"
-            (change)="handleStreamSelect($event)">
-            <option value="">{{ 'picker.allAudio' | i18n }}</option>
-            @for (stream of audioStreams(); track stream.id) {
-              <option [value]="stream.id">{{ stream.name }}</option>
-            }
-          </select>
-        </div>
+        <label
+          tuiLabel
+          class="audio-stream-field">
+          {{ 'picker.audioSource' | i18n }}
+          <tui-textfield
+            tuiChevron
+            tuiTextfieldSize="m"
+            [tuiTextfieldCleaner]="false">
+            <input
+              id="audio-stream-select"
+              tuiSelect
+              [ngModel]="selectedAudioStreamId() ?? ''"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onAudioStreamChange($event)" />
+            <tui-data-list-wrapper
+              *tuiDropdown
+              [items]="audioStreamIds()" />
+          </tui-textfield>
+        </label>
       }
     }
   </div>

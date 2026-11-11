@@ -7,10 +7,10 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { TuiButton } from '@taiga-ui/core';
+import { TuiButton, TuiNotification } from '@taiga-ui/core';
 import { TuiProgressBar } from '@taiga-ui/kit';
 import type { IUpdaterProgress, IUpdaterState } from '@konvoez/client-shell';
-import { KONVOEZ_LOCAL_BRIDGE } from '../../core/tokens/local-bridge.token';
+import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import { DialogLayoutComponent } from '../../components/dialog-layout/dialog-layout.component';
@@ -41,7 +41,13 @@ function formatProgressDetails(progress?: IUpdaterProgress): string {
 
 @Component({
   selector: 'app-updater-dialog',
-  imports: [DialogLayoutComponent, I18nPipe, TuiButton, TuiProgressBar],
+  imports: [
+    DialogLayoutComponent,
+    I18nPipe,
+    TuiButton,
+    TuiNotification,
+    TuiProgressBar,
+  ],
   templateUrl: './updater-dialog.component.html',
   styleUrl: './updater-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

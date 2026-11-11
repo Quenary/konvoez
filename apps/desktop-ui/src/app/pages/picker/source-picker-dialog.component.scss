@@ -20,44 +20,20 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-size: 0.8125rem;
-  color: var(--tui-text-primary);
   user-select: none;
 }
 
 .audio-hint {
   margin: 0;
-  font-size: 0.75rem;
   color: var(--tui-status-warning);
-  line-height: 1.35;
 }
 
-.audio-stream-row {
+.audio-stream-field {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-
-.audio-stream-label {
-  font-size: 0.75rem;
-  color: var(--tui-text-secondary);
-  flex-shrink: 0;
-}
-
-.audio-stream-select {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  border-radius: var(--tui-radius-s, 0.25rem);
-  border: 1px solid var(--tui-border-normal);
-  background-color: var(--tui-background-base);
-  color: var(--tui-text-primary);
-  max-width: 14rem;
-  outline: none;
-
-  &:focus {
-    border-color: var(--tui-background-accent-1);
-  }
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 16rem;
 }
 
 .button-group {

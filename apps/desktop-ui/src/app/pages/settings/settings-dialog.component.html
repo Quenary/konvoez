@@ -1,7 +1,7 @@
 <app-dialog-layout [heading]="'settings.title' | i18n">
   <section class="section">
-    <h2 class="section-title">{{ 'settings.hotkeys' | i18n }}</h2>
-    <p class="hint-paragraph">{{ hotkeysHintKey() | i18n }}</p>
+    <h2 tuiTitle>{{ 'settings.hotkeys' | i18n }}</h2>
+    <p class="tui-text_body-s">{{ hotkeysHintKey() | i18n }}</p>
 
     <div class="hotkeys-group">
       <app-hotkey-input
@@ -40,13 +40,12 @@
   </section>
 
   @if (saveMessage(); as msg) {
-    <div
-      class="save-banner"
-      [class.success]="msg.variant === 'success'"
-      [class.error]="msg.variant === 'error'"
-      role="status">
+    <aside
+      tuiNotification
+      role="status"
+      [appearance]="msg.variant === 'success' ? 'positive' : 'negative'">
       {{ msg.text }}
-    </div>
+    </aside>
   }
 
   <button

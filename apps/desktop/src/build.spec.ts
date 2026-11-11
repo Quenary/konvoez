@@ -75,9 +75,8 @@ describe('desktop build', () => {
     expect(css).toContain('--tui-typography-family-text: system-ui');
     expect(css).toContain('html');
     expect(css).toContain('body');
-    expect(css).toMatch(
-      /@media\s+screen\s+and\s+\(prefers-color-scheme:\s*dark\)[\s\S]*color-scheme:\s*dark/,
-    );
+    expect(css).toMatch(/\[tuiTheme=(['"]?)dark\1\]/);
+    expect(css).toMatch(/color-scheme:\s*dark/);
     expect(css).not.toMatch(/@font-face|url\(/);
 
     const htmlPath = path.resolve(distPagesDir, 'index.html');
@@ -87,6 +86,25 @@ describe('desktop build', () => {
     ).toBe(true);
     const html = fs.readFileSync(htmlPath, 'utf8');
     expect(html).toContain('href="styles.css"');
+    expect(html).toContain("connect-src 'none'");
+    expect(
+      fs.existsSync(
+        path.resolve(distPagesDir, 'assets/taiga-ui/icons/check.svg'),
+      ),
+      'Taiga icon assets should be copied next to the dialog page',
+    ).toBe(true);
+  });
+
+  it('does not ship the local bridge mock', () => {
+    const files = collectFiles(distPagesDir, '.js');
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const code = fs.readFileSync(file, 'utf8');
+      expect(
+        code,
+        `${path.relative(distPagesDir, file)} should not contain the local bridge mock`,
+      ).not.toContain('desktop-ui-local-bridge-mock');
+    }
   });
 
   it('ensures desktop-ui component sources only reference inherited Taiga variables', () => {

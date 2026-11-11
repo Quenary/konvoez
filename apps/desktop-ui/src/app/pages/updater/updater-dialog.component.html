@@ -5,7 +5,7 @@
         <progress
           size="m"
           tuiProgressBar></progress>
-        <p class="secondary">{{ 'updater.checking' | i18n }}</p>
+        <p class="tui-text_body-s secondary">{{ 'updater.checking' | i18n }}</p>
       </div>
       <button
         actions
@@ -22,7 +22,7 @@
   @case ('up-to-date') {
     <app-dialog-layout heading="Konvoez">
       <div class="content-column">
-        <p>{{ 'updater.upToDate' | i18n }}</p>
+        <p class="tui-text_body-s">{{ 'updater.upToDate' | i18n }}</p>
       </div>
       <button
         actions
@@ -39,7 +39,7 @@
   @case ('available') {
     <app-dialog-layout [heading]="'updater.updateAvailable' | i18n">
       <div class="content-column">
-        <p>
+        <p class="tui-text_body-s">
           @if (updaterState().version; as ver) {
             {{ 'updater.version' | i18n: { version: ver } }}
           } @else {
@@ -81,7 +81,9 @@
             <span>{{ details }}</span>
           </div>
         }
-        <p class="secondary">{{ 'updater.downloadingHint' | i18n }}</p>
+        <p class="tui-text_body-s secondary">{{
+          'updater.downloadingHint' | i18n
+        }}</p>
       </div>
       <button
         actions
@@ -98,7 +100,7 @@
   @case ('ready-deferred') {
     <app-dialog-layout [heading]="'updater.ready' | i18n">
       <div class="content-column">
-        <p>{{ 'updater.readyDeferred' | i18n }}</p>
+        <p class="tui-text_body-s">{{ 'updater.readyDeferred' | i18n }}</p>
       </div>
       <button
         actions
@@ -124,9 +126,9 @@
   @case ('ready') {
     <app-dialog-layout heading="Konvoez">
       <div class="content-column">
-        <p>{{ 'updater.ready' | i18n }}</p>
+        <p class="tui-text_body-s">{{ 'updater.ready' | i18n }}</p>
         @if (updaterState().version; as ver) {
-          <p class="secondary">
+          <p class="tui-text_body-s secondary">
             {{ 'updater.version' | i18n: { version: ver } }}
           </p>
         }
@@ -155,11 +157,12 @@
   @case ('error') {
     <app-dialog-layout heading="Konvoez">
       <div class="content-column">
-        <div
-          class="error-banner"
+        <aside
+          tuiNotification
+          appearance="negative"
           role="alert">
           {{ updaterState().error || 'updater.checkFailed' | i18n }}
-        </div>
+        </aside>
       </div>
       <button
         actions
@@ -185,7 +188,7 @@
   @case ('disabled') {
     <app-dialog-layout heading="Konvoez">
       <div class="content-column">
-        <p>{{ 'updater.disabled' | i18n }}</p>
+        <p class="tui-text_body-s">{{ 'updater.disabled' | i18n }}</p>
       </div>
       <button
         actions

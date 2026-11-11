@@ -1,12 +1,17 @@
 import {
   ApplicationConfig,
+  InjectionToken,
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideRouter, withHashLocation } from '@angular/router';
+import type { IKonvoezLocalBridge } from '@konvoez/client-shell';
 import { provideTaiga } from '@taiga-ui/core';
 import { routes } from './app.routes';
-import { KONVOEZ_LOCAL_BRIDGE } from './core/tokens/local-bridge.token';
-import type { IKonvoezLocalBridge } from '@konvoez/client-shell';
+import { readLocalBridge } from './core/local-bridge';
+
+export const KONVOEZ_LOCAL_BRIDGE = new InjectionToken<IKonvoezLocalBridge>(
+  'KONVOEZ_LOCAL_BRIDGE',
+);
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -15,15 +20,7 @@ export const appConfig: ApplicationConfig = {
     provideTaiga(),
     {
       provide: KONVOEZ_LOCAL_BRIDGE,
-      useFactory: () => {
-        const bridge = (
-          window as unknown as { konvoezLocal?: IKonvoezLocalBridge }
-        ).konvoezLocal;
-        if (!bridge) {
-          throw new Error('window.konvoezLocal bridge is not available');
-        }
-        return bridge;
-      },
+      useFactory: readLocalBridge,
     },
   ],
 };

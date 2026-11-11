@@ -88,7 +88,7 @@ flowchart LR
 
 ## Desktop
 
-The Electron client has its own [guide](../apps/desktop/README.md). Build the native module with `npx nx run desktop-native:build`, run tests with `npx nx run desktop-native:test`, and lint with `npx nx run desktop-native:lint`. Run the app with `npx nx run desktop:serve` and package it with `npx nx run desktop:package`. Installers are built by GitHub Actions on `desktop-v*` tags.
+The Electron client has its own [guide](../apps/desktop/README.md). Build the native module with `npx nx run desktop-native:build`, run tests with `npx nx run desktop-native:test`, and lint with `npx nx run desktop-native:lint`. Run the app with `npx nx run desktop:serve` and package it with `npx nx run desktop:package`. Preview local dialogs in a browser with `npx nx serve desktop-ui`. Installers are built by GitHub Actions on `desktop-v*` tags.
 
 ## Commits and releases
 

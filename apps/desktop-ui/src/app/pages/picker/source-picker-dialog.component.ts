@@ -7,29 +7,76 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { TuiButton } from '@taiga-ui/core';
+import { FormsModule } from '@angular/forms';
+import {
+  TUI_ITEMS_HANDLERS,
+  TuiButton,
+  TuiDropdown,
+  TuiLabel,
+  TuiTextfield,
+} from '@taiga-ui/core';
 import { TuiCheckbox } from '@taiga-ui/core/components/checkbox';
-import { TuiTab, TuiTabs } from '@taiga-ui/kit';
+import {
+  TuiChevron,
+  TuiDataListWrapper,
+  TuiSelect,
+  TuiTab,
+  TuiTabs,
+} from '@taiga-ui/kit';
 import type {
   IAudioStreamInfo,
   ISerializableSource,
 } from '@konvoez/client-shell';
-import { KONVOEZ_LOCAL_BRIDGE } from '../../core/tokens/local-bridge.token';
+import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import { DialogLayoutComponent } from '../../components/dialog-layout/dialog-layout.component';
 import { SourceGridComponent } from '../../components/source-grid/source-grid.component';
 
+class AudioStreamLabels {
+  private readonly desktopI18nService = inject(DesktopI18nService);
+
+  public readonly streams = signal<IAudioStreamInfo[]>([]);
+
+  public label(id: string): string {
+    if (!id) {
+      return this.desktopI18nService.translate('picker.allAudio');
+    }
+    return this.streams().find((stream) => stream.id === id)?.name ?? id;
+  }
+}
+
 @Component({
   selector: 'app-source-picker-dialog',
   imports: [
     DialogLayoutComponent,
+    FormsModule,
     I18nPipe,
     SourceGridComponent,
     TuiButton,
     TuiCheckbox,
+    TuiChevron,
+    TuiDataListWrapper,
+    TuiDropdown,
+    TuiLabel,
+    TuiSelect,
     TuiTab,
     TuiTabs,
+    TuiTextfield,
+  ],
+  providers: [
+    AudioStreamLabels,
+    {
+      provide: TUI_ITEMS_HANDLERS,
+      useFactory: () => {
+        const labels = inject(AudioStreamLabels);
+        return {
+          stringify: signal((id: string) => labels.label(id)),
+          identityMatcher: signal((a: string, b: string) => a === b),
+          disabledItemHandler: signal(() => false),
+        };
+      },
+    },
   ],
   templateUrl: './source-picker-dialog.component.html',
   styleUrl: './source-picker-dialog.component.scss',
@@ -41,6 +88,7 @@ import { SourceGridComponent } from '../../components/source-grid/source-grid.co
 export class SourcePickerDialogComponent implements OnInit {
   private readonly konvoezLocalBridge = inject(KONVOEZ_LOCAL_BRIDGE);
   private readonly desktopI18nService = inject(DesktopI18nService);
+  private readonly audioStreamLabels = inject(AudioStreamLabels);
 
   public readonly picked = output<{
     sourceId: string | null;
@@ -78,6 +126,11 @@ export class SourcePickerDialogComponent implements OnInit {
     );
   });
 
+  public readonly audioStreamIds = computed(() => [
+    '',
+    ...this.audioStreams().map((stream) => stream.id),
+  ]);
+
   public async ngOnInit(): Promise<void> {
     try {
       const initial = await this.konvoezLocalBridge.picker.getInitial();
@@ -89,6 +142,7 @@ export class SourcePickerDialogComponent implements OnInit {
       this.audioSupported.set(initial.audioSupported);
       this.nativeAudio.set(initial.nativeAudio);
       this.audioStreams.set(initial.audioStreams ?? []);
+      this.audioStreamLabels.streams.set(initial.audioStreams ?? []);
       this.selectedAudioStreamId.set(null);
 
       const current = this.currentSources();
@@ -162,9 +216,8 @@ export class SourcePickerDialogComponent implements OnInit {
     this.konvoezLocalBridge.picker.setShareAudio(input.checked);
   }
 
-  protected handleStreamSelect(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.selectedAudioStreamId.set(select.value || null);
+  protected onAudioStreamChange(value: string): void {
+    this.selectedAudioStreamId.set(value || null);
   }
 
   protected handleWindowKeyDown(e: KeyboardEvent): void {

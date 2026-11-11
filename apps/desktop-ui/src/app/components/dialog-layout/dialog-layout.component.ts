@@ -1,13 +1,17 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { TuiTitle } from '@taiga-ui/core';
+import { TuiHeader } from '@taiga-ui/layout';
 
 @Component({
   selector: 'app-dialog-layout',
-  imports: [],
+  imports: [TuiHeader, TuiTitle],
   template: `
     <div class="dialog-layout">
       @if (heading()) {
-        <header class="dialog-header">
-          <h1 class="dialog-title">{{ heading() }}</h1>
+        <header
+          tuiHeader
+          class="dialog-header">
+          <h1 tuiTitle>{{ heading() }}</h1>
         </header>
       }
       <main class="dialog-content">

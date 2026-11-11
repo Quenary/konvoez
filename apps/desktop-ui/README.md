@@ -5,9 +5,13 @@ Standalone Angular application rendering local Electron dialog windows for the d
 ## Architecture
 
 - Standalone zoneless Angular application (`@angular/build:application`) with hash location routing (`#/server`, `#/settings`, `#/picker`, `#/updater`).
-- Styled with Taiga UI design tokens and system UI fonts.
+- Styled with the Taiga UI theme and system UI fonts. `taiga-ui-fonts.less` is not loaded.
 - Built without inline scripts under a strict Content Security Policy (`connect-src 'none'`).
-- Communicates with Electron solely via `IKonvoezLocalBridge` injected through `KONVOEZ_LOCAL_BRIDGE`.
+- Communicates with Electron solely via `IKonvoezLocalBridge` injected through `KONVOEZ_LOCAL_BRIDGE` (`app.config.ts`). The production factory reads `window.konvoezLocal`.
+
+## Local preview
+
+`npx nx serve desktop-ui` serves the dialogs on port 6201 with an in-memory bridge (`local-bridge.mock.ts`). Routes: `#/server`, `#/settings`, `#/picker`, `#/updater`. The mock is limited to the `local` build configuration and is not included in `desktop:build` or `desktop:serve`.
 
 ## Import Rules
 

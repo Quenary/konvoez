@@ -1,7 +1,10 @@
 <app-dialog-layout [heading]="'server.title' | i18n">
-  <p class="subtitle">{{ 'server.subtitle' | i18n }}</p>
+  <p class="tui-text_body-s">{{ 'server.subtitle' | i18n }}</p>
 
-  <tui-textfield class="server-input">
+  <tui-textfield
+    class="server-input"
+    tuiTextfieldSize="m"
+    [tuiTextfieldCleaner]="false">
     <input
       #inputEl
       tuiInput
@@ -14,11 +17,12 @@
   </tui-textfield>
 
   @if (error(); as err) {
-    <div
-      class="error-banner"
+    <aside
+      tuiNotification
+      appearance="negative"
       role="alert">
       {{ err }}
-    </div>
+    </aside>
   }
 
   <button

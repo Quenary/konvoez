@@ -22,7 +22,17 @@
         "tsConfig": "apps/desktop-ui/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "baseHref": "./",
-        "styles": ["apps/desktop-ui/src/styles.scss"]
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "node_modules/@taiga-ui/icons/src",
+            "output": "assets/taiga-ui/icons"
+          }
+        ],
+        "styles": [
+          "@taiga-ui/styles/taiga-ui-theme.less",
+          "apps/desktop-ui/src/styles.scss"
+        ]
       },
       "configurations": {
         "production": {
@@ -43,6 +53,31 @@
           "outputHashing": "none",
           "sourceMap": true,
           "extractLicenses": false
+        },
+        "local": {
+          "optimization": false,
+          "outputHashing": "none",
+          "sourceMap": true,
+          "extractLicenses": false,
+          "baseHref": "/",
+          "index": "apps/desktop-ui/src/index.local.html",
+          "fileReplacements": [
+            {
+              "replace": "apps/desktop-ui/src/app/core/local-bridge.ts",
+              "with": "apps/desktop-ui/src/app/core/local-bridge.mock.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "local",
+      "configurations": {
+        "local": {
+          "buildTarget": "desktop-ui:build:local",
+          "port": 6201
         }
       }
     },

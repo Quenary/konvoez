@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import type { IKonvoezLocalBridge, IUpdaterState } from '@konvoez/client-shell';
-import { KONVOEZ_LOCAL_BRIDGE } from '../../core/tokens/local-bridge.token';
+import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
 import { UpdaterDialogComponent } from './updater-dialog.component';
 

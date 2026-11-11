@@ -7,11 +7,16 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { TuiButton, TuiLoader } from '@taiga-ui/core';
+import {
+  TuiButton,
+  TuiLoader,
+  TuiNotification,
+  TuiTitle,
+} from '@taiga-ui/core';
 import { TuiCheckbox } from '@taiga-ui/core/components/checkbox';
 import type { TDesktopHotkeys } from '@konvoez/shared';
 import type { THotkeyStatus } from '@konvoez/client-shell';
-import { KONVOEZ_LOCAL_BRIDGE } from '../../core/tokens/local-bridge.token';
+import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import { DialogLayoutComponent } from '../../components/dialog-layout/dialog-layout.component';
@@ -26,6 +31,8 @@ import { HotkeyInputComponent } from '../../components/hotkey-input/hotkey-input
     TuiButton,
     TuiCheckbox,
     TuiLoader,
+    TuiNotification,
+    TuiTitle,
   ],
   templateUrl: './settings-dialog.component.html',
   styleUrl: './settings-dialog.component.scss',

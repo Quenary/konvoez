@@ -56,7 +56,9 @@ flowchart TD
 
 Server, Settings, the source picker, and the update dialog are separate local windows rendered by `apps/desktop-ui`, a standalone zoneless Angular application using Taiga UI components. Each dialog route is loaded from `dist/pages/index.html` with its route hash (`#/server`, `#/settings`, `#/picker`, `#/updater`). The Angular host communicates only through `IKonvoezLocalBridge` provided by the `KONVOEZ_LOCAL_BRIDGE` injection token (wrapping `window.konvoezLocal`). Dialogs are built by `@angular/build:application`, verified for Node globals in `build.mjs`, and use a strict CSP (`connect-src 'none'`, no inline scripts).
 
-The UI is styled via `apps/desktop-ui/src/styles.scss` with system UI fonts. Dark mode follows the OS; components inherit `--tui-*` variables from the document.
+The UI uses the Taiga UI theme (`@taiga-ui/styles/taiga-ui-theme.less`) and system UI fonts. Google Fonts are not loaded. Dark mode follows the OS through `provideTaiga()`. Icon masks come from `assets/taiga-ui/icons`.
+
+Dialogs can be opened in a browser without Electron: `npx nx serve desktop-ui` (port 6201, routes `#/server`, `#/settings`, `#/picker`, `#/updater`). That configuration replaces `window.konvoezLocal` with an in-memory mock and is not part of `desktop:build` or `desktop:serve`.
 
 See also: [desktop-ui](../desktop-ui/README.md), [client-shell](../../libs/client-shell/README.md).
 

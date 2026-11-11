@@ -8,8 +8,14 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { TuiButton, TuiLoader, TuiTextfield } from '@taiga-ui/core';
-import { KONVOEZ_LOCAL_BRIDGE } from '../../core/tokens/local-bridge.token';
+import {
+  TuiButton,
+  TuiInput,
+  TuiLoader,
+  TuiNotification,
+  TuiTextfield,
+} from '@taiga-ui/core';
+import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
 import { I18nPipe } from '../../core/i18n/i18n.pipe';
 import { DialogLayoutComponent } from '../../components/dialog-layout/dialog-layout.component';
@@ -20,7 +26,9 @@ import { DialogLayoutComponent } from '../../components/dialog-layout/dialog-lay
     DialogLayoutComponent,
     I18nPipe,
     TuiButton,
+    TuiInput,
     TuiLoader,
+    TuiNotification,
     TuiTextfield,
   ],
   templateUrl: './server-dialog.component.html',

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import type { IKonvoezLocalBridge } from '@konvoez/client-shell';
-import { KONVOEZ_LOCAL_BRIDGE } from '../../core/tokens/local-bridge.token';
+import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
 import { SettingsDialogComponent } from './settings-dialog.component';
 
@@ -67,7 +67,7 @@ describe('SettingsDialogComponent', () => {
     fixture.detectChanges();
 
     const hint = (fixture.nativeElement as HTMLElement).querySelector(
-      'p.hint-paragraph',
+      'p.tui-text_body-s',
     );
     expect(hint?.textContent?.trim()).toContain(
       'Hotkeys work system-wide, even when the app is in the background',
@@ -80,7 +80,7 @@ describe('SettingsDialogComponent', () => {
     fixture.detectChanges();
 
     const hint = (fixture.nativeElement as HTMLElement).querySelector(
-      'p.hint-paragraph',
+      'p.tui-text_body-s',
     );
     expect(hint?.textContent?.trim()).toContain(
       'A key bound without a modifier (Ctrl, Alt, Shift) is captured in all apps',
